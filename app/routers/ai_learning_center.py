@@ -413,6 +413,7 @@ async def create_content(
             external_url=request.external_url,
             video_platform=request.video_platform,
             category_ids=request.category_ids,
+            status="published",
         )
         return success_response(data=content, message="內容創建成功")
     except AppException as e:
@@ -516,6 +517,7 @@ async def upload_file(
                 tags=tag_list,
                 external_url=external_url,
                 video_platform=video_platform,
+                status="published",
             )
             return success_response(data=content, message="外部視頻已創建")
 
@@ -544,6 +546,7 @@ async def upload_file(
             file_size=len(file_content),
             mime_type=file.content_type,
             tags=tag_list,
+            status="published",
         )
 
         return success_response(data=content, message=f"文件已上傳")
