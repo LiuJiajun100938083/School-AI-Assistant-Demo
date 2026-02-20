@@ -42,24 +42,16 @@ class DatabaseConnection:
         Yields:
             数据库连接对象
         """
-        conn = None
-        try:
-            if DB_POOL_AVAILABLE:
-                conn = get_pooled_connection()
-            elif SECURE_DB_AVAILABLE:
-                with get_context_connection() as ctx_conn:
-                    yield ctx_conn
-                    return
-            else:
-                raise RuntimeError("没有可用的数据库连接模块")
-
-            yield conn
-        finally:
-            if conn is not None:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
+        if DB_POOL_AVAILABLE:
+            # get_pooled_connection() (即 app.bridge.get_db) 是 @contextmanager，
+            # 必须用 with 进入才能拿到真正的 connection 对象
+            with get_pooled_connection() as conn:
+                yield conn
+        elif SECURE_DB_AVAILABLE:
+            with get_context_connection() as conn:
+                yield conn
+        else:
+            raise RuntimeError("没有可用的数据库连接模块")
 
     @staticmethod
     def execute_query(
