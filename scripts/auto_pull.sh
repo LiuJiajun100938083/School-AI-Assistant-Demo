@@ -5,12 +5,10 @@
 #
 # Usage:
 #   ./scripts/auto_pull.sh
-#   or via cron:  */5 * * * * /path/to/scripts/auto_pull.sh
+#   or via cron:  * * * * * /path/to/scripts/auto_pull.sh
 #
 # The script determines the project root from its own location so it works
 # on any machine without hard-coding paths.
-
-set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # Resolve project root (parent directory of the directory containing this script)
@@ -24,15 +22,7 @@ PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:${PATH}"
 
 # ---------------------------------------------------------------------------
-# SSH key for cron (macOS Keychain)
-# ---------------------------------------------------------------------------
-if [ -z "${SSH_AUTH_SOCK:-}" ]; then
-    eval "$(ssh-agent -s)" > /dev/null 2>&1
-    ssh-add --apple-use-keychain 2>/dev/null || true
-fi
-
-# ---------------------------------------------------------------------------
-# Log file
+# Log file (defined early so error handler can use it)
 # ---------------------------------------------------------------------------
 LOG_FILE="${SCRIPT_DIR}/auto_pull.log"
 
@@ -42,17 +32,69 @@ LOG_FILE="${SCRIPT_DIR}/auto_pull.log"
 log() {
     local timestamp
     timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
-    echo "[${timestamp}] $*" | tee -a "${LOG_FILE}"
+    echo "[${timestamp}] $*" >> "${LOG_FILE}"
 }
+
+# ---------------------------------------------------------------------------
+# Cleanup handler — remove lock file and kill ssh-agent on exit
+# ---------------------------------------------------------------------------
+LOCK_FILE="${SCRIPT_DIR}/auto_pull.lock"
+SSH_AGENT_STARTED=false
+
+cleanup() {
+    rm -f "${LOCK_FILE}"
+    if $SSH_AGENT_STARTED && [ -n "${SSH_AGENT_PID:-}" ]; then
+        kill "${SSH_AGENT_PID}" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
 
 # ---------------------------------------------------------------------------
 # Error handler
 # ---------------------------------------------------------------------------
 on_error() {
     log "ERROR: An unexpected error occurred on line $1. Exiting."
-    exit 1
 }
 trap 'on_error ${LINENO}' ERR
+
+# Now enable strict mode (after log/trap are defined)
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Prevent concurrent execution (lock file with PID check)
+# ---------------------------------------------------------------------------
+if [ -f "${LOCK_FILE}" ]; then
+    OLD_PID="$(cat "${LOCK_FILE}" 2>/dev/null || echo "")"
+    if [ -n "${OLD_PID}" ] && kill -0 "${OLD_PID}" 2>/dev/null; then
+        log "SKIP: Another instance is still running (PID ${OLD_PID}). Exiting."
+        # Remove the lock from our cleanup since we didn't create it
+        trap - EXIT
+        exit 0
+    else
+        log "WARN: Stale lock file found (PID ${OLD_PID} is dead). Removing."
+        rm -f "${LOCK_FILE}"
+    fi
+fi
+echo $$ > "${LOCK_FILE}"
+
+# ---------------------------------------------------------------------------
+# SSH key for cron (macOS Keychain)
+# ---------------------------------------------------------------------------
+if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+    eval "$(ssh-agent -s)" > /dev/null 2>&1
+    SSH_AGENT_STARTED=true
+    ssh-add --apple-use-keychain 2>/dev/null || true
+fi
+
+# ---------------------------------------------------------------------------
+# Log rotation: keep last 500 lines
+# ---------------------------------------------------------------------------
+if [ -f "${LOG_FILE}" ]; then
+    LINE_COUNT="$(wc -l < "${LOG_FILE}" 2>/dev/null || echo 0)"
+    if [ "${LINE_COUNT}" -gt 1000 ]; then
+        tail -500 "${LOG_FILE}" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "${LOG_FILE}"
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # Main
@@ -78,7 +120,7 @@ fi
 
 # 3. Fetch the latest state from the remote
 log "Fetching origin/main..."
-if ! git fetch origin main 2>&1 | tee -a "${LOG_FILE}"; then
+if ! git fetch origin main >> "${LOG_FILE}" 2>&1; then
     log "ERROR: git fetch failed. Check your network connection or remote configuration."
     exit 1
 fi
@@ -89,7 +131,8 @@ REMOTE_HASH="$(git rev-parse origin/main)"
 BASE_HASH="$(git merge-base HEAD origin/main)"
 
 if [[ "${LOCAL_HASH}" == "${REMOTE_HASH}" ]]; then
-    log "Already up to date. Nothing to pull."
+    log "Already up to date."
+    log "========== auto_pull finished =========="
     exit 0
 fi
 
@@ -106,7 +149,7 @@ fi
 COMMITS_BEHIND="$(git rev-list --count HEAD..origin/main)"
 log "Local main is ${COMMITS_BEHIND} commit(s) behind origin/main. Pulling..."
 
-if git pull --ff-only origin main 2>&1 | tee -a "${LOG_FILE}"; then
+if git pull --ff-only origin main >> "${LOG_FILE}" 2>&1; then
     log "Pull succeeded. Now at $(git rev-parse --short HEAD)."
 else
     log "ERROR: git pull --ff-only failed."
