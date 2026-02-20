@@ -1,0 +1,323 @@
+/* ============================================================
+   教師錯題分析面板 — 補充樣式
+   基於 mistake_book.css 的基礎組件進行擴展
+   ============================================================ */
+
+/* ---- 頁面佈局 ---- */
+.mbt-page {
+    min-height: 100vh;
+    background: var(--mb-bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    color: var(--mb-text);
+}
+
+/* ---- 篩選工具欄 ---- */
+.mbt-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--mb-card-bg);
+    border-bottom: 1px solid var(--mb-border);
+    flex-wrap: wrap;
+}
+
+.mbt-toolbar__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 120px;
+}
+
+.mbt-toolbar__label {
+    font-size: 12px;
+    color: var(--mb-text-secondary);
+    font-weight: 500;
+}
+
+.mbt-toolbar__select {
+    max-width: 100%;
+}
+
+.mbt-toolbar__btn {
+    flex-shrink: 0;
+    align-self: flex-end;
+}
+
+/* ---- 標籤切換 ---- */
+.mbt-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--mb-border);
+    background: var(--mb-card-bg);
+    padding: 0 16px;
+}
+
+.mbt-tabs__item {
+    padding: 12px 20px;
+    font-size: 14px;
+    color: var(--mb-text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: var(--mb-transition);
+    white-space: nowrap;
+}
+
+.mbt-tabs__item:hover {
+    color: var(--mb-primary);
+}
+
+.mbt-tabs__item--active {
+    color: var(--mb-primary);
+    border-bottom-color: var(--mb-primary);
+    font-weight: 500;
+}
+
+/* ---- 報告卡片 ---- */
+.mbt-report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    padding: 16px;
+}
+
+.mbt-report-card {
+    background: var(--mb-card-bg);
+    border-radius: var(--mb-radius);
+    padding: 20px;
+    box-shadow: var(--mb-shadow);
+}
+
+.mbt-report-card__title {
+    font-size: 13px;
+    color: var(--mb-text-secondary);
+    margin-bottom: 8px;
+}
+
+.mbt-report-card__value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--mb-primary);
+}
+
+.mbt-report-card__value--danger {
+    color: var(--mb-danger);
+}
+
+.mbt-report-card__value--success {
+    color: var(--mb-success);
+}
+
+.mbt-report-card__sub {
+    font-size: 12px;
+    color: var(--mb-text-secondary);
+    margin-top: 4px;
+}
+
+/* ---- 薄弱知識點排行 ---- */
+.mbt-weakness-list {
+    padding: 0 16px 16px;
+}
+
+.mbt-weakness-item {
+    background: var(--mb-card-bg);
+    border-radius: var(--mb-radius-sm);
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    box-shadow: var(--mb-shadow);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mbt-weakness-item__rank {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--mb-primary-light);
+    color: var(--mb-primary);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mbt-weakness-item__rank--top3 {
+    background: var(--mb-danger);
+    color: white;
+}
+
+.mbt-weakness-item__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mbt-weakness-item__name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mbt-weakness-item__stats {
+    font-size: 12px;
+    color: var(--mb-text-secondary);
+    margin-top: 2px;
+}
+
+.mbt-weakness-item__bar {
+    width: 80px;
+    flex-shrink: 0;
+}
+
+/* ---- 學生列表 ---- */
+.mbt-student-list {
+    padding: 0 16px 16px;
+}
+
+.mbt-student-item {
+    background: var(--mb-card-bg);
+    border-radius: var(--mb-radius);
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: var(--mb-shadow);
+    cursor: pointer;
+    transition: var(--mb-transition);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mbt-student-item:hover {
+    box-shadow: var(--mb-shadow-lg);
+    transform: translateX(2px);
+}
+
+.mbt-student-item__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--mb-primary-light);
+    color: var(--mb-primary);
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mbt-student-item__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mbt-student-item__name {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.mbt-student-item__meta {
+    font-size: 12px;
+    color: var(--mb-text-secondary);
+    margin-top: 2px;
+}
+
+.mbt-student-item__mastery {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.mbt-student-item__mastery-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.mbt-student-item__mastery-label {
+    font-size: 11px;
+    color: var(--mb-text-secondary);
+}
+
+/* ---- 區段標題 ---- */
+.mbt-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    padding: 16px 16px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ---- 學生詳情面板 ---- */
+.mbt-detail-back {
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--mb-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mbt-detail-back:hover {
+    text-decoration: underline;
+}
+
+.mbt-student-header {
+    background: var(--mb-card-bg);
+    padding: 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--mb-border);
+}
+
+.mbt-student-header__avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--mb-primary-light);
+    color: var(--mb-primary);
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mbt-student-header__name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.mbt-student-header__class {
+    font-size: 13px;
+    color: var(--mb-text-secondary);
+    margin-top: 2px;
+}
+
+/* ---- 響應式 ---- */
+@media (min-width: 768px) {
+    .mbt-toolbar {
+        flex-wrap: nowrap;
+    }
+
+    .mbt-toolbar__group {
+        max-width: 200px;
+    }
+
+    .mbt-report-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .mbt-page {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>錯題分析 — 教師面板</title>
+    <link rel="stylesheet" href="/static/css/mistake_book.css">
+    <link rel="stylesheet" href="/static/css/mistake_book_teacher.css">
+</head>
+<body>
+
+<div id="app" class="mbt-page">
+
+    <!-- 頂部導航 -->
+    <header class="mb-header">
+        <div class="mb-header__title">
+            <span>📊</span>
+            <span>錯題分析 · 教師面板</span>
+        </div>
+        <div class="mb-header__actions">
+            <button class="mb-btn mb-btn--sm mb-btn--outline" onclick="location.href='/'">返回首頁</button>
+        </div>
+    </header>
+
+    <!-- 篩選工具欄 -->
+    <div class="mbt-toolbar" id="toolbar">
+        <div class="mbt-toolbar__group">
+            <label class="mbt-toolbar__label">班級</label>
+            <select class="mb-select mbt-toolbar__select" id="classSelect">
+                <option value="">選擇班級...</option>
+            </select>
+        </div>
+        <div class="mbt-toolbar__group">
+            <label class="mbt-toolbar__label">科目</label>
+            <select class="mb-select mbt-toolbar__select" id="subjectSelect">
+                <option value="chinese">中文</option>
+                <option value="math">數學</option>
+                <option value="english">英文</option>
+            </select>
+        </div>
+        <button class="mb-btn mb-btn--primary mbt-toolbar__btn" onclick="TeacherApp.loadClassReport()">
+            查看報告
+        </button>
+    </div>
+
+    <!-- 主內容區：標籤切換 -->
+    <div class="mbt-tabs" id="tabsBar">
+        <div class="mbt-tabs__item mbt-tabs__item--active" data-tab="class-report">班級概況</div>
+        <div class="mbt-tabs__item" data-tab="student-detail">學生詳情</div>
+    </div>
+
+    <main id="mainContent"></main>
+</div>
+
+<script src="/static/js/mistake_book_teacher.js"></script>
+</body>
+</html>

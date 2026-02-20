@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲中心 - AI學習夥伴</title>
+    <link rel="stylesheet" href="/static/css/game_center.css">
+</head>
+<body>
+    <!-- 启动画面 -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-content">
+            <div class="splash-icon">🎮</div>
+            <div class="splash-title">遊戲中心</div>
+            <div class="splash-subtitle">寓教於樂，輕鬆學習</div>
+            <div class="splash-loader">
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+                <div class="loader-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="game-center-container">
+        <!-- 顶部导航 -->
+        <header class="gc-header">
+            <div class="gc-header-left">
+                <button class="gc-back-btn" id="backBtn">
+                    <span class="back-icon">←</span>
+                    <span class="back-text">返回</span>
+                </button>
+                <div class="gc-logo">
+                    <span class="logo-icon">🎮</span>
+                    <span class="logo-text">遊戲中心</span>
+                </div>
+            </div>
+            <div class="gc-header-center">
+                <div class="gc-search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="gameSearch" placeholder="搜尋遊戲..." autocomplete="off">
+                </div>
+            </div>
+            <div class="gc-header-right">
+                <div class="gc-user-info" id="userInfo">
+                    <div class="gc-user-avatar" id="userAvatar">👤</div>
+                    <span class="gc-user-name" id="userName">訪客</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 科目筛选栏 -->
+        <nav class="gc-subject-nav">
+            <div class="subject-tabs" id="subjectTabs">
+                <!-- 动态生成科目标签 -->
+            </div>
+        </nav>
+
+        <!-- 游戏内容区 -->
+        <main class="gc-main">
+            <div class="gc-games-container" id="gamesContainer">
+                <!-- 动态生成各科目游戏区块 -->
+            </div>
+
+            <!-- 空状态 -->
+            <div class="gc-empty-state" id="emptyState" style="display: none;">
+                <div class="empty-icon">🎯</div>
+                <div class="empty-title">未找到遊戲</div>
+                <div class="empty-desc">嘗試其他搜尋關鍵字或選擇不同科目</div>
+            </div>
+        </main>
+
+        <!-- 底部信息 -->
+        <footer class="gc-footer">
+            <div class="footer-content">
+                <span>🎓 培僑中學 AI學習夥伴</span>
+                <span class="footer-divider">|</span>
+                <span>遊戲中心 v2.0</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/game_center.js"></script>
+</body>
+</html>

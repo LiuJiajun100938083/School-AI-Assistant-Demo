@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>討論區 - AI 學習夥伴</title>
+    <link rel="stylesheet" href="/static/forum/forum.css">
+</head>
+<body>
+    <div class="forum-app">
+        <!-- 頂部導航欄 -->
+        <header class="forum-header">
+            <div class="header-left">
+                <button class="btn-back" onclick="window.location.href='/'">
+                    ← 返回
+                </button>
+                <h1 class="header-title">討論區</h1>
+            </div>
+            <div class="header-right">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜尋討論..." />
+                    <button class="btn-search" onclick="forumApp.search()">🔍</button>
+                </div>
+                <div class="notification-badge" onclick="forumApp.showNotifications()">
+                    <span class="notification-icon">🔔</span>
+                    <span id="notificationCount" class="notification-count" style="display: none;">0</span>
+                </div>
+                <div class="user-info">
+                    <span id="currentUser" class="username"></span>
+                    <span id="userRole" class="role-badge"></span>
+                </div>
+            </div>
+        </header>
+
+        <div class="forum-container">
+            <!-- 左側邊欄 -->
+            <aside class="forum-sidebar">
+                <!-- 新建主題按鈕 -->
+                <button class="btn-primary btn-new-post" onclick="forumApp.showNewPostModal()">
+                    ➕ 新建討論
+                </button>
+
+                <!-- 分類導航 -->
+                <nav class="category-nav">
+                    <h3>分類</h3>
+                    <a href="#" class="category-item active" data-type="all" onclick="forumApp.filterByType('all', this)">
+                        <span class="category-icon">📋</span> 全部討論
+                    </a>
+                    <a href="#" class="category-item" data-type="discussion" onclick="forumApp.filterByType('discussion', this)">
+                        <span class="category-icon">💬</span> 討論
+                    </a>
+                    <a href="#" class="category-item" data-type="question" onclick="forumApp.filterByType('question', this)">
+                        <span class="category-icon">❓</span> 問題
+                    </a>
+                    <a href="#" class="category-item" data-type="announcement" onclick="forumApp.filterByType('announcement', this)">
+                        <span class="category-icon">📢</span> 公告
+                    </a>
+                </nav>
+
+                <!-- 熱門標籤 -->
+                <div class="tags-section">
+                    <h3>熱門標籤</h3>
+                    <div id="tagsList" class="tags-list"></div>
+                </div>
+
+                <!-- 排序選項 -->
+                <div class="sort-section">
+                    <h3>排序</h3>
+                    <select id="sortSelect" class="sort-select" onchange="forumApp.changeSort(this.value)">
+                        <option value="newest">最新</option>
+                        <option value="most_replied">最多回覆</option>
+                        <option value="most_upvoted">最多點讚</option>
+                        <option value="most_viewed">最多瀏覽</option>
+                    </select>
+                </div>
+            </aside>
+
+            <!-- 主內容區 -->
+            <main class="forum-main">
+                <!-- 載入指示器 -->
+                <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <span>載入中...</span>
+                </div>
+
+                <!-- 主題列表 -->
+                <div id="postsList" class="posts-list"></div>
+
+                <!-- 空狀態 -->
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <div class="empty-icon">📭</div>
+                    <p>暫無討論</p>
+                    <button class="btn-primary" onclick="forumApp.showNewPostModal()">發起第一個討論</button>
+                </div>
+
+                <!-- 分頁 -->
+                <div id="pagination" class="pagination"></div>
+            </main>
+
+            <!-- 右側邊欄 -->
+            <aside class="forum-sidebar-right">
+                <!-- 熱門主題 -->
+                <div class="trending-panel">
+                    <h3>🔥 熱門討論</h3>
+                    <div id="trendingList" class="trending-list"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- 新建主題模態框 -->
+    <div id="newPostModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>新建討論</h2>
+                <button class="btn-close" onclick="forumApp.hideNewPostModal()">×</button>
+            </div>
+
+            <form id="newPostForm" class="post-form" onsubmit="forumApp.submitNewPost(event)">
+                <div class="form-group">
+                    <label for="postTitle">標題</label>
+                    <input type="text" id="postTitle" placeholder="用清晰的標題概括您的討論" required minlength="5" maxlength="255">
+                </div>
+
+                <div class="form-group">
+                    <label for="postContent">內容</label>
+                    <textarea id="postContent" placeholder="詳細描述您想討論的內容... (支援Markdown)" required minlength="10" rows="10"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>討論類型</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="postType" value="discussion" checked>
+                                <span class="radio-text">💬 討論</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="postType" value="question">
+                                <span class="radio-text">❓ 問題</span>
+                            </label>
+                            <label class="radio-label" id="announcementOption" style="display: none;">
+                                <input type="radio" name="postType" value="announcement">
+                                <span class="radio-text">📢 公告</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="visibilityGroup">
+                        <label>可見性</label>
+                        <select id="postVisibility">
+                            <option value="public">🌍 公開 (學生可見)</option>
+                            <option value="private">🔒 僅教師可見</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="postTags">標籤</label>
+                    <input type="text" id="postTags" placeholder="輸入標籤，用逗號分隔 (如: 功課, 第一章)">
+                </div>
+
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="anonymousCheck">
+                        <span>匿名發佈</span>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="forumApp.hideNewPostModal()">取消</button>
+                    <button type="submit" class="btn-primary">發佈</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 主題詳情模態框 -->
+    <div id="postDetailModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="detailTitle">主題詳情</h2>
+                <button class="btn-close" onclick="forumApp.hidePostDetail()">×</button>
+            </div>
+            <div id="postDetailContent" class="post-detail-content"></div>
+        </div>
+    </div>
+
+    <!-- 編輯帖子模態框 -->
+    <div id="editPostModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>編輯帖子</h2>
+                <button class="btn-close" onclick="forumApp.hideEditPostModal()">×</button>
+            </div>
+            <form onsubmit="event.preventDefault(); forumApp.submitEditPost();">
+                <input type="hidden" id="editPostId">
+
+                <div class="form-group">
+                    <label for="editPostTitle">標題 <span class="required">*</span></label>
+                    <input type="text" id="editPostTitle" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="editPostContent">內容 <span class="required">*</span></label>
+                    <textarea id="editPostContent" class="form-control" rows="8" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="editPostTags">標籤 (逗號分隔)</label>
+                    <input type="text" id="editPostTags" class="form-control" placeholder="例如: 功課, 第一章">
+                </div>
+
+                <div class="form-group" id="editVisibilityGroup" style="display: none;">
+                    <label for="editVisibility">可見性</label>
+                    <select id="editVisibility" class="form-control">
+                        <option value="public">🌐 公開 (所有人可見)</option>
+                        <option value="private">🔒 私密 (僅教師可見)</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="forumApp.hideEditPostModal()">取消</button>
+                    <button type="submit" class="btn-primary">儲存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 編輯評論模態框 -->
+    <div id="editReplyModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>編輯評論</h2>
+                <button class="btn-close" onclick="forumApp.hideEditReplyModal()">×</button>
+            </div>
+            <form onsubmit="event.preventDefault(); forumApp.submitEditReply();">
+                <input type="hidden" id="editReplyId">
+
+                <div class="form-group">
+                    <label for="editReplyContent">內容 <span class="required">*</span></label>
+                    <textarea id="editReplyContent" class="form-control" rows="6" required></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="forumApp.hideEditReplyModal()">取消</button>
+                    <button type="submit" class="btn-primary">儲存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 通知面板 -->
+    <div id="notificationPanel" class="notification-panel" style="display: none;">
+        <div class="notification-header">
+            <h3>通知</h3>
+            <button class="btn-link" onclick="forumApp.markAllNotificationsRead()">全部已讀</button>
+        </div>
+        <div id="notificationList" class="notification-list"></div>
+    </div>
+
+    <script src="/static/forum/forum.js"></script>
+</body>
+</html>

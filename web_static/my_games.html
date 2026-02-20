@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的遊戲 - AI學習夥伴</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <style>
+        /* 页面容器 */
+        .my-games-page {
+            min-height: 100vh;
+            background: var(--bg-page);
+        }
+
+        /* 顶部导航 */
+        .page-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-4) var(--space-6);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-4);
+            background: var(--bg-page);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-full);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--duration-base) var(--ease-out);
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: var(--bg-card);
+            border-color: var(--border-strong);
+        }
+
+        .page-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--brand);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: var(--space-3);
+        }
+
+        .btn {
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-full);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--duration-base) var(--ease-out);
+            border: none;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .btn-primary {
+            background: var(--brand);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--brand-hover);
+        }
+
+        /* 主内容区 */
+        .page-main {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: var(--space-6);
+        }
+
+        /* 统计卡片 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: var(--space-5);
+            box-shadow: var(--shadow-card);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--brand);
+            margin-bottom: var(--space-1);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* 筛选栏 */
+        .filter-bar {
+            display: flex;
+            gap: var(--space-3);
+            margin-bottom: var(--space-5);
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            padding: var(--space-2) var(--space-4);
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-full);
+            font-size: 14px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--brand);
+        }
+
+        /* 游戏列表 */
+        .games-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+
+        .game-item {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            transition: all var(--duration-base) var(--ease-out);
+        }
+
+        .game-item:hover {
+            box-shadow: var(--shadow-card-hover);
+        }
+
+        .game-content {
+            display: flex;
+            gap: var(--space-4);
+            padding: var(--space-5);
+        }
+
+        .game-icon {
+            font-size: 36px;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-page);
+            border-radius: var(--radius-md);
+            flex-shrink: 0;
+        }
+
+        .game-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .game-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--space-3);
+            margin-bottom: var(--space-2);
+        }
+
+        .game-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .game-badges {
+            display: flex;
+            gap: var(--space-2);
+            flex-shrink: 0;
+        }
+
+        .badge {
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-public {
+            background: var(--brand-lighter);
+            color: var(--brand);
+        }
+
+        .badge-private {
+            background: var(--bg-page);
+            color: var(--text-secondary);
+        }
+
+        .badge-subject {
+            background: #E0F2FE;
+            color: #0369A1;
+        }
+
+        .game-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: var(--space-3);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .game-meta {
+            display: flex;
+            gap: var(--space-4);
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .game-actions {
+            display: flex;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-5);
+            background: var(--bg-page);
+            border-top: 1px solid var(--border-light);
+        }
+
+        .action-btn {
+            padding: var(--space-2) var(--space-3);
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all var(--duration-base) var(--ease-out);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+        }
+
+        .action-btn:hover {
+            border-color: var(--border-strong);
+            background: var(--bg-card-hover);
+        }
+
+        .action-btn.danger {
+            color: var(--color-error);
+        }
+
+        .action-btn.danger:hover {
+            background: #FEE2E2;
+            border-color: var(--color-error);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: var(--space-12);
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: var(--space-4);
+            opacity: 0.4;
+        }
+
+        .empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--space-2);
+        }
+
+        .empty-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-5);
+        }
+
+        /* 确认对话框 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6);
+            max-width: 400px;
+            width: 90%;
+            box-shadow: var(--shadow-modal);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: var(--space-3);
+        }
+
+        .modal-message {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-5);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-3);
+        }
+
+        .modal-btn {
+            padding: var(--space-2) var(--space-5);
+            border-radius: var(--radius-full);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+
+        .modal-btn-cancel {
+            background: var(--bg-page);
+            color: var(--text-primary);
+        }
+
+        .modal-btn-danger {
+            background: var(--color-error);
+            color: white;
+        }
+
+        /* 加载状态 */
+        .loading {
+            text-align: center;
+            padding: var(--space-8);
+            color: var(--text-secondary);
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                gap: var(--space-3);
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+            }
+
+            .btn-primary {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .game-content {
+                flex-direction: column;
+            }
+
+            .game-header {
+                flex-direction: column;
+                gap: var(--space-2);
+            }
+
+            .game-badges {
+                align-self: flex-start;
+            }
+
+            .game-actions {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="my-games-page">
+        <!-- 顶部导航 -->
+        <header class="page-header">
+            <div class="header-left">
+                <a href="/" class="back-btn">
+                    <span>←</span>
+                    <span>返回</span>
+                </a>
+                <span class="page-title">📦 我的遊戲</span>
+            </div>
+            <div class="header-actions">
+                <a href="/game_upload" class="btn btn-primary">
+                    <span>+</span>
+                    <span>上傳新遊戲</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- 主内容 -->
+        <main class="page-main">
+            <!-- 统计 -->
+            <div class="stats-row" id="statsRow">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalCount">-</div>
+                    <div class="stat-label">總遊戲數</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="publicCount">-</div>
+                    <div class="stat-label">已公開</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="privateCount">-</div>
+                    <div class="stat-label">私有</div>
+                </div>
+            </div>
+
+            <!-- 筛选 -->
+            <div class="filter-bar">
+                <select class="filter-select" id="subjectFilter">
+                    <option value="all">全部學科</option>
+                    <option value="chinese">📖 中文</option>
+                    <option value="math">📐 數學</option>
+                    <option value="english">🔤 英文</option>
+                    <option value="history">📜 歷史</option>
+                    <option value="ict">💻 ICT</option>
+                    <option value="physics">⚡ 物理</option>
+                    <option value="chemistry">🧪 化學</option>
+                    <option value="biology">🧬 生物</option>
+                    <option value="ces">🏛️ 公民</option>
+                </select>
+                <select class="filter-select" id="visibilityFilter">
+                    <option value="all">全部狀態</option>
+                    <option value="public">已公開</option>
+                    <option value="private">私有</option>
+                </select>
+            </div>
+
+            <!-- 游戏列表 -->
+            <div id="gamesList" class="games-list">
+                <div class="loading">載入中...</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 确认删除对话框 -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <div class="modal-title">確認刪除</div>
+            <div class="modal-message">確定要刪除這個遊戲嗎？此操作無法撤銷。</div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="MyGamesPage.closeDeleteModal()">取消</button>
+                <button class="modal-btn modal-btn-danger" id="confirmDeleteBtn">刪除</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * 我的游戏页面
+ */
+const MyGamesPage = {
+    games: [],
+    filteredGames: [],
+    userId: null,
+    userRole: null,
+    deleteTarget: null,
+
+    subjectNames: {
+        chinese: '中文',
+        math: '數學',
+        english: '英文',
+        history: '歷史',
+        ict: 'ICT',
+        physics: '物理',
+        chemistry: '化學',
+        biology: '生物',
+        ces: '公民'
+    },
+
+    async init() {
+        await this.checkAuth();
+        await this.loadGames();
+        this.bindEvents();
+    },
+
+    async checkAuth() {
+        const token = localStorage.getItem('auth_token');
+        const role = localStorage.getItem('user_role');
+
+        if (!token || !['teacher', 'admin'].includes(role)) {
+            alert('只有教師和管理員可以訪問此頁面');
+            window.location.href = '/';
+            return;
+        }
+
+        // 获取用户信息
+        try {
+            const response = await fetch('/api/user/info', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                this.userId = data.id;
+                this.userRole = data.role;
+            }
+        } catch (error) {
+            console.error('获取用户信息失败', error);
+        }
+    },
+
+    async loadGames() {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(
+                `/api/games/list?only_mine=true&user_id=${this.userId}&user_role=${this.userRole}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            const result = await response.json();
+
+            if (result.success) {
+                this.games = result.data;
+                this.applyFilters();
+                this.updateStats();
+            }
+        } catch (error) {
+            console.error('加载游戏失败', error);
+            this.renderError();
+        }
+    },
+
+    bindEvents() {
+        document.getElementById('subjectFilter').addEventListener('change', () => this.applyFilters());
+        document.getElementById('visibilityFilter').addEventListener('change', () => this.applyFilters());
+    },
+
+    applyFilters() {
+        const subject = document.getElementById('subjectFilter').value;
+        const visibility = document.getElementById('visibilityFilter').value;
+
+        this.filteredGames = this.games.filter(game => {
+            if (subject !== 'all' && game.subject !== subject) return false;
+            if (visibility === 'public' && !game.is_public) return false;
+            if (visibility === 'private' && game.is_public) return false;
+            return true;
+        });
+
+        this.renderGames();
+    },
+
+    updateStats() {
+        const total = this.games.length;
+        const publicCount = this.games.filter(g => g.is_public).length;
+        const privateCount = total - publicCount;
+
+        document.getElementById('totalCount').textContent = total;
+        document.getElementById('publicCount').textContent = publicCount;
+        document.getElementById('privateCount').textContent = privateCount;
+    },
+
+    renderGames() {
+        const container = document.getElementById('gamesList');
+
+        if (this.filteredGames.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <div class="empty-title">還沒有遊戲</div>
+                    <div class="empty-desc">點擊上方「上傳新遊戲」按鈕開始創建</div>
+                    <a href="/game_upload" class="btn btn-primary">+ 上傳新遊戲</a>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = this.filteredGames.map(game => this.renderGameItem(game)).join('');
+    },
+
+    renderGameItem(game) {
+        const subjectName = this.subjectNames[game.subject] || game.subject;
+        const createdDate = new Date(game.created_at).toLocaleDateString('zh-TW');
+        const fileSize = this.formatFileSize(game.file_size);
+
+        return `
+            <div class="game-item" data-uuid="${game.uuid}">
+                <div class="game-content">
+                    <div class="game-icon">${game.icon}</div>
+                    <div class="game-info">
+                        <div class="game-header">
+                            <span class="game-name">${game.name}</span>
+                            <div class="game-badges">
+                                <span class="badge badge-subject">${subjectName}</span>
+                                ${game.teacher_only ? '<span class="badge" style="background:#FEF3C7;color:#D97706;">僅教師</span>' : `<span class="badge ${game.is_public ? 'badge-public' : 'badge-private'}">${game.is_public ? '公開' : '私有'}</span>`}
+                                ${(game.visible_to && game.visible_to.length > 0) ? `<span class="badge" style="background:#E0E7FF;color:#4338CA;">限 ${game.visible_to.join(', ')}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="game-desc">${game.description}</div>
+                        <div class="game-meta">
+                            <span>📅 ${createdDate}</span>
+                            <span>📄 ${fileSize}</span>
+                            ${game.difficulty ? `<span>🎯 ${game.difficulty.join(', ')}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="game-actions">
+                    <button class="action-btn" onclick="MyGamesPage.previewGame('${game.uuid}')">
+                        👁️ 預覽
+                    </button>
+                    <button class="action-btn" onclick="MyGamesPage.editGame('${game.uuid}')">
+                        ✏️ 編輯
+                    </button>
+                    <button class="action-btn" onclick="MyGamesPage.toggleVisibility('${game.uuid}')">
+                        ${game.is_public ? '🔒 設為私有' : '🌐 設為公開'}
+                    </button>
+                    <button class="action-btn danger" onclick="MyGamesPage.showDeleteModal('${game.uuid}')">
+                        🗑️ 刪除
+                    </button>
+                </div>
+            </div>
+        `;
+    },
+
+    formatFileSize(bytes) {
+        if (!bytes) return '0 B';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    },
+
+    previewGame(uuid) {
+        window.open(`/uploaded_games/${uuid}`, '_blank');
+    },
+
+    editGame(uuid) {
+        // 跳转到上传页面，带上编辑参数
+        window.location.href = `/game_upload?edit=${uuid}`;
+    },
+
+    async toggleVisibility(uuid) {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(
+                `/api/games/${uuid}/visibility?user_id=${this.userId}&user_role=${this.userRole}`,
+                {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }
+            );
+            const result = await response.json();
+
+            if (result.success) {
+                // 更新本地数据
+                const game = this.games.find(g => g.uuid === uuid);
+                if (game) {
+                    game.is_public = result.data.is_public;
+                }
+                this.applyFilters();
+                this.updateStats();
+            } else {
+                alert(result.message || '操作失敗');
+            }
+        } catch (error) {
+            console.error('切换可见性失败', error);
+            alert('操作失敗，請重試');
+        }
+    },
+
+    showDeleteModal(uuid) {
+        this.deleteTarget = uuid;
+        document.getElementById('deleteModal').classList.add('active');
+        document.getElementById('confirmDeleteBtn').onclick = () => this.deleteGame();
+    },
+
+    closeDeleteModal() {
+        this.deleteTarget = null;
+        document.getElementById('deleteModal').classList.remove('active');
+    },
+
+    async deleteGame() {
+        if (!this.deleteTarget) return;
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(
+                `/api/games/${this.deleteTarget}?user_id=${this.userId}&user_role=${this.userRole}`,
+                {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }
+            );
+            const result = await response.json();
+
+            if (result.success) {
+                // 从列表中移除
+                this.games = this.games.filter(g => g.uuid !== this.deleteTarget);
+                this.applyFilters();
+                this.updateStats();
+                this.closeDeleteModal();
+            } else {
+                alert(result.message || '刪除失敗');
+            }
+        } catch (error) {
+            console.error('删除游戏失败', error);
+            alert('刪除失敗，請重試');
+        }
+    },
+
+    renderError() {
+        document.getElementById('gamesList').innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">❌</div>
+                <div class="empty-title">載入失敗</div>
+                <div class="empty-desc">請檢查網絡連接後重試</div>
+                <button class="btn btn-primary" onclick="location.reload()">重新載入</button>
+            </div>
+        `;
+    }
+};
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    MyGamesPage.init();
+});
+</script>
+</body>
+</html>

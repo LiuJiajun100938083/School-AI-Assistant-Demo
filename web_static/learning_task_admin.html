@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習任務管理 - 管理後台</title>
+    <link rel="stylesheet" href="/static/css/learning_task_admin.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <a class="back-link">← 返回管理後台</a>
+            <h1 class="header-title">學習任務管理</h1>
+        </div>
+        <div class="header-stats">
+            <div class="stat-item">
+                <span class="stat-label">草稿</span>
+                <span class="stat-value" id="stat-draft">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">已發布</span>
+                <span class="stat-value" id="stat-published">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container -->
+    <div class="container">
+        <!-- Tabs Navigation -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="create">創建任務</button>
+            <button class="tab-button" data-tab="list">任務列表</button>
+            <button class="tab-button" data-tab="publish">發布設定</button>
+            <button class="tab-button" data-tab="stats">完成統計</button>
+        </div>
+
+        <!-- Tab 1: 創建任務 -->
+        <div id="create" class="tab-content active">
+            <div class="card">
+                <form id="taskForm">
+                    <div class="form-group">
+                        <label class="required">任務標題</label>
+                        <input type="text" id="taskTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label>簡短描述</label>
+                        <textarea id="taskDescription"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>分類</label>
+                        <select id="taskCategory">
+                            <option value="general">普通</option>
+                            <option value="homework">功課</option>
+                            <option value="reading">閱讀</option>
+                            <option value="training">培訓</option>
+                            <option value="certification">認證</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>優先級</label>
+                        <select id="taskPriority">
+                            <option value="1">普通</option>
+                            <option value="2">重要</option>
+                            <option value="3">緊急</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>截止日期</label>
+                        <input type="datetime-local" id="taskDeadline">
+                    </div>
+                    <div class="form-group">
+                        <label>子項</label>
+                        <div class="sub-items-container" id="subItemsContainer"></div>
+                        <button type="button" class="btn-secondary btn-small add-item-btn">
+                            ➕ 添加子項
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn-primary" id="submitBtn">保存草稿</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tab 2: 任務列表 -->
+        <div id="list" class="tab-content">
+            <div class="filter-bar">
+                <select id="statusFilter">
+                    <option value="">全部</option>
+                    <option value="draft">草稿</option>
+                    <option value="published">已發布</option>
+                    <option value="archived">已歸檔</option>
+                </select>
+            </div>
+            <div id="taskListContainer"></div>
+            <div id="listPagination" class="pagination"></div>
+        </div>
+
+        <!-- Tab 3: 發布設定 -->
+        <div id="publish" class="tab-content">
+            <div class="card">
+                <div class="form-group">
+                    <label>選擇任務</label>
+                    <select id="publishTaskSelect">
+                        <option value="">-- 請選擇任務 --</option>
+                    </select>
+                </div>
+
+                <div id="publishTaskPreview" style="display: none;">
+                    <div class="form-group">
+                        <div style="font-size: 14px; color: #666666;">
+                            <strong id="previewTitle"></strong><br>
+                            <span id="previewDescription"></span><br>
+                            <span id="previewItemCount" style="margin-top: 8px; display: block;"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>目標受眾</label>
+                        <div style="display: grid; gap: 12px;">
+                            <div>
+                                <input type="radio" id="targetAll" name="targetType" value="all">
+                                <label for="targetAll" style="display: inline; margin: 0;">所有人（全校）</label>
+                            </div>
+                            <div>
+                                <input type="radio" id="targetAllTeachers" name="targetType" value="all_teachers">
+                                <label for="targetAllTeachers" style="display: inline; margin: 0;">所有教師</label>
+                            </div>
+                            <div>
+                                <input type="radio" id="targetAllStudents" name="targetType" value="all_students">
+                                <label for="targetAllStudents" style="display: inline; margin: 0;">所有學生</label>
+                            </div>
+                            <div>
+                                <input type="radio" id="targetTeacher" name="targetType" value="teacher">
+                                <label for="targetTeacher" style="display: inline; margin: 0;">指定教師</label>
+                                <select id="teacherSelect" style="display: none; margin-left: 12px; width: 200px;"></select>
+                            </div>
+                            <div>
+                                <input type="radio" id="targetStudent" name="targetType" value="student">
+                                <label for="targetStudent" style="display: inline; margin: 0;">指定學生</label>
+                                <select id="studentSelect" style="display: none; margin-left: 12px; width: 200px;"></select>
+                            </div>
+                            <div>
+                                <input type="radio" id="targetClass" name="targetType" value="class">
+                                <label for="targetClass" style="display: inline; margin: 0;">指定班級</label>
+                                <select id="classSelect" style="display: none; margin-left: 12px; width: 200px;"></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div id="publishPreview" style="font-size: 14px; color: #666666; margin: 12px 0;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" class="btn-primary" data-action="confirm-publish">確認發布</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: 完成統計 -->
+        <div id="stats" class="tab-content">
+            <div class="card">
+                <div class="form-group">
+                    <label>選擇已發布任務</label>
+                    <select id="statsTaskSelect">
+                        <option value="">-- 請選擇任務 --</option>
+                    </select>
+                </div>
+
+                <div id="statsContainer" style="display: none;">
+                    <div class="stats-grid">
+                        <div class="stats-card">
+                            <div class="stats-card-label">接收人數</div>
+                            <div class="stats-card-value" id="statsRecipients">0</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-card-label">已完成</div>
+                            <div class="stats-card-value" id="statsCompleted">0</div>
+                        </div>
+                        <div class="stats-card">
+                            <div class="stats-card-label">完成率</div>
+                            <div class="stats-card-value" id="statsRate">0%</div>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>用戶名</th>
+                                    <th>顯示名稱</th>
+                                    <th>角色</th>
+                                    <th>班級</th>
+                                    <th data-sort="completed_items" style="cursor:pointer;">完成項目 ↕</th>
+                                    <th data-sort="rate" style="cursor:pointer;">完成率 ↕</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">確認操作</div>
+            <div class="modal-body" id="confirmMessage"></div>
+            <div class="modal-actions">
+                <button class="btn-secondary" data-action="close-modal">取消</button>
+                <button class="btn-primary" data-action="execute-confirm">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/learning_task_admin.js"></script>
+</body>
+</html>

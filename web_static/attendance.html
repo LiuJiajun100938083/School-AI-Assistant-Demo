@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>培僑中學點名系統</title>
+    <!-- 引入CSS -->
+    <link rel="stylesheet" href="/static/css/attendance.css">
+</head>
+<body>
+<!-- 鼠标聚光灯 -->
+<div class="spotlight-container">
+    <div class="spotlight" id="spotlight"></div>
+</div>
+<!-- Apple风格启动画面 -->
+<div class="splash-screen" id="splashScreen">
+    <div class="splash-content">
+        <div class="splash-icon">📋</div>
+        <div class="splash-title">點名系統</div>
+        <div class="splash-subtitle">晨讀 · 留堂 · 課外活動</div>
+        <div class="splash-loader">
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+            <div class="loader-dot"></div>
+        </div>
+    </div>
+</div>
+<!-- 顶部导航 -->
+<div class="header">
+    <div class="header-left">
+        <button class="back-btn" onclick="window.location.href='/'">← 返回主頁</button>
+        <div class="header-title">📋 點名系統</div>
+    </div>
+    <div class="header-right">
+        <button class="header-action-btn" onclick="document.getElementById('uploadModal').classList.add('active')">
+            📤 上傳學生
+        </button>
+        <div class="user-info" id="userInfo">教師</div>
+    </div>
+</div>
+
+<!-- 左侧面板切换按钮 -->
+<button class="panel-toggle-btn" id="panelToggleBtn" onclick="toggleLeftPanel()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+</button>
+
+<!-- 主容器 -->
+<div class="main-container">
+    <!-- 左侧面板 - 名单选择 -->
+    <div class="left-panel" id="leftPanel">
+        <div class="panel-header">
+            <div class="panel-title">創建點名會話</div>
+
+            <!-- 类型选择 -->
+            <div class="type-selector">
+                <button class="type-btn morning active" data-type="morning" onclick="selectType('morning')">
+                    🌅 晨讀
+                </button>
+                <button class="type-btn detention" data-type="detention" onclick="selectType('detention')">
+                    📚 留堂
+                </button>
+                <button class="type-btn activity" data-type="activity" onclick="selectType('activity')">
+                    🎯 活動
+                </button>
+            </div>
+
+            <!-- 日期选择 -->
+            <input type="date" class="date-input" id="sessionDate" value="">
+        </div>
+
+        <!-- 固定名单（暂时注释掉，晨读和留堂不需要此功能）
+        <div class="fixed-list-selector" style="display:none;" id="fixedListSection">
+            <div class="fixed-list-title">📌 快速加載固定名單</div>
+            <div class="fixed-list-items" id="fixedListItems">
+                    </div>
+                </div>-->
+
+        <!-- 隐藏的兼容元素 -->
+        <select id="classFilter" style="display:none;"></select>
+        <input type="text" id="searchInput" style="display:none;">
+
+        <!-- 选择学生按钮区域 - 早读/留堂模式不需要，为课外活动点名预留 -->
+        <div class="filter-section" style="border-bottom: none; display: none;" id="studentSelectSection">
+            <button class="select-student-btn" id="selectStudentBtn" onclick="openStudentSelectModal()">
+                👥 點擊選擇學生
+            </button>
+        </div>
+        <!-- 课外活动配置区域 -->
+        <div class="activity-config-section" id="activityConfigSection" style="display: none;">
+            <div class="config-group">
+                <label class="config-label">活動名稱</label>
+                <input type="text" class="config-input" id="activityName" placeholder="例如：篮球队训练">
+            </div>
+
+            <div class="config-row">
+                <div class="config-group half">
+                    <label class="config-label">應到時間</label>
+                    <input type="time" class="config-input" id="activityStartTime" value="16:00">
+                </div>
+                <div class="config-group half">
+                    <label class="config-label">遲到閾值(分鐘)</label>
+                    <input type="number" class="config-input" id="activityLateThreshold" value="10" min="1" max="60">
+                </div>
+            </div>
+
+            <div class="config-row">
+                <div class="config-group half">
+                    <label class="config-label">結束時間</label>
+                    <input type="time" class="config-input" id="activityEndTime" value="17:30">
+                </div>
+                <div class="config-group half">
+                    <label class="config-label">早退閾值(分鐘)</label>
+                    <input type="number" class="config-input" id="activityEarlyThreshold" value="10" min="1" max="60">
+                </div>
+            </div>
+
+            <!-- 固定组别选择 -->
+            <div class="config-group">
+                <label class="config-label">📌 快速固定名單</label>
+                <div class="activity-groups" id="activityGroupsList">
+                    <span class="no-groups-hint">暫無組別</span>
+                </div>
+            </div>
+
+            <!-- 选择学生按钮 -->
+            <button class="select-student-btn activity-select-btn" id="activitySelectStudentBtn"
+                    onclick="openStudentSelectModal()">
+                👥 選擇學生(必選)
+            </button>
+
+            <!-- 已选人数统计 -->
+            <div class="selected-count activity-selected-count" id="activitySelectedCount">
+                已選擇 <span id="activityStudentCount">0</span> 名學生
+            </div>
+        </div>
+        <!-- 左侧栏底部操作区 -->
+        <div class="panel-footer">
+            <!-- 已选人数统计 -->
+            <div class="selected-count" id="selectedCountSection" style="display:none;">
+                已選擇 <span id="selectedCount">0</span> 名學生
+            </div>
+
+            <!-- 按钮组 -->
+            <div class="footer-actions">
+                <!-- 历史记录按钮 -->
+                <button class="footer-btn history" onclick="openExportsPanel()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    簽到紀錄
+                </button>
+
+                <!-- 保存名单按钮 -->
+                <button class="footer-btn save" id="saveListBtn" style="display:none;" onclick="saveFixedList()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    保存為固定名單
+                </button>
+
+                <!-- 分隔线 -->
+                <div class="footer-divider"></div>
+
+                <!-- 开始点名按钮（主按钮） -->
+                <button class="footer-btn primary start" onclick="startSession()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    開始點名
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧面板 - 签到区 -->
+    <div class="right-panel">
+        <!-- 无会话提示 -->
+        <div class="no-session" id="noSessionHint">
+            <div class="no-session-icon">📋</div>
+            <div class="no-session-text">請在左側設置點名參數開始點名</div>
+        </div>
+
+        <!-- 签到区（会话开始后显示） -->
+        <div id="sessionPanel" style="display: none;">            <!-- 签到输入 -->
+            <div class="scan-section">
+                <!-- 🆕 新增：实时时钟显示 -->
+                <div class="live-clock-container">
+                    <div class="live-clock" id="liveClock">00:00:00</div>
+                    <div class="live-date" id="liveDate">2025年1月15日 星期三</div>
+                </div>
+
+                <div class="scan-title" id="sessionTitle">晨讀點名進行中</div>
+                <div class="scan-input-container">
+                    <input type="text" class="scan-input" id="cardInput"
+                           placeholder="請拍卡或輸入學號" autofocus>
+                    <button class="scan-btn" onclick="processCard()">✔ 簽到</button>
+                </div>
+
+                <button class="manual-scan-btn" onclick="showManualScanModal()">
+                    🆔 無卡簽到8
+                </button>
+
+                <div class="scan-result" id="scanResult">
+                    <div class="result-name" id="resultName"></div>
+                    <div class="result-time" id="resultTime"></div>
+                    <div class="result-status" id="resultStatus"></div>
+                </div>
+            </div>
+
+            <!-- 签到记录 -->
+            <div class="records-section">
+                <div class="records-header">
+                    <!-- 🆕 新增：标题行包含排序和紧凑控制 -->
+                    <div class="records-title-row">
+                        <div class="records-title">簽到紀錄</div>
+                        <div class="records-controls">
+                            <button class="compact-toggle-btn" id="compactToggleBtn" onclick="toggleCompactMode()"
+                                    title="切换紧凑/标准显示">
+                                <span class="compact-icon">📋</span>
+                                <span class="compact-text">緊湊</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="records-stats" id="morningStats">
+                        <span class="stat-item present">準時: <span id="statPresent">0</span></span>
+                        <span class="stat-item late">遲到: <span id="statLate">0</span></span>
+                        <span class="stat-item very-late">嚴重遲到: <span id="statVeryLate">0</span></span>
+                        <span class="stat-item absent">未到: <span id="statAbsent">0</span></span>
+                    </div>
+
+                    <div class="records-stats" id="detentionStats" style="display: none;">
+                        <span class="stat-item active">進行中: <span id="statActive">0</span></span>
+                        <span class="stat-item completed">已完成: <span id="statCompleted">0</span></span>
+                        <span class="stat-item incomplete">未完成: <span id="statIncomplete">0</span></span>
+                        <span class="stat-item absent">未簽到: <span id="statNotCheckedIn">0</span></span>
+                    </div>
+                    <!-- 课外活动统计 -->
+                    <div class="records-stats" id="activityStats" style="display: none;">
+                        <span class="stat-item present">準時: <span id="activityStatOnTime">0</span></span>
+                        <span class="stat-item late">遲到: <span id="activityStatLate">0</span></span>
+                        <span class="stat-item absent">未到: <span id="activityStatAbsent">0</span></span>
+                        <span class="stat-item divider">|</span>
+                        <span class="stat-item completed">正常離開: <span id="activityStatNormal">0</span></span>
+                        <span class="stat-item early-leave">早退: <span id="activityStatEarly">0</span></span>
+                        <span class="stat-item still-here">仍在: <span id="activityStatStillHere">0</span></span>
+                    </div>
+                </div>
+
+                <div class="records-table-container">
+                    <table class="records-table" id="morningRecordsTable">
+                        <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortMorningRecords('class')">班級</th>
+                            <th>姓名</th>
+                            <th class="sortable" onclick="sortMorningRecords('time')">簽到時間</th>
+                            <th class="sortable" onclick="sortMorningRecords('status')">狀態</th>
+                            <th class="hide-compact">遲到</th>
+                            <th class="hide-compact">需補時</th>
+                        </tr>
+                        </thead>
+                        <tbody id="recordsBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 留堂记录表格 -->
+                <div class="records-table-container">
+                    <table class="records-table detention" id="detentionRecordsTable" style="display: none;">
+                        <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortDetentionRecords('class')">班级</th>
+                            <th>姓名</th>
+                            <th>原因</th>
+                            <th class="sortable" onclick="sortDetentionRecords('scanTime')">签到</th>
+                            <th>簽退</th>
+                            <th>計畫</th>
+                            <th>預計結束時間</th>
+                            <th class="sortable" onclick="sortDetentionRecords('remaining')">剩餘/實際</th>
+                            <th>狀態</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="detentionRecordsBody">
+                        </tbody>
+                    </table>
+
+                </div>
+                <div class="records-table-container">
+                    <!-- 课外活动记录表格 -->
+                    <table class="records-table" id="activityRecordsTable" style="display: none;">
+                        <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortActivityRecords('class')">班级学号</th>
+                            <th>姓名</th>
+                            <th class="sortable" onclick="sortActivityRecords('checkIn')">签到时间</th>
+                            <th class="sortable" onclick="sortActivityRecords('checkOut')">签退时间</th>
+                            <th>簽到狀態</th>
+                            <th>簽退狀態</th>
+                            <th class="hide-compact">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="activityRecordsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 底部工具栏 -->
+            <div class="bottom-toolbar">
+                <div class="toolbar-left">
+                    <button class="toolbar-btn export" onclick="exportExcel()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        導出
+                    </button>
+                </div>
+                <button class="toolbar-btn end" onclick="endSession()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                    </svg>
+                    結束點名
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 选择学生弹窗 -->
+<div class="student-select-modal" id="studentSelectModal">
+    <div class="student-select-content">
+        <div class="student-select-header">
+            <div class="student-select-title">👥 選擇學生</div>
+            <button class="student-select-close" onclick="closeStudentSelectModal()">×</button>
+        </div>
+
+        <div class="student-select-filters">
+            <div class="filter-row">
+                <select class="filter-select" id="modalClassFilter" onchange="filterStudentsInModal()">
+                    <option value="">全部班級</option>
+                </select>
+                <input type="text" class="filter-input" id="modalSearchInput"
+                       placeholder="搜索姓名/学号" oninput="filterStudentsInModal()">
+            </div>
+            <div class="quick-select-btns" style="margin-top: 10px;">
+                <button class="quick-btn" onclick="modalShowAll()">全部</button>
+                <button class="quick-btn" onclick="modalSelectAll()">全選當前</button>
+                <button class="quick-btn" onclick="modalSelectNone()">清空</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(1)">中一</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(2)">中二</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(3)">中三</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(4)">中四</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(5)">中五</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(6)">中六</button>
+            </div>
+        </div>
+
+        <div class="student-select-list" id="modalStudentList">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <div class="student-select-footer">
+            <div class="selected-count">已選擇: <span id="modalSelectedCount">0</span> 名學生</div>
+            <div class="action-btns">
+                <button class="action-btn secondary" onclick="closeStudentSelectModal()">取消</button>
+                <button class="action-btn primary" onclick="confirmStudentSelection()">确认选择</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 保存固定名单模态框 -->
+<div class="modal-overlay" id="saveListModal">
+    <div class="modal">
+        <div class="modal-title">💾 保存為固定名單</div>
+        <input type="text" class="modal-input" id="listNameInput" placeholder="输入名单名称（如：中一早读班）">
+        <div class="modal-btns">
+            <button class="modal-btn cancel" onclick="closeSaveListModal()">取消</button>
+            <button class="modal-btn confirm" onclick="confirmSaveList()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 上传学生数据模态框 -->
+<div class="modal-overlay" id="uploadModal">
+    <div class="modal">
+        <div class="modal-title">📤 上傳學生數據</div>
+        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 14px;">
+            請上傳 CSV 或 Excel (.xlsx) 文件<br>
+            格式：ClassName, ClassNumber, UserLogin, EnglishName, ChineseName, CardID
+        </p>
+        <input type="file" class="modal-input" id="csvFileInput" accept=".csv,.xlsx,.xls">
+        <div class="modal-btns">
+            <button class="modal-btn cancel" onclick="closeUploadModal()">取消</button>
+            <button class="modal-btn confirm" onclick="uploadStudents()">上傳</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑固定名单模态框 -->
+<div class="modal-overlay" id="editListModal">
+    <div class="modal" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+        <div class="modal-title">✏️ 编辑固定名单</div>
+        <input type="hidden" id="editListId">
+        <input type="text" class="modal-input" id="editListName" placeholder="名单名称" style="margin-bottom: 10px;">
+
+        <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 8px;">
+            名单成员 (<span id="editListCount">0</span>人)：
+        </div>
+
+        <div id="editListStudents"
+             style="flex: 1; max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-bottom: 15px;">
+            <!-- 学生列表将在这里显示 -->
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <select id="addStudentSelect" class="modal-input" style="flex: 1;">
+                <option value="">-- 選擇學生添加 --</option>
+            </select>
+            <button class="modal-btn confirm" onclick="addStudentToEditList()" style="width: auto; padding: 8px 15px;">
+                添加
+            </button>
+        </div>
+
+        <div class="modal-btns">
+            <button class="modal-btn cancel" onclick="closeEditListModal()">取消</button>
+            <button class="modal-btn confirm" onclick="saveEditedList()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 留堂节数选择模态框 -->
+<div id="periodsModal" class="periods-modal">
+    <div class="periods-modal-content">
+        <div class="periods-modal-title">選擇留堂時長</div>
+        <div id="periodsModalStudent" class="periods-modal-subtitle">學生姓名</div>
+
+        <!-- 🆕 原因选择 -->
+        <div class="periods-section-title">选择留堂原因</div>
+        <div class="detention-reason-options">
+            <button class="reason-option-btn" id="reasonHomework" onclick="selectDetentionReason('homework')">
+                📝 功课留堂
+            </button>
+            <button class="reason-option-btn" id="reasonMorning" onclick="selectDetentionReason('morning')">
+                🌅 晨读留堂
+            </button>
+        </div>
+        <div id="selectedReasonText" class="selected-reason-text" style="display: none;"></div>
+
+        <!-- 节数选择（原因选择后显示） -->
+        <div id="periodsSelectionArea" style="display: none;">
+            <div class="periods-section-title">按节数选择</div>
+            <div id="periodsOptions" class="periods-options"></div>
+
+           <!-- 分钟数输入（默认隐藏） -->
+            <div id="minutesInputSection" style="display: none;">
+                <div class="periods-section-title" style="margin-top: 15px;">或输入分钟数</div>
+                <div class="minutes-input-row">
+                    <input type="number" id="periodsMinutesInput" class="minutes-input"
+                           placeholder="输入分钟数" min="1" max="180" value="0" oninput="updatePeriodsMinutesPreview()">
+                    <span class="minutes-label">分钟</span>
+                    <button class="minutes-confirm-btn" id="periodsMinutesConfirmBtn"
+                            onclick="confirmPeriodsWithMinutes()" disabled>确认
+                    </button>
+                </div>
+                <div id="periodsMinutesPreview" class="minutes-preview"></div>
+            </div>
+
+            <button class="toggle-minutes-btn" onclick="toggleMinutesInput()">
+                ⏱️ 自定义分钟数
+            </button>
+        </div>
+
+        <button class="periods-modal-cancel" onclick="closePeriodsModal()">取消</button>
+    </div>
+</div>
+
+<!-- 留堂手动签到节数选择弹窗 -->
+<div id="manualPeriodsModal" class="periods-modal">
+    <div class="periods-modal-content">
+        <iv class="periods-modal-title">选择留堂时长</iv>
+        <div id="manualPeriodsModalStudent" class="periods-modal-subtitle">学生姓名</div>
+        <div class="periods-modal-hint">手动签到 - 请选择留堂时长</div>
+
+        <!-- 🆕 原因选择 -->
+        <div class="periods-section-title">选择留堂原因</div>
+        <div class="detention-reason-options">
+            <button class="reason-option-btn" id="manualReasonHomework"
+                    onclick="selectManualDetentionReason('homework')">
+                📝 功课留堂
+            </button>
+            <button class="reason-option-btn" id="manualReasonMorning" onclick="selectManualDetentionReason('morning')">
+                🌅 晨读留堂
+            </button>
+        </div>
+        <div id="manualSelectedReasonText" class="selected-reason-text" style="display: none;"></div>
+
+        <!-- 节数选择（原因选择后显示） -->
+        <div id="manualPeriodsSelectionArea" style="display: none;">
+            <div class="periods-section-title">按节数选择</div>
+            <div id="manualPeriodsOptions" class="periods-options"></div>
+
+            <!-- 分钟数输入（默认隐藏） -->
+            <div id="manualMinutesInputSection" style="display: none;">
+                <div class="periods-section-title" style="margin-top: 15px;">或输入分钟数</div>
+                <div class="minutes-input-row">
+                    <input type="number" id="manualMinutesInput" class="minutes-input"
+                           placeholder="输入分钟数" min="1" max="180" value="0" oninput="updateManualMinutesPreview()">
+                    <span class="minutes-label">分钟</span>
+                    <button class="minutes-confirm-btn" id="manualMinutesConfirmBtn"
+                            onclick="confirmManualDetentionWithMinutes()" disabled>确认
+                    </button>
+                </div>
+                <div id="manualMinutesPreview" class="minutes-preview"></div>
+            </div>
+
+            <button class="toggle-minutes-btn" onclick="toggleManualMinutesInput()">
+                ⏱️ 自定义分钟数
+            </button>
+        </div>
+
+        <button class="periods-modal-cancel" onclick="closeManualPeriodsModal()">取消</button>
+    </div>
+</div>
+
+<!-- 修改留堂设置模态框 -->
+<div id="modifyModal" class="periods-modal">
+    <div class="periods-modal-content" style="max-width: 420px;">
+        <div class="periods-modal-title">修改留堂设置</div>
+        <div id="modifyModalStudent" class="periods-modal-subtitle">学生姓名</div>
+
+        <!-- Tab 切换 -->
+        <div class="modify-tabs">
+            <button id="tabPeriods" class="modify-tab active" onclick="switchModifyTab('periods')">按节数</button>
+            <button id="tabMinutes" class="modify-tab" onclick="switchModifyTab('minutes')">按分钟</button>
+            <button id="tabEndTime" class="modify-tab" onclick="switchModifyTab('endTime')">指定时间</button>
+        </div>
+
+        <!-- 按节数修改 -->
+        <div id="modifyPeriodsPanel" class="modify-panel">
+            <div id="modifyOptions" class="periods-options">
+                <!-- 选项会由JS动态生成 -->
+            </div>
+        </div>
+
+        <!-- 按分钟数修改 -->
+        <div id="modifyMinutesPanel" class="modify-panel" style="display: none;">
+            <div class="modify-time-row">
+                <span>签到时间：</span>
+                <span id="modifyMinutesScanTime">--:--</span>
+            </div>
+            <div class="minutes-input-row" style="margin: 15px 0;">
+                <input type="number" id="modifyMinutesInput" class="minutes-input"
+                       placeholder="输入分钟数" min="1" max="180" oninput="updateModifyMinutesPreview()">
+                <span class="minutes-label">分钟</span>
+            </div>
+            <div id="modifyMinutesPreview" class="minutes-preview"></div>
+            <button id="confirmMinutesBtn" class="modify-confirm-btn" onclick="confirmModifyMinutes()" disabled>
+                确认修改
+            </button>
+        </div>
+
+        <!-- 指定结束时间 -->
+        <div id="modifyEndTimePanel" class="modify-panel" style="display: none;">
+            <div class="modify-time-row">
+                <span>签到时间：</span>
+                <span id="modifyScanTime">--:--</span>
+            </div>
+            <div class="modify-time-row">
+                <span>结束时间：</span>
+                <input type="time" id="modifyEndTimeInput" class="modify-time-input" oninput="updateTimePreview()">
+            </div>
+            <div class="modify-time-row">
+                <span>预计留堂时长：</span>
+                <span id="timePreviewValue">-- 分钟</span>
+            </div>
+            <button id="confirmTimeBtn" class="modify-confirm-btn" onclick="confirmModifyEndTime()" disabled>确认修改
+            </button>
+        </div>
+
+        <button class="periods-modal-cancel" onclick="closeModifyModal()">取消</button>
+    </div>
+</div>
+
+<!-- 结束点名确认弹窗 -->
+<div id="endSessionModal" class="end-session-modal">
+    <div class="end-session-content">
+        <div class="end-session-title">结束点名</div>
+
+        <div class="end-session-stats">
+            <div class="end-stat-item present">
+                <div id="endStatPresent" class="end-stat-value">0</div>
+                <div class="end-stat-label">实到</div>
+            </div>
+            <div class="end-stat-item late">
+                <div id="endStatLate" class="end-stat-value">0</div>
+                <div class="end-stat-label">迟到</div>
+            </div>
+            <div class="end-stat-item absent">
+                <div id="endStatAbsent" class="end-stat-value">0</div>
+                <div class="end-stat-label">缺席</div>
+            </div>
+        </div>
+
+        <div class="end-session-notes">
+            <label>备注（可选）</label>
+            <textarea id="exportNotes" placeholder="输入备注信息..."></textarea>
+        </div>
+
+        <label class="end-session-checkbox">
+            <input type="checkbox" id="saveToServerCheckbox" checked>
+            <span>保存到服务器</span>
+            <span class="end-session-checkbox-hint">可在其他设备下载</span>
+        </label>
+
+        <div class="end-session-actions">
+            <button class="end-session-btn primary" onclick="confirmEndSession()">确认结束</button>
+            <button class="end-session-btn secondary" onclick="downloadOnlyEndSession()">仅下载到本地</button>
+            <button class="end-session-btn cancel" onclick="closeEndSessionModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 历史记录面板 -->
+<div id="exportsPanel" class="exports-panel">
+    <div class="exports-panel-content">
+        <div class="exports-panel-header">
+            <div class="exports-panel-title">📁 点名记录</div>
+            <button class="exports-close-btn" onclick="closeExportsPanel()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="exports-filter">
+            <select id="exportsTypeFilter">
+                <option value="">全部类型</option>
+                <option value="morning">晨读</option>
+                <option value="detention">留堂</option>
+                <option value="activity">课外活动</option>
+            </select>
+            <input type="date" id="exportsStartDate" placeholder="开始日期">
+            <input type="date" id="exportsEndDate" placeholder="结束日期">
+            <button class="exports-filter-btn" onclick="filterExports()">筛选</button>
+            <button class="exports-filter-btn reset" onclick="resetExportsFilter()">重置</button>
+        </div>
+
+        <div class="exports-list-container">
+            <div id="exportsList">
+                <!-- 动态加载 -->
+            </div>
+            <div id="exportsPagination">
+                <!-- 分页 -->
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Apple 风格签到通知卡片 -->
+<div id="scanNotificationOverlay" class="scan-notification-overlay">
+    <div id="scanNotificationCard" class="scan-notification-card">
+        <span id="notificationIcon" class="notification-icon">✅</span>
+        <div id="notificationName" class="notification-name">陈大文</div>
+        <div id="notificationEnglishName" class="notification-english-name">CHAN Tai Man</div>
+        <div id="notificationClass" class="notification-class">
+            <span class="notification-class-icon">🎓</span>
+            <span id="notificationClassText">1A-01号</span>
+        </div>
+        <div id="notificationStatus" class="notification-status present">准时签到</div>
+        <div id="notificationTime" class="notification-time">签到时间: 07:45:30</div>
+        <div id="notificationExtra" class="notification-extra" style="display: none;"></div>
+    </div>
+</div>
+
+
+<!-- 手动签到模态框 -->
+<div class="manual-scan-modal" id="manualScanModal">
+    <div class="manual-scan-content">
+        <div class="manual-scan-title">🆔 手动签到</div>
+        <div class="manual-scan-form">
+            <div class="form-group">
+                <label>选择班级</label>
+                <select id="manualClassSelect" onchange="updateManualStudentPreview()">
+                    <option value="">-- 请选择班级 --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>输入学号 (班内编号)</label>
+                <input type="number" id="manualClassNumber" placeholder="例如: 1, 2, 3..."
+                       min="1" max="50" oninput="updateManualStudentPreview()">
+            </div>
+
+            <!-- 学生预览 -->
+            <div class="student-preview" id="manualStudentPreview">
+                <div class="preview-name" id="previewName"></div>
+                <div class="preview-english" id="previewEnglish"></div>
+                <div class="preview-class" id="previewClass"></div>
+            </div>
+            <div class="preview-not-found" id="previewNotFound" style="display: none;">
+                ❌ 未找到该学生
+            </div>
+
+            <div class="manual-scan-actions">
+                <button class="btn-cancel" onclick="hideManualScanModal()">取消</button>
+                <button class="btn-confirm" id="confirmManualScan" onclick="confirmManualScan()" disabled>
+                    确认签到
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 结束点名确认弹窗 -->
+<div id="endSessionModal" class="end-session-modal">
+    <div class="end-session-content">
+        <div class="end-session-title">结束点名</div>
+        <div class="end-session-stats">
+            <div class="end-stat-item present">
+                <div id="endStatPresent" class="end-stat-value">0</div>
+                <div class="end-stat-label">实到</div>
+            </div>
+            <div class="end-stat-item late">
+                <div id="endStatLate" class="end-stat-value">0</div>
+                <div class="end-stat-label">迟到</div>
+            </div>
+            <div class="end-stat-item absent">
+                <div id="endStatAbsent" class="end-stat-value">0</div>
+                <div class="end-stat-label">缺席</div>
+            </div>
+        </div>
+        <div class="end-session-notes">
+            <label>备注（可选）</label>
+            <textarea id="exportNotes" placeholder="输入备注信息..."></textarea>
+        </div>
+        <label class="end-session-checkbox">
+            <input type="checkbox" id="saveToServerCheckbox" checked>
+            <span>保存到服务器</span>
+            <span class="end-session-checkbox-hint">可在其他设备下载</span>
+        </label>
+        <div class="end-session-actions">
+            <button class="end-session-btn primary" onclick="confirmEndSession()">确认结束</button>
+            <button class="end-session-btn secondary" onclick="downloadOnlyEndSession()">仅下载到本地</button>
+            <button class="end-session-btn cancel" onclick="closeEndSessionModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 历史记录面板 -->
+<div id="exportsPanel" class="exports-panel">
+    <div class="exports-panel-content">
+        <div class="exports-panel-header">
+            <div class="exports-panel-title">📁 点名记录</div>
+            <button class="exports-close-btn" onclick="closeExportsPanel()">✕</button>
+        </div>
+        <div class="exports-filter">
+            <select id="exportsTypeFilter">
+                <option value="">全部类型</option>
+                <option value="morning">晨读</option>
+                <option value="detention">留堂</option>
+                <option value="activity">课外活动</option>
+            </select>
+            <input type="date" id="exportsStartDate">
+            <input type="date" id="exportsEndDate">
+            <button class="exports-filter-btn" onclick="filterExports()">筛选</button>
+            <button class="exports-filter-btn reset" onclick="resetExportsFilter()">重置</button>
+        </div>
+        <div class="exports-list-container">
+            <div id="exportsList"></div>
+            <div id="exportsPagination"></div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- 离开确认弹窗 -->
+<div id="leaveConfirmModal" class="periods-modal">
+    <div class="periods-modal-content" style="max-width: 380px;">
+        <div class="periods-modal-title" style="color: var(--accent-orange);">⚠️ 确认离开</div>
+        <div id="leaveConfirmStudent" class="periods-modal-subtitle">学生姓名</div>
+        <div class="leave-confirm-info">
+            <div class="leave-info-row">
+                <span>签到时间：</span>
+                <span id="leaveConfirmScanTime">--:--</span>
+            </div>
+            <div class="leave-info-row">
+                <span>计划结束：</span>
+                <span id="leaveConfirmPlannedEnd">--:--</span>
+            </div>
+            <div class="leave-info-row">
+                <span>已留时间：</span>
+                <span id="leaveConfirmActualTime">-- 分钟</span>
+            </div>
+            <div class="leave-info-row warning" id="leaveWarningRow" style="display: none;">
+                <span>⚠️ 未完成计划时长</span>
+            </div>
+        </div>
+        <div class="leave-confirm-actions">
+            <button class="leave-confirm-btn cancel" onclick="closeLeaveConfirmModal()">取消</button>
+            <button class="leave-confirm-btn confirm" onclick="confirmLeave()">确认离开</button>
+        </div>
+    </div>
+</div>
+
+</div>
+<!-- 固定组别管理模态框 -->
+<div class="activity-group-modal" id="activityGroupModal">
+    <div class="activity-group-modal-content">
+        <div class="activity-group-modal-header">
+            <div class="activity-group-modal-title">📌 管理固定组别</div>
+            <button class="modal-close-btn" onclick="closeActivityGroupModal()">✕</button>
+        </div>
+
+        <div class="activity-group-modal-body">
+            <!-- 创建新组别 -->
+            <div class="create-group-section">
+                <input type="text" class="group-name-input" id="newGroupName" placeholder="输入组别名称">
+                <button class="create-group-btn" onclick="createActivityGroup()">创建组别</button>
+            </div>
+
+            <!-- 现有组别列表 -->
+            <div class="groups-list" id="activityGroupsManageList">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+
+        <div class="activity-group-modal-footer">
+            <button class="modal-btn secondary" onclick="closeActivityGroupModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 课外活动签退确认弹窗 -->
+<div class="checkout-confirm-modal" id="checkoutConfirmModal">
+    <div class="checkout-confirm-content">
+        <div class="checkout-confirm-title">🎯 确认签退</div>
+        <div class="checkout-confirm-student" id="checkoutStudentName">学生姓名</div>
+        <div class="checkout-confirm-info">
+            <div class="checkout-info-row">
+                <span>签到时间:</span>
+                <span id="checkoutScanTime">--:--</span>
+            </div>
+            <div class="checkout-info-row">
+                <span>计划结束:</span>
+                <span id="checkoutPlannedEnd">--:--</span>
+            </div>
+            <div class="checkout-info-row">
+                <span>当前时间:</span>
+                <span id="checkoutCurrentTime">--:--</span>
+            </div>
+            <div class="checkout-info-row warning" id="earlyLeaveWarning" style="display: none;">
+                <span>⚠️ 提前离开，将记录为早退</span>
+            </div>
+        </div>
+        <div class="checkout-confirm-actions">
+            <button class="checkout-btn cancel" onclick="closeCheckoutConfirmModal()">取消</button>
+            <button class="checkout-btn confirm" onclick="confirmActivityCheckout()">确认签退</button>
+        </div>
+    </div>
+</div>
+
+<!-- 固定组别管理弹窗 -->
+<div class="activity-group-modal" id="activityGroupModal">
+    <div class="activity-group-modal-content">
+        <div class="activity-group-modal-header">
+            <div class="activity-group-modal-title">📌 管理固定组别</div>
+            <button class="modal-close-btn" onclick="closeActivityGroupModal()">✕</button>
+        </div>
+
+        <div class="activity-group-modal-body">
+            <div class="create-group-section">
+                <input type="text" class="group-name-input" id="newGroupName" placeholder="输入组别名称">
+                <button class="create-group-btn" onclick="createActivityGroup()">创建组别</button>
+            </div>
+
+            <div class="groups-list" id="activityGroupsManageList">
+                <div class="no-groups-hint">暂无组别，请先选择学生后创建</div>
+            </div>
+        </div>
+
+        <div class="activity-group-modal-footer">
+            <button class="modal-btn secondary" onclick="closeActivityGroupModal()">关闭</button>
+        </div>
+    </div>
+</div>
+<!-- 引入JS（放在body末尾） -->
+<script src="/static/js/attendance.js"></script>
+<!-- iPad 视口高度修复 -->
+<script>
+    (function () {
+        function setAppHeight() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', vh + 'px');
+            document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+        }
+
+        setAppHeight();
+        window.addEventListener('resize', setAppHeight);
+        window.addEventListener('orientationchange', function () {
+            setTimeout(setAppHeight, 100);
+        });
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', setAppHeight);
+        }
+    })();
+</script>
+</body>
+</html>

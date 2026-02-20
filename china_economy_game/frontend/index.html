@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国经济发展桌游</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 头部 -->
+    <header class="header">
+        <h1>🇨🇳 中国经济发展桌游</h1>
+        <div class="player-info">
+            <span class="player-name" id="current-player-name">玩家</span>
+            <button class="btn btn-secondary" onclick="App.changePlayerName()">修改名称</button>
+        </div>
+    </header>
+
+    <!-- 大厅视图 -->
+    <div id="lobby-view" class="view container">
+        <div class="lobby-header">
+            <h2>🏠 游戏大厅</h2>
+            <div class="lobby-actions">
+                <button class="btn btn-secondary" onclick="App.refreshRooms()">🔄 刷新</button>
+                <button class="btn btn-primary" onclick="App.showCreateRoomModal()">➕ 创建房间</button>
+            </div>
+        </div>
+        <div class="room-list" id="room-list">
+            <div class="loading"></div>
+        </div>
+    </div>
+
+    <!-- 房间等待视图 -->
+    <div id="room-view" class="view container hidden">
+        <div class="room-waiting">
+            <h2 id="room-title">房间</h2>
+            <p style="color: var(--text-secondary);">等待其他玩家加入...</p>
+
+            <ul class="player-list" id="room-player-list">
+                <!-- 玩家列表 -->
+            </ul>
+
+            <div class="room-actions">
+                <button id="leave-room-btn" class="btn btn-danger" onclick="App.leaveRoom()">
+                    离开房间
+                </button>
+                <button id="start-game-btn" class="btn btn-success hidden" onclick="App.startGame()">
+                    开始游戏
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 游戏视图 -->
+    <div id="game-view" class="view hidden">
+        <!-- 棋盘区域 -->
+        <div class="game-board-container">
+            <div class="game-board" id="game-board">
+                <!-- 棋盘格子由JS渲染 -->
+            </div>
+
+            <!-- 游戏控制按钮 -->
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                <button class="btn btn-primary" onclick="Game.startNewRound()">
+                    开始新回合
+                </button>
+                <button class="btn btn-secondary" onclick="Game.drawEventCard()">
+                    抽取事件卡
+                </button>
+            </div>
+        </div>
+
+        <!-- 侧边栏 -->
+        <div class="game-sidebar">
+            <!-- 回合信息 -->
+            <div class="sidebar-panel">
+                <h3>📅 回合信息</h3>
+                <div id="turn-info">
+                    <!-- 回合信息由JS渲染 -->
+                </div>
+            </div>
+
+            <!-- 事件卡 -->
+            <div class="sidebar-panel">
+                <h3>📜 当前事件</h3>
+                <div id="event-card">
+                    <!-- 事件卡由JS渲染 -->
+                </div>
+            </div>
+
+            <!-- 玩家状态 -->
+            <div class="sidebar-panel">
+                <h3>👥 玩家状态</h3>
+                <div class="player-status" id="player-status-list">
+                    <!-- 玩家状态由JS渲染 -->
+                </div>
+            </div>
+
+            <!-- 行动面板 -->
+            <div class="sidebar-panel">
+                <h3>⚡ 可用行动</h3>
+                <div class="action-panel" id="action-panel">
+                    <!-- 行动按钮由JS渲染 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置名称模态框 -->
+    <div id="name-modal" class="modal">
+        <div class="modal-content">
+            <h2>欢迎来到中国经济发展桌游！</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                体验中国改革开放的经济发展历程
+            </p>
+            <div class="form-group">
+                <label>请输入您的名称</label>
+                <input type="text" id="player-name-input" placeholder="输入玩家名称" maxlength="20">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="App.setPlayerName()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建房间模态框 -->
+    <div id="create-room-modal" class="modal">
+        <div class="modal-content">
+            <h2>创建房间</h2>
+            <div class="form-group">
+                <label>最大玩家数</label>
+                <select id="max-players-select">
+                    <option value="2">2人</option>
+                    <option value="3">3人</option>
+                    <option value="4" selected>4人</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary modal-close">取消</button>
+                <button class="btn btn-primary" onclick="App.createRoom()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 建厂模态框 -->
+    <div id="build-modal" class="modal">
+        <div class="modal-content">
+            <h2>🏭 选择要建设的产业</h2>
+            <div class="industry-list" id="industry-list">
+                <!-- 产业列表由JS渲染 -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary modal-close">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 运输模态框 -->
+    <div id="transport-modal" class="modal">
+        <div class="modal-content">
+            <h2>🚂 选择目的地</h2>
+            <div class="transport-list" id="transport-list">
+                <!-- 运输目的地由JS渲染 -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary modal-close">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/game.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

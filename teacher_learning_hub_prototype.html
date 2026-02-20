@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教師學習中心 — 原型展示</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f1117;
+            --card-bg: #1a1d27;
+            --card-hover: #22263a;
+            --accent: #6c63ff;
+            --accent-light: #8b83ff;
+            --green: #34d399;
+            --green-bg: rgba(52, 211, 153, 0.1);
+            --yellow: #fbbf24;
+            --yellow-bg: rgba(251, 191, 36, 0.1);
+            --text: #e4e4e7;
+            --text-dim: #9ca3af;
+            --border: #2a2d3a;
+            --progress-track: #2a2d3a;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang HK', 'Microsoft JhengHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .hub-header {
+            background: linear-gradient(135deg, #1a1d27 0%, #1e2235 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(20px);
+        }
+
+        .hub-header-inner {
+            max-width: 960px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hub-title-area {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .hub-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .hub-title {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .hub-subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* Overall Progress */
+        .overall-progress {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(108, 99, 255, 0.08);
+            padding: 10px 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(108, 99, 255, 0.15);
+        }
+
+        .progress-ring {
+            position: relative;
+            width: 48px;
+            height: 48px;
+        }
+
+        .progress-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-track {
+            fill: none;
+            stroke: var(--progress-track);
+            stroke-width: 4;
+        }
+
+        .progress-ring-fill {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 4;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.6s ease;
+        }
+
+        .progress-ring-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-light);
+        }
+
+        .progress-label {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .progress-label strong {
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        /* Content */
+        .hub-content {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 28px 32px 60px;
+        }
+
+        /* Dev Day Banner */
+        .dev-day-banner {
+            background: linear-gradient(135deg, rgba(108, 99, 255, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%);
+            border: 1px solid rgba(108, 99, 255, 0.2);
+            border-radius: 16px;
+            padding: 22px 28px;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .dev-day-badge {
+            background: var(--accent);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dev-day-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .dev-day-info p {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        /* Category Section */
+        .category {
+            margin-bottom: 28px;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .category-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .category-name {
+            font-size: 17px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .category-progress {
+            font-size: 12px;
+            color: var(--text-dim);
+            background: rgba(255,255,255,0.05);
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .category-chevron {
+            color: var(--text-dim);
+            transition: transform 0.3s ease;
+            font-size: 14px;
+        }
+
+        .category-header:hover .category-chevron {
+            color: var(--text);
+        }
+
+        .category.collapsed .category-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .category.collapsed .task-list {
+            display: none;
+        }
+
+        /* Task Cards */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .task-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .task-card:hover {
+            background: var(--card-hover);
+            border-color: rgba(108, 99, 255, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .task-card.completed {
+            opacity: 0.6;
+        }
+
+        .task-card.completed .task-title {
+            text-decoration: line-through;
+            color: var(--text-dim);
+        }
+
+        /* Custom Checkbox */
+        .task-checkbox {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            margin-top: 2px;
+            cursor: pointer;
+        }
+
+        .task-checkbox:hover {
+            border-color: var(--accent);
+        }
+
+        .task-card.completed .task-checkbox {
+            background: var(--green);
+            border-color: var(--green);
+        }
+
+        .task-checkbox .check-icon {
+            display: none;
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .task-card.completed .task-checkbox .check-icon {
+            display: block;
+        }
+
+        .task-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-title {
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+
+        .task-description {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .task-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .task-tag {
+            font-size: 11px;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .tag-video {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+        }
+
+        .tag-cert {
+            background: rgba(251, 191, 36, 0.1);
+            color: #fbbf24;
+        }
+
+        .tag-practice {
+            background: rgba(52, 211, 153, 0.1);
+            color: #34d399;
+        }
+
+        .tag-doc {
+            background: rgba(96, 165, 250, 0.1);
+            color: #60a5fa;
+        }
+
+        .task-link {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--accent-light);
+            text-decoration: none;
+            font-size: 16px;
+            transition: all 0.2s;
+            margin-top: 2px;
+        }
+
+        .task-link:hover {
+            background: var(--accent);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* Certification Highlight */
+        .cert-highlight {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.03) 100%);
+            border-color: rgba(251, 191, 36, 0.2);
+        }
+
+        .cert-highlight:hover {
+            border-color: rgba(251, 191, 36, 0.4);
+        }
+
+        /* Completion celebration */
+        .celebration-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .celebration-overlay.show {
+            display: flex;
+        }
+
+        .celebration-card {
+            background: var(--card-bg);
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            animation: popIn 0.4s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .celebration-emoji { font-size: 48px; margin-bottom: 16px; }
+        .celebration-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+        .celebration-msg { color: var(--text-dim); font-size: 14px; }
+
+        /* Back button */
+        .back-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .hub-header { padding: 16px 18px; }
+            .hub-content { padding: 20px 18px 40px; }
+            .overall-progress { display: none; }
+            .dev-day-banner { flex-direction: column; align-items: flex-start; }
+            .task-card { padding: 14px 16px; }
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .category {
+            animation: slideIn 0.4s ease backwards;
+        }
+
+        .category:nth-child(2) { animation-delay: 0.05s; }
+        .category:nth-child(3) { animation-delay: 0.1s; }
+        .category:nth-child(4) { animation-delay: 0.15s; }
+        .category:nth-child(5) { animation-delay: 0.2s; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hub-header">
+    <div class="hub-header-inner">
+        <div class="hub-title-area">
+            <div class="hub-icon">📚</div>
+            <div>
+                <div class="hub-title">教師學習中心</div>
+                <div class="hub-subtitle">AI 教學應用 · 專業發展</div>
+            </div>
+        </div>
+        <div class="overall-progress" id="overallProgress">
+            <div class="progress-ring">
+                <svg width="48" height="48">
+                    <circle class="progress-ring-track" cx="24" cy="24" r="20"></circle>
+                    <circle class="progress-ring-fill" id="progressCircle" cx="24" cy="24" r="20"
+                        stroke-dasharray="125.66"
+                        stroke-dashoffset="125.66"></circle>
+                </svg>
+                <span class="progress-ring-text" id="progressPercent">0%</span>
+            </div>
+            <div class="progress-label">
+                <strong id="progressCount">0 / 10</strong><br>
+                任務已完成
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="hub-content">
+
+    <!-- Dev Day Banner -->
+    <div class="dev-day-banner">
+        <div class="dev-day-badge">2月12日</div>
+        <div class="dev-day-info">
+            <h3>在家專業發展日 — AI 如何提升學與教效能（三）</h3>
+            <p>深化 AI 教學應用認識，掌握實用工具，為學校的 AI 發展增添動力</p>
+        </div>
+    </div>
+
+    <!-- Category 1: Google Gemini Certification -->
+    <div class="category" id="cat-cert">
+        <div class="category-header" onclick="toggleCategory('cat-cert')">
+            <div class="category-icon" style="background: rgba(251,191,36,0.12)">🏆</div>
+            <div class="category-name">Google Gemini 教育家認證</div>
+            <span class="category-progress" id="cat-cert-progress">0/2</span>
+            <span class="category-chevron">▼</span>
+        </div>
+        <div class="task-list">
+            <div class="task-card cert-highlight" data-id="cert-1" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">通過 37 條選擇題評核，取得 Google Gemini 認證</div>
+                    <div class="task-description">使用 Google 電郵登入，英文版完全免費。提交後即時得知結果。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-cert">⭐ 強烈推薦</span>
+                    </div>
+                </div>
+                <a href="https://educertifications.google" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+            <div class="task-card" data-id="cert-2" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">製作一個 AI 教學工具（學習小遊戲 / 測驗 / 教學工具）</div>
+                    <div class="task-description">運用所學的 AI 知識，製作一個適用於您課堂的工具，並分享到平台上。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-practice">🛠 動手實踐</span>
+                    </div>
+                </div>
+                <a href="#" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category 2: Huawei Whiteboard -->
+    <div class="category" id="cat-huawei">
+        <div class="category-header" onclick="toggleCategory('cat-huawei')">
+            <div class="category-icon" style="background: rgba(96,165,250,0.12)">📱</div>
+            <div class="category-name">華為電子白板</div>
+            <span class="category-progress" id="cat-huawei-progress">0/1</span>
+            <span class="category-chevron">▼</span>
+        </div>
+        <div class="task-list">
+            <div class="task-card" data-id="huawei-1" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">觀看華為電子白板操作入門教學</div>
+                    <div class="task-description">初步了解華為電子白板的基本操作和功能。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-video">▶ 影片</span>
+                    </div>
+                </div>
+                <a href="https://youtu.be/LMzVDi_tiNA?si=lOigzb1ntjJ5rSzO" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category 3: uLearning Platform -->
+    <div class="category" id="cat-ulearning">
+        <div class="category-header" onclick="toggleCategory('cat-ulearning')">
+            <div class="category-icon" style="background: rgba(52,211,153,0.12)">🎓</div>
+            <div class="category-name">uLearning 學習管理平台</div>
+            <span class="category-progress" id="cat-ulearning-progress">0/3</span>
+            <span class="category-chevron">▼</span>
+        </div>
+        <div class="task-list">
+            <div class="task-card" data-id="ulearn-1" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">閱讀 uLearning 官方詳細用戶指南</div>
+                    <div class="task-description">Google Drive 上的完整用戶手冊。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-doc">📄 文件</span>
+                    </div>
+                </div>
+                <a href="https://drive.google.com/drive/folders/18MDvhD3EZEnSFtDG_VjLj7I-B00YAY0e?usp=sharing" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+            <div class="task-card" data-id="ulearn-2" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">觀看教師版操作教學影片</div>
+                    <div class="task-description">YouTube 播放列表，了解教師端的各項功能操作。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-video">▶ 影片列表</span>
+                    </div>
+                </div>
+                <a href="https://www.youtube.com/playlist?list=PLjsjZemzKDx4kgO4KMO5TVCjgpuEr3FIm" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+            <div class="task-card" data-id="ulearn-3" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">觀看學生版操作教學影片</div>
+                    <div class="task-description">了解學生端操作，方便日後指導學生使用。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-video">▶ 影片列表</span>
+                    </div>
+                </div>
+                <a href="https://www.youtube.com/playlist?list=PLjsjZemzKDx4GytSYbQKi6zlWsAiEZkYC" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category 4: Google Gemini & NotebookLM -->
+    <div class="category" id="cat-ai">
+        <div class="category-header" onclick="toggleCategory('cat-ai')">
+            <div class="category-icon" style="background: rgba(139,92,246,0.12)">🤖</div>
+            <div class="category-name">Google Gemini & NotebookLM</div>
+            <span class="category-progress" id="cat-ai-progress">0/4</span>
+            <span class="category-chevron">▼</span>
+        </div>
+        <div class="task-list">
+            <div class="task-card" data-id="ai-1" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">了解 NotebookLM 產品功能</div>
+                    <div class="task-description">官方產品介紹頁面，快速了解 NotebookLM 如何成為您的 AI 研究與學習助手。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-doc">🌐 官方網站</span>
+                    </div>
+                </div>
+                <a href="https://notebooklm.google/?location=unsupported" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+            <div class="task-card" data-id="ai-2" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">觀看 NotebookLM 官方介紹影片（英文）</div>
+                    <div class="task-description">官方英文介紹影片，了解核心功能。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-video">▶ 影片</span>
+                    </div>
+                </div>
+                <a href="https://www.youtube.com/watch?v=6dHmu1GALmA" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+            <div class="task-card" data-id="ai-3" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">觀看廣東話教學 — 2025 最佳 AI 學習神器</div>
+                    <div class="task-description">Boris 廣東話親切教學，示範用 NotebookLM 做語音摘要及心智圖。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-video">▶ 影片 · 廣東話</span>
+                    </div>
+                </div>
+                <a href="https://www.youtube.com/watch?v=3g4kaO9yejY" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+            <div class="task-card" data-id="ai-4" onclick="toggleTask(this)">
+                <div class="task-checkbox"><span class="check-icon">✓</span></div>
+                <div class="task-info">
+                    <div class="task-title">觀看國語教學 — Google 打造的核彈級 AI（Papaya 電腦教室）</div>
+                    <div class="task-description">深入淺出講解如何將大量資料「從亂到通」，製作 Podcast 和講義。</div>
+                    <div class="task-meta">
+                        <span class="task-tag tag-video">▶ 影片 · 國語</span>
+                    </div>
+                </div>
+                <a href="https://www.youtube.com/watch?v=Z9Y7SxehRA0" target="_blank" class="task-link" onclick="event.stopPropagation()">↗</a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Celebration overlay -->
+<div class="celebration-overlay" id="celebration" onclick="this.classList.remove('show')">
+    <div class="celebration-card">
+        <div class="celebration-emoji">🎉</div>
+        <div class="celebration-title">太棒了！全部完成！</div>
+        <div class="celebration-msg">您已完成所有學習任務，繼續保持學習熱情！</div>
+    </div>
+</div>
+
+<script>
+    // Simulated state (in production, this comes from server API)
+    const completedTasks = new Set();
+    const TOTAL_TASKS = 10;
+
+    function toggleTask(card) {
+        const id = card.dataset.id;
+        if (completedTasks.has(id)) {
+            completedTasks.delete(id);
+            card.classList.remove('completed');
+        } else {
+            completedTasks.add(id);
+            card.classList.add('completed');
+        }
+        updateProgress();
+
+        // In production: POST to /api/teacher-progress
+        // fetch('/api/teacher-progress', { method: 'POST', body: JSON.stringify({ task_id: id, completed: completedTasks.has(id) }) })
+    }
+
+    function toggleCategory(catId) {
+        document.getElementById(catId).classList.toggle('collapsed');
+    }
+
+    function updateProgress() {
+        const done = completedTasks.size;
+        const pct = Math.round((done / TOTAL_TASKS) * 100);
+
+        // Update ring
+        const circle = document.getElementById('progressCircle');
+        const circumference = 2 * Math.PI * 20; // r=20
+        circle.style.strokeDashoffset = circumference - (circumference * pct / 100);
+
+        // Update text
+        document.getElementById('progressPercent').textContent = pct + '%';
+        document.getElementById('progressCount').textContent = done + ' / ' + TOTAL_TASKS;
+
+        // Update category progress
+        updateCategoryProgress('cat-cert', ['cert-1', 'cert-2']);
+        updateCategoryProgress('cat-huawei', ['huawei-1']);
+        updateCategoryProgress('cat-ulearning', ['ulearn-1', 'ulearn-2', 'ulearn-3']);
+        updateCategoryProgress('cat-ai', ['ai-1', 'ai-2', 'ai-3', 'ai-4']);
+
+        // Celebration
+        if (done === TOTAL_TASKS) {
+            document.getElementById('celebration').classList.add('show');
+        }
+    }
+
+    function updateCategoryProgress(catId, taskIds) {
+        const done = taskIds.filter(id => completedTasks.has(id)).length;
+        const el = document.getElementById(catId + '-progress');
+        if (el) el.textContent = done + '/' + taskIds.length;
+    }
+</script>
+
+</body>
+</html>

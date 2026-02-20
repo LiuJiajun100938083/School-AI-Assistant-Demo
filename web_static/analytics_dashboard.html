@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習分析儀表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="/static/css/analytics_dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎓 學習分析儀表板</h1>
+            <p>實時監控學生學習狀況，智能分析與預警</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filter-controls">
+            <select class="filter-select" id="classFilter">
+                <option value="">所有班級</option>
+            </select>
+            <select class="filter-select" id="subjectFilter">
+                <option value="">所有科目</option>
+            </select>
+            <select class="filter-select" id="timeFilter">
+                <option value="7">最近7天</option>
+                <option value="30" selected>最近30天</option>
+                <option value="90">最近3個月</option>
+            </select>
+            <button class="btn btn-primary" id="refreshBtn">🔄 刷新數據</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="overview">總覽</button>
+            <button class="tab" data-tab="students">學生分析</button>
+            <button class="tab" data-tab="knowledge">知識掌握</button>
+            <button class="tab" data-tab="warnings">預警中心</button>
+            <button class="tab" data-tab="teachers">教師分配</button>
+            <button class="tab" data-tab="progress">進度曲線</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="overview-content" class="tab-content">
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-title">📊 班級總體表現</div>
+                    <div class="stat-value" id="avgMastery">-</div>
+                    <div class="stat-label">平均掌握度</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="masteryProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">⚠️ 風險學生</div>
+                    <div class="stat-value" id="riskCount">-</div>
+                    <div class="stat-label">需要關注的學生</div>
+                    <div style="margin-top: 10px">
+                        <span class="risk-badge risk-high" id="highRisk">高風險: 0</span>
+                        <span class="risk-badge risk-medium" id="mediumRisk">中風險: 0</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📈 學習活躍度</div>
+                    <div class="stat-value" id="activityScore">-</div>
+                    <div class="stat-label">本週活躍指數</div>
+                    <div class="chart-container">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">💡 問題質量</div>
+                    <div class="stat-value" id="questionQuality">-</div>
+                    <div class="stat-label">平均問題質量分</div>
+                    <div class="chart-container">
+                        <canvas id="qualityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="students-content" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-title">👥 學生學習狀況</div>
+                <div class="student-list" id="studentList">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>加載中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="knowledge-content" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-title">🧠 知識點掌握分佈</div>
+                <div class="knowledge-map" id="knowledgeMap"></div>
+                <div class="chart-container">
+                    <canvas id="knowledgeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div id="warnings-content" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-title">⚠️ 學習預警</div>
+                <div class="warning-list" id="warningList"></div>
+            </div>
+        </div>
+
+        <div id="teachers-content" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-title">👨‍🏫 教師班級分配</div>
+                <div class="teacher-assignment" id="teacherAssignment"></div>
+            </div>
+        </div>
+
+        <div id="progress-content" class="tab-content" style="display: none;">
+            <div class="card">
+                <div class="card-title">📈 學習進度曲線</div>
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="progressChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 共享工具模組 -->
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <!-- 頁面邏輯 -->
+    <script src="/static/js/analytics_dashboard.js"></script>
+</body>
+</html>

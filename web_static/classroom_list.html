@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课堂列表</title>
+    <link rel="stylesheet" href="/static/css/classroom_list.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7L2 12C2 18.63 6.5 24 12 24C17.5 24 22 18.63 22 12L22 7L12 2Z"></path>
+                <path d="M12 12L10 14L14 18L18 10"></path>
+            </svg>
+        </div>
+        <div class="splash-text">加载中...</div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container" id="mainContainer" style="display: none;">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <button class="back-button" id="backBtn" title="返回">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h1 class="header-title">课堂</h1>
+            </div>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div>
+                    <div class="user-name" id="userName">User</div>
+                    <span class="user-role" id="userRole">学生</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Bar -->
+        <div class="actions-bar">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="searchInput" placeholder="搜索课堂...">
+            </div>
+            <button class="create-btn" id="createBtn" style="display: none;">+ 创建课堂</button>
+        </div>
+
+        <!-- Teacher Rooms Section -->
+        <div class="rooms-section" id="teacherSection" style="display: none;">
+            <div class="section-title">我的课堂</div>
+            <div class="rooms-grid" id="teacherRooms"></div>
+        </div>
+
+        <!-- Student Rooms Section -->
+        <div class="rooms-section" id="studentSection" style="display: none;">
+            <div class="section-title">可用课堂</div>
+            <div class="rooms-grid" id="studentRooms"></div>
+        </div>
+    </div>
+
+    <!-- Create Room Modal -->
+    <div class="modal-overlay" id="createRoomModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">创建新课堂</h2>
+                <button class="modal-close" id="closeCreateModal">&times;</button>
+            </div>
+            <form id="createRoomForm">
+                <div class="form-group">
+                    <label class="form-label">课堂名称 *</label>
+                    <input type="text" class="form-input" id="roomTitle" placeholder="输入课堂名称" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">课堂描述</label>
+                    <textarea class="form-textarea" id="roomDescription" placeholder="输入课堂描述（可选）"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">允许的班级</label>
+                    <input type="text" class="form-input" id="roomClasses" placeholder="用逗号分隔，如：一年级,二年级">
+                    <div class="form-hint">留空表示不限制班级</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelCreateBtn">取消</button>
+                    <button type="submit" class="btn-submit" id="submitCreateBtn">创建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/classroom_list.js"></script>
+</body>
+</html>

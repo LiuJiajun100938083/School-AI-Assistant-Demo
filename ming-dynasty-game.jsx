@@ -1,0 +1,1065 @@
+/**
+ * 《大明风云：布衣天子之路》- 互动历史教育游戏
+ *
+ * 架构设计：
+ * ├── 配置层 (GAME_CONFIG) - 数据驱动，教师可轻松修改
+ * ├── 引擎层 (useGameEngine) - 游戏状态管理
+ * ├── 组件层 (PageComponents) - 可复用UI组件
+ * └── 样式层 (Tailwind + CSS Variables) - 中国古风视觉
+ *
+ * 可扩展性设计：
+ * - 新增关卡：在 GAME_CONFIG.pages 中添加配置即可
+ * - 修改选项：直接编辑对应页面的 choices 数组
+ * - 自定义页面类型：在 PAGE_TYPES 中扩展
+ */
+
+import React, { useState, useCallback, useMemo } from 'react';
+
+// ============================================================================
+// 第一层：常量与类型定义
+// ============================================================================
+
+const PAGE_TYPES = {
+  COVER: 'cover',           // 封面
+  NARRATIVE: 'narrative',   // 叙事页面
+  CHOICE: 'choice',         // 选择关卡
+  SUCCESS: 'success',       // 成功结局
+  FAILURE: 'failure',       // 失败结局
+  PARTIAL: 'partial',       // 部分正确
+  SUMMARY: 'summary',       // 总结页面
+  DISCUSSION: 'discussion', // 讨论页面
+};
+
+const RESULT_TYPES = {
+  CORRECT: 'correct',
+  WRONG: 'wrong',
+  PARTIAL: 'partial',
+};
+
+// ============================================================================
+// 第二层：游戏配置数据（教师可修改区域）
+// ============================================================================
+
+const GAME_CONFIG = {
+  meta: {
+    title: '大明风云：布衣天子之路',
+    subtitle: '中二级中国历史互动教材',
+    version: '1.0.0',
+    author: '历史教研组',
+  },
+
+  // 视觉主题配置
+  theme: {
+    colors: {
+      primary: '#8B0000',      // 赭红
+      secondary: '#D4AF37',    // 金色
+      dark: '#1a1a1a',         // 墨黑
+      light: '#F5F5DC',        // 宣纸色
+      success: '#2E7D32',      // 成功绿
+      error: '#C62828',        // 失败红
+      warning: '#F57C00',      // 警告橙
+    },
+  },
+
+  // 页面配置 - 核心数据结构
+  pages: {
+    // ==================== 第一部分：开场 ====================
+    cover: {
+      id: 'cover',
+      type: PAGE_TYPES.COVER,
+      content: {
+        title: '大明风云',
+        subtitle: '布衣天子之路',
+        description: '中二级中国历史互动教材',
+        backgroundHint: '宏伟的南京城墙或明朝皇宫',
+      },
+      navigation: {
+        next: 'prologue',
+        buttonText: '开始游戏',
+      },
+    },
+
+    prologue: {
+      id: 'prologue',
+      type: PAGE_TYPES.NARRATIVE,
+      content: {
+        title: '序章',
+        text: '元朝末年，政治腐败，黄河泛滥，瘟疫横行。百姓流离失所，这是一个吃人的时代……',
+        backgroundHint: '灰暗色调，荒凉的村庄',
+        era: '公元1344年',
+      },
+      navigation: {
+        next: 'character_intro',
+        buttonText: '进入历史',
+      },
+    },
+
+    character_intro: {
+      id: 'character_intro',
+      type: PAGE_TYPES.NARRATIVE,
+      content: {
+        title: '角色代入',
+        text: '你是朱重八，今年17岁。你的家人都在瘟疫中去世了，家里没米没地，邻居汪大娘给了你最后一条建议……',
+        characterImage: '身穿破烂麻衣、面容消瘦但眼神坚毅的少年',
+        backgroundHint: '破败的农村小屋',
+      },
+      navigation: {
+        next: 'level_1',
+        buttonText: '接受命运',
+      },
+    },
+
+    // ==================== 第一关：生存抉择 ====================
+    level_1: {
+      id: 'level_1',
+      type: PAGE_TYPES.CHOICE,
+      content: {
+        title: '第一关：生存抉择',
+        era: '公元1344年',
+        situation: '为了活下去，你必须做出选择。',
+        hint: {
+          title: '历史小锦囊',
+          text: '元末社会混乱，贸然造反必死无疑，此时最重要的是「活着」。',
+        },
+      },
+      choices: [
+        {
+          id: 'l1_a',
+          text: '上山落草为寇',
+          result: RESULT_TYPES.WRONG,
+          targetPage: 'level_1_fail',
+        },
+        {
+          id: 'l1_b',
+          text: '去皇觉寺出家',
+          result: RESULT_TYPES.CORRECT,
+          targetPage: 'level_1_success',
+        },
+      ],
+    },
+
+    level_1_fail: {
+      id: 'level_1_fail',
+      type: PAGE_TYPES.FAILURE,
+      content: {
+        title: '挑战失败',
+        text: '你加入了小股山贼，很快就被元军剿灭了。朱元璋的传奇还未开始就结束了。',
+        imageHint: '被元军乱箭射杀的场景',
+      },
+      navigation: {
+        retry: 'level_1',
+        buttonText: '时光倒流（重试）',
+      },
+    },
+
+    level_1_success: {
+      id: 'level_1_success',
+      type: PAGE_TYPES.SUCCESS,
+      content: {
+        title: '选择正确',
+        text: '你忍辱负重，在寺庙里扫地、上香，甚至外出化缘。这段经历让你懂得了民间疾苦，磨练了你的意志。',
+        imageHint: '朱元璋剃度，穿着旧僧袍，拿着钵',
+        lesson: '韬光养晦，等待时机',
+      },
+      navigation: {
+        next: 'level_2',
+        buttonText: '前往下一关',
+      },
+    },
+
+    // ==================== 第二关：战略眼光 ====================
+    level_2: {
+      id: 'level_2',
+      type: PAGE_TYPES.CHOICE,
+      content: {
+        title: '第二关：战略眼光',
+        era: '公元1352-1360年',
+        situation: '你已加入郭子兴队伍并崭露头角。谋士朱昇献策九字箴言，你决定如何执行战略？',
+        imageHint: '军帐内，朱元璋穿着红巾军战甲，与谋士朱昇对话',
+        hint: {
+          title: '历史小锦囊',
+          text: '群雄并起（陈友谅、张士诚），过早称王会成为众矢之的。',
+        },
+      },
+      choices: [
+        {
+          id: 'l2_a',
+          text: '立即称帝，号令天下',
+          result: RESULT_TYPES.WRONG,
+          targetPage: 'level_2_fail',
+        },
+        {
+          id: 'l2_b',
+          text: '高筑墙，广积粮，缓称王',
+          result: RESULT_TYPES.CORRECT,
+          targetPage: 'level_2_success',
+        },
+      ],
+    },
+
+    level_2_fail: {
+      id: 'level_2_fail',
+      type: PAGE_TYPES.FAILURE,
+      content: {
+        title: '挑战失败',
+        text: '你太过招摇，元军和陈友谅联手攻击你，你的势力被瓦解了。',
+        imageHint: '四面楚歌，城池被围困',
+      },
+      navigation: {
+        retry: 'level_2',
+        buttonText: '听听谋士建议（重试）',
+      },
+    },
+
+    level_2_success: {
+      id: 'level_2_success',
+      type: PAGE_TYPES.SUCCESS,
+      content: {
+        title: '选择正确',
+        text: '你稳扎稳打，消灭了陈友谅与张士诚，最终北伐成功，建立大明！',
+        imageHint: '粮仓丰满，城墙坚固，士兵操练',
+        lesson: '战略定力，厚积薄发',
+      },
+      navigation: {
+        next: 'level_3',
+        buttonText: '登基为帝',
+      },
+    },
+
+    // ==================== 第三关：皇权与相权 ====================
+    level_3: {
+      id: 'level_3',
+      type: PAGE_TYPES.CHOICE,
+      content: {
+        title: '第三关：皇权与相权',
+        era: '公元1380年',
+        situation: '丞相胡惟庸权势滔天，甚至想架空你。这威胁到了皇权。你该怎么办？',
+        imageHint: '奉天殿，朱元璋身穿龙袍，看着丞相胡惟庸的奏折，眉头紧锁',
+        hint: {
+          title: '历史小锦囊',
+          text: '朱元璋性格多疑，且希望权力高度集中，不喜欢有人分权。',
+        },
+      },
+      choices: [
+        {
+          id: 'l3_a',
+          text: '杀胡惟庸，换个听话的丞相',
+          result: RESULT_TYPES.PARTIAL,
+          targetPage: 'level_3_partial',
+        },
+        {
+          id: 'l3_b',
+          text: '杀胡惟庸，并废除丞相制度',
+          result: RESULT_TYPES.CORRECT,
+          targetPage: 'level_3_success',
+        },
+      ],
+    },
+
+    level_3_partial: {
+      id: 'level_3_partial',
+      type: PAGE_TYPES.PARTIAL,
+      content: {
+        title: '未达完美',
+        text: '虽然胡惟庸死了，但新的丞相依然分走了你的权力。这不是历史上朱元璋的做法。',
+      },
+      navigation: {
+        retry: 'level_3',
+        buttonText: '再想一想（重试）',
+      },
+    },
+
+    level_3_success: {
+      id: 'level_3_success',
+      type: PAGE_TYPES.SUCCESS,
+      content: {
+        title: '符合史实',
+        text: '你废除了延续千年的宰相制度，六部直接对皇帝负责。皇权达到了顶峰，但也让你从此劳累过度。',
+        imageHint: '皇帝独自批阅如山的奏折',
+        lesson: '权力集中的利与弊',
+      },
+      navigation: {
+        next: 'level_4',
+        buttonText: '晚年统治',
+      },
+    },
+
+    // ==================== 第四关：严刑峻法 ====================
+    level_4: {
+      id: 'level_4',
+      type: PAGE_TYPES.CHOICE,
+      content: {
+        title: '第四关：严刑峻法',
+        era: '洪武晚年',
+        situation: '建国后，官员贪污腐败严重。为了整治吏治，你决定？',
+        imageHint: '锦衣卫拿着绣春刀，站在诏狱门口',
+      },
+      choices: [
+        {
+          id: 'l4_a',
+          text: '温和劝导，罚俸禄',
+          result: RESULT_TYPES.WRONG,
+          targetPage: 'level_4_fail',
+        },
+        {
+          id: 'l4_b',
+          text: '重典治乱，设锦衣卫',
+          result: RESULT_TYPES.CORRECT,
+          targetPage: 'level_4_success',
+        },
+      ],
+    },
+
+    level_4_fail: {
+      id: 'level_4_fail',
+      type: PAGE_TYPES.FAILURE,
+      content: {
+        title: '不符人设',
+        text: '朱元璋出身贫苦，最痛恨贪官污吏，温和手段不是他的风格。',
+      },
+      navigation: {
+        retry: 'level_4',
+        buttonText: '展现帝王之怒（重试）',
+      },
+    },
+
+    level_4_success: {
+      id: 'level_4_success',
+      type: PAGE_TYPES.SUCCESS,
+      content: {
+        title: '史实重现',
+        text: '你发起了「空印案」等大案，杀贪官无数，虽澄清了吏治，但也让官员终日惶恐，导致了恐怖统治的评价。',
+        lesson: '严刑峻法的双刃剑效应',
+      },
+      navigation: {
+        next: 'summary',
+        buttonText: '查看一生功过',
+      },
+    },
+
+    // ==================== 第三部分：结算 ====================
+    summary: {
+      id: 'summary',
+      type: PAGE_TYPES.SUMMARY,
+      content: {
+        title: '明太祖朱元璋 生平总结',
+        positives: [
+          '驱逐胡虏，恢复中华',
+          '惩治贪官，整顿吏治',
+          '奖励耕织，休养生息',
+        ],
+        negatives: [
+          '废除宰相，君主独裁',
+          '兴文字狱，残杀功臣',
+          '特务统治（锦衣卫）',
+        ],
+      },
+      navigation: {
+        next: 'discussion',
+        buttonText: '课堂讨论题',
+      },
+    },
+
+    discussion: {
+      id: 'discussion',
+      type: PAGE_TYPES.DISCUSSION,
+      content: {
+        title: '思考时间',
+        questions: [
+          {
+            id: 'q1',
+            text: '为什么朱元璋会如此不信任官员？这与他的童年经历有关吗？',
+          },
+          {
+            id: 'q2',
+            text: '废除宰相制度对后来的明朝皇帝产生了什么坏处？',
+            hint: '提示：过劳、依赖宦官',
+          },
+        ],
+      },
+      navigation: {
+        restart: 'cover',
+        buttonText: '重新开始',
+      },
+    },
+  },
+
+  // 游戏流程配置
+  flow: {
+    startPage: 'cover',
+    levels: ['level_1', 'level_2', 'level_3', 'level_4'],
+  },
+};
+
+// ============================================================================
+// 第三层：游戏引擎 Hook
+// ============================================================================
+
+function useGameEngine(config) {
+  const [currentPageId, setCurrentPageId] = useState(config.flow.startPage);
+  const [gameHistory, setGameHistory] = useState([]);
+  const [choicesMade, setChoicesMade] = useState({});
+
+  const currentPage = useMemo(() => {
+    return config.pages[currentPageId];
+  }, [config.pages, currentPageId]);
+
+  const navigateTo = useCallback((pageId) => {
+    if (!config.pages[pageId]) {
+      console.error(`Page not found: ${pageId}`);
+      return;
+    }
+    setGameHistory(prev => [...prev, currentPageId]);
+    setCurrentPageId(pageId);
+  }, [config.pages, currentPageId]);
+
+  const makeChoice = useCallback((choiceId, targetPage) => {
+    setChoicesMade(prev => ({
+      ...prev,
+      [currentPageId]: choiceId,
+    }));
+    navigateTo(targetPage);
+  }, [currentPageId, navigateTo]);
+
+  const restart = useCallback(() => {
+    setCurrentPageId(config.flow.startPage);
+    setGameHistory([]);
+    setChoicesMade({});
+  }, [config.flow.startPage]);
+
+  const goBack = useCallback(() => {
+    if (gameHistory.length > 0) {
+      const previousPage = gameHistory[gameHistory.length - 1];
+      setGameHistory(prev => prev.slice(0, -1));
+      setCurrentPageId(previousPage);
+    }
+  }, [gameHistory]);
+
+  // 计算游戏进度
+  const progress = useMemo(() => {
+    const completedLevels = config.flow.levels.filter(levelId =>
+      choicesMade[levelId] !== undefined
+    );
+    return {
+      current: completedLevels.length,
+      total: config.flow.levels.length,
+      percentage: (completedLevels.length / config.flow.levels.length) * 100,
+    };
+  }, [config.flow.levels, choicesMade]);
+
+  return {
+    currentPage,
+    currentPageId,
+    navigateTo,
+    makeChoice,
+    restart,
+    goBack,
+    progress,
+    choicesMade,
+    canGoBack: gameHistory.length > 0,
+  };
+}
+
+// ============================================================================
+// 第四层：UI 组件库
+// ============================================================================
+
+// 装饰性边框组件
+function OrnamentalBorder({ children, className = '' }) {
+  return (
+    <div className={`relative ${className}`}>
+      {/* 四角装饰 */}
+      <div className="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-amber-600" />
+      <div className="absolute top-0 right-0 w-8 h-8 border-r-2 border-t-2 border-amber-600" />
+      <div className="absolute bottom-0 left-0 w-8 h-8 border-l-2 border-b-2 border-amber-600" />
+      <div className="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-amber-600" />
+      {children}
+    </div>
+  );
+}
+
+// 按钮组件
+function GameButton({
+  children,
+  onClick,
+  variant = 'primary',
+  disabled = false,
+  className = ''
+}) {
+  const variants = {
+    primary: 'bg-gradient-to-b from-red-800 to-red-900 hover:from-red-700 hover:to-red-800 text-amber-100 border-amber-600',
+    secondary: 'bg-gradient-to-b from-stone-700 to-stone-800 hover:from-stone-600 hover:to-stone-700 text-amber-100 border-amber-700',
+    success: 'bg-gradient-to-b from-emerald-800 to-emerald-900 hover:from-emerald-700 hover:to-emerald-800 text-amber-100 border-emerald-600',
+    danger: 'bg-gradient-to-b from-red-900 to-red-950 hover:from-red-800 hover:to-red-900 text-amber-100 border-red-700',
+    gold: 'bg-gradient-to-b from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-stone-900 border-amber-500',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        px-8 py-4 rounded-lg border-2 font-bold text-lg
+        transform transition-all duration-200
+        hover:scale-105 hover:shadow-lg hover:shadow-amber-900/30
+        active:scale-95
+        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+        ${variants[variant]}
+        ${className}
+      `}
+    >
+      {children}
+    </button>
+  );
+}
+
+// 选项卡片组件
+function ChoiceCard({ choice, onClick, index }) {
+  const letters = ['甲', '乙', '丙', '丁'];
+
+  return (
+    <button
+      onClick={() => onClick(choice.id, choice.targetPage)}
+      className="
+        group relative w-full p-6 rounded-lg
+        bg-gradient-to-br from-stone-800/90 to-stone-900/90
+        border-2 border-amber-700/50 hover:border-amber-500
+        transform transition-all duration-300
+        hover:scale-102 hover:shadow-xl hover:shadow-amber-900/20
+        text-left
+      "
+    >
+      <div className="flex items-start gap-4">
+        <span className="
+          flex-shrink-0 w-10 h-10 rounded-full
+          bg-gradient-to-br from-red-800 to-red-900
+          border-2 border-amber-600
+          flex items-center justify-center
+          text-amber-100 font-bold text-lg
+          group-hover:from-red-700 group-hover:to-red-800
+        ">
+          {letters[index]}
+        </span>
+        <span className="text-amber-100 text-lg leading-relaxed pt-1">
+          {choice.text}
+        </span>
+      </div>
+
+      {/* 悬停时的装饰线 */}
+      <div className="
+        absolute bottom-0 left-1/2 -translate-x-1/2
+        w-0 h-0.5 bg-gradient-to-r from-transparent via-amber-500 to-transparent
+        group-hover:w-3/4 transition-all duration-300
+      " />
+    </button>
+  );
+}
+
+// 历史小锦囊组件
+function HintBox({ title, text }) {
+  return (
+    <div className="
+      relative p-4 rounded-lg
+      bg-gradient-to-br from-amber-900/30 to-amber-950/30
+      border border-amber-700/50
+    ">
+      <div className="flex items-start gap-3">
+        <span className="text-2xl">💡</span>
+        <div>
+          <h4 className="text-amber-400 font-bold mb-1">{title}</h4>
+          <p className="text-amber-100/80 text-sm leading-relaxed">{text}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 进度条组件
+function ProgressBar({ progress }) {
+  return (
+    <div className="w-full max-w-md">
+      <div className="flex justify-between text-amber-400/70 text-sm mb-1">
+        <span>进度</span>
+        <span>第 {progress.current} / {progress.total} 关</span>
+      </div>
+      <div className="h-2 bg-stone-800 rounded-full overflow-hidden border border-amber-900/50">
+        <div
+          className="h-full bg-gradient-to-r from-amber-600 to-red-700 transition-all duration-500"
+          style={{ width: `${progress.percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 第五层：页面组件
+// ============================================================================
+
+// 封面页
+function CoverPage({ page, onNavigate }) {
+  const { content, navigation } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+      {/* 装饰性顶部 */}
+      <div className="mb-8">
+        <div className="w-32 h-1 bg-gradient-to-r from-transparent via-amber-600 to-transparent mx-auto" />
+        <div className="w-24 h-1 bg-gradient-to-r from-transparent via-amber-600 to-transparent mx-auto mt-1" />
+      </div>
+
+      {/* 标题区域 */}
+      <OrnamentalBorder className="px-12 py-8 mb-8">
+        <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-amber-300 to-amber-600 mb-4">
+          {content.title}
+        </h1>
+        <h2 className="text-3xl text-amber-100/90 mb-2">
+          {content.subtitle}
+        </h2>
+        <p className="text-amber-400/70 text-lg">
+          {content.description}
+        </p>
+      </OrnamentalBorder>
+
+      {/* 龙纹装饰 */}
+      <div className="text-6xl mb-8 opacity-60">🐉</div>
+
+      {/* 开始按钮 */}
+      <GameButton variant="gold" onClick={() => onNavigate(navigation.next)}>
+        {navigation.buttonText}
+      </GameButton>
+
+      {/* 装饰性底部 */}
+      <div className="mt-12">
+        <div className="w-24 h-1 bg-gradient-to-r from-transparent via-amber-600 to-transparent mx-auto" />
+        <div className="w-32 h-1 bg-gradient-to-r from-transparent via-amber-600 to-transparent mx-auto mt-1" />
+      </div>
+    </div>
+  );
+}
+
+// 叙事页
+function NarrativePage({ page, onNavigate, progress }) {
+  const { content, navigation } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-2xl w-full">
+        {/* 进度条 */}
+        {progress && <div className="mb-8 flex justify-center"><ProgressBar progress={progress} /></div>}
+
+        {/* 时代标签 */}
+        {content.era && (
+          <div className="text-center mb-4">
+            <span className="inline-block px-4 py-1 bg-red-900/50 border border-red-700/50 rounded-full text-amber-400 text-sm">
+              {content.era}
+            </span>
+          </div>
+        )}
+
+        {/* 标题 */}
+        <h2 className="text-3xl font-bold text-amber-400 text-center mb-8">
+          {content.title}
+        </h2>
+
+        {/* 内容卡片 */}
+        <OrnamentalBorder className="p-8 bg-stone-900/50 rounded-lg mb-8">
+          <p className="text-amber-100 text-xl leading-relaxed text-center">
+            {content.text}
+          </p>
+        </OrnamentalBorder>
+
+        {/* 导航按钮 */}
+        <div className="flex justify-center">
+          <GameButton onClick={() => onNavigate(navigation.next)}>
+            {navigation.buttonText}
+          </GameButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 选择关卡页
+function ChoicePage({ page, onChoice, progress }) {
+  const { content, choices } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-3xl w-full">
+        {/* 进度条 */}
+        <div className="mb-8 flex justify-center"><ProgressBar progress={progress} /></div>
+
+        {/* 时代和标题 */}
+        {content.era && (
+          <div className="text-center mb-4">
+            <span className="inline-block px-4 py-1 bg-red-900/50 border border-red-700/50 rounded-full text-amber-400 text-sm">
+              {content.era}
+            </span>
+          </div>
+        )}
+
+        <h2 className="text-3xl font-bold text-amber-400 text-center mb-6">
+          {content.title}
+        </h2>
+
+        {/* 情境描述 */}
+        <div className="bg-stone-900/50 rounded-lg p-6 mb-6 border border-amber-900/30">
+          <p className="text-amber-100 text-lg leading-relaxed text-center">
+            {content.situation}
+          </p>
+        </div>
+
+        {/* 历史小锦囊 */}
+        {content.hint && (
+          <div className="mb-8">
+            <HintBox title={content.hint.title} text={content.hint.text} />
+          </div>
+        )}
+
+        {/* 选项列表 */}
+        <div className="space-y-4">
+          <p className="text-amber-400/70 text-center mb-4">请做出你的选择：</p>
+          {choices.map((choice, index) => (
+            <ChoiceCard
+              key={choice.id}
+              choice={choice}
+              index={index}
+              onClick={onChoice}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 成功结局页
+function SuccessPage({ page, onNavigate, progress }) {
+  const { content, navigation } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-2xl w-full">
+        {/* 进度条 */}
+        <div className="mb-8 flex justify-center"><ProgressBar progress={progress} /></div>
+
+        {/* 成功图标 */}
+        <div className="text-center mb-6">
+          <span className="text-6xl">✅</span>
+        </div>
+
+        {/* 标题 */}
+        <h2 className="text-3xl font-bold text-emerald-400 text-center mb-6">
+          【{content.title}】
+        </h2>
+
+        {/* 内容 */}
+        <OrnamentalBorder className="p-8 bg-emerald-950/30 rounded-lg border border-emerald-700/30 mb-6">
+          <p className="text-amber-100 text-lg leading-relaxed text-center">
+            {content.text}
+          </p>
+
+          {content.lesson && (
+            <div className="mt-4 pt-4 border-t border-emerald-700/30">
+              <p className="text-emerald-400 text-center">
+                <span className="font-bold">历史启示：</span>{content.lesson}
+              </p>
+            </div>
+          )}
+        </OrnamentalBorder>
+
+        {/* 导航按钮 */}
+        <div className="flex justify-center">
+          <GameButton variant="success" onClick={() => onNavigate(navigation.next)}>
+            {navigation.buttonText}
+          </GameButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 失败结局页
+function FailurePage({ page, onNavigate }) {
+  const { content, navigation } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-2xl w-full">
+        {/* 失败图标 */}
+        <div className="text-center mb-6">
+          <span className="text-6xl">❌</span>
+        </div>
+
+        {/* 标题 */}
+        <h2 className="text-3xl font-bold text-red-400 text-center mb-6">
+          【{content.title}】
+        </h2>
+
+        {/* 内容 */}
+        <OrnamentalBorder className="p-8 bg-red-950/30 rounded-lg border border-red-700/30 mb-6">
+          <p className="text-amber-100 text-lg leading-relaxed text-center">
+            {content.text}
+          </p>
+        </OrnamentalBorder>
+
+        {/* 重试按钮 */}
+        <div className="flex justify-center">
+          <GameButton variant="danger" onClick={() => onNavigate(navigation.retry)}>
+            {navigation.buttonText}
+          </GameButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 部分正确页
+function PartialPage({ page, onNavigate }) {
+  const { content, navigation } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-2xl w-full">
+        {/* 图标 */}
+        <div className="text-center mb-6">
+          <span className="text-6xl">⚠️</span>
+        </div>
+
+        {/* 标题 */}
+        <h2 className="text-3xl font-bold text-amber-400 text-center mb-6">
+          【{content.title}】
+        </h2>
+
+        {/* 内容 */}
+        <OrnamentalBorder className="p-8 bg-amber-950/30 rounded-lg border border-amber-700/30 mb-6">
+          <p className="text-amber-100 text-lg leading-relaxed text-center">
+            {content.text}
+          </p>
+        </OrnamentalBorder>
+
+        {/* 重试按钮 */}
+        <div className="flex justify-center">
+          <GameButton variant="secondary" onClick={() => onNavigate(navigation.retry)}>
+            {navigation.buttonText}
+          </GameButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 总结页
+function SummaryPage({ page, onNavigate }) {
+  const { content, navigation } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-4xl w-full">
+        {/* 标题 */}
+        <h2 className="text-3xl font-bold text-amber-400 text-center mb-8">
+          {content.title}
+        </h2>
+
+        {/* 双栏布局 */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* 正面影响 */}
+          <div className="bg-emerald-950/30 rounded-lg p-6 border border-emerald-700/30">
+            <h3 className="text-xl font-bold text-emerald-400 mb-4 text-center">
+              正面影响
+            </h3>
+            <ul className="space-y-3">
+              {content.positives.map((item, index) => (
+                <li key={index} className="flex items-center gap-3 text-amber-100">
+                  <span className="text-emerald-400">✅</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* 负面影响 */}
+          <div className="bg-red-950/30 rounded-lg p-6 border border-red-700/30">
+            <h3 className="text-xl font-bold text-red-400 mb-4 text-center">
+              负面影响
+            </h3>
+            <ul className="space-y-3">
+              {content.negatives.map((item, index) => (
+                <li key={index} className="flex items-center gap-3 text-amber-100">
+                  <span className="text-red-400">❌</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* 导航按钮 */}
+        <div className="flex justify-center">
+          <GameButton onClick={() => onNavigate(navigation.next)}>
+            {navigation.buttonText}
+          </GameButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 讨论页
+function DiscussionPage({ page, onRestart }) {
+  const { content, navigation } = page;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="max-w-3xl w-full">
+        {/* 标题 */}
+        <h2 className="text-3xl font-bold text-amber-400 text-center mb-8">
+          {content.title}
+        </h2>
+
+        {/* 问题列表 */}
+        <div className="space-y-6 mb-8">
+          {content.questions.map((question, index) => (
+            <div
+              key={question.id}
+              className="bg-stone-900/50 rounded-lg p-6 border border-amber-900/30"
+            >
+              <div className="flex gap-4">
+                <span className="
+                  flex-shrink-0 w-8 h-8 rounded-full
+                  bg-gradient-to-br from-amber-600 to-amber-700
+                  flex items-center justify-center
+                  text-stone-900 font-bold
+                ">
+                  {index + 1}
+                </span>
+                <div>
+                  <p className="text-amber-100 text-lg mb-2">{question.text}</p>
+                  {question.hint && (
+                    <p className="text-amber-400/70 text-sm">
+                      {question.hint}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 完成提示 */}
+        <div className="text-center mb-8">
+          <div className="inline-block px-6 py-3 bg-amber-900/30 rounded-lg border border-amber-700/30">
+            <p className="text-amber-400">
+              🎉 恭喜完成《大明风云：布衣天子之路》
+            </p>
+          </div>
+        </div>
+
+        {/* 重新开始按钮 */}
+        <div className="flex justify-center">
+          <GameButton variant="secondary" onClick={onRestart}>
+            {navigation.buttonText}
+          </GameButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 第六层：页面路由器
+// ============================================================================
+
+function PageRouter({ page, engine }) {
+  const { navigateTo, makeChoice, restart, progress } = engine;
+
+  const pageComponents = {
+    [PAGE_TYPES.COVER]: () => (
+      <CoverPage page={page} onNavigate={navigateTo} />
+    ),
+    [PAGE_TYPES.NARRATIVE]: () => (
+      <NarrativePage page={page} onNavigate={navigateTo} progress={progress} />
+    ),
+    [PAGE_TYPES.CHOICE]: () => (
+      <ChoicePage page={page} onChoice={makeChoice} progress={progress} />
+    ),
+    [PAGE_TYPES.SUCCESS]: () => (
+      <SuccessPage page={page} onNavigate={navigateTo} progress={progress} />
+    ),
+    [PAGE_TYPES.FAILURE]: () => (
+      <FailurePage page={page} onNavigate={navigateTo} />
+    ),
+    [PAGE_TYPES.PARTIAL]: () => (
+      <PartialPage page={page} onNavigate={navigateTo} />
+    ),
+    [PAGE_TYPES.SUMMARY]: () => (
+      <SummaryPage page={page} onNavigate={navigateTo} />
+    ),
+    [PAGE_TYPES.DISCUSSION]: () => (
+      <DiscussionPage page={page} onRestart={restart} />
+    ),
+  };
+
+  const PageComponent = pageComponents[page.type];
+
+  if (!PageComponent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-400">未知页面类型: {page.type}</p>
+      </div>
+    );
+  }
+
+  return <PageComponent />;
+}
+
+// ============================================================================
+// 第七层：主应用组件
+// ============================================================================
+
+export default function MingDynastyGame() {
+  const engine = useGameEngine(GAME_CONFIG);
+  const { currentPage, canGoBack, goBack } = engine;
+
+  return (
+    <div className="
+      min-h-screen
+      bg-gradient-to-br from-stone-950 via-stone-900 to-stone-950
+      text-amber-50
+      relative overflow-hidden
+    ">
+      {/* 背景纹理 */}
+      <div
+        className="absolute inset-0 opacity-5"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }}
+      />
+
+      {/* 返回按钮 */}
+      {canGoBack && (
+        <button
+          onClick={goBack}
+          className="
+            fixed top-4 left-4 z-50
+            px-4 py-2 rounded-lg
+            bg-stone-800/80 border border-amber-700/50
+            text-amber-400 text-sm
+            hover:bg-stone-700/80 transition-colors
+          "
+        >
+          ← 返回
+        </button>
+      )}
+
+      {/* 主内容区 */}
+      <main className="relative z-10">
+        <PageRouter page={currentPage} engine={engine} />
+      </main>
+
+      {/* 底部装饰 */}
+      <div className="fixed bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-600/50 to-transparent" />
+    </div>
+  );
+}

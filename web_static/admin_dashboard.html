@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI學習夥伴 - 教師管理後台</title>
+    <link rel="stylesheet" href="/static/css/admin_dashboard.css">
+</head>
+<body>
+    <!-- 導航欄 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <span>🎓</span>
+            <span>AI學習夥伴 - 教師管理後台</span>
+        </div>
+        <div class="navbar-user">
+            <button class="btn btn-primary" data-action="backToMain">
+                <span>🏠</span>返回主系統
+            </button>
+            <div class="user-info">
+                <div class="user-avatar" id="adminAvatar">A</div>
+                <span id="adminName">管理員</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 統計卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title"><span>📚</span> 學科總數</div>
+                <div class="stat-value" id="totalSubjects">-</div>
+                <div class="stat-subtitle">已配置的學科</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-title"><span>📄</span> 文檔總數</div>
+                <div class="stat-value" id="totalDocuments">-</div>
+                <div class="stat-subtitle">知識庫文檔</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-title"><span>👥</span> 學生總數</div>
+                <div class="stat-value" id="totalStudents">-</div>
+                <div class="stat-subtitle">活躍用戶</div>
+            </div>
+            <div class="stat-card info">
+                <div class="stat-title"><span>💬</span> 對話總數</div>
+                <div class="stat-value" id="totalConversations">-</div>
+                <div class="stat-subtitle">累計對話</div>
+            </div>
+        </div>
+
+        <!-- 標籤頁 -->
+        <div class="tabs">
+            <div class="tab-header">
+                <button class="tab-button active" data-action="switchTab" data-tab="subjects">
+                    <span>📖 學科管理</span>
+                </button>
+                <button class="tab-button" data-action="switchTab" data-tab="knowledge">
+                    <span>🗂️ 知識庫管理</span>
+                </button>
+                <button class="tab-button" data-action="switchTab" data-tab="prompts">
+                    <span>💭 提示詞配置</span>
+                </button>
+                <button class="tab-button" data-action="switchTab" data-tab="analysis">
+                    <span>📊 學生分析</span>
+                </button>
+                <button class="tab-button" data-action="switchTab" data-tab="users">
+                    <span>👥 用戶管理</span>
+                </button>
+                <button class="tab-button" data-action="switchTab" data-tab="settings">
+                    <span>⚙️ 系統設定</span>
+                </button>
+                <button class="tab-button" data-action="switchTab" data-tab="notice">
+                    <span>📝 通告管理</span>
+                </button>
+                <button class="tab-button" data-action="switchTab" data-tab="appmgr">
+                    <span>📱 應用管理</span>
+                </button>
+            </div>
+
+            <div class="tab-content">
+                <!-- 學科管理標籤 -->
+                <div class="tab-pane active" id="subjects-tab">
+                    <div class="d-flex justify-between align-center mb-3">
+                        <h3>學科管理</h3>
+                        <button class="btn btn-primary" data-action="showAddSubjectModal">
+                            <span>➕</span> 添加新學科
+                        </button>
+                    </div>
+                    <div class="subject-grid" id="subjectGrid"></div>
+                </div>
+
+                <!-- 知識庫管理標籤 -->
+                <div class="tab-pane" id="knowledge-tab">
+                    <div style="margin-bottom: 2rem;">
+                        <h3 style="display: inline-block; margin-right: 1rem;">🗂️ 知識庫管理</h3>
+                        <span style="color: var(--text-secondary);">管理各學科的知識文檔</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                        <div class="knowledge-stat-card">
+                            <div style="font-size: 2rem; font-weight: bold;" id="totalDocsCount">0</div>
+                            <div style="opacity: 0.9;">總文檔數</div>
+                        </div>
+                        <div class="knowledge-stat-card" style="background: var(--color-warning);">
+                            <div style="font-size: 2rem; font-weight: bold;" id="totalSizeCount">0 MB</div>
+                            <div style="opacity: 0.9;">總存儲量</div>
+                        </div>
+                        <div class="knowledge-stat-card" style="background: var(--color-info);">
+                            <div style="font-size: 2rem; font-weight: bold;" id="subjectsWithDocs">0</div>
+                            <div style="opacity: 0.9;">已配置學科</div>
+                        </div>
+                    </div>
+
+                    <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow);">
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
+                            <select id="knowledgeSubjectSelect" class="filter-select" style="flex: 1; max-width: 300px; padding: 12px; border-radius: 8px;">
+                                <option value="">選擇學科</option>
+                            </select>
+                            <button data-action="triggerDocUpload"
+                                    style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                                <span>📤</span> 上傳文檔
+                            </button>
+                            <button data-action="refreshDocuments"
+                                    style="padding: 12px; background: var(--success); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                🔄 刷新
+                            </button>
+                            <input type="file" id="documentUpload" accept=".txt,.pdf,.docx,.pptx,.md" multiple style="display: none;">
+                        </div>
+
+                        <div id="documentsList">
+                            <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                                <p>請選擇學科查看文檔</p>
+                            </div>
+                        </div>
+
+                        <!-- 通告範本管理部分 -->
+                        <div style="margin-top: 40px; padding-top: 30px; border-top: 3px solid var(--primary);">
+                            <div style="margin-bottom: 2rem;">
+                                <h3 style="display: inline-block; margin-right: 1rem; color: var(--primary);">
+                                    📝 培僑中學通告範本庫
+                                </h3>
+                                <span style="color: var(--text-secondary);">上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告</span>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                                <div style="background: var(--brand); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: bold;" id="totalTemplatesCount">0</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;">總範本數</div>
+                                </div>
+                                <div style="background: var(--color-warning); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: bold;" id="activityTemplatesCount">0</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;">活動通告</div>
+                                </div>
+                                <div style="background: var(--color-info); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: bold;" id="examTemplatesCount">0</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;">考試通告</div>
+                                </div>
+                                <div style="background: var(--color-success); padding: 1rem; border-radius: 10px; color: white; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: bold;" id="meetingTemplatesCount">0</div>
+                                    <div style="font-size: 0.9rem; opacity: 0.9;">會議通告</div>
+                                </div>
+                            </div>
+
+                            <!-- 上傳範本區域 -->
+                            <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: var(--shadow); margin-bottom: 2rem;">
+                                <h4 style="color: var(--primary); margin-bottom: 1.5rem;">
+                                    <span style="margin-right: 0.5rem;">⬆️</span>上傳新範本
+                                </h4>
+                                <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                                            選擇範本檔案 <span style="color: var(--danger);">*</span>
+                                        </label>
+                                        <input type="file" id="noticeTemplateFile" accept=".txt,.docx,.pdf"
+                                               style="width: 100%; padding: 10px; border: 2px solid var(--border); border-radius: 8px; background: var(--bg);">
+                                        <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">支援格式：TXT, DOCX, PDF</small>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">
+                                            範本類型 <span style="color: var(--danger);">*</span>
+                                        </label>
+                                        <select id="noticeTemplateType" style="width: 100%; padding: 11px; border: 2px solid var(--border); border-radius: 8px; background: white;">
+                                            <option value="activity">🎪 活動通告</option>
+                                            <option value="exam">📝 考試通告</option>
+                                            <option value="meeting">👥 會議通告</option>
+                                            <option value="general">📢 一般通告</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">範本描述</label>
+                                        <input type="text" id="noticeTemplateDescription" placeholder="例如：2024年秋季運動會通告"
+                                               style="width: 100%; padding: 10px; border: 2px solid var(--border); border-radius: 8px;">
+                                    </div>
+                                </div>
+                                <div id="templateFilePreview" style="display: none; margin-bottom: 1rem; padding: 1rem; background: var(--bg); border-radius: 8px; border-left: 4px solid var(--primary);">
+                                    <strong>檔案資訊：</strong>
+                                    <span id="previewFileName"></span> |
+                                    <span id="previewFileSize"></span>
+                                </div>
+                                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                    <button data-action="clearTemplateForm"
+                                            style="padding: 12px 24px; background: var(--light); border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                                        清空
+                                    </button>
+                                    <button data-action="uploadNoticeTemplate" id="uploadTemplateBtn"
+                                            style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
+                                        <span>📤</span> 上傳範本
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 範本列表區域 -->
+                            <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: var(--shadow);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                    <h4 style="color: var(--primary); margin: 0;">
+                                        <span style="margin-right: 0.5rem;">📚</span>已上傳的範本
+                                    </h4>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <button data-action="filterTemplates" data-type="all" class="template-filter-btn active"
+                                                style="padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">全部</button>
+                                        <button data-action="filterTemplates" data-type="activity" class="template-filter-btn"
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">活动</button>
+                                        <button data-action="filterTemplates" data-type="exam" class="template-filter-btn"
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">考试</button>
+                                        <button data-action="filterTemplates" data-type="meeting" class="template-filter-btn"
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">会议</button>
+                                        <button data-action="filterTemplates" data-type="general" class="template-filter-btn"
+                                                style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">一般</button>
+                                    </div>
+                                </div>
+                                <div id="noticeTemplatesList">
+                                    <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                        <div class="spinner"></div>
+                                        <p>載入范本列表...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提示詞配置标签 -->
+                <div class="tab-pane" id="prompts-tab">
+                    <div style="margin-bottom: 2rem;">
+                        <h3 style="display: inline-block; margin-right: 1rem;">💭 提示詞配置</h3>
+                        <span style="color: var(--text-secondary);">为每个學科配置AI助手的行为和知识范围</span>
+                    </div>
+                    <div style="background: var(--brand); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; color: white;">
+                        <h4 style="margin-bottom: 1rem;">🎯 快速模板</h4>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <button data-action="applyTemplate" data-template="basic" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">基础教学模板</button>
+                            <button data-action="applyTemplate" data-template="interactive" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">互动问答模板</button>
+                            <button data-action="applyTemplate" data-template="exam" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">考试辅导模板</button>
+                            <button data-action="applyTemplate" data-template="creative" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">创意思维模板</button>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 300px 1fr; gap: 2rem;">
+                        <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow); height: fit-content;">
+                            <h4 style="margin-bottom: 1rem; color: var(--primary);">📚 學科列表</h4>
+                            <div id="promptSubjectList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                        </div>
+                        <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow);">
+                            <div id="promptEditor" style="display: none;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                    <h4 id="promptSubjectTitle" style="color: var(--primary); margin: 0;">學科提示詞</h4>
+                                    <div style="display: flex; gap: 8px;">
+                                        <span id="promptCharCount" style="color: var(--text-secondary); font-size: 14px;">0 字符</span>
+                                        <span id="promptSaveStatus" style="color: var(--success); font-size: 14px; display: none;">✓ 已保存</span>
+                                    </div>
+                                </div>
+                                <div style="position: relative; margin-bottom: 1rem;">
+                                    <textarea id="promptContent" placeholder="輸入提示詞內容..."
+                                              style="width: 100%; min-height: 400px; padding: 15px; border: 2px solid var(--border); border-radius: 10px; font-family: 'Monaco', 'Menlo', monospace; font-size: 14px; line-height: 1.6; resize: vertical;"></textarea>
+                                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
+                                        <button data-action="formatPrompt" style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">格式化</button>
+                                        <button data-action="previewPrompt" style="padding: 6px 12px; background: var(--light); border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">预览</button>
+                                    </div>
+                                </div>
+                                <div style="background: var(--bg); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                                    <h5 style="color: var(--text-secondary); margin-bottom: 0.5rem;">可用变量：</h5>
+                                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 13px;">
+                                        <code style="background: white; padding: 4px 8px; border-radius: 4px;">{subject_name}</code>
+                                        <code style="background: white; padding: 4px 8px; border-radius: 4px;">{student_name}</code>
+                                        <code style="background: white; padding: 4px 8px; border-radius: 4px;">{class_name}</code>
+                                        <code style="background: white; padding: 4px 8px; border-radius: 4px;">{current_date}</code>
+                                        <code style="background: white; padding: 4px 8px; border-radius: 4px;">{knowledge_base}</code>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                    <button data-action="resetPrompt" style="padding: 12px 24px; background: var(--light); border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">重置</button>
+                                    <button data-action="savePrompt" style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">💾 保存提示詞</button>
+                                </div>
+                            </div>
+                            <div id="promptPlaceholder" style="text-align: center; padding: 4rem; color: var(--text-secondary);">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">💭</div>
+                                <p>請選擇左侧學科開始配置提示詞</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 學生分析标签 -->
+                <div class="tab-pane" id="analysis-tab">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3>📊 學生學習分析</h3>
+                        <div>
+                            <button class="refresh-btn" data-action="refreshAnalysis">🔄 刷新數據</button>
+                            <button class="export-btn" data-action="exportAnalysis">📥 匯出報告</button>
+                        </div>
+                    </div>
+                    <div class="students-summary-wrapper">
+                        <div class="students-summary-header">
+                            <h4 style="color: var(--primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <span>🧾</span> 學生摘要總览（最近更新）
+                            </h4>
+                            <div>
+                                <button class="refresh-btn" data-action="loadStudentsSummary">🔄 刷新摘要</button>
+                            </div>
+                        </div>
+                        <div id="studentsSummaryList" class="students-summary-grid">
+                            <div class="loading-spinner" style="grid-column: 1 / -1;">
+                                <div class="spinner"></div>
+                                <p>載入學生摘要...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="analysis-container">
+                        <div class="student-list-panel">
+                            <div class="student-list-header"><h4>學生列表</h4></div>
+                            <div class="filter-controls">
+                                <select class="filter-select" id="classFilter">
+                                    <option value="">所有班级</option>
+                                </select>
+                                <select class="filter-select" id="subjectFilter">
+                                    <option value="">所有學科</option>
+                                </select>
+                                <input type="text" class="filter-select" id="studentSearch" placeholder="搜索學生姓名...">
+                            </div>
+                            <div class="class-overview" id="classOverview">
+                                <div class="overview-card">
+                                    <h5>總人数</h5>
+                                    <div class="value" id="totalStudentCount">0</div>
+                                </div>
+                                <div class="overview-card">
+                                    <h5>高风险</h5>
+                                    <div class="value" style="color: var(--danger);" id="highRiskCount">0</div>
+                                </div>
+                                <div class="overview-card">
+                                    <h5>中风险</h5>
+                                    <div class="value" style="color: var(--warning);" id="mediumRiskCount">0</div>
+                                </div>
+                                <div class="overview-card">
+                                    <h5>低风险</h5>
+                                    <div class="value" style="color: var(--success);" id="lowRiskCount">0</div>
+                                </div>
+                            </div>
+                            <div class="student-list" id="studentList">
+                                <div class="loading-spinner">
+                                    <div class="spinner"></div>
+                                    <p>載入學生列表...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="analysis-panel">
+                            <div id="analysisContent">
+                                <div class="empty-state">
+                                    <h4>👈 請選擇一个學生查看分析報告</h4>
+                                    <p>選擇左侧學生列表中的學生，查看其詳細的學習分析報告</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 通告管理标签 -->
+                <div class="tab-pane" id="notice-tab">
+                    <div class="notice-chat-container">
+                        <div class="notice-chat-header">
+                            <span style="font-size: 24px;">🤖</span>
+                            <h3 style="margin: 0;">智能通告助手</h3>
+                            <div style="flex: 1;"></div>
+                            <div class="progress-bar" style="width: 150px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px;">
+                                <div class="progress-fill" id="noticeProgressBar" style="height: 100%; background: white; border-radius: 3px; width: 0%;"></div>
+                            </div>
+                        </div>
+                        <div class="notice-chat-messages" id="noticeChatMessages"></div>
+                        <div class="notice-input-container">
+                            <div class="notice-input-wrapper">
+                                <input type="text" class="notice-chat-input" id="noticeChatInput"
+                                       placeholder="輸入您的回复或粘贴通告內容...">
+                                <button class="notice-send-button" data-action="sendNoticeMessage">发送</button>
+                            </div>
+                            <div class="quick-actions" id="noticeQuickActions" style="margin-top: 10px;"></div>
+                        </div>
+                    </div>
+                    <button id="noticeExportButton" data-action="exportNotice"
+                            style="position: fixed; bottom: 30px; right: 30px; padding: 12px 20px; background: var(--color-success); color: white; border: none; border-radius: 25px; cursor: pointer; display: none;">
+                        📄 匯出Word文檔
+                    </button>
+                </div>
+
+                <!-- 用戶管理标签 -->
+                <div class="tab-pane" id="users-tab">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                        <h3>👥 用戶管理</h3>
+                        <div>
+                            <button class="btn btn-primary" data-action="showAddUserModal"><span>➕</span> 添加用戶</button>
+                            <button class="btn btn-primary" data-action="showBatchAddModal"><span>📦</span> 批量添加</button>
+                        </div>
+                    </div>
+                    <div class="filter-controls" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                        <select class="filter-select" id="userRoleFilter">
+                            <option value="">所有角色</option>
+                            <option value="admin">管理员</option>
+                            <option value="teacher">教師</option>
+                            <option value="student">學生</option>
+                        </select>
+                        <select class="filter-select" id="userClassFilter">
+                            <option value="">所有班级</option>
+                        </select>
+                        <input type="text" class="filter-select" id="userSearchInput" placeholder="搜索用戶..." style="flex: 1;">
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="usersTable" style="width: 100%; background: white; border-radius: 10px;">
+                            <thead style="background: var(--light);">
+                                <tr>
+                                    <th style="padding: 12px;">用戶名</th>
+                                    <th style="padding: 12px;">顯示名称</th>
+                                    <th style="padding: 12px;">角色</th>
+                                    <th style="padding: 12px;">班级/部门</th>
+                                    <th style="padding: 12px;">狀態</th>
+                                    <th style="padding: 12px;">登录次数</th>
+                                    <th style="padding: 12px;">最后登录</th>
+                                    <th style="padding: 12px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 系統設定标签 -->
+                <div class="tab-pane" id="settings-tab">
+                    <h3>系統設定</h3>
+                </div>
+
+                <!-- 應用管理標籤 -->
+                <div class="tab-pane" id="appmgr-tab">
+                    <div class="d-flex justify-between align-center mb-3">
+                        <h3>首頁應用管理</h3>
+                        <div style="display:flex;gap:10px;">
+                            <button class="btn" data-action="resetAppsToDefault" style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:8px 16px;cursor:pointer;">🔄 重置為預設</button>
+                            <button class="btn btn-primary" data-action="saveAppsConfig" style="border-radius:8px;padding:8px 16px;">💾 保存配置</button>
+                        </div>
+                    </div>
+                    <p style="color:var(--text-secondary);margin-bottom:20px;">管理首頁顯示的應用卡片。可切換啟用/停用狀態、調整排序和角色可見性。</p>
+                    <div id="appmgrList" style="display:flex;flex-direction:column;gap:12px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加學科模态框 -->
+    <div id="addSubjectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; width: 500px; max-width: 90%;">
+            <h3 style="margin-bottom: 20px; color: var(--primary);">添加新學科</h3>
+            <form id="addSubjectForm">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">學科代码：</label>
+                    <input type="text" id="subjectCode" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">學科名称：</label>
+                    <input type="text" id="subjectName" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">學科圖標：</label>
+                    <input type="text" id="subjectIcon" placeholder="例如：📚" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">學科描述：</label>
+                    <textarea id="subjectDescription" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; min-height: 80px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" data-action="closeAddSubjectModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
+                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 編輯學科模态框 -->
+    <div id="editSubjectModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; width: 500px; max-width: 90%;">
+            <h3 id="editSubjectTitle" style="margin-bottom: 20px; color: var(--primary);">編輯學科</h3>
+            <form id="editSubjectForm">
+                <input type="hidden" id="editSubjectCode">
+                <div style="margin-bottom: 15px;">
+                    <label style="display:block; margin-bottom: 5px;">學科代码</label>
+                    <input type="text" id="editSubjectCodeDisplay" class="modal-input" disabled style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px; background: var(--bg-page);">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display:block; margin-bottom: 5px;">學科名称</label>
+                    <input type="text" id="editSubjectName" class="modal-input" required style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display:block; margin-bottom: 5px;">圖標</label>
+                    <input type="text" id="editSubjectIcon" class="modal-input" placeholder="例如: 📚" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display:block; margin-bottom: 5px;">描述</label>
+                    <textarea id="editSubjectDescription" class="modal-input" rows="3" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;"></textarea>
+                </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" data-action="closeEditSubjectModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
+                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">保存更改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 添加/編輯用戶模态框 -->
+    <div id="userModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; width: 500px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3 id="userModalTitle" style="margin-bottom: 20px; color: var(--primary);">添加用戶</h3>
+            <form id="userForm">
+                <input type="hidden" id="editUserId">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">用戶名：</label>
+                    <input type="text" id="userUsername" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;" id="passwordField">
+                    <label style="display: block; margin-bottom: 5px;">密碼：</label>
+                    <input type="password" id="userPassword" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                    <small style="color: #666;">留空则不修改密碼</small>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">顯示名称：</label>
+                    <input type="text" id="userDisplayName" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">角色：</label>
+                    <select id="userRole" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                        <option value="student">學生</option>
+                        <option value="teacher">教師</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">班级/部门：</label>
+                    <input type="text" id="userClass" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">备注：</label>
+                    <textarea id="userNotes" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; min-height: 80px;"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" data-action="closeUserModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
+                    <button type="submit" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 批量添加用戶模态框 -->
+    <div id="batchAddModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; width: 700px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3 style="margin-bottom: 20px; color: var(--primary);">📦 批量添加用戶</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+                <button id="tabExcel" data-action="switchBatchTab" data-tab="excel" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px 5px 0 0; cursor: pointer;">📊 Excel 導入</button>
+                <button id="tabText" data-action="switchBatchTab" data-tab="text" style="padding: 10px 20px; background: #eee; color: #666; border: none; border-radius: 5px 5px 0 0; cursor: pointer;">📝 文本輸入</button>
+            </div>
+            <div id="excelUploadSection">
+                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); border: 2px dashed var(--primary); border-radius: 10px; padding: 30px; text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
+                    <h4 style="margin-bottom: 10px; color: var(--primary);">上傳 Excel 文件</h4>
+                    <p style="color: #666; margin-bottom: 15px;">支持 .xlsx 格式，可批量導入教師或學生</p>
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button data-action="triggerExcelPicker" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">📁 選擇文件</button>
+                        <button data-action="downloadTemplate" style="padding: 12px 24px; background: white; color: var(--primary); border: 2px solid var(--primary); border-radius: 8px; cursor: pointer; font-size: 14px;">⬇️ 下載模板</button>
+                    </div>
+                </div>
+                <div id="selectedFileInfo" style="display: none; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>📄 <strong id="selectedFileName">-</strong></span>
+                        <button data-action="clearSelectedFile" style="background: none; border: none; color: #999; cursor: pointer; font-size: 18px;">✕</button>
+                    </div>
+                </div>
+                <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong style="color: #e65100;">📋 Excel 格式說明：</strong>
+                    <table style="width: 100%; margin-top: 10px; font-size: 13px;">
+                        <tr style="background: #ffe0b2;">
+                            <th style="padding: 8px; text-align: left;">列</th>
+                            <th style="padding: 8px; text-align: left;">內容</th>
+                            <th style="padding: 8px; text-align: left;">必填</th>
+                        </tr>
+                        <tr><td style="padding: 6px;">A</td><td>登入名稱</td><td>是</td></tr>
+                        <tr style="background: #fafafa;"><td style="padding: 6px;">B</td><td>密碼</td><td>是</td></tr>
+                        <tr><td style="padding: 6px;">C</td><td>顯示名稱</td><td>是</td></tr>
+                        <tr style="background: #fafafa;"><td style="padding: 6px;">D</td><td>班級</td><td>否</td></tr>
+                        <tr><td style="padding: 6px;">E</td><td>角色 (student / teacher)</td><td>否（默認 student）</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div id="textInputSection" style="display: none;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">默认角色：</label>
+                    <select id="batchRole" style="padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                        <option value="student">學生</option>
+                        <option value="teacher">教師</option>
+                    </select>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">用戶數據（每行一个用戶）：</label>
+                    <div style="background: var(--bg-page); padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                        <strong>格式：</strong> 用戶名,密碼,顯示名称,班级/部门,备注<br>
+                        <strong>示例：</strong> zhang01,Pass123!,张三,1A班,优秀學生
+                    </div>
+                    <textarea id="batchUserData" rows="10" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px; font-family: monospace;"></textarea>
+                </div>
+            </div>
+            <div id="importResults" style="display: none; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; max-height: 200px; overflow-y: auto;">
+                <h4 style="margin-bottom: 10px;">📊 導入結果</h4>
+                <div id="importResultsList"></div>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" data-action="closeBatchAddModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
+                <button id="batchSubmitBtn" data-action="processBatchAdd" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">🚀 開始導入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 確認刪除對話框 -->
+    <div id="deleteConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; width: 400px; max-width: 90%; text-align: center;">
+            <h3 style="color: var(--danger); margin-bottom: 20px;">⚠️ 確認刪除</h3>
+            <p id="deleteConfirmMessage" style="margin-bottom: 30px;">确定要刪除这个用戶吗？</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button data-action="closeDeleteConfirm" style="padding: 10px 30px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
+                <button data-action="confirmDelete" style="padding: 10px 30px; background: var(--danger); color: white; border: none; border-radius: 5px; cursor: pointer;">刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/admin_dashboard.js"></script>
+</body>
+</html>

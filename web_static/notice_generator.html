@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能通告助手</title>
+    <link rel="stylesheet" href="/static/css/notice_generator.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="message-avatar">🤖</div>
+            <h2>智能通告助手</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <!-- 消息將動態添加 -->
+        </div>
+
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <input type="text" class="chat-input" id="chatInput"
+                       placeholder="輸入您的回覆或粘貼通告內容..." autocomplete="off">
+                <button class="send-button" id="sendButton">發送</button>
+            </div>
+            <div class="quick-actions" id="quickActions"></div>
+        </div>
+    </div>
+
+    <button class="export-button" id="exportButton">📄 導出Word文檔</button>
+
+    <!-- 共享工具模組 -->
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <!-- 頁面邏輯 -->
+    <script src="/static/js/notice_generator.js"></script>
+</body>
+</html>

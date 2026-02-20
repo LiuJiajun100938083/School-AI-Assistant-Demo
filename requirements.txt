@@ -1,0 +1,64 @@
+# Web框架
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+aiofiles==23.2.1
+
+# 数据库
+pymysql==1.1.0
+sqlalchemy==2.0.23
+DBUtils>=3.0.0
+
+# 认证和加密
+PyJWT==2.8.0
+bcrypt==4.1.1
+cryptography==41.0.7
+python-jose[cryptography]==3.3.0
+
+# LangChain 和 AI
+langchain>=0.1.0
+langchain-community>=0.0.13
+langchain-chroma>=0.1.0
+langchain-huggingface>=0.0.1
+langchain-ollama>=0.1.0
+sentence-transformers>=2.2.2
+chromadb>=0.4.15
+transformers>=4.36.2
+torch>=2.1.2
+openai>=1.6.1
+
+# HTTP 请求
+requests==2.31.0
+httpx>=0.25.0
+
+# 图像处理
+Pillow>=10.0.0
+pillow-heif>=0.16.0
+
+# 文档处理
+python-docx==1.1.0
+python-pptx>=0.6.23
+PyPDF2>=3.0.1
+PyMuPDF>=1.23.0
+openpyxl==3.1.2
+
+# Qt GUI (桌面应用)
+PyQt6>=6.6.0
+
+# 数据处理
+pandas>=2.1.0
+numpy>=1.24.0
+
+# 环境和配置
+python-dotenv==1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# 工具
+markdown2>=2.4.0
+pygments>=2.15.0
+
+# 开发工具 (可选)
+black>=23.12.0
+isort>=5.13.0
+flake8>=7.0.0

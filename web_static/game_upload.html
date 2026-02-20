@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上傳遊戲 - AI學習夥伴</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/game_upload.css">
+</head>
+<body>
+    <div class="upload-page">
+        <!-- 顶部导航 -->
+        <header class="upload-header">
+            <div class="header-left">
+                <a href="/" class="back-btn">
+                    <span>←</span>
+                    <span>返回</span>
+                </a>
+                <span class="page-title">🎮 上傳遊戲</span>
+            </div>
+        </header>
+
+        <!-- 主内容 -->
+        <main class="upload-main">
+            <div id="messageBox" class="message"></div>
+
+            <form id="uploadForm" class="form-card">
+                <!-- 基本資訊 -->
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <span class="icon">📝</span>
+                        基本資訊
+                    </h2>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">
+                                遊戲名稱 <span class="required">*</span>
+                            </label>
+                            <input type="text" id="gameName" class="form-input" placeholder="輸入遊戲名稱" required maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">英文名稱</label>
+                            <input type="text" id="gameNameEn" class="form-input" placeholder="English Name (Optional)" maxlength="100">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            遊戲描述 <span class="required">*</span>
+                        </label>
+                        <textarea id="gameDesc" class="form-textarea" placeholder="簡短描述這個遊戲的內容和學習目標" required maxlength="500"></textarea>
+                        <div class="form-hint">最多500字</div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">
+                                學科分類 <span class="required">*</span>
+                            </label>
+                            <select id="gameSubject" class="form-select" required>
+                                <option value="">請選擇學科</option>
+                                <option value="chinese">📖 中文</option>
+                                <option value="math">📐 數學</option>
+                                <option value="english">🔤 英文</option>
+                                <option value="history">📜 歷史</option>
+                                <option value="ict">💻 ICT</option>
+                                <option value="physics">⚡ 物理</option>
+                                <option value="chemistry">🧪 化學</option>
+                                <option value="biology">🧬 生物</option>
+                                <option value="ces">🏛️ 公民</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">顯示圖標</label>
+                            <div class="icon-selector" id="iconSelector">
+                                <div class="icon-option selected" data-icon="🎮">🎮</div>
+                                <div class="icon-option" data-icon="🎯">🎯</div>
+                                <div class="icon-option" data-icon="🧩">🧩</div>
+                                <div class="icon-option" data-icon="🎲">🎲</div>
+                                <div class="icon-option" data-icon="🏆">🏆</div>
+                                <div class="icon-option" data-icon="⭐">⭐</div>
+                                <div class="icon-option" data-icon="🚀">🚀</div>
+                                <div class="icon-option" data-icon="💡">💡</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">適用年級</label>
+                        <div class="checkbox-group" id="difficultyGroup">
+                            <label class="checkbox-label checked">
+                                <input type="checkbox" name="difficulty" value="中一" checked>
+                                中一
+                            </label>
+                            <label class="checkbox-label checked">
+                                <input type="checkbox" name="difficulty" value="中二" checked>
+                                中二
+                            </label>
+                            <label class="checkbox-label checked">
+                                <input type="checkbox" name="difficulty" value="中三" checked>
+                                中三
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="difficulty" value="中四">
+                                中四
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="difficulty" value="中五">
+                                中五
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="difficulty" value="中六">
+                                中六
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">搜索標籤</label>
+                        <input type="text" id="gameTags" class="form-input" placeholder="輸入標籤，用逗號分隔（如：歷史,策略,互動）">
+                        <div class="form-hint">方便學生搜索找到這個遊戲</div>
+                    </div>
+                </div>
+
+                <!-- AI 提示詞 -->
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <span class="icon">🤖</span>
+                        AI 生成提示詞
+                    </h2>
+                    <p class="form-hint" style="margin-bottom: var(--space-3);">
+                        將以下提示詞複製給 AI（如 ChatGPT、Claude），即可生成符合系統要求的遊戲代碼：
+                    </p>
+                    <div class="prompt-box">
+                        <div class="prompt-content" id="aiPrompt">請生成一個完整的單一 HTML 文件教育小遊戲。要求：所有 CSS 和 JavaScript 必須內嵌在該 HTML 文件中，不要創建多個文件。如需使用前端框架（如 React、Vue、Three.js、Tailwind CSS 等），請通過 CDN 連結引入。</div>
+                        <button type="button" class="copy-btn" id="copyPromptBtn" title="複製提示詞">
+                            <span class="copy-icon">📋</span>
+                            <span class="copy-text">複製</span>
+                        </button>
+                    </div>
+                    <p class="form-hint" style="margin-top: var(--space-2);">
+                        💡 提示：可在此基礎上加入您的遊戲主題和教學目標
+                    </p>
+                </div>
+
+                <!-- 遊戲內容 -->
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <span class="icon">📄</span>
+                        遊戲內容
+                    </h2>
+
+                    <div class="upload-tabs">
+                        <button type="button" class="upload-tab active" data-tab="file">📁 上傳檔案</button>
+                        <button type="button" class="upload-tab" data-tab="code">💻 貼上代碼</button>
+                    </div>
+
+                    <!-- 文件上传 -->
+                    <div class="upload-content active" id="fileUpload">
+                        <div class="file-drop-zone" id="dropZone">
+                            <div class="icon">📄</div>
+                            <div class="text">拖曳 HTML 檔案到此處，或點擊選擇檔案</div>
+                            <div class="hint">支援 .html 檔案，最大 5MB</div>
+                        </div>
+                        <input type="file" id="fileInput" class="file-input" accept=".html,.htm">
+                        <div id="fileSelected" class="file-selected" style="display: none;">
+                            <span class="name" id="fileName"></span>
+                            <span class="size" id="fileSize"></span>
+                            <button type="button" class="remove" id="removeFile">×</button>
+                        </div>
+                    </div>
+
+                    <!-- 代码粘贴 -->
+                    <div class="upload-content" id="codeUpload">
+                        <textarea id="htmlCode" class="code-editor" placeholder="<!DOCTYPE html>
+<html>
+<head>
+    <title>My Game</title>
+</head>
+<body>
+    <!-- 在這裡貼上您的遊戲代碼 -->
+</body>
+</html>"></textarea>
+                    </div>
+                </div>
+
+                <!-- 可見性設定 -->
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <span class="icon">👁️</span>
+                        可見性設定
+                    </h2>
+
+                    <!-- 仅教师可见开关 -->
+                    <div class="visibility-toggle" style="margin-bottom: 12px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="teacherOnly">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="visibility-label" id="teacherOnlyLabel">僅教師/管理員可見</span>
+                    </div>
+                    <div class="form-hint" style="margin-top: var(--space-1); margin-bottom: 16px;">
+                        開啟後只有教師和管理員能看到此遊戲，學生不可見
+                    </div>
+
+                    <!-- 学生可见开关 -->
+                    <div id="studentVisibilitySection">
+                        <div class="visibility-toggle">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="isPublic">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="visibility-label" id="visibilityLabel">僅自己可見</span>
+                        </div>
+                        <div class="form-hint" style="margin-top: var(--space-2);">
+                            公開後學生可以在遊戲中心看到並遊玩這個遊戲
+                        </div>
+
+                        <!-- 班级限制 -->
+                        <div id="classRestrictionSection" style="display: none; margin-top: 16px;">
+                            <label class="form-label">可見班級（不選=所有班級可見）</label>
+                            <div class="checkbox-group" id="classGroup" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                <!-- 动态生成班级复选框 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary">取消</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">上傳遊戲</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/game_upload.js"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習分析報告 - 培僑中學</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/student_report.css">
+</head>
+<body>
+    <div class="report-page">
+        <div class="report-container">
+            <div class="report-card">
+                <div class="report-header">
+                    <h1>📊 學習分析報告</h1>
+                    <button class="back-btn">
+                        <span>←</span>
+                        <span>返回主頁</span>
+                    </button>
+                </div>
+
+                <div class="control-panel">
+                    <div class="control-row">
+                        <div class="select-wrapper">
+                            <select id="subjectSelect">
+                                <option value="all" selected>📚 全部學科</option>
+                                <option value="ict">💻 ICT</option>
+                                <option value="ces">🏛️ CES</option>
+                                <option value="history">📜 歷史</option>
+                                <option value="chinese">📖 中文</option>
+                                <option value="english">🔤 英文</option>
+                                <option value="math">🔢 數學</option>
+                                <option value="physics">⚛️ 物理</option>
+                                <option value="chemistry">🧪 化學</option>
+                                <option value="biology">🧬 生物</option>
+                            </select>
+                        </div>
+
+                        <button id="startAnalysisBtn" class="btn btn-primary">
+                            <span>▶️</span>
+                            <span>開始分析</span>
+                        </button>
+
+                        <button id="cancelAnalysisBtn" class="btn btn-danger" style="display: none;">
+                            <span>⏹</span>
+                            <span>中斷分析</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="statusMessage" class="status-message"></div>
+
+                <div id="analyzingStatus" class="analyzing-status" style="display: none;">
+                    <div class="spinner"></div>
+                    <span>正在生成學習報告，請稍候...</span>
+                    <small style="color: var(--text-tertiary); margin-left: var(--space-3);">預計需要 10-30 秒</small>
+                </div>
+
+                <div id="welcomeState" class="welcome-state">
+                    <div class="welcome-icon">📚</div>
+                    <h2>歡迎使用學習分析報告</h2>
+                    <p>
+                        選擇您想要分析的學科，然後點擊「開始分析」按鈕。<br>
+                        系統將使用 AI 技術深入分析您的學習數據，生成個性化的學習報告。
+                    </p>
+                    <p style="color: var(--text-tertiary); font-size: 14px;">
+                        💡 提示：選擇「全部學科」可以獲得完整的學習概覽
+                    </p>
+                </div>
+
+                <div id="reportContent" class="report-content">
+                    <!-- 報告內容將動態生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 共享工具模組 -->
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <!-- 頁面邏輯 -->
+    <script src="/static/js/student_report.js"></script>
+</body>
+</html>

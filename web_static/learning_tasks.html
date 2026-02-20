@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習任務</title>
+    <link rel="stylesheet" href="/static/css/learning_tasks.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <button class="back-button">← 返回</button>
+            <h1 class="header-title">學習任務</h1>
+        </div>
+        <div class="progress-ring-container">
+            <svg class="progress-ring-svg" viewBox="0 0 60 60">
+                <circle class="progress-ring-background" cx="30" cy="30" r="24" />
+                <circle class="progress-ring-fill" id="progressRing" cx="30" cy="30" r="24" />
+            </svg>
+            <span class="progress-ring-text" id="progressText">0%</span>
+        </div>
+    </div>
+
+    <!-- Tab Filter -->
+    <div class="tab-filter">
+        <button class="tab active" data-status="">
+            全部
+            <span class="tab-count" id="count-all">0</span>
+        </button>
+        <button class="tab" data-status="pending">
+            待完成
+            <span class="tab-count" id="count-pending">0</span>
+        </button>
+        <button class="tab" data-status="completed">
+            已完成
+            <span class="tab-count" id="count-completed">0</span>
+        </button>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <div class="task-list" id="taskList">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/learning_tasks.js"></script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生课堂</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <link rel="stylesheet" href="/static/css/classroom_student.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-logo">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm0 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z"/>
+            </svg>
+        </div>
+        <div class="splash-text">加载中...</div>
+    </div>
+
+    <!-- Main Classroom Container -->
+    <div class="classroom-container" id="classroomContainer" style="display: none;">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <div class="top-bar-title" id="roomTitle">课堂</div>
+                <div class="top-bar-teacher" id="teacherName"></div>
+            </div>
+            <div class="top-bar-center">
+                <div class="page-info">
+                    <span id="pageNumber">第 0 页</span>
+                </div>
+                <div class="page-info">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span class="status-label" id="statusLabel">已连接</span>
+                </div>
+                <div class="online-count">
+                    <span>👥</span>
+                    <span id="onlineCount">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="page-display-container">
+                <div class="canvas-wrapper">
+                    <img id="pageImage" class="page-image" alt="PPT 页面">
+                    <canvas id="annotationCanvas" style="display: none;"></canvas>
+                </div>
+                <div id="loadingSpinner" style="display: none;">
+                    <div class="loading-spinner"></div>
+                </div>
+                <div id="noPageMessage" class="no-page-message" style="display: none;">
+                    等待老师推送页面...
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="bottom-bar">
+            <button class="bottom-bar-button" id="backButton">
+                <span>←</span>
+                <span>返回房间列表</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating AI Circle -->
+    <button class="ai-circle" id="aiCircleButton" style="display: none;">🤖</button>
+
+    <!-- AI Chat Panel -->
+    <div class="ai-chat-panel" id="aiChatPanel">
+        <div class="ai-chat-header">
+            <div class="ai-chat-title">AI 助手</div>
+            <button class="ai-chat-close-button" id="aiChatCloseButton">✕</button>
+        </div>
+        <div class="ai-chat-content">
+            <div class="ai-chat-message">AI 助手功能将在后续版本中启用</div>
+        </div>
+        <div class="ai-chat-input-wrapper">
+            <input type="text" class="ai-chat-input" id="aiChatInput" placeholder="输入问题..." disabled>
+            <button class="ai-chat-send-button" id="aiChatSendButton" disabled>→</button>
+        </div>
+    </div>
+
+    <!-- Overlay for Room Status Messages -->
+    <div class="overlay" id="statusOverlay">
+        <div class="overlay-message">
+            <div class="overlay-message-title" id="overlayTitle">课堂已结束</div>
+            <div class="overlay-message-text" id="overlayText">本课堂已由老师结束，请返回课堂列表。</div>
+        </div>
+    </div>
+
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/classroom_student.js"></script>
+</body>
+</html>

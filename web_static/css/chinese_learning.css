@@ -1,0 +1,727 @@
+/* chinese_learning.css - 中文语文学习游戏样式 */
+
+/* ==================== 变量定义 ==================== */
+:root {
+    --cl-primary: #4a90d9;
+    --cl-primary-dark: #357abd;
+    --cl-secondary: #6c757d;
+    --cl-success: #28a745;
+    --cl-warning: #ffc107;
+    --cl-danger: #dc3545;
+    --cl-info: #17a2b8;
+
+    --cl-bg: #f8f9fa;
+    --cl-card-bg: #ffffff;
+    --cl-border: #e9ecef;
+    --cl-text: #333333;
+    --cl-text-light: #6c757d;
+
+    --cl-radius: 12px;
+    --cl-radius-sm: 8px;
+    --cl-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --cl-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+    --cl-transition: all 0.3s ease;
+}
+
+/* ==================== 容器 ==================== */
+.chinese-learning-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+.cl-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.cl-header h2 {
+    font-size: 1.8rem;
+    color: var(--cl-text);
+    margin-bottom: 8px;
+}
+
+.cl-header p {
+    color: var(--cl-text-light);
+    font-size: 1rem;
+}
+
+/* ==================== 年级选择器 ==================== */
+.cl-level-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--cl-card-bg);
+    border-radius: var(--cl-radius);
+    box-shadow: var(--cl-shadow);
+}
+
+.cl-level-selector label {
+    font-weight: 600;
+    color: var(--cl-text);
+}
+
+.cl-select {
+    flex: 1;
+    max-width: 200px;
+    padding: 10px 16px;
+    border: 2px solid var(--cl-border);
+    border-radius: var(--cl-radius-sm);
+    font-size: 1rem;
+    background: white;
+    cursor: pointer;
+    transition: var(--cl-transition);
+}
+
+.cl-select:focus {
+    outline: none;
+    border-color: var(--cl-primary);
+}
+
+/* ==================== 类别标签 ==================== */
+.cl-categories {
+    margin-bottom: 24px;
+}
+
+.cl-category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cl-cat-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--cl-border);
+    border-radius: 20px;
+    background: var(--cl-card-bg);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: var(--cl-transition);
+}
+
+.cl-cat-btn:hover {
+    border-color: var(--cl-primary);
+    color: var(--cl-primary);
+}
+
+.cl-cat-btn.active {
+    background: var(--cl-primary);
+    border-color: var(--cl-primary);
+    color: white;
+}
+
+/* ==================== 游戏卡片网格 ==================== */
+.cl-games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.cl-game-card {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    background: var(--cl-card-bg);
+    border-radius: var(--cl-radius);
+    box-shadow: var(--cl-shadow);
+    cursor: pointer;
+    transition: var(--cl-transition);
+    border: 2px solid transparent;
+}
+
+.cl-game-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--cl-shadow-hover);
+    border-color: var(--cl-primary);
+}
+
+.cl-game-icon {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+}
+
+.cl-game-info h3 {
+    font-size: 1.1rem;
+    color: var(--cl-text);
+    margin: 0 0 4px 0;
+}
+
+.cl-game-en {
+    font-size: 0.85rem;
+    color: var(--cl-text-light);
+    margin: 0 0 8px 0;
+}
+
+.cl-game-desc {
+    font-size: 0.9rem;
+    color: var(--cl-text);
+    margin: 0 0 12px 0;
+    line-height: 1.5;
+}
+
+.cl-game-category,
+.cl-game-skill {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    border-radius: 12px;
+    margin-right: 6px;
+}
+
+.cl-game-category {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.cl-game-skill {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+/* ==================== 任务界面 ==================== */
+.cl-task-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.cl-task-header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--cl-border);
+}
+
+.cl-task-meta {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.cl-game-badge,
+.cl-level-badge,
+.cl-skill-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.cl-game-badge {
+    background: var(--cl-primary);
+    color: white;
+}
+
+.cl-level-badge {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.cl-skill-badge {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.cl-task-title {
+    font-size: 1.5rem;
+    color: var(--cl-text);
+    margin: 0;
+}
+
+/* ==================== 任务说明 ==================== */
+.cl-task-instructions {
+    background: #f0f7ff;
+    padding: 20px;
+    border-radius: var(--cl-radius);
+    margin-bottom: 20px;
+    border-left: 4px solid var(--cl-primary);
+}
+
+.cl-task-instructions h3 {
+    font-size: 1rem;
+    color: var(--cl-primary);
+    margin: 0 0 12px 0;
+}
+
+.cl-task-instructions p {
+    margin: 0 0 12px 0;
+    line-height: 1.6;
+}
+
+.cl-rules-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.cl-rules-list li {
+    margin-bottom: 6px;
+    color: var(--cl-text-light);
+}
+
+/* ==================== 材料区域 ==================== */
+.cl-task-materials {
+    background: var(--cl-card-bg);
+    padding: 20px;
+    border-radius: var(--cl-radius);
+    margin-bottom: 20px;
+    box-shadow: var(--cl-shadow);
+}
+
+.cl-task-materials h3 {
+    font-size: 1rem;
+    color: var(--cl-text);
+    margin: 0 0 16px 0;
+}
+
+.cl-passage {
+    background: #fffbf0;
+    padding: 20px;
+    border-radius: var(--cl-radius-sm);
+    border: 1px solid #ffe0b2;
+    line-height: 1.8;
+    font-size: 1.05rem;
+}
+
+.cl-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cl-item {
+    padding: 12px 16px;
+    background: #f5f5f5;
+    border-radius: var(--cl-radius-sm);
+}
+
+.cl-item-label {
+    font-weight: 600;
+    color: var(--cl-primary);
+    margin-right: 8px;
+}
+
+/* ==================== 学生输入区域 ==================== */
+.cl-response-area {
+    background: var(--cl-card-bg);
+    padding: 20px;
+    border-radius: var(--cl-radius);
+    margin-bottom: 20px;
+    box-shadow: var(--cl-shadow);
+}
+
+.cl-response-area h3 {
+    font-size: 1rem;
+    color: var(--cl-text);
+    margin: 0 0 16px 0;
+}
+
+.cl-textarea {
+    width: 100%;
+    padding: 16px;
+    border: 2px solid var(--cl-border);
+    border-radius: var(--cl-radius-sm);
+    font-size: 1rem;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 150px;
+    font-family: inherit;
+    transition: var(--cl-transition);
+}
+
+.cl-textarea:focus {
+    outline: none;
+    border-color: var(--cl-primary);
+    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+}
+
+.cl-char-count {
+    text-align: right;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--cl-text-light);
+}
+
+/* ==================== 引导框 ==================== */
+.cl-scaffold-box {
+    margin-top: 16px;
+    padding: 16px;
+    background: #e8f5e9;
+    border-radius: var(--cl-radius-sm);
+    border: 1px solid #c8e6c9;
+}
+
+.cl-scaffold-box h4 {
+    color: #2e7d32;
+    margin: 0 0 8px 0;
+}
+
+.cl-scaffold-questions {
+    margin: 12px 0;
+    padding-left: 20px;
+}
+
+.cl-scaffold-questions li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+/* ==================== 按钮 ==================== */
+.cl-action-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.cl-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--cl-radius-sm);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--cl-transition);
+}
+
+.cl-btn-primary {
+    background: var(--cl-primary);
+    color: white;
+}
+
+.cl-btn-primary:hover {
+    background: var(--cl-primary-dark);
+}
+
+.cl-btn-secondary {
+    background: var(--cl-card-bg);
+    color: var(--cl-text);
+    border: 2px solid var(--cl-border);
+}
+
+.cl-btn-secondary:hover {
+    border-color: var(--cl-primary);
+    color: var(--cl-primary);
+}
+
+.cl-btn-link {
+    background: transparent;
+    color: var(--cl-text-light);
+    padding: 8px 16px;
+}
+
+.cl-btn-link:hover {
+    color: var(--cl-primary);
+}
+
+.cl-btn-small {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+.cl-back-area {
+    text-align: center;
+}
+
+/* ==================== 反馈界面 ==================== */
+.cl-feedback-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.cl-feedback-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.cl-feedback-header h2 {
+    font-size: 1.8rem;
+    color: var(--cl-text);
+    margin: 0 0 8px 0;
+}
+
+.cl-feedback-header p {
+    color: var(--cl-text-light);
+}
+
+.cl-student-answer {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: var(--cl-radius);
+    margin-bottom: 24px;
+}
+
+.cl-student-answer h3 {
+    font-size: 1rem;
+    color: var(--cl-text);
+    margin: 0 0 12px 0;
+}
+
+.cl-answer-text {
+    background: white;
+    padding: 16px;
+    border-radius: var(--cl-radius-sm);
+    line-height: 1.6;
+    border: 1px solid var(--cl-border);
+}
+
+.cl-char-info {
+    text-align: right;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--cl-text-light);
+}
+
+.cl-feedback-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.cl-feedback-section {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    border-radius: var(--cl-radius);
+}
+
+.cl-feedback-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.cl-feedback-text h4 {
+    font-size: 1rem;
+    margin: 0 0 8px 0;
+}
+
+.cl-feedback-text p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+.cl-strength {
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+}
+
+.cl-strength h4 {
+    color: #2e7d32;
+}
+
+.cl-improvement {
+    background: #fff3e0;
+    border: 1px solid #ffe0b2;
+}
+
+.cl-improvement h4 {
+    color: #e65100;
+}
+
+.cl-reflection {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+}
+
+.cl-reflection h4 {
+    color: #1565c0;
+}
+
+.cl-feedback-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+/* ==================== 加载和Toast ==================== */
+.cl-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.cl-loading-content {
+    text-align: center;
+}
+
+.cl-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--cl-border);
+    border-top-color: var(--cl-primary);
+    border-radius: 50%;
+    animation: cl-spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes cl-spin {
+    to { transform: rotate(360deg); }
+}
+
+.cl-loading-content p {
+    color: var(--cl-text);
+    font-size: 1rem;
+}
+
+.cl-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 12px 24px;
+    background: var(--cl-text);
+    color: white;
+    border-radius: var(--cl-radius-sm);
+    font-size: 0.95rem;
+    z-index: 1001;
+    opacity: 0;
+    transition: var(--cl-transition);
+}
+
+.cl-toast-show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.cl-toast-success { background: var(--cl-success); }
+.cl-toast-warning { background: var(--cl-warning); color: var(--cl-text); }
+.cl-toast-error { background: var(--cl-danger); }
+.cl-toast-info { background: var(--cl-info); }
+
+.cl-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--cl-text-light);
+}
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 768px) {
+    .chinese-learning-container {
+        padding: 12px;
+    }
+
+    .cl-games-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cl-game-card {
+        padding: 16px;
+    }
+
+    .cl-action-buttons {
+        flex-direction: column;
+    }
+
+    .cl-btn {
+        width: 100%;
+    }
+
+    .cl-level-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .cl-select {
+        max-width: none;
+    }
+
+    .cl-category-tabs {
+        justify-content: center;
+    }
+
+    .cl-task-meta {
+        flex-wrap: wrap;
+    }
+
+    .cl-feedback-section {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+
+/* ==================== 修复：添加无前缀的样式类 ==================== */
+.scaffold-box {
+    margin-top: 16px;
+    padding: 16px;
+    background: #e8f5e9;
+    border-radius: 8px;
+    border: 1px solid #c8e6c9;
+}
+.scaffold-box h4 {
+    color: #2e7d32;
+    margin: 0 0 8px 0;
+}
+.scaffold-questions {
+    margin: 12px 0;
+    padding-left: 20px;
+}
+.scaffold-questions li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+.dismiss-btn {
+    background: none;
+    border: none;
+    color: #6c757d;
+    font-size: 1.1rem;
+    cursor: pointer;
+    float: right;
+    margin-top: -4px;
+}
+.dismiss-btn:hover {
+    color: #dc3545;
+}
+.passage-box {
+    background: #fffbf0;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #ffe0b2;
+    line-height: 1.8;
+    font-size: 1.05rem;
+    margin-bottom: 16px;
+}
+.materials-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.material-item {
+    padding: 12px 16px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+.item-label {
+    font-weight: 600;
+    color: #4a90d9;
+    margin-right: 8px;
+}
+.item-content {
+    color: #333333;
+}
+.no-material {
+    color: #a0a0a0;
+    text-align: center;
+    padding: 24px 0;
+}
+.summary-item {
+    padding: 12px 16px;
+    background: #e3f2fd;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+.summary-item .item-label {
+    color: #1976d2;
+}

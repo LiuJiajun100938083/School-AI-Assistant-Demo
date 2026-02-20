@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+venv/
+
+# Security - NEVER commit
+private_key.pem
+jwt_secret.key
+.env
+.env.*
+*.key
+!public_key.pem
+.encryption_key
+security_config.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+vector_db/
+vector_db_ict/
+
+# User data (privacy)
+user_data/
+user_backups/
+users.json.pre_migration
+
+# Uploads (runtime data)
+uploads/
+uploaded_documents/
+generated_notices/
+
+# Office temp files
+~$*.docx
+~$*.xlsx
+
+# Knowledge base binary data (large files)
+Knowledge_base/.trash/
+Knowledge_base/**/*.pdf
+Knowledge_base/**/*.pptx
+
+# Misc
+llm_config.json
+forum_system.zip

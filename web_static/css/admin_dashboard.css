@@ -1,0 +1,937 @@
+/* ========================================
+   培僑中學 AI 學習夥伴 - 教師管理後台
+   簡潔扁平設計 - 減少AI感
+
+   設計核心：
+   ✓ 純白背景，無灰色區塊
+   ✓ 小圓角或直角
+   ✓ 無陰影，用細邊框代替
+   ✓ 減少懸停動效
+   ✓ 線條分隔代替卡片堆疊
+   ======================================== */
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --brand: #006633;
+    --brand-hover: #005528;
+    --brand-light: #E8F5EC;
+
+    --primary: #006633;
+    --secondary: #005528;
+    --success: #34C759;
+    --warning: #FF9500;
+    --danger: #FF3B30;
+    --dark: #1D1D1F;
+    --light: #FAFAFA;
+    --bg: #FFFFFF;
+    --card-bg: #FFFFFF;
+    --text: #1D1D1F;
+    --text-secondary: #666666;
+    --border: #E5E5E5;
+    --shadow: none;
+    --shadow-hover: none;
+
+    --bg-page: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --text-primary: #1D1D1F;
+    --text-tertiary: #999999;
+    --text-on-brand: #FFFFFF;
+    --border-light: #EEEEEE;
+    --border-default: #E5E5E5;
+    --color-success: #34C759;
+    --color-warning: #FF9500;
+    --color-error: #FF3B30;
+    --color-info: #007AFF;
+    --brand-lighter: #F5FAF7;
+    --brand-border: #D0E5D8;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
+}
+
+html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: #FFFFFF;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* ========== 導航欄 - 簡潔線條 ========== */
+.navbar {
+    background: #FFFFFF;
+    padding: 16px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.navbar-user {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    background: var(--brand);
+    color: #FFFFFF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* ========== 主容器 ========== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px;
+}
+
+/* ========== 統計區 - 簡單數字展示 ========== */
+.stats-grid {
+    display: flex;
+    gap: 48px;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.stat-card {
+    background: transparent;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    border-left: none;
+}
+
+.stat-card:hover {
+    transform: none;
+}
+
+.stat-card.success, .stat-card.warning, .stat-card.info {
+    border-left: none;
+}
+
+.stat-title {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 400;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+}
+
+.stat-subtitle {
+    display: none;
+}
+
+/* ========== 標籤頁 - 簡潔下劃線 ========== */
+.tabs {
+    background: transparent;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+}
+
+.tab-header {
+    display: flex;
+    gap: 0;
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+}
+
+.tab-button {
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: color 0.15s;
+    position: relative;
+    flex: none;
+    min-width: auto;
+}
+
+.tab-button:hover {
+    color: var(--text-primary);
+    background: transparent;
+}
+
+.tab-button.active {
+    color: var(--brand);
+    background: transparent;
+    font-weight: 600;
+}
+
+.tab-button.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--brand);
+}
+
+.tab-content {
+    padding: 0;
+    min-height: auto;
+    background: transparent;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+    animation: none;
+}
+
+/* ========== 學生分析 ========== */
+.analysis-container {
+    display: flex;
+    gap: 32px;
+}
+
+.student-list-panel {
+    width: 300px;
+    background: transparent;
+    border-radius: 0;
+    border: none;
+    border-right: 1px solid var(--border);
+    padding: 0 24px 0 0;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.filter-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #FFFFFF;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--brand);
+}
+
+.student-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.student-item {
+    padding: 12px 16px;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: none;
+    box-shadow: none;
+    position: relative;
+    padding-right: 36px;
+}
+
+.student-item:hover {
+    background: var(--light);
+    transform: none;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.student-item.active {
+    background: var(--brand-light);
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.student-item.active .student-name {
+    color: var(--brand);
+}
+
+.student-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.student-class {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.risk-indicator {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.risk-indicator.risk-low {
+    background: var(--color-success);
+    box-shadow: none;
+}
+
+.risk-indicator.risk-medium {
+    background: var(--color-warning);
+    box-shadow: none;
+}
+
+.risk-indicator.risk-high {
+    background: var(--color-error);
+    box-shadow: none;
+    animation: none;
+}
+
+/* ========== 分析面板 ========== */
+.analysis-panel {
+    flex: 1;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+}
+
+.analysis-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+}
+
+.analysis-header h3 {
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.analysis-meta {
+    display: flex;
+    gap: 24px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.report-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: var(--light);
+    border-radius: 6px;
+    border: none;
+    border-left: 3px solid var(--brand);
+}
+
+.report-section h4 {
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.report-content {
+    line-height: 1.8;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+/* ========== 風險評估 ========== */
+.risk-assessment-card {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 24px;
+    box-shadow: none;
+    border: none;
+}
+
+.risk-level-display {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.risk-level-display.risk-low {
+    background: rgba(52, 199, 89, 0.1);
+    border-left: 3px solid var(--color-success);
+}
+
+.risk-level-display.risk-medium {
+    background: rgba(255, 149, 0, 0.1);
+    border-left: 3px solid var(--color-warning);
+}
+
+.risk-level-display.risk-high {
+    background: rgba(255, 59, 48, 0.1);
+    border-left: 3px solid var(--color-error);
+}
+
+.risk-badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #FFFFFF;
+}
+
+.risk-low .risk-badge { background: var(--color-success); }
+.risk-medium .risk-badge { background: var(--color-warning); }
+.risk-high .risk-badge { background: var(--color-error); }
+
+.risk-description {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* ========== 總體評估 ========== */
+.overall-assessment {
+    background: var(--brand);
+    color: #FFFFFF;
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+    box-shadow: none;
+}
+
+.ai-assessment {
+    background: var(--brand);
+    color: #FFFFFF;
+    padding: 20px;
+    border-radius: 6px;
+    margin: 16px 0;
+    box-shadow: none;
+}
+
+.ai-assessment .formatted-content {
+    background: #FFFFFF;
+    color: var(--text-primary);
+    padding: 16px;
+    border-radius: 4px;
+    margin-top: 12px;
+}
+
+.ai-assessment .formatted-content strong {
+    color: var(--brand);
+}
+
+/* ========== 班級概覽 ========== */
+.class-overview {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.overview-card {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    text-align: left;
+    border: none;
+}
+
+.overview-card h5 {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 400;
+    margin-bottom: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.overview-card .value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ========== 學科網格 ========== */
+.subject-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.subject-card {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 16px;
+    text-align: center;
+    transition: border-color 0.15s;
+    cursor: pointer;
+    position: relative;
+}
+
+.subject-card:hover {
+    border-color: var(--brand);
+    transform: none;
+    box-shadow: none;
+}
+
+.subject-card .subject-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.subject-card:hover .subject-actions {
+    opacity: 1;
+}
+
+.subject-card .icon-btn {
+    border: 1px solid var(--border);
+    background: #FFFFFF;
+    border-radius: 4px;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.subject-card .icon-btn:hover {
+    background: var(--light);
+}
+
+.subject-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.subject-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+/* ========== 按鈕 ========== */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: none;
+}
+
+.btn-primary {
+    background: var(--brand);
+    color: #FFFFFF;
+}
+
+.btn-primary:hover {
+    background: var(--brand-hover);
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--light);
+}
+
+.refresh-btn {
+    padding: 8px 16px;
+    background: var(--brand);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.refresh-btn:hover {
+    background: var(--brand-hover);
+    transform: none;
+}
+
+.export-btn {
+    padding: 8px 16px;
+    background: var(--color-success);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.export-btn:hover {
+    background: #2DBE4E;
+}
+
+/* ========== 知識庫統計 ========== */
+.knowledge-stat-card {
+    background: var(--brand);
+    padding: 20px;
+    border-radius: 6px;
+    color: #FFFFFF;
+    box-shadow: none;
+}
+
+.knowledge-stat-card .stat-value,
+.knowledge-stat-card div[style*="font-size: 2rem"] {
+    font-size: 24px !important;
+    font-weight: 600;
+    color: #FFFFFF;
+}
+
+/* ========== 學生摘要 ========== */
+.students-summary-wrapper {
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 24px;
+    border: none;
+}
+
+.students-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.student-summary-card {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.student-summary-card:hover {
+    border-color: var(--brand);
+    transform: none;
+    box-shadow: none;
+}
+
+.student-summary-card .student-name {
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.student-summary-card .risk-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.student-summary-card .summary-content {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 8px 0;
+}
+
+/* ========== 格式化文本 ========== */
+.formatted-text, .formatted-content {
+    line-height: 1.8;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.formatted-text strong, .formatted-content strong {
+    color: var(--brand);
+    font-weight: 600;
+    background: none;
+    padding: 0;
+}
+
+/* ========== 載入狀態 ========== */
+.loading-spinner {
+    text-align: center;
+    padding: 48px;
+}
+
+.spinner {
+    border: 2px solid var(--border);
+    border-top: 2px solid var(--brand);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.empty-state {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-secondary);
+}
+
+/* ========== 教師注意事項 ========== */
+.teacher-attention {
+    background: rgba(255, 149, 0, 0.08);
+    border: none;
+    border-left: 3px solid var(--color-warning);
+    border-radius: 0 6px 6px 0;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.teacher-attention h5 {
+    color: var(--color-warning);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+/* ========== 滾動條 ========== */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #D0D0D0;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #B0B0B0;
+}
+
+/* ========== 響應式 ========== */
+@media (max-width: 768px) {
+    .container {
+        padding: 16px;
+    }
+
+    .stats-grid {
+        flex-wrap: wrap;
+        gap: 24px;
+    }
+
+    .analysis-container {
+        flex-direction: column;
+    }
+
+    .student-list-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding: 0 0 16px 0;
+        max-height: 300px;
+    }
+
+    .class-overview {
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+}
+
+/* ========== 工具類 ========== */
+.d-flex { display: flex; }
+.justify-between { justify-content: space-between; }
+.align-center { align-items: center; }
+.mb-3 { margin-bottom: 16px; }
+.mb-4 { margin-bottom: 20px; }
+.mt-3 { margin-top: 16px; }
+.text-center { text-align: center; }
+.text-secondary { color: var(--text-secondary); }
+
+/* ========== Inline style overrides (extracted from HTML) ========== */
+.ai-assessment .formatted-content strong {
+    color: var(--brand);
+}
+.student-overview-card .ai-evaluation {
+    background: var(--brand-lighter);
+    border: 1px solid var(--brand-border);
+}
+.formatted-content strong,
+.formatted-content b {
+    color: var(--brand);
+    font-weight: 600;
+}
+.formatted-content p {
+    margin: 0.8em 0;
+    line-height: 1.8;
+}
+
+/* ========== Notice chat styles (extracted from HTML) ========== */
+.notice-chat-container {
+    width: 100%;
+    height: calc(100vh - 250px);
+    min-height: 500px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.notice-chat-header {
+    background: var(--brand);
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.notice-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: var(--bg-page);
+}
+.notice-message {
+    display: flex;
+    gap: 10px;
+    animation: slideIn 0.3s ease;
+}
+.notice-message.user {
+    flex-direction: row-reverse;
+}
+.notice-message-content {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    line-height: 1.5;
+    word-break: break-word;
+}
+.notice-message.ai .notice-message-content {
+    background: white;
+    border: 1px solid #e0e0e0;
+}
+.notice-message.user .notice-message-content {
+    background: var(--primary);
+    color: white;
+}
+.notice-input-container {
+    padding: 15px 20px;
+    border-top: 1px solid var(--border);
+    background: white;
+}
+.notice-input-wrapper {
+    display: flex;
+    gap: 10px;
+}
+.notice-chat-input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 25px;
+    font-size: 14px;
+    outline: none;
+}
+.notice-send-button {
+    padding: 10px 20px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 500;
+}
+.quick-action {
+    padding: 6px 12px;
+    margin-right: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.quick-action:hover { background: var(--bg-page); }
+
+/* ========== Drag-drop and preview styles (extracted from JS) ========== */
+.drag-drop-zone { margin: 12px 0 20px; }
+.drag-drop-zone .ddz-inner { border: 3px dashed #ccc; border-radius: 16px; padding: 28px; text-align: center; background: var(--bg-page); transition: .2s; }
+.drag-drop-zone .ddz-inner.is-dragover { border-color: var(--primary); background: var(--brand-lighter); }
+.drag-drop-zone .ddz-title { font-size: 18px; margin: 8px 0 4px; }
+.drag-drop-zone .ddz-sub { color: var(--text-secondary); margin-bottom: 10px; }
+.drag-drop-zone .ddz-btn { padding: 8px 14px; border-radius: 8px; background: var(--primary); color: #fff; border: 0; cursor: pointer; }
+.notice-preview-pane { position: relative; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px; max-height: 420px; overflow: auto; }
+.notice-preview-pane h4 { margin: 0 0 8px; color: var(--primary); }
+.notice-preview-empty { color: var(--text-secondary); text-align: center; padding: 24px 6px; }
+
+/* ========== Template filter animations (extracted from JS) ========== */
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+.template-filter-btn { transition: all 0.3s ease; }
+.template-filter-btn:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎴 Math Word Vault - 數學詞彙寶庫</title>
+    <link rel="stylesheet" href="/static/css/math_word_cards.css">
+</head>
+<body>
+    <!-- 启动画面 -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-content">
+            <div class="splash-icon">🎴</div>
+            <div class="splash-title">Math Word Vault</div>
+            <div class="splash-subtitle">數學詞彙寶庫</div>
+            <div class="splash-loader"><div class="loader-dot"></div><div class="loader-dot"></div><div class="loader-dot"></div></div>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="mwv-container">
+        <!-- 顶部导航 -->
+        <header class="mwv-header">
+            <button class="back-btn" onclick="window.location.href='/games'">
+                <span>←</span>
+                <span class="back-text">返回遊戲中心</span>
+            </button>
+            <div class="header-title">
+                <span class="title-icon">🎴</span>
+                <span>Math Word Vault</span>
+            </div>
+            <div class="header-progress" id="headerProgress">
+                <span class="progress-text">進度</span>
+                <span class="progress-value" id="progressValue">0 / 0</span>
+            </div>
+        </header>
+
+        <!-- ==================== 主页视图 ==================== -->
+        <main class="mwv-main" id="homeView">
+            <!-- 横幅 -->
+            <div class="vault-banner">
+                <div class="banner-icon">🎴</div>
+                <div class="banner-info">
+                    <h1>My Word Vault</h1>
+                    <p>詞彙寶庫</p>
+                </div>
+                <div class="banner-stats">
+                    <div class="stat">
+                        <span class="stat-value" id="totalMastered">0</span>
+                        <span class="stat-label">已掌握</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="totalWords">0</span>
+                        <span class="stat-label">總詞彙</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 年级选择 -->
+            <section class="grade-section">
+                <h2 class="section-title"><span>📚</span>選擇年級</h2>
+                <div class="grade-cards">
+                    <div class="grade-card" data-grade="s1" onclick="wordVault.selectGrade('s1')">
+                        <div class="grade-icon">1️⃣</div>
+                        <div class="grade-name">中一 S1</div>
+                        <div class="grade-count" id="s1Count">即將推出</div>
+                        <div class="grade-progress"><div class="progress-bar" id="s1Progress"></div></div>
+                    </div>
+                    <div class="grade-card active" data-grade="s2" onclick="wordVault.selectGrade('s2')">
+                        <div class="grade-icon">2️⃣</div>
+                        <div class="grade-name">中二 S2</div>
+                        <div class="grade-count" id="s2Count">載入中...</div>
+                        <div class="grade-progress"><div class="progress-bar" id="s2Progress"></div></div>
+                    </div>
+                    <div class="grade-card" data-grade="s3" onclick="wordVault.selectGrade('s3')">
+                        <div class="grade-icon">3️⃣</div>
+                        <div class="grade-name">中三 S3</div>
+                        <div class="grade-count" id="s3Count">即將推出</div>
+                        <div class="grade-progress"><div class="progress-bar" id="s3Progress"></div></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 学习模式 -->
+            <section class="mode-section">
+                <h2 class="section-title"><span>🎮</span>選擇學習模式</h2>
+                <div class="mode-cards">
+                    <div class="mode-card" onclick="wordVault.startMode('learning')">
+                        <div class="mode-icon">📖</div>
+                        <div class="mode-info">
+                            <h3>Learning Cards</h3>
+                            <p class="mode-zh">初識卡</p>
+                            <p class="mode-desc">學習新詞彙，聽發音、看定義、認識常見混淆詞</p>
+                        </div>
+                        <span class="mode-arrow">→</span>
+                    </div>
+                    <div class="mode-card" onclick="wordVault.startMode('flashRecall')">
+                        <div class="mode-icon">⚡</div>
+                        <div class="mode-info">
+                            <h3>Flash Recall</h3>
+                            <p class="mode-zh">快速回憶卡</p>
+                            <p class="mode-desc">快速複習已學詞彙，自我評估記憶難易度</p>
+                        </div>
+                        <span class="mode-arrow">→</span>
+                    </div>
+                    <div class="mode-card featured" onclick="wordVault.startMode('context')">
+                        <div class="mode-icon">📝</div>
+                        <div class="mode-info">
+                            <h3>Context Cards</h3>
+                            <p class="mode-zh">語境填空卡</p>
+                            <p class="mode-desc">在真實數學題目語境中選擇正確術語</p>
+                        </div>
+                        <span class="mode-badge">核心</span>
+                        <span class="mode-arrow">→</span>
+                    </div>
+                    <div class="mode-card" onclick="wordVault.startMode('reverse')">
+                        <div class="mode-icon">🔄</div>
+                        <div class="mode-info">
+                            <h3>Reverse Cards</h3>
+                            <p class="mode-zh">反向調用卡</p>
+                            <p class="mode-desc">看中文選英文，強化雙向記憶能力</p>
+                        </div>
+                        <span class="mode-arrow">→</span>
+                    </div>
+                    <div class="mode-card" onclick="wordVault.startMode('visual')">
+                        <div class="mode-icon">🖼️</div>
+                        <div class="mode-info">
+                            <h3>Visual Match</h3>
+                            <p class="mode-zh">圖形匹配卡</p>
+                            <p class="mode-desc">將幾何術語與圖形配對，視覺記憶綁定</p>
+                        </div>
+                        <span class="mode-arrow">→</span>
+                    </div>
+                    <div class="mode-card daily" onclick="wordVault.startMode('dailyReview')">
+                        <div class="mode-icon">📅</div>
+                        <div class="mode-info">
+                            <h3>Daily Review</h3>
+                            <p class="mode-zh">每日復習</p>
+                            <p class="mode-desc">複習標記為困難或答錯的詞彙</p>
+                        </div>
+                        <span class="mode-badge review" id="reviewCount">0</span>
+                        <span class="mode-arrow">→</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 浏览词汇按钮 -->
+            <div class="browse-section">
+                <button class="browse-btn" onclick="wordVault.showWordList()">
+                    <span>📚</span> 瀏覽所有詞彙
+                </button>
+            </div>
+        </main>
+
+        <!-- ==================== 学习视图 ==================== -->
+        <div class="learning-view" id="learningView" style="display:none;">
+            <div class="learning-header">
+                <button class="exit-btn" onclick="wordVault.exitLearning()">✕ 退出</button>
+                <div class="learning-progress-bar">
+                    <div class="progress-fill" id="learningProgressFill"></div>
+                </div>
+                <div class="learning-counter"><span id="currentNum">1</span> / <span id="totalNum">10</span></div>
+            </div>
+
+            <div class="card-container" id="cardContainer">
+                <!-- 动态生成词卡 -->
+            </div>
+
+            <div class="card-controls" id="cardControls">
+                <!-- 动态生成控制按钮 -->
+            </div>
+        </div>
+
+        <!-- ==================== 词汇列表视图 ==================== -->
+        <div class="wordlist-view" id="wordlistView" style="display:none;">
+            <div class="wordlist-header">
+                <button class="back-btn" onclick="wordVault.showHome()">← 返回</button>
+                <h2 id="wordlistTitle">中二 數學詞彙</h2>
+                <div class="wordlist-search">
+                    <input type="text" id="wordSearch" placeholder="搜尋詞彙..." oninput="wordVault.searchWords()">
+                </div>
+            </div>
+            <div class="wordlist-filter">
+                <select id="categoryFilter" onchange="wordVault.filterByCategory()">
+                    <option value="all">全部分類</option>
+                </select>
+                <select id="masteryFilter" onchange="wordVault.filterByMastery()">
+                    <option value="all">全部狀態</option>
+                    <option value="mastered">已掌握</option>
+                    <option value="learning">學習中</option>
+                    <option value="new">未學習</option>
+                </select>
+            </div>
+            <div class="word-grid" id="wordGrid"></div>
+        </div>
+
+        <!-- ==================== 结果视图 ==================== -->
+        <div class="result-view" id="resultView" style="display:none;">
+            <div class="result-card">
+                <div class="result-icon" id="resultIcon">🎉</div>
+                <h2 class="result-title" id="resultTitle">完成！</h2>
+                <div class="result-stats">
+                    <div class="result-stat"><span class="stat-value" id="resultCorrect">0</span><span class="stat-label">正確</span></div>
+                    <div class="result-stat"><span class="stat-value" id="resultWrong">0</span><span class="stat-label">需復習</span></div>
+                    <div class="result-stat"><span class="stat-value" id="resultAccuracy">0%</span><span class="stat-label">準確率</span></div>
+                </div>
+                <div class="result-actions">
+                    <button class="result-btn secondary" onclick="wordVault.showHome()">返回主頁</button>
+                    <button class="result-btn primary" onclick="wordVault.restartMode()">再來一次</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 词汇详情弹窗 -->
+    <div class="modal-overlay" id="wordDetailModal" style="display:none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="wordVault.closeWordDetail()">×</button>
+            <div id="wordDetailContent"></div>
+        </div>
+    </div>
+
+    <!-- 音频播放器 -->
+    <audio id="audioPlayer"></audio>
+
+    <script src="/static/js/math_word_cards.js"></script>
+</body>
+</html>
