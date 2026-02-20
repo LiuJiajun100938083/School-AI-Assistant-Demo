@@ -520,8 +520,12 @@
 
             switch (content.content_type) {
                 case 'video':
+                case 'video_local':
+                case 'video_external':
                     thumbnail = content.thumbnail_url ? `<img src="${escapeHtml(content.thumbnail_url)}" alt="">` : '<div class="alc-thumbnail-placeholder"><i class="icon-video"></i></div>';
-                    icon = `<span class="alc-duration">${formatDuration(content.duration)}</span>`;
+                    icon = content.content_type === 'video_external'
+                        ? `<span class="alc-badge">${escapeHtml(content.video_platform || '視頻連結')}</span>`
+                        : `<span class="alc-duration">${formatDuration(content.duration)}</span>`;
                     break;
                 case 'document':
                     thumbnail = '<div class="alc-thumbnail-placeholder"><i class="icon-document"></i></div>';
@@ -652,6 +656,8 @@
 
                 switch (content.content_type) {
                     case 'video':
+                    case 'video_local':
+                    case 'video_external':
                         openVideoModal(content);
                         break;
                     case 'image':
@@ -1323,8 +1329,8 @@
         const videoDesc = getElement('videoModalDesc');
         const videoContainer = modal.querySelector('.alc-video-container');
 
-        if (content.video_type === 'external' || content.video_url) {
-            const embedUrl = parseVideoEmbed(content.video_url);
+        if (content.content_type === 'video_external' || content.external_url) {
+            const embedUrl = parseVideoEmbed(content.external_url);
             if (embedUrl && videoPlayer) {
                 videoPlayer.src = embedUrl;
                 videoPlayer.style.display = 'block';
@@ -1595,6 +1601,22 @@
             });
         }
 
+        // Toggle file upload / external video URL based on content type
+        const typeSelect = getElement('contentTypeSelect');
+        if (typeSelect) {
+            typeSelect.addEventListener('change', () => {
+                const externalSection = getElement('externalVideoSection');
+                const dropZone = getElement('dragDropZone');
+                if (typeSelect.value === 'video_external') {
+                    if (externalSection) externalSection.style.display = 'block';
+                    if (dropZone) dropZone.style.display = 'none';
+                } else {
+                    if (externalSection) externalSection.style.display = 'none';
+                    if (dropZone) dropZone.style.display = '';
+                }
+            });
+        }
+
         // Category create button
         const createCategoryBtn = getElement('createCategoryBtn');
         if (createCategoryBtn) {
@@ -1836,14 +1858,53 @@
         const categoryId = categorySelect ? categorySelect.value : '';
 
         if (!title) {
-            showToast('请输入标题', 'error');
+            showToast('請輸入標題', 'error');
             return;
         }
         if (!contentType) {
-            showToast('请选择内容类型', 'error');
+            showToast('請選擇內容類型', 'error');
             return;
         }
 
+        // 外部視頻連結：走 /upload 端點 (FormData)
+        if (contentType === 'video_external') {
+            const urlInput = getElement('externalVideoUrlInput');
+            const platformSelect = getElement('videoPlatformSelect');
+            const externalUrl = urlInput ? urlInput.value.trim() : '';
+            const videoPlatform = platformSelect ? platformSelect.value : '';
+
+            if (!externalUrl) {
+                showToast('請輸入視頻連結', 'error');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('description', description);
+                formData.append('content_type', 'video_external');
+                formData.append('external_url', externalUrl);
+                formData.append('tags', '');
+                if (videoPlatform) formData.append('video_platform', videoPlatform);
+
+                const response = await apiUpload(`${ADMIN_API}/upload`, formData);
+                if (response.success) {
+                    showToast('視頻連結上傳成功', 'success');
+                    if (titleInput) titleInput.value = '';
+                    if (descInput) descInput.value = '';
+                    if (urlInput) urlInput.value = '';
+                    loadedTabs.delete('media');
+                    loadedTabs.delete('resources');
+                    if (currentTab === 'media') await loadMedia(1);
+                }
+            } catch (error) {
+                console.error('Video link submit error:', error);
+                showToast('視頻連結上傳失敗', 'error');
+            }
+            return;
+        }
+
+        // 其他類型：走 /contents 端點 (JSON)
         try {
             const body = {
                 title,
@@ -1854,11 +1915,12 @@
 
             const response = await apiPost(`${ADMIN_API}/contents`, body);
             if (response.success) {
-                showToast('内容创建成功', 'success');
+                showToast('內容創建成功', 'success');
                 if (titleInput) titleInput.value = '';
                 if (descInput) descInput.value = '';
                 loadedTabs.delete('media');
                 loadedTabs.delete('resources');
+                if (currentTab === 'media') await loadMedia(1);
             }
         } catch (error) {
             console.error('Content submit error:', error);

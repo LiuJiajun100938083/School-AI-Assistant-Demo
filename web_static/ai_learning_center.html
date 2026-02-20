@@ -457,7 +457,8 @@
                         <input type="text" id="contentTitleInput" class="alc-form-input" placeholder="標題" />
                         <select id="contentTypeSelect" class="alc-form-input">
                             <option value="">選擇內容類型</option>
-                            <option value="video">視頻</option>
+                            <option value="video_local">本地視頻</option>
+                            <option value="video_external">視頻連結 (YouTube / Bilibili)</option>
                             <option value="document">文件</option>
                             <option value="image">圖片</option>
                             <option value="article">文章</option>
@@ -465,6 +466,17 @@
                         <select id="contentCategorySelect" class="alc-form-input">
                             <option value="">選擇分類</option>
                         </select>
+                        <!-- 外部視頻連結輸入（僅 video_external 時顯示） -->
+                        <div id="externalVideoSection" style="display: none;">
+                            <input type="text" id="externalVideoUrlInput" class="alc-form-input" placeholder="輸入視頻連結，如 https://www.youtube.com/watch?v=... 或 https://www.bilibili.com/video/BV..." />
+                            <select id="videoPlatformSelect" class="alc-form-input">
+                                <option value="">自動檢測平台</option>
+                                <option value="youtube">YouTube</option>
+                                <option value="bilibili">Bilibili</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                        <!-- 文件上傳區（非 video_external 時顯示） -->
                         <div class="alc-drag-drop-zone" id="dragDropZone">
                             <p>拖放文件到此處或點擊選擇</p>
                             <input type="file" id="contentFileInput" class="alc-file-input" />

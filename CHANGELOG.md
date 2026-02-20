@@ -11,6 +11,20 @@
 
 ---
 
+## [2026-02-20] 修复 AI 学习中心视频连结上传功能
+
+### 修复
+- 前端表单缺少视频连结输入框，导致无法上传 YouTube / Bilibili 视频链接
+- `submitUploadContent()` 未调用 `/upload` 端点，外部视频数据无法传递给后端
+- `openContent()` 和 `renderMediaGrid()` 不识别 `video_local` / `video_external` 类型
+- `openVideoModal()` 字段名与后端不匹配（`video_type` → `content_type`，`video_url` → `external_url`）
+
+### 修改
+- `web_static/ai_learning_center.html` — 内容类型下拉改为「本地視頻」/「視頻連結」，新增 URL 输入框和平台选择器
+- `web_static/js/ai_learning_center.js` — 4 处逻辑修复：类型切换显隐、提交逻辑、内容卡片渲染、视频播放弹窗
+
+---
+
 ## [2026-02-20] 项目架构重构与清理
 
 ### 删除
