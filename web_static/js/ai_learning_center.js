@@ -505,71 +505,172 @@
         }
     }
 
+    /**
+     * Get content type icon emoji
+     */
+    function getContentTypeIcon(contentType) {
+        switch (contentType) {
+            case 'video': case 'video_local': case 'video_external':
+                return '🎬';
+            case 'document':
+                return '📄';
+            case 'image':
+                return '🖼️';
+            case 'article':
+                return '📝';
+            default:
+                return '📎';
+        }
+    }
+
+    /**
+     * Get content type label
+     */
+    function getContentTypeLabel(contentType) {
+        switch (contentType) {
+            case 'video': case 'video_local':
+                return '本地視頻';
+            case 'video_external':
+                return '視頻連結';
+            case 'document':
+                return '文件';
+            case 'image':
+                return '圖片';
+            case 'article':
+                return '文章';
+            default:
+                return '資料';
+        }
+    }
+
+    /**
+     * Render media as a textbook-style chapter directory
+     * Groups content by category, displays as numbered chapters with items
+     */
     function renderMediaGrid() {
         const grid = getElement('mediaGrid');
         if (!grid) return;
 
         if (state.contents.length === 0) {
-            grid.innerHTML = '<div class="alc-empty-state">暂无内容</div>';
+            grid.innerHTML = '<div class="alc-empty-state" style="position:relative;">暫無內容</div>';
             return;
         }
 
-        grid.innerHTML = state.contents.map(content => {
-            let thumbnailHtml = '';
+        // Build a category lookup map
+        const flatCats = flattenCategories(state.categories);
+        const catMap = {};
+        flatCats.forEach(c => { catMap[c.id] = c; });
 
-            switch (content.content_type) {
-                case 'video':
-                case 'video_local':
-                case 'video_external':
-                    // 为外部视频生成缩略图
-                    let videoThumb = '';
-                    if (content.thumbnail_url) {
-                        videoThumb = `<img src="${escapeHtml(content.thumbnail_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
-                    } else if (content.external_url) {
-                        // YouTube 缩略图
-                        const ytMatch = (content.external_url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                        if (ytMatch) {
-                            videoThumb = `<img src="https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg" alt="" style="width:100%;height:100%;object-fit:cover;">`;
-                        }
-                    }
-                    if (!videoThumb) {
-                        videoThumb = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;font-size:48px;">🎬</div>`;
-                    }
-                    thumbnailHtml = `<div class="alc-video-container">${videoThumb}</div>`;
-                    break;
-                case 'document':
-                    thumbnailHtml = `<div class="alc-video-container" style="background:linear-gradient(135deg,var(--brand-lighter),var(--brand-light));display:flex;align-items:center;justify-content:center;font-size:48px;">📄</div>`;
-                    break;
-                case 'image':
-                    if (content.file_path) {
-                        thumbnailHtml = `<div class="alc-image-modal"><img src="/uploads/${escapeHtml(content.file_path)}" alt=""></div>`;
-                    } else {
-                        thumbnailHtml = `<div class="alc-video-container" style="background:linear-gradient(135deg,var(--brand-lighter),var(--brand-light));display:flex;align-items:center;justify-content:center;font-size:48px;">🖼️</div>`;
-                    }
-                    break;
-                case 'article':
-                default:
-                    thumbnailHtml = `<div class="alc-video-container" style="background:linear-gradient(135deg,var(--brand-lighter),var(--brand-light));display:flex;align-items:center;justify-content:center;font-size:48px;">📝</div>`;
+        // Group contents by category
+        const grouped = {};
+        const uncategorized = [];
+
+        state.contents.forEach(content => {
+            // content may have category_id or category_ids
+            const catId = content.category_id || (content.category_ids && content.category_ids[0]) || null;
+            if (catId && catMap[catId]) {
+                if (!grouped[catId]) grouped[catId] = [];
+                grouped[catId].push(content);
+            } else {
+                uncategorized.push(content);
             }
+        });
 
-            return `
-                <div class="alc-media-card" data-id="${content.id}">
-                    ${thumbnailHtml}
-                    <div class="alc-media-body">
-                        <h3 class="alc-media-title">${escapeHtml(content.title)}</h3>
-                        <p class="alc-media-description">${escapeHtml((content.description || '').substring(0, 100))}</p>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        // Build ordered chapter list: categories that have content, in order
+        const chapterOrder = [];
+        flatCats.forEach(cat => {
+            if (grouped[cat.id] && grouped[cat.id].length > 0) {
+                chapterOrder.push(cat);
+            }
+        });
 
-        // Add click handlers
-        grid.querySelectorAll('.alc-media-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const contentId = card.getAttribute('data-id');
+        let html = '<div class="alc-toc">';
+
+        // If filtering by category or no categories exist, render flat list
+        if (state.filters.categoryId || chapterOrder.length === 0) {
+            const items = state.contents;
+            html += renderTocChapter(null, items, 1);
+        } else {
+            // Render each category as a chapter
+            let chapterNum = 1;
+            chapterOrder.forEach(cat => {
+                html += renderTocChapter(cat, grouped[cat.id], chapterNum);
+                chapterNum++;
+            });
+
+            // Uncategorized items
+            if (uncategorized.length > 0) {
+                html += renderTocChapter({ name: '其他資料', icon: '📎' }, uncategorized, chapterNum);
+            }
+        }
+
+        html += '</div>';
+        grid.innerHTML = html;
+
+        // Add click handlers to all items
+        grid.querySelectorAll('.alc-toc-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const contentId = item.getAttribute('data-id');
                 openContent(contentId);
             });
         });
+
+        // Add chapter toggle behavior
+        grid.querySelectorAll('.alc-toc-chapter-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const chapter = header.closest('.alc-toc-chapter');
+                if (chapter) {
+                    chapter.classList.toggle('alc-toc-chapter--collapsed');
+                }
+            });
+        });
+    }
+
+    /**
+     * Render a single chapter block for the table of contents
+     */
+    function renderTocChapter(category, items, chapterNum) {
+        const catIcon = category ? (category.icon || '📁') : '';
+        const catName = category ? category.name : '全部內容';
+        const chapterLabel = category ? `第 ${chapterNum} 章` : '';
+
+        let html = `
+            <div class="alc-toc-chapter">
+                <div class="alc-toc-chapter-header">
+                    <div class="alc-toc-chapter-number">${chapterLabel}</div>
+                    <div class="alc-toc-chapter-icon">${catIcon}</div>
+                    <h3 class="alc-toc-chapter-title">${escapeHtml(catName)}</h3>
+                    <span class="alc-toc-chapter-count">${items.length} 項</span>
+                    <span class="alc-toc-chapter-arrow">▾</span>
+                </div>
+                <ol class="alc-toc-items">
+        `;
+
+        items.forEach((content, idx) => {
+            const num = category ? `${chapterNum}.${idx + 1}` : `${idx + 1}`;
+            const icon = getContentTypeIcon(content.content_type);
+            const typeLabel = getContentTypeLabel(content.content_type);
+            const desc = (content.description || '').substring(0, 80);
+
+            html += `
+                <li class="alc-toc-item" data-id="${content.id}">
+                    <span class="alc-toc-item-num">${num}</span>
+                    <span class="alc-toc-item-icon">${icon}</span>
+                    <div class="alc-toc-item-info">
+                        <span class="alc-toc-item-title">${escapeHtml(content.title)}</span>
+                        ${desc ? `<span class="alc-toc-item-desc">${escapeHtml(desc)}</span>` : ''}
+                    </div>
+                    <span class="alc-toc-item-type">${typeLabel}</span>
+                </li>
+            `;
+        });
+
+        html += `
+                </ol>
+            </div>
+        `;
+
+        return html;
     }
 
     function renderPagination() {
