@@ -20,7 +20,7 @@
         edges: [],
         paths: [],
         currentPage: 1,
-        pageSize: 20,
+        pageSize: 200,
         totalItems: 0,
         filters: {
             contentType: null,
@@ -524,39 +524,19 @@
     }
 
     /**
-     * Get content type label
-     */
-    function getContentTypeLabel(contentType) {
-        switch (contentType) {
-            case 'video': case 'video_local':
-                return '本地視頻';
-            case 'video_external':
-                return '視頻連結';
-            case 'document':
-                return '文件';
-            case 'image':
-                return '圖片';
-            case 'article':
-                return '文章';
-            default:
-                return '資料';
-        }
-    }
-
-    /**
-     * Render media as a textbook-style chapter directory
-     * Groups content by category, displays as numbered chapters with items
+     * Render the ebook-style sidebar directory
+     * Left sidebar shows categories as folders with content items underneath
      */
     function renderMediaGrid() {
-        const grid = getElement('mediaGrid');
-        if (!grid) return;
+        const nav = document.getElementById('ebookDirectory');
+        if (!nav) return;
 
         if (state.contents.length === 0) {
-            grid.innerHTML = '<div class="alc-empty-state" style="position:relative;">暫無內容</div>';
+            nav.innerHTML = '<p class="alc-ebook-nav-empty">暫無內容</p>';
             return;
         }
 
-        // Build a category lookup map
+        // Build category lookup
         const flatCats = flattenCategories(state.categories);
         const catMap = {};
         flatCats.forEach(c => { catMap[c.id] = c; });
@@ -564,9 +544,7 @@
         // Group contents by category
         const grouped = {};
         const uncategorized = [];
-
         state.contents.forEach(content => {
-            // content may have category_id or category_ids
             const catId = content.category_id || (content.category_ids && content.category_ids[0]) || null;
             if (catId && catMap[catId]) {
                 if (!grouped[catId]) grouped[catId] = [];
@@ -576,228 +554,204 @@
             }
         });
 
-        // Build ordered chapter list: categories that have content, in order
-        const chapterOrder = [];
+        let html = '';
+
+        // Render each category as a folder group
         flatCats.forEach(cat => {
-            if (grouped[cat.id] && grouped[cat.id].length > 0) {
-                chapterOrder.push(cat);
-            }
-        });
+            if (!grouped[cat.id] || grouped[cat.id].length === 0) return;
+            const icon = cat.icon || '📁';
+            html += `<div class="alc-ebook-folder">
+                <div class="alc-ebook-folder-header" data-cat-id="${cat.id}">
+                    <span class="alc-ebook-folder-arrow">▾</span>
+                    <span class="alc-ebook-folder-icon">${icon}</span>
+                    <span class="alc-ebook-folder-name">${escapeHtml(cat.name)}</span>
+                </div>
+                <ul class="alc-ebook-folder-items">`;
 
-        let html = '<div class="alc-toc">';
-
-        // If filtering by category or no categories exist, render flat list
-        if (state.filters.categoryId || chapterOrder.length === 0) {
-            const items = state.contents;
-            html += renderTocChapter(null, items, 1);
-        } else {
-            // Render each category as a chapter
-            let chapterNum = 1;
-            chapterOrder.forEach(cat => {
-                html += renderTocChapter(cat, grouped[cat.id], chapterNum);
-                chapterNum++;
+            grouped[cat.id].forEach(content => {
+                const typeIcon = getContentTypeIcon(content.content_type);
+                html += `<li class="alc-ebook-item" data-id="${content.id}">
+                    <span class="alc-ebook-item-icon">${typeIcon}</span>
+                    <span class="alc-ebook-item-title">${escapeHtml(content.title)}</span>
+                </li>`;
             });
 
-            // Uncategorized items
-            if (uncategorized.length > 0) {
-                html += renderTocChapter({ name: '其他資料', icon: '📎' }, uncategorized, chapterNum);
-            }
+            html += `</ul></div>`;
+        });
+
+        // Uncategorized items
+        if (uncategorized.length > 0) {
+            html += `<div class="alc-ebook-folder">
+                <div class="alc-ebook-folder-header">
+                    <span class="alc-ebook-folder-arrow">▾</span>
+                    <span class="alc-ebook-folder-icon">📎</span>
+                    <span class="alc-ebook-folder-name">其他資料</span>
+                </div>
+                <ul class="alc-ebook-folder-items">`;
+
+            uncategorized.forEach(content => {
+                const typeIcon = getContentTypeIcon(content.content_type);
+                html += `<li class="alc-ebook-item" data-id="${content.id}">
+                    <span class="alc-ebook-item-icon">${typeIcon}</span>
+                    <span class="alc-ebook-item-title">${escapeHtml(content.title)}</span>
+                </li>`;
+            });
+            html += `</ul></div>`;
         }
 
-        html += '</div>';
-        grid.innerHTML = html;
+        // If no categories at all, render flat list
+        if (flatCats.length === 0 || Object.keys(grouped).length === 0) {
+            html = '<ul class="alc-ebook-folder-items alc-ebook-folder-items--flat">';
+            state.contents.forEach(content => {
+                const typeIcon = getContentTypeIcon(content.content_type);
+                html += `<li class="alc-ebook-item" data-id="${content.id}">
+                    <span class="alc-ebook-item-icon">${typeIcon}</span>
+                    <span class="alc-ebook-item-title">${escapeHtml(content.title)}</span>
+                </li>`;
+            });
+            html += '</ul>';
+        }
 
-        // Add click handlers to all items
-        grid.querySelectorAll('.alc-toc-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const contentId = item.getAttribute('data-id');
-                openContent(contentId);
+        nav.innerHTML = html;
+
+        // Folder toggle
+        nav.querySelectorAll('.alc-ebook-folder-header').forEach(header => {
+            header.addEventListener('click', () => {
+                header.closest('.alc-ebook-folder').classList.toggle('alc-ebook-folder--collapsed');
             });
         });
 
-        // Add chapter toggle behavior
-        grid.querySelectorAll('.alc-toc-chapter-header').forEach(header => {
-            header.addEventListener('click', () => {
-                const chapter = header.closest('.alc-toc-chapter');
-                if (chapter) {
-                    chapter.classList.toggle('alc-toc-chapter--collapsed');
-                }
+        // Item click -> show content in right panel
+        nav.querySelectorAll('.alc-ebook-item').forEach(item => {
+            item.addEventListener('click', () => {
+                // Highlight active
+                nav.querySelectorAll('.alc-ebook-item').forEach(i => i.classList.remove('alc-ebook-item--active'));
+                item.classList.add('alc-ebook-item--active');
+                const contentId = item.getAttribute('data-id');
+                showEbookContent(contentId);
             });
         });
     }
 
     /**
-     * Render a single chapter block for the table of contents
+     * Display content inline in the right ebook viewer panel
      */
-    function renderTocChapter(category, items, chapterNum) {
-        const catIcon = category ? (category.icon || '📁') : '';
-        const catName = category ? category.name : '全部內容';
-        const chapterLabel = category ? `第 ${chapterNum} 章` : '';
+    async function showEbookContent(contentId) {
+        const welcome = document.getElementById('ebookWelcome');
+        const viewer = document.getElementById('ebookViewer');
+        const titleEl = document.getElementById('ebookViewerTitle');
+        const descEl = document.getElementById('ebookViewerDesc');
+        const bodyEl = document.getElementById('ebookViewerBody');
 
-        let html = `
-            <div class="alc-toc-chapter">
-                <div class="alc-toc-chapter-header">
-                    <div class="alc-toc-chapter-number">${chapterLabel}</div>
-                    <div class="alc-toc-chapter-icon">${catIcon}</div>
-                    <h3 class="alc-toc-chapter-title">${escapeHtml(catName)}</h3>
-                    <span class="alc-toc-chapter-count">${items.length} 項</span>
-                    <span class="alc-toc-chapter-arrow">▾</span>
-                </div>
-                <ol class="alc-toc-items">
-        `;
+        if (!viewer || !bodyEl) return;
 
-        items.forEach((content, idx) => {
-            const num = category ? `${chapterNum}.${idx + 1}` : `${idx + 1}`;
-            const icon = getContentTypeIcon(content.content_type);
-            const typeLabel = getContentTypeLabel(content.content_type);
-            const desc = (content.description || '').substring(0, 80);
-
-            html += `
-                <li class="alc-toc-item" data-id="${content.id}">
-                    <span class="alc-toc-item-num">${num}</span>
-                    <span class="alc-toc-item-icon">${icon}</span>
-                    <div class="alc-toc-item-info">
-                        <span class="alc-toc-item-title">${escapeHtml(content.title)}</span>
-                        ${desc ? `<span class="alc-toc-item-desc">${escapeHtml(desc)}</span>` : ''}
-                    </div>
-                    <span class="alc-toc-item-type">${typeLabel}</span>
-                </li>
-            `;
-        });
-
-        html += `
-                </ol>
-            </div>
-        `;
-
-        return html;
-    }
-
-    function renderPagination() {
-        const totalPages = Math.ceil(state.totalItems / state.pageSize);
-        const paginationEl = document.querySelector('.alc-pagination');
-        if (!paginationEl) return;
-
-        if (totalPages <= 1) {
-            paginationEl.style.display = 'none';
-            return;
-        }
-
-        paginationEl.style.display = 'flex';
-        paginationEl.innerHTML = '';
-
-        // Previous button
-        const prevBtn = document.createElement('button');
-        prevBtn.className = 'alc-pagination-btn';
-        prevBtn.textContent = '上一页';
-        prevBtn.disabled = state.currentPage === 1;
-        prevBtn.addEventListener('click', () => {
-            if (state.currentPage > 1) {
-                loadMedia(state.currentPage - 1);
-                window.scrollTo(0, 0);
-            }
-        });
-        paginationEl.appendChild(prevBtn);
-
-        // Page buttons
-        const startPage = Math.max(1, state.currentPage - 2);
-        const endPage = Math.min(totalPages, state.currentPage + 2);
-
-        if (startPage > 1) {
-            const firstBtn = document.createElement('button');
-            firstBtn.className = 'alc-pagination-btn';
-            firstBtn.textContent = '1';
-            firstBtn.addEventListener('click', () => loadMedia(1));
-            paginationEl.appendChild(firstBtn);
-
-            if (startPage > 2) {
-                const dots = document.createElement('span');
-                dots.textContent = '...';
-                paginationEl.appendChild(dots);
-            }
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const btn = document.createElement('button');
-            btn.className = `alc-pagination-btn ${i === state.currentPage ? 'alc-active' : ''}`;
-            btn.textContent = i;
-            btn.addEventListener('click', () => loadMedia(i));
-            paginationEl.appendChild(btn);
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                const dots = document.createElement('span');
-                dots.textContent = '...';
-                paginationEl.appendChild(dots);
-            }
-
-            const lastBtn = document.createElement('button');
-            lastBtn.className = 'alc-pagination-btn';
-            lastBtn.textContent = totalPages;
-            lastBtn.addEventListener('click', () => loadMedia(totalPages));
-            paginationEl.appendChild(lastBtn);
-        }
-
-        // Next button
-        const nextBtn = document.createElement('button');
-        nextBtn.className = 'alc-pagination-btn';
-        nextBtn.textContent = '下一页';
-        nextBtn.disabled = state.currentPage === totalPages;
-        nextBtn.addEventListener('click', () => {
-            if (state.currentPage < totalPages) {
-                loadMedia(state.currentPage + 1);
-                window.scrollTo(0, 0);
-            }
-        });
-        paginationEl.appendChild(nextBtn);
-    }
-
-    async function openContent(contentId) {
         try {
             const response = await api(`${API_BASE}/contents/${contentId}`);
-            if (response.success) {
-                const content = response.data;
+            if (!response.success) return;
+            const content = response.data;
 
-                switch (content.content_type) {
-                    case 'video':
-                    case 'video_local':
-                    case 'video_external':
-                        openVideoModal(content);
-                        break;
-                    case 'image':
-                        openImageModal(content);
-                        break;
-                    case 'document':
-                        openDocModal(content);
-                        break;
-                    case 'article':
-                        openArticleModal(content);
-                        break;
+            // Hide welcome, show viewer
+            if (welcome) welcome.style.display = 'none';
+            viewer.style.display = 'block';
+
+            // Set header
+            if (titleEl) titleEl.textContent = content.title || '';
+            if (descEl) descEl.textContent = content.description || '';
+
+            // Clear previous content
+            bodyEl.innerHTML = '';
+
+            // Render based on type
+            switch (content.content_type) {
+                case 'video':
+                case 'video_local': {
+                    const fileUrl = getFileUrl(content);
+                    if (fileUrl) {
+                        bodyEl.innerHTML = `<video class="alc-ebook-video" controls>
+                            <source src="${escapeHtml(fileUrl)}" type="${escapeHtml(content.mime_type || 'video/mp4')}">
+                            您的瀏覽器不支持視頻播放
+                        </video>`;
+                    } else {
+                        bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入視頻</p>';
+                    }
+                    break;
+                }
+                case 'video_external': {
+                    const embedUrl = parseVideoEmbed(content.external_url);
+                    if (embedUrl) {
+                        bodyEl.innerHTML = `<div class="alc-ebook-video-wrap">
+                            <iframe class="alc-ebook-iframe" src="${escapeHtml(embedUrl)}"
+                                frameborder="0" allowfullscreen
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                            </iframe>
+                        </div>`;
+                    } else {
+                        // Fallback: show link
+                        bodyEl.innerHTML = `<p>外部視頻連結：<a href="${escapeHtml(content.external_url || '')}" target="_blank" rel="noopener">${escapeHtml(content.external_url || '無連結')}</a></p>`;
+                    }
+                    break;
+                }
+                case 'image': {
+                    const fileUrl = content.image_url || getFileUrl(content);
+                    if (fileUrl) {
+                        bodyEl.innerHTML = `<img class="alc-ebook-image" src="${escapeHtml(fileUrl)}" alt="${escapeHtml(content.title || '')}" />`;
+                    } else {
+                        bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入圖片</p>';
+                    }
+                    break;
+                }
+                case 'document': {
+                    const fileUrl = getFileUrl(content);
+                    if (fileUrl) {
+                        bodyEl.innerHTML = `<iframe class="alc-ebook-doc-iframe" src="${escapeHtml(fileUrl)}" frameborder="0"></iframe>
+                            <div class="alc-ebook-doc-actions">
+                                <a href="${escapeHtml(fileUrl)}" class="alc-btn alc-btn--primary" download="${escapeHtml(content.title || 'download')}">下載文件</a>
+                            </div>`;
+                    } else {
+                        bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入文件</p>';
+                    }
+                    break;
+                }
+                case 'article': {
+                    const articleContent = content.article_content || content.description || '';
+                    if (typeof marked !== 'undefined' && articleContent) {
+                        bodyEl.innerHTML = `<div class="alc-ebook-article">${marked.parse(articleContent)}</div>`;
+                    } else {
+                        bodyEl.innerHTML = `<div class="alc-ebook-article">${escapeHtml(articleContent) || '<p>暫無內容</p>'}</div>`;
+                    }
+                    break;
+                }
+                default: {
+                    const fileUrl = getFileUrl(content);
+                    if (fileUrl) {
+                        bodyEl.innerHTML = `<p>檔案：<a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener">${escapeHtml(content.title || '下載')}</a></p>`;
+                    } else {
+                        bodyEl.innerHTML = '<p>無法顯示此內容</p>';
+                    }
                 }
             }
+
         } catch (error) {
             console.error('Failed to load content:', error);
         }
     }
 
+    function renderPagination() {
+        // Pagination is not needed for ebook sidebar layout
+        // all items are shown in directory
+    }
+
+    async function openContent(contentId) {
+        // Redirect to inline ebook viewer
+        showEbookContent(contentId);
+    }
+
     function setTypeFilter(type) {
-        state.filters.contentType = type === 'all' ? null : type;
-        state.currentPage = 1;
-        loadMedia(1);
+        // No longer used in ebook layout
     }
 
     function setupTypeFilters() {
-        document.querySelectorAll('[data-type]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const type = btn.getAttribute('data-type');
-                // Update active state
-                document.querySelectorAll('[data-type]').forEach(b => {
-                    b.classList.toggle('alc-type-button--active', b === btn);
-                });
-                setTypeFilter(type);
-            });
-        });
+        // No longer used in ebook layout (filters removed from HTML)
     }
 
     // ==================== KNOWLEDGE MAP (D3.js) ====================

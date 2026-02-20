@@ -1005,310 +1005,329 @@
    6. MEDIA LIBRARY VIEW
    ===================================================== */
 
-.alc-media-section {
+/* --- E-Book Layout (左側目錄 + 右側內容) --- */
+
+.alc-ebook {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  flex: 1;
-}
-
-.alc-media-filters {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.alc-filter-types {
-  display: flex;
-  gap: var(--space-3);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.alc-type-button {
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--border-light);
-  background-color: var(--bg-card);
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--duration-base) var(--ease-out);
-  font-family: var(--font-sans);
-}
-
-.alc-type-button:hover {
-  border-color: var(--border-default);
-  background-color: var(--bg-card-hover);
-}
-
-.alc-type-button--active {
-  background-color: var(--brand);
-  color: white;
-  border-color: var(--brand);
-}
-
-.alc-category-tags {
-  display: flex;
-  gap: var(--space-2);
-  overflow-x: auto;
-  padding-bottom: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.alc-category-tags button {
-  padding: var(--space-2) var(--space-3);
-  background-color: var(--brand-lighter);
-  border: 1px solid var(--brand-light);
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  color: var(--brand);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--duration-base) var(--ease-out);
-}
-
-.alc-category-tags button:hover {
-  background-color: var(--brand-light);
-  border-color: var(--brand);
-}
-
-.alc-category-tags button.active {
-  background-color: var(--brand);
-  border-color: var(--brand);
-  color: white;
-}
-
-/* --- Textbook Table of Contents (章节目录) Layout --- */
-
-.alc-media-grid {
-  display: flex;
-  flex-direction: column;
-}
-
-.alc-toc {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: 900px;
-  width: 100%;
-}
-
-/* Chapter block */
-.alc-toc-chapter {
+  gap: 0;
+  min-height: 70vh;
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-light);
-  overflow: hidden;
   box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
 
-/* Chapter header — clickable to collapse */
-.alc-toc-chapter-header {
+/* --- Left sidebar directory --- */
+.alc-ebook-sidebar {
+  width: 280px;
+  min-width: 240px;
+  max-width: 320px;
+  background-color: var(--bg-page);
+  border-right: 1px solid var(--border-light);
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  cursor: pointer;
-  user-select: none;
-  transition: background-color var(--duration-base) var(--ease-out);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.alc-toc-chapter-header:hover {
-  background-color: var(--brand-lighter);
-}
-
-.alc-toc-chapter-number {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--brand);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  min-width: 48px;
-}
-
-.alc-toc-chapter-icon {
-  font-size: 20px;
+  flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.alc-toc-chapter-title {
+.alc-ebook-sidebar-header {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  background-color: var(--bg-card);
+}
+
+.alc-ebook-sidebar-title {
+  margin: 0;
   font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0;
+}
+
+.alc-ebook-nav {
   flex: 1;
-  letter-spacing: -0.3px;
+  overflow-y: auto;
+  padding: var(--space-2) 0;
 }
 
-.alc-toc-chapter-count {
-  font-size: 12px;
+.alc-ebook-nav-empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
   color: var(--text-tertiary);
-  white-space: nowrap;
-  padding: var(--space-1) var(--space-2);
-  background-color: var(--bg-page);
-  border-radius: var(--radius-sm);
+  font-size: 13px;
 }
 
-.alc-toc-chapter-arrow {
-  font-size: 14px;
+/* Folder group */
+.alc-ebook-folder {
+  margin-bottom: 2px;
+}
+
+.alc-ebook-folder-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: background-color 0.15s;
+}
+
+.alc-ebook-folder-header:hover {
+  background-color: var(--border-light);
+}
+
+.alc-ebook-folder-arrow {
+  font-size: 10px;
   color: var(--text-tertiary);
-  transition: transform var(--duration-base) var(--ease-out);
+  transition: transform 0.15s;
+  width: 14px;
+  text-align: center;
   flex-shrink: 0;
 }
 
-/* Collapsed state */
-.alc-toc-chapter--collapsed .alc-toc-chapter-arrow {
+.alc-ebook-folder--collapsed .alc-ebook-folder-arrow {
   transform: rotate(-90deg);
 }
 
-.alc-toc-chapter--collapsed .alc-toc-items {
+.alc-ebook-folder--collapsed .alc-ebook-folder-items {
   display: none;
 }
 
-.alc-toc-chapter--collapsed .alc-toc-chapter-header {
-  border-bottom: none;
+.alc-ebook-folder-icon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
-/* Items list */
-.alc-toc-items {
+.alc-ebook-folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Item list inside folder */
+.alc-ebook-folder-items {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 var(--space-1) 0;
 }
 
-/* Single item row */
-.alc-toc-item {
+.alc-ebook-folder-items--flat {
+  padding-top: var(--space-2);
+}
+
+/* Single directory item */
+.alc-ebook-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
+  gap: var(--space-2);
+  padding: 6px var(--space-3) 6px 36px;
   cursor: pointer;
-  transition: background-color var(--duration-base) var(--ease-out);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.alc-toc-item:last-child {
-  border-bottom: none;
-}
-
-.alc-toc-item:hover {
-  background-color: var(--brand-lighter);
-}
-
-.alc-toc-item:active {
-  background-color: var(--brand-light);
-}
-
-/* Item number (e.g. 1.3) */
-.alc-toc-item-num {
   font-size: 13px;
-  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+
+.alc-ebook-item:hover {
+  background-color: var(--brand-lighter);
+  color: var(--text-primary);
+}
+
+.alc-ebook-item--active {
+  background-color: var(--brand-lighter);
   color: var(--brand);
-  min-width: 36px;
-  text-align: right;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
+  border-left-color: var(--brand);
+  font-weight: 600;
 }
 
-/* Item icon */
-.alc-toc-item-icon {
-  font-size: 18px;
+.alc-ebook-item-icon {
+  font-size: 14px;
   flex-shrink: 0;
-  width: 24px;
-  text-align: center;
 }
 
-/* Item info (title + description) */
-.alc-toc-item-info {
+.alc-ebook-item-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Right content viewer --- */
+.alc-ebook-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
+  overflow-y: auto;
 }
 
-.alc-toc-item-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-  letter-spacing: -0.2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.alc-toc-item-desc {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Item type badge */
-.alc-toc-item-type {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  padding: 2px var(--space-2);
-  background-color: var(--bg-page);
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.alc-load-more-container {
+/* Welcome / empty state */
+.alc-ebook-welcome {
+  flex: 1;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  margin-top: var(--space-6);
+  gap: var(--space-3);
+  color: var(--text-tertiary);
+  padding: var(--space-8);
 }
 
-/* Responsive for chapter directory */
+.alc-ebook-welcome-icon {
+  font-size: 48px;
+  opacity: 0.3;
+}
+
+.alc-ebook-welcome h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.alc-ebook-welcome p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Viewer (when content is loaded) */
+.alc-ebook-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.alc-ebook-viewer-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.alc-ebook-viewer-title {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.alc-ebook-viewer-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.alc-ebook-viewer-body {
+  flex: 1;
+  padding: var(--space-5) var(--space-6);
+}
+
+/* Content types inside viewer */
+.alc-ebook-video {
+  width: 100%;
+  max-height: 520px;
+  background-color: #000;
+  border-radius: var(--radius-md);
+}
+
+.alc-ebook-video-wrap {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 */
+  background-color: #000;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.alc-ebook-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.alc-ebook-image {
+  max-width: 100%;
+  max-height: 600px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.alc-ebook-doc-iframe {
+  width: 100%;
+  min-height: 600px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.alc-ebook-doc-actions {
+  margin-top: var(--space-4);
+}
+
+.alc-ebook-article {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  max-width: 720px;
+}
+
+.alc-ebook-article h1,
+.alc-ebook-article h2,
+.alc-ebook-article h3 {
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-3);
+}
+
+.alc-ebook-article p {
+  margin-bottom: var(--space-3);
+}
+
+.alc-ebook-article img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+
+.alc-ebook-error {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+/* --- Responsive --- */
 @media (max-width: 768px) {
-  .alc-toc-chapter-header {
-    padding: var(--space-3) var(--space-4);
+  .alc-ebook {
+    flex-direction: column;
+    min-height: auto;
   }
 
-  .alc-toc-item {
-    padding: var(--space-3) var(--space-4);
-    gap: var(--space-2);
+  .alc-ebook-sidebar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
   }
 
-  .alc-toc-chapter-number {
-    display: none;
+  .alc-ebook-item {
+    padding-left: var(--space-6);
   }
 
-  .alc-toc-item-num {
-    min-width: 28px;
-    font-size: 12px;
+  .alc-ebook-viewer-header {
+    padding: var(--space-4);
   }
 
-  .alc-toc-item-desc {
-    display: none;
+  .alc-ebook-viewer-body {
+    padding: var(--space-4);
   }
 
-  .alc-toc-chapter-title {
-    font-size: 15px;
-  }
-
-  .alc-filter-types {
-    gap: var(--space-2);
-  }
-}
-
-@media (max-width: 480px) {
-  .alc-toc-item-type {
-    display: none;
-  }
-
-  .alc-toc-chapter-count {
-    display: none;
+  .alc-ebook-viewer-title {
+    font-size: 17px;
   }
 }
 

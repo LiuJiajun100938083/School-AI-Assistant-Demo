@@ -236,55 +236,52 @@
                 </div>
             </section>
 
-            <!-- 3. 媒體資料庫面板 -->
+            <!-- 3. 教學資料面板（電子教科書風格） -->
             <section id="tabMedia" class="alc-tab-panel alc-tab-panel--active">
-                <div class="alc-media-section">
-                    <!-- 篩選欄 -->
-                    <div class="alc-media-filters">
-                        <div class="alc-filter-types">
-                            <button class="alc-type-button alc-type-button--active" data-type="all">
-                                全部
-                            </button>
-                            <button class="alc-type-button" data-type="video">
-                                🎥 視頻
-                            </button>
-                            <button class="alc-type-button" data-type="document">
-                                📄 文件
-                            </button>
-                            <button class="alc-type-button" data-type="image">
-                                🖼️ 圖片
-                            </button>
-                            <button class="alc-type-button" data-type="article">
-                                📝 文章
-                            </button>
+                <div class="alc-ebook">
+                    <!-- 左側目錄欄 -->
+                    <aside class="alc-ebook-sidebar">
+                        <div class="alc-ebook-sidebar-header">
+                            <h3 class="alc-ebook-sidebar-title">📖 目錄</h3>
                         </div>
-                    </div>
+                        <nav id="ebookDirectory" class="alc-ebook-nav">
+                            <!-- 動態生成目錄樹 -->
+                        </nav>
+                    </aside>
 
-                    <!-- 分類標籤 -->
-                    <div id="categoryTags" class="alc-category-tags">
-                        <!-- 動態生成 -->
-                    </div>
+                    <!-- 右側內容區 -->
+                    <main class="alc-ebook-content">
+                        <!-- 預設歡迎頁 -->
+                        <div id="ebookWelcome" class="alc-ebook-welcome">
+                            <div class="alc-ebook-welcome-icon">📖</div>
+                            <h3>請從左側目錄選擇內容</h3>
+                            <p>點擊目錄中的項目即可在此處查看</p>
+                        </div>
 
-                    <!-- 媒體網格 -->
-                    <div id="mediaGrid" class="alc-media-grid">
-                        <!-- 動態生成 -->
-                    </div>
+                        <!-- 內容查看器（動態填充） -->
+                        <div id="ebookViewer" class="alc-ebook-viewer" style="display:none;">
+                            <div class="alc-ebook-viewer-header">
+                                <h2 id="ebookViewerTitle" class="alc-ebook-viewer-title"></h2>
+                                <p id="ebookViewerDesc" class="alc-ebook-viewer-desc"></p>
+                            </div>
+                            <div id="ebookViewerBody" class="alc-ebook-viewer-body">
+                                <!-- 視頻 / 圖片 / 文件 / 文章 在此渲染 -->
+                            </div>
+                        </div>
 
-                    <!-- 分頁導航 -->
-                    <div class="alc-pagination" style="display:flex;justify-content:center;gap:8px;margin-top:20px;flex-wrap:wrap;"></div>
+                        <!-- 載入狀態 -->
+                        <div id="mediaLoadingState" class="alc-loading-state" style="display: none;">
+                            <div class="alc-loading-spinner"></div>
+                            <p>載入中...</p>
+                        </div>
 
-                    <!-- 載入狀態 -->
-                    <div id="mediaLoadingState" class="alc-loading-state" style="display: none;">
-                        <div class="alc-loading-spinner"></div>
-                        <p>載入媒體資料庫中...</p>
-                    </div>
-
-                    <!-- 空狀態 -->
-                    <div id="mediaEmptyState" class="alc-empty-state" style="display: none;">
-                        <div class="alc-empty-icon">🎬</div>
-                        <p class="alc-empty-title">未找到媒體資料</p>
-                        <p class="alc-empty-desc">嘗試調整篩選條件</p>
-                    </div>
+                        <!-- 空狀態 -->
+                        <div id="mediaEmptyState" class="alc-empty-state" style="display: none;">
+                            <div class="alc-empty-icon">📖</div>
+                            <p class="alc-empty-title">暫無教學資料</p>
+                            <p class="alc-empty-desc">管理員正在準備內容</p>
+                        </div>
+                    </main>
                 </div>
             </section>
 
