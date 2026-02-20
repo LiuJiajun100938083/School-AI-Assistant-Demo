@@ -19,6 +19,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # ---------------------------------------------------------------------------
+# Ensure PATH includes git and common tools (cron has minimal PATH)
+# ---------------------------------------------------------------------------
+export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:${PATH}"
+
+# ---------------------------------------------------------------------------
+# SSH key for cron (macOS Keychain)
+# ---------------------------------------------------------------------------
+if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+    eval "$(ssh-agent -s)" > /dev/null 2>&1
+    ssh-add --apple-use-keychain 2>/dev/null || true
+fi
+
+# ---------------------------------------------------------------------------
 # Log file
 # ---------------------------------------------------------------------------
 LOG_FILE="${SCRIPT_DIR}/auto_pull.log"
