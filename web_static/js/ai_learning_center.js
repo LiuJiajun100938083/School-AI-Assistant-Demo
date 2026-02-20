@@ -10,7 +10,7 @@
     // ==================== STATE ====================
     let token = null;
     let userRole = null;
-    let currentTab = 'map';
+    let currentTab = 'media';
     let isAdmin = false;
 
     const state = {
@@ -322,7 +322,7 @@
         try {
             await loadStats();
             await loadCategories();
-            switchTab('map');
+            switchTab('media');
         } catch (error) {
             console.error('Initialization error:', error);
             showToast('加载失败，请刷新页面', 'error');
@@ -515,52 +515,56 @@
         }
 
         grid.innerHTML = state.contents.map(content => {
-            let thumbnail = '';
-            let icon = '';
+            let thumbnailHtml = '';
 
             switch (content.content_type) {
                 case 'video':
                 case 'video_local':
                 case 'video_external':
-                    thumbnail = content.thumbnail_url ? `<img src="${escapeHtml(content.thumbnail_url)}" alt="">` : '<div class="alc-thumbnail-placeholder"><i class="icon-video"></i></div>';
-                    icon = content.content_type === 'video_external'
-                        ? `<span class="alc-badge">${escapeHtml(content.video_platform || '視頻連結')}</span>`
-                        : `<span class="alc-duration">${formatDuration(content.duration)}</span>`;
+                    // 为外部视频生成缩略图
+                    let videoThumb = '';
+                    if (content.thumbnail_url) {
+                        videoThumb = `<img src="${escapeHtml(content.thumbnail_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
+                    } else if (content.external_url) {
+                        // YouTube 缩略图
+                        const ytMatch = (content.external_url || '').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                        if (ytMatch) {
+                            videoThumb = `<img src="https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg" alt="" style="width:100%;height:100%;object-fit:cover;">`;
+                        }
+                    }
+                    if (!videoThumb) {
+                        videoThumb = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;font-size:48px;">🎬</div>`;
+                    }
+                    thumbnailHtml = `<div class="alc-video-container">${videoThumb}</div>`;
                     break;
                 case 'document':
-                    thumbnail = '<div class="alc-thumbnail-placeholder"><i class="icon-document"></i></div>';
-                    icon = `<span class="alc-file-size">${formatFileSize(content.file_size)}</span>`;
+                    thumbnailHtml = `<div class="alc-video-container" style="background:linear-gradient(135deg,var(--brand-lighter),var(--brand-light));display:flex;align-items:center;justify-content:center;font-size:48px;">📄</div>`;
                     break;
                 case 'image':
-                    thumbnail = content.image_url ? `<img src="${escapeHtml(content.image_url)}" alt="">` : '<div class="alc-thumbnail-placeholder"><i class="icon-image"></i></div>';
-                    icon = '<span class="alc-badge">图片</span>';
+                    if (content.file_path) {
+                        thumbnailHtml = `<div class="alc-image-modal"><img src="/uploads/${escapeHtml(content.file_path)}" alt=""></div>`;
+                    } else {
+                        thumbnailHtml = `<div class="alc-video-container" style="background:linear-gradient(135deg,var(--brand-lighter),var(--brand-light));display:flex;align-items:center;justify-content:center;font-size:48px;">🖼️</div>`;
+                    }
                     break;
                 case 'article':
                 default:
-                    thumbnail = '<div class="alc-thumbnail-placeholder"><i class="icon-article"></i></div>';
-                    icon = '<span class="alc-badge">文章</span>';
+                    thumbnailHtml = `<div class="alc-video-container" style="background:linear-gradient(135deg,var(--brand-lighter),var(--brand-light));display:flex;align-items:center;justify-content:center;font-size:48px;">📝</div>`;
             }
 
             return `
-                <div class="alc-content-card" data-id="${content.id}">
-                    <div class="alc-content-thumbnail">
-                        ${thumbnail}
-                        ${icon}
-                    </div>
-                    <div class="alc-content-info">
-                        <h3 class="alc-content-title">${escapeHtml(content.title)}</h3>
-                        <p class="alc-content-desc">${escapeHtml((content.description || '').substring(0, 100))}</p>
-                        <div class="alc-content-meta">
-                            <span class="alc-category">${escapeHtml(content.category_name || '')}</span>
-                            ${content.tags ? content.tags.map(tag => `<span class="alc-tag">${escapeHtml(tag)}</span>`).join('') : ''}
-                        </div>
+                <div class="alc-media-card" data-id="${content.id}">
+                    ${thumbnailHtml}
+                    <div class="alc-media-body">
+                        <h3 class="alc-media-title">${escapeHtml(content.title)}</h3>
+                        <p class="alc-media-description">${escapeHtml((content.description || '').substring(0, 100))}</p>
                     </div>
                 </div>
             `;
         }).join('');
 
         // Add click handlers
-        grid.querySelectorAll('.alc-content-card').forEach(card => {
+        grid.querySelectorAll('.alc-media-card').forEach(card => {
             card.addEventListener('click', () => {
                 const contentId = card.getAttribute('data-id');
                 openContent(contentId);

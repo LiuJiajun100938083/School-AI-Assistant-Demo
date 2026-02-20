@@ -79,7 +79,7 @@
 
         <!-- 標籤導航 -->
         <nav class="alc-tab-navigation">
-            <button class="alc-tab-button alc-tab-button--active" data-tab="map">
+            <button class="alc-tab-button" data-tab="map">
                 <span class="alc-tab-icon">🗺️</span>
                 <span class="alc-tab-label">知識地圖</span>
             </button>
@@ -87,7 +87,7 @@
                 <span class="alc-tab-icon">🛤️</span>
                 <span class="alc-tab-label">學習路徑</span>
             </button>
-            <button class="alc-tab-button" data-tab="media">
+            <button class="alc-tab-button alc-tab-button--active" data-tab="media">
                 <span class="alc-tab-icon">🎬</span>
                 <span class="alc-tab-label">媒體資料庫</span>
             </button>
@@ -105,7 +105,7 @@
         <main class="alc-tabs-container">
 
             <!-- 1. 知識地圖面板 -->
-            <section id="tabMap" class="alc-tab-panel alc-tab-panel--active">
+            <section id="tabMap" class="alc-tab-panel">
                 <div class="alc-map-container">
                     <!-- 控制條 -->
                     <div class="alc-map-controls">
@@ -237,7 +237,7 @@
             </section>
 
             <!-- 3. 媒體資料庫面板 -->
-            <section id="tabMedia" class="alc-tab-panel">
+            <section id="tabMedia" class="alc-tab-panel alc-tab-panel--active">
                 <div class="alc-media-section">
                     <!-- 篩選欄 -->
                     <div class="alc-media-filters">
