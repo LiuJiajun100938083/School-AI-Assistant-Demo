@@ -119,12 +119,14 @@ fi
 log "Restarting FastAPI server..."
 
 # Kill the existing server process (if any)
+# Match both possible launch methods: uvicorn directly or python -m app.main
+pkill -f "uvicorn app.main:app" || true
 pkill -f "python -m app.main" || true
 sleep 2
 
-# Start the server in background
+# Start the server in background (uvicorn on port 8003)
 cd "${PROJECT_DIR}"
-nohup python -m app.main >> "${SCRIPT_DIR}/server.log" 2>&1 &
+nohup uvicorn app.main:app --host 0.0.0.0 --port 8003 >> "${SCRIPT_DIR}/server.log" 2>&1 &
 log "FastAPI server restarted (PID $!)."
 
 log "========== auto_pull finished =========="
