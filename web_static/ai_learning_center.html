@@ -404,6 +404,9 @@
                 <button class="alc-admin-tab-btn" data-admin-tab="upload">
                     內容上傳
                 </button>
+                <button class="alc-admin-tab-btn" data-admin-tab="contents">
+                    內容管理
+                </button>
                 <button class="alc-admin-tab-btn" data-admin-tab="nodes">
                     知識點管理
                 </button>
@@ -461,6 +464,13 @@
                         </div>
                         <textarea id="contentDescInput" class="alc-form-input" placeholder="描述" rows="4"></textarea>
                         <button id="uploadContentBtn" class="alc-btn alc-btn--primary">上傳</button>
+                    </div>
+                </div>
+
+                <!-- 內容管理（列表 + 編輯 / 刪除） -->
+                <div id="adminTabContents" class="alc-admin-tab-content">
+                    <div id="adminContentsList" class="alc-admin-list">
+                        <!-- 動態生成已上傳內容列表 -->
                     </div>
                 </div>
 

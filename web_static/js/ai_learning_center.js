@@ -1608,6 +1608,7 @@
     const ADMIN_TAB_MAP = {
         categories: 'adminTabCategories',
         upload: 'adminTabUpload',
+        contents: 'adminTabContents',
         nodes: 'adminTabNodes',
         paths: 'adminTabPaths',
     };
@@ -1689,6 +1690,8 @@
         // Load data when switching to certain tabs
         if (tabName === 'categories') {
             loadAdminCategories();
+        } else if (tabName === 'contents') {
+            loadAdminContents();
         } else if (tabName === 'nodes') {
             loadAdminNodes();
         } else if (tabName === 'paths') {
@@ -1772,6 +1775,115 @@
             createPathBtn.addEventListener('click', submitPath);
         }
     }
+
+    // ==================== ADMIN: CONTENT MANAGEMENT ====================
+
+    async function loadAdminContents() {
+        const listEl = getElement('adminContentsList');
+        if (!listEl) return;
+
+        listEl.innerHTML = '<p style="padding:16px;color:var(--text-tertiary);">載入中...</p>';
+
+        try {
+            const response = await api(`${API_BASE}/contents?page=1&page_size=200`);
+            if (response.success) {
+                const contents = response.data?.items || response.data || [];
+                if (contents.length === 0) {
+                    listEl.innerHTML = '<p style="padding:16px;color:var(--text-tertiary);">暫無內容</p>';
+                    return;
+                }
+
+                // Build category lookup for display
+                const flatCats = flattenCategories(state.categories);
+                const catMap = {};
+                flatCats.forEach(c => { catMap[c.id] = c.name; });
+
+                listEl.innerHTML = contents.map(content => {
+                    const typeIcon = getContentTypeIcon(content.content_type);
+                    const catName = content.category_id && catMap[content.category_id]
+                        ? catMap[content.category_id] : '未分類';
+                    return `<div class="alc-admin-list-item" data-content-id="${content.id}">
+                        <div class="alc-admin-list-item-info">
+                            <span style="margin-right:6px;">${typeIcon}</span>
+                            <strong>${escapeHtml(content.title)}</strong>
+                            <span style="margin-left:8px;font-size:12px;color:var(--text-tertiary);">[${catName}]</span>
+                        </div>
+                        <div class="alc-admin-list-item-actions">
+                            <button class="alc-btn alc-btn--small alc-btn--secondary" onclick="window._alcEditContent(${content.id})">編輯</button>
+                            <button class="alc-btn alc-btn--small alc-btn--danger" onclick="window._alcDeleteContent(${content.id}, '${escapeHtml(content.title).replace(/'/g, "\\'")}')">刪除</button>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('Failed to load admin contents:', error);
+            listEl.innerHTML = '<p style="padding:16px;color:red;">載入失敗</p>';
+        }
+    }
+
+    const ADMIN_API = '/api/admin/learning-center';
+
+    // Expose content management functions globally for onclick handlers
+    window._alcDeleteContent = async function(contentId, title) {
+        if (!confirm(`確定要刪除「${title}」嗎？此操作無法撤銷。`)) return;
+
+        try {
+            const response = await api(`${ADMIN_API}/contents/${contentId}`, {
+                method: 'DELETE'
+            });
+            if (response.success) {
+                showToast('內容已刪除', 'success');
+                loadAdminContents();
+                // Also refresh ebook sidebar
+                loadMedia();
+            } else {
+                showToast(response.message || '刪除失敗', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to delete content:', error);
+            showToast('刪除失敗', 'error');
+        }
+    };
+
+    window._alcEditContent = async function(contentId) {
+        try {
+            const response = await api(`${API_BASE}/contents/${contentId}`);
+            if (!response.success) return;
+            const content = response.data;
+
+            const newTitle = prompt('修改標題：', content.title);
+            if (newTitle === null) return; // cancelled
+
+            const newDesc = prompt('修改描述：', content.description || '');
+            if (newDesc === null) return;
+
+            const updateData = {};
+            if (newTitle !== content.title) updateData.title = newTitle;
+            if (newDesc !== (content.description || '')) updateData.description = newDesc;
+
+            if (Object.keys(updateData).length === 0) {
+                showToast('沒有修改', 'info');
+                return;
+            }
+
+            const updateResponse = await api(`${ADMIN_API}/contents/${contentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateData)
+            });
+
+            if (updateResponse.success) {
+                showToast('內容已更新', 'success');
+                loadAdminContents();
+                loadMedia();
+            } else {
+                showToast(updateResponse.message || '更新失敗', 'error');
+            }
+        } catch (error) {
+            console.error('Failed to edit content:', error);
+            showToast('更新失敗', 'error');
+        }
+    };
 
     // ==================== ADMIN: CATEGORIES ====================
 
