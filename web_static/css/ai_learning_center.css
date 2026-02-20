@@ -42,6 +42,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -218,135 +219,31 @@
    2. HERO SECTION (compact — content-first design)
    ===================================================== */
 
-.alc-hero {
+/* Header inline stats (next to title) */
+.alc-header-stats {
   display: flex;
-  flex-direction: row;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  padding: var(--space-3) 0;
+  gap: var(--space-3);
+  margin-left: var(--space-4);
 }
 
-.alc-hero__content {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--space-4);
-  flex: 1;
-  min-width: 0;
-}
-
-.alc-hero__title {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  line-height: 1.2;
-  background: linear-gradient(135deg, var(--brand) 0%, #00a652 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.alc-hero__subtitle {
-  font-size: 13px;
+.alc-header-stat {
+  font-size: 12px;
   color: var(--text-tertiary);
-  line-height: 1.4;
-  max-width: 360px;
-  margin: 0;
-  opacity: 0.6;
+  white-space: nowrap;
 }
 
-.alc-stats-row {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: nowrap;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.alc-stat-card {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
-  background-color: var(--brand-lighter);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--brand-light);
-}
-
-.alc-stat-number {
-  font-size: 18px;
+.alc-header-stat strong {
   font-weight: 700;
   color: var(--brand);
-  letter-spacing: -0.3px;
+  font-size: 13px;
+  margin-right: 2px;
 }
 
-.alc-stat-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-/* Responsive hero */
+/* Responsive header stats */
 @media (max-width: 768px) {
-  .alc-hero {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-  }
-
-  .alc-hero__content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-1);
-  }
-
-  .alc-hero__title {
-    font-size: 18px;
-  }
-
-  .alc-hero__subtitle {
-    font-size: 12px;
-  }
-
-  .alc-stats-row {
-    margin-left: 0;
-    gap: var(--space-2);
-  }
-
-  .alc-stat-number {
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  .alc-hero {
-    margin-bottom: var(--space-2);
-    padding: var(--space-2) 0;
-  }
-
-  .alc-hero__title {
-    font-size: 16px;
-  }
-
-  .alc-hero__subtitle {
+  .alc-header-stats {
     display: none;
-  }
-
-  .alc-stat-card {
-    padding: var(--space-1) var(--space-2);
-  }
-
-  .alc-stat-number {
-    font-size: 14px;
-  }
-
-  .alc-stat-label {
-    font-size: 11px;
   }
 }
 
