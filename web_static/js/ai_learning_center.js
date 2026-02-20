@@ -1821,8 +1821,6 @@
         }
     }
 
-    const ADMIN_API = '/api/admin/learning-center';
-
     // Expose content management functions globally for onclick handlers
     window._alcDeleteContent = async function(contentId, title) {
         if (!confirm(`確定要刪除「${title}」嗎？此操作無法撤銷。`)) return;
