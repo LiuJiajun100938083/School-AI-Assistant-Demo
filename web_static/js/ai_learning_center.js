@@ -1254,14 +1254,17 @@
             const response = await api(`${API_BASE}/contents/${contentId}`);
             if (response.success) {
                 const content = response.data;
-                if (content.file_url) {
+                const fileUrl = getFileUrl(content);
+                if (fileUrl) {
                     const link = document.createElement('a');
-                    link.href = content.file_url;
+                    link.href = fileUrl;
                     link.download = content.title;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    showToast('下载开始', 'success');
+                    showToast('下載開始', 'success');
+                } else {
+                    showToast('此內容無可下載文件', 'warning');
                 }
             }
         } catch (error) {
@@ -1424,31 +1427,80 @@
         }
     }
 
+    /**
+     * Build a playable file URL from the content's file_path
+     * DB stores paths like "uploads/learning_center/video_locals/xxx.mp4"
+     * Files are served at /uploads/...
+     */
+    function getFileUrl(content) {
+        if (content.file_url) return content.file_url;
+        if (content.file_path) {
+            // file_path may already start with "uploads/" or may not have leading slash
+            const path = content.file_path.startsWith('/') ? content.file_path : `/${content.file_path}`;
+            return path;
+        }
+        return null;
+    }
+
     function openVideoModal(content) {
         const modal = getElement('videoModal');
         if (!modal) return;
 
-        // Use the actual HTML elements by ID
         const videoPlayer = getElement('videoPlayer');
         const videoTitle = getElement('videoModalTitle');
         const videoDesc = getElement('videoModalDesc');
         const videoContainer = modal.querySelector('.alc-video-container');
 
+        // Reset container: restore iframe, clear previous content
+        if (videoContainer && videoPlayer) {
+            // Remove any previously injected <video> or error elements
+            videoContainer.querySelectorAll('video, p, div').forEach(el => el.remove());
+            videoPlayer.src = '';
+            videoPlayer.style.display = 'none';
+        }
+
         if (content.content_type === 'video_external' || content.external_url) {
+            // External video (YouTube / Bilibili)
             const embedUrl = parseVideoEmbed(content.external_url);
             if (embedUrl && videoPlayer) {
                 videoPlayer.src = embedUrl;
+                videoPlayer.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
                 videoPlayer.style.display = 'block';
-            } else if (videoContainer) {
-                // Replace iframe with a direct video or error
-                videoContainer.innerHTML = content.file_url
-                    ? `<video width="100%" height="600" controls><source src="${escapeHtml(content.file_url)}" type="video/mp4">您的浏览器不支持视频播放</video>`
-                    : `<p class="alc-error">无法加载视频</p>`;
+            } else {
+                // Fallback: try to open external URL in a new way
+                const fileUrl = getFileUrl(content);
+                if (fileUrl && videoContainer) {
+                    const videoEl = document.createElement('video');
+                    videoEl.setAttribute('width', '100%');
+                    videoEl.setAttribute('height', '100%');
+                    videoEl.setAttribute('controls', '');
+                    videoEl.innerHTML = `<source src="${escapeHtml(fileUrl)}" type="video/mp4">您的瀏覽器不支持視頻播放`;
+                    videoContainer.appendChild(videoEl);
+                } else if (videoContainer) {
+                    const errP = document.createElement('p');
+                    errP.className = 'alc-error';
+                    errP.style.cssText = 'color:#fff;text-align:center;padding:40px;';
+                    errP.textContent = '無法載入視頻';
+                    videoContainer.appendChild(errP);
+                }
             }
-        } else if (videoContainer) {
-            videoContainer.innerHTML = content.file_url
-                ? `<video width="100%" height="600" controls><source src="${escapeHtml(content.file_url)}" type="video/mp4">您的浏览器不支持视频播放</video>`
-                : `<p class="alc-error">无法加载视频</p>`;
+        } else {
+            // Local video — use file_path to construct URL
+            const fileUrl = getFileUrl(content);
+            if (fileUrl && videoContainer) {
+                const videoEl = document.createElement('video');
+                videoEl.setAttribute('width', '100%');
+                videoEl.setAttribute('height', '100%');
+                videoEl.setAttribute('controls', '');
+                videoEl.innerHTML = `<source src="${escapeHtml(fileUrl)}" type="${escapeHtml(content.mime_type || 'video/mp4')}">您的瀏覽器不支持視頻播放`;
+                videoContainer.appendChild(videoEl);
+            } else if (videoContainer) {
+                const errP = document.createElement('p');
+                errP.className = 'alc-error';
+                errP.style.cssText = 'color:#fff;text-align:center;padding:40px;';
+                errP.textContent = '無法載入視頻';
+                videoContainer.appendChild(errP);
+            }
         }
 
         if (videoTitle) videoTitle.textContent = content.title || '';
@@ -1464,9 +1516,10 @@
         const img = getElement('imageMdalImage');
         const title = getElement('imageModalTitle');
         const desc = getElement('imageModalDesc');
+        const fileUrl = getFileUrl(content);
 
         if (img) {
-            img.src = content.image_url || content.file_url || '';
+            img.src = content.image_url || fileUrl || '';
             img.alt = content.title || '';
         }
         if (title) title.textContent = content.title || '';
@@ -1482,13 +1535,14 @@
         const docViewer = getElement('docViewer');
         const docTitle = getElement('docModalTitle');
         const downloadLink = getElement('docDownloadLink');
+        const fileUrl = getFileUrl(content);
 
-        if (docViewer && content.file_url) {
-            docViewer.src = content.file_url;
+        if (docViewer && fileUrl) {
+            docViewer.src = fileUrl;
         }
         if (docTitle) docTitle.textContent = content.title || '';
-        if (downloadLink && content.file_url) {
-            downloadLink.href = content.file_url;
+        if (downloadLink && fileUrl) {
+            downloadLink.href = fileUrl;
             downloadLink.download = content.title || 'download';
         }
 
@@ -1536,9 +1590,21 @@
         document.querySelectorAll('.alc-modal-overlay').forEach(modal => {
             modal.style.display = 'none';
         });
-        // Also stop any playing video
+        // Stop iframe video
         const videoPlayer = getElement('videoPlayer');
-        if (videoPlayer) videoPlayer.src = '';
+        if (videoPlayer) {
+            videoPlayer.src = '';
+            videoPlayer.style.display = 'none';
+        }
+        // Remove any injected <video> elements in the video modal
+        const videoModal = getElement('videoModal');
+        if (videoModal) {
+            videoModal.querySelectorAll('video').forEach(v => {
+                v.pause();
+                v.remove();
+            });
+            videoModal.querySelectorAll('p.alc-error').forEach(p => p.remove());
+        }
     }
 
     // ==================== SEARCH ====================

@@ -11,6 +11,18 @@
 
 ---
 
+## [2026-02-20] 修复视频播放及文件 URL 问题
+
+### 修复
+- 视频弹窗无法播放：`openVideoModal()` 使用不存在的 `file_url` 字段，改为从 `file_path` 构建 URL
+- 新增 `getFileUrl()` 工具函数：统一从 `file_path`（如 `uploads/learning_center/video_locals/xxx.mp4`）生成可访问的 URL
+- 外部视频（YouTube/Bilibili）iframe 添加 `allow` 属性以支持自动播放
+- 修复视频弹窗关闭后残留：`closeAllModals()` 现在正确清理注入的 `<video>` 元素
+- 修复图片预览 `openImageModal()` 和文件预览 `openDocModal()` 同样使用不存在的 `file_url`
+- 修复资源下载 `downloadResource()` 使用不存在的 `file_url`
+
+---
+
 ## [2026-02-20] 媒体资料库改为教材章节目录风格
 
 ### 修改
