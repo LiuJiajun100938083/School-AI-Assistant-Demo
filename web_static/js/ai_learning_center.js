@@ -1398,81 +1398,87 @@
         const header = document.getElementById('aiFloatHeader');
         const resizeHandle = document.getElementById('aiFloatResize');
 
+        // 共享状态：拖拽或缩放激活时用 rAF 节流
+        let dragState = null;   // { offsetX, offsetY }
+        let resizeState = null; // { startX, startY, startW, startH }
+        let rafId = null;
+
+        function beginInteraction() {
+            win.style.transition = 'none';
+            win.style.willChange = 'transform, width, height';
+            document.body.style.userSelect = 'none';
+        }
+
+        function endInteraction() {
+            win.style.transition = '';
+            win.style.willChange = '';
+            document.body.style.userSelect = '';
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+        }
+
         // ---- 拖拽逻辑 ----
         if (header) {
-            let isDragging = false;
-            let dragOffsetX = 0;
-            let dragOffsetY = 0;
-
             header.addEventListener('mousedown', (e) => {
-                // 排除按钮上的点击
                 if (e.target.closest('button')) return;
-
-                isDragging = true;
-                dragOffsetX = e.clientX - win.offsetLeft;
-                dragOffsetY = e.clientY - win.offsetTop;
-                win.style.transition = 'none';
-                document.body.style.userSelect = 'none';
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-
-                const x = Math.max(0, Math.min(e.clientX - dragOffsetX, window.innerWidth - win.offsetWidth));
-                const y = Math.max(0, Math.min(e.clientY - dragOffsetY, window.innerHeight - win.offsetHeight));
-
-                win.style.left = x + 'px';
-                win.style.top = y + 'px';
-                // 拖拽时取消 right/bottom 定位，改为 left/top
-                win.style.right = 'auto';
-                win.style.bottom = 'auto';
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (!isDragging) return;
-                isDragging = false;
-                win.style.transition = '';
-                document.body.style.userSelect = '';
+                dragState = {
+                    offsetX: e.clientX - win.offsetLeft,
+                    offsetY: e.clientY - win.offsetTop,
+                };
+                beginInteraction();
             });
         }
 
         // ---- 缩放逻辑 ----
         if (resizeHandle) {
-            let isResizing = false;
-            let startX = 0;
-            let startY = 0;
-            let startW = 0;
-            let startH = 0;
-
             resizeHandle.addEventListener('mousedown', (e) => {
-                isResizing = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                startW = win.offsetWidth;
-                startH = win.offsetHeight;
-                win.style.transition = 'none';
-                document.body.style.userSelect = 'none';
                 e.preventDefault();
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
-
-                const newW = Math.max(300, startW + (e.clientX - startX));
-                const newH = Math.max(350, startH + (e.clientY - startY));
-
-                win.style.width = newW + 'px';
-                win.style.height = newH + 'px';
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (!isResizing) return;
-                isResizing = false;
-                win.style.transition = '';
-                document.body.style.userSelect = '';
+                resizeState = {
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    startW: win.offsetWidth,
+                    startH: win.offsetHeight,
+                };
+                beginInteraction();
             });
         }
 
+        // ---- 统一 mousemove（rAF 节流） ----
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState && !resizeState) return;
+
+            const clientX = e.clientX;
+            const clientY = e.clientY;
+
+            if (rafId) return; // 上一帧还没画完，跳过
+            rafId = requestAnimationFrame(() => {
+                rafId = null;
+
+                if (dragState) {
+                    const x = Math.max(0, Math.min(clientX - dragState.offsetX, window.innerWidth - win.offsetWidth));
+                    const y = Math.max(0, Math.min(clientY - dragState.offsetY, window.innerHeight - win.offsetHeight));
+                    win.style.left = x + 'px';
+                    win.style.top = y + 'px';
+                    win.style.right = 'auto';
+                    win.style.bottom = 'auto';
+                }
+
+                if (resizeState) {
+                    win.style.width = Math.max(300, resizeState.startW + (clientX - resizeState.startX)) + 'px';
+                    win.style.height = Math.max(350, resizeState.startH + (clientY - resizeState.startY)) + 'px';
+                }
+            });
+        });
+
+        // ---- 统一 mouseup ----
+        document.addEventListener('mouseup', () => {
+            if (!dragState && !resizeState) return;
+            dragState = null;
+            resizeState = null;
+            endInteraction();
+        });
     }
 
     async function sendAiQuestion() {
@@ -1493,8 +1499,8 @@
 
         // Show loading indicator
         const loadingEl = document.createElement('div');
-        loadingEl.className = 'alc-ai-message alc-ai-assistant alc-ai-loading';
-        loadingEl.innerHTML = '<div class="alc-typing-indicator"><span></span><span></span><span></span></div>';
+        loadingEl.className = 'alc-message alc-message--ai alc-ai-loading';
+        loadingEl.innerHTML = '<div class="alc-message-avatar">🤖</div><div class="alc-message-content"><div class="alc-typing-indicator"><span></span><span></span><span></span></div></div>';
         messagesEl.appendChild(loadingEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
@@ -1525,32 +1531,34 @@
         const messagesEl = getElement('aiMessages');
         if (!messagesEl) return;
 
+        const isUser = role === 'user';
         const messageEl = document.createElement('div');
-        messageEl.className = `alc-ai-message alc-ai-${role}`;
+        messageEl.className = isUser ? 'alc-message user' : 'alc-message alc-message--ai';
 
+        // 头像
+        const avatarEl = document.createElement('div');
+        avatarEl.className = 'alc-message-avatar';
+        avatarEl.textContent = isUser ? '🧑' : '🤖';
+        messageEl.appendChild(avatarEl);
+
+        // 气泡内容
         const contentEl = document.createElement('div');
-        contentEl.className = 'alc-ai-content';
+        contentEl.className = 'alc-message-content';
 
-        if (role === 'assistant' && typeof marked !== 'undefined') {
+        if (!isUser && typeof marked !== 'undefined') {
             contentEl.innerHTML = marked.parse(content);
         } else {
-            let formattedContent = escapeHtml(content);
-            formattedContent = formattedContent.replace(/\n/g, '<br>');
-            contentEl.innerHTML = formattedContent;
+            contentEl.innerHTML = `<p>${escapeHtml(content).replace(/\n/g, '<br>')}</p>`;
         }
-        messageEl.appendChild(contentEl);
 
         if (sources && sources.length > 0) {
-            const sourcesEl = document.createElement('div');
-            sourcesEl.className = 'alc-ai-sources';
-            sourcesEl.innerHTML = '<p>参考资料：</p>' + sources.map(source => `
-                <a href="${escapeHtml(source.url)}" target="_blank" class="alc-source-link">
-                    ${escapeHtml(source.title)}
-                </a>
-            `).join('');
-            messageEl.appendChild(sourcesEl);
+            const sourcesHtml = sources.map(s =>
+                `<a href="${escapeHtml(s.url)}" target="_blank" class="alc-source-link">${escapeHtml(s.title)}</a>`
+            ).join('');
+            contentEl.insertAdjacentHTML('beforeend', `<div class="alc-ai-sources"><p>参考资料：</p>${sourcesHtml}</div>`);
         }
 
+        messageEl.appendChild(contentEl);
         messagesEl.appendChild(messageEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
