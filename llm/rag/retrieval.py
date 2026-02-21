@@ -258,9 +258,9 @@ def get_context_for_content_with_pages(
         context_parts = []
         page_refs = []
 
-        # 只取前 top_n 个最相关的 chunk 的页码作为引用
-        # （similarity_search 返回结果已按相似度降序排列）
-        top_n = min(3, len(results))
+        # 只取前 2 个最相关 chunk 的页码作为引用
+        # （第 3 个及之后往往已不太相关，会引入无关页码）
+        top_n = min(2, len(results))
 
         for i, doc in enumerate(results):
             # 解析 page_numbers metadata（逗号分隔字符串 → int 列表）
@@ -276,18 +276,20 @@ def get_context_for_content_with_pages(
 
             context_parts.append(f"{header}\n{doc.page_content}")
 
-            # 只收录前 top_n 个最相关 chunk 的页码（避免低相关 chunk 引入无关页码）
+            # 只收录前 top_n 个最相关 chunk 的页码
             if page_list and i < top_n:
+                # 每个 chunk 内部：连续页码只保留起始页
+                # 如 [41,42] → [41]，[43,44] → [43]
+                representative = _pick_start_pages(page_list)
                 preview = doc.page_content[:50].replace("\n", " ")
                 page_refs.append({
                     "snippet_index": i + 1,
-                    "page_numbers": page_list,
+                    "page_numbers": representative,
                     "preview": preview,
                 })
 
-        # 去重合并：多个 chunk 引用同一页时只保留一次，
-        # 并且只取连续页码的起始页（如 42,43,44 → 只展示 42）
-        page_refs = _consolidate_page_refs(page_refs)
+        # 跨 chunk 去重（不同 chunk 可能引用相同页码）
+        page_refs = _deduplicate_page_refs(page_refs)
 
         context = "\n\n".join(context_parts)
         logger.info(
@@ -322,52 +324,40 @@ def _parse_page_numbers(raw: str) -> List[int]:
         return []
 
 
-def _consolidate_page_refs(page_refs: List[Dict]) -> List[Dict]:
+def _pick_start_pages(pages: List[int]) -> List[int]:
     """
-    合并页码引用：去重 + 连续页码只保留起始页。
+    从一个页码列表中，将连续区间合并为起始页。
 
-    例如多个 chunk 引用 [42], [42,43], [43,44] → 合并为 [42]
-    因为连续页码表示同一段内容，跳转到起始页即可。
+    例如 [41,42] → [41]，[43,44] → [43]，[3,5,6,7] → [3,5]
+    """
+    if not pages:
+        return []
+    sorted_p = sorted(pages)
+    result = [sorted_p[0]]
+    for j in range(1, len(sorted_p)):
+        if sorted_p[j] - sorted_p[j - 1] > 1:
+            result.append(sorted_p[j])
+    return result
 
-    Returns:
-        去重合并后的 page_refs 列表
+
+def _deduplicate_page_refs(page_refs: List[Dict]) -> List[Dict]:
+    """
+    跨 chunk 去重：如果多个 chunk 引用相同的页码，只保留一次。
+
+    保留每个唯一页码第一次出现时所在的 ref。
     """
     if not page_refs:
         return []
 
-    # 收集所有被引用的页码
-    all_pages = set()
+    seen_pages = set()
+    deduped = []
     for ref in page_refs:
-        all_pages.update(ref["page_numbers"])
-
-    if not all_pages:
-        return []
-
-    # 将页码分组为连续区间，每个区间只保留起始页
-    sorted_pages = sorted(all_pages)
-    representative_pages = []
-    i = 0
-    while i < len(sorted_pages):
-        start = sorted_pages[i]
-        # 跳过连续页码
-        while i + 1 < len(sorted_pages) and sorted_pages[i + 1] - sorted_pages[i] <= 1:
-            i += 1
-        representative_pages.append(start)
-        i += 1
-
-    # 构建精简的 page_refs（每个代表页一条）
-    consolidated = []
-    for page in representative_pages:
-        # 找到包含该页的第一个原始 ref 作为 preview 来源
-        preview = ""
-        for ref in page_refs:
-            if page in ref["page_numbers"]:
-                preview = ref["preview"]
-                break
-        consolidated.append({
-            "snippet_index": 0,
-            "page_numbers": [page],
-            "preview": preview,
-        })
-
-    return consolidated
+        unique_pages = [p for p in ref["page_numbers"] if p not in seen_pages]
+        if unique_pages:
+            seen_pages.update(unique_pages)
+            deduped.append({
+                "snippet_index": ref["snippet_index"],
+                "page_numbers": unique_pages,
+                "preview": ref["preview"],
+            })
+    return deduped
