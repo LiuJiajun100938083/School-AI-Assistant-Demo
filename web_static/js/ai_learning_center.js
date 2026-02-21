@@ -1631,13 +1631,15 @@
      * 支持格式：【第3页】、【第3,4页】、【第3、4页】
      */
     function linkifyPageReferences(html) {
+        // 同时匹配简体「页」和繁体「頁」，以及 page/p. 等英文格式
+        // 支持：【第42页】【第42頁】【第42-44页】【第42,43页】
         return html.replace(
-            /【第([\d,、]+)页】/g,
+            /【第([\d,、\-–]+)[页頁]】/g,
             (match, pages) => {
                 // 取第一个页码作为跳转目标
-                const firstPage = parseInt(pages.replace(/、/g, ',').split(',')[0], 10);
+                const firstPage = parseInt(pages.replace(/[、\-–]/g, ',').split(',')[0], 10);
                 if (isNaN(firstPage)) return match;
-                return `<span class="alc-page-ref" data-page="${firstPage}" title="跳转到第${firstPage}页">【第${pages}页】</span>`;
+                return `<span class="alc-page-ref" data-page="${firstPage}" title="跳转到第${firstPage}页">${match}</span>`;
             }
         );
     }
