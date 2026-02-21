@@ -417,6 +417,29 @@ class ContentIndexer:
             )
             return False
 
+    def has_page_metadata(self, content_id: int) -> bool:
+        """
+        检查已索引的内容是否包含 page_numbers metadata。
+
+        用于判断旧索引是否需要重建（v1.8.0 之前的索引缺少此字段）。
+        """
+        try:
+            collection = _get_vector_db()._collection
+            results = collection.get(
+                where={"content_id": str(content_id)},
+                limit=1,
+                include=["metadatas"],
+            )
+            metadatas = results.get("metadatas", [])
+            if not metadatas:
+                return False
+            return "page_numbers" in metadatas[0]
+        except Exception:
+            logger.exception(
+                "检查页码元数据失败: content_id=%s", content_id
+            )
+            return False
+
     def delete(self, content_id: int) -> bool:
         """删除某条内容的所有向量索引。"""
         try:

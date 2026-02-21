@@ -797,9 +797,13 @@ class LearningCenterService:
 
         content_title = content.get("title", "")
         content_type = content.get("content_type", "")
+        is_pdf = content_type == "document" and (
+            (content.get("file_name") or "").lower().endswith(".pdf")
+            or (content.get("mime_type") or "") == "application/pdf"
+        )
         loop = asyncio.get_running_loop()
 
-        # 2. 懒索引
+        # 2. 懒索引（含旧索引升级：缺少 page_numbers 时重建）
         indexer = get_content_indexer()
         indexed = await loop.run_in_executor(
             None, indexer.is_indexed, content_id
@@ -810,6 +814,19 @@ class LearningCenterService:
             await loop.run_in_executor(
                 None, partial(indexer.index, content_id, dict(content))
             )
+        elif is_pdf:
+            # 旧索引可能缺少 page_numbers metadata，需要重建
+            has_pages = await loop.run_in_executor(
+                None, indexer.has_page_metadata, content_id
+            )
+            if not has_pages:
+                logger.info("旧索引缺少页码，重建: content_id=%s", content_id)
+                await loop.run_in_executor(
+                    None, indexer.delete, content_id
+                )
+                await loop.run_in_executor(
+                    None, partial(indexer.index, content_id, dict(content))
+                )
 
         # 3. 内容级 RAG 检索（带页码）
         rag_context, page_refs = await loop.run_in_executor(
@@ -818,11 +835,6 @@ class LearningCenterService:
         )
 
         # 4. 构建 prompt 并调用 LLM
-        # 仅当内容为 PDF 且检索到页码时，提示 LLM 引用页码
-        is_pdf = content_type == "document" and (
-            (content.get("file_name") or "").lower().endswith(".pdf")
-            or (content.get("mime_type") or "") == "application/pdf"
-        )
         has_pages = is_pdf and len(page_refs) > 0
 
         if has_pages:
