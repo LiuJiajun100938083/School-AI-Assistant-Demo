@@ -1398,34 +1398,31 @@
         const header = document.getElementById('aiFloatHeader');
         const resizeHandle = document.getElementById('aiFloatResize');
 
-        // 共享状态：拖拽或缩放激活时用 rAF 节流
-        let dragState = null;   // { offsetX, offsetY }
-        let resizeState = null; // { startX, startY, startW, startH }
-        let rafId = null;
+        // 共享状态
+        let dragState = null;
+        let resizeState = null;
+        let lastX = 0;
+        let lastY = 0;
+        let rafPending = false;
 
         function beginInteraction() {
             win.style.transition = 'none';
-            win.style.willChange = 'transform, width, height';
+            win.classList.add('alc-ai-float--interacting');
             document.body.style.userSelect = 'none';
         }
 
         function endInteraction() {
             win.style.transition = '';
-            win.style.willChange = '';
+            win.classList.remove('alc-ai-float--interacting');
             document.body.style.userSelect = '';
-            if (rafId) {
-                cancelAnimationFrame(rafId);
-                rafId = null;
-            }
         }
 
-        // ---- 拖拽逻辑 ----
+        // ---- 拖拽 ----
         if (header) {
             header.addEventListener('mousedown', (e) => {
                 if (e.target.closest('button')) return;
                 e.preventDefault();
 
-                // 首次拖拽时将 right/bottom 定位转换为 left/top
                 const rect = win.getBoundingClientRect();
                 win.style.left = rect.left + 'px';
                 win.style.top = rect.top + 'px';
@@ -1440,48 +1437,49 @@
             });
         }
 
-        // ---- 缩放逻辑 ----
+        // ---- 缩放 ----
         if (resizeHandle) {
             resizeHandle.addEventListener('mousedown', (e) => {
                 e.preventDefault();
+
+                const rect = win.getBoundingClientRect();
+                win.style.left = rect.left + 'px';
+                win.style.top = rect.top + 'px';
+                win.style.right = 'auto';
+                win.style.bottom = 'auto';
+
                 resizeState = {
                     startX: e.clientX,
                     startY: e.clientY,
-                    startW: win.offsetWidth,
-                    startH: win.offsetHeight,
+                    startW: rect.width,
+                    startH: rect.height,
                 };
                 beginInteraction();
             });
         }
 
-        // ---- 统一 mousemove（rAF 节流） ----
+        // ---- mousemove：始终更新坐标，rAF 读最新值 ----
         document.addEventListener('mousemove', (e) => {
             if (!dragState && !resizeState) return;
+            lastX = e.clientX;
+            lastY = e.clientY;
 
-            const clientX = e.clientX;
-            const clientY = e.clientY;
-
-            if (rafId) return; // 上一帧还没画完，跳过
-            rafId = requestAnimationFrame(() => {
-                rafId = null;
-
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
                 if (dragState) {
-                    const x = Math.max(0, Math.min(clientX - dragState.offsetX, window.innerWidth - win.offsetWidth));
-                    const y = Math.max(0, Math.min(clientY - dragState.offsetY, window.innerHeight - win.offsetHeight));
-                    win.style.left = x + 'px';
-                    win.style.top = y + 'px';
-                    win.style.right = 'auto';
-                    win.style.bottom = 'auto';
+                    win.style.left = Math.max(0, Math.min(lastX - dragState.offsetX, window.innerWidth - win.offsetWidth)) + 'px';
+                    win.style.top = Math.max(0, Math.min(lastY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
                 }
-
                 if (resizeState) {
-                    win.style.width = Math.max(300, resizeState.startW + (clientX - resizeState.startX)) + 'px';
-                    win.style.height = Math.max(350, resizeState.startH + (clientY - resizeState.startY)) + 'px';
+                    win.style.width = Math.max(300, resizeState.startW + (lastX - resizeState.startX)) + 'px';
+                    win.style.height = Math.max(350, resizeState.startH + (lastY - resizeState.startY)) + 'px';
                 }
             });
         });
 
-        // ---- 统一 mouseup ----
+        // ---- mouseup ----
         document.addEventListener('mouseup', () => {
             if (!dragState && !resizeState) return;
             dragState = null;

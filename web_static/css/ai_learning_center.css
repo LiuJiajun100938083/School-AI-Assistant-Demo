@@ -1395,6 +1395,17 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* 拖拽/缩放进行中：关闭昂贵渲染，提升流畅度 */
+.alc-ai-float--interacting {
+  will-change: left, top, width, height;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  pointer-events: none;
+}
+.alc-ai-float--interacting .alc-ai-float-header,
+.alc-ai-float--interacting .alc-ai-float-resize {
+  pointer-events: auto;
+}
+
 /* 拖拽标题栏 */
 .alc-ai-float-header {
   display: flex;
