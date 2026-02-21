@@ -304,10 +304,10 @@
         userRole = payload.role || 'student';
         isAdmin = ['teacher', 'admin'].includes(userRole);
 
-        // Show admin button if authorized
+        // Admin button hidden by default; only shown in manage mode
         const adminToggleBtn = getElement('adminToggleBtn');
-        if (adminToggleBtn && isAdmin) {
-            adminToggleBtn.style.display = 'block';
+        if (adminToggleBtn) {
+            adminToggleBtn.style.display = 'none';
         }
 
         // Setup event listeners
@@ -361,6 +361,74 @@
             btn.addEventListener('click', () => {
                 const tabName = btn.getAttribute('data-tab');
                 switchTab(tabName);
+            });
+        });
+
+        // Sidebar toggle
+        setupSidebarToggle();
+
+        // Mode switcher
+        setupModeSwitcher();
+    }
+
+    function setupSidebarToggle() {
+        const ebookContainer = document.getElementById('ebookContainer');
+        const toggleBtn = document.getElementById('sidebarToggleBtn');
+        const closeBtn = document.getElementById('sidebarCloseBtn');
+
+        if (toggleBtn && ebookContainer) {
+            toggleBtn.addEventListener('click', () => {
+                const isOpen = ebookContainer.classList.toggle('alc-ebook--sidebar-open');
+                // Update toggle button arrow direction
+                toggleBtn.querySelector('svg path').setAttribute('d',
+                    isOpen ? 'M15 18l-6-6 6-6' : 'M9 18l6-6-6-6'
+                );
+            });
+        }
+
+        if (closeBtn && ebookContainer) {
+            closeBtn.addEventListener('click', () => {
+                ebookContainer.classList.remove('alc-ebook--sidebar-open');
+                if (toggleBtn) {
+                    toggleBtn.querySelector('svg path').setAttribute('d', 'M9 18l6-6-6-6');
+                }
+            });
+        }
+    }
+
+    function setupModeSwitcher() {
+        const modeBtns = document.querySelectorAll('[data-mode]');
+        const page = document.getElementById('app');
+        const ebookContainer = document.getElementById('ebookContainer');
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode');
+
+                // Update button states
+                modeBtns.forEach(b => b.classList.remove('alc-mode-btn--active'));
+                btn.classList.add('alc-mode-btn--active');
+
+                // Remove all mode classes
+                page.classList.remove('alc-page--reading', 'alc-page--edit', 'alc-page--manage');
+
+                // Apply mode class
+                page.classList.add(`alc-page--${mode}`);
+
+                // Auto-show sidebar in manage mode, hide in reading mode
+                if (ebookContainer) {
+                    if (mode === 'manage' || mode === 'edit') {
+                        ebookContainer.classList.add('alc-ebook--sidebar-open');
+                    } else if (mode === 'reading') {
+                        ebookContainer.classList.remove('alc-ebook--sidebar-open');
+                    }
+                }
+
+                // Show admin panel toggle in manage mode
+                const adminToggleBtn = getElement('adminToggleBtn');
+                if (adminToggleBtn && isAdmin) {
+                    adminToggleBtn.style.display = mode === 'manage' ? 'block' : 'none';
+                }
             });
         });
     }
@@ -652,7 +720,7 @@
 
             // Hide welcome, show viewer
             if (welcome) welcome.style.display = 'none';
-            viewer.style.display = 'block';
+            viewer.style.display = 'flex';
 
             // Set header
             if (titleEl) titleEl.textContent = content.title || '';

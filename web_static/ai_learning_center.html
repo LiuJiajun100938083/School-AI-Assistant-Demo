@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<div id="app" class="alc-page">
+<div id="app" class="alc-page alc-page--reading">
 
     <!-- 固定頂部導航欄 -->
     <header class="alc-header">
@@ -80,6 +80,22 @@
                 <span class="alc-tab-icon">📋</span>
                 <span class="alc-tab-label">資源庫</span>
             </button>
+
+            <!-- 模式切換器 -->
+            <div class="alc-mode-switcher">
+                <button class="alc-mode-btn alc-mode-btn--active" data-mode="reading" title="閱讀模式">
+                    <span class="alc-mode-btn-icon">📖</span>
+                    <span>閱讀</span>
+                </button>
+                <button class="alc-mode-btn" data-mode="edit" title="編輯模式">
+                    <span class="alc-mode-btn-icon">✏️</span>
+                    <span>編輯</span>
+                </button>
+                <button class="alc-mode-btn" data-mode="manage" title="管理模式">
+                    <span class="alc-mode-btn-icon">⚙️</span>
+                    <span>管理</span>
+                </button>
+            </div>
         </nav>
 
         <!-- 標籤內容區 -->
@@ -219,11 +235,19 @@
 
             <!-- 3. 教學資料面板（電子教科書風格） -->
             <section id="tabMedia" class="alc-tab-panel alc-tab-panel--active">
-                <div class="alc-ebook">
-                    <!-- 左側目錄欄 -->
+                <div class="alc-ebook" id="ebookContainer">
+                    <!-- 側邊欄展開按鈕 -->
+                    <button class="alc-sidebar-toggle" id="sidebarToggleBtn" title="展開目錄">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </button>
+
+                    <!-- 左側目錄欄（默認收起） -->
                     <aside class="alc-ebook-sidebar">
                         <div class="alc-ebook-sidebar-header">
-                            <h3 class="alc-ebook-sidebar-title">📖 目錄</h3>
+                            <h3 class="alc-ebook-sidebar-title">目錄</h3>
+                            <button class="alc-sidebar-close-btn" id="sidebarCloseBtn" title="收起目錄">✕</button>
                         </div>
                         <nav id="ebookDirectory" class="alc-ebook-nav">
                             <!-- 動態生成目錄樹 -->
@@ -235,8 +259,8 @@
                         <!-- 預設歡迎頁 -->
                         <div id="ebookWelcome" class="alc-ebook-welcome">
                             <div class="alc-ebook-welcome-icon">📖</div>
-                            <h3>請從左側目錄選擇內容</h3>
-                            <p>點擊目錄中的項目即可在此處查看</p>
+                            <h3>點擊左側箭頭展開目錄，選擇內容</h3>
+                            <p>或使用搜尋功能查找資料</p>
                         </div>
 
                         <!-- 內容查看器（動態填充） -->

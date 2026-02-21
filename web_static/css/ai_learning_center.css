@@ -19,8 +19,8 @@
 .alc-header {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-6);
+  gap: var(--space-2);
+  padding: 6px var(--space-4);
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-light);
   position: sticky;
@@ -28,6 +28,8 @@
   z-index: 100;
   backdrop-filter: blur(10px);
   background-color: rgba(255, 255, 255, 0.95);
+  min-height: 0;
+  height: 42px;
 }
 
 .alc-header__left {
@@ -57,15 +59,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: 4px;
+  padding: 4px 8px;
   border-radius: var(--radius-md);
-  background-color: var(--bg-page);
+  background-color: transparent;
   border: none;
   cursor: pointer;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   transition: all var(--duration-base) var(--ease-out);
 }
@@ -83,7 +85,7 @@
 }
 
 .alc-page-title {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.3px;
   margin: 0;
@@ -93,14 +95,15 @@
 .alc-global-search {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  gap: var(--space-1);
+  padding: 3px var(--space-3);
   background-color: var(--bg-page);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
-  flex: 0 1 300px;
+  flex: 0 1 220px;
   max-width: 100%;
   transition: all var(--duration-base) var(--ease-out);
+  height: 30px;
 }
 
 .alc-global-search:focus-within {
@@ -112,7 +115,7 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-primary);
   width: 100%;
   font-family: var(--font-sans);
@@ -126,14 +129,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-sm);
   background-color: transparent;
   border: none;
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 16px;
+  font-size: 14px;
   transition: all var(--duration-base) var(--ease-out);
   flex-shrink: 0;
 }
@@ -147,14 +150,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-md);
-  background-color: var(--bg-page);
+  background-color: transparent;
   border: none;
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 18px;
+  font-size: 14px;
   transition: all var(--duration-base) var(--ease-out);
 }
 
@@ -169,31 +172,33 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  padding: var(--space-3) var(--space-6);
+  padding: 0;
 }
 
 /* Responsive padding */
 @media (max-width: 768px) {
   .alc-content-wrap {
-    padding: var(--space-4) var(--space-4);
+    padding: 0;
   }
 
   .alc-header {
-    padding: var(--space-3) var(--space-4);
-    gap: var(--space-3);
+    padding: 4px var(--space-3);
+    gap: var(--space-2);
+    height: 38px;
   }
 
   .alc-header__right {
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   .alc-global-search {
-    flex: 0 1 200px;
-    padding: var(--space-2) var(--space-3);
+    flex: 0 1 160px;
+    padding: 2px var(--space-2);
+    height: 28px;
   }
 
   .alc-page-title {
-    font-size: 16px;
+    font-size: 13px;
   }
 
   .alc-back-text {
@@ -203,7 +208,8 @@
 
 @media (max-width: 480px) {
   .alc-header {
-    padding: var(--space-2) var(--space-3);
+    padding: 3px var(--space-2);
+    height: 34px;
   }
 
   .alc-global-search {
@@ -211,7 +217,7 @@
   }
 
   .alc-content-wrap {
-    padding: var(--space-3) var(--space-3);
+    padding: 0;
   }
 }
 
@@ -223,21 +229,21 @@
 .alc-header-stats {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-left: var(--space-4);
+  gap: var(--space-2);
+  margin-left: var(--space-2);
 }
 
 .alc-header-stat {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   white-space: nowrap;
 }
 
 .alc-header-stat strong {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--brand);
-  font-size: 13px;
-  margin-right: 2px;
+  font-size: 11px;
+  margin-right: 1px;
 }
 
 /* Responsive header stats */
@@ -253,12 +259,14 @@
 
 .alc-tab-navigation {
   display: flex;
-  gap: var(--space-3);
-  padding: var(--space-2) 0 var(--space-2) 0;
+  gap: var(--space-1);
+  padding: 4px var(--space-3);
   border-bottom: 1px solid var(--border-light);
   overflow-x: auto;
-  margin-bottom: var(--space-4);
+  margin-bottom: 0;
   scroll-behavior: smooth;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
 }
 
 .alc-tab-navigation::-webkit-scrollbar {
@@ -277,11 +285,11 @@
 .alc-tab-button {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  gap: 4px;
+  padding: 4px 10px;
   background: none;
   border: none;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
@@ -304,17 +312,17 @@
 .alc-tab-button--active::after {
   content: '';
   position: absolute;
-  bottom: -16px;
+  bottom: -5px;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 2px;
   background-color: var(--brand);
-  border-radius: 1.5px;
+  border-radius: 1px;
   animation: slideIn var(--duration-base) var(--ease-out);
 }
 
 .alc-tab-icon {
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .alc-tab-label {
@@ -337,6 +345,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .alc-tab-panel {
@@ -344,6 +353,7 @@
   animation: fadeIn var(--duration-base) var(--ease-out);
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .alc-tab-panel--active {
@@ -362,17 +372,36 @@
 
 @media (max-width: 768px) {
   .alc-tab-navigation {
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
+    gap: 0;
+    margin-bottom: 0;
+    padding: 2px var(--space-2);
   }
 
   .alc-tab-button {
-    padding: var(--space-2) var(--space-3);
-    font-size: 14px;
+    padding: 3px 6px;
+    font-size: 12px;
+  }
+
+  .alc-tab-label {
+    display: none;
   }
 
   .alc-tab-icon {
-    font-size: 16px;
+    font-size: 14px;
+  }
+
+  .alc-mode-switcher {
+    gap: 1px;
+    padding: 1px;
+  }
+
+  .alc-mode-btn {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .alc-mode-btn span:not(.alc-mode-btn-icon) {
+    display: none;
   }
 }
 
@@ -907,37 +936,107 @@
 .alc-ebook {
   display: flex;
   gap: 0;
-  min-height: 70vh;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
   background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-card);
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
   overflow: hidden;
+  position: relative;
+}
+
+/* --- Sidebar toggle button --- */
+.alc-sidebar-toggle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: 24px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-light);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.alc-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 1);
+  color: var(--text-primary);
+  width: 28px;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+}
+
+.alc-ebook.alc-ebook--sidebar-open .alc-sidebar-toggle {
+  left: 240px;
 }
 
 /* --- Left sidebar directory --- */
 .alc-ebook-sidebar {
-  width: 280px;
-  min-width: 240px;
-  max-width: 320px;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
   background-color: var(--bg-page);
-  border-right: 1px solid var(--border-light);
+  border-right: none;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+}
+
+.alc-ebook--sidebar-open .alc-ebook-sidebar {
+  width: 240px;
+  min-width: 200px;
+  max-width: 280px;
+  border-right: 1px solid var(--border-light);
+  opacity: 1;
 }
 
 .alc-ebook-sidebar-header {
-  padding: var(--space-4);
+  padding: var(--space-3);
   border-bottom: 1px solid var(--border-light);
   background-color: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .alc-ebook-sidebar-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.alc-sidebar-close-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.alc-sidebar-close-btn:hover {
+  background: var(--border-light);
   color: var(--text-primary);
 }
 
@@ -1060,6 +1159,8 @@
   flex-direction: column;
   min-width: 0;
   overflow-y: auto;
+  background-color: #fafafa;
+  position: relative;
 }
 
 /* Welcome / empty state */
@@ -1069,26 +1170,26 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   color: var(--text-tertiary);
-  padding: var(--space-8);
+  padding: var(--space-6);
 }
 
 .alc-ebook-welcome-icon {
-  font-size: 48px;
-  opacity: 0.3;
+  font-size: 36px;
+  opacity: 0.2;
 }
 
 .alc-ebook-welcome h3 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-tertiary);
 }
 
 .alc-ebook-welcome p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* Viewer (when content is loaded) */
@@ -1096,38 +1197,55 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .alc-ebook-viewer-header {
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--border-light);
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
 }
 
 .alc-ebook-viewer-title {
-  margin: 0 0 var(--space-2) 0;
-  font-size: 20px;
-  font-weight: 700;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-primary);
+  letter-spacing: -0.3px;
 }
 
 .alc-ebook-viewer-desc {
   margin: 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.5;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .alc-ebook-viewer-body {
   flex: 1;
-  padding: var(--space-5) var(--space-6);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Content types inside viewer */
 .alc-ebook-video {
   width: 100%;
-  max-height: 520px;
+  max-height: none;
   background-color: #000;
-  border-radius: var(--radius-md);
+  border-radius: 4px;
+  flex: 1;
 }
 
 .alc-ebook-video-wrap {
@@ -1135,7 +1253,7 @@
   width: 100%;
   padding-bottom: 56.25%; /* 16:9 */
   background-color: #000;
-  border-radius: var(--radius-md);
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -1149,27 +1267,42 @@
 
 .alc-ebook-image {
   max-width: 100%;
-  max-height: 600px;
-  border-radius: var(--radius-md);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-height: calc(100vh - 160px);
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  margin: 0 auto;
+  display: block;
 }
 
 .alc-ebook-doc-iframe {
   width: 100%;
-  min-height: 600px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  flex: 1;
+  min-height: calc(100vh - 160px);
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  background: white;
 }
 
 .alc-ebook-doc-actions {
-  margin-top: var(--space-4);
+  margin-top: var(--space-2);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.alc-ebook-doc-actions .alc-btn {
+  width: auto;
+  padding: 4px 12px;
+  font-size: 12px;
 }
 
 .alc-ebook-article {
   font-size: 15px;
   line-height: 1.8;
   color: var(--text-primary);
-  max-width: 720px;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-6);
 }
 
 .alc-ebook-article h1,
@@ -1202,13 +1335,18 @@
     min-height: auto;
   }
 
-  .alc-ebook-sidebar {
+  .alc-ebook-sidebar,
+  .alc-ebook--sidebar-open .alc-ebook-sidebar {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    max-height: 300px;
+    max-height: 250px;
     border-right: none;
     border-bottom: 1px solid var(--border-light);
+  }
+
+  .alc-sidebar-toggle {
+    display: none;
   }
 
   .alc-ebook-item {
@@ -1216,15 +1354,15 @@
   }
 
   .alc-ebook-viewer-header {
-    padding: var(--space-4);
+    padding: 6px 12px;
   }
 
   .alc-ebook-viewer-body {
-    padding: var(--space-4);
+    padding: 4px;
   }
 
   .alc-ebook-viewer-title {
-    font-size: 17px;
+    font-size: 14px;
   }
 }
 
@@ -2327,13 +2465,13 @@
 
 @media (max-width: 480px) {
   .alc-tab-navigation {
-    gap: var(--space-1);
-    margin-bottom: var(--space-4);
+    gap: 0;
+    margin-bottom: 0;
   }
 
   .alc-tab-button {
-    padding: var(--space-1) var(--space-2);
-    font-size: 12px;
+    padding: 2px 6px;
+    font-size: 11px;
   }
 
   .alc-tab-icon {
@@ -2350,7 +2488,99 @@
 }
 
 /* =====================================================
-   13. ACCESSIBILITY
+   13. MODE SWITCHER
+   ===================================================== */
+
+.alc-mode-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--bg-page);
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid var(--border-light);
+}
+
+.alc-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.alc-mode-btn:hover {
+  color: var(--text-secondary);
+  background: rgba(0,0,0,0.03);
+}
+
+.alc-mode-btn--active {
+  background: white;
+  color: var(--brand);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-weight: 600;
+}
+
+.alc-mode-btn-icon {
+  font-size: 12px;
+}
+
+/* --- Reading mode overrides --- */
+.alc-page--reading .alc-header {
+  height: 36px;
+  padding: 4px var(--space-3);
+}
+
+.alc-page--reading .alc-header-stats,
+.alc-page--reading .alc-back-text {
+  display: none;
+}
+
+.alc-page--reading .alc-tab-navigation {
+  padding: 2px var(--space-2);
+}
+
+.alc-page--reading .alc-tab-label {
+  display: none;
+}
+
+.alc-page--reading .alc-tab-button {
+  padding: 4px 8px;
+}
+
+.alc-page--reading .alc-ebook-sidebar,
+.alc-page--reading .alc-sidebar-toggle {
+  /* Sidebar hidden in reading mode unless toggled */
+}
+
+.alc-page--reading .alc-ebook-viewer-body {
+  padding: 4px;
+}
+
+.alc-page--reading .alc-ebook-doc-iframe {
+  min-height: calc(100vh - 120px);
+  border-radius: 0;
+}
+
+/* --- Manage mode overrides --- */
+.alc-page--manage .alc-ebook--sidebar-open .alc-ebook-sidebar {
+  width: 280px;
+  min-width: 240px;
+  max-width: 320px;
+}
+
+/* =====================================================
+   14. ACCESSIBILITY
    ===================================================== */
 
 .alc-tab-button:focus-visible,
