@@ -563,6 +563,7 @@
     <div class="alc-ai-float-header" id="aiFloatHeader">
         <span class="alc-ai-float-title">🤖 AI 助教</span>
         <div class="alc-ai-float-actions">
+            <button class="alc-ai-float-btn" id="aiFloatExpandBtn" onclick="window.lcLearningCenter.toggleAiWindowSize()" title="放大/缩小">&#9634;</button>
             <button class="alc-ai-float-btn" onclick="window.lcLearningCenter.toggleAiWindow()" title="关闭">&#10005;</button>
         </div>
     </div>
@@ -594,9 +595,6 @@
             </svg>
         </button>
     </div>
-
-    <!-- 右下角拖拽调整大小手柄 -->
-    <div class="alc-ai-float-resize" id="aiFloatResize"></div>
 </div>
 
 <script src="/static/js/ai_learning_center.js"></script>

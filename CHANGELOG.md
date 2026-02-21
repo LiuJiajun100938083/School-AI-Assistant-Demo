@@ -11,6 +11,19 @@
 
 ---
 
+## [v1.7.0] [2026-02-21 13:00] AI 助教流式输出 + 小窗/大窗切换
+
+### 新增
+- **SSE 流式输出**：新增 `POST /api/learning-center/ai-ask-stream` 端点，AI 回答逐 token 推送到前端
+- `LearningCenterService.ai_ask_stream()` 异步生成器：RAG 检索后调用 `provider.async_stream()` + `StreamingThinkingParser` 实时过滤 thinking，只输出 answer
+- 前端 `sendAiQuestion()` 改用 `fetch` + `ReadableStream` 读取 SSE，AI 回复逐字渲染 Markdown
+- **小窗/大窗切换按钮**：标题栏新增放大/缩小按钮（&#9634; / &#9635;），点击在 380×520 和 680×75vh 之间切换
+
+### 删除
+- 移除右下角拖拽缩放手柄（resize handle），以按钮切换替代
+
+---
+
 ## [v1.6.1] [2026-02-21 11:30] AI 助教改为浮动窗口（可拖拽、可缩放）
 
 ### 修改

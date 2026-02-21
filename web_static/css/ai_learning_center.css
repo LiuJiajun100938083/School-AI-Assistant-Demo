@@ -1376,8 +1376,6 @@
   z-index: 1500;
   width: 380px;
   height: 520px;
-  min-width: 300px;
-  min-height: 320px;
   right: 24px;
   bottom: 24px;
   display: flex;
@@ -1395,15 +1393,21 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 拖拽/缩放进行中：关闭昂贵渲染，提升流畅度 */
+/* 拖拽进行中：关闭昂贵渲染，提升流畅度 */
 .alc-ai-float--interacting {
-  will-change: left, top, width, height;
+  will-change: left, top;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
   pointer-events: none;
 }
-.alc-ai-float--interacting .alc-ai-float-header,
-.alc-ai-float--interacting .alc-ai-float-resize {
+.alc-ai-float--interacting .alc-ai-float-header {
   pointer-events: auto;
+}
+
+/* 大窗口模式 */
+.alc-ai-float--expanded {
+  width: 680px !important;
+  height: 75vh !important;
+  transition: width 0.25s ease, height 0.25s ease;
 }
 
 /* 拖拽标题栏 */
@@ -1459,28 +1463,6 @@
   flex-direction: column;
 }
 
-/* 右下角 resize 手柄 */
-.alc-ai-float-resize {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
-  z-index: 10;
-}
-
-.alc-ai-float-resize::after {
-  content: '';
-  position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid var(--text-tertiary);
-  border-bottom: 2px solid var(--text-tertiary);
-  opacity: 0.5;
-}
 
 /* 浮动窗口内的 AI 消息区域样式覆盖 */
 .alc-ai-float .alc-ai-messages {

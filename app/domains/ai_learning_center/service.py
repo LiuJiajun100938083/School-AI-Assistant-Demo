@@ -15,7 +15,7 @@ AI 学习中心服务层 - LearningCenterService
 import json
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Tuple
 
 from app.core.exceptions import (
     AuthorizationError,
@@ -841,6 +841,88 @@ class LearningCenterService:
             "content_title": content_title,
             "context_sources": [],
         }
+
+    async def ai_ask_stream(
+        self,
+        username: str,
+        question: str,
+        content_id: Optional[int] = None,
+    ) -> AsyncGenerator[str, None]:
+        """
+        AI 问答的流式版本 — 逐 token yield answer 文本。
+
+        仅当有 content_id 时走内容感知 RAG + 流式输出；
+        无 content_id 时回退到一次性返回完整回答。
+        """
+        if content_id is None:
+            result = await self.ai_ask(username, question)
+            yield result.get("answer", "")
+            return
+
+        import asyncio
+        from functools import partial
+
+        from llm.rag.content_indexer import get_content_indexer
+        from llm.rag.retrieval import get_context_for_content
+        from llm.rag.context import build_prompt_context
+        from llm.prompts.templates import apply_thinking_mode
+        from llm.providers.ollama import get_ollama_provider
+        from llm.parsers.thinking_parser import StreamingThinkingParser
+
+        # 1. 内容元数据
+        content = self._contents.find_by_id(content_id)
+        if not content:
+            yield "找不到对应的学习内容。"
+            return
+
+        content_title = content.get("title", "")
+        loop = asyncio.get_running_loop()
+
+        # 2. 懒索引
+        indexer = get_content_indexer()
+        indexed = await loop.run_in_executor(None, indexer.is_indexed, content_id)
+        if not indexed:
+            logger.info("流式懒索引触发: content_id=%s", content_id)
+            await loop.run_in_executor(
+                None, partial(indexer.index, content_id, dict(content))
+            )
+
+        # 3. RAG 检索
+        rag_context = await loop.run_in_executor(
+            None, partial(get_context_for_content, question, content_id),
+        )
+
+        # 4. 构建 prompt
+        system_prompt = (
+            f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
+            f"请基于以下检索到的内容片段回答学生的问题。\n"
+            f"如果片段不足以回答，可结合通用知识，但请注明。"
+        )
+        prompt = build_prompt_context(
+            question=question,
+            system_prompt=system_prompt,
+            kb_context=rag_context,
+        )
+        thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
+
+        # 5. 流式调用 LLM，过滤 thinking 只输出 answer
+        provider = get_ollama_provider()
+        parser = StreamingThinkingParser()
+
+        async for token in provider.async_stream(thinking_prompt):
+            events = parser.feed(token)
+            for evt in events:
+                if evt.type == "answer" and evt.content:
+                    yield evt.content
+
+        for evt in parser.finish():
+            if evt.type == "answer" and evt.content:
+                yield evt.content
+
+        logger.info(
+            "流式内容感知回答完成: 用户=%s, content_id=%s",
+            username, content_id,
+        )
 
     # ================================================================
     # 私有方法

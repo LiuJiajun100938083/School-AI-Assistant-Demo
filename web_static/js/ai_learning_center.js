@@ -1388,7 +1388,22 @@
     }
 
     /**
-     * 初始化浮动窗口的拖拽和缩放行为。
+     * 在小窗口和大窗口之间切换。
+     */
+    function toggleAiWindowSize() {
+        const win = document.getElementById('aiFloatingWindow');
+        if (!win) return;
+
+        const isExpanded = win.classList.toggle('alc-ai-float--expanded');
+        const btn = document.getElementById('aiFloatExpandBtn');
+        if (btn) {
+            btn.innerHTML = isExpanded ? '&#9635;' : '&#9634;';
+            btn.title = isExpanded ? '缩小' : '放大';
+        }
+    }
+
+    /**
+     * 初始化浮动窗口的拖拽行为。
      * 在 init() 中调用一次即可。
      */
     function setupAiFloatingWindow() {
@@ -1396,26 +1411,11 @@
         if (!win) return;
 
         const header = document.getElementById('aiFloatHeader');
-        const resizeHandle = document.getElementById('aiFloatResize');
 
-        // 共享状态
         let dragState = null;
-        let resizeState = null;
         let lastX = 0;
         let lastY = 0;
         let rafPending = false;
-
-        function beginInteraction() {
-            win.style.transition = 'none';
-            win.classList.add('alc-ai-float--interacting');
-            document.body.style.userSelect = 'none';
-        }
-
-        function endInteraction() {
-            win.style.transition = '';
-            win.classList.remove('alc-ai-float--interacting');
-            document.body.style.userSelect = '';
-        }
 
         // ---- 拖拽 ----
         if (header) {
@@ -1433,34 +1433,14 @@
                     offsetX: e.clientX - rect.left,
                     offsetY: e.clientY - rect.top,
                 };
-                beginInteraction();
+                win.style.transition = 'none';
+                win.classList.add('alc-ai-float--interacting');
+                document.body.style.userSelect = 'none';
             });
         }
 
-        // ---- 缩放 ----
-        if (resizeHandle) {
-            resizeHandle.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-
-                const rect = win.getBoundingClientRect();
-                win.style.left = rect.left + 'px';
-                win.style.top = rect.top + 'px';
-                win.style.right = 'auto';
-                win.style.bottom = 'auto';
-
-                resizeState = {
-                    startX: e.clientX,
-                    startY: e.clientY,
-                    startW: rect.width,
-                    startH: rect.height,
-                };
-                beginInteraction();
-            });
-        }
-
-        // ---- mousemove：始终更新坐标，rAF 读最新值 ----
         document.addEventListener('mousemove', (e) => {
-            if (!dragState && !resizeState) return;
+            if (!dragState) return;
             lastX = e.clientX;
             lastY = e.clientY;
 
@@ -1472,19 +1452,15 @@
                     win.style.left = Math.max(0, Math.min(lastX - dragState.offsetX, window.innerWidth - win.offsetWidth)) + 'px';
                     win.style.top = Math.max(0, Math.min(lastY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
                 }
-                if (resizeState) {
-                    win.style.width = Math.max(300, resizeState.startW + (lastX - resizeState.startX)) + 'px';
-                    win.style.height = Math.max(350, resizeState.startH + (lastY - resizeState.startY)) + 'px';
-                }
             });
         });
 
-        // ---- mouseup ----
         document.addEventListener('mouseup', () => {
-            if (!dragState && !resizeState) return;
+            if (!dragState) return;
             dragState = null;
-            resizeState = null;
-            endInteraction();
+            win.style.transition = '';
+            win.classList.remove('alc-ai-float--interacting');
+            document.body.style.userSelect = '';
         });
     }
 
@@ -1499,36 +1475,78 @@
         const messagesEl = getElement('aiMessages');
         if (!messagesEl) return;
 
-        // Add user message
         renderAiMessage('user', question);
         inputBox.value = '';
         inputBox.focus();
 
-        // Show loading indicator
-        const loadingEl = document.createElement('div');
-        loadingEl.className = 'alc-message alc-message--ai alc-ai-loading';
-        loadingEl.innerHTML = '<div class="alc-message-avatar">🤖</div><div class="alc-message-content"><div class="alc-typing-indicator"><span></span><span></span><span></span></div></div>';
-        messagesEl.appendChild(loadingEl);
+        // 创建 AI 消息气泡（流式逐字填充）
+        const msgEl = document.createElement('div');
+        msgEl.className = 'alc-message alc-message--ai';
+        msgEl.innerHTML = '<div class="alc-message-avatar">🤖</div><div class="alc-message-content"><div class="alc-typing-indicator"><span></span><span></span><span></span></div></div>';
+        messagesEl.appendChild(msgEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
+        const contentEl = msgEl.querySelector('.alc-message-content');
+        const requestBody = { question };
+        if (state.currentContentId) {
+            requestBody.content_id = state.currentContentId;
+        }
+
         try {
-            const requestBody = { question: question };
-            if (state.currentContentId) {
-                requestBody.content_id = state.currentContentId;
+            const resp = await fetch(`${API_BASE}/ai-ask-stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+            // 切换：移除打字动画，开始流式填充
+            let fullText = '';
+            contentEl.innerHTML = '<p></p>';
+            const textNode = contentEl.querySelector('p');
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const payload = line.slice(6);
+                    if (payload === '[DONE]') continue;
+                    if (payload.startsWith('[ERROR]')) {
+                        showToast('AI 响应出错', 'error');
+                        continue;
+                    }
+                    fullText += payload;
+                    // 实时渲染 Markdown
+                    if (typeof marked !== 'undefined') {
+                        contentEl.innerHTML = marked.parse(fullText);
+                    } else {
+                        textNode.textContent = fullText;
+                    }
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                }
             }
-            const response = await apiPost(`${API_BASE}/ai-ask`, requestBody);
 
-            loadingEl.remove();
-
-            if (response.success) {
-                const data = response.data;
-                renderAiMessage('assistant', data.answer, data.sources);
-            } else {
-                showToast('AI 响应出错', 'error');
+            // 最终渲染确保完整
+            if (fullText && typeof marked !== 'undefined') {
+                contentEl.innerHTML = marked.parse(fullText);
             }
         } catch (error) {
-            loadingEl.remove();
-            showToast('发送失败，请重试', 'error');
+            contentEl.innerHTML = '<p style="color:var(--text-tertiary)">发送失败，请重试</p>';
+            console.error('AI stream error:', error);
         }
 
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -2692,6 +2710,7 @@
         sendAiQuestion,
         clearAiContext,
         toggleAiWindow,
+        toggleAiWindowSize,
         toggleAdminPanel
     };
 

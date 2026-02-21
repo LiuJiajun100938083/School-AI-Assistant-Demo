@@ -21,6 +21,7 @@ import uuid
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.dependencies import get_current_user, require_teacher_or_admin
@@ -337,6 +338,37 @@ async def ai_ask(
     except Exception as e:
         logger.exception("Error processing AI question")
         return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.post("/api/learning-center/ai-ask-stream")
+async def ai_ask_stream(
+    request: AIAskRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """AI 問答（SSE 流式輸出）"""
+    service = get_services().learning_center
+
+    async def event_generator():
+        try:
+            async for event in service.ai_ask_stream(
+                username=current_user.get("username", "unknown"),
+                question=request.question,
+                content_id=request.content_id,
+            ):
+                yield f"data: {event}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.exception("SSE stream error")
+            yield f"data: [ERROR] {str(e)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ================================================================
