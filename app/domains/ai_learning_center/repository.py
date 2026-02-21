@@ -112,7 +112,9 @@ class LCContentRepository(BaseRepository):
             params.append(content_type)
 
         if category_id is not None:
-            conditions.append("category_id = %s")
+            conditions.append(
+                "id IN (SELECT content_id FROM lc_content_categories WHERE category_id = %s)"
+            )
             params.append(category_id)
 
         if search:

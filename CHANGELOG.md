@@ -11,6 +11,16 @@
 
 ---
 
+## [v1.5.1] [2026-02-21 09:46] 修复学习中心按分类筛选内容报错（Unknown column 'category_id'）
+
+### 修复
+- `GET /api/learning-center/contents?category_id=X` 返回 500，MySQL 报 `Unknown column 'category_id' in 'where clause'`
+- 原因：`lc_contents` 表没有 `category_id` 列，内容与分类是多对多关系，通过 `lc_content_categories` 中间表关联
+- `LCContentRepository.find_published()` 错误地在 `lc_contents` 表上直接过滤 `category_id = %s`
+- 修复为子查询：`id IN (SELECT content_id FROM lc_content_categories WHERE category_id = %s)`
+
+---
+
 ## [v1.5.0] [2026-02-21 09:41] AI学习中心重构为 Content-First 阅读模式 UI
 
 ### 新增
