@@ -1655,23 +1655,20 @@
             return;
         }
 
-        // 优先通过修改 hash 实现无刷新跳页（同源 PDF）
-        try {
-            const iframeWin = iframe.contentWindow;
-            if (iframeWin) {
-                iframeWin.location.hash = `page=${page}`;
-                showToast(`已跳转到第 ${page} 页`, 'info');
-                return;
-            }
-        } catch (e) {
-            // 跨域 iframe 无法访问 contentWindow，降级到 src 方式
-        }
-
-        // Fallback：修改 iframe src（会重新加载 PDF）
         const currentSrc = iframe.src || '';
         const baseSrc = currentSrc.replace(/#.*$/, '');
         const newSrc = `${baseSrc}#page=${page}`;
-        iframe.src = newSrc;
+
+        // 使用 contentWindow.location.replace() 导航到带页码的 URL
+        // Chrome PDF viewer 只在加载时读取 #page=N，hash 变化不会触发跳页
+        // replace() 会利用浏览器缓存，PDF 文件不重新下载，减少闪烁
+        try {
+            iframe.contentWindow.location.replace(newSrc);
+        } catch (e) {
+            // 跨域 iframe fallback
+            iframe.src = newSrc;
+        }
+
         showToast(`已跳转到第 ${page} 页`, 'info');
     }
 
