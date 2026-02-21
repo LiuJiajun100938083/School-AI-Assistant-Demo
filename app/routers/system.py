@@ -132,7 +132,7 @@ async def process_temp_file(request: Request, file: UploadFile = File(...)):
         # 尝试使用文件处理器
         extracted_text = ""
         try:
-            from file_processor import FileProcessor
+            from llm.rag.file_processor import FileProcessor
             processor = FileProcessor()
             result = processor.process_file(temp_path, file.filename, "temp")
             extracted_text = result.get("content", "") if result else ""

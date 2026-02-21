@@ -123,7 +123,9 @@ class OllamaProvider(BaseLLMProvider):
                         continue
 
                     # /api/chat 返回格式：{"message": {"role": "assistant", "content": "token"}, "done": false}
-                    token = chunk.get("message", {}).get("content", "")
+                    # 注意: content 可能為 null（Ollama 思考階段），需用 `or` 防禦
+                    msg = chunk.get("message") or {}
+                    token = msg.get("content") or ""
                     if token:
                         yield token
 

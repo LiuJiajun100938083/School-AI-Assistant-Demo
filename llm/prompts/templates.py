@@ -84,7 +84,11 @@ def load_prompts_from_yaml(yaml_path: str) -> Dict[str, str]:
     try:
         with open(yaml_path, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
-            return data.get('prompts', {})
+            # yaml.safe_load 可能返回 None（空文件），
+            # prompts 值也可能為 None（只有註釋的 YAML key）
+            if not isinstance(data, dict):
+                return {}
+            return data.get('prompts') or {}
     except Exception as e:
         logger.warning(f"加載提示詞配置失敗: {e}")
         return {}

@@ -337,25 +337,17 @@ async def call_ai(
     username, role = user_info
 
     try:
-        # 尝试导入并调用deepseek_api
-        from deepseek_api import deepseek_api
+        from llm.providers.ollama import get_ollama_provider
 
-        # 调用AI
-        response = await deepseek_api.chat_completion(
-            messages=[
-                {"role": "system", "content": request.system_prompt},
-                {"role": "user", "content": request.user_prompt}
-            ],
-            temperature=0.7,
-            max_tokens=2000
-        )
-
-        # 解析JSON响应
-        ai_text = response.get("content", "")
+        provider = get_ollama_provider()
+        messages = [
+            {"role": "system", "content": request.system_prompt},
+            {"role": "user", "content": request.user_prompt}
+        ]
+        ai_text = provider.invoke_with_messages(messages)
 
         # 尝试解析为JSON
         try:
-            # 清理可能的markdown标记
             clean_text = ai_text.strip()
             if clean_text.startswith("```json"):
                 clean_text = clean_text[7:]
@@ -377,7 +369,6 @@ async def call_ai(
                 "timestamp": datetime.now().isoformat()
             }
         except json.JSONDecodeError:
-            # 返回原始文本
             return {
                 "success": True,
                 "phase": request.phase,
@@ -389,11 +380,6 @@ async def call_ai(
                 "timestamp": datetime.now().isoformat()
             }
 
-    except ImportError:
-        raise HTTPException(
-            status_code=503,
-            detail="AI服务不可用: deepseek_api模块未找到"
-        )
     except Exception as e:
         logger.error(f"AI调用错误: {e}")
         raise HTTPException(
@@ -429,18 +415,14 @@ async def complete_task_flow(
         raise HTTPException(status_code=400, detail=prompts.get("error"))
 
     try:
-        from deepseek_api import deepseek_api
+        from llm.providers.ollama import get_ollama_provider
 
-        response = await deepseek_api.chat_completion(
-            messages=[
-                {"role": "system", "content": prompts["system_prompt"]},
-                {"role": "user", "content": prompts["user_prompt"]}
-            ],
-            temperature=0.7,
-            max_tokens=2000
-        )
-
-        ai_text = response.get("content", "")
+        provider = get_ollama_provider()
+        messages = [
+            {"role": "system", "content": prompts["system_prompt"]},
+            {"role": "user", "content": prompts["user_prompt"]}
+        ]
+        ai_text = provider.invoke_with_messages(messages)
 
         # 解析JSON
         clean_text = ai_text.strip()
@@ -467,20 +449,12 @@ async def complete_task_flow(
             "timestamp": datetime.now().isoformat()
         }
 
-    except ImportError:
-        # 如果AI不可用，返回提示词让前端处理
-        return {
-            "success": True,
-            "ai_available": False,
-            "game_id": request.game_id,
-            "level": request.level,
-            "prompts": {
-                "system_prompt": prompts["system_prompt"],
-                "user_prompt": prompts["user_prompt"]
-            },
-            "message": "AI服务不可用，请使用提示词手动调用",
-            "timestamp": datetime.now().isoformat()
-        }
+    except Exception as e:
+        logger.error(f"AI调用错误: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI调用失败: {str(e)}"
+        )
 
 
 # ==================== 统计端点 ====================

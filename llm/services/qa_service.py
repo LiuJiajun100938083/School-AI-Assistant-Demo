@@ -140,11 +140,11 @@ def ask_ai_subject(
     Returns:
         (answer, thinking) 元組
     """
-    # 獲取學科提示詞
+    # 獲取學科提示詞（優先從數據庫，回退到靜態模板）
     try:
-        from subject_manager import get_subject_prompt
-        system_prompt = get_subject_prompt(subject_code)
-    except ImportError:
+        from app.domains.subject.service import SubjectService
+        system_prompt = SubjectService().get_system_prompt(subject_code)
+    except Exception:
         from ..prompts.templates import get_subject_system_prompt
         system_prompt = get_subject_system_prompt(subject_code)
 

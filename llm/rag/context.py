@@ -15,8 +15,8 @@ def extract_temp_docs_from_history(conversation_history: List[Dict]) -> str:
         return ""
 
     for msg in conversation_history:
-        if msg.get('role') == 'system' and '【當前對話中的臨時文檔】' in msg.get('content', ''):
-            content = msg.get('content', '')
+        content = msg.get('content') or ''
+        if msg.get('role') == 'system' and '【當前對話中的臨時文檔】' in content:
             logger.debug(f"📎 發現臨時文檔上下文，長度: {len(content)} 字符")
             return content
     return ""

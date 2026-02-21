@@ -178,17 +178,22 @@ class SubjectService:
         Raises:
             NotFoundError: 学科不存在
         """
-        existing = self._repo.get_subject_config(subject_code)
-        if not existing:
+        # 获取完整行（含 subject_name）
+        row = self._repo.get_subject(subject_code)
+        if not row:
             raise NotFoundError("学科", subject_code)
 
-        config = existing.get("config", {}) if isinstance(existing.get("config"), dict) else {}
+        # get_subject_config 返回的是 config dict 本身
+        config = self._repo.get_subject_config(subject_code) or {}
+        if not isinstance(config, dict):
+            config = {}
+
         if icon is not None:
             config["icon"] = icon
         if description is not None:
             config["description"] = description
 
-        name = subject_name or existing.get("subject_name", subject_code)
+        name = subject_name or row.get("subject_name", subject_code)
         self._repo.update_subject_config(subject_code, name, config)
 
         return self.get_subject(subject_code)
@@ -224,12 +229,15 @@ class SubjectService:
     # ================================================================== #
 
     def get_system_prompt(self, subject_code: str) -> str:
-        """获取学科系统提示词"""
-        subject = self._repo.get_subject_config(subject_code)
-        if not subject:
+        """获取学科系统提示词
+
+        注意: get_subject_config() 返回的是已解析的 config dict 本身
+        （如 {"icon":"📚","system_prompt":"..."}），而非包含 config 列的完整行。
+        """
+        config = self._repo.get_subject_config(subject_code)
+        if not config:
             raise NotFoundError("学科", subject_code)
 
-        config = subject.get("config", {})
         if isinstance(config, dict):
             return config.get("system_prompt", "")
         return ""
@@ -239,19 +247,25 @@ class SubjectService:
         subject_code: str,
         system_prompt: str,
     ) -> bool:
-        """更新学科系统提示词"""
-        subject = self._repo.get_subject_config(subject_code)
-        if not subject:
+        """更新学科系统提示词
+
+        注意: get_subject_config() 返回已解析的 config dict,
+        需要通过 get_subject() 获取完整行来拿 subject_name。
+        """
+        # 获取完整行（含 subject_name）
+        row = self._repo.get_subject(subject_code)
+        if not row:
             raise NotFoundError("学科", subject_code)
 
-        config = subject.get("config", {})
+        # 获取并更新 config
+        config = self._repo.get_subject_config(subject_code) or {}
         if not isinstance(config, dict):
             config = {}
         config["system_prompt"] = system_prompt
 
         self._repo.update_subject_config(
             subject_code,
-            subject.get("subject_name", subject_code),
+            row.get("subject_name", subject_code),
             config,
         )
         logger.info("学科提示词已更新: %s", subject_code)

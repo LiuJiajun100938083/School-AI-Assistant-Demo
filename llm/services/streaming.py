@@ -14,6 +14,7 @@
 
 import asyncio
 import logging
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Optional, Callable, AsyncGenerator
 from functools import partial
@@ -91,6 +92,10 @@ async def stream_ai_subject(
         # 3. 提取臨時文檔
         temp_docs = extract_temp_docs_from_history(conversation_history) if conversation_history else ""
 
+        # 防禦性: 確保 RAG 結果不為 None
+        kb_context = kb_context or ""
+        temp_docs = temp_docs or ""
+
         # 4. 構建 prompt
         prompt = build_prompt_context(
             question=question,
@@ -157,7 +162,7 @@ async def stream_ai_subject(
 
     except Exception as e:
         error_msg = f"流式生成失敗: {str(e)}"
-        logger.error(f"❌ {error_msg}")
+        logger.error(f"❌ {error_msg}\n{traceback.format_exc()}")
         yield StreamEvent(type="error", content=error_msg)
 
 
@@ -165,11 +170,11 @@ async def stream_ai_subject(
 
 
 def _get_subject_prompt(subject_code: str) -> str:
-    """獲取學科系統提示詞"""
+    """獲取學科系統提示詞（優先從數據庫，回退到靜態模板）"""
     try:
-        from subject_manager import get_subject_prompt
-        return get_subject_prompt(subject_code)
-    except ImportError:
+        from app.domains.subject.service import SubjectService
+        return SubjectService().get_system_prompt(subject_code)
+    except Exception:
         from ..prompts.templates import get_subject_system_prompt
         return get_subject_system_prompt(subject_code)
 
@@ -189,7 +194,7 @@ def _build_full_thinking(
     if kb_context:
         parts.append(f"【📚 知識庫】\n{kb_context}")
 
-    return "\n\n".join(parts) if parts else kb_context
+    return "\n\n".join(parts) if parts else (kb_context or "")
 
 
 def _json_escape(text: str) -> str:

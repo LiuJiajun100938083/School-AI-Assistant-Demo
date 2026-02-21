@@ -113,10 +113,22 @@ class ConversationRepository(BaseRepository):
     ) -> int:
         """创建新对话"""
         now = datetime.now()
+
+        # 查询用户的 numeric id（conversations.user_id 外键需要）
+        user_row = self.raw_query_one(
+            "SELECT id FROM users WHERE username = %s", (username,)
+        )
+        user_id = user_row["id"] if user_row else None
+
+        if user_id is None:
+            logger.error("创建对话失败: 用户 %s 不存在于 users 表", username)
+            raise ValueError(f"用户 {username} 不存在")
+
         return self.upsert(
             {
-                "username": username,
                 "conversation_id": conversation_id,
+                "user_id": user_id,
+                "username": username,
                 "title": title,
                 "subject": subject,
                 "created_at": now,

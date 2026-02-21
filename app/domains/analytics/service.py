@@ -104,6 +104,21 @@ class AnalyticsService:
         """
         return self._analytics.get_all_students_summary()
 
+    def get_latest_student_analysis(
+        self,
+        student_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取学生的最新分析报告（任意科目）
+
+        Args:
+            student_id: 学生用户名
+
+        Returns:
+            dict or None: 最新报告数据（含 risk_level, overall_summary 等）
+        """
+        return self._analytics.get_latest_student_analysis(student_id)
+
     # ================================================================== #
     #  Part 2: 学生分析报告                                                #
     # ================================================================== #

@@ -6,37 +6,12 @@
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
 from langchain.schema import Document
 
+# 統一從 vector_store 模塊導入（消除重複定義）
+from .vector_store import get_embedding, get_vector_db
+
 logger = logging.getLogger(__name__)
-
-# ==================== 初始化 Embedding 和向量庫 ====================
-
-_embedding = None
-_vector_db = None
-
-
-def get_embedding():
-    """獲取 embedding 實例（延遲加載）"""
-    global _embedding
-    if _embedding is None:
-        _embedding = HuggingFaceEmbeddings(model_name='GanymedeNil/text2vec-large-chinese')
-        logger.info("✅ Embedding 模型加載完成")
-    return _embedding
-
-
-def get_vector_db():
-    """獲取向量數據庫實例（延遲加載）"""
-    global _vector_db
-    if _vector_db is None:
-        _vector_db = Chroma(
-            persist_directory='./vector_db',
-            embedding_function=get_embedding()
-        )
-        logger.info("✅ 向量數據庫加載完成")
-    return _vector_db
 
 
 # ==================== 文檔過濾函數 ====================
@@ -125,17 +100,16 @@ def get_context_from_knowledge_base(
             logger.warning(f"⚠️ 在知識庫中沒有找到 {subject} 科目的相關內容")
             return f"[知識庫中暫無{subject}科目的相關資料]"
 
-        # 嘗試擴展鄰居上下文
-        try:
-            import vector_store
+        # 擴展鄰居上下文
+        from .vector_store import all_docs as vs_all_docs
+        if vs_all_docs:
             extended = fetch_with_neighbors(
                 subject_filtered,
-                vector_store.all_docs,
+                vs_all_docs,
                 neighbor_range=neighbor_range,
                 target_subject=subject
             )
-        except (ImportError, AttributeError):
-            # 如果 vector_store 不可用，使用原始結果
+        else:
             extended = subject_filtered
 
         # 構建上下文

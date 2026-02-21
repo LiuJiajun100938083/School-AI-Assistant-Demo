@@ -11,6 +11,59 @@
 
 ---
 
+## [v2.0.0] [2026-02-22] 根目录遗留文件完全迁移 — 零代码异味
+
+### 删除
+- **7 个根目录遗留 Python 文件全部删除**，所有功能迁移至分层架构：
+  - `subject_manager.py` — 功能已由 `app/domains/subject/service.py` 完全覆盖
+  - `file_processor.py` → `llm/rag/file_processor.py`
+  - `deepseek_api.py` — 已弃用，所有 AI 调用统一切换到 Ollama
+  - `vector_store.py` → `llm/rag/vector_store.py`
+  - `learning_modes.py` → `app/domains/learning_modes/`（拆分为 9 个文件）
+  - `enhanced_analytics.py` + `enhanced_analytics_llm.py` → `app/domains/analytics/` + `app/domains/teacher_class/`
+
+### 新增
+- **`app/domains/learning_modes/`** — 学习模式领域模块
+  - `models.py`: `LearningModeConfig`, `TaskResult` 数据类
+  - `constants.py`: 中文游戏、类别、话题领域常量
+  - `modes/base.py`: `BaseLearningMode` 抽象基类
+  - `modes/qa.py`: QA 问答模式
+  - `modes/english_writing.py`: 英语写作模式
+  - `modes/chinese_training.py`: 中文训练模式
+  - `service.py`: `LearningModeManager` + 10 个便捷函数
+- **`app/domains/teacher_class/`** — 教师班级管理领域模块
+  - `repository.py`: `TeacherClassRepository(BaseRepository)` — 13 个数据查询方法
+  - `service.py`: `TeacherClassService` — 教师分配、班级学生、排名比较、预警等
+- **`app/domains/analytics/models.py`** — 分析领域数据模型
+  - `ConversationMetrics`, `StudentProfile`, `LLMAnalysisReport` 数据类
+  - `KNOWLEDGE_PATTERNS`, `DIFFICULTY_KEYWORDS`, `EMOTION_INDICATORS` 常量
+- **`app/domains/analytics/repository.py`** — 新增 25 个数据查询方法
+  - 分析报告查询、对话分析、学生学习模式、概览与进度曲线等
+
+### 修改
+- **`llm/services/qa_service.py`** — `from subject_manager` 改为 `SubjectService().get_system_prompt()`
+- **`llm/services/streaming.py`** — 同上，含静态模板 fallback
+- **`app/routers/system.py`** — import 改为 `from llm.rag.file_processor import FileProcessor`
+- **`app/routers/chinese_learning.py`** — DeepSeek API 调用全部替换为 `OllamaProvider`，修复原代码中 `await` 同步方法和 `.get()` 调用元组的 bug
+- **`llm/rag/retrieval.py`** — 消除重复定义，`get_embedding()` / `get_vector_db()` 统一从 `vector_store` 导入
+- **`llm/rag/vector_store.py`** — 重写为懒初始化模式，去除 9 个硬编码科目函数，去除模块级 eager 加载
+- **`app/routers/learning_modes.py`** — 15 个 import 路径更新到新领域模块
+- **`app/routers/teacher_class.py`** — 完全重写，`enhanced_analytics_llm` 替换为 `TeacherClassService` + `AnalyticsService`，删除约 70 行直接 DB 查询 fallback 代码
+- **`app/domains/analytics/service.py`** — 新增 `get_latest_student_analysis()` 方法
+
+### 修复
+- **`app/domains/subject/service.py`** — `get_system_prompt()` 始终返回空字符串的 bug
+  - 原因: `get_subject_config()` 返回的是已解析的 config dict，但 service 层错误地在其中查找嵌套 `config` 键
+  - 同时修复 `update_subject()` 和 `update_system_prompt()` 中的相同问题
+- **`app/domains/chat/repository.py`** — 创建对话时缺少 `user_id` 外键导致 500 错误
+  - 现在会先查询 `users.id` 再插入 `conversations` 记录
+- **`llm/services/streaming.py`** — 流式生成错误日志缺少 traceback，增加 `traceback.format_exc()`
+- **`llm/rag/context.py`** — `extract_temp_docs_from_history()` 对 `content: null` 的防御
+- **`llm/providers/ollama.py`** — `async_stream()` 对 Ollama 返回 `content: null` 的防御
+- **`llm/prompts/templates.py`** — `load_prompts_from_yaml()` 当 YAML 的 `prompts` 值为 `null`（仅注释）时返回 `None`，导致 `in None` 崩溃
+
+---
+
 ## [v1.9.0] [2026-02-21] Ollama 上下文窗口配置 + 知识图谱视觉升级
 
 ### 新增

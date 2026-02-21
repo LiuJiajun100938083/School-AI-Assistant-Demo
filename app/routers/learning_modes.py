@@ -24,24 +24,22 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from pydantic import BaseModel, Field
 
 from app.core.dependencies import verify_token
-from learning_modes import (
+from app.domains.learning_modes.service import (
     learning_mode_manager,
     get_available_modes,
     generate_writing_task,
     get_all_writing_tasks,
     get_writing_guidance,
     get_writing_feedback,
-    EnglishWritingMode,
-    # 中文训练
-    ChineseTrainingMode,
     get_chinese_games,
     get_chinese_categories,
     generate_chinese_task,
     get_chinese_scaffold,
     get_chinese_feedback,
-    CHINESE_GAMES,
-    TOPIC_DOMAINS
+    EnglishWritingMode,
+    ChineseTrainingMode,
 )
+from app.domains.learning_modes.constants import CHINESE_GAMES, TOPIC_DOMAINS
 
 logger = logging.getLogger(__name__)
 
