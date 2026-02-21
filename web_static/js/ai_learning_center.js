@@ -1558,9 +1558,10 @@
         }
 
         try {
-            const data = await apiPost(`${API_BASE}/ai-ask`, requestBody);
+            const resp = await apiPost(`${API_BASE}/ai-ask`, requestBody);
+            const result = resp.data || resp;
             loadingEl.remove();
-            renderAiMessage('assistant', data.answer, data.sources, data.page_references);
+            renderAiMessage('assistant', result.answer || '暂无回答', result.sources, result.page_references);
         } catch (error) {
             loadingEl.remove();
             renderAiMessage('assistant', '发送失败，请重试');
