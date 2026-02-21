@@ -1525,12 +1525,13 @@
                     if (!line.startsWith('data: ')) continue;
                     const payload = line.slice(6);
                     if (payload === '[DONE]') continue;
-                    if (payload.startsWith('[ERROR]')) {
-                        showToast('AI 响应出错', 'error');
-                        continue;
+
+                    try {
+                        fullText += JSON.parse(payload);
+                    } catch {
+                        fullText += payload;
                     }
-                    fullText += payload;
-                    // 实时渲染 Markdown
+
                     if (typeof marked !== 'undefined') {
                         contentEl.innerHTML = marked.parse(fullText);
                     } else {
