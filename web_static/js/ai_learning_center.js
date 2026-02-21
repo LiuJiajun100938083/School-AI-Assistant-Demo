@@ -379,6 +379,12 @@
         const toggleBtn = document.getElementById('sidebarToggleBtn');
         const closeBtn = document.getElementById('sidebarCloseBtn');
 
+        // 默认展开目录，让用户一进来就能看到内容列表
+        if (ebookContainer && toggleBtn) {
+            ebookContainer.classList.add('alc-ebook--sidebar-open');
+            toggleBtn.querySelector('svg path').setAttribute('d', 'M15 18l-6-6 6-6');
+        }
+
         if (toggleBtn && ebookContainer) {
             toggleBtn.addEventListener('click', () => {
                 const isOpen = ebookContainer.classList.toggle('alc-ebook--sidebar-open');
@@ -641,6 +647,10 @@
                 html += `<li class="alc-ebook-item" data-id="${content.id}">
                     <span class="alc-ebook-item-icon">${typeIcon}</span>
                     <span class="alc-ebook-item-title">${escapeHtml(content.title)}</span>
+                    <span class="alc-ebook-item-reorder">
+                        <button class="alc-reorder-btn" data-dir="up" title="上移">&#9650;</button>
+                        <button class="alc-reorder-btn" data-dir="down" title="下移">&#9660;</button>
+                    </span>
                 </li>`;
             });
 
@@ -662,6 +672,10 @@
                 html += `<li class="alc-ebook-item" data-id="${content.id}">
                     <span class="alc-ebook-item-icon">${typeIcon}</span>
                     <span class="alc-ebook-item-title">${escapeHtml(content.title)}</span>
+                    <span class="alc-ebook-item-reorder">
+                        <button class="alc-reorder-btn" data-dir="up" title="上移">&#9650;</button>
+                        <button class="alc-reorder-btn" data-dir="down" title="下移">&#9660;</button>
+                    </span>
                 </li>`;
             });
             html += `</ul></div>`;
@@ -675,6 +689,10 @@
                 html += `<li class="alc-ebook-item" data-id="${content.id}">
                     <span class="alc-ebook-item-icon">${typeIcon}</span>
                     <span class="alc-ebook-item-title">${escapeHtml(content.title)}</span>
+                    <span class="alc-ebook-item-reorder">
+                        <button class="alc-reorder-btn" data-dir="up" title="上移">&#9650;</button>
+                        <button class="alc-reorder-btn" data-dir="down" title="下移">&#9660;</button>
+                    </span>
                 </li>`;
             });
             html += '</ul>';
@@ -691,7 +709,9 @@
 
         // Item click -> show content in right panel
         nav.querySelectorAll('.alc-ebook-item').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
+                // 忽略排序按钮的点击
+                if (e.target.closest('.alc-reorder-btn')) return;
                 // Highlight active
                 nav.querySelectorAll('.alc-ebook-item').forEach(i => i.classList.remove('alc-ebook-item--active'));
                 item.classList.add('alc-ebook-item--active');
@@ -699,6 +719,38 @@
                 showEbookContent(contentId);
             });
         });
+
+        // 排序按钮（仅编辑模式可见）
+        nav.querySelectorAll('.alc-reorder-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const item = btn.closest('.alc-ebook-item');
+                const list = item.closest('.alc-ebook-folder-items');
+                if (!list) return;
+
+                const dir = btn.getAttribute('data-dir');
+                if (dir === 'up' && item.previousElementSibling) {
+                    list.insertBefore(item, item.previousElementSibling);
+                } else if (dir === 'down' && item.nextElementSibling) {
+                    list.insertBefore(item.nextElementSibling, item);
+                }
+
+                // 收集当前列表顺序并保存
+                saveDirectoryOrder(list);
+            });
+        });
+    }
+
+    async function saveDirectoryOrder(listEl) {
+        const items = listEl.querySelectorAll('.alc-ebook-item');
+        const contentIds = Array.from(items).map(el => parseInt(el.getAttribute('data-id')));
+        if (contentIds.length === 0) return;
+
+        try {
+            await apiPut(`${ADMIN_API}/contents/reorder`, { content_ids: contentIds });
+        } catch (error) {
+            console.error('排序保存失败:', error);
+        }
     }
 
     /**
@@ -1479,75 +1531,26 @@
         inputBox.value = '';
         inputBox.focus();
 
-        // 创建 AI 消息气泡（流式逐字填充）
-        const msgEl = document.createElement('div');
-        msgEl.className = 'alc-message alc-message--ai';
-        msgEl.innerHTML = '<div class="alc-message-avatar">🤖</div><div class="alc-message-content"><div class="alc-typing-indicator"><span></span><span></span><span></span></div></div>';
-        messagesEl.appendChild(msgEl);
+        // 显示打字动画
+        const loadingEl = document.createElement('div');
+        loadingEl.className = 'alc-message alc-message--ai';
+        loadingEl.innerHTML = '<div class="alc-message-avatar">🤖</div><div class="alc-message-content"><div class="alc-typing-indicator"><span></span><span></span><span></span></div></div>';
+        messagesEl.appendChild(loadingEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
-        const contentEl = msgEl.querySelector('.alc-message-content');
         const requestBody = { question };
         if (state.currentContentId) {
             requestBody.content_id = state.currentContentId;
         }
 
         try {
-            const resp = await fetch(`${API_BASE}/ai-ask-stream`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify(requestBody),
-            });
-
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-            // 切换：移除打字动画，开始流式填充
-            let fullText = '';
-            contentEl.innerHTML = '<p></p>';
-            const textNode = contentEl.querySelector('p');
-
-            const reader = resp.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop();
-
-                for (const line of lines) {
-                    if (!line.startsWith('data: ')) continue;
-                    const payload = line.slice(6);
-                    if (payload === '[DONE]') continue;
-
-                    try {
-                        fullText += JSON.parse(payload);
-                    } catch {
-                        fullText += payload;
-                    }
-
-                    if (typeof marked !== 'undefined') {
-                        contentEl.innerHTML = marked.parse(fullText);
-                    } else {
-                        textNode.textContent = fullText;
-                    }
-                    messagesEl.scrollTop = messagesEl.scrollHeight;
-                }
-            }
-
-            // 最终渲染确保完整
-            if (fullText && typeof marked !== 'undefined') {
-                contentEl.innerHTML = marked.parse(fullText);
-            }
+            const data = await apiPost(`${API_BASE}/ai-ask`, requestBody);
+            loadingEl.remove();
+            renderAiMessage('assistant', data.answer, data.sources);
         } catch (error) {
-            contentEl.innerHTML = '<p style="color:var(--text-tertiary)">发送失败，请重试</p>';
-            console.error('AI stream error:', error);
+            loadingEl.remove();
+            renderAiMessage('assistant', '发送失败，请重试');
+            console.error('AI ask error:', error);
         }
 
         messagesEl.scrollTop = messagesEl.scrollHeight;

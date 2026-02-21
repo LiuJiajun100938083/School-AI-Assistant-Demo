@@ -128,7 +128,7 @@ class LCContentRepository(BaseRepository):
             page_size=page_size,
             where=where,
             params=tuple(params) if params else None,
-            order_by="created_at DESC",
+            order_by="sort_order ASC, created_at DESC",
         )
 
     def search_contents(

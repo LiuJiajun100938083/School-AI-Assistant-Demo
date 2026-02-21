@@ -1152,6 +1152,41 @@
   white-space: nowrap;
 }
 
+/* --- Reorder buttons (edit mode only) --- */
+.alc-ebook-item-reorder {
+  display: none;
+  flex-shrink: 0;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.alc-page--edit .alc-ebook-item-reorder {
+  display: flex;
+}
+
+.alc-reorder-btn {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: 3px;
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+  font-size: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.alc-reorder-btn:hover {
+  background: var(--brand-lighter);
+  color: var(--brand);
+  border-color: var(--brand-light);
+}
+
 /* --- Right content viewer --- */
 .alc-ebook-content {
   flex: 1;

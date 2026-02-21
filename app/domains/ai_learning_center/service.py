@@ -318,6 +318,16 @@ class LearningCenterService:
         result.update(update_data)
         return result
 
+    def reorder_contents(self, admin: Tuple[str, str], content_ids: List[int]) -> None:
+        """批量更新内容排序"""
+        for idx, content_id in enumerate(content_ids):
+            self._contents.update(
+                {"sort_order": idx},
+                "id = %s",
+                (content_id,),
+            )
+        logger.info("内容排序已更新: %d 条", len(content_ids))
+
     # ================================================================
     # 内容浏览（Public）
     # ================================================================

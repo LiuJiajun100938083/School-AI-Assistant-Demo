@@ -11,6 +11,20 @@
 
 ---
 
+## [v1.7.1] [2026-02-21 15:00] 回退流式输出 + 目录默认展开 + 编辑模式排序
+
+### 修改
+- **回退 AI 流式输出**：`sendAiQuestion()` 改回使用 `apiPost` 调用 `/ai-ask`，移除 SSE 流式前端逻辑（后端流式端点保留但前端不再调用）
+- **目录默认展开**：进入学习中心时，左侧目录栏自动展开，用户无需手动点击箭头
+
+### 新增
+- **编辑模式目录排序**：切换到「编辑」模式后，目录每个项目右侧显示上移/下移按钮，点击即可调整顺序
+- `PUT /api/admin/learning-center/contents/reorder` 端点：接收 `content_ids` 数组，批量更新 `sort_order`
+- `lc_contents` 表新增 `sort_order` 列（迁移文件 `add_sort_order_to_lc_contents.sql`）
+- 内容列表改为按 `sort_order ASC, created_at DESC` 排序
+
+---
+
 ## [v1.7.0] [2026-02-21 13:00] AI 助教流式输出 + 小窗/大窗切换
 
 ### 新增
