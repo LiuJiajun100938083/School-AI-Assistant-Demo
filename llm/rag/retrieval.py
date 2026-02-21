@@ -243,25 +243,31 @@ def get_context_for_content_with_pages(
 
     try:
         vector_db = get_vector_db()
-        results = vector_db.similarity_search(
+
+        # 使用带分数的检索，以便按相关性过滤
+        scored_results = vector_db.similarity_search_with_relevance_scores(
             question,
             k=k,
             filter={"content_id": str(content_id)},
         )
 
-        if not results:
+        if not scored_results:
             logger.warning("content_id=%s 无匹配的 chunk", content_id)
             return "[该内容尚未建立索引或无可检索的文本]", []
 
         context_parts = []
         page_refs = []
 
-        for i, doc in enumerate(results):
+        # 取最高分作为基准，只保留分数 >= 最高分 * 0.75 的 chunk 的页码
+        top_score = scored_results[0][1] if scored_results else 0
+        relevance_threshold = top_score * 0.75
+
+        for i, (doc, score) in enumerate(scored_results):
             # 解析 page_numbers metadata（逗号分隔字符串 → int 列表）
             raw_pages = doc.metadata.get("page_numbers", "")
             page_list = _parse_page_numbers(raw_pages)
 
-            # 构建带页码标注的上下文片段
+            # 构建带页码标注的上下文片段（所有 chunk 都给 LLM 看）
             if page_list:
                 page_label = ",".join(str(p) for p in page_list)
                 header = f"【片段{i + 1}·第{page_label}页】"
@@ -270,8 +276,8 @@ def get_context_for_content_with_pages(
 
             context_parts.append(f"{header}\n{doc.page_content}")
 
-            # 构建页码引用列表（仅有页码时才添加）
-            if page_list:
+            # 页码引用只收录高相关性 chunk（避免低相关 chunk 引入无关页码）
+            if page_list and score >= relevance_threshold:
                 preview = doc.page_content[:50].replace("\n", " ")
                 page_refs.append({
                     "snippet_index": i + 1,
@@ -279,10 +285,14 @@ def get_context_for_content_with_pages(
                     "preview": preview,
                 })
 
+        # 去重合并：多个 chunk 引用同一页时只保留一次，
+        # 并且只取连续页码的起始页（如 42,43,44 → 只展示 42）
+        page_refs = _consolidate_page_refs(page_refs)
+
         context = "\n\n".join(context_parts)
         logger.info(
-            "页码感知检索结果: %d chunks, %d 有页码引用, %d 字符",
-            len(results),
+            "页码感知检索结果: %d chunks, %d 页码引用, %d 字符",
+            len(scored_results),
             len(page_refs),
             len(context),
         )
@@ -310,3 +320,54 @@ def _parse_page_numbers(raw: str) -> List[int]:
     except ValueError:
         logger.warning("无法解析 page_numbers: '%s'", raw)
         return []
+
+
+def _consolidate_page_refs(page_refs: List[Dict]) -> List[Dict]:
+    """
+    合并页码引用：去重 + 连续页码只保留起始页。
+
+    例如多个 chunk 引用 [42], [42,43], [43,44] → 合并为 [42]
+    因为连续页码表示同一段内容，跳转到起始页即可。
+
+    Returns:
+        去重合并后的 page_refs 列表
+    """
+    if not page_refs:
+        return []
+
+    # 收集所有被引用的页码
+    all_pages = set()
+    for ref in page_refs:
+        all_pages.update(ref["page_numbers"])
+
+    if not all_pages:
+        return []
+
+    # 将页码分组为连续区间，每个区间只保留起始页
+    sorted_pages = sorted(all_pages)
+    representative_pages = []
+    i = 0
+    while i < len(sorted_pages):
+        start = sorted_pages[i]
+        # 跳过连续页码
+        while i + 1 < len(sorted_pages) and sorted_pages[i + 1] - sorted_pages[i] <= 1:
+            i += 1
+        representative_pages.append(start)
+        i += 1
+
+    # 构建精简的 page_refs（每个代表页一条）
+    consolidated = []
+    for page in representative_pages:
+        # 找到包含该页的第一个原始 ref 作为 preview 来源
+        preview = ""
+        for ref in page_refs:
+            if page in ref["page_numbers"]:
+                preview = ref["preview"]
+                break
+        consolidated.append({
+            "snippet_index": 0,
+            "page_numbers": [page],
+            "preview": preview,
+        })
+
+    return consolidated
