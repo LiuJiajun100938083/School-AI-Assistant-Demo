@@ -33,6 +33,7 @@ class OllamaProvider(BaseLLMProvider):
                 top_p=self.top_p,
                 stop=self.stop_tokens if self.stop_tokens else None,
                 timeout=self.timeout,
+                num_ctx=self.num_ctx,
             )
             logger.info(f"✅ Ollama 提供者初始化完成: model={self.model}, base_url={self.base_url}")
         except Exception as e:
@@ -100,6 +101,7 @@ class OllamaProvider(BaseLLMProvider):
                 "temperature": self.temperature,
                 "top_p": self.top_p,
                 "num_predict": self.max_tokens,
+                "num_ctx": self.num_ctx,
             }
         }
 

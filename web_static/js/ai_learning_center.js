@@ -937,7 +937,7 @@
             .attr('id', 'arrowhead')
             .attr('markerWidth', 10)
             .attr('markerHeight', 10)
-            .attr('refX', 25)
+            .attr('refX', 48)
             .attr('refY', 3)
             .attr('orient', 'auto')
             .append('polygon')
@@ -954,11 +954,11 @@
         const simulation = d3.forceSimulation(state.nodes)
             .force('link', d3.forceLink(d3Edges)
                 .id(d => d.id)
-                .distance(100)
+                .distance(200)
                 .strength(0.5))
-            .force('charge', d3.forceManyBody().strength(-300))
+            .force('charge', d3.forceManyBody().strength(-500))
             .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(50));
+            .force('collision', d3.forceCollide().radius(80));
 
         // Render edges
         const links = linkGroup.selectAll('line')
@@ -985,11 +985,12 @@
             .data(state.nodes)
             .enter()
             .append('circle')
-            .attr('r', 25)
+            .attr('r', 45)
             .attr('fill', d => d.color || '#4CAF50')
             .attr('stroke', '#fff')
-            .attr('stroke-width', 2)
+            .attr('stroke-width', 3)
             .attr('cursor', 'pointer')
+            .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))')
             .on('click', (event, d) => {
                 event.stopPropagation();
                 showNodeDetail(d);
@@ -999,18 +1000,45 @@
                 .on('drag', dragged)
                 .on('end', dragEnded));
 
-        // Node labels
+        // Node icon (emoji)
+        const nodeIcons = labelGroup.selectAll('text.node-icon')
+            .data(state.nodes)
+            .enter()
+            .append('text')
+            .attr('class', 'node-icon')
+            .attr('text-anchor', 'middle')
+            .attr('dy', '-0.2em')
+            .attr('font-size', '22px')
+            .attr('pointer-events', 'none')
+            .text(d => d.icon || '📌');
+
+        // Node labels (below icon, inside circle)
         const nodeLabels = labelGroup.selectAll('text.node-label')
             .data(state.nodes)
             .enter()
             .append('text')
             .attr('class', 'node-label')
             .attr('text-anchor', 'middle')
-            .attr('dy', '0.3em')
-            .attr('font-size', '12px')
+            .attr('dy', '1.4em')
+            .attr('font-size', '13px')
+            .attr('font-weight', 'bold')
             .attr('fill', '#fff')
             .attr('pointer-events', 'none')
-            .text(d => d.title.substring(0, 8));
+            .text(d => d.title.length > 6 ? d.title.substring(0, 6) + '…' : d.title);
+
+        // Node title tooltip (full name shown below the circle)
+        const nodeTitles = labelGroup.selectAll('text.node-title')
+            .data(state.nodes)
+            .enter()
+            .append('text')
+            .attr('class', 'node-title')
+            .attr('text-anchor', 'middle')
+            .attr('dy', '4.2em')
+            .attr('font-size', '13px')
+            .attr('font-weight', '500')
+            .attr('fill', '#333')
+            .attr('pointer-events', 'none')
+            .text(d => d.title);
 
         // Zoom behavior
         const zoom = d3.zoom()
@@ -1036,7 +1064,15 @@
                 .attr('cx', d => d.x)
                 .attr('cy', d => d.y);
 
+            nodeIcons
+                .attr('x', d => d.x)
+                .attr('y', d => d.y);
+
             nodeLabels
+                .attr('x', d => d.x)
+                .attr('y', d => d.y);
+
+            nodeTitles
                 .attr('x', d => d.x)
                 .attr('y', d => d.y);
         });

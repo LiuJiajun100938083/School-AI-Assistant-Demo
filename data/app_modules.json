@@ -1,0 +1,204 @@
+[
+  {
+    "id": "ai_chat",
+    "name": "AI 學習對話",
+    "icon": "💬",
+    "description": "一對一AI輔導對話",
+    "url": "__internal_chat__",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 1,
+    "category": "learning"
+  },
+  {
+    "id": "ai_learning_center",
+    "name": "AI 學習中心",
+    "icon": "🧠",
+    "description": "探索AI知識，多維度互動學習體驗",
+    "url": "/ai-learning-center",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 2,
+    "category": "learning"
+  },
+  {
+    "id": "game_center",
+    "name": "遊戲中心",
+    "icon": "🎯",
+    "description": "按學科分類的教育遊戲",
+    "url": "/games",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 2,
+    "category": "learning"
+  },
+  {
+    "id": "forum",
+    "name": "討論區",
+    "icon": "📢",
+    "description": "師生互動討論平台",
+    "url": "/static/forum/forum.html",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 3,
+    "category": "community"
+  },
+  {
+    "id": "student_report",
+    "name": "學習分析",
+    "icon": "📊",
+    "description": "查看學習數據報告",
+    "url": "/student-report",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 4,
+    "category": "learning"
+  },
+  {
+    "id": "learning_tasks",
+    "name": "學習任務",
+    "icon": "✅",
+    "description": "查看及完成學習任務",
+    "url": "/static/learning_tasks.html",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 5,
+    "category": "learning"
+  },
+  {
+    "id": "mistake_book",
+    "name": "AI 智能錯題本",
+    "icon": "📖",
+    "description": "拍照上傳錯題、AI分析薄弱點、智能出題練習",
+    "url": "/mistake-book",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 6,
+    "category": "learning"
+  },
+  {
+    "id": "classroom",
+    "name": "課堂教學",
+    "icon": "🏫",
+    "description": "PPT授課、實時互動課堂",
+    "url": "/classroom",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 7,
+    "category": "teaching"
+  },
+  {
+    "id": "attendance",
+    "name": "早讀/留堂點名",
+    "icon": "📋",
+    "description": "學生考勤管理系統",
+    "url": "/attendance",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 8,
+    "category": "teaching"
+  },
+  {
+    "id": "notice",
+    "name": "通告生成",
+    "icon": "📝",
+    "description": "AI智能生成通告文檔",
+    "url": "/notice_generator.html",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 9,
+    "category": "teaching"
+  },
+  {
+    "id": "mistake_book_teacher",
+    "name": "錯題分析(教師)",
+    "icon": "📊",
+    "description": "查看班級錯題數據與薄弱知識點",
+    "url": "/mistake-book/teacher",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 10,
+    "category": "teaching"
+  },
+  {
+    "id": "learning_task_admin",
+    "name": "任務管理",
+    "icon": "📋",
+    "description": "創建和管理學習任務",
+    "url": "/static/learning_task_admin.html",
+    "roles": [
+      "admin"
+    ],
+    "enabled": true,
+    "order": 11,
+    "category": "admin"
+  },
+  {
+    "id": "game_upload",
+    "name": "上傳遊戲",
+    "icon": "📤",
+    "description": "上傳自定義HTML遊戲",
+    "url": "/game_upload",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 12,
+    "category": "teaching"
+  },
+  {
+    "id": "admin_dashboard",
+    "name": "管理後台",
+    "icon": "⚙️",
+    "description": "系統管理與配置",
+    "url": "/admin",
+    "roles": [
+      "admin"
+    ],
+    "enabled": true,
+    "order": 13,
+    "category": "admin"
+  }
+]

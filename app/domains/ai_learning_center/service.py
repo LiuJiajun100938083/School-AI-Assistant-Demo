@@ -628,7 +628,7 @@ class LearningCenterService:
             "difficulty": difficulty,
             "estimated_hours": estimated_hours,
             "tags": json.dumps(tags) if tags else None,
-            "status": "draft",
+            "status": "published",
             "created_by": username,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
