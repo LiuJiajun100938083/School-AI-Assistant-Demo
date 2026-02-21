@@ -1789,6 +1789,62 @@
   line-height: 1.5;
 }
 
+/* ---- 页码引用（行内标记 + 快捷导航） ---- */
+
+.alc-page-ref {
+  display: inline;
+  color: var(--brand);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  font-weight: 500;
+  transition: color var(--duration-base) var(--ease-out);
+  white-space: nowrap;
+}
+
+.alc-page-ref:hover {
+  color: var(--brand-dark, #1a56db);
+  text-decoration-style: solid;
+}
+
+.alc-page-refs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-light);
+}
+
+.alc-page-refs-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.alc-page-ref-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brand);
+  background-color: var(--brand-lighter, #eff6ff);
+  border: 1px solid var(--brand-light, #bfdbfe);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--duration-base) var(--ease-out);
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+.alc-page-ref-btn:hover {
+  background-color: var(--brand-light, #bfdbfe);
+  color: var(--brand-dark, #1a56db);
+}
+
 .alc-suggested-questions {
   padding: var(--space-4);
   border-top: 1px solid var(--border-light);

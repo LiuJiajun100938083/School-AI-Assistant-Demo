@@ -18,7 +18,7 @@
 import logging
 import os
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -106,10 +106,50 @@ class ContentTextExtractor:
         )
         return ""
 
+    # ---- 按页提取（用于保留页码信息） ----
+
+    def extract_with_pages(self, content_row: Dict) -> List[Dict]:
+        """
+        从内容记录提取按页分段的文本。
+
+        返回 [{"page": 1, "text": "..."}, ...] 列表。
+        非 PDF 类型或无"页"概念的内容，page 字段为 None。
+
+        Args:
+            content_row: lc_contents 表完整行字典
+
+        Returns:
+            按页分段的文本列表。无法提取时返回空列表。
+        """
+        content_type = content_row.get("content_type", "")
+
+        if content_type == "article":
+            text = content_row.get("article_content") or ""
+            return [{"page": None, "text": text}] if text.strip() else []
+
+        if content_type in ("video_local", "video_external", "image"):
+            return []
+
+        file_path = content_row.get("file_path", "")
+        if not file_path or not os.path.exists(file_path):
+            logger.warning("文件不存在或路径为空: %s", file_path)
+            return []
+
+        mime_type = content_row.get("mime_type") or ""
+        file_name = (content_row.get("file_name") or file_path).lower()
+
+        if mime_type == "application/pdf" or file_name.endswith(".pdf"):
+            return self._extract_pdf_with_pages(file_path)
+
+        # 非 PDF 文件（DOCX/PPTX/TXT）走原有逻辑，page=None
+        text = self._extract_from_file(file_path, content_row)
+        return [{"page": None, "text": text}] if text.strip() else []
+
     # ---- 各格式提取实现 ----
 
     @staticmethod
     def _extract_pdf(path: str) -> str:
+        """提取 PDF 全文（不保留页码，向后兼容）。"""
         try:
             import fitz  # PyMuPDF
 
@@ -120,6 +160,31 @@ class ContentTextExtractor:
         except Exception:
             logger.exception("PDF 文本提取失败: %s", path)
             return ""
+
+    @staticmethod
+    def _extract_pdf_with_pages(path: str) -> List[Dict]:
+        """
+        逐页提取 PDF 文本，保留页码信息。
+
+        Returns:
+            [{"page": 1, "text": "第一页文本"}, {"page": 2, "text": "..."}, ...]
+            页码从 1 开始。空白页会被跳过。
+        """
+        try:
+            import fitz  # PyMuPDF
+
+            doc = fitz.open(path)
+            pages = []
+            for page_num, page in enumerate(doc, 1):
+                text = page.get_text().strip()
+                if text:
+                    pages.append({"page": page_num, "text": text})
+            doc.close()
+            logger.debug("PDF 逐页提取: %s, 有效页数=%d", path, len(pages))
+            return pages
+        except Exception:
+            logger.exception("PDF 逐页提取失败: %s", path)
+            return []
 
     @staticmethod
     def _extract_docx(path: str) -> str:
@@ -191,7 +256,7 @@ class ContentIndexer:
         """
         对一条学习内容建立向量索引。
 
-        流程：文本提取 → chunk 分割 → 写入 ChromaDB
+        流程：文本提取（保留页码）→ chunk 分割 → 计算页码映射 → 写入 ChromaDB
 
         Args:
             content_id: lc_contents.id
@@ -201,8 +266,9 @@ class ContentIndexer:
             True 表示成功（包括内容无可提取文本的情况）。
             False 表示写入向量库时发生错误。
         """
-        text = self._extractor.extract(content_row)
-        if not text.strip():
+        # 按页提取文本
+        page_segments = self._extractor.extract_with_pages(content_row)
+        if not page_segments:
             logger.info(
                 "content_id=%s 无可索引文本（类型=%s），跳过",
                 content_id,
@@ -210,7 +276,12 @@ class ContentIndexer:
             )
             return True
 
-        chunks = self._splitter.split_text(text)
+        # 拼接全文并构建字符偏移 → 页码映射
+        full_text, offset_to_page = self._build_text_with_page_map(page_segments)
+        if not full_text.strip():
+            return True
+
+        chunks = self._splitter.split_text(full_text)
         if not chunks:
             logger.warning("content_id=%s 文本分割后无 chunk", content_id)
             return True
@@ -218,6 +289,11 @@ class ContentIndexer:
         doc_id = f"lc_content_{content_id}"
         title = content_row.get("title", "")
         filename = content_row.get("file_name", "")
+
+        # 为每个 chunk 计算覆盖的页码
+        chunk_page_map = self._map_chunks_to_pages(
+            full_text, chunks, offset_to_page
+        )
 
         documents = [
             Document(
@@ -231,6 +307,7 @@ class ContentIndexer:
                     "source": SOURCE_TAG,
                     "total_chunks": len(chunks),
                     "indexed_at": datetime.now().isoformat(),
+                    "page_numbers": chunk_page_map.get(i, ""),
                 },
             )
             for i, chunk in enumerate(chunks)
@@ -250,6 +327,80 @@ class ContentIndexer:
         except Exception:
             logger.exception("content_id=%s 向量库写入失败", content_id)
             return False
+
+    @staticmethod
+    def _build_text_with_page_map(
+        page_segments: List[Dict],
+    ) -> Tuple[str, List[Tuple[int, int, Optional[int]]]]:
+        """
+        将按页分段的文本拼接为全文，并生成字符偏移→页码映射。
+
+        Returns:
+            (full_text, offset_map)
+            offset_map: [(start, end, page_number), ...] 按 start 升序
+            page_number 为 None 表示该段无页码信息（非 PDF）
+        """
+        parts: List[str] = []
+        offset_map: List[Tuple[int, int, Optional[int]]] = []
+        cursor = 0
+
+        for seg in page_segments:
+            text = seg["text"]
+            page = seg.get("page")
+            if not text.strip():
+                continue
+
+            start = cursor
+            parts.append(text)
+            cursor += len(text)
+            offset_map.append((start, cursor, page))
+
+            # 段间分隔符
+            parts.append("\n\n")
+            cursor += 2
+
+        full_text = "".join(parts).rstrip("\n")
+        return full_text, offset_map
+
+    @staticmethod
+    def _map_chunks_to_pages(
+        full_text: str,
+        chunks: List[str],
+        offset_map: List[Tuple[int, int, Optional[int]]],
+    ) -> Dict[int, str]:
+        """
+        根据 chunk 在全文中的位置，映射到覆盖的页码范围。
+
+        Returns:
+            {chunk_index: "3,4"} — 逗号分隔的页码字符串。
+            无页码信息的 chunk 对应空字符串。
+        """
+        result: Dict[int, str] = {}
+        search_start = 0
+
+        for i, chunk in enumerate(chunks):
+            # 在全文中查找 chunk 的起始位置
+            pos = full_text.find(chunk, search_start)
+            if pos == -1:
+                # 回退到全文搜索（处理 overlap 导致的位置偏移）
+                pos = full_text.find(chunk)
+            if pos == -1:
+                result[i] = ""
+                continue
+
+            chunk_start = pos
+            chunk_end = pos + len(chunk)
+            search_start = pos  # 下次从当前位置开始找
+
+            # 找出与 chunk 区间重叠的所有页码
+            pages = set()
+            for seg_start, seg_end, page in offset_map:
+                if page is not None and seg_start < chunk_end and seg_end > chunk_start:
+                    pages.add(page)
+
+            result[i] = ",".join(str(p) for p in sorted(pages))
+
+        return result
 
     def is_indexed(self, content_id: int) -> bool:
         """检查某条内容是否已有向量索引。"""

@@ -1383,6 +1383,20 @@
             });
         });
 
+        // 页码跳转事件委托（点击 AI 消息中的页码引用或快捷按钮）
+        const messagesEl = getElement('aiMessages');
+        if (messagesEl) {
+            messagesEl.addEventListener('click', (e) => {
+                const pageRef = e.target.closest('.alc-page-ref, .alc-page-ref-btn');
+                if (pageRef) {
+                    const page = parseInt(pageRef.dataset.page, 10);
+                    if (!isNaN(page)) {
+                        navigatePdfToPage(page);
+                    }
+                }
+            });
+        }
+
         // 初始化上下文指示条
         updateAiContextIndicator();
     }
@@ -1546,7 +1560,7 @@
         try {
             const data = await apiPost(`${API_BASE}/ai-ask`, requestBody);
             loadingEl.remove();
-            renderAiMessage('assistant', data.answer, data.sources);
+            renderAiMessage('assistant', data.answer, data.sources, data.page_references);
         } catch (error) {
             loadingEl.remove();
             renderAiMessage('assistant', '发送失败，请重试');
@@ -1556,7 +1570,7 @@
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function renderAiMessage(role, content, sources = null) {
+    function renderAiMessage(role, content, sources = null, pageReferences = null) {
         const messagesEl = getElement('aiMessages');
         if (!messagesEl) return;
 
@@ -1575,7 +1589,10 @@
         contentEl.className = 'alc-message-content';
 
         if (!isUser && typeof marked !== 'undefined') {
-            contentEl.innerHTML = marked.parse(content);
+            let html = marked.parse(content);
+            // 将 AI 回答中的【第X页】标记转换为可点击链接
+            html = linkifyPageReferences(html);
+            contentEl.innerHTML = html;
         } else {
             contentEl.innerHTML = `<p>${escapeHtml(content).replace(/\n/g, '<br>')}</p>`;
         }
@@ -1587,9 +1604,68 @@
             contentEl.insertAdjacentHTML('beforeend', `<div class="alc-ai-sources"><p>参考资料：</p>${sourcesHtml}</div>`);
         }
 
+        // 页码快捷导航按钮
+        if (pageReferences && pageReferences.length > 0) {
+            const allPages = new Set();
+            pageReferences.forEach(ref => {
+                ref.page_numbers.forEach(p => allPages.add(p));
+            });
+            const sortedPages = Array.from(allPages).sort((a, b) => a - b);
+
+            const btnsHtml = sortedPages.map(p =>
+                `<button class="alc-page-ref-btn" data-page="${p}" title="跳转到第${p}页">第${p}页</button>`
+            ).join('');
+            contentEl.insertAdjacentHTML('beforeend',
+                `<div class="alc-page-refs-bar"><span class="alc-page-refs-label">相关页码：</span>${btnsHtml}</div>`
+            );
+        }
+
         messageEl.appendChild(contentEl);
         messagesEl.appendChild(messageEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    /**
+     * 将 AI 回答中的【第X页】标记转换为可点击的页码链接。
+     * 支持格式：【第3页】、【第3,4页】、【第3、4页】
+     */
+    function linkifyPageReferences(html) {
+        return html.replace(
+            /【第([\d,、]+)页】/g,
+            (match, pages) => {
+                // 取第一个页码作为跳转目标
+                const firstPage = parseInt(pages.replace(/、/g, ',').split(',')[0], 10);
+                if (isNaN(firstPage)) return match;
+                return `<span class="alc-page-ref" data-page="${firstPage}" title="跳转到第${firstPage}页">【第${pages}页】</span>`;
+            }
+        );
+    }
+
+    /**
+     * 跳转 PDF iframe 到指定页码。
+     * 利用 PDF Open Parameters 标准：在 URL 后添加 #page=N。
+     */
+    function navigatePdfToPage(page) {
+        const iframe = document.querySelector('.alc-ebook-doc-iframe');
+        if (!iframe) {
+            console.warn('未找到 PDF iframe，无法跳转页码');
+            return;
+        }
+
+        const currentSrc = iframe.src || '';
+        // 去除已有的 #page= fragment
+        const baseSrc = currentSrc.replace(/#page=\d+/, '').replace(/#$/, '');
+        const newSrc = `${baseSrc}#page=${page}`;
+
+        if (currentSrc === newSrc) {
+            // 相同 URL 需要强制刷新 iframe
+            iframe.src = '';
+            requestAnimationFrame(() => { iframe.src = newSrc; });
+        } else {
+            iframe.src = newSrc;
+        }
+
+        showToast(`已跳转到第 ${page} 页`, 'info');
     }
 
     // ==================== MODALS ====================

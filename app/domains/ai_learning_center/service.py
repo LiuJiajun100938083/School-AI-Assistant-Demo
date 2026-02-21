@@ -767,19 +767,20 @@ class LearningCenterService:
         content_id: int,
     ) -> Dict:
         """
-        基于特定学习内容的 AI 问答。
+        基于特定学习内容的 AI 问答（支持 PDF 页码引用）。
 
         流程：
         1. 查询内容元数据
         2. 懒索引（若未索引则即时建立）
-        3. 内容级 RAG 检索
+        3. 内容级 RAG 检索（带页码信息）
         4. 构建 prompt → 调用 LLM → 解析响应
+        5. 返回 answer + page_references
         """
         import asyncio
         from functools import partial
 
         from llm.rag.content_indexer import get_content_indexer
-        from llm.rag.retrieval import get_context_for_content
+        from llm.rag.retrieval import get_context_for_content_with_pages
         from llm.rag.context import build_prompt_context
         from llm.prompts.templates import apply_thinking_mode
         from llm.providers.ollama import get_ollama_provider
@@ -795,6 +796,7 @@ class LearningCenterService:
             }
 
         content_title = content.get("title", "")
+        content_type = content.get("content_type", "")
         loop = asyncio.get_running_loop()
 
         # 2. 懒索引
@@ -809,18 +811,35 @@ class LearningCenterService:
                 None, partial(indexer.index, content_id, dict(content))
             )
 
-        # 3. 内容级 RAG 检索
-        rag_context = await loop.run_in_executor(
+        # 3. 内容级 RAG 检索（带页码）
+        rag_context, page_refs = await loop.run_in_executor(
             None,
-            partial(get_context_for_content, question, content_id),
+            partial(get_context_for_content_with_pages, question, content_id),
         )
 
         # 4. 构建 prompt 并调用 LLM
-        system_prompt = (
-            f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
-            f"请基于以下检索到的内容片段回答学生的问题。\n"
-            f"如果片段不足以回答，可结合通用知识，但请注明。"
+        # 仅当内容为 PDF 且检索到页码时，提示 LLM 引用页码
+        is_pdf = content_type == "document" and (
+            (content.get("file_name") or "").lower().endswith(".pdf")
+            or (content.get("mime_type") or "") == "application/pdf"
         )
+        has_pages = is_pdf and len(page_refs) > 0
+
+        if has_pages:
+            system_prompt = (
+                f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
+                f"请基于以下检索到的内容片段回答学生的问题。\n"
+                f"每个片段标题已标注了对应的 PDF 页码。\n"
+                f"回答时请用【第X页】标注你引用的内容来自哪一页，"
+                f"例如：\"根据文档内容【第3页】，...\"。\n"
+                f"如果片段不足以回答，可结合通用知识，但请注明。"
+            )
+        else:
+            system_prompt = (
+                f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
+                f"请基于以下检索到的内容片段回答学生的问题。\n"
+                f"如果片段不足以回答，可结合通用知识，但请注明。"
+            )
 
         prompt = build_prompt_context(
             question=question,
@@ -838,9 +857,10 @@ class LearningCenterService:
         answer, thinking = parse_llm_response(raw_response)
 
         logger.info(
-            "内容感知 AI 回答: 用户=%s, content_id=%s",
+            "内容感知 AI 回答: 用户=%s, content_id=%s, page_refs=%d",
             username,
             content_id,
+            len(page_refs),
         )
 
         return {
@@ -850,6 +870,7 @@ class LearningCenterService:
             "content_id": content_id,
             "content_title": content_title,
             "context_sources": [],
+            "page_references": page_refs if has_pages else [],
         }
 
     async def ai_ask_stream(

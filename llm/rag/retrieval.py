@@ -4,7 +4,7 @@
 """
 
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -212,3 +212,101 @@ def get_context_for_content(
     except Exception as e:
         logger.error("内容级检索失败: %s", e)
         return f"[内容检索失败: {str(e)}]"
+
+
+def get_context_for_content_with_pages(
+    question: str,
+    content_id: int,
+    k: int = 8,
+) -> Tuple[str, List[Dict]]:
+    """
+    检索特定学习内容的相关片段，同时返回页码引用信息。
+
+    与 get_context_for_content 功能相同，但额外返回每个片段
+    对应的 PDF 页码，用于前端页码跳转。
+
+    Args:
+        question: 用户问题
+        content_id: lc_contents.id
+        k: 返回的最相似片段数
+
+    Returns:
+        (context_str, page_refs)
+        - context_str: 格式化上下文（片段标题含页码信息）
+        - page_refs: [{"snippet_index": 1, "page_numbers": [3, 4], "preview": "前50字..."}, ...]
+    """
+    logger.info(
+        "页码感知检索: question='%s...', content_id=%s",
+        question[:50],
+        content_id,
+    )
+
+    try:
+        vector_db = get_vector_db()
+        results = vector_db.similarity_search(
+            question,
+            k=k,
+            filter={"content_id": str(content_id)},
+        )
+
+        if not results:
+            logger.warning("content_id=%s 无匹配的 chunk", content_id)
+            return "[该内容尚未建立索引或无可检索的文本]", []
+
+        context_parts = []
+        page_refs = []
+
+        for i, doc in enumerate(results):
+            # 解析 page_numbers metadata（逗号分隔字符串 → int 列表）
+            raw_pages = doc.metadata.get("page_numbers", "")
+            page_list = _parse_page_numbers(raw_pages)
+
+            # 构建带页码标注的上下文片段
+            if page_list:
+                page_label = ",".join(str(p) for p in page_list)
+                header = f"【片段{i + 1}·第{page_label}页】"
+            else:
+                header = f"【片段{i + 1}】"
+
+            context_parts.append(f"{header}\n{doc.page_content}")
+
+            # 构建页码引用列表（仅有页码时才添加）
+            if page_list:
+                preview = doc.page_content[:50].replace("\n", " ")
+                page_refs.append({
+                    "snippet_index": i + 1,
+                    "page_numbers": page_list,
+                    "preview": preview,
+                })
+
+        context = "\n\n".join(context_parts)
+        logger.info(
+            "页码感知检索结果: %d chunks, %d 有页码引用, %d 字符",
+            len(results),
+            len(page_refs),
+            len(context),
+        )
+        return context, page_refs
+
+    except Exception as e:
+        logger.error("页码感知检索失败: %s", e)
+        return f"[内容检索失败: {str(e)}]", []
+
+
+def _parse_page_numbers(raw: str) -> List[int]:
+    """
+    解析 chunk metadata 中的 page_numbers 字符串。
+
+    Args:
+        raw: 逗号分隔的页码，如 "3,4" 或空字符串
+
+    Returns:
+        排序后的页码整数列表，如 [3, 4]
+    """
+    if not raw or not raw.strip():
+        return []
+    try:
+        return sorted(int(p.strip()) for p in raw.split(",") if p.strip())
+    except ValueError:
+        logger.warning("无法解析 page_numbers: '%s'", raw)
+        return []
