@@ -1423,9 +1423,18 @@
         if (header) {
             header.addEventListener('mousedown', (e) => {
                 if (e.target.closest('button')) return;
+                e.preventDefault();
+
+                // 首次拖拽时将 right/bottom 定位转换为 left/top
+                const rect = win.getBoundingClientRect();
+                win.style.left = rect.left + 'px';
+                win.style.top = rect.top + 'px';
+                win.style.right = 'auto';
+                win.style.bottom = 'auto';
+
                 dragState = {
-                    offsetX: e.clientX - win.offsetLeft,
-                    offsetY: e.clientY - win.offsetTop,
+                    offsetX: e.clientX - rect.left,
+                    offsetY: e.clientY - rect.top,
                 };
                 beginInteraction();
             });
