@@ -11,6 +11,23 @@
 
 ---
 
+## [v1.6.0] [2026-02-21 10:30] AI 助教支持内容感知问答（RAG）
+
+### 新增
+- **内容索引器** `llm/rag/content_indexer.py`：自动提取 PDF/DOCX/PPTX/文章的文本，分割为 chunk 后存入 ChromaDB 向量库
+- **内容级 RAG 检索**：`get_context_for_content()` 按 `content_id` 过滤 ChromaDB，检索当前阅读内容的相关片段
+- **上传自动索引**：管理员上传文件后在后台线程异步建立向量索引
+- **懒索引**：对未索引的旧内容，在用户首次提问时自动触发索引
+- **内容上下文指示条**：AI 助教 Tab 顶部显示当前阅读内容标题，支持一键清除
+- AI 回复改用 `marked.js` 渲染完整 Markdown 格式
+
+### 修改
+- `AIAskRequest` 新增 `content_id` 可选字段
+- `LearningCenterService.ai_ask()` 支持内容感知分支（有 content_id 走 RAG，无则走通用问答）
+- AI 助教推荐问题更新为内容相关的通用提问（总结要点、解释概念、生成练习题）
+
+---
+
 ## [v1.5.1] [2026-02-21 09:46] 修复学习中心按分类筛选内容报错（Unknown column 'category_id'）
 
 ### 修复

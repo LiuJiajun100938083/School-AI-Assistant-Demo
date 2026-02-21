@@ -14,10 +14,11 @@ AI 學習中心路由
     - AI 問答、搜索、統計查詢
 """
 
+import asyncio
 import logging
 import os
 import uuid
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from pydantic import BaseModel, Field
@@ -29,6 +30,19 @@ from app.services.container import get_services
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _schedule_content_indexing(content_id: int, content_row: Dict) -> None:
+    """在后台线程中异步建立内容的 RAG 向量索引，不阻塞当前请求。"""
+    try:
+        from llm.rag.content_indexer import get_content_indexer
+
+        loop = asyncio.get_running_loop()
+        indexer = get_content_indexer()
+        loop.run_in_executor(None, indexer.index, content_id, content_row)
+        logger.info("后台索引已调度: content_id=%s", content_id)
+    except Exception:
+        logger.exception("调度后台索引失败: content_id=%s", content_id)
 
 
 # ================================================================
@@ -127,6 +141,7 @@ class UpdatePathStepsRequest(BaseModel):
 
 class AIAskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000)
+    content_id: Optional[int] = None
     context_filter: Optional[str] = None
 
 
@@ -313,6 +328,7 @@ async def ai_ask(
         result = await service.ai_ask(
             username=current_user.get("username", "unknown"),
             question=request.question,
+            content_id=request.content_id,
             context_filter=request.context_filter,
         )
         return success_response(data=result)
@@ -549,7 +565,17 @@ async def upload_file(
             status="published",
         )
 
-        return success_response(data=content, message=f"文件已上傳")
+        # 后台异步建立 RAG 索引（不阻塞上传响应）
+        _schedule_content_indexing(content["id"], {
+            "content_type": content_type,
+            "file_path": file_path,
+            "file_name": file.filename,
+            "mime_type": file.content_type,
+            "article_content": None,
+            "title": title,
+        })
+
+        return success_response(data=content, message="文件已上傳")
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:

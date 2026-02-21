@@ -717,9 +717,20 @@ class LearningCenterService:
         self,
         username: str,
         question: str,
+        content_id: Optional[int] = None,
         context_filter: Optional[str] = None,
     ) -> Dict:
-        """AI 问答"""
+        """
+        AI 问答（支持内容感知模式）。
+
+        当 content_id 不为 None 时，走内容感知 RAG 流程；
+        否则走原有通用问答流程，保持向后兼容。
+        """
+        if content_id is not None:
+            return await self._ai_ask_with_content(
+                username, question, content_id
+            )
+
         if not self._ask_ai_func:
             return {
                 "question": question,
@@ -735,9 +746,101 @@ class LearningCenterService:
             logger.error("AI 回答失败: %s", e)
             return {
                 "question": question,
-                "answer": f"AI 助手暂时无法回答，请稍后再试。",
+                "answer": "AI 助手暂时无法回答，请稍后再试。",
                 "context_sources": [],
             }
+
+    async def _ai_ask_with_content(
+        self,
+        username: str,
+        question: str,
+        content_id: int,
+    ) -> Dict:
+        """
+        基于特定学习内容的 AI 问答。
+
+        流程：
+        1. 查询内容元数据
+        2. 懒索引（若未索引则即时建立）
+        3. 内容级 RAG 检索
+        4. 构建 prompt → 调用 LLM → 解析响应
+        """
+        import asyncio
+        from functools import partial
+
+        from llm.rag.content_indexer import get_content_indexer
+        from llm.rag.retrieval import get_context_for_content
+        from llm.rag.context import build_prompt_context
+        from llm.prompts.templates import apply_thinking_mode
+        from llm.providers.ollama import get_ollama_provider
+        from llm.parsers.thinking_parser import parse_llm_response
+
+        # 1. 获取内容元数据
+        content = self._contents.find_by_id(content_id)
+        if not content:
+            return {
+                "question": question,
+                "answer": "找不到对应的学习内容。",
+                "context_sources": [],
+            }
+
+        content_title = content.get("title", "")
+        loop = asyncio.get_running_loop()
+
+        # 2. 懒索引
+        indexer = get_content_indexer()
+        indexed = await loop.run_in_executor(
+            None, indexer.is_indexed, content_id
+        )
+
+        if not indexed:
+            logger.info("懒索引触发: content_id=%s", content_id)
+            await loop.run_in_executor(
+                None, partial(indexer.index, content_id, dict(content))
+            )
+
+        # 3. 内容级 RAG 检索
+        rag_context = await loop.run_in_executor(
+            None,
+            partial(get_context_for_content, question, content_id),
+        )
+
+        # 4. 构建 prompt 并调用 LLM
+        system_prompt = (
+            f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
+            f"请基于以下检索到的内容片段回答学生的问题。\n"
+            f"如果片段不足以回答，可结合通用知识，但请注明。"
+        )
+
+        prompt = build_prompt_context(
+            question=question,
+            system_prompt=system_prompt,
+            kb_context=rag_context,
+        )
+
+        thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
+
+        provider = get_ollama_provider()
+        raw_response = await loop.run_in_executor(
+            None, provider.invoke, thinking_prompt
+        )
+
+        answer, thinking = parse_llm_response(raw_response)
+
+        logger.info(
+            "内容感知 AI 回答: 用户=%s, content_id=%s",
+            username,
+            content_id,
+        )
+
+        return {
+            "question": question,
+            "answer": answer,
+            "thinking": thinking,
+            "content_id": content_id,
+            "content_title": content_title,
+            "context_sources": [],
+        }
 
     # ================================================================
     # 私有方法

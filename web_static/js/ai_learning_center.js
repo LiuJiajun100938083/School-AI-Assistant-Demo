@@ -32,7 +32,10 @@
             courses: 0,
             videos: 0,
             documents: 0
-        }
+        },
+        // AI 助教 — 当前阅读的内容上下文
+        currentContentId: null,
+        currentContentTitle: null,
     };
 
     // Track loaded tabs to avoid duplicate API calls
@@ -718,6 +721,11 @@
             if (!response.success) return;
             const content = response.data;
 
+            // 更新 AI 助教的内容上下文
+            state.currentContentId = parseInt(contentId);
+            state.currentContentTitle = content.title || '';
+            updateAiContextIndicator();
+
             // Hide welcome, show viewer
             if (welcome) welcome.style.display = 'none';
             viewer.style.display = 'flex';
@@ -1325,6 +1333,42 @@
                 }
             });
         });
+
+        // 初始化上下文指示条
+        updateAiContextIndicator();
+    }
+
+    /**
+     * 更新 AI 助教上下文指示条，显示当前阅读的内容标题。
+     */
+    function updateAiContextIndicator() {
+        const indicator = document.getElementById('aiContextIndicator');
+        if (!indicator) return;
+
+        if (state.currentContentId && state.currentContentTitle) {
+            indicator.style.display = 'flex';
+            indicator.innerHTML = `
+                <span class="alc-ai-context-icon">&#128214;</span>
+                <span class="alc-ai-context-text">
+                    当前阅读：<strong>${escapeHtml(state.currentContentTitle)}</strong>
+                </span>
+                <button class="alc-ai-context-clear"
+                        onclick="window.lcLearningCenter.clearAiContext()"
+                        title="清除上下文">&#10005;</button>
+            `;
+        } else {
+            indicator.style.display = 'none';
+            indicator.innerHTML = '';
+        }
+    }
+
+    /**
+     * 清除当前内容上下文关联（恢复通用问答模式）。
+     */
+    function clearAiContext() {
+        state.currentContentId = null;
+        state.currentContentTitle = null;
+        updateAiContextIndicator();
     }
 
     async function sendAiQuestion() {
@@ -1351,10 +1395,11 @@
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
         try {
-            const response = await apiPost(`${API_BASE}/ai-ask`, {
-                question: question,
-                context_filter: {}
-            });
+            const requestBody = { question: question };
+            if (state.currentContentId) {
+                requestBody.content_id = state.currentContentId;
+            }
+            const response = await apiPost(`${API_BASE}/ai-ask`, requestBody);
 
             loadingEl.remove();
 
@@ -1382,13 +1427,13 @@
         const contentEl = document.createElement('div');
         contentEl.className = 'alc-ai-content';
 
-        // Parse markdown-like formatting
-        let formattedContent = escapeHtml(content);
-        formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        formattedContent = formattedContent.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        formattedContent = formattedContent.replace(/\n/g, '<br>');
-
-        contentEl.innerHTML = formattedContent;
+        if (role === 'assistant' && typeof marked !== 'undefined') {
+            contentEl.innerHTML = marked.parse(content);
+        } else {
+            let formattedContent = escapeHtml(content);
+            formattedContent = formattedContent.replace(/\n/g, '<br>');
+            contentEl.innerHTML = formattedContent;
+        }
         messageEl.appendChild(contentEl);
 
         if (sources && sources.length > 0) {
@@ -2526,6 +2571,7 @@
         editPath,
         deletePath,
         sendAiQuestion,
+        clearAiContext,
         toggleAdminPanel
     };
 

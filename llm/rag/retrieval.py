@@ -154,3 +154,61 @@ def get_context_from_knowledge_base(
     except Exception as e:
         logger.error(f"知識庫檢索失敗: {e}")
         return f"[知識庫檢索失敗: {str(e)}]"
+
+
+# ==================== 学习中心内容级检索 ====================
+
+
+def get_context_for_content(
+    question: str,
+    content_id: int,
+    k: int = 8,
+) -> str:
+    """
+    检索特定学习内容的相关片段（按 content_id 过滤）。
+
+    与 get_context_from_knowledge_base 不同，本函数将检索范围
+    限制在单篇学习内容的 chunk 内，用于内容感知型 AI 问答。
+
+    Args:
+        question: 用户问题
+        content_id: lc_contents.id
+        k: 返回的最相似片段数
+
+    Returns:
+        格式化的上下文字符串（与 get_context_from_knowledge_base 格式一致）
+    """
+    logger.info(
+        "内容级检索: question='%s...', content_id=%s",
+        question[:50],
+        content_id,
+    )
+
+    try:
+        vector_db = get_vector_db()
+        results = vector_db.similarity_search(
+            question,
+            k=k,
+            filter={"content_id": str(content_id)},
+        )
+
+        if not results:
+            logger.warning("content_id=%s 无匹配的 chunk", content_id)
+            return "[该内容尚未建立索引或无可检索的文本]"
+
+        context_parts = [
+            f"【片段{i + 1}】\n{doc.page_content}"
+            for i, doc in enumerate(results)
+        ]
+
+        context = "\n\n".join(context_parts)
+        logger.info(
+            "内容级检索结果: %d chunks, %d 字符",
+            len(results),
+            len(context),
+        )
+        return context
+
+    except Exception as e:
+        logger.error("内容级检索失败: %s", e)
+        return f"[内容检索失败: {str(e)}]"

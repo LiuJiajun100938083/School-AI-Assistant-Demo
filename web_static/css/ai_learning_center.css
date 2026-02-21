@@ -1384,6 +1384,52 @@
   box-shadow: var(--shadow-card);
 }
 
+/* 内容上下文指示条 — 显示当前阅读的内容标题 */
+.alc-ai-context-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #e8f5e9;
+  border-bottom: 1px solid #c8e6c9;
+  font-size: 13px;
+  color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.alc-ai-context-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.alc-ai-context-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alc-ai-context-text strong {
+  color: #1b5e20;
+}
+
+.alc-ai-context-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.alc-ai-context-clear:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #333;
+}
+
 .alc-ai-chat-container {
   display: flex;
   flex-direction: column;

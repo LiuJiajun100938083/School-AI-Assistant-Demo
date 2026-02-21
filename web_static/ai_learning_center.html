@@ -293,6 +293,9 @@
             <!-- 4. AI 助教面板 -->
             <section id="tabAi" class="alc-tab-panel">
                 <div class="alc-ai-section">
+                    <!-- 内容上下文指示条（阅读某内容时显示） -->
+                    <div id="aiContextIndicator" class="alc-ai-context-indicator" style="display: none;"></div>
+
                     <!-- AI 聊天容器 -->
                     <div class="alc-ai-chat-container">
                         <div id="aiMessages" class="alc-ai-messages">
@@ -303,10 +306,13 @@
                                     <p>你好！我是你的 AI 助教。我可以幫助你：</p>
                                     <ul style="margin-top: 10px; margin-left: 20px;">
                                         <li>解答學習疑問</li>
-                                        <li>推薦相關資源</li>
+                                        <li>總結文章要點</li>
+                                        <li>解釋關鍵概念</li>
                                         <li>生成練習題目</li>
-                                        <li>提供學習建議</li>
                                     </ul>
+                                    <p style="margin-top: 8px; font-size: 12px; color: #888;">
+                                        先在「教學資料」中打開一篇內容，我就能基於內容回答你的問題。
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -315,14 +321,14 @@
                         <div id="suggestedQuestionsContainer" class="alc-suggested-questions">
                             <p class="alc-suggested-title">推薦提問：</p>
                             <div class="alc-suggested-buttons">
-                                <button class="alc-suggested-btn" data-question="如何開始學習AI基礎？">
-                                    如何開始學習AI基礎？
+                                <button class="alc-suggested-btn" data-question="请总结一下这篇文章的要点">
+                                    總結要點
                                 </button>
-                                <button class="alc-suggested-btn" data-question="推薦一些進階資源">
-                                    推薦一些進階資源
+                                <button class="alc-suggested-btn" data-question="解释一下这个内容中的关键概念">
+                                    解釋關鍵概念
                                 </button>
-                                <button class="alc-suggested-btn" data-question="幫我生成今天的練習題">
-                                    幫我生成今天的練習題
+                                <button class="alc-suggested-btn" data-question="帮我生成几道关于这个内容的练习题">
+                                    生成練習題
                                 </button>
                             </div>
                         </div>
