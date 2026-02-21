@@ -17,7 +17,15 @@
 - **AI 问答响应解包错误**：`sendAiQuestion()` 取 `resp.data` 层解包，修复 `marked.parse(undefined)` 报错
 - **旧 PDF 索引自动重建**：新增 `has_page_metadata()` 检测旧索引缺少 `page_numbers` 字段，首次提问时自动删除旧索引并重建，确保页码跳转对历史上传的 PDF 也生效
 - **页码引用精简**：连续页码（如 42,43,44）合并为起始页（42）；AI prompt 改为只标注实际引用的页码
-- **页码引用分数不兼容**：`similarity_search_with_relevance_scores` 在 HuggingFace Embeddings + ChromaDB 下返回非归一化负数分数（如 -431），导致阈值过滤逻辑失效、`page_refs=0`。改用 `similarity_search` + 取前 3 个最相关 chunk 的页码
+- **页码引用分数不兼容**：`similarity_search_with_relevance_scores` 在 HuggingFace Embeddings + ChromaDB 下返回非归一化负数分数（如 -431），导致阈值过滤逻辑失效、`page_refs=0`。改用 `similarity_search` + 位置排序策略
+- **页码引用精度优化**：top_n 从 3 降为 2，避免低相关性 chunk 引入无关页码；用 `_pick_start_pages()`（per-chunk 连续页合并）+ `_deduplicate_page_refs()`（跨 chunk 去重）替代原有的全局合并逻辑
+- **AI 回答过于简短**：system prompt 中"不要罗列"的措辞导致 LLM 缩减回答内容，改为鼓励"详细且完整地回答"并提供有条理的步骤、要点
+- **PDF 跳转闪烁**：点击页码时 `iframe.src` 赋值会重新加载整个 PDF 文件导致白屏闪烁，改用 `contentWindow.location.replace()` 利用浏览器缓存实现无闪烁跳转
+- **繁体中文页码不可点击**：LLM 输出可能使用繁体「頁」而正则仅匹配简体「页」，正则更新为 `/【第([\d,、\-–]+)[页頁]】/g` 兼容两种写法
+- **PDF 跳转无效（hash 方式）**：Chrome PDF 阅读器仅在初始加载时读取 `#page=N`，后续 `location.hash` 修改不触发跳转。改用 `location.replace(url#page=N)` 触发 PDF 阅读器重新初始化
+
+### 新增
+- **AI 回答表格样式**：为 `.alc-message-content table` 添加完整的表格 CSS（边框、表头背景、内边距、斑马纹、悬浮高亮、横向滚动）
 
 ---
 
