@@ -11,6 +11,16 @@
 
 ---
 
+## [v1.8.1] [2026-02-21] PDF 页码跳转修复
+
+### 修复
+- **AI 问答响应解包错误**：`sendAiQuestion()` 取 `resp.data` 层解包，修复 `marked.parse(undefined)` 报错
+- **旧 PDF 索引自动重建**：新增 `has_page_metadata()` 检测旧索引缺少 `page_numbers` 字段，首次提问时自动删除旧索引并重建，确保页码跳转对历史上传的 PDF 也生效
+- **页码引用精简**：连续页码（如 42,43,44）合并为起始页（42）；AI prompt 改为只标注实际引用的页码
+- **页码引用分数不兼容**：`similarity_search_with_relevance_scores` 在 HuggingFace Embeddings + ChromaDB 下返回非归一化负数分数（如 -431），导致阈值过滤逻辑失效、`page_refs=0`。改用 `similarity_search` + 取前 3 个最相关 chunk 的页码
+
+---
+
 ## [v1.8.0] [2026-02-21] AI 回答 PDF 页码跳转
 
 ### 新增

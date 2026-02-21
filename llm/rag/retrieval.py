@@ -244,25 +244,25 @@ def get_context_for_content_with_pages(
     try:
         vector_db = get_vector_db()
 
-        # 使用带分数的检索，以便按相关性过滤
-        scored_results = vector_db.similarity_search_with_relevance_scores(
+        # 使用普通检索（结果已按相似度排序，最相关的在前）
+        results = vector_db.similarity_search(
             question,
             k=k,
             filter={"content_id": str(content_id)},
         )
 
-        if not scored_results:
+        if not results:
             logger.warning("content_id=%s 无匹配的 chunk", content_id)
             return "[该内容尚未建立索引或无可检索的文本]", []
 
         context_parts = []
         page_refs = []
 
-        # 取最高分作为基准，只保留分数 >= 最高分 * 0.75 的 chunk 的页码
-        top_score = scored_results[0][1] if scored_results else 0
-        relevance_threshold = top_score * 0.75
+        # 只取前 top_n 个最相关的 chunk 的页码作为引用
+        # （similarity_search 返回结果已按相似度降序排列）
+        top_n = min(3, len(results))
 
-        for i, (doc, score) in enumerate(scored_results):
+        for i, doc in enumerate(results):
             # 解析 page_numbers metadata（逗号分隔字符串 → int 列表）
             raw_pages = doc.metadata.get("page_numbers", "")
             page_list = _parse_page_numbers(raw_pages)
@@ -276,8 +276,8 @@ def get_context_for_content_with_pages(
 
             context_parts.append(f"{header}\n{doc.page_content}")
 
-            # 页码引用只收录高相关性 chunk（避免低相关 chunk 引入无关页码）
-            if page_list and score >= relevance_threshold:
+            # 只收录前 top_n 个最相关 chunk 的页码（避免低相关 chunk 引入无关页码）
+            if page_list and i < top_n:
                 preview = doc.page_content[:50].replace("\n", " ")
                 page_refs.append({
                     "snippet_index": i + 1,
@@ -292,7 +292,7 @@ def get_context_for_content_with_pages(
         context = "\n\n".join(context_parts)
         logger.info(
             "页码感知检索结果: %d chunks, %d 页码引用, %d 字符",
-            len(scored_results),
+            len(results),
             len(page_refs),
             len(context),
         )
