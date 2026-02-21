@@ -23,6 +23,11 @@
 - `lc_contents` 表新增 `sort_order` 列（迁移文件 `add_sort_order_to_lc_contents.sql`）
 - 内容列表改为按 `sort_order ASC, created_at DESC` 排序
 
+### 修复
+- **排序保存 422 错误**：`ReorderContentsRequest` 的 `min_items` 改为 `min_length`（Pydantic v2 兼容）
+- **上传缺少分类**：后端 `/upload` 端点新增 `category_ids` 参数，前端拖拽上传和外部视频上传均发送分类
+- **内容编辑改用弹窗表单**：从 `prompt()` 改为模态弹窗，支持修改标题、描述、内容类型和分类
+
 ---
 
 ## [v1.7.0] [2026-02-21 13:00] AI 助教流式输出 + 小窗/大窗切换
