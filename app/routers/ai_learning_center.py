@@ -477,6 +477,23 @@ async def create_content(
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
+@router.put("/api/admin/learning-center/contents/reorder")
+async def reorder_contents(
+    request: ReorderContentsRequest,
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
+):
+    """批量更新内容排序"""
+    try:
+        service = get_services().learning_center
+        service.reorder_contents(admin=admin_info, content_ids=request.content_ids)
+        return success_response(message="排序已更新")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("Error reordering contents")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
 @router.put("/api/admin/learning-center/contents/{content_id}")
 async def update_content(
     content_id: int,
@@ -531,23 +548,6 @@ async def publish_content(
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
         logger.exception("Error publishing content")
-        return error_response("SERVER_ERROR", str(e), status_code=500)
-
-
-@router.put("/api/admin/learning-center/contents/reorder")
-async def reorder_contents(
-    request: ReorderContentsRequest,
-    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
-):
-    """批量更新内容排序"""
-    try:
-        service = get_services().learning_center
-        service.reorder_contents(admin=admin_info, content_ids=request.content_ids)
-        return success_response(message="排序已更新")
-    except AppException as e:
-        return error_response(e.code, e.message, status_code=e.status_code)
-    except Exception as e:
-        logger.exception("Error reordering contents")
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
