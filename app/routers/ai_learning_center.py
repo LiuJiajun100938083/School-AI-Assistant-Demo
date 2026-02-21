@@ -142,7 +142,7 @@ class UpdatePathStepsRequest(BaseModel):
 
 class ReorderContentsRequest(BaseModel):
     """内容排序请求 — content_ids 按期望顺序排列"""
-    content_ids: List[int] = Field(..., min_items=1)
+    content_ids: List[int] = Field(..., min_length=1)
 
 
 class AIAskRequest(BaseModel):
@@ -560,6 +560,7 @@ async def upload_file(
     tags: str = Form(""),
     external_url: Optional[str] = Form(None),
     video_platform: Optional[str] = Form(None),
+    category_ids: Optional[str] = Form(None),
     admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """上傳文件並創建內容"""
@@ -568,6 +569,11 @@ async def upload_file(
 
         # 解析標籤
         tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+
+        # 解析分類 ID（FormData 传过来是逗号分隔字符串）
+        parsed_category_ids = []
+        if category_ids:
+            parsed_category_ids = [int(x.strip()) for x in category_ids.split(",") if x.strip().isdigit()]
 
         # 外部視頻
         if content_type == "video_external":
@@ -590,6 +596,9 @@ async def upload_file(
                 video_platform=video_platform,
                 status="published",
             )
+            # 关联分类
+            if parsed_category_ids:
+                service._content_categories.link(content["id"], parsed_category_ids)
             return success_response(data=content, message="外部視頻已創建")
 
         # 本地文件上傳
@@ -619,6 +628,10 @@ async def upload_file(
             tags=tag_list,
             status="published",
         )
+
+        # 关联分类
+        if parsed_category_ids:
+            service._content_categories.link(content["id"], parsed_category_ids)
 
         # 后台异步建立 RAG 索引（不阻塞上传响应）
         _schedule_content_indexing(content["id"], {

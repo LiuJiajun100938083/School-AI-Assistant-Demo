@@ -2103,37 +2103,90 @@
             if (!response.success) return;
             const content = response.data;
 
-            const newTitle = prompt('修改標題：', content.title);
-            if (newTitle === null) return; // cancelled
+            // 构建分类选项
+            const flatCats = flattenCategories(state.categories);
+            const catOptions = flatCats.map(c =>
+                `<option value="${c.id}" ${(content.category_ids || []).includes(c.id) ? 'selected' : ''}>${escapeHtml(c.name)}</option>`
+            ).join('');
 
-            const newDesc = prompt('修改描述：', content.description || '');
-            if (newDesc === null) return;
+            // 构建编辑弹窗
+            const overlay = document.createElement('div');
+            overlay.className = 'alc-modal-overlay active';
+            overlay.style.zIndex = '3000';
+            overlay.innerHTML = `
+                <div class="alc-modal-content alc-confirm-dialog" style="max-width:480px;">
+                    <h3>編輯內容</h3>
+                    <div class="alc-admin-form">
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">標題</label>
+                        <input type="text" id="_editTitle" class="alc-form-input" value="${escapeHtml(content.title)}" />
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">描述</label>
+                        <textarea id="_editDesc" class="alc-form-input" rows="3">${escapeHtml(content.description || '')}</textarea>
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">內容類型</label>
+                        <select id="_editType" class="alc-form-input">
+                            <option value="video_local" ${content.content_type === 'video_local' ? 'selected' : ''}>本地視頻</option>
+                            <option value="video_external" ${content.content_type === 'video_external' ? 'selected' : ''}>視頻連結</option>
+                            <option value="document" ${content.content_type === 'document' ? 'selected' : ''}>文件</option>
+                            <option value="image" ${content.content_type === 'image' ? 'selected' : ''}>圖片</option>
+                            <option value="article" ${content.content_type === 'article' ? 'selected' : ''}>文章</option>
+                        </select>
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">分類</label>
+                        <select id="_editCategory" class="alc-form-input">
+                            <option value="">不選擇分類</option>
+                            ${catOptions}
+                        </select>
+                    </div>
+                    <div class="alc-dialog-actions" style="margin-top:12px;">
+                        <button id="_editCancel" class="alc-btn alc-btn--secondary">取消</button>
+                        <button id="_editSave" class="alc-btn alc-btn--primary">保存</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
 
-            const updateData = {};
-            if (newTitle !== content.title) updateData.title = newTitle;
-            if (newDesc !== (content.description || '')) updateData.description = newDesc;
+            // 点击遮罩或取消关闭
+            overlay.querySelector('#_editCancel').addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
-            if (Object.keys(updateData).length === 0) {
-                showToast('沒有修改', 'info');
-                return;
-            }
+            // 保存
+            overlay.querySelector('#_editSave').addEventListener('click', async () => {
+                const newTitle = overlay.querySelector('#_editTitle').value.trim();
+                const newDesc = overlay.querySelector('#_editDesc').value.trim();
+                const newType = overlay.querySelector('#_editType').value;
+                const newCatId = overlay.querySelector('#_editCategory').value;
 
-            const updateResponse = await api(`${ADMIN_API}/contents/${contentId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updateData)
+                const updateData = {};
+                if (newTitle && newTitle !== content.title) updateData.title = newTitle;
+                if (newDesc !== (content.description || '')) updateData.description = newDesc;
+                if (newType !== content.content_type) updateData.content_type = newType;
+                if (newCatId) {
+                    updateData.category_ids = [parseInt(newCatId)];
+                } else {
+                    updateData.category_ids = [];
+                }
+
+                try {
+                    const updateResponse = await api(`${ADMIN_API}/contents/${contentId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+
+                    if (updateResponse.success) {
+                        showToast('內容已更新', 'success');
+                        overlay.remove();
+                        loadAdminContents();
+                        loadedTabs.delete('media');
+                        loadMedia();
+                    } else {
+                        showToast(updateResponse.message || '更新失敗', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to update content:', error);
+                    showToast('更新失敗', 'error');
+                }
             });
-
-            if (updateResponse.success) {
-                showToast('內容已更新', 'success');
-                loadAdminContents();
-                loadMedia();
-            } else {
-                showToast(updateResponse.message || '更新失敗', 'error');
-            }
         } catch (error) {
             console.error('Failed to edit content:', error);
-            showToast('更新失敗', 'error');
+            showToast('載入內容失敗', 'error');
         }
     };
 
@@ -2301,12 +2354,16 @@
         const titleInput = getElement('contentTitleInput');
         const typeSelect = getElement('contentTypeSelect');
         const descInput = getElement('contentDescInput');
+        const categorySelect = getElement('contentCategorySelect');
 
         const formData = new FormData();
         formData.append('file', file);
         formData.append('title', (titleInput && titleInput.value.trim()) || file.name);
         formData.append('description', (descInput && descInput.value.trim()) || '');
         formData.append('tags', '');
+        if (categorySelect && categorySelect.value) {
+            formData.append('category_ids', categorySelect.value);
+        }
 
         // Determine content type
         let contentType = (typeSelect && typeSelect.value) || 'document';
@@ -2375,6 +2432,7 @@
                 formData.append('external_url', externalUrl);
                 formData.append('tags', '');
                 if (videoPlatform) formData.append('video_platform', videoPlatform);
+                if (categoryId) formData.append('category_ids', categoryId);
 
                 const response = await apiUpload(`${ADMIN_API}/upload`, formData);
                 if (response.success) {
