@@ -46,7 +46,6 @@
         'map': 'tabMap',
         'paths': 'tabPaths',
         'media': 'tabMedia',
-        'ai': 'tabAi',
         'resources': 'tabResources',
     };
 
@@ -319,6 +318,7 @@
         setupAdminPanel();
         setupModals();
         setupAiAssistant();
+        setupAiFloatingWindow();
         setupTypeFilters();
 
         // Load initial data
@@ -480,9 +480,6 @@
                         break;
                     case 'resources':
                         await loadResources();
-                        break;
-                    case 'ai':
-                        // AI tab is ready to go
                         break;
                 }
             } catch (error) {
@@ -1369,6 +1366,113 @@
         state.currentContentId = null;
         state.currentContentTitle = null;
         updateAiContextIndicator();
+    }
+
+    // ==================== AI 浮动窗口 ====================
+
+    /**
+     * 切换 AI 助教浮动窗口的显示/隐藏状态。
+     */
+    function toggleAiWindow() {
+        const win = document.getElementById('aiFloatingWindow');
+        if (!win) return;
+
+        const isVisible = win.style.display === 'flex';
+        win.style.display = isVisible ? 'none' : 'flex';
+
+        // 首次打开时聚焦输入框
+        if (!isVisible) {
+            const input = getElement('aiInputBox');
+            if (input) input.focus();
+        }
+    }
+
+    /**
+     * 初始化浮动窗口的拖拽和缩放行为。
+     * 在 init() 中调用一次即可。
+     */
+    function setupAiFloatingWindow() {
+        const win = document.getElementById('aiFloatingWindow');
+        if (!win) return;
+
+        const header = document.getElementById('aiFloatHeader');
+        const resizeHandle = document.getElementById('aiFloatResize');
+
+        // ---- 拖拽逻辑 ----
+        if (header) {
+            let isDragging = false;
+            let dragOffsetX = 0;
+            let dragOffsetY = 0;
+
+            header.addEventListener('mousedown', (e) => {
+                // 排除按钮上的点击
+                if (e.target.closest('button')) return;
+
+                isDragging = true;
+                dragOffsetX = e.clientX - win.offsetLeft;
+                dragOffsetY = e.clientY - win.offsetTop;
+                win.style.transition = 'none';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const x = Math.max(0, Math.min(e.clientX - dragOffsetX, window.innerWidth - win.offsetWidth));
+                const y = Math.max(0, Math.min(e.clientY - dragOffsetY, window.innerHeight - win.offsetHeight));
+
+                win.style.left = x + 'px';
+                win.style.top = y + 'px';
+                // 拖拽时取消 right/bottom 定位，改为 left/top
+                win.style.right = 'auto';
+                win.style.bottom = 'auto';
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                win.style.transition = '';
+                document.body.style.userSelect = '';
+            });
+        }
+
+        // ---- 缩放逻辑 ----
+        if (resizeHandle) {
+            let isResizing = false;
+            let startX = 0;
+            let startY = 0;
+            let startW = 0;
+            let startH = 0;
+
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startW = win.offsetWidth;
+                startH = win.offsetHeight;
+                win.style.transition = 'none';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+
+                const newW = Math.max(300, startW + (e.clientX - startX));
+                const newH = Math.max(350, startH + (e.clientY - startY));
+
+                win.style.width = newW + 'px';
+                win.style.height = newH + 'px';
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (!isResizing) return;
+                isResizing = false;
+                win.style.transition = '';
+                document.body.style.userSelect = '';
+            });
+        }
+
     }
 
     async function sendAiQuestion() {
@@ -2572,6 +2676,7 @@
         deletePath,
         sendAiQuestion,
         clearAiContext,
+        toggleAiWindow,
         toggleAdminPanel
     };
 

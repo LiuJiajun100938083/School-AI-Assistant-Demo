@@ -1367,7 +1367,198 @@
 }
 
 /* =====================================================
-   7. AI ASSISTANT VIEW
+   7. AI ASSISTANT — FLOATING WINDOW
+   ===================================================== */
+
+/* 浮动窗口容器 */
+.alc-ai-float {
+  position: fixed;
+  z-index: 1500;
+  width: 380px;
+  height: 520px;
+  min-width: 300px;
+  min-height: 320px;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  animation: aiFloatIn 0.2s var(--ease-out);
+}
+
+@keyframes aiFloatIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 拖拽标题栏 */
+.alc-ai-float-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--brand);
+  color: white;
+  cursor: move;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.alc-ai-float-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.alc-ai-float-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.alc-ai-float-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  line-height: 1;
+}
+
+.alc-ai-float-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* 聊天主体（消息 + 建议问题） */
+.alc-ai-float-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 右下角 resize 手柄 */
+.alc-ai-float-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 10;
+}
+
+.alc-ai-float-resize::after {
+  content: '';
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-tertiary);
+  border-bottom: 2px solid var(--text-tertiary);
+  opacity: 0.5;
+}
+
+/* 浮动窗口内的 AI 消息区域样式覆盖 */
+.alc-ai-float .alc-ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.alc-ai-float .alc-ai-input-area {
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-card);
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.alc-ai-float .alc-ai-textarea {
+  flex: 1;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  font-family: var(--font-sans);
+  resize: none;
+  max-height: 80px;
+  min-height: 32px;
+}
+
+.alc-ai-float .alc-ai-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  border: none;
+  color: white;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-height: 32px;
+  transition: opacity 0.15s;
+}
+
+.alc-ai-float .alc-ai-send-btn:hover {
+  opacity: 0.85;
+}
+
+.alc-ai-float .alc-message-content {
+  max-width: 85%;
+  font-size: 13px;
+}
+
+.alc-ai-float .alc-suggested-questions {
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.alc-ai-float .alc-suggested-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alc-ai-float .alc-suggested-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+/* 浮动窗口内的上下文指示条 */
+.alc-ai-float .alc-ai-context-indicator {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* tab 栏中 AI 助教按钮激活态 */
+#aiFloatingToggleBtn.alc-ai-float-active {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* =====================================================
+   7b. AI ASSISTANT — LEGACY STYLES (kept for compat)
    ===================================================== */
 
 .alc-ai-section {
