@@ -1789,6 +1789,45 @@
   line-height: 1.5;
 }
 
+/* ---- AI 回复中的表格 ---- */
+
+.alc-message-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-3) 0;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: auto;
+  display: block;
+}
+
+.alc-message-content thead {
+  background-color: var(--bg-page, #f8f9fa);
+}
+
+.alc-message-content th,
+.alc-message-content td {
+  border: 1px solid var(--border-light, #e2e8f0);
+  padding: 6px 10px;
+  text-align: left;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.alc-message-content th {
+  font-weight: 600;
+  color: var(--text-primary);
+  background-color: var(--bg-page, #f8f9fa);
+}
+
+.alc-message-content tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.alc-message-content tr:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
 /* ---- 页码引用（行内标记 + 快捷导航） ---- */
 
 .alc-page-ref {

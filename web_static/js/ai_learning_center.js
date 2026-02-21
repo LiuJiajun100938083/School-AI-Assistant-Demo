@@ -1653,19 +1653,23 @@
             return;
         }
 
-        const currentSrc = iframe.src || '';
-        // 去除已有的 #page= fragment
-        const baseSrc = currentSrc.replace(/#page=\d+/, '').replace(/#$/, '');
-        const newSrc = `${baseSrc}#page=${page}`;
-
-        if (currentSrc === newSrc) {
-            // 相同 URL 需要强制刷新 iframe
-            iframe.src = '';
-            requestAnimationFrame(() => { iframe.src = newSrc; });
-        } else {
-            iframe.src = newSrc;
+        // 优先通过修改 hash 实现无刷新跳页（同源 PDF）
+        try {
+            const iframeWin = iframe.contentWindow;
+            if (iframeWin) {
+                iframeWin.location.hash = `page=${page}`;
+                showToast(`已跳转到第 ${page} 页`, 'info');
+                return;
+            }
+        } catch (e) {
+            // 跨域 iframe 无法访问 contentWindow，降级到 src 方式
         }
 
+        // Fallback：修改 iframe src（会重新加载 PDF）
+        const currentSrc = iframe.src || '';
+        const baseSrc = currentSrc.replace(/#.*$/, '');
+        const newSrc = `${baseSrc}#page=${page}`;
+        iframe.src = newSrc;
         showToast(`已跳转到第 ${page} 页`, 'info');
     }
 
