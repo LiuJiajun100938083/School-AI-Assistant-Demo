@@ -72,7 +72,7 @@
                 <span class="alc-tab-icon">📖</span>
                 <span class="alc-tab-label">教學資料</span>
             </button>
-            <button class="alc-tab-button" id="aiFloatingToggleBtn" onclick="window.lcLearningCenter.toggleAiWindow()">
+            <button class="alc-tab-button" id="aiFloatingToggleBtn" data-action="toggleAiWindow">
                 <span class="alc-tab-icon">🤖</span>
                 <span class="alc-tab-label">AI 助教</span>
             </button>
@@ -104,6 +104,15 @@
             <!-- 1. 知識地圖面板 -->
             <section id="tabMap" class="alc-tab-panel">
                 <div class="alc-map-container">
+                    <!-- 搜索框 -->
+                    <div class="alc-map-search">
+                        <svg class="alc-map-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <input id="mapSearchInput" type="text" class="alc-map-search-input" placeholder="搜索节点..." />
+                    </div>
+
                     <!-- 控制條 -->
                     <div class="alc-map-controls">
                         <button id="mapZoomInBtn" class="alc-control-btn" title="放大">
@@ -135,6 +144,12 @@
                             </svg>
                         </button>
                     </div>
+
+                    <!-- 图例 -->
+                    <div class="alc-map-legend" id="mapLegend"></div>
+
+                    <!-- Tooltip -->
+                    <div id="kgTooltip" class="kg-tooltip" style="opacity:0;pointer-events:none;"></div>
 
                     <!-- SVG 容器 -->
                     <svg id="knowledgeMapSvg" class="alc-knowledge-map"></svg>
@@ -436,6 +451,12 @@
 
                 <!-- 知識點管理 -->
                 <div id="adminTabNodes" class="alc-admin-tab-content">
+                    <!-- 批量導入入口 -->
+                    <div class="alc-admin-form">
+                        <h3>批量導入</h3>
+                        <p class="alc-form-hint">通過 JSON 一次性匯入多個知識點和連接關係</p>
+                        <button id="openBatchImportBtn" class="alc-btn alc-btn--secondary">📥 批量導入知識圖譜</button>
+                    </div>
                     <div class="alc-admin-form">
                         <h3>新建知識點</h3>
                         <input type="text" id="nodeNameInput" class="alc-form-input" placeholder="知識點名稱" />
@@ -555,6 +576,58 @@
         </div>
     </div>
 
+    <!-- 批量導入知識圖譜 -->
+    <div id="batchImportModal" class="alc-modal-overlay">
+        <div class="alc-modal-content alc-batch-import-dialog">
+            <button class="alc-modal-close" id="batchImportCloseBtn" aria-label="關閉">&times;</button>
+            <div class="alc-modal-info">
+                <h3>📥 批量導入知識圖譜</h3>
+                <p>通過 JSON 格式一次性創建多個知識點和連接關係。節點間透過 <code>temp_id</code> 互相引用。</p>
+            </div>
+
+            <div class="alc-batch-import-body">
+                <!-- JSON 文件上傳區 -->
+                <div class="alc-drag-drop-zone" id="batchImportDropZone">
+                    <p>📄 拖放 JSON 文件到此處，或點擊選擇</p>
+                    <input type="file" id="batchImportFileInput" class="alc-file-input" accept=".json" />
+                </div>
+                <p id="batchImportFileName" class="alc-form-hint" style="display: none;"></p>
+
+                <!-- JSON 文本編輯區 -->
+                <label class="alc-form-label" for="batchImportJsonInput">或直接貼上 JSON</label>
+                <textarea
+                    id="batchImportJsonInput"
+                    class="alc-form-input alc-batch-import-textarea"
+                    rows="12"
+                    spellcheck="false"
+                    placeholder='{
+  "nodes": [
+    { "temp_id": "n1", "title": "基礎概念", "icon": "📚", "color": "#0066cc" },
+    { "temp_id": "n2", "title": "進階應用", "icon": "🚀", "color": "#ff6600" }
+  ],
+  "edges": [
+    { "source": "n1", "target": "n2", "relation_type": "前置", "label": "基礎→進階" }
+  ]
+}'
+                ></textarea>
+
+                <!-- 選項 -->
+                <label class="alc-batch-import-checkbox">
+                    <input type="checkbox" id="batchImportClearExisting" />
+                    <span>導入前清空現有知識點（⚠️ 不可撤銷）</span>
+                </label>
+
+                <!-- 導入結果 -->
+                <div id="batchImportResult" class="alc-batch-import-result" style="display: none;"></div>
+            </div>
+
+            <div class="alc-dialog-actions alc-batch-import-actions">
+                <button id="batchImportCancelBtn" class="alc-btn alc-btn--secondary">取消</button>
+                <button id="batchImportSubmitBtn" class="alc-btn alc-btn--primary">確認導入</button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <!-- ========== AI 助教浮动窗口 ========== -->
@@ -563,8 +636,8 @@
     <div class="alc-ai-float-header" id="aiFloatHeader">
         <span class="alc-ai-float-title">🤖 AI 助教</span>
         <div class="alc-ai-float-actions">
-            <button class="alc-ai-float-btn" id="aiFloatExpandBtn" onclick="window.lcLearningCenter.toggleAiWindowSize()" title="放大/缩小">&#9634;</button>
-            <button class="alc-ai-float-btn" onclick="window.lcLearningCenter.toggleAiWindow()" title="关闭">&#10005;</button>
+            <button class="alc-ai-float-btn" id="aiFloatExpandBtn" data-action="toggleAiWindowSize" title="放大/缩小">&#9634;</button>
+            <button class="alc-ai-float-btn" id="aiFloatCloseBtn" data-action="toggleAiWindow" title="关闭">&#10005;</button>
         </div>
     </div>
 
@@ -597,6 +670,6 @@
     </div>
 </div>
 
-<script src="/static/js/ai_learning_center.js"></script>
+<script src="/static/js/ai_learning_center.js" charset="UTF-8"></script>
 </body>
 </html>

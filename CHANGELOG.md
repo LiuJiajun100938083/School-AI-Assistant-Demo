@@ -11,6 +11,201 @@
 
 ---
 
+## [v2.3.0] [2026-02-23] 知识图谱节点详情面板修复 + 重新设计
+
+### 修复
+
+- **节点详情面板不可见** — CSS 使用 `transform: translateX(100%)` 隐藏面板，但 JS 只切换 `display` 而从未添加 `--active` class，导致面板渲染了但始终推在屏幕外。现在改为正确的 `classList.add/remove('alc-node-detail-panel--active')` 配合 `display: flex` 切换，带滑入/滑出 CSS transition 动画。
+- **「打开并定位」按钮完全失效** — `escapeHtml()`（`div.textContent` → `div.innerHTML`）不转义双引号 `"`。Anchor JSON 如 `{"type":"page","value":28}` 中的 `"` 在 `onclick="..."` 属性内提前截断了属性值，导致 onclick handler 被浏览器解析为无效 JS。改为 `data-content-id` + `data-anchor` 属性 + `addEventListener` 事件委托，彻底消除 HTML 属性转义问题。
+- **关联节点按钮** — 同样移除 inline `onclick`，改用 `data-node-id` + 事件委托。
+- **关闭按钮** — 改用 `addEventListener` 绑定，不再依赖 inline `onclick`。
+- **`hideNodeDetail` 动画** — 新增 `transitionend` 监听 + 400ms fallback，确保面板滑出动画完成后再隐藏。
+
+### 修改（UI 重新设计）
+
+- **面板容器** — 宽度 320px → 340px，增加 `box-shadow: -4px 0 24px`，`overflow: hidden`
+- **彩色渐变头部** — 使用节点自身颜色做 `linear-gradient(135deg)` 背景 + 半透明暗角叠加层，白色标题带 `text-shadow`
+- **毛玻璃关闭按钮** — 圆形 `backdrop-filter: blur(8px)` + 半透明白底，hover 放大 `scale(1.1)`
+- **可滚动内容区** — 超细 4px 滚动条 `scrollbar-width: thin`
+- **区块标签** — 改用 `uppercase + letter-spacing: 0.04em` 小标签 + 圆形数量徽标 pill
+- **关联教程** — 整行可点击卡片（36px 图标方块 + 标题/锚点 + `›` 箭头），hover 绿色边框 + 阴影 + 箭头微移
+- **关联节点** — 胶囊 chip 标签 + `flex-wrap` 自动换行，hover 品牌绿高亮
+- **分隔线** — `<hr>` 配 `var(--border-light)` 替代硬边框
+- **CSS 类名体系** — 全面重构为 BEM 风格 `alc-nd__*`（21 个新类），移除所有无样式的旧类名
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/ai_learning_center.js` | `showNodeDetail()` 重写 HTML 模板 + 事件委托；`hideNodeDetail()` 增加 CSS transition 动画 |
+| `web_static/css/ai_learning_center.css` | 节点详情面板 CSS 完全重写（21 个 `alc-nd__*` 类 + 响应式 + 交互状态） |
+
+---
+
+## [v2.2.1] [2026-02-23] 一键部署脚本 deploy_learning_center.py
+
+> **⚠️ 另一台电脑部署步骤**：
+> ```bash
+> git pull
+> # 确保 Downloads 文件夹里有 3 份 PDF 原件（见下方列表）
+> python scripts/deploy_learning_center.py
+> ```
+> 脚本会自动完成：数据库迁移 → 搜索并上传 PDF → 启动服务器 → 批量导入知识图谱 + 内容关联 + 页码锚点。
+
+### 新增
+
+- **`scripts/deploy_learning_center.py`** — 一键部署脚本，功能：
+  1. 检查/执行数据库迁移（`lc_node_contents` 添加 `anchor` 列）
+  2. 自动在 Downloads / Desktop / Documents 等目录搜索 3 份 PDF：
+     - `ULearning AI Agent System and AI Bench User Manual (Teacher).pdf`
+     - `utest_guide_teachers_en.pdf`
+     - `ulearning_guide_students_en_web_browser.pdf`
+  3. 复制 PDF 到 `uploads/learning_center/documents/` 并插入 `lc_contents` 记录
+  4. 自动启动 FastAPI 服务器（如未运行）
+  5. 自动获取 JWT token 并调用批量导入 API
+  6. 自动映射 content_id（开发机 → 当前机器，不同数据库分配 ID 可能不同）
+  7. 导入 3 份知识图谱 JSON（87 节点 + 101 边 + 87 内容关联）
+  8. 输出最终统计：节点数、边数、教学内容数、内容关联数
+  - 幂等安全：重复运行不会创建重复 PDF 记录（检查已存在则跳过）
+  - 备用方案：API 不可用时自动降级为数据库直连导入 content_links
+  - Windows 兼容：处理了 cp1252 终端编码问题
+
+---
+
+## [v2.2.0] [2026-02-23] 批量导入支持 content_links + 3 份 PDF 锚点数据
+
+> **⚠️ 数据操作**：此版本已上传 2 份新 PDF 到 `lc_contents` 并批量导入了 AI Agent System 知识图谱（含内容关联）。
+> 如需在另一台电脑同步，需：
+> 1. 确保 `add_anchor_to_node_contents.sql` 迁移已执行（v2.1.0）
+> 2. 将 `Downloads` 中的 `utest_guide_teachers_en.pdf` 和 `ulearning_guide_students_en_web_browser.pdf` 上传到教学资料
+> 3. 记下新创建的 content_id，更新 JSON 文件中 `content_links` 的 `content_id` 值
+> 4. 通过批量导入 API 重新导入 3 份 JSON（需 `clear_existing: true`）
+
+### 新增
+
+- **批量导入支持 `content_links`** — 在 KG JSON 中直接定义节点→内容关联（含锚点）
+  - 新增 `BatchContentLinkInput` Pydantic 模型（`router.py`）
+  - `BatchImportKnowledgeGraphRequest` 新增 `content_links` 字段
+  - `batch_import_knowledge_graph()` 服务方法新增第三阶段：批量创建节点-内容关联
+  - `NodeContentRepository.link_with_anchor()` 支持 anchor JSON 的单条插入（INSERT IGNORE 防重复）
+  - 返回值新增 `created_links` 和 `skipped_links` 计数
+
+- **JSON 格式扩展** — 三份 KG JSON 均已添加 `content_links` 数组：
+  ```json
+  "content_links": [
+    { "node": "ut_root", "content_id": 4, "anchor": { "type": "page", "value": 1 } },
+    { "node": "ut_q_manual", "content_id": 4, "anchor": { "type": "page_range", "from": 8, "to": 10 } }
+  ]
+  ```
+
+- **2 份新 PDF 上传到系统**
+  - `content_id=4`: UTest Teacher Guide (99页) — `utest_guide_teachers_en.pdf`
+  - `content_id=5`: ULearning Student Guide (60页) — `ulearning_guide_students_en_web_browser.pdf`
+  - 通过 pymupdf 自动提取 PDF 目录，精确匹配每个 KG 节点到对应 PDF 页码
+
+- **AI Agent System KG 已导入** — 31 节点 + 35 边 + 31 内容关联，全部含页码锚点
+
+### 修改
+
+- **`app/routers/ai_learning_center.py`**
+  - 新增 `BatchContentLinkInput` 模型
+  - `BatchImportKnowledgeGraphRequest` 新增 `content_links` 字段
+  - 路由传递 `content_links` 到 service
+
+- **`app/domains/ai_learning_center/service.py`**
+  - `batch_import_knowledge_graph()` 新增 `content_links` 参数和处理逻辑
+
+- **`app/domains/ai_learning_center/repository.py`**
+  - 新增 `NodeContentRepository.link_with_anchor()` 方法
+
+- **`data/kg_ai_agent_system.json`** — 新增 31 条 content_links（content_id=1, 页码 1-44）
+- **`data/kg_utest_teacher_guide.json`** — 新增 36 条 content_links（content_id=4, 页码 1-99）
+- **`data/kg_ulearning_student_guide.json`** — 新增 20 条 content_links（content_id=5, 页码 1-60）
+
+---
+
+## [v2.1.0] [2026-02-23] 知识图谱可视化大改 + 节点→文件定位导航系统
+
+> **⚠️ 数据库迁移**：在另一台电脑上部署时，必须先执行以下 SQL：
+> ```
+> mysql -u root -p school_ai_assistant < database_migration/add_anchor_to_node_contents.sql
+> ```
+> 该迁移为 `lc_node_contents` 表新增 `anchor` JSON 列，用于存储知识节点到内容的定位锚点。
+
+### 新增
+
+- **知识图谱可视化 — 全面重写 `renderKnowledgeMap()`**
+  - 层级检测：BFS 从零入度节点出发，自动计算 `_depth` 并分为 Root / L1 / L2 三级
+  - 分级渲染 (`TIER_CONFIG`)：Root 节点 r=55 带呼吸光环，L1 r=38，L2 r=26
+  - 边分层：`hierLinks`（包含关系）默认显示，`crossLinks`（其他关系边）默认隐藏
+  - 力布局：`forceRadial` 按层级分圈 + `forceCollide` 防重叠
+  - 缩放语义 (LOD)：`applyLOD()` 3 级缩放阈值，远看只显示大节点，近看显示全部标签
+  - 聚焦高亮：`handleNodeHover()` 高亮邻居 opacity 1，其余 0.15
+  - 展开/折叠：`toggleCollapse()` 双击收起子树
+  - 图例面板：`renderMapLegend()` 毛玻璃图例说明节点大小和边颜色含义
+
+- **节点→文件定位导航系统 (Phase 1 + Phase 2)**
+  - `navigateToContent(contentId, anchorJson)`：点击节点关联内容→自动切换到"教学资料"Tab→打开内容→定位到锚点
+  - `applyAnchor(anchor)`：支持 4 种锚点类型
+    - `page`：PDF 页码跳转（`#page=N`，浏览器原生支持）
+    - `heading`：Article 标题定位（`scrollIntoView`）
+    - `timestamp`：视频时间戳跳转（`video.currentTime`）
+    - `keyword`：关键词搜索 fallback（`TreeWalker` 文本扫描 + 高亮）
+
+- **Hover 信息卡片 (Tooltip)**
+  - `showNodeTooltip(node, event)` / `hideNodeTooltip()` / `keepTooltipOpen()`
+  - 300ms debounce 延迟显示，鼠标移入 tooltip 保持显示
+  - 内容：标题 + 描述（前80字）+ 关联内容数 + 邻居节点数
+  - "进入教程" 一键跳转 + "查看详情" 打开右侧面板
+
+- **节点内容数量徽标 (Badge)**
+  - 有关联内容的节点右上角显示小圆徽标 + 内容数量
+  - 仅在 `node.contents.length > 0` 时显示
+
+- **节点搜索高亮**
+  - `searchNodes(keyword)` + `initMapSearch()`
+  - 搜索范围：`node.title` + `node.description`
+  - 匹配节点脉冲动画（`.kg-search-ring`），非匹配节点淡化至 0.12
+  - 自动平移居中到第一个匹配节点
+  - Escape 键清空搜索恢复默认
+
+- **数据库迁移文件**
+  - `database_migration/add_anchor_to_node_contents.sql` — `lc_node_contents` 新增 `anchor JSON` 列
+  - anchor JSON 示例：`{"type":"page","value":5}`, `{"type":"heading","value":"Creating Exam"}`, `{"type":"timestamp","value":120}`, `{"type":"keyword","value":"exam proctoring"}`
+
+### 修改
+
+- **`app/domains/ai_learning_center/repository.py`**
+  - `NodeContentRepository.find_by_node()` 重写为 JOIN 查询，返回 `content_title`, `content_type`, `file_path`, `file_name`, `external_url`, `anchor` 完整信息（原先只返回关联 ID）
+
+- **`web_static/js/ai_learning_center.js`** — 主要改动文件
+  - `renderKnowledgeMap()` 完全重写（层级布局 + 分级渲染 + LOD + 力布局）
+  - `showNodeDetail(node)` 重写：新增关联内容列表 + "打开并定位"按钮 + 方向性关系箭头
+  - 新增函数：`navigateToContent()`, `applyAnchor()`, `formatAnchorHint()`, `showNodeTooltip()`, `hideNodeTooltip()`, `keepTooltipOpen()`, `searchNodes()`, `initMapSearch()`, `computeHierarchy()`, `applyLOD()`, `handleNodeHover()`, `toggleCollapse()`, `renderMapLegend()`
+  - 新增 state 字段：`lastSelectedNodeId`, `lastZoomTransform`
+  - 公共 API 扩展：`window.lcLearningCenter` 新增 `navigateToContent`, `searchNodes`
+
+- **`web_static/ai_learning_center.html`**
+  - 新增搜索输入框 `<div class="alc-map-search">` 在地图控制栏
+  - 新增 tooltip 容器 `<div id="kgTooltip">`
+  - 新增图例容器 `<div class="alc-map-legend" id="mapLegend">`
+
+- **`web_static/css/ai_learning_center.css`**
+  - 新增样式：`.kg-tooltip` 系列（毛玻璃浮动信息卡片）
+  - 新增样式：`.alc-map-search` 系列（搜索框 + 聚焦绿色边框）
+  - 新增样式：`.kg-search-ring` + `@keyframes searchPulse`（搜索脉冲动画）
+  - 新增样式：`.alc-content-link-*` 系列（详情面板内容链接卡片）
+  - 新增样式：`.alc-node-section`（详情面板分区标题）
+  - 新增样式：`.alc-map-legend` 系列（图例面板）
+  - 新增样式：`.kg-glow-ring` + `@keyframes rootGlow`（根节点呼吸光环）
+
+### 修复
+
+- **D3.js 崩溃 bug** — 删除节点后残留悬空边引用导致 `renderKnowledgeMap()` 报错
+  - 在渲染前过滤掉 `source` 或 `target` 不存在于节点集合中的边
+
+---
+
 ## [v2.0.0] [2026-02-22] 根目录遗留文件完全迁移 — 零代码异味
 
 ### 删除

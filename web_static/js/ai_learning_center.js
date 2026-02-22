@@ -33,9 +33,12 @@
             videos: 0,
             documents: 0
         },
-        // AI 助教 — 当前阅读的内容上下文
+        // AI 助教 - 当前阅读的内容上下文
         currentContentId: null,
         currentContentTitle: null,
+        // 知识地图 - 导航状态
+        lastSelectedNodeId: null,
+        lastZoomTransform: null,
     };
 
     // Track loaded tabs to avoid duplicate API calls
@@ -894,6 +897,120 @@
         }
     }
 
+    // ---- Hierarchy helpers ----
+
+    /** Node tier configuration by depth */
+    const TIER_CONFIG = {
+        0: { radius: 55, border: 4, fontSize: 15, iconSize: 28, shadow: 12, label: 'root' },
+        1: { radius: 38, border: 3, fontSize: 12, iconSize: 22, shadow: 6,  label: 'L1' },
+        2: { radius: 26, border: 2, fontSize: 10, iconSize: 16, shadow: 3,  label: 'L2' },
+    };
+
+    /** Edge color palette by relation_type */
+    const EDGE_COLORS = {
+        '包含': '#999',
+        '前置': '#006633',
+        '關聯': '#0066cc',
+        '关联': '#0066cc',
+        '影響': '#e67e22',
+        '影响': '#e67e22',
+        '備選': '#8e44ad',
+        '备选': '#8e44ad',
+        '延伸': '#0066cc',
+    };
+    const EDGE_COLOR_DEFAULT = '#aaa';
+
+    /**
+     * Detect hierarchy via BFS from zero-in-degree root nodes.
+     * Attaches `_depth`, `_tierCfg`, `_children` to each node in-place.
+     * Returns { childrenMap, adjacencyMap, hierarchyEdges, crossEdges }.
+     */
+    function computeHierarchy(nodes, edges) {
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+        const inDegree = new Map(nodes.map(n => [n.id, 0]));
+        const childrenMap = new Map(nodes.map(n => [n.id, []]));
+        const adjacencyMap = new Map(nodes.map(n => [n.id, new Set()]));
+
+        // Separate hierarchy (包含) edges from cross-link edges
+        const hierarchyEdges = [];
+        const crossEdges = [];
+
+        edges.forEach(e => {
+            const sId = e.source_node_id ?? (typeof e.source === 'object' ? e.source.id : e.source);
+            const tId = e.target_node_id ?? (typeof e.target === 'object' ? e.target.id : e.target);
+            if (!nodeMap.has(sId) || !nodeMap.has(tId)) return;
+
+            adjacencyMap.get(sId).add(tId);
+            adjacencyMap.get(tId).add(sId);
+
+            const relType = e.relation_type || e.relationship_type || e.label || '';
+            if (relType === '包含') {
+                inDegree.set(tId, (inDegree.get(tId) || 0) + 1);
+                childrenMap.get(sId).push(tId);
+                hierarchyEdges.push(e);
+            } else {
+                crossEdges.push(e);
+            }
+        });
+
+        // Find roots = nodes with 0 in-degree within hierarchy edges
+        const roots = nodes.filter(n => (inDegree.get(n.id) || 0) === 0);
+
+        // BFS to assign depth
+        nodes.forEach(n => { n._depth = Infinity; });
+        const queue = [];
+        roots.forEach(r => { r._depth = 0; queue.push(r); });
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+            const kids = childrenMap.get(current.id) || [];
+            kids.forEach(kidId => {
+                const kid = nodeMap.get(kidId);
+                if (kid && kid._depth > current._depth + 1) {
+                    kid._depth = current._depth + 1;
+                    queue.push(kid);
+                }
+            });
+        }
+
+        // Assign tier config: depth 0 → root, 1 → L1, 2+ → L2
+        nodes.forEach(n => {
+            if (n._depth === Infinity) n._depth = 2; // orphans treated as L2
+            const tierKey = Math.min(n._depth, 2);
+            n._tierCfg = TIER_CONFIG[tierKey];
+            n._children = childrenMap.get(n.id) || [];
+            n._collapsed = false;
+            n._visible = true;
+        });
+
+        return { childrenMap, adjacencyMap, hierarchyEdges, crossEdges };
+    }
+
+    /**
+     * Collect all descendant IDs of a node via BFS over childrenMap.
+     */
+    function getDescendants(nodeId, childrenMap) {
+        const result = new Set();
+        const stack = [...(childrenMap.get(nodeId) || [])];
+        while (stack.length > 0) {
+            const id = stack.pop();
+            if (result.has(id)) continue;
+            result.add(id);
+            (childrenMap.get(id) || []).forEach(c => stack.push(c));
+        }
+        return result;
+    }
+
+    /**
+     * Truncate text with ellipsis; handles CJK and Latin.
+     */
+    function truncateLabel(text, maxLen) {
+        if (!text) return '';
+        return text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
+    }
+
+    // ---- Main render function ----
+
     function renderKnowledgeMap() {
         const svgElement = getElement('knowledgeMapSvg');
         if (!svgElement || !window.d3) {
@@ -915,169 +1032,460 @@
         // Clear previous content
         d3.select(svgElement).selectAll('*').remove();
 
-        // Map edge data: API returns source_node_id/target_node_id, D3 expects source/target
-        const d3Edges = state.edges.map(e => ({
+        // ── A. Hierarchy detection ──
+        const { childrenMap, adjacencyMap, hierarchyEdges, crossEdges } =
+            computeHierarchy(state.nodes, state.edges);
+
+        // Build D3 edge arrays
+        const toD3Edge = (e, isHierarchy) => ({
             ...e,
             source: e.source_node_id,
             target: e.target_node_id,
             label: e.relationship_type || e.label || '',
-        }));
+            _isHierarchy: isHierarchy,
+        });
+        const d3HierarchyEdges = hierarchyEdges.map(e => toD3Edge(e, true));
+        const d3CrossEdges = crossEdges.map(e => toD3Edge(e, false));
+        const d3Edges = [...d3HierarchyEdges, ...d3CrossEdges];
 
-        // Setup dimensions
+        // ── Setup dimensions ──
         const width = svgElement.clientWidth || 800;
         const height = svgElement.clientHeight || 600;
+        const cx = width / 2;
+        const cy = height / 2;
 
-        // Create SVG
         const svg = d3.select(svgElement)
             .attr('width', width)
             .attr('height', height);
 
-        // Define arrow marker
-        svg.append('defs').append('marker')
-            .attr('id', 'arrowhead')
-            .attr('markerWidth', 10)
-            .attr('markerHeight', 10)
-            .attr('refX', 48)
-            .attr('refY', 3)
-            .attr('orient', 'auto')
-            .append('polygon')
-            .attr('points', '0 0, 10 3, 0 6')
-            .attr('fill', '#999');
+        // ── Defs: arrow markers per type + glow filter ──
+        const defs = svg.append('defs');
 
-        // Create groups
-        const g = svg.append('g');
-        const linkGroup = g.append('g').attr('class', 'links');
-        const nodeGroup = g.append('g').attr('class', 'nodes');
-        const labelGroup = g.append('g').attr('class', 'labels');
+        // Arrow markers for each edge color
+        const markerColors = { hierarchy: '#999', prerequisite: '#006633', relation: '#0066cc', fallback: '#aaa' };
+        Object.entries(markerColors).forEach(([key, color]) => {
+            defs.append('marker')
+                .attr('id', `arrow-${key}`)
+                .attr('markerWidth', 8).attr('markerHeight', 8)
+                .attr('refX', 6).attr('refY', 3)
+                .attr('orient', 'auto')
+                .append('polygon')
+                .attr('points', '0 0, 8 3, 0 6')
+                .attr('fill', color);
+        });
 
-        // Create force simulation
-        const simulation = d3.forceSimulation(state.nodes)
-            .force('link', d3.forceLink(d3Edges)
-                .id(d => d.id)
-                .distance(200)
-                .strength(0.5))
-            .force('charge', d3.forceManyBody().strength(-500))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(80));
+        // Glow filter for root nodes
+        const glowFilter = defs.append('filter')
+            .attr('id', 'rootGlow')
+            .attr('x', '-50%').attr('y', '-50%')
+            .attr('width', '200%').attr('height', '200%');
+        glowFilter.append('feGaussianBlur')
+            .attr('stdDeviation', 6).attr('result', 'blur');
+        glowFilter.append('feMerge')
+            .selectAll('feMergeNode')
+            .data(['blur', 'SourceGraphic'])
+            .enter().append('feMergeNode')
+            .attr('in', d => d);
 
-        // Render edges
-        const links = linkGroup.selectAll('line')
-            .data(d3Edges)
-            .enter()
-            .append('line')
-            .attr('stroke', '#ccc')
-            .attr('stroke-width', 2)
-            .attr('marker-end', 'url(#arrowhead)');
+        // ── Layer groups (order matters for z-index) ──
+        const g = svg.append('g').attr('class', 'kg-root-group');
+        const crossLinkGroup = g.append('g').attr('class', 'kg-cross-links');
+        const hierLinkGroup  = g.append('g').attr('class', 'kg-hier-links');
+        const nodeGroupEl    = g.append('g').attr('class', 'kg-nodes');
 
-        // Edge labels
-        const edgeLabels = labelGroup.selectAll('text.edge-label')
-            .data(d3Edges)
-            .enter()
-            .append('text')
-            .attr('class', 'edge-label')
-            .attr('dy', -5)
-            .text(d => d.label || '')
+        // ── B. Render hierarchy edges (straight lines) ──
+        const hierLinks = hierLinkGroup.selectAll('line.kg-hier-edge')
+            .data(d3HierarchyEdges)
+            .enter().append('line')
+            .attr('class', 'kg-hier-edge')
+            .attr('stroke', '#bbb')
+            .attr('stroke-width', 1.5)
+            .attr('stroke-opacity', 0.6)
+            .attr('marker-end', 'url(#arrow-hierarchy)');
+
+        // ── Render cross-link edges (curved paths, hidden by default) ──
+        const crossLinks = crossLinkGroup.selectAll('path.kg-cross-edge')
+            .data(d3CrossEdges)
+            .enter().append('path')
+            .attr('class', 'kg-cross-edge')
+            .attr('fill', 'none')
+            .attr('stroke', d => {
+                const rel = d.relation_type || d.relationship_type || '';
+                return EDGE_COLORS[rel] || EDGE_COLOR_DEFAULT;
+            })
+            .attr('stroke-width', 1.5)
+            .attr('stroke-dasharray', '6 3')
+            .attr('stroke-opacity', 0)
+            .attr('marker-end', d => {
+                const rel = d.relation_type || d.relationship_type || '';
+                if (rel === '前置') return 'url(#arrow-prerequisite)';
+                if (rel.includes('關聯') || rel.includes('关联') || rel.includes('延伸')) return 'url(#arrow-relation)';
+                return 'url(#arrow-fallback)';
+            });
+
+        // Edge labels for cross-links (hidden by default)
+        const crossEdgeLabels = crossLinkGroup.selectAll('text.kg-cross-label')
+            .data(d3CrossEdges)
+            .enter().append('text')
+            .attr('class', 'kg-cross-label')
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '10px')
             .attr('fill', '#666')
-            .attr('font-size', '12px');
+            .attr('opacity', 0)
+            .text(d => d.label || '');
 
-        // Render nodes
-        const nodes = nodeGroup.selectAll('circle')
+        // ── C. Render node groups ──
+        const nodeGroups = nodeGroupEl.selectAll('g.kg-node')
             .data(state.nodes)
-            .enter()
-            .append('circle')
-            .attr('r', 45)
-            .attr('fill', d => d.color || '#4CAF50')
-            .attr('stroke', '#fff')
-            .attr('stroke-width', 3)
+            .enter().append('g')
+            .attr('class', d => `kg-node kg-depth-${Math.min(d._depth, 2)}`)
             .attr('cursor', 'pointer')
-            .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))')
             .on('click', (event, d) => {
                 event.stopPropagation();
                 showNodeDetail(d);
+            })
+            .on('dblclick', (event, d) => {
+                event.stopPropagation();
+                toggleCollapse(d);
+            })
+            .on('mouseenter', (event, d) => {
+                handleNodeHover(d, true);
+                _tooltipTimer = setTimeout(() => showNodeTooltip(d, event), 300);
+            })
+            .on('mouseleave', () => {
+                handleNodeHover(null, false);
+                hideNodeTooltip();
             })
             .call(d3.drag()
                 .on('start', dragStarted)
                 .on('drag', dragged)
                 .on('end', dragEnded));
 
-        // Node icon (emoji)
-        const nodeIcons = labelGroup.selectAll('text.node-icon')
-            .data(state.nodes)
-            .enter()
-            .append('text')
-            .attr('class', 'node-icon')
+        // Glow ring for root nodes
+        nodeGroups.filter(d => d._depth === 0)
+            .append('circle')
+            .attr('class', 'kg-glow-ring')
+            .attr('r', d => d._tierCfg.radius + 8)
+            .attr('fill', 'none')
+            .attr('stroke', d => d.color || '#006633')
+            .attr('stroke-width', 3)
+            .attr('stroke-opacity', 0.4)
+            .attr('filter', 'url(#rootGlow)');
+
+        // Main circle
+        nodeGroups.append('circle')
+            .attr('class', 'kg-node-circle')
+            .attr('r', d => d._tierCfg.radius)
+            .attr('fill', d => d.color || '#4CAF50')
+            .attr('stroke', '#fff')
+            .attr('stroke-width', d => d._tierCfg.border)
+            .style('filter', d => `drop-shadow(0 2px ${d._tierCfg.shadow}px rgba(0,0,0,0.25))`);
+
+        // Icon
+        nodeGroups.append('text')
+            .attr('class', 'kg-node-icon')
             .attr('text-anchor', 'middle')
-            .attr('dy', '-0.2em')
-            .attr('font-size', '22px')
+            .attr('dominant-baseline', 'central')
+            .attr('dy', d => d._depth === 0 ? '-0.25em' : '-0.15em')
+            .attr('font-size', d => d._tierCfg.iconSize + 'px')
             .attr('pointer-events', 'none')
             .text(d => d.icon || '📌');
 
-        // Node labels (below icon, inside circle)
-        const nodeLabels = labelGroup.selectAll('text.node-label')
-            .data(state.nodes)
-            .enter()
+        // In-circle label (root + L1 only)
+        nodeGroups.filter(d => d._depth <= 1)
             .append('text')
-            .attr('class', 'node-label')
+            .attr('class', 'kg-node-label')
             .attr('text-anchor', 'middle')
-            .attr('dy', '1.4em')
-            .attr('font-size', '13px')
-            .attr('font-weight', 'bold')
+            .attr('dy', d => d._depth === 0 ? '1.6em' : '1.5em')
+            .attr('font-size', d => d._tierCfg.fontSize + 'px')
+            .attr('font-weight', '600')
             .attr('fill', '#fff')
             .attr('pointer-events', 'none')
-            .text(d => d.title.length > 6 ? d.title.substring(0, 6) + '…' : d.title);
+            .text(d => {
+                const maxLen = d._depth === 0 ? 12 : 8;
+                return truncateLabel(d.title, maxLen);
+            });
 
-        // Node title tooltip (full name shown below the circle)
-        const nodeTitles = labelGroup.selectAll('text.node-title')
-            .data(state.nodes)
-            .enter()
-            .append('text')
-            .attr('class', 'node-title')
+        // Below-node title (visible for root + L1, hidden for L2 until hover)
+        nodeGroups.append('text')
+            .attr('class', 'kg-node-title')
             .attr('text-anchor', 'middle')
-            .attr('dy', '4.2em')
-            .attr('font-size', '13px')
+            .attr('dy', d => (d._tierCfg.radius + 16) + 'px')
+            .attr('font-size', d => (d._depth === 0 ? 13 : 11) + 'px')
             .attr('font-weight', '500')
             .attr('fill', '#333')
             .attr('pointer-events', 'none')
+            .attr('opacity', d => d._depth <= 1 ? 1 : 0)
             .text(d => d.title);
 
-        // Zoom behavior
+        // Collapse indicator for nodes with children
+        nodeGroups.filter(d => d._children.length > 0)
+            .append('text')
+            .attr('class', 'kg-collapse-indicator')
+            .attr('text-anchor', 'middle')
+            .attr('dy', d => -(d._tierCfg.radius + 6) + 'px')
+            .attr('font-size', '11px')
+            .attr('fill', '#666')
+            .attr('pointer-events', 'none')
+            .text(d => d._collapsed ? '▶' : '▼');
+
+        // Content count badge for nodes with linked content
+        const badgeGroups = nodeGroups.filter(d => d.contents && d.contents.length > 0);
+
+        badgeGroups.append('circle')
+            .attr('class', 'kg-badge-bg')
+            .attr('cx', d => d._tierCfg.radius * 0.65)
+            .attr('cy', d => -d._tierCfg.radius * 0.65)
+            .attr('r', 9)
+            .attr('fill', 'var(--brand, #006633)')
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1.5);
+
+        badgeGroups.append('text')
+            .attr('class', 'kg-badge-text')
+            .attr('x', d => d._tierCfg.radius * 0.65)
+            .attr('y', d => -d._tierCfg.radius * 0.65)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'central')
+            .attr('font-size', '9px')
+            .attr('font-weight', '700')
+            .attr('fill', '#fff')
+            .attr('pointer-events', 'none')
+            .text(d => d.contents.length);
+
+        // ── D. Force simulation ──
+        const simulation = d3.forceSimulation(state.nodes)
+            .force('link', d3.forceLink(d3Edges)
+                .id(d => d.id)
+                .distance(d => d._isHierarchy ? 140 : 200)
+                .strength(d => d._isHierarchy ? 0.7 : 0.2))
+            .force('charge', d3.forceManyBody()
+                .strength(d => {
+                    if (d._depth === 0) return -800;
+                    if (d._depth === 1) return -400;
+                    return -200;
+                }))
+            .force('center', d3.forceCenter(cx, cy))
+            .force('radial', d3.forceRadial(
+                d => {
+                    if (d._depth === 0) return 0;
+                    if (d._depth === 1) return 200;
+                    return 420;
+                }, cx, cy).strength(d => d._depth === 0 ? 1 : 0.5))
+            .force('collision', d3.forceCollide()
+                .radius(d => d._tierCfg.radius + 15));
+
+        // ── Tick: update positions ──
+        simulation.on('tick', () => {
+            hierLinks
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => {
+                    const t = d.target;
+                    const r = (t._tierCfg ? t._tierCfg.radius : 26) + 4;
+                    const dx = t.x - d.source.x;
+                    const dy = t.y - d.source.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    return t.x - (dx / dist) * r;
+                })
+                .attr('y2', d => {
+                    const t = d.target;
+                    const r = (t._tierCfg ? t._tierCfg.radius : 26) + 4;
+                    const dx = t.x - d.source.x;
+                    const dy = t.y - d.source.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    return t.y - (dy / dist) * r;
+                });
+
+            crossLinks.attr('d', d => {
+                const sx = d.source.x, sy = d.source.y;
+                const tx = d.target.x, ty = d.target.y;
+                const mx = (sx + tx) / 2;
+                const my = (sy + ty) / 2;
+                const dx = tx - sx, dy = ty - sy;
+                const offset = Math.min(40, Math.sqrt(dx * dx + dy * dy) * 0.2);
+                return `M${sx},${sy} Q${mx - dy * 0.15 + offset},${my + dx * 0.15 + offset} ${tx},${ty}`;
+            });
+
+            crossEdgeLabels
+                .attr('x', d => (d.source.x + d.target.x) / 2)
+                .attr('y', d => (d.source.y + d.target.y) / 2 - 6);
+
+            nodeGroups.attr('transform', d => `translate(${d.x},${d.y})`);
+        });
+
+        // ── E. Zoom with LOD ──
+        let currentScale = 1;
+
         const zoom = d3.zoom()
+            .scaleExtent([0.2, 5])
             .on('zoom', (event) => {
                 g.attr('transform', event.transform);
+                state.lastZoomTransform = event.transform;
+                const newScale = event.transform.k;
+                if (Math.abs(newScale - currentScale) > 0.05) {
+                    currentScale = newScale;
+                    applyLOD(newScale);
+                }
             });
 
         svg.call(zoom);
 
-        // Update positions on simulation tick
-        simulation.on('tick', () => {
-            links
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y);
+        function applyLOD(scale) {
+            if (scale < 0.5) {
+                // Far out: only root + L1 visible
+                nodeGroups.attr('opacity', d => d._depth <= 1 ? 1 : 0.15);
+                hierLinks.attr('opacity', d => {
+                    const sDepth = d.source._depth ?? 2;
+                    const tDepth = d.target._depth ?? 2;
+                    return (sDepth <= 1 && tDepth <= 1) ? 0.6 : 0.08;
+                });
+                crossLinks.attr('stroke-opacity', 0);
+                crossEdgeLabels.attr('opacity', 0);
+            } else if (scale < 1.5) {
+                // Normal: all visible, cross-links still hidden
+                nodeGroups.attr('opacity', d => d._visible ? 1 : 0);
+                hierLinks.attr('opacity', 0.6);
+                crossLinks.attr('stroke-opacity', 0);
+                crossEdgeLabels.attr('opacity', 0);
+            } else {
+                // Zoomed in: show everything including cross-links and edge labels
+                nodeGroups.attr('opacity', d => d._visible ? 1 : 0);
+                hierLinks.attr('opacity', 0.7);
+                crossLinks.attr('stroke-opacity', d => {
+                    const sVis = d.source._visible !== false;
+                    const tVis = d.target._visible !== false;
+                    return (sVis && tVis) ? 0.6 : 0;
+                });
+                crossEdgeLabels.attr('opacity', d => {
+                    const sVis = d.source._visible !== false;
+                    const tVis = d.target._visible !== false;
+                    return (sVis && tVis) ? 0.8 : 0;
+                });
+            }
+        }
 
-            edgeLabels
-                .attr('x', d => (d.source.x + d.target.x) / 2)
-                .attr('y', d => (d.source.y + d.target.y) / 2);
+        // ── F. Hover path highlighting ──
+        function handleNodeHover(hoveredNode, isEntering) {
+            if (!isEntering || !hoveredNode) {
+                // Restore default
+                nodeGroups.transition().duration(200)
+                    .attr('opacity', d => d._visible ? 1 : 0);
+                hierLinks.transition().duration(200)
+                    .attr('stroke-opacity', 0.6).attr('stroke-width', 1.5);
+                crossLinks.transition().duration(200)
+                    .attr('stroke-opacity', 0);
+                crossEdgeLabels.transition().duration(200).attr('opacity', 0);
+                nodeGroups.selectAll('.kg-node-title')
+                    .transition().duration(200)
+                    .attr('opacity', d => d._depth <= 1 ? 1 : 0);
+                applyLOD(currentScale); // re-apply LOD state
+                return;
+            }
 
-            nodes
-                .attr('cx', d => d.x)
-                .attr('cy', d => d.y);
+            const neighbors = adjacencyMap.get(hoveredNode.id) || new Set();
 
-            nodeIcons
-                .attr('x', d => d.x)
-                .attr('y', d => d.y);
+            // Dim non-neighbors
+            nodeGroups.transition().duration(200)
+                .attr('opacity', d => {
+                    if (!d._visible) return 0;
+                    if (d.id === hoveredNode.id || neighbors.has(d.id)) return 1;
+                    return 0.15;
+                });
 
-            nodeLabels
-                .attr('x', d => d.x)
-                .attr('y', d => d.y);
+            // Show L2 titles on hover
+            nodeGroups.selectAll('.kg-node-title')
+                .transition().duration(200)
+                .attr('opacity', d => {
+                    if (d.id === hoveredNode.id || neighbors.has(d.id)) return 1;
+                    return 0.1;
+                });
 
-            nodeTitles
-                .attr('x', d => d.x)
-                .attr('y', d => d.y);
-        });
+            // Highlight connected hierarchy edges
+            hierLinks.transition().duration(200)
+                .attr('stroke-opacity', d => {
+                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                    if (sId === hoveredNode.id || tId === hoveredNode.id) return 0.9;
+                    return 0.08;
+                })
+                .attr('stroke-width', d => {
+                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 3 : 1.5;
+                });
 
-        // Drag behavior
+            // Show connected cross-links
+            crossLinks.transition().duration(200)
+                .attr('stroke-opacity', d => {
+                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 0.7 : 0;
+                });
+
+            crossEdgeLabels.transition().duration(200)
+                .attr('opacity', d => {
+                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 0.9 : 0;
+                });
+        }
+
+        // ── G. Expand / Collapse ──
+        function toggleCollapse(node) {
+            if (!node._children || node._children.length === 0) return;
+
+            node._collapsed = !node._collapsed;
+            const descendants = getDescendants(node.id, childrenMap);
+
+            if (node._collapsed) {
+                // Hide all descendants
+                descendants.forEach(id => {
+                    const n = state.nodes.find(nd => nd.id === id);
+                    if (n) n._visible = false;
+                });
+            } else {
+                // Show children (but respect their own collapsed state)
+                const revealQueue = [...(childrenMap.get(node.id) || [])];
+                while (revealQueue.length > 0) {
+                    const id = revealQueue.shift();
+                    const n = state.nodes.find(nd => nd.id === id);
+                    if (n) {
+                        n._visible = true;
+                        if (!n._collapsed) {
+                            (childrenMap.get(id) || []).forEach(c => revealQueue.push(c));
+                        }
+                    }
+                }
+            }
+
+            // Update visibility
+            nodeGroups.transition().duration(300)
+                .attr('opacity', d => d._visible ? 1 : 0)
+                .attr('pointer-events', d => d._visible ? 'all' : 'none');
+
+            hierLinks.transition().duration(300)
+                .attr('opacity', d => {
+                    const sVis = d.source._visible !== false;
+                    const tVis = d.target._visible !== false;
+                    return (sVis && tVis) ? 0.6 : 0;
+                });
+
+            crossLinks.transition().duration(300)
+                .attr('stroke-opacity', 0);
+
+            // Update collapse indicator
+            nodeGroups.selectAll('.kg-collapse-indicator')
+                .text(d => {
+                    if (!d._children || d._children.length === 0) return '';
+                    return d._collapsed ? '▶' : '▼';
+                });
+
+            // Reheat simulation
+            simulation.alpha(0.3).restart();
+        }
+
+        // ── Drag behavior ──
         function dragStarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
@@ -1095,8 +1503,222 @@
             d.fy = null;
         }
 
-        // Add zoom controls
+        // ── H. Legend + Search + Tooltip ──
+        renderMapLegend();
+        initMapSearch();
+
+        // Setup tooltip hover-keep behavior
+        const tooltipEl = getElement('kgTooltip');
+        if (tooltipEl) {
+            tooltipEl.addEventListener('mouseenter', keepTooltipOpen);
+            tooltipEl.addEventListener('mouseleave', hideNodeTooltip);
+        }
+
+        // ── Setup zoom controls ──
         setupKnowledgeMapControls(svg, zoom);
+    }
+
+    /**
+     * Render the map legend in the #mapLegend container.
+     */
+    function renderMapLegend() {
+        const container = getElement('mapLegend');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="alc-map-legend-title">图例</div>
+            <div class="alc-map-legend-section">
+                <div class="alc-map-legend-item">
+                    <span class="alc-map-legend-dot" style="width:18px;height:18px;background:#6200EA;"></span>
+                    <span>根节点</span>
+                </div>
+                <div class="alc-map-legend-item">
+                    <span class="alc-map-legend-dot" style="width:13px;height:13px;background:#7C4DFF;"></span>
+                    <span>一级节点</span>
+                </div>
+                <div class="alc-map-legend-item">
+                    <span class="alc-map-legend-dot" style="width:9px;height:9px;background:#B388FF;"></span>
+                    <span>二级节点</span>
+                </div>
+            </div>
+            <div class="alc-map-legend-section">
+                <div class="alc-map-legend-item">
+                    <span class="alc-map-legend-line" style="background:#999;"></span>
+                    <span>包含</span>
+                </div>
+                <div class="alc-map-legend-item">
+                    <span class="alc-map-legend-line" style="background:#006633;border-style:dashed;"></span>
+                    <span>前置</span>
+                </div>
+                <div class="alc-map-legend-item">
+                    <span class="alc-map-legend-line" style="background:#0066cc;border-style:dashed;"></span>
+                    <span>关联</span>
+                </div>
+            </div>
+            <div class="alc-map-legend-hint">双击节点展开/收起</div>
+        `;
+    }
+
+    // ── Tooltip ──
+
+    let _tooltipTimer = null;
+
+    function showNodeTooltip(node, event) {
+        clearTimeout(_tooltipTimer);
+        const tooltip = getElement('kgTooltip');
+        if (!tooltip) return;
+
+        const contents = node.contents || [];
+        const neighbors = state.edges.filter(
+            e => e.source_node_id === node.id || e.target_node_id === node.id
+        );
+
+        const contentCount = contents.length;
+        const neighborCount = neighbors.length;
+        const desc = (node.description || '').substring(0, 80);
+
+        // Build quick-jump button if content exists
+        const quickJumpHtml = contentCount > 0
+            ? `<button class="kg-tooltip-btn"
+                 onclick="window.lcLearningCenter.navigateToContent('${contents[0].content_id}', ${contents[0].anchor ? "'" + escapeHtml(JSON.stringify(contents[0].anchor)) + "'" : 'null'})">
+                 进入教程
+               </button>`
+            : '';
+
+        tooltip.innerHTML = `
+            <div class="kg-tooltip-title">${node.icon || '📌'} ${escapeHtml(node.title)}</div>
+            ${desc ? `<div class="kg-tooltip-desc">${escapeHtml(desc)}${node.description && node.description.length > 80 ? '...' : ''}</div>` : ''}
+            <div class="kg-tooltip-meta">
+                ${contentCount > 0 ? `<span>📄 ${contentCount} 份教程</span>` : ''}
+                <span>↗ ${neighborCount} 个相关节点</span>
+            </div>
+            <div class="kg-tooltip-actions">
+                ${quickJumpHtml}
+                <button class="kg-tooltip-btn kg-tooltip-btn--secondary"
+                    onclick="window.lcLearningCenter.showNodeDetail(window.lcLearningCenter.getNode('${node.id}'))">
+                    查看详情
+                </button>
+            </div>
+        `;
+
+        // Position tooltip near the node
+        const container = tooltip.closest('.alc-map-container');
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        // Auto-position: prefer right side, fall back to left
+        const tooltipWidth = 240;
+        const tooltipHeight = tooltip.offsetHeight || 160;
+        let left = mouseX + 16;
+        let top = mouseY - 10;
+
+        if (left + tooltipWidth > rect.width) left = mouseX - tooltipWidth - 16;
+        if (top + tooltipHeight > rect.height) top = rect.height - tooltipHeight - 8;
+        if (top < 8) top = 8;
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.style.opacity = '1';
+        tooltip.style.pointerEvents = 'auto';
+    }
+
+    function hideNodeTooltip() {
+        _tooltipTimer = setTimeout(() => {
+            const tooltip = getElement('kgTooltip');
+            if (tooltip) {
+                tooltip.style.opacity = '0';
+                tooltip.style.pointerEvents = 'none';
+            }
+        }, 200);
+    }
+
+    function keepTooltipOpen() {
+        clearTimeout(_tooltipTimer);
+    }
+
+    // ── Node Search ──
+
+    function searchNodes(keyword) {
+        if (!keyword || !keyword.trim()) {
+            // Reset: restore all nodes to default
+            const nodeGroups = d3.selectAll('.kg-node');
+            nodeGroups.transition().duration(300)
+                .attr('opacity', d => d._visible ? 1 : 0);
+            d3.selectAll('.kg-search-ring').remove();
+            return;
+        }
+
+        const term = keyword.trim().toLowerCase();
+        const matches = state.nodes.filter(n =>
+            (n.title && n.title.toLowerCase().includes(term)) ||
+            (n.description && n.description.toLowerCase().includes(term))
+        );
+
+        if (matches.length === 0) {
+            showToast('未找到匹配的节点', 'warning');
+            return;
+        }
+
+        const matchIds = new Set(matches.map(n => n.id));
+
+        // Dim non-matches, highlight matches
+        const nodeGroups = d3.selectAll('.kg-node');
+        nodeGroups.transition().duration(300)
+            .attr('opacity', d => matchIds.has(d.id) ? 1 : 0.12);
+
+        // Add pulsing ring to matches
+        d3.selectAll('.kg-search-ring').remove();
+        nodeGroups.filter(d => matchIds.has(d.id))
+            .append('circle')
+            .attr('class', 'kg-search-ring')
+            .attr('r', d => d._tierCfg.radius + 10)
+            .attr('fill', 'none')
+            .attr('stroke', 'var(--brand, #006633)')
+            .attr('stroke-width', 3)
+            .attr('stroke-opacity', 0.8);
+
+        // Auto-pan to first match
+        const first = matches[0];
+        if (first && first.x != null && first.y != null) {
+            const svgElement = getElement('knowledgeMapSvg');
+            if (svgElement) {
+                const svg = d3.select(svgElement);
+                const width = svgElement.clientWidth || 800;
+                const height = svgElement.clientHeight || 600;
+                svg.transition().duration(750).call(
+                    d3.zoom().transform,
+                    d3.zoomIdentity
+                        .translate(width / 2, height / 2)
+                        .scale(1.2)
+                        .translate(-first.x, -first.y)
+                );
+            }
+        }
+
+        showToast(`找到 ${matches.length} 个匹配节点`, 'success');
+    }
+
+    function initMapSearch() {
+        const input = getElement('mapSearchInput');
+        if (!input) return;
+
+        let searchTimer = null;
+        input.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                searchNodes(input.value);
+            }, SEARCH_DEBOUNCE_DELAY);
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                input.value = '';
+                searchNodes('');
+                input.blur();
+            }
+        });
     }
 
     function setupKnowledgeMapControls(svg, zoom) {
@@ -1127,46 +1749,297 @@
         const panel = getElement('nodeDetailPanel');
         if (!panel) return;
 
-        // Find related contents
-        const relatedEdges = state.edges.filter(e => e.source_node_id === node.id || e.target_node_id === node.id);
-        const relatedContentIds = [];
-        // Note: This assumes the API provides content associations
+        state.lastSelectedNodeId = node.id;
 
+        // Find related edges
+        const relatedEdges = state.edges.filter(
+            e => e.source_node_id === node.id || e.target_node_id === node.id
+        );
+
+        // Build content links HTML
+        const contents = node.contents || [];
+        const contentLinksHtml = contents.length > 0
+            ? contents.map(c => {
+                const icon = getContentTypeIcon(c.content_type);
+                const anchorHint = formatAnchorHint(c.anchor);
+                const anchorAttr = c.anchor
+                    ? ` data-anchor="${JSON.stringify(c.anchor).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"`
+                    : '';
+                return `
+                    <div class="alc-nd__content-card" data-content-id="${c.content_id}"${anchorAttr} role="button" tabindex="0">
+                        <span class="alc-nd__content-icon">${icon}</span>
+                        <div class="alc-nd__content-meta">
+                            <span class="alc-nd__content-name">${escapeHtml(c.content_title || '未命名内容')}</span>
+                            ${anchorHint ? `<span class="alc-nd__content-hint">${anchorHint}</span>` : ''}
+                        </div>
+                        <span class="alc-nd__content-arrow">&rsaquo;</span>
+                    </div>`;
+            }).join('')
+            : '<p class="alc-nd__empty">暂无关联教程</p>';
+
+        // Build related nodes HTML
+        const relatedNodesHtml = relatedEdges.length > 0
+            ? relatedEdges.map(edge => {
+                const relatedNode = state.nodes.find(n =>
+                    (edge.source_node_id === node.id ? edge.target_node_id : edge.source_node_id) === n.id
+                );
+                if (!relatedNode) return '';
+                const direction = edge.source_node_id === node.id ? '>' : '<';
+                return `
+                    <button class="alc-nd__rel-chip" data-node-id="${relatedNode.id}">
+                        <span class="alc-nd__rel-dir">${direction}</span>
+                        ${escapeHtml(relatedNode.title)}
+                    </button>`;
+            }).join('')
+            : '<p class="alc-nd__empty">暂无相关节点</p>';
+
+        // Render panel
+        const nodeColor = node.color || '#006633';
         panel.innerHTML = `
-            <div class="alc-node-detail">
-                <button class="alc-close-btn" onclick="window.lcLearningCenter.hideNodeDetail()">&times;</button>
-                <div class="alc-node-header" style="background-color: ${node.color || '#4CAF50'}">
-                    <h2>${escapeHtml(node.title)}</h2>
+            <div class="alc-nd">
+                <div class="alc-nd__header" style="background: linear-gradient(135deg, ${nodeColor}, ${nodeColor}dd)">
+                    <button class="alc-nd__close">&times;</button>
+                    <div class="alc-nd__icon">${node.icon || '📌'}</div>
+                    <h2 class="alc-nd__title">${escapeHtml(node.title)}</h2>
                 </div>
-                <div class="alc-node-body">
-                    <p>${escapeHtml(node.description || '')}</p>
-                    <div class="alc-related-nodes">
-                        <h4>相关节点</h4>
-                        ${relatedEdges.length > 0 ? relatedEdges.map(edge => {
-                            const relatedNode = state.nodes.find(n =>
-                                (edge.source_node_id === node.id ? edge.target_node_id : edge.source_node_id) === n.id
-                            );
-                            return relatedNode ? `
-                                <div class="alc-related-node">
-                                    <span class="alc-relation-label">${escapeHtml(edge.label || edge.relation_type)}</span>
-                                    <button class="alc-related-node-btn" onclick="window.lcLearningCenter.showNodeDetail(window.lcLearningCenter.getNode('${relatedNode.id}'))">
-                                        ${escapeHtml(relatedNode.title)}
-                                    </button>
-                                </div>
-                            ` : '';
-                        }).join('') : '<p class="alc-empty">暂无相关节点</p>'}
+                <div class="alc-nd__body">
+                    <div class="alc-nd__section">
+                        <p class="alc-nd__desc">${escapeHtml(node.description || '暂无描述')}</p>
+                    </div>
+
+                    <hr class="alc-nd__divider">
+
+                    <div class="alc-nd__section">
+                        <h4 class="alc-nd__section-label">
+                            关联教程
+                            ${contents.length > 0 ? `<span class="alc-nd__count">${contents.length}</span>` : ''}
+                        </h4>
+                        <div class="alc-nd__content-list">${contentLinksHtml}</div>
+                    </div>
+
+                    <hr class="alc-nd__divider">
+
+                    <div class="alc-nd__section">
+                        <h4 class="alc-nd__section-label">
+                            关联节点
+                            ${relatedEdges.length > 0 ? `<span class="alc-nd__count">${relatedEdges.length}</span>` : ''}
+                        </h4>
+                        <div class="alc-nd__rel-list">${relatedNodesHtml}</div>
                     </div>
                 </div>
             </div>
         `;
 
-        panel.style.display = 'block';
+        // Show panel with slide-in animation
+        panel.style.display = 'flex';
+        requestAnimationFrame(() => {
+            panel.classList.add('alc-node-detail-panel--active');
+        });
+
+        // Event delegation: close button
+        panel.querySelector('.alc-nd__close').addEventListener('click', hideNodeDetail);
+
+        // Event delegation: content cards (navigate to content)
+        panel.querySelectorAll('.alc-nd__content-card[data-content-id]').forEach(card => {
+            card.addEventListener('click', () => {
+                const contentId = card.getAttribute('data-content-id');
+                const anchorStr = card.getAttribute('data-anchor');
+                let anchor = null;
+                if (anchorStr) {
+                    try { anchor = JSON.parse(anchorStr); }
+                    catch (e) { console.warn('[KG] anchor parse error:', e); }
+                }
+                navigateToContent(contentId, anchor);
+            });
+        });
+
+        // Event delegation: related node chips
+        panel.querySelectorAll('.alc-nd__rel-chip[data-node-id]').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const nodeId = chip.getAttribute('data-node-id');
+                const targetNode = state.nodes.find(n => n.id == nodeId);
+                if (targetNode) showNodeDetail(targetNode);
+            });
+        });
+    }
+
+    /** Format anchor hint text for display */
+    function formatAnchorHint(anchor) {
+        if (!anchor) return '';
+        switch (anchor.type) {
+            case 'page': return `→ 第 ${anchor.value} 页`;
+            case 'page_range': return `→ 第 ${anchor.from}-${anchor.to} 页`;
+            case 'heading': return `→ ${anchor.value}`;
+            case 'timestamp': {
+                const min = Math.floor(anchor.value / 60);
+                const sec = anchor.value % 60;
+                return `→ ${min}:${String(sec).padStart(2, '0')}`;
+            }
+            case 'keyword': return `→ 搜索: ${anchor.value}`;
+            default: return '';
+        }
+    }
+
+    /**
+     * Navigate from knowledge map to content viewer with anchor positioning.
+     * @param {string|number} contentId - Content ID to open
+     * @param {string|null} anchorJson - JSON string of anchor object (escaped)
+     */
+    async function navigateToContent(contentId, anchorJson) {
+        console.log('[KG Navigate] contentId:', contentId, 'anchorJson:', anchorJson);
+
+        // Parse anchor - handle both string JSON and pre-parsed objects
+        let anchor = null;
+        if (anchorJson) {
+            try {
+                anchor = typeof anchorJson === 'string' ? JSON.parse(anchorJson) : anchorJson;
+                // If JSON.parse returned a string (double-encoded), parse again
+                if (typeof anchor === 'string') {
+                    anchor = JSON.parse(anchor);
+                }
+            } catch (e) {
+                console.warn('[KG Navigate] Failed to parse anchor:', anchorJson, e);
+            }
+        }
+        console.log('[KG Navigate] Parsed anchor:', anchor);
+
+        // Hide node detail panel to avoid overlap
+        hideNodeDetail();
+
+        // Switch to media tab
+        await switchTab('media');
+
+        // Small delay to ensure tab is visible
+        await new Promise(resolve => setTimeout(resolve, 150));
+
+        // Open content in ebook viewer
+        try {
+            await showEbookContent(contentId);
+            console.log('[KG Navigate] Content loaded successfully');
+        } catch (e) {
+            console.error('[KG Navigate] Failed to load content:', e);
+            return;
+        }
+
+        // Apply anchor positioning after content loads
+        if (anchor) {
+            // For PDF, apply anchor directly in the iframe src (more reliable than waiting)
+            if (anchor.type === 'page' || anchor.type === 'page_range') {
+                const bodyEl = document.getElementById('ebookViewerBody');
+                if (bodyEl) {
+                    const iframe = bodyEl.querySelector('iframe');
+                    if (iframe && iframe.src) {
+                        const page = anchor.type === 'page' ? anchor.value : anchor.from;
+                        const baseUrl = iframe.src.split('#')[0];
+                        const newSrc = baseUrl + '#page=' + page;
+                        console.log('[KG Navigate] Setting PDF page:', page, 'URL:', newSrc);
+                        iframe.src = newSrc;
+                    } else {
+                        console.warn('[KG Navigate] No iframe found for PDF navigation');
+                    }
+                }
+            }
+            // Wait for content to render, then apply anchor (for non-PDF or as fallback)
+            await new Promise(resolve => setTimeout(resolve, 800));
+            applyAnchor(anchor);
+        }
+    }
+
+    /**
+     * Apply anchor positioning to the currently loaded content.
+     */
+    function applyAnchor(anchor) {
+        const bodyEl = document.getElementById('ebookViewerBody');
+        if (!bodyEl || !anchor) return;
+
+        switch (anchor.type) {
+            case 'page':
+            case 'page_range': {
+                // PDF: reload iframe with #page=N
+                const iframe = bodyEl.querySelector('iframe');
+                if (iframe && iframe.src) {
+                    const page = anchor.type === 'page' ? anchor.value : anchor.from;
+                    const baseUrl = iframe.src.split('#')[0];
+                    iframe.src = baseUrl + '#page=' + page;
+                }
+                break;
+            }
+            case 'heading': {
+                // Article: scroll to heading
+                const headingId = anchor.value.toLowerCase().replace(/[^\w\u4e00-\u9fff]+/g, '-');
+                const el = bodyEl.querySelector(`#${CSS.escape(headingId)}`)
+                        || bodyEl.querySelector(`h1, h2, h3, h4`);
+                // Try text match if id not found
+                if (!el) {
+                    const allHeadings = bodyEl.querySelectorAll('h1, h2, h3, h4');
+                    for (const h of allHeadings) {
+                        if (h.textContent.includes(anchor.value)) {
+                            h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            h.style.outline = '3px solid var(--brand, #006633)';
+                            setTimeout(() => { h.style.outline = ''; }, 3000);
+                            return;
+                        }
+                    }
+                }
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                break;
+            }
+            case 'timestamp': {
+                // Video: set currentTime
+                const video = bodyEl.querySelector('video');
+                if (video) {
+                    video.currentTime = anchor.value;
+                } else {
+                    // YouTube/external: reload with start param
+                    const iframe = bodyEl.querySelector('iframe');
+                    if (iframe && iframe.src) {
+                        const url = new URL(iframe.src);
+                        url.searchParams.set('start', anchor.value);
+                        iframe.src = url.toString();
+                    }
+                }
+                break;
+            }
+            case 'keyword': {
+                // Fallback: search text in content
+                const text = bodyEl.innerText;
+                const idx = text.indexOf(anchor.value);
+                if (idx >= 0) {
+                    // Find the nearest block element containing the keyword
+                    const walker = document.createTreeWalker(bodyEl, NodeFilter.SHOW_TEXT);
+                    while (walker.nextNode()) {
+                        if (walker.currentNode.textContent.includes(anchor.value)) {
+                            const parent = walker.currentNode.parentElement;
+                            if (parent) {
+                                parent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                parent.style.backgroundColor = 'rgba(255, 235, 59, 0.4)';
+                                setTimeout(() => { parent.style.backgroundColor = ''; }, 4000);
+                            }
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+        }
     }
 
     function hideNodeDetail() {
         const panel = getElement('nodeDetailPanel');
         if (panel) {
-            panel.style.display = 'none';
+            panel.classList.remove('alc-node-detail-panel--active');
+            // Wait for CSS transition to finish before hiding
+            const onTransitionEnd = () => {
+                panel.style.display = 'none';
+                panel.removeEventListener('transitionend', onTransitionEnd);
+            };
+            panel.addEventListener('transitionend', onTransitionEnd);
+            // Fallback: hide after 400ms in case transitionend doesn't fire
+            setTimeout(() => {
+                panel.style.display = 'none';
+            }, 400);
         }
     }
 
@@ -1512,6 +2385,14 @@
         const win = document.getElementById('aiFloatingWindow');
         if (!win) return;
 
+        // Bind AI window toggle/resize buttons (replaced inline onclick)
+        const aiToggleBtn = document.getElementById('aiFloatingToggleBtn');
+        if (aiToggleBtn) aiToggleBtn.addEventListener('click', toggleAiWindow);
+        const aiExpandBtn = document.getElementById('aiFloatExpandBtn');
+        if (aiExpandBtn) aiExpandBtn.addEventListener('click', toggleAiWindowSize);
+        const aiCloseBtn = document.getElementById('aiFloatCloseBtn');
+        if (aiCloseBtn) aiCloseBtn.addEventListener('click', toggleAiWindow);
+
         const header = document.getElementById('aiFloatHeader');
 
         let dragState = null;
@@ -1670,10 +2551,10 @@
         // 同时匹配简体「页」和繁体「頁」，以及 page/p. 等英文格式
         // 支持：【第42页】【第42頁】【第42-44页】【第42,43页】
         return html.replace(
-            /【第([\d,、\-–]+)[页頁]】/g,
+            /【第([\d,、\u2013\-]+)[页頁]】/g,
             (match, pages) => {
                 // 取第一个页码作为跳转目标
-                const firstPage = parseInt(pages.replace(/[、\-–]/g, ',').split(',')[0], 10);
+                const firstPage = parseInt(pages.replace(/[、\u2013\-]/g, ',').split(',')[0], 10);
                 if (isNaN(firstPage)) return match;
                 return `<span class="alc-page-ref" data-page="${firstPage}" title="跳转到第${firstPage}页">${match}</span>`;
             }
@@ -1809,7 +2690,7 @@
                 }
             }
         } else {
-            // Local video — use file_path to construct URL
+            // Local video - use file_path to construct URL
             const fileUrl = getFileUrl(content);
             if (fileUrl && videoContainer) {
                 const videoEl = document.createElement('video');
@@ -2126,6 +3007,9 @@
         if (uploadContentBtn) {
             uploadContentBtn.addEventListener('click', submitUploadContent);
         }
+
+        // Batch import listeners
+        initBatchImportListeners();
 
         // Create node button
         const createNodeBtn = getElement('createNodeBtn');
@@ -2715,6 +3599,230 @@
         }
     }
 
+    // ==================== ADMIN: BATCH IMPORT ====================
+
+    /**
+     * 打開批量導入模態框，重置表單狀態。
+     */
+    function openBatchImportModal() {
+        const modal = getElement('batchImportModal');
+        if (!modal) return;
+
+        // 重置表單
+        const jsonInput = getElement('batchImportJsonInput');
+        const fileInput = getElement('batchImportFileInput');
+        const fileNameEl = getElement('batchImportFileName');
+        const clearCheckbox = getElement('batchImportClearExisting');
+        const resultEl = getElement('batchImportResult');
+        const submitBtn = getElement('batchImportSubmitBtn');
+
+        if (jsonInput) jsonInput.value = '';
+        if (fileInput) fileInput.value = '';
+        if (fileNameEl) fileNameEl.style.display = 'none';
+        if (clearCheckbox) clearCheckbox.checked = false;
+        if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+        if (submitBtn) submitBtn.disabled = false;
+
+        modal.classList.add('active');
+    }
+
+    /**
+     * 關閉批量導入模態框。
+     */
+    function closeBatchImportModal() {
+        const modal = getElement('batchImportModal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    /**
+     * 讀取用戶選擇的 JSON 文件並填入文本區域。
+     * @param {File} file - 上傳的 JSON 文件
+     */
+    function readBatchImportFile(file) {
+        if (!file) return;
+
+        if (!file.name.endsWith('.json')) {
+            showToast('請選擇 .json 格式的文件', 'error');
+            return;
+        }
+
+        const fileNameEl = getElement('batchImportFileName');
+        if (fileNameEl) {
+            fileNameEl.textContent = `📎 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            fileNameEl.style.display = 'block';
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const jsonInput = getElement('batchImportJsonInput');
+            if (jsonInput) jsonInput.value = e.target.result;
+        };
+        reader.onerror = function () {
+            showToast('文件讀取失敗', 'error');
+        };
+        reader.readAsText(file);
+    }
+
+    /**
+     * 初始化批量導入相關的事件監聽器。
+     * 包括：開關模態框、文件拖放、文件選擇、提交。
+     */
+    function initBatchImportListeners() {
+        // 開啟按鈕
+        const openBtn = getElement('openBatchImportBtn');
+        if (openBtn) openBtn.addEventListener('click', openBatchImportModal);
+
+        // 關閉按鈕 & 取消按鈕
+        const closeBtn = getElement('batchImportCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', closeBatchImportModal);
+
+        const cancelBtn = getElement('batchImportCancelBtn');
+        if (cancelBtn) cancelBtn.addEventListener('click', closeBatchImportModal);
+
+        // 點擊遮罩關閉
+        const modal = getElement('batchImportModal');
+        if (modal) {
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) closeBatchImportModal();
+            });
+        }
+
+        // 文件選擇
+        const dropZone = getElement('batchImportDropZone');
+        const fileInput = getElement('batchImportFileInput');
+
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', function () {
+                if (this.files && this.files[0]) readBatchImportFile(this.files[0]);
+            });
+
+            // 拖放
+            dropZone.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+            dropZone.addEventListener('dragleave', function () {
+                this.classList.remove('dragover');
+            });
+            dropZone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    readBatchImportFile(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        // 提交
+        const submitBtn = getElement('batchImportSubmitBtn');
+        if (submitBtn) submitBtn.addEventListener('click', submitBatchImport);
+    }
+
+    /**
+     * 驗證並提交批量導入請求。
+     *
+     * 流程：解析 JSON → 確認 clear_existing → 調用 API → 顯示結果 → 刷新列表。
+     */
+    async function submitBatchImport() {
+        const jsonInput = getElement('batchImportJsonInput');
+        const clearCheckbox = getElement('batchImportClearExisting');
+        const resultEl = getElement('batchImportResult');
+        const submitBtn = getElement('batchImportSubmitBtn');
+
+        const rawJson = jsonInput ? jsonInput.value.trim() : '';
+        if (!rawJson) {
+            showToast('請輸入或上傳 JSON 數據', 'error');
+            return;
+        }
+
+        // 1. 解析 JSON
+        let payload;
+        try {
+            payload = JSON.parse(rawJson);
+        } catch (e) {
+            showToast('JSON 格式無效，請檢查語法', 'error');
+            if (resultEl) {
+                resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
+                resultEl.textContent = `JSON 解析失敗：${e.message}`;
+                resultEl.style.display = 'block';
+            }
+            return;
+        }
+
+        // 2. 基本結構校驗
+        if (!payload.nodes || !Array.isArray(payload.nodes) || payload.nodes.length === 0) {
+            showToast('JSON 中必須包含非空的 nodes 陣列', 'error');
+            return;
+        }
+
+        // 3. 確認清空操作（如果勾選）
+        const clearExisting = clearCheckbox ? clearCheckbox.checked : false;
+        if (clearExisting) {
+            if (!confirm('⚠️ 您確定要清空所有現有知識點嗎？此操作無法撤銷！')) {
+                return;
+            }
+        }
+
+        // 4. 組裝請求並提交
+        payload.clear_existing = clearExisting;
+        if (!payload.edges) payload.edges = [];
+
+        if (submitBtn) submitBtn.disabled = true;
+        if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+
+        try {
+            const response = await apiPost(
+                `${ADMIN_API}/knowledge-graph/import`,
+                payload
+            );
+
+            if (response.success) {
+                const data = response.data || {};
+                const nodeCount = data.created_nodes || 0;
+                const edgeCount = data.created_edges || 0;
+                const skipped = data.skipped_edges || 0;
+                const errors = data.errors || [];
+
+                // 5. 顯示結果
+                const hasErrors = errors.length > 0;
+                const resultClass = hasErrors
+                    ? 'alc-batch-import-result--partial'
+                    : 'alc-batch-import-result--success';
+
+                let html = `<strong>✅ 導入完成</strong><br>`;
+                html += `建立 ${nodeCount} 個知識點、${edgeCount} 條連接`;
+                if (skipped > 0) html += `（跳過 ${skipped} 條邊）`;
+                if (hasErrors) {
+                    html += `<br><br><strong>⚠️ 部分警告：</strong><br>`;
+                    html += errors.map(e => `• ${e}`).join('<br>');
+                }
+
+                if (resultEl) {
+                    resultEl.className = `alc-batch-import-result ${resultClass}`;
+                    resultEl.innerHTML = html;
+                    resultEl.style.display = 'block';
+                }
+
+                showToast(`成功導入 ${nodeCount} 個知識點`, 'success');
+
+                // 6. 刷新相關數據
+                await loadAdminNodes();
+                loadedTabs.delete('map');
+            }
+        } catch (error) {
+            console.error('Batch import error:', error);
+            if (resultEl) {
+                resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
+                resultEl.textContent = `導入失敗：${error.message || '未知錯誤'}`;
+                resultEl.style.display = 'block';
+            }
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
+
     async function editNode(nodeId) {
         const node = state.nodes.find(n => n.id == nodeId);
         if (!node) return;
@@ -2883,13 +3991,17 @@
         editNode,
         deleteNode,
         getNode,
+        openBatchImportModal,
+        closeBatchImportModal,
         editPath,
         deletePath,
         sendAiQuestion,
         clearAiContext,
         toggleAiWindow,
         toggleAiWindowSize,
-        toggleAdminPanel
+        toggleAdminPanel,
+        navigateToContent,
+        searchNodes
     };
 
     // ==================== DOCUMENT READY ====================

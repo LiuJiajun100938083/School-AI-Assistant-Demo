@@ -371,9 +371,63 @@ class LCNodeContentRepository(BaseRepository):
             total += self.raw_execute(sql, params)
         return total
 
+    def link_with_anchor(
+        self,
+        node_id: int,
+        content_id: int,
+        anchor: Optional[Dict[str, Any]] = None,
+        sort_order: int = 0,
+    ) -> int:
+        """
+        关联单个节点到单个内容（支持锚点）。
+        使用 INSERT IGNORE 避免重复关联时报错。
+
+        Args:
+            node_id: 节点 ID
+            content_id: 内容 ID
+            anchor: 定位锚点 JSON，如 {"type":"page","value":5}
+            sort_order: 排序权重
+
+        Returns:
+            影响行数（0 = 已存在, 1 = 新建）
+        """
+        import json as _json
+
+        anchor_str = _json.dumps(anchor, ensure_ascii=False) if anchor else None
+        sql = """
+            INSERT IGNORE INTO lc_node_contents
+                (node_id, content_id, sort_order, anchor)
+            VALUES (%s, %s, %s, %s)
+        """
+        return self.raw_execute(sql, (node_id, content_id, sort_order, anchor_str))
+
     def find_by_node(self, node_id: int) -> List[Dict[str, Any]]:
-        """查询节点的所有内容ID"""
-        return self.find_all("node_id = %s", (node_id,))
+        """查询节点的所有关联内容（含锚点和内容元信息）"""
+        import json as _json
+
+        rows = self.raw_query(
+            """
+            SELECT nc.node_id, nc.content_id, nc.sort_order, nc.anchor,
+                   c.title AS content_title,
+                   c.content_type,
+                   c.file_path,
+                   c.file_name,
+                   c.external_url
+            FROM lc_node_contents nc
+            INNER JOIN lc_contents c ON nc.content_id = c.id
+            WHERE nc.node_id = %s AND c.is_deleted = 0
+            ORDER BY nc.sort_order ASC
+            """,
+            (node_id,),
+        )
+        # pymysql DictCursor 返回 JSON 列为字符串，需手动解析为 dict
+        for row in rows:
+            if isinstance(row.get("anchor"), str):
+                try:
+                    row["anchor"] = _json.loads(row["anchor"])
+                except (ValueError, TypeError):
+                    row["anchor"] = None
+        return rows
 
 
 class LCLearningPathRepository(BaseRepository):
