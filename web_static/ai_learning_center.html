@@ -501,6 +501,7 @@
                         </select>
                         <input type="number" id="pathDurationInput" class="alc-form-input" placeholder="預期時長（小時）" />
                         <button id="createPathBtn" class="alc-btn alc-btn--primary">建立路徑</button>
+                        <button id="importPathsBtn" class="alc-btn alc-btn--secondary" style="margin-top:8px;">📥 導入學習路徑 JSON</button>
                     </div>
                     <div id="pathsList" class="alc-admin-list">
                         <!-- 動態生成 -->
@@ -578,6 +579,41 @@
                 <button id="deleteConfirmOkBtn" class="alc-btn alc-btn--danger">
                     確認刪除
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量導入學習路徑 -->
+    <div id="pathImportModal" class="alc-modal-overlay">
+        <div class="alc-modal-content alc-batch-import-dialog">
+            <button class="alc-modal-close" id="pathImportCloseBtn" aria-label="關閉">&times;</button>
+            <div class="alc-modal-info">
+                <h3>📥 批量導入學習路徑</h3>
+                <p>上傳 JSON 文件一次性創建多條學習路徑和步驟。步驟會自動匹配知識節點和教程文檔。</p>
+            </div>
+            <div class="alc-batch-import-body">
+                <div class="alc-drag-drop-zone" id="pathImportDropZone">
+                    <p>📄 拖放 JSON 文件到此處，或點擊選擇</p>
+                    <input type="file" id="pathImportFileInput" class="alc-file-input" accept=".json" />
+                </div>
+                <p id="pathImportFileName" class="alc-form-hint" style="display: none;"></p>
+                <label class="alc-form-label" for="pathImportJsonInput">或直接貼上 JSON</label>
+                <textarea
+                    id="pathImportJsonInput"
+                    class="alc-form-input alc-batch-import-textarea"
+                    rows="10"
+                    spellcheck="false"
+                    placeholder='{ "paths": [ { "id": "path1", "title": "路徑名稱", "steps": [...] } ] }'
+                ></textarea>
+                <label class="alc-batch-import-checkbox">
+                    <input type="checkbox" id="pathImportClearExisting" />
+                    <span>導入前清空現有學習路徑（⚠️ 不可撤銷）</span>
+                </label>
+                <div id="pathImportResult" class="alc-batch-import-result" style="display: none;"></div>
+            </div>
+            <div class="alc-dialog-actions alc-batch-import-actions">
+                <button id="pathImportCancelBtn" class="alc-btn alc-btn--secondary">取消</button>
+                <button id="pathImportSubmitBtn" class="alc-btn alc-btn--primary">確認導入</button>
             </div>
         </div>
     </div>

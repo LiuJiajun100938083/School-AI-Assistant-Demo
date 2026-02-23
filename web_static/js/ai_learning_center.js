@@ -2460,7 +2460,10 @@
                                     <div class="alc-step-content">
                                         <h4>${escapeHtml(step.title)}</h4>
                                         <p>${escapeHtml(step.description)}</p>
-                                        ${step.content_id ? `<button class="alc-btn alc-btn-sm" onclick="window.lcLearningCenter.openContent('${step.content_id}')">查看内容</button>` : ''}
+                                        <div class="alc-step-actions">
+                                            ${step.content_id ? `<button class="alc-btn alc-btn-sm" onclick="window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.openContent('${step.content_id}')">📄 查看文档</button>` : ''}
+                                            ${step.node_id ? `<button class="alc-btn alc-btn-sm alc-btn--secondary" onclick="window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToKnowledgeNode(${step.node_id})">🔗 知识节点</button>` : ''}
+                                        </div>
                                     </div>
                                 </div>
                             `).join('') : '<p>暂无步骤</p>'}
@@ -3418,6 +3421,7 @@
 
         // Batch import listeners
         initBatchImportListeners();
+        initPathImportListeners();
 
         // Create node button
         const createNodeBtn = getElement('createNodeBtn');
@@ -4231,6 +4235,215 @@
         }
     }
 
+    // ==================== ADMIN: BATCH IMPORT LEARNING PATHS ====================
+
+    /**
+     * 打開學習路徑批量導入模態框，重置表單狀態。
+     */
+    function openPathImportModal() {
+        const modal = getElement('pathImportModal');
+        if (!modal) return;
+
+        const jsonInput = getElement('pathImportJsonInput');
+        const fileInput = getElement('pathImportFileInput');
+        const fileNameEl = getElement('pathImportFileName');
+        const clearCheckbox = getElement('pathImportClearExisting');
+        const resultEl = getElement('pathImportResult');
+        const submitBtn = getElement('pathImportSubmitBtn');
+
+        if (jsonInput) jsonInput.value = '';
+        if (fileInput) fileInput.value = '';
+        if (fileNameEl) { fileNameEl.textContent = ''; fileNameEl.style.display = 'none'; }
+        if (clearCheckbox) clearCheckbox.checked = false;
+        if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+        if (submitBtn) submitBtn.disabled = false;
+
+        modal.classList.add('active');
+    }
+
+    function closePathImportModal() {
+        const modal = getElement('pathImportModal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    /**
+     * 讀取用戶上傳的學習路徑 JSON 文件並填入文本區域。
+     */
+    function readPathImportFile(file) {
+        if (!file) return;
+        if (!file.name.endsWith('.json')) {
+            showToast('請選擇 .json 格式的文件', 'error');
+            return;
+        }
+
+        const fileNameEl = getElement('pathImportFileName');
+        if (fileNameEl) {
+            fileNameEl.textContent = `📎 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            fileNameEl.style.display = 'block';
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const jsonInput = getElement('pathImportJsonInput');
+            if (jsonInput) jsonInput.value = e.target.result;
+        };
+        reader.onerror = function () {
+            showToast('文件讀取失敗', 'error');
+        };
+        reader.readAsText(file);
+    }
+
+    /**
+     * 初始化學習路徑批量導入的事件監聽器。
+     */
+    function initPathImportListeners() {
+        const openBtn = getElement('importPathsBtn');
+        if (openBtn) openBtn.addEventListener('click', openPathImportModal);
+
+        const closeBtn = getElement('pathImportCloseBtn');
+        if (closeBtn) closeBtn.addEventListener('click', closePathImportModal);
+
+        const cancelBtn = getElement('pathImportCancelBtn');
+        if (cancelBtn) cancelBtn.addEventListener('click', closePathImportModal);
+
+        const modal = getElement('pathImportModal');
+        if (modal) {
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) closePathImportModal();
+            });
+        }
+
+        const dropZone = getElement('pathImportDropZone');
+        const fileInput = getElement('pathImportFileInput');
+
+        if (dropZone && fileInput) {
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', function () {
+                if (this.files && this.files[0]) readPathImportFile(this.files[0]);
+            });
+
+            dropZone.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+            dropZone.addEventListener('dragleave', function () {
+                this.classList.remove('dragover');
+            });
+            dropZone.addEventListener('drop', function (e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    readPathImportFile(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        const submitBtn = getElement('pathImportSubmitBtn');
+        if (submitBtn) submitBtn.addEventListener('click', submitPathImport);
+    }
+
+    /**
+     * 驗證並提交學習路徑批量導入請求。
+     * 解析 JSON → 確認 clear → 調用 /paths/batch-import API → 顯示結果 → 刷新列表。
+     */
+    async function submitPathImport() {
+        const jsonInput = getElement('pathImportJsonInput');
+        const clearCheckbox = getElement('pathImportClearExisting');
+        const resultEl = getElement('pathImportResult');
+        const submitBtn = getElement('pathImportSubmitBtn');
+
+        const rawJson = jsonInput ? jsonInput.value.trim() : '';
+        if (!rawJson) {
+            showToast('請輸入或上傳 JSON 數據', 'error');
+            return;
+        }
+
+        // 1. 解析 JSON
+        let payload;
+        try {
+            payload = JSON.parse(rawJson);
+        } catch (e) {
+            showToast('JSON 格式無效，請檢查語法', 'error');
+            if (resultEl) {
+                resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
+                resultEl.textContent = `JSON 解析失敗：${e.message}`;
+                resultEl.style.display = 'block';
+            }
+            return;
+        }
+
+        // 2. 結構校驗
+        if (!payload.paths || !Array.isArray(payload.paths) || payload.paths.length === 0) {
+            showToast('JSON 中必須包含非空的 paths 陣列', 'error');
+            return;
+        }
+
+        // 3. 確認清空操作
+        const clearExisting = clearCheckbox ? clearCheckbox.checked : false;
+        if (clearExisting) {
+            if (!confirm('⚠️ 您確定要清空所有現有學習路徑嗎？此操作無法撤銷！')) {
+                return;
+            }
+        }
+
+        // 4. 組裝請求
+        const requestBody = {
+            paths: payload.paths,
+            clear_existing: clearExisting
+        };
+
+        if (submitBtn) submitBtn.disabled = true;
+        if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+
+        try {
+            const response = await apiPost(
+                `${ADMIN_API}/paths/batch-import`,
+                requestBody
+            );
+
+            if (response.success) {
+                const data = response.data || {};
+                const created = data.created_paths || 0;
+                const totalSteps = data.created_steps || 0;
+                const errors = data.errors || [];
+
+                const hasErrors = errors.length > 0;
+                const resultClass = hasErrors
+                    ? 'alc-batch-import-result--partial'
+                    : 'alc-batch-import-result--success';
+
+                let html = `<strong>✅ 導入完成</strong><br>`;
+                html += `建立 ${created} 條學習路徑、共 ${totalSteps} 個步驟`;
+                if (hasErrors) {
+                    html += `<br><br><strong>⚠️ 部分警告：</strong><br>`;
+                    html += errors.map(e => `• ${e}`).join('<br>');
+                }
+
+                if (resultEl) {
+                    resultEl.className = `alc-batch-import-result ${resultClass}`;
+                    resultEl.innerHTML = html;
+                    resultEl.style.display = 'block';
+                }
+
+                showToast(`成功導入 ${created} 條學習路徑`, 'success');
+
+                // 刷新路徑列表
+                await loadAdminPaths();
+                loadedTabs.delete('paths');
+            }
+        } catch (error) {
+            console.error('Path import error:', error);
+            if (resultEl) {
+                resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
+                resultEl.textContent = `導入失敗：${error.message || '未知錯誤'}`;
+                resultEl.style.display = 'block';
+            }
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    }
+
     async function editNode(nodeId) {
         const node = state.nodes.find(n => n.id == nodeId);
         if (!node) return;
@@ -4401,6 +4614,8 @@
         getNode,
         openBatchImportModal,
         closeBatchImportModal,
+        openPathImportModal,
+        closePathImportModal,
         editPath,
         deletePath,
         sendAiQuestion,
