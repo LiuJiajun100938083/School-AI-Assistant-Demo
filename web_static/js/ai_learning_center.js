@@ -916,15 +916,16 @@
         // Force parameters (auto-tuned by node count in buildForceSimulation)
         collisionPadding: 16,                 // forceCollide: radius + padding
         collisionIterations: 6,               // collision iterations
-        chargeStrength: -380,                 // forceManyBody base strength (stronger for more nodes)
-        radialStrengths: [0, 0.30, 0.22, 0.15],  // soft radial constraint per depth
-        radialRadii: [0, 260, 460, 640],      // target ring radii per depth (wider for L2 default)
+        chargeStrength: -380,                 // forceManyBody base strength
+        radialStrengths: [0, 0.35, 0.25, 0.18],  // per-cluster radial constraint per depth
+        radialRadii: [0, 180, 320, 440],      // per-cluster ring radii per depth
         linkDistance: 110,                    // forceLink base distance
         linkStrength: 0.3,                    // forceLink strength
         velocityDecay: 0.45,                  // higher = faster settle (0-1)
         alphaDecay: 0.03,                     // how fast simulation cools
         clusterOrbitRadius: 70,               // child orbit radius around parent
-        clusterStrength: 0.06,                // forceX/Y pull toward parent
+        clusterStrength: 0.08,                // forceX/Y pull toward parent (tighter clusters)
+        clusterMinDistance: 400,              // minimum distance between root nodes
     };
 
     /** Edge color palette by relation_type */
@@ -980,7 +981,7 @@
         // BFS to assign depth
         nodes.forEach(n => { n._depth = Infinity; });
         const queue = [];
-        roots.forEach(r => { r._depth = 0; queue.push(r); });
+        roots.forEach(r => { r._depth = 0; r._rootId = r.id; queue.push(r); });
 
         while (queue.length > 0) {
             const current = queue.shift();
@@ -989,6 +990,7 @@
                 const kid = nodeMap.get(kidId);
                 if (kid && kid._depth > current._depth + 1) {
                     kid._depth = current._depth + 1;
+                    kid._rootId = current._rootId;
                     queue.push(kid);
                 }
             });
@@ -997,7 +999,7 @@
         // Assign tier config: depth 0 → root, 1 → L1, 2 → L2, 3+ → L3
         const maxTier = Math.max(...Object.keys(TIER_CONFIG).map(Number));
         nodes.forEach(n => {
-            if (n._depth === Infinity) n._depth = 2; // orphans treated as L2
+            if (n._depth === Infinity) { n._depth = 2; n._rootId = n.id; } // orphans treated as L2
             const tierKey = Math.min(n._depth, maxTier);
             n._tierCfg = TIER_CONFIG[tierKey];
             n._children = childrenMap.get(n.id) || [];
@@ -1055,6 +1057,10 @@
         const chargeStrength = Math.max(-500, Math.min(-180, LAYOUT_CONFIG.chargeStrength * (60 / N)));
         const linkDist = LAYOUT_CONFIG.linkDistance + Math.max(0, (N - 40) * 0.8);
 
+        // Build root lookup for per-cluster radial force
+        const rootNodesMap = new Map();
+        visibleNodes.forEach(n => { if (n._depth === 0) rootNodesMap.set(n.id, n); });
+
         const simulation = d3.forceSimulation(visibleNodes)
             .velocityDecay(LAYOUT_CONFIG.velocityDecay)
             .alphaDecay(LAYOUT_CONFIG.alphaDecay)
@@ -1080,37 +1086,82 @@
                 .radius(d => d._tierCfg.radius + LAYOUT_CONFIG.collisionPadding)
                 .iterations(LAYOUT_CONFIG.collisionIterations)
                 .strength(0.9)
-            )
-            // ── Center force ──
-            .force('center', d3.forceCenter(0, 0).strength(0.05))
-            // ── Soft radial constraint per depth ──
-            .force('radial', d3.forceRadial(
-                d => {
-                    const idx = Math.min(d._depth, LAYOUT_CONFIG.radialRadii.length - 1);
-                    return LAYOUT_CONFIG.radialRadii[idx];
-                },
-                0, 0
-            ).strength(d => {
-                const idx = Math.min(d._depth, LAYOUT_CONFIG.radialStrengths.length - 1);
-                return LAYOUT_CONFIG.radialStrengths[idx];
-            }));
+            );
+            // NOTE: forceCenter and forceRadial removed — replaced by custom per-cluster forces below
 
-        // ── Custom cluster orbit force: push children toward parent ──
+        // ── Per-cluster radial force: each node orbits its OWN root's live position ──
+        simulation.force('clusterRadial', () => {
+            const alpha = simulation.alpha();
+            visibleNodes.forEach(n => {
+                if (n._depth === 0) return; // roots are free
+                const root = rootNodesMap.get(n._rootId);
+                if (!root) return;
+
+                const cx = root.x || root._clusterCx || 0;
+                const cy = root.y || root._clusterCy || 0;
+                const depthIdx = Math.min(n._depth, LAYOUT_CONFIG.radialRadii.length - 1);
+                const targetR = LAYOUT_CONFIG.radialRadii[depthIdx];
+                const str = LAYOUT_CONFIG.radialStrengths[depthIdx] || 0.15;
+
+                const dx = (n.x || 0) - cx;
+                const dy = (n.y || 0) - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const delta = (dist - targetR) / dist;
+
+                n.vx -= dx * delta * str * alpha;
+                n.vy -= dy * delta * str * alpha;
+            });
+        });
+
+        // ── Cluster pull: children toward parent ──
         simulation.force('cluster', () => {
             const alpha = simulation.alpha();
             const str = LAYOUT_CONFIG.clusterStrength * alpha;
             visibleNodes.forEach(n => {
-                if (n._depth === 0) return; // roots stay free
+                if (n._depth === 0) return;
                 const pId = parentMap.get(n.id);
                 if (!pId) return;
                 const parent = nodeMap.get(pId);
                 if (!parent || !parent._visible) return;
 
-                // Pull child toward a ring around parent
                 const dx = (parent.x || 0) - (n.x || 0);
                 const dy = (parent.y || 0) - (n.y || 0);
                 n.vx += dx * str;
                 n.vy += dy * str;
+            });
+        });
+
+        // ── Root repulsion: keep clusters apart ──
+        simulation.force('rootRepel', () => {
+            const alpha = simulation.alpha();
+            const rootList = visibleNodes.filter(n => n._depth === 0);
+            const minDist = LAYOUT_CONFIG.clusterMinDistance;
+
+            for (let i = 0; i < rootList.length; i++) {
+                for (let j = i + 1; j < rootList.length; j++) {
+                    const a = rootList[i], b = rootList[j];
+                    let dx = (b.x || 0) - (a.x || 0);
+                    let dy = (b.y || 0) - (a.y || 0);
+                    let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+                    if (dist < minDist) {
+                        const f = (minDist - dist) / dist * 0.05 * alpha;
+                        a.vx -= dx * f; a.vy -= dy * f;
+                        b.vx += dx * f; b.vy += dy * f;
+                    }
+                }
+            }
+        });
+
+        // ── Weak gravity: prevent clusters from drifting off-screen ──
+        simulation.force('gravity', () => {
+            const alpha = simulation.alpha();
+            const str = 0.01 * alpha;
+            visibleNodes.forEach(n => {
+                if (n._depth === 0) {
+                    n.vx -= (n.x || 0) * str;
+                    n.vy -= (n.y || 0) * str;
+                }
             });
         });
 
@@ -1178,15 +1229,44 @@
         const d3HierarchyEdges = hierarchyEdges.map(e => toD3Edge(e, true));
         const d3CrossEdges = crossEdges.map(e => toD3Edge(e, false));
 
-        // ── B. Default collapse — only show root + L1 initially ──
+        // ── B. Multi-center layout: compute cluster centers + initial positions ──
+        const roots = state.nodes.filter(n => n._depth === 0);
+        const numRoots = roots.length;
+        const clusterSpread = 200 + numRoots * 80;
+
+        roots.forEach((root, i) => {
+            if (numRoots === 1) {
+                root._clusterCx = 0;
+                root._clusterCy = 0;
+            } else {
+                const angle = (2 * Math.PI * i) / numRoots - Math.PI / 2;
+                root._clusterCx = Math.cos(angle) * clusterSpread;
+                root._clusterCy = Math.sin(angle) * clusterSpread;
+            }
+        });
+
+        const rootNodeMap = new Map(roots.map(r => [r.id, r]));
+
         state.nodes.forEach(n => {
             if (n._depth > 0 && n._children.length > 0) {
                 n._collapsed = (n._depth >= LAYOUT_CONFIG.defaultCollapseDepth);
             }
             n._visible = (n._depth <= LAYOUT_CONFIG.defaultCollapseDepth);
-            // Initialize x/y for all nodes to avoid NaN in tick
-            if (n.x == null) n.x = (Math.random() - 0.5) * 200;
-            if (n.y == null) n.y = (Math.random() - 0.5) * 200;
+
+            // Initialize positions relative to cluster center
+            const rootNode = rootNodeMap.get(n._rootId);
+            const cx = rootNode ? rootNode._clusterCx : 0;
+            const cy = rootNode ? rootNode._clusterCy : 0;
+
+            if (n._depth === 0) {
+                n.x = cx;
+                n.y = cy;
+            } else {
+                const depthR = LAYOUT_CONFIG.radialRadii[Math.min(n._depth, 3)] || 200;
+                const a = Math.random() * 2 * Math.PI;
+                n.x = cx + Math.cos(a) * depthR * (0.3 + Math.random() * 0.7);
+                n.y = cy + Math.sin(a) * depthR * (0.3 + Math.random() * 0.7);
+            }
         });
 
         // ── C. Prepare visible node/edge sets for simulation ──
@@ -1242,16 +1322,19 @@
         // ── Layer groups (order matters for z-index) ──
         const g = svg.append('g').attr('class', 'kg-root-group');
 
-        // Ring guide circles (soft visual reference, not binding)
+        // Ring guide circles per cluster center (soft visual reference)
         const ringGuideGroup = g.append('g').attr('class', 'kg-ring-guides');
-        LAYOUT_CONFIG.radialRadii.forEach((r, i) => {
-            if (i === 0 || r === 0) return;
-            ringGuideGroup.append('circle')
-                .attr('cx', 0).attr('cy', 0).attr('r', r)
-                .attr('class', 'kg-ring-guide')
-                .attr('fill', 'none').attr('stroke', '#eee')
-                .attr('stroke-width', 0.5).attr('stroke-dasharray', '4 4')
-                .attr('pointer-events', 'none');
+        roots.forEach(root => {
+            LAYOUT_CONFIG.radialRadii.forEach((r, i) => {
+                if (i === 0 || r === 0) return;
+                ringGuideGroup.append('circle')
+                    .attr('cx', root._clusterCx).attr('cy', root._clusterCy)
+                    .attr('r', r)
+                    .attr('class', 'kg-ring-guide')
+                    .attr('fill', 'none').attr('stroke', '#eee')
+                    .attr('stroke-width', 0.5).attr('stroke-dasharray', '4 4')
+                    .attr('pointer-events', 'none');
+            });
         });
 
         const crossLinkGroup = g.append('g').attr('class', 'kg-cross-links');
@@ -1507,7 +1590,8 @@
         svg.call(zoom);
 
         // Center view
-        const initialTransform = d3.zoomIdentity.translate(cx, cy).scale(0.65);
+        const initialScale = numRoots > 1 ? 0.45 : 0.65;
+        const initialTransform = d3.zoomIdentity.translate(cx, cy).scale(initialScale);
         svg.call(zoom.transform, initialTransform);
 
         function applyLOD(scale) {
@@ -2002,7 +2086,7 @@
                 const h = svgElement ? svgElement.clientHeight || 600 : 600;
                 svg.transition().duration(750).call(
                     zoom.transform,
-                    d3.zoomIdentity.translate(w / 2, h / 2).scale(0.65)
+                    d3.zoomIdentity.translate(w / 2, h / 2).scale(initialScale)
                 );
             });
         }
