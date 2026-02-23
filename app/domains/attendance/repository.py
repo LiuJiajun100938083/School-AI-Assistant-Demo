@@ -290,13 +290,25 @@ class AttendanceRecordRepository(BaseRepository):
         return self.insert(data)
 
     def get_session_records(self, session_id: int) -> List[Dict[str, Any]]:
-        """获取场次的所有打卡记录 (含学生信息)"""
+        """
+        获取场次的所有学生记录 (含签到信息)
+
+        使用 LEFT JOIN 确保即使未签到的学生也会出现在结果中。
+        attendance_status 别名供前端 JS 使用。
+        """
         return self.raw_query(
-            "SELECT ar.*, s.class_name, s.class_number, s.english_name, s.chinese_name "
-            "FROM attendance_records ar "
-            "JOIN attendance_students s ON ar.user_login = s.user_login "
-            "WHERE ar.session_id = %s "
-            "ORDER BY ar.scan_time",
+            "SELECT ss.user_login, "
+            "  COALESCE(ar.status, 'absent') AS status, "
+            "  COALESCE(ar.status, 'absent') AS attendance_status, "
+            "  ar.scan_time, ar.card_id, ar.late_minutes, ar.makeup_minutes, "
+            "  ar.is_registered, ar.id AS record_id, "
+            "  s.class_name, s.class_number, s.english_name, s.chinese_name "
+            "FROM attendance_session_students ss "
+            "JOIN attendance_students s ON ss.user_login = s.user_login "
+            "LEFT JOIN attendance_records ar "
+            "  ON ar.session_id = ss.session_id AND ar.user_login = ss.user_login "
+            "WHERE ss.session_id = %s "
+            "ORDER BY s.class_name, s.class_number",
             (session_id,),
         )
 

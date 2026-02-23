@@ -1032,6 +1032,7 @@ class AttendanceService:
         absent = total - checked_in
 
         session["records"] = records
+        session["students"] = records  # 前端 loadSessionDetail 期望 data.students
         session["stats"] = {
             "total": total,
             "checked_in": checked_in,
@@ -1216,25 +1217,49 @@ class AttendanceService:
             raise ValidationError("必须提供 card_id 或 user_login")
 
     @staticmethod
+    def _time_to_hm(val) -> int:
+        """
+        将各种时间格式统一转换为 小时*60+分钟 的整数。
+
+        支持:
+        - str: "07:30" / "07:30:00"
+        - datetime.timedelta: MySQL TIME 列返回的类型
+        - datetime.time: Python time 对象
+        """
+        if isinstance(val, str):
+            parts = val.split(":")
+            return int(parts[0]) * 60 + int(parts[1])
+        elif isinstance(val, timedelta):
+            total_seconds = int(val.total_seconds())
+            return (total_seconds // 3600) * 60 + (total_seconds % 3600) // 60
+        elif isinstance(val, time):
+            return val.hour * 60 + val.minute
+        else:
+            # 回退：尝试 str 转换
+            parts = str(val).split(":")
+            return int(parts[0]) * 60 + int(parts[1])
+
+    @staticmethod
     def _calc_morning_status(
         scan_time: datetime,
-        target_time_str: str,
-        late_threshold_str: str,
+        target_time_str,
+        late_threshold_str,
     ) -> Tuple[str, int, int]:
         """
         计算早读签到状态
+
+        Args:
+            target_time_str: 目标时间 (str "07:30" 或 timedelta 或 time)
+            late_threshold_str: 迟到阈值 (同上)
 
         Returns:
             (status, late_minutes, makeup_minutes)
         """
         scan_hm = scan_time.hour * 60 + scan_time.minute
 
-        # 解析时间
-        t_parts = target_time_str.split(":")
-        target_hm = int(t_parts[0]) * 60 + int(t_parts[1])
-
-        l_parts = late_threshold_str.split(":")
-        late_hm = int(l_parts[0]) * 60 + int(l_parts[1])
+        # 解析时间（兼容 str / timedelta / time）
+        target_hm = AttendanceService._time_to_hm(target_time_str)
+        late_hm = AttendanceService._time_to_hm(late_threshold_str)
 
         if scan_hm <= target_hm:
             return AttendanceStatus.PRESENT, 0, 0
