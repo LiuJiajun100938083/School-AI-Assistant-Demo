@@ -1377,6 +1377,45 @@
 .alc-timeline li span {
   font-size: 13px;
   color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.alc-step-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.alc-step-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--brand);
+  background-color: var(--brand-lighter);
+  color: var(--brand);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.alc-step-action-btn:hover {
+  background-color: var(--brand);
+  color: #fff;
+}
+
+.alc-step-action-btn--node {
+  border-color: #6366f1;
+  background-color: #eef2ff;
+  color: #6366f1;
+}
+
+.alc-step-action-btn--node:hover {
+  background-color: #6366f1;
+  color: #fff;
 }
 
 @media (max-width: 768px) {

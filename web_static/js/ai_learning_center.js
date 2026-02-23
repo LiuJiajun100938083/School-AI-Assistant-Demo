@@ -2413,22 +2413,34 @@
             return;
         }
 
+        const difficultyMap = { beginner: '入门', intermediate: '中级', advanced: '高级' };
+        const iconMap = { beginner: '🌱', intermediate: '📘', advanced: '🚀' };
+        const colorMap = {
+            beginner: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+            intermediate: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)',
+            advanced: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)'
+        };
+
         grid.innerHTML = state.paths.map(path => {
-            const difficultyMap = { beginner: '入门', intermediate: '中级', advanced: '高级' };
+            const diff = path.difficulty || 'beginner';
+            const steps = path.step_count || 0;
+            const hours = path.estimated_hours || 0;
             return `
-                <div class="alc-path-card" data-id="${path.id}">
-                    <div class="alc-path-header">
-                        <h3>${escapeHtml(path.title)}</h3>
-                        <span class="alc-difficulty ${path.difficulty}">${difficultyMap[path.difficulty] || path.difficulty}</span>
+                <div class="alc-path-card" data-id="${path.id}" onclick="window.lcLearningCenter.showPathDetail('${path.id}')">
+                    <div class="alc-path-cover" style="background: ${colorMap[diff] || colorMap.beginner}; display:flex; align-items:center; justify-content:center;">
+                        <span style="font-size: 48px;">${path.icon || iconMap[diff] || '📚'}</span>
                     </div>
-                    <p class="alc-path-desc">${escapeHtml(path.description)}</p>
-                    <div class="alc-path-meta">
-                        <span class="alc-steps">📚 ${path.step_count || 0} 步骤</span>
-                        <span class="alc-duration">⏱️ ${path.estimated_hours || 0} 小时</span>
+                    <div class="alc-path-body">
+                        <h3 class="alc-path-title">${escapeHtml(path.title)}</h3>
+                        <span class="alc-difficulty-badge ${diff}">${iconMap[diff] || ''} ${difficultyMap[diff] || diff}</span>
+                        <p style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin:0; flex:1; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">
+                            ${escapeHtml(path.description)}
+                        </p>
+                        <div class="alc-path-meta">
+                            <span class="alc-duration-badge">📚 ${steps} 步骤</span>
+                            <span class="alc-duration-badge">⏱️ ${hours} 小时</span>
+                        </div>
                     </div>
-                    <button class="alc-btn alc-btn-primary alc-btn-full" onclick="window.lcLearningCenter.showPathDetail('${path.id}')">
-                        开始学习
-                    </button>
                 </div>
             `;
         }).join('');
@@ -2443,45 +2455,66 @@
                 if (!overlay) return;
 
                 const difficultyMap = { beginner: '入门', intermediate: '中级', advanced: '高级' };
+                const iconMap = { beginner: '🌱', intermediate: '📘', advanced: '🚀' };
+                const diff = path.difficulty || 'beginner';
 
-                overlay.innerHTML = `
-                    <div class="alc-path-detail">
-                        <button class="alc-close-btn" onclick="window.lcLearningCenter.hidePathDetail()">&times;</button>
-                        <h2>${escapeHtml(path.title)}</h2>
-                        <p>${escapeHtml(path.description)}</p>
-                        <div class="alc-path-info">
-                            <span class="alc-difficulty ${path.difficulty}">${difficultyMap[path.difficulty] || path.difficulty}</span>
-                            <span class="alc-duration">⏱️ 预计 ${path.estimated_hours || 0} 小时</span>
-                        </div>
-                        <div class="alc-path-steps">
-                            ${path.steps ? path.steps.map((step, index) => `
-                                <div class="alc-step">
-                                    <div class="alc-step-number">${index + 1}</div>
-                                    <div class="alc-step-content">
-                                        <h4>${escapeHtml(step.title)}</h4>
-                                        <p>${escapeHtml(step.description)}</p>
-                                        <div class="alc-step-actions">
-                                            ${step.content_id ? `<button class="alc-btn alc-btn-sm" onclick="window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.openContent('${step.content_id}')">📄 查看文档</button>` : ''}
-                                            ${step.node_id ? `<button class="alc-btn alc-btn-sm alc-btn--secondary" onclick="window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToKnowledgeNode(${step.node_id})">🔗 知识节点</button>` : ''}
-                                        </div>
-                                    </div>
-                                </div>
-                            `).join('') : '<p>暂无步骤</p>'}
-                        </div>
-                    </div>
-                `;
+                // 填充预构建的 DOM 元素
+                const titleEl = getElement('pathDetailTitle');
+                const descEl = getElement('pathDetailDesc');
+                const diffEl = getElement('pathDetailDifficulty');
+                const durEl = getElement('pathDetailDuration');
+                const progEl = getElement('pathDetailProgress');
+                const timelineEl = getElement('pathTimeline');
 
-                overlay.style.display = 'flex';
+                if (titleEl) titleEl.textContent = path.title;
+                if (descEl) descEl.textContent = path.description || '';
+                if (diffEl) {
+                    diffEl.className = `alc-difficulty-badge ${diff}`;
+                    diffEl.textContent = `${iconMap[diff] || ''} ${difficultyMap[diff] || diff}`;
+                }
+                if (durEl) durEl.textContent = `⏱️ ${path.estimated_hours || 0} 小时`;
+                if (progEl) progEl.textContent = `📚 ${(path.steps || []).length} 步骤`;
+
+                // 渲染时间线步骤
+                if (timelineEl) {
+                    if (path.steps && path.steps.length > 0) {
+                        timelineEl.innerHTML = path.steps.map((step, index) => {
+                            const hasContent = step.content_id;
+                            const hasNode = step.node_id;
+                            const actions = [];
+                            if (hasContent) {
+                                actions.push(`<button class="alc-step-action-btn" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.openContent('${step.content_id}')">📄 查看文档</button>`);
+                            }
+                            if (hasNode) {
+                                actions.push(`<button class="alc-step-action-btn alc-step-action-btn--node" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToKnowledgeNode(${step.node_id})">🔗 知识节点</button>`);
+                            }
+                            return `
+                                <li>
+                                    <strong>步骤 ${index + 1}：${escapeHtml(step.title)}</strong>
+                                    <span>${escapeHtml(step.description)}</span>
+                                    ${actions.length > 0 ? `<div class="alc-step-actions">${actions.join('')}</div>` : ''}
+                                </li>
+                            `;
+                        }).join('');
+                    } else {
+                        timelineEl.innerHTML = '<li><span>暂无步骤</span></li>';
+                    }
+                }
+
+                // 使用 CSS active class 显示（有过渡动画）
+                overlay.style.display = '';
+                overlay.classList.add('active');
             }
         } catch (error) {
             console.error('Failed to load path detail:', error);
+            showToast('加载路径详情失败', 'error');
         }
     }
 
     function hidePathDetail() {
         const overlay = getElement('pathDetailOverlay');
         if (overlay) {
-            overlay.style.display = 'none';
+            overlay.classList.remove('active');
         }
     }
 
@@ -3036,10 +3069,16 @@
             nodeCloseBtn.addEventListener('click', hideNodeDetail);
         }
 
-        // Path detail close button
+        // Path detail close button + backdrop click
         const pathCloseBtn = getElement('pathDetailCloseBtn');
         if (pathCloseBtn) {
             pathCloseBtn.addEventListener('click', hidePathDetail);
+        }
+        const pathOverlay = getElement('pathDetailOverlay');
+        if (pathOverlay) {
+            pathOverlay.addEventListener('click', function (e) {
+                if (e.target === pathOverlay) hidePathDetail();
+            });
         }
     }
 
