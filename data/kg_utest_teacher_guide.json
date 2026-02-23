@@ -322,106 +322,604 @@
     }
   ],
   "edges": [
-    { "source": "ut_root", "target": "ut_intro", "relation_type": "contains", "label": "系统简介" },
-    { "source": "ut_intro", "target": "ut_process", "relation_type": "contains", "label": "流程总览" },
-    { "source": "ut_root", "target": "ut_create_questions", "relation_type": "contains", "label": "第1步" },
-    { "source": "ut_root", "target": "ut_create_exam", "relation_type": "contains", "label": "第2步" },
-    { "source": "ut_root", "target": "ut_create_offering", "relation_type": "contains", "label": "第3步" },
-    { "source": "ut_root", "target": "ut_manage_exam", "relation_type": "contains", "label": "第4步" },
-    { "source": "ut_root", "target": "ut_proctor", "relation_type": "contains", "label": "第5步" },
-    { "source": "ut_root", "target": "ut_grading", "relation_type": "contains", "label": "第6步" },
-    { "source": "ut_root", "target": "ut_analysis", "relation_type": "contains", "label": "分析" },
-    { "source": "ut_root", "target": "ut_appendix", "relation_type": "contains", "label": "附录" },
-
-    { "source": "ut_create_questions", "target": "ut_q_manual", "relation_type": "contains", "label": "手动创建" },
-    { "source": "ut_q_manual", "target": "ut_q_types", "relation_type": "contains", "label": "题型" },
-    { "source": "ut_create_questions", "target": "ut_q_manage", "relation_type": "contains", "label": "题目管理" },
-    { "source": "ut_create_questions", "target": "ut_q_import", "relation_type": "contains", "label": "批量导入" },
-    { "source": "ut_create_questions", "target": "ut_q_batch", "relation_type": "contains", "label": "批量创建" },
-    { "source": "ut_create_questions", "target": "ut_q_duplicate", "relation_type": "contains", "label": "复制题目" },
-
-    { "source": "ut_create_exam", "target": "ut_exam_manual", "relation_type": "contains", "label": "手动" },
-    { "source": "ut_create_exam", "target": "ut_exam_auto", "relation_type": "contains", "label": "自动" },
-    { "source": "ut_create_exam", "target": "ut_exam_duplicate", "relation_type": "contains", "label": "复制" },
-    { "source": "ut_create_exam", "target": "ut_exam_random", "relation_type": "contains", "label": "随机" },
-
-    { "source": "ut_create_offering", "target": "ut_offer_precreated", "relation_type": "contains", "label": "预创建考试" },
-    { "source": "ut_create_offering", "target": "ut_offer_random", "relation_type": "contains", "label": "随机考试" },
-    { "source": "ut_create_exam", "target": "ut_create_offering", "relation_type": "depends_on", "label": "先创建考试" },
-
-    { "source": "ut_manage_exam", "target": "ut_exam_info", "relation_type": "contains", "label": "查看编辑" },
-    { "source": "ut_manage_exam", "target": "ut_exam_session", "relation_type": "contains", "label": "会话管理" },
-    { "source": "ut_manage_exam", "target": "ut_exam_facility", "relation_type": "contains", "label": "考场管理" },
-    { "source": "ut_exam_facility", "target": "ut_exam_schedule", "relation_type": "contains", "label": "排班" },
-    { "source": "ut_manage_exam", "target": "ut_grading_assign", "relation_type": "contains", "label": "评分分配" },
-    { "source": "ut_manage_exam", "target": "ut_face_verify", "relation_type": "contains", "label": "人脸验证" },
-    { "source": "ut_face_verify", "target": "ut_alt_code", "relation_type": "related", "label": "替代方案" },
-
-    { "source": "ut_proctor", "target": "ut_proctor_station", "relation_type": "contains", "label": "监考站" },
-    { "source": "ut_proctor", "target": "ut_monitor_log", "relation_type": "contains", "label": "监控日志" },
-
-    { "source": "ut_grading", "target": "ut_grade_course", "relation_type": "contains", "label": "批改" },
-    { "source": "ut_grading", "target": "ut_results_overview", "relation_type": "contains", "label": "总览" },
-    { "source": "ut_grading", "target": "ut_results_ungraded", "relation_type": "contains", "label": "未批改" },
-    { "source": "ut_grading", "target": "ut_results_graded", "relation_type": "contains", "label": "已批改" },
-    { "source": "ut_grading", "target": "ut_batch_grade", "relation_type": "contains", "label": "批量批改" },
-    { "source": "ut_grading", "target": "ut_export_score", "relation_type": "contains", "label": "导出成绩" },
-    { "source": "ut_grading", "target": "ut_export_response", "relation_type": "contains", "label": "导出答题" },
-    { "source": "ut_grading", "target": "ut_export_custom", "relation_type": "contains", "label": "自定义导出" },
-
-    { "source": "ut_appendix", "target": "ut_create_course", "relation_type": "contains", "label": "创建课程" },
-    { "source": "ut_appendix", "target": "ut_create_class", "relation_type": "contains", "label": "创建班级" },
-    { "source": "ut_appendix", "target": "ut_add_students", "relation_type": "contains", "label": "添加学生" },
-    { "source": "ut_appendix", "target": "ut_class_roster", "relation_type": "contains", "label": "花名册" },
-    { "source": "ut_appendix", "target": "ut_add_teacher", "relation_type": "contains", "label": "添加教师" },
-    { "source": "ut_create_course", "target": "ut_create_class", "relation_type": "depends_on", "label": "先建课程" },
-    { "source": "ut_create_class", "target": "ut_add_students", "relation_type": "depends_on", "label": "先建班级" }
+    {
+      "source": "ut_root",
+      "target": "ut_intro",
+      "relation_type": "包含",
+      "label": "系统简介"
+    },
+    {
+      "source": "ut_intro",
+      "target": "ut_process",
+      "relation_type": "包含",
+      "label": "流程总览"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_create_questions",
+      "relation_type": "包含",
+      "label": "第1步"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_create_exam",
+      "relation_type": "包含",
+      "label": "第2步"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_create_offering",
+      "relation_type": "包含",
+      "label": "第3步"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_manage_exam",
+      "relation_type": "包含",
+      "label": "第4步"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_proctor",
+      "relation_type": "包含",
+      "label": "第5步"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_grading",
+      "relation_type": "包含",
+      "label": "第6步"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_analysis",
+      "relation_type": "包含",
+      "label": "分析"
+    },
+    {
+      "source": "ut_root",
+      "target": "ut_appendix",
+      "relation_type": "包含",
+      "label": "附录"
+    },
+    {
+      "source": "ut_create_questions",
+      "target": "ut_q_manual",
+      "relation_type": "包含",
+      "label": "手动创建"
+    },
+    {
+      "source": "ut_q_manual",
+      "target": "ut_q_types",
+      "relation_type": "包含",
+      "label": "题型"
+    },
+    {
+      "source": "ut_create_questions",
+      "target": "ut_q_manage",
+      "relation_type": "包含",
+      "label": "题目管理"
+    },
+    {
+      "source": "ut_create_questions",
+      "target": "ut_q_import",
+      "relation_type": "包含",
+      "label": "批量导入"
+    },
+    {
+      "source": "ut_create_questions",
+      "target": "ut_q_batch",
+      "relation_type": "包含",
+      "label": "批量创建"
+    },
+    {
+      "source": "ut_create_questions",
+      "target": "ut_q_duplicate",
+      "relation_type": "包含",
+      "label": "复制题目"
+    },
+    {
+      "source": "ut_create_exam",
+      "target": "ut_exam_manual",
+      "relation_type": "包含",
+      "label": "手动"
+    },
+    {
+      "source": "ut_create_exam",
+      "target": "ut_exam_auto",
+      "relation_type": "包含",
+      "label": "自动"
+    },
+    {
+      "source": "ut_create_exam",
+      "target": "ut_exam_duplicate",
+      "relation_type": "包含",
+      "label": "复制"
+    },
+    {
+      "source": "ut_create_exam",
+      "target": "ut_exam_random",
+      "relation_type": "包含",
+      "label": "随机"
+    },
+    {
+      "source": "ut_create_offering",
+      "target": "ut_offer_precreated",
+      "relation_type": "包含",
+      "label": "预创建考试"
+    },
+    {
+      "source": "ut_create_offering",
+      "target": "ut_offer_random",
+      "relation_type": "包含",
+      "label": "随机考试"
+    },
+    {
+      "source": "ut_create_exam",
+      "target": "ut_create_offering",
+      "relation_type": "前置",
+      "label": "先创建考试"
+    },
+    {
+      "source": "ut_manage_exam",
+      "target": "ut_exam_info",
+      "relation_type": "包含",
+      "label": "查看编辑"
+    },
+    {
+      "source": "ut_manage_exam",
+      "target": "ut_exam_session",
+      "relation_type": "包含",
+      "label": "会话管理"
+    },
+    {
+      "source": "ut_manage_exam",
+      "target": "ut_exam_facility",
+      "relation_type": "包含",
+      "label": "考场管理"
+    },
+    {
+      "source": "ut_exam_facility",
+      "target": "ut_exam_schedule",
+      "relation_type": "包含",
+      "label": "排班"
+    },
+    {
+      "source": "ut_manage_exam",
+      "target": "ut_grading_assign",
+      "relation_type": "包含",
+      "label": "评分分配"
+    },
+    {
+      "source": "ut_manage_exam",
+      "target": "ut_face_verify",
+      "relation_type": "包含",
+      "label": "人脸验证"
+    },
+    {
+      "source": "ut_face_verify",
+      "target": "ut_alt_code",
+      "relation_type": "关联",
+      "label": "替代方案"
+    },
+    {
+      "source": "ut_proctor",
+      "target": "ut_proctor_station",
+      "relation_type": "包含",
+      "label": "监考站"
+    },
+    {
+      "source": "ut_proctor",
+      "target": "ut_monitor_log",
+      "relation_type": "包含",
+      "label": "监控日志"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_grade_course",
+      "relation_type": "包含",
+      "label": "批改"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_results_overview",
+      "relation_type": "包含",
+      "label": "总览"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_results_ungraded",
+      "relation_type": "包含",
+      "label": "未批改"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_results_graded",
+      "relation_type": "包含",
+      "label": "已批改"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_batch_grade",
+      "relation_type": "包含",
+      "label": "批量批改"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_export_score",
+      "relation_type": "包含",
+      "label": "导出成绩"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_export_response",
+      "relation_type": "包含",
+      "label": "导出答题"
+    },
+    {
+      "source": "ut_grading",
+      "target": "ut_export_custom",
+      "relation_type": "包含",
+      "label": "自定义导出"
+    },
+    {
+      "source": "ut_appendix",
+      "target": "ut_create_course",
+      "relation_type": "包含",
+      "label": "创建课程"
+    },
+    {
+      "source": "ut_appendix",
+      "target": "ut_create_class",
+      "relation_type": "包含",
+      "label": "创建班级"
+    },
+    {
+      "source": "ut_appendix",
+      "target": "ut_add_students",
+      "relation_type": "包含",
+      "label": "添加学生"
+    },
+    {
+      "source": "ut_appendix",
+      "target": "ut_class_roster",
+      "relation_type": "包含",
+      "label": "花名册"
+    },
+    {
+      "source": "ut_appendix",
+      "target": "ut_add_teacher",
+      "relation_type": "包含",
+      "label": "添加教师"
+    },
+    {
+      "source": "ut_create_course",
+      "target": "ut_create_class",
+      "relation_type": "前置",
+      "label": "先建课程"
+    },
+    {
+      "source": "ut_create_class",
+      "target": "ut_add_students",
+      "relation_type": "前置",
+      "label": "先建班级"
+    }
   ],
   "content_links": [
-    { "node": "ut_root", "anchor": { "type": "page", "value": 1 } },
-    { "node": "ut_intro", "anchor": { "type": "page", "value": 4 } },
-    { "node": "ut_process", "anchor": { "type": "page", "value": 7 } },
-    { "node": "ut_create_questions", "anchor": { "type": "page", "value": 8 } },
-    { "node": "ut_q_manual", "anchor": { "type": "page", "value": 8 } },
-    { "node": "ut_q_types", "anchor": { "type": "page", "value": 10 } },
-    { "node": "ut_q_manage", "anchor": { "type": "page", "value": 11 } },
-    { "node": "ut_q_import", "anchor": { "type": "page", "value": 12 } },
-    { "node": "ut_q_batch", "anchor": { "type": "page", "value": 15 } },
-    { "node": "ut_q_duplicate", "anchor": { "type": "page", "value": 18 } },
-    { "node": "ut_create_exam", "anchor": { "type": "page", "value": 19 } },
-    { "node": "ut_exam_manual", "anchor": { "type": "page", "value": 19 } },
-    { "node": "ut_exam_auto", "anchor": { "type": "page", "value": 26 } },
-    { "node": "ut_exam_duplicate", "anchor": { "type": "page", "value": 29 } },
-    { "node": "ut_exam_random", "anchor": { "type": "page", "value": 31 } },
-    { "node": "ut_create_offering", "anchor": { "type": "page", "value": 32 } },
-    { "node": "ut_offer_precreated", "anchor": { "type": "page", "value": 32 } },
-    { "node": "ut_offer_random", "anchor": { "type": "page", "value": 37 } },
-    { "node": "ut_manage_exam", "anchor": { "type": "page", "value": 45 } },
-    { "node": "ut_exam_info", "anchor": { "type": "page", "value": 45 } },
-    { "node": "ut_exam_session", "anchor": { "type": "page", "value": 49 } },
-    { "node": "ut_exam_facility", "anchor": { "type": "page", "value": 50 } },
-    { "node": "ut_exam_schedule", "anchor": { "type": "page", "value": 52 } },
-    { "node": "ut_grading_assign", "anchor": { "type": "page", "value": 55 } },
-    { "node": "ut_face_verify", "anchor": { "type": "page", "value": 56 } },
-    { "node": "ut_alt_code", "anchor": { "type": "page", "value": 62 } },
-    { "node": "ut_proctor", "anchor": { "type": "page", "value": 63 } },
-    { "node": "ut_proctor_station", "anchor": { "type": "page", "value": 63 } },
-    { "node": "ut_monitor_log", "anchor": { "type": "page", "value": 65 } },
-    { "node": "ut_grading", "anchor": { "type": "page", "value": 68 } },
-    { "node": "ut_grade_course", "anchor": { "type": "page", "value": 68 } },
-    { "node": "ut_results_overview", "anchor": { "type": "page", "value": 74 } },
-    { "node": "ut_results_ungraded", "anchor": { "type": "page", "value": 76 } },
-    { "node": "ut_results_graded", "anchor": { "type": "page", "value": 77 } },
-    { "node": "ut_batch_grade", "anchor": { "type": "page", "value": 78 } },
-    { "node": "ut_export_score", "anchor": { "type": "page", "value": 79 } },
-    { "node": "ut_export_response", "anchor": { "type": "page", "value": 80 } },
-    { "node": "ut_export_custom", "anchor": { "type": "page", "value": 81 } },
-    { "node": "ut_analysis", "anchor": { "type": "page", "value": 83 } },
-    { "node": "ut_appendix", "anchor": { "type": "page", "value": 85 } },
-    { "node": "ut_create_course", "anchor": { "type": "page", "value": 85 } },
-    { "node": "ut_create_class", "anchor": { "type": "page", "value": 88 } },
-    { "node": "ut_add_students", "anchor": { "type": "page", "value": 91 } },
-    { "node": "ut_class_roster", "anchor": { "type": "page", "value": 93 } },
-    { "node": "ut_add_teacher", "anchor": { "type": "page", "value": 95 } }
+    {
+      "node": "ut_root",
+      "anchor": {
+        "type": "page",
+        "value": 1
+      }
+    },
+    {
+      "node": "ut_intro",
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "ut_process",
+      "anchor": {
+        "type": "page",
+        "value": 7
+      }
+    },
+    {
+      "node": "ut_create_questions",
+      "anchor": {
+        "type": "page",
+        "value": 8
+      }
+    },
+    {
+      "node": "ut_q_manual",
+      "anchor": {
+        "type": "page",
+        "value": 8
+      }
+    },
+    {
+      "node": "ut_q_types",
+      "anchor": {
+        "type": "page",
+        "value": 10
+      }
+    },
+    {
+      "node": "ut_q_manage",
+      "anchor": {
+        "type": "page",
+        "value": 11
+      }
+    },
+    {
+      "node": "ut_q_import",
+      "anchor": {
+        "type": "page",
+        "value": 12
+      }
+    },
+    {
+      "node": "ut_q_batch",
+      "anchor": {
+        "type": "page",
+        "value": 15
+      }
+    },
+    {
+      "node": "ut_q_duplicate",
+      "anchor": {
+        "type": "page",
+        "value": 18
+      }
+    },
+    {
+      "node": "ut_create_exam",
+      "anchor": {
+        "type": "page",
+        "value": 19
+      }
+    },
+    {
+      "node": "ut_exam_manual",
+      "anchor": {
+        "type": "page",
+        "value": 19
+      }
+    },
+    {
+      "node": "ut_exam_auto",
+      "anchor": {
+        "type": "page",
+        "value": 26
+      }
+    },
+    {
+      "node": "ut_exam_duplicate",
+      "anchor": {
+        "type": "page",
+        "value": 29
+      }
+    },
+    {
+      "node": "ut_exam_random",
+      "anchor": {
+        "type": "page",
+        "value": 31
+      }
+    },
+    {
+      "node": "ut_create_offering",
+      "anchor": {
+        "type": "page",
+        "value": 32
+      }
+    },
+    {
+      "node": "ut_offer_precreated",
+      "anchor": {
+        "type": "page",
+        "value": 32
+      }
+    },
+    {
+      "node": "ut_offer_random",
+      "anchor": {
+        "type": "page",
+        "value": 37
+      }
+    },
+    {
+      "node": "ut_manage_exam",
+      "anchor": {
+        "type": "page",
+        "value": 45
+      }
+    },
+    {
+      "node": "ut_exam_info",
+      "anchor": {
+        "type": "page",
+        "value": 45
+      }
+    },
+    {
+      "node": "ut_exam_session",
+      "anchor": {
+        "type": "page",
+        "value": 49
+      }
+    },
+    {
+      "node": "ut_exam_facility",
+      "anchor": {
+        "type": "page",
+        "value": 50
+      }
+    },
+    {
+      "node": "ut_exam_schedule",
+      "anchor": {
+        "type": "page",
+        "value": 52
+      }
+    },
+    {
+      "node": "ut_grading_assign",
+      "anchor": {
+        "type": "page",
+        "value": 55
+      }
+    },
+    {
+      "node": "ut_face_verify",
+      "anchor": {
+        "type": "page",
+        "value": 56
+      }
+    },
+    {
+      "node": "ut_alt_code",
+      "anchor": {
+        "type": "page",
+        "value": 62
+      }
+    },
+    {
+      "node": "ut_proctor",
+      "anchor": {
+        "type": "page",
+        "value": 63
+      }
+    },
+    {
+      "node": "ut_proctor_station",
+      "anchor": {
+        "type": "page",
+        "value": 63
+      }
+    },
+    {
+      "node": "ut_monitor_log",
+      "anchor": {
+        "type": "page",
+        "value": 65
+      }
+    },
+    {
+      "node": "ut_grading",
+      "anchor": {
+        "type": "page",
+        "value": 68
+      }
+    },
+    {
+      "node": "ut_grade_course",
+      "anchor": {
+        "type": "page",
+        "value": 68
+      }
+    },
+    {
+      "node": "ut_results_overview",
+      "anchor": {
+        "type": "page",
+        "value": 74
+      }
+    },
+    {
+      "node": "ut_results_ungraded",
+      "anchor": {
+        "type": "page",
+        "value": 76
+      }
+    },
+    {
+      "node": "ut_results_graded",
+      "anchor": {
+        "type": "page",
+        "value": 77
+      }
+    },
+    {
+      "node": "ut_batch_grade",
+      "anchor": {
+        "type": "page",
+        "value": 78
+      }
+    },
+    {
+      "node": "ut_export_score",
+      "anchor": {
+        "type": "page",
+        "value": 79
+      }
+    },
+    {
+      "node": "ut_export_response",
+      "anchor": {
+        "type": "page",
+        "value": 80
+      }
+    },
+    {
+      "node": "ut_export_custom",
+      "anchor": {
+        "type": "page",
+        "value": 81
+      }
+    },
+    {
+      "node": "ut_analysis",
+      "anchor": {
+        "type": "page",
+        "value": 83
+      }
+    },
+    {
+      "node": "ut_appendix",
+      "anchor": {
+        "type": "page",
+        "value": 85
+      }
+    },
+    {
+      "node": "ut_create_course",
+      "anchor": {
+        "type": "page",
+        "value": 85
+      }
+    },
+    {
+      "node": "ut_create_class",
+      "anchor": {
+        "type": "page",
+        "value": 88
+      }
+    },
+    {
+      "node": "ut_add_students",
+      "anchor": {
+        "type": "page",
+        "value": 91
+      }
+    },
+    {
+      "node": "ut_class_roster",
+      "anchor": {
+        "type": "page",
+        "value": 93
+      }
+    },
+    {
+      "node": "ut_add_teacher",
+      "anchor": {
+        "type": "page",
+        "value": 95
+      }
+    }
   ]
 }

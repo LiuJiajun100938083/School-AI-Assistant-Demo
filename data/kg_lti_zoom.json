@@ -77,28 +77,143 @@
     }
   ],
   "edges": [
-    { "source": "zoom_root", "target": "zoom_admin_setup", "relation_type": "contains", "label": "管理员配置" },
-    { "source": "zoom_root", "target": "zoom_teacher_add", "relation_type": "contains", "label": "教师操作" },
-    { "source": "zoom_admin_setup", "target": "zoom_lti_pro", "relation_type": "contains", "label": "第1步" },
-    { "source": "zoom_lti_pro", "target": "zoom_lti_credentials", "relation_type": "contains", "label": "获取凭证" },
-    { "source": "zoom_admin_setup", "target": "zoom_ulearning_config", "relation_type": "contains", "label": "第2步" },
-    { "source": "zoom_lti_credentials", "target": "zoom_ulearning_config", "relation_type": "depends_on", "label": "需要密钥" },
-    { "source": "zoom_teacher_add", "target": "zoom_add_app", "relation_type": "contains", "label": "添加应用" },
-    { "source": "zoom_add_app", "target": "zoom_manage_meetings", "relation_type": "contains", "label": "进入管理" },
-    { "source": "zoom_manage_meetings", "target": "zoom_create_meeting", "relation_type": "contains", "label": "创建" },
-    { "source": "zoom_manage_meetings", "target": "zoom_view_recordings", "relation_type": "contains", "label": "查看" },
-    { "source": "zoom_ulearning_config", "target": "zoom_teacher_add", "relation_type": "depends_on", "label": "配置完成后" }
+    {
+      "source": "zoom_root",
+      "target": "zoom_admin_setup",
+      "relation_type": "包含",
+      "label": "管理员配置"
+    },
+    {
+      "source": "zoom_root",
+      "target": "zoom_teacher_add",
+      "relation_type": "包含",
+      "label": "教师操作"
+    },
+    {
+      "source": "zoom_admin_setup",
+      "target": "zoom_lti_pro",
+      "relation_type": "包含",
+      "label": "第1步"
+    },
+    {
+      "source": "zoom_lti_pro",
+      "target": "zoom_lti_credentials",
+      "relation_type": "包含",
+      "label": "获取凭证"
+    },
+    {
+      "source": "zoom_admin_setup",
+      "target": "zoom_ulearning_config",
+      "relation_type": "包含",
+      "label": "第2步"
+    },
+    {
+      "source": "zoom_lti_credentials",
+      "target": "zoom_ulearning_config",
+      "relation_type": "前置",
+      "label": "需要密钥"
+    },
+    {
+      "source": "zoom_teacher_add",
+      "target": "zoom_add_app",
+      "relation_type": "包含",
+      "label": "添加应用"
+    },
+    {
+      "source": "zoom_add_app",
+      "target": "zoom_manage_meetings",
+      "relation_type": "包含",
+      "label": "进入管理"
+    },
+    {
+      "source": "zoom_manage_meetings",
+      "target": "zoom_create_meeting",
+      "relation_type": "包含",
+      "label": "创建"
+    },
+    {
+      "source": "zoom_manage_meetings",
+      "target": "zoom_view_recordings",
+      "relation_type": "包含",
+      "label": "查看"
+    },
+    {
+      "source": "zoom_ulearning_config",
+      "target": "zoom_teacher_add",
+      "relation_type": "前置",
+      "label": "配置完成后"
+    }
   ],
   "content_links": [
-    { "node": "zoom_root", "anchor": { "type": "page", "value": 1 } },
-    { "node": "zoom_admin_setup", "anchor": { "type": "page", "value": 1 } },
-    { "node": "zoom_lti_pro", "anchor": { "type": "page", "value": 2 } },
-    { "node": "zoom_lti_credentials", "anchor": { "type": "page", "value": 3 } },
-    { "node": "zoom_ulearning_config", "anchor": { "type": "page", "value": 3 } },
-    { "node": "zoom_teacher_add", "anchor": { "type": "page", "value": 4 } },
-    { "node": "zoom_add_app", "anchor": { "type": "page", "value": 5 } },
-    { "node": "zoom_manage_meetings", "anchor": { "type": "page", "value": 6 } },
-    { "node": "zoom_create_meeting", "anchor": { "type": "page", "value": 6 } },
-    { "node": "zoom_view_recordings", "anchor": { "type": "page", "value": 6 } }
+    {
+      "node": "zoom_root",
+      "anchor": {
+        "type": "page",
+        "value": 1
+      }
+    },
+    {
+      "node": "zoom_admin_setup",
+      "anchor": {
+        "type": "page",
+        "value": 1
+      }
+    },
+    {
+      "node": "zoom_lti_pro",
+      "anchor": {
+        "type": "page",
+        "value": 2
+      }
+    },
+    {
+      "node": "zoom_lti_credentials",
+      "anchor": {
+        "type": "page",
+        "value": 3
+      }
+    },
+    {
+      "node": "zoom_ulearning_config",
+      "anchor": {
+        "type": "page",
+        "value": 3
+      }
+    },
+    {
+      "node": "zoom_teacher_add",
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "zoom_add_app",
+      "anchor": {
+        "type": "page",
+        "value": 5
+      }
+    },
+    {
+      "node": "zoom_manage_meetings",
+      "anchor": {
+        "type": "page",
+        "value": 6
+      }
+    },
+    {
+      "node": "zoom_create_meeting",
+      "anchor": {
+        "type": "page",
+        "value": 6
+      }
+    },
+    {
+      "node": "zoom_view_recordings",
+      "anchor": {
+        "type": "page",
+        "value": 6
+      }
+    }
   ]
 }

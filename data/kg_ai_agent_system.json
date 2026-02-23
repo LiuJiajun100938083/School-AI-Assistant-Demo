@@ -294,96 +294,546 @@
     }
   ],
   "edges": [
-    { "source": "ai_root", "target": "ai_admin_system", "relation_type": "contains", "label": "管理系统" },
-    { "source": "ai_root", "target": "ai_bench", "relation_type": "contains", "label": "课程工具" },
-
-    { "source": "ai_admin_system", "target": "ai_login", "relation_type": "contains", "label": "登录" },
-    { "source": "ai_admin_system", "target": "ai_assistant_mgmt", "relation_type": "contains", "label": "助手管理" },
-    { "source": "ai_admin_system", "target": "ai_knowledge_base", "relation_type": "contains", "label": "知识库" },
-    { "source": "ai_admin_system", "target": "ai_commands", "relation_type": "contains", "label": "指令管理" },
-
-    { "source": "ai_assistant_mgmt", "target": "ai_create_assistant", "relation_type": "contains", "label": "创建" },
-    { "source": "ai_create_assistant", "target": "ai_profile_photo", "relation_type": "contains", "label": "头像" },
-    { "source": "ai_create_assistant", "target": "ai_voice_settings", "relation_type": "contains", "label": "语音" },
-    { "source": "ai_create_assistant", "target": "ai_knowledge_link", "relation_type": "contains", "label": "关联知识库" },
-    { "source": "ai_create_assistant", "target": "ai_sharing", "relation_type": "contains", "label": "分享" },
-    { "source": "ai_sharing", "target": "ai_bench_shared", "relation_type": "related", "label": "共享到AI Bench" },
-    { "source": "ai_assistant_mgmt", "target": "ai_edit_assistant", "relation_type": "contains", "label": "编辑" },
-    { "source": "ai_assistant_mgmt", "target": "ai_preview", "relation_type": "contains", "label": "预览" },
-    { "source": "ai_preview", "target": "ai_qa_feature", "relation_type": "contains", "label": "问答" },
-    { "source": "ai_preview", "target": "ai_resource_recommend", "relation_type": "contains", "label": "推荐" },
-    { "source": "ai_preview", "target": "ai_quiz_gen", "relation_type": "contains", "label": "出题" },
-    { "source": "ai_preview", "target": "ai_command_center", "relation_type": "contains", "label": "指令" },
-    { "source": "ai_assistant_mgmt", "target": "ai_statistics", "relation_type": "contains", "label": "统计" },
-
-    { "source": "ai_knowledge_base", "target": "ai_kb_create", "relation_type": "contains", "label": "创建" },
-    { "source": "ai_knowledge_base", "target": "ai_kb_resources", "relation_type": "contains", "label": "资源管理" },
-    { "source": "ai_kb_resources", "target": "ai_kb_import_lr", "relation_type": "contains", "label": "导入资源" },
-    { "source": "ai_knowledge_base", "target": "ai_kb_qa", "relation_type": "contains", "label": "问答管理" },
-    { "source": "ai_kb_qa", "target": "ai_kb_groups", "relation_type": "contains", "label": "分组" },
-    { "source": "ai_knowledge_base", "target": "ai_kb_edit", "relation_type": "contains", "label": "编辑" },
-    { "source": "ai_knowledge_base", "target": "ai_kb_delete", "relation_type": "contains", "label": "删除" },
-
-    { "source": "ai_commands", "target": "ai_cmd_create", "relation_type": "contains", "label": "创建" },
-    { "source": "ai_commands", "target": "ai_cmd_groups", "relation_type": "contains", "label": "分组" },
-
-    { "source": "ai_bench", "target": "ai_bench_entry", "relation_type": "contains", "label": "入口" },
-    { "source": "ai_bench_entry", "target": "ai_bench_enable", "relation_type": "contains", "label": "启用" },
-    { "source": "ai_bench", "target": "ai_bench_settings", "relation_type": "contains", "label": "设置" },
-    { "source": "ai_bench_settings", "target": "ai_bench_asst_settings", "relation_type": "contains", "label": "助手设置" },
-    { "source": "ai_bench_settings", "target": "ai_bench_tools_settings", "relation_type": "contains", "label": "工具设置" },
-    { "source": "ai_bench_settings", "target": "ai_bench_kb_settings", "relation_type": "contains", "label": "知识库设置" },
-    { "source": "ai_bench", "target": "ai_bench_use_assistant", "relation_type": "contains", "label": "使用助手" },
-    { "source": "ai_bench_use_assistant", "target": "ai_bench_kg_recommend", "relation_type": "related", "label": "知识图谱" },
-    { "source": "ai_bench", "target": "ai_bench_tools", "relation_type": "contains", "label": "工具" },
-    { "source": "ai_bench_tools", "target": "ai_bench_retrieval", "relation_type": "contains", "label": "资源检索" },
-    { "source": "ai_bench_tools", "target": "ai_bench_video_analysis", "relation_type": "contains", "label": "视频分析" },
-    { "source": "ai_bench_video_analysis", "target": "ai_bench_video_features", "relation_type": "contains", "label": "分析功能" },
-
-    { "source": "ai_create_assistant", "target": "ai_bench_asst_settings", "relation_type": "related", "label": "添加到课程" },
-    { "source": "ai_knowledge_base", "target": "ai_bench_kb_settings", "relation_type": "related", "label": "关联到课程" }
+    {
+      "source": "ai_root",
+      "target": "ai_admin_system",
+      "relation_type": "包含",
+      "label": "管理系统"
+    },
+    {
+      "source": "ai_root",
+      "target": "ai_bench",
+      "relation_type": "包含",
+      "label": "课程工具"
+    },
+    {
+      "source": "ai_admin_system",
+      "target": "ai_login",
+      "relation_type": "包含",
+      "label": "登录"
+    },
+    {
+      "source": "ai_admin_system",
+      "target": "ai_assistant_mgmt",
+      "relation_type": "包含",
+      "label": "助手管理"
+    },
+    {
+      "source": "ai_admin_system",
+      "target": "ai_knowledge_base",
+      "relation_type": "包含",
+      "label": "知识库"
+    },
+    {
+      "source": "ai_admin_system",
+      "target": "ai_commands",
+      "relation_type": "包含",
+      "label": "指令管理"
+    },
+    {
+      "source": "ai_assistant_mgmt",
+      "target": "ai_create_assistant",
+      "relation_type": "包含",
+      "label": "创建"
+    },
+    {
+      "source": "ai_create_assistant",
+      "target": "ai_profile_photo",
+      "relation_type": "包含",
+      "label": "头像"
+    },
+    {
+      "source": "ai_create_assistant",
+      "target": "ai_voice_settings",
+      "relation_type": "包含",
+      "label": "语音"
+    },
+    {
+      "source": "ai_create_assistant",
+      "target": "ai_knowledge_link",
+      "relation_type": "包含",
+      "label": "关联知识库"
+    },
+    {
+      "source": "ai_create_assistant",
+      "target": "ai_sharing",
+      "relation_type": "包含",
+      "label": "分享"
+    },
+    {
+      "source": "ai_sharing",
+      "target": "ai_bench_shared",
+      "relation_type": "关联",
+      "label": "共享到AI Bench"
+    },
+    {
+      "source": "ai_assistant_mgmt",
+      "target": "ai_edit_assistant",
+      "relation_type": "包含",
+      "label": "编辑"
+    },
+    {
+      "source": "ai_assistant_mgmt",
+      "target": "ai_preview",
+      "relation_type": "包含",
+      "label": "预览"
+    },
+    {
+      "source": "ai_preview",
+      "target": "ai_qa_feature",
+      "relation_type": "包含",
+      "label": "问答"
+    },
+    {
+      "source": "ai_preview",
+      "target": "ai_resource_recommend",
+      "relation_type": "包含",
+      "label": "推荐"
+    },
+    {
+      "source": "ai_preview",
+      "target": "ai_quiz_gen",
+      "relation_type": "包含",
+      "label": "出题"
+    },
+    {
+      "source": "ai_preview",
+      "target": "ai_command_center",
+      "relation_type": "包含",
+      "label": "指令"
+    },
+    {
+      "source": "ai_assistant_mgmt",
+      "target": "ai_statistics",
+      "relation_type": "包含",
+      "label": "统计"
+    },
+    {
+      "source": "ai_knowledge_base",
+      "target": "ai_kb_create",
+      "relation_type": "包含",
+      "label": "创建"
+    },
+    {
+      "source": "ai_knowledge_base",
+      "target": "ai_kb_resources",
+      "relation_type": "包含",
+      "label": "资源管理"
+    },
+    {
+      "source": "ai_kb_resources",
+      "target": "ai_kb_import_lr",
+      "relation_type": "包含",
+      "label": "导入资源"
+    },
+    {
+      "source": "ai_knowledge_base",
+      "target": "ai_kb_qa",
+      "relation_type": "包含",
+      "label": "问答管理"
+    },
+    {
+      "source": "ai_kb_qa",
+      "target": "ai_kb_groups",
+      "relation_type": "包含",
+      "label": "分组"
+    },
+    {
+      "source": "ai_knowledge_base",
+      "target": "ai_kb_edit",
+      "relation_type": "包含",
+      "label": "编辑"
+    },
+    {
+      "source": "ai_knowledge_base",
+      "target": "ai_kb_delete",
+      "relation_type": "包含",
+      "label": "删除"
+    },
+    {
+      "source": "ai_commands",
+      "target": "ai_cmd_create",
+      "relation_type": "包含",
+      "label": "创建"
+    },
+    {
+      "source": "ai_commands",
+      "target": "ai_cmd_groups",
+      "relation_type": "包含",
+      "label": "分组"
+    },
+    {
+      "source": "ai_bench",
+      "target": "ai_bench_entry",
+      "relation_type": "包含",
+      "label": "入口"
+    },
+    {
+      "source": "ai_bench_entry",
+      "target": "ai_bench_enable",
+      "relation_type": "包含",
+      "label": "启用"
+    },
+    {
+      "source": "ai_bench",
+      "target": "ai_bench_settings",
+      "relation_type": "包含",
+      "label": "设置"
+    },
+    {
+      "source": "ai_bench_settings",
+      "target": "ai_bench_asst_settings",
+      "relation_type": "包含",
+      "label": "助手设置"
+    },
+    {
+      "source": "ai_bench_settings",
+      "target": "ai_bench_tools_settings",
+      "relation_type": "包含",
+      "label": "工具设置"
+    },
+    {
+      "source": "ai_bench_settings",
+      "target": "ai_bench_kb_settings",
+      "relation_type": "包含",
+      "label": "知识库设置"
+    },
+    {
+      "source": "ai_bench",
+      "target": "ai_bench_use_assistant",
+      "relation_type": "包含",
+      "label": "使用助手"
+    },
+    {
+      "source": "ai_bench_use_assistant",
+      "target": "ai_bench_kg_recommend",
+      "relation_type": "关联",
+      "label": "知识图谱"
+    },
+    {
+      "source": "ai_bench",
+      "target": "ai_bench_tools",
+      "relation_type": "包含",
+      "label": "工具"
+    },
+    {
+      "source": "ai_bench_tools",
+      "target": "ai_bench_retrieval",
+      "relation_type": "包含",
+      "label": "资源检索"
+    },
+    {
+      "source": "ai_bench_tools",
+      "target": "ai_bench_video_analysis",
+      "relation_type": "包含",
+      "label": "视频分析"
+    },
+    {
+      "source": "ai_bench_video_analysis",
+      "target": "ai_bench_video_features",
+      "relation_type": "包含",
+      "label": "分析功能"
+    },
+    {
+      "source": "ai_create_assistant",
+      "target": "ai_bench_asst_settings",
+      "relation_type": "关联",
+      "label": "添加到课程"
+    },
+    {
+      "source": "ai_knowledge_base",
+      "target": "ai_bench_kb_settings",
+      "relation_type": "关联",
+      "label": "关联到课程"
+    }
   ],
   "content_links": [
-    { "node": "ai_root", "anchor": { "type": "page", "value": 1 } },
-    { "node": "ai_admin_system", "anchor": { "type": "page", "value": 4 } },
-    { "node": "ai_login", "anchor": { "type": "page", "value": 4 } },
-    { "node": "ai_assistant_mgmt", "anchor": { "type": "page", "value": 5 } },
-    { "node": "ai_create_assistant", "anchor": { "type": "page", "value": 5 } },
-    { "node": "ai_profile_photo", "anchor": { "type": "page", "value": 6 } },
-    { "node": "ai_voice_settings", "anchor": { "type": "page", "value": 7 } },
-    { "node": "ai_knowledge_link", "anchor": { "type": "page", "value": 8 } },
-    { "node": "ai_sharing", "anchor": { "type": "page", "value": 9 } },
-    { "node": "ai_bench_shared", "anchor": { "type": "page", "value": 10 } },
-    { "node": "ai_edit_assistant", "anchor": { "type": "page", "value": 10 } },
-    { "node": "ai_preview", "anchor": { "type": "page", "value": 11 } },
-    { "node": "ai_qa_feature", "anchor": { "type": "page", "value": 13 } },
-    { "node": "ai_resource_recommend", "anchor": { "type": "page", "value": 13 } },
-    { "node": "ai_quiz_gen", "anchor": { "type": "page", "value": 14 } },
-    { "node": "ai_command_center", "anchor": { "type": "page", "value": 15 } },
-    { "node": "ai_statistics", "anchor": { "type": "page", "value": 17 } },
-    { "node": "ai_knowledge_base", "anchor": { "type": "page", "value": 19 } },
-    { "node": "ai_kb_create", "anchor": { "type": "page", "value": 19 } },
-    { "node": "ai_kb_resources", "anchor": { "type": "page", "value": 19 } },
-    { "node": "ai_kb_import_lr", "anchor": { "type": "page", "value": 20 } },
-    { "node": "ai_kb_qa", "anchor": { "type": "page", "value": 22 } },
-    { "node": "ai_kb_groups", "anchor": { "type": "page", "value": 23 } },
-    { "node": "ai_kb_edit", "anchor": { "type": "page", "value": 25 } },
-    { "node": "ai_kb_delete", "anchor": { "type": "page", "value": 26 } },
-    { "node": "ai_commands", "anchor": { "type": "page", "value": 26 } },
-    { "node": "ai_cmd_create", "anchor": { "type": "page", "value": 26 } },
-    { "node": "ai_cmd_groups", "anchor": { "type": "page", "value": 28 } },
-    { "node": "ai_bench", "anchor": { "type": "page", "value": 29 } },
-    { "node": "ai_bench_entry", "anchor": { "type": "page", "value": 29 } },
-    { "node": "ai_bench_enable", "anchor": { "type": "page", "value": 30 } },
-    { "node": "ai_bench_settings", "anchor": { "type": "page", "value": 32 } },
-    { "node": "ai_bench_asst_settings", "anchor": { "type": "page", "value": 32 } },
-    { "node": "ai_bench_tools_settings", "anchor": { "type": "page", "value": 35 } },
-    { "node": "ai_bench_kb_settings", "anchor": { "type": "page", "value": 36 } },
-    { "node": "ai_bench_use_assistant", "anchor": { "type": "page", "value": 38 } },
-    { "node": "ai_bench_kg_recommend", "anchor": { "type": "page", "value": 40 } },
-    { "node": "ai_bench_tools", "anchor": { "type": "page", "value": 42 } },
-    { "node": "ai_bench_retrieval", "anchor": { "type": "page", "value": 42 } },
-    { "node": "ai_bench_video_analysis", "anchor": { "type": "page", "value": 42 } },
-    { "node": "ai_bench_video_features", "anchor": { "type": "page", "value": 43 } }
+    {
+      "node": "ai_root",
+      "anchor": {
+        "type": "page",
+        "value": 1
+      }
+    },
+    {
+      "node": "ai_admin_system",
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "ai_login",
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "ai_assistant_mgmt",
+      "anchor": {
+        "type": "page",
+        "value": 5
+      }
+    },
+    {
+      "node": "ai_create_assistant",
+      "anchor": {
+        "type": "page",
+        "value": 5
+      }
+    },
+    {
+      "node": "ai_profile_photo",
+      "anchor": {
+        "type": "page",
+        "value": 6
+      }
+    },
+    {
+      "node": "ai_voice_settings",
+      "anchor": {
+        "type": "page",
+        "value": 7
+      }
+    },
+    {
+      "node": "ai_knowledge_link",
+      "anchor": {
+        "type": "page",
+        "value": 8
+      }
+    },
+    {
+      "node": "ai_sharing",
+      "anchor": {
+        "type": "page",
+        "value": 9
+      }
+    },
+    {
+      "node": "ai_bench_shared",
+      "anchor": {
+        "type": "page",
+        "value": 10
+      }
+    },
+    {
+      "node": "ai_edit_assistant",
+      "anchor": {
+        "type": "page",
+        "value": 10
+      }
+    },
+    {
+      "node": "ai_preview",
+      "anchor": {
+        "type": "page",
+        "value": 11
+      }
+    },
+    {
+      "node": "ai_qa_feature",
+      "anchor": {
+        "type": "page",
+        "value": 13
+      }
+    },
+    {
+      "node": "ai_resource_recommend",
+      "anchor": {
+        "type": "page",
+        "value": 13
+      }
+    },
+    {
+      "node": "ai_quiz_gen",
+      "anchor": {
+        "type": "page",
+        "value": 14
+      }
+    },
+    {
+      "node": "ai_command_center",
+      "anchor": {
+        "type": "page",
+        "value": 15
+      }
+    },
+    {
+      "node": "ai_statistics",
+      "anchor": {
+        "type": "page",
+        "value": 17
+      }
+    },
+    {
+      "node": "ai_knowledge_base",
+      "anchor": {
+        "type": "page",
+        "value": 19
+      }
+    },
+    {
+      "node": "ai_kb_create",
+      "anchor": {
+        "type": "page",
+        "value": 19
+      }
+    },
+    {
+      "node": "ai_kb_resources",
+      "anchor": {
+        "type": "page",
+        "value": 19
+      }
+    },
+    {
+      "node": "ai_kb_import_lr",
+      "anchor": {
+        "type": "page",
+        "value": 20
+      }
+    },
+    {
+      "node": "ai_kb_qa",
+      "anchor": {
+        "type": "page",
+        "value": 22
+      }
+    },
+    {
+      "node": "ai_kb_groups",
+      "anchor": {
+        "type": "page",
+        "value": 23
+      }
+    },
+    {
+      "node": "ai_kb_edit",
+      "anchor": {
+        "type": "page",
+        "value": 25
+      }
+    },
+    {
+      "node": "ai_kb_delete",
+      "anchor": {
+        "type": "page",
+        "value": 26
+      }
+    },
+    {
+      "node": "ai_commands",
+      "anchor": {
+        "type": "page",
+        "value": 26
+      }
+    },
+    {
+      "node": "ai_cmd_create",
+      "anchor": {
+        "type": "page",
+        "value": 26
+      }
+    },
+    {
+      "node": "ai_cmd_groups",
+      "anchor": {
+        "type": "page",
+        "value": 28
+      }
+    },
+    {
+      "node": "ai_bench",
+      "anchor": {
+        "type": "page",
+        "value": 29
+      }
+    },
+    {
+      "node": "ai_bench_entry",
+      "anchor": {
+        "type": "page",
+        "value": 29
+      }
+    },
+    {
+      "node": "ai_bench_enable",
+      "anchor": {
+        "type": "page",
+        "value": 30
+      }
+    },
+    {
+      "node": "ai_bench_settings",
+      "anchor": {
+        "type": "page",
+        "value": 32
+      }
+    },
+    {
+      "node": "ai_bench_asst_settings",
+      "anchor": {
+        "type": "page",
+        "value": 32
+      }
+    },
+    {
+      "node": "ai_bench_tools_settings",
+      "anchor": {
+        "type": "page",
+        "value": 35
+      }
+    },
+    {
+      "node": "ai_bench_kb_settings",
+      "anchor": {
+        "type": "page",
+        "value": 36
+      }
+    },
+    {
+      "node": "ai_bench_use_assistant",
+      "anchor": {
+        "type": "page",
+        "value": 38
+      }
+    },
+    {
+      "node": "ai_bench_kg_recommend",
+      "anchor": {
+        "type": "page",
+        "value": 40
+      }
+    },
+    {
+      "node": "ai_bench_tools",
+      "anchor": {
+        "type": "page",
+        "value": 42
+      }
+    },
+    {
+      "node": "ai_bench_retrieval",
+      "anchor": {
+        "type": "page",
+        "value": 42
+      }
+    },
+    {
+      "node": "ai_bench_video_analysis",
+      "anchor": {
+        "type": "page",
+        "value": 42
+      }
+    },
+    {
+      "node": "ai_bench_video_features",
+      "anchor": {
+        "type": "page",
+        "value": 43
+      }
+    }
   ]
 }

@@ -70,25 +70,124 @@
     }
   ],
   "edges": [
-    { "source": "vmr_root", "target": "vmr_admin", "relation_type": "contains", "label": "管理员端" },
-    { "source": "vmr_root", "target": "vmr_teacher", "relation_type": "contains", "label": "教师端" },
-    { "source": "vmr_admin", "target": "vmr_room_list", "relation_type": "contains", "label": "查看列表" },
-    { "source": "vmr_admin", "target": "vmr_assign_teacher", "relation_type": "contains", "label": "分配教师" },
-    { "source": "vmr_teacher", "target": "vmr_schedule_rules", "relation_type": "contains", "label": "注意事项" },
-    { "source": "vmr_teacher", "target": "vmr_time_slots", "relation_type": "contains", "label": "查看时间" },
-    { "source": "vmr_teacher", "target": "vmr_create_meeting", "relation_type": "contains", "label": "发起会议" },
-    { "source": "vmr_create_meeting", "target": "vmr_conflict_notice", "relation_type": "related", "label": "注意事项" },
-    { "source": "vmr_assign_teacher", "target": "vmr_teacher", "relation_type": "depends_on", "label": "分配后可用" }
+    {
+      "source": "vmr_root",
+      "target": "vmr_admin",
+      "relation_type": "包含",
+      "label": "管理员端"
+    },
+    {
+      "source": "vmr_root",
+      "target": "vmr_teacher",
+      "relation_type": "包含",
+      "label": "教师端"
+    },
+    {
+      "source": "vmr_admin",
+      "target": "vmr_room_list",
+      "relation_type": "包含",
+      "label": "查看列表"
+    },
+    {
+      "source": "vmr_admin",
+      "target": "vmr_assign_teacher",
+      "relation_type": "包含",
+      "label": "分配教师"
+    },
+    {
+      "source": "vmr_teacher",
+      "target": "vmr_schedule_rules",
+      "relation_type": "包含",
+      "label": "注意事项"
+    },
+    {
+      "source": "vmr_teacher",
+      "target": "vmr_time_slots",
+      "relation_type": "包含",
+      "label": "查看时间"
+    },
+    {
+      "source": "vmr_teacher",
+      "target": "vmr_create_meeting",
+      "relation_type": "包含",
+      "label": "发起会议"
+    },
+    {
+      "source": "vmr_create_meeting",
+      "target": "vmr_conflict_notice",
+      "relation_type": "关联",
+      "label": "注意事项"
+    },
+    {
+      "source": "vmr_assign_teacher",
+      "target": "vmr_teacher",
+      "relation_type": "前置",
+      "label": "分配后可用"
+    }
   ],
   "content_links": [
-    { "node": "vmr_root", "anchor": { "type": "page", "value": 1 } },
-    { "node": "vmr_admin", "anchor": { "type": "page", "value": 1 } },
-    { "node": "vmr_room_list", "anchor": { "type": "page", "value": 1 } },
-    { "node": "vmr_assign_teacher", "anchor": { "type": "page", "value": 2 } },
-    { "node": "vmr_teacher", "anchor": { "type": "page", "value": 3 } },
-    { "node": "vmr_schedule_rules", "anchor": { "type": "page", "value": 3 } },
-    { "node": "vmr_time_slots", "anchor": { "type": "page", "value": 4 } },
-    { "node": "vmr_create_meeting", "anchor": { "type": "page", "value": 4 } },
-    { "node": "vmr_conflict_notice", "anchor": { "type": "page", "value": 5 } }
+    {
+      "node": "vmr_root",
+      "anchor": {
+        "type": "page",
+        "value": 1
+      }
+    },
+    {
+      "node": "vmr_admin",
+      "anchor": {
+        "type": "page",
+        "value": 1
+      }
+    },
+    {
+      "node": "vmr_room_list",
+      "anchor": {
+        "type": "page",
+        "value": 1
+      }
+    },
+    {
+      "node": "vmr_assign_teacher",
+      "anchor": {
+        "type": "page",
+        "value": 2
+      }
+    },
+    {
+      "node": "vmr_teacher",
+      "anchor": {
+        "type": "page",
+        "value": 3
+      }
+    },
+    {
+      "node": "vmr_schedule_rules",
+      "anchor": {
+        "type": "page",
+        "value": 3
+      }
+    },
+    {
+      "node": "vmr_time_slots",
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "vmr_create_meeting",
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "vmr_conflict_notice",
+      "anchor": {
+        "type": "page",
+        "value": 5
+      }
+    }
   ]
 }
