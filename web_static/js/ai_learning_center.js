@@ -2059,9 +2059,9 @@
         // Render panel
         const nodeColor = node.color || '#006633';
         panel.innerHTML = `
+            <button class="alc-nd__close">&times;</button>
             <div class="alc-nd">
                 <div class="alc-nd__header" style="background: linear-gradient(135deg, ${nodeColor}, ${nodeColor}dd)">
-                    <button class="alc-nd__close">&times;</button>
                     <div class="alc-nd__icon">${node.icon || '📌'}</div>
                     <h2 class="alc-nd__title">${escapeHtml(node.title)}</h2>
                 </div>
