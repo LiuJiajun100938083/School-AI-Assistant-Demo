@@ -390,7 +390,7 @@ function showScanNotification(data) {
         // 错误状态
         iconEl.textContent = '❌';
         nameEl.textContent = '签到失败';
-        englishNameEl.textContent = data.message || '未知错误';
+        englishNameEl.textContent = data.message || data.detail || '未知错误';
         classTextEl.textContent = data.card_id ? `卡号: ${data.card_id}` : '未知卡号';
         card.classList.add('status-error');
         statusEl.className = 'notification-status error';
@@ -1697,7 +1697,7 @@ function showScanResult(data) {
         }
     } else {
         resultDiv.classList.add('error');
-        nameDiv.textContent = '❌ ' + data.message;
+        nameDiv.textContent = '❌ ' + (data.message || data.detail || '未知错误');
         timeDiv.textContent = data.card_id ? `卡号: ${data.card_id}` : '';
         statusDiv.textContent = '';
         statusDiv.style.background = 'transparent';
@@ -2195,7 +2195,7 @@ async function confirmManualScan() {
                 cardInput.focus();
             }
         } else {
-            showToast(data.message || '签到失败');
+            showToast(data.message || data.detail || '签到失败');
         }
     } catch (error) {
         console.error('手动签到失败:', error);
@@ -2302,7 +2302,7 @@ async function confirmManualDetentionCheckin(periods) {
             showScanResult(data);
             await loadSessionDetail();
         } else {
-            showToast(data.message || '签到失败');
+            showToast(data.message || data.detail || '签到失败');
         }
     } catch (error) {
         console.error('手动签到失败:', error);
@@ -2355,7 +2355,7 @@ async function manualCheckout(userLogin, studentName) {
             showToast(`${studentName} 手动签退成功\n${data.record.status_msg}`);
             await loadSessionDetail();  // 刷新列表
         } else {
-            showToast(data.message || '签退失败');
+            showToast(data.message || data.detail || '签退失败');
         }
     } catch (error) {
         console.error('手动签退失败:', error);
@@ -3048,7 +3048,7 @@ async function confirmLeave() {
             showToast(pendingLeaveStudentName + ' 已签退');
             await loadSessionDetail();
         } else {
-            showToast(data.message || '签退失败');
+            showToast(data.message || data.detail || '签退失败');
         }
     } catch (error) {
         console.error('签退失败:', error);
@@ -3183,7 +3183,7 @@ async function confirmManualDetentionWithMinutes() {
             showScanResult(data);
             await loadSessionDetail();
         } else {
-            showToast(data.message || '签到失败');
+            showToast(data.message || data.detail || '签到失败');
         }
     } catch (error) {
         console.error('手动签到失败:', error);
@@ -3686,7 +3686,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showToast(`${pendingLeaveStudentName} 已签退`);
                 await loadSessionDetail();
             } else {
-                showToast(data.message || '签退失败');
+                showToast(data.message || data.detail || '签退失败');
             }
         } catch (error) {
             console.error('签退失败:', error);
@@ -3728,6 +3728,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 验证是否选择了原因
+        if (!selectedDetentionReason) {
+            showToast('请先选择留堂原因');
+            return;
+        }
+
         try {
             const response = await fetch('/api/attendance/detention/checkin', {
                 method: 'POST',
@@ -3738,7 +3744,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     session_id: currentSessionId,
                     card_id: pendingCardId,
-                    planned_minutes: minutes
+                    planned_minutes: minutes,
+                    detention_reason: selectedDetentionReason
                 })
             });
 
@@ -3786,6 +3793,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 验证是否选择了原因
+        if (!selectedManualDetentionReason) {
+            showToast('请先选择留堂原因');
+            return;
+        }
+
         try {
             const response = await fetch('/api/attendance/detention/manual-checkin', {
                 method: 'POST',
@@ -3796,7 +3809,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     session_id: currentSessionId,
                     user_login: pendingManualStudent.user_login,
-                    planned_minutes: minutes
+                    planned_minutes: minutes,
+                    detention_reason: selectedManualDetentionReason
                 })
             });
 
@@ -3807,7 +3821,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showScanResult(data);
                 await loadSessionDetail();
             } else {
-                showToast(data.message || '签到失败');
+                showToast(data.message || data.detail || '签到失败');
             }
         } catch (error) {
             console.error('手动签到失败:', error);
@@ -4587,7 +4601,7 @@ async function confirmActivityCheckout() {
             showActivityScanResult(data);
             loadActivitySessionDetail();
         } else {
-            showToast(data.message || '签退失败');
+            showToast(data.message || data.detail || '签退失败');
         }
     } catch (error) {
         console.error('签退失败:', error);
@@ -4636,7 +4650,7 @@ function showActivityScanResult(data) {
         }
     } else {
         scanResult.classList.add('error');
-        resultName.textContent = '❌ ' + (data.message || '签到失败');
+        resultName.textContent = '❌ ' + (data.message || data.detail || '签到失败');
         resultTime.textContent = '';
         resultStatus.textContent = '';
     }
@@ -4733,7 +4747,7 @@ async function processActivityCard() {
             showActivityScanResult(data);
             loadActivitySessionDetail();
         } else {
-            showToast(data.message || '扫描失败');
+            showToast(data.message || data.detail || '扫描失败');
         }
     } catch (error) {
         console.error('扫描失败:', error);

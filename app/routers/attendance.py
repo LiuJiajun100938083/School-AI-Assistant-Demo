@@ -495,6 +495,17 @@ def _format_scan_response(result: dict, is_manual: bool = False) -> dict:
         data.student  — 学生对象
         data.record   — {scan_time, status, late_minutes, makeup_minutes, ...}
     """
+    # already_checked_in 走错误分支：前端用 data.message 显示提示
+    status = result.get("status")
+    if status == "already_checked_in":
+        return {
+            "success": False,
+            "student": result.get("student", {}),
+            "record": {},
+            "message": result.get("message", "该学生已签到"),
+            "is_manual": is_manual,
+        }
+
     student = result.pop("student", {})
     record = {
         "scan_time": result.get("scan_time"),
@@ -615,6 +626,7 @@ async def detention_checkin(
         card_id=request.card_id,
         planned_periods=request.planned_periods,
         planned_minutes=request.planned_minutes,
+        detention_reason=request.detention_reason,
     )
     return _format_detention_response(result)
 
@@ -630,6 +642,7 @@ async def detention_manual_checkin(
         user_login=request.user_login,
         planned_periods=request.planned_periods,
         planned_minutes=request.planned_minutes,
+        detention_reason=request.detention_reason,
     )
     return _format_detention_response(result, is_manual=True)
 

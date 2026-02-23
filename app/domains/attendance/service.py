@@ -322,6 +322,7 @@ class AttendanceService:
         user_login: str = None,
         planned_periods: int = None,
         planned_minutes: int = None,
+        detention_reason: str = None,
         scan_time: datetime = None,
     ) -> Dict[str, Any]:
         """
@@ -330,7 +331,8 @@ class AttendanceService:
         Args:
             planned_periods: 计划节数 (1/2/3)
             planned_minutes: 计划分钟数 (1-180)
-            至少提供其中之一
+            detention_reason: 留堂原因 ("homework" / "morning")
+            至少提供 planned_periods 或 planned_minutes 之一
 
         Returns:
             dict: {student, status, planned_end_time, duration_minutes}
@@ -352,7 +354,7 @@ class AttendanceService:
         planned_end_time = scan_time + timedelta(minutes=duration_minutes)
 
         # 创建/更新签到记录
-        self._record.create_record({
+        record_data = {
             "session_id": session_id,
             "user_login": login,
             "card_id": card_id or "MANUAL",
@@ -361,7 +363,10 @@ class AttendanceService:
             "planned_periods": actual_periods,
             "planned_minutes": planned_minutes,
             "planned_end_time": planned_end_time.strftime("%Y-%m-%d %H:%M:%S"),
-        })
+        }
+        if detention_reason:
+            record_data["detention_reason"] = detention_reason
+        self._record.create_record(record_data)
 
         logger.info(
             "留堂签到: session=%d, student=%s, duration=%d min",
@@ -481,7 +486,7 @@ class AttendanceService:
                 end_time = now + timedelta(minutes=periods * MINUTES_PER_PERIOD)
                 options.append({
                     "periods": periods,
-                    "minutes": periods * MINUTES_PER_PERIOD,
+                    "duration_minutes": periods * MINUTES_PER_PERIOD,
                     "end_time": end_time.strftime("%H:%M"),
                 })
 
