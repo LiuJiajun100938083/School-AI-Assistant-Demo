@@ -65,6 +65,7 @@ from app.domains.mistake_book.repository import (
     ReviewLogRepository,
     StudentMasteryRepository,
 )
+from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.ai_learning_center.repository import (
     LCCategoryRepository,
     LCContentRepository,
@@ -89,6 +90,7 @@ from app.domains.subject.service import SubjectService
 from app.domains.user.service import UserService
 from app.domains.vision.service import VisionService
 from app.domains.ai_learning_center.service import LearningCenterService
+from app.domains.game_upload.service import GameUploadService
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +135,7 @@ class ServiceContainer:
         self._mistake_book: Optional[MistakeBookService] = None
         self._vision: Optional[VisionService] = None
         self._learning_center: Optional[LearningCenterService] = None
+        self._game_upload: Optional[GameUploadService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -276,6 +279,15 @@ class ServiceContainer:
                 settings=self._settings,
             )
         return self._learning_center
+
+    @property
+    def game_upload(self) -> GameUploadService:
+        """游戏上传服务"""
+        if self._game_upload is None:
+            self._game_upload = GameUploadService(
+                game_repo=self._get_repo(GameUploadRepository),
+            )
+        return self._game_upload
 
     @property
     def vision(self) -> VisionService:
