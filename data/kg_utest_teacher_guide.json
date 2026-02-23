@@ -1,0 +1,427 @@
+{
+  "meta": {
+    "title": "UTest 教师考试系统操作指南",
+    "source_pdf": "utest_guide_teachers_en.pdf",
+    "description": "UTest考试系统的完整教师操作指南，涵盖题目创建、考试设计、考试管理、监考、批改和成绩分析"
+  },
+  "nodes": [
+    {
+      "id": "ut_root",
+      "title": "UTest 考试系统",
+      "description": "UTest是ULearning平台的在线考试系统，教师可创建题目、设计考试、管理考场、监考和批改成绩",
+      "icon": "📝",
+      "color": "#E65100"
+    },
+    {
+      "id": "ut_intro",
+      "title": "UTest 系统简介",
+      "description": "UTest系统概述及高层级考试流程介绍",
+      "icon": "📖",
+      "color": "#EF6C00"
+    },
+    {
+      "id": "ut_process",
+      "title": "考试流程总览",
+      "description": "从创建题目→创建考试→创建考试场次→管理/交付考试→监考→批改/成绩的完整高层级流程",
+      "icon": "🔄",
+      "color": "#F57C00"
+    },
+    {
+      "id": "ut_create_questions",
+      "title": "创建考试题目",
+      "description": "支持手动逐题创建、Excel批量导入、点击插入/复制批量创建、复制题目等多种方式",
+      "icon": "❓",
+      "color": "#FF8F00"
+    },
+    {
+      "id": "ut_q_manual",
+      "title": "手动创建题目",
+      "description": "手动逐题创建考试题目，支持13种题型",
+      "icon": "✍️",
+      "color": "#FFA000"
+    },
+    {
+      "id": "ut_q_types",
+      "title": "13种题型",
+      "description": "支持单选、多选、判断、填空、简答、匹配、排序、完形填空等13种考试题型",
+      "icon": "📊",
+      "color": "#FFB300"
+    },
+    {
+      "id": "ut_q_manage",
+      "title": "题目管理",
+      "description": "题库中题目的查看、编辑、分类和管理操作",
+      "icon": "📁",
+      "color": "#FFC107"
+    },
+    {
+      "id": "ut_q_import",
+      "title": "Excel批量导入题目",
+      "description": "使用Excel模板批量导入考试题目，提高出题效率",
+      "icon": "📤",
+      "color": "#FFD54F"
+    },
+    {
+      "id": "ut_q_batch",
+      "title": "批量创建题目",
+      "description": "通过点击插入/复制方式批量创建考试题目",
+      "icon": "📋",
+      "color": "#FFE082"
+    },
+    {
+      "id": "ut_q_duplicate",
+      "title": "复制题目",
+      "description": "从已有题目快速复制创建新题目",
+      "icon": "📑",
+      "color": "#FFF176"
+    },
+    {
+      "id": "ut_create_exam",
+      "title": "创建考试",
+      "description": "支持手动创建、自动创建和随机考试三种考试创建方式",
+      "icon": "📄",
+      "color": "#D84315"
+    },
+    {
+      "id": "ut_exam_manual",
+      "title": "手动创建考试",
+      "description": "教师手动选择题目、设置分数和考试参数来创建考试",
+      "icon": "🖊️",
+      "color": "#E64A19"
+    },
+    {
+      "id": "ut_exam_auto",
+      "title": "自动创建考试",
+      "description": "系统根据设定规则自动从题库中抽取题目生成考试",
+      "icon": "🤖",
+      "color": "#F4511E"
+    },
+    {
+      "id": "ut_exam_duplicate",
+      "title": "复制考试",
+      "description": "从已有考试快速复制创建新考试",
+      "icon": "📑",
+      "color": "#FF5722"
+    },
+    {
+      "id": "ut_exam_random",
+      "title": "创建随机考试",
+      "description": "创建随机考试，每位学生获得不同的随机题目组合",
+      "icon": "🎲",
+      "color": "#FF7043"
+    },
+    {
+      "id": "ut_create_offering",
+      "title": "创建考试场次",
+      "description": "为已创建的考试安排具体的考试场次（课程考试），可使用预创建考试或随机考试",
+      "icon": "📅",
+      "color": "#BF360C"
+    },
+    {
+      "id": "ut_offer_precreated",
+      "title": "使用预创建考试的场次",
+      "description": "使用预先创建好的考试来创建考试场次，设置时间、地点等参数",
+      "icon": "✅",
+      "color": "#D84315"
+    },
+    {
+      "id": "ut_offer_random",
+      "title": "使用随机考试的场次",
+      "description": "使用随机考试创建考试场次，每个学生获得不同的题目组合",
+      "icon": "🔀",
+      "color": "#E64A19"
+    },
+    {
+      "id": "ut_manage_exam",
+      "title": "管理/交付考试",
+      "description": "考试信息查看与编辑、考场管理、评分分配、学生身份验证等",
+      "icon": "⚙️",
+      "color": "#4E342E"
+    },
+    {
+      "id": "ut_exam_info",
+      "title": "查看/编辑考试信息",
+      "description": "查看考试详细信息并进行编辑修改",
+      "icon": "📝",
+      "color": "#5D4037"
+    },
+    {
+      "id": "ut_exam_session",
+      "title": "管理考试会话",
+      "description": "管理考试的具体会话/场次安排",
+      "icon": "🗓️",
+      "color": "#6D4C41"
+    },
+    {
+      "id": "ut_exam_facility",
+      "title": "考场管理",
+      "description": "添加、更新和删除考试设施（考场），并进行考场排班",
+      "icon": "🏢",
+      "color": "#795548"
+    },
+    {
+      "id": "ut_exam_schedule",
+      "title": "考场排班",
+      "description": "为考试设施安排具体的考试时间和监考安排",
+      "icon": "📆",
+      "color": "#8D6E63"
+    },
+    {
+      "id": "ut_grading_assign",
+      "title": "分配/管理评分",
+      "description": "分配评分教师和管理评分任务",
+      "icon": "👥",
+      "color": "#A1887F"
+    },
+    {
+      "id": "ut_face_verify",
+      "title": "学生人脸照片验证",
+      "description": "通过人脸照片验证考生身份，确保考试公正性",
+      "icon": "📸",
+      "color": "#BCAAA4"
+    },
+    {
+      "id": "ut_alt_code",
+      "title": "替代验证码",
+      "description": "当人脸验证不可用时，使用替代验证码进行考生身份确认",
+      "icon": "🔢",
+      "color": "#D7CCC8"
+    },
+    {
+      "id": "ut_proctor",
+      "title": "监考",
+      "description": "考试监考站和实时监控考试过程",
+      "icon": "👁️",
+      "color": "#37474F"
+    },
+    {
+      "id": "ut_proctor_station",
+      "title": "考试监考站",
+      "description": "监考教师的专用监考工作站界面",
+      "icon": "🖥️",
+      "color": "#455A64"
+    },
+    {
+      "id": "ut_monitor_log",
+      "title": "监控考试/查看日志",
+      "description": "实时监控考试进行状态并查看考试操作日志",
+      "icon": "📊",
+      "color": "#546E7A"
+    },
+    {
+      "id": "ut_grading",
+      "title": "批改考试/考试成绩",
+      "description": "考试批改流程及成绩管理，包括批改、成绩查看、导出等",
+      "icon": "✏️",
+      "color": "#1B5E20"
+    },
+    {
+      "id": "ut_grade_course",
+      "title": "批改课程考试",
+      "description": "对课程考试进行逐题批改评分",
+      "icon": "📝",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "ut_results_overview",
+      "title": "成绩总览",
+      "description": "考试成绩的总览界面，查看所有学生成绩概况",
+      "icon": "📈",
+      "color": "#388E3C"
+    },
+    {
+      "id": "ut_results_ungraded",
+      "title": "未批改考试操作",
+      "description": "对未批改的考试进行后续处理操作",
+      "icon": "⏳",
+      "color": "#43A047"
+    },
+    {
+      "id": "ut_results_graded",
+      "title": "已批改考试操作",
+      "description": "对已批改的考试进行成绩发布等后续操作",
+      "icon": "✅",
+      "color": "#4CAF50"
+    },
+    {
+      "id": "ut_batch_grade",
+      "title": "批量批改",
+      "description": "批量处理多份考试的评分工作",
+      "icon": "📦",
+      "color": "#66BB6A"
+    },
+    {
+      "id": "ut_export_score",
+      "title": "导出成绩报告",
+      "description": "导出考试成绩报告为Excel等格式",
+      "icon": "📊",
+      "color": "#81C784"
+    },
+    {
+      "id": "ut_export_response",
+      "title": "导出答题报告",
+      "description": "导出考试答题详情报告，包含每道题的作答情况",
+      "icon": "📄",
+      "color": "#A5D6A7"
+    },
+    {
+      "id": "ut_export_custom",
+      "title": "导出自定义报告",
+      "description": "根据自定义条件导出考试结果报告",
+      "icon": "📋",
+      "color": "#C8E6C9"
+    },
+    {
+      "id": "ut_analysis",
+      "title": "考试分析报告",
+      "description": "查看和导出考试的统计分析报告，包含题目难度、区分度等指标",
+      "icon": "📉",
+      "color": "#00695C"
+    },
+    {
+      "id": "ut_appendix",
+      "title": "附录：课程/班级管理",
+      "description": "创建课程、创建班级、添加学生、查看花名册、添加教师等基础管理操作",
+      "icon": "📚",
+      "color": "#546E7A"
+    },
+    {
+      "id": "ut_create_course",
+      "title": "创建课程",
+      "description": "在系统中创建新课程的操作步骤",
+      "icon": "🆕",
+      "color": "#607D8B"
+    },
+    {
+      "id": "ut_create_class",
+      "title": "创建班级",
+      "description": "在课程下创建班级的操作步骤",
+      "icon": "👥",
+      "color": "#78909C"
+    },
+    {
+      "id": "ut_add_students",
+      "title": "添加学生到班级",
+      "description": "将学生添加到指定班级的操作方法",
+      "icon": "👩‍🎓",
+      "color": "#90A4AE"
+    },
+    {
+      "id": "ut_class_roster",
+      "title": "查看班级花名册",
+      "description": "查看班级中所有学生的名单信息",
+      "icon": "📇",
+      "color": "#B0BEC5"
+    },
+    {
+      "id": "ut_add_teacher",
+      "title": "添加教师到课程",
+      "description": "将教师添加到课程中并分配到指定班级",
+      "icon": "👨‍🏫",
+      "color": "#CFD8DC"
+    }
+  ],
+  "edges": [
+    { "source": "ut_root", "target": "ut_intro", "relation_type": "contains", "label": "系统简介" },
+    { "source": "ut_intro", "target": "ut_process", "relation_type": "contains", "label": "流程总览" },
+    { "source": "ut_root", "target": "ut_create_questions", "relation_type": "contains", "label": "第1步" },
+    { "source": "ut_root", "target": "ut_create_exam", "relation_type": "contains", "label": "第2步" },
+    { "source": "ut_root", "target": "ut_create_offering", "relation_type": "contains", "label": "第3步" },
+    { "source": "ut_root", "target": "ut_manage_exam", "relation_type": "contains", "label": "第4步" },
+    { "source": "ut_root", "target": "ut_proctor", "relation_type": "contains", "label": "第5步" },
+    { "source": "ut_root", "target": "ut_grading", "relation_type": "contains", "label": "第6步" },
+    { "source": "ut_root", "target": "ut_analysis", "relation_type": "contains", "label": "分析" },
+    { "source": "ut_root", "target": "ut_appendix", "relation_type": "contains", "label": "附录" },
+
+    { "source": "ut_create_questions", "target": "ut_q_manual", "relation_type": "contains", "label": "手动创建" },
+    { "source": "ut_q_manual", "target": "ut_q_types", "relation_type": "contains", "label": "题型" },
+    { "source": "ut_create_questions", "target": "ut_q_manage", "relation_type": "contains", "label": "题目管理" },
+    { "source": "ut_create_questions", "target": "ut_q_import", "relation_type": "contains", "label": "批量导入" },
+    { "source": "ut_create_questions", "target": "ut_q_batch", "relation_type": "contains", "label": "批量创建" },
+    { "source": "ut_create_questions", "target": "ut_q_duplicate", "relation_type": "contains", "label": "复制题目" },
+
+    { "source": "ut_create_exam", "target": "ut_exam_manual", "relation_type": "contains", "label": "手动" },
+    { "source": "ut_create_exam", "target": "ut_exam_auto", "relation_type": "contains", "label": "自动" },
+    { "source": "ut_create_exam", "target": "ut_exam_duplicate", "relation_type": "contains", "label": "复制" },
+    { "source": "ut_create_exam", "target": "ut_exam_random", "relation_type": "contains", "label": "随机" },
+
+    { "source": "ut_create_offering", "target": "ut_offer_precreated", "relation_type": "contains", "label": "预创建考试" },
+    { "source": "ut_create_offering", "target": "ut_offer_random", "relation_type": "contains", "label": "随机考试" },
+    { "source": "ut_create_exam", "target": "ut_create_offering", "relation_type": "depends_on", "label": "先创建考试" },
+
+    { "source": "ut_manage_exam", "target": "ut_exam_info", "relation_type": "contains", "label": "查看编辑" },
+    { "source": "ut_manage_exam", "target": "ut_exam_session", "relation_type": "contains", "label": "会话管理" },
+    { "source": "ut_manage_exam", "target": "ut_exam_facility", "relation_type": "contains", "label": "考场管理" },
+    { "source": "ut_exam_facility", "target": "ut_exam_schedule", "relation_type": "contains", "label": "排班" },
+    { "source": "ut_manage_exam", "target": "ut_grading_assign", "relation_type": "contains", "label": "评分分配" },
+    { "source": "ut_manage_exam", "target": "ut_face_verify", "relation_type": "contains", "label": "人脸验证" },
+    { "source": "ut_face_verify", "target": "ut_alt_code", "relation_type": "related", "label": "替代方案" },
+
+    { "source": "ut_proctor", "target": "ut_proctor_station", "relation_type": "contains", "label": "监考站" },
+    { "source": "ut_proctor", "target": "ut_monitor_log", "relation_type": "contains", "label": "监控日志" },
+
+    { "source": "ut_grading", "target": "ut_grade_course", "relation_type": "contains", "label": "批改" },
+    { "source": "ut_grading", "target": "ut_results_overview", "relation_type": "contains", "label": "总览" },
+    { "source": "ut_grading", "target": "ut_results_ungraded", "relation_type": "contains", "label": "未批改" },
+    { "source": "ut_grading", "target": "ut_results_graded", "relation_type": "contains", "label": "已批改" },
+    { "source": "ut_grading", "target": "ut_batch_grade", "relation_type": "contains", "label": "批量批改" },
+    { "source": "ut_grading", "target": "ut_export_score", "relation_type": "contains", "label": "导出成绩" },
+    { "source": "ut_grading", "target": "ut_export_response", "relation_type": "contains", "label": "导出答题" },
+    { "source": "ut_grading", "target": "ut_export_custom", "relation_type": "contains", "label": "自定义导出" },
+
+    { "source": "ut_appendix", "target": "ut_create_course", "relation_type": "contains", "label": "创建课程" },
+    { "source": "ut_appendix", "target": "ut_create_class", "relation_type": "contains", "label": "创建班级" },
+    { "source": "ut_appendix", "target": "ut_add_students", "relation_type": "contains", "label": "添加学生" },
+    { "source": "ut_appendix", "target": "ut_class_roster", "relation_type": "contains", "label": "花名册" },
+    { "source": "ut_appendix", "target": "ut_add_teacher", "relation_type": "contains", "label": "添加教师" },
+    { "source": "ut_create_course", "target": "ut_create_class", "relation_type": "depends_on", "label": "先建课程" },
+    { "source": "ut_create_class", "target": "ut_add_students", "relation_type": "depends_on", "label": "先建班级" }
+  ],
+  "content_links": [
+    { "node": "ut_root", "anchor": { "type": "page", "value": 1 } },
+    { "node": "ut_intro", "anchor": { "type": "page", "value": 4 } },
+    { "node": "ut_process", "anchor": { "type": "page", "value": 7 } },
+    { "node": "ut_create_questions", "anchor": { "type": "page", "value": 8 } },
+    { "node": "ut_q_manual", "anchor": { "type": "page", "value": 8 } },
+    { "node": "ut_q_types", "anchor": { "type": "page", "value": 10 } },
+    { "node": "ut_q_manage", "anchor": { "type": "page", "value": 11 } },
+    { "node": "ut_q_import", "anchor": { "type": "page", "value": 12 } },
+    { "node": "ut_q_batch", "anchor": { "type": "page", "value": 15 } },
+    { "node": "ut_q_duplicate", "anchor": { "type": "page", "value": 18 } },
+    { "node": "ut_create_exam", "anchor": { "type": "page", "value": 19 } },
+    { "node": "ut_exam_manual", "anchor": { "type": "page", "value": 19 } },
+    { "node": "ut_exam_auto", "anchor": { "type": "page", "value": 26 } },
+    { "node": "ut_exam_duplicate", "anchor": { "type": "page", "value": 29 } },
+    { "node": "ut_exam_random", "anchor": { "type": "page", "value": 31 } },
+    { "node": "ut_create_offering", "anchor": { "type": "page", "value": 32 } },
+    { "node": "ut_offer_precreated", "anchor": { "type": "page", "value": 32 } },
+    { "node": "ut_offer_random", "anchor": { "type": "page", "value": 37 } },
+    { "node": "ut_manage_exam", "anchor": { "type": "page", "value": 45 } },
+    { "node": "ut_exam_info", "anchor": { "type": "page", "value": 45 } },
+    { "node": "ut_exam_session", "anchor": { "type": "page", "value": 49 } },
+    { "node": "ut_exam_facility", "anchor": { "type": "page", "value": 50 } },
+    { "node": "ut_exam_schedule", "anchor": { "type": "page", "value": 52 } },
+    { "node": "ut_grading_assign", "anchor": { "type": "page", "value": 55 } },
+    { "node": "ut_face_verify", "anchor": { "type": "page", "value": 56 } },
+    { "node": "ut_alt_code", "anchor": { "type": "page", "value": 62 } },
+    { "node": "ut_proctor", "anchor": { "type": "page", "value": 63 } },
+    { "node": "ut_proctor_station", "anchor": { "type": "page", "value": 63 } },
+    { "node": "ut_monitor_log", "anchor": { "type": "page", "value": 65 } },
+    { "node": "ut_grading", "anchor": { "type": "page", "value": 68 } },
+    { "node": "ut_grade_course", "anchor": { "type": "page", "value": 68 } },
+    { "node": "ut_results_overview", "anchor": { "type": "page", "value": 74 } },
+    { "node": "ut_results_ungraded", "anchor": { "type": "page", "value": 76 } },
+    { "node": "ut_results_graded", "anchor": { "type": "page", "value": 77 } },
+    { "node": "ut_batch_grade", "anchor": { "type": "page", "value": 78 } },
+    { "node": "ut_export_score", "anchor": { "type": "page", "value": 79 } },
+    { "node": "ut_export_response", "anchor": { "type": "page", "value": 80 } },
+    { "node": "ut_export_custom", "anchor": { "type": "page", "value": 81 } },
+    { "node": "ut_analysis", "anchor": { "type": "page", "value": 83 } },
+    { "node": "ut_appendix", "anchor": { "type": "page", "value": 85 } },
+    { "node": "ut_create_course", "anchor": { "type": "page", "value": 85 } },
+    { "node": "ut_create_class", "anchor": { "type": "page", "value": 88 } },
+    { "node": "ut_add_students", "anchor": { "type": "page", "value": 91 } },
+    { "node": "ut_class_roster", "anchor": { "type": "page", "value": 93 } },
+    { "node": "ut_add_teacher", "anchor": { "type": "page", "value": 95 } }
+  ]
+}

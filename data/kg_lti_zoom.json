@@ -1,0 +1,104 @@
+{
+  "meta": {
+    "title": "LTI Zoom 集成操作指南",
+    "source_pdf": "LTI Zoom Integration User Guide.pdf",
+    "description": "通过LTI协议将Zoom集成到ULearning平台，教师和学生可在课程中使用Zoom会议功能"
+  },
+  "nodes": [
+    {
+      "id": "zoom_root",
+      "title": "LTI Zoom 集成",
+      "description": "ULearning支持通过LTI协议快速集成Zoom账号，教师和学生可在课程中使用Zoom安排会议及查看会议记录",
+      "icon": "📹",
+      "color": "#2D8CFF"
+    },
+    {
+      "id": "zoom_admin_setup",
+      "title": "管理员配置Zoom LTI",
+      "description": "管理员在Zoom后台和ULearning后台完成LTI集成配置",
+      "icon": "⚙️",
+      "color": "#1A73E8"
+    },
+    {
+      "id": "zoom_lti_pro",
+      "title": "配置Zoom LTI Pro应用",
+      "description": "在Zoom Marketplace添加LTI Pro应用，点击Configure进入授权管理界面，创建新凭证",
+      "icon": "🔧",
+      "color": "#1565C0"
+    },
+    {
+      "id": "zoom_lti_credentials",
+      "title": "获取LTI密钥",
+      "description": "选择LTI 1.1版本，保存页面中的LTI Key和LTI Secret用于ULearning后台配置",
+      "icon": "🔑",
+      "color": "#0D47A1"
+    },
+    {
+      "id": "zoom_ulearning_config",
+      "title": "ULearning后台LTI配置",
+      "description": "管理员在ULearning后台的LTI设置中，填入Zoom的Consumer Key和Shared Secret完成对接",
+      "icon": "🔗",
+      "color": "#1976D2"
+    },
+    {
+      "id": "zoom_teacher_add",
+      "title": "教师添加Zoom应用",
+      "description": "教师在课程中点击添加应用，从应用列表中选择Zoom并添加到课程",
+      "icon": "👨‍🏫",
+      "color": "#42A5F5"
+    },
+    {
+      "id": "zoom_add_app",
+      "title": "课程添加Zoom菜单",
+      "description": "在课程页面底部点击Add App，选择Zoom应用，添加后课程菜单出现Zoom选项",
+      "icon": "➕",
+      "color": "#64B5F6"
+    },
+    {
+      "id": "zoom_manage_meetings",
+      "title": "管理Zoom会议",
+      "description": "通过课程中的Zoom菜单进入LTI Pro管理界面，可创建和管理课程的所有会议",
+      "icon": "📋",
+      "color": "#90CAF9"
+    },
+    {
+      "id": "zoom_create_meeting",
+      "title": "创建会议",
+      "description": "教师在Zoom LTI Pro界面创建新会议，设置会议名称、时间等参数",
+      "icon": "🆕",
+      "color": "#2196F3"
+    },
+    {
+      "id": "zoom_view_recordings",
+      "title": "查看会议记录",
+      "description": "教师和学生可在课程中查看Zoom会议的录制记录和回放",
+      "icon": "🎥",
+      "color": "#1E88E5"
+    }
+  ],
+  "edges": [
+    { "source": "zoom_root", "target": "zoom_admin_setup", "relation_type": "contains", "label": "管理员配置" },
+    { "source": "zoom_root", "target": "zoom_teacher_add", "relation_type": "contains", "label": "教师操作" },
+    { "source": "zoom_admin_setup", "target": "zoom_lti_pro", "relation_type": "contains", "label": "第1步" },
+    { "source": "zoom_lti_pro", "target": "zoom_lti_credentials", "relation_type": "contains", "label": "获取凭证" },
+    { "source": "zoom_admin_setup", "target": "zoom_ulearning_config", "relation_type": "contains", "label": "第2步" },
+    { "source": "zoom_lti_credentials", "target": "zoom_ulearning_config", "relation_type": "depends_on", "label": "需要密钥" },
+    { "source": "zoom_teacher_add", "target": "zoom_add_app", "relation_type": "contains", "label": "添加应用" },
+    { "source": "zoom_add_app", "target": "zoom_manage_meetings", "relation_type": "contains", "label": "进入管理" },
+    { "source": "zoom_manage_meetings", "target": "zoom_create_meeting", "relation_type": "contains", "label": "创建" },
+    { "source": "zoom_manage_meetings", "target": "zoom_view_recordings", "relation_type": "contains", "label": "查看" },
+    { "source": "zoom_ulearning_config", "target": "zoom_teacher_add", "relation_type": "depends_on", "label": "配置完成后" }
+  ],
+  "content_links": [
+    { "node": "zoom_root", "anchor": { "type": "page", "value": 1 } },
+    { "node": "zoom_admin_setup", "anchor": { "type": "page", "value": 1 } },
+    { "node": "zoom_lti_pro", "anchor": { "type": "page", "value": 2 } },
+    { "node": "zoom_lti_credentials", "anchor": { "type": "page", "value": 3 } },
+    { "node": "zoom_ulearning_config", "anchor": { "type": "page", "value": 3 } },
+    { "node": "zoom_teacher_add", "anchor": { "type": "page", "value": 4 } },
+    { "node": "zoom_add_app", "anchor": { "type": "page", "value": 5 } },
+    { "node": "zoom_manage_meetings", "anchor": { "type": "page", "value": 6 } },
+    { "node": "zoom_create_meeting", "anchor": { "type": "page", "value": 6 } },
+    { "node": "zoom_view_recordings", "anchor": { "type": "page", "value": 6 } }
+  ]
+}

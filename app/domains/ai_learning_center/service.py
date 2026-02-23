@@ -575,6 +575,165 @@ class LearningCenterService:
         return {"node_id": node_id, "content_ids": content_ids}
 
     # ================================================================
+    # 知识图谱批量导入
+    # ================================================================
+
+    def batch_import_knowledge_graph(
+        self,
+        admin: Tuple[str, str],
+        nodes: List[Dict],
+        edges: List[Dict] = None,
+        content_links: List[Dict] = None,
+        source_pdf: Optional[str] = None,
+        clear_existing: bool = False,
+    ) -> Dict:
+        """
+        批量导入知识图谱（节点 + 边 + 内容关联）
+
+        Args:
+            admin: (username, role) 管理员身份
+            nodes: 节点列表，每个需有临时 id, title, description, icon, color
+            edges: 边列表，source/target 为节点临时 id
+            content_links: 内容关联列表，node 为节点临时 id
+            source_pdf: PDF 文件名，用于自动匹配 content_id
+            clear_existing: 是否清空现有图谱
+
+        Returns:
+            导入统计 {created_nodes, created_edges, created_links, skipped_links}
+        """
+        edges = edges or []
+        content_links = content_links or []
+        username, _ = admin
+
+        # ---------- Phase 0: 清空（如需要）----------
+        if clear_existing:
+            # 清空边和关联后再清空节点
+            all_nodes = self._nodes.find_active()
+            for node in all_nodes:
+                self._node_contents.delete("node_id = %s", (node["id"],))
+            self._edges.raw_execute("DELETE FROM lc_knowledge_edges", ())
+            self._nodes.raw_execute(
+                "UPDATE lc_knowledge_nodes SET is_deleted = 1", ()
+            )
+            logger.info("批量导入：已清空现有知识图谱")
+
+        # ---------- Phase 1: 创建节点 ----------
+        temp_id_to_db_id: Dict[str, int] = {}
+        created_nodes = 0
+
+        for node in nodes:
+            temp_id = node["id"]
+            node_data = {
+                "title": node["title"].strip(),
+                "description": (node.get("description") or "").strip(),
+                "icon": node.get("icon", "📌"),
+                "color": node.get("color", "#006633"),
+                "category_id": node.get("category_id"),
+                "position_x": 0,
+                "position_y": 0,
+                "is_pinned": 0,
+                "created_by": username,
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
+                "is_deleted": 0,
+            }
+            new_id = self._nodes.insert_get_id(node_data)
+            temp_id_to_db_id[temp_id] = new_id
+            created_nodes += 1
+
+        logger.info("批量导入：创建 %d 个节点", created_nodes)
+
+        # ---------- Phase 2: 创建边 ----------
+        created_edges = 0
+        for edge in edges:
+            source_db_id = temp_id_to_db_id.get(edge["source"])
+            target_db_id = temp_id_to_db_id.get(edge["target"])
+            if source_db_id is None or target_db_id is None:
+                logger.warning(
+                    "批量导入：边 %s -> %s 引用的节点不存在，跳过",
+                    edge["source"],
+                    edge["target"],
+                )
+                continue
+
+            edge_data = {
+                "source_node_id": source_db_id,
+                "target_node_id": target_db_id,
+                "relation_type": edge.get("relation_type", "related"),
+                "label": edge.get("label", ""),
+                "weight": edge.get("weight", 1.0),
+            }
+            try:
+                self._edges.insert_get_id(edge_data)
+                created_edges += 1
+            except Exception as e:
+                logger.warning("批量导入：创建边失败 %s -> %s: %s", edge["source"], edge["target"], e)
+
+        logger.info("批量导入：创建 %d 条边", created_edges)
+
+        # ---------- Phase 3: 自动匹配 content_id ----------
+        matched_content_id = None
+        if source_pdf:
+            # 在 lc_contents 中搜索文件名包含 source_pdf 的记录
+            rows = self._contents.raw_query(
+                "SELECT id, file_name, title FROM lc_contents WHERE is_deleted = 0 AND status = 'published'",
+            )
+            for row in rows:
+                fname = row.get("file_name") or ""
+                title = row.get("title") or ""
+                # 匹配文件名或标题包含 source_pdf（去掉扩展名）
+                pdf_stem = source_pdf.rsplit(".", 1)[0] if "." in source_pdf else source_pdf
+                if source_pdf in fname or pdf_stem in fname or pdf_stem in title:
+                    matched_content_id = row["id"]
+                    logger.info(
+                        "批量导入：匹配到 content_id=%d (file_name=%s)",
+                        matched_content_id,
+                        fname,
+                    )
+                    break
+
+        # ---------- Phase 4: 创建内容关联 ----------
+        created_links = 0
+        skipped_links = 0
+        for link in content_links:
+            node_db_id = temp_id_to_db_id.get(link["node"])
+            if node_db_id is None:
+                logger.warning("批量导入：content_link 引用的节点 %s 不存在，跳过", link["node"])
+                skipped_links += 1
+                continue
+
+            content_id = link.get("content_id") or matched_content_id
+            if content_id is None:
+                logger.warning("批量导入：无法确定 content_id，跳过节点 %s", link["node"])
+                skipped_links += 1
+                continue
+
+            anchor = link.get("anchor")
+            affected = self._node_contents.link_with_anchor(
+                node_id=node_db_id,
+                content_id=content_id,
+                anchor=anchor,
+                sort_order=0,
+            )
+            if affected > 0:
+                created_links += 1
+            else:
+                skipped_links += 1
+
+        logger.info(
+            "批量导入：创建 %d 个内容关联，跳过 %d 个",
+            created_links,
+            skipped_links,
+        )
+
+        return {
+            "created_nodes": created_nodes,
+            "created_edges": created_edges,
+            "created_links": created_links,
+            "skipped_links": skipped_links,
+        }
+
+    # ================================================================
     # 学习路径
     # ================================================================
 

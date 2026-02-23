@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "title": "混合式教学课堂操作指南",
+    "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf",
+    "description": "混合式线上线下教学课堂的创建、发起与参与操作指南"
+  },
+  "nodes": [
+    {
+      "id": "hc_root",
+      "title": "混合式教学课堂",
+      "description": "线上与线下学生同步参与的智慧教学课堂，教师可通过ULearning LMS发起课堂，实现实时互动教学",
+      "icon": "🏫",
+      "color": "#2196F3"
+    },
+    {
+      "id": "hc_what",
+      "title": "什么是混合式课堂",
+      "description": "混合式课堂是线上与实体教室学生同步参与、实时互动的智慧教学模式",
+      "icon": "❓",
+      "color": "#42A5F5"
+    },
+    {
+      "id": "hc_teacher_init",
+      "title": "教师发起课堂",
+      "description": "教师通过ULearning LMS创建并发起混合式教学课堂的完整流程",
+      "icon": "👨‍🏫",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "hc_create_session",
+      "title": "创建虚拟教室会话",
+      "description": "进入虚拟教室模块，填写会话名称、主持人、描述、开始时间、时长，并选择可进入的班级",
+      "icon": "📝",
+      "color": "#1976D2"
+    },
+    {
+      "id": "hc_cloud_recording",
+      "title": "云端录制设置",
+      "description": "开启自动录制功能，需管理员分配云存储空间；也可选择本地录制",
+      "icon": "☁️",
+      "color": "#1565C0"
+    },
+    {
+      "id": "hc_start_session",
+      "title": "启动教室会话",
+      "description": "点击开始按钮启动华为云会议工具，进入直播教学界面",
+      "icon": "▶️",
+      "color": "#0D47A1"
+    },
+    {
+      "id": "hc_huawei_cloud",
+      "title": "华为云会议工具",
+      "description": "华为云会议是类似Zoom和Google Meet的直播会议工具，支持屏幕共享和扩展屏幕功能",
+      "icon": "📡",
+      "color": "#00897B"
+    },
+    {
+      "id": "hc_screen_share",
+      "title": "屏幕共享与扩展屏",
+      "description": "教师可将华为云会议移至扩展屏（如智慧电视），并通过分享屏幕功能共享ULearning教学平台",
+      "icon": "🖥️",
+      "color": "#00796B"
+    },
+    {
+      "id": "hc_classroom_module",
+      "title": "智慧教室模块",
+      "description": "进入教室模块后，使用互动功能开展智慧教学，包含各种活跃参与工具",
+      "icon": "🎓",
+      "color": "#00695C"
+    },
+    {
+      "id": "hc_student_join",
+      "title": "学生参与课堂",
+      "description": "学生通过ULearning LMS加入混合式课堂的操作流程",
+      "icon": "👩‍🎓",
+      "color": "#26A69A"
+    },
+    {
+      "id": "hc_student_virtual",
+      "title": "学生加入虚拟教室",
+      "description": "学生进入虚拟教室模块，点击开始加入华为云会议，可查看教师共享的屏幕内容",
+      "icon": "💻",
+      "color": "#4DB6AC"
+    },
+    {
+      "id": "hc_student_classroom",
+      "title": "学生进入教室模块",
+      "description": "学生进入教室模块参与互动教学活动",
+      "icon": "✋",
+      "color": "#80CBC4"
+    }
+  ],
+  "edges": [
+    { "source": "hc_root", "target": "hc_what", "relation_type": "contains", "label": "概念介绍" },
+    { "source": "hc_root", "target": "hc_teacher_init", "relation_type": "contains", "label": "教师端" },
+    { "source": "hc_root", "target": "hc_student_join", "relation_type": "contains", "label": "学生端" },
+    { "source": "hc_teacher_init", "target": "hc_create_session", "relation_type": "contains", "label": "第1步" },
+    { "source": "hc_create_session", "target": "hc_cloud_recording", "relation_type": "contains", "label": "可选设置" },
+    { "source": "hc_teacher_init", "target": "hc_start_session", "relation_type": "contains", "label": "第2步" },
+    { "source": "hc_start_session", "target": "hc_huawei_cloud", "relation_type": "depends_on", "label": "启动工具" },
+    { "source": "hc_huawei_cloud", "target": "hc_screen_share", "relation_type": "contains", "label": "核心功能" },
+    { "source": "hc_teacher_init", "target": "hc_classroom_module", "relation_type": "contains", "label": "第3步" },
+    { "source": "hc_student_join", "target": "hc_student_virtual", "relation_type": "contains", "label": "第1步" },
+    { "source": "hc_student_join", "target": "hc_student_classroom", "relation_type": "contains", "label": "第2步" },
+    { "source": "hc_student_virtual", "target": "hc_huawei_cloud", "relation_type": "depends_on", "label": "使用工具" }
+  ],
+  "content_links": [
+    { "node": "hc_root", "anchor": { "type": "page", "value": 1 } },
+    { "node": "hc_what", "anchor": { "type": "page", "value": 1 } },
+    { "node": "hc_teacher_init", "anchor": { "type": "page", "value": 1 } },
+    { "node": "hc_create_session", "anchor": { "type": "page", "value": 1 } },
+    { "node": "hc_cloud_recording", "anchor": { "type": "page", "value": 2 } },
+    { "node": "hc_start_session", "anchor": { "type": "page", "value": 2 } },
+    { "node": "hc_huawei_cloud", "anchor": { "type": "page", "value": 3 } },
+    { "node": "hc_screen_share", "anchor": { "type": "page", "value": 3 } },
+    { "node": "hc_classroom_module", "anchor": { "type": "page", "value": 4 } },
+    { "node": "hc_student_join", "anchor": { "type": "page", "value": 5 } },
+    { "node": "hc_student_virtual", "anchor": { "type": "page", "value": 5 } },
+    { "node": "hc_student_classroom", "anchor": { "type": "page", "value": 5 } }
+  ]
+}

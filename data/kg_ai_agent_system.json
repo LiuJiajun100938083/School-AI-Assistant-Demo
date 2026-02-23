@@ -1,0 +1,389 @@
+{
+  "meta": {
+    "title": "ULearning AI Agent 系统与 AI Bench 教师手册",
+    "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf",
+    "description": "教师使用AI Agent管理系统创建AI助手、管理知识库和指令，以及在课程中使用AI Bench的完整操作指南"
+  },
+  "nodes": [
+    {
+      "id": "ai_root",
+      "title": "AI Agent 系统与 AI Bench",
+      "description": "ULearning AI Agent系统用于创建教学AI助手，AI Bench是课程内的AI工具集，支持AI问答、资源检索、视频分析等",
+      "icon": "🤖",
+      "color": "#6200EA"
+    },
+    {
+      "id": "ai_admin_system",
+      "title": "AI Agent 管理系统",
+      "description": "教师登录AI Agent管理系统创建和管理AI助手、知识库和指令",
+      "icon": "⚙️",
+      "color": "#7C4DFF"
+    },
+    {
+      "id": "ai_login",
+      "title": "登录系统",
+      "description": "使用账号密码登录AI Agent管理系统",
+      "icon": "🔐",
+      "color": "#651FFF"
+    },
+    {
+      "id": "ai_assistant_mgmt",
+      "title": "AI 助手管理",
+      "description": "创建、编辑、预览、统计和删除AI助手的完整管理功能",
+      "icon": "🤖",
+      "color": "#B388FF"
+    },
+    {
+      "id": "ai_create_assistant",
+      "title": "创建 AI 助手",
+      "description": "自定义AI助手名称、描述、欢迎语、开场白，上传/选择头像，设置语音输入和语音播报功能",
+      "icon": "🆕",
+      "color": "#9575CD"
+    },
+    {
+      "id": "ai_profile_photo",
+      "title": "自定义头像",
+      "description": "上传图片作为AI助手头像，或从默认头像中选择",
+      "icon": "🖼️",
+      "color": "#7E57C2"
+    },
+    {
+      "id": "ai_voice_settings",
+      "title": "语音设置",
+      "description": "灵活启用/禁用AI助手的语音输入和语音播报功能",
+      "icon": "🔊",
+      "color": "#673AB7"
+    },
+    {
+      "id": "ai_knowledge_link",
+      "title": "关联知识库",
+      "description": "将AI助手与知识库关联，支持长短指令的设置",
+      "icon": "🔗",
+      "color": "#5E35B1"
+    },
+    {
+      "id": "ai_sharing",
+      "title": "分享设置",
+      "description": "AI助手的分享范围可设为「仅自己」或「分享给学校教师」",
+      "icon": "🔄",
+      "color": "#512DA8"
+    },
+    {
+      "id": "ai_bench_shared",
+      "title": "AI Bench 共享助手",
+      "description": "在AI Bench中使用其他学校教师分享的AI助手",
+      "icon": "🤝",
+      "color": "#4527A0"
+    },
+    {
+      "id": "ai_edit_assistant",
+      "title": "编辑 AI 助手",
+      "description": "编辑已创建的AI助手信息和设置",
+      "icon": "✏️",
+      "color": "#311B92"
+    },
+    {
+      "id": "ai_preview",
+      "title": "预览 AI 助手",
+      "description": "预览AI助手的PC版和H5版界面，支持复制链接分享和扫码分享",
+      "icon": "👁️",
+      "color": "#AA00FF"
+    },
+    {
+      "id": "ai_qa_feature",
+      "title": "AI 问答功能",
+      "description": "AI助手基于知识库文档进行AI问答，提供智能回答",
+      "icon": "💬",
+      "color": "#D500F9"
+    },
+    {
+      "id": "ai_resource_recommend",
+      "title": "资源推荐",
+      "description": "输入关键词即可获得相关资源推荐",
+      "icon": "🔍",
+      "color": "#E040FB"
+    },
+    {
+      "id": "ai_quiz_gen",
+      "title": "AI 出题",
+      "description": "输入题型、数量和关键词，AI自动生成对应题目，支持单选、多选、判断和填空题",
+      "icon": "❓",
+      "color": "#EA80FC"
+    },
+    {
+      "id": "ai_command_center",
+      "title": "指令中心",
+      "description": "在指令中心选择任意指令快速发送，提高交互效率",
+      "icon": "⚡",
+      "color": "#CE93D8"
+    },
+    {
+      "id": "ai_statistics",
+      "title": "使用统计",
+      "description": "查看AI助手的使用数据统计页面",
+      "icon": "📊",
+      "color": "#BA68C8"
+    },
+    {
+      "id": "ai_knowledge_base",
+      "title": "我的知识库",
+      "description": "创建和管理知识库，上传文档供AI助手学习和使用",
+      "icon": "📚",
+      "color": "#00838F"
+    },
+    {
+      "id": "ai_kb_create",
+      "title": "创建知识库",
+      "description": "在「我的知识库」页面创建新的知识库",
+      "icon": "🆕",
+      "color": "#0097A7"
+    },
+    {
+      "id": "ai_kb_resources",
+      "title": "管理知识库资源",
+      "description": "在管理页面上传文档，系统自动学习文档内容以支持AI问答和出题",
+      "icon": "📄",
+      "color": "#00ACC1"
+    },
+    {
+      "id": "ai_kb_import_lr",
+      "title": "导入学习资源",
+      "description": "将学习资源导入知识库文档",
+      "icon": "📥",
+      "color": "#00BCD4"
+    },
+    {
+      "id": "ai_kb_qa",
+      "title": "管理知识库问答",
+      "description": "创建、编辑、删除和启用/禁用知识库的自定义问答对，支持分组管理",
+      "icon": "❔",
+      "color": "#26C6DA"
+    },
+    {
+      "id": "ai_kb_groups",
+      "title": "问答分组管理",
+      "description": "添加、编辑和删除问答分组，支持拖拽排序",
+      "icon": "📁",
+      "color": "#4DD0E1"
+    },
+    {
+      "id": "ai_kb_edit",
+      "title": "编辑知识库",
+      "description": "编辑已创建的知识库信息",
+      "icon": "✏️",
+      "color": "#80DEEA"
+    },
+    {
+      "id": "ai_kb_delete",
+      "title": "删除知识库",
+      "description": "删除已创建的知识库",
+      "icon": "🗑️",
+      "color": "#B2EBF2"
+    },
+    {
+      "id": "ai_commands",
+      "title": "我的指令",
+      "description": "创建和管理AI助手的快捷指令",
+      "icon": "📋",
+      "color": "#FF6F00"
+    },
+    {
+      "id": "ai_cmd_create",
+      "title": "创建指令",
+      "description": "创建指令并设置标题、指令内容，支持动态关键词输入",
+      "icon": "🆕",
+      "color": "#FF8F00"
+    },
+    {
+      "id": "ai_cmd_groups",
+      "title": "指令分组管理",
+      "description": "创建、编辑和删除指令分组",
+      "icon": "📁",
+      "color": "#FFA000"
+    },
+    {
+      "id": "ai_bench",
+      "title": "AI Bench（课程AI工具）",
+      "description": "在ULearning课程中使用AI Bench，包含AI助手、AI工具和知识库等功能",
+      "icon": "🧪",
+      "color": "#00C853"
+    },
+    {
+      "id": "ai_bench_entry",
+      "title": "AI Bench 入口",
+      "description": "登录ULearning后进入课程页面，在课程中找到AI Bench入口，课程管理员首次需启用",
+      "icon": "🚪",
+      "color": "#00E676"
+    },
+    {
+      "id": "ai_bench_enable",
+      "title": "启用 AI Bench",
+      "description": "课程管理员首次访问时需点击启用AI Bench，启用后其他教师可直接使用",
+      "icon": "✅",
+      "color": "#69F0AE"
+    },
+    {
+      "id": "ai_bench_settings",
+      "title": "AI Bench 设置",
+      "description": "设置AI助手、AI工具和知识库的权限配置",
+      "icon": "⚙️",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "ai_bench_asst_settings",
+      "title": "AI 助手设置",
+      "description": "添加已创建或其他教师分享的AI助手到课程，配置使用权限并分配给教师和学生",
+      "icon": "🤖",
+      "color": "#388E3C"
+    },
+    {
+      "id": "ai_bench_tools_settings",
+      "title": "AI 工具设置",
+      "description": "启用/禁用AI工具并配置使用权限",
+      "icon": "🔧",
+      "color": "#43A047"
+    },
+    {
+      "id": "ai_bench_kb_settings",
+      "title": "知识库设置",
+      "description": "添加知识库到课程并关联到AI Bench",
+      "icon": "📚",
+      "color": "#4CAF50"
+    },
+    {
+      "id": "ai_bench_use_assistant",
+      "title": "使用 AI 助手",
+      "description": "在AI Bench中切换不同AI助手，使用AI问答、语音输入/播报、资源推荐、快捷指令等功能",
+      "icon": "💬",
+      "color": "#66BB6A"
+    },
+    {
+      "id": "ai_bench_kg_recommend",
+      "title": "知识图谱推荐",
+      "description": "当课程关联知识图谱时，AI助手基于知识图谱推荐知识点和资源",
+      "icon": "🕸️",
+      "color": "#81C784"
+    },
+    {
+      "id": "ai_bench_tools",
+      "title": "AI 工具",
+      "description": "AI Bench中的工具集，包含资源检索和视频AI分析等功能",
+      "icon": "🛠️",
+      "color": "#FF6D00"
+    },
+    {
+      "id": "ai_bench_retrieval",
+      "title": "资源检索",
+      "description": "输入关键词并修改搜索范围，检索所需资源",
+      "icon": "🔎",
+      "color": "#FF9100"
+    },
+    {
+      "id": "ai_bench_video_analysis",
+      "title": "视频 AI 分析",
+      "description": "上传视频或输入链接，AI自动生成摘要、词云、分类标签、字幕等分析结果",
+      "icon": "🎬",
+      "color": "#FFAB40"
+    },
+    {
+      "id": "ai_bench_video_features",
+      "title": "视频分析功能",
+      "description": "包含AI摘要、词云分析、分类标签生成和字幕生成，每日有使用次数限制",
+      "icon": "📊",
+      "color": "#FFD180"
+    }
+  ],
+  "edges": [
+    { "source": "ai_root", "target": "ai_admin_system", "relation_type": "contains", "label": "管理系统" },
+    { "source": "ai_root", "target": "ai_bench", "relation_type": "contains", "label": "课程工具" },
+
+    { "source": "ai_admin_system", "target": "ai_login", "relation_type": "contains", "label": "登录" },
+    { "source": "ai_admin_system", "target": "ai_assistant_mgmt", "relation_type": "contains", "label": "助手管理" },
+    { "source": "ai_admin_system", "target": "ai_knowledge_base", "relation_type": "contains", "label": "知识库" },
+    { "source": "ai_admin_system", "target": "ai_commands", "relation_type": "contains", "label": "指令管理" },
+
+    { "source": "ai_assistant_mgmt", "target": "ai_create_assistant", "relation_type": "contains", "label": "创建" },
+    { "source": "ai_create_assistant", "target": "ai_profile_photo", "relation_type": "contains", "label": "头像" },
+    { "source": "ai_create_assistant", "target": "ai_voice_settings", "relation_type": "contains", "label": "语音" },
+    { "source": "ai_create_assistant", "target": "ai_knowledge_link", "relation_type": "contains", "label": "关联知识库" },
+    { "source": "ai_create_assistant", "target": "ai_sharing", "relation_type": "contains", "label": "分享" },
+    { "source": "ai_sharing", "target": "ai_bench_shared", "relation_type": "related", "label": "共享到AI Bench" },
+    { "source": "ai_assistant_mgmt", "target": "ai_edit_assistant", "relation_type": "contains", "label": "编辑" },
+    { "source": "ai_assistant_mgmt", "target": "ai_preview", "relation_type": "contains", "label": "预览" },
+    { "source": "ai_preview", "target": "ai_qa_feature", "relation_type": "contains", "label": "问答" },
+    { "source": "ai_preview", "target": "ai_resource_recommend", "relation_type": "contains", "label": "推荐" },
+    { "source": "ai_preview", "target": "ai_quiz_gen", "relation_type": "contains", "label": "出题" },
+    { "source": "ai_preview", "target": "ai_command_center", "relation_type": "contains", "label": "指令" },
+    { "source": "ai_assistant_mgmt", "target": "ai_statistics", "relation_type": "contains", "label": "统计" },
+
+    { "source": "ai_knowledge_base", "target": "ai_kb_create", "relation_type": "contains", "label": "创建" },
+    { "source": "ai_knowledge_base", "target": "ai_kb_resources", "relation_type": "contains", "label": "资源管理" },
+    { "source": "ai_kb_resources", "target": "ai_kb_import_lr", "relation_type": "contains", "label": "导入资源" },
+    { "source": "ai_knowledge_base", "target": "ai_kb_qa", "relation_type": "contains", "label": "问答管理" },
+    { "source": "ai_kb_qa", "target": "ai_kb_groups", "relation_type": "contains", "label": "分组" },
+    { "source": "ai_knowledge_base", "target": "ai_kb_edit", "relation_type": "contains", "label": "编辑" },
+    { "source": "ai_knowledge_base", "target": "ai_kb_delete", "relation_type": "contains", "label": "删除" },
+
+    { "source": "ai_commands", "target": "ai_cmd_create", "relation_type": "contains", "label": "创建" },
+    { "source": "ai_commands", "target": "ai_cmd_groups", "relation_type": "contains", "label": "分组" },
+
+    { "source": "ai_bench", "target": "ai_bench_entry", "relation_type": "contains", "label": "入口" },
+    { "source": "ai_bench_entry", "target": "ai_bench_enable", "relation_type": "contains", "label": "启用" },
+    { "source": "ai_bench", "target": "ai_bench_settings", "relation_type": "contains", "label": "设置" },
+    { "source": "ai_bench_settings", "target": "ai_bench_asst_settings", "relation_type": "contains", "label": "助手设置" },
+    { "source": "ai_bench_settings", "target": "ai_bench_tools_settings", "relation_type": "contains", "label": "工具设置" },
+    { "source": "ai_bench_settings", "target": "ai_bench_kb_settings", "relation_type": "contains", "label": "知识库设置" },
+    { "source": "ai_bench", "target": "ai_bench_use_assistant", "relation_type": "contains", "label": "使用助手" },
+    { "source": "ai_bench_use_assistant", "target": "ai_bench_kg_recommend", "relation_type": "related", "label": "知识图谱" },
+    { "source": "ai_bench", "target": "ai_bench_tools", "relation_type": "contains", "label": "工具" },
+    { "source": "ai_bench_tools", "target": "ai_bench_retrieval", "relation_type": "contains", "label": "资源检索" },
+    { "source": "ai_bench_tools", "target": "ai_bench_video_analysis", "relation_type": "contains", "label": "视频分析" },
+    { "source": "ai_bench_video_analysis", "target": "ai_bench_video_features", "relation_type": "contains", "label": "分析功能" },
+
+    { "source": "ai_create_assistant", "target": "ai_bench_asst_settings", "relation_type": "related", "label": "添加到课程" },
+    { "source": "ai_knowledge_base", "target": "ai_bench_kb_settings", "relation_type": "related", "label": "关联到课程" }
+  ],
+  "content_links": [
+    { "node": "ai_root", "anchor": { "type": "page", "value": 1 } },
+    { "node": "ai_admin_system", "anchor": { "type": "page", "value": 4 } },
+    { "node": "ai_login", "anchor": { "type": "page", "value": 4 } },
+    { "node": "ai_assistant_mgmt", "anchor": { "type": "page", "value": 5 } },
+    { "node": "ai_create_assistant", "anchor": { "type": "page", "value": 5 } },
+    { "node": "ai_profile_photo", "anchor": { "type": "page", "value": 6 } },
+    { "node": "ai_voice_settings", "anchor": { "type": "page", "value": 7 } },
+    { "node": "ai_knowledge_link", "anchor": { "type": "page", "value": 8 } },
+    { "node": "ai_sharing", "anchor": { "type": "page", "value": 9 } },
+    { "node": "ai_bench_shared", "anchor": { "type": "page", "value": 10 } },
+    { "node": "ai_edit_assistant", "anchor": { "type": "page", "value": 10 } },
+    { "node": "ai_preview", "anchor": { "type": "page", "value": 11 } },
+    { "node": "ai_qa_feature", "anchor": { "type": "page", "value": 13 } },
+    { "node": "ai_resource_recommend", "anchor": { "type": "page", "value": 13 } },
+    { "node": "ai_quiz_gen", "anchor": { "type": "page", "value": 14 } },
+    { "node": "ai_command_center", "anchor": { "type": "page", "value": 15 } },
+    { "node": "ai_statistics", "anchor": { "type": "page", "value": 17 } },
+    { "node": "ai_knowledge_base", "anchor": { "type": "page", "value": 19 } },
+    { "node": "ai_kb_create", "anchor": { "type": "page", "value": 19 } },
+    { "node": "ai_kb_resources", "anchor": { "type": "page", "value": 19 } },
+    { "node": "ai_kb_import_lr", "anchor": { "type": "page", "value": 20 } },
+    { "node": "ai_kb_qa", "anchor": { "type": "page", "value": 22 } },
+    { "node": "ai_kb_groups", "anchor": { "type": "page", "value": 23 } },
+    { "node": "ai_kb_edit", "anchor": { "type": "page", "value": 25 } },
+    { "node": "ai_kb_delete", "anchor": { "type": "page", "value": 26 } },
+    { "node": "ai_commands", "anchor": { "type": "page", "value": 26 } },
+    { "node": "ai_cmd_create", "anchor": { "type": "page", "value": 26 } },
+    { "node": "ai_cmd_groups", "anchor": { "type": "page", "value": 28 } },
+    { "node": "ai_bench", "anchor": { "type": "page", "value": 29 } },
+    { "node": "ai_bench_entry", "anchor": { "type": "page", "value": 29 } },
+    { "node": "ai_bench_enable", "anchor": { "type": "page", "value": 30 } },
+    { "node": "ai_bench_settings", "anchor": { "type": "page", "value": 32 } },
+    { "node": "ai_bench_asst_settings", "anchor": { "type": "page", "value": 32 } },
+    { "node": "ai_bench_tools_settings", "anchor": { "type": "page", "value": 35 } },
+    { "node": "ai_bench_kb_settings", "anchor": { "type": "page", "value": 36 } },
+    { "node": "ai_bench_use_assistant", "anchor": { "type": "page", "value": 38 } },
+    { "node": "ai_bench_kg_recommend", "anchor": { "type": "page", "value": 40 } },
+    { "node": "ai_bench_tools", "anchor": { "type": "page", "value": 42 } },
+    { "node": "ai_bench_retrieval", "anchor": { "type": "page", "value": 42 } },
+    { "node": "ai_bench_video_analysis", "anchor": { "type": "page", "value": 42 } },
+    { "node": "ai_bench_video_features", "anchor": { "type": "page", "value": 43 } }
+  ]
+}

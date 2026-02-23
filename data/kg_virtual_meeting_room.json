@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "title": "虚拟会议室（云会议）操作指南",
+    "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf",
+    "description": "虚拟会议室的管理员分配、教师预约及会议发起操作指南"
+  },
+  "nodes": [
+    {
+      "id": "vmr_root",
+      "title": "虚拟会议室",
+      "description": "ULearning平台的虚拟会议室（云会议）功能，管理员分配会议室，教师预约并发起会议",
+      "icon": "🎦",
+      "color": "#7C4DFF"
+    },
+    {
+      "id": "vmr_admin",
+      "title": "管理员管理会议室",
+      "description": "管理员在管理系统中查看和管理所有已购买的虚拟会议室",
+      "icon": "👔",
+      "color": "#651FFF"
+    },
+    {
+      "id": "vmr_room_list",
+      "title": "会议室列表",
+      "description": "管理员可查看会议室名称、描述、容纳人数（座位数）、分配教师等信息",
+      "icon": "📋",
+      "color": "#6200EA"
+    },
+    {
+      "id": "vmr_assign_teacher",
+      "title": "分配教师到会议室",
+      "description": "管理员可将多名教师分配到会议室，被分配的教师可使用该会议室发起会议；未分配教师的会议室所有教师均可使用",
+      "icon": "👨‍🏫",
+      "color": "#536DFE"
+    },
+    {
+      "id": "vmr_teacher",
+      "title": "教师使用会议室",
+      "description": "教师通过虚拟会议室预约时间并发起会议，需注意同一时间同一会议室仅支持一场会议",
+      "icon": "🎤",
+      "color": "#448AFF"
+    },
+    {
+      "id": "vmr_schedule_rules",
+      "title": "预约规则",
+      "description": "每个会议室同一时间只能进行一场会议；会议室有最大座位数限制，超出时系统会发出警告",
+      "icon": "📏",
+      "color": "#2979FF"
+    },
+    {
+      "id": "vmr_time_slots",
+      "title": "预约时间管理",
+      "description": "每日可预约时间为7:00-22:00，最小时间单位为15分钟，蓝色色块表示已被预约，白色表示可用",
+      "icon": "🕐",
+      "color": "#2962FF"
+    },
+    {
+      "id": "vmr_create_meeting",
+      "title": "发起会议",
+      "description": "教师在可用时间段点击创建会议，填写会议信息并选择参与班级",
+      "icon": "▶️",
+      "color": "#304FFE"
+    },
+    {
+      "id": "vmr_conflict_notice",
+      "title": "冲突与容量提醒",
+      "description": "选择的时间与其他会议冲突时无法发起；学生人数超过会议室座位数时系统警告，但仍可发起（部分学生可能无法加入）",
+      "icon": "⚠️",
+      "color": "#FF6D00"
+    }
+  ],
+  "edges": [
+    { "source": "vmr_root", "target": "vmr_admin", "relation_type": "contains", "label": "管理员端" },
+    { "source": "vmr_root", "target": "vmr_teacher", "relation_type": "contains", "label": "教师端" },
+    { "source": "vmr_admin", "target": "vmr_room_list", "relation_type": "contains", "label": "查看列表" },
+    { "source": "vmr_admin", "target": "vmr_assign_teacher", "relation_type": "contains", "label": "分配教师" },
+    { "source": "vmr_teacher", "target": "vmr_schedule_rules", "relation_type": "contains", "label": "注意事项" },
+    { "source": "vmr_teacher", "target": "vmr_time_slots", "relation_type": "contains", "label": "查看时间" },
+    { "source": "vmr_teacher", "target": "vmr_create_meeting", "relation_type": "contains", "label": "发起会议" },
+    { "source": "vmr_create_meeting", "target": "vmr_conflict_notice", "relation_type": "related", "label": "注意事项" },
+    { "source": "vmr_assign_teacher", "target": "vmr_teacher", "relation_type": "depends_on", "label": "分配后可用" }
+  ],
+  "content_links": [
+    { "node": "vmr_root", "anchor": { "type": "page", "value": 1 } },
+    { "node": "vmr_admin", "anchor": { "type": "page", "value": 1 } },
+    { "node": "vmr_room_list", "anchor": { "type": "page", "value": 1 } },
+    { "node": "vmr_assign_teacher", "anchor": { "type": "page", "value": 2 } },
+    { "node": "vmr_teacher", "anchor": { "type": "page", "value": 3 } },
+    { "node": "vmr_schedule_rules", "anchor": { "type": "page", "value": 3 } },
+    { "node": "vmr_time_slots", "anchor": { "type": "page", "value": 4 } },
+    { "node": "vmr_create_meeting", "anchor": { "type": "page", "value": 4 } },
+    { "node": "vmr_conflict_notice", "anchor": { "type": "page", "value": 5 } }
+  ]
+}

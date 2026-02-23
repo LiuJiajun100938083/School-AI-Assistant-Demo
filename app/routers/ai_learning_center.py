@@ -112,6 +112,36 @@ class CreateKnowledgeEdgeRequest(BaseModel):
     weight: float = 1.0
 
 
+class BatchNodeInput(BaseModel):
+    id: str = Field(..., description="节点临时ID（用于边和content_links引用）")
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = ""
+    icon: Optional[str] = "📌"
+    color: Optional[str] = "#006633"
+
+
+class BatchEdgeInput(BaseModel):
+    source: str = Field(..., description="源节点临时ID")
+    target: str = Field(..., description="目标节点临时ID")
+    relation_type: str = "related"
+    label: str = ""
+    weight: float = 1.0
+
+
+class BatchContentLinkInput(BaseModel):
+    node: str = Field(..., description="节点临时ID")
+    content_id: Optional[int] = Field(None, description="内容ID（可选，若不提供则通过source_pdf匹配）")
+    anchor: Optional[Dict] = None
+
+
+class BatchImportKnowledgeGraphRequest(BaseModel):
+    clear_existing: bool = Field(False, description="导入前是否清空现有节点和边")
+    source_pdf: Optional[str] = Field(None, description="PDF文件名，用于自动匹配content_id")
+    nodes: List[BatchNodeInput]
+    edges: List[BatchEdgeInput] = []
+    content_links: List[BatchContentLinkInput] = []
+
+
 class CreatePathRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = ""
@@ -903,4 +933,41 @@ async def publish_path(
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
         logger.exception("Error publishing learning path")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ================================================================
+# 管理員端點 - 知識圖譜批量導入
+# ================================================================
+
+@router.post("/api/admin/learning-center/knowledge-graph/batch-import")
+async def batch_import_knowledge_graph(
+    request: BatchImportKnowledgeGraphRequest,
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
+):
+    """
+    批量導入知識圖譜（節點 + 邊 + 內容關聯）
+
+    JSON 格式見 data/kg_*.json 範例檔案。
+    - nodes: 節點列表，每個節點有臨時 id 用於邊和 content_links 引用
+    - edges: 邊列表，source/target 使用節點的臨時 id
+    - content_links: 節點→內容關聯，支持 anchor 錨點
+    - source_pdf: PDF 檔名，自動匹配已上傳內容的 content_id
+    - clear_existing: 是否清空現有圖譜（慎用）
+    """
+    try:
+        service = get_services().learning_center
+        result = service.batch_import_knowledge_graph(
+            admin=admin_info,
+            nodes=[n.model_dump() for n in request.nodes],
+            edges=[e.model_dump() for e in request.edges],
+            content_links=[cl.model_dump() for cl in request.content_links],
+            source_pdf=request.source_pdf,
+            clear_existing=request.clear_existing,
+        )
+        return success_response(data=result, message="知識圖譜批量導入成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("Error batch importing knowledge graph")
         return error_response("SERVER_ERROR", str(e), status_code=500)
