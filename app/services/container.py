@@ -344,6 +344,10 @@ class ServiceContainer:
             self.mistake_book.set_ai_function(ask_ai)
             self.mistake_book.set_vision_service(self.vision)
 
+        # LearningCenterService
+        if ask_ai:
+            self.learning_center.set_ai_function(ask_ai)
+
         logger.info("外部依赖注入完成")
 
     # ================================================================== #

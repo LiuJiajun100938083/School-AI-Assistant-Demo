@@ -943,7 +943,26 @@ class LearningCenterService:
             }
 
         try:
-            result = await self._ask_ai_func(question, context_filter)
+            import asyncio
+            loop = asyncio.get_running_loop()
+
+            # _ask_ai_func 是 ask_ai_subject(question, subject_code)，返回 (answer, thinking) 元组
+            raw = await loop.run_in_executor(
+                None, self._ask_ai_func, question, context_filter or ""
+            )
+
+            # 兼容：如果返回 dict 直接使用，否则从 tuple 构建
+            if isinstance(raw, dict):
+                result = raw
+            else:
+                answer, thinking = raw
+                result = {
+                    "question": question,
+                    "answer": answer or "",
+                    "thinking": thinking or "",
+                    "context_sources": [],
+                }
+
             logger.info("AI 回答成功: 用户=%s", username)
             # 匹配知识图谱相关节点
             result["related_nodes"] = self._match_knowledge_nodes(
