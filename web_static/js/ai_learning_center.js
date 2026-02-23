@@ -909,10 +909,15 @@
 
     /** Radial Tree layout configuration */
     const LAYOUT_CONFIG = {
-        defaultCollapseDepth: 1,            // 默认只展示 root + L1
-        ringRadii: [0, 180, 340, 470, 570], // depth 0-4 各层半径
-        nodeSpacing: 1.8,                   // d3.tree separation 系数
-        animationDuration: 600,             // 展开/收起动画时长 ms
+        defaultCollapseDepth: 1,              // 默认只展示 root + L1
+        ringRadii: [0, 260, 440, 640, 800],  // depth 0-4 各层半径 (L1≈260, L2≈440, L3≈640)
+        nodeSpacing: 2.2,                     // d3.tree separation 系数
+        animationDuration: 600,               // 展开/收起动画时长 ms
+        collisionPadding: 14,                 // forceCollide: radius + padding
+        collisionIterations: 6,               // collision resolution iterations
+        sectorGap: 0.08,                      // radians gap between L0 subtree sectors
+        lodLabelThreshold: 1.1,               // zoom < this → hide L2+ labels
+        lodCrossLinkThreshold: 1.5,           // zoom > this → show cross-links
     };
 
     /** Edge color palette by relation_type */
@@ -1020,98 +1025,148 @@
     }
 
     /**
-     * Build a radial tree layout using d3.tree for angle allocation
-     * and fixed ring radii for depth positioning.
+     * Count visible descendants (recursive) for subtree weight calculation.
+     */
+    function countVisibleDescendants(nodeId, childrenMap, nodeMap) {
+        const node = nodeMap.get(nodeId);
+        if (!node || !node._visible) return 0;
+        if (node._collapsed) return 0; // collapsed = no visible children below
+        const kids = (childrenMap.get(nodeId) || []).filter(cId => {
+            const c = nodeMap.get(cId);
+            return c && c._visible;
+        });
+        let count = kids.length;
+        kids.forEach(cId => { count += countVisibleDescendants(cId, childrenMap, nodeMap); });
+        return count;
+    }
+
+    /**
+     * Build a radial tree layout with sector-based angle allocation
+     * and post-layout collision resolution.
      *
-     * Creates a virtual super-root connecting all real root nodes,
-     * then projects the tree into polar coordinates.
+     * Strategy:
+     * 1. Each root (depth-0) node gets a proportional angular sector based on
+     *    its visible subtree size (leaf-weighted).
+     * 2. Within each sector, L1 children are evenly spaced.
+     * 3. Within each L1 sub-sector, L2/L3 children are further subdivided.
+     * 4. After angle allocation, a collision-resolution pass nudges overlapping
+     *    nodes on the same ring apart.
      *
      * @param {Array} nodes - All graph nodes (with _depth, _collapsed, _visible set)
      * @param {Map} childrenMap - Map<nodeId, [childId, ...]>
-     * @returns {{ treeRoot: Object, layoutMap: Map }} layoutMap maps nodeId → {x, y, angle, radius}
+     * @returns {{ treeRoot: null, layoutMap: Map }}
      */
     function buildRadialTree(nodes, childrenMap) {
         const nodeMap = new Map(nodes.map(n => [n.id, n]));
-
-        // Find real root nodes (depth 0)
-        const realRoots = nodes.filter(n => n._depth === 0);
-
-        // Build hierarchy data for d3.hierarchy
-        function buildChildren(nodeId) {
-            const node = nodeMap.get(nodeId);
-            if (!node) return null;
-            // If collapsed or not visible, don't expand children
-            if (node._collapsed) return [];
-            const kids = (childrenMap.get(nodeId) || [])
-                .filter(cId => {
-                    const c = nodeMap.get(cId);
-                    return c && c._visible;
-                });
-            return kids.map(cId => ({
-                id: cId,
-                _nodeRef: nodeMap.get(cId),
-                children: buildChildren(cId)
-            }));
-        }
-
-        // Virtual super-root
-        const hierarchyData = {
-            id: '__super_root__',
-            _nodeRef: null,
-            children: realRoots.map(r => ({
-                id: r.id,
-                _nodeRef: r,
-                children: buildChildren(r.id)
-            }))
-        };
-
-        // Create d3 hierarchy
-        const root = d3.hierarchy(hierarchyData);
-
-        // Configure tree layout — use full circle (2*PI) for angle
-        const treeLayout = d3.tree()
-            .size([2 * Math.PI, 1]) // angle range [0, 2*PI], radius placeholder
-            .separation((a, b) => {
-                // More space between different parent's children
-                if (a.parent === b.parent) return LAYOUT_CONFIG.nodeSpacing;
-                return LAYOUT_CONFIG.nodeSpacing * 2;
-            });
-
-        treeLayout(root);
-
-        // Map results back to nodes with fixed ring radii
         const layoutMap = new Map();
 
-        root.each(treeNode => {
-            if (treeNode.data.id === '__super_root__') return;
+        // Find real root nodes (depth 0)
+        const realRoots = nodes.filter(n => n._depth === 0 && n._visible);
+        if (realRoots.length === 0) return { treeRoot: null, layoutMap };
 
-            const nodeRef = treeNode.data._nodeRef;
-            if (!nodeRef) return;
+        // ── 1. Compute subtree weights for proportional sector allocation ──
+        // Weight = 1 (self) + visible descendants; minimum 1 so even leaf-roots get space
+        const rootWeights = realRoots.map(r => {
+            const desc = countVisibleDescendants(r.id, childrenMap, nodeMap);
+            return { root: r, weight: Math.max(1, 1 + desc) };
+        });
+        const totalWeight = rootWeights.reduce((s, rw) => s + rw.weight, 0);
+        const totalGap = LAYOUT_CONFIG.sectorGap * realRoots.length;
+        const availableAngle = 2 * Math.PI - totalGap;
 
-            // Real depth (super-root is depth 0 in tree, real roots are depth 1)
-            const realDepth = treeNode.depth - 1;
-            const ringIdx = Math.min(realDepth, LAYOUT_CONFIG.ringRadii.length - 1);
-            const radius = LAYOUT_CONFIG.ringRadii[ringIdx];
-            const angle = treeNode.x; // angle from d3.tree
+        // ── 2. Assign sectors to root nodes ──
+        let currentAngle = 0;
+        const rootSectors = []; // { root, startAngle, endAngle, midAngle }
 
-            // Polar to Cartesian (angle=0 is top, clockwise)
-            const x = radius * Math.sin(angle);
-            const y = -radius * Math.cos(angle);
-
-            layoutMap.set(nodeRef.id, { x, y, angle, radius });
-
-            // Write positions back to node object
-            nodeRef.x = x;
-            nodeRef.y = y;
-            nodeRef._angle = angle;
-            nodeRef._radius = radius;
+        rootWeights.forEach(rw => {
+            const sectorSize = (rw.weight / totalWeight) * availableAngle;
+            const startAngle = currentAngle;
+            const endAngle = currentAngle + sectorSize;
+            const midAngle = (startAngle + endAngle) / 2;
+            rootSectors.push({ root: rw.root, startAngle, endAngle, midAngle, sectorSize });
+            currentAngle = endAngle + LAYOUT_CONFIG.sectorGap;
         });
 
-        // Handle orphan nodes not in the tree (place them far out)
+        // ── 3. Place root nodes ──
+        // If single root → center. Multiple roots → spread on a ring (radius ~100)
+        const rootRadius = realRoots.length > 1 ? Math.max(LAYOUT_CONFIG.ringRadii[0], 100) : 0;
+
+        rootSectors.forEach(rs => {
+            const r = rs.root;
+            const angle = rs.midAngle;
+            const radius = rootRadius;
+            const x = radius * Math.sin(angle);
+            const y = -radius * Math.cos(angle);
+            r.x = x; r.y = y; r._angle = angle; r._radius = radius;
+            layoutMap.set(r.id, { x, y, angle, radius });
+        });
+
+        // ── 4. Recursively place children within their parent's sector ──
+        function placeChildren(parentId, sectorStart, sectorEnd, depth) {
+            const parent = nodeMap.get(parentId);
+            if (!parent || parent._collapsed) return;
+
+            const kids = (childrenMap.get(parentId) || []).filter(cId => {
+                const c = nodeMap.get(cId);
+                return c && c._visible;
+            });
+            if (kids.length === 0) return;
+
+            const ringIdx = Math.min(depth, LAYOUT_CONFIG.ringRadii.length - 1);
+            const radius = LAYOUT_CONFIG.ringRadii[ringIdx];
+
+            // Compute sub-sector weights for children
+            const kidWeights = kids.map(cId => {
+                const desc = countVisibleDescendants(cId, childrenMap, nodeMap);
+                return { id: cId, weight: Math.max(1, 1 + desc) };
+            });
+            const totalKidWeight = kidWeights.reduce((s, kw) => s + kw.weight, 0);
+
+            // Minimum angular spacing per child based on node radius
+            const tierKey = Math.min(depth, Math.max(...Object.keys(TIER_CONFIG).map(Number)));
+            const nodeRadius = TIER_CONFIG[tierKey].radius;
+            const minAngularSpacing = (2 * (nodeRadius + LAYOUT_CONFIG.collisionPadding)) / Math.max(radius, 1);
+
+            let sectorSize = sectorEnd - sectorStart;
+            // Ensure enough room; if sector too small, expand minimally
+            const minNeeded = kids.length * minAngularSpacing;
+            if (sectorSize < minNeeded) {
+                // Center-expand the sector
+                const mid = (sectorStart + sectorEnd) / 2;
+                sectorStart = mid - minNeeded / 2;
+                sectorEnd = mid + minNeeded / 2;
+                sectorSize = minNeeded;
+            }
+
+            // Place each child proportionally within the sector
+            let childAngle = sectorStart;
+            kidWeights.forEach(kw => {
+                const childSectorSize = (kw.weight / totalKidWeight) * sectorSize;
+                const angle = childAngle + childSectorSize / 2;
+
+                const c = nodeMap.get(kw.id);
+                if (c) {
+                    const x = radius * Math.sin(angle);
+                    const y = -radius * Math.cos(angle);
+                    c.x = x; c.y = y; c._angle = angle; c._radius = radius;
+                    layoutMap.set(c.id, { x, y, angle, radius });
+
+                    // Recurse into child's sub-sector
+                    placeChildren(kw.id, childAngle, childAngle + childSectorSize, depth + 1);
+                }
+                childAngle += childSectorSize;
+            });
+        }
+
+        rootSectors.forEach(rs => {
+            placeChildren(rs.root.id, rs.startAngle, rs.endAngle, 1);
+        });
+
+        // ── 5. Handle orphan nodes (not in any subtree) ──
         nodes.forEach(n => {
             if (!layoutMap.has(n.id) && n._visible) {
                 const fallbackAngle = Math.random() * 2 * Math.PI;
-                const fallbackR = LAYOUT_CONFIG.ringRadii[LAYOUT_CONFIG.ringRadii.length - 1] + 80;
+                const fallbackR = LAYOUT_CONFIG.ringRadii[LAYOUT_CONFIG.ringRadii.length - 1] + 100;
                 n.x = fallbackR * Math.sin(fallbackAngle);
                 n.y = -fallbackR * Math.cos(fallbackAngle);
                 n._angle = fallbackAngle;
@@ -1120,7 +1175,63 @@
             }
         });
 
-        return { treeRoot: root, layoutMap };
+        // ── 6. Post-layout collision resolution on same ring ──
+        // Group visible nodes by their ring radius, then iteratively push apart
+        const ringGroups = new Map(); // radius → [node, ...]
+        nodes.forEach(n => {
+            if (!n._visible || n._radius == null) return;
+            const rKey = Math.round(n._radius);
+            if (!ringGroups.has(rKey)) ringGroups.set(rKey, []);
+            ringGroups.get(rKey).push(n);
+        });
+
+        for (let iter = 0; iter < LAYOUT_CONFIG.collisionIterations; iter++) {
+            ringGroups.forEach((ringNodes, rKey) => {
+                if (ringNodes.length < 2 || rKey === 0) return;
+                const radius = ringNodes[0]._radius;
+
+                // Sort by angle
+                ringNodes.sort((a, b) => a._angle - b._angle);
+
+                for (let i = 0; i < ringNodes.length; i++) {
+                    const a = ringNodes[i];
+                    const b = ringNodes[(i + 1) % ringNodes.length];
+
+                    const tierA = Math.min(a._depth, Math.max(...Object.keys(TIER_CONFIG).map(Number)));
+                    const tierB = Math.min(b._depth, Math.max(...Object.keys(TIER_CONFIG).map(Number)));
+                    const rA = TIER_CONFIG[tierA].radius;
+                    const rB = TIER_CONFIG[tierB].radius;
+                    const minDist = rA + rB + LAYOUT_CONFIG.collisionPadding * 2;
+
+                    // Angular distance between a and b
+                    let angleDiff = b._angle - a._angle;
+                    if (i === ringNodes.length - 1) {
+                        // Wrap-around
+                        angleDiff = (b._angle + 2 * Math.PI) - a._angle;
+                    }
+                    const arcDist = angleDiff * radius;
+
+                    if (arcDist < minDist && arcDist > 0) {
+                        // Push apart
+                        const pushAngle = ((minDist - arcDist) / radius) / 2;
+                        a._angle -= pushAngle * 0.5;
+                        b._angle += pushAngle * 0.5;
+                    }
+                }
+
+                // Update cartesian coordinates
+                ringNodes.forEach(n => {
+                    n.x = n._radius * Math.sin(n._angle);
+                    n.y = -n._radius * Math.cos(n._angle);
+                    const entry = layoutMap.get(n.id);
+                    if (entry) {
+                        entry.x = n.x; entry.y = n.y; entry.angle = n._angle;
+                    }
+                });
+            });
+        }
+
+        return { treeRoot: null, layoutMap };
     }
 
     /**
@@ -1239,18 +1350,27 @@
 
         // Ring guide circles (subtle concentric rings for depth reference)
         const ringGuideGroup = g.append('g').attr('class', 'kg-ring-guides');
-        LAYOUT_CONFIG.ringRadii.forEach((r, i) => {
-            if (i === 0) return; // no ring at center
-            ringGuideGroup.append('circle')
-                .attr('cx', 0).attr('cy', 0)
-                .attr('r', r)
-                .attr('class', 'kg-ring-guide')
-                .attr('fill', 'none')
-                .attr('stroke', '#eee')
-                .attr('stroke-width', 0.5)
-                .attr('stroke-dasharray', '4 4')
-                .attr('pointer-events', 'none');
-        });
+
+        function updateRingGuides() {
+            ringGuideGroup.selectAll('.kg-ring-guide').remove();
+            // Draw rings only for depths that have visible nodes
+            const activeRadii = new Set();
+            state.nodes.forEach(n => {
+                if (n._visible && n._radius > 0) activeRadii.add(Math.round(n._radius));
+            });
+            activeRadii.forEach(r => {
+                ringGuideGroup.append('circle')
+                    .attr('cx', 0).attr('cy', 0)
+                    .attr('r', r)
+                    .attr('class', 'kg-ring-guide')
+                    .attr('fill', 'none')
+                    .attr('stroke', '#eee')
+                    .attr('stroke-width', 0.5)
+                    .attr('stroke-dasharray', '4 4')
+                    .attr('pointer-events', 'none');
+            });
+        }
+        updateRingGuides();
 
         const crossLinkGroup = g.append('g').attr('class', 'kg-cross-links');
         const hierLinkGroup  = g.append('g').attr('class', 'kg-hier-links');
@@ -1486,17 +1606,20 @@
         svg.call(zoom);
 
         // Center view on the radial tree (origin is at 0,0)
-        const initialTransform = d3.zoomIdentity.translate(cx, cy).scale(0.85);
+        const initialTransform = d3.zoomIdentity.translate(cx, cy).scale(0.75);
         svg.call(zoom.transform, initialTransform);
 
         function applyLOD(scale) {
+            const lblThreshold = LAYOUT_CONFIG.lodLabelThreshold;     // 1.1
+            const clThreshold = LAYOUT_CONFIG.lodCrossLinkThreshold;  // 1.5
+
             if (scale < 0.4) {
                 // Far out: only root visible
                 nodeGroups.attr('opacity', d => (d._visible && d._depth === 0) ? 1 : 0.1);
                 hierLinks.attr('stroke-opacity', 0.1);
                 crossLinks.attr('stroke-opacity', 0);
                 crossEdgeLabels.attr('opacity', 0);
-            } else if (scale < 1.5) {
+            } else if (scale < clThreshold) {
                 // Normal: show visible nodes per collapse state
                 nodeGroups.attr('opacity', d => d._visible ? 1 : 0);
                 hierLinks.attr('stroke-opacity', d => {
@@ -1525,6 +1648,23 @@
                     return (s && s._visible && t && t._visible) ? 0.8 : 0;
                 });
             }
+
+            // Label LOD: zoom < lodLabelThreshold → hide L2+ below-node titles
+            // zoom >= lodLabelThreshold → show L2+ titles for visible nodes
+            nodeGroups.selectAll('.kg-node-title')
+                .attr('opacity', d => {
+                    if (!d._visible) return 0;
+                    if (d._depth <= 1) return 1; // root + L1 always show title
+                    return scale >= lblThreshold ? 0.85 : 0; // L2+ only at zoom≥1.1
+                });
+
+            // In-circle labels: hide L1 in-circle label when zoomed out too far
+            nodeGroups.selectAll('.kg-node-label')
+                .attr('opacity', d => {
+                    if (!d._visible) return 0;
+                    if (d._depth === 0) return 1;
+                    return scale >= 0.6 ? 1 : 0;
+                });
         }
 
         // ── G. Hover path highlighting ──
@@ -1543,10 +1683,7 @@
                 crossLinks.transition().duration(200)
                     .attr('stroke-opacity', 0);
                 crossEdgeLabels.transition().duration(200).attr('opacity', 0);
-                nodeGroups.selectAll('.kg-node-title')
-                    .transition().duration(200)
-                    .attr('opacity', d => d._depth <= 1 ? 1 : 0);
-                applyLOD(currentScale); // re-apply LOD state
+                applyLOD(currentScale); // re-apply LOD state (includes label opacity)
                 return;
             }
 
@@ -1560,12 +1697,13 @@
                     return 0.15;
                 });
 
-            // Show titles on hover for all connected
+            // Show titles on hover for hovered + neighbors (regardless of LOD)
             nodeGroups.selectAll('.kg-node-title')
                 .transition().duration(200)
                 .attr('opacity', d => {
                     if (d.id === hoveredNode.id || neighbors.has(d.id)) return 1;
-                    return 0.1;
+                    if (d._depth <= 1) return 0.15;
+                    return 0;
                 });
 
             // Highlight connected hierarchy edges
@@ -1598,10 +1736,11 @@
                 });
         }
 
-        // ── H. Expand / Collapse with tree re-layout ──
+        // ── H. Expand / Collapse with tree re-layout + auto-center ──
         function toggleCollapse(node) {
             if (!node._children || node._children.length === 0) return;
 
+            const wasCollapsed = node._collapsed;
             node._collapsed = !node._collapsed;
             const descendants = getDescendants(node.id, childrenMap);
 
@@ -1671,8 +1810,49 @@
                     return s && t ? (s.y + t.y) / 2 - 6 : 0;
                 });
 
+            // Update ring guides
+            updateRingGuides();
+
             // Update descendant badges
             updateDescendantBadges();
+
+            // Re-apply LOD after layout change
+            applyLOD(currentScale);
+
+            // Auto-center on expanded branch (only when expanding, not collapsing)
+            if (!node._collapsed && wasCollapsed) {
+                // Compute bounding box of the expanded subtree (node + revealed children)
+                const branchNodes = [node];
+                descendants.forEach(id => {
+                    const n = state.nodes.find(nd => nd.id === id);
+                    if (n && n._visible) branchNodes.push(n);
+                });
+
+                if (branchNodes.length > 1) {
+                    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                    branchNodes.forEach(n => {
+                        if (n.x < minX) minX = n.x;
+                        if (n.x > maxX) maxX = n.x;
+                        if (n.y < minY) minY = n.y;
+                        if (n.y > maxY) maxY = n.y;
+                    });
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+
+                    // Pan to center the branch, keep current zoom scale
+                    const svgElement = getElement('knowledgeMapSvg');
+                    const w = svgElement ? svgElement.clientWidth || 800 : 800;
+                    const h = svgElement ? svgElement.clientHeight || 600 : 600;
+                    const scale = currentScale || 0.85;
+                    svg.transition().duration(dur + 200).call(
+                        zoom.transform,
+                        d3.zoomIdentity
+                            .translate(w / 2, h / 2)
+                            .scale(scale)
+                            .translate(-centerX, -centerY)
+                    );
+                }
+            }
         }
 
         // ── I. Overview / Explore mode toggle ──
@@ -1727,7 +1907,9 @@
                 .attr('y2', d => { const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target); return t ? t.y : 0; })
                 .attr('stroke-opacity', 0);
 
+            updateRingGuides();
             updateDescendantBadges();
+            applyLOD(currentScale);
 
             // Update toggle button state
             const toggleBtn = getElement('mapModeToggle');
@@ -2064,7 +2246,7 @@
                 const h = svgElement ? svgElement.clientHeight || 600 : 600;
                 svg.transition().duration(750).call(
                     zoom.transform,
-                    d3.zoomIdentity.translate(w / 2, h / 2).scale(0.85)
+                    d3.zoomIdentity.translate(w / 2, h / 2).scale(0.75)
                 );
             });
         }
