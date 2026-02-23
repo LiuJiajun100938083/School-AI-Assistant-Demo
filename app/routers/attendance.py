@@ -542,6 +542,56 @@ async def manual_scan(
 #                               端点：留堂管理
 # ==================================================================================
 
+def _format_detention_response(result: dict, is_manual: bool = False) -> dict:
+    """
+    将 service.detention_checkin / detention_checkout / detention_smart_scan
+    的扁平返回值转换为前端期望的嵌套结构。
+
+    前端 showScanNotification 留堂模式期望:
+        data.student   — 学生对象
+        data.record    — {scan_time, checkout_time, planned_periods,
+                          planned_minutes, planned_end_time, actual_minutes,
+                          actual_periods, status, ...}
+        data.action    — "checkout" / "need_select_periods" / "already_completed"
+    """
+    # need_select_periods / already_completed / error 不需要嵌套 record
+    action = result.get("action")
+    if action in ("need_select_periods", "already_completed", "error"):
+        return {"success": True, **result}
+
+    student = result.pop("student", {})
+
+    # 生成 status_msg（前端 showScanResult 需要）
+    is_completed = result.get("is_completed")
+    if is_completed is True:
+        status_msg = "✅ 留堂完成"
+    elif is_completed is False:
+        status_msg = "⚠️ 提前离开"
+    else:
+        status_msg = "📝 留堂签到"
+
+    record = {
+        "scan_time": result.get("scan_time"),
+        "checkout_time": result.get("checkout_time"),
+        "status": result.get("status"),
+        "status_msg": status_msg,
+        "planned_periods": result.get("planned_periods"),
+        "planned_minutes": result.get("planned_minutes"),
+        "planned_end_time": result.get("planned_end_time"),
+        "duration_minutes": result.get("duration_minutes"),
+        "actual_minutes": result.get("actual_minutes"),
+        "actual_periods": result.get("actual_periods"),
+        "is_completed": result.get("is_completed"),
+    }
+    return {
+        "success": True,
+        "student": student,
+        "record": record,
+        "is_manual": is_manual,
+        **result,  # 保留 action 等额外字段
+    }
+
+
 @router.post("/detention/checkin")
 async def detention_checkin(
     request: DetentionCheckinRequest,
@@ -554,7 +604,7 @@ async def detention_checkin(
         planned_periods=request.planned_periods,
         planned_minutes=request.planned_minutes,
     )
-    return {"success": True, **result}
+    return _format_detention_response(result)
 
 
 @router.post("/detention/manual-checkin")
@@ -569,8 +619,7 @@ async def detention_manual_checkin(
         planned_periods=request.planned_periods,
         planned_minutes=request.planned_minutes,
     )
-    result["is_manual"] = True
-    return {"success": True, **result}
+    return _format_detention_response(result, is_manual=True)
 
 
 @router.post("/detention/checkout")
@@ -583,7 +632,8 @@ async def detention_checkout(
         session_id=request.session_id,
         card_id=request.card_id,
     )
-    return {"success": True, **result}
+    result["action"] = "checkout"
+    return _format_detention_response(result)
 
 
 @router.post("/detention/manual-checkout")
@@ -596,8 +646,8 @@ async def detention_manual_checkout(
         session_id=request.session_id,
         user_login=request.user_login,
     )
-    result["is_manual"] = True
-    return {"success": True, **result}
+    result["action"] = "checkout"
+    return _format_detention_response(result, is_manual=True)
 
 
 @router.post("/detention/scan")
@@ -610,7 +660,7 @@ async def detention_smart_scan(
         session_id=request.session_id,
         card_id=request.card_id,
     )
-    return {"success": True, **result}
+    return _format_detention_response(result)
 
 
 @router.put("/detention/modify-periods")
@@ -852,6 +902,30 @@ async def get_activity_session(session_id: int, user_info=Depends(verify_admin_o
     return {"success": True, "session": detail, "students": records, "stats": stats}
 
 
+def _format_activity_response(result: dict) -> dict:
+    """
+    将 service.activity_checkin / activity_checkout 的扁平返回值
+    转换为前端期望的嵌套结构。
+
+    前端 showScanNotification / showScanResult 期望:
+        data.student  — 学生对象
+        data.record   — {scan_time, checkout_time, ...}
+        data.action   — "checkin" / "checkout"
+        data.time     — 时间戳（兼容旧逻辑）
+    """
+    student = result.pop("student", {})
+    record = {
+        "scan_time": result.get("time"),
+        "checkout_time": result.get("time"),
+    }
+    return {
+        "success": True,
+        "student": student,
+        "record": record,
+        **result,  # 保留 action, time, is_late, late_minutes, is_early, early_minutes
+    }
+
+
 @router.post("/activity/scan")
 async def activity_scan(
     request: ActivityScanRequest,
@@ -862,7 +936,7 @@ async def activity_scan(
         session_id=request.session_id,
         card_id=request.card_id,
     )
-    return {"success": True, **result}
+    return _format_activity_response(result)
 
 
 @router.post("/activity/checkout")
@@ -875,7 +949,7 @@ async def activity_checkout(
         session_id=request.session_id,
         user_login=request.user_login,
     )
-    return {"success": True, **result}
+    return _format_activity_response(result)
 
 
 @router.post("/activity/sessions/{session_id}/end")

@@ -370,9 +370,11 @@ class AttendanceService:
         return {
             "student": student,
             "status": AttendanceStatus.DETENTION_ACTIVE,
+            "scan_time": scan_time.strftime("%H:%M:%S"),
             "planned_end_time": planned_end_time.strftime("%H:%M:%S"),
             "duration_minutes": duration_minutes,
             "planned_periods": actual_periods,
+            "planned_minutes": planned_minutes,
         }
 
     def detention_checkout(
@@ -441,8 +443,11 @@ class AttendanceService:
         )
         return {
             "student": student,
+            "checkout_time": checkout_time.strftime("%H:%M:%S"),
             "actual_minutes": actual_minutes,
             "actual_periods": actual_periods,
+            "planned_minutes": planned_minutes,
+            "planned_periods": planned_periods,
             "is_completed": is_completed,
             "status": status,
         }
