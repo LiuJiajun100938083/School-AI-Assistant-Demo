@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["页面"])
 
-# 静态文件根目录
-STATIC_DIR = "web_static"
+# 静态文件根目录 (使用绝对路径，避免依赖工作目录)
+STATIC_DIR = str(Path(__file__).resolve().parent.parent.parent / "web_static")
 
 
 def _serve_page(filename: str):
@@ -183,4 +183,5 @@ async def serve_uploaded_game(game_uuid: str):
 
     if os.path.exists(file_path):
         return FileResponse(file_path, media_type="text/html")
+    logger.warning(f"上传游戏文件不存在: {file_path}")
     return HTMLResponse(content="<h1>游戏未找到</h1>", status_code=404)
