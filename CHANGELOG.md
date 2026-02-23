@@ -11,6 +11,46 @@
 
 ---
 
+## [v3.0.1] [2026-02-23] P0 安全漏洞修复 — 认证绕过 + XSS + Token 黑名单持久化
+
+### 修复
+
+- **C2: game_upload.py 认证绕过** — 所有 6 个端点通过 Form/Query 接收客户端传入的 `user_id` 和 `user_role`，攻击者可伪造任意身份
+  - 后端：全部改为 `Depends(get_current_user)` 从 JWT Token 提取身份
+  - 前端：`game_upload.js` / `game_center.js` / `my_games.html` 移除明文 `user_id`/`user_role` 参数，依赖 `Authorization: Bearer` 头
+
+- **C3: china_game.py 零认证** — 14 个桌游端点无需登录即可访问，任何人可操纵游戏状态
+  - 后端：`router` 添加 `dependencies=[Depends(get_current_user)]`，所有端点统一要求 JWT 认证
+  - 前端：`china_economy_game.js` 的 `api()` 方法添加 `Authorization` 头，`init()` 强制登录（移除访客模式回退）
+
+- **C4: Token 黑名单内存丢失** — `JWTManager._blacklist` 为 Python `set()`，服务重启后已注销的 Token 重新生效
+  - `security.py` 的 `revoke_token()` / `is_revoked()` 改写为：写入 MySQL `token_blacklist` 表 + 内存缓存加速
+  - `cleanup_expired_tokens()` 改为按 `expires_at` 清理数据库过期记录
+  - 新增迁移文件 `database_migration/create_token_blacklist.sql`
+
+- **C5: XSS 注入 (marked.parse)** — `marked.parse()` 输出直接赋值 `innerHTML`，恶意 Markdown 中的 `<script>` 可执行
+  - 引入 DOMPurify CDN 到 `ai_learning_center.html` 和 `admin_dashboard.html`
+  - 4 处 `marked.parse()` 调用全部包裹 `DOMPurify.sanitize()`
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/core/security.py` | `JWTManager` 黑名单从内存 `set()` 迁移到 DB + 缓存双层架构 |
+| `app/routers/game_upload.py` | 6 个端点改用 `Depends(get_current_user)`，删除旧 `get_current_user()` |
+| `app/routers/china_game.py` | router 级别添加 JWT 认证依赖 |
+| `web_static/js/game_upload.js` | 移除 FormData 中的 `user_id`/`user_role`，移除 URL query 参数 |
+| `web_static/js/game_center.js` | 移除 API 调用中的 `user_id`/`user_role` 参数 |
+| `web_static/my_games.html` | 移除 fetch URL 中的 `user_id`/`user_role` |
+| `web_static/js/china_economy_game.js` | `api()` 添加 Auth 头，`init()` 强制登录 |
+| `web_static/ai_learning_center.html` | 引入 DOMPurify CDN |
+| `web_static/admin_dashboard.html` | 引入 DOMPurify CDN |
+| `web_static/js/ai_learning_center.js` | 2 处 `marked.parse()` 包裹 `DOMPurify.sanitize()` |
+| `web_static/js/admin_dashboard.js` | 2 处 `marked.parse()` 包裹 `DOMPurify.sanitize()` |
+| `database_migration/create_token_blacklist.sql` | 新增 Token 黑名单表迁移脚本 |
+
+---
+
 ## [v3.0.0] [2026-02-23] 学习路径系统 + 知识图谱多圆心布局 + AI×KG 联动
 
 ### 新增
