@@ -1,21 +1,48 @@
 /**
- * AI 智能錯題本 — 前端核心模組
+ * AI 智能錯題本 — 前端核心模組 v2
  *
  * 架構：
  *   App        — 全局狀態管理與導航
  *   API        — 後端 API 封裝
+ *   Icons      — SVG 圖標庫
  *   UI         — DOM 渲染工具
  *   Views      — 各頁面視圖渲染
  *   Upload     — 上傳面板邏輯
  *
- * 代碼規範：
- *   - 嚴格模組分離，避免全局污染
- *   - 所有 DOM 操作集中在 UI / Views 層
- *   - 所有 API 調用集中在 API 層
- *   - 使用繁體中文作為界面語言
+ * 設計原則：
+ *   - 產品級 UI，非 demo 風格
+ *   - 克制、層次、真實、耐看
+ *   - 統一 SVG 圖標，無 emoji
  */
 
 'use strict';
+
+/* ============================================================
+   ICONS — SVG 圖標庫（Lucide 風格）
+   ============================================================ */
+
+const Icons = {
+    _svg(paths, size = 16) {
+        return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+    },
+    camera:    (s) => Icons._svg('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle>', s),
+    edit:      (s) => Icons._svg('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', s),
+    chevronR:  (s) => Icons._svg('<polyline points="9 18 15 12 9 6"></polyline>', s),
+    chevronL:  (s) => Icons._svg('<polyline points="15 18 9 12 15 6"></polyline>', s),
+    chevronD:  (s) => Icons._svg('<polyline points="6 9 12 15 18 9"></polyline>', s),
+    arrowR:    (s) => Icons._svg('<line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>', s),
+    check:     (s) => Icons._svg('<polyline points="20 6 9 17 4 12"></polyline>', s),
+    x:         (s) => Icons._svg('<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>', s),
+    target:    (s) => Icons._svg('<circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>', s),
+    barChart:  (s) => Icons._svg('<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>', s),
+    repeat:    (s) => Icons._svg('<polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>', s),
+    trash:     (s) => Icons._svg('<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>', s),
+    image:     (s) => Icons._svg('<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>', s),
+    alertCircle: (s) => Icons._svg('<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>', s),
+    bookOpen:  (s) => Icons._svg('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>', s),
+    zap:       (s) => Icons._svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>', s),
+};
+
 
 /* ============================================================
    APP — 全局狀態與導航
@@ -61,11 +88,11 @@ const App = {
         main.innerHTML = UI.loading();
 
         switch (tab) {
-            case 'home':    Views.renderHome(main);     break;
-            case 'review':  Views.renderReview(main);   break;
-            case 'practice':Views.renderPractice(main);  break;
-            case 'analysis':Views.renderAnalysis(main);  break;
-            default:        Views.renderHome(main);
+            case 'home':     Views.renderHome(main);     break;
+            case 'review':   Views.renderReview(main);   break;
+            case 'practice': Views.renderPractice(main);  break;
+            case 'analysis': Views.renderAnalysis(main);  break;
+            default:         Views.renderHome(main);
         }
     },
 
@@ -80,19 +107,16 @@ const App = {
     },
 
     _bindEvents() {
-        // 標籤欄
         document.getElementById('tabBar').addEventListener('click', e => {
             const item = e.target.closest('.mb-tab-bar__item');
             if (item) this.navigate(item.dataset.tab);
         });
 
-        // 科目篩選
         document.getElementById('subjectBar').addEventListener('click', e => {
             const chip = e.target.closest('.mb-subject-chip');
             if (chip) this.setSubject(chip.dataset.subject);
         });
 
-        // 點擊上傳面板背景關閉
         document.getElementById('uploadPanel').addEventListener('click', e => {
             if (e.target.id === 'uploadPanel') Upload.close();
         });
@@ -137,21 +161,14 @@ const API = {
         return false;
     },
 
-    async getDashboard() {
-        return this._fetch('/api/mistakes/dashboard');
-    },
-
+    async getDashboard() { return this._fetch('/api/mistakes/dashboard'); },
     async getMistakes(subject, status, page = 1) {
         const params = new URLSearchParams({ page, page_size: 20 });
         if (subject && subject !== 'all') params.set('subject', subject);
         if (status) params.set('status', status);
         return this._fetch(`/api/mistakes?${params}`);
     },
-
-    async getMistakeDetail(id) {
-        return this._fetch(`/api/mistakes/${id}`);
-    },
-
+    async getMistakeDetail(id) { return this._fetch(`/api/mistakes/${id}`); },
     async uploadPhoto(formData) {
         try {
             const res = await fetch('/api/mistakes/upload', {
@@ -165,74 +182,52 @@ const API = {
             return null;
         }
     },
-
     async confirmOCR(mistakeId, question, answer) {
         return this._fetch(`/api/mistakes/${mistakeId}/confirm`, {
             method: 'POST',
             body: JSON.stringify({ confirmed_question: question, confirmed_answer: answer }),
         });
     },
-
     async addManual(data) {
         return this._fetch('/api/mistakes/manual', {
             method: 'POST',
             body: JSON.stringify(data),
         });
     },
-
-    async getWeaknessReport(subject) {
-        return this._fetch(`/api/mistakes/weakness-report?subject=${subject}`);
-    },
-
-    async getKnowledgeMap(subject) {
-        return this._fetch(`/api/mistakes/knowledge-map?subject=${subject}`);
-    },
-
-    async getKnowledgeGraph(subject) {
-        return this._fetch(`/api/mistakes/knowledge-graph?subject=${subject}`);
-    },
-
-    async getMasteryHistory(pointCode, limit = 30) {
-        return this._fetch(`/api/mistakes/mastery-history?point_code=${pointCode}&limit=${limit}`);
-    },
-
+    async getWeaknessReport(subject) { return this._fetch(`/api/mistakes/weakness-report?subject=${subject}`); },
+    async getKnowledgeMap(subject) { return this._fetch(`/api/mistakes/knowledge-map?subject=${subject}`); },
+    async getKnowledgeGraph(subject) { return this._fetch(`/api/mistakes/knowledge-graph?subject=${subject}`); },
+    async getMasteryHistory(pointCode, limit = 30) { return this._fetch(`/api/mistakes/mastery-history?point_code=${pointCode}&limit=${limit}`); },
     async askKnowledgeQA(pointCode, question) {
         return this._fetch('/api/mistakes/knowledge-qa', {
             method: 'POST',
             body: JSON.stringify({ point_code: pointCode, question }),
         });
     },
-
     async getReviewQueue(subject, limit = 10) {
         const params = new URLSearchParams({ limit });
         if (subject && subject !== 'all') params.set('subject', subject);
         return this._fetch(`/api/mistakes/review-queue?${params}`);
     },
-
     async recordReview(mistakeId, result) {
         return this._fetch(`/api/mistakes/${mistakeId}/review`, {
             method: 'POST',
             body: JSON.stringify({ result }),
         });
     },
-
     async generatePractice(subject, count = 5) {
         return this._fetch('/api/mistakes/practice/generate', {
             method: 'POST',
             body: JSON.stringify({ subject, question_count: count, session_type: 'targeted' }),
         });
     },
-
     async submitPractice(sessionId, answers) {
         return this._fetch(`/api/mistakes/practice/${sessionId}/submit`, {
             method: 'POST',
             body: JSON.stringify({ answers }),
         });
     },
-
-    async deleteMistake(id) {
-        return this._fetch(`/api/mistakes/${id}`, { method: 'DELETE' });
-    },
+    async deleteMistake(id) { return this._fetch(`/api/mistakes/${id}`, { method: 'DELETE' }); },
 };
 
 
@@ -296,9 +291,7 @@ const UI = {
     formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
-        const month = d.getMonth() + 1;
-        const day = d.getDate();
-        return `${month}月${day}日`;
+        return `${d.getMonth() + 1}月${d.getDate()}日`;
     },
 
     escapeHtml(text) {
@@ -307,19 +300,11 @@ const UI = {
         return div.innerHTML;
     },
 
-    /**
-     * 渲染含 LaTeX 的文本：
-     * 關鍵：先從原始文本中找到所有 LaTeX 塊，
-     * 只對非 LaTeX 部分做 escapeHtml，
-     * LaTeX 部分直接傳給 KaTeX（保留 & \\ 等符號）。
-     */
     renderMath(text) {
         if (!text) return '';
 
-        // 移除 AI 回答中殘留的 <think> 標籤
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
 
-        // KaTeX 尚未載入時，直接 escape 返回
         if (typeof katex === 'undefined') {
             return UI.escapeHtml(text).replace(/\n/g, '<br>');
         }
@@ -336,14 +321,10 @@ const UI = {
             }
         };
 
-        // 從原始文本中找出所有 LaTeX 區間（按出現順序）
         const matches = [];
         const patterns = [
-            // \begin{env}...\end{env}（display mode）
             { re: /\\begin\{([^}]+)\}([\s\S]*?)\\end\{\1\}/g, display: true,  extract: m => m[0] },
-            // $$...$$ (display mode)
             { re: /\$\$([\s\S]*?)\$\$/g,                      display: true,  extract: m => m[1] },
-            // $...$ (inline mode)
             { re: /\$([^$\n]+?)\$/g,                           display: false, extract: m => m[1] },
         ];
 
@@ -351,40 +332,25 @@ const UI = {
             const re = new RegExp(p.re.source, p.re.flags);
             let m;
             while ((m = re.exec(text)) !== null) {
-                matches.push({
-                    start: m.index,
-                    end: m.index + m[0].length,
-                    latex: p.extract(m),
-                    display: p.display,
-                });
+                matches.push({ start: m.index, end: m.index + m[0].length, latex: p.extract(m), display: p.display });
             }
         }
 
-        // 按位置排序，去除重疊
         matches.sort((a, b) => a.start - b.start);
         const filtered = [];
         let lastEnd = 0;
         for (const m of matches) {
-            if (m.start >= lastEnd) {
-                filtered.push(m);
-                lastEnd = m.end;
-            }
+            if (m.start >= lastEnd) { filtered.push(m); lastEnd = m.end; }
         }
 
-        // 組裝結果：非 LaTeX 部分 escapeHtml + 換行，LaTeX 部分交給 KaTeX
         let result = '';
         let pos = 0;
         for (const m of filtered) {
-            if (m.start > pos) {
-                const before = text.substring(pos, m.start);
-                result += UI.escapeHtml(before).replace(/\n/g, '<br>');
-            }
+            if (m.start > pos) result += UI.escapeHtml(text.substring(pos, m.start)).replace(/\n/g, '<br>');
             result += renderKatex(m.latex, m.display);
             pos = m.end;
         }
-        if (pos < text.length) {
-            result += UI.escapeHtml(text.substring(pos)).replace(/\n/g, '<br>');
-        }
+        if (pos < text.length) result += UI.escapeHtml(text.substring(pos)).replace(/\n/g, '<br>');
 
         return result;
     },
@@ -401,7 +367,6 @@ const Views = {
     async renderHome(container) {
         const subject = App.state.currentSubject;
 
-        // 並行加載
         const [dashRes, listRes] = await Promise.all([
             API.getDashboard(),
             API.getMistakes(subject),
@@ -415,60 +380,54 @@ const Views = {
         const total = dash.total_mistakes || 0;
         const streak = dash.review_streak || 0;
         const mastery = dash.mastery_overview || {};
+        const reviewDue = dash.review_due || 0;
 
-        // 各科平均掌握度
         let avgMastery = 0;
         const mKeys = Object.keys(mastery);
         if (mKeys.length) {
             avgMastery = Math.round(mKeys.reduce((s, k) => s + (mastery[k].avg_mastery || 0), 0) / mKeys.length);
         }
 
+        // Hero headline
+        let headline = `${total} 道錯題`;
+        if (reviewDue > 0) headline = `${reviewDue} 道錯題待複習`;
+        else if (total === 0) headline = '開始記錄你的錯題';
+
         container.innerHTML = `
-            <!-- 統計 -->
-            <div class="mb-stats">
-                <div class="mb-stat-card">
-                    <div class="mb-stat-card__value">${total}</div>
-                    <div class="mb-stat-card__label">錯題總數</div>
+            <!-- Hero Card -->
+            <div class="mb-hero">
+                <div class="mb-hero__greeting">Hi，${UI.escapeHtml(App.state.user?.display_name || App.state.user?.username || '同學')}</div>
+                <div class="mb-hero__headline">${headline}</div>
+                <div class="mb-hero__meta">
+                    <span>掌握度 ${avgMastery}%</span>
+                    <span>連續複習 ${streak} 天</span>
                 </div>
-                <div class="mb-stat-card">
-                    <div class="mb-stat-card__value">${avgMastery}%</div>
-                    <div class="mb-stat-card__label">平均掌握度</div>
+                ${reviewDue > 0 ? `<button class="mb-hero__cta" onclick="App.navigate('review')">立即複習 ${Icons.arrowR(14)}</button>` : ''}
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="mb-quick-actions">
+                <div class="mb-quick-action" onclick="Upload.open('photo')">
+                    <div class="mb-quick-action__icon">${Icons.camera(20)}</div>
+                    <div class="mb-quick-action__text">
+                        <div class="mb-quick-action__label">拍照上傳</div>
+                        <div class="mb-quick-action__desc">拍題目和答案</div>
+                    </div>
                 </div>
-                <div class="mb-stat-card">
-                    <div class="mb-stat-card__value">${streak}</div>
-                    <div class="mb-stat-card__label">連續複習天</div>
+                <div class="mb-quick-action" onclick="Upload.open('manual')">
+                    <div class="mb-quick-action__icon">${Icons.edit(20)}</div>
+                    <div class="mb-quick-action__text">
+                        <div class="mb-quick-action__label">手動添加</div>
+                        <div class="mb-quick-action__desc">打字輸入錯題</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 功能入口 -->
-            <div class="mb-actions-grid">
-                <div class="mb-action-btn" onclick="Upload.open('photo')">
-                    <div class="mb-action-btn__icon">📷</div>
-                    <div class="mb-action-btn__label">拍照上傳</div>
-                    <div class="mb-action-btn__desc">拍題目和答案</div>
-                </div>
-                <div class="mb-action-btn" onclick="Upload.open('manual')">
-                    <div class="mb-action-btn__icon">✍️</div>
-                    <div class="mb-action-btn__label">手動添加</div>
-                    <div class="mb-action-btn__desc">打字輸入錯題</div>
-                </div>
-                <div class="mb-action-btn" onclick="App.navigate('practice')">
-                    <div class="mb-action-btn__icon">🎯</div>
-                    <div class="mb-action-btn__label">AI 練習</div>
-                    <div class="mb-action-btn__desc">針對薄弱點出題</div>
-                </div>
-                <div class="mb-action-btn" onclick="App.navigate('review')">
-                    <div class="mb-action-btn__icon">🧠</div>
-                    <div class="mb-action-btn__label">今日複習</div>
-                    <div class="mb-action-btn__desc">間隔重複記牢</div>
-                </div>
-            </div>
-
-            <!-- 錯題列表 -->
+            <!-- Mistake List -->
             <div class="mb-list-section">
-                <div class="mb-list-section__title">
-                    <span>最近錯題</span>
-                    <span style="font-size:12px;color:var(--mb-text-secondary)">共 ${list.total} 題</span>
+                <div class="mb-list-section__header">
+                    <span class="mb-list-section__title">最近錯題</span>
+                    <span class="mb-list-section__count">${list.total} 題</span>
                 </div>
                 <div id="mistakeList"></div>
             </div>
@@ -480,29 +439,34 @@ const Views = {
     _renderMistakeList(items) {
         const listEl = document.getElementById('mistakeList');
         if (!items.length) {
-            listEl.innerHTML = UI.empty('📭', '還沒有錯題，點擊上方「拍照上傳」開始吧！');
+            listEl.innerHTML = UI.empty('', '還沒有錯題，點擊上方「拍照上傳」開始吧');
             return;
         }
 
-        listEl.innerHTML = items.map(m => {
+        let html = '<div class="mb-list-container">';
+        items.forEach(m => {
             const question = m.manual_question_text || m.ocr_question_text || '（未識別）';
-            return `
-                <div class="mb-mistake-card mb-mistake-card--${m.status}" onclick="Views.openDetail('${m.mistake_id}')">
-                    <div class="mb-mistake-card__header">
-                        <span class="mb-mistake-card__subject mb-mistake-card__subject--${m.subject}">
-                            ${UI.subjectLabel(m.subject)} · ${UI.escapeHtml(m.category)}
-                        </span>
-                        <span class="mb-mistake-card__status">${UI.statusLabel(m.status)}</span>
+            html += `
+                <div class="mb-mistake-item" onclick="Views.openDetail('${m.mistake_id}')">
+                    <div class="mb-mistake-item__bar mb-mistake-item__bar--${m.status}"></div>
+                    <div class="mb-mistake-item__content">
+                        <div class="mb-mistake-item__top">
+                            <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
+                            <span class="mb-mistake-item__date">${UI.formatDate(m.created_at)}</span>
+                        </div>
+                        <div class="mb-mistake-item__question">${UI.renderMath(question)}</div>
+                        <div class="mb-mistake-item__footer">
+                            ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
+                            ${m.mastery_level > 0 ? `<span>掌握 ${m.mastery_level}%</span>` : ''}
+                            <span>${UI.statusLabel(m.status)}</span>
+                        </div>
                     </div>
-                    <div class="mb-mistake-card__question">${UI.renderMath(question)}</div>
-                    <div class="mb-mistake-card__meta">
-                        <span>${UI.formatDate(m.created_at)}</span>
-                        ${m.error_type ? `<span>${UI.errorTypeLabel(m.error_type)}</span>` : ''}
-                        ${m.mastery_level > 0 ? `<span>掌握 ${m.mastery_level}%</span>` : ''}
-                    </div>
+                    <div class="mb-mistake-item__arrow">${Icons.chevronR(16)}</div>
                 </div>
             `;
-        }).join('');
+        });
+        html += '</div>';
+        listEl.innerHTML = html;
     },
 
     /* ---- 錯題詳情 ---- */
@@ -513,7 +477,7 @@ const Views = {
 
         const res = await API.getMistakeDetail(mistakeId);
         if (!res || !res.data) {
-            panel.innerHTML = UI.empty('❌', '載入失敗');
+            panel.innerHTML = UI.empty('', '載入失敗');
             return;
         }
 
@@ -522,45 +486,48 @@ const Views = {
 
         panel.innerHTML = `
             <header class="mb-header">
-                <button class="mb-btn mb-btn--sm mb-btn--outline" onclick="Views.closeDetail()">← 返回</button>
-                <span class="mb-mistake-card__subject mb-mistake-card__subject--${m.subject}">
-                    ${UI.subjectLabel(m.subject)}
-                </span>
+                <div class="mb-header__title">
+                    <a href="javascript:void(0)" onclick="Views.closeDetail()">${Icons.chevronL(18)}</a>
+                    <span>錯題詳情</span>
+                </div>
+                <div class="mb-header__actions">
+                    <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
+                </div>
             </header>
 
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">📝 題目</div>
+                <div class="mb-detail-section__title">${Icons.bookOpen(16)} 題目</div>
                 <div class="mb-detail-section__body">${UI.renderMath(m.question_text || '')}</div>
             </div>
 
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">❌ 我的答案</div>
+                <div class="mb-detail-section__title">${Icons.x(16)} 我的答案</div>
                 <div class="mb-detail-section__body">${UI.renderMath(m.answer_text || '')}</div>
             </div>
 
             ${m.correct_answer ? `
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">✅ 正確答案</div>
+                <div class="mb-detail-section__title">${Icons.check(16)} 正確答案</div>
                 <div class="mb-detail-section__body">${UI.renderMath(m.correct_answer)}</div>
             </div>` : ''}
 
             ${m.ai_analysis ? `
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">🤖 AI 分析</div>
+                <div class="mb-detail-section__title">${Icons.zap(16)} AI 分析</div>
                 <div class="mb-detail-section__body">${UI.renderMath(m.ai_analysis)}</div>
-                ${m.error_type ? `<div style="margin-top:8px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
+                ${m.error_type ? `<div style="margin-top:10px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
             </div>` : ''}
 
             ${kps.length ? `
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">🎯 關聯知識點</div>
+                <div class="mb-detail-section__title">${Icons.target(16)} 關聯知識點</div>
                 <div>${kps.map(kp => `<span class="mb-kp-tag mb-kp-tag--medium">${UI.escapeHtml(kp.point_name)}</span>`).join('')}</div>
             </div>` : ''}
 
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">📈 掌握狀態</div>
+                <div class="mb-detail-section__title">${Icons.barChart(16)} 掌握狀態</div>
                 <div style="display:flex;align-items:center;gap:12px">
-                    <span style="font-size:24px;font-weight:700">${m.mastery_level || 0}%</span>
+                    <span style="font-size:24px;font-weight:700;letter-spacing:-0.02em">${m.mastery_level || 0}%</span>
                     <div style="flex:1">
                         <div class="mb-mastery-bar">
                             <div class="mb-mastery-bar__fill mb-mastery-bar__fill--${UI.masteryClass(m.mastery_level || 0)}"
@@ -568,7 +535,7 @@ const Views = {
                         </div>
                     </div>
                 </div>
-                <div style="font-size:12px;color:var(--mb-text-secondary);margin-top:8px">
+                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:8px">
                     已複習 ${m.review_count || 0} 次
                     ${m.next_review_at ? ` · 下次複習 ${UI.formatDate(m.next_review_at)}` : ''}
                 </div>
@@ -576,16 +543,16 @@ const Views = {
 
             ${m.original_image_path ? `
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">📷 原始照片</div>
+                <div class="mb-detail-section__title">${Icons.image(16)} 原始照片</div>
                 <img src="/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}"
                      style="max-width:100%;border-radius:8px" alt="原始照片"
                      onerror="this.style.display='none'">
             </div>` : ''}
 
-            <div style="padding:16px;text-align:center">
-                <button class="mb-btn mb-btn--outline mb-btn--sm"
+            <div style="padding:20px;text-align:center">
+                <button class="mb-btn mb-btn--danger mb-btn--sm"
                         onclick="if(confirm('確定刪除？')){API.deleteMistake('${m.mistake_id}').then(()=>{Views.closeDetail();App.navigate('home')})}">
-                    刪除此錯題
+                    ${Icons.trash(14)} 刪除此錯題
                 </button>
             </div>
         `;
@@ -602,7 +569,7 @@ const Views = {
         const items = res?.data?.items || [];
 
         if (!items.length) {
-            container.innerHTML = UI.empty('🎉', '太棒了！今天沒有需要複習的錯題。');
+            container.innerHTML = UI.empty('', '太棒了！今天沒有需要複習的錯題。');
             return;
         }
 
@@ -616,34 +583,40 @@ const Views = {
         const idx = App.state._reviewIdx;
 
         if (idx >= items.length) {
-            container.innerHTML = UI.empty('🎉', `今天的複習完成了！共複習了 ${items.length} 題。`);
+            container.innerHTML = UI.empty('', `今天的複習完成了！共複習了 ${items.length} 題。`);
             return;
         }
 
         const m = items[idx];
+        const progress = ((idx) / items.length) * 100;
+
         container.innerHTML = `
-            <div style="text-align:center;padding:16px;font-size:13px;color:var(--mb-text-secondary)">
-                第 ${idx + 1} / ${items.length} 題
-                · ${UI.subjectLabel(m.subject)}
-                · ${UI.escapeHtml(m.category)}
+            <div class="mb-review-progress">
+                <div class="mb-review-progress__fill" style="width:${progress}%"></div>
             </div>
 
-            <div class="mb-review-card" id="reviewCard" onclick="this.querySelector('.review-answer').style.display='block'">
-                <div style="font-size:15px;line-height:1.6">${UI.renderMath(m.question_text || '（未識別）')}</div>
-                <div class="review-answer" style="display:none;margin-top:16px;padding-top:16px;border-top:1px dashed var(--mb-border);font-size:13px;color:var(--mb-text-secondary)">
-                    點擊下方按鈕記錄複習結果
+            <div style="text-align:center;padding:16px 20px 4px;font-size:13px;color:var(--mb-text-tertiary)">
+                ${idx + 1} / ${items.length}
+                · ${UI.subjectLabel(m.subject)}
+            </div>
+
+            <div class="mb-review-card" id="reviewCard" onclick="document.getElementById('reviewCard').classList.add('mb-review-card--revealed')">
+                <div style="font-size:15px;line-height:1.65">${UI.renderMath(m.question_text || '（未識別）')}</div>
+                <div class="mb-review-card__answer">
+                    <div style="font-size:13px;color:var(--mb-text-secondary);margin-bottom:8px">點擊下方按鈕記錄複習結果</div>
+                    ${m.correct_answer ? `<div style="font-size:14px;line-height:1.6">${UI.renderMath(m.correct_answer)}</div>` : ''}
                 </div>
             </div>
 
             <div class="mb-review-actions">
                 <button class="mb-review-btn mb-review-btn--forgot" onclick="Views._submitReview('${m.mistake_id}','forgot')">
-                    😅 忘記了
+                    忘記了
                 </button>
                 <button class="mb-review-btn mb-review-btn--partial" onclick="Views._submitReview('${m.mistake_id}','partial')">
-                    🤔 想起部分
+                    想起部分
                 </button>
                 <button class="mb-review-btn mb-review-btn--remembered" onclick="Views._submitReview('${m.mistake_id}','remembered')">
-                    😊 記住了
+                    記住了
                 </button>
             </div>
         `;
@@ -659,32 +632,27 @@ const Views = {
     async renderPractice(container) {
         const subject = App.state.currentSubject;
         if (subject === 'all') {
-            container.innerHTML = `
-                <div class="mb-empty">
-                    <div class="mb-empty__icon">📝</div>
-                    <div class="mb-empty__text">請先選擇一個科目，再開始 AI 練習</div>
-                </div>
-            `;
+            container.innerHTML = UI.empty('', '請先選擇一個科目，再開始 AI 練習');
             return;
         }
 
         container.innerHTML = `
-            <div style="padding:24px 16px;text-align:center">
-                <div style="font-size:48px;margin-bottom:16px">🎯</div>
-                <div style="font-size:18px;font-weight:600;margin-bottom:8px">AI 智能練習</div>
-                <div style="font-size:14px;color:var(--mb-text-secondary);margin-bottom:24px">
-                    根據你的${UI.subjectLabel(subject)}薄弱知識點，AI 自動出題
+            <div style="padding:40px 20px;text-align:center">
+                <div style="margin-bottom:20px">${Icons.target(48)}</div>
+                <div style="font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em">AI 智能練習</div>
+                <div style="font-size:14px;color:var(--mb-text-secondary);margin-bottom:28px">
+                    根據你的${UI.subjectLabel(subject)}薄弱知識點自動出題
                 </div>
-                <div style="margin-bottom:16px">
-                    <label style="font-size:13px;color:var(--mb-text-secondary)">題目數量</label>
-                    <select class="mb-select" id="practiceCount" style="max-width:200px;margin:8px auto;display:block">
-                        <option value="3">3 題（快速練習）</option>
-                        <option value="5" selected>5 題（標準練習）</option>
-                        <option value="10">10 題（深度練習）</option>
+                <div style="margin-bottom:20px;max-width:240px;margin-left:auto;margin-right:auto">
+                    <label style="font-size:12px;color:var(--mb-text-tertiary);font-weight:500">題目數量</label>
+                    <select class="mb-select" id="practiceCount" style="margin-top:6px">
+                        <option value="3">3 題 · 快速練習</option>
+                        <option value="5" selected>5 題 · 標準練習</option>
+                        <option value="10">10 題 · 深度練習</option>
                     </select>
                 </div>
                 <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
-                        id="startPracticeBtn">
+                        id="startPracticeBtn" style="max-width:240px">
                     開始練習
                 </button>
             </div>
@@ -705,18 +673,15 @@ const Views = {
             return;
         }
 
-        const session = res.data;
-        App.state._practiceSession = session;
-        App.state._practiceAnswers = [];
-
-        this._renderPracticeQuestions(document.getElementById('mainContent'), session);
+        App.state._practiceSession = res.data;
+        this._renderPracticeQuestions(document.getElementById('mainContent'), res.data);
     },
 
     _renderPracticeQuestions(container, session) {
         const questions = session.questions || [];
 
         let html = `<div class="mb-practice">
-            <div style="text-align:center;font-size:13px;color:var(--mb-text-secondary);margin-bottom:16px">
+            <div style="text-align:center;font-size:13px;color:var(--mb-text-tertiary);margin-bottom:16px">
                 ${UI.subjectLabel(session.subject)} · ${questions.length} 題
             </div>`;
 
@@ -726,7 +691,7 @@ const Views = {
                     <div class="mb-practice__question-number">第 ${q.index || i + 1} 題</div>
                     <div class="mb-practice__question-text">${UI.renderMath(q.question)}</div>
                     ${q.options ? `<div style="margin-top:12px">${q.options.map((opt, oi) =>
-                        `<label style="display:block;padding:8px 0;cursor:pointer">
+                        `<label style="display:block;padding:8px 0;cursor:pointer;font-size:14px">
                             <input type="radio" name="q_${i}" value="${UI.escapeHtml(opt)}"> ${UI.renderMath(opt)}
                         </label>`
                     ).join('')}</div>` :
@@ -765,45 +730,42 @@ const Views = {
 
         const res = await API.submitPractice(session.session_id, answers);
         if (!res || !res.data) {
-            container.innerHTML = UI.empty('❌', '提交失敗，請重試');
+            container.innerHTML = UI.empty('', '提交失敗，請重試');
             return;
         }
 
-        const result = res.data;
-        this._renderPracticeResult(container, result, questions);
+        this._renderPracticeResult(container, res.data, questions);
     },
 
     _renderPracticeResult(container, result, questions) {
         const results = result.results || [];
 
-        let html = `<div style="padding:24px 16px;text-align:center">
-            <div style="font-size:48px">${result.score >= 80 ? '🎉' : result.score >= 60 ? '💪' : '📖'}</div>
-            <div style="font-size:36px;font-weight:700;margin:8px 0">${Math.round(result.score)}分</div>
-            <div style="font-size:14px;color:var(--mb-text-secondary)">
+        let html = `<div style="padding:32px 20px;text-align:center">
+            <div style="font-size:48px;font-weight:700;letter-spacing:-0.03em;color:var(--mb-text)">${Math.round(result.score)}</div>
+            <div style="font-size:13px;color:var(--mb-text-tertiary);margin-top:4px">
                 答對 ${result.correct_count} / ${result.total_questions} 題
             </div>
         </div>`;
 
         if (result.ai_feedback) {
-            html += `<div class="mb-detail-section" style="margin:0 16px 12px">
-                <div class="mb-detail-section__title">🤖 AI 反饋</div>
+            html += `<div class="mb-detail-section" style="margin:0 20px 12px">
+                <div class="mb-detail-section__title">${Icons.zap(16)} AI 反饋</div>
                 <div class="mb-detail-section__body">${UI.escapeHtml(result.ai_feedback)}</div>
             </div>`;
         }
 
         results.forEach((r, i) => {
-            const icon = r.is_correct ? '✅' : '❌';
-            html += `<div class="mb-detail-section" style="margin:0 16px 12px;border-left:3px solid ${r.is_correct ? 'var(--mb-success)' : 'var(--mb-danger)'}">
-                <div class="mb-detail-section__title">${icon} 第 ${i + 1} 題</div>
+            html += `<div class="mb-detail-section" style="margin:0 20px 8px;border-left:3px solid ${r.is_correct ? 'var(--mb-success)' : 'var(--mb-danger)'}">
+                <div class="mb-detail-section__title">${r.is_correct ? Icons.check(16) : Icons.x(16)} 第 ${i + 1} 題</div>
                 <div style="font-size:13px;margin-bottom:4px"><strong>你的答案：</strong>${UI.renderMath(r.student_answer || '（未作答）')}</div>
                 ${!r.is_correct ? `<div style="font-size:13px;margin-bottom:4px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(r.correct_answer || '')}</div>` : ''}
                 ${r.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(r.explanation)}</div>` : ''}
             </div>`;
         });
 
-        html += `<div style="padding:16px;text-align:center">
+        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center">
             <button class="mb-btn mb-btn--primary" onclick="App.navigate('practice')">再練一組</button>
-            <button class="mb-btn mb-btn--outline" onclick="App.navigate('home')" style="margin-left:8px">回到首頁</button>
+            <button class="mb-btn mb-btn--secondary" onclick="App.navigate('home')">回到首頁</button>
         </div>`;
 
         container.innerHTML = html;
@@ -813,18 +775,12 @@ const Views = {
     async renderAnalysis(container) {
         const subject = App.state.currentSubject;
         if (subject === 'all') {
-            container.innerHTML = `
-                <div class="mb-empty">
-                    <div class="mb-empty__icon">📊</div>
-                    <div class="mb-empty__text">請先選擇一個科目查看分析報告</div>
-                </div>
-            `;
+            container.innerHTML = UI.empty('', '請先選擇一個科目查看分析報告');
             return;
         }
 
         container.innerHTML = UI.loading();
 
-        // 三個 API 並行加載，各自容錯
         const [weakRes, graphRes, mapRes] = await Promise.all([
             API.getWeaknessReport(subject).catch(() => null),
             API.getKnowledgeGraph(subject).catch(() => null),
@@ -836,39 +792,23 @@ const Views = {
         const mapData = mapRes?.data || {};
         const radar = graph.radar || {};
         const trend = graph.trend || {};
-        // 優先用 graph 的 tree，失敗時回退到 knowledge-map
         const tree = (graph.tree && graph.tree.length) ? graph.tree : (mapData.knowledge_tree || []);
         const weakSummary = graph.weak_summary || {};
         const weakPaths = graph.weak_paths || [];
-        // 如果 graph API 的 weakSummary 沒有數據，用 weakness report 的
         const weakPoints = weak.weak_points || [];
 
-        let html = `<div class="mb-graph-page">`;
+        let html = `<div class="mb-analysis-page">`;
 
-        // ── 標題 ──
-        html += `<div class="mb-graph-header">
-            <h3>${UI.subjectLabel(subject)} 知識圖譜</h3>
-        </div>`;
-
-        // ── 1. 雷達圖 ──
-        const cats = radar.categories || [];
-        if (cats.length >= 3) {
-            html += `
-            <div class="mb-graph-card">
-                <div class="mb-graph-card__title">📡 各分類掌握度總覽</div>
-                <div class="mb-graph-card__chart">
-                    <canvas id="radarChart" width="320" height="320"></canvas>
-                </div>
-                <div class="mb-graph-legend">
-                    <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--current"></span>目前</span>
-                    <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--prev"></span>上次</span>
-                </div>
+        // ── 1. AI 摘要 ──
+        if (weak.ai_summary || weak.encouragement) {
+            html += `<div class="mb-analysis-summary">
+                ${weak.ai_summary ? `<div class="mb-analysis-summary__text">${UI.escapeHtml(weak.ai_summary)}</div>` : ''}
+                ${weak.encouragement ? `<div style="margin-top:8px;font-size:13px;color:var(--mb-brand);font-weight:500">${UI.escapeHtml(weak.encouragement)}</div>` : ''}
             </div>`;
         }
 
-        // ── 2. 薄弱知識點卡片 ──
+        // ── 2. 薄弱知識點列表（第一層可見） ──
         const topWeak = weakSummary.top_weak || [];
-        // 如果 graph API 有完整數據（含名稱）就用它，否則回退到 weakness-report 的數據
         const weakDisplay = topWeak.length ? topWeak : weakPoints.map(wp => ({
             point_code: wp.point_code,
             point_name: wp.point_name || wp.point_code,
@@ -880,11 +820,8 @@ const Views = {
         }));
 
         if (weakDisplay.length) {
-            html += `<div class="mb-graph-card">
-                <div class="mb-graph-card__title">🎯 最需攻克的知識點</div>
-                <div class="mb-graph-card__body">`;
-
-            // 構建 weak_paths 的查找映射
+            html += `<div class="mb-weak-list">
+                <div class="mb-weak-list__title">最需攻克</div>`;
             const pathMap = {};
             weakPaths.forEach(wp => { pathMap[wp.weak_point] = wp; });
 
@@ -892,107 +829,100 @@ const Views = {
                 const name = w.point_name || w.point_code;
                 const tIcon = w.trend === 'declining' ? '↓' : w.trend === 'improving' ? '↑' : '→';
                 const tCls = w.trend === 'declining' ? 'mb-trend--down' : w.trend === 'improving' ? 'mb-trend--up' : 'mb-trend--stable';
-                const path = pathMap[w.point_code];
-                const pathStr = path ? path.path.join(' → ') : '';
-
                 html += `
-                <div class="mb-weak-card" data-point-code="${UI.escapeHtml(w.point_code)}" data-point-name="${UI.escapeHtml(name)}">
-                    <div class="mb-weak-card__top">
-                        <div class="mb-weak-card__main">
-                            <div class="mb-weak-card__name">${UI.escapeHtml(name)}</div>
-                            <div class="mb-weak-card__meta">
-                                ${w.category ? `<span class="mb-weak-card__cat">${UI.escapeHtml(w.category)}</span>` : ''}
-                                <span>錯 ${w.total_mistakes || 0} 題</span>
-                                ${(w.total_practices || 0) > 0 ? `<span>練 ${w.total_practices} 次</span>` : ''}
-                            </div>
-                        </div>
-                        <div class="mb-weak-card__right">
-                            <span class="mb-kp-tag mb-kp-tag--${UI.masteryClass(w.mastery_level)}">${w.mastery_level}%</span>
-                            <span class="${tCls}">${tIcon}</span>
-                        </div>
+                <div class="mb-weak-item" data-point-code="${UI.escapeHtml(w.point_code)}" data-point-name="${UI.escapeHtml(name)}" data-action="ask-kp">
+                    <div class="mb-weak-item__info">
+                        <div class="mb-weak-item__name">${UI.escapeHtml(name)}</div>
+                        <div class="mb-weak-item__meta">${w.category ? UI.escapeHtml(w.category) + ' · ' : ''}錯 ${w.total_mistakes || 0} 題</div>
                     </div>
-                    <div class="mb-mastery-bar mb-mastery-bar--sm" style="margin:6px 0">
-                        <div class="mb-mastery-bar__fill mb-mastery-bar__fill--${UI.masteryClass(w.mastery_level)}"
-                             style="width:${w.mastery_level}%"></div>
+                    <div class="mb-weak-item__level">
+                        <div class="mb-weak-item__percent mb-weak-item__percent--${UI.masteryClass(w.mastery_level)}">${w.mastery_level}%</div>
+                        <div class="mb-weak-item__trend ${tCls}">${tIcon}</div>
                     </div>
-                    ${pathStr ? `<div class="mb-weak-card__path">${UI.escapeHtml(pathStr)}</div>` : ''}
-                    <button class="mb-weak-card__ask" data-action="ask-kp">我想問問這個知識點</button>
                 </div>`;
             });
-
-            // 進步中的知識點
-            const improving = weakSummary.improving || [];
-            if (improving.length) {
-                html += `<div class="mb-graph-weak-title" style="margin-top:16px">📈 正在進步</div>`;
-                improving.forEach(m => {
-                    const mName = m.point_name || m.point_code;
-                    html += `<div class="mb-graph-improving-item">
-                        <span>${UI.escapeHtml(mName)}</span>
-                        <span class="mb-kp-tag mb-kp-tag--${UI.masteryClass(m.mastery_level)}">${m.mastery_level}%</span>
-                        <span class="mb-trend--up">↑</span>
-                    </div>`;
-                });
-            }
-
-            html += `</div></div>`;
+            html += `</div>`;
         }
 
-        // ── 3. 趨勢折線圖 ──
+        // ── 3. 折疊區塊 ──
+        const cats = radar.categories || [];
         const trendDates = trend.dates || [];
-        if (trendDates.length >= 2) {
+
+        // 雷達圖
+        if (cats.length >= 3) {
             html += `
-            <div class="mb-graph-card">
-                <div class="mb-graph-card__title">📈 近期掌握度趨勢</div>
-                <div class="mb-graph-card__chart">
-                    <canvas id="trendChart" width="320" height="200"></canvas>
+            <div class="mb-collapse" id="collapseRadar">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">${Icons.target(16)} 掌握度總覽</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div class="mb-graph-card__chart">
+                        <canvas id="radarChart" width="320" height="320"></canvas>
+                    </div>
+                    <div class="mb-graph-legend">
+                        <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--current"></span>目前</span>
+                        <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--prev"></span>上次</span>
+                    </div>
                 </div>
             </div>`;
         }
 
-        // ── 4. AI 分析 + 建議 ──
-        html += `<div class="mb-graph-card">
-            <div class="mb-graph-card__title">🤖 AI 學習建議</div>
-            <div class="mb-graph-card__body">`;
-
-        if (weak.ai_summary) {
-            html += `<div class="mb-graph-ai-summary">${UI.escapeHtml(weak.ai_summary)}</div>`;
+        // 趨勢圖
+        if (trendDates.length >= 2) {
+            html += `
+            <div class="mb-collapse" id="collapseTrend">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">${Icons.barChart(16)} 近期趨勢</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div class="mb-graph-card__chart">
+                        <canvas id="trendChart" width="320" height="200"></canvas>
+                    </div>
+                </div>
+            </div>`;
         }
 
+        // AI 建議
         const recs = weak.recommendations || [];
         if (recs.length) {
-            html += `<div class="mb-graph-weak-title" style="margin-top:8px">💡 改進建議</div>`;
-            recs.forEach(r => {
-                html += `<div class="mb-graph-rec-item">• ${UI.escapeHtml(r)}</div>`;
-            });
+            html += `
+            <div class="mb-collapse" id="collapseRecs">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">${Icons.zap(16)} 改進建議</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    ${recs.map(r => `<div class="mb-graph-rec-item">· ${UI.escapeHtml(r)}</div>`).join('')}
+                </div>
+            </div>`;
         }
 
-        if (weak.encouragement) {
-            html += `<div class="mb-graph-encourage">${UI.escapeHtml(weak.encouragement)}</div>`;
-        }
-
-        html += `</div></div>`;
-
-        // ── 5. 可展開樹狀圖（薄弱節點高亮）──
+        // 知識樹
         const weakCodeSet = new Set(topWeak.map(w => w.point_code));
         if (tree.length) {
             html += `
-            <div class="mb-graph-card">
-                <div class="mb-graph-card__title">🌳 知識點全覽</div>
-                <div class="mb-graph-card__subtitle">點擊展開分支，薄弱知識點以紅色標記</div>
-                <div class="mb-graph-tree" id="knowledgeTree">`;
-            tree.forEach(node => {
-                html += this._renderTreeNode(node, 0, weakCodeSet);
-            });
-            html += `</div></div>`;
+            <div class="mb-collapse" id="collapseTree">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">${Icons.bookOpen(16)} 知識點全覽</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div class="mb-graph-tree" id="knowledgeTree">
+                    ${tree.map(node => this._renderTreeNode(node, 0, weakCodeSet)).join('')}
+                    </div>
+                </div>
+            </div>`;
         }
 
-        // ── 6. 提問對話框（隱藏，點擊後顯示）──
+        // QA 對話框
         html += `
         <div class="mb-qa-overlay" id="qaOverlay" style="display:none">
             <div class="mb-qa-panel">
                 <div class="mb-qa-panel__header">
                     <span id="qaTitle">提問</span>
-                    <button class="mb-qa-panel__close" id="qaClose">✕</button>
+                    <button class="mb-qa-panel__close" id="qaClose">${Icons.x(14)}</button>
                 </div>
                 <div class="mb-qa-panel__body" id="qaBody">
                     <div class="mb-qa-presets" id="qaPresets"></div>
@@ -1005,14 +935,24 @@ const Views = {
             </div>
         </div>`;
 
-        html += `</div>`;  // close mb-graph-page
+        html += `</div>`;
         container.innerHTML = html;
 
-        // ── 渲染 Chart.js 圖表 ──
-        this._renderRadarChart(radar);
-        this._renderTrendChart(trend);
+        // 渲染圖表（需要展開後才能繪製）
+        // 監聽折疊展開事件
+        const radarCollapse = document.getElementById('collapseRadar');
+        if (radarCollapse) {
+            radarCollapse.querySelector('.mb-collapse__trigger').addEventListener('click', () => {
+                setTimeout(() => this._renderRadarChart(radar), 50);
+            }, { once: true });
+        }
+        const trendCollapse = document.getElementById('collapseTrend');
+        if (trendCollapse) {
+            trendCollapse.querySelector('.mb-collapse__trigger').addEventListener('click', () => {
+                setTimeout(() => this._renderTrendChart(trend), 50);
+            }, { once: true });
+        }
 
-        // ── 綁定事件 ──
         this._bindTreeEvents(weakCodeSet);
         this._bindQAEvents();
     },
@@ -1031,21 +971,21 @@ const Views = {
                     {
                         label: '目前掌握度',
                         data: radar.mastery || [],
-                        backgroundColor: 'rgba(0, 102, 51, 0.15)',
+                        backgroundColor: 'rgba(0, 102, 51, 0.1)',
                         borderColor: '#006633',
-                        borderWidth: 2,
+                        borderWidth: 1.5,
                         pointBackgroundColor: '#006633',
-                        pointRadius: 4,
+                        pointRadius: 3,
                     },
                     {
                         label: '上次',
                         data: radar.prev_mastery || [],
-                        backgroundColor: 'rgba(180, 180, 180, 0.08)',
-                        borderColor: '#bbb',
-                        borderWidth: 1.5,
+                        backgroundColor: 'rgba(180, 180, 180, 0.05)',
+                        borderColor: '#ccc',
+                        borderWidth: 1,
                         borderDash: [4, 4],
-                        pointBackgroundColor: '#bbb',
-                        pointRadius: 3,
+                        pointBackgroundColor: '#ccc',
+                        pointRadius: 2,
                     },
                 ],
             },
@@ -1054,20 +994,15 @@ const Views = {
                 maintainAspectRatio: true,
                 scales: {
                     r: {
-                        min: 0,
-                        max: 100,
-                        ticks: { stepSize: 20, font: { size: 11 }, backdropColor: 'transparent' },
-                        pointLabels: { font: { size: 12 } },
-                        grid: { color: 'rgba(0,0,0,0.06)' },
+                        min: 0, max: 100,
+                        ticks: { stepSize: 25, font: { size: 10 }, backdropColor: 'transparent' },
+                        pointLabels: { font: { size: 11 } },
+                        grid: { color: 'rgba(0,0,0,0.04)' },
                     },
                 },
                 plugins: {
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`
-                        }
-                    },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}%` } },
                 },
             },
         });
@@ -1080,16 +1015,16 @@ const Views = {
         const series = trend.series || {};
         if (dates.length < 2) return;
 
-        const colors = ['#006633', '#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#2c3e50'];
+        const colors = ['#006633', '#FF3B30', '#007AFF', '#FF9500', '#AF52DE', '#30D158'];
         const datasets = Object.keys(series).map((cat, i) => ({
             label: cat,
             data: series[cat],
             borderColor: colors[i % colors.length],
             backgroundColor: 'transparent',
-            borderWidth: 2,
+            borderWidth: 1.5,
             tension: 0.3,
-            pointRadius: 3,
-            pointHoverRadius: 5,
+            pointRadius: 2,
+            pointHoverRadius: 4,
         }));
 
         new Chart(canvas.getContext('2d'), {
@@ -1099,16 +1034,12 @@ const Views = {
                 responsive: true,
                 maintainAspectRatio: true,
                 scales: {
-                    y: { min: 0, max: 100, ticks: { stepSize: 20, font: { size: 11 } } },
+                    y: { min: 0, max: 100, ticks: { stepSize: 25, font: { size: 10 } } },
                     x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
                 },
                 plugins: {
-                    legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`
-                        }
-                    },
+                    legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}%` } },
                 },
             },
         });
@@ -1121,7 +1052,6 @@ const Views = {
         const trendIcon = node.trend === 'declining' ? '↓' : node.trend === 'improving' ? '↑' : '→';
         const trendCls = node.trend === 'declining' ? 'mb-trend--down' : node.trend === 'improving' ? 'mb-trend--up' : 'mb-trend--stable';
         const isWeak = weakCodeSet && weakCodeSet.has(node.point_code);
-        // 檢查子樹中是否有薄弱節點（用於高亮整條分支）
         const hasWeakChild = hasChildren && this._subtreeHasWeak(node, weakCodeSet);
 
         let html = `
@@ -1140,12 +1070,9 @@ const Views = {
             </div>`;
 
         if (hasChildren) {
-            // 有薄弱子節點時默認展開
             const defaultOpen = hasWeakChild;
             html += `<div class="mb-tree-node__children" style="display:${defaultOpen ? 'block' : 'none'}">`;
-            node.children.forEach(child => {
-                html += this._renderTreeNode(child, depth + 1, weakCodeSet);
-            });
+            node.children.forEach(child => { html += this._renderTreeNode(child, depth + 1, weakCodeSet); });
             html += `</div>`;
         }
 
@@ -1166,22 +1093,18 @@ const Views = {
         const tree = document.getElementById('knowledgeTree');
         if (!tree) return;
 
-        // 展開/收合
         tree.addEventListener('click', (e) => {
             const header = e.target.closest('[data-toggle="tree"]');
             if (!header) return;
-
             const node = header.closest('.mb-tree-node');
             const children = node?.querySelector('.mb-tree-node__children');
             const arrow = header.querySelector('.mb-tree-node__arrow');
             if (!children) return;
-
             const isOpen = children.style.display !== 'none';
             children.style.display = isOpen ? 'none' : 'block';
             if (arrow) arrow.classList.toggle('mb-tree-node__arrow--open', !isOpen);
         });
 
-        // 確保有薄弱子節點的分支箭頭初始狀態正確
         tree.querySelectorAll('.mb-tree-node--has-weak > .mb-tree-node__header .mb-tree-node__arrow').forEach(arrow => {
             arrow.classList.add('mb-tree-node__arrow--open');
         });
@@ -1191,7 +1114,6 @@ const Views = {
         const overlay = document.getElementById('qaOverlay');
         if (!overlay) return;
 
-        // 點擊 "我想問問這個知識點" 按鈕
         document.querySelectorAll('[data-action="ask-kp"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1203,19 +1125,10 @@ const Views = {
             });
         });
 
-        // 關閉
-        document.getElementById('qaClose')?.addEventListener('click', () => {
-            overlay.style.display = 'none';
-        });
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.style.display = 'none';
-        });
-
-        // 發送問題
+        document.getElementById('qaClose')?.addEventListener('click', () => { overlay.style.display = 'none'; });
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.style.display = 'none'; });
         document.getElementById('qaSend')?.addEventListener('click', () => this._sendQA());
-        document.getElementById('qaInput')?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this._sendQA();
-        });
+        document.getElementById('qaInput')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') this._sendQA(); });
     },
 
     _openQA(pointCode, pointName) {
@@ -1224,7 +1137,6 @@ const Views = {
         overlay.dataset.pointCode = pointCode;
         overlay.dataset.pointName = pointName;
 
-        // 預設問題
         const presets = document.getElementById('qaPresets');
         presets.innerHTML = [
             '這個知識點的核心概念是什麼？',
@@ -1233,7 +1145,6 @@ const Views = {
             '有什麼常見錯誤需要注意？',
         ].map(q => `<button class="mb-qa-preset-btn" data-question="${UI.escapeHtml(q)}">${UI.escapeHtml(q)}</button>`).join('');
 
-        // 綁定預設問題
         presets.querySelectorAll('.mb-qa-preset-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.getElementById('qaInput').value = btn.dataset.question;
@@ -1241,12 +1152,10 @@ const Views = {
             });
         });
 
-        // 清空上次的回答
         const answerDiv = document.getElementById('qaAnswer');
         answerDiv.style.display = 'none';
         answerDiv.innerHTML = '';
         document.getElementById('qaInput').value = '';
-
         overlay.style.display = 'flex';
     },
 
@@ -1260,13 +1169,10 @@ const Views = {
         const pointCode = overlay.dataset.pointCode;
         answerDiv.style.display = 'block';
         answerDiv.innerHTML = `<div class="mb-qa-loading">AI 老師思考中...</div>`;
-
-        // 隱藏預設問題
         document.getElementById('qaPresets').style.display = 'none';
 
         const res = await API.askKnowledgeQA(pointCode, question);
         if (res?.data?.answer) {
-            // 清除 AI 回答中殘留的 <think> 標籤
             let answer = res.data.answer;
             answer = answer.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
             answer = answer.replace(/<\/?think>/gi, '').trim();
@@ -1306,7 +1212,7 @@ const Upload = {
 
     _renderPhotoUpload(container) {
         container.innerHTML = `
-            <h3 style="font-size:16px;margin-bottom:16px">📷 拍照上傳錯題</h3>
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">拍照上傳錯題</h3>
 
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">科目</label>
@@ -1332,17 +1238,17 @@ const Upload = {
             </div>
 
             <div class="mb-upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-                <div class="mb-upload-zone__icon">📷</div>
+                <div class="mb-upload-zone__icon">${Icons.camera(40)}</div>
                 <div class="mb-upload-zone__text">點擊選擇照片或拖拽到此處</div>
-                <div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">支持 JPG、PNG、HEIC，最大 10MB</div>
+                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:4px">支持 JPG、PNG、HEIC，最大 10MB</div>
             </div>
             <input type="file" id="fileInput" accept="image/*,.heic,.heif" style="display:none">
 
             <div id="uploadPreview" style="display:none;margin-top:12px;text-align:center">
                 <img id="previewImg" style="max-width:100%;max-height:200px;border-radius:8px"
                      onerror="this.style.display='none';document.getElementById('previewFallback').style.display='block'">
-                <div id="previewFallback" style="display:none;padding:20px;background:#f0f7ff;border-radius:8px;color:#0066cc">
-                    ✅ 已選擇照片（HEIC 格式無法在瀏覽器預覽，但上傳後會自動轉換）
+                <div id="previewFallback" style="display:none;padding:16px;background:var(--mb-brand-lighter);border-radius:8px;color:var(--mb-brand);font-size:13px">
+                    已選擇照片（HEIC 格式無法預覽，上傳後會自動轉換）
                 </div>
             </div>
 
@@ -1354,13 +1260,11 @@ const Upload = {
             </button>
         `;
 
-        // 文件選擇
         document.getElementById('fileInput').addEventListener('change', e => {
             const file = e.target.files[0];
             if (!file) return;
             Upload._selectedFile = file;
 
-            // 重置預覽狀態
             const previewImg = document.getElementById('previewImg');
             const previewFallback = document.getElementById('previewFallback');
             previewImg.style.display = '';
@@ -1375,7 +1279,6 @@ const Upload = {
             reader.readAsDataURL(file);
         });
 
-        // 拖拽
         const zone = document.getElementById('dropZone');
         zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('mb-upload-zone--dragover'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('mb-upload-zone--dragover'));
@@ -1417,8 +1320,8 @@ const Upload = {
             const ocrDiv = document.getElementById('ocrResult');
             ocrDiv.style.display = 'block';
             ocrDiv.innerHTML = `
-                <div style="font-size:13px;color:var(--mb-text-secondary);margin-bottom:8px">
-                    AI 識別信心度：${Math.round((data.confidence || 0) * 100)}%
+                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-bottom:8px">
+                    識別信心度：${Math.round((data.confidence || 0) * 100)}%
                     ${data.has_handwriting ? ' · 檢測到手寫' : ''}
                 </div>
                 <div class="mb-ocr-confirm__label">題目（可修正）</div>
@@ -1446,11 +1349,11 @@ const Upload = {
         }
 
         const ocrDiv = document.getElementById('ocrResult');
-        ocrDiv.innerHTML = '<div class="mb-loading"><div class="mb-loading__spinner"></div>AI 分析中，預計需要 30-60 秒，請耐心等待...</div>';
+        ocrDiv.innerHTML = '<div class="mb-loading"><div class="mb-loading__spinner"></div>AI 分析中，預計需要 30-60 秒...</div>';
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 分鐘超時
+            const timeoutId = setTimeout(() => controller.abort(), 180000);
 
             const res = await fetch(`/api/mistakes/${mistakeId}/confirm`, {
                 method: 'POST',
@@ -1467,20 +1370,20 @@ const Upload = {
                 this.close();
                 App.navigate('home');
             } else {
-                ocrDiv.innerHTML = `<div style="color:var(--mb-danger);text-align:center">分析失敗: ${data.detail || '請重試'}</div>`;
+                ocrDiv.innerHTML = `<div style="color:var(--mb-danger);text-align:center;font-size:13px">分析失敗: ${data.detail || '請重試'}</div>`;
             }
         } catch (err) {
             if (err.name === 'AbortError') {
-                ocrDiv.innerHTML = '<div style="color:var(--mb-danger);text-align:center">分析超時（3分鐘），請重試或聯繫老師</div>';
+                ocrDiv.innerHTML = '<div style="color:var(--mb-danger);text-align:center;font-size:13px">分析超時（3分鐘），請重試</div>';
             } else {
-                ocrDiv.innerHTML = `<div style="color:var(--mb-danger);text-align:center">網絡錯誤: ${err.message}</div>`;
+                ocrDiv.innerHTML = `<div style="color:var(--mb-danger);text-align:center;font-size:13px">網絡錯誤: ${err.message}</div>`;
             }
         }
     },
 
     _renderManualInput(container) {
         container.innerHTML = `
-            <h3 style="font-size:16px;margin-bottom:16px">✍️ 手動添加錯題</h3>
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">手動添加錯題</h3>
 
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">科目</label>
@@ -1524,18 +1427,11 @@ const Upload = {
             return;
         }
 
-        const res = await API.addManual({
-            subject,
-            category,
-            question_text: question,
-            answer_text: answer,
-        });
+        const res = await API.addManual({ subject, category, question_text: question, answer_text: answer });
 
         if (res && res.success) {
             const mistakeId = res.data.mistake_id;
             UI.toast('已添加，AI 分析中...', 'info');
-
-            // 自動觸發分析
             await API.confirmOCR(mistakeId, question, answer);
             UI.toast('分析完成！', 'success');
             this.close();
