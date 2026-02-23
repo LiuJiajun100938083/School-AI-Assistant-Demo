@@ -870,8 +870,12 @@
     }
 
     async function openContent(contentId) {
-        // Redirect to inline ebook viewer
-        showEbookContent(contentId);
+        // 确保先切换到教学资料 tab，再打开内容
+        if (currentTab !== 'media') {
+            await switchTab('media');
+            await new Promise(r => setTimeout(r, 150));
+        }
+        await showEbookContent(contentId);
     }
 
     function setTypeFilter(type) {
