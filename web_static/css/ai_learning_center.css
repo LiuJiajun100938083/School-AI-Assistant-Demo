@@ -626,6 +626,16 @@
   pointer-events: none;
 }
 
+.kg-hier-label {
+  font-size: 9px;
+  fill: #999;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
 .kg-descendant-badge circle {
   cursor: pointer;
 }

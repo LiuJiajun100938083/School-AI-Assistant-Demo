@@ -11,6 +11,29 @@
 
 ---
 
+## [v2.5.1] [2026-02-23] 知识图谱 Bug 修复 — NaN 位置 + 层级边标签 + 不可见边隐藏
+
+### 修复
+
+- **NaN 位置错误** — 所有节点初始化时设置随机 x/y 坐标，防止不可见节点坐标为 undefined 导致 `<text>` 和 `<line>` 属性出现 NaN
+- **层级边全部堆在中心** — 不可见边（两端节点不可见）初始 stroke-opacity 设为 0，`edgeBothVisible()` 辅助函数统一判断可见性
+- **rebuildSimulation 边引用错误** — 重建仿真前将 D3 已变异的 source/target 对象引用重置为 ID，避免新仿真无法匹配节点
+
+### 新增
+
+- **层级边标签 (hierEdgeLabels)** — 在层级连线中点显示关系文字（如"管理员配置""第1步"），白色描边增强可读性，zoom ≥ 0.7x 时显示
+- **辅助函数重构** — `edgeSourceNode()` / `edgeTargetNode()` / `edgeBothVisible()` 统一边端点解析逻辑，消除重复 typeof 检查
+- **tickHandler 提取为命名函数** — 初始仿真和 rebuildSimulation 共享同一 tick 处理器
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/ai_learning_center.js` | `edgeSourceNode/edgeTargetNode/edgeBothVisible` 辅助函数 + `hierEdgeLabels` 渲染 + 所有节点 x/y 初始化 + `rebuildSimulation` 边重置 + `applyLOD/handleNodeHover` 更新 |
+| `web_static/css/ai_learning_center.css` | 新增 `.kg-hier-label` 样式（白色描边防底色干扰） |
+
+---
+
 ## [v2.5.0] [2026-02-23] 知识图谱回归 Force Simulation 动态布局 — 可拖拽 + 软径向约束 + 碰撞防重叠
 
 ### 修改

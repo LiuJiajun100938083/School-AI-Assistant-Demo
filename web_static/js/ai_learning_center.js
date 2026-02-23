@@ -1184,6 +1184,9 @@
                 n._collapsed = (n._depth >= LAYOUT_CONFIG.defaultCollapseDepth);
             }
             n._visible = (n._depth <= LAYOUT_CONFIG.defaultCollapseDepth);
+            // Initialize x/y for all nodes to avoid NaN in tick
+            if (n.x == null) n.x = (Math.random() - 0.5) * 200;
+            if (n.y == null) n.y = (Math.random() - 0.5) * 200;
         });
 
         // ── C. Prepare visible node/edge sets for simulation ──
@@ -1255,6 +1258,24 @@
         const hierLinkGroup  = g.append('g').attr('class', 'kg-hier-links');
         const nodeGroupEl    = g.append('g').attr('class', 'kg-nodes');
 
+        // ── Helper to check if both ends of an edge are visible ──
+        function edgeBothVisible(d) {
+            const sId = typeof d.source === 'object' ? d.source.id : d.source;
+            const tId = typeof d.target === 'object' ? d.target.id : d.target;
+            const s = nodeMap.get(sId), t = nodeMap.get(tId);
+            return s && s._visible && t && t._visible;
+        }
+
+        // ── Helper to resolve edge endpoint positions ──
+        function edgeSourceNode(d) {
+            if (typeof d.source === 'object') return d.source;
+            return nodeMap.get(d.source);
+        }
+        function edgeTargetNode(d) {
+            if (typeof d.target === 'object') return d.target;
+            return nodeMap.get(d.target);
+        }
+
         // ── D. Render hierarchy edges as lines ──
         const hierLinks = hierLinkGroup.selectAll('line.kg-hier-edge')
             .data(d3HierarchyEdges)
@@ -1262,7 +1283,19 @@
             .attr('class', 'kg-hier-edge')
             .attr('stroke', '#ccc')
             .attr('stroke-width', 1.2)
-            .attr('stroke-opacity', 0.5);
+            .attr('stroke-opacity', d => edgeBothVisible(d) ? 0.5 : 0);
+
+        // ── Hierarchy edge labels (show relationship on the line) ──
+        const hierEdgeLabels = hierLinkGroup.selectAll('text.kg-hier-label')
+            .data(d3HierarchyEdges)
+            .enter().append('text')
+            .attr('class', 'kg-hier-label')
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '9px')
+            .attr('fill', '#999')
+            .attr('pointer-events', 'none')
+            .attr('opacity', d => edgeBothVisible(d) ? 0.7 : 0)
+            .text(d => d.label || '');
 
         // ── Render cross-link edges (straight lines, hidden by default) ──
         const crossLinks = crossLinkGroup.selectAll('line.kg-cross-edge')
@@ -1414,33 +1447,31 @@
         let simulation = buildForceSimulation(getVisibleNodes(), getVisibleHierEdges(), nodeMap, parentMap);
 
         // Tick handler: update positions every frame
-        simulation.on('tick', () => {
+        function tickHandler() {
             nodeGroups.attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
 
             hierLinks
-                .attr('x1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.x : 0; })
-                .attr('y1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.y : 0; })
-                .attr('x2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.x : 0; })
-                .attr('y2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.y : 0; });
+                .attr('x1', d => { const s = edgeSourceNode(d); return s ? (s.x || 0) : 0; })
+                .attr('y1', d => { const s = edgeSourceNode(d); return s ? (s.y || 0) : 0; })
+                .attr('x2', d => { const t = edgeTargetNode(d); return t ? (t.x || 0) : 0; })
+                .attr('y2', d => { const t = edgeTargetNode(d); return t ? (t.y || 0) : 0; });
+
+            hierEdgeLabels
+                .attr('x', d => { const s = edgeSourceNode(d), t = edgeTargetNode(d); return s && t ? ((s.x || 0) + (t.x || 0)) / 2 : 0; })
+                .attr('y', d => { const s = edgeSourceNode(d), t = edgeTargetNode(d); return s && t ? ((s.y || 0) + (t.y || 0)) / 2 - 4 : 0; });
 
             crossLinks
-                .attr('x1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.x : 0; })
-                .attr('y1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.y : 0; })
-                .attr('x2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.x : 0; })
-                .attr('y2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.y : 0; });
+                .attr('x1', d => { const s = edgeSourceNode(d); return s ? (s.x || 0) : 0; })
+                .attr('y1', d => { const s = edgeSourceNode(d); return s ? (s.y || 0) : 0; })
+                .attr('x2', d => { const t = edgeTargetNode(d); return t ? (t.x || 0) : 0; })
+                .attr('y2', d => { const t = edgeTargetNode(d); return t ? (t.y || 0) : 0; });
 
             crossEdgeLabels
-                .attr('x', d => {
-                    const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source);
-                    const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target);
-                    return s && t ? (s.x + t.x) / 2 : 0;
-                })
-                .attr('y', d => {
-                    const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source);
-                    const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target);
-                    return s && t ? (s.y + t.y) / 2 - 6 : 0;
-                });
-        });
+                .attr('x', d => { const s = edgeSourceNode(d), t = edgeTargetNode(d); return s && t ? ((s.x || 0) + (t.x || 0)) / 2 : 0; })
+                .attr('y', d => { const s = edgeSourceNode(d), t = edgeTargetNode(d); return s && t ? ((s.y || 0) + (t.y || 0)) / 2 - 6 : 0; });
+        }
+
+        simulation.on('tick', tickHandler);
 
         // ── Drag behavior: fix on drag, release with smooth settle ──
         const drag = d3.drag()
@@ -1493,24 +1524,24 @@
 
             // Hierarchy edges
             hierLinks.attr('stroke-opacity', d => {
-                const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source);
-                const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target);
-                if (!s || !s._visible || !t || !t._visible) return 0;
+                if (!edgeBothVisible(d)) return 0;
                 return scale < 0.4 ? 0.1 : 0.5;
+            });
+
+            // Hierarchy edge labels — show at moderate zoom, hide at very low zoom
+            hierEdgeLabels.attr('opacity', d => {
+                if (!edgeBothVisible(d)) return 0;
+                return scale >= 0.7 ? 0.7 : 0;
             });
 
             // Cross-links: only at high zoom
             crossLinks.attr('stroke-opacity', d => {
                 if (scale < clThreshold) return 0;
-                const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source);
-                const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target);
-                return (s && s._visible && t && t._visible) ? 0.6 : 0;
+                return edgeBothVisible(d) ? 0.6 : 0;
             });
             crossEdgeLabels.attr('opacity', d => {
                 if (scale < clThreshold) return 0;
-                const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source);
-                const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target);
-                return (s && s._visible && t && t._visible) ? 0.8 : 0;
+                return edgeBothVisible(d) ? 0.8 : 0;
             });
 
             // Label LOD: L2+ text hidden when zoom < threshold
@@ -1534,18 +1565,22 @@
         let _hoverScatterActive = false;
 
         function handleNodeHover(hoveredNode, isEntering) {
+            function edgeConnectsNode(d, nodeId) {
+                const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                return sId === nodeId || tId === nodeId;
+            }
+
             if (!isEntering || !hoveredNode) {
                 // Restore
                 _hoverScatterActive = false;
                 nodeGroups.transition().duration(200)
                     .attr('opacity', d => d._visible ? 1 : 0);
                 hierLinks.transition().duration(200)
-                    .attr('stroke-opacity', d => {
-                        const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source);
-                        const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target);
-                        return (s && s._visible && t && t._visible) ? 0.5 : 0;
-                    })
+                    .attr('stroke-opacity', d => edgeBothVisible(d) ? 0.5 : 0)
                     .attr('stroke-width', 1.2);
+                hierEdgeLabels.transition().duration(200)
+                    .attr('opacity', d => edgeBothVisible(d) ? 0.7 : 0);
                 crossLinks.transition().duration(200).attr('stroke-opacity', 0);
                 crossEdgeLabels.transition().duration(200).attr('opacity', 0);
                 applyLOD(currentScale);
@@ -1572,65 +1607,45 @@
                     return 0;
                 });
 
-            // Highlight connected hierarchy edges
+            // Highlight connected hierarchy edges + labels
             hierLinks.transition().duration(200)
                 .attr('stroke-opacity', d => {
-                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
-                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
-                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 0.9 : 0.08;
+                    if (!edgeBothVisible(d)) return 0;
+                    return edgeConnectsNode(d, hoveredNode.id) ? 0.9 : 0.08;
                 })
-                .attr('stroke-width', d => {
-                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
-                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
-                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 2.5 : 1.2;
-                });
+                .attr('stroke-width', d => edgeConnectsNode(d, hoveredNode.id) ? 2.5 : 1.2);
+            hierEdgeLabels.transition().duration(200)
+                .attr('opacity', d => {
+                    if (!edgeBothVisible(d)) return 0;
+                    return edgeConnectsNode(d, hoveredNode.id) ? 1 : 0.15;
+                })
+                .attr('font-weight', d => edgeConnectsNode(d, hoveredNode.id) ? '600' : '400');
 
             // Show connected cross-links (1-hop neighbors only)
             crossLinks.transition().duration(200)
-                .attr('stroke-opacity', d => {
-                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
-                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
-                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 0.7 : 0;
-                });
+                .attr('stroke-opacity', d => edgeConnectsNode(d, hoveredNode.id) ? 0.7 : 0);
             crossEdgeLabels.transition().duration(200)
-                .attr('opacity', d => {
-                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
-                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
-                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 0.9 : 0;
-                });
+                .attr('opacity', d => edgeConnectsNode(d, hoveredNode.id) ? 0.9 : 0);
         }
 
         // ── I. Expand / Collapse → rebuild simulation ──
         function rebuildSimulation() {
             if (simulation) simulation.stop();
+            // Reset source/target to IDs before rebuilding (D3 mutates them to objects)
+            d3HierarchyEdges.forEach(e => {
+                if (typeof e.source === 'object') e.source = e.source.id;
+                if (typeof e.target === 'object') e.target = e.target.id;
+            });
             const vn = getVisibleNodes();
             const ve = getVisibleHierEdges();
             simulation = buildForceSimulation(vn, ve, nodeMap, parentMap);
-            simulation.on('tick', () => {
-                nodeGroups.attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
-                hierLinks
-                    .attr('x1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.x : 0; })
-                    .attr('y1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.y : 0; })
-                    .attr('x2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.x : 0; })
-                    .attr('y2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.y : 0; });
-                crossLinks
-                    .attr('x1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.x : 0; })
-                    .attr('y1', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); return s ? s.y : 0; })
-                    .attr('x2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.x : 0; })
-                    .attr('y2', d => { const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return t ? t.y : 0; });
-                crossEdgeLabels
-                    .attr('x', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return s && t ? (s.x + t.x) / 2 : 0; })
-                    .attr('y', d => { const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source); const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target); return s && t ? (s.y + t.y) / 2 - 6 : 0; });
-            });
+            simulation.on('tick', tickHandler);
             // Update visibility
             nodeGroups
                 .attr('opacity', d => d._visible ? 1 : 0)
                 .attr('pointer-events', d => d._visible ? 'all' : 'none');
-            hierLinks.attr('stroke-opacity', d => {
-                const s = typeof d.source === 'object' ? d.source : nodeMap.get(d.source);
-                const t = typeof d.target === 'object' ? d.target : nodeMap.get(d.target);
-                return (s && s._visible && t && t._visible) ? 0.5 : 0;
-            });
+            hierLinks.attr('stroke-opacity', d => edgeBothVisible(d) ? 0.5 : 0);
+            hierEdgeLabels.attr('opacity', d => edgeBothVisible(d) ? 0.7 : 0);
             updateDescendantBadges();
             applyLOD(currentScale);
         }
