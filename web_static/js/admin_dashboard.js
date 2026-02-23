@@ -333,7 +333,7 @@ const AdminUI = {
         if (!text) return '';
         try {
             marked.setOptions({ breaks: true, gfm: true, sanitize: false });
-            return marked.parse(text);
+            return DOMPurify.sanitize(marked.parse(text));
         } catch (error) {
             console.error('Markdown 解析錯誤:', error);
             return text
@@ -345,7 +345,7 @@ const AdminUI = {
 
     formatReportText(text) {
         if (!text) return '';
-        return marked.parse(text);
+        return DOMPurify.sanitize(marked.parse(text));
     },
 
     /* ---------- 日期/文件工具 ---------- */

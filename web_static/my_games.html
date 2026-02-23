@@ -547,7 +547,7 @@ const MyGamesPage = {
         try {
             const token = localStorage.getItem('auth_token');
             const response = await fetch(
-                `/api/games/list?only_mine=true&user_id=${this.userId}&user_role=${this.userRole}`,
+                `/api/games/list?only_mine=true`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const result = await response.json();
@@ -674,7 +674,7 @@ const MyGamesPage = {
         try {
             const token = localStorage.getItem('auth_token');
             const response = await fetch(
-                `/api/games/${uuid}/visibility?user_id=${this.userId}&user_role=${this.userRole}`,
+                `/api/games/${uuid}/visibility`,
                 {
                     method: 'PATCH',
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -716,7 +716,7 @@ const MyGamesPage = {
         try {
             const token = localStorage.getItem('auth_token');
             const response = await fetch(
-                `/api/games/${this.deleteTarget}?user_id=${this.userId}&user_role=${this.userRole}`,
+                `/api/games/${this.deleteTarget}`,
                 {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }

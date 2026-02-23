@@ -38,8 +38,7 @@ class GameUploadPage {
             const userInfo = await this.getUserInfo();
 
             const data = await APIClient.get(
-                `/api/games/${uuid}`,
-                { user_id: userInfo.id, user_role: userInfo.role }
+                `/api/games/${uuid}`
             );
 
             if (data.success && data.data) {
@@ -393,7 +392,7 @@ class GameUploadPage {
                 }
 
                 const result = await APIClient.put(
-                    `/api/games/${this.editUuid}?user_id=${userInfo.id}&user_role=${userInfo.role}`,
+                    `/api/games/${this.editUuid}`,
                     updateData
                 );
 
@@ -417,9 +416,6 @@ class GameUploadPage {
                 formData.append('is_public', this.isPublicCheckbox.checked);
                 formData.append('teacher_only', this.teacherOnlyCheckbox.checked);
                 formData.append('visible_to', JSON.stringify(this.getSelectedClasses()));
-                formData.append('user_id', userInfo.id);
-                formData.append('user_role', userInfo.role);
-
                 if (this.uploadMode === 'file') {
                     formData.append('file', this.selectedFile);
                 } else {

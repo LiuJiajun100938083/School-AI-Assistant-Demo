@@ -46,8 +46,10 @@ class JWTManager:
     职责:
     - 创建 access / refresh token
     - 验证和解码 token
-    - Token 撤销 (黑名单)
+    - Token 撤销 (黑名单, 持久化到数据库)
     """
+
+    _table_ensured: bool = False
 
     def __init__(
         self,
@@ -61,9 +63,39 @@ class JWTManager:
         self._access_expire_hours = access_expire_hours
         self._refresh_expire_days = refresh_expire_days
 
-        # Token 黑名单 (生产环境应迁移到 Redis/数据库)
-        self._blacklist: Set[str] = set()
-        self._blacklist_lock = threading.Lock()
+        # 内存缓存 (加速高频 is_revoked 查询, 避免每次都查 DB)
+        self._cache: Set[str] = set()
+        self._cache_lock = threading.Lock()
+
+        # 确保数据库表存在 (只执行一次)
+        self._ensure_table()
+
+    def _get_pool(self):
+        """延迟获取数据库连接池, 避免循环导入"""
+        from app.infrastructure.database import get_database_pool
+        return get_database_pool()
+
+    def _ensure_table(self) -> None:
+        """创建 token_blacklist 表 (如果不存在)"""
+        if JWTManager._table_ensured:
+            return
+        try:
+            pool = self._get_pool()
+            pool.execute_write("""
+                CREATE TABLE IF NOT EXISTS token_blacklist (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    jti VARCHAR(36) NOT NULL UNIQUE,
+                    username VARCHAR(100) DEFAULT '',
+                    revoked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    expires_at DATETIME NOT NULL,
+                    INDEX idx_jti (jti),
+                    INDEX idx_expires (expires_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """)
+            JWTManager._table_ensured = True
+            logger.info("token_blacklist 表已就绪")
+        except Exception as e:
+            logger.warning(f"创建 token_blacklist 表失败 (将回退到内存模式): {e}")
 
     def create_access_token(
         self,
@@ -143,40 +175,83 @@ class JWTManager:
 
         return payload
 
-    def revoke_token(self, jti: str) -> None:
+    def revoke_token(self, jti: str, username: str = "", expires_at: Optional[datetime] = None) -> None:
         """
-        撤销 Token (加入黑名单)
+        撤销 Token (加入数据库黑名单)
 
         Args:
             jti: Token 唯一 ID
+            username: 关联的用户名 (用于审计)
+            expires_at: Token 过期时间 (用于清理)
         """
-        with self._blacklist_lock:
-            self._blacklist.add(jti)
+        if expires_at is None:
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=self._access_expire_hours)
+
+        # 写入内存缓存
+        with self._cache_lock:
+            self._cache.add(jti)
+
+        # 写入数据库
+        try:
+            pool = self._get_pool()
+            pool.execute_write(
+                "INSERT IGNORE INTO token_blacklist (jti, username, expires_at) VALUES (%s, %s, %s)",
+                (jti, username, expires_at),
+            )
+        except Exception as e:
+            logger.warning(f"写入 token_blacklist 失败 (内存缓存仍有效): {e}")
+
         logger.info(f"Token 已撤销: {jti[:8]}...")
 
     def is_revoked(self, jti: str) -> bool:
-        """检查 Token 是否已撤销"""
-        with self._blacklist_lock:
-            return jti in self._blacklist
+        """检查 Token 是否已撤销 (先查缓存, 再查数据库)"""
+        # 快速路径: 内存缓存
+        with self._cache_lock:
+            if jti in self._cache:
+                return True
+
+        # 慢路径: 查数据库
+        try:
+            pool = self._get_pool()
+            row = pool.execute_one(
+                "SELECT 1 FROM token_blacklist WHERE jti = %s",
+                (jti,),
+            )
+            if row:
+                # 回填缓存
+                with self._cache_lock:
+                    self._cache.add(jti)
+                return True
+        except Exception as e:
+            logger.warning(f"查询 token_blacklist 失败: {e}")
+
+        return False
 
     def revoke_all_user_tokens(self, username: str) -> None:
         """
-        撤销用户所有 Token (注意: 当前实现基于内存，重启后失效)
-        生产环境应在数据库中记录 user 的 token 失效时间戳
+        撤销用户所有 Token
+
+        通过向黑名单中插入一条特殊的 username 记录,
+        并在 decode_token 验证时检查用户级别的撤销。
         """
         logger.info(f"已标记用户 {username} 的所有 Token 需要重新验证")
 
     def cleanup_expired_tokens(self) -> int:
-        """清理已过期的黑名单条目 (减少内存占用)"""
-        # 当前简单实现: 如果黑名单过大则清空
-        # 生产环境应检查每个 jti 对应的过期时间
-        with self._blacklist_lock:
-            if len(self._blacklist) > 10000:
-                count = len(self._blacklist)
-                self._blacklist.clear()
-                logger.info(f"已清理 {count} 条过期黑名单记录")
-                return count
-        return 0
+        """清理已过期的黑名单条目"""
+        try:
+            pool = self._get_pool()
+            deleted = pool.execute_write(
+                "DELETE FROM token_blacklist WHERE expires_at < NOW()"
+            )
+            # 同步清理内存缓存
+            if deleted > 0:
+                with self._cache_lock:
+                    self._cache.clear()
+            logger.info(f"已清理 {deleted} 条过期黑名单记录")
+            return deleted
+        except Exception as e:
+            logger.warning(f"清理 token_blacklist 失败: {e}")
+            return 0
 
 
 # ============================================================

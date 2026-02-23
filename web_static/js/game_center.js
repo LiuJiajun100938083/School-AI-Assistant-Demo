@@ -181,7 +181,7 @@ const GameCenterAPI = {
      */
     async loadGames(userId, userRole, userClass) {
         try {
-            const params = { user_id: userId, user_role: userRole };
+            const params = {};
             if (userClass) params.user_class = userClass;
             const data = await APIClient.get('/api/games/list', params);
             return (data?.success && data.data) ? data.data : null;
@@ -197,10 +197,8 @@ const GameCenterAPI = {
      * @param {string} userRole
      * @returns {Promise<Object>}
      */
-    async deleteGame(uuid, userId, userRole) {
-        return APIClient.delete(
-            `/api/games/${uuid}?user_id=${userId}&user_role=${userRole}`
-        );
+    async deleteGame(uuid) {
+        return APIClient.delete(`/api/games/${uuid}`);
     },
 
     /**
@@ -574,9 +572,7 @@ const GameCenterApp = {
         if (!confirmed) return;
 
         try {
-            const userId = this.state.userInfo?.id || 0;
-            const userRole = this.state.userRole;
-            const result = await GameCenterAPI.deleteGame(uuid, userId, userRole);
+            const result = await GameCenterAPI.deleteGame(uuid);
 
             if (result.success) {
                 UIModule.toast('遊戲已刪除', 'success');

@@ -2,7 +2,7 @@
 中国经济发展桌游 - FastAPI 路由
 粤港澳大湾区版本 - 基于网络地图的移动系统
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List, Set
 from dataclasses import dataclass, field
@@ -953,7 +953,13 @@ game_store = GameStore()
 
 # ==================== API 路由 ====================
 
-router = APIRouter(prefix="/api/china_game", tags=["中国经济桌游"])
+from app.core.dependencies import get_current_user
+
+router = APIRouter(
+    prefix="/api/china_game",
+    tags=["中国经济桌游"],
+    dependencies=[Depends(get_current_user)],
+)
 
 # 请求模型
 class CreateRoomRequest(BaseModel):

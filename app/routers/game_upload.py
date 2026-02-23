@@ -25,6 +25,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import pymysql
 
+from app.core.dependencies import get_current_user
+
 # 配置
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -884,17 +886,12 @@ game_router = APIRouter(prefix="/api/games", tags=["Games"])
 game_service = GameUploadService()
 
 
-def get_current_user(request) -> Dict:
-    """
-    获取当前用户（从请求中提取）
-    这个函数需要与主应用的认证系统集成
-    """
-    # 这里简化处理，实际应该从JWT token中提取
-    # 在集成到主应用时，会使用主应用的认证依赖
+def _extract_user(current_user: Dict) -> Dict:
+    """从 get_current_user 依赖中提取 id 和 role"""
     return {
-        'id': getattr(request.state, 'user_id', 0),
-        'role': getattr(request.state, 'user_role', 'guest'),
-        'username': getattr(request.state, 'username', '')
+        'id': current_user.get('id', 0),
+        'role': current_user.get('role', 'guest'),
+        'username': current_user.get('username', '')
     }
 
 
@@ -912,9 +909,7 @@ async def upload_game(
     teacher_only: bool = Form(False),
     html_content: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
-    # 认证信息（由主应用注入）
-    user_id: int = Form(...),
-    user_role: str = Form(...)
+    current_user: Dict = Depends(get_current_user),
 ):
     """
     上传新游戏
@@ -923,6 +918,10 @@ async def upload_game(
     1. 文件上传：通过 file 参数上传 .html 文件
     2. 代码粘贴：通过 html_content 参数提交 HTML 代码
     """
+    user = _extract_user(current_user)
+    user_id = user['id']
+    user_role = user['role']
+
     # 权限检查
     if user_role not in ['teacher', 'admin']:
         raise HTTPException(403, "只有教师和管理员可以上传游戏")
@@ -962,11 +961,13 @@ async def upload_game(
 async def list_games(
     subject: Optional[str] = Query(None),
     only_mine: bool = Query(False),
-    user_id: int = Query(...),
-    user_role: str = Query(...),
-    user_class: Optional[str] = Query(None, description="用户班级，如2A")
+    user_class: Optional[str] = Query(None, description="用户班级，如2A"),
+    current_user: Dict = Depends(get_current_user),
 ):
     """获取游戏列表"""
+    user = _extract_user(current_user)
+    user_id = user['id']
+    user_role = user['role']
     games = game_service.get_games(user_id, user_role, subject, only_mine, user_class)
 
     return {
@@ -979,11 +980,11 @@ async def list_games(
 @game_router.get("/{game_uuid}")
 async def get_game(
     game_uuid: str,
-    user_id: int = Query(...),
-    user_role: str = Query(...)
+    current_user: Dict = Depends(get_current_user),
 ):
     """获取单个游戏详情"""
-    game = game_service.get_game(game_uuid, user_id, user_role)
+    user = _extract_user(current_user)
+    game = game_service.get_game(game_uuid, user['id'], user['role'])
 
     return {
         "success": True,
@@ -995,14 +996,14 @@ async def get_game(
 async def update_game(
     game_uuid: str,
     data: GameUpdateRequest,
-    user_id: int = Query(...),
-    user_role: str = Query(...)
+    current_user: Dict = Depends(get_current_user),
 ):
     """更新游戏信息"""
-    if user_role not in ['teacher', 'admin']:
+    user = _extract_user(current_user)
+    if user['role'] not in ['teacher', 'admin']:
         raise HTTPException(403, "只有教师和管理员可以修改游戏")
 
-    result = await game_service.update_game(game_uuid, user_id, user_role, data)
+    result = await game_service.update_game(game_uuid, user['id'], user['role'], data)
 
     return {
         "success": True,
@@ -1014,14 +1015,14 @@ async def update_game(
 @game_router.delete("/{game_uuid}")
 async def delete_game(
     game_uuid: str,
-    user_id: int = Query(...),
-    user_role: str = Query(...)
+    current_user: Dict = Depends(get_current_user),
 ):
     """删除游戏"""
-    if user_role not in ['teacher', 'admin']:
+    user = _extract_user(current_user)
+    if user['role'] not in ['teacher', 'admin']:
         raise HTTPException(403, "只有教师和管理员可以删除游戏")
 
-    game_service.delete_game(game_uuid, user_id, user_role)
+    game_service.delete_game(game_uuid, user['id'], user['role'])
 
     return {
         "success": True,
@@ -1032,14 +1033,14 @@ async def delete_game(
 @game_router.patch("/{game_uuid}/visibility")
 async def toggle_game_visibility(
     game_uuid: str,
-    user_id: int = Query(...),
-    user_role: str = Query(...)
+    current_user: Dict = Depends(get_current_user),
 ):
     """切换游戏可见性"""
-    if user_role not in ['teacher', 'admin']:
+    user = _extract_user(current_user)
+    if user['role'] not in ['teacher', 'admin']:
         raise HTTPException(403, "只有教师和管理员可以修改可见性")
 
-    result = game_service.toggle_visibility(game_uuid, user_id, user_role)
+    result = game_service.toggle_visibility(game_uuid, user['id'], user['role'])
 
     return {
         "success": True,

@@ -843,7 +843,7 @@
                 case 'article': {
                     const articleContent = content.article_content || content.description || '';
                     if (typeof marked !== 'undefined' && articleContent) {
-                        bodyEl.innerHTML = `<div class="alc-ebook-article">${marked.parse(articleContent)}</div>`;
+                        bodyEl.innerHTML = `<div class="alc-ebook-article">${DOMPurify.sanitize(marked.parse(articleContent))}</div>`;
                     } else {
                         bodyEl.innerHTML = `<div class="alc-ebook-article">${escapeHtml(articleContent) || '<p>暫無內容</p>'}</div>`;
                     }
@@ -2941,7 +2941,7 @@
         contentEl.className = 'alc-message-content';
 
         if (!isUser && typeof marked !== 'undefined') {
-            let html = marked.parse(content);
+            let html = DOMPurify.sanitize(marked.parse(content));
             // 将 AI 回答中的【第X页】标记转换为可点击链接
             html = linkifyPageReferences(html);
             contentEl.innerHTML = html;

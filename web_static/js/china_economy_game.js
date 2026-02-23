@@ -54,34 +54,35 @@ const GameApp = {
     // ==================== 初始化 ====================
 
     async init() {
-        // 尝试获取用户信息，但不强制要求登录
+        // 要求登录才能使用游戏
         const authToken = localStorage.getItem('auth_token');
 
         if (authToken) {
-            // 已登录，尝试获取用户信息
             try {
                 const response = await fetch('/api/profile', {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 if (response.ok) {
                     const userInfo = await response.json();
-                    // 使用用户名作为玩家ID（确保唯一性）
                     this.playerId = 'user_' + userInfo.username;
-                    // 使用昵称、真实姓名或用户名作为显示名称
                     this.playerName = userInfo.nickname || userInfo.real_name || userInfo.username;
                     console.log('已登录用户:', this.playerId, '显示名称:', this.playerName);
                 } else {
-                    // Token无效，使用备用ID
-                    console.warn('Token验证失败，使用访客模式');
-                    this.useGuestMode();
+                    console.warn('Token验证失败，请重新登录');
+                    alert('登录已过期，请重新登录');
+                    window.location.href = '/';
+                    return;
                 }
             } catch (error) {
                 console.error('获取用户信息失败:', error);
-                this.useGuestMode();
+                alert('获取用户信息失败，请重新登录');
+                window.location.href = '/';
+                return;
             }
         } else {
-            // 未登录，使用访客模式
-            this.useGuestMode();
+            alert('请先登录');
+            window.location.href = '/';
+            return;
         }
 
         // 初始化UI
@@ -291,9 +292,12 @@ const GameApp = {
     // ==================== API 调用 ====================
 
     async api(method, endpoint, data = null) {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         const options = {
             method,
-            headers: { 'Content-Type': 'application/json' }
+            headers
         };
         if (data) {
             options.body = JSON.stringify(data);
