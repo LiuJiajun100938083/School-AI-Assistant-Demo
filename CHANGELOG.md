@@ -11,6 +11,71 @@
 
 ---
 
+## [v3.0.0] [2026-02-23] 学习路径系统 + 知识图谱多圆心布局 + AI×KG 联动
+
+### 新增
+
+- **AI 助教 × 知识图谱联动 (v2.6.0)** — AI 回答自动关联知识节点，答案底部显示可点击的节点 chip 标签
+  - `ask_ai_func` 注入 `LearningCenterService`，通用路径也使用教学助教 prompt
+  - 节点导航时清除搜索状态 + 面板 z-index 调整
+
+- **知识图谱多圆心辐射布局 (Multi-Center Radial Layout)** — 每个根节点作为独立圆心，子节点向外辐射形成独立圆形簇
+  - `computeHierarchy()` 添加 `_rootId` 传播，每个节点知道自己属于哪个根
+  - `buildForceSimulation()` 完全重写：移除 `forceCenter` + `forceRadial`，改用 4 个自定义力：
+    - `clusterRadial`：每个节点以自己根的实时坐标为圆心做径向约束
+    - `cluster`：子节点向父节点聚拢
+    - `rootRepel`：根节点两两排斥，防止簇重叠（minDist=400）
+    - `gravity`：极弱引力防止漂出画布
+  - 环形参考线改为每个簇独立绘制
+  - 多根时初始缩放 0.45，单根退化为原有布局
+
+- **学习路径批量导入** — JSON 一次性创建多条学习路径和步骤
+  - `POST /api/admin/learning-center/paths/batch-import` 后端端点
+  - `batch_import_paths()` 服务方法：`node_match` 按标题自动匹配知识节点，`source_pdf` 按文件名自动匹配内容
+  - `data/learning_paths.json`：8 条学习路径（UTest 完整/快速、AI Agent、AI Bench、混合课堂、Zoom LTI、虚拟会议室、新教师入职）
+
+- **管理面板学习路径 JSON 上传** — 无需 curl，直接在管理面板上传
+  - 「📥 導入學習路徑 JSON」按钮 + 拖放/粘贴模态框
+  - `openPathImportModal()` / `readPathImportFile()` / `submitPathImport()` 前端逻辑
+
+- **学习路径步骤跳转** — 步骤详情增加两个导航按钮
+  - 📄 查看文档 → `openContent(content_id)`，自动切换到教学资料 tab
+  - 🔗 知识节点 → `navigateToKnowledgeNode(node_id)`，跳转到知识图谱并定位
+
+### 修复
+
+- **节点详情面板关闭按钮不可见** — 白色按钮在绿色头部上看不到，改为白底灰边 + hover 变红
+- **节点详情面板关闭按钮被顶部导航遮挡** — 面板 z-index:50 < 导航 z-index:100，改为 `position: fixed; z-index: 110; height: 100vh`
+- **学习路径卡片 UI 重写** — 原有卡片使用不存在的 CSS 类导致无样式
+  - 改用设计系统的 `alc-path-cover` / `alc-path-body` / `alc-difficulty-badge` 等 CSS 类
+  - 卡片增加渐变色封面（入门绿/中级橙/高级粉）+ 大图标 + 描述 3 行截断
+- **学习路径详情弹窗不显示** — `showPathDetail()` 替换 innerHTML 使用无 CSS 的类名
+  - 改为填充预构建的 DOM 元素 + CSS `.active` class 动画 + 背景点击关闭
+  - 步骤渲染为 `.alc-timeline` 时间线格式 + `.alc-step-action-btn` 操作按钮
+- **从学习路径跳转文档失败** — `openContent()` 未切换 tab 导致 ebook viewer 元素不可见
+  - 添加 `await switchTab('media')` 确保先切换到教学资料页面
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/ai_learning_center.js` | 多圆心布局 + AI×KG 联动 + 路径 JSON 导入 + 路径详情重写 + openContent tab 切换 |
+| `web_static/css/ai_learning_center.css` | `.alc-step-actions` / `.alc-step-action-btn` 步骤按钮样式 + 面板 fixed 定位 |
+| `web_static/ai_learning_center.html` | 路径 JSON 上传按钮 + `pathImportModal` 模态框 + overlay 改为 CSS class |
+| `app/routers/ai_learning_center.py` | `PathStepInput` 添加 title/node_id + 批量导入端点和模型 |
+| `app/domains/ai_learning_center/service.py` | `batch_import_paths()` 100 行 — 自动匹配 node/content + 可选清空 |
+| `data/learning_paths.json` | 8 条学习路径 JSON 数据 |
+
+---
+
+## [v2.5.2] [2026-02-23] defaultCollapseDepth 改为 2
+
+### 修改
+
+- `LAYOUT_CONFIG.defaultCollapseDepth` 从 1 改为 2，初始显示到 L2 层，看到更多节点
+
+---
+
 ## [v2.5.1] [2026-02-23] 知识图谱 Bug 修复 — NaN 位置 + 层级边标签 + 不可见边隐藏
 
 ### 修复

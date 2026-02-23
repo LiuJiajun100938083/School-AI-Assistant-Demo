@@ -14,6 +14,7 @@
 | **AI/LLM** | LangChain + Ollama (Qwen) / DeepSeek API |
 | **RAG** | ChromaDB + sentence-transformers |
 | **文档处理** | python-docx, PyPDF2, openpyxl, python-pptx |
+| **知识图谱** | D3.js 力导向仿真 (自定义多圆心布局) |
 | **前端** | HTML/CSS/JS (Jinja2 模板) |
 
 ## 项目结构
@@ -37,6 +38,12 @@
 │   ├── service/                  # 论坛业务逻辑
 │   └── dal/                      # 数据访问层
 ├── web_static/                   # 前端静态资源
+│   ├── js/ai_learning_center.js  # 学习中心核心 JS（知识图谱 D3.js 渲染、AI 助教、路径管理）
+│   ├── css/ai_learning_center.css # 学习中心样式（设计系统 CSS 变量）
+│   └── ai_learning_center.html   # 学习中心页面模板
+├── data/                         # 知识图谱 & 学习路径 JSON 数据
+│   ├── kg_*.json                 # 5 份知识图谱（UTest、AI Agent、AI Bench、混合课堂、Zoom LTI）
+│   └── learning_paths.json       # 8 条学习路径
 ├── Knowledge_base/               # 知识库文档
 └── requirements.txt              # Python 依赖
 ```
@@ -47,7 +54,14 @@
 - **用户认证** — 注册、登录、JWT Token、角色权限 (admin/teacher/student)
 - **课堂管理** — 创建班级、学生加入、教师管理
 - **AI 智能问答** — 基于 RAG 的多学科 AI 对话，支持流式输出
-- **AI 学习中心** — 个性化 AI 学习助手
+- **AI 学习中心** — 个性化 AI 学习助手，电子教科书阅读 + PDF 页码跳转
+
+### AI 学习中心（重点模块）
+- **知识图谱可视化** — D3.js 多圆心辐射布局，每个根节点独立成簇，支持展开/折叠、搜索高亮、自由拖拽
+- **AI 助教 × 知识图谱联动** — AI 回答自动关联知识节点，点击 chip 标签跳转图谱定位
+- **学习路径系统** — 8 条预设学习路径，步骤可跳转到文档或知识节点，支持 JSON 批量导入
+- **内容感知 RAG** — 阅读 PDF 时 AI 基于当前文档内容回答，引用页码可点击跳转
+- **节点→文档导航** — 知识节点关联教程文档，支持 page/heading/timestamp/keyword 四种锚点定位
 
 ### 学习功能
 - **学习任务** — 教师布置、学生完成、进度跟踪
