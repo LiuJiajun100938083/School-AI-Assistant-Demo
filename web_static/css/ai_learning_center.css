@@ -3641,12 +3641,8 @@
   padding: 2px var(--space-2);
 }
 
-.alc-page--reading .alc-tab-label {
-  display: none;
-}
-
 .alc-page--reading .alc-tab-button {
-  padding: 4px 8px;
+  padding: 4px 10px;
 }
 
 .alc-page--reading .alc-ebook-sidebar,
