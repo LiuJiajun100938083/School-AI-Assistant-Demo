@@ -2727,7 +2727,6 @@
         // 1. 确保知识图谱 tab 已加载
         if (currentTab !== 'map') {
             await switchTab('map');
-            // switchTab 内部会 loadKnowledgeMap()（若首次）
             await new Promise(r => setTimeout(r, 600));
         }
 
@@ -2738,15 +2737,24 @@
             return;
         }
 
-        // 3. 用搜索功能来展开祖先 + 高亮 + 自动平移
+        // 3. 精确搜索：用完整标题搜索以精确定位
         const mapSearchInput = getElement('mapSearchInput');
         if (mapSearchInput) {
             mapSearchInput.value = node.title;
             mapSearchInput.dispatchEvent(new Event('input'));
         }
 
-        // 4. 弹出右侧详情面板
-        setTimeout(() => showNodeDetail(node), 800);
+        // 4. 弹出详情面板 + 清除搜索状态（保留高亮短暂显示后恢复）
+        setTimeout(() => {
+            showNodeDetail(node);
+            // 2秒后清除搜索高亮，恢复正常显示
+            setTimeout(() => {
+                if (mapSearchInput) {
+                    mapSearchInput.value = '';
+                    mapSearchInput.dispatchEvent(new Event('input'));
+                }
+            }, 2000);
+        }, 800);
     }
 
     async function sendAiQuestion() {

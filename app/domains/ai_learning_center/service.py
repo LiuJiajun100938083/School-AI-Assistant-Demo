@@ -935,40 +935,51 @@ class LearningCenterService:
                 username, question, content_id
             )
 
-        if not self._ask_ai_func:
-            return {
-                "question": question,
-                "answer": "AI 助手服务尚未配置，请联系管理员。",
-                "context_sources": [],
-            }
-
+        # 通用路径（无 content_id）：直接调用 Ollama，使用教学助教 prompt
         try:
             import asyncio
+            from functools import partial
+
+            from llm.rag.context import build_prompt_context
+            from llm.prompts.templates import apply_thinking_mode
+            from llm.providers.ollama import get_ollama_provider
+            from llm.parsers.thinking_parser import parse_llm_response
+
             loop = asyncio.get_running_loop()
 
-            # _ask_ai_func 是 ask_ai_subject(question, subject_code)，返回 (answer, thinking) 元组
-            raw = await loop.run_in_executor(
-                None, self._ask_ai_func, question, context_filter or ""
+            system_prompt = (
+                "你是 AI 学习助教，帮助教师和学生解答关于教学平台操作的问题。\n"
+                "请基于你对教学系统的了解，提供清晰、专业的操作指导。\n"
+                "如果不确定，请如实告知。"
             )
 
-            # 兼容：如果返回 dict 直接使用，否则从 tuple 构建
-            if isinstance(raw, dict):
-                result = raw
-            else:
-                answer, thinking = raw
-                result = {
-                    "question": question,
-                    "answer": answer or "",
-                    "thinking": thinking or "",
-                    "context_sources": [],
-                }
+            # 注入知识图谱节点提示
+            kg_hint = self._build_kg_node_hint()
+            if kg_hint:
+                system_prompt += f"\n\n{kg_hint}"
 
-            logger.info("AI 回答成功: 用户=%s", username)
-            # 匹配知识图谱相关节点
-            result["related_nodes"] = self._match_knowledge_nodes(
-                result.get("answer", "")
+            prompt = build_prompt_context(
+                question=question,
+                system_prompt=system_prompt,
             )
-            return result
+            thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
+
+            provider = get_ollama_provider()
+            raw_response = await loop.run_in_executor(
+                None, provider.invoke, thinking_prompt
+            )
+            answer, thinking = parse_llm_response(raw_response)
+
+            logger.info("AI 通用回答: 用户=%s", username)
+
+            related_nodes = self._match_knowledge_nodes(answer)
+            return {
+                "question": question,
+                "answer": answer or "",
+                "thinking": thinking or "",
+                "context_sources": [],
+                "related_nodes": related_nodes,
+            }
         except Exception as e:
             logger.error("AI 回答失败: %s", e)
             return {

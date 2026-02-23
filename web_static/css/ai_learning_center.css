@@ -798,10 +798,11 @@
   height: 100%;
   background: var(--bg-card);
   border-left: 1px solid var(--border-default);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   transform: translateX(100%);
   transition: transform 0.35s var(--ease-out);
-  z-index: 20;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.06);
