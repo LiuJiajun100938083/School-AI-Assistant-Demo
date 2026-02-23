@@ -1,0 +1,560 @@
+{
+  "meta": {
+    "title": "AI 学习中心 - 学习路径集合",
+    "description": "基于培僑中学教学系统知识图谱设计的完整学习路径，涵盖考试系统、AI助手、混合式教学、Zoom集成和虚拟会议室",
+    "version": "1.0.0"
+  },
+  "clear_existing": true,
+  "paths": [
+    {
+      "id": "path_utest_complete",
+      "title": "UTest 考试系统完整教程",
+      "description": "从零开始掌握 UTest 考试系统：创建题目、设计考试、管理场次、监考与成绩分析的全流程教学路径",
+      "difficulty": "intermediate",
+      "estimated_hours": 6.0,
+      "icon": "📝",
+      "tags": ["UTest", "考试系统", "教师必修"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "了解 UTest 考试系统",
+          "description": "认识 UTest 系统的整体架构和考试流程总览，了解题目创建→考试设计→场次管理→监考→批改的完整工作流",
+          "node_match": "UTest 系统简介",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "手动创建考试题目",
+          "description": "学习如何手动创建考试题目，包括 13 种题型（单选、多选、填空、问答等）的使用方法",
+          "node_match": "手动创建题目",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "Excel 批量导入题目",
+          "description": "使用 Excel 模板批量导入题目，大幅提升出题效率",
+          "node_match": "Excel批量导入题目",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "题目管理与复制",
+          "description": "管理已创建的题目库，掌握题目编辑、复制和分类技巧",
+          "node_match": "题目管理",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "创建考试（手动 & 自动）",
+          "description": "学习手动创建考试和自动创建考试的两种方式，了解各自的适用场景",
+          "node_match": "手动创建考试",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "创建随机考试",
+          "description": "设置随机考试，系统从题库中随机抽取题目，每位学生获得不同的试卷",
+          "node_match": "创建随机考试",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "创建考试场次",
+          "description": "为考试创建场次，设置考试时间、地点和参加人数等关键参数",
+          "node_match": "创建考试场次",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 8,
+          "title": "管理与交付考试",
+          "description": "查看和编辑考试信息，管理考试会话，分配评分教师",
+          "node_match": "管理/交付考试",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 9,
+          "title": "考场管理与排班",
+          "description": "设置考场、安排考场排班，确保考试顺利进行",
+          "node_match": "考场管理",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 10,
+          "title": "学生身份验证",
+          "description": "设置人脸照片验证和替代验证码，保障考试安全",
+          "node_match": "学生人脸照片验证",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 11,
+          "title": "监考操作",
+          "description": "使用考试监考站监控考试进度，查看考试日志和学生状态",
+          "node_match": "考试监考站",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 12,
+          "title": "批改考试与成绩管理",
+          "description": "批改课程考试，处理未批改和已批改的试卷，掌握批量批改技巧",
+          "node_match": "批改考试/考试成绩",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 13,
+          "title": "导出成绩与分析报告",
+          "description": "导出成绩报告、答题报告和自定义报告，利用考试分析报告优化教学",
+          "node_match": "导出成绩报告",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_utest_quickstart",
+      "title": "UTest 快速上手：创建你的第一场考试",
+      "description": "面向新手教师的精简路径，用最短时间完成从出题到发布考试的核心流程",
+      "difficulty": "beginner",
+      "estimated_hours": 1.5,
+      "icon": "🚀",
+      "tags": ["UTest", "快速入门", "新手推荐"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "考试系统概览",
+          "description": "快速了解 UTest 系统的核心功能和基本操作流程",
+          "node_match": "考试流程总览",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "创建第一批题目",
+          "description": "使用手动方式创建几道基本题目，熟悉题目编辑界面",
+          "node_match": "手动创建题目",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "设计考试",
+          "description": "将题目组装成一场完整的考试",
+          "node_match": "手动创建考试",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "创建场次并发布",
+          "description": "为考试创建场次，设定时间后即可发布给学生",
+          "node_match": "创建考试场次",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "查看成绩",
+          "description": "考试结束后查看成绩总览和学生答题情况",
+          "node_match": "成绩总览",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_ai_agent",
+      "title": "AI Agent 管理系统教程",
+      "description": "学习如何创建和管理 AI 助手、配置知识库、设置指令，打造个性化 AI 教学助手",
+      "difficulty": "intermediate",
+      "estimated_hours": 4.0,
+      "icon": "🤖",
+      "tags": ["AI Agent", "知识库", "AI助手"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "登录 AI Agent 管理系统",
+          "description": "了解如何访问和登录 AI Agent 管理后台",
+          "node_match": "登录系统",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "创建 AI 助手",
+          "description": "从零开始创建一个 AI 助手，设置名称、描述和基本参数",
+          "node_match": "创建 AI 助手",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "自定义头像与语音",
+          "description": "为 AI 助手设置个性化头像和语音效果",
+          "node_match": "自定义头像",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "创建知识库",
+          "description": "创建专属知识库，为 AI 助手提供领域知识支撑",
+          "node_match": "创建知识库",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "导入学习资源到知识库",
+          "description": "将课程资料、文档等学习资源导入知识库",
+          "node_match": "导入学习资源",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "管理知识库问答",
+          "description": "设置问答分组，优化 AI 助手的回答质量",
+          "node_match": "管理知识库问答",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "关联知识库到 AI 助手",
+          "description": "将创建好的知识库关联到 AI 助手，让助手具备专业知识",
+          "node_match": "关联知识库",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 8,
+          "title": "创建与管理指令",
+          "description": "创建自定义指令，控制 AI 助手的行为和回答风格",
+          "node_match": "创建指令",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 9,
+          "title": "预览与测试 AI 助手",
+          "description": "预览 AI 助手效果，测试问答、资源推荐和出题功能",
+          "node_match": "预览 AI 助手",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 10,
+          "title": "分享 AI 助手",
+          "description": "将 AI 助手分享给学生或其他教师使用",
+          "node_match": "分享设置",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_ai_bench",
+      "title": "AI Bench 课程 AI 工具使用指南",
+      "description": "在课程中启用和配置 AI Bench，让学生在学习过程中使用 AI 助手、知识图谱和智能工具",
+      "difficulty": "intermediate",
+      "estimated_hours": 2.5,
+      "icon": "🧪",
+      "tags": ["AI Bench", "课程工具", "学生端"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "了解 AI Bench",
+          "description": "认识 AI Bench 的功能定位：课程内的 AI 工具集合",
+          "node_match": "AI Bench（课程AI工具）",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "启用 AI Bench",
+          "description": "在课程中启用 AI Bench 功能入口",
+          "node_match": "启用 AI Bench",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "配置 AI 助手设置",
+          "description": "在 AI Bench 中配置可用的 AI 助手",
+          "node_match": "AI 助手设置",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "配置 AI 工具",
+          "description": "选择和启用课程中可用的 AI 工具（资源检索、视频分析等）",
+          "node_match": "AI 工具设置",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "配置知识库",
+          "description": "为 AI Bench 关联知识库，提供课程专属知识支撑",
+          "node_match": "知识库设置",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "学生使用 AI 助手",
+          "description": "了解学生端如何使用 AI 助手进行问答和学习",
+          "node_match": "使用 AI 助手",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "资源检索与视频 AI 分析",
+          "description": "使用 AI 工具进行智能资源检索和视频内容分析",
+          "node_match": "资源检索",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_hybrid_classroom",
+      "title": "混合式课堂教学操作指南",
+      "description": "从创建虚拟教室到学生参与的完整混合式教学流程，支持线上线下同步教学",
+      "difficulty": "beginner",
+      "estimated_hours": 2.0,
+      "icon": "🏫",
+      "tags": ["混合式教学", "虚拟教室", "华为云"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "什么是混合式课堂",
+          "description": "了解混合式教学的概念和优势，线上线下同步授课模式",
+          "node_match": "什么是混合式课堂",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "创建虚拟教室会话",
+          "description": "教师在系统中创建新的虚拟教室会话，配置基本参数",
+          "node_match": "创建虚拟教室会话",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "设置云端录制",
+          "description": "开启云端录制功能，自动保存课堂录像供课后回看",
+          "node_match": "云端录制设置",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "启动教室会话",
+          "description": "启动虚拟教室，进入华为云会议工具界面",
+          "node_match": "启动教室会话",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "华为云会议工具操作",
+          "description": "掌握华为云会议的核心操作：音视频控制、参会者管理等",
+          "node_match": "华为云会议工具",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "屏幕共享与扩展屏",
+          "description": "使用屏幕共享功能展示教学内容，配置扩展屏幕",
+          "node_match": "屏幕共享与扩展屏",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "智慧教室模块",
+          "description": "使用智慧教室模块管理教室设备和教学资源",
+          "node_match": "智慧教室模块",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 8,
+          "title": "学生加入虚拟教室",
+          "description": "指导学生如何加入虚拟教室参与线上课堂",
+          "node_match": "学生加入虚拟教室",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_zoom_lti",
+      "title": "Zoom LTI 集成配置与使用",
+      "description": "管理员和教师共同完成 Zoom 与 ULearning 平台的 LTI 集成，在课程中使用 Zoom 会议功能",
+      "difficulty": "advanced",
+      "estimated_hours": 2.0,
+      "icon": "📹",
+      "tags": ["Zoom", "LTI", "管理员", "视频会议"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "了解 LTI Zoom 集成",
+          "description": "认识 LTI 协议和 Zoom 集成的架构，了解管理员与教师各自的职责",
+          "node_match": "LTI Zoom 集成",
+          "source_pdf": "LTI Zoom Integration User Guide.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "配置 Zoom LTI Pro 应用",
+          "description": "管理员在 Zoom Marketplace 中安装和配置 LTI Pro 应用",
+          "node_match": "配置Zoom LTI Pro应用",
+          "source_pdf": "LTI Zoom Integration User Guide.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "获取 LTI 密钥",
+          "description": "从 Zoom LTI Pro 应用中获取 LTI 集成所需的密钥和凭证",
+          "node_match": "获取LTI密钥",
+          "source_pdf": "LTI Zoom Integration User Guide.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "ULearning 后台 LTI 配置",
+          "description": "在 ULearning 管理后台配置 LTI 连接，输入 Zoom 提供的密钥",
+          "node_match": "ULearning后台LTI配置",
+          "source_pdf": "LTI Zoom Integration User Guide.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "课程添加 Zoom 菜单",
+          "description": "教师在课程中添加 Zoom 应用菜单项",
+          "node_match": "课程添加Zoom菜单",
+          "source_pdf": "LTI Zoom Integration User Guide.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "创建 Zoom 会议",
+          "description": "在课程内直接创建 Zoom 会议，学生可一键加入",
+          "node_match": "创建会议",
+          "source_pdf": "LTI Zoom Integration User Guide.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "管理会议与查看录制",
+          "description": "管理已创建的 Zoom 会议，查看会议记录和云录制",
+          "node_match": "查看会议记录",
+          "source_pdf": "LTI Zoom Integration User Guide.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_virtual_meeting",
+      "title": "虚拟会议室管理与使用",
+      "description": "管理员分配会议室、教师预约和发起云会议的完整操作流程",
+      "difficulty": "beginner",
+      "estimated_hours": 1.0,
+      "icon": "🖥️",
+      "tags": ["虚拟会议室", "云会议", "预约管理"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "了解虚拟会议室",
+          "description": "认识虚拟会议室（云会议）的功能和使用场景",
+          "node_match": "虚拟会议室",
+          "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "管理员：查看会议室列表",
+          "description": "管理员查看系统中所有可用的虚拟会议室",
+          "node_match": "会议室列表",
+          "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "管理员：分配教师到会议室",
+          "description": "将教师分配到指定的虚拟会议室，授予预约权限",
+          "node_match": "分配教师到会议室",
+          "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "了解预约规则",
+          "description": "了解会议室的预约规则和限制条件",
+          "node_match": "预约规则",
+          "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "预约时间管理",
+          "description": "选择和管理会议室的预约时间段",
+          "node_match": "预约时间管理",
+          "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "发起会议",
+          "description": "在预约的时间段内发起云会议",
+          "node_match": "发起会议",
+          "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "处理冲突与容量提醒",
+          "description": "了解如何处理预约冲突和会议室容量限制提醒",
+          "node_match": "冲突与容量提醒",
+          "source_pdf": "Instruction of Virtual Meeting Room(Cloud Meeting).pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_new_teacher",
+      "title": "新教师入职：平台操作必修路径",
+      "description": "新教师入职后需要掌握的核心平台功能：创建课程班级、AI工具、混合式教学、基础考试",
+      "difficulty": "beginner",
+      "estimated_hours": 3.5,
+      "icon": "🎓",
+      "tags": ["新教师", "入职培训", "必修"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "创建课程与班级",
+          "description": "学习如何在系统中创建课程、创建班级并添加学生",
+          "node_match": "创建课程",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "添加学生到班级",
+          "description": "将学生名单导入班级，管理班级花名册",
+          "node_match": "添加学生到班级",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "认识 AI Agent 系统",
+          "description": "了解 AI Agent 管理系统的功能，登录系统",
+          "node_match": "登录系统",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "创建你的第一个 AI 助手",
+          "description": "快速创建一个基础 AI 助手，体验 AI 教学辅助",
+          "node_match": "创建 AI 助手",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "在课程中启用 AI Bench",
+          "description": "为你的课程开启 AI Bench 功能，让学生使用 AI 工具",
+          "node_match": "启用 AI Bench",
+          "source_pdf": "ULearning AI Agent System and AI Bench User Manual (Teacher) (20250507).pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "了解混合式课堂",
+          "description": "认识混合式教学模式，准备进行线上线下同步授课",
+          "node_match": "什么是混合式课堂",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "发起第一堂混合式课堂",
+          "description": "创建虚拟教室会话并启动，完成第一堂混合式课堂",
+          "node_match": "创建虚拟教室会话",
+          "source_pdf": "Hybrid Classroom Session User Guide (20220208).pdf"
+        },
+        {
+          "step_order": 8,
+          "title": "创建第一场考试",
+          "description": "使用 UTest 系统创建一场简单的考试",
+          "node_match": "手动创建考试",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        },
+        {
+          "step_order": 9,
+          "title": "查看学生成绩",
+          "description": "考试结束后查看和管理学生成绩",
+          "node_match": "成绩总览",
+          "source_pdf": "utest_guide_teachers_en.pdf"
+        }
+      ]
+    }
+  ]
+}

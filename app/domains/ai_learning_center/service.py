@@ -879,6 +879,148 @@ class LearningCenterService:
         return result
 
     # ================================================================
+    # 学习路径 - 批量导入
+    # ================================================================
+
+    def batch_import_paths(
+        self,
+        admin: Tuple[str, str],
+        paths: List[Dict],
+        clear_existing: bool = False,
+    ) -> Dict:
+        """
+        批量导入学习路径和步骤。
+
+        支持:
+        - node_match: 通过知识节点标题自动匹配 node_id
+        - source_pdf: 通过 PDF 文件名自动匹配 content_id
+        - clear_existing: 清空现有路径
+        """
+        username, _ = admin
+
+        # ---------- Phase 0: 可选清空 ----------
+        if clear_existing:
+            self._paths.soft_delete("is_deleted = 0", ())
+            logger.info("批量导入路径：已清空现有路径")
+
+        # ---------- Phase 1: 预加载节点和内容列表用于匹配 ----------
+        all_nodes = self._nodes.find_active()
+        node_title_map = {}
+        for n in all_nodes:
+            title = (n.get("title") or "").strip()
+            if title:
+                node_title_map[title] = n["id"]
+                node_title_map[title.lower()] = n["id"]
+
+        all_contents = self._contents.raw_query(
+            "SELECT id, file_name, title FROM lc_contents WHERE is_deleted = 0 AND status = 'published'",
+        )
+        # 缓存 source_pdf → content_id 映射
+        pdf_content_cache = {}
+
+        def match_content_id(source_pdf: str) -> Optional[int]:
+            if not source_pdf:
+                return None
+            if source_pdf in pdf_content_cache:
+                return pdf_content_cache[source_pdf]
+            pdf_stem = source_pdf.rsplit(".", 1)[0] if "." in source_pdf else source_pdf
+            for row in all_contents:
+                fname = row.get("file_name") or ""
+                title = row.get("title") or ""
+                if source_pdf in fname or pdf_stem in fname or pdf_stem in title:
+                    pdf_content_cache[source_pdf] = row["id"]
+                    return row["id"]
+            pdf_content_cache[source_pdf] = None
+            return None
+
+        # ---------- Phase 2: 创建路径和步骤 ----------
+        created_paths = 0
+        created_steps = 0
+        skipped_steps = 0
+        path_details = []
+
+        for p in paths:
+            path_data = {
+                "title": p["title"].strip(),
+                "description": (p.get("description") or "").strip(),
+                "icon": p.get("icon", "🎯"),
+                "difficulty": p.get("difficulty", "beginner"),
+                "estimated_hours": p.get("estimated_hours", 1.0),
+                "tags": json.dumps(p.get("tags")) if p.get("tags") else None,
+                "status": "published",
+                "created_by": username,
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
+                "is_deleted": 0,
+            }
+
+            path_id = self._paths.insert_get_id(path_data)
+            created_paths += 1
+            logger.info("批量导入路径: %s (id=%d)", p["title"], path_id)
+
+            # 创建步骤
+            step_count = 0
+            for step in p.get("steps", []):
+                # 自动匹配 node_id
+                node_id = step.get("node_id")
+                if not node_id and step.get("node_match"):
+                    node_id = node_title_map.get(step["node_match"])
+                    if not node_id:
+                        node_id = node_title_map.get(step["node_match"].lower())
+                    if not node_id:
+                        logger.warning(
+                            "批量导入路径步骤：节点 '%s' 未匹配到，跳过 node_id",
+                            step["node_match"],
+                        )
+
+                # 自动匹配 content_id
+                content_id = step.get("content_id")
+                if not content_id and step.get("source_pdf"):
+                    content_id = match_content_id(step["source_pdf"])
+
+                step_data = {
+                    "path_id": path_id,
+                    "step_order": step.get("step_order", 0),
+                    "title": step.get("title", ""),
+                    "description": step.get("description", ""),
+                    "content_id": content_id,
+                    "node_id": node_id,
+                }
+
+                try:
+                    self._steps.insert(step_data)
+                    step_count += 1
+                    created_steps += 1
+                except Exception as e:
+                    logger.warning(
+                        "批量导入路径步骤失败 (path=%s, step=%d): %s",
+                        p.get("id"),
+                        step.get("step_order"),
+                        e,
+                    )
+                    skipped_steps += 1
+
+            path_details.append({
+                "path_id": path_id,
+                "title": p["title"],
+                "steps_count": step_count,
+            })
+
+        logger.info(
+            "批量导入路径完成：创建 %d 条路径，%d 个步骤，跳过 %d 个步骤",
+            created_paths,
+            created_steps,
+            skipped_steps,
+        )
+
+        return {
+            "created_paths": created_paths,
+            "created_steps": created_steps,
+            "skipped_steps": skipped_steps,
+            "path_details": path_details,
+        }
+
+    # ================================================================
     # AI 助手
     # ================================================================
 

@@ -161,8 +161,10 @@ class UpdatePathRequest(BaseModel):
 
 
 class PathStepInput(BaseModel):
-    content_id: int
+    content_id: Optional[int] = None
+    node_id: Optional[int] = None
     step_order: int
+    title: str = ""
     description: str = ""
 
 
@@ -173,6 +175,34 @@ class UpdatePathStepsRequest(BaseModel):
 class ReorderContentsRequest(BaseModel):
     """内容排序请求 — content_ids 按期望顺序排列"""
     content_ids: List[int] = Field(..., min_length=1)
+
+
+# ── 学习路径批量导入模型 ──
+
+class BatchPathStepInput(BaseModel):
+    step_order: int
+    title: str = Field(..., min_length=1, max_length=255)
+    description: str = ""
+    content_id: Optional[int] = None
+    node_id: Optional[int] = None
+    node_match: Optional[str] = Field(None, description="知识节点标题，用于自动匹配 node_id")
+    source_pdf: Optional[str] = Field(None, description="PDF文件名，用于自动匹配 content_id")
+
+
+class BatchPathInput(BaseModel):
+    id: str = Field(..., description="临时ID，用于日志追踪")
+    title: str = Field(..., min_length=1, max_length=255)
+    description: str = ""
+    difficulty: str = "beginner"
+    estimated_hours: float = 1.0
+    icon: str = "🎯"
+    tags: Optional[List[str]] = None
+    steps: List[BatchPathStepInput] = []
+
+
+class BatchImportPathsRequest(BaseModel):
+    clear_existing: bool = Field(False, description="导入前是否清空现有学习路径")
+    paths: List[BatchPathInput]
 
 
 class AIAskRequest(BaseModel):
@@ -970,4 +1000,37 @@ async def batch_import_knowledge_graph(
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
         logger.exception("Error batch importing knowledge graph")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ================================================================
+# 管理員端點 - 學習路徑批量導入
+# ================================================================
+
+@router.post("/api/admin/learning-center/paths/batch-import")
+async def batch_import_paths(
+    request: BatchImportPathsRequest,
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
+):
+    """
+    批量導入學習路徑（路徑 + 步驟）
+
+    JSON 格式見 data/learning_paths.json 範例檔案。
+    - paths: 路徑列表，每個路徑包含 steps
+    - steps 中的 node_match: 知識節點標題，自動匹配 node_id
+    - steps 中的 source_pdf: PDF 文件名，自動匹配 content_id
+    - clear_existing: 是否清空現有路徑（慎用）
+    """
+    try:
+        service = get_services().learning_center
+        result = service.batch_import_paths(
+            admin=admin_info,
+            paths=[p.model_dump() for p in request.paths],
+            clear_existing=request.clear_existing,
+        )
+        return success_response(data=result, message="學習路徑批量導入成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("Error batch importing learning paths")
         return error_response("SERVER_ERROR", str(e), status_code=500)
