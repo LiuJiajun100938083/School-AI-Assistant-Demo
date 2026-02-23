@@ -860,45 +860,82 @@ const AdminUI = {
     },
 
     /* ---------- 應用管理渲染 ---------- */
+
+    // 分類配置
+    _categoryLabels: { learning: '學習工具', community: '社區', teaching: '教學管理', admin: '系統管理', other: '其他' },
+
     renderAppsConfig() {
         const container = document.getElementById('appmgrList');
         if (!container) return;
         const apps = AdminApp.state.appsConfig;
         const roleLabels = { student: '學生', teacher: '教師', admin: '管理員' };
+        const catLabels = this._categoryLabels;
 
-        container.innerHTML = apps.map((app, index) => {
-            const rolesHtml = ['student', 'teacher', 'admin'].map(role => {
-                const checked = (app.roles || []).includes(role) ? 'checked' : '';
-                return `<label style="display:inline-flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
-                    <input type="checkbox" data-index="${index}" data-role="${role}" ${checked}
-                           style="accent-color:var(--primary);">
-                    ${roleLabels[role]}
-                </label>`;
-            }).join(' ');
+        // 按 category 分組渲染
+        const groups = {};
+        apps.forEach((app, index) => {
+            const cat = app.category || 'other';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push({ app, index });
+        });
 
+        const catOrder = ['learning', 'community', 'teaching', 'admin', 'other'];
+        const sortedCats = Object.keys(groups).sort((a, b) =>
+            (catOrder.indexOf(a) === -1 ? 99 : catOrder.indexOf(a)) -
+            (catOrder.indexOf(b) === -1 ? 99 : catOrder.indexOf(b))
+        );
+
+        container.innerHTML = sortedCats.map(cat => {
+            const items = groups[cat];
             return `
-            <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px;${app.enabled ? '' : 'opacity:0.5;'}">
-                <span style="font-size:28px;flex-shrink:0;">${app.icon || '📦'}</span>
-                <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;font-size:15px;color:var(--text-primary);">${app.name}</div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${app.description || ''}</div>
-                    <div style="margin-top:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                        ${rolesHtml}
-                    </div>
+            <div style="margin-bottom:20px;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;padding-left:4px;text-transform:uppercase;letter-spacing:0.02em;">
+                    ${catLabels[cat] || cat}
+                    <span style="font-size:11px;color:var(--text-tertiary);font-weight:500;margin-left:6px;">${items.length}</span>
                 </div>
-                <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
-                    <div style="display:flex;flex-direction:column;gap:4px;">
-                        <button data-action="moveApp" data-index="${index}" data-dir="-1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="上移" ${index === 0 ? 'disabled' : ''}>▲</button>
-                        <button data-action="moveApp" data-index="${index}" data-dir="1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="下移" ${index === apps.length - 1 ? 'disabled' : ''}>▼</button>
-                    </div>
-                    <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">
-                        <input type="checkbox" data-action="toggleEnabled" data-index="${index}" ${app.enabled ? 'checked' : ''}
-                               style="opacity:0;width:0;height:0;">
-                        <span style="position:absolute;inset:0;background:${app.enabled ? 'var(--primary)' : '#ccc'};border-radius:12px;transition:.3s;">
-                            <span style="position:absolute;top:2px;left:${app.enabled ? '22px' : '2px'};width:20px;height:20px;background:white;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>
-                        </span>
-                    </label>
-                </div>
+                ${items.map(({ app, index }) => {
+                    const rolesHtml = ['student', 'teacher', 'admin'].map(role => {
+                        const checked = (app.roles || []).includes(role) ? 'checked' : '';
+                        return `<label style="display:inline-flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" data-index="${index}" data-role="${role}" ${checked}
+                                   style="accent-color:var(--primary);">
+                            ${roleLabels[role]}
+                        </label>`;
+                    }).join(' ');
+
+                    const catSelectHtml = Object.entries(catLabels).map(([val, label]) =>
+                        `<option value="${val}" ${(app.category || 'other') === val ? 'selected' : ''}>${label}</option>`
+                    ).join('');
+
+                    return `
+                    <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px;margin-bottom:8px;${app.enabled ? '' : 'opacity:0.5;'}">
+                        <span style="font-size:28px;flex-shrink:0;">${app.icon || '📦'}</span>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:600;font-size:15px;color:var(--text-primary);">${app.name}</div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${app.description || ''}</div>
+                            <div style="margin-top:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                                ${rolesHtml}
+                                <select data-action="changeCategory" data-index="${index}"
+                                        style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:6px;background:white;color:var(--text-secondary);cursor:pointer;">
+                                    ${catSelectHtml}
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+                            <div style="display:flex;flex-direction:column;gap:4px;">
+                                <button data-action="moveApp" data-index="${index}" data-dir="-1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="上移" ${index === 0 ? 'disabled' : ''}>▲</button>
+                                <button data-action="moveApp" data-index="${index}" data-dir="1" style="border:none;background:none;cursor:pointer;font-size:14px;padding:2px;" title="下移" ${index === apps.length - 1 ? 'disabled' : ''}>▼</button>
+                            </div>
+                            <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;">
+                                <input type="checkbox" data-action="toggleEnabled" data-index="${index}" ${app.enabled ? 'checked' : ''}
+                                       style="opacity:0;width:0;height:0;">
+                                <span style="position:absolute;inset:0;background:${app.enabled ? 'var(--primary)' : '#ccc'};border-radius:12px;transition:.3s;">
+                                    <span style="position:absolute;top:2px;left:${app.enabled ? '22px' : '2px'};width:20px;height:20px;background:white;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>`;
+                }).join('')}
             </div>`;
         }).join('');
 
@@ -916,6 +953,11 @@ const AdminUI = {
         container.querySelectorAll('input[data-role]').forEach(chk => {
             chk.addEventListener('change', () => {
                 AdminApp.toggleAppRole(parseInt(chk.dataset.index), chk.dataset.role, chk.checked);
+            });
+        });
+        container.querySelectorAll('[data-action="changeCategory"]').forEach(sel => {
+            sel.addEventListener('change', () => {
+                AdminApp.changeAppCategory(parseInt(sel.dataset.index), sel.value);
             });
         });
     }
@@ -2412,6 +2454,11 @@ ${report.teacher_attention_points || '暫無'}
         this.state.appsConfig[index] = this.state.appsConfig[newIndex];
         this.state.appsConfig[newIndex] = temp;
         this.state.appsConfig.forEach((app, i) => app.order = i + 1);
+        AdminUI.renderAppsConfig();
+    },
+
+    changeAppCategory(index, category) {
+        this.state.appsConfig[index].category = category;
         AdminUI.renderAppsConfig();
     },
 

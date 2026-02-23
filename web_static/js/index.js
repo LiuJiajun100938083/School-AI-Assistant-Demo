@@ -541,16 +541,95 @@ const IndexUI = {
 
     /* ---------- 首页应用卡片 ---------- */
 
+    // SVG 图标映射（Lucide 风格，24×24，2px stroke）
+    _appIcons: {
+        ai_chat:          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+        ai_learning_center:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+        game_center:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+        forum:            '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h8"/><path d="M8 14h4"/></svg>',
+        student_report:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+        learning_tasks:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+        mistake_book:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+        classroom:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+        attendance:       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>',
+        notice:           '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+        mistake_book_teacher:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>',
+        learning_task_admin:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+        game_upload:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>',
+        admin_dashboard:  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
+    },
+
+    // 分组配置：显示名称 + 排序权重 + 是否默认折叠
+    _categoryConfig: {
+        learning:  { label: '學習工具',  order: 1, collapsed: false },
+        community: { label: '社區',      order: 2, collapsed: false },
+        teaching:  { label: '教學管理',  order: 3, collapsed: true  },
+        admin:     { label: '系統管理',  order: 4, collapsed: true  },
+        other:     { label: '其他',      order: 5, collapsed: true  },
+    },
+
     renderHomeApps(apps) {
         const grid = this.elements.homeAppsGrid;
         if (!grid) return;
-        grid.innerHTML = apps.map(app => `
-            <div class="home-app-card" data-app-id="${app.id}" data-app-url="${app.url}">
-                <div class="tool-icon">${app.icon}</div>
-                <div class="tool-name">${app.name}</div>
-                <div class="tool-desc">${app.description}</div>
-            </div>
-        `).join('');
+
+        // 按 category 分组
+        const groups = {};
+        for (const app of apps) {
+            const cat = app.category || 'other';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(app);
+        }
+
+        // 按配置排序
+        const sortedCats = Object.keys(groups).sort((a, b) => {
+            const oa = (this._categoryConfig[a] || {}).order || 99;
+            const ob = (this._categoryConfig[b] || {}).order || 99;
+            return oa - ob;
+        });
+
+        // 渲染各分组
+        let html = '';
+        for (const cat of sortedCats) {
+            const cfg = this._categoryConfig[cat] || { label: cat, order: 99, collapsed: true };
+            const items = groups[cat];
+            const isCollapsed = cfg.collapsed;
+
+            html += `
+                <div class="home-group" data-category="${cat}">
+                    <div class="home-group__header${isCollapsed ? ' home-group__header--collapsed' : ''}"
+                         data-toggle-group="${cat}">
+                        <span class="home-group__label">${cfg.label}</span>
+                        <span class="home-group__count">${items.length}</span>
+                        <svg class="home-group__chevron" width="16" height="16" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                    <div class="home-group__grid${isCollapsed ? ' home-group__grid--collapsed' : ''}">
+                        ${items.map(app => {
+                            const icon = this._appIcons[app.id] || `<span class="home-app-card__emoji">${app.icon}</span>`;
+                            return `
+                                <div class="home-app-card" data-app-id="${app.id}" data-app-url="${app.url}">
+                                    <div class="tool-icon">${icon}</div>
+                                    <div class="tool-name">${app.name}</div>
+                                    <div class="tool-desc">${app.description}</div>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+        }
+        grid.innerHTML = html;
+
+        // 绑定折叠切换事件
+        grid.querySelectorAll('[data-toggle-group]').forEach(header => {
+            header.addEventListener('click', () => {
+                const groupEl = header.closest('.home-group');
+                const gridEl = groupEl.querySelector('.home-group__grid');
+                const isNowCollapsed = header.classList.toggle('home-group__header--collapsed');
+                gridEl.classList.toggle('home-group__grid--collapsed', isNowCollapsed);
+            });
+        });
     },
 
     /* ---------- 消息区域 ---------- */
