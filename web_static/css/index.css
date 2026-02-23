@@ -424,6 +424,54 @@ p, span, div, li, label {
     box-shadow: none;
 }
 
+/* ── 按鈕加載態 ── */
+.login-button.is-loading {
+    background: var(--brand);
+    color: transparent;
+    pointer-events: none;
+    position: relative;
+    box-shadow: var(--glass-btn-shadow);
+    overflow: hidden;
+}
+
+.login-button.is-loading::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.18) 40%,
+        rgba(255, 255, 255, 0.18) 60%,
+        transparent 100%
+    );
+    animation: btnShimmer 1.4s var(--ease-out) infinite;
+}
+
+.login-button.is-loading::after {
+    content: '驗證中';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-on-brand);
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    animation: btnTextPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes btnShimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes btnTextPulse {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1; }
+}
+
 .login-error {
     display: none;
     margin-top: var(--space-3);
@@ -438,55 +486,16 @@ p, span, div, li, label {
 .login-loading {
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, 0.85);
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    background: transparent;
     display: none;
-    justify-content: center;
-    align-items: center;
     border-radius: var(--radius-2xl);
     z-index: 20;
+    pointer-events: none;
 }
 
-/* Apple风格加载动画 - 三点渐变 */
+/* 舊三點動畫保留結構兼容（隱藏） */
 .loading-spinner {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-
-.loading-spinner::before,
-.loading-spinner::after,
-.loading-spinner span {
-    content: '';
-    width: 8px;
-    height: 8px;
-    background: var(--brand);
-    border-radius: 50%;
-    animation: pulse 1.4s ease-in-out infinite;
-}
-
-.loading-spinner::before {
-    animation-delay: 0s;
-}
-
-.loading-spinner span {
-    animation-delay: 0.2s;
-}
-
-.loading-spinner::after {
-    animation-delay: 0.4s;
-}
-
-@keyframes pulse {
-    0%, 80%, 100% {
-        opacity: 0.3;
-        transform: scale(0.8);
-    }
-    40% {
-        opacity: 1;
-        transform: scale(1);
-    }
+    display: none;
 }
 
 /* 名言區域 */

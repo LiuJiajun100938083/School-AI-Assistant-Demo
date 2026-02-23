@@ -240,7 +240,13 @@ const IndexUI = {
         const el = this.elements;
         el.loginLoading.style.display = show ? 'block' : 'none';
         el.loginButton.disabled = show;
-        el.loginButton.textContent = show ? '登录中...' : '登录';
+        if (show) {
+            el.loginButton.classList.add('is-loading');
+            el.loginButton.textContent = '';
+        } else {
+            el.loginButton.classList.remove('is-loading');
+            el.loginButton.textContent = '登入';
+        }
     },
 
     /* ---------- 主界面 ---------- */
