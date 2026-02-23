@@ -212,6 +212,51 @@ class AttendanceSessionRepository(BaseRepository):
         )
         return result is not None
 
+    def get_sessions_filtered(
+        self,
+        session_type: str = "",
+        date: str = "",
+        status: str = "active",
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """
+        按日期、状态等条件筛选场次列表 (含统计)
+
+        Args:
+            session_type: 场次类型筛选
+            date: 日期筛选 (YYYY-MM-DD)
+            status: 状态筛选 (active / completed)
+            limit: 返回数量上限
+        """
+        clauses = []
+        params: List[Any] = []
+
+        if session_type:
+            clauses.append("s.session_type = %s")
+            params.append(session_type)
+        if date:
+            clauses.append("s.session_date = %s")
+            params.append(date)
+        if status:
+            clauses.append("s.status = %s")
+            params.append(status)
+
+        where = " AND ".join(clauses) if clauses else "1=1"
+
+        return self.raw_query(
+            "SELECT s.*, "
+            "  COUNT(DISTINCT ss.user_login) as total_students, "
+            "  COUNT(DISTINCT ar.user_login) as checked_in "
+            "FROM attendance_sessions s "
+            "LEFT JOIN attendance_session_students ss ON s.id = ss.session_id "
+            "LEFT JOIN attendance_records ar ON s.id = ar.session_id "
+            f"WHERE {where} "
+            "GROUP BY s.id "
+            "ORDER BY s.created_at DESC "
+            "LIMIT %s",
+            tuple(params) + (limit,),
+        )
+
 
 # ============================================================
 # 打卡记录
@@ -284,6 +329,47 @@ class AttendanceRecordRepository(BaseRepository):
             "  planned_periods = %s, planned_minutes = %s, planned_end_time = %s "
             "WHERE id = %s",
             (planned_periods, planned_minutes, planned_end_time, record_id),
+        )
+
+    def get_detention_records(self, session_id: int) -> List[Dict[str, Any]]:
+        """
+        获取留堂场次的详细打卡记录
+
+        包含计划和实际留堂信息，以及留堂原因和签退时间，
+        用于留堂场次详情视图。
+        """
+        return self.raw_query(
+            "SELECT ar.id, ar.session_id, ar.user_login, ar.status, ar.scan_time, "
+            "  ar.planned_periods, ar.planned_minutes, ar.planned_end_time, "
+            "  ar.actual_minutes, ar.actual_periods, ar.checkout_time, "
+            "  ar.detention_reason, "
+            "  s.class_name, s.class_number, s.english_name, s.chinese_name "
+            "FROM attendance_records ar "
+            "JOIN attendance_students s ON ar.user_login = s.user_login "
+            "WHERE ar.session_id = %s "
+            "ORDER BY s.class_name, s.class_number",
+            (session_id,),
+        )
+
+    def update_end_time(
+        self,
+        record_id: int,
+        planned_end_time: str,
+        planned_periods: int,
+    ) -> int:
+        """
+        更新打卡记录的计划结束时间和计划节次
+
+        Args:
+            record_id: 打卡记录 ID
+            planned_end_time: 计划结束时间 (HH:MM 或 HH:MM:SS)
+            planned_periods: 计划节次数
+        """
+        return self.raw_execute(
+            "UPDATE attendance_records SET "
+            "  planned_end_time = %s, planned_periods = %s "
+            "WHERE id = %s",
+            (planned_end_time, planned_periods, record_id),
         )
 
 
@@ -372,6 +458,55 @@ class DetentionHistoryRepository(BaseRepository):
             "FROM detention_history WHERE user_login = %s",
             (user_login,),
         ) or {"total_count": 0, "completed_count": 0, "total_minutes": 0}
+
+    def get_history_filtered(
+        self,
+        user_login: str = "",
+        start_date: str = "",
+        end_date: str = "",
+        completed: Optional[bool] = None,
+        limit: int = 200,
+    ) -> List[Dict[str, Any]]:
+        """
+        按日期范围和完成状态筛选留堂历史
+
+        Args:
+            user_login: 学生登录名筛选
+            start_date: 起始日期 (YYYY-MM-DD)
+            end_date: 截止日期 (YYYY-MM-DD)
+            completed: 是否已完成筛选 (None 表示不筛选)
+            limit: 返回数量上限
+        """
+        clauses = []
+        params: List[Any] = []
+
+        if user_login:
+            clauses.append("dh.user_login = %s")
+            params.append(user_login)
+        if start_date:
+            clauses.append("dh.detention_date >= %s")
+            params.append(start_date)
+        if end_date:
+            clauses.append("dh.detention_date <= %s")
+            params.append(end_date)
+        if completed is not None:
+            clauses.append("dh.completed = %s")
+            params.append(completed)
+
+        where = " AND ".join(clauses) if clauses else "1=1"
+
+        return self.raw_query(
+            "SELECT dh.*, s.english_name, s.chinese_name, s.class_name, s.class_number, "
+            "  ar.planned_minutes, ar.actual_minutes, ar.planned_periods, ar.actual_periods "
+            "FROM detention_history dh "
+            "JOIN attendance_students s ON dh.user_login = s.user_login "
+            "LEFT JOIN attendance_records ar ON dh.session_id = ar.session_id "
+            "  AND dh.user_login = ar.user_login "
+            f"WHERE {where} "
+            "ORDER BY dh.detention_date DESC "
+            "LIMIT %s",
+            tuple(params) + (limit,),
+        )
 
 
 # ============================================================
@@ -470,6 +605,51 @@ class FixedListRepository(BaseRepository):
         )
         return [r["user_login"] for r in rows]
 
+    def update_list(
+        self,
+        list_id: int,
+        list_name: str,
+        list_type: str,
+        user_logins: List[str],
+    ) -> bool:
+        """
+        更新固定名单 (名称、类型、学生列表)
+
+        在事务中: 更新名单基本信息 -> 清除旧学生 -> 插入新学生。
+
+        Args:
+            list_id: 名单 ID
+            list_name: 名单名称
+            list_type: 名单类型
+            user_logins: 学生登录名列表
+        Returns:
+            是否更新成功
+        """
+        with self.transaction() as conn:
+            cursor = conn.cursor()
+
+            # 更新名单基本信息
+            cursor.execute(
+                "UPDATE attendance_fixed_lists SET "
+                "  list_name = %s, list_type = %s, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = %s",
+                (list_name, list_type, list_id),
+            )
+
+            # 清除旧学生并添加新学生
+            cursor.execute(
+                "DELETE FROM attendance_fixed_list_students WHERE list_id = %s",
+                (list_id,),
+            )
+            if user_logins:
+                cursor.executemany(
+                    "INSERT INTO attendance_fixed_list_students "
+                    "(list_id, user_login) VALUES (%s, %s)",
+                    [(list_id, login) for login in user_logins],
+                )
+
+            return True
+
 
 # ============================================================
 # 活动考勤
@@ -528,6 +708,47 @@ class ActivityGroupRepository(BaseRepository):
             cursor.execute("DELETE FROM activity_groups WHERE id = %s", (group_id,))
             return cursor.rowcount
 
+    def update_group(
+        self,
+        group_id: int,
+        name: str,
+        user_logins: List[str],
+    ) -> bool:
+        """
+        更新活动分组 (名称和学生列表)
+
+        在事务中: 更新分组名称 -> 清除旧学生 -> 插入新学生。
+
+        Args:
+            group_id: 分组 ID
+            name: 分组名称
+            user_logins: 学生登录名列表
+        Returns:
+            是否更新成功
+        """
+        with self.transaction() as conn:
+            cursor = conn.cursor()
+
+            # 更新分组名称
+            cursor.execute(
+                "UPDATE activity_groups SET name = %s WHERE id = %s",
+                (name, group_id),
+            )
+
+            # 清除旧学生并添加新学生
+            cursor.execute(
+                "DELETE FROM activity_group_students WHERE group_id = %s",
+                (group_id,),
+            )
+            if user_logins:
+                cursor.executemany(
+                    "INSERT INTO activity_group_students "
+                    "(group_id, user_login) VALUES (%s, %s)",
+                    [(group_id, login) for login in user_logins],
+                )
+
+            return True
+
 
 class ActivitySessionRepository(BaseRepository):
     """活动场次数据"""
@@ -578,6 +799,84 @@ class ActivitySessionRepository(BaseRepository):
                 (session_id,),
             )
             return cursor.rowcount
+
+    def activity_checkin(
+        self,
+        session_id: int,
+        user_login: str,
+        card_id: str,
+        status: str,
+        late_minutes: int,
+    ) -> int:
+        """
+        活动签到
+
+        更新 activity_records 中的签到状态。
+
+        Args:
+            session_id: 活动场次 ID
+            user_login: 学生登录名
+            card_id: 刷卡卡号
+            status: 签到状态 (on_time / late)
+            late_minutes: 迟到分钟数
+        Returns:
+            影响行数
+        """
+        return self.raw_execute(
+            "UPDATE activity_records SET "
+            "  check_in_status = %s, check_in_time = NOW(), "
+            "  card_id = %s, late_minutes = %s "
+            "WHERE session_id = %s AND user_login = %s",
+            (status, card_id, late_minutes, session_id, user_login),
+        )
+
+    def activity_checkout(
+        self,
+        session_id: int,
+        user_login: str,
+        status: str,
+        early_minutes: int,
+    ) -> int:
+        """
+        活动签退
+
+        更新 activity_records 中的签退状态。
+
+        Args:
+            session_id: 活动场次 ID
+            user_login: 学生登录名
+            status: 签退状态 (normal / early_leave)
+            early_minutes: 早退分钟数
+        Returns:
+            影响行数
+        """
+        return self.raw_execute(
+            "UPDATE activity_records SET "
+            "  check_out_status = %s, check_out_time = NOW(), "
+            "  early_minutes = %s "
+            "WHERE session_id = %s AND user_login = %s",
+            (status, early_minutes, session_id, user_login),
+        )
+
+    def get_activity_record(
+        self,
+        session_id: int,
+        user_login: str,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取单条活动打卡记录
+
+        Args:
+            session_id: 活动场次 ID
+            user_login: 学生登录名
+        Returns:
+            记录字典或 None
+        """
+        return self.raw_query_one(
+            "SELECT * FROM activity_records "
+            "WHERE session_id = %s AND user_login = %s",
+            (session_id, user_login),
+        )
 
 
 # ============================================================

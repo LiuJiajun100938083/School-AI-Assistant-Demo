@@ -13,7 +13,7 @@
 
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.config.settings import Settings, get_settings
@@ -21,6 +21,21 @@ from app.core.exceptions import (
     ConflictError,
     NotFoundError,
     ValidationError,
+)
+from app.domains.attendance.constants import (
+    MINUTES_PER_PERIOD,
+    MAX_PERIODS,
+    MAX_PLANNED_MINUTES,
+    DEFAULT_MORNING_TARGET,
+    DEFAULT_LATE_THRESHOLD,
+    DEFAULT_DETENTION_START,
+    DEFAULT_ACTIVITY_LATE_THRESHOLD,
+    DEFAULT_ACTIVITY_EARLY_THRESHOLD,
+    ActivityCheckinStatus,
+    ActivityCheckoutStatus,
+    AttendanceStatus,
+    DetentionReason,
+    SessionType,
 )
 from app.domains.attendance.repository import (
     ActivityGroupRepository,
@@ -34,16 +49,6 @@ from app.domains.attendance.repository import (
 )
 
 logger = logging.getLogger(__name__)
-
-# ===== 常量 ===== #
-MINUTES_PER_PERIOD = 35
-MAX_PERIODS = 3
-MAX_PLANNED_MINUTES = 180
-
-# 默认时间配置
-DEFAULT_MORNING_TARGET = "07:30"
-DEFAULT_LATE_THRESHOLD = "07:40"
-DEFAULT_DETENTION_START = "15:30"
 
 
 class AttendanceService:
@@ -157,7 +162,7 @@ class AttendanceService:
             dict: {session_id, session_type, target_time, student_count}
         """
         session_id = self._session.create_session({
-            "session_type": "morning",
+            "session_type": SessionType.MORNING,
             "session_date": datetime.now().strftime("%Y-%m-%d"),
             "target_time": target_time,
             "late_threshold": late_threshold,
@@ -172,7 +177,7 @@ class AttendanceService:
         logger.info("早读会话创建: id=%s, students=%d", session_id, len(student_logins))
         return {
             "session_id": session_id,
-            "session_type": "morning",
+            "session_type": SessionType.MORNING,
             "target_time": target_time,
             "student_count": len(student_logins),
         }
@@ -289,7 +294,7 @@ class AttendanceService:
             dict: {session_id, session_type, student_count}
         """
         session_id = self._session.create_session({
-            "session_type": "detention",
+            "session_type": SessionType.DETENTION,
             "session_date": datetime.now().strftime("%Y-%m-%d"),
             "target_time": DEFAULT_DETENTION_START,
             "status": "active",
@@ -306,7 +311,7 @@ class AttendanceService:
         logger.info("留堂会话创建: id=%s, students=%d", session_id, len(student_logins))
         return {
             "session_id": session_id,
-            "session_type": "detention",
+            "session_type": SessionType.DETENTION,
             "student_count": len(student_logins),
         }
 
@@ -352,7 +357,7 @@ class AttendanceService:
             "user_login": login,
             "card_id": card_id or "MANUAL",
             "scan_time": scan_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "status": "detention_active",
+            "status": AttendanceStatus.DETENTION_ACTIVE,
             "planned_periods": actual_periods,
             "planned_minutes": planned_minutes,
             "planned_end_time": planned_end_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -364,7 +369,7 @@ class AttendanceService:
         )
         return {
             "student": student,
-            "status": "detention_active",
+            "status": AttendanceStatus.DETENTION_ACTIVE,
             "planned_end_time": planned_end_time.strftime("%H:%M:%S"),
             "duration_minutes": duration_minutes,
             "planned_periods": actual_periods,
@@ -412,7 +417,7 @@ class AttendanceService:
             actual_minutes, actual_periods, planned_minutes, planned_periods,
         )
 
-        status = "detention_completed" if is_completed else "detention_incomplete"
+        status = AttendanceStatus.DETENTION_COMPLETED if is_completed else "detention_incomplete"
 
         # 更新记录
         self._record.checkout(
@@ -481,14 +486,14 @@ class AttendanceService:
                 "options": options,
             }
 
-        if record.get("status") == "detention_completed":
+        if record.get("status") == AttendanceStatus.DETENTION_COMPLETED:
             return {
                 "action": "already_completed",
                 "student": student,
                 "message": "该学生已完成留堂",
             }
 
-        if record.get("status") == "detention_active":
+        if record.get("status") == AttendanceStatus.DETENTION_ACTIVE:
             # 已签到 → 自动签退
             result = self.detention_checkout(session_id, card_id=card_id)
             result["action"] = "checkout"
@@ -539,6 +544,118 @@ class AttendanceService:
             "planned_periods": actual_periods,
             "planned_minutes": new_minutes or duration_minutes,
             "planned_end_time": planned_end_time.strftime("%H:%M:%S"),
+        }
+
+    def modify_detention_end_time(
+        self,
+        session_id: int,
+        user_login: str,
+        new_end_time: str,
+    ) -> Dict[str, Any]:
+        """
+        直接设置留堂记录的新结束时间
+
+        Args:
+            session_id: 会话 ID
+            user_login: 学生登录名
+            new_end_time: 新结束时间 (HH:MM 格式)
+
+        Returns:
+            dict: {new_end_time, planned_periods, duration_minutes}
+
+        Raises:
+            NotFoundError: 签到记录不存在
+            ValidationError: 参数无效或留堂已完成
+        """
+        record = self._record.find_record(session_id, user_login)
+        if not record:
+            raise NotFoundError("签到记录", f"session={session_id}, user={user_login}")
+
+        if record.get("status") == AttendanceStatus.DETENTION_COMPLETED:
+            raise ValidationError("该留堂记录已完成，无法修改结束时间")
+
+        # 解析新结束时间
+        try:
+            parts = new_end_time.split(":")
+            end_hour, end_minute = int(parts[0]), int(parts[1])
+            end_time_obj = time(end_hour, end_minute)
+        except (ValueError, IndexError):
+            raise ValidationError(f"无效的时间格式: {new_end_time}，请使用 HH:MM")
+
+        # 解析签到时间
+        scan_time = record["scan_time"]
+        if isinstance(scan_time, str):
+            scan_time = datetime.strptime(scan_time, "%Y-%m-%d %H:%M:%S")
+
+        # 组合新结束时间 (使用签到日期 + 新结束时间)
+        new_end_datetime = datetime.combine(scan_time.date(), end_time_obj)
+
+        # 验证新结束时间 > 签到时间
+        if new_end_datetime <= scan_time:
+            raise ValidationError("新结束时间必须晚于签到时间")
+
+        # 计算时长和节数
+        duration_minutes = int((new_end_datetime - scan_time).total_seconds() / 60)
+        planned_periods = max(1, (duration_minutes + MINUTES_PER_PERIOD - 1) // MINUTES_PER_PERIOD)
+
+        # 更新记录
+        self._record.update_end_time(
+            record_id=record["id"],
+            planned_end_time=new_end_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+            planned_periods=planned_periods,
+        )
+
+        logger.info(
+            "留堂结束时间修改: session=%d, user=%s, new_end=%s",
+            session_id, user_login, new_end_time,
+        )
+        return {
+            "new_end_time": new_end_datetime.strftime("%H:%M"),
+            "planned_periods": planned_periods,
+            "duration_minutes": duration_minutes,
+        }
+
+    def get_detention_session_detail(self, session_id: int) -> Dict[str, Any]:
+        """
+        获取留堂会话详情（含剩余时间计算）
+
+        Returns:
+            dict: {session, students, stats}
+        """
+        session = self._session.get_session(session_id)
+        if not session:
+            raise NotFoundError("签到会话", session_id)
+
+        records = self._record.get_detention_records(session_id)
+        now = datetime.now()
+
+        # 为每条活跃记录计算剩余时间
+        for record in records:
+            if record.get("status") == AttendanceStatus.DETENTION_ACTIVE and record.get("planned_end_time"):
+                planned_end = record["planned_end_time"]
+                if isinstance(planned_end, str):
+                    planned_end = datetime.strptime(planned_end, "%Y-%m-%d %H:%M:%S")
+
+                remaining_seconds = max(0, (planned_end - now).total_seconds())
+                record["remaining_seconds"] = remaining_seconds
+                record["remaining_display"] = self.format_remaining_time(remaining_seconds)
+            else:
+                record["remaining_seconds"] = 0
+                record["remaining_display"] = ""
+
+        # 统计
+        total = len(records)
+        active = sum(1 for r in records if r.get("status") == AttendanceStatus.DETENTION_ACTIVE)
+        completed = sum(1 for r in records if r.get("status") == AttendanceStatus.DETENTION_COMPLETED)
+
+        return {
+            "session": session,
+            "students": records,
+            "stats": {
+                "total": total,
+                "active": active,
+                "completed": completed,
+            },
         }
 
     # ================================================================== #
@@ -611,6 +728,175 @@ class AttendanceService:
             "scan_time": scan_time.strftime("%H:%M:%S"),
         }
 
+    def activity_checkin(
+        self,
+        session_id: int,
+        card_id: str = None,
+        user_login: str = None,
+        scan_time: datetime = None,
+    ) -> Dict[str, Any]:
+        """
+        课外活动签到（自动判断签到/签退）
+
+        Args:
+            session_id: 活动会话 ID
+            card_id: 学生卡号
+            user_login: 学生登录名
+            scan_time: 签到时间
+
+        Returns:
+            dict: {action, student, is_late/is_early, ...}
+        """
+        if not scan_time:
+            scan_time = datetime.now()
+
+        student = self._find_student(card_id, user_login)
+        login = student.get("user_login")
+
+        session = self._activity_session.get_session_detail(session_id)
+        if not session:
+            raise NotFoundError("活动会话", session_id)
+        if session.get("status") != "active":
+            raise ValidationError("该活动会话已结束")
+
+        # 获取活动记录
+        record = self._activity_session.get_activity_record(session_id, login)
+        if not record:
+            raise NotFoundError("活动记录", f"session={session_id}, user={login}")
+
+        if record.get("check_in_status") == ActivityCheckinStatus.NOT_ARRIVED:
+            # ---- 签到 ----
+            start_time_raw = session.get("start_time")
+            if isinstance(start_time_raw, timedelta):
+                # timedelta 转为当天的 datetime
+                start_dt = datetime.combine(scan_time.date(), time(0, 0)) + start_time_raw
+            elif isinstance(start_time_raw, str) and start_time_raw:
+                parts = start_time_raw.split(":")
+                start_dt = scan_time.replace(
+                    hour=int(parts[0]), minute=int(parts[1]),
+                    second=int(parts[2]) if len(parts) > 2 else 0,
+                    microsecond=0,
+                )
+            else:
+                start_dt = scan_time
+
+            late_threshold = session.get("late_threshold", 10)
+            late_deadline = start_dt + timedelta(minutes=late_threshold)
+
+            if scan_time > late_deadline:
+                status = ActivityCheckinStatus.LATE
+                late_minutes = int((scan_time - start_dt).total_seconds() / 60)
+            else:
+                status = ActivityCheckinStatus.ON_TIME
+                late_minutes = 0
+
+            self._activity_session.activity_checkin(
+                session_id, login, card_id or "MANUAL", status, late_minutes,
+            )
+
+            return {
+                "action": "checkin",
+                "student": student,
+                "is_late": status == ActivityCheckinStatus.LATE,
+                "late_minutes": late_minutes,
+                "time": scan_time.strftime("%H:%M:%S"),
+            }
+        else:
+            # ---- 已签到 → 执行签退 ----
+            result = self.activity_checkout(session_id, user_login=login)
+            result["action"] = "checkout"
+            return result
+
+    def activity_checkout(
+        self,
+        session_id: int,
+        user_login: str,
+        checkout_time: datetime = None,
+    ) -> Dict[str, Any]:
+        """
+        课外活动签退
+
+        Args:
+            session_id: 活动会话 ID
+            user_login: 学生登录名
+            checkout_time: 签退时间
+
+        Returns:
+            dict: {action, student, is_early, early_minutes, time}
+
+        Raises:
+            NotFoundError: 活动记录不存在
+            ValidationError: 尚未签到
+        """
+        if not checkout_time:
+            checkout_time = datetime.now()
+
+        student = self._student.find_by_login(user_login)
+        if not student:
+            raise NotFoundError("学生（登录名）", user_login)
+
+        session = self._activity_session.get_session_detail(session_id)
+        if not session:
+            raise NotFoundError("活动会话", session_id)
+
+        record = self._activity_session.get_activity_record(session_id, user_login)
+        if not record or record.get("check_in_status") == ActivityCheckinStatus.NOT_ARRIVED:
+            raise ValidationError("该学生尚未签到，无法签退")
+
+        # 解析活动结束时间
+        end_time_raw = session.get("end_time")
+        if isinstance(end_time_raw, timedelta):
+            end_dt = datetime.combine(checkout_time.date(), time(0, 0)) + end_time_raw
+        elif isinstance(end_time_raw, str) and end_time_raw:
+            parts = end_time_raw.split(":")
+            end_dt = checkout_time.replace(
+                hour=int(parts[0]), minute=int(parts[1]),
+                second=int(parts[2]) if len(parts) > 2 else 0,
+                microsecond=0,
+            )
+        else:
+            end_dt = checkout_time
+
+        early_threshold = session.get("early_threshold", 10)
+        early_deadline = end_dt - timedelta(minutes=early_threshold)
+
+        if checkout_time < early_deadline:
+            status = ActivityCheckoutStatus.EARLY
+            early_minutes = int((end_dt - checkout_time).total_seconds() / 60)
+        else:
+            status = ActivityCheckoutStatus.NORMAL
+            early_minutes = 0
+
+        self._activity_session.activity_checkout(
+            session_id, user_login, status, early_minutes,
+        )
+
+        logger.info(
+            "活动签退: session=%d, user=%s, status=%s, early=%d min",
+            session_id, user_login, status, early_minutes,
+        )
+        return {
+            "action": "checkout",
+            "student": student,
+            "is_early": status == ActivityCheckoutStatus.EARLY,
+            "early_minutes": early_minutes,
+            "time": checkout_time.strftime("%H:%M:%S"),
+        }
+
+    def end_activity_session(self, session_id: int) -> bool:
+        """
+        结束课外活动会话
+
+        Args:
+            session_id: 活动会话 ID
+
+        Returns:
+            True
+        """
+        self._activity_session.end_session(session_id)
+        logger.info("活动会话已结束: %d", session_id)
+        return True
+
     # ================================================================== #
     #  Part 5: 固定名单管理                                                #
     # ================================================================== #
@@ -623,7 +909,7 @@ class AttendanceService:
         created_by: str = "system",
     ) -> Optional[int]:
         """创建固定名单"""
-        if list_type not in ("morning", "detention"):
+        if list_type not in SessionType.ALL:
             raise ValidationError(f"无效名单类型: {list_type}")
         return self._fixed_list.create_list(
             list_name, list_type, created_by, student_logins,
@@ -645,6 +931,37 @@ class AttendanceService:
         self._fixed_list.delete_list(list_id)
         return True
 
+    def update_fixed_list(
+        self,
+        list_id: int,
+        list_name: str,
+        list_type: str,
+        student_logins: List[str],
+    ) -> Dict[str, Any]:
+        """
+        更新固定名单
+
+        Args:
+            list_id: 名单 ID
+            list_name: 名单名称
+            list_type: 名单类型 (morning / detention)
+            student_logins: 学生登录名列表
+
+        Returns:
+            dict: {list_id, list_name, list_type, student_count}
+        """
+        if list_type not in SessionType.ALL:
+            raise ValidationError(f"无效名单类型: {list_type}")
+
+        self._fixed_list.update_list(list_id, list_name, list_type, student_logins)
+        logger.info("固定名单更新: id=%d, name=%s, students=%d", list_id, list_name, len(student_logins))
+        return {
+            "list_id": list_id,
+            "list_name": list_name,
+            "list_type": list_type,
+            "student_count": len(student_logins),
+        }
+
     # ================================================================== #
     #  Part 6: 活动组别管理                                                #
     # ================================================================== #
@@ -653,9 +970,10 @@ class AttendanceService:
         self,
         group_name: str,
         student_logins: List[str],
+        created_by: str = "",
     ) -> Optional[int]:
         """创建活动组别"""
-        return self._activity_group.create_group(group_name, student_logins)
+        return self._activity_group.create_group(group_name, created_by, student_logins)
 
     def list_activity_groups(self) -> List[Dict[str, Any]]:
         """获取活动组别列表"""
@@ -672,6 +990,31 @@ class AttendanceService:
         """删除活动组别"""
         self._activity_group.delete_group(group_id)
         return True
+
+    def update_activity_group(
+        self,
+        group_id: int,
+        group_name: str,
+        student_logins: List[str],
+    ) -> Dict[str, Any]:
+        """
+        更新活动组别
+
+        Args:
+            group_id: 分组 ID
+            group_name: 分组名称
+            student_logins: 学生登录名列表
+
+        Returns:
+            dict: {group_id, group_name, student_count}
+        """
+        self._activity_group.update_group(group_id, group_name, student_logins)
+        logger.info("活动组别更新: id=%d, name=%s, students=%d", group_id, group_name, len(student_logins))
+        return {
+            "group_id": group_id,
+            "group_name": group_name,
+            "student_count": len(student_logins),
+        }
 
     # ================================================================== #
     #  Part 7: 查询 & 统计                                                 #
@@ -736,6 +1079,67 @@ class AttendanceService:
     ) -> List[Dict[str, Any]]:
         """获取签到会话列表"""
         return self._session.list_sessions(session_type, limit)
+
+    def get_sessions_filtered(
+        self,
+        session_type: str = None,
+        date: str = None,
+        status: str = "active",
+    ) -> List[Dict[str, Any]]:
+        """
+        按日期、状态等条件获取签到会话列表
+
+        Args:
+            session_type: 会话类型 (morning / detention / activity)
+            date: 日期筛选 (YYYY-MM-DD)
+            status: 状态筛选 (active / completed)
+
+        Returns:
+            list: 签到会话列表
+        """
+        return self._session.get_sessions_filtered(
+            session_type=session_type or "",
+            date=date or "",
+            status=status or "",
+        )
+
+    def get_detention_history_filtered(
+        self,
+        user_login: str = None,
+        start_date: str = None,
+        end_date: str = None,
+        completed: bool = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        按日期范围和完成状态查询留堂历史
+
+        Args:
+            user_login: 学生登录名
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            completed: 是否已完成 (True/False/None=全部)
+
+        Returns:
+            list: 留堂历史列表
+        """
+        return self._detention.get_history_filtered(
+            user_login=user_login or "",
+            start_date=start_date or "",
+            end_date=end_date or "",
+            completed=completed,
+        )
+
+    def init_tables(self) -> None:
+        """
+        初始化考勤相关数据库表
+
+        委托给 init_attendance_tables() 函数（DDL 操作）。
+        注意：该函数定义在路由模块中（使用旧的 get_db() 模式），
+        由路由层的 startup 事件直接调用，此方法仅作为 Service 层的兼容入口。
+        """
+        from app.routers.attendance import init_attendance_tables
+        init_attendance_tables()
+        logger.info("考勤数据库表初始化完成")
 
     # ================================================================== #
     #  Part 8: 导出管理                                                    #
@@ -833,13 +1237,13 @@ class AttendanceService:
         late_hm = int(l_parts[0]) * 60 + int(l_parts[1])
 
         if scan_hm <= target_hm:
-            return "present", 0, 0
+            return AttendanceStatus.PRESENT, 0, 0
         elif scan_hm <= late_hm:
             late_minutes = scan_hm - target_hm
-            return "late", late_minutes, late_minutes
+            return AttendanceStatus.LATE, late_minutes, late_minutes
         else:
             late_minutes = scan_hm - target_hm
-            return "very_late", late_minutes, MINUTES_PER_PERIOD
+            return AttendanceStatus.VERY_LATE, late_minutes, MINUTES_PER_PERIOD
 
     @staticmethod
     def _calc_detention_plan(
