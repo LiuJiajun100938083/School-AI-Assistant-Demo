@@ -909,21 +909,21 @@
 
     /** Force simulation layout configuration */
     const LAYOUT_CONFIG = {
-        defaultCollapseDepth: 1,              // 默认只展示 root + L1
+        defaultCollapseDepth: 2,              // 默认展示 root + L1 + L2
         animationDuration: 600,               // 展开/收起动画时长 ms
-        lodLabelThreshold: 1.1,               // zoom < this → hide L2+ labels
+        lodLabelThreshold: 0.85,              // zoom < this → hide L2+ labels
         lodCrossLinkThreshold: 1.5,           // zoom > this → show cross-links
         // Force parameters (auto-tuned by node count in buildForceSimulation)
         collisionPadding: 16,                 // forceCollide: radius + padding
         collisionIterations: 6,               // collision iterations
-        chargeStrength: -320,                 // forceManyBody base strength
-        radialStrengths: [0, 0.35, 0.25, 0.18],  // soft radial constraint per depth
-        radialRadii: [0, 220, 400, 560],      // target ring radii per depth
-        linkDistance: 100,                     // forceLink base distance
+        chargeStrength: -380,                 // forceManyBody base strength (stronger for more nodes)
+        radialStrengths: [0, 0.30, 0.22, 0.15],  // soft radial constraint per depth
+        radialRadii: [0, 260, 460, 640],      // target ring radii per depth (wider for L2 default)
+        linkDistance: 110,                    // forceLink base distance
         linkStrength: 0.3,                    // forceLink strength
         velocityDecay: 0.45,                  // higher = faster settle (0-1)
         alphaDecay: 0.03,                     // how fast simulation cools
-        clusterOrbitRadius: 60,               // child orbit radius around parent
+        clusterOrbitRadius: 70,               // child orbit radius around parent
         clusterStrength: 0.06,                // forceX/Y pull toward parent
     };
 
@@ -1507,7 +1507,7 @@
         svg.call(zoom);
 
         // Center view
-        const initialTransform = d3.zoomIdentity.translate(cx, cy).scale(0.8);
+        const initialTransform = d3.zoomIdentity.translate(cx, cy).scale(0.65);
         svg.call(zoom.transform, initialTransform);
 
         function applyLOD(scale) {
@@ -2002,7 +2002,7 @@
                 const h = svgElement ? svgElement.clientHeight || 600 : 600;
                 svg.transition().duration(750).call(
                     zoom.transform,
-                    d3.zoomIdentity.translate(w / 2, h / 2).scale(0.8)
+                    d3.zoomIdentity.translate(w / 2, h / 2).scale(0.65)
                 );
             });
         }
@@ -2559,11 +2559,21 @@
         const messagesEl = getElement('aiMessages');
         if (messagesEl) {
             messagesEl.addEventListener('click', (e) => {
+                // 页码跳转
                 const pageRef = e.target.closest('.alc-page-ref, .alc-page-ref-btn');
                 if (pageRef) {
                     const page = parseInt(pageRef.dataset.page, 10);
                     if (!isNaN(page)) {
                         navigatePdfToPage(page);
+                    }
+                    return;
+                }
+                // 知识图谱节点芯片点击
+                const kgChip = e.target.closest('.alc-kg-node-chip');
+                if (kgChip) {
+                    const nodeId = parseInt(kgChip.dataset.nodeId, 10);
+                    if (!isNaN(nodeId)) {
+                        navigateToKnowledgeNode(nodeId);
                     }
                 }
             });
@@ -2710,6 +2720,35 @@
         });
     }
 
+    /**
+     * 从 AI 回答中点击知识节点芯片 → 导航到知识图谱并高亮该节点。
+     */
+    async function navigateToKnowledgeNode(nodeId) {
+        // 1. 确保知识图谱 tab 已加载
+        if (currentTab !== 'map') {
+            await switchTab('map');
+            // switchTab 内部会 loadKnowledgeMap()（若首次）
+            await new Promise(r => setTimeout(r, 600));
+        }
+
+        // 2. 在 state.nodes 中找到该节点
+        const node = state.nodes.find(n => n.id === nodeId || n.id == nodeId);
+        if (!node) {
+            showToast('未找到该知识节点', 'warning');
+            return;
+        }
+
+        // 3. 用搜索功能来展开祖先 + 高亮 + 自动平移
+        const mapSearchInput = getElement('mapSearchInput');
+        if (mapSearchInput) {
+            mapSearchInput.value = node.title;
+            mapSearchInput.dispatchEvent(new Event('input'));
+        }
+
+        // 4. 弹出右侧详情面板
+        setTimeout(() => showNodeDetail(node), 800);
+    }
+
     async function sendAiQuestion() {
         const inputBox = getElement('aiInputBox');
         if (!inputBox || !inputBox.value.trim()) {
@@ -2741,7 +2780,7 @@
             const resp = await apiPost(`${API_BASE}/ai-ask`, requestBody);
             const result = resp.data || resp;
             loadingEl.remove();
-            renderAiMessage('assistant', result.answer || '暂无回答', result.sources, result.page_references);
+            renderAiMessage('assistant', result.answer || '暂无回答', result.sources, result.page_references, result.related_nodes);
         } catch (error) {
             loadingEl.remove();
             renderAiMessage('assistant', '发送失败，请重试');
@@ -2751,7 +2790,7 @@
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function renderAiMessage(role, content, sources = null, pageReferences = null) {
+    function renderAiMessage(role, content, sources = null, pageReferences = null, relatedNodes = null) {
         const messagesEl = getElement('aiMessages');
         if (!messagesEl) return;
 
@@ -2798,6 +2837,20 @@
             ).join('');
             contentEl.insertAdjacentHTML('beforeend',
                 `<div class="alc-page-refs-bar"><span class="alc-page-refs-label">相关页码：</span>${btnsHtml}</div>`
+            );
+        }
+
+        // 知识图谱相关节点芯片
+        if (relatedNodes && relatedNodes.length > 0) {
+            const chipsHtml = relatedNodes.map(n =>
+                `<button class="alc-kg-node-chip" data-node-id="${n.id}" title="${escapeHtml(n.title)}">` +
+                `<span class="alc-kg-node-chip__icon">${n.icon || '📌'}</span>` +
+                `<span class="alc-kg-node-chip__title">${escapeHtml(n.title)}</span>` +
+                `</button>`
+            ).join('');
+            contentEl.insertAdjacentHTML('beforeend',
+                `<div class="alc-kg-nodes-bar">` +
+                `<span class="alc-kg-nodes-label">📍 相关知识点：</span>${chipsHtml}</div>`
             );
         }
 
@@ -4264,6 +4317,7 @@
         toggleAiWindowSize,
         toggleAdminPanel,
         navigateToContent,
+        navigateToKnowledgeNode,
         searchNodes
     };
 

@@ -882,6 +882,41 @@ class LearningCenterService:
     # AI 助手
     # ================================================================
 
+    def _build_kg_node_hint(self) -> str:
+        """构建知识图谱节点提示，供 system prompt 注入。"""
+        nodes = self._nodes.find_active()
+        if not nodes:
+            return ""
+        lines = [f"- [{n['id']}] {n['title']}" for n in nodes]
+        return (
+            "以下是知识图谱中的知识点列表（供参考，回答时可提及相关知识点名称）：\n"
+            + "\n".join(lines)
+        )
+
+    def _match_knowledge_nodes(self, answer_text: str, max_results: int = 5) -> list:
+        """从 AI 回答中匹配相关知识图谱节点（基于标题子串匹配）。"""
+        nodes = self._nodes.find_active()
+        if not nodes or not answer_text:
+            return []
+
+        matched = []
+        answer_lower = answer_text.lower()
+        for n in nodes:
+            title = (n.get("title") or "").strip()
+            if len(title) < 2:
+                continue
+            if title.lower() in answer_lower:
+                matched.append({
+                    "id": n["id"],
+                    "title": title,
+                    "icon": n.get("icon", "📌"),
+                    "color": n.get("color", "#006633"),
+                })
+
+        # 按标题长度降序（更具体的优先），截取前 max_results 个
+        matched.sort(key=lambda x: len(x["title"]), reverse=True)
+        return matched[:max_results]
+
     async def ai_ask(
         self,
         username: str,
@@ -910,6 +945,10 @@ class LearningCenterService:
         try:
             result = await self._ask_ai_func(question, context_filter)
             logger.info("AI 回答成功: 用户=%s", username)
+            # 匹配知识图谱相关节点
+            result["related_nodes"] = self._match_knowledge_nodes(
+                result.get("answer", "")
+            )
             return result
         except Exception as e:
             logger.error("AI 回答失败: %s", e)
@@ -917,6 +956,7 @@ class LearningCenterService:
                 "question": question,
                 "answer": "AI 助手暂时无法回答，请稍后再试。",
                 "context_sources": [],
+                "related_nodes": [],
             }
 
     async def _ai_ask_with_content(
@@ -1012,6 +1052,11 @@ class LearningCenterService:
                 f"如果片段不足以回答，可结合通用知识，但请注明。"
             )
 
+        # 注入知识图谱节点提示
+        kg_hint = self._build_kg_node_hint()
+        if kg_hint:
+            system_prompt += f"\n\n{kg_hint}"
+
         prompt = build_prompt_context(
             question=question,
             system_prompt=system_prompt,
@@ -1034,6 +1079,9 @@ class LearningCenterService:
             len(page_refs),
         )
 
+        # 匹配知识图谱相关节点
+        related_nodes = self._match_knowledge_nodes(answer)
+
         return {
             "question": question,
             "answer": answer,
@@ -1042,6 +1090,7 @@ class LearningCenterService:
             "content_title": content_title,
             "context_sources": [],
             "page_references": page_refs if has_pages else [],
+            "related_nodes": related_nodes,
         }
 
     async def ai_ask_stream(
