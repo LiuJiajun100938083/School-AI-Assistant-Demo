@@ -85,8 +85,24 @@ def _build_math_analysis(
     figure_section = ""
     if figure_desc:
         figure_section = f"""
-## 題目附圖描述（重要：此為圖片中的幾何圖形/座標圖的文字描述，分析時必須考慮）
+## 題目附圖（結構化幾何描述）
+
+以下是由視覺模型從題目圖片中提取的幾何圖形描述。這是一個結構化數據，包含了圖中的所有幾何元素、度量和關係。
+**分析時你必須充分利用這些信息，就像你親眼看到了圖形一樣。**
+
+```
 {figure_desc}
+```
+
+### 如何閱讀此描述：
+- **elements**: 圖中的幾何元素（點、線段、角、圓、三角形等），每個元素有類型(type)、標籤(label)、座標(coords)等屬性
+- **measurements**: 圖中標註的度量值（邊長、角度等）
+- **relationships**: 幾何關係（平行、垂直、全等、相似、中點、切線等）
+- **text_on_figure**: 圖上直接標註的文字
+- **coordinate_system**: 座標系信息（如有）
+- **overall_description**: 圖形的整體概述
+
+請在分析中引用具體的幾何元素和關係，例如「根據圖中 AB ⊥ CD，可知……」
 """
     history_section = f"\n## 學生歷史學習情況（請結合歷史薄弱點給出更有針對性的建議）\n{history}\n" if history else ""
     return f"""你是一位經驗豐富的香港數學科教師。請逐步檢查以下學生的解題過程。
@@ -107,10 +123,10 @@ def _build_math_analysis(
 ```json
 {{
   "is_correct": false,
-  "correct_answer": "完整的正確解法（逐步展示，使用 LaTeX 表示數學公式）",
+  "correct_answer": "完整的正確解法（逐步展示，使用 LaTeX 表示數學公式。如涉及幾何，請引用圖中具體元素）",
   "error_type": "計算錯誤/概念錯誤/公式記錯/邏輯跳步/粗心大意/方法錯誤",
   "first_error_step": "第一個出錯的步驟描述",
-  "error_analysis": "詳細分析錯誤原因，指出哪一步出了問題",
+  "error_analysis": "詳細分析錯誤原因，指出哪一步出了問題（如涉及幾何圖形，請結合圖中元素和關係解釋）",
   "key_insight": "這道題考查的核心數學概念",
   "improvement_tips": ["改進建議1", "改進建議2"],
   "knowledge_points": ["從知識點列表中選擇最相關的 point_code"],
@@ -122,6 +138,7 @@ def _build_math_analysis(
 注意：
 - 用繁體中文分析，數學公式用 LaTeX
 - 定位到第一個出錯的步驟
+- 如果題目包含幾何圖形描述，你必須在分析中引用圖中的具體元素（如點、線、角、圓的名稱和性質），讓學生能對照原圖理解
 - error_type 只能選：concept_error / calculation_error / careless / memory_error / logic_error / method_error
 - knowledge_points 從上方列表中選 point_code
 - 只輸出 JSON"""

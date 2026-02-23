@@ -377,42 +377,115 @@ class VisionService:
             (RecognitionSubject.MATH, RecognitionTask.QUESTION_AND_ANSWER): """
 Please recognize the math content in this image. The image contains a math problem and MAY contain the student's handwritten solution.
 
-IMPORTANT: If there is any diagram, graph, geometric figure, coordinate system, or illustration in the image, you MUST describe it in detail in the "figure_description" field. This description will be used by a text-only AI for analysis, so be thorough — include coordinates, labels, shapes, angles, measurements, and spatial relationships.
+You have TWO jobs:
+1. **OCR (text extraction)** — transcribe the question and student's answer EXACTLY as shown.
+2. **Geometry description** — if any diagram/figure exists, describe it in STRUCTURED detail so a text-only AI can fully understand it.
 
 Output in the following JSON format:
 {
   "question": "The complete math problem (use LaTeX for formulas, e.g. $x^2 + 2x + 1 = 0$)",
   "answer": "The student's handwritten solution steps ONLY if visible in the image. Use LaTeX for math expressions.",
-  "figure_description": "Detailed description of any diagram/figure in the image. Example: 'A coordinate plane showing point Q at (2,7) and point R at (6,-3). A circle appears to pass through or near these points. Point P(x,y) is marked as a general point. The figure suggests PQ^2 + PR^2 = QR^2, which means angle QPR = 90 degrees (right angle), so P lies on a circle with QR as diameter.' If no figure, write 'none'.",
+  "figure_description": {
+    "has_figure": true,
+    "figure_type": "geometry / coordinate / graph / table / other",
+    "elements": [
+      {"type": "point", "label": "A", "coords": [0, 0], "description": "vertex of triangle"},
+      {"type": "line_segment", "from": "A", "to": "B", "label": "5cm", "style": "solid"},
+      {"type": "angle", "vertex": "C", "rays": ["CA", "CB"], "degrees": 90, "label": "∠ACB"},
+      {"type": "circle", "center": "O", "radius": "r", "passes_through": ["A", "B"]},
+      {"type": "triangle", "vertices": ["A", "B", "C"], "properties": ["right-angled at C"]},
+      {"type": "line", "equation": "y = 2x + 1", "style": "dashed"},
+      {"type": "arc", "center": "O", "from_point": "A", "to_point": "B"},
+      {"type": "parallel_lines", "line1": "AB", "line2": "CD"},
+      {"type": "perpendicular", "line1": "AB", "line2": "CD", "at_point": "E"}
+    ],
+    "measurements": [
+      {"what": "AB", "value": "5cm"},
+      {"what": "∠ABC", "value": "60°"},
+      {"what": "area of △ABC", "value": "12 cm²"}
+    ],
+    "relationships": [
+      "AB // CD",
+      "AB ⊥ CE",
+      "O is the midpoint of AB",
+      "△ABC ∼ △DEF",
+      "∠BAC = ∠BDC (angles in the same segment)"
+    ],
+    "text_on_figure": ["5cm", "30°", "x", "y"],
+    "coordinate_system": {
+      "has_axes": true,
+      "x_range": [-3, 8],
+      "y_range": [-5, 10],
+      "grid": true
+    },
+    "overall_description": "A concise 1-2 sentence summary of the entire figure and what it shows."
+  },
   "has_math_formula": true/false,
   "has_handwriting": true/false,
   "notes": "Any unclear parts marked with [?]"
 }
 
+⚠️ RULES FOR "question" AND "answer" FIELDS (strict OCR):
+- ONLY transcribe text PHYSICALLY VISIBLE in the image.
+- If the student has NOT written any answer, "answer" MUST be "".
+- NEVER solve the problem yourself. NEVER fabricate an answer.
+
+⚠️ RULES FOR "figure_description" (observation + reasoning allowed):
+- You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
+- Describe ALL geometric elements: points, lines, segments, rays, angles, circles, arcs, triangles, polygons, coordinate axes, curves, etc.
+- Include ALL labels, coordinates, measurements, and text annotations visible on the figure.
+- State geometric relationships you can observe OR reasonably infer: parallel, perpendicular, congruent, similar, tangent, bisector, midpoint, collinear, concyclic, etc.
+- If a coordinate system is present, specify the axis ranges, scale, and all plotted points/curves.
+- Adapt the "elements" array — only include element types that actually appear. The example above shows all possible types; use only the relevant ones.
+- If there is NO figure at all, set: "figure_description": {"has_figure": false}
+
 Important:
 - Use LaTeX notation for all math: fractions as \\frac{a}{b}, square roots as \\sqrt{x}, etc.
-- Preserve the order of solution steps
-- Recognize all numbers, operators, and geometric labels
-- figure_description is CRITICAL — describe the geometric relationships you observe
-- Output JSON only, no extra text
-
-⚠️ CRITICAL — READ THIS CAREFULLY:
-- Your job is PURE OCR (text extraction). ONLY transcribe text that is PHYSICALLY VISIBLE in the image.
-- If the student has NOT written any answer or solution, "answer" MUST be an empty string "".
-- NEVER solve the problem yourself. NEVER generate, infer, or fabricate an answer.
-- If you only see the printed question with no handwritten work, "answer" = "" and "has_handwriting" = false.
+- Output JSON only, no extra text.
 """,
 
             (RecognitionSubject.MATH, RecognitionTask.MATH_SOLUTION): """
 Please carefully recognize this math solution image. It MAY contain a student's step-by-step work.
 
-IMPORTANT: If there is any diagram, graph, geometric figure, coordinate system, or illustration in the image, you MUST describe it in detail in the "figure_description" field. Include coordinates, labels, shapes, angles, measurements, and spatial relationships. A text-only AI will use this description for analysis.
+You have TWO jobs:
+1. **OCR (text extraction)** — transcribe the question and student's solution EXACTLY as shown.
+2. **Geometry description** — if any diagram/figure exists, describe it in STRUCTURED detail so a text-only AI can fully understand it.
 
 Output in the following JSON format:
 {
   "question": "The original problem statement (use LaTeX for math)",
   "answer": "Step-by-step solution as written by the student. Separate each step with \\n. Use LaTeX for all math.",
-  "figure_description": "Detailed description of any diagram/figure. Include all labeled points, coordinates, geometric shapes, angles, lines, and their relationships. If no figure, write 'none'.",
+  "figure_description": {
+    "has_figure": true,
+    "figure_type": "geometry / coordinate / graph / table / other",
+    "elements": [
+      {"type": "point", "label": "A", "coords": [0, 0], "description": "vertex of triangle"},
+      {"type": "line_segment", "from": "A", "to": "B", "label": "5cm", "style": "solid"},
+      {"type": "angle", "vertex": "C", "rays": ["CA", "CB"], "degrees": 90, "label": "∠ACB"},
+      {"type": "circle", "center": "O", "radius": "r", "passes_through": ["A", "B"]},
+      {"type": "triangle", "vertices": ["A", "B", "C"], "properties": ["right-angled at C"]},
+      {"type": "line", "equation": "y = 2x + 1", "style": "dashed"},
+      {"type": "arc", "center": "O", "from_point": "A", "to_point": "B"},
+      {"type": "parallel_lines", "line1": "AB", "line2": "CD"},
+      {"type": "perpendicular", "line1": "AB", "line2": "CD", "at_point": "E"}
+    ],
+    "measurements": [
+      {"what": "AB", "value": "5cm"},
+      {"what": "∠ABC", "value": "60°"}
+    ],
+    "relationships": [
+      "AB // CD",
+      "O is the midpoint of AB"
+    ],
+    "text_on_figure": ["5cm", "30°", "x"],
+    "coordinate_system": {
+      "has_axes": true,
+      "x_range": [-3, 8],
+      "y_range": [-5, 10],
+      "grid": true
+    },
+    "overall_description": "A concise 1-2 sentence summary of the entire figure."
+  },
   "steps": ["Step 1: ...", "Step 2: ...", "..."],
   "final_answer": "The student's final answer",
   "has_math_formula": true,
@@ -420,13 +493,19 @@ Output in the following JSON format:
   "notes": "Unclear parts"
 }
 
-Use LaTeX for all mathematical notation. Output JSON only.
+⚠️ RULES FOR "question", "answer", "steps", "final_answer" (strict OCR):
+- ONLY transcribe text PHYSICALLY VISIBLE in the image.
+- If the student has NOT written any solution, set "answer" = "", "steps" = [], "final_answer" = "".
+- NEVER solve the problem yourself. NEVER fabricate solution steps.
 
-⚠️ CRITICAL — READ THIS CAREFULLY:
-- Your job is PURE OCR (text extraction). ONLY transcribe text that is PHYSICALLY VISIBLE in the image.
-- If the student has NOT written any solution steps, set "answer" = "", "steps" = [], "final_answer" = "".
-- NEVER solve the problem yourself. NEVER generate, infer, or fabricate solution steps.
-- If you only see the printed question with no handwritten work, leave all answer fields empty.
+⚠️ RULES FOR "figure_description" (observation + reasoning allowed):
+- You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
+- Describe ALL geometric elements with their types, labels, coordinates, and properties.
+- State geometric relationships you observe OR reasonably infer.
+- Adapt the "elements" array — only include types that actually appear.
+- If there is NO figure, set: "figure_description": {"has_figure": false}
+
+Use LaTeX for all mathematical notation. Output JSON only.
 """,
 
             # ---- 英文 ---- #
@@ -529,10 +608,9 @@ Output JSON only.
 
             data = self._safe_json_loads(json_str)
 
-            # 提取圖形描述（過濾掉 "none" 等無效值）
-            fig_desc = data.get("figure_description", "")
-            if fig_desc and fig_desc.strip().lower() in ("none", "null", "n/a", "無", ""):
-                fig_desc = ""
+            # 提取圖形描述 —— 支持結構化 JSON 對象或純文字字符串
+            fig_desc_raw = data.get("figure_description", "")
+            fig_desc = self._normalize_figure_description(fig_desc_raw)
 
             return OCRResult(
                 question_text=data.get("question", ""),
@@ -571,9 +649,8 @@ Output JSON only.
             answer = answer.replace(old, new)
             fig_desc = fig_desc.replace(old, new)
 
-        # 過濾無效的 figure_description
-        if fig_desc.strip().lower() in ("none", "null", "n/a", "無", ""):
-            fig_desc = ""
+        # 統一處理 figure_description（兼容結構化 / 純文字）
+        fig_desc = self._normalize_figure_description(fig_desc)
 
         confidence = 0.7 if (question and answer) else 0.3
 
@@ -644,6 +721,50 @@ Output JSON only.
             return m4.group(1).strip()
 
         return ""
+
+    # ================================================================
+    #  圖形描述處理
+    # ================================================================
+
+    @staticmethod
+    def _normalize_figure_description(raw) -> str:
+        """
+        將 figure_description 統一轉為字符串。
+
+        Vision 模型可能返回：
+        1. 結構化 JSON 對象（新版 prompt）→ 序列化為 JSON 字符串保存
+        2. 純文字字符串（舊版 prompt / 回退）→ 直接使用
+        3. "none" / null / 空 → 返回 ""
+        """
+        if not raw:
+            return ""
+
+        # 如果是 dict（結構化幾何描述），檢查 has_figure 再序列化
+        if isinstance(raw, dict):
+            if not raw.get("has_figure", True):
+                return ""
+            try:
+                return json.dumps(raw, ensure_ascii=False)
+            except (TypeError, ValueError):
+                return str(raw)
+
+        # 純文字字符串
+        if isinstance(raw, str):
+            stripped = raw.strip().lower()
+            if stripped in ("none", "null", "n/a", "無", "", "{}"):
+                return ""
+            # 可能是 JSON 字符串形式的結構化對象（模型偶爾如此）
+            if raw.strip().startswith("{"):
+                try:
+                    obj = json.loads(raw)
+                    if isinstance(obj, dict) and not obj.get("has_figure", True):
+                        return ""
+                    return raw.strip()
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            return raw.strip()
+
+        return str(raw) if raw else ""
 
     # ================================================================
     #  工具方法
