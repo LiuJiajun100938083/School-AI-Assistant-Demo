@@ -11,6 +11,34 @@
 
 ---
 
+## [v2.5.0] [2026-02-23] 知识图谱回归 Force Simulation 动态布局 — 可拖拽 + 软径向约束 + 碰撞防重叠
+
+### 修改
+
+- **布局引擎回归** — 从确定性 Radial Tree 回退到 D3 Force Simulation 动态力导向布局，恢复可拖拽、惯性回弹、自动重新排布的动态交互体验
+- **buildForceSimulation()** — 新建力仿真配置函数，包含:
+  - `forceLink` 层级边弹簧力（distance 100+自适应，strength 0.3）
+  - `forceManyBody` 排斥力（-320，按节点数自动缩放 60/N）
+  - `forceCollide` 硬碰撞（radius + 16px padding，6 次迭代，strength 0.9）
+  - `forceRadial` 软径向约束（按 depth 不同半径 0/220/400/560，strength 0.35/0.25/0.18）
+  - 自定义 `cluster` 力（同 L1 子节点向父节点轨道聚拢，strength 0.06）
+- **参数自动调优** — chargeStrength、linkDistance 根据可见节点数 N 自动缩放，小图更紧凑、大图更分散
+- **拖拽行为恢复** — drag start 固定 fx/fy，drag end 释放并设置 alphaTarget(0.15) 平滑回弹
+- **Hover 散射效果** — hover 节点时邻居向外散射 10-20px 高亮，其余节点淡化；hover 结束恢复
+- **Cross-links 按需显示** — 默认隐藏跨层虚线，仅在 hover 时显示 1-hop 邻居关系
+- **标签 LOD 降噪** — zoom < 1.1 隐藏 L2+ 节点文字标签，hover/选中时始终显示
+- **搜索自动展开** — 搜索匹配节点时自动展开其祖先路径，触发 rebuildSimulation 重布局
+- **删除 buildRadialTree / countVisibleDescendants** — 移除确定性径向树相关函数
+- **层级边改为 `<line>`** — 替代之前的 `<path>`，配合 tick handler 实时更新位置
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/ai_learning_center.js` | 删除 `buildRadialTree()` / `countVisibleDescendants()` + 新增 `buildForceSimulation()` + `renderKnowledgeMap()` 重写（simulation tick / drag / hover scatter）+ `searchNodes()` 兼容 rebuildSimulation + `initMapSearch()` 签名更新 + reset zoom 0.8 |
+
+---
+
 ## [v2.4.1] [2026-02-23] 知识图谱布局密度优化 — 扇区化 + 碰撞检测 + 标签降噪
 
 ### 修改
