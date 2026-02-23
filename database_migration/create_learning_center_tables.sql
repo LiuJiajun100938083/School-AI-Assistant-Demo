@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS lc_node_contents (
     node_id         INT NOT NULL,
     content_id      INT NOT NULL,
     sort_order      INT DEFAULT 0,
+    anchor          JSON DEFAULT NULL COMMENT '定位锚点 JSON',
     PRIMARY KEY (node_id, content_id),
     FOREIGN KEY (node_id) REFERENCES lc_knowledge_nodes(id) ON DELETE CASCADE,
     FOREIGN KEY (content_id) REFERENCES lc_contents(id) ON DELETE CASCADE
