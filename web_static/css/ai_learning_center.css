@@ -609,6 +609,48 @@
   user-select: none;
 }
 
+/* ── Knowledge Map: Radial Tree specific ── */
+
+.kg-ring-guide {
+  stroke: #eee;
+  stroke-width: 0.5;
+  stroke-dasharray: 4 4;
+  fill: none;
+  pointer-events: none;
+}
+
+.kg-hier-edge {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.2;
+  pointer-events: none;
+}
+
+.kg-descendant-badge circle {
+  cursor: pointer;
+}
+
+.kg-descendant-badge text {
+  fill: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* Mode toggle button */
+.alc-mode-toggle.active {
+  background-color: var(--brand, #006633);
+  color: #fff;
+  border-color: var(--brand, #006633);
+}
+
+.alc-mode-toggle.active:hover {
+  background-color: var(--brand-dark, #004d26);
+  color: #fff;
+}
+
 /* ── Knowledge Map: Tooltip ── */
 
 .kg-tooltip {

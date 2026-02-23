@@ -901,9 +901,18 @@
 
     /** Node tier configuration by depth */
     const TIER_CONFIG = {
-        0: { radius: 55, border: 4, fontSize: 15, iconSize: 28, shadow: 12, label: 'root' },
-        1: { radius: 38, border: 3, fontSize: 12, iconSize: 22, shadow: 6,  label: 'L1' },
-        2: { radius: 26, border: 2, fontSize: 10, iconSize: 16, shadow: 3,  label: 'L2' },
+        0: { radius: 50, border: 4, fontSize: 15, iconSize: 28, shadow: 12, label: 'root' },
+        1: { radius: 34, border: 3, fontSize: 12, iconSize: 20, shadow: 6,  label: 'L1' },
+        2: { radius: 22, border: 2, fontSize: 10, iconSize: 14, shadow: 3,  label: 'L2' },
+        3: { radius: 16, border: 1.5, fontSize: 9, iconSize: 12, shadow: 2, label: 'L3' },
+    };
+
+    /** Radial Tree layout configuration */
+    const LAYOUT_CONFIG = {
+        defaultCollapseDepth: 1,            // 默认只展示 root + L1
+        ringRadii: [0, 180, 340, 470, 570], // depth 0-4 各层半径
+        nodeSpacing: 1.8,                   // d3.tree separation 系数
+        animationDuration: 600,             // 展开/收起动画时长 ms
     };
 
     /** Edge color palette by relation_type */
@@ -973,10 +982,11 @@
             });
         }
 
-        // Assign tier config: depth 0 → root, 1 → L1, 2+ → L2
+        // Assign tier config: depth 0 → root, 1 → L1, 2 → L2, 3+ → L3
+        const maxTier = Math.max(...Object.keys(TIER_CONFIG).map(Number));
         nodes.forEach(n => {
             if (n._depth === Infinity) n._depth = 2; // orphans treated as L2
-            const tierKey = Math.min(n._depth, 2);
+            const tierKey = Math.min(n._depth, maxTier);
             n._tierCfg = TIER_CONFIG[tierKey];
             n._children = childrenMap.get(n.id) || [];
             n._collapsed = false;
@@ -1009,6 +1019,124 @@
         return text.length > maxLen ? text.substring(0, maxLen) + '...' : text;
     }
 
+    /**
+     * Build a radial tree layout using d3.tree for angle allocation
+     * and fixed ring radii for depth positioning.
+     *
+     * Creates a virtual super-root connecting all real root nodes,
+     * then projects the tree into polar coordinates.
+     *
+     * @param {Array} nodes - All graph nodes (with _depth, _collapsed, _visible set)
+     * @param {Map} childrenMap - Map<nodeId, [childId, ...]>
+     * @returns {{ treeRoot: Object, layoutMap: Map }} layoutMap maps nodeId → {x, y, angle, radius}
+     */
+    function buildRadialTree(nodes, childrenMap) {
+        const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
+        // Find real root nodes (depth 0)
+        const realRoots = nodes.filter(n => n._depth === 0);
+
+        // Build hierarchy data for d3.hierarchy
+        function buildChildren(nodeId) {
+            const node = nodeMap.get(nodeId);
+            if (!node) return null;
+            // If collapsed or not visible, don't expand children
+            if (node._collapsed) return [];
+            const kids = (childrenMap.get(nodeId) || [])
+                .filter(cId => {
+                    const c = nodeMap.get(cId);
+                    return c && c._visible;
+                });
+            return kids.map(cId => ({
+                id: cId,
+                _nodeRef: nodeMap.get(cId),
+                children: buildChildren(cId)
+            }));
+        }
+
+        // Virtual super-root
+        const hierarchyData = {
+            id: '__super_root__',
+            _nodeRef: null,
+            children: realRoots.map(r => ({
+                id: r.id,
+                _nodeRef: r,
+                children: buildChildren(r.id)
+            }))
+        };
+
+        // Create d3 hierarchy
+        const root = d3.hierarchy(hierarchyData);
+
+        // Configure tree layout — use full circle (2*PI) for angle
+        const treeLayout = d3.tree()
+            .size([2 * Math.PI, 1]) // angle range [0, 2*PI], radius placeholder
+            .separation((a, b) => {
+                // More space between different parent's children
+                if (a.parent === b.parent) return LAYOUT_CONFIG.nodeSpacing;
+                return LAYOUT_CONFIG.nodeSpacing * 2;
+            });
+
+        treeLayout(root);
+
+        // Map results back to nodes with fixed ring radii
+        const layoutMap = new Map();
+
+        root.each(treeNode => {
+            if (treeNode.data.id === '__super_root__') return;
+
+            const nodeRef = treeNode.data._nodeRef;
+            if (!nodeRef) return;
+
+            // Real depth (super-root is depth 0 in tree, real roots are depth 1)
+            const realDepth = treeNode.depth - 1;
+            const ringIdx = Math.min(realDepth, LAYOUT_CONFIG.ringRadii.length - 1);
+            const radius = LAYOUT_CONFIG.ringRadii[ringIdx];
+            const angle = treeNode.x; // angle from d3.tree
+
+            // Polar to Cartesian (angle=0 is top, clockwise)
+            const x = radius * Math.sin(angle);
+            const y = -radius * Math.cos(angle);
+
+            layoutMap.set(nodeRef.id, { x, y, angle, radius });
+
+            // Write positions back to node object
+            nodeRef.x = x;
+            nodeRef.y = y;
+            nodeRef._angle = angle;
+            nodeRef._radius = radius;
+        });
+
+        // Handle orphan nodes not in the tree (place them far out)
+        nodes.forEach(n => {
+            if (!layoutMap.has(n.id) && n._visible) {
+                const fallbackAngle = Math.random() * 2 * Math.PI;
+                const fallbackR = LAYOUT_CONFIG.ringRadii[LAYOUT_CONFIG.ringRadii.length - 1] + 80;
+                n.x = fallbackR * Math.sin(fallbackAngle);
+                n.y = -fallbackR * Math.cos(fallbackAngle);
+                n._angle = fallbackAngle;
+                n._radius = fallbackR;
+                layoutMap.set(n.id, { x: n.x, y: n.y, angle: fallbackAngle, radius: fallbackR });
+            }
+        });
+
+        return { treeRoot: root, layoutMap };
+    }
+
+    /**
+     * Find ancestor path from a node up to a root node via parent mapping.
+     * Returns array of node IDs from root down to (but not including) the target.
+     */
+    function getAncestorPath(nodeId, parentMap) {
+        const path = [];
+        let current = parentMap.get(nodeId);
+        while (current) {
+            path.unshift(current);
+            current = parentMap.get(current);
+        }
+        return path;
+    }
+
     // ---- Main render function ----
 
     function renderKnowledgeMap() {
@@ -1036,7 +1164,16 @@
         const { childrenMap, adjacencyMap, hierarchyEdges, crossEdges } =
             computeHierarchy(state.nodes, state.edges);
 
-        // Build D3 edge arrays
+        // Build parent map for ancestor path lookups
+        const parentMap = new Map();
+        hierarchyEdges.forEach(e => {
+            const sId = e.source_node_id ?? (typeof e.source === 'object' ? e.source.id : e.source);
+            const tId = e.target_node_id ?? (typeof e.target === 'object' ? e.target.id : e.target);
+            parentMap.set(tId, sId);
+        });
+
+        // Build D3 edge arrays (keep source/target as IDs, resolve to objects later)
+        const nodeMap = new Map(state.nodes.map(n => [n.id, n]));
         const toD3Edge = (e, isHierarchy) => ({
             ...e,
             source: e.source_node_id,
@@ -1046,7 +1183,17 @@
         });
         const d3HierarchyEdges = hierarchyEdges.map(e => toD3Edge(e, true));
         const d3CrossEdges = crossEdges.map(e => toD3Edge(e, false));
-        const d3Edges = [...d3HierarchyEdges, ...d3CrossEdges];
+
+        // ── B. Default collapse — only show root + L1 initially ──
+        state.nodes.forEach(n => {
+            if (n._depth > 0 && n._children.length > 0) {
+                n._collapsed = (n._depth >= LAYOUT_CONFIG.defaultCollapseDepth);
+            }
+            n._visible = (n._depth <= LAYOUT_CONFIG.defaultCollapseDepth);
+        });
+
+        // ── C. Radial Tree layout ──
+        buildRadialTree(state.nodes, childrenMap);
 
         // ── Setup dimensions ──
         const width = svgElement.clientWidth || 800;
@@ -1062,7 +1209,7 @@
         const defs = svg.append('defs');
 
         // Arrow markers for each edge color
-        const markerColors = { hierarchy: '#999', prerequisite: '#006633', relation: '#0066cc', fallback: '#aaa' };
+        const markerColors = { hierarchy: '#ccc', prerequisite: '#006633', relation: '#0066cc', fallback: '#aaa' };
         Object.entries(markerColors).forEach(([key, color]) => {
             defs.append('marker')
                 .attr('id', `arrow-${key}`)
@@ -1089,26 +1236,51 @@
 
         // ── Layer groups (order matters for z-index) ──
         const g = svg.append('g').attr('class', 'kg-root-group');
+
+        // Ring guide circles (subtle concentric rings for depth reference)
+        const ringGuideGroup = g.append('g').attr('class', 'kg-ring-guides');
+        LAYOUT_CONFIG.ringRadii.forEach((r, i) => {
+            if (i === 0) return; // no ring at center
+            ringGuideGroup.append('circle')
+                .attr('cx', 0).attr('cy', 0)
+                .attr('r', r)
+                .attr('class', 'kg-ring-guide')
+                .attr('fill', 'none')
+                .attr('stroke', '#eee')
+                .attr('stroke-width', 0.5)
+                .attr('stroke-dasharray', '4 4')
+                .attr('pointer-events', 'none');
+        });
+
         const crossLinkGroup = g.append('g').attr('class', 'kg-cross-links');
         const hierLinkGroup  = g.append('g').attr('class', 'kg-hier-links');
         const nodeGroupEl    = g.append('g').attr('class', 'kg-nodes');
 
-        // ── B. Render hierarchy edges (straight lines) ──
-        const hierLinks = hierLinkGroup.selectAll('line.kg-hier-edge')
+        // ── D. Render hierarchy edges as paths (radial curves) ──
+        const hierLinks = hierLinkGroup.selectAll('path.kg-hier-edge')
             .data(d3HierarchyEdges)
-            .enter().append('line')
-            .attr('class', 'kg-hier-edge')
-            .attr('stroke', '#bbb')
-            .attr('stroke-width', 1.5)
-            .attr('stroke-opacity', 0.6)
-            .attr('marker-end', 'url(#arrow-hierarchy)');
-
-        // ── Render cross-link edges (curved paths, hidden by default) ──
-        const crossLinks = crossLinkGroup.selectAll('path.kg-cross-edge')
-            .data(d3CrossEdges)
             .enter().append('path')
-            .attr('class', 'kg-cross-edge')
+            .attr('class', 'kg-hier-edge')
             .attr('fill', 'none')
+            .attr('stroke', '#ccc')
+            .attr('stroke-width', 1.2)
+            .attr('stroke-opacity', d => {
+                const s = nodeMap.get(d.source);
+                const t = nodeMap.get(d.target);
+                return (s && s._visible && t && t._visible) ? 0.5 : 0;
+            })
+            .attr('d', d => {
+                const s = nodeMap.get(d.source);
+                const t = nodeMap.get(d.target);
+                if (!s || !t) return '';
+                return computeHierEdgePath(s, t);
+            });
+
+        // ── Render cross-link edges (straight lines, hidden by default) ──
+        const crossLinks = crossLinkGroup.selectAll('line.kg-cross-edge')
+            .data(d3CrossEdges)
+            .enter().append('line')
+            .attr('class', 'kg-cross-edge')
             .attr('stroke', d => {
                 const rel = d.relation_type || d.relationship_type || '';
                 return EDGE_COLORS[rel] || EDGE_COLOR_DEFAULT;
@@ -1116,12 +1288,10 @@
             .attr('stroke-width', 1.5)
             .attr('stroke-dasharray', '6 3')
             .attr('stroke-opacity', 0)
-            .attr('marker-end', d => {
-                const rel = d.relation_type || d.relationship_type || '';
-                if (rel === '前置') return 'url(#arrow-prerequisite)';
-                if (rel.includes('關聯') || rel.includes('关联') || rel.includes('延伸')) return 'url(#arrow-relation)';
-                return 'url(#arrow-fallback)';
-            });
+            .attr('x1', d => { const s = nodeMap.get(d.source); return s ? s.x : 0; })
+            .attr('y1', d => { const s = nodeMap.get(d.source); return s ? s.y : 0; })
+            .attr('x2', d => { const t = nodeMap.get(d.target); return t ? t.x : 0; })
+            .attr('y2', d => { const t = nodeMap.get(d.target); return t ? t.y : 0; });
 
         // Edge labels for cross-links (hidden by default)
         const crossEdgeLabels = crossLinkGroup.selectAll('text.kg-cross-label')
@@ -1132,14 +1302,37 @@
             .attr('font-size', '10px')
             .attr('fill', '#666')
             .attr('opacity', 0)
+            .attr('x', d => {
+                const s = nodeMap.get(d.source);
+                const t = nodeMap.get(d.target);
+                return s && t ? (s.x + t.x) / 2 : 0;
+            })
+            .attr('y', d => {
+                const s = nodeMap.get(d.source);
+                const t = nodeMap.get(d.target);
+                return s && t ? (s.y + t.y) / 2 - 6 : 0;
+            })
             .text(d => d.label || '');
 
-        // ── C. Render node groups ──
+        // Helper: compute smooth hierarchy edge path (quadratic curve via origin)
+        function computeHierEdgePath(source, target) {
+            const sx = source.x, sy = source.y;
+            const tx = target.x, ty = target.y;
+            // Curve control point: midpoint pulled toward center
+            const mx = (sx + tx) / 2 * 0.8;
+            const my = (sy + ty) / 2 * 0.8;
+            return `M${sx},${sy} Q${mx},${my} ${tx},${ty}`;
+        }
+
+        // ── E. Render node groups ──
         const nodeGroups = nodeGroupEl.selectAll('g.kg-node')
             .data(state.nodes)
             .enter().append('g')
-            .attr('class', d => `kg-node kg-depth-${Math.min(d._depth, 2)}`)
+            .attr('class', d => `kg-node kg-depth-${Math.min(d._depth, 3)}`)
             .attr('cursor', 'pointer')
+            .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`)
+            .attr('opacity', d => d._visible ? 1 : 0)
+            .attr('pointer-events', d => d._visible ? 'all' : 'none')
             .on('click', (event, d) => {
                 event.stopPropagation();
                 showNodeDetail(d);
@@ -1155,11 +1348,7 @@
             .on('mouseleave', () => {
                 handleNodeHover(null, false);
                 hideNodeTooltip();
-            })
-            .call(d3.drag()
-                .on('start', dragStarted)
-                .on('drag', dragged)
-                .on('end', dragEnded));
+            });
 
         // Glow ring for root nodes
         nodeGroups.filter(d => d._depth === 0)
@@ -1206,7 +1395,7 @@
                 return truncateLabel(d.title, maxLen);
             });
 
-        // Below-node title (visible for root + L1, hidden for L2 until hover)
+        // Below-node title (visible for root + L1, hidden for L2+ until hover)
         nodeGroups.append('text')
             .attr('class', 'kg-node-title')
             .attr('text-anchor', 'middle')
@@ -1218,103 +1407,68 @@
             .attr('opacity', d => d._depth <= 1 ? 1 : 0)
             .text(d => d.title);
 
-        // Collapse indicator for nodes with children
-        nodeGroups.filter(d => d._children.length > 0)
-            .append('text')
-            .attr('class', 'kg-collapse-indicator')
-            .attr('text-anchor', 'middle')
-            .attr('dy', d => -(d._tierCfg.radius + 6) + 'px')
-            .attr('font-size', '11px')
-            .attr('fill', '#666')
-            .attr('pointer-events', 'none')
-            .text(d => d._collapsed ? '▶' : '▼');
+        // Descendant count badge (replaces old collapse indicator)
+        function updateDescendantBadges() {
+            nodeGroups.selectAll('.kg-descendant-badge').remove();
+
+            const collapsedWithKids = nodeGroups.filter(d =>
+                d._children.length > 0 && d._collapsed && d._visible
+            );
+
+            const badge = collapsedWithKids.append('g')
+                .attr('class', 'kg-descendant-badge');
+
+            badge.append('circle')
+                .attr('cx', d => d._tierCfg.radius * 0.7)
+                .attr('cy', d => -(d._tierCfg.radius * 0.7))
+                .attr('r', 11)
+                .attr('fill', 'var(--brand, #006633)')
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 1.5);
+
+            badge.append('text')
+                .attr('x', d => d._tierCfg.radius * 0.7)
+                .attr('y', d => -(d._tierCfg.radius * 0.7))
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'central')
+                .attr('font-size', '9px')
+                .attr('font-weight', '700')
+                .attr('fill', '#fff')
+                .attr('pointer-events', 'none')
+                .text(d => {
+                    const count = getDescendants(d.id, childrenMap).size;
+                    return '+' + count;
+                });
+        }
 
         // Content count badge for nodes with linked content
         const badgeGroups = nodeGroups.filter(d => d.contents && d.contents.length > 0);
 
         badgeGroups.append('circle')
             .attr('class', 'kg-badge-bg')
-            .attr('cx', d => d._tierCfg.radius * 0.65)
-            .attr('cy', d => -d._tierCfg.radius * 0.65)
-            .attr('r', 9)
-            .attr('fill', 'var(--brand, #006633)')
+            .attr('cx', d => d._depth === 0 ? d._tierCfg.radius * 0.65 : d._tierCfg.radius * 0.55)
+            .attr('cy', d => d._depth === 0 ? -d._tierCfg.radius * 0.65 : -d._tierCfg.radius * 0.55)
+            .attr('r', 8)
+            .attr('fill', '#e67e22')
             .attr('stroke', '#fff')
             .attr('stroke-width', 1.5);
 
         badgeGroups.append('text')
             .attr('class', 'kg-badge-text')
-            .attr('x', d => d._tierCfg.radius * 0.65)
-            .attr('y', d => -d._tierCfg.radius * 0.65)
+            .attr('x', d => d._depth === 0 ? d._tierCfg.radius * 0.65 : d._tierCfg.radius * 0.55)
+            .attr('y', d => d._depth === 0 ? -d._tierCfg.radius * 0.65 : -d._tierCfg.radius * 0.55)
             .attr('text-anchor', 'middle')
             .attr('dominant-baseline', 'central')
-            .attr('font-size', '9px')
+            .attr('font-size', '8px')
             .attr('font-weight', '700')
             .attr('fill', '#fff')
             .attr('pointer-events', 'none')
             .text(d => d.contents.length);
 
-        // ── D. Force simulation ──
-        const simulation = d3.forceSimulation(state.nodes)
-            .force('link', d3.forceLink(d3Edges)
-                .id(d => d.id)
-                .distance(d => d._isHierarchy ? 140 : 200)
-                .strength(d => d._isHierarchy ? 0.7 : 0.2))
-            .force('charge', d3.forceManyBody()
-                .strength(d => {
-                    if (d._depth === 0) return -800;
-                    if (d._depth === 1) return -400;
-                    return -200;
-                }))
-            .force('center', d3.forceCenter(cx, cy))
-            .force('radial', d3.forceRadial(
-                d => {
-                    if (d._depth === 0) return 0;
-                    if (d._depth === 1) return 200;
-                    return 420;
-                }, cx, cy).strength(d => d._depth === 0 ? 1 : 0.5))
-            .force('collision', d3.forceCollide()
-                .radius(d => d._tierCfg.radius + 15));
+        // Initial descendant badges
+        updateDescendantBadges();
 
-        // ── Tick: update positions ──
-        simulation.on('tick', () => {
-            hierLinks
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => {
-                    const t = d.target;
-                    const r = (t._tierCfg ? t._tierCfg.radius : 26) + 4;
-                    const dx = t.x - d.source.x;
-                    const dy = t.y - d.source.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    return t.x - (dx / dist) * r;
-                })
-                .attr('y2', d => {
-                    const t = d.target;
-                    const r = (t._tierCfg ? t._tierCfg.radius : 26) + 4;
-                    const dx = t.x - d.source.x;
-                    const dy = t.y - d.source.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    return t.y - (dy / dist) * r;
-                });
-
-            crossLinks.attr('d', d => {
-                const sx = d.source.x, sy = d.source.y;
-                const tx = d.target.x, ty = d.target.y;
-                const mx = (sx + tx) / 2;
-                const my = (sy + ty) / 2;
-                const dx = tx - sx, dy = ty - sy;
-                const offset = Math.min(40, Math.sqrt(dx * dx + dy * dy) * 0.2);
-                return `M${sx},${sy} Q${mx - dy * 0.15 + offset},${my + dx * 0.15 + offset} ${tx},${ty}`;
-            });
-
-            crossEdgeLabels
-                .attr('x', d => (d.source.x + d.target.x) / 2)
-                .attr('y', d => (d.source.y + d.target.y) / 2 - 6);
-
-            nodeGroups.attr('transform', d => `translate(${d.x},${d.y})`);
-        });
-
-        // ── E. Zoom with LOD ──
+        // ── F. Zoom with LOD ──
         let currentScale = 1;
 
         const zoom = d3.zoom()
@@ -1331,48 +1485,61 @@
 
         svg.call(zoom);
 
+        // Center view on the radial tree (origin is at 0,0)
+        const initialTransform = d3.zoomIdentity.translate(cx, cy).scale(0.85);
+        svg.call(zoom.transform, initialTransform);
+
         function applyLOD(scale) {
-            if (scale < 0.5) {
-                // Far out: only root + L1 visible
-                nodeGroups.attr('opacity', d => d._depth <= 1 ? 1 : 0.15);
-                hierLinks.attr('opacity', d => {
-                    const sDepth = d.source._depth ?? 2;
-                    const tDepth = d.target._depth ?? 2;
-                    return (sDepth <= 1 && tDepth <= 1) ? 0.6 : 0.08;
-                });
+            if (scale < 0.4) {
+                // Far out: only root visible
+                nodeGroups.attr('opacity', d => (d._visible && d._depth === 0) ? 1 : 0.1);
+                hierLinks.attr('stroke-opacity', 0.1);
                 crossLinks.attr('stroke-opacity', 0);
                 crossEdgeLabels.attr('opacity', 0);
             } else if (scale < 1.5) {
-                // Normal: all visible, cross-links still hidden
+                // Normal: show visible nodes per collapse state
                 nodeGroups.attr('opacity', d => d._visible ? 1 : 0);
-                hierLinks.attr('opacity', 0.6);
+                hierLinks.attr('stroke-opacity', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return (s && s._visible && t && t._visible) ? 0.5 : 0;
+                });
                 crossLinks.attr('stroke-opacity', 0);
                 crossEdgeLabels.attr('opacity', 0);
             } else {
-                // Zoomed in: show everything including cross-links and edge labels
+                // Zoomed in: show cross-links and edge labels too
                 nodeGroups.attr('opacity', d => d._visible ? 1 : 0);
-                hierLinks.attr('opacity', 0.7);
+                hierLinks.attr('stroke-opacity', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return (s && s._visible && t && t._visible) ? 0.6 : 0;
+                });
                 crossLinks.attr('stroke-opacity', d => {
-                    const sVis = d.source._visible !== false;
-                    const tVis = d.target._visible !== false;
-                    return (sVis && tVis) ? 0.6 : 0;
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return (s && s._visible && t && t._visible) ? 0.6 : 0;
                 });
                 crossEdgeLabels.attr('opacity', d => {
-                    const sVis = d.source._visible !== false;
-                    const tVis = d.target._visible !== false;
-                    return (sVis && tVis) ? 0.8 : 0;
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return (s && s._visible && t && t._visible) ? 0.8 : 0;
                 });
             }
         }
 
-        // ── F. Hover path highlighting ──
+        // ── G. Hover path highlighting ──
         function handleNodeHover(hoveredNode, isEntering) {
             if (!isEntering || !hoveredNode) {
                 // Restore default
                 nodeGroups.transition().duration(200)
                     .attr('opacity', d => d._visible ? 1 : 0);
                 hierLinks.transition().duration(200)
-                    .attr('stroke-opacity', 0.6).attr('stroke-width', 1.5);
+                    .attr('stroke-opacity', d => {
+                        const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                        const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                        return (s && s._visible && t && t._visible) ? 0.5 : 0;
+                    })
+                    .attr('stroke-width', 1.2);
                 crossLinks.transition().duration(200)
                     .attr('stroke-opacity', 0);
                 crossEdgeLabels.transition().duration(200).attr('opacity', 0);
@@ -1393,7 +1560,7 @@
                     return 0.15;
                 });
 
-            // Show L2 titles on hover
+            // Show titles on hover for all connected
             nodeGroups.selectAll('.kg-node-title')
                 .transition().duration(200)
                 .attr('opacity', d => {
@@ -1412,10 +1579,10 @@
                 .attr('stroke-width', d => {
                     const sId = typeof d.source === 'object' ? d.source.id : d.source;
                     const tId = typeof d.target === 'object' ? d.target.id : d.target;
-                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 3 : 1.5;
+                    return (sId === hoveredNode.id || tId === hoveredNode.id) ? 2.5 : 1.2;
                 });
 
-            // Show connected cross-links
+            // Show connected cross-links on hover
             crossLinks.transition().duration(200)
                 .attr('stroke-opacity', d => {
                     const sId = typeof d.source === 'object' ? d.source.id : d.source;
@@ -1431,7 +1598,7 @@
                 });
         }
 
-        // ── G. Expand / Collapse ──
+        // ── H. Expand / Collapse with tree re-layout ──
         function toggleCollapse(node) {
             if (!node._children || node._children.length === 0) return;
 
@@ -1459,53 +1626,128 @@
                 }
             }
 
-            // Update visibility
-            nodeGroups.transition().duration(300)
+            // Recompute radial tree layout
+            buildRadialTree(state.nodes, childrenMap);
+
+            const dur = LAYOUT_CONFIG.animationDuration;
+
+            // Animate nodes to new positions
+            nodeGroups.transition().duration(dur)
+                .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`)
                 .attr('opacity', d => d._visible ? 1 : 0)
                 .attr('pointer-events', d => d._visible ? 'all' : 'none');
 
-            hierLinks.transition().duration(300)
-                .attr('opacity', d => {
-                    const sVis = d.source._visible !== false;
-                    const tVis = d.target._visible !== false;
-                    return (sVis && tVis) ? 0.6 : 0;
+            // Animate hierarchy edges
+            hierLinks.transition().duration(dur)
+                .attr('d', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    if (!s || !t) return '';
+                    return computeHierEdgePath(s, t);
+                })
+                .attr('stroke-opacity', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return (s && s._visible && t && t._visible) ? 0.5 : 0;
                 });
 
-            crossLinks.transition().duration(300)
+            // Update cross-link positions
+            crossLinks.transition().duration(dur)
+                .attr('x1', d => { const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source); return s ? s.x : 0; })
+                .attr('y1', d => { const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source); return s ? s.y : 0; })
+                .attr('x2', d => { const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target); return t ? t.x : 0; })
+                .attr('y2', d => { const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target); return t ? t.y : 0; })
                 .attr('stroke-opacity', 0);
 
-            // Update collapse indicator
-            nodeGroups.selectAll('.kg-collapse-indicator')
-                .text(d => {
-                    if (!d._children || d._children.length === 0) return '';
-                    return d._collapsed ? '▶' : '▼';
+            crossEdgeLabels.transition().duration(dur)
+                .attr('x', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return s && t ? (s.x + t.x) / 2 : 0;
+                })
+                .attr('y', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return s && t ? (s.y + t.y) / 2 - 6 : 0;
                 });
 
-            // Reheat simulation
-            simulation.alpha(0.3).restart();
+            // Update descendant badges
+            updateDescendantBadges();
         }
 
-        // ── Drag behavior ──
-        function dragStarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
+        // ── I. Overview / Explore mode toggle ──
+        let _exploreMode = false;
+
+        function setExploreMode(explore) {
+            _exploreMode = explore;
+
+            if (explore) {
+                // Expand all
+                state.nodes.forEach(n => {
+                    n._collapsed = false;
+                    n._visible = true;
+                });
+            } else {
+                // Collapse to default depth
+                state.nodes.forEach(n => {
+                    if (n._depth > 0 && n._children.length > 0) {
+                        n._collapsed = (n._depth >= LAYOUT_CONFIG.defaultCollapseDepth);
+                    }
+                    n._visible = (n._depth <= LAYOUT_CONFIG.defaultCollapseDepth);
+                });
+            }
+
+            // Recompute layout
+            buildRadialTree(state.nodes, childrenMap);
+
+            const dur = LAYOUT_CONFIG.animationDuration;
+
+            nodeGroups.transition().duration(dur)
+                .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`)
+                .attr('opacity', d => d._visible ? 1 : 0)
+                .attr('pointer-events', d => d._visible ? 'all' : 'none');
+
+            hierLinks.transition().duration(dur)
+                .attr('d', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    if (!s || !t) return '';
+                    return computeHierEdgePath(s, t);
+                })
+                .attr('stroke-opacity', d => {
+                    const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                    const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                    return (s && s._visible && t && t._visible) ? 0.5 : 0;
+                });
+
+            crossLinks.transition().duration(dur)
+                .attr('x1', d => { const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source); return s ? s.x : 0; })
+                .attr('y1', d => { const s = nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source); return s ? s.y : 0; })
+                .attr('x2', d => { const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target); return t ? t.x : 0; })
+                .attr('y2', d => { const t = nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target); return t ? t.y : 0; })
+                .attr('stroke-opacity', 0);
+
+            updateDescendantBadges();
+
+            // Update toggle button state
+            const toggleBtn = getElement('mapModeToggle');
+            if (toggleBtn) {
+                toggleBtn.classList.toggle('active', explore);
+                toggleBtn.title = explore ? '切换概览模式' : '切换探索模式';
+            }
         }
 
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
+        // Wire up mode toggle button
+        const modeToggleBtn = getElement('mapModeToggle');
+        if (modeToggleBtn) {
+            modeToggleBtn.addEventListener('click', () => {
+                setExploreMode(!_exploreMode);
+            });
         }
 
-        function dragEnded(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-
-        // ── H. Legend + Search + Tooltip ──
+        // ── J. Legend + Search + Tooltip ──
         renderMapLegend();
-        initMapSearch();
+        initMapSearch(childrenMap, nodeMap, nodeGroups, hierLinks, crossLinks, crossEdgeLabels, zoom, svg, updateDescendantBadges, computeHierEdgePath);
 
         // Setup tooltip hover-keep behavior
         const tooltipEl = getElement('kgTooltip');
@@ -1529,21 +1771,21 @@
             <div class="alc-map-legend-title">图例</div>
             <div class="alc-map-legend-section">
                 <div class="alc-map-legend-item">
-                    <span class="alc-map-legend-dot" style="width:18px;height:18px;background:#6200EA;"></span>
+                    <span class="alc-map-legend-dot" style="width:16px;height:16px;background:#6200EA;"></span>
                     <span>根节点</span>
                 </div>
                 <div class="alc-map-legend-item">
-                    <span class="alc-map-legend-dot" style="width:13px;height:13px;background:#7C4DFF;"></span>
+                    <span class="alc-map-legend-dot" style="width:11px;height:11px;background:#7C4DFF;"></span>
                     <span>一级节点</span>
                 </div>
                 <div class="alc-map-legend-item">
-                    <span class="alc-map-legend-dot" style="width:9px;height:9px;background:#B388FF;"></span>
+                    <span class="alc-map-legend-dot" style="width:7px;height:7px;background:#B388FF;"></span>
                     <span>二级节点</span>
                 </div>
             </div>
             <div class="alc-map-legend-section">
                 <div class="alc-map-legend-item">
-                    <span class="alc-map-legend-line" style="background:#999;"></span>
+                    <span class="alc-map-legend-line" style="background:#ccc;"></span>
                     <span>包含</span>
                 </div>
                 <div class="alc-map-legend-item">
@@ -1555,7 +1797,7 @@
                     <span>关联</span>
                 </div>
             </div>
-            <div class="alc-map-legend-hint">双击节点展开/收起</div>
+            <div class="alc-map-legend-hint">双击展开/收起 · 默认展示一级结构</div>
         `;
     }
 
@@ -1640,11 +1882,16 @@
 
     // ── Node Search ──
 
-    function searchNodes(keyword) {
+    /**
+     * Search nodes and auto-expand collapsed ancestors if needed.
+     * Accepts render context for layout updates.
+     */
+    function searchNodes(keyword, ctx) {
+        const allNodeGroups = d3.selectAll('.kg-node');
+
         if (!keyword || !keyword.trim()) {
             // Reset: restore all nodes to default
-            const nodeGroups = d3.selectAll('.kg-node');
-            nodeGroups.transition().duration(300)
+            allNodeGroups.transition().duration(300)
                 .attr('opacity', d => d._visible ? 1 : 0);
             d3.selectAll('.kg-search-ring').remove();
             return;
@@ -1661,16 +1908,78 @@
             return;
         }
 
+        // Auto-expand collapsed ancestors so matches become visible
+        if (ctx && ctx.childrenMap && ctx.nodeMap) {
+            let needsRelayout = false;
+            matches.forEach(m => {
+                if (!m._visible) {
+                    // Walk up parent chain and expand
+                    const ancestors = getAncestorPath(m.id, ctx.parentMap || new Map());
+                    ancestors.forEach(aId => {
+                        const ancestor = ctx.nodeMap.get(aId);
+                        if (ancestor && ancestor._collapsed) {
+                            ancestor._collapsed = false;
+                            needsRelayout = true;
+                            // Reveal direct children
+                            const revealQueue = [...(ctx.childrenMap.get(aId) || [])];
+                            while (revealQueue.length > 0) {
+                                const id = revealQueue.shift();
+                                const n = state.nodes.find(nd => nd.id === id);
+                                if (n) {
+                                    n._visible = true;
+                                    if (!n._collapsed) {
+                                        (ctx.childrenMap.get(id) || []).forEach(c => revealQueue.push(c));
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    m._visible = true;
+                }
+            });
+
+            if (needsRelayout) {
+                buildRadialTree(state.nodes, ctx.childrenMap);
+                const dur = LAYOUT_CONFIG.animationDuration;
+
+                ctx.nodeGroups.transition().duration(dur)
+                    .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`)
+                    .attr('opacity', d => d._visible ? 1 : 0)
+                    .attr('pointer-events', d => d._visible ? 'all' : 'none');
+
+                ctx.hierLinks.transition().duration(dur)
+                    .attr('d', d => {
+                        const s = ctx.nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                        const t = ctx.nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                        if (!s || !t) return '';
+                        return ctx.computeHierEdgePath(s, t);
+                    })
+                    .attr('stroke-opacity', d => {
+                        const s = ctx.nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source);
+                        const t = ctx.nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target);
+                        return (s && s._visible && t && t._visible) ? 0.5 : 0;
+                    });
+
+                ctx.crossLinks.transition().duration(dur)
+                    .attr('x1', d => { const s = ctx.nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source); return s ? s.x : 0; })
+                    .attr('y1', d => { const s = ctx.nodeMap.get(typeof d.source === 'object' ? d.source.id : d.source); return s ? s.y : 0; })
+                    .attr('x2', d => { const t = ctx.nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target); return t ? t.x : 0; })
+                    .attr('y2', d => { const t = ctx.nodeMap.get(typeof d.target === 'object' ? d.target.id : d.target); return t ? t.y : 0; });
+
+                if (ctx.updateDescendantBadges) ctx.updateDescendantBadges();
+            }
+        }
+
         const matchIds = new Set(matches.map(n => n.id));
 
         // Dim non-matches, highlight matches
-        const nodeGroups = d3.selectAll('.kg-node');
-        nodeGroups.transition().duration(300)
+        const nodeGroupsNow = d3.selectAll('.kg-node');
+        nodeGroupsNow.transition().duration(300)
             .attr('opacity', d => matchIds.has(d.id) ? 1 : 0.12);
 
         // Add pulsing ring to matches
         d3.selectAll('.kg-search-ring').remove();
-        nodeGroups.filter(d => matchIds.has(d.id))
+        nodeGroupsNow.filter(d => matchIds.has(d.id))
             .append('circle')
             .attr('class', 'kg-search-ring')
             .attr('r', d => d._tierCfg.radius + 10)
@@ -1681,14 +1990,13 @@
 
         // Auto-pan to first match
         const first = matches[0];
-        if (first && first.x != null && first.y != null) {
+        if (first && first.x != null && first.y != null && ctx && ctx.zoom && ctx.svg) {
             const svgElement = getElement('knowledgeMapSvg');
             if (svgElement) {
-                const svg = d3.select(svgElement);
                 const width = svgElement.clientWidth || 800;
                 const height = svgElement.clientHeight || 600;
-                svg.transition().duration(750).call(
-                    d3.zoom().transform,
+                ctx.svg.transition().duration(750).call(
+                    ctx.zoom.transform,
                     d3.zoomIdentity
                         .translate(width / 2, height / 2)
                         .scale(1.2)
@@ -1700,22 +2008,33 @@
         showToast(`找到 ${matches.length} 个匹配节点`, 'success');
     }
 
-    function initMapSearch() {
+    function initMapSearch(childrenMap, nodeMap, nodeGroups, hierLinks, crossLinks, crossEdgeLabels, zoom, svg, updateDescendantBadges, computeHierEdgePath) {
         const input = getElement('mapSearchInput');
         if (!input) return;
+
+        // Build parent map for ancestor lookups
+        const parentMap = new Map();
+        state.edges.forEach(e => {
+            const relType = e.relation_type || e.relationship_type || e.label || '';
+            if (relType === '包含') {
+                parentMap.set(e.target_node_id, e.source_node_id);
+            }
+        });
+
+        const ctx = { childrenMap, nodeMap, nodeGroups, hierLinks, crossLinks, crossEdgeLabels, zoom, svg, updateDescendantBadges, computeHierEdgePath, parentMap };
 
         let searchTimer = null;
         input.addEventListener('input', () => {
             clearTimeout(searchTimer);
             searchTimer = setTimeout(() => {
-                searchNodes(input.value);
+                searchNodes(input.value, ctx);
             }, SEARCH_DEBOUNCE_DELAY);
         });
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 input.value = '';
-                searchNodes('');
+                searchNodes('', ctx);
                 input.blur();
             }
         });
@@ -1740,7 +2059,13 @@
 
         if (resetZoomBtn) {
             resetZoomBtn.addEventListener('click', () => {
-                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+                const svgElement = getElement('knowledgeMapSvg');
+                const w = svgElement ? svgElement.clientWidth || 800 : 800;
+                const h = svgElement ? svgElement.clientHeight || 600 : 600;
+                svg.transition().duration(750).call(
+                    zoom.transform,
+                    d3.zoomIdentity.translate(w / 2, h / 2).scale(0.85)
+                );
             });
         }
     }

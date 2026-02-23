@@ -11,6 +11,34 @@
 
 ---
 
+## [v2.4.0] [2026-02-23] 知识图谱 Radial Tree 布局重构
+
+### 修改
+
+- **布局引擎替换** — 从 D3 force simulation（力导向）替换为 D3 Radial Tree（径向树），彻底消除节点重叠、随机抖动、每次刷新位置不同的问题
+- **虚拟 super-root** — 自动创建不可见的超级根节点连接 5 个 KG 文件的真实根节点，统一为单棵径向树布局
+- **固定环形半径** — depth 0-4 分别映射到 ringRadii `[0, 180, 340, 470, 570]px` 同心环，层次清晰
+- **默认收起至 L1** — 初始只显示根节点 + 一级节点（约 30 个），双击展开查看子节点
+- **"+N" 后代数量 badge** — 收起的节点显示后代总数（如 `+12`），替代旧的 `▶`/`▼` 指示器
+- **环形辅助线** — 浅色虚线同心圆标识各层深度，增强空间层次感
+- **hierarchy 边改为曲线 path** — 从 `<line>` 改为 `<path>` 二次贝塞尔曲线，沿径向弯曲
+- **cross-links 改为直线** — 从曲线 `<path>` 改为 `<line>`，减少视觉噪音
+- **Overview/Explore 模式切换** — 新增模式切换按钮，一键全展开（Explore）或全收起（Overview）
+- **搜索自动展开祖先路径** — 搜索时如果匹配节点被收起，自动沿父链展开使其可见
+- **TIER_CONFIG 扩展** — 新增 depth 3（L3: r=16），支持更深层次的节点尺寸区分
+- **移除 drag 行为** — 确定性布局无需拖拽，避免破坏树形结构
+- **移除 force simulation** — 不再使用 `forceLink`、`forceManyBody`、`forceCenter`、`forceRadial`、`forceCollide`
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/ai_learning_center.js` | 核心重构：`TIER_CONFIG` 扩展 + `LAYOUT_CONFIG` + `buildRadialTree()` + `renderKnowledgeMap()` 重写 + `toggleCollapse()` 重写 + `searchNodes()` 自动展开 |
+| `web_static/css/ai_learning_center.css` | 新增 `.kg-ring-guide` `.kg-hier-edge` `.kg-descendant-badge` `.alc-mode-toggle.active` 样式 |
+| `web_static/ai_learning_center.html` | 新增 `#mapModeToggle` 模式切换按钮 |
+
+---
+
 ## [v2.3.0] [2026-02-23] 知识图谱节点详情面板修复 + 重新设计
 
 ### 修复
