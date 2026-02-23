@@ -35,8 +35,6 @@ class GameUploadPage {
 
     async loadGameForEdit(uuid) {
         try {
-            const userInfo = await this.getUserInfo();
-
             const data = await APIClient.get(
                 `/api/games/${uuid}`
             );
@@ -370,8 +368,6 @@ class GameUploadPage {
         this.submitBtn.textContent = this.editMode ? '更新中...' : '上傳中...';
 
         try {
-            const userInfo = await this.getUserInfo();
-
             if (this.editMode && this.editUuid) {
                 // 更新模式
                 const updateData = {
