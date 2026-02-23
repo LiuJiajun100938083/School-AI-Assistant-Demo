@@ -325,6 +325,18 @@
   font-size: 14px;
 }
 
+.alc-tab-svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.alc-mode-svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .alc-tab-label {
   white-space: nowrap;
 }
@@ -505,6 +517,10 @@
 
 .alc-empty-icon {
   font-size: 48px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .alc-empty-title {
@@ -1723,6 +1739,10 @@
 .alc-ebook-welcome-icon {
   font-size: 36px;
   opacity: 0.2;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .alc-ebook-welcome h3 {
@@ -3544,7 +3564,8 @@
     font-size: 11px;
   }
 
-  .alc-tab-icon {
+  .alc-tab-icon,
+  .alc-tab-svg {
     display: none;
   }
 
