@@ -36,7 +36,7 @@ class GameUploadConfig:
     """游戏上传配置"""
     MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
     ALLOWED_EXTENSIONS = {'.html', '.htm'}
-    UPLOAD_DIR = Path(__file__).parent / 'web_static' / 'uploaded_games'
+    UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / 'web_static' / 'uploaded_games'
 
     # 学科配置（硬编码兜底，优先从数据库读取）
     DEFAULT_SUBJECTS = {
