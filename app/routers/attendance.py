@@ -554,10 +554,22 @@ def _format_detention_response(result: dict, is_manual: bool = False) -> dict:
                           actual_periods, status, ...}
         data.action    — "checkout" / "need_select_periods" / "already_completed"
     """
-    # need_select_periods / already_completed / error 不需要嵌套 record
+    # need_select_periods 走前端模态框，不经过 showScanResult
     action = result.get("action")
-    if action in ("need_select_periods", "already_completed", "error"):
+    if action == "need_select_periods":
         return {"success": True, **result}
+
+    # already_completed / error 仍会经过 showScanResult → showScanNotification，
+    # 前端统一访问 data.record / data.student，因此需要提供空对象避免 TypeError。
+    # success=False 让前端走"错误提示"分支（显示 data.message），避免进入签到成功逻辑。
+    if action in ("already_completed", "error"):
+        return {
+            "success": False,
+            "record": {},
+            "student": result.get("student", {}),
+            "message": result.get("message", "该学生已完成留堂"),
+            **result,
+        }
 
     student = result.pop("student", {})
 
