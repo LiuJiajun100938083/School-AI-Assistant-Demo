@@ -132,17 +132,21 @@ class VisionService:
                 logger.error("圖片 base64 編碼失敗")
                 return None
 
+            # Qwen3-VL 的 think:false 在 Ollama 中不生效（已知 bug），
+            # 使用 /no_think 軟開關強制關閉思考模式
+            final_prompt = f"/no_think\n{prompt}"
+
             payload = {
                 "model": self._vision_model,
                 "messages": [
                     {
                         "role": "user",
-                        "content": prompt,
+                        "content": final_prompt,
                         "images": [image_b64],
                     }
                 ],
                 "stream": False,
-                "think": False,  # 關閉思考模式，OCR 不需要深度推理
+                "think": False,
                 "options": {
                     "temperature": 0.1,
                     "num_predict": 4096,
@@ -193,6 +197,15 @@ class VisionService:
                     think_match = re.search(r"<think>(.*?)</think>", raw_content, re.DOTALL)
                     if think_match:
                         content = think_match.group(1).strip()
+
+            # ---- 從推理文本中嘗試提取嵌入的 JSON ----
+            # Qwen3-VL 即使啟用思考模式，有時會在推理中輸出 JSON
+            if content and "{" in content:
+                import re
+                json_candidate = self._extract_json_from_reasoning(content)
+                if json_candidate:
+                    logger.info("從推理文本中提取到嵌入 JSON (len=%d)", len(json_candidate))
+                    content = json_candidate
 
             logger.info(
                 "Vision 模型調用成功: model=%s, raw_len=%d, thinking_len=%d, final_len=%d",
@@ -826,6 +839,58 @@ Output JSON only.
         """移除 <think>...</think> 標籤"""
         import re
         return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
+    @staticmethod
+    def _extract_json_from_reasoning(text: str) -> str:
+        """
+        從模型的推理文本中提取嵌入的 JSON 對象。
+
+        Qwen3-VL 在思考模式下可能輸出類似：
+            'I can see a math problem... the question is about...\n{"question": "...", "answer": "..."}\n'
+        這裡嘗試找到包含 "question" 字段的最大合法 JSON 對象。
+        """
+        import re
+
+        # 優先提取 ```json ... ``` 包裹的 JSON
+        m = re.search(r"```json\s*(.*?)```", text, re.DOTALL)
+        if m:
+            candidate = m.group(1).strip()
+            try:
+                json.loads(candidate)
+                return candidate
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # 尋找包含 "question" 的 JSON 對象（從第一個 { 到匹配的 }）
+        # 使用括號匹配而非簡單的 rfind，以處理嵌套
+        start = -1
+        for i, ch in enumerate(text):
+            if ch == '{':
+                # 檢查後面是否有 "question" 字段
+                rest = text[i:]
+                if '"question"' in rest[:500]:
+                    start = i
+                    break
+
+        if start == -1:
+            return ""
+
+        # 從 start 開始找到匹配的閉括號
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == '{':
+                depth += 1
+            elif text[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start:i + 1]
+                    try:
+                        json.loads(candidate)
+                        return candidate
+                    except (json.JSONDecodeError, ValueError):
+                        break
+
+        return ""
 
     def get_image_info(self, image_path: str) -> ImageInfo:
         """獲取圖片元數據"""
