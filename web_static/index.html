@@ -62,42 +62,24 @@
 
 <!-- 登录界面 -->
 <div id="loginContainer" class="login-container" style="display: none;">
-    <!-- HUD 状态环包裹层 -->
-    <div class="hud-ring-wrapper" id="hudRingWrapper">
-        <svg class="hud-ring-svg" id="hudRingSvg" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g class="hud-ring-group" id="hudRingGroup">
-                <!-- 外环刻度 (由 JS 生成) -->
-            </g>
-            <circle class="hud-progress-ring" id="hudProgressRing" cx="250" cy="250" r="230" stroke-width="2" fill="none" />
-        </svg>
-        <!-- HUD 状态图标覆盖层 -->
-        <div class="hud-status-icon" id="hudStatusIcon"></div>
+    <div class="login-card">
+        <div class="login-icon">
+            <img src="/static/images/pkms_logo.png" alt="培僑中學" style="width: 80px; height: auto;">
+        </div>
+        <div class="login-title">AI 學習夥伴</div>
+        <div class="login-subtitle">培僑中學學生學習AI系統</div>
 
-        <div class="login-card">
-            <div class="login-icon">
-                <img src="/static/images/pkms_logo.png" alt="培僑中學" style="width: 80px; height: auto;">
-            </div>
-            <div class="login-title">AI 學習夥伴</div>
-            <div class="login-subtitle">培僑中學學生學習AI系統</div>
+        <form id="loginForm" class="login-form">
+            <input type="text" id="usernameInput" class="login-input" placeholder="用戶名" maxlength="20" required
+                   autocomplete="username">
+            <input type="password" id="passwordInput" class="login-input" placeholder="密碼" required
+                   autocomplete="current-password">
+            <button type="submit" id="loginButton" class="login-button">登入</button>
+        </form>
 
-            <form id="loginForm" class="login-form">
-                <div class="login-input-wrapper">
-                    <input type="text" id="usernameInput" class="login-input" placeholder="用戶名" maxlength="20" required
-                           autocomplete="username">
-                    <div class="token-flow" aria-hidden="true"></div>
-                </div>
-                <div class="login-input-wrapper">
-                    <input type="password" id="passwordInput" class="login-input" placeholder="密碼" required
-                           autocomplete="current-password">
-                    <div class="token-flow" aria-hidden="true"></div>
-                </div>
-                <button type="submit" id="loginButton" class="login-button">登入</button>
-            </form>
-
-            <div id="loginError" class="login-error"></div>
-            <div id="loginLoading" class="login-loading">
-                <div class="loading-spinner"><span></span></div>
-            </div>
+        <div id="loginError" class="login-error"></div>
+        <div id="loginLoading" class="login-loading">
+            <div class="loading-spinner"><span></span></div>
         </div>
     </div>
 

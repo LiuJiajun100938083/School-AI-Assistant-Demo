@@ -224,7 +224,6 @@ const IndexUI = {
         el.mainContainer.style.display = 'none';
         el.homeContainer.style.display = 'none';
         el.usernameInput.focus();
-        if (typeof HudController !== 'undefined') HudController.reset();
     },
 
     showLoginError(message) {
@@ -1081,15 +1080,12 @@ const IndexApp = {
 
         IndexUI.showLoginLoading(true);
         IndexUI.hideLoginError();
-        HudController.onLoginStart();
 
         try {
             const response = await IndexAPI.login(username, password);
             const result = await response.json();
 
             if (response.ok && result.success) {
-                HudController.onLoginSuccess();
-
                 this.state.authToken = result.access_token;
                 this.state.currentUser = result.username;
                 this.state.userRole = result.role;
@@ -1115,12 +1111,10 @@ const IndexApp = {
                 this._loadHomeApps();
                 IndexUI.updateHomeUserInfo(result.user_info);
             } else {
-                HudController.onLoginError();
                 IndexUI.showLoginError(result.detail || '登入失敗，請檢查用戶名和密碼');
             }
         } catch (error) {
             console.error('登录错误:', error);
-            HudController.onLoginError();
             IndexUI.showLoginError('網絡錯誤，請稍後重試');
         } finally {
             IndexUI.showLoginLoading(false);
@@ -2497,144 +2491,11 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /* ============================================================
-   HUD 狀態環 + Token 流 — AI 微交互控制器
-   ============================================================ */
-
-const HudController = (() => {
-    // ─── 可調參數 ───
-    const CONF = {
-        // HUD 環
-        TICK_COUNT: 72,           // 刻度數量
-        TICK_INNER_R: 218,        // 刻度內半徑
-        TICK_OUTER_R: 228,        // 刻度外半徑（長刻度）
-        TICK_OUTER_R_SHORT: 224,  // 刻度外半徑（短刻度）
-        RING_CENTER: 250,         // SVG viewBox 中心
-        BASE_ROTATE_S: 22,        // 默認旋轉週期（秒）
-        FOCUS_ROTATE_S: 18.3,     // 聚焦時旋轉週期（秒）
-        // Token 流
-        TOKEN_FADE_DELAY: 800,    // 停止輸入後消失延遲（ms）
-    };
-
-    let wrapper, ringGroup, progressRing;
-    let tokenTimers = new Map();
-    let reducedMotion = false;
-
-    function init() {
-        reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (reducedMotion) return;
-
-        wrapper = document.getElementById('hudRingWrapper');
-        ringGroup = document.getElementById('hudRingGroup');
-        progressRing = document.getElementById('hudProgressRing');
-        if (!wrapper || !ringGroup) return;
-
-        _generateTicks();
-        _bindInputEvents();
-    }
-
-    // ─── 生成 SVG 刻度線 ───
-    function _generateTicks() {
-        const cx = CONF.RING_CENTER;
-        const cy = CONF.RING_CENTER;
-        let svg = '';
-        for (let i = 0; i < CONF.TICK_COUNT; i++) {
-            const angle = (i / CONF.TICK_COUNT) * 360;
-            const rad = (angle * Math.PI) / 180;
-            const isLong = i % 6 === 0;
-            const r1 = CONF.TICK_INNER_R;
-            const r2 = isLong ? CONF.TICK_OUTER_R : CONF.TICK_OUTER_R_SHORT;
-            const x1 = cx + r1 * Math.cos(rad);
-            const y1 = cy + r1 * Math.sin(rad);
-            const x2 = cx + r2 * Math.cos(rad);
-            const y2 = cy + r2 * Math.sin(rad);
-            svg += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" />`;
-        }
-        ringGroup.innerHTML = svg;
-    }
-
-    // ─── 輸入事件綁定 ───
-    function _bindInputEvents() {
-        const inputs = wrapper.querySelectorAll('.login-input');
-        inputs.forEach(input => {
-            const flow = input.parentElement.querySelector('.token-flow');
-
-            input.addEventListener('focus', () => {
-                wrapper.classList.add('hud-focus');
-                ringGroup.style.animationDuration = CONF.FOCUS_ROTATE_S + 's';
-            });
-
-            input.addEventListener('blur', () => {
-                wrapper.classList.remove('hud-focus');
-                ringGroup.style.animationDuration = CONF.BASE_ROTATE_S + 's';
-            });
-
-            input.addEventListener('input', () => {
-                // HUD pulse
-                wrapper.classList.remove('hud-typing');
-                void wrapper.offsetWidth; // force reflow
-                wrapper.classList.add('hud-typing');
-
-                // Token 流
-                if (flow) {
-                    flow.classList.add('active');
-                    const id = input.id;
-                    if (tokenTimers.has(id)) clearTimeout(tokenTimers.get(id));
-                    tokenTimers.set(id, setTimeout(() => {
-                        flow.classList.remove('active');
-                        tokenTimers.delete(id);
-                    }, CONF.TOKEN_FADE_DELAY));
-                }
-            });
-        });
-    }
-
-    // ─── 外部接口：登錄開始 ───
-    function onLoginStart() {
-        if (reducedMotion || !wrapper) return;
-        wrapper.classList.remove('hud-focus', 'hud-typing', 'hud-success', 'hud-error');
-        wrapper.classList.add('hud-loading');
-    }
-
-    // ─── 外部接口：登錄成功 ───
-    function onLoginSuccess() {
-        if (reducedMotion || !wrapper) return;
-        wrapper.classList.remove('hud-loading');
-        wrapper.classList.add('hud-success');
-        setTimeout(() => {
-            wrapper.style.transition = 'opacity 0.6s var(--ease-out)';
-            wrapper.style.opacity = '0';
-        }, 600);
-    }
-
-    // ─── 外部接口：登錄失敗 ───
-    function onLoginError() {
-        if (reducedMotion || !wrapper) return;
-        wrapper.classList.remove('hud-loading');
-        wrapper.classList.add('hud-error');
-        setTimeout(() => {
-            wrapper.classList.remove('hud-error');
-        }, 400);
-    }
-
-    // ─── 外部接口：重置（返回登錄頁時） ───
-    function reset() {
-        if (!wrapper) return;
-        wrapper.classList.remove('hud-loading', 'hud-success', 'hud-error', 'hud-focus', 'hud-typing');
-        wrapper.style.opacity = '';
-        wrapper.style.transition = '';
-        if (ringGroup) ringGroup.style.animationDuration = CONF.BASE_ROTATE_S + 's';
-    }
-
-    return { init, onLoginStart, onLoginSuccess, onLoginError, reset, CONF };
-})();
-
-/* ============================================================
    入口
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', () => {
     IndexApp.init();
-    HudController.init();
 
     // 初始化學習總結功能
     if (typeof LearningSummaryManager !== 'undefined') {
