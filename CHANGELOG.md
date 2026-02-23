@@ -11,6 +11,35 @@
 
 ---
 
+## [v3.0.2] [2026-02-23] 修复错题本图形描述未显示 + 首页分组 + SVG 图标统一
+
+### 修复
+
+- **错题本图形描述断链** — Vision AI 成功识别几何图形描述并存入 DB，但 `upload_mistake_photo()` 返回前端的 dict 遗漏 `figure_description` 字段，导致前端从未收到图形信息
+  - `mistake_book/service.py`: 返回 dict 增加 `figure_description` 字段
+  - `mistake_book.js`: 前端收到后自动拼接 `[圖形描述：...]` 到题目 textarea，用户可见可编辑
+  - `mistake_book/service.py` `confirm_and_analyze()`: 增加去重逻辑，若题目已含 `[圖形描述：` 前缀则不再重复传 figure_description 给 AI
+
+### 新增
+
+- **首页应用按分类分组** — 应用卡片按 learning / community / teaching / admin 分组折叠显示，教学/管理组默认折叠
+- **SVG 图标统一** — 首页 14 个应用 + AI 学习中心 tab/模式切换全部从 emoji 替换为 Lucide 风格 SVG 线性图标
+- **管理后台分类管理** — 应用管理面板增加分类分组视图和分类下拉选择器
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/domains/mistake_book/service.py` | `upload` 返回增加 `figure_description`；`confirm` 增加去重判断 |
+| `web_static/js/mistake_book.js` | 上传面板显示图形描述，拼接到题目文本 |
+| `web_static/js/index.js` | `renderHomeApps()` 分类分组 + SVG 图标映射 |
+| `web_static/css/index.css` | 分组 header/grid 样式、折叠动画 |
+| `web_static/js/admin_dashboard.js` | 应用管理分类分组 + 分类下拉 |
+| `web_static/ai_learning_center.html` | 5 tab + 3 mode emoji → SVG |
+| `web_static/css/ai_learning_center.css` | SVG 尺寸样式、tab 标签始终可见 |
+
+---
+
 ## [v3.0.1] [2026-02-23] P0 安全漏洞修复 — 认证绕过 + XSS + Token 黑名单持久化
 
 ### 修复

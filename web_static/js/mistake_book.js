@@ -1317,15 +1317,23 @@ const Upload = {
             const data = res.data;
             btn.style.display = 'none';
 
+            // 如果有圖形描述，拼接到題目前面（讓用戶和 AI 都能看到幾何語境）
+            let questionText = data.ocr_question || '';
+            const figDesc = data.figure_description || '';
+            if (figDesc) {
+                questionText = `[圖形描述：${figDesc}]\n${questionText}`;
+            }
+
             const ocrDiv = document.getElementById('ocrResult');
             ocrDiv.style.display = 'block';
             ocrDiv.innerHTML = `
                 <div style="font-size:12px;color:var(--mb-text-tertiary);margin-bottom:8px">
                     識別信心度：${Math.round((data.confidence || 0) * 100)}%
                     ${data.has_handwriting ? ' · 檢測到手寫' : ''}
+                    ${figDesc ? ' · 已識別圖形' : ''}
                 </div>
                 <div class="mb-ocr-confirm__label">題目（可修正）</div>
-                <textarea class="mb-ocr-confirm__textarea" id="ocrQuestion">${UI.escapeHtml(data.ocr_question || '')}</textarea>
+                <textarea class="mb-ocr-confirm__textarea" id="ocrQuestion">${UI.escapeHtml(questionText)}</textarea>
                 <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正）</div>
                 <textarea class="mb-ocr-confirm__textarea" id="ocrAnswer">${UI.escapeHtml(data.ocr_answer || '')}</textarea>
                 <button class="mb-btn mb-btn--primary mb-btn--full" style="margin-top:12px"

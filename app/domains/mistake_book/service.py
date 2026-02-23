@@ -330,6 +330,7 @@ class MistakeBookService:
             "ocr_answer": ocr_answer,
             "confidence": confidence,
             "has_handwriting": ocr_result.has_handwriting if ocr_result else False,
+            "figure_description": figure_desc,
             "status": status,
             "message": "識別完成，請確認或修正結果" if status == "pending_review" else "識別失敗，請手動輸入",
         }
@@ -361,14 +362,17 @@ class MistakeBookService:
         )
 
         # 從 tags 中提取圖形描述（由 Vision 模型在 OCR 階段識別）
+        # 前端已將圖形描述嵌入題目文字（[圖形描述：...] 前綴），
+        # 若確認的題目中已包含圖形描述，則不再重複傳入，避免 AI 收到兩份
         figure_description = ""
-        tags_raw = mistake.get("tags")
-        if tags_raw:
-            try:
-                tags_obj = json.loads(tags_raw) if isinstance(tags_raw, str) else tags_raw
-                figure_description = tags_obj.get("figure_description", "")
-            except (json.JSONDecodeError, AttributeError):
-                pass
+        if "[圖形描述：" not in confirmed_question:
+            tags_raw = mistake.get("tags")
+            if tags_raw:
+                try:
+                    tags_obj = json.loads(tags_raw) if isinstance(tags_raw, str) else tags_raw
+                    figure_description = tags_obj.get("figure_description", "")
+                except (json.JSONDecodeError, AttributeError):
+                    pass
 
         # AI 分析（包含圖形描述 + 歷史薄弱點累積分析）
         analysis = await self._run_analysis(
