@@ -714,6 +714,20 @@
     </div>
 </div>
 
+<!-- Main entry: shared state, utilities, init -->
 <script src="/static/js/ai_learning_center.js" charset="UTF-8"></script>
+<!-- Sub-modules (order: knowledge map → media → admin → ai chat) -->
+<script src="/static/js/alc_knowledge_map.js" charset="UTF-8"></script>
+<script src="/static/js/alc_media.js" charset="UTF-8"></script>
+<script src="/static/js/alc_admin.js" charset="UTF-8"></script>
+<script src="/static/js/alc_ai_chat.js" charset="UTF-8"></script>
+<!-- Bootstrap init after all modules are registered -->
+<script>
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.alc._init);
+} else {
+    window.alc._init();
+}
+</script>
 </body>
 </html>
