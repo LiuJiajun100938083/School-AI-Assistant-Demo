@@ -487,6 +487,31 @@ async def complete_session(
 #                               端点：早读签到
 # ==================================================================================
 
+def _format_scan_response(result: dict, is_manual: bool = False) -> dict:
+    """
+    将 service.morning_scan() 的扁平返回值转换为前端期望的嵌套结构。
+
+    前端 showScanNotification / showScanResult 期望:
+        data.student  — 学生对象
+        data.record   — {scan_time, status, late_minutes, makeup_minutes, ...}
+    """
+    student = result.pop("student", {})
+    record = {
+        "scan_time": result.get("scan_time"),
+        "status": result.get("status"),
+        "late_minutes": result.get("late_minutes", 0),
+        "makeup_minutes": result.get("makeup_minutes", 0),
+        "is_registered": result.get("is_registered", True),
+    }
+    return {
+        "success": True,
+        "student": student,
+        "record": record,
+        "is_manual": is_manual,
+        **result,  # 保留其余字段（status、message 等）以兼容旧逻辑
+    }
+
+
 @router.post("/scan")
 async def scan_card(
     request: CardScanRequest,
@@ -497,7 +522,7 @@ async def scan_card(
         session_id=request.session_id,
         card_id=request.card_id,
     )
-    return {"success": True, **result}
+    return _format_scan_response(result)
 
 
 @router.post("/manual-scan")
@@ -510,8 +535,7 @@ async def manual_scan(
         session_id=request.session_id,
         user_login=request.user_login,
     )
-    result["is_manual"] = True
-    return {"success": True, **result}
+    return _format_scan_response(result, is_manual=True)
 
 
 # ==================================================================================
