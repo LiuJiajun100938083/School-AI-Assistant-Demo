@@ -1018,7 +1018,18 @@ async def list_attendance_exports(
     """获取点名导出记录列表"""
     username, _ = _extract_username(user_info)
     result = _get_service().list_exports(username, session_type, page, page_size)
-    return {"success": True, **result}
+    # paginate() 返回 {items, total, page, page_size}
+    # 前端期望 {records, total, page, total_pages}
+    total = result.get("total", 0)
+    ps = result.get("page_size", page_size)
+    total_pages = (total + ps - 1) // ps if ps > 0 else 0
+    return {
+        "success": True,
+        "records": result.get("items", []),
+        "total": total,
+        "page": result.get("page", page),
+        "total_pages": total_pages,
+    }
 
 
 @router.get("/exports/download/{export_id}")
