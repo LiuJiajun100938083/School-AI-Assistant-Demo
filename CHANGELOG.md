@@ -11,6 +11,29 @@
 
 ---
 
+## [v3.0.3] [2026-02-24] 修复知识地图拖拽卡顿 + 节点不跟随
+
+### 修复
+
+- **拖拽卡顿（hover/tooltip 定时器干扰）** — 鼠标移到节点上开始拖拽时，350ms/500ms 的 hover 高亮和 tooltip 定时器仍在后台运行，触发后大量 `transition` 动画与 simulation tick 冲突，导致拖拽明显卡顿甚至"卡住"
+  - `drag start` 时立即清除所有 hover/tooltip 定时器并重置高亮
+  - 设置 `_anyNodeDragging` 全局标志，`mouseenter`/`mouseleave` 中检查此标志，拖拽期间完全跳过 hover/tooltip 逻辑
+  - 定时器回调内增加二次检查，防止已启动未执行的定时器回调在拖拽中触发
+
+- **拖拽时其他节点不跟随** — `alphaTarget(0.3)` 仅在首次超过 3px 阈值时设置一次，之后 simulation 自然冷却（`alphaDecay: 0.03`），力场衰减导致邻居节点不再响应
+  - 拖拽持续期间每次 `drag` 事件都保持 `alphaTarget(0.3)`，确保力场全程活跃
+
+- **拖拽后误触发 click/dblclick** — 拖拽结束时可能误触发节点详情面板或折叠/展开
+  - `click`/`dblclick` 事件中增加 `_isDragging` 检查，排除拖拽行为
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/alc_knowledge_map.js` | drag behavior 增加 hover/tooltip 抑制 + simulation 持续加热 + click 防误触 |
+
+---
+
 ## [v3.0.2] [2026-02-23] 修复错题本图形描述未显示 + 首页分组 + SVG 图标统一
 
 ### 修复
