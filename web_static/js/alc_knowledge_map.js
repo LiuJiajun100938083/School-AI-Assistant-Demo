@@ -1764,10 +1764,9 @@
             case 'page':
             case 'page_range': {
                 const page = anchor.type === 'page' ? anchor.value : anchor.from;
-                // PDF.js viewer: scroll to page div
-                const pdfPage = bodyEl.querySelector(`.alc-pdf-page[data-page="${page}"]`);
-                if (pdfPage) {
-                    pdfPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // PDF.js viewer: use exposed goToPage (renders page first, then scrolls)
+                if ($.modules.media && $.modules.media.pdfGoToPage) {
+                    $.modules.media.pdfGoToPage(page);
                     break;
                 }
                 // Fallback: native iframe with #page=N

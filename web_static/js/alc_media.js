@@ -641,6 +641,8 @@
 
     /** Active PDF document reference (for cleanup) */
     let _activePdfDoc = null;
+    /** Exposed goToPage function from the active PDF viewer (for external anchor navigation) */
+    let _pdfGoToPage = null;
 
     /**
      * Render a PDF using PDF.js into a scrollable canvas-based viewer.
@@ -784,14 +786,15 @@
             }
         }
 
-        /** Scroll to a specific page */
-        function goToPage(pageNum) {
+        /** Scroll to a specific page (renders the page first, then scrolls) */
+        async function goToPage(pageNum) {
             pageNum = Math.max(1, Math.min(numPages, pageNum));
             currentPage = pageNum;
             pageInput.value = pageNum;
+            // Ensure the page is rendered before scrolling (so height is correct)
+            await renderPage(pageNum);
             const target = pagesContainer.querySelector(`[data-page="${pageNum}"]`);
             if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            renderPage(pageNum);
         }
 
         /** Re-render all visible pages at current scale */
@@ -837,6 +840,9 @@
             _scrollTimer = setTimeout(renderVisiblePages, 80);
         }, { passive: true });
 
+        // Expose goToPage for external anchor navigation (e.g. applyAnchor in knowledge map)
+        _pdfGoToPage = goToPage;
+
         // Initial render: first few pages + jump to start page
         for (let i = 1; i <= Math.min(3, numPages); i++) {
             await renderPage(i);
@@ -863,5 +869,7 @@
         hidePathDetail,
         loadResources,
         downloadResource,
+        /** Navigate the active PDF.js viewer to a specific page (1-based). No-op if no PDF viewer is active. */
+        pdfGoToPage(pageNum) { if (_pdfGoToPage) _pdfGoToPage(pageNum); },
     };
 })();
