@@ -446,11 +446,11 @@
                             }
 
                             if (hasContent) {
-                                // Use navigateToContent with anchor for precise page positioning
-                                const anchorArg = anchor ? `'${$.escapeHtml(JSON.stringify(anchor))}'` : 'null';
+                                // Use data attributes to avoid JSON-in-onclick quoting issues
                                 const contentTitle = step.content_title ? $.escapeHtml(step.content_title) : '文档';
                                 const btnLabel = `📄 ${contentTitle}${anchorHint}`;
-                                actions.push(`<button class="alc-step-action-btn" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToContent('${step.content_id}', ${anchorArg})">${btnLabel}</button>`);
+                                const anchorAttr = anchor ? ` data-anchor="${$.escapeHtml(JSON.stringify(anchor))}"` : '';
+                                actions.push(`<button class="alc-step-action-btn alc-step-nav-btn" data-content-id="${step.content_id}"${anchorAttr}>${btnLabel}</button>`);
                             }
                             if (hasNode) {
                                 actions.push(`<button class="alc-step-action-btn alc-step-action-btn--node" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToKnowledgeNode(${step.node_id})">🔗 知识节点</button>`);
@@ -466,6 +466,19 @@
                     } else {
                         timelineEl.innerHTML = '<li><span>暂无步骤</span></li>';
                     }
+                }
+
+                // Event delegation for step content navigation buttons
+                if (timelineEl) {
+                    timelineEl.addEventListener('click', (e) => {
+                        const navBtn = e.target.closest('.alc-step-nav-btn');
+                        if (!navBtn) return;
+                        e.stopPropagation();
+                        const contentId = navBtn.dataset.contentId;
+                        const anchorStr = navBtn.dataset.anchor || null;
+                        hidePathDetail();
+                        window.lcLearningCenter.navigateToContent(contentId, anchorStr);
+                    });
                 }
 
                 // 使用 CSS active class 显示（有过渡动画）
