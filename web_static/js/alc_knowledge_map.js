@@ -412,19 +412,32 @@
             .attr('pointer-events', d => d._visible ? 'all' : 'none')
             .on('click', (event, d) => {
                 event.stopPropagation();
+                // Ignore click if it was actually a drag
+                if (d._isDragging) return;
                 showNodeDetail(d);
             })
             .on('dblclick', (event, d) => {
                 event.stopPropagation();
+                if (d._isDragging) return;
                 toggleCollapse(d);
             })
             .on('mouseenter', (event, d) => {
+                // Suppress hover/tooltip entirely while any node is being dragged
+                if (ctx._anyNodeDragging && ctx._anyNodeDragging()) return;
                 clearTimeout($._hoverHighlightTimer);
-                $._hoverHighlightTimer = setTimeout(() => handleNodeHover(d, true), 350);
-                $._tooltipTimer = setTimeout(() => showNodeTooltip(d, event), 500);
+                $._hoverHighlightTimer = setTimeout(() => {
+                    if (ctx._anyNodeDragging && ctx._anyNodeDragging()) return;
+                    handleNodeHover(d, true);
+                }, 350);
+                $._tooltipTimer = setTimeout(() => {
+                    if (ctx._anyNodeDragging && ctx._anyNodeDragging()) return;
+                    showNodeTooltip(d, event);
+                }, 500);
             })
             .on('mouseleave', () => {
                 clearTimeout($._hoverHighlightTimer);
+                // During drag, don't trigger hover-off transitions (they cause stutter)
+                if (ctx._anyNodeDragging && ctx._anyNodeDragging()) return;
                 handleNodeHover(null, false);
                 hideNodeTooltip();
             });
@@ -993,18 +1006,27 @@
         // ── I. Drag behavior ──
         // Reheat simulation only after real movement (not on simple click),
         // but always let the node follow the cursor for smooth dragging.
+        // During drag: suppress hover/tooltip to avoid transition conflicts & stutter.
         const DRAG_THRESHOLD = 3; // minimum px to count as real drag (for reheat only)
+        let _anyNodeDragging = false; // global flag for hover/tooltip suppression
         const drag = d3.drag()
             .on('start', (event, d) => {
                 d._dragStartX = event.x;
                 d._dragStartY = event.y;
                 d._isDragging = false;
                 d.fx = d.x; d.fy = d.y;
+                // Suppress hover/tooltip immediately on drag start
+                _anyNodeDragging = true;
+                clearTimeout($._hoverHighlightTimer);
+                clearTimeout($._tooltipTimer);
+                handleNodeHover(null, false);
+                hideNodeTooltip();
             })
             .on('drag', (event, d) => {
                 // Always move the node to follow cursor
                 d.fx = event.x; d.fy = event.y;
-                // Only reheat simulation once after exceeding threshold
+                // Only reheat simulation once after exceeding threshold,
+                // but keep alphaTarget warm throughout the drag so neighbors follow.
                 if (!d._isDragging) {
                     const dx = event.x - d._dragStartX;
                     const dy = event.y - d._dragStartY;
@@ -1012,9 +1034,13 @@
                         d._isDragging = true;
                         if (!event.active) ctx.simulation.alphaTarget(0.3).restart();
                     }
+                } else {
+                    // Keep simulation hot while dragging so other nodes follow
+                    ctx.simulation.alphaTarget(0.3);
                 }
             })
             .on('end', (event, d) => {
+                _anyNodeDragging = false;
                 if (d._isDragging) {
                     if (!event.active) ctx.simulation.alphaTarget(0);
                 }
@@ -1022,6 +1048,8 @@
                 d._isDragging = false;
             });
         nodeGroups.call(drag);
+        // Expose drag flag so hover handlers can check it
+        ctx._anyNodeDragging = () => _anyNodeDragging;
 
         // ── J. Zoom with LOD ──
         const { zoom, zoomState } = setupZoomBehavior(svg, g, ctx);
