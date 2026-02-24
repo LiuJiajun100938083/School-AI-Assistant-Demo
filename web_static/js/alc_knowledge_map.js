@@ -1653,7 +1653,8 @@
         if (!_mapCtx) return;
 
         const { svg, zoom, nodeMap, parentMap, childrenMap, nodeGroups,
-                hierLinks, hierEdgeLabels, edgeBothVisible, rebuildSimulationFn } = _mapCtx;
+                hierLinks, hierEdgeLabels, crossLinks, crossEdgeLabels,
+                edgeBothVisible, rebuildSimulationFn } = _mapCtx;
 
         const targetNode = nodeMap.get(nodeId) || nodeMap.get(Number(nodeId)) || nodeMap.get(String(nodeId));
         if (!targetNode) {
@@ -1731,6 +1732,26 @@
                     const tId = typeof d.target === 'object' ? d.target.id : d.target;
                     return (pathIds.has(sId) && pathIds.has(tId)) ? 1 : 0;
                 });
+
+            // Dim cross-links: show those connecting path nodes, hide the rest
+            if (crossLinks) {
+                crossLinks.transition().duration(400)
+                    .attr('stroke-opacity', d => {
+                        if (!edgeBothVisible(d)) return 0;
+                        const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                        const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                        return (pathIds.has(sId) && pathIds.has(tId)) ? 0.6 : 0.03;
+                    });
+            }
+            if (crossEdgeLabels) {
+                crossEdgeLabels.transition().duration(400)
+                    .attr('opacity', d => {
+                        if (!edgeBothVisible(d)) return 0;
+                        const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                        const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                        return (pathIds.has(sId) && pathIds.has(tId)) ? 0.8 : 0;
+                    });
+            }
 
             // Add pulsing ring to the TARGET node (bigger & more prominent)
             d3.selectAll('.kg-path-ring').remove();
@@ -1827,7 +1848,7 @@
             .attr('opacity', d => d._visible ? 1 : 0);
 
         if (_mapCtx) {
-            const { hierLinks, hierEdgeLabels, edgeBothVisible, zoomState } = _mapCtx;
+            const { hierLinks, hierEdgeLabels, crossLinks, crossEdgeLabels, edgeBothVisible, zoomState } = _mapCtx;
             if (hierLinks) {
                 hierLinks.transition().duration(500)
                     .attr('stroke-opacity', d => edgeBothVisible(d) ? 0.5 : 0)
@@ -1836,6 +1857,14 @@
             if (hierEdgeLabels) {
                 hierEdgeLabels.transition().duration(500)
                     .attr('opacity', d => edgeBothVisible(d) ? 0.7 : 0);
+            }
+            if (crossLinks) {
+                crossLinks.transition().duration(500)
+                    .attr('stroke-opacity', d => edgeBothVisible(d) ? 0.4 : 0);
+            }
+            if (crossEdgeLabels) {
+                crossEdgeLabels.transition().duration(500)
+                    .attr('opacity', d => edgeBothVisible(d) ? 0.6 : 0);
             }
             // Re-apply LOD for current zoom level
             if (zoomState) applyLOD(zoomState.currentScale, _mapCtx);

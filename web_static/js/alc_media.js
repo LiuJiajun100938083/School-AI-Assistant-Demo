@@ -454,7 +454,7 @@
                                 // Use data attributes to avoid JSON-in-onclick quoting issues
                                 const contentTitle = step.content_title ? $.escapeHtml(step.content_title) : '文档';
                                 const btnLabel = `📄 ${contentTitle}${anchorHint}`;
-                                const anchorAttr = anchor ? ` data-anchor="${$.escapeHtml(JSON.stringify(anchor))}"` : '';
+                                const anchorAttr = anchor ? ` data-anchor="${JSON.stringify(anchor).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"` : '';
                                 actions.push(`<button class="alc-step-action-btn alc-step-nav-btn" data-content-id="${step.content_id}"${anchorAttr}>${btnLabel}</button>`);
                             }
                             if (hasNode) {
