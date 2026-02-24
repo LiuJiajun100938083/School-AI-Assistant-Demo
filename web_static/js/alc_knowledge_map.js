@@ -1763,10 +1763,16 @@
         switch (anchor.type) {
             case 'page':
             case 'page_range': {
-                // PDF: reload iframe with #page=N
+                const page = anchor.type === 'page' ? anchor.value : anchor.from;
+                // PDF.js viewer: scroll to page div
+                const pdfPage = bodyEl.querySelector(`.alc-pdf-page[data-page="${page}"]`);
+                if (pdfPage) {
+                    pdfPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    break;
+                }
+                // Fallback: native iframe with #page=N
                 const iframe = bodyEl.querySelector('iframe');
                 if (iframe && iframe.src) {
-                    const page = anchor.type === 'page' ? anchor.value : anchor.from;
                     const baseUrl = iframe.src.split('#')[0];
                     iframe.src = baseUrl + '#page=' + page;
                 }

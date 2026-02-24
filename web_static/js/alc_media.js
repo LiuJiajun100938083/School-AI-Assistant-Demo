@@ -281,17 +281,26 @@
                     break;
                 }
                 case 'document': {
-                    let fileUrl = $.getFileUrl(content);
+                    const fileUrl = $.getFileUrl(content);
                     if (fileUrl) {
-                        // Append #page=N directly to initial URL for instant page navigation
-                        if (anchor && (anchor.type === 'page' || anchor.type === 'page_range')) {
-                            const page = anchor.type === 'page' ? anchor.value : anchor.from;
-                            fileUrl += '#page=' + page;
+                        const isPdf = (content.mime_type || '').includes('pdf')
+                            || (content.file_name || content.file_path || '').toLowerCase().endsWith('.pdf');
+                        const startPage = (anchor && (anchor.type === 'page' || anchor.type === 'page_range'))
+                            ? (anchor.type === 'page' ? anchor.value : anchor.from)
+                            : 1;
+
+                        if (isPdf && window.pdfjsLib) {
+                            // Use PDF.js for cross-platform support (iPad / mobile)
+                            _renderPdfViewer(bodyEl, fileUrl, startPage, content);
+                        } else {
+                            // Fallback: native iframe (desktop browsers with PDF plugin)
+                            let iframeUrl = fileUrl;
+                            if (startPage > 1) iframeUrl += '#page=' + startPage;
+                            bodyEl.innerHTML = `<iframe class="alc-ebook-doc-iframe" src="${$.escapeHtml(iframeUrl)}" frameborder="0"></iframe>
+                                <div class="alc-ebook-doc-actions">
+                                    <a href="${$.escapeHtml(fileUrl)}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">下載文件</a>
+                                </div>`;
                         }
-                        bodyEl.innerHTML = `<iframe class="alc-ebook-doc-iframe" src="${$.escapeHtml(fileUrl)}" frameborder="0"></iframe>
-                            <div class="alc-ebook-doc-actions">
-                                <a href="${$.escapeHtml($.getFileUrl(content))}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">下載文件</a>
-                            </div>`;
                     } else {
                         bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入文件</p>';
                     }
@@ -625,6 +634,216 @@
             }
         } catch (error) {
             console.error('Failed to download resource:', error);
+        }
+    }
+
+    // ==================== PDF.js VIEWER ====================
+
+    /** Active PDF document reference (for cleanup) */
+    let _activePdfDoc = null;
+
+    /**
+     * Render a PDF using PDF.js into a scrollable canvas-based viewer.
+     * Works on iPad/Safari where native <iframe> PDF rendering is unsupported.
+     *
+     * @param {HTMLElement} container - Parent element to render into
+     * @param {string} fileUrl - URL of the PDF file
+     * @param {number} startPage - Initial page to scroll to (1-based)
+     * @param {object} content - Content metadata for download button
+     */
+    async function _renderPdfViewer(container, fileUrl, startPage, content) {
+        // Clean up previous PDF doc
+        if (_activePdfDoc) {
+            _activePdfDoc.destroy();
+            _activePdfDoc = null;
+        }
+
+        // Set worker source
+        if (window.pdfjsLib && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        // Build viewer skeleton
+        container.innerHTML = `
+            <div class="alc-pdf-viewer">
+                <div class="alc-pdf-toolbar">
+                    <button class="alc-pdf-btn" data-action="prev" title="上一页">◀</button>
+                    <span class="alc-pdf-page-info">
+                        <input class="alc-pdf-page-input" type="number" min="1" value="1" />
+                        <span>/ <span class="alc-pdf-total">-</span></span>
+                    </span>
+                    <button class="alc-pdf-btn" data-action="next" title="下一页">▶</button>
+                    <span class="alc-pdf-separator"></span>
+                    <button class="alc-pdf-btn" data-action="zoomout" title="缩小">−</button>
+                    <span class="alc-pdf-zoom-label">100%</span>
+                    <button class="alc-pdf-btn" data-action="zoomin" title="放大">+</button>
+                    <span class="alc-pdf-separator"></span>
+                    <a href="${$.escapeHtml(fileUrl)}" class="alc-pdf-btn" download="${$.escapeHtml(content.title || 'download')}" title="下載">⬇</a>
+                </div>
+                <div class="alc-pdf-scroll-area">
+                    <div class="alc-pdf-pages"></div>
+                </div>
+                <div class="alc-pdf-loading">載入 PDF 中...</div>
+            </div>`;
+
+        const viewer = container.querySelector('.alc-pdf-viewer');
+        const pagesContainer = viewer.querySelector('.alc-pdf-pages');
+        const scrollArea = viewer.querySelector('.alc-pdf-scroll-area');
+        const loadingEl = viewer.querySelector('.alc-pdf-loading');
+        const pageInput = viewer.querySelector('.alc-pdf-page-input');
+        const totalEl = viewer.querySelector('.alc-pdf-total');
+        const zoomLabel = viewer.querySelector('.alc-pdf-zoom-label');
+
+        let pdfDoc = null;
+        let scale = 1.5;
+        let currentPage = startPage || 1;
+        const renderedPages = new Map();  // pageNum → canvas
+
+        try {
+            pdfDoc = await pdfjsLib.getDocument(fileUrl).promise;
+            _activePdfDoc = pdfDoc;
+        } catch (err) {
+            console.error('[PDF.js] Failed to load:', err);
+            loadingEl.textContent = 'PDF 載入失敗';
+            return;
+        }
+
+        const numPages = pdfDoc.numPages;
+        totalEl.textContent = numPages;
+        pageInput.max = numPages;
+        pageInput.value = currentPage;
+        loadingEl.style.display = 'none';
+
+        // Create placeholder divs for all pages (lazy rendering)
+        for (let i = 1; i <= numPages; i++) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'alc-pdf-page';
+            pageDiv.dataset.page = i;
+            pagesContainer.appendChild(pageDiv);
+        }
+
+        /** Render a single page into its container div */
+        async function renderPage(pageNum) {
+            if (renderedPages.has(pageNum) || !pdfDoc) return;
+            renderedPages.set(pageNum, true);  // mark as rendering
+
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale });
+                const pageDiv = pagesContainer.querySelector(`[data-page="${pageNum}"]`);
+                if (!pageDiv) return;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                canvas.style.width = '100%';
+                canvas.style.height = 'auto';
+                pageDiv.style.minHeight = '';
+                pageDiv.innerHTML = '';
+                pageDiv.appendChild(canvas);
+
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport }).promise;
+                renderedPages.set(pageNum, canvas);
+            } catch (err) {
+                console.error(`[PDF.js] Error rendering page ${pageNum}:`, err);
+            }
+        }
+
+        /** Render visible pages + 1 page ahead/behind for smooth scrolling */
+        function renderVisiblePages() {
+            const scrollTop = scrollArea.scrollTop;
+            const scrollBottom = scrollTop + scrollArea.clientHeight;
+            const pageDivs = pagesContainer.querySelectorAll('.alc-pdf-page');
+
+            pageDivs.forEach(div => {
+                const top = div.offsetTop;
+                const bottom = top + (div.offsetHeight || 200);
+                const pageNum = parseInt(div.dataset.page);
+
+                // Render if in viewport or ±1 page buffer
+                if (bottom >= scrollTop - 500 && top <= scrollBottom + 500) {
+                    renderPage(pageNum);
+                }
+            });
+
+            // Update current page indicator based on scroll position
+            const centerY = scrollTop + scrollArea.clientHeight / 2;
+            for (const div of pageDivs) {
+                const top = div.offsetTop;
+                const bottom = top + (div.offsetHeight || 200);
+                if (centerY >= top && centerY <= bottom) {
+                    const p = parseInt(div.dataset.page);
+                    if (p !== currentPage) {
+                        currentPage = p;
+                        pageInput.value = p;
+                    }
+                    break;
+                }
+            }
+        }
+
+        /** Scroll to a specific page */
+        function goToPage(pageNum) {
+            pageNum = Math.max(1, Math.min(numPages, pageNum));
+            currentPage = pageNum;
+            pageInput.value = pageNum;
+            const target = pagesContainer.querySelector(`[data-page="${pageNum}"]`);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            renderPage(pageNum);
+        }
+
+        /** Re-render all visible pages at current scale */
+        async function rerender() {
+            renderedPages.clear();
+            pagesContainer.querySelectorAll('.alc-pdf-page').forEach(div => {
+                div.innerHTML = '';
+                div.style.minHeight = '200px';
+            });
+            zoomLabel.textContent = Math.round(scale / 1.5 * 100) + '%';
+            // Render current page first, then visible pages
+            await renderPage(currentPage);
+            renderVisiblePages();
+        }
+
+        // Toolbar event delegation
+        viewer.querySelector('.alc-pdf-toolbar').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'prev') goToPage(currentPage - 1);
+            else if (action === 'next') goToPage(currentPage + 1);
+            else if (action === 'zoomin') { scale = Math.min(4, scale + 0.3); rerender(); }
+            else if (action === 'zoomout') { scale = Math.max(0.5, scale - 0.3); rerender(); }
+        });
+
+        // Page input
+        pageInput.addEventListener('change', () => {
+            const p = parseInt(pageInput.value);
+            if (p >= 1 && p <= numPages) goToPage(p);
+        });
+        pageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const p = parseInt(pageInput.value);
+                if (p >= 1 && p <= numPages) goToPage(p);
+            }
+        });
+
+        // Lazy render on scroll (debounced)
+        let _scrollTimer = null;
+        scrollArea.addEventListener('scroll', () => {
+            if (_scrollTimer) clearTimeout(_scrollTimer);
+            _scrollTimer = setTimeout(renderVisiblePages, 80);
+        }, { passive: true });
+
+        // Initial render: first few pages + jump to start page
+        for (let i = 1; i <= Math.min(3, numPages); i++) {
+            await renderPage(i);
+        }
+        if (startPage > 1) {
+            // Wait for page layout to settle, then scroll
+            setTimeout(() => goToPage(startPage), 100);
         }
     }
 
