@@ -35,10 +35,18 @@ STATIC_DIR = str(Path(__file__).resolve().parent.parent.parent / "web_static")
 
 
 def _serve_page(filename: str):
-    """通用页面服务函数"""
+    """通用页面服务函数（禁止浏览器缓存 HTML，确保每次获取最新版本）"""
     file_path = os.path.join(STATIC_DIR, filename)
     if os.path.exists(file_path):
-        return FileResponse(file_path, media_type="text/html")
+        return FileResponse(
+            file_path,
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     return HTMLResponse(
         content=f"<h1>页面未找到: {filename}</h1>",
         status_code=404,
