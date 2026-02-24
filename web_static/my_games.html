@@ -308,6 +308,133 @@
             margin-bottom: var(--space-5);
         }
 
+        /* 分享弹窗 */
+        .share-modal-body {
+            text-align: center;
+        }
+
+        .share-duration-options {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .duration-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border-default);
+            border-radius: var(--radius-full);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .duration-btn:hover {
+            border-color: var(--brand);
+            color: var(--brand);
+        }
+
+        .duration-btn.active {
+            border-color: var(--brand);
+            background: var(--brand-light);
+            color: var(--brand);
+        }
+
+        .share-generate-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--brand);
+            color: white;
+            border: none;
+            border-radius: var(--radius-full);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .share-generate-btn:hover {
+            background: var(--brand-hover);
+        }
+
+        .share-generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .share-result {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .share-result.show {
+            display: block;
+        }
+
+        .qr-container {
+            margin: 16px auto;
+            width: 200px;
+            height: 200px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .share-url-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            align-items: stretch;
+        }
+
+        .share-url-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border-default);
+            border-radius: 10px;
+            font-size: 13px;
+            color: var(--text-primary);
+            background: var(--bg-page);
+            min-width: 0;
+        }
+
+        .share-url-input:focus {
+            outline: none;
+            border-color: var(--brand);
+        }
+
+        .copy-btn {
+            padding: 10px 18px;
+            background: var(--brand);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: var(--brand-hover);
+        }
+
+        .share-expires-info {
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
         /* 确认对话框 */
         .modal-overlay {
             position: fixed;
@@ -489,6 +616,44 @@
         </div>
     </div>
 
+    <!-- 分享二维码弹窗 -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal" style="max-width:420px;">
+            <div class="modal-title" id="shareModalTitle">分享遊戲</div>
+            <div class="share-modal-body">
+                <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">
+                    選擇有效期後生成二維碼，學生掃碼即可直接玩遊戲（無需登入）
+                </p>
+
+                <div class="share-duration-options" id="shareDurationOptions">
+                    <button class="duration-btn" data-duration="30m">30 分鐘</button>
+                    <button class="duration-btn active" data-duration="1h">1 小時</button>
+                    <button class="duration-btn" data-duration="1d">1 天</button>
+                    <button class="duration-btn" data-duration="1w">1 週</button>
+                </div>
+
+                <button class="share-generate-btn" id="shareGenerateBtn" onclick="MyGamesPage.generateShareLink()">
+                    生成二維碼
+                </button>
+
+                <div class="share-result" id="shareResult">
+                    <div class="qr-container" id="shareQrCode"></div>
+                    <div class="share-url-row">
+                        <input type="text" class="share-url-input" id="shareUrlInput" readonly>
+                        <button class="copy-btn" onclick="MyGamesPage.copyShareUrl()">複製</button>
+                    </div>
+                    <div class="share-expires-info" id="shareExpiresInfo"></div>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top:20px;">
+                <button class="modal-btn modal-btn-cancel" onclick="MyGamesPage.closeShareModal()">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
 <script>
 /**
  * 我的游戏页面
@@ -643,6 +808,9 @@ const MyGamesPage = {
                     <button class="action-btn" onclick="MyGamesPage.editGame('${game.uuid}')">
                         ✏️ 編輯
                     </button>
+                    <button class="action-btn" onclick="MyGamesPage.showShareModal('${game.uuid}', '${game.name.replace(/'/g, "\\'")}')">
+                        📤 分享
+                    </button>
                     <button class="action-btn" onclick="MyGamesPage.toggleVisibility('${game.uuid}')">
                         ${game.is_public ? '🔒 設為私有' : '🌐 設為公開'}
                     </button>
@@ -748,6 +916,128 @@ const MyGamesPage = {
                 <button class="btn btn-primary" onclick="location.reload()">重新載入</button>
             </div>
         `;
+    },
+
+    // ==================== 分享功能 ====================
+
+    shareTarget: null,
+    selectedDuration: '1h',
+    shareQrInstance: null,
+
+    showShareModal(uuid, gameName) {
+        this.shareTarget = uuid;
+        this.selectedDuration = '1h';
+
+        // 设置标题
+        document.getElementById('shareModalTitle').textContent = `分享：${gameName}`;
+
+        // 重置 duration 按钮状态
+        document.querySelectorAll('#shareDurationOptions .duration-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.duration === '1h');
+        });
+
+        // 隐藏之前的结果
+        document.getElementById('shareResult').classList.remove('show');
+        document.getElementById('shareGenerateBtn').disabled = false;
+        document.getElementById('shareGenerateBtn').textContent = '生成二維碼';
+
+        // 清除旧二维码
+        const qrContainer = document.getElementById('shareQrCode');
+        qrContainer.innerHTML = '';
+        this.shareQrInstance = null;
+
+        // 绑定 duration 按钮点击
+        document.querySelectorAll('#shareDurationOptions .duration-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('#shareDurationOptions .duration-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedDuration = btn.dataset.duration;
+            };
+        });
+
+        document.getElementById('shareModal').classList.add('active');
+    },
+
+    closeShareModal() {
+        this.shareTarget = null;
+        document.getElementById('shareModal').classList.remove('active');
+    },
+
+    async generateShareLink() {
+        if (!this.shareTarget) return;
+
+        const btn = document.getElementById('shareGenerateBtn');
+        btn.disabled = true;
+        btn.textContent = '生成中...';
+
+        try {
+            const authToken = localStorage.getItem('auth_token');
+            const response = await fetch(`/api/games/${this.shareTarget}/share`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ duration: this.selectedDuration })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                const data = result.data;
+                const shareUrl = data.share_url;
+
+                // 显示结果区域
+                document.getElementById('shareResult').classList.add('show');
+
+                // 设置链接
+                document.getElementById('shareUrlInput').value = shareUrl;
+
+                // 生成二维码
+                const qrContainer = document.getElementById('shareQrCode');
+                qrContainer.innerHTML = '';
+                this.shareQrInstance = new QRCode(qrContainer, {
+                    text: shareUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark: '#1D1D1F',
+                    colorLight: '#FFFFFF',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+
+                // 显示过期时间
+                const expiresAt = new Date(data.expires_at);
+                const durationLabels = { '30m': '30 分鐘', '1h': '1 小時', '1d': '1 天', '1w': '1 週' };
+                document.getElementById('shareExpiresInfo').textContent =
+                    `有效期：${durationLabels[this.selectedDuration]} | 過期時間：${expiresAt.toLocaleString('zh-TW')}`;
+
+                btn.textContent = '重新生成';
+                btn.disabled = false;
+            } else {
+                alert(result.message || '生成失敗');
+                btn.textContent = '生成二維碼';
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error('生成分享链接失败:', error);
+            alert('生成失敗，請重試');
+            btn.textContent = '生成二維碼';
+            btn.disabled = false;
+        }
+    },
+
+    copyShareUrl() {
+        const input = document.getElementById('shareUrlInput');
+        input.select();
+        navigator.clipboard.writeText(input.value).then(() => {
+            const btn = input.nextElementSibling;
+            const originalText = btn.textContent;
+            btn.textContent = '已複製';
+            setTimeout(() => { btn.textContent = originalText; }, 2000);
+        }).catch(() => {
+            // Fallback
+            document.execCommand('copy');
+        });
     }
 };
 

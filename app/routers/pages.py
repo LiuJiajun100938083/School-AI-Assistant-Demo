@@ -15,6 +15,7 @@
 - GET  /china_economy_game   - 经济发展游戏
 - GET  /game_upload          - 游戏上传
 - GET  /my_games             - 我的游戏
+- GET  /play/{token}          - 分享游戏（无需登入）
 - GET  /uploaded_games/{uuid} - 用户上传游戏
 """
 
@@ -172,6 +173,12 @@ async def game_upload():
 async def my_games():
     """我的游戏"""
     return _serve_page("my_games.html")
+
+
+@router.get("/play/{token}")
+async def play_shared_game(token: str):
+    """通过分享 token 访问游戏（无需登入）"""
+    return _serve_page("game_play_shared.html")
 
 
 @router.get("/uploaded_games/{game_uuid}")

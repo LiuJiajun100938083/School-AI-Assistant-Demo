@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲分享 - AI學習夥伴</title>
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --brand: #006633;
+            --brand-light: #E8F5EC;
+            --bg-page: #F5F5F7;
+            --bg-card: #FFFFFF;
+            --text-primary: #1D1D1F;
+            --text-secondary: #6E6E73;
+            --text-tertiary: #A1A1A6;
+            --border-light: rgba(0, 0, 0, 0.04);
+            --color-error: #FF3B30;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-page);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部信息栏 */
+        .share-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-light);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .game-icon {
+            font-size: 28px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--brand-light);
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .game-title-group {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .game-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .game-subtitle {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 2px;
+        }
+
+        /* 游戏容器 */
+        .game-frame-container {
+            flex: 1;
+            display: flex;
+        }
+
+        .game-frame-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* 加载状态 */
+        .loading-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: var(--text-secondary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-light);
+            border-top-color: var(--brand);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 错误/过期状态 */
+        .error-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 64px;
+            opacity: 0.5;
+        }
+
+        .error-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .error-message {
+            font-size: 14px;
+            color: var(--text-secondary);
+            max-width: 320px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 加载中 -->
+    <div class="loading-state" id="loadingState">
+        <div class="loading-spinner"></div>
+        <span>正在載入遊戲...</span>
+    </div>
+
+    <!-- 错误/过期 -->
+    <div class="error-state" id="errorState" style="display:none;">
+        <div class="error-icon" id="errorIcon"></div>
+        <div class="error-title" id="errorTitle"></div>
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <!-- 游戏内容（加载成功后显示） -->
+    <header class="share-header" id="gameHeader" style="display:none;">
+        <div class="game-icon" id="gameIcon"></div>
+        <div class="game-title-group">
+            <div class="game-title" id="gameTitle"></div>
+            <div class="game-subtitle" id="gameSubtitle"></div>
+        </div>
+    </header>
+    <div class="game-frame-container" id="gameFrame" style="display:none;"></div>
+
+<script>
+(async function() {
+    // 从 URL 中提取 token: /play/{token}
+    const pathParts = window.location.pathname.split('/');
+    const token = pathParts[pathParts.length - 1];
+
+    if (!token) {
+        showError('link_invalid');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/games/shared/${token}`);
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            showError('expired');
+            return;
+        }
+
+        const game = result.data;
+        showGame(game);
+
+    } catch (err) {
+        console.error('加载分享游戏失败:', err);
+        showError('network');
+    }
+
+    function showGame(game) {
+        // 隐藏加载
+        document.getElementById('loadingState').style.display = 'none';
+
+        // 设置标题
+        document.title = `${game.name} - AI學習夥伴`;
+
+        // 显示顶部栏
+        const header = document.getElementById('gameHeader');
+        header.style.display = 'flex';
+        document.getElementById('gameIcon').textContent = game.icon || '';
+        document.getElementById('gameTitle').textContent = game.name;
+
+        const subtitle = game.uploader_name
+            ? `由 ${game.uploader_name} 分享`
+            : '分享遊戲';
+        document.getElementById('gameSubtitle').textContent = subtitle;
+
+        // 加载游戏 iframe
+        const frameContainer = document.getElementById('gameFrame');
+        frameContainer.style.display = 'flex';
+
+        const iframe = document.createElement('iframe');
+        iframe.src = game.url;
+        iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+        iframe.setAttribute('allow', 'autoplay; fullscreen');
+        frameContainer.appendChild(iframe);
+    }
+
+    function showError(type) {
+        document.getElementById('loadingState').style.display = 'none';
+
+        const errorState = document.getElementById('errorState');
+        errorState.style.display = 'flex';
+
+        const configs = {
+            expired: {
+                icon: '⏰',
+                title: '連結已過期',
+                message: '此分享連結已過期，請向老師索取新的分享連結。'
+            },
+            link_invalid: {
+                icon: '🔗',
+                title: '連結無效',
+                message: '無法識別此分享連結，請檢查連結是否正確。'
+            },
+            network: {
+                icon: '🌐',
+                title: '網絡錯誤',
+                message: '無法連接伺服器，請檢查網絡連接後重試。'
+            }
+        };
+
+        const config = configs[type] || configs.network;
+        document.getElementById('errorIcon').textContent = config.icon;
+        document.getElementById('errorTitle').textContent = config.title;
+        document.getElementById('errorMessage').textContent = config.message;
+    }
+})();
+</script>
+</body>
+</html>

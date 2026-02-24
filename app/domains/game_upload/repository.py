@@ -80,6 +80,78 @@ class GameUploadRepository(BaseRepository):
 
         logger.info("uploaded_games 表初始化成功")
 
+        # 初始化分享 token 表
+        self._init_share_table(conn)
+
+    def _init_share_table(self, conn) -> None:
+        """初始化 game_share_tokens 表（幂等）"""
+        create_sql = """
+        CREATE TABLE IF NOT EXISTS game_share_tokens (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            token VARCHAR(32) NOT NULL UNIQUE,
+            game_uuid VARCHAR(36) NOT NULL,
+            creator_id INT NOT NULL,
+            expires_at DATETIME NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_token (token),
+            INDEX idx_game (game_uuid),
+            INDEX idx_expires (expires_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        COMMENT='游戏分享 Token'
+        """
+        cursor = conn.cursor()
+        cursor.execute(create_sql)
+        logger.info("game_share_tokens 表初始化成功")
+
+    # ============================================================
+    # 分享 Token
+    # ============================================================
+
+    def create_share_token(self, data: Dict[str, Any]) -> int:
+        """创建分享 token 记录"""
+        sql = """
+        INSERT INTO game_share_tokens (token, game_uuid, creator_id, expires_at)
+        VALUES (%s, %s, %s, %s)
+        """
+        with self.transaction() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, (
+                data['token'], data['game_uuid'],
+                data['creator_id'], data['expires_at'],
+            ))
+            return cursor.lastrowid
+
+    def find_share_token(self, token: str) -> Optional[Dict[str, Any]]:
+        """
+        查询分享 token（JOIN 游戏表获取游戏信息）
+
+        返回 token + 游戏数据，不检查过期（由 Service 层判断）
+        """
+        return self.raw_query_one(
+            """
+            SELECT t.token, t.expires_at, t.created_at as share_created_at,
+                   g.uuid, g.name, g.name_en, g.description, g.subject,
+                   g.icon, g.difficulty, g.tags, g.file_size,
+                   COALESCE(u.display_name, u.username) as uploader_name
+            FROM game_share_tokens t
+            JOIN uploaded_games g ON t.game_uuid = g.uuid AND g.is_deleted = FALSE
+            LEFT JOIN users u ON g.uploader_id = u.id
+            WHERE t.token = %s
+            """,
+            (token,),
+        )
+
+    def cleanup_expired_tokens(self) -> int:
+        """清理过期的分享 token"""
+        sql = "DELETE FROM game_share_tokens WHERE expires_at < NOW()"
+        with self.transaction() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            count = cursor.rowcount
+            if count > 0:
+                logger.info("已清理 %d 个过期分享 token", count)
+            return count
+
     # ============================================================
     # 查询
     # ============================================================

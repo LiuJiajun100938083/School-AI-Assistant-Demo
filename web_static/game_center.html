@@ -80,6 +80,40 @@
         </footer>
     </div>
 
+    <!-- 分享二维码弹窗 -->
+    <div class="gc-share-overlay" id="gcShareModal" style="display:none;">
+        <div class="gc-share-modal">
+            <div class="gc-share-header">
+                <span class="gc-share-title" id="gcShareTitle">分享遊戲</span>
+                <button class="gc-share-close" onclick="GameShareHelper.close()">&times;</button>
+            </div>
+            <div class="gc-share-body">
+                <p class="gc-share-desc">選擇有效期後生成二維碼，學生掃碼即可直接玩遊戲（無需登入）</p>
+
+                <div class="gc-share-durations" id="gcShareDurations">
+                    <button class="gc-dur-btn" data-duration="30m">30 分鐘</button>
+                    <button class="gc-dur-btn active" data-duration="1h">1 小時</button>
+                    <button class="gc-dur-btn" data-duration="1d">1 天</button>
+                    <button class="gc-dur-btn" data-duration="1w">1 週</button>
+                </div>
+
+                <button class="gc-share-gen-btn" id="gcShareGenBtn" onclick="GameShareHelper.generate()">
+                    生成二維碼
+                </button>
+
+                <div class="gc-share-result" id="gcShareResult">
+                    <div class="gc-qr-box" id="gcShareQr"></div>
+                    <div class="gc-share-url-row">
+                        <input type="text" class="gc-share-url" id="gcShareUrl" readonly>
+                        <button class="gc-copy-btn" onclick="GameShareHelper.copyUrl()">複製</button>
+                    </div>
+                    <div class="gc-share-expires" id="gcShareExpires"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="/static/js/shared/utils.js"></script>
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/ui.js"></script>

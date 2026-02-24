@@ -242,6 +242,108 @@ class GameUploadService:
         game['is_public'] = new_visibility
         return game
 
+    # ==================== 分享功能 ====================
+
+    SHARE_DURATIONS = {
+        '30m': 30 * 60,
+        '1h': 60 * 60,
+        '1d': 24 * 60 * 60,
+        '1w': 7 * 24 * 60 * 60,
+    }
+
+    def create_share_token(
+        self,
+        game_uuid: str,
+        user_id: int,
+        user_role: str,
+        duration: str,
+    ) -> Dict[str, Any]:
+        """
+        创建游戏分享 token
+
+        Args:
+            game_uuid: 游戏 UUID
+            user_id: 创建者 ID
+            user_role: 创建者角色
+            duration: 有效期（30m / 1h / 1d / 1w）
+
+        Returns:
+            { token, share_url, expires_at }
+        """
+        from datetime import datetime, timedelta
+
+        # 验证游戏存在
+        game = self._get_formatted_game(game_uuid)
+        if not game:
+            raise GameNotFoundError(game_uuid)
+
+        # 验证权限：必须是游戏上传者或管理员
+        if not self._can_modify_game(game, user_id, user_role):
+            raise GameAccessDeniedError("无权分享此游戏")
+
+        # 验证 duration
+        seconds = self.SHARE_DURATIONS.get(duration)
+        if not seconds:
+            from app.domains.game_upload.exceptions import GameUploadError
+            raise GameUploadError(message=f"无效的有效期: {duration}")
+
+        # 生成 token（UUID 去掉横线，32 字符）
+        token = uuid.uuid4().hex
+
+        # 计算过期时间
+        expires_at = datetime.now() + timedelta(seconds=seconds)
+
+        # 存入数据库
+        self._repo.create_share_token({
+            'token': token,
+            'game_uuid': game_uuid,
+            'creator_id': user_id,
+            'expires_at': expires_at,
+        })
+
+        logger.info("分享 token 创建成功: game=%s, token=%s, expires=%s",
+                     game_uuid, token[:8] + '...', expires_at.isoformat())
+
+        return {
+            'token': token,
+            'expires_at': expires_at.isoformat(),
+            'game_name': game['name'],
+            'game_icon': game['icon'],
+        }
+
+    def get_shared_game(self, token: str) -> Optional[Dict[str, Any]]:
+        """
+        通过分享 token 获取游戏信息（无需用户身份）
+
+        Returns:
+            游戏信息字典，过期或不存在则返回 None
+        """
+        from datetime import datetime
+
+        record = self._repo.find_share_token(token)
+        if not record:
+            return None
+
+        # 检查是否过期
+        expires_at = record['expires_at']
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+
+        if datetime.now() > expires_at:
+            return None
+
+        return {
+            'uuid': record['uuid'],
+            'name': record['name'],
+            'name_en': record.get('name_en'),
+            'description': record['description'],
+            'subject': record['subject'],
+            'icon': record['icon'],
+            'url': f"/uploaded_games/{record['uuid']}",
+            'uploader_name': record.get('uploader_name'),
+            'expires_at': expires_at.isoformat() if hasattr(expires_at, 'isoformat') else str(expires_at),
+        }
+
     # ==================== 学科配置 ====================
 
     def get_subjects_with_icons(self) -> Dict[str, Dict[str, str]]:

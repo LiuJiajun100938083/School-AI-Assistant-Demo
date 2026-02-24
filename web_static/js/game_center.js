@@ -271,12 +271,18 @@ const GameCenterUI = {
             ? `<div class="game-uploader">上傳者：${Utils.escapeHtml(game.uploaderName)}</div>`
             : '';
 
+        const isTeacherOrAdmin = ['teacher', 'admin'].includes(GameCenterApp.state.userRole);
         const adminActionsHTML = isAdmin && game.isFromDatabase
             ? `<div class="game-admin-actions">
                 <button class="admin-btn edit-btn" data-action="edit" data-uuid="${game.id}" title="編輯">✏️</button>
+                <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${Utils.escapeHtml(game.name)}" title="分享">📤</button>
                 <button class="admin-btn delete-btn" data-action="delete" data-uuid="${game.id}" title="刪除">🗑️</button>
                </div>`
-            : '';
+            : (isTeacherOrAdmin && game.isFromDatabase
+                ? `<div class="game-admin-actions">
+                    <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${Utils.escapeHtml(game.name)}" title="分享">📤</button>
+                   </div>`
+                : '');
 
         return `
             <div class="game-card" data-game-id="${game.id}" data-url="${game.url}" data-is-db="${game.isFromDatabase || false}">
@@ -536,6 +542,8 @@ const GameCenterApp = {
                     this._handleEditGame(uuid);
                 } else if (action === 'delete') {
                     this._handleDeleteGame(uuid);
+                } else if (action === 'share') {
+                    GameShareHelper.open(uuid, adminBtn.dataset.name || '');
                 }
                 return;
             }
@@ -617,6 +625,120 @@ const GameCenterApp = {
         });
 
         this._updateEmptyState();
+    }
+};
+
+/* ============================================================
+   分享助手
+   ============================================================ */
+
+const GameShareHelper = {
+    targetUuid: null,
+    selectedDuration: '1h',
+    qrInstance: null,
+
+    open(uuid, gameName) {
+        this.targetUuid = uuid;
+        this.selectedDuration = '1h';
+
+        document.getElementById('gcShareTitle').textContent = `分享：${gameName}`;
+
+        // 重置 duration 按钮
+        document.querySelectorAll('#gcShareDurations .gc-dur-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.duration === '1h');
+            btn.onclick = () => {
+                document.querySelectorAll('#gcShareDurations .gc-dur-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedDuration = btn.dataset.duration;
+            };
+        });
+
+        // 重置状态
+        document.getElementById('gcShareResult').classList.remove('show');
+        const genBtn = document.getElementById('gcShareGenBtn');
+        genBtn.disabled = false;
+        genBtn.textContent = '生成二維碼';
+        document.getElementById('gcShareQr').innerHTML = '';
+        this.qrInstance = null;
+
+        document.getElementById('gcShareModal').style.display = 'flex';
+    },
+
+    close() {
+        this.targetUuid = null;
+        document.getElementById('gcShareModal').style.display = 'none';
+    },
+
+    async generate() {
+        if (!this.targetUuid) return;
+
+        const btn = document.getElementById('gcShareGenBtn');
+        btn.disabled = true;
+        btn.textContent = '生成中...';
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const resp = await fetch(`/api/games/${this.targetUuid}/share`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ duration: this.selectedDuration })
+            });
+
+            const result = await resp.json();
+
+            if (result.success) {
+                const data = result.data;
+                const shareUrl = data.share_url;
+
+                document.getElementById('gcShareResult').classList.add('show');
+                document.getElementById('gcShareUrl').value = shareUrl;
+
+                // QR code
+                const qrBox = document.getElementById('gcShareQr');
+                qrBox.innerHTML = '';
+                this.qrInstance = new QRCode(qrBox, {
+                    text: shareUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark: '#1D1D1F',
+                    colorLight: '#FFFFFF',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+
+                const expiresAt = new Date(data.expires_at);
+                const labels = { '30m': '30 分鐘', '1h': '1 小時', '1d': '1 天', '1w': '1 週' };
+                document.getElementById('gcShareExpires').textContent =
+                    `有效期：${labels[this.selectedDuration]} | 過期：${expiresAt.toLocaleString('zh-TW')}`;
+
+                btn.textContent = '重新生成';
+                btn.disabled = false;
+            } else {
+                UIModule.toast(result.message || '生成失敗', 'error');
+                btn.textContent = '生成二維碼';
+                btn.disabled = false;
+            }
+        } catch (err) {
+            console.error('生成分享链接失败:', err);
+            UIModule.toast('生成失敗，請重試', 'error');
+            btn.textContent = '生成二維碼';
+            btn.disabled = false;
+        }
+    },
+
+    copyUrl() {
+        const input = document.getElementById('gcShareUrl');
+        input.select();
+        navigator.clipboard.writeText(input.value).then(() => {
+            const btn = input.nextElementSibling;
+            const orig = btn.textContent;
+            btn.textContent = '已複製';
+            setTimeout(() => { btn.textContent = orig; }, 2000);
+        }).catch(() => {
+            document.execCommand('copy');
+        });
     }
 };
 

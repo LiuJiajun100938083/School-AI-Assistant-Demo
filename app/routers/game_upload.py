@@ -14,7 +14,7 @@ import json
 import logging
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile
 
 from app.core.dependencies import get_current_user
 from app.domains.game_upload.schemas import GameCreateRequest, GameUpdateRequest
@@ -116,6 +116,18 @@ async def list_games(
     return {"success": True, "data": games, "count": len(games)}
 
 
+@game_router.get("/shared/{token}")
+async def get_shared_game(token: str):
+    """
+    通过分享 token 获取游戏信息（无需登入）
+    """
+    game = _get_service().get_shared_game(token)
+    if not game:
+        raise HTTPException(404, "分享链接不存在或已过期")
+
+    return {"success": True, "data": game}
+
+
 @game_router.get("/{game_uuid}")
 async def get_game(
     game_uuid: str,
@@ -173,6 +185,45 @@ async def toggle_game_visibility(
         "success": True,
         "message": f"游戏已{'公开' if result['is_public'] else '设为私有'}",
         "data": result,
+    }
+
+
+# ==================================================================================
+#                               分享功能
+# ==================================================================================
+
+@game_router.post("/{game_uuid}/share")
+async def create_share_link(
+    game_uuid: str,
+    request: Request,
+    duration: str = Body(..., embed=True),
+    current_user: Dict = Depends(get_current_user),
+):
+    """
+    创建游戏分享链接
+
+    Body: { "duration": "30m" | "1h" | "1d" | "1w" }
+    返回分享 token、URL 和过期时间
+    """
+    user = _extract_user(current_user)
+    if user['role'] not in ('teacher', 'admin'):
+        raise HTTPException(403, "只有教师和管理员可以分享游戏")
+
+    result = _get_service().create_share_token(
+        game_uuid, user['id'], user['role'], duration,
+    )
+
+    # 构建完整分享 URL
+    base_url = str(request.base_url).rstrip('/')
+    share_url = f"{base_url}/play/{result['token']}"
+
+    return {
+        "success": True,
+        "message": "分享链接已生成",
+        "data": {
+            **result,
+            "share_url": share_url,
+        },
     }
 
 
