@@ -989,8 +989,9 @@
         simulation.on('tick', tickHandler);
 
         // ── I. Drag behavior ──
-        // Only reheat simulation when actually dragging (not on simple click)
-        const DRAG_THRESHOLD = 3; // minimum px movement to count as a real drag
+        // Reheat simulation only after real movement (not on simple click),
+        // but always let the node follow the cursor for smooth dragging.
+        const DRAG_THRESHOLD = 3; // minimum px to count as real drag (for reheat only)
         const drag = d3.drag()
             .on('start', (event, d) => {
                 d._dragStartX = event.x;
@@ -999,15 +1000,16 @@
                 d.fx = d.x; d.fy = d.y;
             })
             .on('drag', (event, d) => {
-                const dx = event.x - d._dragStartX;
-                const dy = event.y - d._dragStartY;
-                if (!d._isDragging && Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
-                    d._isDragging = true;
-                    // Only reheat simulation when real drag begins
-                    if (!event.active) ctx.simulation.alphaTarget(0.3).restart();
-                }
-                if (d._isDragging) {
-                    d.fx = event.x; d.fy = event.y;
+                // Always move the node to follow cursor
+                d.fx = event.x; d.fy = event.y;
+                // Only reheat simulation once after exceeding threshold
+                if (!d._isDragging) {
+                    const dx = event.x - d._dragStartX;
+                    const dy = event.y - d._dragStartY;
+                    if (dx * dx + dy * dy > DRAG_THRESHOLD * DRAG_THRESHOLD) {
+                        d._isDragging = true;
+                        if (!event.active) ctx.simulation.alphaTarget(0.3).restart();
+                    }
                 }
             })
             .on('end', (event, d) => {
