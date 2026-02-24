@@ -50,6 +50,7 @@ users.json.pre_migration
 uploads/
 uploaded_documents/
 generated_notices/
+web_static/uploaded_games/
 
 # Office temp files
 ~$*.docx

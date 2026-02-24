@@ -615,9 +615,12 @@
      * @returns {Function} handleNodeHover(hoveredNode, isEntering)
      */
     function setupNodeHoverInteraction(ctx) {
+        // NOTE: Do NOT destructure ctx.nodeGroups or ctx.zoomState here —
+        // they are null at setup time and only populated later.
+        // Always read them from ctx at call time.
         const {
-            nodeGroups, hierLinks, hierEdgeLabels, crossLinks, crossEdgeLabels,
-            edgeBothVisible, adjacencyMap, zoomState,
+            hierLinks, hierEdgeLabels, crossLinks, crossEdgeLabels,
+            edgeBothVisible, adjacencyMap,
         } = ctx;
 
         function edgeConnectsNode(d, nodeId) {
@@ -627,6 +630,10 @@
         }
 
         return function handleNodeHover(hoveredNode, isEntering) {
+            const nodeGroups = ctx.nodeGroups;
+            const zoomState = ctx.zoomState;
+            if (!nodeGroups) return; // guard: not yet initialized
+
             if (!isEntering || !hoveredNode) {
                 nodeGroups.transition().duration(200)
                     .attr('opacity', d => d._visible ? 1 : 0);
@@ -637,7 +644,7 @@
                     .attr('opacity', d => edgeBothVisible(d) ? 0.7 : 0);
                 crossLinks.transition().duration(200).attr('stroke-opacity', 0);
                 crossEdgeLabels.transition().duration(200).attr('opacity', 0);
-                applyLOD(zoomState.currentScale, ctx);
+                if (zoomState) applyLOD(zoomState.currentScale, ctx);
                 return;
             }
 
@@ -982,17 +989,33 @@
         simulation.on('tick', tickHandler);
 
         // ── I. Drag behavior ──
+        // Only reheat simulation when actually dragging (not on simple click)
+        const DRAG_THRESHOLD = 3; // minimum px movement to count as a real drag
         const drag = d3.drag()
             .on('start', (event, d) => {
-                if (!event.active) ctx.simulation.alphaTarget(0.3).restart();
+                d._dragStartX = event.x;
+                d._dragStartY = event.y;
+                d._isDragging = false;
                 d.fx = d.x; d.fy = d.y;
             })
             .on('drag', (event, d) => {
-                d.fx = event.x; d.fy = event.y;
+                const dx = event.x - d._dragStartX;
+                const dy = event.y - d._dragStartY;
+                if (!d._isDragging && Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+                    d._isDragging = true;
+                    // Only reheat simulation when real drag begins
+                    if (!event.active) ctx.simulation.alphaTarget(0.3).restart();
+                }
+                if (d._isDragging) {
+                    d.fx = event.x; d.fy = event.y;
+                }
             })
             .on('end', (event, d) => {
-                if (!event.active) ctx.simulation.alphaTarget(0);
+                if (d._isDragging) {
+                    if (!event.active) ctx.simulation.alphaTarget(0);
+                }
                 d.fx = null; d.fy = null;
+                d._isDragging = false;
             });
         nodeGroups.call(drag);
 
