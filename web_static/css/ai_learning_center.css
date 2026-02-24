@@ -677,6 +677,18 @@
   color: #fff;
 }
 
+/* Layout toggle button (force ↔ tree) */
+.alc-layout-toggle.active {
+  background-color: #0066cc;
+  color: #fff;
+  border-color: #0066cc;
+}
+
+.alc-layout-toggle.active:hover {
+  background-color: #004d99;
+  color: #fff;
+}
+
 /* ── Knowledge Map: Tooltip ── */
 
 .kg-tooltip {

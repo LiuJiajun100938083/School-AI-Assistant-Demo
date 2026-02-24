@@ -71,6 +71,38 @@
     };
     const EDGE_COLOR_DEFAULT = '#aaa';
 
+    /** Tree layout configuration */
+    const TREE_CONFIG = {
+        nodeSpacingX: 80,      // 横向间距（叶节点之间）
+        nodeSpacingY: 160,     // 纵向间距（层级之间）
+        treeGap: 120,          // 多棵树之间的间距
+    };
+
+    // Module-level layout mode: 'force' | 'tree'
+    let _layoutMode = 'force';
+
+    /**
+     * Detect whether to use static tree layout instead of force simulation.
+     * Returns true for mobile/tablet devices or low-performance machines.
+     */
+    function shouldUseTreeLayout() {
+        // 1. Touch device with small-ish viewport → iPad / tablet / phone
+        const isMobile = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent)
+            || (navigator.maxTouchPoints > 1 && window.innerWidth < 1280);
+        if (isMobile) return true;
+
+        // 2. Low hardware — Chrome exposes deviceMemory & hardwareConcurrency
+        const cores = navigator.hardwareConcurrency || 2;
+        const memory = navigator.deviceMemory || 4;  // GB (Chrome-only, defaults 4)
+        if (cores <= 2 || memory <= 2) return true;
+
+        // 3. Very large graph — force simulation O(n²) becomes expensive
+        const nodeCount = ($.state.nodes || []).length;
+        if (nodeCount > 150) return true;
+
+        return false;
+    }
+
     /**
      * Detect hierarchy via BFS from zero-in-degree root nodes.
      * Attaches `_depth`, `_tierCfg`, `_children` to each node in-place.
@@ -295,6 +327,82 @@
         });
 
         return simulation;
+    }
+
+    /**
+     * Build a static top-down tree layout (no force simulation).
+     * Uses d3.tree() Reingold-Tilford algorithm — O(n) per tree.
+     * Multiple root trees are laid out side by side horizontally.
+     *
+     * Writes computed positions directly to node.x / node.y.
+     *
+     * @param {Array} visibleNodes - nodes with _visible === true
+     * @param {Map} childrenMap - id → [childIds]
+     * @param {Map} nodeMap - id → node
+     */
+    function buildTreeLayout(visibleNodes, childrenMap, nodeMap) {
+        const visibleSet = new Set(visibleNodes.map(n => n.id));
+        const roots = visibleNodes.filter(n => n._depth === 0);
+        if (roots.length === 0) return;
+
+        // Build d3-compatible hierarchy data for each root
+        function buildHierData(node) {
+            const kids = (childrenMap.get(node.id) || [])
+                .filter(id => visibleSet.has(id))
+                .map(id => nodeMap.get(id))
+                .filter(Boolean);
+            return {
+                id: node.id,
+                children: kids.length > 0 ? kids.map(buildHierData) : undefined,
+            };
+        }
+
+        const { nodeSpacingX, nodeSpacingY, treeGap } = TREE_CONFIG;
+        const treeMeta = [];  // { root, d3Root, width }
+        let totalWidth = 0;
+
+        roots.forEach(root => {
+            const hierData = buildHierData(root);
+            const d3Root = d3.hierarchy(hierData);
+            const treeLayout = d3.tree().nodeSize([nodeSpacingX, nodeSpacingY]);
+            treeLayout(d3Root);
+
+            // Compute bounding box of this tree
+            let minX = Infinity, maxX = -Infinity;
+            d3Root.each(d => {
+                if (d.x < minX) minX = d.x;
+                if (d.x > maxX) maxX = d.x;
+            });
+            const width = maxX - minX || nodeSpacingX;
+
+            treeMeta.push({ root, d3Root, minX, width });
+            totalWidth += width;
+        });
+
+        // Add gaps between trees
+        totalWidth += (roots.length - 1) * treeGap;
+
+        // Lay out trees side by side, centered at origin
+        let offsetX = -totalWidth / 2;
+
+        treeMeta.forEach(({ d3Root, minX, width }) => {
+            const shiftX = offsetX - minX;  // align this tree's left edge
+            d3Root.each(d => {
+                const node = nodeMap.get(d.data.id);
+                if (node) {
+                    // d3.tree: d.x = horizontal, d.y = vertical (depth)
+                    // We want top-down: x → horizontal, y → vertical
+                    node.x = d.x + shiftX;
+                    node.y = d.y;
+                    // Clear any force simulation velocities
+                    node.vx = 0;
+                    node.vy = 0;
+                    node.fx = null;
+                    node.fy = null;
+                }
+            });
+            offsetX += width + treeGap;
+        });
     }
 
     /**
@@ -712,6 +820,7 @@
         const {
             nodeGroups, hierLinks, hierEdgeLabels, nodeMap, parentMap,
             d3HierarchyEdges, childrenMap, edgeBothVisible,
+            edgeSourceNode, edgeTargetNode,
             getVisibleNodes, getVisibleHierEdges, updateDescendantBadges,
             tickHandler, zoomState,
         } = ctx;
@@ -719,18 +828,40 @@
 
         function rebuildSimulation() {
             if (simulation) simulation.stop();
-            d3HierarchyEdges.forEach(e => {
-                if (typeof e.source === 'object') e.source = e.source.id;
-                if (typeof e.target === 'object') e.target = e.target.id;
-            });
+
             const vn = getVisibleNodes();
-            const ve = getVisibleHierEdges();
-            simulation = buildForceSimulation(vn, ve, nodeMap, parentMap);
-            ctx.simulation = simulation;  // update shared reference
-            simulation.on('tick', tickHandler);
-            nodeGroups
-                .attr('opacity', d => d._visible ? 1 : 0)
-                .attr('pointer-events', d => d._visible ? 'all' : 'none');
+
+            if (_layoutMode === 'tree') {
+                // Tree mode: recompute static positions, apply with animation
+                buildTreeLayout(vn, childrenMap, nodeMap);
+                const dur = LAYOUT_CONFIG.animationDuration;
+                nodeGroups.transition().duration(dur)
+                    .attr('transform', d => `translate(${d.x || 0},${d.y || 0})`)
+                    .attr('opacity', d => d._visible ? 1 : 0)
+                    .attr('pointer-events', d => d._visible ? 'all' : 'none');
+                // Animate edges in sync with nodes
+                hierLinks.transition().duration(dur)
+                    .attr('x1', d => { const s = edgeSourceNode(d); return s ? (s.x || 0) : 0; })
+                    .attr('y1', d => { const s = edgeSourceNode(d); return s ? (s.y || 0) : 0; })
+                    .attr('x2', d => { const t = edgeTargetNode(d); return t ? (t.x || 0) : 0; })
+                    .attr('y2', d => { const t = edgeTargetNode(d); return t ? (t.y || 0) : 0; });
+                hierEdgeLabels.transition().duration(dur)
+                    .attr('x', d => { const s = edgeSourceNode(d), t = edgeTargetNode(d); return s && t ? ((s.x || 0) + (t.x || 0)) / 2 : 0; })
+                    .attr('y', d => { const s = edgeSourceNode(d), t = edgeTargetNode(d); return s && t ? ((s.y || 0) + (t.y || 0)) / 2 - 4 : 0; });
+            } else {
+                // Force mode: rebuild simulation
+                d3HierarchyEdges.forEach(e => {
+                    if (typeof e.source === 'object') e.source = e.source.id;
+                    if (typeof e.target === 'object') e.target = e.target.id;
+                });
+                const ve = getVisibleHierEdges();
+                simulation = buildForceSimulation(vn, ve, nodeMap, parentMap);
+                ctx.simulation = simulation;
+                simulation.on('tick', tickHandler);
+                nodeGroups
+                    .attr('opacity', d => d._visible ? 1 : 0)
+                    .attr('pointer-events', d => d._visible ? 'all' : 'none');
+            }
             hierLinks.attr('stroke-opacity', d => edgeBothVisible(d) ? 0.5 : 0);
             hierEdgeLabels.attr('opacity', d => edgeBothVisible(d) ? 0.7 : 0);
             updateDescendantBadges();
@@ -842,44 +973,57 @@
         const d3HierarchyEdges = hierarchyEdges.map(e => toD3Edge(e, true));
         const d3CrossEdges = crossEdges.map(e => toD3Edge(e, false));
 
-        // ── B. Multi-center layout ──
+        // ── A2. Auto-detect layout mode ──
+        _layoutMode = shouldUseTreeLayout() ? 'tree' : 'force';
+
+        // ── B. Initial node positions ──
         const roots = $.state.nodes.filter(n => n._depth === 0);
         const numRoots = roots.length;
         const clusterSpread = 200 + numRoots * 80;
 
-        roots.forEach((root, i) => {
-            if (numRoots === 1) {
-                root._clusterCx = 0;
-                root._clusterCy = 0;
-            } else {
-                const angle = (2 * Math.PI * i) / numRoots - Math.PI / 2;
-                root._clusterCx = Math.cos(angle) * clusterSpread;
-                root._clusterCy = Math.sin(angle) * clusterSpread;
-            }
-        });
-
-        const rootNodeMap = new Map(roots.map(r => [r.id, r]));
-
+        // Set default visibility (shared by both modes)
         $.state.nodes.forEach(n => {
             if (n._depth > 0 && n._children.length > 0) {
                 n._collapsed = (n._depth >= LAYOUT_CONFIG.defaultCollapseDepth);
             }
             n._visible = (n._depth <= LAYOUT_CONFIG.defaultCollapseDepth);
-
-            const rootNode = rootNodeMap.get(n._rootId);
-            const rcx = rootNode ? rootNode._clusterCx : 0;
-            const rcy = rootNode ? rootNode._clusterCy : 0;
-
-            if (n._depth === 0) {
-                n.x = rcx;
-                n.y = rcy;
-            } else {
-                const depthR = LAYOUT_CONFIG.radialRadii[Math.min(n._depth, 3)] || 200;
-                const a = Math.random() * 2 * Math.PI;
-                n.x = rcx + Math.cos(a) * depthR * (0.3 + Math.random() * 0.7);
-                n.y = rcy + Math.sin(a) * depthR * (0.3 + Math.random() * 0.7);
-            }
         });
+
+        if (_layoutMode === 'tree') {
+            // Tree mode: compute static positions via d3.tree()
+            const visibleNodes = $.state.nodes.filter(n => n._visible);
+            buildTreeLayout(visibleNodes, childrenMap, nodeMap);
+        } else {
+            // Force mode: scatter initial positions around cluster centers
+            roots.forEach((root, i) => {
+                if (numRoots === 1) {
+                    root._clusterCx = 0;
+                    root._clusterCy = 0;
+                } else {
+                    const angle = (2 * Math.PI * i) / numRoots - Math.PI / 2;
+                    root._clusterCx = Math.cos(angle) * clusterSpread;
+                    root._clusterCy = Math.sin(angle) * clusterSpread;
+                }
+            });
+
+            const rootNodeMap = new Map(roots.map(r => [r.id, r]));
+
+            $.state.nodes.forEach(n => {
+                const rootNode = rootNodeMap.get(n._rootId);
+                const rcx = rootNode ? rootNode._clusterCx : 0;
+                const rcy = rootNode ? rootNode._clusterCy : 0;
+
+                if (n._depth === 0) {
+                    n.x = rcx;
+                    n.y = rcy;
+                } else {
+                    const depthR = LAYOUT_CONFIG.radialRadii[Math.min(n._depth, 3)] || 200;
+                    const a = Math.random() * 2 * Math.PI;
+                    n.x = rcx + Math.cos(a) * depthR * (0.3 + Math.random() * 0.7);
+                    n.y = rcy + Math.sin(a) * depthR * (0.3 + Math.random() * 0.7);
+                }
+            });
+        }
 
         // ── C. Visibility helpers ──
         function getVisibleNodes() { return $.state.nodes.filter(n => n._visible); }
@@ -906,20 +1050,22 @@
 
         const g = svg.append('g').attr('class', 'kg-root-group');
 
-        // Ring guides
+        // Ring guides (force mode only — tree mode has no radial rings)
         const ringGuideGroup = g.append('g').attr('class', 'kg-ring-guides');
-        roots.forEach(root => {
-            LAYOUT_CONFIG.radialRadii.forEach((r, i) => {
-                if (i === 0 || r === 0) return;
-                ringGuideGroup.append('circle')
-                    .attr('cx', root._clusterCx).attr('cy', root._clusterCy)
-                    .attr('r', r)
-                    .attr('class', 'kg-ring-guide')
-                    .attr('fill', 'none').attr('stroke', '#eee')
-                    .attr('stroke-width', 0.5).attr('stroke-dasharray', '4 4')
-                    .attr('pointer-events', 'none');
+        if (_layoutMode === 'force') {
+            roots.forEach(root => {
+                LAYOUT_CONFIG.radialRadii.forEach((r, i) => {
+                    if (i === 0 || r === 0) return;
+                    ringGuideGroup.append('circle')
+                        .attr('cx', root._clusterCx).attr('cy', root._clusterCy)
+                        .attr('r', r)
+                        .attr('class', 'kg-ring-guide')
+                        .attr('fill', 'none').attr('stroke', '#eee')
+                        .attr('stroke-width', 0.5).attr('stroke-dasharray', '4 4')
+                        .attr('pointer-events', 'none');
+                });
             });
-        });
+        }
 
         const crossLinkGroup = g.append('g').attr('class', 'kg-cross-links');
         const hierLinkGroup  = g.append('g').attr('class', 'kg-hier-links');
@@ -951,7 +1097,8 @@
         const ctx = {
             nodeGroups: null, // set after renderNodes
             hierLinks, hierEdgeLabels, crossLinks, crossEdgeLabels,
-            edgeBothVisible, nodeMap, parentMap, adjacencyMap,
+            edgeBothVisible, edgeSourceNode, edgeTargetNode,
+            nodeMap, parentMap, adjacencyMap,
             d3HierarchyEdges, childrenMap,
             getVisibleNodes, getVisibleHierEdges,
             updateDescendantBadges: null, // set after renderNodes
@@ -976,10 +1123,7 @@
         ctx.nodeGroups = nodeGroups;
         ctx.updateDescendantBadges = updateDescendantBadges;
 
-        // ── H. Force Simulation ──
-        let simulation = buildForceSimulation(getVisibleNodes(), getVisibleHierEdges(), nodeMap, parentMap);
-        ctx.simulation = simulation;
-
+        // ── H. Tick handler (shared by both force and tree modes) ──
         function tickHandler() {
             nodeGroups.attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
 
@@ -1004,21 +1148,30 @@
                 .attr('y', d => { const s = edgeSourceNode(d), t = edgeTargetNode(d); return s && t ? ((s.y || 0) + (t.y || 0)) / 2 - 6 : 0; });
         }
         ctx.tickHandler = tickHandler;
-        simulation.on('tick', tickHandler);
+
+        // ── H2. Layout-specific initialization ──
+        let simulation = null;
+        if (_layoutMode === 'tree') {
+            // Tree mode: positions already computed — just apply once
+            tickHandler();
+        } else {
+            // Force mode: start simulation
+            simulation = buildForceSimulation(getVisibleNodes(), getVisibleHierEdges(), nodeMap, parentMap);
+            ctx.simulation = simulation;
+            simulation.on('tick', tickHandler);
+        }
 
         // ── I. Drag behavior ──
-        // Reheat simulation only after real movement (not on simple click),
-        // but always let the node follow the cursor for smooth dragging.
-        // During drag: suppress hover/tooltip to avoid transition conflicts & stutter.
-        const DRAG_THRESHOLD = 3; // minimum px to count as real drag (for reheat only)
-        let _anyNodeDragging = false; // global flag for hover/tooltip suppression
+        // Always attached but no-ops in tree mode (so switching modes doesn't require re-binding)
+        const DRAG_THRESHOLD = 3;
+        let _anyNodeDragging = false;
         const drag = d3.drag()
             .on('start', (event, d) => {
+                if (_layoutMode === 'tree') return;  // disabled in tree mode
                 d._dragStartX = event.x;
                 d._dragStartY = event.y;
                 d._isDragging = false;
                 d.fx = d.x; d.fy = d.y;
-                // Suppress hover/tooltip immediately on drag start
                 _anyNodeDragging = true;
                 clearTimeout($._hoverHighlightTimer);
                 clearTimeout($._tooltipTimer);
@@ -1026,32 +1179,29 @@
                 hideNodeTooltip();
             })
             .on('drag', (event, d) => {
-                // Always move the node to follow cursor
+                if (_layoutMode === 'tree') return;
                 d.fx = event.x; d.fy = event.y;
-                // Only reheat simulation once after exceeding threshold,
-                // but keep alphaTarget warm throughout the drag so neighbors follow.
                 if (!d._isDragging) {
                     const dx = event.x - d._dragStartX;
                     const dy = event.y - d._dragStartY;
                     if (dx * dx + dy * dy > DRAG_THRESHOLD * DRAG_THRESHOLD) {
                         d._isDragging = true;
-                        if (!event.active) ctx.simulation.alphaTarget(0.3).restart();
+                        if (!event.active && ctx.simulation) ctx.simulation.alphaTarget(0.3).restart();
                     }
                 } else {
-                    // Keep simulation hot while dragging so other nodes follow
-                    ctx.simulation.alphaTarget(0.3);
+                    if (ctx.simulation) ctx.simulation.alphaTarget(0.3);
                 }
             })
             .on('end', (event, d) => {
+                if (_layoutMode === 'tree') return;
                 _anyNodeDragging = false;
                 if (d._isDragging) {
-                    if (!event.active) ctx.simulation.alphaTarget(0);
+                    if (!event.active && ctx.simulation) ctx.simulation.alphaTarget(0);
                 }
                 d.fx = null; d.fy = null;
                 d._isDragging = false;
             });
         nodeGroups.call(drag);
-        // Expose drag flag so hover handlers can check it
         ctx._anyNodeDragging = () => _anyNodeDragging;
 
         // ── J. Zoom with LOD ──
@@ -1369,6 +1519,64 @@
                 );
             });
         }
+
+        // Layout toggle button (force ↔ tree)
+        const layoutToggleBtn = $.getElement('mapLayoutToggle');
+        if (layoutToggleBtn) {
+            // Set initial state
+            _updateLayoutToggleBtn(layoutToggleBtn);
+            layoutToggleBtn.addEventListener('click', () => {
+                if (!_mapCtx) return;
+                const newMode = _layoutMode === 'force' ? 'tree' : 'force';
+                _switchLayoutMode(newMode);
+                _updateLayoutToggleBtn(layoutToggleBtn);
+            });
+        }
+    }
+
+    /**
+     * Update the layout toggle button appearance to reflect current mode.
+     */
+    function _updateLayoutToggleBtn(btn) {
+        if (!btn) btn = $.getElement('mapLayoutToggle');
+        if (!btn) return;
+        const isTree = _layoutMode === 'tree';
+        btn.classList.toggle('active', isTree);
+        btn.title = isTree ? '切换力导向布局' : '切换树形布局';
+    }
+
+    /**
+     * Switch between force and tree layout modes at runtime.
+     * Smoothly transitions node positions with animation.
+     */
+    function _switchLayoutMode(mode) {
+        if (mode === _layoutMode || !_mapCtx) return;
+        _layoutMode = mode;
+
+        // Stop force simulation if running
+        if (_mapCtx.simulation) {
+            _mapCtx.simulation.stop();
+            _mapCtx.simulation = null;
+        }
+
+        // Recompute positions
+        _mapCtx.rebuildSimulationFn();
+
+        // Zoom to fit after transition completes
+        setTimeout(() => {
+            if (_mapCtx) {
+                const svgElement = $.getElement('knowledgeMapSvg');
+                const w = svgElement ? svgElement.clientWidth || 800 : 800;
+                const h = svgElement ? svgElement.clientHeight || 600 : 600;
+                const scale = _layoutMode === 'tree' ? 0.55 : 0.45;
+                _mapCtx.svg.transition().duration(750).call(
+                    _mapCtx.zoom.transform,
+                    d3.zoomIdentity.translate(w / 2, h / 2).scale(scale)
+                );
+            }
+        }, _layoutMode === 'tree' ? 700 : 100);
+
+        $.showToast(_layoutMode === 'tree' ? '已切换为树形布局' : '已切换为力导向布局', 'info');
     }
 
     function showNodeDetail(node) {
