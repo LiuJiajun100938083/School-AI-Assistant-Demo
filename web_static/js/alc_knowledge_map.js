@@ -1069,6 +1069,13 @@
         if (tooltipEl) {
             tooltipEl.addEventListener('mouseenter', keepTooltipOpen);
             tooltipEl.addEventListener('mouseleave', hideNodeTooltip);
+            tooltipEl.addEventListener('click', (e) => {
+                const navBtn = e.target.closest('.kg-tooltip-nav-btn');
+                if (!navBtn) return;
+                const contentId = navBtn.dataset.contentId;
+                const anchorStr = navBtn.dataset.anchor || null;
+                navigateToContent(contentId, anchorStr);
+            });
         }
 
         setupKnowledgeMapControls(svg, zoom);
@@ -1138,10 +1145,13 @@
 
         // Build quick-jump button if content exists
         const quickJumpHtml = contentCount > 0
-            ? `<button class="kg-tooltip-btn"
-                 onclick="window.lcLearningCenter.navigateToContent('${contents[0].content_id}', ${contents[0].anchor ? "'" + $.escapeHtml(JSON.stringify(contents[0].anchor)) + "'" : 'null'})">
-                 进入教程
-               </button>`
+            ? (() => {
+                const cId = contents[0].content_id;
+                const anchorAttr = contents[0].anchor
+                    ? ` data-anchor="${JSON.stringify(contents[0].anchor).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"`
+                    : '';
+                return `<button class="kg-tooltip-btn kg-tooltip-nav-btn" data-content-id="${cId}"${anchorAttr}>进入教程</button>`;
+            })()
             : '';
 
         tooltip.innerHTML = `
