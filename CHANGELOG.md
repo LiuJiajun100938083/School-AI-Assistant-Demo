@@ -11,6 +11,86 @@
 
 ---
 
+## [v3.0.8] [2026-02-24] 游戏分享二维码 — 老师生成限时链接，学生扫码免登入直接玩
+
+### 新增
+
+- **游戏分享功能** — 老师可在「我的游戏」或「游戏中心」点击分享按钮，选择有效期（30 分钟 / 1 小时 / 1 天 / 1 周），生成二维码和分享链接
+- **无需登入游戏页面** — 学生扫码 / 点击链接后直接打开 `/play/{token}` 轻量页面，iframe 加载游戏，无需登入
+- **分享 Token 后端** — 新增 `game_share_tokens` 表；`POST /api/games/{uuid}/share` 创建 token；`GET /api/games/shared/{token}` 公开验证 token 并返回游戏信息
+- **前端二维码生成** — 使用 `qrcode.js` CDN 在浏览器端生成二维码，支持复制链接
+
+### 修复
+
+- **分享弹窗 DOM 空指针** — `GameShareHelper.open()` 新增 null 检查，防止浏览器缓存旧 HTML 时 `gcShareTitle` 元素不存在导致 crash
+- **`data-name` 属性引号逃逸** — `Utils.escapeHtml()` 不会转义双引号，游戏名含 `"` 时会破坏 HTML 属性；新增 `.replace(/"/g, '&quot;')` 修复
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/domains/game_upload/repository.py` | 新增 `game_share_tokens` 建表 + `create_share_token` / `find_share_token` / `cleanup_expired_tokens` |
+| `app/domains/game_upload/service.py` | 新增 `create_share_token()` / `get_shared_game()` 业务逻辑 |
+| `app/routers/game_upload.py` | 新增 `POST /{uuid}/share` + `GET /shared/{token}` 端点 |
+| `app/routers/pages.py` | 新增 `GET /play/{token}` 页面路由 |
+| `web_static/game_play_shared.html` | **新建** — 无登入游戏播放页 |
+| `web_static/my_games.html` | 新增分享按钮 + 二维码弹窗 |
+| `web_static/game_center.html` | 新增分享弹窗 HTML + qrcode.js CDN |
+| `web_static/js/game_center.js` | 新增 `GameShareHelper` 对象 + 分享按钮渲染 + null 安全修复 |
+| `web_static/css/game_center.css` | 新增分享弹窗样式 |
+
+---
+
+## [v3.0.7] [2026-02-24] 集成 PDF.js 解决 iPad/Safari PDF 显示空白
+
+### 新增
+
+- **PDF.js 渲染引擎** — 引入 PDF.js 3.11（CDN），使用 canvas 渲染 PDF，解决 iPad Safari 下 `<iframe>` 无法显示 PDF 的 WebKit 限制
+- **滚动式 PDF 阅读器** — `_renderPdfViewer()` 提供工具栏（翻页 / 页码输入 / 缩放 / 下载）、懒加载（仅渲染视口 ±500px 页面）、anchor 页码跳转
+
+### 修复
+
+- **PDF.js 页码跳转完善** — `goToPage` 先渲染目标页再滚动，暴露给外部 anchor 导航使用
+- **PDF 页码跳转失效** — anchor 直接拼入 iframe 初始 URL，避免后续跳转丢失
+- **学习路径跳转 PDF 页码失效** — `applyAnchor()` 兼容 PDF.js 查看器，查找 `.alc-pdf-page` 元素定位
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/ai_learning_center.html` | 引入 PDF.js CDN script |
+| `web_static/js/alc_media.js` | 新增 `_renderPdfViewer()`、修改 `applyAnchor()` 兼容 PDF.js |
+| `web_static/js/alc_knowledge_map.js` | tooltip 跳转按钮引号修复 |
+| `web_static/css/ai_learning_center.css` | PDF 查看器样式（深色工具栏 + 响应式 + touch 优化） |
+
+---
+
+## [v3.0.6] [2026-02-24] 知识图谱树形布局模式 + 多项修复
+
+### 新增
+
+- **树形布局模式** — 使用 d3 Reingold-Tilford 算法的静态树形布局，无需力模拟，适合移动设备和低性能机器
+- **自动检测切换** — `shouldUseTreeLayout()` 检测 iPad/移动设备、低核心/低内存、节点数 >150 时自动启用树形布局
+- **手动切换按钮** — 控制面板新增布局切换按钮，点击即切换 force ↔ tree
+
+### 修复
+
+- **知识图谱 tooltip 快捷跳转按钮 SyntaxError** — `onclick` 内 JSON 引号转义错误导致 JS 解析失败
+- **学习路径步骤按钮 JSON 引号 SyntaxError** — 同类引号转义问题修复
+- **知识图谱高亮缺少关联边虚化** — 高亮节点时关联边未正确虚化
+- **`_mapCtx` 补全** — 补全 `crossLinks`/`crossEdgeLabels` 字段，修复 `applyLOD` 报错
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/alc_knowledge_map.js` | 新增 `shouldUseTreeLayout()` / `buildTreeLayout()` + force/tree 双模式 + 多项修复 |
+| `web_static/ai_learning_center.html` | 布局切换按钮 HTML |
+| `web_static/css/ai_learning_center.css` | 布局切换按钮样式 |
+| `web_static/js/alc_media.js` | 步骤按钮 JSON 引号修复 |
+
+---
+
 ## [v3.0.5] [2026-02-24] 学习路径步骤显示详细页码 + 精准跳转
 
 ### 修改

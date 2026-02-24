@@ -272,15 +272,16 @@ const GameCenterUI = {
             : '';
 
         const isTeacherOrAdmin = ['teacher', 'admin'].includes(GameCenterApp.state.userRole);
+        const safeGameName = Utils.escapeHtml(game.name).replace(/"/g, '&quot;');
         const adminActionsHTML = isAdmin && game.isFromDatabase
             ? `<div class="game-admin-actions">
                 <button class="admin-btn edit-btn" data-action="edit" data-uuid="${game.id}" title="編輯">✏️</button>
-                <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${Utils.escapeHtml(game.name)}" title="分享">📤</button>
+                <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">📤</button>
                 <button class="admin-btn delete-btn" data-action="delete" data-uuid="${game.id}" title="刪除">🗑️</button>
                </div>`
             : (isTeacherOrAdmin && game.isFromDatabase
                 ? `<div class="game-admin-actions">
-                    <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${Utils.escapeHtml(game.name)}" title="分享">📤</button>
+                    <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">📤</button>
                    </div>`
                 : '');
 
@@ -641,6 +642,12 @@ const GameShareHelper = {
         this.targetUuid = uuid;
         this.selectedDuration = '1h';
 
+        const modal = document.getElementById('gcShareModal');
+        if (!modal) {
+            console.error('Share modal not found in DOM');
+            return;
+        }
+
         document.getElementById('gcShareTitle').textContent = `分享：${gameName}`;
 
         // 重置 duration 按钮
@@ -661,12 +668,13 @@ const GameShareHelper = {
         document.getElementById('gcShareQr').innerHTML = '';
         this.qrInstance = null;
 
-        document.getElementById('gcShareModal').style.display = 'flex';
+        modal.style.display = 'flex';
     },
 
     close() {
         this.targetUuid = null;
-        document.getElementById('gcShareModal').style.display = 'none';
+        const modal = document.getElementById('gcShareModal');
+        if (modal) modal.style.display = 'none';
     },
 
     async generate() {
