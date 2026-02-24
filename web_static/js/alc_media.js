@@ -211,7 +211,7 @@
     /**
      * Display content inline in the right ebook viewer panel
      */
-    async function showEbookContent(contentId) {
+    async function showEbookContent(contentId, anchor) {
         const welcome = document.getElementById('ebookWelcome');
         const viewer = document.getElementById('ebookViewer');
         const titleEl = document.getElementById('ebookViewerTitle');
@@ -281,11 +281,16 @@
                     break;
                 }
                 case 'document': {
-                    const fileUrl = $.getFileUrl(content);
+                    let fileUrl = $.getFileUrl(content);
                     if (fileUrl) {
+                        // Append #page=N directly to initial URL for instant page navigation
+                        if (anchor && (anchor.type === 'page' || anchor.type === 'page_range')) {
+                            const page = anchor.type === 'page' ? anchor.value : anchor.from;
+                            fileUrl += '#page=' + page;
+                        }
                         bodyEl.innerHTML = `<iframe class="alc-ebook-doc-iframe" src="${$.escapeHtml(fileUrl)}" frameborder="0"></iframe>
                             <div class="alc-ebook-doc-actions">
-                                <a href="${$.escapeHtml(fileUrl)}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">下載文件</a>
+                                <a href="${$.escapeHtml($.getFileUrl(content))}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">下載文件</a>
                             </div>`;
                     } else {
                         bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入文件</p>';
@@ -321,13 +326,13 @@
         // all items are shown in directory
     }
 
-    async function openContent(contentId) {
+    async function openContent(contentId, anchor) {
         // 确保先切换到教学资料 tab，再打开内容
         if ($.currentTab !== 'media') {
             await $.switchTab('media');
             await new Promise(r => setTimeout(r, 150));
         }
-        await showEbookContent(contentId);
+        await showEbookContent(contentId, anchor);
     }
 
     function setTypeFilter(type) {

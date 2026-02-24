@@ -1502,60 +1502,34 @@
      * @param {string|null} anchorJson - JSON string of anchor object (escaped)
      */
     async function navigateToContent(contentId, anchorJson) {
-        console.log('[KG Navigate] contentId:', contentId, 'anchorJson:', anchorJson);
-
         // Parse anchor - handle both string JSON and pre-parsed objects
         let anchor = null;
         if (anchorJson) {
             try {
                 anchor = typeof anchorJson === 'string' ? JSON.parse(anchorJson) : anchorJson;
-                // If JSON.parse returned a string (double-encoded), parse again
-                if (typeof anchor === 'string') {
-                    anchor = JSON.parse(anchor);
-                }
+                if (typeof anchor === 'string') anchor = JSON.parse(anchor);
             } catch (e) {
                 console.warn('[KG Navigate] Failed to parse anchor:', anchorJson, e);
             }
         }
-        console.log('[KG Navigate] Parsed anchor:', anchor);
 
         // Hide node detail panel to avoid overlap
         hideNodeDetail();
 
         // Switch to media tab
         await $.switchTab('media');
-
-        // Small delay to ensure tab is visible
         await new Promise(resolve => setTimeout(resolve, 150));
 
-        // Open content in ebook viewer
+        // Open content — pass anchor so showEbookContent can embed #page=N in the initial URL
         try {
-            await $.showEbookContent(contentId);
-            console.log('[KG Navigate] Content loaded successfully');
+            await $.showEbookContent(contentId, anchor);
         } catch (e) {
             console.error('[KG Navigate] Failed to load content:', e);
             return;
         }
 
-        // Apply anchor positioning after content loads
-        if (anchor) {
-            // For PDF, apply anchor directly in the iframe src (more reliable than waiting)
-            if (anchor.type === 'page' || anchor.type === 'page_range') {
-                const bodyEl = document.getElementById('ebookViewerBody');
-                if (bodyEl) {
-                    const iframe = bodyEl.querySelector('iframe');
-                    if (iframe && iframe.src) {
-                        const page = anchor.type === 'page' ? anchor.value : anchor.from;
-                        const baseUrl = iframe.src.split('#')[0];
-                        const newSrc = baseUrl + '#page=' + page;
-                        console.log('[KG Navigate] Setting PDF page:', page, 'URL:', newSrc);
-                        iframe.src = newSrc;
-                    } else {
-                        console.warn('[KG Navigate] No iframe found for PDF navigation');
-                    }
-                }
-            }
-            // Wait for content to render, then apply anchor (for non-PDF or as fallback)
+        // For non-PDF anchors (heading, keyword, timestamp), apply after content renders
+        if (anchor && anchor.type !== 'page' && anchor.type !== 'page_range') {
             await new Promise(resolve => setTimeout(resolve, 800));
             applyAnchor(anchor);
         }
