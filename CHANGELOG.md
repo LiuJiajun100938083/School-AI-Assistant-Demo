@@ -11,6 +11,33 @@
 
 ---
 
+## [v3.0.4] [2026-02-24] AI 助教知识点导航 — 显示完整路径并突出目标节点
+
+### 新增
+
+- **知识点路径高亮** — 点击 AI 助教回答中的知识点标签，不再只显示单个节点，而是高亮从根节点到目标节点的**完整层级路径**
+  - 路径上所有祖先节点显示环形标记，目标节点显示更大更亮的脉冲环
+  - 路径上的层级边加粗高亮（stroke-width: 3），非路径节点/边淡化至 0.1 透明度
+  - 自动展开路径上被折叠的祖先节点
+  - 视口自动平移缩放，以 70% 权重偏向目标节点、30% 权重覆盖整条路径
+  - 路径标签强制显示（不受 LOD 缩放级别限制）
+  - 8 秒后自动恢复正常显示，重新应用 LOD 规则
+
+### 修改
+
+- **AI 助教节点导航重构** — `navigateToKnowledgeNode()` 从搜索 + 弹面板改为调用 `highlightNodeWithPath()`，代码从 25 行简化为 2 行
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/js/alc_knowledge_map.js` | 新增 `highlightNodeWithPath()`、`_panToPathNodes()`、`_clearPathHighlight()`；模块级 `_mapCtx` 存储渲染上下文 |
+| `web_static/js/ai_learning_center.js` | `alc` 对象和 `window.lcLearningCenter` 增加 `highlightNodeWithPath` 桥接 |
+| `web_static/js/alc_ai_chat.js` | `navigateToKnowledgeNode()` 简化为调用 `$.highlightNodeWithPath()` |
+| `web_static/css/ai_learning_center.css` | 新增 `.kg-path-ring` 脉冲动画（目标节点 1.5s / 祖先节点 2s） |
+
+---
+
 ## [v3.0.3] [2026-02-24] 修复知识地图拖拽卡顿 + 节点不跟随
 
 ### 修复

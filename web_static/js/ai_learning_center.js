@@ -405,6 +405,7 @@
         loadResources(...args)          { return modules.media.loadResources(...args); },
         showEbookContent(...args)       { return modules.media.showEbookContent(...args); },
         showNodeDetail(...args)         { return modules.knowledgeMap.showNodeDetail(...args); },
+        highlightNodeWithPath(...args)  { return modules.knowledgeMap.highlightNodeWithPath(...args); },
         updateAiContextIndicator()      { return modules.aiChat.updateAiContextIndicator(); },
     };
 
@@ -953,6 +954,7 @@
         hidePathDetail()    { if (modules.media) modules.media.hidePathDetail(); },
         showNodeDetail(n)   { if (modules.knowledgeMap) modules.knowledgeMap.showNodeDetail(n); },
         hideNodeDetail()    { if (modules.knowledgeMap) modules.knowledgeMap.hideNodeDetail(); },
+        highlightNodeWithPath(id, opts) { if (modules.knowledgeMap) modules.knowledgeMap.highlightNodeWithPath(id, opts); },
         downloadResource(id){ if (modules.media) modules.media.downloadResource(id); },
         closeAllModals,
         editCategory(id)    { if (modules.admin) modules.admin.editCategory(id); },

@@ -804,6 +804,26 @@
   50% { stroke-opacity: 0.3; }
 }
 
+/* ── Knowledge Map: Path Highlight Rings ── */
+
+.kg-path-ring {
+  animation: pathPulseSubtle 2s ease-in-out infinite;
+}
+
+.kg-path-ring--target {
+  animation: pathPulseTarget 1.5s ease-in-out infinite;
+}
+
+@keyframes pathPulseTarget {
+  0%, 100% { stroke-opacity: 0.9; stroke-width: 3.5; }
+  50%      { stroke-opacity: 0.4; stroke-width: 2.5; }
+}
+
+@keyframes pathPulseSubtle {
+  0%, 100% { stroke-opacity: 0.5; }
+  50%      { stroke-opacity: 0.2; }
+}
+
 /* ── Knowledge Map: Node Detail Panel ── */
 
 .alc-node-detail-panel {

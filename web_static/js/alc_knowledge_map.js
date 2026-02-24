@@ -10,6 +10,9 @@
 
     // ==================== KNOWLEDGE MAP (D3.js) ====================
 
+    // Module-level render context — populated by renderKnowledgeMap(), used by highlightNodeWithPath()
+    let _mapCtx = null;
+
     async function loadKnowledgeMap() {
         try {
             const response = await $.api(`${$.API_BASE}/knowledge-map`);
@@ -1069,6 +1072,9 @@
         }
 
         setupKnowledgeMapControls(svg, zoom);
+
+        // Store render context for highlightNodeWithPath
+        _mapCtx = { svg, zoom, zoomState, nodeMap, parentMap, childrenMap, nodeGroups, hierLinks, hierEdgeLabels, edgeBothVisible, rebuildSimulationFn: collapseApi.rebuildSimulation };
     }
 
     /**
@@ -1653,6 +1659,215 @@
         }
     }
 
+    // ── Highlight Node with Full Ancestor Path ──
+
+    /**
+     * Highlight a target node AND its full ancestor path from root.
+     * 1. Auto-expand collapsed ancestors so the node becomes visible.
+     * 2. Dim all unrelated nodes/edges; highlight the path chain + target.
+     * 3. Pan & zoom to fit the path with the target node emphasized.
+     * 4. Add pulsing ring to the target node for emphasis.
+     * 5. Auto-clear highlight after `duration` ms.
+     *
+     * @param {number|string} nodeId - Target node ID
+     * @param {object} [options]
+     * @param {number} [options.duration=6000] - How long to keep the highlight (ms)
+     * @param {boolean} [options.showDetail=true] - Whether to open the detail panel
+     */
+    function highlightNodeWithPath(nodeId, options = {}) {
+        const { duration = 6000, showDetail = true } = options;
+        if (!_mapCtx) return;
+
+        const { svg, zoom, nodeMap, parentMap, childrenMap, nodeGroups,
+                hierLinks, hierEdgeLabels, edgeBothVisible, rebuildSimulationFn } = _mapCtx;
+
+        const targetNode = nodeMap.get(nodeId) || nodeMap.get(Number(nodeId)) || nodeMap.get(String(nodeId));
+        if (!targetNode) {
+            $.showToast('未找到该知识节点', 'warning');
+            return;
+        }
+
+        // 1. Get full ancestor path (root → ... → parent) + target
+        const ancestorIds = getAncestorPath(targetNode.id, parentMap); // root-first, excludes target
+        const pathIds = new Set([...ancestorIds, targetNode.id]);
+
+        // 2. Auto-expand collapsed ancestors so path is visible
+        let needsRelayout = false;
+        ancestorIds.forEach(aId => {
+            const ancestor = nodeMap.get(aId);
+            if (ancestor && ancestor._collapsed) {
+                ancestor._collapsed = false;
+                needsRelayout = true;
+                // Reveal direct children recursively (non-collapsed)
+                const revealQueue = [...(childrenMap.get(aId) || [])];
+                while (revealQueue.length > 0) {
+                    const id = revealQueue.shift();
+                    const n = $.state.nodes.find(nd => nd.id === id);
+                    if (n) {
+                        n._visible = true;
+                        if (!n._collapsed) {
+                            (childrenMap.get(id) || []).forEach(c => revealQueue.push(c));
+                        }
+                    }
+                }
+            }
+        });
+        if (!targetNode._visible) {
+            targetNode._visible = true;
+            needsRelayout = true;
+        }
+        if (needsRelayout && rebuildSimulationFn) {
+            rebuildSimulationFn();
+        }
+
+        // 3. Wait a tick for positions to settle, then apply visual highlight
+        setTimeout(() => {
+            // Dim all nodes, highlight path nodes
+            nodeGroups.transition().duration(400)
+                .attr('opacity', d => {
+                    if (!d._visible) return 0;
+                    if (d.id === targetNode.id) return 1;
+                    if (pathIds.has(d.id)) return 0.9;
+                    return 0.1;
+                });
+
+            // Show titles for path nodes regardless of zoom
+            nodeGroups.selectAll('.kg-node-title')
+                .transition().duration(400)
+                .attr('opacity', d => pathIds.has(d.id) ? 1 : 0);
+
+            // Highlight hierarchy edges along the path, dim the rest
+            hierLinks.transition().duration(400)
+                .attr('stroke-opacity', d => {
+                    if (!edgeBothVisible(d)) return 0;
+                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return (pathIds.has(sId) && pathIds.has(tId)) ? 0.9 : 0.05;
+                })
+                .attr('stroke-width', d => {
+                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return (pathIds.has(sId) && pathIds.has(tId)) ? 3 : 1.2;
+                });
+
+            hierEdgeLabels.transition().duration(400)
+                .attr('opacity', d => {
+                    if (!edgeBothVisible(d)) return 0;
+                    const sId = typeof d.source === 'object' ? d.source.id : d.source;
+                    const tId = typeof d.target === 'object' ? d.target.id : d.target;
+                    return (pathIds.has(sId) && pathIds.has(tId)) ? 1 : 0;
+                });
+
+            // Add pulsing ring to the TARGET node (bigger & more prominent)
+            d3.selectAll('.kg-path-ring').remove();
+            nodeGroups.filter(d => d.id === targetNode.id)
+                .append('circle')
+                .attr('class', 'kg-path-ring kg-path-ring--target')
+                .attr('r', d => d._tierCfg.radius + 12)
+                .attr('fill', 'none')
+                .attr('stroke', 'var(--brand, #006633)')
+                .attr('stroke-width', 3.5)
+                .attr('stroke-opacity', 0.9);
+
+            // Add subtle ring to ancestor path nodes
+            nodeGroups.filter(d => pathIds.has(d.id) && d.id !== targetNode.id)
+                .append('circle')
+                .attr('class', 'kg-path-ring')
+                .attr('r', d => d._tierCfg.radius + 8)
+                .attr('fill', 'none')
+                .attr('stroke', 'var(--brand, #006633)')
+                .attr('stroke-width', 2)
+                .attr('stroke-opacity', 0.5);
+
+            // 4. Pan & zoom to show full path, centered on target
+            _panToPathNodes(pathIds, targetNode, svg, zoom);
+
+            // 5. Show detail panel
+            if (showDetail) {
+                setTimeout(() => showNodeDetail(targetNode), 500);
+            }
+
+            // 6. Auto-restore after duration
+            setTimeout(() => {
+                _clearPathHighlight();
+            }, duration);
+        }, needsRelayout ? 600 : 100);
+    }
+
+    /**
+     * Pan & zoom the viewport to show all path nodes, centered on the target.
+     */
+    function _panToPathNodes(pathIds, targetNode, svg, zoom) {
+        const svgElement = $.getElement('knowledgeMapSvg');
+        if (!svgElement) return;
+        const width = svgElement.clientWidth || 800;
+        const height = svgElement.clientHeight || 600;
+
+        // Collect positions of all path nodes
+        const pathNodes = $.state.nodes.filter(n => pathIds.has(n.id) && n.x != null);
+        if (pathNodes.length === 0) return;
+
+        // Compute bounding box
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        pathNodes.forEach(n => {
+            const r = n._tierCfg.radius + 20;
+            minX = Math.min(minX, n.x - r);
+            maxX = Math.max(maxX, n.x + r);
+            minY = Math.min(minY, n.y - r);
+            maxY = Math.max(maxY, n.y + r);
+        });
+
+        const bboxW = maxX - minX || 200;
+        const bboxH = maxY - minY || 200;
+        const bboxCx = (minX + maxX) / 2;
+        const bboxCy = (minY + maxY) / 2;
+
+        // Scale to fit path in viewport with some padding
+        const padding = 0.8; // use 80% of viewport
+        const scale = Math.min(
+            (width * padding) / bboxW,
+            (height * padding) / bboxH,
+            1.5 // don't zoom in too much
+        );
+
+        // Bias towards target node: weighted center (70% target, 30% bbox center)
+        const focusX = bboxCx * 0.3 + (targetNode.x || bboxCx) * 0.7;
+        const focusY = bboxCy * 0.3 + (targetNode.y || bboxCy) * 0.7;
+
+        svg.transition().duration(800).call(
+            zoom.transform,
+            d3.zoomIdentity
+                .translate(width / 2, height / 2)
+                .scale(scale)
+                .translate(-focusX, -focusY)
+        );
+    }
+
+    /**
+     * Clear path highlight and restore normal map appearance.
+     */
+    function _clearPathHighlight() {
+        d3.selectAll('.kg-path-ring').remove();
+        const allNodeGroups = d3.selectAll('.kg-node');
+        allNodeGroups.transition().duration(500)
+            .attr('opacity', d => d._visible ? 1 : 0);
+
+        if (_mapCtx) {
+            const { hierLinks, hierEdgeLabels, edgeBothVisible, zoomState } = _mapCtx;
+            if (hierLinks) {
+                hierLinks.transition().duration(500)
+                    .attr('stroke-opacity', d => edgeBothVisible(d) ? 0.5 : 0)
+                    .attr('stroke-width', 1.2);
+            }
+            if (hierEdgeLabels) {
+                hierEdgeLabels.transition().duration(500)
+                    .attr('opacity', d => edgeBothVisible(d) ? 0.7 : 0);
+            }
+            // Re-apply LOD for current zoom level
+            if (zoomState) applyLOD(zoomState.currentScale, _mapCtx);
+        }
+    }
+
     // Register module functions
     $.modules.knowledgeMap = {
         loadKnowledgeMap,
@@ -1661,5 +1876,6 @@
         hideNodeDetail,
         navigateToContent,
         searchNodes,
+        highlightNodeWithPath,
     };
 })();
