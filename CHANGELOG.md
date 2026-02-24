@@ -11,6 +11,23 @@
 
 ---
 
+## [v3.0.5] [2026-02-24] 学习路径步骤显示详细页码 + 精准跳转
+
+### 修改
+
+- **学习路径步骤附带页码信息** — 后端 `get_path_detail` 为每个步骤查询 `lc_node_contents` 中的 anchor（页码定位），并附带 `content_title` 和 `content_type`
+- **步骤按钮显示文档标题 + 页码** — "查看文档" 按钮从通用文字改为显示具体文档名和页码提示（如 `📄 AI基础教程 → 第 5-10 页`）
+- **点击步骤精准跳转到页码** — 点击"查看文档"从 `openContent` 改为 `navigateToContent`，携带 anchor 参数，PDF 打开后自动定位到关联页码
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/domains/ai_learning_center/service.py` | `get_path_detail()` 为步骤附加 anchor、content_title、content_type |
+| `web_static/js/alc_media.js` | 步骤渲染显示 anchorHint + 调用 `navigateToContent` 替代 `openContent` |
+
+---
+
 ## [v3.0.4] [2026-02-24] AI 助教知识点导航 — 显示完整路径并突出目标节点
 
 ### 新增

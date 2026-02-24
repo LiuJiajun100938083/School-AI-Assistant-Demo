@@ -429,9 +429,28 @@
                         timelineEl.innerHTML = path.steps.map((step, index) => {
                             const hasContent = step.content_id;
                             const hasNode = step.node_id;
+                            const anchor = step.anchor;
                             const actions = [];
+
+                            // Build anchor hint (e.g. "→ 第 5-10 页")
+                            let anchorHint = '';
+                            if (anchor) {
+                                if (anchor.type === 'page') anchorHint = ` → 第 ${anchor.value} 页`;
+                                else if (anchor.type === 'page_range') anchorHint = ` → 第 ${anchor.from}-${anchor.to} 页`;
+                                else if (anchor.type === 'heading') anchorHint = ` → ${anchor.value}`;
+                                else if (anchor.type === 'timestamp') {
+                                    const min = Math.floor(anchor.value / 60);
+                                    const sec = anchor.value % 60;
+                                    anchorHint = ` → ${min}:${String(sec).padStart(2, '0')}`;
+                                }
+                            }
+
                             if (hasContent) {
-                                actions.push(`<button class="alc-step-action-btn" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.openContent('${step.content_id}')">📄 查看文档</button>`);
+                                // Use navigateToContent with anchor for precise page positioning
+                                const anchorArg = anchor ? `'${$.escapeHtml(JSON.stringify(anchor))}'` : 'null';
+                                const contentTitle = step.content_title ? $.escapeHtml(step.content_title) : '文档';
+                                const btnLabel = `📄 ${contentTitle}${anchorHint}`;
+                                actions.push(`<button class="alc-step-action-btn" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToContent('${step.content_id}', ${anchorArg})">${btnLabel}</button>`);
                             }
                             if (hasNode) {
                                 actions.push(`<button class="alc-step-action-btn alc-step-action-btn--node" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToKnowledgeNode(${step.node_id})">🔗 知识节点</button>`);

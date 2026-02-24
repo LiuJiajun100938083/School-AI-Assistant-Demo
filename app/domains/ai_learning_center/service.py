@@ -749,14 +749,36 @@ class LearningCenterService:
         return result
 
     def get_path_detail(self, path_id: int) -> Dict:
-        """获取路径详情"""
+        """获取路径详情，步骤中附带 anchor（页码）和 content_title"""
         path = self._paths.find_by_id(path_id)
         if not path or path.get("is_deleted"):
             raise NotFoundError("学习路径", path_id)
 
         result = dict(path)
         self._parse_tags(result)
-        result["steps"] = self._steps.find_by_path(path_id)
+        steps = self._steps.find_by_path(path_id)
+
+        # Enrich each step: attach anchor from node↔content link + content title
+        for step in steps:
+            cid = step.get("content_id")
+            nid = step.get("node_id")
+
+            # 1. If step links both a node and a content, look up anchor from lc_node_contents
+            if cid and nid:
+                node_contents = self._node_contents.find_by_node(nid)
+                for nc in node_contents:
+                    if nc.get("content_id") == cid and nc.get("anchor"):
+                        step["anchor"] = nc["anchor"]
+                        break
+
+            # 2. Attach content_title and content_type for display
+            if cid:
+                content = self._contents.find_by_id(cid)
+                if content:
+                    step["content_title"] = content.get("title", "")
+                    step["content_type"] = content.get("content_type", "")
+
+        result["steps"] = steps
         return result
 
     def create_path(
