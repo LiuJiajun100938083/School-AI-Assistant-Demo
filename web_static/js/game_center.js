@@ -459,6 +459,12 @@ const GameCenterApp = {
             || '訪客';
         this.elements.userName.textContent = name;
         this.elements.userAvatar.textContent = name.charAt(0).toUpperCase();
+
+        // 教师/管理员显示管理入口
+        const teacherActions = document.getElementById('teacherActions');
+        if (teacherActions && ['teacher', 'admin'].includes(this.state.userRole)) {
+            teacherActions.style.display = 'flex';
+        }
     },
 
     _hideSplash() {

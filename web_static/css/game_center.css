@@ -290,6 +290,46 @@ body {
 .gc-header-right {
     display: flex;
     align-items: center;
+    gap: var(--space-3);
+}
+
+.gc-teacher-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.gc-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-page);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-full);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.gc-action-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border-color: var(--border-strong);
+}
+
+.gc-action-btn.gc-action-primary {
+    color: #fff;
+    background: var(--brand);
+    border-color: var(--brand);
+}
+
+.gc-action-btn.gc-action-primary:hover {
+    background: var(--brand-hover);
+    border-color: var(--brand-hover);
 }
 
 .gc-user-info {
