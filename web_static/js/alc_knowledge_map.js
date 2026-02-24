@@ -419,10 +419,12 @@
                 toggleCollapse(d);
             })
             .on('mouseenter', (event, d) => {
-                handleNodeHover(d, true);
-                $._tooltipTimer = setTimeout(() => showNodeTooltip(d, event), 300);
+                clearTimeout($._hoverHighlightTimer);
+                $._hoverHighlightTimer = setTimeout(() => handleNodeHover(d, true), 350);
+                $._tooltipTimer = setTimeout(() => showNodeTooltip(d, event), 500);
             })
             .on('mouseleave', () => {
+                clearTimeout($._hoverHighlightTimer);
                 handleNodeHover(null, false);
                 hideNodeTooltip();
             });
