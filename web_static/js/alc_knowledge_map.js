@@ -1074,7 +1074,7 @@
         setupKnowledgeMapControls(svg, zoom);
 
         // Store render context for highlightNodeWithPath
-        _mapCtx = { svg, zoom, zoomState, nodeMap, parentMap, childrenMap, nodeGroups, hierLinks, hierEdgeLabels, edgeBothVisible, rebuildSimulationFn: collapseApi.rebuildSimulation };
+        _mapCtx = { svg, zoom, zoomState, nodeMap, parentMap, childrenMap, nodeGroups, hierLinks, hierEdgeLabels, crossLinks, crossEdgeLabels, edgeBothVisible, rebuildSimulationFn: collapseApi.rebuildSimulation };
     }
 
     /**
