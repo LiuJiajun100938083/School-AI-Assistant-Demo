@@ -24,6 +24,8 @@
 
 - **分享弹窗 DOM 空指针** — `GameShareHelper.open()` 新增 null 检查，防止浏览器缓存旧 HTML 时 `gcShareTitle` 元素不存在导致 crash
 - **`data-name` 属性引号逃逸** — `Utils.escapeHtml()` 不会转义双引号，游戏名含 `"` 时会破坏 HTML 属性；新增 `.replace(/"/g, '&quot;')` 修复
+- **`game_share_tokens` 建表失败** — `_init_share_table(conn)` 在 `transaction()` 上下文外调用，`conn` 已关闭导致建表未执行，分享 API 返回 500
+- **分享游戏页 iframe 不撑满视口** — `html`/`body` 缺少 `height:100%`，iframe 容器改用 `position:absolute` 撑满 header 下方空间
 
 ### 涉及文件
 
