@@ -81,7 +81,8 @@ class GameUploadRepository(BaseRepository):
         logger.info("uploaded_games 表初始化成功")
 
         # 初始化分享 token 表
-        self._init_share_table(conn)
+        with self.transaction() as conn2:
+            self._init_share_table(conn2)
 
     def _init_share_table(self, conn) -> None:
         """初始化 game_share_tokens 表（幂等）"""
