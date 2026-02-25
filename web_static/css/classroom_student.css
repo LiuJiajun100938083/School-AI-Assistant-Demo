@@ -376,93 +376,105 @@ html, body {
     transform: scale(0.95);
 }
 
-/* ========== AI Chat Panel ========== */
-.ai-chat-panel {
+/* ========== AI Floating Window ========== */
+.ai-float {
     position: fixed;
-    bottom: 100px;
-    right: 30px;
-    width: 360px;
-    height: 520px;
-    max-height: calc(100vh - 140px);
-    background-color: var(--bg-card);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    display: none;
+    z-index: 1500;
+    width: 400px;
+    height: 540px;
+    right: 24px;
+    bottom: 24px;
+    display: flex;
     flex-direction: column;
-    z-index: 1001;
-    animation: chatSlideUp 0.3s var(--ease-out);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    animation: aiFloatIn 0.25s var(--ease-out);
 }
 
-.ai-chat-panel.open {
+@keyframes aiFloatIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Drag performance: drop shadows, disable pointer events */
+.ai-float--dragging {
+    will-change: left, top;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    pointer-events: none;
+}
+
+/* Expanded mode */
+.ai-float--expanded {
+    width: 680px !important;
+    height: 75vh !important;
+    transition: width 0.25s ease, height 0.25s ease;
+}
+
+/* Header (drag handle) */
+.ai-float-header {
     display: flex;
-}
-
-@keyframes chatSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(0.98);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-.ai-chat-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--border-light);
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--brand);
+    color: white;
+    cursor: move;
     flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.ai-chat-title {
-    font-size: 14px;
+.ai-float-title {
+    font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary);
+    letter-spacing: 0.3px;
 }
 
-.ai-chat-close-button {
-    width: 28px;
-    height: 28px;
+.ai-float-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.ai-float-btn {
+    width: 26px;
+    height: 26px;
     border: none;
-    background: transparent;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    font-size: 18px;
-    color: var(--text-tertiary);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-full);
-    transition: background var(--duration-fast), color var(--duration-fast);
+    font-size: 14px;
+    transition: background var(--duration-fast);
 }
 
-.ai-chat-close-button:hover {
-    color: var(--text-primary);
-    background: var(--bg-page);
+.ai-float-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Body */
+.ai-float-body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .ai-chat-content {
-    flex: 1;
+    height: 100%;
     padding: var(--space-4);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    min-height: 0;
 }
 
-.ai-chat-message {
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--text-secondary);
-    padding: var(--space-2) var(--space-3);
-    background-color: var(--bg-page);
-    border-radius: var(--radius-sm);
-}
-
-.ai-chat-input-wrapper {
+/* Input area */
+.ai-float-input-area {
     display: flex;
     gap: var(--space-2);
     padding: var(--space-3) var(--space-4);
@@ -504,6 +516,7 @@ html, body {
     justify-content: center;
     font-size: 16px;
     transition: background var(--duration-fast);
+    flex-shrink: 0;
 }
 
 .ai-chat-send-button:hover {
@@ -570,19 +583,68 @@ html, body {
     font-size: 13px;
     line-height: 1.6;
     word-break: break-word;
-    white-space: pre-wrap;
 }
 
 .ai-chat-msg.user .ai-chat-msg-content {
     background-color: var(--brand);
     color: white;
     border-bottom-right-radius: 4px;
+    white-space: pre-wrap;
 }
 
 .ai-chat-msg.ai .ai-chat-msg-content {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     border-bottom-left-radius: 4px;
+}
+
+/* Markdown content inside AI messages */
+.ai-chat-msg.ai .ai-chat-msg-content p {
+    margin: 0 0 8px 0;
+}
+.ai-chat-msg.ai .ai-chat-msg-content p:last-child {
+    margin-bottom: 0;
+}
+.ai-chat-msg.ai .ai-chat-msg-content ul,
+.ai-chat-msg.ai .ai-chat-msg-content ol {
+    margin: 4px 0;
+    padding-left: 20px;
+}
+.ai-chat-msg.ai .ai-chat-msg-content li {
+    margin-bottom: 2px;
+}
+.ai-chat-msg.ai .ai-chat-msg-content code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.ai-chat-msg.ai .ai-chat-msg-content pre {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 8px 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 6px 0;
+}
+.ai-chat-msg.ai .ai-chat-msg-content pre code {
+    background: none;
+    padding: 0;
+}
+.ai-chat-msg.ai .ai-chat-msg-content strong {
+    font-weight: 600;
+}
+.ai-chat-msg.ai .ai-chat-msg-content h1,
+.ai-chat-msg.ai .ai-chat-msg-content h2,
+.ai-chat-msg.ai .ai-chat-msg-content h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 8px 0 4px 0;
+}
+.ai-chat-msg.ai .ai-chat-msg-content blockquote {
+    border-left: 3px solid var(--brand);
+    margin: 6px 0;
+    padding: 2px 10px;
+    color: var(--text-secondary);
 }
 
 .ai-chat-msg-time {
@@ -760,10 +822,16 @@ html, body {
         font-size: 20px;
     }
 
-    .ai-chat-panel {
-        bottom: 80px;
-        right: 20px;
-        width: calc(100% - 40px);
-        max-width: 360px;
+    .ai-float {
+        width: calc(100% - 24px) !important;
+        height: 60vh !important;
+        right: 12px !important;
+        bottom: 12px !important;
+        left: 12px !important;
+    }
+
+    .ai-float--expanded {
+        width: calc(100% - 24px) !important;
+        height: 85vh !important;
     }
 }

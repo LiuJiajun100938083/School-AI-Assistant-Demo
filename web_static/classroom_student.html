@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学生课堂</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <!-- DOMPurify for XSS protection -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <link rel="stylesheet" href="/static/css/classroom_student.css">
 </head>
 <body>
@@ -72,19 +76,27 @@
     <!-- Floating AI Circle -->
     <button class="ai-circle" id="aiCircleButton" style="display: none;">🤖</button>
 
-    <!-- AI Chat Panel -->
-    <div class="ai-chat-panel" id="aiChatPanel">
-        <div class="ai-chat-header">
-            <div class="ai-chat-title">AI 课件助手</div>
-            <button class="ai-chat-close-button" id="aiChatCloseButton">✕</button>
-        </div>
-        <div class="ai-chat-content" id="aiChatContent">
-            <div class="ai-chat-welcome" id="aiChatWelcome">
-                <div class="ai-chat-welcome-icon">🤖</div>
-                <div class="ai-chat-welcome-text">我是课堂 AI 助手，可以帮你理解当前课件内容。试试问我问题吧！</div>
+    <!-- AI Floating Window (draggable + resizable) -->
+    <div class="ai-float" id="aiFloatingWindow" style="display: none;">
+        <!-- Drag handle header -->
+        <div class="ai-float-header" id="aiFloatHeader">
+            <span class="ai-float-title">🤖 AI 课件助手</span>
+            <div class="ai-float-actions">
+                <button class="ai-float-btn" id="aiFloatExpandBtn" title="放大">&#9634;</button>
+                <button class="ai-float-btn" id="aiFloatCloseBtn" title="关闭">&#10005;</button>
             </div>
         </div>
-        <div class="ai-chat-input-wrapper">
+        <!-- Chat body -->
+        <div class="ai-float-body">
+            <div class="ai-chat-content" id="aiChatContent">
+                <div class="ai-chat-welcome" id="aiChatWelcome">
+                    <div class="ai-chat-welcome-icon">🤖</div>
+                    <div class="ai-chat-welcome-text">我是课堂 AI 助手，可以帮你理解当前课件内容。试试问我问题吧！</div>
+                </div>
+            </div>
+        </div>
+        <!-- Input area -->
+        <div class="ai-float-input-area">
             <input type="text" class="ai-chat-input" id="aiChatInput" placeholder="对当前课件内容提问...">
             <button class="ai-chat-send-button" id="aiChatSendButton">→</button>
         </div>

@@ -625,42 +625,128 @@ const ClassroomStudentApp = {
         }
     },
 
-    // ---- AI Chat Panel ----
+    // ---- AI Floating Window ----
 
     _setupAIChatPanel() {
-        const aiCircleButton = document.getElementById('aiCircleButton');
-        const aiChatPanel = document.getElementById('aiChatPanel');
-        const aiChatCloseButton = document.getElementById('aiChatCloseButton');
-        const aiChatSendButton = document.getElementById('aiChatSendButton');
-        const aiChatInput = document.getElementById('aiChatInput');
+        const circleBtn = document.getElementById('aiCircleButton');
+        const win = document.getElementById('aiFloatingWindow');
+        const closeBtn = document.getElementById('aiFloatCloseBtn');
+        const expandBtn = document.getElementById('aiFloatExpandBtn');
+        const sendBtn = document.getElementById('aiChatSendButton');
+        const input = document.getElementById('aiChatInput');
 
-        aiCircleButton.addEventListener('click', () => {
-            const isOpen = aiChatPanel.classList.toggle('open');
-            if (isOpen) {
-                setTimeout(() => aiChatInput.focus(), 100);
-            }
+        // Toggle floating window
+        circleBtn.addEventListener('click', () => {
+            const visible = win.style.display === 'none';
+            win.style.display = visible ? 'flex' : 'none';
+            if (visible) setTimeout(() => input.focus(), 100);
         });
 
-        aiChatCloseButton.addEventListener('click', () => {
-            aiChatPanel.classList.remove('open');
+        // Close
+        closeBtn.addEventListener('click', () => {
+            win.style.display = 'none';
         });
 
-        // Prevent closing when clicking inside panel
-        aiChatPanel.addEventListener('click', (e) => {
-            e.stopPropagation();
+        // Expand / collapse
+        expandBtn.addEventListener('click', () => {
+            const isExpanded = win.classList.toggle('ai-float--expanded');
+            expandBtn.innerHTML = isExpanded ? '&#9635;' : '&#9634;';
+            expandBtn.title = isExpanded ? '缩小' : '放大';
         });
 
         // Send button
-        aiChatSendButton.addEventListener('click', () => {
-            this._sendAIMessage();
-        });
+        sendBtn.addEventListener('click', () => this._sendAIMessage());
 
-        // Enter key to send
-        aiChatInput.addEventListener('keypress', (e) => {
+        // Enter to send
+        input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this._sendAIMessage();
             }
+        });
+
+        // ---- Drag logic (header as handle) ----
+        this._setupDrag();
+    },
+
+    _setupDrag() {
+        const win = document.getElementById('aiFloatingWindow');
+        const header = document.getElementById('aiFloatHeader');
+        let dragState = null;
+        let lastX = 0, lastY = 0, rafPending = false;
+
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button')) return; // Don't drag from buttons
+            e.preventDefault();
+
+            const rect = win.getBoundingClientRect();
+            // Convert from right/bottom positioning to left/top
+            win.style.left = rect.left + 'px';
+            win.style.top = rect.top + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
+
+            dragState = {
+                offsetX: e.clientX - rect.left,
+                offsetY: e.clientY - rect.top,
+            };
+            win.style.transition = 'none';
+            win.classList.add('ai-float--dragging');
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState) return;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                if (dragState) {
+                    win.style.left = Math.max(0, Math.min(lastX - dragState.offsetX, window.innerWidth - win.offsetWidth)) + 'px';
+                    win.style.top = Math.max(0, Math.min(lastY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
+                }
+            });
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragState) return;
+            dragState = null;
+            win.style.transition = '';
+            win.classList.remove('ai-float--dragging');
+            document.body.style.userSelect = '';
+        });
+
+        // ---- Touch drag support (mobile) ----
+        header.addEventListener('touchstart', (e) => {
+            if (e.target.closest('button')) return;
+            const touch = e.touches[0];
+            const rect = win.getBoundingClientRect();
+            win.style.left = rect.left + 'px';
+            win.style.top = rect.top + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
+            dragState = {
+                offsetX: touch.clientX - rect.left,
+                offsetY: touch.clientY - rect.top,
+            };
+            win.style.transition = 'none';
+            win.classList.add('ai-float--dragging');
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!dragState) return;
+            const touch = e.touches[0];
+            win.style.left = Math.max(0, Math.min(touch.clientX - dragState.offsetX, window.innerWidth - win.offsetWidth)) + 'px';
+            win.style.top = Math.max(0, Math.min(touch.clientY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            if (!dragState) return;
+            dragState = null;
+            win.style.transition = '';
+            win.classList.remove('ai-float--dragging');
         });
     },
 
@@ -698,6 +784,9 @@ const ClassroomStudentApp = {
         // Show typing indicator
         this._showAITypingIndicator();
 
+        // Accumulate raw text for final markdown rendering
+        let rawText = '';
+
         try {
             const response = await ClassroomStudentAPI.classroomAIStream(
                 this.state.roomId,
@@ -728,7 +817,7 @@ const ClassroomStudentApp = {
 
                 // Process complete SSE events
                 const lines = buffer.split('\n');
-                buffer = lines.pop() || '';  // Keep incomplete line in buffer
+                buffer = lines.pop() || '';
 
                 let eventType = '';
                 for (const line of lines) {
@@ -738,7 +827,21 @@ const ClassroomStudentApp = {
                         const dataStr = line.slice(6);
                         try {
                             const data = JSON.parse(dataStr);
-                            this._handleSSEEvent(eventType, data, aiBubbleContent);
+                            if (eventType === 'meta' && data.conversation_id) {
+                                this.state.aiConversationId = data.conversation_id;
+                            } else if (eventType === 'answer' && data.content) {
+                                rawText += data.content;
+                                // Show plain text during streaming
+                                aiBubbleContent.textContent = rawText;
+                                this._scrollAIChatToBottom();
+                            } else if (eventType === 'done') {
+                                // Stream complete — render markdown
+                                this._renderMarkdown(aiBubbleContent, rawText);
+                                this._scrollAIChatToBottom();
+                            } else if (eventType === 'error') {
+                                aiBubbleContent.textContent = data.message || 'AI 回复出错';
+                                aiBubbleContent.style.color = 'var(--color-danger)';
+                            }
                         } catch (e) {
                             // Ignore parse errors for incomplete chunks
                         }
@@ -746,12 +849,16 @@ const ClassroomStudentApp = {
                 }
             }
 
+            // Fallback: if done event was missed, render markdown from accumulated text
+            if (rawText && aiBubbleContent.dataset.rendered !== 'true') {
+                this._renderMarkdown(aiBubbleContent, rawText);
+            }
+
         } catch (error) {
             console.error('AI stream error:', error);
             this._removeAITypingIndicator();
             this._renderAIErrorMessage('AI 服务暂时不可用，请稍后再试');
         } finally {
-            // Re-enable input
             this.state.aiIsStreaming = false;
             input.disabled = false;
             sendBtn.disabled = false;
@@ -760,35 +867,17 @@ const ClassroomStudentApp = {
     },
 
     /**
-     * Handle a parsed SSE event from the AI stream.
+     * Render markdown content into an element using marked + DOMPurify.
      */
-    _handleSSEEvent(eventType, data, aiBubbleContent) {
-        switch (eventType) {
-            case 'meta':
-                if (data.conversation_id) {
-                    this.state.aiConversationId = data.conversation_id;
-                }
-                break;
-
-            case 'answer':
-                if (data.content && aiBubbleContent) {
-                    aiBubbleContent.textContent += data.content;
-                    this._scrollAIChatToBottom();
-                }
-                break;
-
-            case 'done':
-                // Stream complete
-                this._scrollAIChatToBottom();
-                break;
-
-            case 'error':
-                if (aiBubbleContent) {
-                    aiBubbleContent.textContent = data.message || 'AI 回复出错';
-                    aiBubbleContent.style.color = 'var(--color-danger)';
-                }
-                break;
+    _renderMarkdown(el, text) {
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            el.innerHTML = DOMPurify.sanitize(marked.parse(text));
+        } else {
+            // Fallback: plain text with line breaks
+            el.innerHTML = text.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                               .replace(/>/g, '&gt;').replace(/\n/g, '<br>');
         }
+        el.dataset.rendered = 'true';
     },
 
     // ---- AI Chat UI Helpers ----
@@ -841,7 +930,6 @@ const ClassroomStudentApp = {
         const container = document.getElementById('aiChatContent');
         if (!container) return;
 
-        // Don't render system message if welcome is still showing
         const welcome = document.getElementById('aiChatWelcome');
         if (welcome && welcome.style.display !== 'none') return;
 
