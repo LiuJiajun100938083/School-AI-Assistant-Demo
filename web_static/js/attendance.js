@@ -1,13 +1,13 @@
-// ============ 实时时钟功能 ============
+// ============ 即時時鐘功能 ============
 let clockInterval = null;
 
-// 启动实时时钟
+// 啟動即時時鐘
 function startLiveClock() {
     updateClock(); // 立即更新一次
     clockInterval = setInterval(updateClock, 1000);
 }
 
-// 停止实时时钟
+// 停止即時時鐘
 function stopLiveClock() {
     if (clockInterval) {
         clearInterval(clockInterval);
@@ -15,7 +15,7 @@ function stopLiveClock() {
     }
 }
 
-// 更新时钟显示
+// 更新時鐘顯示
 function updateClock() {
     const now = new Date();
     const clockEl = document.getElementById('liveClock');
@@ -39,25 +39,25 @@ function updateClock() {
 }
 
 
-// ============ 早读记录排序功能 ============
+// ============ 晨讀紀錄排序功能 ============
 let currentMorningRecords = [];
-let morningSortField = 'class';  // 默认按班级排序
-let morningSortOrder = 'asc';    // 默认升序
-// 留堂原因选择
-let selectedDetentionReason = null;      // 拍卡签到时选择的原因
-let selectedManualDetentionReason = null; // 手动签到时选择的原因
+let morningSortField = 'class';  // 預設按班級排序
+let morningSortOrder = 'asc';    // 預設升序
+// 留堂原因選擇
+let selectedDetentionReason = null;      // 拍卡簽到時選擇的原因
+let selectedManualDetentionReason = null; // 手動簽到時選擇的原因
 
 // 留堂原因映射
 const DETENTION_REASONS = {
-    'homework': '功课留堂',
-    'morning': '晨读留堂'
+    'homework': '功課留堂',
+    'morning': '晨讀留堂'
 };
 
-// 排序早读记录（点击表头方式）
+// 排序晨讀紀錄（點擊表頭方式）
 function sortMorningRecords(field) {
     if (!currentMorningRecords.length) return;
 
-    // 如果点击同一列，切换排序顺序
+    // 如果點擊同一列，切換排序順序
     if (field && morningSortField === field) {
         morningSortOrder = morningSortOrder === 'asc' ? 'desc' : 'asc';
     } else if (field) {
@@ -105,7 +105,7 @@ function sortMorningRecords(field) {
     updateMorningSortIndicators();
 }
 
-// 更新早读表头排序指示器
+// 更新晨讀表頭排序指示器
 function updateMorningSortIndicators() {
     const headers = document.querySelectorAll('#morningRecordsTable th.sortable');
     headers.forEach(th => {
@@ -127,15 +127,15 @@ function updateMorningSortIndicators() {
     }
 }
 
-// 格式化迟到时间（晨读用）
+// 格式化遲到時間（晨讀用）
 function formatLateTime(minutes, seconds) {
     if (minutes === 0 && seconds > 0) {
         return seconds + '秒';
     }
-    return (minutes || 0) + '分钟';
+    return (minutes || 0) + '分鐘';
 }
 
-// 渲染排序后的记录
+// 渲染排序後的紀錄
 function renderSortedRecords(students) {
     const tbody = document.getElementById('recordsBody');
     if (!tbody) return;
@@ -145,13 +145,13 @@ function renderSortedRecords(students) {
         const isRegistered = s.is_registered !== false;
 
         let statusText = {
-            'present': '准时',
-            'late': '迟到',
-            'very_late': '严重迟到',
+            'present': '準時',
+            'late': '遲到',
+            'very_late': '嚴重遲到',
             'absent': '未到'
         }[status];
 
-        const registeredTag = isRegistered ? '' : '<span class="unregistered-tag">非登记</span>';
+        const registeredTag = isRegistered ? '' : '<span class="unregistered-tag">非登記</span>';
         const rowClass = isRegistered ? '' : 'unregistered-row';
 
         const scanTime = s.scan_time ? new Date(s.scan_time).toLocaleTimeString('zh-CN', {
@@ -167,17 +167,17 @@ function renderSortedRecords(students) {
                 <td>${scanTime}</td>
                 <td><span class="status-badge ${status.replace('_', '-')}">${statusText}</span></td>
                 <td class="hide-compact">${formatLateTime(s.late_minutes, s.late_seconds)}</td>
-                <td class="hide-compact">${s.makeup_minutes || 0}分钟</td>
+                <td class="hide-compact">${s.makeup_minutes || 0}分鐘</td>
             </tr>
         `;
     }).join('');
 }
 
 
-// ============ 紧凑模式功能 ============
+// ============ 緊湊模式功能 ============
 let isCompactMode = false;
 
-// 切换紧凑模式
+// 切換緊湊模式
 function toggleCompactMode() {
     isCompactMode = !isCompactMode;
 
@@ -192,15 +192,15 @@ function toggleCompactMode() {
         toggleBtn.classList.toggle('active', isCompactMode);
         const textEl = toggleBtn.querySelector('.compact-text');
         if (textEl) {
-            textEl.textContent = isCompactMode ? '标准' : '紧凑';
+            textEl.textContent = isCompactMode ? '標準' : '緊湊';
         }
     }
 
-    // 保存用户偏好
+    // 儲存使用者偏好
     localStorage.setItem('attendance_compact_mode', isCompactMode);
 }
 
-// 恢复紧凑模式状态
+// 恢復緊湊模式狀態
 function restoreCompactMode() {
     const savedMode = localStorage.getItem('attendance_compact_mode') === 'true';
     if (savedMode) {
@@ -215,59 +215,59 @@ function restoreCompactMode() {
             toggleBtn.classList.add('active');
             const textEl = toggleBtn.querySelector('.compact-text');
             if (textEl) {
-                textEl.textContent = '标准';
+                textEl.textContent = '標準';
             }
         }
     }
 }
 
 
-// ========== Apple 风格左侧面板切换功能 ==========
+// ========== Apple 風格左側面板切換功能 ==========
 function toggleLeftPanel() {
     const panel = document.getElementById('leftPanel');
     const toggleBtn = document.getElementById('panelToggleBtn');
 
     if (!panel || !toggleBtn) return;
 
-    // 添加触觉反馈（如果支持）
+    // 添加觸覺反饋（如果支持）
     if (navigator.vibrate) {
         navigator.vibrate(10);
     }
 
-    // 切换状态
+    // 切換狀態
     const isCollapsing = !panel.classList.contains('collapsed');
 
-    // 添加过渡状态class
+    // 添加過渡狀態 class
     panel.classList.add('transitioning');
     toggleBtn.classList.add('transitioning');
 
-    // 执行切换
+    // 執行切換
     panel.classList.toggle('collapsed');
     toggleBtn.classList.toggle('collapsed');
 
-    // 动画完成后移除过渡状态
+    // 動畫完成後移除過渡狀態
     setTimeout(() => {
         panel.classList.remove('transitioning');
         toggleBtn.classList.remove('transitioning');
     }, 500);
 
-    // 保存状态到 localStorage
+    // 儲存狀態到 localStorage
     localStorage.setItem('leftPanelCollapsed', panel.classList.contains('collapsed'));
 }
 
-// ========== Apple 风格签到通知卡片 ==========
+// ========== Apple 風格簽到通知卡片 ==========
 
-// 显示签到通知卡片
+// 顯示簽到通知卡片
 function showScanNotification(data) {
     const overlay = document.getElementById('scanNotificationOverlay');
     const card = document.getElementById('scanNotificationCard');
 
     if (!overlay || !card) return;
 
-    // 清除之前的状态类
+    // 清除之前的狀態類
     card.className = 'scan-notification-card';
 
-    // 获取各元素
+    // 取得各元素
     const iconEl = document.getElementById('notificationIcon');
     const nameEl = document.getElementById('notificationName');
     const englishNameEl = document.getElementById('notificationEnglishName');
@@ -280,65 +280,65 @@ function showScanNotification(data) {
         const student = data.student;
         const record = data.record;
 
-        // 设置学生信息
+        // 設定學生資訊
         nameEl.textContent = student.chinese_name;
         englishNameEl.textContent = student.english_name;
-        classTextEl.textContent = `${student.class_name}-${student.class_number}号`;
+        classTextEl.textContent = `${student.class_name}-${student.class_number}號`;
 
-        // 根据会话类型和状态设置样式
+        // 根據會話類型和狀態設定樣式
         if (currentSessionType === 'morning') {
-            timeEl.textContent = `签到时间: ${record.scan_time}`;
+            timeEl.textContent = `簽到時間: ${record.scan_time}`;
 
             if (record.status === 'present') {
                 iconEl.textContent = '✅';
                 card.classList.add('status-present');
                 statusEl.className = 'notification-status present';
-                statusEl.textContent = '准时签到';
+                statusEl.textContent = '準時簽到';
                 extraEl.style.display = 'none';
             } else if (record.status === 'late') {
                 iconEl.textContent = '⚠️';
                 card.classList.add('status-late');
                 statusEl.className = 'notification-status late';
-                statusEl.textContent = '迟到';
+                statusEl.textContent = '遲到';
                 extraEl.style.display = 'block';
-                extraEl.innerHTML = `迟到 <strong>${record.late_minutes}</strong> 分钟，需补时 <strong>${record.makeup_minutes}</strong> 分钟`;
+                extraEl.innerHTML = `遲到 <strong>${record.late_minutes}</strong> 分鐘，需補時 <strong>${record.makeup_minutes}</strong> 分鐘`;
             } else if (record.status === 'very_late') {
                 iconEl.textContent = '🔴';
                 card.classList.add('status-very-late');
                 statusEl.className = 'notification-status very-late';
-                statusEl.textContent = '严重迟到';
+                statusEl.textContent = '嚴重遲到';
                 extraEl.style.display = 'block';
-                extraEl.innerHTML = `需补时 <strong>${record.makeup_minutes}</strong> 分钟`;
+                extraEl.innerHTML = `需补时 <strong>${record.makeup_minutes}</strong> 分鐘`;
             }
         } else if (currentSessionType === 'activity') {
-            // 课外活动模式
+            // 課外活動模式
             card.classList.add('status-activity');
             statusEl.className = 'notification-status activity';
 
             if (data.action === 'checkout') {
                 iconEl.textContent = '👋';
-                timeEl.textContent = `签退时间: ${data.time || record.checkout_time}`;
+                timeEl.textContent = `簽退時間: ${data.time || record.checkout_time}`;
 
                 if (data.is_early) {
                     statusEl.textContent = '早退';
                     statusEl.className = 'notification-status late';
                     extraEl.style.display = 'block';
-                    extraEl.innerHTML = `提前 <strong>${data.early_minutes}</strong> 分钟离开`;
+                    extraEl.innerHTML = `提前 <strong>${data.early_minutes}</strong> 分鐘離開`;
                 } else {
-                    statusEl.textContent = '正常离开';
+                    statusEl.textContent = '正常離開';
                     extraEl.style.display = 'none';
                 }
             } else {
                 iconEl.textContent = '🎯';
-                timeEl.textContent = `签到时间: ${data.time || record.scan_time}`;
+                timeEl.textContent = `簽到時間: ${data.time || record.scan_time}`;
 
                 if (data.is_late) {
-                    statusEl.textContent = '迟到';
+                    statusEl.textContent = '遲到';
                     statusEl.className = 'notification-status late';
                     extraEl.style.display = 'block';
-                    extraEl.innerHTML = `迟到 <strong>${data.late_minutes}</strong> 分钟`;
+                    extraEl.innerHTML = `遲到 <strong>${data.late_minutes}</strong> 分鐘`;
                 } else {
-                    statusEl.textContent = '准时签到';
+                    statusEl.textContent = '準時簽到';
                     extraEl.style.display = 'none';
                 }
             }
@@ -350,9 +350,9 @@ function showScanNotification(data) {
 
             if (data.action === 'checkout') {
                 iconEl.textContent = '👋';
-                timeEl.textContent = `签退时间: ${record.checkout_time}`;
+                timeEl.textContent = `簽退時間: ${record.checkout_time}`;
 
-// 根据是否使用分钟模式判断完成状态
+// 根據是否使用分鐘模式判斷完成狀態
                 let isCompleted = false;
                 if (record.planned_minutes != null) {
                     isCompleted = record.actual_minutes >= record.planned_minutes;
@@ -364,42 +364,42 @@ function showScanNotification(data) {
                     statusEl.textContent = '留堂完成';
                     extraEl.style.display = 'block';
                     if (record.planned_minutes != null) {
-                        extraEl.innerHTML = `已完成 <strong>${record.actual_minutes}</strong> 分钟留堂`;
+                        extraEl.innerHTML = `已完成 <strong>${record.actual_minutes}</strong> 分鐘留堂`;
                     } else {
-                        extraEl.innerHTML = `已完成 <strong>${record.actual_periods}</strong> 节留堂`;
+                        extraEl.innerHTML = `已完成 <strong>${record.actual_periods}</strong> 節留堂`;
                     }
                 } else {
-                    statusEl.textContent = '提前离开';
+                    statusEl.textContent = '提前離開';
                     statusEl.className = 'notification-status late';
                     extraEl.style.display = 'block';
                     if (record.planned_minutes != null) {
-                        extraEl.innerHTML = `计划 ${record.planned_minutes} 分钟，实际 ${record.actual_minutes} 分钟`;
+                        extraEl.innerHTML = `計劃 ${record.planned_minutes} 分鐘，實際 ${record.actual_minutes} 分鐘`;
                     } else {
-                        extraEl.innerHTML = `计划 ${record.planned_periods} 节，实际 ${record.actual_periods} 节`;
+                        extraEl.innerHTML = `計劃 ${record.planned_periods} 節，實際 ${record.actual_periods} 節`;
                     }
                 }
             } else {
                 iconEl.textContent = '📝';
-                timeEl.textContent = `签到时间: ${record.scan_time}`;
-                statusEl.textContent = '留堂签到';
+                timeEl.textContent = `簽到時間: ${record.scan_time}`;
+                statusEl.textContent = '留堂簽到';
                 extraEl.style.display = 'block';
-                extraEl.innerHTML = `计划留 <strong>${record.planned_periods}</strong> 节，至 ${record.planned_end_time}`;
+                extraEl.innerHTML = `計劃留 <strong>${record.planned_periods}</strong> 節，至 ${record.planned_end_time}`;
             }
         }
     } else {
-        // 错误状态
+        // 錯誤狀態
         iconEl.textContent = '❌';
-        nameEl.textContent = '签到失败';
-        englishNameEl.textContent = data.message || data.detail || '未知错误';
-        classTextEl.textContent = data.card_id ? `卡号: ${data.card_id}` : '未知卡号';
+        nameEl.textContent = '簽到失敗';
+        englishNameEl.textContent = data.message || data.detail || '未知錯誤';
+        classTextEl.textContent = data.card_id ? `卡號: ${data.card_id}` : '未知卡號';
         card.classList.add('status-error');
         statusEl.className = 'notification-status error';
-        statusEl.textContent = '错误';
+        statusEl.textContent = '錯誤';
         timeEl.textContent = '';
         extraEl.style.display = 'none';
     }
 
-    // 触发显示动画
+    // 觸發顯示動畫
     requestAnimationFrame(() => {
         card.classList.add('show');
     });
@@ -407,7 +407,7 @@ function showScanNotification(data) {
     // 播放音效反馈（如果支持）
     playNotificationSound(data.success ? (data.record?.status || 'present') : 'error');
 
-    // 触觉反馈
+    // 觸覺反饋
     if (navigator.vibrate) {
         if (data.success) {
             navigator.vibrate(data.record?.status === 'present' ? [50] : [50, 30, 50]);
@@ -416,7 +416,7 @@ function showScanNotification(data) {
         }
     }
 
-    // 自动隐藏
+    // 自動隱藏
     const hideDelay = currentSessionType === 'detention' ? 500 : 500;
 
     setTimeout(() => {
@@ -424,7 +424,7 @@ function showScanNotification(data) {
     }, hideDelay);
 }
 
-// 隐藏签到通知卡片
+// 隱藏簽到通知卡片
 function hideScanNotification() {
     const card = document.getElementById('scanNotificationCard');
     if (!card) return;
@@ -432,16 +432,16 @@ function hideScanNotification() {
     card.classList.remove('show');
     card.classList.add('hide');
 
-    // 动画完成后重置
+    // 動畫完成後重置
     setTimeout(() => {
         card.classList.remove('hide');
     }, 400);
 }
 
-// 播放通知音效（可选）
+// 播放通知音效（可選）
 function playNotificationSound(status) {
-    // 如果需要音效，可以在这里添加
-    // 示例：使用 Web Audio API 或预加载的音频文件
+    // 如果需要音效，可以在這裡添加
+    // 示例：使用 Web Audio API 或預載入的音頻檔案
     /*
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
@@ -469,7 +469,7 @@ function playNotificationSound(status) {
     */
 }
 
-// 页面加载时恢复面板状态
+// 頁面載入時恢復面板狀態
 function restoreLeftPanelState() {
     const panel = document.getElementById('leftPanel');
     const toggleBtn = document.getElementById('panelToggleBtn');
@@ -479,14 +479,14 @@ function restoreLeftPanelState() {
     const wasCollapsed = localStorage.getItem('leftPanelCollapsed') === 'true';
 
     if (wasCollapsed) {
-        // 跳过动画直接设置状态
+        // 跳過動畫直接設定狀態
         panel.style.transition = 'none';
         toggleBtn.style.transition = 'none';
 
         panel.classList.add('collapsed');
         toggleBtn.classList.add('collapsed');
 
-        // 强制重绘后恢复动画
+        // 強制重繪後恢復動畫
         panel.offsetHeight;
 
         requestAnimationFrame(() => {
@@ -496,23 +496,23 @@ function restoreLeftPanelState() {
     }
 }
 
-// ========== 选择学生弹窗功能 ==========
+// ========== 選擇學生彈窗功能 ==========
 let modalFilteredStudents = [];
-let isOpenMode = false;  // 是否为开放点名模式
+let isOpenMode = false;  // 是否为開放點名模式
 
 function openStudentSelectModal() {
     const modal = document.getElementById('studentSelectModal');
     if (!modal) return;
     modal.classList.add('active');
 
-    // 复制班级选项到弹窗
+    // 複製班級選項到彈窗
     const mainSelect = document.getElementById('classFilter');
     const modalSelect = document.getElementById('modalClassFilter');
     if (mainSelect && modalSelect) {
         modalSelect.innerHTML = mainSelect.innerHTML;
     }
 
-    // 渲染学生列表
+    // 渲染學生列表
     modalFilteredStudents = [...allStudents];
     renderModalStudentList(modalFilteredStudents);
     updateModalSelectedCount();
@@ -534,7 +534,7 @@ function renderModalStudentList(students) {
     if (!container) return;
 
     if (!students || students.length === 0) {
-        container.innerHTML = '<div style="text-align: center; padding: 30px; color: var(--text-secondary);">没有找到学生</div>';
+        container.innerHTML = '<div style="text-align: center; padding: 30px; color: var(--text-secondary);">沒有找到學生</div>';
         return;
     }
 
@@ -546,7 +546,7 @@ function renderModalStudentList(students) {
                      onclick="event.stopPropagation(); toggleStudentInModal('${student.user_login}')">
               <div class="student-info-text">
                   <div class="student-name">${student.chinese_name} (${student.english_name})</div>
-                  <div class="student-class">${student.class_name} - ${student.class_number}号 | ${student.user_login}</div>
+                  <div class="student-class">${student.class_name} - ${student.class_number}號 | ${student.user_login}</div>
               </div>
           </div>
       `).join('');
@@ -621,7 +621,7 @@ function confirmStudentSelection() {
     updateSelectedCount();
     updateSelectStudentBtn();
 
-    // 如果是课外活动模式，同步更新
+    // 如果是課外活動模式，同步更新
     if (currentSessionType === 'activity') {
         updateActivitySelectBtn();
     }
@@ -634,14 +634,14 @@ function updateSelectStudentBtn() {
 
     if (count > 0) {
         btn.classList.add('has-selection');
-        btn.innerHTML = '👥 已选择 ' + count + ' 名学生 (点击修改)';
+        btn.innerHTML = '👥 已選擇 ' + count + ' 名學生 (點擊修改)';
     } else {
         btn.classList.remove('has-selection');
-        btn.innerHTML = '👥 点击选择学生（可选）';
+        btn.innerHTML = '👥 點擊選擇學生（可選）';
     }
 }
 
-// 状态变量
+// 狀態變數
 let authToken = localStorage.getItem('auth_token');
 let currentSessionType = localStorage.getItem('attendance_session_type') || 'morning';
 let currentSessionId = localStorage.getItem('attendance_session_id') ?
@@ -651,15 +651,15 @@ let selectedStudents = new Set();
 let fixedLists = [];
 
 
-// ========== 手动签到功能 ==========
+// ========== 手動簽到功能 ==========
 let manualSelectedStudent = null;
 
-// 留堂记录排序状态
+// 留堂紀錄排序狀態
 let detentionSortField = null;  // 'class', 'scanTime', 'remaining'
 let detentionSortOrder = 'asc'; // 'asc' 或 'desc'
-let detentionStudentsData = []; // 保存原始数据用于排序
+let detentionStudentsData = []; // 儲存原始數據用於排序
 
-// 保存会话状态到localStorage
+// 儲存會話狀態到 localStorage
 function saveSessionState() {
     if (currentSessionId) {
         localStorage.setItem('attendance_session_id', currentSessionId);
@@ -670,26 +670,26 @@ function saveSessionState() {
     }
 }
 
-// 页面刷新/关闭警告
+// 頁面重新整理/關閉警告
 window.addEventListener('beforeunload', function (e) {
     if (currentSessionId) {
         e.preventDefault();
-        e.returnValue = '点名会话正在进行中，确定要离开吗？';
+        e.returnValue = '點名會話正在進行中，確定要離開嗎？';
         return e.returnValue;
     }
 });
 
-// 留堂临时状态（选择节数用）
+// 留堂暫時狀態（選擇節數用）
 let pendingCardId = null;
 let pendingStudent = null;
 let pendingOptions = null;
 
-// 倒计时定时器
+// 倒計時定时器
 let countdownInterval = null;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
-    // 检查认证
+    // 檢查認證
     if (!authToken) {
         window.location.href = '/';
         return;
@@ -709,20 +709,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         document.getElementById('userInfo').textContent = data.data.display_name || data.data.username;
-        // 恢复左侧面板状态
+        // 恢復左側面板狀態
         restoreLeftPanelState();
     } catch (error) {
-        console.error('验证失败:', error);
+        console.error('验证失敗:', error);
         window.location.href = '/';
         return;
     }
 
-    // 设置今天的日期
+    // 設定今天的日期
     document.getElementById('sessionDate').value = new Date().toISOString().split('T')[0];
-    // 恢复左侧面板状态（Apple风格动画）
+    // 恢復左側面板狀態（Apple 風格動畫）
     restoreLeftPanelState();
 
-    // 加载数据
+    // 載入數據
     await loadClasses();
     await loadStudents();
     await loadFixedLists();
@@ -730,7 +730,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await restoreSession();
     }
 
-    // 绑定卡号输入事件
+    // 綁定卡號輸入事件
     document.getElementById('cardInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             processCard();
@@ -740,14 +740,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 初始化表
     initTables();
 
-    // 🆕 启动实时时钟
+    // 🆕 啟動即時時鐘
     startLiveClock();
 
-    // 🆕 恢复紧凑模式状态
+    // 🆕 恢復緊湊模式狀態
     restoreCompactMode();
 });
 
-// 初始化数据库表
+// 初始化資料庫表
 async function initTables() {
     try {
         await fetch('/api/attendance/init-tables', {
@@ -755,14 +755,14 @@ async function initTables() {
             headers: {'Authorization': `Bearer ${authToken}`}
         });
     } catch (error) {
-        console.error('初始化表失败:', error);
+        console.error('初始化表失敗:', error);
     }
 }
 
-// 恢复之前的会话
+// 恢復之前的會話
 async function restoreSession() {
     try {
-        // 根据会话类型获取会话信息
+        // 根據會話類型取得會話資訊
         const url = currentSessionType === 'morning'
             ? `/api/attendance/sessions/${currentSessionId}`
             : `/api/attendance/detention/sessions/${currentSessionId}`;
@@ -772,7 +772,7 @@ async function restoreSession() {
         });
 
         if (!response.ok) {
-            // 会话不存在或已结束，清除本地存储
+            // 會話不存在或已結束，清除本機儲存
             currentSessionId = null;
             saveSessionState();
             return;
@@ -780,52 +780,52 @@ async function restoreSession() {
 
         const data = await response.json();
 
-        // 兼容不同返回结构：优先使用 data.session，否则回退到 data
+        // 相容不同返回結構：優先使用 data.session，否則回退到 data
         const session = data.session || null;
 
-        // 如果接口没有返回 session 结构，但返回 success，则认为会话可用
+        // 如果接口没有返回 session 結構，但返回 success，則認為會話可用
         const isSuccess = data.success === true;
         const status = session && session.status ? session.status : (isSuccess ? 'active' : null);
 
-        // 检查会话是否仍在进行中
+        // 檢查會話是否仍在進行中
         if (status === 'active') {
-            showToast(`已恢复${currentSessionType === 'morning' ? '早读' : '留堂'}会话`);
+            showToast(`已恢復${currentSessionType === 'morning' ? '早讀' : '留堂'}會話`);
 
-            // 更新UI显示：日期
+            // 更新 UI 顯示：日期
             if (session && session.session_date) {
                 document.getElementById('sessionDate').value = session.session_date;
             }
 
-            // 切换到正确的类型标签（使用现有函数）
+            // 切換到正確的類型標籤（使用現有函數）
             selectType(currentSessionType);
 
-            // 显示会话面板并加载记录
+            // 顯示會話面板並載入紀錄
             showSessionPanel();
             await loadSessionDetail();
         } else {
-            // 会话已结束，清除
+            // 會話已結束，清除
             currentSessionId = null;
             saveSessionState();
         }
     } catch (error) {
-        console.error('恢复会话失败:', error);
+        console.error('恢復會話失敗:', error);
         currentSessionId = null;
         saveSessionState();
     }
 }
 
-// 加载班级列表
+// 載入班級列表
 async function loadClasses() {
     try {
         const response = await fetch('/api/attendance/classes', {
             headers: {'Authorization': `Bearer ${authToken}`}
         });
 
-        // 检查HTTP状态
+        // 檢查 HTTP 狀態
         if (!response.ok) {
             if (response.status === 401) {
-                console.error('认证失败，请重新登录');
-                showToast('登录已过期，请重新登录', 'error');
+                console.error('認證失敗，請重新登入');
+                showToast('登入已過期，請重新登入', 'error');
                 setTimeout(() => window.location.href = '/', 2000);
                 return;
             }
@@ -837,16 +837,16 @@ async function loadClasses() {
         if (data.success) {
             const select = document.getElementById('classFilter');
             const modalSelect = document.getElementById('modalClassFilter');
-            const options = '<option value="">全部班级</option>' + data.classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
+            const options = '<option value="">全部班級</option>' + data.classes.map(cls => `<option value="${cls}">${cls}</option>`).join('');
             if (select) select.innerHTML = options;
             if (modalSelect) modalSelect.innerHTML = options;
         }
     } catch (error) {
-        console.error('加载班级失败:', error);
+        console.error('載入班級失敗:', error);
     }
 }
 
-// 加载学生列表
+// 載入學生列表
 async function loadStudents() {
     try {
         const response = await fetch('/api/attendance/students', {
@@ -858,15 +858,15 @@ async function loadStudents() {
             allStudents = data.students;
             // 不再渲染 studentList
         } else {
-            showToast('暂无学生数据');
+            showToast('暫無學生數據');
         }
     } catch (error) {
-        console.error('加载学生失败:', error);
-        showToast('加载学生失败: ' + (error && error.message ? error.message : '未知错误'));
+        console.error('載入學生失敗:', error);
+        showToast('載入學生失敗: ' + (error && error.message ? error.message : '未知錯誤'));
     }
 }
 
-// 加载固定名单
+// 載入固定名單
 async function loadFixedLists() {
     try {
         const response = await fetch(`/api/attendance/fixed-lists?list_type=${currentSessionType}`, {
@@ -879,20 +879,20 @@ async function loadFixedLists() {
             renderFixedLists();
         }
     } catch (error) {
-        console.error('加载固定名单失败:', error);
+        console.error('載入固定名單失敗:', error);
     }
 }
 
-// 渲染固定名单
+// 渲染固定名單
 function renderFixedLists() {
     const container = document.getElementById('fixedListItems');
-    // 添加空值检查
+    // 添加空值檢查
     if (!container) {
         console.warn('fixedListItems 元素不存在');
         return;
     }
     if (fixedLists.length === 0) {
-        container.innerHTML = '<span style="color: var(--text-secondary); font-size: 13px;">暂无固定名单</span>';
+        container.innerHTML = '<span style="color: var(--text-secondary); font-size: 13px;">暫無固定名單</span>';
         return;
     }
 
@@ -903,15 +903,15 @@ function renderFixedLists() {
                             ${list.list_name} (${list.student_count}人)
                         </span>
                         <div class="fixed-list-item-actions">
-                            <button class="fixed-list-btn edit" onclick="event.stopPropagation(); editFixedList(${list.id}, '${list.list_name}')" title="编辑">✏️</button>
-                            <button class="fixed-list-btn delete" onclick="event.stopPropagation(); deleteFixedList(${list.id}, '${list.list_name}')" title="删除">🗑️</button>
+                            <button class="fixed-list-btn edit" onclick="event.stopPropagation(); editFixedList(${list.id}, '${list.list_name}')" title="編輯">✏️</button>
+                            <button class="fixed-list-btn delete" onclick="event.stopPropagation(); deleteFixedList(${list.id}, '${list.list_name}')" title="刪除">🗑️</button>
                         </div>
                     </div>
                 </div>
             `).join('');
 }
 
-// 加载固定名单中的学生
+// 載入固定名單中的學生
 async function loadFixedList(listId) {
     try {
         const response = await fetch(`/api/attendance/fixed-lists/${listId}`, {
@@ -924,18 +924,18 @@ async function loadFixedList(listId) {
             data.students.forEach(s => selectedStudents.add(s.user_login));
             updateSelectedCount();
             updateSelectStudentBtn();  // 新增
-            showToast(`已加载名单: ${data.list.list_name} (${data.students.length}人)`);
+            showToast(`已載入名單: ${data.list.list_name} (${data.students.length}人)`);
         }
     } catch (error) {
-        showToast('加载名单失败');
+        showToast('載入名單失敗');
     }
 }
 
-// 编辑名单用的临时数据
+// 編輯名單用的暫時數據
 let editingListStudents = [];
 let editingListType = '';
 
-// 编辑固定名单
+// 編輯固定名單
 async function editFixedList(listId, listName) {
     try {
         const response = await fetch(`/api/attendance/fixed-lists/${listId}`, {
@@ -944,34 +944,34 @@ async function editFixedList(listId, listName) {
         const data = await response.json();
 
         if (data.success) {
-            // 保存编辑数据
+            // 儲存編輯數據
             document.getElementById('editListId').value = listId;
             document.getElementById('editListName').value = data.list.list_name;
             editingListStudents = data.students.map(s => s.user_login);
             editingListType = data.list.list_type;
 
-            // 渲染学生列表
+            // 渲染學生列表
             renderEditListStudents();
 
-            // 填充可添加的学生下拉框
+            // 填充可添加的學生下拉框
             populateAddStudentSelect();
 
-            // 显示模态框
+            // 顯示模態框
             document.getElementById('editListModal').classList.add('active');
         }
     } catch (error) {
-        console.error('加载名单失败:', error);
-        showToast('加载名单失败');
+        console.error('載入名單失敗:', error);
+        showToast('載入名單失敗');
     }
 }
 
-// 渲染编辑列表中的学生
+// 渲染編輯列表中的學生
 function renderEditListStudents() {
     const container = document.getElementById('editListStudents');
     document.getElementById('editListCount').textContent = editingListStudents.length;
 
     if (editingListStudents.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">暂无学生</div>';
+        container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">暫無學生</div>';
         return;
     }
 
@@ -982,7 +982,7 @@ function renderEditListStudents() {
                     <div class="edit-list-student">
                         <div class="edit-list-student-info">
                             <div class="edit-list-student-name">${student.chinese_name} (${student.english_name})</div>
-                            <div class="edit-list-student-class">${student.class_name}-${student.class_number}号 | ${student.user_login}</div>
+                            <div class="edit-list-student-class">${student.class_name}-${student.class_number}號 | ${student.user_login}</div>
                         </div>
                         <button class="edit-list-remove-btn" onclick="removeStudentFromEditList('${userLogin}')">移除</button>
                     </div>
@@ -990,31 +990,31 @@ function renderEditListStudents() {
     }).join('');
 }
 
-// 填充可添加学生的下拉框
+// 填充可添加學生的下拉框
 function populateAddStudentSelect() {
     const select = document.getElementById('addStudentSelect');
     const availableStudents = allStudents.filter(s => !editingListStudents.includes(s.user_login));
 
-    select.innerHTML = '<option value="">-- 选择学生添加 --</option>';
+    select.innerHTML = '<option value="">-- 選擇學生添加 --</option>';
     availableStudents.forEach(s => {
         select.innerHTML += `<option value="${s.user_login}">${s.class_name}-${s.class_number} ${s.chinese_name} (${s.english_name})</option>`;
     });
 }
 
-// 从编辑列表移除学生
+// 從編輯列表移除學生
 function removeStudentFromEditList(userLogin) {
     editingListStudents = editingListStudents.filter(id => id !== userLogin);
     renderEditListStudents();
     populateAddStudentSelect();
 }
 
-// 添加学生到编辑列表
+// 添加學生到編輯列表
 function addStudentToEditList() {
     const select = document.getElementById('addStudentSelect');
     const userLogin = select.value;
 
     if (!userLogin) {
-        showToast('请选择要添加的学生');
+        showToast('請選擇要添加的學生');
         return;
     }
 
@@ -1027,24 +1027,24 @@ function addStudentToEditList() {
     select.value = '';
 }
 
-// 关闭编辑模态框
+// 關閉編輯模態框
 function closeEditListModal() {
     document.getElementById('editListModal').classList.remove('active');
     editingListStudents = [];
 }
 
-// 保存编辑后的名单
+// 儲存編輯後的名單
 async function saveEditedList() {
     const listId = document.getElementById('editListId').value;
     const listName = document.getElementById('editListName').value.trim();
 
     if (!listName) {
-        showToast('请输入名单名称');
+        showToast('請輸入名單名稱');
         return;
     }
 
     if (editingListStudents.length === 0) {
-        showToast('名单中至少需要一名学生');
+        showToast('名單中至少需要一名學生');
         return;
     }
 
@@ -1064,21 +1064,21 @@ async function saveEditedList() {
 
         const data = await response.json();
         if (data.success) {
-            showToast(`名单 "${listName}" 已更新`);
+            showToast(`名單 "${listName}" 已更新`);
             closeEditListModal();
             loadFixedLists();
         } else {
-            showToast(data.detail || '更新失败');
+            showToast(data.detail || '更新失敗');
         }
     } catch (error) {
-        console.error('保存名单失败:', error);
-        showToast('保存名单失败');
+        console.error('儲存名單失敗:', error);
+        showToast('儲存名單失敗');
     }
 }
 
-// 删除固定名单
+// 刪除固定名單
 async function deleteFixedList(listId, listName) {
-    if (!confirm(`确定要删除名单 "${listName}" 吗？此操作不可恢复。`)) {
+    if (!confirm(`確定要刪除名單 "${listName}" 吗？此操作不可恢復。`)) {
         return;
     }
 
@@ -1090,29 +1090,29 @@ async function deleteFixedList(listId, listName) {
 
         const data = await response.json();
         if (data.success) {
-            showToast(`名单 "${listName}" 已删除`);
+            showToast(`名單 "${listName}" 已刪除`);
             loadFixedLists();
         } else {
-            showToast(data.detail || '删除失败');
+            showToast(data.detail || '刪除失敗');
         }
     } catch (error) {
-        console.error('删除名单失败:', error);
-        showToast('删除名单失败');
+        console.error('刪除名單失敗:', error);
+        showToast('刪除名單失敗');
     }
 }
 
-// 渲染学生列表
+// 渲染學生列表
 function renderStudentList(students) {
     const container = document.getElementById('studentList');
     if (!container) {
-        // 左侧已改为“选择学生弹窗”模式，不再渲染旧 studentList
+        // 左側已改為“選擇學生彈窗”模式，不再渲染旧 studentList
         return;
     }
 
     if (students.length === 0) {
         container.innerHTML = `
                     <div style="text-align: center; padding: 30px; color: var(--text-secondary);">
-                        没有找到学生
+                        沒有找到學生
                     </div>
                 `;
         return;
@@ -1125,21 +1125,21 @@ function renderStudentList(students) {
                            onclick="event.stopPropagation(); toggleStudent('${student.user_login}')">
                     <div class="student-info-text">
                         <div class="student-name">${student.chinese_name} (${student.english_name})</div>
-                        <div class="student-class">${student.class_name} - ${student.class_number}号 | ${student.user_login}</div>
+                        <div class="student-class">${student.class_name} - ${student.class_number}號 | ${student.user_login}</div>
                     </div>
                 </div>
             `).join('');
 }
 
-// 筛选学生（已迁移到弹窗选择模式）
+// 篩選學生（已迁移到彈窗選擇模式）
 function filterStudents() {
-    // 兼容旧按钮/旧事件：改为打开选择学生弹窗
+    // 相容舊按鈕/舊事件：改為打開選擇學生彈窗
     openStudentSelectModal();
 }
 
-// 切换学生选择（已迁移到弹窗选择模式）
+// 切換學生選擇（已迁移到彈窗選擇模式）
 function toggleStudent(userLogin) {
-    // 兼容旧点击：在弹窗选择集合中切换
+    // 相容舊点击：在彈窗選擇集合中切换
     if (selectedStudents.has(userLogin)) {
         selectedStudents.delete(userLogin);
     } else {
@@ -1149,47 +1149,47 @@ function toggleStudent(userLogin) {
     updateSelectStudentBtn();
 }
 
-// 获取当前筛选后的学生（已弃用，保留空实现以兼容旧调用）
+// 取得當前篩選後的學生（已棄用，保留空實現以相容舊呼叫）
 function getFilteredStudents() {
     return allStudents;
 }
 
-// 更新选择计数
+// 更新選擇計數
 function updateSelectedCount() {
     const el = document.getElementById('selectedCount');
     if (el) el.textContent = selectedStudents.size;
-    // 同步更新“选择学生”按钮状态
+    // 同步更新“選擇學生”按鈕狀態
     updateSelectStudentBtn();
 }
 
-// 选择类型
+// 選擇類型
 function selectType(type) {
     currentSessionType = type;
-    saveSessionState();  // 切换模式时保存会话类型
+    saveSessionState();  // 切换模式时儲存會話類型
 
-    // 更新按钮状态
+    // 更新按鈕狀態
     document.querySelectorAll('.type-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     document.querySelector(`.type-btn.${type}`).classList.add('active');
 
-    // 根据类型控制UI显示
+    // 根據類型控制 UI 顯示
     const activityConfigSection = document.getElementById('activityConfigSection');
     const studentSelectSection = document.getElementById('studentSelectSection');
     const selectedCountSection = document.getElementById('selectedCountSection');
 
     if (type === 'activity') {
-        // 活动模式：显示活动配置
+        // 活動模式：顯示活動配置
         if (activityConfigSection) activityConfigSection.style.display = 'block';
         if (studentSelectSection) studentSelectSection.style.display = 'none';
         if (selectedCountSection) selectedCountSection.style.display = 'none';
-        loadActivityGroups(); // 加载活动组别
+        loadActivityGroups(); // 載入活動組別
     } else {
-        // 晨读/留堂模式：隐藏活动配置（自动全班开放模式）
+        // 晨讀/留堂模式：隱藏活動配置（自動全班開放模式）
         if (activityConfigSection) activityConfigSection.style.display = 'none';
         if (studentSelectSection) studentSelectSection.style.display = 'none';
         if (selectedCountSection) selectedCountSection.style.display = 'none';
-        // 清空学生选择（晨读/留堂不需要预选学生）
+        // 清空學生選擇（晨讀/留堂不需要預選學生）
         selectedStudents.clear();
         updateSelectedCount();
     }
@@ -1197,7 +1197,7 @@ function selectType(type) {
     loadFixedLists();
 }
 
-// 加载活动组别
+// 載入活動組別
 async function loadActivityGroups() {
     const container = document.getElementById('activityGroupsList');
     if (!container) return;
@@ -1213,15 +1213,15 @@ async function loadActivityGroups() {
                 `<button class="activity-group-btn" onclick="loadActivityGroup(${g.id})">${g.name} (${g.student_count}人)</button>`
             ).join('');
         } else {
-            container.innerHTML = '<span class="no-groups-hint">暂无组别</span>';
+            container.innerHTML = '<span class="no-groups-hint">暫無組別</span>';
         }
     } catch (error) {
-        console.log('加载活动组别失败:', error);
-        container.innerHTML = '<span class="no-groups-hint">暂无组别</span>';
+        console.log('載入活動組別失敗:', error);
+        container.innerHTML = '<span class="no-groups-hint">暫無組別</span>';
     }
 }
 
-// 加载指定活动组别的学生
+// 載入指定活動組別的學生
 async function loadActivityGroup(groupId) {
     try {
         const response = await fetch(`/api/attendance/activity-groups/${groupId}`, {
@@ -1233,15 +1233,15 @@ async function loadActivityGroup(groupId) {
             selectedStudents.clear();
             data.students.forEach(s => selectedStudents.add(s.user_login));
             updateActivitySelectedCount();
-            showToast(`已加载 ${data.students.length} 名学生`);
+            showToast(`已載入 ${data.students.length} 名學生`);
         }
     } catch (error) {
-        console.log('加载组别学生失败:', error);
-        showToast('加载失败');
+        console.log('載入組別學生失敗:', error);
+        showToast('載入失敗');
     }
 }
 
-// 更新活动模式的已选学生数
+// 更新活動模式的已選學生數
 function updateActivitySelectedCount() {
     const countEl = document.getElementById('activityStudentCount');
     if (countEl) {
@@ -1251,31 +1251,31 @@ function updateActivitySelectedCount() {
     if (btn) {
         if (selectedStudents.size > 0) {
             btn.classList.add('has-selection');
-            btn.innerHTML = '👥 已选择 ' + selectedStudents.size + ' 名学生 (点击修改)';
+            btn.innerHTML = '👥 已選擇 ' + selectedStudents.size + ' 名學生 (點擊修改)';
         } else {
             btn.classList.remove('has-selection');
-            btn.innerHTML = '👥 点击选择学生 (必选)';
+            btn.innerHTML = '👥 點擊選擇學生 (必選)';
         }
     }
 }
 
-// 全选
+// 全選
 function selectAll() {
     allStudents.forEach(s => selectedStudents.add(s.user_login));
     updateSelectedCount();
     updateSelectStudentBtn();
-    showToast('已全选所有学生');
+    showToast('已全選所有學生');
 }
 
-// 清空选择
+// 清空選擇
 function selectNone() {
     selectedStudents.clear();
     updateSelectedCount();
     updateSelectStudentBtn();
-    showToast('已清空选择');
+    showToast('已清空選擇');
 }
 
-// 按年级筛选（打开弹窗并筛选）
+// 按年級篩選（打開彈窗並篩選）
 function filterByGrade(grade) {
     openStudentSelectModal();
     setTimeout(() => {
@@ -1283,15 +1283,15 @@ function filterByGrade(grade) {
     }, 100);
 }
 
-// 显示全部学生（打开弹窗）
+// 顯示全部學生（打開彈窗）
 function showAllStudents() {
     openStudentSelectModal();
 }
 
-// 保存固定名单
+// 儲存固定名單
 function saveFixedList() {
     if (selectedStudents.size === 0) {
-        showToast('请先选择学生');
+        showToast('請先選擇學生');
         return;
     }
     document.getElementById('saveListModal').classList.add('active');
@@ -1305,7 +1305,7 @@ function closeSaveListModal() {
 async function confirmSaveList() {
     const listName = document.getElementById('listNameInput').value.trim();
     if (!listName) {
-        showToast('请输入名单名称');
+        showToast('請輸入名單名稱');
         return;
     }
 
@@ -1325,35 +1325,35 @@ async function confirmSaveList() {
 
         const data = await response.json();
         if (data.success) {
-            showToast('名单保存成功');
+            showToast('名單儲存成功');
             closeSaveListModal();
             loadFixedLists();
         } else {
-            showToast('保存失败: ' + data.detail);
+            showToast('儲存失敗: ' + data.detail);
         }
     } catch (error) {
-        showToast('保存失败');
+        showToast('儲存失敗');
     }
 }
 
-// 开始点名会话
-// 开始点名会话
+// 開始點名會話
+// 開始點名會話
 async function startSession() {
-    // 课外活动使用专门的函数
+    // 課外活動使用專門的函數
     if (currentSessionType === 'activity') {
         return startActivitySession();
     }
     const sessionDate = document.getElementById('sessionDate').value;
     if (!sessionDate) {
-        showToast('请选择日期');
+        showToast('請選擇日期');
         return;
     }
 
-    // 早读/留堂模式始终使用开放模式（任何学生都可签到）
-    // 预留选择学生功能给课外活动点名
+    // 晨讀/留堂模式始終使用開放模式（任何學生都可簽到）
+    // 預留選擇學生功能給課外活動點名
     isOpenMode = (currentSessionType === 'morning' || currentSessionType === 'detention')
-        ? true  // 早读/留堂始终开放模式
-        : selectedStudents.size === 0;  // 课外活动可选择学生
+        ? true  // 早讀/留堂始終開放模式
+        : selectedStudents.size === 0;  // 課外活動可選擇學生
 
     try {
         const response = await fetch('/api/attendance/sessions', {
@@ -1366,7 +1366,7 @@ async function startSession() {
                 session_type: currentSessionType,
                 session_date: sessionDate,
                 student_ids: Array.from(selectedStudents),
-                open_mode: isOpenMode  // 预留参数
+                open_mode: isOpenMode  // 預留參數
             })
         });
 
@@ -1378,43 +1378,43 @@ async function startSession() {
             showSessionPanel();
             loadSessionDetail();
         } else {
-            showToast('创建失败: ' + data.detail);
+            showToast('建立失敗: ' + data.detail);
         }
     } catch (error) {
-        showToast('创建会话失败');
+        showToast('建立會話失敗');
     }
 }
 
-// 显示会话面板
+// 顯示會話面板
 function showSessionPanel() {
     document.getElementById('noSessionHint').style.display = 'none';
     document.getElementById('sessionPanel').style.display = 'flex';
 
-    // 根据类型设置标题
-    let typeText = '晨读';
+    // 根據類型設定標題
+    let typeText = '晨讀';
     if (currentSessionType === 'detention') {
         typeText = '留堂';
     } else if (currentSessionType === 'activity') {
         const activityNameEl = document.getElementById('activityName');
-        typeText = activityNameEl && activityNameEl.value ? activityNameEl.value : '课外活动';
+        typeText = activityNameEl && activityNameEl.value ? activityNameEl.value : '課外活動';
     }
-    document.getElementById('sessionTitle').textContent = typeText + '点名进行中';
+    document.getElementById('sessionTitle').textContent = typeText + '點名進行中';
 
-    // 开放模式下隐藏未到统计
+    // 開放模式下隱藏未到統計
     const absentStatSpan = document.getElementById('statAbsent');
     if (absentStatSpan && absentStatSpan.parentElement) {
         absentStatSpan.parentElement.style.display = isOpenMode ? 'none' : '';
     }
 
-    // 停止倒计时
+    // 停止倒計時
     stopCountdownRefresh();
 
-    // 获取所有容器（用容器控制显示，而不是表格）
+    // 取得所有容器（用容器控制顯示，而不是表格）
     const containers = document.querySelectorAll('.records-table-container');
 
-    // 根据类型显示对应的容器
+    // 根據類型顯示對應的容器
     if (currentSessionType === 'morning') {
-        // 晨读：显示第一个容器（晨读表格），隐藏其他
+        // 晨讀：顯示第一个容器（晨讀表格），隱藏其他
         containers.forEach((c, i) => {
             c.style.display = i === 0 ? 'block' : 'none';
         });
@@ -1425,7 +1425,7 @@ function showSessionPanel() {
         if (activityStats) activityStats.style.display = 'none';
 
     } else if (currentSessionType === 'detention') {
-        // 留堂：显示第二个容器（留堂表格），隐藏其他
+        // 留堂：顯示第二个容器（留堂表格），隱藏其他
         containers.forEach((c, i) => {
             c.style.display = i === 1 ? 'block' : 'none';
         });
@@ -1437,7 +1437,7 @@ function showSessionPanel() {
         startCountdownRefresh();
 
     } else if (currentSessionType === 'activity') {
-        // 活动：显示第三个容器（活动表格），隐藏其他
+        // 活動：顯示第三个容器（活動表格），隱藏其他
         containers.forEach((c, i) => {
             c.style.display = i === 2 ? 'block' : 'none';
         });
@@ -1453,12 +1453,12 @@ function showSessionPanel() {
     document.getElementById('cardInput').focus();
 }
 
-// 加载会话详情
+// 載入會話详情
 async function loadSessionDetail() {
     if (!currentSessionId) return;
 
     try {
-        // 根据会话类型选择API
+        // 根據會話類型選擇API
         let apiUrl;
         if (currentSessionType === 'morning') {
             apiUrl = `/api/attendance/sessions/${currentSessionId}`;
@@ -1467,7 +1467,7 @@ async function loadSessionDetail() {
         } else if (currentSessionType === 'activity') {
             apiUrl = `/api/attendance/activity/sessions/${currentSessionId}`;
         } else {
-            console.error('未知会话类型:', currentSessionType);
+            console.error('未知會話類型:', currentSessionType);
             return;
         }
 
@@ -1484,7 +1484,7 @@ async function loadSessionDetail() {
                 updateDetentionStats(data.stats);
                 renderDetentionRecords(data.students);
             } else if (currentSessionType === 'activity') {
-                // 活动类型的处理
+                // 活動類型的處理
                 if (typeof updateActivityStats === 'function') {
                     updateActivityStats(data.stats);
                 }
@@ -1494,27 +1494,27 @@ async function loadSessionDetail() {
             }
         }
     } catch (error) {
-        console.error('加载会话详情失败:', error);
+        console.error('載入會話详情失敗:', error);
     }
 }
 
-// 更新统计（早读）
+// 更新統計（早讀）
 function updateStats(stats) {
     document.getElementById('statPresent').textContent = stats.on_time;
     document.getElementById('statLate').textContent = stats.late;
     document.getElementById('statVeryLate').textContent = stats.very_late;
     document.getElementById('statAbsent').textContent = stats.absent;
 
-    // 兼容旧版本：如果页面仍存在“非登记”统计则写入
+    // 相容舊版本：如果頁面仍存在“非登記”統計則寫入
     const unregEl = document.getElementById('statUnregistered');
     if (unregEl) {
         unregEl.textContent = stats.unregistered || 0;
     }
 }
 
-// 渲染签到记录
+// 渲染簽到紀錄
 function renderRecords(students) {
-    // 🆕 保存数据用于排序
+    // 🆕 儲存數據用於排序
     currentMorningRecords = students;
 
     const tbody = document.getElementById('recordsBody');
@@ -1523,14 +1523,14 @@ function renderRecords(students) {
         const isRegistered = s.is_registered !== false;
 
         let statusText = {
-            'present': '准时',
-            'late': '迟到',
-            'very_late': '严重迟到',
+            'present': '準時',
+            'late': '遲到',
+            'very_late': '嚴重遲到',
             'absent': '未到'
         }[status];
 
-        // 非登记学生标记
-        const registeredTag = isRegistered ? '' : '<span class="unregistered-tag">非登记</span>';
+        // 非登記學生標記
+        const registeredTag = isRegistered ? '' : '<span class="unregistered-tag">非登記</span>';
         const rowClass = isRegistered ? '' : 'unregistered-row';
 
         const scanTime = s.scan_time ? new Date(s.scan_time).toLocaleTimeString('zh-CN', {
@@ -1545,13 +1545,13 @@ function renderRecords(students) {
                 <td>${s.chinese_name}</td>
                 <td>${scanTime}</td>
                 <td><span class="status-badge ${status.replace('_', '-')}">${statusText}</span></td>
-                <td class="hide-compact">${s.late_minutes || 0}分钟</td>
-                <td class="hide-compact">${s.makeup_minutes || 0}分钟</td>
+                <td class="hide-compact">${s.late_minutes || 0}分鐘</td>
+                <td class="hide-compact">${s.makeup_minutes || 0}分鐘</td>
             </tr>
         `;
     }).join('');
 
-    // 🆕 应用当前排序
+    // 🆕 应用當前排序
     if (morningSortField !== 'class' || morningSortOrder !== 'asc') {
         sortMorningRecords();
     }
@@ -1559,23 +1559,23 @@ function renderRecords(students) {
     updateMorningSortIndicators();
 }
 
-// 处理拍卡
+// 處理拍卡
 async function processCard() {
     const cardInput = document.getElementById('cardInput');
     const cardId = cardInput.value.trim();
 
     if (!cardId) {
-        showToast('请输入或扫描卡号');
+        showToast('請輸入或掃描卡號');
         return;
     }
 
     if (!currentSessionId) {
-        showToast('请先开始点名会话');
+        showToast('請先開始點名會話');
         return;
     }
 
     try {
-        // 根据会话类型选择不同的API
+        // 根據會話類型選擇不同的API
         let apiUrl;
         if (currentSessionType === 'morning') {
             apiUrl = '/api/attendance/scan';
@@ -1585,7 +1585,7 @@ async function processCard() {
             apiUrl = '/api/attendance/activity/scan';
         }
 
-        // ... 后续代码保持不变
+        // ... 後續代码保持不变
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -1601,9 +1601,9 @@ async function processCard() {
 
         const data = await response.json();
 
-        // 留堂模式需要特殊处理
+        // 留堂模式需要特殊處理
         if (currentSessionType === 'detention' && data.action === 'need_select_periods') {
-            // 需要选择节数
+            // 需要選擇節數
             pendingCardId = cardId;
             pendingStudent = data.student;
             pendingOptions = data.options;
@@ -1611,25 +1611,25 @@ async function processCard() {
         } else {
             showScanResult(data);
 
-            // 刷新记录
+            // 刷新紀錄
             if (data.success) {
                 loadSessionDetail();
             }
         }
 
-        // 清空输入并重新聚焦
+        // 清空輸入并重新聚焦
         cardInput.value = '';
         cardInput.focus();
 
     } catch (error) {
-        showToast('签到失败');
+        showToast('簽到失敗');
         console.error(error);
     }
 }
 
-// 显示签到结果
+// 顯示簽到結果
 function showScanResult(data) {
-    // 🆕 添加这一行：显示 Apple 风格通知卡片
+    // 🆕 添加這一行：顯示 Apple 風格通知卡片
     showScanNotification(data);
     const resultDiv = document.getElementById('scanResult');
     const nameDiv = document.getElementById('resultName');
@@ -1645,31 +1645,31 @@ function showScanResult(data) {
 
         nameDiv.textContent = `${student.chinese_name} (${student.english_name})`;
 
-        // 根据会话类型显示不同信息
+        // 根據會話類型顯示不同資訊
         if (currentSessionType === 'morning') {
-            timeDiv.textContent = `${student.class_name}-${student.class_number}号 | ${record.scan_time}`;
+            timeDiv.textContent = `${student.class_name}-${student.class_number}號 | ${record.scan_time}`;
 
             if (record.status === 'present') {
                 resultDiv.classList.add('success');
-                statusDiv.textContent = '✅ 准时签到';
+                statusDiv.textContent = '✅ 準時簽到';
                 statusDiv.style.background = 'var(--accent-green)';
             } else if (record.status === 'late') {
                 resultDiv.classList.add('late');
-                statusDiv.textContent = `⚠️ 迟到 ${record.late_minutes} 分钟，需补时 ${record.makeup_minutes} 分钟`;
+                statusDiv.textContent = `⚠️ 遲到 ${record.late_minutes} 分鐘，需補時 ${record.makeup_minutes} 分鐘`;
                 statusDiv.style.background = 'var(--accent-orange)';
             } else if (record.status === 'very_late') {
                 resultDiv.classList.add('very-late');
-                statusDiv.textContent = `🔴 严重迟到，需补时 ${record.makeup_minutes} 分钟`;
+                statusDiv.textContent = `🔴 嚴重遲到，需补时 ${record.makeup_minutes} 分鐘`;
                 statusDiv.style.background = 'var(--accent-red)';
             }
         } else {
             // 留堂模式
             if (data.action === 'checkout') {
-                // 签退
-                timeDiv.textContent = `${student.class_name}-${student.class_number}号 | 签退: ${record.checkout_time}`;
+                // 簽退
+                timeDiv.textContent = `${student.class_name}-${student.class_number}號 | 簽退: ${record.checkout_time}`;
                 statusDiv.textContent = record.status_msg;
 
-// 根据是否使用分钟模式判断完成状态
+// 根據是否使用分鐘模式判斷完成狀態
                 let isCompleted = false;
                 if (record.planned_minutes != null) {
                     isCompleted = record.actual_minutes >= record.planned_minutes;
@@ -1688,37 +1688,37 @@ function showScanResult(data) {
                     statusDiv.style.background = 'var(--accent-red)';
                 }
             } else {
-                // 签到
-                timeDiv.textContent = `${student.class_name}-${student.class_number}号 | 签到: ${record.scan_time}`;
+                // 簽到
+                timeDiv.textContent = `${student.class_name}-${student.class_number}號 | 簽到: ${record.scan_time}`;
                 resultDiv.classList.add('success');
-                statusDiv.textContent = `✅ 签到成功，计划留${record.planned_periods}节，到${record.planned_end_time}`;
+                statusDiv.textContent = `✅ 簽到成功，計劃留${record.planned_periods}節，到${record.planned_end_time}`;
                 statusDiv.style.background = 'var(--accent-purple)';
             }
         }
     } else {
         resultDiv.classList.add('error');
-        nameDiv.textContent = '❌ ' + (data.message || data.detail || '未知错误');
-        timeDiv.textContent = data.card_id ? `卡号: ${data.card_id}` : '';
+        nameDiv.textContent = '❌ ' + (data.message || data.detail || '未知錯誤');
+        timeDiv.textContent = data.card_id ? `卡號: ${data.card_id}` : '';
         statusDiv.textContent = '';
         statusDiv.style.background = 'transparent';
     }
 
-    // 5秒后隐藏（留堂给多点时间看）
+    // 5秒後隱藏（留堂給多點時間看）
     const hideDelay = currentSessionType === 'detention' ? 5000 : 3000;
     setTimeout(() => {
         resultDiv.style.display = 'none';
     }, hideDelay);
 }
 
-// 导出Excel
+// 匯出Excel
 async function exportExcel() {
     if (!currentSessionId) {
-        showToast('没有进行中的会话');
+        showToast('没有進行中的會話');
         return;
     }
 
     try {
-        // 根据会话类型选择导出API
+        // 根據會話類型選擇匯出API
         let exportUrl;
         if (currentSessionType === 'morning') {
             exportUrl = `/api/attendance/export/${currentSessionId}`;
@@ -1727,31 +1727,31 @@ async function exportExcel() {
         } else if (currentSessionType === 'activity') {
             exportUrl = `/api/attendance/activity/export/${currentSessionId}`;
         } else {
-            showToast('未知会话类型');
+            showToast('未知會話類型');
             return;
         }
 
         window.open(`${exportUrl}?token=${authToken}`, '_blank');
     } catch (error) {
-        showToast('导出失败');
+        showToast('匯出失敗');
     }
 }
 
-// ========== 点名记录管理功能 ==========
+// ========== 點名紀錄管理功能 ==========
 
 let exportsCurrentPage = 1;
 let exportsPageSize = 10;
 let exportsFilter = {type: '', startDate: '', endDate: ''};
 
-// 结束会话 - 显示确认弹窗
+// 結束會話 - 顯示確認彈窗
 function endSession() {
     if (!currentSessionId) return;
     showEndSessionModal();
 }
 
-// 显示结束点名确认弹窗
+// 顯示結束點名確認彈窗
 function showEndSessionModal() {
-    // 更新统计
+    // 更新統計
     const presentEl = document.getElementById('statPresent');
     const lateEl = document.getElementById('statLate');
     const absentEl = document.getElementById('statAbsent');
@@ -1769,7 +1769,7 @@ function closeEndSessionModal() {
     document.getElementById('endSessionModal').classList.remove('active');
 }
 
-// 确认结束点名
+// 確認結束點名
 async function confirmEndSession() {
     const saveToServer = document.getElementById('saveToServerCheckbox').checked;
     const notes = document.getElementById('exportNotes').value.trim();
@@ -1786,13 +1786,13 @@ async function confirmEndSession() {
             });
             const data = await response.json();
             if (data.success) {
-                showToast(`✅ 记录已保存: ${data.file_name}`);
+                showToast(`✅ 紀錄已儲存: ${data.file_name}`);
             } else {
-                showToast('⚠️ 保存失败: ' + data.message);
+                showToast('⚠️ 儲存失敗: ' + data.message);
             }
         } catch (error) {
-            console.error('保存失败:', error);
-            showToast('保存失败，请重试');
+            console.error('儲存失敗:', error);
+            showToast('儲存失敗，請重試');
         }
     }
 
@@ -1800,14 +1800,14 @@ async function confirmEndSession() {
     await doEndSession();
 }
 
-// 仅下载不保存
+// 僅下載不儲存
 async function downloadOnlyEndSession() {
     await exportExcel();
     closeEndSessionModal();
     await doEndSession();
 }
 
-// 执行实际的结束会话操作
+// 執行實際的結束會話操作
 async function doEndSession() {
     try {
         const response = await fetch(`/api/attendance/sessions/${currentSessionId}/complete`, {
@@ -1817,20 +1817,20 @@ async function doEndSession() {
 
         const data = await response.json();
         if (data.success) {
-            showToast('点名已结束');
+            showToast('點名已結束');
             currentSessionId = null;
             saveSessionState();
             stopCountdownRefresh();
-            stopLiveClock();  // 🆕 新增：停止时钟
+            stopLiveClock();  // 🆕 新增：停止時鐘
             document.getElementById('sessionPanel').style.display = 'none';
             document.getElementById('noSessionHint').style.display = 'flex';
         }
     } catch (error) {
-        showToast('结束失败');
+        showToast('結束失敗');
     }
 }
 
-// ========== 历史记录面板 ==========
+// ========== 歷史紀錄面板 ==========
 
 function openExportsPanel() {
     document.getElementById('exportsPanel').classList.add('active');
@@ -1843,7 +1843,7 @@ function closeExportsPanel() {
 
 async function loadExportsList() {
     const container = document.getElementById('exportsList');
-    container.innerHTML = '<div class="exports-loading">加载中...</div>';
+    container.innerHTML = '<div class="exports-loading">載入中...</div>';
 
     try {
         let url = `/api/attendance/exports/list?page=${exportsCurrentPage}&page_size=${exportsPageSize}`;
@@ -1861,14 +1861,14 @@ async function loadExportsList() {
             container.innerHTML = `
                 <div class="exports-empty">
                     <span class="exports-empty-icon">📁</span>
-                    <p>暂无点名记录</p>
-                    <p class="exports-empty-hint">结束点名时选择"保存到服务器"即可在此查看</p>
+                    <p>暂无點名紀錄</p>
+                    <p class="exports-empty-hint">結束點名时選擇"儲存到服务器"即可在此查看</p>
                 </div>`;
             document.getElementById('exportsPagination').innerHTML = '';
         }
     } catch (error) {
-        console.error('加载历史记录失败:', error);
-        container.innerHTML = '<div class="exports-error">加载失败，请重试</div>';
+        console.error('載入歷史紀錄失敗:', error);
+        container.innerHTML = '<div class="exports-error">載入失敗，請重試</div>';
     }
 }
 
@@ -1876,7 +1876,7 @@ function renderExportsList(records) {
     const container = document.getElementById('exportsList');
     const html = records.map(r => {
         const typeIcon = r.session_type === 'morning' ? '🌅' : '📝';
-        const typeText = r.session_type === 'morning' ? '早读' : '留堂';
+        const typeText = r.session_type === 'morning' ? '早讀' : '留堂';
         const fileSizeKB = Math.round(r.file_size / 1024);
         const attendanceRate = r.student_count > 0 ? Math.round(r.present_count / r.student_count * 100) : 0;
 
@@ -1885,19 +1885,19 @@ function renderExportsList(records) {
                 <div class="export-item-header">
                     <span class="export-item-icon">${typeIcon}</span>
                     <div class="export-item-info">
-                        <div class="export-item-title">${typeText}点名 ${r.session_date}</div>
+                        <div class="export-item-title">${typeText}點名 ${r.session_date}</div>
                         <div class="export-item-meta">${r.present_count}/${r.student_count}人 (${attendanceRate}%) · ${fileSizeKB}KB · ${r.created_at}</div>
                     </div>
                 </div>
                 ${r.notes ? `<div class="export-item-notes">📌 ${r.notes}</div>` : ''}
                 <div class="export-item-stats">
                     <span class="stat-tag present">到场 ${r.present_count}</span>
-                    <span class="stat-tag late">迟到 ${r.late_count}</span>
+                    <span class="stat-tag late">遲到 ${r.late_count}</span>
                     <span class="stat-tag absent">缺席 ${r.absent_count}</span>
                 </div>
                 <div class="export-item-actions">
-                    <button class="export-btn download" onclick="downloadExport(${r.id})">⬇️ 下载</button>
-                    <button class="export-btn delete" onclick="confirmDeleteExport(${r.id}, '${r.file_name}')">🗑️ 删除</button>
+                    <button class="export-btn download" onclick="downloadExport(${r.id})">⬇️ 下載</button>
+                    <button class="export-btn delete" onclick="confirmDeleteExport(${r.id}, '${r.file_name}')">🗑️ 刪除</button>
                 </div>
             </div>`;
     }).join('');
@@ -1950,7 +1950,7 @@ async function downloadExport(exportId) {
         const response = await fetch(`/api/attendance/exports/download/${exportId}`, {
             headers: {'Authorization': `Bearer ${authToken}`}
         });
-        if (!response.ok) throw new Error('下载失败');
+        if (!response.ok) throw new Error('下載失敗');
 
         const contentDisposition = response.headers.get('content-disposition');
         let fileName = 'attendance_export.xlsx';
@@ -1968,15 +1968,15 @@ async function downloadExport(exportId) {
         a.click();
         window.URL.revokeObjectURL(url);
         a.remove();
-        showToast('✅ 下载成功');
+        showToast('✅ 下載成功');
     } catch (error) {
-        console.error('下载失败:', error);
-        showToast('下载失败，请重试');
+        console.error('下載失敗:', error);
+        showToast('下載失敗，請重試');
     }
 }
 
 function confirmDeleteExport(exportId, fileName) {
-    if (confirm(`确定要删除记录 "${fileName}" 吗？`)) deleteExport(exportId);
+    if (confirm(`確定要刪除紀錄 "${fileName}" 吗？`)) deleteExport(exportId);
 }
 
 async function deleteExport(exportId) {
@@ -1987,16 +1987,16 @@ async function deleteExport(exportId) {
         });
         const data = await response.json();
         if (data.success) {
-            showToast('✅ 记录已删除');
+            showToast('✅ 紀錄已刪除');
             loadExportsList();
-        } else showToast('删除失败: ' + data.message);
+        } else showToast('刪除失敗: ' + data.message);
     } catch (error) {
-        console.error('删除失败:', error);
-        showToast('删除失败，请重试');
+        console.error('刪除失敗:', error);
+        showToast('刪除失敗，請重試');
     }
 }
 
-// 上传学生数据
+// 上傳學生數據
 function closeUploadModal() {
     document.getElementById('uploadModal').classList.remove('active');
 }
@@ -2006,7 +2006,7 @@ async function uploadStudents() {
     const file = fileInput.files[0];
 
     if (!file) {
-        showToast('请选择文件');
+        showToast('請選擇檔案');
         return;
     }
 
@@ -2027,10 +2027,10 @@ async function uploadStudents() {
             loadStudents();
             loadClasses();
         } else {
-            showToast('上传失败: ' + data.detail);
+            showToast('上傳失敗: ' + data.detail);
         }
     } catch (error) {
-        showToast('上传失败');
+        showToast('上傳失敗');
     }
 }
 
@@ -2046,33 +2046,33 @@ function showToast(message) {
 }
 
 
-// ========== 手动签到功能 ==========
+// ========== 手動簽到功能 ==========
 
-// 显示手动签到模态框
+// 顯示手動簽到模態框
 function showManualScanModal() {
     if (!currentSessionId) {
-        showToast('请先开始点名会话');
+        showToast('請先開始點名會話');
         return;
     }
 
-    // 确保学生数据已加载
+    // 確保學生數據已載入
     if (!allStudents || allStudents.length === 0) {
-        showToast('学生数据尚未加载完成');
+        showToast('學生數據尚未載入完成');
         return;
     }
 
-    // 填充班级下拉框
+    // 填充班級下拉框
     const classSelect = document.getElementById('manualClassSelect');
     const existingClasses = new Set();
 
-    classSelect.innerHTML = '<option value="">-- 请选择班级 --</option>';
+    classSelect.innerHTML = '<option value="">-- 請選擇班級 --</option>';
     allStudents.forEach(s => {
         if (s.class_name && !existingClasses.has(s.class_name)) {
             existingClasses.add(s.class_name);
         }
     });
 
-    // 排序班级
+    // 排序班級
     const sortedClasses = Array.from(existingClasses).sort();
     sortedClasses.forEach(cls => {
         classSelect.innerHTML += `<option value="${cls}">${cls}</option>`;
@@ -2085,25 +2085,25 @@ function showManualScanModal() {
 
     const confirmBtn = document.getElementById('confirmManualScan');
     confirmBtn.disabled = true;
-    confirmBtn.textContent = '确认签到';
+    confirmBtn.textContent = '確認簽到';
 
     manualSelectedStudent = null;
 
-    // 显示模态框
+    // 顯示模態框
     document.getElementById('manualScanModal').classList.add('active');
 }
 
-// 隐藏手动签到模态框
+// 隱藏手動簽到模態框
 function hideManualScanModal() {
     document.getElementById('manualScanModal').classList.remove('active');
     manualSelectedStudent = null;
 
-    // 回到扫码输入框
+    // 回到扫码輸入框
     const cardInput = document.getElementById('cardInput');
     if (cardInput) cardInput.focus();
 }
 
-// 更新学生预览
+// 更新學生預覽
 function updateManualStudentPreview() {
     const className = document.getElementById('manualClassSelect').value;
     const classNumberRaw = document.getElementById('manualClassNumber').value;
@@ -2123,48 +2123,48 @@ function updateManualStudentPreview() {
         return;
     }
 
-    // 查找学生（class_number 可能是数字或字符串，做宽松匹配）
+    // 查找學生（class_number 可能是數字或字串，做寬鬆匹配）
     const student = allStudents.find(s =>
         s.class_name === className && parseInt(s.class_number, 10) === classNumber
     );
 
     if (student) {
-        // 显示学生信息
+        // 顯示學生資訊
         document.getElementById('previewName').textContent = student.chinese_name || '';
         document.getElementById('previewEnglish').textContent = student.english_name || '';
-        document.getElementById('previewClass').textContent = `${student.class_name} - ${student.class_number}号`;
+        document.getElementById('previewClass').textContent = `${student.class_name} - ${student.class_number}號`;
 
         preview.classList.add('show');
         notFound.style.display = 'none';
         confirmBtn.disabled = false;
         manualSelectedStudent = student;
     } else {
-        // 未找到学生
+        // 未找到學生
         preview.classList.remove('show');
         notFound.style.display = 'block';
         confirmBtn.disabled = true;
     }
 }
 
-// 确认手动签到
+// 確認手動簽到
 async function confirmManualScan() {
     if (!manualSelectedStudent || !currentSessionId) {
         return;
     }
 
-    // 留堂模式需要先选择节数
+    // 留堂模式需要先選擇節數
     if (currentSessionType === 'detention') {
-        // 保存学生信息，显示节数选择
+        // 儲存學生資訊，顯示節數選擇
         pendingManualStudent = manualSelectedStudent;
         hideManualScanModal();
         showManualPeriodsModal();
         return;
     }
 
-    // 早读模式直接签到
+    // 早讀模式直接簽到
     const confirmBtn = document.getElementById('confirmManualScan');
     confirmBtn.disabled = true;
-    confirmBtn.textContent = '签到中...';
+    confirmBtn.textContent = '簽到中...';
 
     try {
         const response = await fetch('/api/attendance/manual-scan', {
@@ -2186,7 +2186,7 @@ async function confirmManualScan() {
             if (typeof showScanResult === 'function') {
                 showScanResult(data);
             } else {
-                showToast(data.message || '手动签到成功');
+                showToast(data.message || '手動簽到成功');
             }
             await loadSessionDetail();
             const cardInput = document.getElementById('cardInput');
@@ -2195,37 +2195,37 @@ async function confirmManualScan() {
                 cardInput.focus();
             }
         } else {
-            showToast(data.message || data.detail || '签到失败');
+            showToast(data.message || data.detail || '簽到失敗');
         }
     } catch (error) {
-        console.error('手动签到失败:', error);
-        showToast('签到失败，请重试');
+        console.error('手動簽到失敗:', error);
+        showToast('簽到失敗，請重試');
     } finally {
         confirmBtn.disabled = false;
-        confirmBtn.textContent = '确认签到';
+        confirmBtn.textContent = '確認簽到';
     }
 }
 
-// 留堂手动签到 - 待处理的学生
+// 留堂手動簽到 - 待處理的學生
 let pendingManualStudent = null;
 
-// 显示留堂手动签到节数选择
+// 顯示留堂手動簽到節數選擇
 function showManualPeriodsModal() {
     if (!pendingManualStudent) return;
 
     document.getElementById('manualPeriodsModalStudent').textContent =
-        `${pendingManualStudent.chinese_name} (${pendingManualStudent.class_name}-${pendingManualStudent.class_number}号)`;
+        `${pendingManualStudent.chinese_name} (${pendingManualStudent.class_name}-${pendingManualStudent.class_number}號)`;
 
-    // 重置原因选择
+    // 重置原因選擇
     selectedManualDetentionReason = null;
 
-    // 隐藏节数选择区域，显示原因选择
+    // 隱藏節數選擇区域，顯示原因選擇
     const reasonArea = document.getElementById('manualReasonSelectionArea');
     const periodsArea = document.getElementById('manualPeriodsSelectionArea');
 
     if (reasonArea) {
         reasonArea.style.display = 'block';
-        // 重置原因按钮状态
+        // 重置原因按鈕狀態
         reasonArea.querySelectorAll('.reason-option-btn').forEach(btn => {
             btn.classList.remove('selected');
         });
@@ -2234,7 +2234,7 @@ function showManualPeriodsModal() {
         periodsArea.style.display = 'none';
     }
 
-    // 隐藏分钟输入区域
+    // 隱藏分鐘輸入区域
     const minutesSection = document.getElementById('manualMinutesInputSection');
     if (minutesSection) {
         minutesSection.style.display = 'none';
@@ -2248,8 +2248,8 @@ function showManualPeriodsModal() {
         return `
             <div class="period-option" onclick="confirmManualDetentionCheckin(${periods})">
                 <div class="period-option-left">
-                    <div class="period-option-title">${periods}节</div>
-                    <div class="period-option-duration">${periods * 35}分钟</div>
+                    <div class="period-option-title">${periods}節</div>
+                    <div class="period-option-duration">${periods * 35}分鐘</div>
                 </div>
                 <div class="period-option-time">到 ${endTimeStr}</div>
             </div>
@@ -2260,23 +2260,23 @@ function showManualPeriodsModal() {
     document.getElementById('manualPeriodsModal').classList.add('active');
 }
 
-// 关闭留堂手动签到节数选择
+// 關閉留堂手動簽到節數選擇
 function closeManualPeriodsModal() {
     document.getElementById('manualPeriodsModal').classList.remove('active');
     pendingManualStudent = null;
     document.getElementById('cardInput').focus();
 }
 
-// 确认留堂手动签到
+// 確認留堂手動簽到
 async function confirmManualDetentionCheckin(periods) {
     if (!pendingManualStudent || !currentSessionId) {
         closeManualPeriodsModal();
         return;
     }
 
-    // 验证是否选择了原因
+    // 验证是否選擇了原因
     if (!selectedManualDetentionReason) {
-        showToast('请先选择留堂原因');
+        showToast('請先選擇留堂原因');
         return;
     }
 
@@ -2302,16 +2302,16 @@ async function confirmManualDetentionCheckin(periods) {
             showScanResult(data);
             await loadSessionDetail();
         } else {
-            showToast(data.message || data.detail || '签到失败');
+            showToast(data.message || data.detail || '簽到失敗');
         }
     } catch (error) {
-        console.error('手动签到失败:', error);
-        showToast('签到失败，请重试');
+        console.error('手動簽到失敗:', error);
+        showToast('簽到失敗，請重試');
         closeManualPeriodsModal();
     }
 }
 
-// 绑定：点击模态框外部关闭（等 DOM 就绪后绑定，避免取不到元素报错）
+// 綁定：点击模態框外部關閉（等 DOM 就緒后綁定，避免取不到元素報錯）
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('manualScanModal');
     if (modal) {
@@ -2324,15 +2324,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// 手动签退（学生忘带卡时使用）
+// 手動簽退（學生忘带卡时使用）
 async function manualCheckout(userLogin, studentName) {
     if (!currentSessionId) {
-        showToast('会话未开始');
+        showToast('會話未開始');
         return;
     }
 
-    // 确认对话框
-    if (!confirm(`确定要为 ${studentName} 手动签退吗？`)) {
+    // 確認對話框
+    if (!confirm(`確定要為 ${studentName} 手動簽退吗？`)) {
         return;
     }
 
@@ -2352,38 +2352,38 @@ async function manualCheckout(userLogin, studentName) {
         const data = await response.json();
 
         if (data.success) {
-            showToast(`${studentName} 手动签退成功\n${data.record.status_msg}`);
+            showToast(`${studentName} 手動簽退成功\n${data.record.status_msg}`);
             await loadSessionDetail();  // 刷新列表
         } else {
-            showToast(data.message || data.detail || '签退失败');
+            showToast(data.message || data.detail || '簽退失敗');
         }
     } catch (error) {
-        console.error('手动签退失败:', error);
-        showToast('签退失败，请重试');
+        console.error('手動簽退失敗:', error);
+        showToast('簽退失敗，請重試');
     }
 }
 
-// ========== 留堂专用函数 ==========
+// ========== 留堂专用函數 ==========
 
-// 当前修改对象（用于“指定时间”修改）
+// 當前修改對象（用於“指定時間”修改）
 let currentModifyUserLogin = null;
 let currentModifyScanTimeStr = null;
 
-// 显示选择节数模态框
+// 顯示選擇節數模態框
 function showPeriodsModal(student, options) {
     document.getElementById('periodsModalStudent').textContent =
-        `${student.chinese_name} (${student.class_name}-${student.class_number}号)`;
+        `${student.chinese_name} (${student.class_name}-${student.class_number}號)`;
 
-    // 重置原因选择
+    // 重置原因選擇
     selectedDetentionReason = null;
 
-    // 隐藏节数选择区域，显示原因选择
+    // 隱藏節數選擇区域，顯示原因選擇
     const reasonArea = document.getElementById('reasonSelectionArea');
     const periodsArea = document.getElementById('periodsSelectionArea');
 
     if (reasonArea) {
         reasonArea.style.display = 'block';
-        // 重置原因按钮状态
+        // 重置原因按鈕狀態
         reasonArea.querySelectorAll('.reason-option-btn').forEach(btn => {
             btn.classList.remove('selected');
         });
@@ -2392,7 +2392,7 @@ function showPeriodsModal(student, options) {
         periodsArea.style.display = 'none';
     }
 
-    // 隐藏分钟输入区域
+    // 隱藏分鐘輸入区域
     const minutesSection = document.getElementById('minutesInputSection');
     if (minutesSection) {
         minutesSection.style.display = 'none';
@@ -2402,8 +2402,8 @@ function showPeriodsModal(student, options) {
     const optionsHtml = options.map(opt => `
                 <div class="period-option" onclick="selectPeriods(${opt.periods})">
                     <div class="period-option-left">
-                        <div class="period-option-title">${opt.periods}节</div>
-                        <div class="period-option-duration">${opt.duration_minutes}分钟</div>
+                        <div class="period-option-title">${opt.periods}節</div>
+                        <div class="period-option-duration">${opt.duration_minutes}分鐘</div>
                     </div>
                     <div class="period-option-time">到 ${opt.end_time}</div>
                 </div>
@@ -2413,7 +2413,7 @@ function showPeriodsModal(student, options) {
     document.getElementById('periodsModal').classList.add('active');
 }
 
-// 关闭选择节数模态框
+// 關閉選擇節數模態框
 function closePeriodsModal() {
     document.getElementById('periodsModal').classList.remove('active');
     pendingCardId = null;
@@ -2422,16 +2422,16 @@ function closePeriodsModal() {
     document.getElementById('cardInput').focus();
 }
 
-// 选择节数并签到
+// 選擇節數并簽到
 async function selectPeriods(periods) {
     if (!pendingCardId || !currentSessionId) {
         closePeriodsModal();
         return;
     }
 
-    // 验证是否选择了原因
+    // 验证是否選擇了原因
     if (!selectedDetentionReason) {
-        showToast('请先选择留堂原因');
+        showToast('請先選擇留堂原因');
         return;
     }
 
@@ -2458,29 +2458,29 @@ async function selectPeriods(periods) {
             loadSessionDetail();
         }
     } catch (error) {
-        showToast('签到失败');
+        showToast('簽到失敗');
         closePeriodsModal();
     }
 }
 
-// 显示修改留堂设置模态框（节数 / 指定结束时间）
+// 顯示修改留堂設定模態框（節數 / 指定結束時間）
 function showModifyModal(userLogin, studentName, currentPeriods, scanTimeStr) {
-    // 保存当前正在修改的学生
+    // 儲存當前正在修改的學生
     currentModifyUserLogin = userLogin;
     currentModifyScanTimeStr = scanTimeStr || null;
 
     document.getElementById('modifyModalStudent').textContent = studentName;
 
-    // 初始化 Tab 状态
+    // 初始化 Tab 狀態
     switchModifyTab('periods');
 
-    // 写入签到时间显示
+    // 寫入簽到時間顯示
     if (scanTimeStr) {
         const dt = new Date(scanTimeStr);
         const st = dt.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
         document.getElementById('modifyScanTime').textContent = st;
 
-        // 默认给结束时间一个建议值：按当前节数推算
+        // 預設給結束時間一个建議值：按當前節數推算
         const endTime = new Date(dt.getTime() + (currentPeriods || 1) * 35 * 60000);
         const hh = String(endTime.getHours()).padStart(2, '0');
         const mm = String(endTime.getMinutes()).padStart(2, '0');
@@ -2490,7 +2490,7 @@ function showModifyModal(userLogin, studentName, currentPeriods, scanTimeStr) {
         document.getElementById('modifyEndTimeInput').value = '';
     }
 
-    // 生成节数选项（与原逻辑一致）
+    // 生成節數選項（与原邏輯一致）
     const now = new Date();
     const optionsHtml = [1, 2, 3].map(periods => {
         const endTime = new Date(now.getTime() + periods * 35 * 60000);
@@ -2500,8 +2500,8 @@ function showModifyModal(userLogin, studentName, currentPeriods, scanTimeStr) {
                     <div class="period-option ${isCurrent ? 'current' : ''}"
                          onclick="modifyPeriods('${userLogin}', ${periods})">
                         <div class="period-option-left">
-                            <div class="period-option-title">${periods}节 ${isCurrent ? '(当前)' : ''}</div>
-                            <div class="period-option-duration">${periods * 35}分钟</div>
+                            <div class="period-option-title">${periods}節 ${isCurrent ? '(當前)' : ''}</div>
+                            <div class="period-option-duration">${periods * 35}分鐘</div>
                         </div>
                         <div class="period-option-time">到 ${endTimeStr}</div>
                     </div>
@@ -2509,21 +2509,21 @@ function showModifyModal(userLogin, studentName, currentPeriods, scanTimeStr) {
     }).join('');
 
     document.getElementById('modifyOptions').innerHTML = optionsHtml;
-    // 打开模态框
+    // 打開模態框
     document.getElementById('modifyModal').classList.add('active');
 
-    // 更新一次时间预览
+    // 更新一次時間預覽
     updateTimePreview();
 }
 
-// 关闭修改留堂设置模态框
+// 關閉修改留堂設定模態框
 function closeModifyModal() {
     document.getElementById('modifyModal').classList.remove('active');
     currentModifyUserLogin = null;
     currentModifyScanTimeStr = null;
 }
 
-// 修改节数
+// 修改節數
 async function modifyPeriods(userLogin, newPeriods) {
     try {
         const response = await fetch('/api/attendance/detention/modify-periods', {
@@ -2543,13 +2543,13 @@ async function modifyPeriods(userLogin, newPeriods) {
         closeModifyModal();
 
         if (data.success) {
-            showToast(`已修改为${newPeriods}节`);
+            showToast(`已修改為 ${newPeriods} 節`);
             loadSessionDetail();
         } else {
-            showToast('修改失败: ' + data.detail);
+            showToast('修改失敗: ' + data.detail);
         }
     } catch (error) {
-        showToast('修改失败');
+        showToast('修改失敗');
         closeModifyModal();
     }
 }
@@ -2561,7 +2561,7 @@ function switchModifyTab(tab) {
     const periodsPanel = document.getElementById('modifyPeriodsPanel');
     const timePanel = document.getElementById('modifyEndTimePanel');
 
-    // 使用 display 控制显示/隐藏
+    // 使用 display 控制顯示/隱藏
     if (tab === 'endTime') {
         tabs[1].classList.add('active');
         periodsPanel.style.display = 'none';
@@ -2573,7 +2573,7 @@ function switchModifyTab(tab) {
     }
 }
 
-// 更新“预计留堂时长”预览
+// 更新“預計留堂时长”預覽
 function updateTimePreview() {
     const previewEl = document.getElementById('timePreviewValue');
     const btn = document.getElementById('confirmTimeBtn');
@@ -2588,7 +2588,7 @@ function updateTimePreview() {
     const endTimeVal = endTimeInput.value;
 
     if (!currentModifyScanTimeStr || !endTimeVal) {
-        previewEl.textContent = '-- 分钟';
+        previewEl.textContent = '-- 分鐘';
         btn.disabled = true;
         return;
     }
@@ -2601,25 +2601,25 @@ function updateTimePreview() {
     const diffMin = Math.round((endDt.getTime() - scanDt.getTime()) / 60000);
 
     if (diffMin <= 0) {
-        previewEl.textContent = '结束时间必须晚于签到';
+        previewEl.textContent = '結束時間必須晚於簽到';
         btn.disabled = true;
         return;
     }
 
-    previewEl.textContent = `${diffMin} 分钟`;
+    previewEl.textContent = `${diffMin} 分鐘`;
     btn.disabled = false;
 }
 
-// 确认修改结束时间（调用后端 /detention/modify-end-time）
+// 確認修改結束時間（呼叫後端 /detention/modify-end-time）
 async function confirmModifyEndTime() {
     if (!currentSessionId || !currentModifyUserLogin) {
-        showToast('无法修改：缺少会话或学生信息');
+        showToast('無法修改：缺少會話或學生資訊');
         return;
     }
 
     const endTimeVal = document.getElementById('modifyEndTimeInput').value;
     if (!endTimeVal) {
-        showToast('请选择结束时间');
+        showToast('請選擇結束時間');
         return;
     }
 
@@ -2640,32 +2640,32 @@ async function confirmModifyEndTime() {
         const data = await response.json();
 
         if (data.success) {
-            showToast(`已修改结束时间为 ${data.new_end_time}`);
+            showToast(`已修改結束時間為 ${data.new_end_time}`);
             closeModifyModal();
             loadSessionDetail();
         } else {
-            showToast(data.detail || '修改失败');
+            showToast(data.detail || '修改失敗');
         }
     } catch (error) {
-        console.error('修改结束时间失败:', error);
-        showToast('修改失败');
+        console.error('修改結束時間失敗:', error);
+        showToast('修改失敗');
     }
 }
 
-// 启动倒计时刷新
+// 啟動倒計時刷新
 function startCountdownRefresh() {
     // 清除旧的定时器
     if (countdownInterval) {
         clearInterval(countdownInterval);
     }
 
-    // 每秒更新倒计时显示
+    // 每秒更新倒計時顯示
     countdownInterval = setInterval(() => {
         updateCountdowns();
     }, 1000);
 }
 
-// 停止倒计时刷新
+// 停止倒計時刷新
 function stopCountdownRefresh() {
     if (countdownInterval) {
         clearInterval(countdownInterval);
@@ -2673,7 +2673,7 @@ function stopCountdownRefresh() {
     }
 }
 
-// 更新所有倒计时显示
+// 更新所有倒計時顯示
 function updateCountdowns() {
     const countdownCells = document.querySelectorAll('.countdown-cell[data-end-time]');
     const now = new Date().getTime();
@@ -2687,7 +2687,7 @@ function updateCountdowns() {
             const seconds = Math.floor((remaining % 60000) / 1000);
             cell.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-            // 根据剩余时间设置颜色
+            // 根據剩餘時間設定顏色
             cell.classList.remove('overtime', 'warning', 'normal');
             if (minutes < 1) {
                 cell.classList.add('warning');
@@ -2702,17 +2702,17 @@ function updateCountdowns() {
     });
 }
 
-// 渲染留堂记录
+// 渲染留堂紀錄
 function renderDetentionRecords(students) {
-    // 保存原始数据
+    // 儲存原始數據
     detentionStudentsData = students;
 
-    // 如果有排序设置，进行排序
+    // 如果有排序設定，進行排序
     let sortedStudents = [...students];
     if (detentionSortField) {
         sortedStudents = sortDetentionData(sortedStudents, detentionSortField, detentionSortOrder);
     }
-    // 将真正完成留堂的学生放到列表最后
+    // 将真正完成留堂的學生放到列表最後
     sortedStudents = sortedStudents.sort((a, b) => {
         // 判断是否真正完成留堂
         const isReallyCompletedA = a.status === 'detention_completed' &&
@@ -2724,7 +2724,7 @@ function renderDetentionRecords(students) {
 
         if (isReallyCompletedA && !isReallyCompletedB) return 1;  // 已完成的排后面
         if (!isReallyCompletedA && isReallyCompletedB) return -1; // 未完成的排前面
-        return 0; // 同状态保持原有顺序
+        return 0; // 同狀態保持原有顺序
     });
     const tbody = document.getElementById('detentionRecordsBody');
 
@@ -2733,16 +2733,16 @@ function renderDetentionRecords(students) {
         let statusText, statusClass;
 
         if (status === 'detention_active') {
-            statusText = '进行中';
+            statusText = '進行中';
             statusClass = 'detention_active';
         } else if (status === 'detention_completed') {
-            // 根据是否使用分钟模式来判断完成状态
+            // 根據是否使用分鐘模式来判断完成狀態
             let isCompleted = false;
             if (s.planned_minutes !== null && s.planned_minutes !== undefined) {
-                // 分钟模式：按分钟数判断
+                // 分鐘模式：按分鐘數判断
                 isCompleted = (s.actual_minutes || 0) >= s.planned_minutes;
             } else {
-                // 节数模式：按节数判断
+                // 節數模式：按節數判断
                 isCompleted = (s.actual_periods || 0) >= (s.planned_periods || 0);
             }
 
@@ -2754,39 +2754,39 @@ function renderDetentionRecords(students) {
                 statusClass = 'incomplete';
             }
         } else {
-            statusText = '未签到';
+            statusText = '未簽到';
             statusClass = 'absent';
         }
 
-        // 签到时间
+        // 簽到時間
         const scanTime = s.scan_time ? new Date(s.scan_time).toLocaleTimeString('zh-CN', {
             hour: '2-digit', minute: '2-digit', hour12: false
         }) : '-';
 
-        // 签退时间
+        // 簽退時間
         const checkoutTime = s.checkout_time ? new Date(s.checkout_time).toLocaleTimeString('zh-CN', {
             hour: '2-digit', minute: '2-digit', hour12: false
         }) : '-';
 
-        // 计划结束时间（仅用于传参）
+        // 計劃結束時間（僅用於傳參）
         const plannedEndTime = s.planned_end_time
             ? new Date(s.planned_end_time).toLocaleTimeString('zh-CN', {
                 hour: '2-digit', minute: '2-digit', hour12: false
             })
             : '';
 
-        // 剩余时间或实际时间
+        // 剩餘時間或實際時間
         let timeDisplay = '-';
         let countdownAttr = '';
         if (status === 'detention_active' && s.planned_end_time) {
             const endTime = new Date(s.planned_end_time).getTime();
             countdownAttr = `data-end-time="${endTime}"`;
-            timeDisplay = '计算中...';
+            timeDisplay = '計算中...';
         } else if (status === 'detention_completed') {
-            timeDisplay = `${s.actual_minutes || 0}分/${s.actual_periods || 0}节`;
+            timeDisplay = `${s.actual_minutes || 0}分/${s.actual_periods || 0}節`;
         }
 
-// 操作按钮
+// 操作按鈕
         let actionHtml = '-';
         if (status === 'detention_active') {
             const escapedName = (s.chinese_name || '').replace(/'/g, "\\'");
@@ -2811,7 +2811,7 @@ function renderDetentionRecords(students) {
                         ${s.planned_periods || 0},
                         ${s.planned_minutes != null ? s.planned_minutes : 'null'}
                     )">
-                    离开
+                    離開
                 </button>
             `;
         }
@@ -2823,7 +2823,7 @@ function renderDetentionRecords(students) {
                 <td>${getReasonTagHtml(s.detention_reason)}</td>
                 <td>${scanTime}</td>
                 <td>${checkoutTime}</td>
-                <td>${s.planned_minutes != null && s.planned_minutes > 0 ? s.planned_minutes + '分钟' : (s.planned_periods || 0) + '节'}</td>
+                <td>${s.planned_minutes != null && s.planned_minutes > 0 ? s.planned_minutes + '分鐘' : (s.planned_periods || 0) + '節'}</td>
                 <td>${plannedEndTime || '-'}</td>
                 <td class="countdown-cell" ${countdownAttr}>${timeDisplay}</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
@@ -2832,16 +2832,16 @@ function renderDetentionRecords(students) {
         `;
     }).join('');
 
-    // 立即更新一次倒计时
+    // 立即更新一次倒計時
     updateCountdowns();
 
     // 更新表头排序指示器
     updateSortIndicators();
 }
 
-// 排序留堂记录
+// 排序留堂紀錄
 function sortDetentionRecords(field) {
-    // 如果点击同一列，切换排序顺序
+    // 如果點擊同一列，切換排序順序
     if (detentionSortField === field) {
         detentionSortOrder = detentionSortOrder === 'asc' ? 'desc' : 'asc';
     } else {
@@ -2853,10 +2853,10 @@ function sortDetentionRecords(field) {
     renderDetentionRecords(detentionStudentsData);
 }
 
-// 排序数据
+// 排序數據
 function sortDetentionData(students, field, order) {
     return students.sort((a, b) => {
-        // 【修复】首先：已签退的学生始终排在最后（不管当前是什么排序方式）
+        // 【修復】首先：已簽退的學生始終排在最後（不管當前是什麼排序方式）
         const aCompleted = a.status === 'detention_completed';
         const bCompleted = b.status === 'detention_completed';
 
@@ -2868,20 +2868,20 @@ function sortDetentionData(students, field, order) {
 
         switch (field) {
             case 'class':
-                // 按班级排序：先按班级名，再按班号
+                // 按班級排序：先按班級名，再按班號
                 valueA = `${a.class_name}-${String(a.class_number).padStart(2, '0')}`;
                 valueB = `${b.class_name}-${String(b.class_number).padStart(2, '0')}`;
                 break;
 
             case 'scanTime':
-                // 按签到时间排序，未签到的排在最后
+                // 按簽到時間排序，未簽到的排在最後
                 valueA = a.scan_time ? new Date(a.scan_time).getTime() : (order === 'asc' ? Infinity : -Infinity);
                 valueB = b.scan_time ? new Date(b.scan_time).getTime() : (order === 'asc' ? Infinity : -Infinity);
                 break;
 
             case 'remaining': {
-                // 按剩余时间排序
-                // 进行中的按剩余时间，已完成的按实际时间，未签到的排最后
+                // 按剩餘時間排序
+                // 進行中的按剩餘時間，已完成的按實際時間，未簽到的排最後
                 const now = Date.now();
                 if (a.status === 'detention_active' && a.planned_end_time) {
                     valueA = new Date(a.planned_end_time).getTime() - now;
@@ -2928,7 +2928,7 @@ function updateSortIndicators() {
         const index = fieldMap[detentionSortField];
         if (index !== undefined) {
             const sortableThs = document.querySelectorAll('#detentionRecordsTable th.sortable');
-            // 找到对应的th
+            // 找到對應的th
             let count = 0;
             document.querySelectorAll('#detentionRecordsTable th').forEach((th, i) => {
                 if (th.classList.contains('sortable')) {
@@ -2944,7 +2944,7 @@ function updateSortIndicators() {
     }
 }
 
-// 更新留堂统计
+// 更新留堂統計
 function updateDetentionStats(stats) {
     document.getElementById('statActive').textContent = stats.active || 0;
     document.getElementById('statCompleted').textContent = stats.completed || 0;
@@ -2952,24 +2952,24 @@ function updateDetentionStats(stats) {
     document.getElementById('statNotCheckedIn').textContent = stats.not_checked_in || 0;
 }
 
-// ========== 离开确认功能 ==========
+// ========== 離開確認功能 ==========
 
 var pendingLeaveUserLogin = null;
 var pendingLeaveStudentName = null;
 
-// 显示离开确认弹窗
+// 顯示離開確認彈窗
 function showLeaveConfirmModal(userLogin, studentName, scanTimeStr, plannedEndStr, plannedPeriods, plannedMinutesParam) {
     pendingLeaveUserLogin = userLogin;
     pendingLeaveStudentName = studentName;
 
     document.getElementById('leaveConfirmStudent').textContent = studentName;
 
-    // 解析时间
+    // 解析時間
     var scanTime = scanTimeStr ? new Date(scanTimeStr) : null;
     var plannedEnd = plannedEndStr ? new Date(plannedEndStr) : null;
     var now = new Date();
 
-    // 显示签到时间
+    // 顯示簽到時間
     if (scanTime) {
         document.getElementById('leaveConfirmScanTime').textContent =
             scanTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
@@ -2977,7 +2977,7 @@ function showLeaveConfirmModal(userLogin, studentName, scanTimeStr, plannedEndSt
         document.getElementById('leaveConfirmScanTime').textContent = '--:--';
     }
 
-    // 显示计划结束时间
+    // 顯示計劃結束時間
     if (plannedEnd) {
         document.getElementById('leaveConfirmPlannedEnd').textContent =
             plannedEnd.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
@@ -2985,18 +2985,18 @@ function showLeaveConfirmModal(userLogin, studentName, scanTimeStr, plannedEndSt
         document.getElementById('leaveConfirmPlannedEnd').textContent = '--:--';
     }
 
-    // 计算已留时间
+    // 計算已留時間
     if (scanTime) {
         var actualMinutes = Math.floor((now.getTime() - scanTime.getTime()) / 60000);
-        document.getElementById('leaveConfirmActualTime').textContent = actualMinutes + ' 分钟';
+        document.getElementById('leaveConfirmActualTime').textContent = actualMinutes + ' 分鐘';
 
-        // 检查是否完成计划时长（优先使用分钟模式）
+        // 檢查是否完成計劃时长（優先使用分鐘模式）
         var plannedMinutes;
         if (plannedMinutesParam != null) {
-            // 分钟模式
+            // 分鐘模式
             plannedMinutes = plannedMinutesParam;
         } else {
-            // 节数模式
+            // 節數模式
             plannedMinutes = plannedPeriods * 35;
         }
 
@@ -3007,21 +3007,21 @@ function showLeaveConfirmModal(userLogin, studentName, scanTimeStr, plannedEndSt
             warningRow.style.display = 'none';
         }
     } else {
-        document.getElementById('leaveConfirmActualTime').textContent = '-- 分钟';
+        document.getElementById('leaveConfirmActualTime').textContent = '-- 分鐘';
         document.getElementById('leaveWarningRow').style.display = 'none';
     }
 
     document.getElementById('leaveConfirmModal').classList.add('active');
 }
 
-// 关闭离开确认弹窗
+// 關閉離開確認彈窗
 function closeLeaveConfirmModal() {
     document.getElementById('leaveConfirmModal').classList.remove('active');
     pendingLeaveUserLogin = null;
     pendingLeaveStudentName = null;
 }
 
-// 确认离开（执行签退）
+// 確認離開（執行簽退）
 async function confirmLeave() {
     if (!pendingLeaveUserLogin || !currentSessionId) {
         closeLeaveConfirmModal();
@@ -3045,21 +3045,21 @@ async function confirmLeave() {
         closeLeaveConfirmModal();
 
         if (data.success) {
-            showToast(pendingLeaveStudentName + ' 已签退');
+            showToast(pendingLeaveStudentName + ' 已簽退');
             await loadSessionDetail();
         } else {
-            showToast(data.message || data.detail || '签退失败');
+            showToast(data.message || data.detail || '簽退失敗');
         }
     } catch (error) {
-        console.error('签退失败:', error);
-        showToast('签退失败，请重试');
+        console.error('簽退失敗:', error);
+        showToast('簽退失敗，請重試');
         closeLeaveConfirmModal();
     }
 }
 
-// ========== 分钟数签到功能 ==========
+// ========== 分鐘數簽到功能 ==========
 
-// 更新拍卡签到的分钟数预览
+// 更新拍卡簽到的分鐘數預覽
 function updatePeriodsMinutesPreview() {
     var input = document.getElementById('periodsMinutesInput');
     var preview = document.getElementById('periodsMinutesPreview');
@@ -3067,7 +3067,7 @@ function updatePeriodsMinutesPreview() {
     var minutes = parseInt(input.value);
 
     if (!minutes || minutes < 1 || minutes > 180) {
-        preview.textContent = minutes ? '分钟数需在1-180之间' : '';
+        preview.textContent = minutes ? '分鐘數需在1-180之間' : '';
         preview.className = 'minutes-preview' + (minutes ? ' invalid' : '');
         btn.disabled = true;
         return;
@@ -3077,12 +3077,12 @@ function updatePeriodsMinutesPreview() {
     var endTime = new Date(now.getTime() + minutes * 60000);
     var endTimeStr = endTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
 
-    preview.textContent = '预计到 ' + endTimeStr;
+    preview.textContent = '預計到 ' + endTimeStr;
     preview.className = 'minutes-preview valid';
     btn.disabled = false;
 }
 
-// 确认使用分钟数签到（拍卡）
+// 確認使用分鐘數簽到（拍卡）
 async function confirmPeriodsWithMinutes() {
     var minutes = parseInt(document.getElementById('periodsMinutesInput').value);
     if (!minutes || !pendingCardId || !currentSessionId) {
@@ -3090,9 +3090,9 @@ async function confirmPeriodsWithMinutes() {
         return;
     }
 
-    // 验证是否选择了原因
+    // 验证是否選擇了原因
     if (!selectedDetentionReason) {
-        showToast('请先选择留堂原因');
+        showToast('請先選擇留堂原因');
         return;
     }
 
@@ -3119,12 +3119,12 @@ async function confirmPeriodsWithMinutes() {
             loadSessionDetail();
         }
     } catch (error) {
-        showToast('签到失败');
+        showToast('簽到失敗');
         closePeriodsModal();
     }
 }
 
-// 更新手动签到的分钟数预览
+// 更新手動簽到的分鐘數預覽
 function updateManualMinutesPreview() {
     var input = document.getElementById('manualMinutesInput');
     var preview = document.getElementById('manualMinutesPreview');
@@ -3132,7 +3132,7 @@ function updateManualMinutesPreview() {
     var minutes = parseInt(input.value);
 
     if (!minutes || minutes < 1 || minutes > 180) {
-        preview.textContent = minutes ? '分钟数需在1-180之间' : '';
+        preview.textContent = minutes ? '分鐘數需在1-180之間' : '';
         preview.className = 'minutes-preview' + (minutes ? ' invalid' : '');
         btn.disabled = true;
         return;
@@ -3142,12 +3142,12 @@ function updateManualMinutesPreview() {
     var endTime = new Date(now.getTime() + minutes * 60000);
     var endTimeStr = endTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
 
-    preview.textContent = '预计到 ' + endTimeStr;
+    preview.textContent = '預計到 ' + endTimeStr;
     preview.className = 'minutes-preview valid';
     btn.disabled = false;
 }
 
-// 确认使用分钟数手动签到
+// 確認使用分鐘數手動簽到
 async function confirmManualDetentionWithMinutes() {
     var minutes = parseInt(document.getElementById('manualMinutesInput').value);
     if (!minutes || !pendingManualStudent || !currentSessionId) {
@@ -3155,9 +3155,9 @@ async function confirmManualDetentionWithMinutes() {
         return;
     }
 
-    // 验证是否选择了原因
+    // 验证是否選擇了原因
     if (!selectedManualDetentionReason) {
-        showToast('请先选择留堂原因');
+        showToast('請先選擇留堂原因');
         return;
     }
 
@@ -3183,18 +3183,18 @@ async function confirmManualDetentionWithMinutes() {
             showScanResult(data);
             await loadSessionDetail();
         } else {
-            showToast(data.message || data.detail || '签到失败');
+            showToast(data.message || data.detail || '簽到失敗');
         }
     } catch (error) {
-        console.error('手动签到失败:', error);
-        showToast('签到失败，请重试');
+        console.error('手動簽到失敗:', error);
+        showToast('簽到失敗，請重試');
         closeManualPeriodsModal();
     }
 }
 
-// ========== 修改功能增强（支持分钟数Tab） ==========
+// ========== 修改功能增強（支持分鐘數 Tab） ==========
 
-// 重写 switchModifyTab 函数支持新的 minutes Tab
+// 重写 switchModifyTab 函數支持新的 minutes Tab
 function switchModifyTab(tab) {
     var tabs = document.querySelectorAll('#modifyModal .modify-tab');
     tabs.forEach(function (t) {
@@ -3205,17 +3205,17 @@ function switchModifyTab(tab) {
     var minutesPanel = document.getElementById('modifyMinutesPanel');
     var timePanel = document.getElementById('modifyEndTimePanel');
 
-    // 隐藏所有面板
+    // 隱藏所有面板
     if (periodsPanel) periodsPanel.style.display = 'none';
     if (minutesPanel) minutesPanel.style.display = 'none';
     if (timePanel) timePanel.style.display = 'none';
 
-    // 显示对应面板
+    // 顯示對應面板
     if (tab === 'minutes') {
         var tabBtn = document.getElementById('tabMinutes');
         if (tabBtn) tabBtn.classList.add('active');
         if (minutesPanel) minutesPanel.style.display = 'block';
-        // 同步签到时间显示
+        // 同步簽到時間顯示
         var scanTimeEl = document.getElementById('modifyScanTime');
         var minutesScanTimeEl = document.getElementById('modifyMinutesScanTime');
         if (scanTimeEl && minutesScanTimeEl) {
@@ -3232,7 +3232,7 @@ function switchModifyTab(tab) {
     }
 }
 
-// 更新修改分钟数预览
+// 更新修改分鐘數預覽
 function updateModifyMinutesPreview() {
     var input = document.getElementById('modifyMinutesInput');
     var preview = document.getElementById('modifyMinutesPreview');
@@ -3240,7 +3240,7 @@ function updateModifyMinutesPreview() {
     var minutes = parseInt(input.value);
 
     if (!minutes || minutes < 1 || minutes > 180) {
-        preview.textContent = minutes ? '分钟数需在1-180之间' : '';
+        preview.textContent = minutes ? '分鐘數需在1-180之間' : '';
         preview.className = 'minutes-preview' + (minutes ? ' invalid' : '');
         btn.disabled = true;
         return;
@@ -3250,7 +3250,7 @@ function updateModifyMinutesPreview() {
         var scanTime = new Date(currentModifyScanTimeStr);
         var endTime = new Date(scanTime.getTime() + minutes * 60000);
         var endTimeStr = endTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
-        preview.textContent = '预计到 ' + endTimeStr;
+        preview.textContent = '預計到 ' + endTimeStr;
         preview.className = 'minutes-preview valid';
         btn.disabled = false;
     } else {
@@ -3259,11 +3259,11 @@ function updateModifyMinutesPreview() {
     }
 }
 
-// 确认按分钟数修改
+// 確認按分鐘數修改
 async function confirmModifyMinutes() {
     var minutes = parseInt(document.getElementById('modifyMinutesInput').value);
     if (!minutes || !currentModifyUserLogin || !currentSessionId) {
-        showToast('无法修改：缺少必要信息');
+        showToast('無法修改：缺少必要資訊');
         return;
     }
 
@@ -3284,37 +3284,37 @@ async function confirmModifyMinutes() {
         var data = await response.json();
 
         if (data.success) {
-            showToast(data.message || '已修改为' + minutes + '分钟');
+            showToast(data.message || '已修改為' + minutes + '分鐘');
             closeModifyModal();
             loadSessionDetail();
         } else {
-            showToast(data.detail || '修改失败');
+            showToast(data.detail || '修改失敗');
         }
     } catch (error) {
-        console.error('修改分钟数失败:', error);
-        showToast('修改失败');
+        console.error('修改分鐘數失敗:', error);
+        showToast('修改失敗');
     }
 }
 
-// ========== Apple风格动画效果（确保DOM已就绪） ==========
+// ========== Apple 風格動畫效果（確保DOM已就緒） ==========
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ========== Apple 风格平滑磁吸效果 ==========
+    // ========== Apple 風格平滑磁吸效果 ==========
 
     document.querySelectorAll('.type-btn, .action-btn, .toolbar-btn, .scan-btn').forEach(btn => {
-        // 存储目标位置和当前位置
+        // 儲存目標位置和當前位置
         let targetX = 0;
         let targetY = 0;
         let currentX = 0;
         let currentY = 0;
         let animationId = null;
 
-        // 平滑插值系数 (越小越平滑，0.08-0.15较理想)
+        // 平滑插值係數 (越小越平滑，0.08-0.15較理想)
         const smoothing = 0.12;
         // 磁吸强度 (越小越微妙)
         const magnetStrength = 0.15;
 
-        // 动画循环
+        // 動畫循环
         function animate() {
             // 平滑插值
             currentX += (targetX - currentX) * smoothing;
@@ -3323,7 +3323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 应用变换
             btn.style.transform = `translate(${currentX}px, ${currentY}px)`;
 
-            // 如果还没到达目标，继续动画
+            // 如果還沒到達目標，繼續動畫
             if (Math.abs(targetX - currentX) > 0.1 || Math.abs(targetY - currentY) > 0.1) {
                 animationId = requestAnimationFrame(animate);
             }
@@ -3334,15 +3334,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
 
-            // 计算鼠标相对于按钮中心的偏移
+            // 計算滑鼠相對於按鈕中心的偏移
             const deltaX = e.clientX - centerX;
             const deltaY = e.clientY - centerY;
 
-            // 设置目标位置
+            // 設定目標位置
             targetX = deltaX * magnetStrength;
             targetY = deltaY * magnetStrength;
 
-            // 开始动画（如果还没开始）
+            // 開始動畫（如果還沒開始）
             if (!animationId) {
                 animationId = requestAnimationFrame(animate);
             }
@@ -3353,12 +3353,12 @@ document.addEventListener('DOMContentLoaded', () => {
             targetX = 0;
             targetY = 0;
 
-            // 确保动画继续直到回到原位
+            // 確保動畫繼續直到回到原位
             if (!animationId) {
                 animationId = requestAnimationFrame(animate);
             }
 
-            // 清理动画ID的监听
+            // 清理動畫ID的監聽
             const checkReset = () => {
                 if (Math.abs(currentX) < 0.1 && Math.abs(currentY) < 0.1) {
                     cancelAnimationFrame(animationId);
@@ -3419,7 +3419,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         button.appendChild(ripple);
 
-        // 使用 Web Animations API 实现更平滑的动画
+        // 使用 Web Animations API 實現更平滑的動畫
         ripple.animate([
             {transform: 'scale(0)', opacity: 0.5},
             {transform: 'scale(1)', opacity: 0}
@@ -3430,7 +3430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).onfinish = () => ripple.remove();
     }
 
-    // 添加涟漪效果到按钮
+    // 添加涟漪效果到按鈕
     document.querySelectorAll('.type-btn, .action-btn, .toolbar-btn, .scan-btn, .quick-btn').forEach(btn => {
         btn.style.position = 'relative';
         btn.style.overflow = 'hidden';
@@ -3438,9 +3438,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // ========== 学生卡片悬停效果 ==========
+    // ========== 學生卡片悬停效果 ==========
     document.addEventListener('DOMContentLoaded', () => {
-        // 为学生卡片添加平滑的悬停效果
+        // 为學生卡片添加平滑的悬停效果
         const studentList = document.getElementById('studentList');
         if (studentList) {
             studentList.addEventListener('mouseover', (e) => {
@@ -3453,7 +3453,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // ========== 输入框聚焦光环效果 ==========
+    // ========== 輸入框聚焦光环效果 ==========
 
     document.querySelectorAll('.scan-input, .filter-input, .filter-select, .date-input').forEach(input => {
         input.addEventListener('focus', function () {
@@ -3464,24 +3464,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ========== Apple风格启动动画控制 (纯JS动画版本) ==========
+    // ========== Apple風格啟動動畫控制 (纯JS動畫版本) ==========
     function showMainInterface() {
         const splash = document.getElementById('splashScreen');
         const header = document.querySelector('.header');
         const leftPanel = document.querySelector('.left-panel');
         const rightPanel = document.querySelector('.right-panel');
 
-        // 淡出启动画面
+        // 淡出启動畫面
         if (splash) {
             splash.classList.add('fade-out');
         }
 
-        // 纯 JavaScript 动画函数 - 兼容所有浏览器
+        // 纯 JavaScript 動畫函數 - 相容所有浏览器
         function animateIn(element, fromX, fromY, delay) {
             if (!element) return;
 
             setTimeout(() => {
-                // 1. 先移除 CSS 中的 !important 影响，用 inline style 覆盖
+                // 1. 先移除 CSS 中的 !important 影響，用 inline style 覆蓋
                 element.style.cssText = `
                         opacity: 0 !important;
                         transform: translate(${fromX}px, ${fromY}px) !important;
@@ -3492,7 +3492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2. 强制浏览器重绘
                 void element.offsetWidth;
 
-                // 3. 设置过渡动画并改变到最终状态
+                // 3. 設定過渡動畫并改变到最终狀態
                 element.style.cssText = `
                         opacity: 1 !important;
                         transform: translate(0, 0) !important;
@@ -3503,16 +3503,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }, delay);
         }
 
-        // Header 从上方滑入 (200ms 延迟)
+        // Header 從上方滑入 (200ms 延遲)
         animateIn(header, 0, -30, 200);
 
-        // 左侧面板从左侧滑入 (400ms 延迟)
+        // 左側面板從左側滑入 (400ms 延遲)
         animateIn(leftPanel, -50, 0, 400);
 
-        // 右侧面板从右侧滑入 (600ms 延迟)
+        // 右側面板從右側滑入 (600ms 延遲)
         animateIn(rightPanel, 50, 0, 600);
 
-        // 移除启动画面
+        // 移除启動畫面
         setTimeout(() => {
             if (splash) {
                 splash.style.display = 'none';
@@ -3520,13 +3520,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1500);
     }
 
-    // 页面完全加载后开始动画
+    // 頁面完全載入后開始動畫
     window.addEventListener('load', () => {
         setTimeout(() => {
             showMainInterface();
         }, 1200);
     });
-    // ========== 鼠标聚光灯效果 ==========
+    // ========== 滑鼠聚光燈效果 ==========
     const spotlight = document.getElementById('spotlight');
     let spotlightX = 0, spotlightY = 0;
     let currentSpotX = 0, currentSpotY = 0;
@@ -3566,56 +3566,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ========== 卡片3D倾斜效果 ==========
     function init3DCards() {
-        // 🆕 检查是否有鼠标
+        // 🆕 檢查是否有滑鼠
         if (!document.body.classList.contains('has-mouse')) {
-            console.log('[3D] 触摸模式，跳过 3D 效果');
+            console.log('[3D] 觸摸模式，跳過 3D 效果');
             return;
         }
         // 原有代码...
     }
 
-    // 🆕 监听鼠标连接/断开
+    // 🆕 監聽滑鼠連接/斷開
     matchMedia('(pointer: fine)').addEventListener('change', (e) => {
         if (e.matches) {
-            init3DCards();  // 连接鼠标 - 启用 3D
+            init3DCards();  // 連接滑鼠 - 啟用 3D
             document.getElementById('spotlight').style.display = '';
         } else {
-            // 断开鼠标 - 禁用效果
+            // 斷開滑鼠 - 禁用效果
             document.getElementById('spotlight').style.display = 'none';
             document.querySelectorAll('.student-card').forEach(c => c.style.transform = '');
         }
     });
 
-    // 初始化3D卡片效果（需要在学生列表渲染后调用）
+    // 初始化3D卡片效果（需要在學生列表渲染后呼叫）
     const originalRenderStudentList = renderStudentList;
     renderStudentList = function (students) {
         originalRenderStudentList(students);
-        // 延迟一点确保DOM已更新
+        // 延遲一点確保DOM已更新
         setTimeout(init3DCards, 50);
     };
 
-    // 页面加载后也初始化一次
+    // 頁面載入后也初始化一次
     document.addEventListener('DOMContentLoaded', () => {
         setTimeout(init3DCards, 1000);
     });
-// ========== 离开确认功能 ==========
+// ========== 離開確認功能 ==========
 
     let pendingLeaveUserLogin = null;
     let pendingLeaveStudentName = null;
 
-// 显示离开确认弹窗
+// 顯示離開確認彈窗
     function showLeaveConfirmModal(userLogin, studentName, scanTimeStr, plannedEndStr, plannedPeriods) {
         pendingLeaveUserLogin = userLogin;
         pendingLeaveStudentName = studentName;
 
         document.getElementById('leaveConfirmStudent').textContent = studentName;
 
-        // 解析时间
+        // 解析時間
         const scanTime = scanTimeStr ? new Date(scanTimeStr) : null;
         const plannedEnd = plannedEndStr ? new Date(plannedEndStr) : null;
         const now = new Date();
 
-        // 显示签到时间
+        // 顯示簽到時間
         if (scanTime) {
             document.getElementById('leaveConfirmScanTime').textContent =
                 scanTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
@@ -3623,7 +3623,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('leaveConfirmScanTime').textContent = '--:--';
         }
 
-        // 显示计划结束时间
+        // 顯示計劃結束時間
         if (plannedEnd) {
             document.getElementById('leaveConfirmPlannedEnd').textContent =
                 plannedEnd.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
@@ -3631,12 +3631,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('leaveConfirmPlannedEnd').textContent = '--:--';
         }
 
-        // 计算已留时间
+        // 計算已留時間
         if (scanTime) {
             const actualMinutes = Math.floor((now.getTime() - scanTime.getTime()) / 60000);
-            document.getElementById('leaveConfirmActualTime').textContent = `${actualMinutes} 分钟`;
+            document.getElementById('leaveConfirmActualTime').textContent = `${actualMinutes} 分鐘`;
 
-            // 检查是否完成计划时长
+            // 檢查是否完成計劃时长
             const plannedMinutes = plannedPeriods * 35;
             const warningRow = document.getElementById('leaveWarningRow');
             if (actualMinutes < plannedMinutes) {
@@ -3645,21 +3645,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 warningRow.style.display = 'none';
             }
         } else {
-            document.getElementById('leaveConfirmActualTime').textContent = '-- 分钟';
+            document.getElementById('leaveConfirmActualTime').textContent = '-- 分鐘';
             document.getElementById('leaveWarningRow').style.display = 'none';
         }
 
         document.getElementById('leaveConfirmModal').classList.add('active');
     }
 
-// 关闭离开确认弹窗
+// 關閉離開確認彈窗
     function closeLeaveConfirmModal() {
         document.getElementById('leaveConfirmModal').classList.remove('active');
         pendingLeaveUserLogin = null;
         pendingLeaveStudentName = null;
     }
 
-// 确认离开（执行签退）
+// 確認離開（執行簽退）
     async function confirmLeave() {
         if (!pendingLeaveUserLogin || !currentSessionId) {
             closeLeaveConfirmModal();
@@ -3683,21 +3683,21 @@ document.addEventListener('DOMContentLoaded', () => {
             closeLeaveConfirmModal();
 
             if (data.success) {
-                showToast(`${pendingLeaveStudentName} 已签退`);
+                showToast(`${pendingLeaveStudentName} 已簽退`);
                 await loadSessionDetail();
             } else {
-                showToast(data.message || data.detail || '签退失败');
+                showToast(data.message || data.detail || '簽退失敗');
             }
         } catch (error) {
-            console.error('签退失败:', error);
-            showToast('签退失败，请重试');
+            console.error('簽退失敗:', error);
+            showToast('簽退失敗，請重試');
             closeLeaveConfirmModal();
         }
     }
 
-// ========== 分钟数签到功能 ==========
+// ========== 分鐘數簽到功能 ==========
 
-// 更新拍卡签到的分钟数预览
+// 更新拍卡簽到的分鐘數預覽
     function updatePeriodsMinutesPreview() {
         const input = document.getElementById('periodsMinutesInput');
         const preview = document.getElementById('periodsMinutesPreview');
@@ -3705,7 +3705,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutes = parseInt(input.value);
 
         if (!minutes || minutes < 1 || minutes > 180) {
-            preview.textContent = minutes ? '分钟数需在1-180之间' : '';
+            preview.textContent = minutes ? '分鐘數需在1-180之間' : '';
             preview.className = 'minutes-preview' + (minutes ? ' invalid' : '');
             btn.disabled = true;
             return;
@@ -3715,12 +3715,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const endTime = new Date(now.getTime() + minutes * 60000);
         const endTimeStr = endTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
 
-        preview.textContent = `预计到 ${endTimeStr}`;
+        preview.textContent = `預計到 ${endTimeStr}`;
         preview.className = 'minutes-preview valid';
         btn.disabled = false;
     }
 
-// 确认使用分钟数签到（拍卡）
+// 確認使用分鐘數簽到（拍卡）
     async function confirmPeriodsWithMinutes() {
         const minutes = parseInt(document.getElementById('periodsMinutesInput').value);
         if (!minutes || !pendingCardId || !currentSessionId) {
@@ -3728,9 +3728,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 验证是否选择了原因
+        // 验证是否選擇了原因
         if (!selectedDetentionReason) {
-            showToast('请先选择留堂原因');
+            showToast('請先選擇留堂原因');
             return;
         }
 
@@ -3757,12 +3757,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadSessionDetail();
             }
         } catch (error) {
-            showToast('签到失败');
+            showToast('簽到失敗');
             closePeriodsModal();
         }
     }
 
-// 更新手动签到的分钟数预览
+// 更新手動簽到的分鐘數預覽
     function updateManualMinutesPreview() {
         const input = document.getElementById('manualMinutesInput');
         const preview = document.getElementById('manualMinutesPreview');
@@ -3770,7 +3770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutes = parseInt(input.value);
 
         if (!minutes || minutes < 1 || minutes > 180) {
-            preview.textContent = minutes ? '分钟数需在1-180之间' : '';
+            preview.textContent = minutes ? '分鐘數需在1-180之間' : '';
             preview.className = 'minutes-preview' + (minutes ? ' invalid' : '');
             btn.disabled = true;
             return;
@@ -3780,12 +3780,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const endTime = new Date(now.getTime() + minutes * 60000);
         const endTimeStr = endTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
 
-        preview.textContent = `预计到 ${endTimeStr}`;
+        preview.textContent = `預計到 ${endTimeStr}`;
         preview.className = 'minutes-preview valid';
         btn.disabled = false;
     }
 
-// 确认使用分钟数手动签到
+// 確認使用分鐘數手動簽到
     async function confirmManualDetentionWithMinutes() {
         const minutes = parseInt(document.getElementById('manualMinutesInput').value);
         if (!minutes || !pendingManualStudent || !currentSessionId) {
@@ -3793,9 +3793,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 验证是否选择了原因
+        // 验证是否選擇了原因
         if (!selectedManualDetentionReason) {
-            showToast('请先选择留堂原因');
+            showToast('請先選擇留堂原因');
             return;
         }
 
@@ -3821,18 +3821,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 showScanResult(data);
                 await loadSessionDetail();
             } else {
-                showToast(data.message || data.detail || '签到失败');
+                showToast(data.message || data.detail || '簽到失敗');
             }
         } catch (error) {
-            console.error('手动签到失败:', error);
-            showToast('签到失败，请重试');
+            console.error('手動簽到失敗:', error);
+            showToast('簽到失敗，請重試');
             closeManualPeriodsModal();
         }
     }
 
-// ========== 修改功能增强（支持分钟数Tab） ==========
+// ========== 修改功能增強（支持分鐘數 Tab） ==========
 
-// 重写 switchModifyTab 函数支持新的 minutes Tab
+// 重写 switchModifyTab 函數支持新的 minutes Tab
     function switchModifyTab(tab) {
         const tabs = document.querySelectorAll('#modifyModal .modify-tab');
         tabs.forEach(t => t.classList.remove('active'));
@@ -3841,16 +3841,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutesPanel = document.getElementById('modifyMinutesPanel');
         const timePanel = document.getElementById('modifyEndTimePanel');
 
-        // 隐藏所有面板
+        // 隱藏所有面板
         if (periodsPanel) periodsPanel.style.display = 'none';
         if (minutesPanel) minutesPanel.style.display = 'none';
         if (timePanel) timePanel.style.display = 'none';
 
-        // 显示对应面板
+        // 顯示對應面板
         if (tab === 'minutes') {
             document.getElementById('tabMinutes').classList.add('active');
             if (minutesPanel) minutesPanel.style.display = 'block';
-            // 同步签到时间显示
+            // 同步簽到時間顯示
             const scanTimeEl = document.getElementById('modifyScanTime');
             const minutesScanTimeEl = document.getElementById('modifyMinutesScanTime');
             if (scanTimeEl && minutesScanTimeEl) {
@@ -3865,7 +3865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-// 更新修改分钟数预览
+// 更新修改分鐘數預覽
     function updateModifyMinutesPreview() {
         const input = document.getElementById('modifyMinutesInput');
         const preview = document.getElementById('modifyMinutesPreview');
@@ -3873,7 +3873,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const minutes = parseInt(input.value);
 
         if (!minutes || minutes < 1 || minutes > 180) {
-            preview.textContent = minutes ? '分钟数需在1-180之间' : '';
+            preview.textContent = minutes ? '分鐘數需在1-180之間' : '';
             preview.className = 'minutes-preview' + (minutes ? ' invalid' : '');
             btn.disabled = true;
             return;
@@ -3883,7 +3883,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const scanTime = new Date(currentModifyScanTimeStr);
             const endTime = new Date(scanTime.getTime() + minutes * 60000);
             const endTimeStr = endTime.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
-            preview.textContent = `预计到 ${endTimeStr}`;
+            preview.textContent = `預計到 ${endTimeStr}`;
             preview.className = 'minutes-preview valid';
             btn.disabled = false;
         } else {
@@ -3892,11 +3892,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-// 确认按分钟数修改
+// 確認按分鐘數修改
     async function confirmModifyMinutes() {
         const minutes = parseInt(document.getElementById('modifyMinutesInput').value);
         if (!minutes || !currentModifyUserLogin || !currentSessionId) {
-            showToast('无法修改：缺少必要信息');
+            showToast('無法修改：缺少必要資訊');
             return;
         }
 
@@ -3917,27 +3917,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (data.success) {
-                showToast(data.message || `已修改为${minutes}分钟`);
+                showToast(data.message || `已修改為${minutes}分鐘`);
                 closeModifyModal();
                 loadSessionDetail();
             } else {
-                showToast(data.detail || '修改失败');
+                showToast(data.detail || '修改失敗');
             }
         } catch (error) {
-            console.error('修改分钟数失败:', error);
-            showToast('修改失败');
+            console.error('修改分鐘數失敗:', error);
+            showToast('修改失敗');
         }
     }
 
-}); // 结束 Apple风格动画效果 DOMContentLoaded 包裹
+}); // 結束 Apple 風格動畫效果 DOMContentLoaded 包裹
 
-// ========== 留堂原因选择功能 ==========
+// ========== 留堂原因選擇功能 ==========
 
-// 选择留堂原因（拍卡签到用）
+// 選擇留堂原因（拍卡簽到用）
 function selectDetentionReason(reason) {
     selectedDetentionReason = reason;
 
-    // 更新按钮状态
+    // 更新按鈕狀態
     const reasonArea = document.getElementById('reasonSelectionArea');
     if (reasonArea) {
         reasonArea.querySelectorAll('.reason-option-btn').forEach(btn => {
@@ -3948,18 +3948,18 @@ function selectDetentionReason(reason) {
         });
     }
 
-    // 显示节数选择区域
+    // 顯示節數選擇区域
     const periodsArea = document.getElementById('periodsSelectionArea');
     if (periodsArea) {
         periodsArea.style.display = 'block';
     }
 }
 
-// 选择留堂原因（手动签到用）
+// 選擇留堂原因（手動簽到用）
 function selectManualDetentionReason(reason) {
     selectedManualDetentionReason = reason;
 
-    // 更新按钮状态
+    // 更新按鈕狀態
     const reasonArea = document.getElementById('manualReasonSelectionArea');
     if (reasonArea) {
         reasonArea.querySelectorAll('.reason-option-btn').forEach(btn => {
@@ -3970,14 +3970,14 @@ function selectManualDetentionReason(reason) {
         });
     }
 
-    // 显示节数选择区域
+    // 顯示節數選擇区域
     const periodsArea = document.getElementById('manualPeriodsSelectionArea');
     if (periodsArea) {
         periodsArea.style.display = 'block';
     }
 }
 
-// 切换分钟数输入显示（拍卡签到用）
+// 切换分鐘數輸入顯示（拍卡簽到用）
 function toggleMinutesInput() {
     const section = document.getElementById('minutesInputSection');
     if (section) {
@@ -3989,7 +3989,7 @@ function toggleMinutesInput() {
     }
 }
 
-// 切换分钟数输入显示（手动签到用）
+// 切换分鐘數輸入顯示（手動簽到用）
 function toggleManualMinutesInput() {
     const section = document.getElementById('manualMinutesInputSection');
     if (section) {
@@ -4001,23 +4001,23 @@ function toggleManualMinutesInput() {
     }
 }
 
-// 获取原因标签HTML
+// 取得原因標籤HTML
 function getReasonTagHtml(reason) {
     if (!reason) {
         return '<span class="reason-tag unknown">未知</span>';
     }
     if (reason === 'homework') {
-        return '<span class="reason-tag homework">功课</span>';
+        return '<span class="reason-tag homework">功課</span>';
     }
     if (reason === 'morning') {
-        return '<span class="reason-tag morning">晨读</span>';
+        return '<span class="reason-tag morning">晨讀</span>';
     }
     return '<span class="reason-tag unknown">' + reason + '</span>';
 }
 
-// ============ 课外活动功能 ============
+// ============ 課外活動功能 ============
 
-// 课外活动状态变量
+// 課外活動狀態变量
 let activityGroups = [];
 let currentActivityConfig = {
     name: '',
@@ -4031,34 +4031,34 @@ let activitySortField = 'class';
 let activitySortOrder = 'asc';
 let pendingCheckoutStudent = null;
 
-// 修改selectType函数以支持课外活动
+// 修改 selectType 函數以支持課外活動
 const originalSelectType = selectType;
 selectType = function (type) {
     currentSessionType = type;
     saveSessionState();
 
-    // 更新按钮状态
+    // 更新按鈕狀態
     document.querySelectorAll('.type-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     const typeBtn = document.querySelector(`.type-btn.${type}`);
     if (typeBtn) typeBtn.classList.add('active');
 
-    // 显示/隐藏课外活动配置区域
+    // 顯示/隱藏課外活動配置区域
     const activityConfig = document.getElementById('activityConfigSection');
     const studentSelectSection = document.getElementById('studentSelectSection');
     const selectedCountSection = document.getElementById('selectedCountSection');
     const saveListBtn = document.getElementById('saveListBtn');
 
     if (type === 'activity') {
-        // 课外活动模式
+        // 課外活動模式
         if (activityConfig) activityConfig.style.display = 'block';
         if (studentSelectSection) studentSelectSection.style.display = 'none';
         if (selectedCountSection) selectedCountSection.style.display = 'none';
         if (saveListBtn) saveListBtn.style.display = 'none';
         loadActivityGroups();
     } else {
-        // 晨读/留堂模式
+        // 晨讀/留堂模式
         if (activityConfig) activityConfig.style.display = 'none';
         if (studentSelectSection) studentSelectSection.style.display = 'none';
         if (selectedCountSection) selectedCountSection.style.display = 'none';
@@ -4068,7 +4068,7 @@ selectType = function (type) {
     loadFixedLists();
 };
 
-// 加载固定组别
+// 載入固定組別
 async function loadActivityGroups() {
     try {
         const response = await fetch('/api/attendance/activity-groups', {
@@ -4081,22 +4081,22 @@ async function loadActivityGroups() {
             renderActivityGroups();
         }
     } catch (error) {
-        console.error('加载组别失败:', error);
+        console.error('載入組別失敗:', error);
         activityGroups = [];
         renderActivityGroups();
     }
 }
 
-// 渲染固定组别按钮
+// 渲染固定組別按鈕
 function renderActivityGroups() {
     const container = document.getElementById('activityGroupsList');
     if (!container) return;
 
     if (activityGroups.length === 0) {
         container.innerHTML = `
-            <span class="no-groups-hint">暂无组别</span>
+            <span class="no-groups-hint">暫無組別</span>
             <button class="manage-groups-btn" onclick="openActivityGroupModal()">
-                ⚙️ 管理组别
+                ⚙️ 管理組別
             </button>
         `;
         return;
@@ -4111,12 +4111,12 @@ function renderActivityGroups() {
         </button>
     `).join('') + `
         <button class="manage-groups-btn" onclick="openActivityGroupModal()">
-            ⚙️ 管理组别
+            ⚙️ 管理組別
         </button>
     `;
 }
 
-// 加载某个组别的学生
+// 載入某个組別的學生
 async function loadActivityGroup(groupId) {
     try {
         const response = await fetch(`/api/attendance/activity-groups/${groupId}`, {
@@ -4138,21 +4138,21 @@ async function loadActivityGroup(groupId) {
                 }
             });
 
-            showToast(`已加载组别: ${data.group.name}`);
+            showToast(`已載入組別: ${data.group.name}`);
         }
     } catch (error) {
-        console.error('加载组别失败:', error);
-        showToast('加载组别失败');
+        console.error('載入組別失敗:', error);
+        showToast('載入組別失敗');
     }
 }
 
-// 更新课外活动已选人数
+// 更新課外活動已選人數
 function updateActivitySelectedCount() {
     const countEl = document.getElementById('activityStudentCount');
     if (countEl) countEl.textContent = selectedStudents.size;
 }
 
-// 更新课外活动选择按钮状态
+// 更新課外活動選擇按鈕狀態
 function updateActivitySelectBtn() {
     const btn = document.getElementById('activitySelectStudentBtn');
     if (!btn) return;
@@ -4160,33 +4160,33 @@ function updateActivitySelectBtn() {
     const count = selectedStudents.size;
     if (count > 0) {
         btn.classList.add('has-selection');
-        btn.innerHTML = `👥 已选择 ${count} 名学生 (点击修改)`;
+        btn.innerHTML = `👥 已選擇 ${count} 名學生 (點擊修改)`;
     } else {
         btn.classList.remove('has-selection');
-        btn.innerHTML = '👥 点击选择学生 (必选)';
+        btn.innerHTML = '👥 點擊選擇學生 (必選)';
     }
 
     updateActivitySelectedCount();
 }
 
-// 打开组别管理模态框
+// 打開組別管理模態框
 function openActivityGroupModal() {
     document.getElementById('activityGroupModal').classList.add('active');
     renderActivityGroupsManageList();
 }
 
-// 关闭组别管理模态框
+// 關閉組別管理模態框
 function closeActivityGroupModal() {
     document.getElementById('activityGroupModal').classList.remove('active');
 }
 
-// 渲染组别管理列表
+// 渲染組別管理列表
 function renderActivityGroupsManageList() {
     const container = document.getElementById('activityGroupsManageList');
     if (!container) return;
 
     if (activityGroups.length === 0) {
-        container.innerHTML = '<div class="no-groups-hint">暂无组别，请先选择学生后创建</div>';
+        container.innerHTML = '<div class="no-groups-hint">暫無組別，請先選擇學生后建立</div>';
         return;
     }
 
@@ -4197,26 +4197,26 @@ function renderActivityGroupsManageList() {
             <span class="group-count">${group.student_count}人</span>
         </div>
         <div class="group-actions">
-            <button class="group-action-btn edit" onclick="editActivityGroup(${group.id})">加载</button>
-            <button class="group-action-btn save" onclick="updateActivityGroup(${group.id}, '${group.name}')">保存修改</button>
-            <button class="group-action-btn delete" onclick="deleteActivityGroup(${group.id}, '${group.name}')">删除</button>
+            <button class="group-action-btn edit" onclick="editActivityGroup(${group.id})">載入</button>
+            <button class="group-action-btn save" onclick="updateActivityGroup(${group.id}, '${group.name}')">儲存修改</button>
+            <button class="group-action-btn delete" onclick="deleteActivityGroup(${group.id}, '${group.name}')">刪除</button>
         </div>
     </div>
 `).join('');
 }
 
-// 创建新组别
+// 建立新組別
 async function createActivityGroup() {
     const nameInput = document.getElementById('newGroupName');
     const name = nameInput.value.trim();
 
     if (!name) {
-        showToast('请输入组别名称');
+        showToast('請輸入組別名称');
         return;
     }
 
     if (selectedStudents.size === 0) {
-        showToast('请先选择学生');
+        showToast('請先選擇學生');
         return;
     }
 
@@ -4235,22 +4235,22 @@ async function createActivityGroup() {
 
         const data = await response.json();
         if (data.success) {
-            showToast(`组别 "${name}" 创建成功`);
+            showToast(`組別 "${name}" 建立成功`);
             nameInput.value = '';
             await loadActivityGroups();
             renderActivityGroupsManageList();
         } else {
-            showToast(data.detail || '创建失败');
+            showToast(data.detail || '建立失敗');
         }
     } catch (error) {
-        console.error('创建组别失败:', error);
-        showToast('创建组别失败');
+        console.error('建立組別失敗:', error);
+        showToast('建立組別失敗');
     }
 }
 
-// 删除组别
+// 刪除組別
 async function deleteActivityGroup(groupId, groupName) {
-    if (!confirm(`确定要删除组别 "${groupName}" 吗？此操作不可恢复。`)) {
+    if (!confirm(`確定要刪除組別 "${groupName}" 吗？此操作不可恢復。`)) {
         return;
     }
 
@@ -4262,34 +4262,34 @@ async function deleteActivityGroup(groupId, groupName) {
 
         const data = await response.json();
         if (data.success) {
-            showToast(`组别 "${groupName}" 已删除`);
+            showToast(`組別 "${groupName}" 已刪除`);
             await loadActivityGroups();
             renderActivityGroupsManageList();
         } else {
-            showToast(data.detail || '删除失败');
+            showToast(data.detail || '刪除失敗');
         }
     } catch (error) {
-        console.error('删除组别失败:', error);
-        showToast('删除组别失败');
+        console.error('刪除組別失敗:', error);
+        showToast('刪除組別失敗');
     }
 }
 
-// 编辑组别
+// 編輯組別
 async function editActivityGroup(groupId) {
     await loadActivityGroup(groupId);
     closeActivityGroupModal();
     openStudentSelectModal();
-    showToast('修改学生后可创建新组别或继续点名');
+    showToast('修改學生後可建立新組別或繼續點名');
 }
 
-// 更新活动组别
+// 更新活動組別
 async function updateActivityGroup(groupId, newName) {
     if (selectedStudents.size === 0) {
-        showToast('请先选择学生');
+        showToast('請先選擇學生');
         return;
     }
 
-    const name = newName || prompt('请输入组别名称');
+    const name = newName || prompt('請輸入組別名称');
     if (!name) return;
 
     try {
@@ -4307,19 +4307,19 @@ async function updateActivityGroup(groupId, newName) {
 
         const data = await response.json();
         if (data.success) {
-            showToast(`组别 "${name}" 已更新`);
+            showToast(`組別 "${name}" 已更新`);
             await loadActivityGroups();
             renderActivityGroupsManageList();
         } else {
-            showToast(data.detail || '更新失败');
+            showToast(data.detail || '更新失敗');
         }
     } catch (error) {
-        console.error('更新组别失败:', error);
-        showToast('更新组别失败');
+        console.error('更新組別失敗:', error);
+        showToast('更新組別失敗');
     }
 }
 
-// 修改startSession以支持课外活动
+// 修改 startSession 以支持課外活動
 const originalStartSession = startSession;
 startSession = async function () {
     if (currentSessionType === 'activity') {
@@ -4328,7 +4328,7 @@ startSession = async function () {
     return originalStartSession();
 };
 
-// 开始课外活动会话
+// 開始課外活動會話
 async function startActivitySession() {
     const sessionDate = document.getElementById('sessionDate').value;
     const activityName = document.getElementById('activityName').value.trim();
@@ -4338,17 +4338,17 @@ async function startActivitySession() {
     const earlyThreshold = parseInt(document.getElementById('activityEarlyThreshold').value) || 10;
 
     if (!sessionDate) {
-        showToast('请选择日期');
+        showToast('請選擇日期');
         return;
     }
 
     if (!activityName) {
-        showToast('请输入活动名称');
+        showToast('請輸入活動名稱');
         return;
     }
 
     if (selectedStudents.size === 0) {
-        showToast('请选择参加活动的学生');
+        showToast('請選擇参加活動的學生');
         return;
     }
 
@@ -4385,23 +4385,23 @@ async function startActivitySession() {
             showActivitySessionPanel();
             loadActivitySessionDetail();
         } else {
-            showToast('创建失败: ' + (data.detail || '未知错误'));
+            showToast('建立失敗: ' + (data.detail || '未知錯誤'));
         }
     } catch (error) {
-        console.error('创建活动会话失败:', error);
-        showToast('创建会话失败');
+        console.error('建立活動會話失敗:', error);
+        showToast('建立會話失敗');
     }
 }
 
-// 显示课外活动会话面板
+// 顯示課外活動會話面板
 function showActivitySessionPanel() {
     document.getElementById('noSessionHint').style.display = 'none';
     document.getElementById('sessionPanel').style.display = 'flex';
 
     document.getElementById('sessionTitle').textContent =
-        `${currentActivityConfig.name} - 活动点名进行中`;
+        `${currentActivityConfig.name} - 活動點名進行中`;
 
-// 获取所有容器，只显示第三个（活动表格）
+// 取得所有容器，只顯示第三个（活動表格）
     const containers = document.querySelectorAll('.records-table-container');
     containers.forEach((c, i) => {
         c.style.display = i === 2 ? 'block' : 'none';
@@ -4417,7 +4417,7 @@ function showActivitySessionPanel() {
     document.getElementById('cardInput').focus();
 }
 
-// 加载课外活动会话详情
+// 載入課外活動會話详情
 async function loadActivitySessionDetail() {
     if (!currentSessionId) return;
 
@@ -4441,11 +4441,11 @@ async function loadActivitySessionDetail() {
             renderActivityRecords(data.students);
         }
     } catch (error) {
-        console.error('加载活动详情失败:', error);
+        console.error('載入活動详情失敗:', error);
     }
 }
 
-// 更新课外活动统计
+// 更新課外活動統計
 function updateActivityStats(stats) {
     const onTime = document.getElementById('activityStatOnTime');
     const late = document.getElementById('activityStatLate');
@@ -4462,7 +4462,7 @@ function updateActivityStats(stats) {
     if (stillHere) stillHere.textContent = stats.still_here || 0;
 }
 
-// 渲染课外活动记录
+// 渲染課外活動紀錄
 function renderActivityRecords(students) {
     activityStudentsData = students;
     const tbody = document.getElementById('activityRecordsBody');
@@ -4473,8 +4473,8 @@ function renderActivityRecords(students) {
         const checkOutStatus = s.check_out_status || 'not_arrived';
 
         const checkInStatusText = {
-            'on_time': '准时',
-            'late': '迟到',
+            'on_time': '準時',
+            'late': '遲到',
             'not_arrived': '未到'
         }[checkInStatus] || '未到';
 
@@ -4518,7 +4518,7 @@ function renderActivityRecords(students) {
                     <button class="checkout-btn" 
                             onclick="openCheckoutConfirm('${s.user_login}')"
                             ${canCheckout ? '' : 'disabled'}>
-                        签退
+                        簽退
                     </button>
                 </td>
             </tr>
@@ -4526,7 +4526,7 @@ function renderActivityRecords(students) {
     }).join('');
 }
 
-// 打开签退确认弹窗
+// 打開簽退確認彈窗
 function openCheckoutConfirm(userLogin) {
     const student = activityStudentsData.find(s => s.user_login === userLogin);
     if (!student) return;
@@ -4540,7 +4540,7 @@ function openCheckoutConfirm(userLogin) {
         new Date(student.check_in_time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : '--:--';
     document.getElementById('checkoutScanTime').textContent = checkInTime;
 
-    // 修复：将秒数转换为时间字符串
+    // 修復：将秒數轉換为時間字串
     let endTimeStr;
     if (typeof currentActivityConfig.endTime === 'number') {
         const hours = Math.floor(currentActivityConfig.endTime / 3600);
@@ -4568,13 +4568,13 @@ function openCheckoutConfirm(userLogin) {
     document.getElementById('checkoutConfirmModal').classList.add('active');
 }
 
-// 关闭签退确认弹窗
+// 關閉簽退確認彈窗
 function closeCheckoutConfirmModal() {
     document.getElementById('checkoutConfirmModal').classList.remove('active');
     pendingCheckoutStudent = null;
 }
 
-// 确认签退
+// 確認簽退
 async function confirmActivityCheckout() {
     if (!pendingCheckoutStudent || !currentSessionId) {
         closeCheckoutConfirmModal();
@@ -4601,18 +4601,18 @@ async function confirmActivityCheckout() {
             showActivityScanResult(data);
             loadActivitySessionDetail();
         } else {
-            showToast(data.message || data.detail || '签退失败');
+            showToast(data.message || data.detail || '簽退失敗');
         }
     } catch (error) {
-        console.error('签退失败:', error);
-        showToast('签退失败');
+        console.error('簽退失敗:', error);
+        showToast('簽退失敗');
         closeCheckoutConfirmModal();
     }
 }
 
-// 显示课外活动扫描结果
+// 顯示課外活動掃描結果
 function showActivityScanResult(data) {
-    // 显示通知卡片
+    // 顯示通知卡片
     showScanNotification(data);
 
     const resultName = document.getElementById('resultName');
@@ -4620,8 +4620,8 @@ function showActivityScanResult(data) {
     const resultStatus = document.getElementById('resultStatus');
     const scanResult = document.getElementById('scanResult');
 
-    scanResult.style.display = 'block';  // 添加这行
-    scanResult.className = 'scan-result';  // 重置类名
+    scanResult.style.display = 'block';  // 添加這行
+    scanResult.className = 'scan-result';  // 重置類名
 
     if (data.student) {
         resultName.textContent = `${data.student.chinese_name} (${data.student.class_name}-${data.student.class_number})`;
@@ -4633,24 +4633,24 @@ function showActivityScanResult(data) {
                 resultStatus.className = 'result-status late';
                 scanResult.classList.add('late');
             } else {
-                resultStatus.textContent = '✅ 正常离开';
+                resultStatus.textContent = '✅ 正常離開';
                 resultStatus.className = 'result-status present';
                 scanResult.classList.add('success');
             }
         } else {
             if (data.is_late) {
-                resultStatus.textContent = '⚠️ 迟到';
+                resultStatus.textContent = '⚠️ 遲到';
                 resultStatus.className = 'result-status late';
                 scanResult.classList.add('late');
             } else {
-                resultStatus.textContent = '✅ 准时签到';
+                resultStatus.textContent = '✅ 準時簽到';
                 resultStatus.className = 'result-status present';
                 scanResult.classList.add('success');
             }
         }
     } else {
         scanResult.classList.add('error');
-        resultName.textContent = '❌ ' + (data.message || data.detail || '签到失败');
+        resultName.textContent = '❌ ' + (data.message || data.detail || '簽到失敗');
         resultTime.textContent = '';
         resultStatus.textContent = '';
     }
@@ -4660,7 +4660,7 @@ function showActivityScanResult(data) {
     }, 3000);
 }
 
-// 排序课外活动记录
+// 排序課外活動紀錄
 function sortActivityRecords(field) {
     if (!activityStudentsData.length) return;
 
@@ -4702,7 +4702,7 @@ function sortActivityRecords(field) {
     renderActivityRecords(sorted);
 }
 
-// 修改processCard以支持课外活动
+// 修改 processCard 以支持課外活動
 const originalProcessCard = processCard;
 processCard = async function () {
     if (currentSessionType === 'activity') {
@@ -4711,18 +4711,18 @@ processCard = async function () {
     return originalProcessCard();
 };
 
-// 课外活动拍卡处理
+// 課外活動拍卡處理
 async function processActivityCard() {
     const cardInput = document.getElementById('cardInput');
     const cardId = cardInput.value.trim();
 
     if (!cardId) {
-        showToast('请输入或扫描卡号');
+        showToast('請輸入或掃描卡號');
         return;
     }
 
     if (!currentSessionId) {
-        showToast('请先开始点名会话');
+        showToast('請先開始點名會話');
         return;
     }
 
@@ -4747,15 +4747,15 @@ async function processActivityCard() {
             showActivityScanResult(data);
             loadActivitySessionDetail();
         } else {
-            showToast(data.message || data.detail || '扫描失败');
+            showToast(data.message || data.detail || '掃描失敗');
         }
     } catch (error) {
-        console.error('扫描失败:', error);
-        showToast('扫描失败，请重试');
+        console.error('掃描失敗:', error);
+        showToast('掃描失敗，請重試');
     }
 }
 
-// 修改loadSessionDetail以支持课外活动
+// 修改 loadSessionDetail 以支持課外活動
 const originalLoadSessionDetail = loadSessionDetail;
 loadSessionDetail = async function () {
     if (currentSessionType === 'activity') {
@@ -4764,7 +4764,7 @@ loadSessionDetail = async function () {
     return originalLoadSessionDetail();
 };
 
-// 修改showSessionPanel以支持课外活动
+// 修改showSessionPanel以支持課外活動
 const originalShowSessionPanel = showSessionPanel;
 showSessionPanel = function () {
     if (currentSessionType === 'activity') {
@@ -4773,7 +4773,7 @@ showSessionPanel = function () {
     return originalShowSessionPanel();
 };
 
-// 修改confirmStudentSelection以更新课外活动UI
+// 修改confirmStudentSelection以更新課外活動UI
 const originalConfirmStudentSelection = confirmStudentSelection;
 confirmStudentSelection = function () {
     originalConfirmStudentSelection();
@@ -4783,4 +4783,4 @@ confirmStudentSelection = function () {
     }
 };
 
-console.log('✅ 课外活动功能已加载');
+console.log('✅ 課外活動功能已載入');

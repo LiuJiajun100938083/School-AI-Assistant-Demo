@@ -1,9 +1,9 @@
 /* ============================================================
    Attendance System - Light Theme (Apple Style)
-   完整的浅色主题CSS文件
+   完整的淺色主題CSS檔案
    ============================================================ */
 
-/* ========== 强制浅色模式 ========== */
+/* ========== 強制淺色模式 ========== */
 html {
     color-scheme: light only !important;
 }
@@ -14,7 +14,7 @@ html {
     }
 }
 
-/* ========== 设计系统变量 ========== */
+/* ========== 設計系統變數 ========== */
 :root {
     /* 品牌色 */
     --brand: #006633;
@@ -34,7 +34,7 @@ html {
     --text-tertiary: #86868B;
     --text-placeholder: #AEAEB2;
 
-    /* 边框和分隔线 */
+    /* 邊框和分隔線 */
     --border-default: rgba(0, 0, 0, 0.08);
     --border-color: rgba(0, 0, 0, 0.1);
     --separator: rgba(0, 0, 0, 0.1);
@@ -44,7 +44,7 @@ html {
     --fill-secondary: rgba(0, 0, 0, 0.08);
     --fill-tertiary: rgba(0, 0, 0, 0.04);
 
-    /* iOS系统色（浅色版本）*/
+    /* iOS系統色（淺色版本）*/
     --system-blue: #007AFF;
     --system-green: #34C759;
     --system-orange: #FF9500;
@@ -54,26 +54,26 @@ html {
     --system-teal: #5AC8FA;
     --system-pink: #FF2D55;
 
-    /* 语义化颜色 */
+    /* 語義化顏色 */
     --color-success: #34C759;
     --color-warning: #FF9500;
     --color-error: #FF3B30;
     --color-info: #007AFF;
 
-    /* 强调色 */
+    /* 強調色 */
     --accent-blue: #007AFF;
     --accent-green: #34C759;
     --accent-orange: #FF9500;
     --accent-red: #FF3B30;
     --accent-purple: #AF52DE;
 
-    /* 阴影 */
+    /* 陰影 */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
     --shadow-modal: 0 10px 40px rgba(0, 0, 0, 0.12), 0 2px 10px rgba(0, 0, 0, 0.08);
     --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.08);
 
-    /* 圆角 */
+    /* 圓角 */
     --radius-xs: 4px;
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -81,7 +81,7 @@ html {
     --radius-xl: 20px;
     --radius-full: 9999px;
 
-    /* 动画 */
+    /* 動畫 */
     --duration-fast: 0.15s;
     --duration-base: 0.25s;
     --duration-slow: 0.4s;
@@ -91,19 +91,19 @@ html {
     --apple-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --apple-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
-    /* 间距 */
+    /* 間距 */
     --space-xs: 4px;
     --space-sm: 8px;
     --space-md: 16px;
     --space-lg: 24px;
     --space-xl: 32px;
 
-    /* 布局 */
+    /* 佈局 */
     --header-height: 60px;
     --left-panel-width: 320px;
 }
 
-/* ========== 基础重置 ========== */
+/* ========== 基礎重置 ========== */
 * {
     margin: 0;
     padding: 0;
@@ -126,7 +126,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* ========== 启动画面 ========== */
+/* ========== 啟動畫面 ========== */
 .splash-screen {
     position: fixed;
     top: 0;
@@ -232,13 +232,13 @@ body {
     }
 }
 
-/* ========== 聚光灯效果（移除） ========== */
+/* ========== 聚光燈效果（移除） ========== */
 .spotlight-container,
 .spotlight {
     display: none;
 }
 
-/* ========== 顶部导航 ========== */
+/* ========== 頂部導航 ========== */
 .header {
     position: fixed;
     top: 0;
@@ -310,7 +310,7 @@ body {
     overflow: hidden;
 }
 
-/* ========== 左侧面板 ========== */
+/* ========== 左側面板 ========== */
 .left-panel {
     width: var(--left-panel-width);
     min-width: var(--left-panel-width);
@@ -340,7 +340,7 @@ body {
     margin-bottom: 16px;
 }
 
-/* ========== 类型选择器 ========== */
+/* ========== 類型選擇器 ========== */
 .type-selector {
     display: flex;
     gap: 10px;
@@ -385,7 +385,7 @@ body {
     color: var(--system-purple);
 }
 
-/* ========== 日期输入 ========== */
+/* ========== 日期輸入 ========== */
 .date-input {
     width: 100%;
     padding: 12px 16px;
@@ -403,7 +403,7 @@ body {
     box-shadow: 0 0 0 3px var(--brand-light);
 }
 
-/* ========== 固定名单选择器 ========== */
+/* ========== 固定名單選擇器 ========== */
 .fixed-list-selector {
     padding: 16px 20px;
     border-bottom: 1px solid var(--border-default);
@@ -469,7 +469,7 @@ body {
     color: var(--system-red);
 }
 
-/* ========== 左侧面板底部 ========== */
+/* ========== 左側面板底部 ========== */
 .panel-footer {
     margin-top: auto;
     padding: 16px 20px;
@@ -563,7 +563,7 @@ body {
     transform: scale(0.98);
 }
 
-/* ========== 左侧面板切换按钮 ========== */
+/* ========== 左側面板切換按鈕 ========== */
 .panel-toggle-btn {
     position: fixed;
     left: var(--left-panel-width);
@@ -604,7 +604,7 @@ body {
     transform: rotate(180deg);
 }
 
-/* ========== 右侧面板 ========== */
+/* ========== 右側面板 ========== */
 .right-panel {
     flex: 1;
     display: flex;
@@ -614,7 +614,7 @@ body {
     min-height: 0;
 }
 
-/* ========== 无会话提示 ========== */
+/* ========== 無會話提示 ========== */
 .no-session {
     flex: 1;
     display: flex;
@@ -635,7 +635,7 @@ body {
     color: var(--text-tertiary);
 }
 
-/* ========== 签到区域 ========== */
+/* ========== 簽到區域 ========== */
 .scan-section {
     padding: 24px;
     background: var(--bg-card);
@@ -669,7 +669,7 @@ body {
     font-weight: 600;
     color: var(--text-primary);
     text-align: center;
-    margin-bottom: 36px; /* 增加下边距，为提示标签留出空间 */
+    margin-bottom: 36px; /* 增加下邊距，為提示標籤留出空間 */
 }
 
 .scan-input-container {
@@ -680,7 +680,7 @@ body {
     position: relative;
 }
 
-/* 扫卡输入框 - 增强视觉提示 */
+/* 掃卡輸入框 - 增強視覺提示 */
 .scan-input {
     flex: 1;
     padding: 16px 20px 16px 50px;
@@ -693,7 +693,7 @@ body {
     transition: all var(--duration-base) var(--ease-out);
 }
 
-/* 聚焦时才显示脉冲动画 */
+/* 聚焦時才顯示脈衝動畫 */
 .scan-input:focus {
     outline: none;
     border-color: var(--brand);
@@ -702,7 +702,7 @@ body {
     animation: scanPulse 1.5s ease-in-out infinite;
 }
 
-/* 脉冲动画 - 聚焦时吸引注意力 */
+/* 脈衝動畫 - 聚焦時吸引注意力 */
 @keyframes scanPulse {
     0%, 100% {
         box-shadow: 0 0 0 4px rgba(0, 102, 51, 0.15);
@@ -717,7 +717,7 @@ body {
     font-weight: 400;
 }
 
-/* 卡片图标 */
+/* 卡片圖示 */
 .scan-input-container::before {
     content: "💳";
     position: absolute;
@@ -729,7 +729,7 @@ body {
     transition: transform 0.3s var(--ease-out);
 }
 
-/* 聚焦时卡片图标跳动 */
+/* 聚焦時卡片圖示跳動 */
 .scan-input-container:focus-within::before {
     animation: cardBounce 1s ease-in-out infinite;
 }
@@ -808,7 +808,7 @@ body {
     display: inline-block;
 }
 
-/* ========== 签到记录区域 ========== */
+/* ========== 簽到紀錄區域 ========== */
 .records-table-container {
     flex: 1;
     overflow: auto;
@@ -818,7 +818,7 @@ body {
     min-height: 0;
 }
 
-/* ========== 签到记录区域 ========== */
+/* ========== 簽到紀錄區域 ========== */
 .records-section {
     flex: 1;
     display: flex;
@@ -992,7 +992,7 @@ body {
     border-bottom: none;
 }
 
-/* 紧凑模式 */
+/* 緊湊模式 */
 .compact-mode .records-table th,
 .compact-mode .records-table td {
     padding: 10px 14px;
@@ -1002,7 +1002,7 @@ body {
     display: none;
 }
 
-/* ========== 状态徽章 ========== */
+/* ========== 狀態徽章 ========== */
 .status-badge {
     display: inline-block;
     padding: 5px 12px;
@@ -1049,7 +1049,7 @@ body {
     color: var(--system-orange);
 }
 
-/* ========== 倒计时单元格 ========== */
+/* ========== 倒計時單元格 ========== */
 .countdown-cell {
     font-weight: 600;
     font-variant-numeric: tabular-nums;
@@ -1072,7 +1072,7 @@ body {
     font-weight: 700;
 }
 
-/* ========== 操作按钮 ========== */
+/* ========== 操作按鈕 ========== */
 .action-btn-small {
     padding: 8px 14px;
     border: none;
@@ -1106,7 +1106,7 @@ body {
     background: var(--fill-secondary);
 }
 
-/* ========== 底部工具栏 ========== */
+/* ========== 底部工具列 ========== */
 .bottom-toolbar {
     display: flex;
     justify-content: space-between;
@@ -1124,7 +1124,7 @@ body {
     gap: 10px;
 }
 
-/* ========== Apple 风格按钮系统 ========== */
+/* ========== Apple 風格按鈕系統 ========== */
 .toolbar-btn {
     padding: 10px 18px;
     border-radius: 20px;
@@ -1138,7 +1138,7 @@ body {
     letter-spacing: -0.1px;
 }
 
-/* Secondary 按钮 - 导出Excel */
+/* Secondary 按鈕 - 匯出Excel */
 .toolbar-btn.export {
     background: transparent;
     color: var(--text-secondary);
@@ -1157,7 +1157,7 @@ body {
     background: var(--fill-secondary);
 }
 
-/* Destructive 按钮 - 结束点名（克制的危险感）*/
+/* Destructive 按鈕 - 結束點名（克制的危險感）*/
 .toolbar-btn.end {
     background: transparent;
     color: var(--system-red);
@@ -1174,14 +1174,14 @@ body {
     background: rgba(255, 59, 48, 0.12);
 }
 
-/* 禁用态 */
+/* 禁用態 */
 .toolbar-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
     transform: none !important;
 }
 
-/* ========== 通用模态框样式 ========== */
+/* ========== 通用模態框樣式 ========== */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -1285,7 +1285,7 @@ body {
     filter: brightness(1.1);
 }
 
-/* ========== 手动签到模态框 ========== */
+/* ========== 手動簽到模態框 ========== */
 .manual-scan-modal {
     position: fixed;
     top: 0;
@@ -1433,7 +1433,7 @@ body {
     cursor: not-allowed;
 }
 
-/* ========== 结束点名模态框 ========== */
+/* ========== 結束點名模態框 ========== */
 .end-session-modal {
     display: none;
     position: fixed;
@@ -1610,7 +1610,7 @@ body {
     background: rgba(255, 59, 48, 0.1);
 }
 
-/* ========== 历史记录面板 ========== */
+/* ========== 歷史紀錄面板 ========== */
 .exports-panel {
     display: none;
     position: fixed;
@@ -1899,7 +1899,7 @@ body {
     color: var(--text-tertiary);
 }
 
-/* ========== 留堂节数选择模态框 ========== */
+/* ========== 留堂節數選擇模態框 ========== */
 .periods-modal {
     display: none;
     position: fixed;
@@ -1958,7 +1958,7 @@ body {
     margin-bottom: 12px;
 }
 
-/* 留堂原因选择 */
+/* 留堂原因選擇 */
 .detention-reason-options {
     display: flex;
     gap: 10px;
@@ -1998,7 +1998,7 @@ body {
     border-radius: var(--radius-sm);
 }
 
-/* 节数选项 */
+/* 節數選項 */
 .periods-options {
     display: flex;
     flex-direction: column;
@@ -2045,7 +2045,7 @@ body {
     color: var(--system-blue);
 }
 
-/* 分钟数输入 */
+/* 分鐘數輸入 */
 .minutes-input-row {
     display: flex;
     align-items: center;
@@ -2137,7 +2137,7 @@ body {
     background: rgba(255, 59, 48, 0.1);
 }
 
-/* ========== 离开确认弹窗 ========== */
+/* ========== 離開確認彈窗 ========== */
 .leave-confirm-info {
     background: var(--fill-tertiary);
     border-radius: var(--radius-md);
@@ -2195,7 +2195,7 @@ body {
     filter: brightness(1.1);
 }
 
-/* ========== 签到通知卡片 ========== */
+/* ========== 簽到通知卡片 ========== */
 .scan-notification-overlay {
     position: fixed;
     top: 0;
@@ -2234,16 +2234,16 @@ body {
     pointer-events: auto;
     position: relative;
 
-    /* 浅色玻璃效果 */
+    /* 淺色玻璃效果 */
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
 
-    /* 边框和阴影 */
+    /* 邊框和陰影 */
     border: 1px solid var(--border-default);
     box-shadow: var(--shadow-modal);
 
-    /* 初始状态 */
+    /* 初始狀態 */
     opacity: 0;
     transform: scale(0.8) translateY(20px);
     visibility: hidden;
@@ -2264,7 +2264,7 @@ body {
     transform: scale(0.9) translateY(-10px);
 }
 
-/* 状态指示条 */
+/* 狀態指示條 */
 .scan-notification-card::before {
     content: '';
     position: absolute;
@@ -2443,7 +2443,7 @@ body {
     border-left: 4px solid var(--system-orange);
 }
 
-/* ========== 学生选择模态框 ========== */
+/* ========== 學生選擇模態框 ========== */
 .student-select-modal {
     position: fixed;
     top: 0;
@@ -2643,7 +2643,7 @@ body {
     filter: brightness(1.1);
 }
 
-/* ========== 加载状态 ========== */
+/* ========== 載入狀態 ========== */
 .loading {
     display: flex;
     justify-content: center;
@@ -2666,7 +2666,7 @@ body {
     }
 }
 
-/* ========== 修改留堂设置 Tab ========== */
+/* ========== 修改留堂設定 Tab ========== */
 .modify-tabs {
     display: flex;
     gap: 8px;
@@ -2698,7 +2698,7 @@ body {
     display: block;
 }
 
-/* ========== 空状态 ========== */
+/* ========== 空狀態 ========== */
 .empty-state {
     display: flex;
     flex-direction: column;
@@ -2718,7 +2718,7 @@ body {
     font-size: 14px;
 }
 
-/* ========== 筛选区域 ========== */
+/* ========== 篩選區域 ========== */
 .filter-section {
     padding: 16px 20px;
     border-bottom: 1px solid var(--border-default);
@@ -2742,7 +2742,7 @@ body {
     border-color: var(--brand);
 }
 
-/* ========== 历史按钮 ========== */
+/* ========== 歷史按鈕 ========== */
 .history-btn {
     width: 100%;
     padding: 14px;
@@ -2765,9 +2765,9 @@ body {
     background: var(--fill-secondary);
 }
 
-/* ========== 响应式设计 ========== */
+/* ========== 響應式設計 ========== */
 
-/* iPad横屏 */
+/* iPad橫屏 */
 @media screen and (max-width: 1024px) {
     :root {
         --left-panel-width: 280px;
@@ -2782,7 +2782,7 @@ body {
     }
 }
 
-/* iPad竖屏及小屏幕 */
+/* iPad直屏及小螢幕 */
 @media screen and (max-width: 768px) {
     :root {
         --left-panel-width: 260px;
@@ -2882,7 +2882,7 @@ body {
     }
 }
 
-/* 手机屏幕 */
+/* 手機螢幕 */
 @media screen and (max-width: 480px) {
     :root {
         --header-height: 52px;
@@ -2974,7 +2974,7 @@ body {
     }
 }
 
-/* 触摸设备优化 */
+/* 觸摸設備優化 */
 @media (hover: none) and (pointer: coarse) {
     .footer-btn,
     .toolbar-btn,
@@ -2994,7 +2994,7 @@ body {
     }
 }
 
-/* ========== 打印样式 ========== */
+/* ========== 列印樣式 ========== */
 @media print {
     body {
         background: white;
@@ -3045,7 +3045,7 @@ body {
     }
 }
 
-/* ========== 深色模式覆盖（强制浅色）========== */
+/* ========== 深色模式覆蓋（強制淺色）========== */
 @media (prefers-color-scheme: dark) {
     :root {
         color-scheme: light only;
@@ -3057,7 +3057,7 @@ body {
     }
 }
 
-/* ========== 可访问性 ========== */
+/* ========== 可存取性 ========== */
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -3068,7 +3068,7 @@ body {
     }
 }
 
-/* Focus样式 */
+/* Focus樣式 */
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -3077,7 +3077,7 @@ textarea:focus-visible {
     outline-offset: 2px;
 }
 
-/* ========== Safari兼容性 ========== */
+/* ========== Safari相容性 ========== */
 @supports (-webkit-touch-callout: none) {
     .main-container {
         height: calc(var(--app-height, 100vh) - var(--header-height));
@@ -3088,7 +3088,7 @@ textarea:focus-visible {
     }
 }
 
-/* ========== 滚动条美化 ========== */
+/* ========== 捲軸美化 ========== */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -3107,13 +3107,13 @@ textarea:focus-visible {
     background: var(--text-tertiary);
 }
 
-/* ========== 选中文本 ========== */
+/* ========== 選中文字 ========== */
 ::selection {
     background: var(--brand-light);
     color: var(--brand-dark);
 }
 
-/* ========== 新记录动画 ========== */
+/* ========== 新紀錄動畫 ========== */
 .records-table tbody tr.new-record {
     animation: row-highlight 2s var(--ease-out);
 }
@@ -3127,7 +3127,7 @@ textarea:focus-visible {
     }
 }
 
-/* ========== 留堂操作按钮（修改/离开） ========== */
+/* ========== 留堂操作按鈕（修改/離開） ========== */
 .modify-btn,
 .leave-btn {
     padding: 6px 12px;
@@ -3168,7 +3168,7 @@ textarea:focus-visible {
     transform: scale(0.98);
 }
 
-/* 深色模式适配 */
+/* 深色模式適配 */
 @media (prefers-color-scheme: dark) {
     .modify-btn {
         background: rgba(10, 132, 255, 0.15);
@@ -3189,7 +3189,7 @@ textarea:focus-visible {
     }
 }
 
-/* ========== 修改留堂设置 - 指定时间面板 ========== */
+/* ========== 修改留堂設定 - 指定時間面板 ========== */
 .modify-time-row {
     display: flex;
     justify-content: space-between;
@@ -3258,7 +3258,7 @@ textarea:focus-visible {
     cursor: not-allowed;
 }
 
-/* 修改面板内容区域 */
+/* 修改面板內容區域 */
 .modify-panel {
     padding: 10px 0;
 }
@@ -3271,31 +3271,31 @@ textarea:focus-visible {
 
 .records-table-container {
     flex: 1;
-    overflow: auto; /* 改为 auto，支持水平和垂直滚动 */
+    overflow: auto; /* 改為 auto，支援水平和垂直捲動 */
     background: var(--bg-card);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-card);
-    min-height: 0; /* 新增：允许flex子元素收缩 */
+    min-height: 0; /* 新增：允許flex子元素收縮 */
 }
 
-/* ========== 留堂表格列宽优化 ========== */
+/* ========== 留堂表格列寬優化 ========== */
 .records-table.detention {
-    min-width: 900px; /* 设置最小宽度，防止列被挤压 */
+    min-width: 900px; /* 設定最小寬度，防止列被擠壓 */
 }
 
 .records-table.detention th,
 .records-table.detention td {
-    padding: 10px 12px; /* 稍微减小内边距 */
+    padding: 10px 12px; /* 稍微減小內邊距 */
     white-space: nowrap;
 }
 
-/* 留堂表格各列宽度 */
+/* 留堂表格各列寬度 */
 .records-table.detention th:nth-child(1),
 .records-table.detention td:nth-child(1) {
     min-width: 70px;
 }
 
-/* 班级 */
+/* 班級 */
 
 .records-table.detention th:nth-child(2),
 .records-table.detention td:nth-child(2) {
@@ -3316,42 +3316,42 @@ textarea:focus-visible {
     min-width: 50px;
 }
 
-/* 签到 */
+/* 簽到 */
 
 .records-table.detention th:nth-child(5),
 .records-table.detention td:nth-child(5) {
     min-width: 50px;
 }
 
-/* 签退 */
+/* 簽退 */
 
 .records-table.detention th:nth-child(6),
 .records-table.detention td:nth-child(6) {
     min-width: 50px;
 }
 
-/* 计划 */
+/* 計劃 */
 
 .records-table.detention th:nth-child(7),
 .records-table.detention td:nth-child(7) {
     min-width: 90px;
 }
 
-/* 预计结束时间 */
+/* 預計結束時間 */
 
 .records-table.detention th:nth-child(8),
 .records-table.detention td:nth-child(8) {
     min-width: 80px;
 }
 
-/* 剩余/实际 */
+/* 剩餘/實際 */
 
 .records-table.detention th:nth-child(9),
 .records-table.detention td:nth-child(9) {
     min-width: 60px;
 }
 
-/* 状态 */
+/* 狀態 */
 
 .records-table.detention th:nth-child(10),
 .records-table.detention td:nth-child(10) {
@@ -3361,7 +3361,7 @@ textarea:focus-visible {
 /* 操作 */
 
 
-/* ========== Session Panel 布局 ========== */
+/* ========== Session Panel 佈局 ========== */
 #sessionPanel {
     flex: 1;
     display: flex;
@@ -3375,7 +3375,7 @@ textarea:focus-visible {
 }
 
 
-/* Tertiary 按钮 - 顶部轻量操作（如上传学生）*/
+/* Tertiary 按鈕 - 頂部輕量操作（如上傳學生）*/
 .header-action-btn {
     padding: 7px 14px;
     background: transparent;
@@ -3403,11 +3403,11 @@ textarea:focus-visible {
 }
 
 /* ============================================================
-   课外活动点名样式
+   課外活動點名樣式
    ============================================================ */
 
-/* 课外活动按钮样式 - 统一设计风格 */
-/* 默认状态继承 .type-btn 基础样式，无需重复定义 */
+/* 課外活動按鈕樣式 - 統一設計風格 */
+/* 預設狀態繼承 .type-btn 基礎樣式，無需重複定義 */
 
 .type-btn.activity.active {
     border-color: var(--system-purple);
@@ -3415,7 +3415,7 @@ textarea:focus-visible {
     color: var(--system-purple);
 }
 
-/* 课外活动配置区域 */
+/* 課外活動配置區域 */
 .activity-config-section {
     padding: 16px;
     border-top: 1px solid var(--border-default);
@@ -3473,7 +3473,7 @@ textarea:focus-visible {
     box-shadow: 0 0 0 3px rgba(175, 82, 222, 0.15);
 }
 
-/* 固定组别区域 */
+/* 固定組別區域 */
 .activity-groups {
     display: flex;
     flex-wrap: wrap;
@@ -3541,7 +3541,7 @@ textarea:focus-visible {
     font-style: italic;
 }
 
-/* 课外活动选择学生按钮 - Apple 风格扁平设计 */
+/* 課外活動選擇學生按鈕 - Apple 風格扁平設計 */
 .activity-select-btn {
     width: 100%;
     padding: 14px 16px;
@@ -3570,7 +3570,7 @@ textarea:focus-visible {
     background: rgba(175, 82, 222, 0.2);
 }
 
-/* 已选择学生后的状态 */
+/* 已選擇學生後的狀態 */
 .activity-select-btn.has-selection {
     background: rgba(52, 199, 89, 0.08);
     border-color: var(--system-green);
@@ -3585,7 +3585,7 @@ textarea:focus-visible {
 .activity-select-btn.has-selection:active {
     background: rgba(52, 199, 89, 0.2);
 }
-/* 课外活动已选人数 */
+/* 課外活動已選人數 */
 .activity-selected-count {
     text-align: center;
     padding: 10px;
@@ -3601,7 +3601,7 @@ textarea:focus-visible {
     color: #AF52DE;
 }
 
-/* 课外活动统计样式 */
+/* 課外活動統計樣式 */
 #activityStats .stat-item.early-leave {
     color: var(--accent-orange);
 }
@@ -3615,7 +3615,7 @@ textarea:focus-visible {
     margin: 0 4px;
 }
 
-/* 课外活动记录表格特殊样式 */
+/* 課外活動記錄表格特殊樣式 */
 #activityRecordsTable .checkout-btn {
     padding: 6px 12px;
     background: #AF52DE;
@@ -3640,7 +3640,7 @@ textarea:focus-visible {
     transform: none;
 }
 
-/* 签到/签退状态标签 */
+/* 簽到/簽退狀態標籤 */
 .status-badge.on_time,
 .status-badge.normal-leave {
     background: rgba(52, 199, 89, 0.15);
@@ -3663,7 +3663,7 @@ textarea:focus-visible {
     color: var(--text-tertiary);
 }
 
-/* 固定组别管理模态框 */
+/* 固定組別管理模態框 */
 .activity-group-modal {
     position: fixed;
     top: 0;
@@ -3730,7 +3730,7 @@ textarea:focus-visible {
     background: var(--bg-tertiary);
 }
 
-/* 创建组别区域 */
+/* 建立組別區域 */
 .create-group-section {
     display: flex;
     gap: 12px;
@@ -3767,7 +3767,7 @@ textarea:focus-visible {
     background: #9B45C7;
 }
 
-/* 组别列表项 */
+/* 組別列表項 */
 .group-list-item {
     display: flex;
     justify-content: space-between;
@@ -3836,7 +3836,7 @@ textarea:focus-visible {
     color: white;
 }
 
-/* 签退确认弹窗 */
+/* 簽退確認彈窗 */
 .checkout-confirm-modal {
     position: fixed;
     top: 0;
