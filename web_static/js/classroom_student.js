@@ -86,6 +86,31 @@ const ClassroomStudentAPI = {
 
         const blob = await response.blob();
         return URL.createObjectURL(blob);
+    },
+
+    /**
+     * Classroom AI streaming chat (returns raw Response for SSE parsing).
+     * @param {string} roomId
+     * @param {string} message
+     * @param {string} fileId
+     * @param {number} pageNumber
+     * @param {string|null} conversationId
+     * @returns {Promise<Response>}
+     */
+    async classroomAIStream(roomId, message, fileId, pageNumber, conversationId) {
+        return fetch(`/api/classroom/rooms/${roomId}/ai/stream`, {
+            method: 'POST',
+            headers: {
+                ...AuthModule.getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message,
+                file_id: fileId,
+                page_number: pageNumber,
+                conversation_id: conversationId || undefined
+            })
+        });
     }
 };
 
@@ -250,7 +275,11 @@ const ClassroomStudentApp = {
         fatalError: false,
         heartbeatTimer: null,
         pingTimer: null,
-        reconnectTimer: null
+        reconnectTimer: null,
+        // AI Chat state
+        aiConversationId: null,
+        aiIsStreaming: false,
+        aiCurrentPageText: null
     },
 
     // ---- Initialization ----
@@ -528,13 +557,16 @@ const ClassroomStudentApp = {
 
     async _handlePagePushed(data) {
         try {
-            const { page_id, page_number, annotations_json } = data;
+            const { page_id, page_number, annotations_json, text_content } = data;
             // page_id is the file_id (teacher sends currentFileId as page_id)
             const file_id = page_id;
 
             this.state.currentPageNumber = page_number;
             this.state.currentFileId = file_id;
             this.state.currentAnnotations = annotations_json;
+
+            // Cache page text content for AI context
+            this.state.aiCurrentPageText = text_content || null;
 
             // Update page number display
             ClassroomStudentUI.updatePageNumber(page_number);
@@ -552,6 +584,9 @@ const ClassroomStudentApp = {
             } else {
                 ClassroomStudentUI.clearAnnotations(this.state.fabricCanvas);
             }
+
+            // Notify AI panel about page change
+            this._renderAISystemMessage(`老师已翻到第 ${page_number} 页`);
 
             UIModule.toast(`已接收到第 ${page_number} 页`, 'success');
 
@@ -600,7 +635,10 @@ const ClassroomStudentApp = {
         const aiChatInput = document.getElementById('aiChatInput');
 
         aiCircleButton.addEventListener('click', () => {
-            aiChatPanel.classList.toggle('open');
+            const isOpen = aiChatPanel.classList.toggle('open');
+            if (isOpen) {
+                setTimeout(() => aiChatInput.focus(), 100);
+            }
         });
 
         aiChatCloseButton.addEventListener('click', () => {
@@ -612,20 +650,229 @@ const ClassroomStudentApp = {
             e.stopPropagation();
         });
 
-        // Send button (disabled for now)
+        // Send button
         aiChatSendButton.addEventListener('click', () => {
-            if (aiChatInput.value.trim()) {
-                // Future: Send to AI service
-                aiChatInput.value = '';
-            }
+            this._sendAIMessage();
         });
 
+        // Enter key to send
         aiChatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && aiChatInput.value.trim()) {
-                // Future: Send to AI service
-                aiChatInput.value = '';
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._sendAIMessage();
             }
         });
+    },
+
+    /**
+     * Send a message to the classroom AI assistant.
+     */
+    async _sendAIMessage() {
+        const input = document.getElementById('aiChatInput');
+        const sendBtn = document.getElementById('aiChatSendButton');
+        const text = (input.value || '').trim();
+
+        if (!text || this.state.aiIsStreaming) return;
+
+        // Check if there is a current page
+        if (!this.state.currentFileId || !this.state.currentPageNumber) {
+            UIModule.toast('等待老师推送页面后再提问', 'warning');
+            return;
+        }
+
+        // Hide welcome message
+        const welcome = document.getElementById('aiChatWelcome');
+        if (welcome) welcome.style.display = 'none';
+
+        // Clear input
+        input.value = '';
+
+        // Render user message
+        this._renderAIUserMessage(text);
+
+        // Disable input during streaming
+        this.state.aiIsStreaming = true;
+        input.disabled = true;
+        sendBtn.disabled = true;
+
+        // Show typing indicator
+        this._showAITypingIndicator();
+
+        try {
+            const response = await ClassroomStudentAPI.classroomAIStream(
+                this.state.roomId,
+                text,
+                this.state.currentFileId,
+                this.state.currentPageNumber,
+                this.state.aiConversationId
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            // Remove typing indicator and create AI bubble
+            this._removeAITypingIndicator();
+            const aiBubbleContent = this._createAIMessageBubble();
+
+            // Parse SSE stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete SSE events
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';  // Keep incomplete line in buffer
+
+                let eventType = '';
+                for (const line of lines) {
+                    if (line.startsWith('event: ')) {
+                        eventType = line.slice(7).trim();
+                    } else if (line.startsWith('data: ')) {
+                        const dataStr = line.slice(6);
+                        try {
+                            const data = JSON.parse(dataStr);
+                            this._handleSSEEvent(eventType, data, aiBubbleContent);
+                        } catch (e) {
+                            // Ignore parse errors for incomplete chunks
+                        }
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('AI stream error:', error);
+            this._removeAITypingIndicator();
+            this._renderAIErrorMessage('AI 服务暂时不可用，请稍后再试');
+        } finally {
+            // Re-enable input
+            this.state.aiIsStreaming = false;
+            input.disabled = false;
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    },
+
+    /**
+     * Handle a parsed SSE event from the AI stream.
+     */
+    _handleSSEEvent(eventType, data, aiBubbleContent) {
+        switch (eventType) {
+            case 'meta':
+                if (data.conversation_id) {
+                    this.state.aiConversationId = data.conversation_id;
+                }
+                break;
+
+            case 'answer':
+                if (data.content && aiBubbleContent) {
+                    aiBubbleContent.textContent += data.content;
+                    this._scrollAIChatToBottom();
+                }
+                break;
+
+            case 'done':
+                // Stream complete
+                this._scrollAIChatToBottom();
+                break;
+
+            case 'error':
+                if (aiBubbleContent) {
+                    aiBubbleContent.textContent = data.message || 'AI 回复出错';
+                    aiBubbleContent.style.color = 'var(--color-danger)';
+                }
+                break;
+        }
+    },
+
+    // ---- AI Chat UI Helpers ----
+
+    _renderAIUserMessage(text) {
+        const container = document.getElementById('aiChatContent');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ai-chat-msg user';
+
+        const content = document.createElement('div');
+        content.className = 'ai-chat-msg-content';
+        content.textContent = text;
+
+        msgDiv.appendChild(content);
+        container.appendChild(msgDiv);
+        this._scrollAIChatToBottom();
+    },
+
+    _createAIMessageBubble() {
+        const container = document.getElementById('aiChatContent');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ai-chat-msg ai';
+
+        const content = document.createElement('div');
+        content.className = 'ai-chat-msg-content';
+        content.textContent = '';
+
+        msgDiv.appendChild(content);
+        container.appendChild(msgDiv);
+        this._scrollAIChatToBottom();
+        return content;
+    },
+
+    _renderAIErrorMessage(text) {
+        const container = document.getElementById('aiChatContent');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ai-chat-msg ai';
+
+        const content = document.createElement('div');
+        content.className = 'ai-chat-msg-content';
+        content.textContent = text;
+        content.style.color = 'var(--color-danger)';
+
+        msgDiv.appendChild(content);
+        container.appendChild(msgDiv);
+        this._scrollAIChatToBottom();
+    },
+
+    _renderAISystemMessage(text) {
+        const container = document.getElementById('aiChatContent');
+        if (!container) return;
+
+        // Don't render system message if welcome is still showing
+        const welcome = document.getElementById('aiChatWelcome');
+        if (welcome && welcome.style.display !== 'none') return;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ai-chat-system-msg';
+        msgDiv.textContent = text;
+
+        container.appendChild(msgDiv);
+        this._scrollAIChatToBottom();
+    },
+
+    _showAITypingIndicator() {
+        const container = document.getElementById('aiChatContent');
+        const indicator = document.createElement('div');
+        indicator.className = 'ai-typing-indicator';
+        indicator.id = 'aiTypingIndicator';
+        indicator.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+        container.appendChild(indicator);
+        this._scrollAIChatToBottom();
+    },
+
+    _removeAITypingIndicator() {
+        const indicator = document.getElementById('aiTypingIndicator');
+        if (indicator) indicator.remove();
+    },
+
+    _scrollAIChatToBottom() {
+        const container = document.getElementById('aiChatContent');
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     },
 
     // ---- Event Listeners ----

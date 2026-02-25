@@ -11,6 +11,34 @@
 
 ---
 
+## [v3.0.13] [2026-02-25] 学生端课堂 AI 助手 — 基于 PPT 内容的流式问答
+
+### 新增
+
+- **课堂 AI 流式端点** — `POST /api/classroom/rooms/{room_id}/ai/stream`，SSE 流式输出，严格基于 PPT 课件内容回答学生提问
+- **PPT 上下文提取** — AI 提问时自动提取当前页 ± 前后各 1 页的 PPT 文字作为知识上下文
+- **限定 system prompt** — AI 只回答课件相关问题，课件中没有的信息明确告知学生
+- **对话连续性** — 基于 `conversation_id` 维持多轮对话，历史消息持久化到 `chat_messages` 表
+- **学生端 AI 面板** — 浮动 🤖 按钮打开侧边聊天面板，支持实时流式输出
+- **消息气泡 UI** — 用户消息（右侧品牌绿）/ AI 消息（左侧浅灰）/ 系统消息（居中）/ 打字指示器（三点脉冲）
+- **翻页通知** — 老师翻页时 AI 面板自动插入"老师已翻到第 X 页"系统提示
+
+### 修改
+
+- **page_pushed 广播增加 text_content** — HTTP push / WS push / get_latest_push 三处广播均携带页面文字，学生端缓存避免额外请求
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/routers/classroom.py` | 新增 AI 流式端点 + 3 处广播加 text_content |
+| `app/domains/classroom/service.py` | push_page 返回值增加 text_content |
+| `web_static/classroom_student.html` | AI 面板 HTML 重构（欢迎信息 + 启用输入框） |
+| `web_static/css/classroom_student.css` | 消息气泡 / 打字指示器 / 系统消息样式 |
+| `web_static/js/classroom_student.js` | AI API 方法 + SSE 流式解析 + 消息渲染 + 翻页通知 |
+
+---
+
 ## [v3.0.12] [2026-02-25] 课堂创建允许空班级 + 缩略图加载优化
 
 ### 修复

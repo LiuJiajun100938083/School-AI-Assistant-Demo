@@ -835,6 +835,7 @@ class ClassroomService:
             "page_number": page_number,
             "annotations_json": annotations_json,
             "pushed_at": now,
+            "text_content": page.get("text_content", ""),
         }
 
     def get_latest_push(

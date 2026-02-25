@@ -75,15 +75,18 @@
     <!-- AI Chat Panel -->
     <div class="ai-chat-panel" id="aiChatPanel">
         <div class="ai-chat-header">
-            <div class="ai-chat-title">AI 助手</div>
+            <div class="ai-chat-title">AI 课件助手</div>
             <button class="ai-chat-close-button" id="aiChatCloseButton">✕</button>
         </div>
-        <div class="ai-chat-content">
-            <div class="ai-chat-message">AI 助手功能将在后续版本中启用</div>
+        <div class="ai-chat-content" id="aiChatContent">
+            <div class="ai-chat-welcome" id="aiChatWelcome">
+                <div class="ai-chat-welcome-icon">🤖</div>
+                <div class="ai-chat-welcome-text">我是课堂 AI 助手，可以帮你理解当前课件内容。试试问我问题吧！</div>
+            </div>
         </div>
         <div class="ai-chat-input-wrapper">
-            <input type="text" class="ai-chat-input" id="aiChatInput" placeholder="输入问题..." disabled>
-            <button class="ai-chat-send-button" id="aiChatSendButton" disabled>→</button>
+            <input type="text" class="ai-chat-input" id="aiChatInput" placeholder="对当前课件内容提问...">
+            <button class="ai-chat-send-button" id="aiChatSendButton">→</button>
         </div>
     </div>
 

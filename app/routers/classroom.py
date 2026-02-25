@@ -32,6 +32,9 @@ PPT 管理 (教师):
   GET    /api/classroom/rooms/{room_id}/push/latest  最新推送
   GET    /api/classroom/rooms/{room_id}/push/history 推送历史
 
+AI 助手:
+  POST   /api/classroom/rooms/{room_id}/ai/stream  课堂 AI 流式问答
+
 实时通信:
   WS     /ws/classroom/{room_id}                 课堂 WebSocket
 """
@@ -48,11 +51,12 @@ from fastapi import (
     Depends,
     File,
     Query,
+    Request,
     UploadFile,
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.core.dependencies import get_current_user, require_teacher, verify_token
 from app.core.exceptions import AppException
@@ -616,6 +620,7 @@ async def push_page(
             "page_id": result["page_id"],
             "page_number": result["page_number"],
             "annotations_json": result.get("annotations_json", ""),
+            "text_content": result.get("text_content", ""),
             "pushed_at": result["pushed_at"].isoformat()
             if result.get("pushed_at") else "",
         })
@@ -686,6 +691,239 @@ async def get_push_history(
     except Exception as e:
         logger.error("获取推送历史失败: %s", e, exc_info=True)
         return error_response("SERVER_ERROR", "获取推送历史失败", status_code=500)
+
+
+# ====================================================================== #
+#  课堂 AI 助手                                                             #
+# ====================================================================== #
+
+@router.post("/api/classroom/rooms/{room_id}/ai/stream")
+async def classroom_ai_stream(
+    room_id: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    """
+    课堂 AI 助手 — 基于 PPT 内容的流式问答 (SSE)
+
+    学生在课堂中向 AI 提问，AI 严格基于当前 PPT 课件内容回答。
+
+    Request body:
+        message: str          — 学生提问
+        file_id: str          — 当前 PPT 文件 ID
+        page_number: int      — 当前页码
+        conversation_id: str? — 对话 ID (可选, 首次留空自动创建)
+
+    SSE 事件格式 (与 /api/chat/stream 一致):
+        event: meta    data: {"conversation_id": ..., "model": ...}
+        event: answer  data: {"content": "..."}
+        event: done    data: {"full_answer": ..., "conversation_id": ...}
+        event: error   data: {"message": "..."}
+    """
+    from datetime import datetime
+    from uuid import uuid4
+
+    from fastapi.responses import StreamingResponse
+
+    from llm.providers.ollama import get_ollama_provider
+    from llm.rag.context import build_prompt_context
+    from llm.prompts.templates import apply_thinking_mode
+    from llm.parsers.thinking_parser import StreamingThinkingParser
+
+    def sse_event(event_type: str, data: dict) -> str:
+        return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    try:
+        body = await request.json()
+        message = (body.get("message") or "").strip()
+        file_id = body.get("file_id", "")
+        page_number = body.get("page_number", 0)
+        conversation_id = body.get("conversation_id")
+
+        if not message:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": {"message": "消息不能为空"}},
+            )
+
+        username = user["username"]
+        role = user["role"]
+
+        # ---- 1. 验证房间访问权限 ----
+        loop = asyncio.get_event_loop()
+        room = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom._room_repo.get_by_room_id(room_id),
+        )
+        if not room:
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "error": {"message": "课室不存在"}},
+            )
+
+        # ---- 2. 提取 PPT 页面文字内容 (当前页 + 前后各 1 页) ----
+        ppt_context_parts = []
+        if file_id:
+            for pn in [page_number - 1, page_number, page_number + 1]:
+                if pn < 1:
+                    continue
+                try:
+                    text = await loop.run_in_executor(
+                        None,
+                        lambda pn=pn: get_services().classroom.get_page_text(
+                            file_id=file_id,
+                            page_number=pn,
+                            current_username=username,
+                            current_role=role,
+                        ),
+                    )
+                    if text and text.strip():
+                        label = "【当前页】" if pn == page_number else f"【第{pn}页】"
+                        ppt_context_parts.append(f"{label}\n{text.strip()}")
+                except Exception:
+                    pass  # 页面不存在则跳过
+
+        ppt_context = "\n\n".join(ppt_context_parts) if ppt_context_parts else ""
+
+        # ---- 3. 构建限定 system prompt ----
+        system_prompt = (
+            "你是课堂 AI 助手。学生正在观看老师上课的 PPT 演示。\n"
+            "请严格基于以下 PPT 课件内容回答学生的问题。\n"
+            "如果 PPT 内容中没有相关信息，请明确告知学生「这个问题在当前课件中没有涉及」。\n"
+            "不要编造或补充课件之外的内容。\n"
+            "回答要简洁明了，适合课堂学习场景。"
+        )
+
+        # ---- 4. 加载对话历史 (如有) ----
+        conversation_history = []
+        if conversation_id:
+            try:
+                from app.domains.chat.repository import MessageRepository
+                msg_repo = MessageRepository()
+                history_rows = msg_repo.get_conversation_history(
+                    conversation_id, limit=10,
+                )
+                for row in history_rows:
+                    r = row.get("role", "")
+                    c = row.get("content", "")
+                    if r in ("user", "assistant") and c:
+                        conversation_history.append({"role": r, "content": c})
+            except Exception as e:
+                logger.warning("加载对话历史失败: %s", e)
+
+        # ---- 5. 构建完整 prompt ----
+        prompt = build_prompt_context(
+            question=message,
+            system_prompt=system_prompt,
+            kb_context=ppt_context,
+            conversation_history=conversation_history,
+        )
+        thinking_prompt = apply_thinking_mode(prompt, task_type="no_think")
+
+        # ---- 6. 生成对话 ID ----
+        if not conversation_id:
+            conversation_id = str(uuid4())
+
+        # ---- 7. 保存用户消息 ----
+        try:
+            from app.domains.chat.repository import (
+                ConversationRepository,
+                MessageRepository,
+            )
+            conv_repo = ConversationRepository()
+            msg_repo = MessageRepository()
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # 确保对话存在
+            conv_repo.create_conversation(
+                username=username,
+                conversation_id=conversation_id,
+                title=message[:50],
+                subject="classroom_ai",
+            )
+            msg_repo.save_message(
+                conversation_id, "user", message, None, None, timestamp,
+            )
+        except Exception as e:
+            logger.warning("保存用户消息失败: %s", e)
+
+        # ---- 8. 流式生成 ----
+        from llm.config import get_llm_config
+
+        llm_config = get_llm_config()
+        model_used = llm_config.local_model
+
+        async def event_generator():
+            yield sse_event("meta", {
+                "conversation_id": conversation_id,
+                "model": model_used,
+            })
+
+            full_answer = []
+            try:
+                provider = get_ollama_provider()
+                parser = StreamingThinkingParser()
+
+                async for token in provider.async_stream(
+                    thinking_prompt, enable_thinking=False,
+                ):
+                    events = parser.feed(token)
+                    for evt in events:
+                        if evt.type == "answer" and evt.content:
+                            full_answer.append(evt.content)
+                            yield sse_event("answer", {"content": evt.content})
+
+                # flush 剩余
+                for evt in parser.finish():
+                    if evt.type == "answer" and evt.content:
+                        full_answer.append(evt.content)
+                        yield sse_event("answer", {"content": evt.content})
+
+                # 防御性: 如果 parser 没有进入 answer 阶段
+                raw_answer = parser.full_answer
+                raw_thinking = parser.full_thinking
+                if not raw_answer.strip() and raw_thinking.strip():
+                    full_answer.append(raw_thinking)
+                    yield sse_event("answer", {"content": raw_thinking})
+
+            except Exception as e:
+                logger.error("课堂 AI 流式生成失败: %s", e)
+                yield sse_event("error", {"message": f"AI 服务暂时不可用: {e}"})
+                return
+
+            # 保存 AI 回复
+            answer_text = "".join(full_answer)
+            try:
+                ai_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                msg_repo_save = MessageRepository()
+                msg_repo_save.save_message(
+                    conversation_id, "assistant", answer_text,
+                    None, model_used, ai_timestamp,
+                )
+            except Exception as e:
+                logger.warning("保存 AI 回复失败: %s", e)
+
+            yield sse_event("done", {
+                "full_answer": answer_text,
+                "conversation_id": conversation_id,
+            })
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    except Exception as e:
+        logger.error("课堂 AI 端点异常: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": {"message": "AI 服务暂时不可用"}},
+        )
 
 
 # ====================================================================== #
@@ -866,6 +1104,7 @@ async def websocket_classroom(
                         "annotations_json": push_result.get(
                             "annotations_json", "",
                         ),
+                        "text_content": push_result.get("text_content", ""),
                         "pushed_at": push_result["pushed_at"].isoformat()
                         if push_result.get("pushed_at") else "",
                     })
@@ -906,6 +1145,7 @@ async def websocket_classroom(
                             "annotations_json": push.get(
                                 "annotations_json", "",
                             ),
+                            "text_content": push.get("text_content", ""),
                             "pushed_at": push["pushed_at"].isoformat()
                             if push.get("pushed_at") else "",
                         })
