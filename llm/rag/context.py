@@ -99,7 +99,11 @@ def build_prompt_context(
 
     # 當前問題
     prompt_parts.append(f"【當前問題】\n{question}")
-    prompt_parts.append("\n請基於以上信息回答用戶問題。")
+    prompt_parts.append(
+        "\n請基於以上信息回答。"
+        "回答要簡潔清晰，不要重複對話歷史中已說過的內容。"
+        "如果學生說「繼續」，請接著上一條回答的內容繼續。"
+    )
 
     return "\n\n".join(prompt_parts)
 
