@@ -258,6 +258,8 @@ html, body {
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     display: none;
+    position: relative;
+    z-index: 1;
 }
 
 .page-image.loaded {
@@ -271,9 +273,17 @@ html, body {
     max-height: 100%;
 }
 
+/* Fabric.js wraps the canvas in a .canvas-container div —
+   position it absolutely on top of the page image */
+.canvas-container {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    z-index: 10;
+}
+
 #annotationCanvas {
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
     cursor: default;
 }
 
