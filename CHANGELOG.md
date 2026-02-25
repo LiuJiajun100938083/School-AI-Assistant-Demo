@@ -11,6 +11,45 @@
 
 ---
 
+## [v3.0.9] [2026-02-25] 30 人并发优化 — 登录/扫码/课堂全链路异步化 + 共享 IP 防误锁
+
+### 修复
+
+- **学校共享 IP 误锁** — `login_max_attempts_per_ip` 原为 5，同一公网 IP 下 5 个学生各输错 1 次密码即锁全校 15 分钟；调高至 50，仅防暴力攻击
+- **LoginAttemptTracker 参数缺失** — `AuthService` 只传了 2 个参数给 `LoginAttemptTracker`，`time_window` / `ip_whitelist` / `block_duration_user` 等均用了硬编码默认值而非 settings 配置；现已完整传递全部 7 个参数
+- **多 Worker 导致 WebSocket 广播丢失** — `server_workers=4` 时课堂 PPT 推送只送达同进程学生（约 1/4），其余收不到；改回 `server_workers=1`
+
+### 优化
+
+- **bcrypt 异步化** — `PasswordManager.verify_password_async()` 在线程池中执行 bcrypt，不阻塞事件循环；30 人并发登录从 ~9s 串行降至 ~0.5s 并行
+- **登录全链路异步** — `login()` 改为 `async`，`find_by_username` 放入 `run_in_executor`，`update_login_info` 改为 fire-and-forget 线程池
+- **登录合并查询** — `login()` 返回值直接包含 `class_name`，移除路由层登录后重复的 `get_user()` 调用（每次登录少 1 次 DB 往返）
+- **连接池 SET SESSION 优化** — `SET SESSION sql_mode` 从每次 `connection()` 移到 `setsession` 初始化参数，每次获取连接少 1 次 DB 往返
+- **课堂 WebSocket 异步化** — `verify_token` / `get_room` / `heartbeat` / `push_page` / `get_latest_push` 全部通过 `run_in_executor` 在线程池执行，30 人同时进教室不串行阻塞
+
+### 新增配置项
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `login_max_attempts_per_ip` | 50 | 同一 IP 允许失败次数（学校共享 IP 调高） |
+| `login_max_attempts_per_user` | 5 | 同一用户允许失败次数 |
+| `login_max_attempts_per_ip_user` | 3 | 同一 IP+用户组合允许失败次数 |
+| `login_block_duration` | 900 | IP 级别锁定时间（秒） |
+| `login_block_duration_user` | 300 | 用户级别锁定时间（秒） |
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/config/settings.py` | IP 阈值 5→50，新增 `login_max_attempts_per_ip_user` / `login_block_duration_user`，`server_workers` 4→1 |
+| `app/core/security.py` | 新增 `PasswordManager.verify_password_async()` |
+| `app/domains/auth/service.py` | `login()` 改 async，DB 查询 + bcrypt 全部线程池；完整传递 LoginAttemptTracker 参数 |
+| `app/routers/auth.py` | 加 `await`，移除登录后重复 `get_user()` |
+| `app/routers/classroom.py` | WebSocket 连接流程 + 消息循环中同步 DB 全部 `run_in_executor` |
+| `app/infrastructure/database/pool.py` | `setsession` 加入 sql_mode 设置，移除 `connection()` 中逐次 SET SESSION |
+
+---
+
 ## [v3.0.8] [2026-02-24] 游戏分享二维码 — 老师生成限时链接，学生扫码免登入直接玩
 
 ### 新增
