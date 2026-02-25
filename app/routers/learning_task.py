@@ -12,6 +12,7 @@
     - 查看任務、打卡、進度查詢
 """
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -83,15 +84,19 @@ async def create_task(
     admin_username, _ = admin_info
     service = get_services().learning_task
 
-    task = service.create_task(
-        admin=admin_username,
-        title=request.title,
-        description=request.description,
-        content=request.content,
-        category=request.category,
-        priority=request.priority,
-        deadline=request.deadline,
-        items=[item.dict() for item in request.items],
+    loop = asyncio.get_event_loop()
+    task = await loop.run_in_executor(
+        None,
+        lambda: service.create_task(
+            admin=admin_username,
+            title=request.title,
+            description=request.description,
+            content=request.content,
+            category=request.category,
+            priority=request.priority,
+            deadline=request.deadline,
+            items=[item.dict() for item in request.items],
+        ),
     )
     return success_response(data=task, message="任務創建成功")
 
@@ -110,7 +115,11 @@ async def update_task(
     if "items" in fields and fields["items"] is not None:
         fields["items"] = [item.dict() for item in request.items]
 
-    task = service.update_task(task_id, admin=admin_username, **fields)
+    loop = asyncio.get_event_loop()
+    task = await loop.run_in_executor(
+        None,
+        lambda: service.update_task(task_id, admin=admin_username, **fields),
+    )
     return success_response(data=task, message="任務更新成功")
 
 
@@ -122,7 +131,11 @@ async def archive_task(
     """歸檔任務 (軟刪除)"""
     admin_username, _ = admin_info
     service = get_services().learning_task
-    service.archive_task(task_id, admin=admin_username)
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        lambda: service.archive_task(task_id, admin=admin_username),
+    )
     return success_response(message="任務已歸檔")
 
 
@@ -136,11 +149,15 @@ async def publish_task(
     admin_username, _ = admin_info
     service = get_services().learning_task
 
-    result = service.publish_task(
-        task_id=task_id,
-        admin=admin_username,
-        target_type=request.target_type,
-        target_value=request.target_value,
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.publish_task(
+            task_id=task_id,
+            admin=admin_username,
+            target_type=request.target_type,
+            target_value=request.target_value,
+        ),
     )
     return success_response(
         data=result,
@@ -157,7 +174,11 @@ async def list_admin_tasks(
 ):
     """列出管理員的任務"""
     service = get_services().learning_task
-    result = service.list_admin_tasks(status=status, page=page, page_size=page_size)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.list_admin_tasks(status=status, page=page, page_size=page_size),
+    )
     return paginated_response(
         data=result["items"],
         total=result["total"],
@@ -172,7 +193,8 @@ async def get_targets(
 ):
     """獲取可選的發布目標 (班級、教師、學生列表)"""
     service = get_services().learning_task
-    targets = service.get_available_targets()
+    loop = asyncio.get_event_loop()
+    targets = await loop.run_in_executor(None, service.get_available_targets)
     return success_response(data=targets)
 
 
@@ -183,7 +205,10 @@ async def get_admin_task_detail(
 ):
     """獲取任務詳情 (管理員視角)"""
     service = get_services().learning_task
-    task = service.get_task_detail_admin(task_id)
+    loop = asyncio.get_event_loop()
+    task = await loop.run_in_executor(
+        None, service.get_task_detail_admin, task_id,
+    )
     return success_response(data=task)
 
 
@@ -194,7 +219,10 @@ async def get_task_stats(
 ):
     """獲取任務完成統計"""
     service = get_services().learning_task
-    stats = service.get_task_stats(task_id)
+    loop = asyncio.get_event_loop()
+    stats = await loop.run_in_executor(
+        None, service.get_task_stats, task_id,
+    )
     return success_response(data=stats)
 
 
@@ -209,11 +237,15 @@ async def get_my_tasks(
 ):
     """獲取我的學習任務列表"""
     service = get_services().learning_task
-    tasks = service.get_my_tasks(
-        username=current_user["username"],
-        role=current_user["role"],
-        class_name=current_user.get("class_name", ""),
-        status_filter=status,
+    loop = asyncio.get_event_loop()
+    tasks = await loop.run_in_executor(
+        None,
+        lambda: service.get_my_tasks(
+            username=current_user["username"],
+            role=current_user["role"],
+            class_name=current_user.get("class_name", ""),
+            status_filter=status,
+        ),
     )
     return success_response(data=tasks)
 
@@ -224,10 +256,14 @@ async def get_my_progress(
 ):
     """獲取我的總體學習進度"""
     service = get_services().learning_task
-    progress = service.get_my_progress(
-        username=current_user["username"],
-        role=current_user["role"],
-        class_name=current_user.get("class_name", ""),
+    loop = asyncio.get_event_loop()
+    progress = await loop.run_in_executor(
+        None,
+        lambda: service.get_my_progress(
+            username=current_user["username"],
+            role=current_user["role"],
+            class_name=current_user.get("class_name", ""),
+        ),
     )
     return success_response(data=progress)
 
@@ -239,11 +275,15 @@ async def get_task_detail(
 ):
     """獲取任務詳情 (含我的打卡狀態)"""
     service = get_services().learning_task
-    detail = service.get_task_detail(
-        task_id=task_id,
-        username=current_user["username"],
-        role=current_user["role"],
-        class_name=current_user.get("class_name", ""),
+    loop = asyncio.get_event_loop()
+    detail = await loop.run_in_executor(
+        None,
+        lambda: service.get_task_detail(
+            task_id=task_id,
+            username=current_user["username"],
+            role=current_user["role"],
+            class_name=current_user.get("class_name", ""),
+        ),
     )
     return success_response(data=detail)
 
@@ -256,9 +296,13 @@ async def toggle_item_completion(
 ):
     """打卡/取消打卡某個子項"""
     service = get_services().learning_task
-    result = service.toggle_item_completion(
-        task_id=task_id,
-        username=current_user["username"],
-        item_id=item_id,
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.toggle_item_completion(
+            task_id=task_id,
+            username=current_user["username"],
+            item_id=item_id,
+        ),
     )
     return success_response(data=result)

@@ -83,11 +83,15 @@ async def create_room(
     """创建教室房间 (仅教师)"""
     username, role = user_info
     try:
-        room = get_services().classroom.create_room(
-            teacher_username=username,
-            title=body.title,
-            description=body.description,
-            allowed_classes=body.allowed_classes,
+        loop = asyncio.get_event_loop()
+        room = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.create_room(
+                teacher_username=username,
+                title=body.title,
+                description=body.description,
+                allowed_classes=body.allowed_classes,
+            ),
         )
         return success_response(room, "房间创建成功")
     except AppException as e:
@@ -108,9 +112,13 @@ async def list_rooms(
     学生 → 自己班级可见的活跃房间
     """
     try:
-        rooms = get_services().classroom.list_rooms(
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        rooms = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.list_rooms(
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
         return success_response(rooms)
     except AppException as e:
@@ -127,10 +135,14 @@ async def get_room(
 ):
     """获取房间详情"""
     try:
-        room = get_services().classroom.get_room(
-            room_id=room_id,
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        room = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_room(
+                room_id=room_id,
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
         return success_response(room)
     except AppException as e:
@@ -149,10 +161,15 @@ async def update_room_info(
     """更新房间基本信息 (仅教师)"""
     username, _ = user_info
     try:
-        updated = get_services().classroom.update_room_info(
-            room_id=room_id,
-            teacher_username=username,
-            update_data=body.model_dump(exclude_none=True),
+        loop = asyncio.get_event_loop()
+        update_data = body.model_dump(exclude_none=True)
+        updated = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.update_room_info(
+                room_id=room_id,
+                teacher_username=username,
+                update_data=update_data,
+            ),
         )
         return success_response(updated, "房间信息已更新")
     except AppException as e:
@@ -175,10 +192,14 @@ async def update_room_status(
     """
     username, _ = user_info
     try:
-        updated = get_services().classroom.update_room_status(
-            room_id=room_id,
-            new_status=body.status,
-            teacher_username=username,
+        loop = asyncio.get_event_loop()
+        updated = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.update_room_status(
+                room_id=room_id,
+                new_status=body.status,
+                teacher_username=username,
+            ),
         )
 
         # 通过 WebSocket 通知房间内所有用户
@@ -213,9 +234,13 @@ async def delete_room(
         ws_manager = get_classroom_ws_manager()
         await ws_manager.close_room(room_id)
 
-        get_services().classroom.delete_room(
-            room_id=room_id,
-            teacher_username=username,
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.delete_room(
+                room_id=room_id,
+                teacher_username=username,
+            ),
         )
         return success_response(None, "房间已删除")
     except AppException as e:
@@ -236,9 +261,13 @@ async def join_room(
 ):
     """学生加入房间"""
     try:
-        enrollment = get_services().classroom.join_room(
-            room_id=room_id,
-            student_username=user["username"],
+        loop = asyncio.get_event_loop()
+        enrollment = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.join_room(
+                room_id=room_id,
+                student_username=user["username"],
+            ),
         )
 
         # 通知房间内其他人 (教师 + 已有学生)
@@ -270,9 +299,13 @@ async def leave_room(
 ):
     """学生离开房间"""
     try:
-        get_services().classroom.leave_room(
-            room_id=room_id,
-            student_username=user["username"],
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.leave_room(
+                room_id=room_id,
+                student_username=user["username"],
+            ),
         )
 
         # 通知房间
@@ -301,9 +334,13 @@ async def get_room_students(
     """获取房间学生列表 (仅教师)"""
     username, _ = user_info
     try:
-        result = get_services().classroom.get_room_students(
-            room_id=room_id,
-            teacher_username=username,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_room_students(
+                room_id=room_id,
+                teacher_username=username,
+            ),
         )
         return success_response(result)
     except AppException as e:
@@ -337,11 +374,15 @@ async def upload_ppt(
         original_filename = file.filename or "unknown.pptx"
 
         # 上传 (验证 + 保存 + 入库)
-        result = get_services().classroom.upload_ppt(
-            room_id=room_id,
-            teacher_username=username,
-            file_bytes=file_bytes,
-            original_filename=original_filename,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.upload_ppt(
+                room_id=room_id,
+                teacher_username=username,
+                file_bytes=file_bytes,
+                original_filename=original_filename,
+            ),
         )
 
         # 后台处理 PPT (转图片 + 提取文字)
@@ -371,10 +412,14 @@ async def list_room_ppts(
 ):
     """获取房间的 PPT 文件列表"""
     try:
-        result = get_services().classroom.list_room_ppts(
-            room_id=room_id,
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.list_room_ppts(
+                room_id=room_id,
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
         return success_response(result)
     except AppException as e:
@@ -391,10 +436,14 @@ async def get_ppt_info(
 ):
     """获取 PPT 文件详情 (含页面列表)"""
     try:
-        result = get_services().classroom.get_ppt_info(
-            file_id=file_id,
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_ppt_info(
+                file_id=file_id,
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
         return success_response(result)
     except AppException as e:
@@ -416,11 +465,15 @@ async def get_page_image(
     返回 PNG 图片文件流，用于前端 <img> 标签显示。
     """
     try:
-        image_path = get_services().classroom.get_page_image_path(
-            file_id=file_id,
-            page_number=page_number,
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        image_path = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_page_image_path(
+                file_id=file_id,
+                page_number=page_number,
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
 
         if not image_path or not os.path.isfile(image_path):
@@ -448,11 +501,15 @@ async def get_page_thumbnail(
 ):
     """获取 PPT 页面缩略图"""
     try:
-        thumb_path = get_services().classroom.get_page_thumbnail_path(
-            file_id=file_id,
-            page_number=page_number,
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        thumb_path = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_page_thumbnail_path(
+                file_id=file_id,
+                page_number=page_number,
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
 
         if not thumb_path or not os.path.isfile(thumb_path):
@@ -480,11 +537,15 @@ async def get_page_text(
 ):
     """获取 PPT 页面的文字内容 (供 AI 上下文使用)"""
     try:
-        text = get_services().classroom.get_page_text(
-            file_id=file_id,
-            page_number=page_number,
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        text = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_page_text(
+                file_id=file_id,
+                page_number=page_number,
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
         return success_response({"text_content": text})
     except AppException as e:
@@ -502,9 +563,13 @@ async def delete_ppt(
     """删除 PPT 文件 (仅教师)"""
     username, _ = user_info
     try:
-        get_services().classroom.delete_ppt(
-            file_id=file_id,
-            teacher_username=username,
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.delete_ppt(
+                file_id=file_id,
+                teacher_username=username,
+            ),
         )
         return success_response(None, "PPT 已删除")
     except AppException as e:
@@ -531,12 +596,16 @@ async def push_page(
     """
     username, _ = user_info
     try:
-        result = get_services().classroom.push_page(
-            room_id=room_id,
-            teacher_username=username,
-            page_id=body.page_id,
-            page_number=body.page_number,
-            annotations_json=body.annotations_json,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.push_page(
+                room_id=room_id,
+                teacher_username=username,
+                page_id=body.page_id,
+                page_number=body.page_number,
+                annotations_json=body.annotations_json,
+            ),
         )
 
         # 通过 WebSocket 广播推送给所有学生
@@ -574,10 +643,14 @@ async def get_latest_push(
     学生断线重连后调用此接口恢复到最新状态。
     """
     try:
-        result = get_services().classroom.get_latest_push(
-            room_id=room_id,
-            current_username=user["username"],
-            current_role=user["role"],
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_latest_push(
+                room_id=room_id,
+                current_username=user["username"],
+                current_role=user["role"],
+            ),
         )
         if result is None:
             return success_response(None, "暂无推送")
@@ -598,10 +671,14 @@ async def get_push_history(
     """获取推送历史 (仅教师, 用于课后回放)"""
     username, _ = user_info
     try:
-        result = get_services().classroom.list_push_history(
-            room_id=room_id,
-            teacher_username=username,
-            limit=limit,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.list_push_history(
+                room_id=room_id,
+                teacher_username=username,
+                limit=limit,
+            ),
         )
         return success_response(result)
     except AppException as e:

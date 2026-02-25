@@ -11,6 +11,34 @@
 
 ---
 
+## [v3.0.10] [2026-02-25] 全链路 sync-in-async 修复 — 所有路由同步 DB 调用异步化
+
+### 优化
+
+- **`get_current_user()` 异步化** — 每个认证请求的 `pool.execute_one()` 改为 `run_in_executor`，影响所有使用 `Depends(get_current_user)` 的路由（game_upload / classroom / mistake_book / learning_task / app_modules / ai_learning_center）
+- **游戏分享 QR 码扫描** — `get_shared_game()` 公开端点 + 全部 game_upload 路由的同步 service 调用改为 `run_in_executor`
+- **课堂 HTTP 路由全面异步化** — create_room / list_rooms / get_room / join_room / leave_room / upload_ppt / push_page / get_latest_push 等 19 个端点全部 `run_in_executor`
+- **错题本路由异步化** — get_my_mistakes / get_dashboard / record_review / teacher_class_report 等学生高频端点
+- **学习任务路由异步化** — get_my_tasks / get_my_progress / toggle_item_completion 等学生端点
+- **教师班级路由异步化** — get_students_summary 中 N+1 查询（for 循环 get_latest_student_analysis）改为逐个 `run_in_executor`，避免 30 个串行 DB 查询阻塞事件循环
+- **AI 学习中心学生端异步化** — stats / categories / contents / knowledge-map / paths / search 等学生高频端点
+- **应用模块路由异步化** — get_apps / get_all_apps / update_apps / reset_apps
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/core/dependencies.py` | `get_current_user()` DB 查询 `run_in_executor` |
+| `app/routers/game_upload.py` | 全部 7 个 sync service 调用 → `run_in_executor` |
+| `app/routers/classroom.py` | 全部 19 个 HTTP 路由 sync service 调用 → `run_in_executor` |
+| `app/routers/mistake_book.py` | 全部 sync service 调用 → `run_in_executor` |
+| `app/routers/learning_task.py` | 全部 sync service 调用 → `run_in_executor` |
+| `app/routers/teacher_class.py` | 全部 sync service 调用 → `run_in_executor`（含 N+1 循环） |
+| `app/routers/app_modules.py` | 全部 sync service 调用 → `run_in_executor` |
+| `app/routers/ai_learning_center.py` | 8 个学生端高频端点 sync → `run_in_executor` |
+
+---
+
 ## [v3.0.9] [2026-02-25] 30 人并发优化 — 登录/扫码/课堂全链路异步化 + 共享 IP 防误锁
 
 ### 修复

@@ -222,7 +222,8 @@ async def get_statistics(
     """獲取學習中心統計數據"""
     try:
         service = get_services().learning_center
-        stats = service.get_stats()
+        loop = asyncio.get_event_loop()
+        stats = await loop.run_in_executor(None, service.get_stats)
         return success_response(data=stats)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -238,7 +239,8 @@ async def get_categories(
     """獲取所有分類"""
     try:
         service = get_services().learning_center
-        categories = service.get_categories()
+        loop = asyncio.get_event_loop()
+        categories = await loop.run_in_executor(None, service.get_categories)
         return success_response(data=categories)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -264,13 +266,17 @@ async def list_contents(
     """列出已發布內容"""
     try:
         service = get_services().learning_center
-        result = service.get_contents(
-            content_type=content_type,
-            category_id=category_id,
-            tags=tag,
-            search=search,
-            page=page,
-            page_size=page_size,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: service.get_contents(
+                content_type=content_type,
+                category_id=category_id,
+                tags=tag,
+                search=search,
+                page=page,
+                page_size=page_size,
+            ),
         )
         return paginated_response(
             data=result.get("items", []),
@@ -293,7 +299,10 @@ async def get_content_detail(
     """獲取內容詳情"""
     try:
         service = get_services().learning_center
-        content = service.get_content_detail(content_id)
+        loop = asyncio.get_event_loop()
+        content = await loop.run_in_executor(
+            None, service.get_content_detail, content_id,
+        )
         return success_response(data=content)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -313,7 +322,8 @@ async def get_knowledge_map(
     """獲取知識圖譜"""
     try:
         service = get_services().learning_center
-        map_data = service.get_knowledge_map()
+        loop = asyncio.get_event_loop()
+        map_data = await loop.run_in_executor(None, service.get_knowledge_map)
         return success_response(data=map_data)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -329,7 +339,8 @@ async def list_paths(
     """列出已發布的學習路徑"""
     try:
         service = get_services().learning_center
-        paths = service.get_paths()
+        loop = asyncio.get_event_loop()
+        paths = await loop.run_in_executor(None, service.get_paths)
         return success_response(data=paths)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -346,7 +357,10 @@ async def get_path_detail(
     """獲取學習路徑詳情"""
     try:
         service = get_services().learning_center
-        path_data = service.get_path_detail(path_id)
+        loop = asyncio.get_event_loop()
+        path_data = await loop.run_in_executor(
+            None, service.get_path_detail, path_id,
+        )
         return success_response(data=path_data)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -369,7 +383,11 @@ async def global_search(
     """全域搜尋"""
     try:
         service = get_services().learning_center
-        result = service.search_contents(keyword=keyword, page=page, page_size=page_size)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: service.search_contents(keyword=keyword, page=page, page_size=page_size),
+        )
         return paginated_response(
             data=result.get("items", []),
             total=result.get("total", 0),

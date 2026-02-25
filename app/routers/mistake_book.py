@@ -4,6 +4,7 @@
 提供學生錯題管理、AI 分析、練習題生成、複習排程等端點。
 """
 
+import asyncio
 import logging
 from typing import Optional, Tuple
 
@@ -113,14 +114,18 @@ async def add_manual_mistake(
     """手動添加錯題（不拍照）"""
     try:
         service = get_services().mistake_book
-        result = service.add_manual_mistake(
-            student_username=current_user["username"],
-            subject=req.subject.value,
-            category=req.category,
-            question_text=req.question_text,
-            answer_text=req.answer_text,
-            correct_answer=req.correct_answer,
-            tags=req.tags,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: service.add_manual_mistake(
+                student_username=current_user["username"],
+                subject=req.subject.value,
+                category=req.category,
+                question_text=req.question_text,
+                answer_text=req.answer_text,
+                correct_answer=req.correct_answer,
+                tags=req.tags,
+            ),
         )
         return {"success": True, "data": result}
 
@@ -143,13 +148,17 @@ async def get_my_mistakes(
 ):
     """查詢我的錯題列表"""
     service = get_services().mistake_book
-    result = service.get_my_mistakes(
-        username=current_user["username"],
-        subject=subject,
-        category=category,
-        status=status,
-        page=page,
-        page_size=page_size,
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.get_my_mistakes(
+            username=current_user["username"],
+            subject=subject,
+            category=category,
+            status=status,
+            page=page,
+            page_size=page_size,
+        ),
     )
     return {"success": True, "data": result}
 
@@ -160,7 +169,10 @@ async def get_dashboard(
 ):
     """學習統計儀表板"""
     service = get_services().mistake_book
-    result = service.get_dashboard(current_user["username"])
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None, service.get_dashboard, current_user["username"],
+    )
     return {"success": True, "data": result}
 
 
@@ -189,7 +201,11 @@ async def get_knowledge_map(
 ):
     """獲取知識點掌握度地圖"""
     service = get_services().mistake_book
-    result = service.get_knowledge_mastery_map(current_user["username"], subject)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.get_knowledge_mastery_map(current_user["username"], subject),
+    )
     return {"success": True, "data": result}
 
 
@@ -205,7 +221,11 @@ async def get_knowledge_graph(
         raise HTTPException(400, "科目只支持 chinese/math/english")
 
     service = get_services().mistake_book
-    result = service.get_knowledge_graph_data(current_user["username"], subject)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.get_knowledge_graph_data(current_user["username"], subject),
+    )
     return {"success": True, "data": result}
 
 
@@ -217,7 +237,11 @@ async def get_mastery_history(
 ):
     """獲取單個知識點的掌握度歷史曲線"""
     service = get_services().mistake_book
-    result = service.get_mastery_history(current_user["username"], point_code, limit)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.get_mastery_history(current_user["username"], point_code, limit),
+    )
     return {"success": True, "data": result}
 
 
@@ -253,8 +277,12 @@ async def get_review_queue(
 ):
     """獲取今日待複習的錯題"""
     service = get_services().mistake_book
-    items = service.get_review_queue(
-        current_user["username"], subject, limit
+    loop = asyncio.get_event_loop()
+    items = await loop.run_in_executor(
+        None,
+        lambda: service.get_review_queue(
+            current_user["username"], subject, limit,
+        ),
     )
     return {"success": True, "data": {"items": items, "count": len(items)}}
 
@@ -271,7 +299,10 @@ async def get_mistake_detail(
     """獲取錯題詳情"""
     try:
         service = get_services().mistake_book
-        result = service.get_mistake_detail(mistake_id)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, service.get_mistake_detail, mistake_id,
+        )
         return {"success": True, "data": result}
     except MistakeNotFoundError:
         raise HTTPException(404, "錯題不存在")
@@ -285,7 +316,11 @@ async def delete_mistake(
     """刪除錯題（軟刪除）"""
     try:
         service = get_services().mistake_book
-        service.delete_mistake(mistake_id, current_user["username"])
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: service.delete_mistake(mistake_id, current_user["username"]),
+        )
         return {"success": True, "message": "已刪除"}
     except MistakeNotFoundError:
         raise HTTPException(404, "錯題不存在或無權限")
@@ -346,11 +381,15 @@ async def record_review(
     """記錄複習結果，更新複習排程"""
     try:
         service = get_services().mistake_book
-        result = service.record_review(
-            mistake_id=mistake_id,
-            username=current_user["username"],
-            result=req.result.value,
-            time_spent=req.time_spent_seconds,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: service.record_review(
+                mistake_id=mistake_id,
+                username=current_user["username"],
+                result=req.result.value,
+                time_spent=req.time_spent_seconds,
+            ),
         )
         return {"success": True, "data": result}
 
@@ -370,7 +409,10 @@ async def teacher_get_student_mistakes(
 ):
     """教師查看學生錯題概況"""
     service = get_services().mistake_book
-    overview = service.get_student_overview(username)
+    loop = asyncio.get_event_loop()
+    overview = await loop.run_in_executor(
+        None, service.get_student_overview, username,
+    )
 
     if subject:
         weakness = await service.get_weakness_report(username, subject)
@@ -386,12 +428,18 @@ async def teacher_class_report(
     teacher_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """班級薄弱知識點分析報告"""
+    loop = asyncio.get_event_loop()
     user_service = get_services().user
-    students = user_service.get_users_by_class(class_name)
+    students = await loop.run_in_executor(
+        None, user_service.get_users_by_class, class_name,
+    )
     student_usernames = [s["username"] for s in students] if students else []
 
     service = get_services().mistake_book
-    result = service.get_class_weakness_report(class_name, subject, student_usernames)
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.get_class_weakness_report(class_name, subject, student_usernames),
+    )
     return {"success": True, "data": result}
 
 
@@ -408,12 +456,18 @@ async def list_knowledge_points(
     from app.domains.mistake_book.repository import KnowledgePointRepository
     repo = KnowledgePointRepository()
 
+    loop = asyncio.get_event_loop()
     if subject:
-        points = repo.find_by_subject(subject)
+        points = await loop.run_in_executor(
+            None, repo.find_by_subject, subject,
+        )
     else:
-        points = repo.find_all(
-            where="is_active = TRUE",
-            order_by="subject, display_order, category",
+        points = await loop.run_in_executor(
+            None,
+            lambda: repo.find_all(
+                where="is_active = TRUE",
+                order_by="subject, display_order, category",
+            ),
         )
     return {"success": True, "data": points}
 
@@ -430,5 +484,8 @@ async def seed_knowledge_points(
         raise HTTPException(404, f"種子文件不存在: {data_path}")
 
     service = get_services().mistake_book
-    count = service.seed_knowledge_points(data_path)
+    loop = asyncio.get_event_loop()
+    count = await loop.run_in_executor(
+        None, service.seed_knowledge_points, data_path,
+    )
     return {"success": True, "message": f"已導入 {count} 個知識點"}

@@ -21,6 +21,7 @@ FastAPI 依赖注入模块
         ...
 """
 
+import asyncio
 import logging
 from typing import Dict, Tuple
 
@@ -153,10 +154,13 @@ async def get_current_user(
     if not username:
         raise AuthenticationError("无效的认证凭证")
 
-    # 从数据库验证用户是否仍然存在和活跃
+    # 从数据库验证用户是否仍然存在和活跃（在线程池中执行，避免阻塞事件循环）
     try:
         pool = get_database_pool()
-        user_info = pool.execute_one(
+        loop = asyncio.get_event_loop()
+        user_info = await loop.run_in_executor(
+            None,
+            pool.execute_one,
             "SELECT * FROM users WHERE username = %s",
             (username,),
         )

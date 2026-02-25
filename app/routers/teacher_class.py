@@ -1,11 +1,13 @@
 """
 教师班级科目管理路由
 """
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict, Optional
-from pydantic import BaseModel
-from datetime import datetime
+import asyncio
 import logging
+from datetime import datetime
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from app.core.dependencies import verify_token, require_teacher_or_admin
 from app.domains.teacher_class.service import TeacherClassService
@@ -46,19 +48,26 @@ async def get_students_summary(
 ):
     """获取所有学生的摘要信息（用于管理面板显示）"""
     username, role = user_info
+    loop = asyncio.get_event_loop()
 
     try:
         all_students = []
 
         if role == "teacher":
-            teacher_classes = _tc_service.get_teacher_classes(username)
+            teacher_classes = await loop.run_in_executor(
+                None, _tc_service.get_teacher_classes, username,
+            )
             for class_info in teacher_classes:
-                class_students = _tc_service.get_class_students_with_analytics(
-                    class_info['class_id']
+                class_students = await loop.run_in_executor(
+                    None,
+                    _tc_service.get_class_students_with_analytics,
+                    class_info['class_id'],
                 )
                 all_students.extend(class_students)
         else:
-            all_students = _analytics_service.get_all_students_summary()
+            all_students = await loop.run_in_executor(
+                None, _analytics_service.get_all_students_summary,
+            )
 
         # 格式化学生摘要数据
         students_summary = []
@@ -66,7 +75,11 @@ async def get_students_summary(
             try:
                 student_id = student.get('username') or student.get('student_id')
 
-                latest_analysis = _analytics_service.get_latest_student_analysis(student_id)
+                latest_analysis = await loop.run_in_executor(
+                    None,
+                    _analytics_service.get_latest_student_analysis,
+                    student_id,
+                )
 
                 summary_data = {
                     'student_id': student_id,
@@ -114,7 +127,10 @@ async def get_my_classes(user_info=Depends(verify_token)):
     if role not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="需要教师权限")
 
-    assignments = _tc_service.get_teacher_assignments(username)
+    loop = asyncio.get_event_loop()
+    assignments = await loop.run_in_executor(
+        None, _tc_service.get_teacher_assignments, username,
+    )
 
     return {
         "teacher_id": username,
@@ -138,11 +154,15 @@ async def assign_teacher_to_class(
     if role != "admin":
         raise HTTPException(status_code=403, detail="需要管理员权限")
 
-    success = _tc_service.assign_teacher(
-        teacher_id=assignment.teacher_id,
-        class_id=assignment.class_id,
-        subject=assignment.subject,
-        is_head_teacher=assignment.is_head_teacher
+    loop = asyncio.get_event_loop()
+    success = await loop.run_in_executor(
+        None,
+        lambda: _tc_service.assign_teacher(
+            teacher_id=assignment.teacher_id,
+            class_id=assignment.class_id,
+            subject=assignment.subject,
+            is_head_teacher=assignment.is_head_teacher,
+        ),
     )
 
     if success:
@@ -160,14 +180,25 @@ async def get_class_analytics(
 ):
     """获取班级学习分析报告"""
     username, role = user_info
+    loop = asyncio.get_event_loop()
 
     if role == "teacher":
-        if not _tc_service.is_teacher_of_class(username, class_id):
+        is_teacher = await loop.run_in_executor(
+            None,
+            lambda: _tc_service.is_teacher_of_class(username, class_id),
+        )
+        if not is_teacher:
             raise HTTPException(status_code=403, detail="您无权查看该班级")
 
     # 构建班级概览报告
-    students = _tc_service.get_class_students_with_analytics(class_id)
-    warnings = _tc_service.get_class_warnings(class_id)
+    students = await loop.run_in_executor(
+        None,
+        _tc_service.get_class_students_with_analytics,
+        class_id,
+    )
+    warnings = await loop.run_in_executor(
+        None, _tc_service.get_class_warnings, class_id,
+    )
     report = {
         "class_id": class_id,
         "total_students": len(students),
@@ -177,8 +208,11 @@ async def get_class_analytics(
     }
 
     if subject:
-        subject_analysis = _tc_service.analyze_class_subject_performance(
-            class_id, subject
+        subject_analysis = await loop.run_in_executor(
+            None,
+            lambda: _tc_service.analyze_class_subject_performance(
+                class_id, subject,
+            ),
         )
         report['subject_analysis'] = subject_analysis
 
@@ -192,12 +226,21 @@ async def get_class_students(
 ):
     """获取班级学生列表及其学习状况"""
     username, role = user_info
+    loop = asyncio.get_event_loop()
 
     if role == "teacher":
-        if not _tc_service.is_teacher_of_class(username, class_id):
+        is_teacher = await loop.run_in_executor(
+            None,
+            lambda: _tc_service.is_teacher_of_class(username, class_id),
+        )
+        if not is_teacher:
             raise HTTPException(status_code=403, detail="您无权查看该班级")
 
-    students = _tc_service.get_class_students_with_analytics(class_id)
+    students = await loop.run_in_executor(
+        None,
+        _tc_service.get_class_students_with_analytics,
+        class_id,
+    )
 
     return {
         "class_id": class_id,
@@ -214,23 +257,40 @@ async def generate_student_report(
 ):
     """生成学生个人学习报告"""
     username, role = user_info
+    loop = asyncio.get_event_loop()
 
     if role == "teacher":
-        if not _tc_service.is_teacher_of_class(username, class_id):
+        is_teacher = await loop.run_in_executor(
+            None,
+            lambda: _tc_service.is_teacher_of_class(username, class_id),
+        )
+        if not is_teacher:
             raise HTTPException(status_code=403, detail="您无权查看该班级")
 
     # 构建学生个人学习档案
-    latest = _analytics_service.get_latest_student_analysis(student_id)
+    latest = await loop.run_in_executor(
+        None,
+        _analytics_service.get_latest_student_analysis,
+        student_id,
+    )
     portfolio = {
         "student_id": student_id,
         "report": latest or {},
         "generated_at": datetime.now().isoformat(),
     }
 
+    ranking = await loop.run_in_executor(
+        None,
+        lambda: _tc_service.get_student_ranking(student_id, class_id),
+    )
+    comparison = await loop.run_in_executor(
+        None,
+        lambda: _tc_service.get_classmate_comparison(student_id, class_id),
+    )
     portfolio['class_info'] = {
         'class_id': class_id,
-        'class_ranking': _tc_service.get_student_ranking(student_id, class_id),
-        'peer_comparison': _tc_service.get_classmate_comparison(student_id, class_id)
+        'class_ranking': ranking,
+        'peer_comparison': comparison,
     }
 
     return portfolio
@@ -240,15 +300,22 @@ async def generate_student_report(
 async def get_subject_distribution(user_info=Depends(require_teacher_or_admin)):
     """获取各科目的教师和班级分布"""
     username, role = user_info
+    loop = asyncio.get_event_loop()
 
-    distribution = _tc_service.get_teacher_distribution()
+    distribution = await loop.run_in_executor(
+        None, _tc_service.get_teacher_distribution,
+    )
+
+    coverage = await loop.run_in_executor(
+        None, _tc_service.get_subject_coverage,
+    )
 
     return {
         "subjects": distribution,
         "summary": {
             "total_subjects": len(distribution),
             "total_assignments": sum(len(s['teachers']) for s in distribution.values()),
-            "coverage": _tc_service.get_subject_coverage()
+            "coverage": coverage,
         }
     }
 
@@ -264,13 +331,17 @@ async def batch_assign_teachers(
     if role != "admin":
         raise HTTPException(status_code=403, detail="需要管理员权限")
 
+    loop = asyncio.get_event_loop()
     results = []
     for assignment in assignments:
-        success = _tc_service.assign_teacher(
-            teacher_id=assignment.teacher_id,
-            class_id=assignment.class_id,
-            subject=assignment.subject,
-            is_head_teacher=assignment.is_head_teacher
+        success = await loop.run_in_executor(
+            None,
+            lambda a=assignment: _tc_service.assign_teacher(
+                teacher_id=a.teacher_id,
+                class_id=a.class_id,
+                subject=a.subject,
+                is_head_teacher=a.is_head_teacher,
+            ),
         )
         results.append({
             "teacher_id": assignment.teacher_id,
@@ -295,17 +366,24 @@ async def get_learning_warnings(
 ):
     """获取学习预警信息"""
     username, role = user_info
+    loop = asyncio.get_event_loop()
 
     if role == "teacher":
-        classes = _tc_service.get_teacher_classes(username)
+        classes = await loop.run_in_executor(
+            None, _tc_service.get_teacher_classes, username,
+        )
         warnings = []
         for class_info in classes:
-            class_warnings = _tc_service.get_class_warnings(
-                class_info['class_id']
+            class_warnings = await loop.run_in_executor(
+                None,
+                _tc_service.get_class_warnings,
+                class_info['class_id'],
             )
             warnings.extend(class_warnings)
     else:
-        warnings = _tc_service.get_all_warnings()
+        warnings = await loop.run_in_executor(
+            None, _tc_service.get_all_warnings,
+        )
 
     warnings.sort(key=lambda x: {'high': 0, 'medium': 1, 'low': 2}.get(x.get('severity', 'low'), 2))
 

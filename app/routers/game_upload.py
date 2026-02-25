@@ -10,6 +10,7 @@
 3. 返回标准化 JSON 响应
 """
 
+import asyncio
 import json
 import logging
 from typing import Dict, Optional
@@ -95,9 +96,11 @@ async def upload_game(
 @game_router.get("/subjects/list")
 async def get_subjects():
     """获取学科列表（动态从数据库读取，兜底使用默认配置）"""
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, _get_service().get_subjects_with_icons)
     return {
         "success": True,
-        "data": _get_service().get_subjects_with_icons(),
+        "data": data,
     }
 
 
@@ -110,8 +113,12 @@ async def list_games(
 ):
     """获取游戏列表"""
     user = _extract_user(current_user)
-    games = _get_service().get_games(
-        user['id'], user['role'], subject, only_mine, user_class,
+    loop = asyncio.get_event_loop()
+    games = await loop.run_in_executor(
+        None,
+        lambda: _get_service().get_games(
+            user['id'], user['role'], subject, only_mine, user_class,
+        ),
     )
     return {"success": True, "data": games, "count": len(games)}
 
@@ -121,7 +128,8 @@ async def get_shared_game(token: str):
     """
     通过分享 token 获取游戏信息（无需登入）
     """
-    game = _get_service().get_shared_game(token)
+    loop = asyncio.get_event_loop()
+    game = await loop.run_in_executor(None, _get_service().get_shared_game, token)
     if not game:
         raise HTTPException(404, "分享链接不存在或已过期")
 
@@ -135,7 +143,11 @@ async def get_game(
 ):
     """获取单个游戏详情"""
     user = _extract_user(current_user)
-    game = _get_service().get_game(game_uuid, user['id'], user['role'])
+    loop = asyncio.get_event_loop()
+    game = await loop.run_in_executor(
+        None,
+        lambda: _get_service().get_game(game_uuid, user['id'], user['role']),
+    )
     return {"success": True, "data": game}
 
 
@@ -166,7 +178,11 @@ async def delete_game(
     if user['role'] not in ('teacher', 'admin'):
         raise HTTPException(403, "只有教师和管理员可以删除游戏")
 
-    _get_service().delete_game(game_uuid, user['id'], user['role'])
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        lambda: _get_service().delete_game(game_uuid, user['id'], user['role']),
+    )
     return {"success": True, "message": "游戏删除成功"}
 
 
@@ -180,7 +196,11 @@ async def toggle_game_visibility(
     if user['role'] not in ('teacher', 'admin'):
         raise HTTPException(403, "只有教师和管理员可以修改可见性")
 
-    result = _get_service().toggle_visibility(game_uuid, user['id'], user['role'])
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: _get_service().toggle_visibility(game_uuid, user['id'], user['role']),
+    )
     return {
         "success": True,
         "message": f"游戏已{'公开' if result['is_public'] else '设为私有'}",
@@ -209,8 +229,12 @@ async def create_share_link(
     if user['role'] not in ('teacher', 'admin'):
         raise HTTPException(403, "只有教师和管理员可以分享游戏")
 
-    result = _get_service().create_share_token(
-        game_uuid, user['id'], user['role'], duration,
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: _get_service().create_share_token(
+            game_uuid, user['id'], user['role'], duration,
+        ),
     )
 
     # 构建完整分享 URL

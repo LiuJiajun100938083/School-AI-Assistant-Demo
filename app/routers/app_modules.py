@@ -4,6 +4,7 @@
 提供首页应用列表的查询和管理接口。
 """
 
+import asyncio
 import logging
 from typing import List, Tuple
 
@@ -57,7 +58,10 @@ async def get_apps_for_user(current_user: dict = Depends(get_current_user)):
     """
     role = current_user.get("role", "student")
     service = _get_service()
-    modules = service.get_modules_for_role(role)
+    loop = asyncio.get_event_loop()
+    modules = await loop.run_in_executor(
+        None, service.get_modules_for_role, role,
+    )
     return {"apps": modules}
 
 
@@ -69,7 +73,8 @@ async def get_all_apps(
 ):
     """管理员获取全部应用模块配置"""
     service = _get_service()
-    modules = service.get_all_modules()
+    loop = asyncio.get_event_loop()
+    modules = await loop.run_in_executor(None, service.get_all_modules)
     return {"apps": modules}
 
 
@@ -81,7 +86,11 @@ async def update_apps(
     """管理员更新应用模块配置"""
     service = _get_service()
     try:
-        modules = service.update_modules([m.dict() for m in request.modules])
+        loop = asyncio.get_event_loop()
+        modules_data = [m.dict() for m in request.modules]
+        modules = await loop.run_in_executor(
+            None, service.update_modules, modules_data,
+        )
         return {"message": "應用模組配置已更新", "apps": modules}
     except ValueError as e:
         return JSONResponse(status_code=400, content={"detail": str(e)})
@@ -93,5 +102,6 @@ async def reset_apps(
 ):
     """重置为默认应用模块配置"""
     service = _get_service()
-    modules = service.reset_to_default()
+    loop = asyncio.get_event_loop()
+    modules = await loop.run_in_executor(None, service.reset_to_default)
     return {"message": "已重置為默認配置", "apps": modules}
