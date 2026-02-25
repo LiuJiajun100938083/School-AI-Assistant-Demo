@@ -303,12 +303,42 @@ async function loadPage(pageNumber) {
         img.onload = () => {
             resizeCanvasToImage();
             loadPageAnnotations();
-            state.canvas.renderAll();
+            // 重新确保 drawing mode 和 brush 正确设置
+            ensureDrawingReady();
         };
         img.src = blobUrl;
     } catch (error) {
         UIModule.toast(`加载页面失败: ${error.message}`, 'error');
     }
+}
+
+/**
+ * 在每次 canvas 尺寸变化后，重新确保 Fabric.js drawing 就绪
+ * Fabric.js 在 display:none 或尺寸为 0 时初始化会导致内部偏移量错误
+ */
+function ensureDrawingReady() {
+    if (!state.canvas) return;
+
+    // 强制重新计算 canvas 偏移量（鼠标坐标修正）
+    state.canvas.calcOffset();
+
+    // 确保 upper-canvas 尺寸与 lower-canvas 一致
+    const upperCanvas = state.canvas.upperCanvasEl;
+    const lowerCanvas = state.canvas.lowerCanvasEl;
+    if (upperCanvas && lowerCanvas) {
+        upperCanvas.width = lowerCanvas.width;
+        upperCanvas.height = lowerCanvas.height;
+        upperCanvas.style.width = lowerCanvas.style.width;
+        upperCanvas.style.height = lowerCanvas.style.height;
+    }
+
+    // 重新设置当前工具的 brush
+    if (state.canvas.isDrawingMode) {
+        state.canvas.freeDrawingBrush = new fabric.PencilBrush(state.canvas);
+        updateBrush();
+    }
+
+    state.canvas.renderAll();
 }
 
 function resizeCanvasToImage() {
@@ -436,17 +466,20 @@ async function loadPPTFiles() {
                 // 处理完成，显示课件
                 if (pptPollTimer) { clearTimeout(pptPollTimer); pptPollTimer = null; }
 
-                loadThumbnails();
-                loadPage(0);
-
+                // 1) 先让所有元素可见，Fabric.js 才能正确计算尺寸
                 document.getElementById('canvasPlaceholder').style.display = 'none';
                 document.getElementById('pptImage').style.display = 'block';
-                // 显示 Fabric.js 的 canvas-container（而不是只显示内部 canvas）
+                document.getElementById('fabricCanvas').style.display = 'block';
                 const canvasContainer = document.querySelector('.canvas-container');
                 if (canvasContainer) {
                     canvasContainer.style.display = 'block';
                 }
-                document.getElementById('fabricCanvas').style.display = 'block';
+
+                // 2) 加载缩略图（不阻塞主页面）
+                loadThumbnails();
+
+                // 3) 加载第一页（img.onload 中会 resize canvas + ensureDrawingReady）
+                await loadPage(0);
 
                 updatePageNavigation();
             } else if (firstFile.process_status === 'pending' || firstFile.process_status === 'processing') {
@@ -853,7 +886,10 @@ function executeConfirmAction() {
 }
 
 // ==================== WINDOW EVENTS ====================
-window.addEventListener('resize', resizeCanvasToImage);
+window.addEventListener('resize', () => {
+    resizeCanvasToImage();
+    ensureDrawingReady();
+});
 document.getElementById('fabricCanvas').addEventListener('click', (e) => {
     if (state.isTextMode) {
         const rect = document.getElementById('fabricCanvas').getBoundingClientRect();
