@@ -105,11 +105,16 @@ class AuthService:
             AuthenticationError: 凭据无效
             AccountDisabledError: 账户已禁用
         """
+        import asyncio
+        loop = asyncio.get_event_loop()
+
         # 1) 检查登录尝试限制
         self._login_tracker.check_allowed(client_ip, username)
 
-        # 2) 查找用户
-        user = self._user_repo.find_by_username(username)
+        # 2) 查找用户（在线程池中执行同步 DB 查询，不阻塞事件循环）
+        user = await loop.run_in_executor(
+            None, self._user_repo.find_by_username, username,
+        )
         if not user:
             self._login_tracker.record_failure(client_ip, username)
             self._auditor.log(
@@ -151,9 +156,11 @@ class AuthService:
         display_name = user.get("display_name") or user.get("name") or username
         tokens = self._create_token_pair(username, role, display_name)
 
-        # 7) 更新登录信息
+        # 7) 更新登录信息（线程池，不阻塞也不等待）
         try:
-            self._user_repo.update_login_info(username)
+            loop.run_in_executor(
+                None, self._user_repo.update_login_info, username,
+            )
         except Exception as e:
             logger.warning("更新登录信息失败: %s (username=%s)", e, username)
 

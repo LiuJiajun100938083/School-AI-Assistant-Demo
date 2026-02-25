@@ -150,7 +150,7 @@ class ServerSettings(BaseSettings):
     """服务器配置"""
     server_host: str = Field(default="0.0.0.0")
     server_port: int = Field(default=8002)
-    server_workers: int = Field(default=4)
+    server_workers: int = Field(default=1)
     server_debug: bool = Field(default=False)
     server_reload: bool = Field(default=False)
 

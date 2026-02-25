@@ -678,9 +678,12 @@ async def websocket_classroom(
             await websocket.close(code=4001, reason="缺少认证令牌")
             return
 
-        # 验证 JWT
+        # 验证 JWT（线程池执行，避免阻塞事件循环）
         try:
-            payload = get_services().auth.verify_token(auth_token)
+            loop = asyncio.get_event_loop()
+            payload = await loop.run_in_executor(
+                None, get_services().auth.verify_token, auth_token,
+            )
             username = payload["username"]
             role = payload.get("role", "student")
         except Exception:
@@ -691,12 +694,15 @@ async def websocket_classroom(
             await websocket.close(code=4001, reason="认证失败")
             return
 
-        # ===== 房间权限校验 =====
+        # ===== 房间权限校验（线程池执行）=====
         try:
-            get_services().classroom.get_room(
-                room_id=room_id,
-                current_username=username,
-                current_role=role,
+            await loop.run_in_executor(
+                None,
+                lambda: get_services().classroom.get_room(
+                    room_id=room_id,
+                    current_username=username,
+                    current_role=role,
+                ),
             )
         except AppException as e:
             await websocket.send_json({
@@ -754,19 +760,25 @@ async def websocket_classroom(
 
             elif msg_type == "heartbeat":
                 if role == "student":
-                    get_services().classroom.update_heartbeat(
+                    # 心跳 DB 更新放线程池，不阻塞事件循环
+                    loop.run_in_executor(
+                        None,
+                        get_services().classroom.update_heartbeat,
                         room_id, username,
                     )
 
             elif msg_type == "push_page" and role == "teacher":
                 # 教师通过 WS 推送页面 (替代 HTTP POST)
                 try:
-                    push_result = get_services().classroom.push_page(
-                        room_id=room_id,
-                        teacher_username=username,
-                        page_id=data.get("page_id", ""),
-                        page_number=data.get("page_number", 0),
-                        annotations_json=data.get("annotations_json"),
+                    push_result = await loop.run_in_executor(
+                        None,
+                        lambda: get_services().classroom.push_page(
+                            room_id=room_id,
+                            teacher_username=username,
+                            page_id=data.get("page_id", ""),
+                            page_number=data.get("page_number", 0),
+                            annotations_json=data.get("annotations_json"),
+                        ),
                     )
                     # 广播给所有学生
                     await ws_manager.broadcast_to_students(room_id, {
@@ -800,10 +812,13 @@ async def websocket_classroom(
             elif msg_type == "get_latest_push":
                 # 学生请求最新推送 (断线重连)
                 try:
-                    push = get_services().classroom.get_latest_push(
-                        room_id=room_id,
-                        current_username=username,
-                        current_role=role,
+                    push = await loop.run_in_executor(
+                        None,
+                        lambda: get_services().classroom.get_latest_push(
+                            room_id=room_id,
+                            current_username=username,
+                            current_role=role,
+                        ),
                     )
                     if push:
                         await websocket.send_json({
