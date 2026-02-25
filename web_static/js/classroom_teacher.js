@@ -60,11 +60,11 @@ async function initialize() {
     }
 
     setupDOM();
-    initializeCanvas();
+    // 注意：Fabric.js canvas 延迟到 PPT 第一页加载成功后才初始化
+    // 避免在 display:none 的元素上创建 canvas 导致尺寸为 0
     setupEventListeners();
     connectWebSocket();
     loadUserInfo();
-    addHistorySnapshot();
 }
 
 function setupDOM() {
@@ -98,6 +98,9 @@ function initializeCanvas() {
             addHistorySnapshot();
         }
     });
+
+    addHistorySnapshot();
+    console.log('[Canvas] Fabric.js initialized, canvas size:', canvas.width, canvas.height);
 }
 
 function setupEventListeners() {
@@ -154,6 +157,7 @@ function setupEventListeners() {
 
 // ==================== TOOL SELECTION ====================
 function selectTool(tool) {
+    if (!state.canvas) return;
     state.currentTool = tool;
     state.isTextMode = false;
 
@@ -226,6 +230,7 @@ function clearCanvas() {
 }
 
 function addHistorySnapshot() {
+    if (!state.canvas) return;
     state.historyIndex++;
     state.canvasHistory = state.canvasHistory.slice(0, state.historyIndex);
     const snapshot = JSON.stringify(state.canvas.toJSON());
@@ -339,9 +344,19 @@ function ensureDrawingReady() {
     }
 
     state.canvas.renderAll();
+
+    console.log('[Canvas] ensureDrawingReady:', {
+        canvasW: state.canvas.width,
+        canvasH: state.canvas.height,
+        upperW: upperCanvas?.width,
+        upperH: upperCanvas?.height,
+        isDrawingMode: state.canvas.isDrawingMode,
+        hasBrush: !!state.canvas.freeDrawingBrush,
+    });
 }
 
 function resizeCanvasToImage() {
+    if (!state.canvas) return;
     const img = document.getElementById('pptImage');
     const wrapper = document.querySelector('.canvas-wrapper');
 
@@ -386,11 +401,13 @@ function updatePageNavigation() {
 }
 
 function savePageAnnotations() {
+    if (!state.canvas) return;
     const key = `page_${state.currentFileId}_${state.currentPage}`;
     state.annotationsByPage.set(key, JSON.stringify(state.canvas.toJSON()));
 }
 
 function loadPageAnnotations() {
+    if (!state.canvas) return;
     const key = `page_${state.currentFileId}_${state.currentPage}`;
     const annotations = state.annotationsByPage.get(key);
 
@@ -466,19 +483,19 @@ async function loadPPTFiles() {
                 // 处理完成，显示课件
                 if (pptPollTimer) { clearTimeout(pptPollTimer); pptPollTimer = null; }
 
-                // 1) 先让所有元素可见，Fabric.js 才能正确计算尺寸
+                // 1) 切换显示：隐藏 placeholder，显示 canvas 区域
                 document.getElementById('canvasPlaceholder').style.display = 'none';
-                document.getElementById('pptImage').style.display = 'block';
-                document.getElementById('fabricCanvas').style.display = 'block';
-                const canvasContainer = document.querySelector('.canvas-container');
-                if (canvasContainer) {
-                    canvasContainer.style.display = 'block';
+                document.getElementById('canvasArea').style.display = 'flex';
+
+                // 2) 在元素可见后初始化 Fabric.js canvas（仅首次）
+                if (!state.canvas) {
+                    initializeCanvas();
                 }
 
-                // 2) 加载缩略图（不阻塞主页面）
+                // 3) 加载缩略图（不阻塞主页面）
                 loadThumbnails();
 
-                // 3) 加载第一页（img.onload 中会 resize canvas + ensureDrawingReady）
+                // 4) 加载第一页（img.onload 中会 resize canvas + ensureDrawingReady）
                 await loadPage(0);
 
                 updatePageNavigation();
