@@ -48,23 +48,19 @@ async def login(request: Request):
         client_ip = _get_client_ip(request)
         user_agent = request.headers.get("user-agent", "")
 
-        result = get_services().auth.login(
+        result = await get_services().auth.login(
             username=username,
             password=password,
             client_ip=client_ip,
             user_agent=user_agent,
         )
-        # 获取完整用户信息（含 class_name）
+        # login() 已返回 class_name，直接构建 user_info
         user_info = {
             "username": result["username"],
             "role": result["role"],
             "display_name": result["display_name"],
+            "class_name": result.get("class_name", ""),
         }
-        try:
-            user = get_services().user.get_user(username)
-            user_info["class_name"] = user.get("class_name", "")
-        except Exception:
-            user_info["class_name"] = ""
 
         # 返回扁平结构，兼容前端预期格式
         return {
@@ -102,24 +98,20 @@ async def secure_login(request: Request):
                 status_code=503,
             )
 
-        result = get_services().auth.login_with_encrypted_password(
+        result = await get_services().auth.login_with_encrypted_password(
             username=username,
             encrypted_password=encrypted_password,
             decrypt_func=decrypt_func,
             client_ip=client_ip,
             user_agent=user_agent,
         )
-        # 获取完整用户信息（含 class_name）
+        # login() 已返回 class_name，直接构建 user_info
         user_info = {
             "username": result["username"],
             "role": result["role"],
             "display_name": result["display_name"],
+            "class_name": result.get("class_name", ""),
         }
-        try:
-            user = get_services().user.get_user(username)
-            user_info["class_name"] = user.get("class_name", "")
-        except Exception:
-            user_info["class_name"] = ""
 
         # 返回扁平结构，兼容前端预期格式
         return {
@@ -169,7 +161,7 @@ async def register(request: Request):
         )
 
         # 自动登录
-        result = get_services().auth.login(
+        result = await get_services().auth.login(
             username=username,
             password=password,
             client_ip=client_ip,

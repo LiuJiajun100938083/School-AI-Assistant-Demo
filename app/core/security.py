@@ -283,6 +283,15 @@ class PasswordManager:
             return False
 
     @staticmethod
+    async def verify_password_async(password: str, hashed: str) -> bool:
+        """异步验证密码（在线程池中执行 bcrypt，避免阻塞事件循环）"""
+        import asyncio
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None, PasswordManager.verify_password, password, hashed
+        )
+
+    @staticmethod
     def generate_password(length: int = 16) -> str:
         """生成安全随机密码"""
         return secrets.token_urlsafe(length)

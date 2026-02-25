@@ -115,7 +115,10 @@ class DatabasePool:
                         maxshared=self._pool_config["max_shared"],
                         blocking=self._pool_config["blocking"],
                         maxusage=self._pool_config["max_usage"],
-                        setsession=["SET AUTOCOMMIT = 1"],
+                        setsession=[
+                            "SET AUTOCOMMIT = 1",
+                            "SET SESSION sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))",
+                        ],
                         ping=1,
                         host=self._config["host"],
                         port=self._config["port"],
@@ -154,18 +157,6 @@ class DatabasePool:
         try:
             conn = pool.connection()
             self._stats["connections_created"] += 1
-
-            # 修复 MySQL ONLY_FULL_GROUP_BY 限制 (保持向后兼容)
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute(
-                        "SET SESSION sql_mode = ("
-                        "SELECT REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', '')"
-                        ")"
-                    )
-            except Exception:
-                pass  # 非致命错误
-
             yield conn
         except pymysql.Error as e:
             self._stats["errors"] += 1

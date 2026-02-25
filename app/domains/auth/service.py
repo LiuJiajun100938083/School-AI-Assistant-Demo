@@ -74,7 +74,7 @@ class AuthService:
     #                          登录 / 认证                                 #
     # ------------------------------------------------------------------ #
 
-    def login(
+    async def login(
         self,
         username: str,
         password: str,
@@ -133,9 +133,9 @@ class AuthService:
             )
             raise AccountLockedError(username)
 
-        # 4) 验证密码
+        # 4) 验证密码（bcrypt 在线程池中异步执行，不阻塞事件循环）
         stored_hash = user.get("password") or user.get("password_hash", "")
-        if not self._verify_password(password, stored_hash, username):
+        if not await self._verify_password_async(password, stored_hash, username):
             self._login_tracker.record_failure(client_ip, username)
             self._auditor.log(
                 "LOGIN_FAILURE", username, client_ip,
@@ -176,9 +176,10 @@ class AuthService:
             "username": username,
             "role": role,
             "display_name": display_name,
+            "class_name": user.get("class_name", ""),
         }
 
-    def login_with_encrypted_password(
+    async def login_with_encrypted_password(
         self,
         username: str,
         encrypted_password: str,
@@ -208,7 +209,7 @@ class AuthService:
             logger.warning("RSA 密码解密失败: %s (ip=%s)", e, client_ip)
             raise AuthenticationError("密码解密失败，请刷新页面重试") from e
 
-        return self.login(username, password, client_ip, user_agent)
+        return await self.login(username, password, client_ip, user_agent)
 
     # ------------------------------------------------------------------ #
     #                        令牌管理                                      #
@@ -455,21 +456,42 @@ class AuthService:
 
         return {"access_token": access_token, "refresh_token": refresh_token}
 
-    def _verify_password(
+    async def _verify_password_async(
         self, plain: str, stored_hash: str, username: str = "",
     ) -> bool:
         """
-        验证密码 - 兼容 bcrypt 和明文迁移
+        异步验证密码 - bcrypt 在线程池中执行，不阻塞事件循环
 
-        如果存储的是明文（旧系统遗留），直接比对并自动迁移为 bcrypt。
+        兼容 bcrypt 哈希和明文迁移。
         """
         # bcrypt hash（以 $2b$, $2a$, $2y$ 开头）
         if stored_hash.startswith(("$2b$", "$2a$", "$2y$")):
-            return PasswordManager.verify_password(plain, stored_hash)
+            return await PasswordManager.verify_password_async(plain, stored_hash)
 
         # 旧系统明文密码兼容
         if plain == stored_hash:
             # 自动迁移：将明文升级为 bcrypt
+            if username:
+                try:
+                    new_hash = PasswordManager.hash_password(plain)
+                    self._user_repo.update_password(username, new_hash)
+                    logger.info("已自动迁移明文密码到 bcrypt: %s", username)
+                except Exception as e:
+                    logger.debug("明文密码自动迁移失败: %s", e)
+            return True
+
+        return False
+
+    def _verify_password(
+        self, plain: str, stored_hash: str, username: str = "",
+    ) -> bool:
+        """
+        同步验证密码 - 兼容 bcrypt 和明文迁移（供非 async 上下文使用）
+        """
+        if stored_hash.startswith(("$2b$", "$2a$", "$2y$")):
+            return PasswordManager.verify_password(plain, stored_hash)
+
+        if plain == stored_hash:
             if username:
                 try:
                     new_hash = PasswordManager.hash_password(plain)
