@@ -104,6 +104,11 @@ function initializeCanvas() {
 }
 
 function setupEventListeners() {
+    // Back to classroom list
+    document.getElementById('backToListBtn').addEventListener('click', () => {
+        window.location.href = '/classroom';
+    });
+
     // Tool buttons
     document.getElementById('penBtn').addEventListener('click', () => selectTool('pen'));
     document.getElementById('highlighterBtn').addEventListener('click', () => selectTool('highlighter'));
