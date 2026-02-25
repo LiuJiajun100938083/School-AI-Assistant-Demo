@@ -200,19 +200,27 @@ const ClassroomStudentUI = {
 
     /**
      * Display the page image on the canvas area.
+     * Returns a Promise that resolves after the image loads and canvas resizes.
      */
     displayPageImage(blobUrl, fabricCanvas) {
-        const img = document.getElementById('pageImage');
-        img.src = blobUrl;
-        img.onload = () => {
-            img.classList.add('loaded');
-            this.hideLoadingSpinner();
+        return new Promise((resolve) => {
+            const img = document.getElementById('pageImage');
+            img.src = blobUrl;
+            img.onload = () => {
+                img.classList.add('loaded');
+                this.hideLoadingSpinner();
 
-            // Update canvas size to match image
-            fabricCanvas.setWidth(img.offsetWidth);
-            fabricCanvas.setHeight(img.offsetHeight);
-            fabricCanvas.renderAll();
-        };
+                // Update canvas size to match image
+                fabricCanvas.setWidth(img.offsetWidth);
+                fabricCanvas.setHeight(img.offsetHeight);
+                fabricCanvas.renderAll();
+                resolve();
+            };
+            img.onerror = () => {
+                this.hideLoadingSpinner();
+                resolve();
+            };
+        });
     },
 
     /**
@@ -574,11 +582,11 @@ const ClassroomStudentApp = {
             // Show loading
             ClassroomStudentUI.showLoadingSpinner();
 
-            // Load and display page image
+            // Load and display page image — wait for image load + canvas resize
             const blobUrl = await ClassroomStudentAPI.loadPageImage(file_id, page_number);
-            ClassroomStudentUI.displayPageImage(blobUrl, this.state.fabricCanvas);
+            await ClassroomStudentUI.displayPageImage(blobUrl, this.state.fabricCanvas);
 
-            // Render annotations
+            // Render annotations AFTER canvas is correctly sized
             if (annotations_json) {
                 ClassroomStudentUI.renderAnnotations(annotations_json, this.state.fabricCanvas);
             } else {
