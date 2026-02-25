@@ -761,34 +761,32 @@ async def classroom_ai_stream(
                 content={"success": False, "error": {"message": "课室不存在"}},
             )
 
-        # ---- 2. 提取 PPT 页面文字内容 (当前页 + 前后各 1 页) ----
+        # ---- 2. 提取整个 PPT 全部页面文字内容 ----
         ppt_context_parts = []
         if file_id:
-            for pn in [page_number - 1, page_number, page_number + 1]:
-                if pn < 1:
-                    continue
-                try:
-                    text = await loop.run_in_executor(
-                        None,
-                        lambda pn=pn: get_services().classroom.get_page_text(
-                            file_id=file_id,
-                            page_number=pn,
-                            current_username=username,
-                            current_role=role,
-                        ),
-                    )
-                    if text and text.strip():
-                        label = "【当前页】" if pn == page_number else f"【第{pn}页】"
-                        ppt_context_parts.append(f"{label}\n{text.strip()}")
-                except Exception:
-                    pass  # 页面不存在则跳过
+            try:
+                pages = await loop.run_in_executor(
+                    None,
+                    lambda: get_services().classroom._page_repo.list_file_pages(file_id),
+                )
+                for page in pages:
+                    text = (page.get("text_content") or "").strip()
+                    if text:
+                        pn = page.get("page_number", 0)
+                        if pn == page_number:
+                            ppt_context_parts.append(f"【第{pn}页 - 当前页】\n{text}")
+                        else:
+                            ppt_context_parts.append(f"【第{pn}页】\n{text}")
+            except Exception as e:
+                logger.warning("提取 PPT 全文失败: %s", e)
 
         ppt_context = "\n\n".join(ppt_context_parts) if ppt_context_parts else ""
 
         # ---- 3. 构建限定 system prompt ----
         system_prompt = (
             "你是课堂 AI 助手。学生正在观看老师上课的 PPT 演示。\n"
-            "请严格基于以下 PPT 课件内容回答学生的问题。\n"
+            f"学生当前正在看第 {page_number} 页。\n"
+            "请严格基于以下 PPT 课件的完整内容回答学生的问题。\n"
             "如果 PPT 内容中没有相关信息，请明确告知学生「这个问题在当前课件中没有涉及」。\n"
             "不要编造或补充课件之外的内容。\n"
             "回答要简洁明了，适合课堂学习场景。"
