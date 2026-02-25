@@ -134,7 +134,7 @@ class ConversationRepository(BaseRepository):
                 "created_at": now,
                 "updated_at": now,
             },
-            update_fields=["title", "subject", "updated_at"],
+            update_fields=["subject", "updated_at"],
         )
 
     def update_conversation_title(
