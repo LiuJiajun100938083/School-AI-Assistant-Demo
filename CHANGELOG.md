@@ -11,6 +11,30 @@
 
 ---
 
+## [v3.0.11] [2026-02-25] 课堂页面 UI 统一至主页 Apple-Style 设计系统
+
+### 修改
+
+- **品牌色统一** — 课堂三页面（list / teacher / student）主色从蓝色 `#007AFF` / `#0071e3` 统一为主页品牌绿 `#006633`
+- **设计 token 系统引入** — 阴影（5 级）、圆角（7 级）、间距、动画缓动全部对齐主页 `:root` 变量
+- **字体栈统一** — 从通用系统字体改为 SF Pro Display 完整 Apple 字体栈
+- **Splash Screen 重做** — 紫蓝渐变背景 → 纯白背景 + 品牌绿三点脉冲加载器（与主页一致）
+- **卡片交互对齐** — 去掉 `translateY` hover 效果，改为微妙阴影渐变（遵循主页设计规范）
+- **AI Circle 统一** — 学生页浮动 AI 按钮从紫蓝渐变 → 品牌绿实色
+- **头像颜色统一** — 用户头像 / 学生头像从蓝色渐变 → 品牌绿
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `web_static/css/classroom_list.css` | 完全重写 — 品牌色 + token 系统 + splash + 卡片 + modal |
+| `web_static/css/classroom_student.css` | 完全重写 — 品牌色 + token 系统 + splash + AI circle/chat |
+| `web_static/css/classroom_teacher.css` | 完全重写 — 品牌色 + token 系统 + toolbar + sidebar + modal |
+| `web_static/classroom_list.html` | Splash 结构改为三点脉冲加载器 |
+| `web_static/classroom_student.html` | Splash 结构改为三点脉冲加载器 |
+
+---
+
 ## [v3.0.10] [2026-02-25] 全链路 sync-in-async 修复 — 所有路由同步 DB 调用异步化
 
 ### 优化
