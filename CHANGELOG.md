@@ -11,6 +11,103 @@
 
 ---
 
+## [v3.0.18] [2026-02-25] 簽到頁面全面轉換為繁體中文
+
+### 修改
+
+- **attendance.html** — `lang` 從 `zh-CN` 改為 `zh-TW`，所有 UI 文字、按鈕標籤、表格標題、彈窗內容、佔位文字、通知卡片全部轉為繁體中文
+- **attendance.js（~4785 行）** — 所有 JS 字串、模板字串、toast 提示、狀態標籤（準時/遲到/嚴重遲到/缺席）、錯誤訊息、註解轉為繁體中文
+- **attendance.css** — 所有 CSS 註釋轉為繁體中文
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `web_static/attendance.html` | 368 行變更 — HTML 全部簡體→繁體 |
+| `web_static/js/attendance.js` | 1382 行變更 — JS 字串/模板/註解全部簡體→繁體 |
+| `web_static/css/attendance.css` | 218 行變更 — CSS 註釋全部簡體→繁體 |
+
+---
+
+## [v3.0.17] [2026-02-25] 課堂頁面全面轉換為繁體中文
+
+### 修改
+
+- **9 個課堂文件全面繁體化** — 教師端、學生端、列表頁的 HTML / JS / CSS 共 330+ 處簡體→繁體轉換
+- **HTML（3 個）** — `lang` 從 `zh-CN` 改為 `zh-TW`，所有界面文字、按鈕、彈窗、佔位文字轉繁體
+- **JS（3 個）** — toast 提示、錯誤訊息、狀態標籤、WebSocket 訊息全部轉繁體
+- **CSS（3 個）** — 註釋中的中文轉繁體
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `web_static/classroom_list.html` | 界面文字簡體→繁體 |
+| `web_static/classroom_student.html` | 界面文字簡體→繁體 |
+| `web_static/classroom_teacher.html` | 界面文字簡體→繁體 |
+| `web_static/css/classroom_list.css` | CSS 註釋簡體→繁體 |
+| `web_static/css/classroom_student.css` | CSS 註釋簡體→繁體 |
+| `web_static/css/classroom_teacher.css` | CSS 註釋簡體→繁體 |
+| `web_static/js/classroom_list.js` | JS 字串/註解簡體→繁體 |
+| `web_static/js/classroom_student.js` | JS 字串/註解簡體→繁體 |
+| `web_static/js/classroom_teacher.js` | JS 字串/註解簡體→繁體（146 行變更） |
+
+---
+
+## [v3.0.16] [2026-02-25] 教師課堂頁添加返回課堂列表按鈕
+
+### 新增
+
+- **返回按鈕** — 教師端 toolbar 左側新增「← 返回」按鈕，點擊跳轉到 `/classroom` 列表頁
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `web_static/classroom_teacher.html` | toolbar 新增返回按鈕 HTML |
+| `web_static/js/classroom_teacher.js` | 返回按鈕點擊事件綁定 |
+
+---
+
+## [v3.0.15] [2026-02-25] 學生端標註顯示修復（3 個 bug）
+
+### 修復
+
+- **標註不顯示** — `displayPageImage` 改為 Promise，`await img.onload` 完成後再調用 `renderAnnotations`，解決 canvas 尺寸為 0 導致標註渲染到空畫布的問題
+- **標註閃現後消失** — WS connected 和 init setTimeout 同時發送 `get_latest_push`，導致 `_handlePagePushed` 連續執行兩次，第二次 `loadFromJSON` 內部 `clear()` 清除了第一次加載的標註。修復方案：`pushVersion` 版本守衛防止並發處理 + `displayPageImage` 移除多餘 `renderAll()` + `renderAnnotations` 改為 Promise + 去除重複的 `get_latest_push`
+- **標註被 PPT 圖片覆蓋** — canvas 圖層缺少 `position: absolute` 和 `z-index`，導致 Fabric.js 的 `.canvas-container` 沒有覆蓋在圖片上方。參照教師端樣式，為 `.page-image` 添加 `z-index: 1`，為 `.canvas-container` 添加 `z-index: 10`
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `web_static/js/classroom_student.js` | displayPageImage Promise 化 + pushVersion 守衛 + renderAnnotations Promise 化 + 去除重複請求 |
+| `web_static/css/classroom_student.css` | canvas-container z-index + position 修復 |
+
+---
+
+## [v3.0.14] [2026-02-25] 課堂 AI 助手增強 — 全文上下文 + 浮動窗口 + Markdown
+
+### 修改
+
+- **AI 上下文從當前頁±1頁改為整個 PPT 全文** — 提取 `list_file_pages` 獲取全部頁面文字作為上下文，system prompt 標註學生當前所在頁碼，AI 可回答課件任意頁面的問題
+- **放寬 AI 回答限制** — system prompt 從「嚴格基於課件、不要編造」改為「以課件為核心，可適當拓展補充，幫助學生更深入理解知識點」
+- **AI 面板改為可拖動浮動窗口** — 從固定側邊面板改為自由拖拽浮動窗口（標題欄拖拽，RAF 節流），支持觸摸拖拽（移動端）
+- **放大/縮小切換** — 按鈕切換 400×540 ↔ 680×75vh 兩種尺寸
+- **Markdown 渲染** — 引入 marked.js + DOMPurify，流式完成後將 AI 回覆渲染為 Markdown（支持列表、代碼塊、引用、標題等）
+- **AI 消息氣泡 Markdown 樣式** — 列表縮進、代碼塊背景、引用左邊框等完整排版
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/routers/classroom.py` | AI 上下文改為全文提取 + system prompt 調整 |
+| `web_static/classroom_student.html` | AI 面板 HTML 重構（浮動窗口 + 放大縮小按鈕 + marked.js/DOMPurify CDN） |
+| `web_static/css/classroom_student.css` | 浮動窗口樣式 + 拖拽 + Markdown 排版樣式 |
+| `web_static/js/classroom_student.js` | 拖拽邏輯 + 放大縮小 + Markdown 渲染 + 觸摸支持 |
+
+---
+
 ## [v3.0.13] [2026-02-25] 学生端课堂 AI 助手 — 基于 PPT 内容的流式问答
 
 ### 新增
