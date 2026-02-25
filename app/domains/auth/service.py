@@ -66,7 +66,12 @@ class AuthService:
         )
         self._login_tracker = LoginAttemptTracker(
             max_attempts_per_ip=self._settings.login_max_attempts_per_ip,
+            max_attempts_per_user=self._settings.login_max_attempts_per_user,
+            max_attempts_per_ip_user=self._settings.login_max_attempts_per_ip_user,
             block_duration=self._settings.login_block_duration,
+            block_duration_user=self._settings.login_block_duration_user,
+            time_window=self._settings.login_time_window,
+            ip_whitelist=self._settings.login_ip_whitelist,
         )
         self._auditor = SecurityAuditor()
 

@@ -99,9 +99,11 @@ class SecuritySettings(BaseSettings):
     password_require_special: bool = Field(default=True)
 
     # 登录限制
-    login_max_attempts_per_ip: int = Field(default=5)
-    login_max_attempts_per_user: int = Field(default=3)
-    login_block_duration: int = Field(default=900, description="锁定时间(秒)")
+    login_max_attempts_per_ip: int = Field(default=50, description="同一 IP 允许失败次数（学校共享 IP 场景需调高）")
+    login_max_attempts_per_user: int = Field(default=5, description="同一用户允许失败次数")
+    login_max_attempts_per_ip_user: int = Field(default=3, description="同一 IP+用户组合允许失败次数")
+    login_block_duration: int = Field(default=900, description="IP 级别锁定时间(秒)")
+    login_block_duration_user: int = Field(default=300, description="用户级别锁定时间(秒)")
     login_time_window: int = Field(default=300, description="检测窗口(秒)")
     login_ip_whitelist: List[str] = Field(
         default=["127.0.0.1", "::1"],
