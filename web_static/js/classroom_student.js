@@ -201,6 +201,8 @@ const ClassroomStudentUI = {
     /**
      * Display the page image on the canvas area.
      * Returns a Promise that resolves after the image loads and canvas resizes.
+     * Does NOT call fabricCanvas.renderAll() — the caller should render
+     * after loading annotations to avoid clearing freshly-loaded objects.
      */
     displayPageImage(blobUrl, fabricCanvas) {
         return new Promise((resolve) => {
@@ -210,10 +212,11 @@ const ClassroomStudentUI = {
                 img.classList.add('loaded');
                 this.hideLoadingSpinner();
 
-                // Update canvas size to match image
+                // Update canvas size to match image — but do NOT renderAll here.
+                // renderAll() is deferred to after annotations are loaded, so we
+                // don't accidentally display a blank canvas that later gets populated.
                 fabricCanvas.setWidth(img.offsetWidth);
                 fabricCanvas.setHeight(img.offsetHeight);
-                fabricCanvas.renderAll();
                 resolve();
             };
             img.onerror = () => {
@@ -225,20 +228,26 @@ const ClassroomStudentUI = {
 
     /**
      * Render annotation JSON onto the Fabric canvas.
+     * Returns a Promise that resolves after loadFromJSON finishes.
      */
     renderAnnotations(annotationsJson, fabricCanvas) {
-        try {
-            if (annotationsJson) {
-                fabricCanvas.loadFromJSON(annotationsJson, () => {
-                    fabricCanvas.renderAll();
-                    document.getElementById('annotationCanvas').style.display = 'block';
-                });
-            } else {
-                this.clearAnnotations(fabricCanvas);
+        return new Promise((resolve) => {
+            try {
+                if (annotationsJson) {
+                    fabricCanvas.loadFromJSON(annotationsJson, () => {
+                        fabricCanvas.renderAll();
+                        document.getElementById('annotationCanvas').style.display = 'block';
+                        resolve();
+                    });
+                } else {
+                    this.clearAnnotations(fabricCanvas);
+                    resolve();
+                }
+            } catch (error) {
+                console.error('Error rendering annotations:', error);
+                resolve();
             }
-        } catch (error) {
-            console.error('Error rendering annotations:', error);
-        }
+        });
     },
 
     /**
@@ -284,6 +293,9 @@ const ClassroomStudentApp = {
         heartbeatTimer: null,
         pingTimer: null,
         reconnectTimer: null,
+        // Push version guard — incremented each time _handlePagePushed starts,
+        // so stale async callbacks (image onload, loadFromJSON) can bail out.
+        pushVersion: 0,
         // AI Chat state
         aiConversationId: null,
         aiIsStreaming: false,
@@ -353,14 +365,14 @@ const ClassroomStudentApp = {
             // Setup event listeners
             this._setupEventListeners();
 
-            // Request latest push on load
+            // NOTE: The WS 'connected' handler already sends get_latest_push,
+            // so we only need the HTTP fallback for cases where WS hasn't
+            // connected within a reasonable time.
             setTimeout(() => {
-                if (this.state.isConnected) {
-                    this._sendWSMessage({ type: 'get_latest_push' });
-                } else {
+                if (!this.state.isConnected) {
                     this._requestLatestPushViaHTTP();
                 }
-            }, 1000);
+            }, 2000);
 
         } catch (error) {
             console.error('Init error:', error);
@@ -564,6 +576,10 @@ const ClassroomStudentApp = {
     // ---- Page Push Handling ----
 
     async _handlePagePushed(data) {
+        // Increment push version — any prior in-flight _handlePagePushed whose
+        // async steps haven't finished yet will detect version mismatch and bail.
+        const myVersion = ++this.state.pushVersion;
+
         try {
             const { page_id, page_number, annotations_json, text_content } = data;
             // page_id is the file_id (teacher sends currentFileId as page_id)
@@ -582,16 +598,34 @@ const ClassroomStudentApp = {
             // Show loading
             ClassroomStudentUI.showLoadingSpinner();
 
-            // Load and display page image — wait for image load + canvas resize
+            // Load page image blob
             const blobUrl = await ClassroomStudentAPI.loadPageImage(file_id, page_number);
+
+            // Stale check — a newer push may have started while we were fetching
+            if (this.state.pushVersion !== myVersion) {
+                console.log(`[push] Skipping stale push v${myVersion}, current is v${this.state.pushVersion}`);
+                URL.revokeObjectURL(blobUrl);
+                return;
+            }
+
+            // Display image — waits for img.onload + canvas resize
             await ClassroomStudentUI.displayPageImage(blobUrl, this.state.fabricCanvas);
+
+            // Stale check again after image load
+            if (this.state.pushVersion !== myVersion) {
+                console.log(`[push] Skipping stale push v${myVersion} after image load`);
+                return;
+            }
 
             // Render annotations AFTER canvas is correctly sized
             if (annotations_json) {
-                ClassroomStudentUI.renderAnnotations(annotations_json, this.state.fabricCanvas);
+                await ClassroomStudentUI.renderAnnotations(annotations_json, this.state.fabricCanvas);
             } else {
                 ClassroomStudentUI.clearAnnotations(this.state.fabricCanvas);
             }
+
+            // Final stale check — don't show toast / system message if superseded
+            if (this.state.pushVersion !== myVersion) return;
 
             // Notify AI panel about page change
             this._renderAISystemMessage(`老师已翻到第 ${page_number} 页`);
