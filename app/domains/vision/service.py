@@ -695,8 +695,44 @@ Output JSON only.
         1. 標準 JSON 雙引號字符串
         2. 包含未轉義換行的長字符串（貪婪匹配到下一個欄位）
         3. 數組格式的值 [...]
+        4. 純文本值（無引號）
+        5. 嵌套 JSON 物件 "field": {...}（用括號匹配）
         """
         import re
+
+        # 模式 5（優先）：值是嵌套 JSON 物件 "field": {...}
+        # 使用括號深度匹配，支持任意嵌套層級
+        obj_start = re.search(rf'"{field_name}"\s*:\s*\{{', text)
+        if obj_start:
+            # 從 { 開始做括號匹配
+            brace_pos = obj_start.end() - 1  # 回退到 { 位置
+            depth = 0
+            in_str = False
+            esc = False
+            for i in range(brace_pos, len(text)):
+                ch = text[i]
+                if esc:
+                    esc = False
+                    continue
+                if ch == '\\' and in_str:
+                    esc = True
+                    continue
+                if ch == '"' and not esc:
+                    in_str = not in_str
+                    continue
+                if in_str:
+                    continue
+                if ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        obj_str = text[brace_pos:i + 1]
+                        return obj_str
+            # 括號不匹配也返回已截取的部分（比什麼都沒有好）
+            if depth > 0:
+                obj_str = text[brace_pos:]
+                return obj_str
 
         # 模式 1：標準 JSON 字符串 "field": "value"
         m = re.search(
@@ -708,7 +744,13 @@ Output JSON only.
         # 模式 2：值裡有未轉義的換行或引號，匹配到下一個已知欄位或 } 結束
         #         "answer": "some long text...
         #         with newlines..."
-        next_fields = r'(?="(?:question|answer|has_handwriting|has_math_formula|steps|notes|correct_answer|error_type|knowledge_points)"\s*:)'
+        next_fields = (
+            r'(?="(?:question|answer|figure_description|has_figure|'
+            r'has_handwriting|has_math_formula|steps|notes|'
+            r'correct_answer|error_type|knowledge_points|'
+            r'spelling_issues|word_list|potential_misspellings|'
+            r'paragraph_count|estimated_word_count)"\s*:)'
+        )
         m2 = re.search(
             rf'"{field_name}"\s*:\s*"([\s\S]*?)"\s*(?:,\s*{next_fields}|,?\s*\}})',
             text,
@@ -804,29 +846,73 @@ Output JSON only.
         """
         import re
 
-        # 第一次嘗試：直接解析
-        try:
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            pass
+        # 第 0 步：清理控制字元（thinking 模式經常夾帶 \x00-\x1f）
+        cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_str)
+        # 清理字串值內的未轉義換行符（JSON 規範不允許字串內有裸 \n \r \t）
+        # 但保留已轉義的 \\n \\r \\t
+        # 這裡只處理 JSON 字串值內的裸控制字元
+        cleaned = cleaned.strip()
+
+        # 第一次嘗試：直接解析（清理後）
+        for attempt_str in [cleaned, json_str]:
+            try:
+                return json.loads(attempt_str)
+            except json.JSONDecodeError:
+                pass
 
         # 第二次嘗試：修復未轉義的反斜槓
         # 將不合法的 \x（x 不是 " \ / b f n r t u）替換為 \\x
         fixed = re.sub(
             r'\\(?!["\\/bfnrtu])',
             r'\\\\',
-            json_str,
+            cleaned,
         )
         try:
             return json.loads(fixed)
         except json.JSONDecodeError:
             pass
 
-        # 第三次嘗試：用 Python ast.literal_eval 也不行的話，
-        # 手動提取 key-value
+        # 第三次嘗試：修復字串值內的裸換行符
+        # 在 JSON 字串值中，裸 \n 是非法的，需要替換為 \\n
+        def _fix_newlines_in_strings(s: str) -> str:
+            """遍歷字元，在字串值內部將裸換行替換為 \\n"""
+            result = []
+            in_str = False
+            esc = False
+            for ch in s:
+                if esc:
+                    result.append(ch)
+                    esc = False
+                    continue
+                if ch == '\\' and in_str:
+                    result.append(ch)
+                    esc = True
+                    continue
+                if ch == '"':
+                    in_str = not in_str
+                    result.append(ch)
+                    continue
+                if in_str and ch == '\n':
+                    result.append('\\n')
+                    continue
+                if in_str and ch == '\r':
+                    result.append('\\r')
+                    continue
+                if in_str and ch == '\t':
+                    result.append('\\t')
+                    continue
+                result.append(ch)
+            return ''.join(result)
+
+        fixed2 = _fix_newlines_in_strings(fixed)
         try:
-            # 把所有反斜槓統一雙重轉義
-            aggressive = json_str.replace('\\', '\\\\')
+            return json.loads(fixed2)
+        except json.JSONDecodeError:
+            pass
+
+        # 第四次嘗試：把所有反斜槓統一雙重轉義
+        try:
+            aggressive = cleaned.replace('\\', '\\\\')
             return json.loads(aggressive)
         except json.JSONDecodeError:
             pass
@@ -840,14 +926,16 @@ Output JSON only.
         import re
         return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
 
-    @staticmethod
-    def _extract_json_from_reasoning(text: str) -> str:
+    def _extract_json_from_reasoning(self, text: str) -> str:
         """
         從模型的推理文本中提取嵌入的 JSON 對象。
 
         Qwen3-VL 在思考模式下可能輸出類似：
             'I can see a math problem... the question is about...\n{"question": "...", "answer": "..."}\n'
         這裡嘗試找到包含 "question" 字段的最大合法 JSON 對象。
+
+        修復：使用 _safe_json_loads 處理 LaTeX 反斜槓等常見格式問題，
+        並嘗試所有可能的 { 起始位置（而非只嘗試第一個）。
         """
         import re
 
@@ -856,39 +944,48 @@ Output JSON only.
         if m:
             candidate = m.group(1).strip()
             try:
-                json.loads(candidate)
+                self._safe_json_loads(candidate)
                 return candidate
             except (json.JSONDecodeError, ValueError):
                 pass
 
-        # 尋找包含 "question" 的 JSON 對象（從第一個 { 到匹配的 }）
-        # 使用括號匹配而非簡單的 rfind，以處理嵌套
-        start = -1
+        # 收集所有包含 "question" 的 { 起始位置
+        candidates_start = []
         for i, ch in enumerate(text):
             if ch == '{':
-                # 檢查後面是否有 "question" 字段
                 rest = text[i:]
                 if '"question"' in rest[:500]:
-                    start = i
-                    break
+                    candidates_start.append(i)
 
-        if start == -1:
-            return ""
-
-        # 從 start 開始找到匹配的閉括號
-        depth = 0
-        for i in range(start, len(text)):
-            if text[i] == '{':
-                depth += 1
-            elif text[i] == '}':
-                depth -= 1
-                if depth == 0:
-                    candidate = text[start:i + 1]
-                    try:
-                        json.loads(candidate)
-                        return candidate
-                    except (json.JSONDecodeError, ValueError):
-                        break
+        # 逐個嘗試括號匹配 + 解析
+        for start in candidates_start:
+            depth = 0
+            in_string = False
+            escape_next = False
+            for i in range(start, len(text)):
+                ch = text[i]
+                if escape_next:
+                    escape_next = False
+                    continue
+                if ch == '\\' and in_string:
+                    escape_next = True
+                    continue
+                if ch == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if ch == '{':
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0:
+                        candidate = text[start:i + 1]
+                        try:
+                            self._safe_json_loads(candidate)
+                            return candidate
+                        except (json.JSONDecodeError, ValueError):
+                            break  # 這個起始位置失敗，嘗試下一個
 
         return ""
 
