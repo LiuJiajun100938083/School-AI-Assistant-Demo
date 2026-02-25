@@ -130,7 +130,7 @@ const ClassroomStudentUI = {
         }
         const teacherName = data.teacher_display_name || data.teacher_name || '';
         if (teacherName) {
-            document.getElementById('teacherName').textContent = `教师: ${teacherName}`;
+            document.getElementById('teacherName').textContent = `教師: ${teacherName}`;
         }
     },
 
@@ -138,7 +138,7 @@ const ClassroomStudentUI = {
      * Update the page number display.
      */
     updatePageNumber(pageNumber) {
-        document.getElementById('pageNumber').textContent = `第 ${pageNumber} 页`;
+        document.getElementById('pageNumber').textContent = `第 ${pageNumber} 頁`;
     },
 
     /**
@@ -157,10 +157,10 @@ const ClassroomStudentUI = {
 
         if (connected) {
             indicator.classList.remove('disconnected');
-            label.textContent = '已连接';
+            label.textContent = '已連接';
         } else {
             indicator.classList.add('disconnected');
-            label.textContent = '已断开';
+            label.textContent = '已斷開';
         }
     },
 
@@ -182,15 +182,15 @@ const ClassroomStudentUI = {
 
     showRoomEndedOverlay() {
         const overlay = document.getElementById('statusOverlay');
-        document.getElementById('overlayTitle').textContent = '课堂已结束';
-        document.getElementById('overlayText').textContent = '本课堂已由老师结束，请返回课堂列表。';
+        document.getElementById('overlayTitle').textContent = '課堂已結束';
+        document.getElementById('overlayText').textContent = '本課堂已由老師結束，請返回課堂列表。';
         overlay.classList.add('visible');
     },
 
     showRoomClosedOverlay() {
         const overlay = document.getElementById('statusOverlay');
-        document.getElementById('overlayTitle').textContent = '房间已关闭';
-        document.getElementById('overlayText').textContent = '课堂房间已关闭，页面将在 3 秒后跳转。';
+        document.getElementById('overlayTitle').textContent = '房間已關閉';
+        document.getElementById('overlayText').textContent = '課堂房間已關閉，頁面將在 3 秒後跳轉。';
         overlay.classList.add('visible');
 
         setTimeout(() => {
@@ -321,11 +321,11 @@ const ClassroomStudentApp = {
                     this.state.userInfo.name = userData.display_name || userData.username;
                 }
             } catch (e) {
-                console.warn('获取用户信息失败:', e);
+                console.warn('獲取用戶資訊失敗:', e);
             }
 
             if (!this.state.roomId || !this.state.token) {
-                UIModule.toast('缺少必要信息，请重新登录', 'error');
+                UIModule.toast('缺少必要資訊，請重新登錄', 'error');
                 setTimeout(() => {
                     window.location.href = '/';
                 }, 2000);
@@ -376,7 +376,7 @@ const ClassroomStudentApp = {
 
         } catch (error) {
             console.error('Init error:', error);
-            UIModule.toast('初始化失败: ' + error.message, 'error');
+            UIModule.toast('初始化失敗: ' + error.message, 'error');
         }
     },
 
@@ -390,12 +390,12 @@ const ClassroomStudentApp = {
                 ClassroomStudentUI.updateRoomInfo(result.data);
                 return true;
             } else {
-                UIModule.toast(result.message || '加入课堂失败', 'error');
+                UIModule.toast(result.message || '加入課堂失敗', 'error');
                 return false;
             }
         } catch (error) {
             console.error('Join room error:', error);
-            UIModule.toast('加入课堂失败: ' + error.message, 'error');
+            UIModule.toast('加入課堂失敗: ' + error.message, 'error');
             return false;
         }
     },
@@ -407,7 +407,7 @@ const ClassroomStudentApp = {
                 ClassroomStudentUI.updateRoomInfo(result.data);
             }
         } catch (error) {
-            console.error('获取房间信息失败:', error);
+            console.error('獲取房間資訊失敗:', error);
         }
     },
 
@@ -434,7 +434,7 @@ const ClassroomStudentApp = {
                 // Fatal error from server (room not found / no permission) — stop reconnecting
                 if (msg.type === 'error') {
                     this.state.fatalError = true;
-                    UIModule.toast('错误: ' + msg.message, 'error');
+                    UIModule.toast('錯誤: ' + msg.message, 'error');
                     setTimeout(() => { window.location.href = '/classroom'; }, 3000);
                     return;
                 }
@@ -495,7 +495,7 @@ const ClassroomStudentApp = {
                     break;
 
                 case 'no_push':
-                    console.log('暂无推送');
+                    console.log('暫無推送');
                     break;
 
                 case 'pong':
@@ -507,7 +507,7 @@ const ClassroomStudentApp = {
                     break;
 
                 case 'error':
-                    UIModule.toast(message.message || '服务器错误', 'error');
+                    UIModule.toast(message.message || '伺服器錯誤', 'error');
                     break;
 
                 default:
@@ -530,7 +530,7 @@ const ClassroomStudentApp = {
 
         this.state.reconnectAttempts++;
         if (this.state.reconnectAttempts > 5) {
-            UIModule.toast('无法连接到课室，请返回房间列表', 'error');
+            UIModule.toast('無法連接到課室，請返回房間列表', 'error');
             return;
         }
         const delay = Math.min(
@@ -628,13 +628,13 @@ const ClassroomStudentApp = {
             if (this.state.pushVersion !== myVersion) return;
 
             // Notify AI panel about page change
-            this._renderAISystemMessage(`老师已翻到第 ${page_number} 页`);
+            this._renderAISystemMessage(`老師已翻到第 ${page_number} 頁`);
 
-            UIModule.toast(`已接收到第 ${page_number} 页`, 'success');
+            UIModule.toast(`已接收到第 ${page_number} 頁`, 'success');
 
         } catch (error) {
             console.error('Error handling page push:', error);
-            UIModule.toast('加载页面失败: ' + error.message, 'error');
+            UIModule.toast('加載頁面失敗: ' + error.message, 'error');
         }
     },
 
@@ -657,7 +657,7 @@ const ClassroomStudentApp = {
 
         switch (status) {
             case 'paused':
-                UIModule.toast('课堂已暂停', 'warning');
+                UIModule.toast('課堂已暫停', 'warning');
                 break;
             case 'ended':
                 ClassroomStudentUI.showRoomEndedOverlay();
@@ -693,7 +693,7 @@ const ClassroomStudentApp = {
         expandBtn.addEventListener('click', () => {
             const isExpanded = win.classList.toggle('ai-float--expanded');
             expandBtn.innerHTML = isExpanded ? '&#9635;' : '&#9634;';
-            expandBtn.title = isExpanded ? '缩小' : '放大';
+            expandBtn.title = isExpanded ? '縮小' : '放大';
         });
 
         // Send button
@@ -804,7 +804,7 @@ const ClassroomStudentApp = {
 
         // Check if there is a current page
         if (!this.state.currentFileId || !this.state.currentPageNumber) {
-            UIModule.toast('等待老师推送页面后再提问', 'warning');
+            UIModule.toast('等待老師推送頁面後再提問', 'warning');
             return;
         }
 
@@ -881,7 +881,7 @@ const ClassroomStudentApp = {
                                 this._renderMarkdown(aiBubbleContent, rawText);
                                 this._scrollAIChatToBottom();
                             } else if (eventType === 'error') {
-                                aiBubbleContent.textContent = data.message || 'AI 回复出错';
+                                aiBubbleContent.textContent = data.message || 'AI 回覆出錯';
                                 aiBubbleContent.style.color = 'var(--color-danger)';
                             }
                         } catch (e) {
@@ -899,7 +899,7 @@ const ClassroomStudentApp = {
         } catch (error) {
             console.error('AI stream error:', error);
             this._removeAITypingIndicator();
-            this._renderAIErrorMessage('AI 服务暂时不可用，请稍后再试');
+            this._renderAIErrorMessage('AI 服務暫時不可用，請稍後再試');
         } finally {
             this.state.aiIsStreaming = false;
             input.disabled = false;

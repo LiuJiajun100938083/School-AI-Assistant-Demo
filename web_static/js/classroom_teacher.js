@@ -1,10 +1,10 @@
 'use strict';
 
 /**
- * classroom_teacher.js - 教师课堂课件演示系统
+ * classroom_teacher.js - 教師課堂課件演示系統
  *
- * 依赖:
- *   - fabric.js (全局 fabric 对象)
+ * 依賴:
+ *   - fabric.js (全局 fabric 對象)
  *   - shared/utils.js
  *   - shared/auth.js   → AuthModule
  *   - shared/ui.js     → UIModule
@@ -44,7 +44,7 @@ async function initialize() {
         return;
     }
 
-    // 通过 AuthModule.verify() 获取用户信息
+    // 通過 AuthModule.verify() 獲取用戶資訊
     try {
         const data = await AuthModule.verify();
         if (data) {
@@ -60,8 +60,8 @@ async function initialize() {
     }
 
     setupDOM();
-    // 注意：Fabric.js canvas 延迟到 PPT 第一页加载成功后才初始化
-    // 避免在 display:none 的元素上创建 canvas 导致尺寸为 0
+    // 注意：Fabric.js canvas 延遲到 PPT 第一頁加載成功後才初始化
+    // 避免在 display:none 的元素上創建 canvas 導致尺寸為 0
     setupEventListeners();
     connectWebSocket();
     loadUserInfo();
@@ -220,13 +220,13 @@ function changeOpacity(color, opacity) {
 // ==================== CANVAS OPERATIONS ====================
 function clearCanvas() {
     if (state.roomStatus === 'ended') {
-        UIModule.toast('课程已结束，无法清除', 'error');
+        UIModule.toast('課程已結束，無法清除', 'error');
         return;
     }
 
     showConfirmModal(
-        '清除所有标注',
-        '确定要清除当前页面的所有标注吗？此操作无法撤销。',
+        '清除所有標註',
+        '確定要清除當前頁面的所有標註嗎？此操作無法撤銷。',
         () => {
             state.canvas.clear();
             addHistorySnapshot();
@@ -293,8 +293,8 @@ async function loadPage(pageNumber) {
     state.currentPage = pageNumber;
     updatePageNavigation();
 
-    // Load image with Authorization header (img src 无法带 header)
-    // 后端页码从 1 开始，前端内部从 0 开始，API 调用时 +1
+    // Load image with Authorization header (img src 無法帶 header)
+    // 後端頁碼從 1 開始，前端內部從 0 開始，API 調用時 +1
     try {
         const apiPageNum = pageNumber + 1;
         const imageUrl = `${API_BASE}/classroom/ppt/${state.currentFileId}/page/${apiPageNum}`;
@@ -306,33 +306,33 @@ async function loadPage(pageNumber) {
         const blobUrl = URL.createObjectURL(blob);
 
         const img = document.getElementById('pptImage');
-        // 释放上一次的 blob URL
+        // 釋放上一次的 blob URL
         if (img.src && img.src.startsWith('blob:')) {
             URL.revokeObjectURL(img.src);
         }
         img.onload = () => {
             resizeCanvasToImage();
             loadPageAnnotations();
-            // 重新确保 drawing mode 和 brush 正确设置
+            // 重新確保 drawing mode 和 brush 正確設置
             ensureDrawingReady();
         };
         img.src = blobUrl;
     } catch (error) {
-        UIModule.toast(`加载页面失败: ${error.message}`, 'error');
+        UIModule.toast(`加載頁面失敗: ${error.message}`, 'error');
     }
 }
 
 /**
- * 在每次 canvas 尺寸变化后，重新确保 Fabric.js drawing 就绪
- * Fabric.js 在 display:none 或尺寸为 0 时初始化会导致内部偏移量错误
+ * 在每次 canvas 尺寸變化後，重新確保 Fabric.js drawing 就緒
+ * Fabric.js 在 display:none 或尺寸為 0 時初始化會導致內部偏移量錯誤
  */
 function ensureDrawingReady() {
     if (!state.canvas) return;
 
-    // 强制重新计算 canvas 偏移量（鼠标坐标修正）
+    // 強制重新計算 canvas 偏移量（滑鼠座標修正）
     state.canvas.calcOffset();
 
-    // 确保 upper-canvas 尺寸与 lower-canvas 一致
+    // 確保 upper-canvas 尺寸與 lower-canvas 一致
     const upperCanvas = state.canvas.upperCanvasEl;
     const lowerCanvas = state.canvas.lowerCanvasEl;
     if (upperCanvas && lowerCanvas) {
@@ -342,7 +342,7 @@ function ensureDrawingReady() {
         upperCanvas.style.height = lowerCanvas.style.height;
     }
 
-    // 重新设置当前工具的 brush
+    // 重新設置當前工具的 brush
     if (state.canvas.isDrawingMode) {
         state.canvas.freeDrawingBrush = new fabric.PencilBrush(state.canvas);
         updateBrush();
@@ -369,25 +369,25 @@ function resizeCanvasToImage() {
         const imgRect = img.getBoundingClientRect();
         const wrapperRect = wrapper.getBoundingClientRect();
 
-        // 使用图片的显示尺寸（不是原始像素尺寸）
+        // 使用圖片的顯示尺寸（不是原始像素尺寸）
         const displayWidth = imgRect.width;
         const displayHeight = imgRect.height;
 
-        // 图片在 wrapper 内的相对位置
+        // 圖片在 wrapper 內的相對位置
         const relLeft = imgRect.left - wrapperRect.left;
         const relTop = imgRect.top - wrapperRect.top;
 
         state.canvas.setWidth(displayWidth);
         state.canvas.setHeight(displayHeight);
 
-        // 定位 Fabric.js 的 .canvas-container（它包裹了实际的 canvas）
+        // 定位 Fabric.js 的 .canvas-container（它包裹了實際的 canvas）
         const canvasContainer = wrapper.querySelector('.canvas-container');
         if (canvasContainer) {
             canvasContainer.style.left = relLeft + 'px';
             canvasContainer.style.top = relTop + 'px';
         }
 
-        // 重新计算画布偏移，否则鼠标/触摸坐标会偏移
+        // 重新計算畫布偏移，否則滑鼠/觸摸座標會偏移
         state.canvas.calcOffset();
         state.canvas.renderAll();
     }
@@ -435,7 +435,7 @@ async function handleFileUpload(e) {
     if (!file) return;
 
     document.getElementById('uploadBtn').disabled = true;
-    UIModule.toast('正在上传课件...', 'info');
+    UIModule.toast('正在上傳課件...', 'info');
 
     try {
         const formData = new FormData();
@@ -449,13 +449,13 @@ async function handleFileUpload(e) {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '上传失败');
+            throw new Error(data.message || '上傳失敗');
         }
 
-        UIModule.toast('课件上传成功', 'success');
+        UIModule.toast('課件上傳成功', 'success');
         loadPPTFiles();
     } catch (error) {
-        UIModule.toast(`上传失败: ${error.message}`, 'error');
+        UIModule.toast(`上傳失敗: ${error.message}`, 'error');
     } finally {
         document.getElementById('uploadBtn').disabled = false;
         document.getElementById('pptFile').value = '';
@@ -472,7 +472,7 @@ async function loadPPTFiles() {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '获取课件列表失败');
+            throw new Error(data.message || '獲取課件列表失敗');
         }
 
         // data.data = { room_id, total, files: [...] }
@@ -485,39 +485,39 @@ async function loadPPTFiles() {
             state.totalPages = firstFile.total_pages || 0;
 
             if (firstFile.process_status === 'completed' && state.totalPages > 0) {
-                // 处理完成，显示课件
+                // 處理完成，顯示課件
                 if (pptPollTimer) { clearTimeout(pptPollTimer); pptPollTimer = null; }
 
-                // 1) 切换显示：隐藏 placeholder，显示 canvas 区域
+                // 1) 切換顯示：隱藏 placeholder，顯示 canvas 區域
                 document.getElementById('canvasPlaceholder').style.display = 'none';
                 document.getElementById('canvasArea').style.display = 'flex';
 
-                // 2) 在元素可见后初始化 Fabric.js canvas（仅首次）
+                // 2) 在元素可見後初始化 Fabric.js canvas（僅首次）
                 if (!state.canvas) {
                     initializeCanvas();
                 }
 
-                // 3) 加载缩略图（不阻塞主页面）
+                // 3) 加載縮略圖（不阻塞主頁面）
                 loadThumbnails();
 
-                // 4) 加载第一页（img.onload 中会 resize canvas + ensureDrawingReady）
+                // 4) 加載第一頁（img.onload 中會 resize canvas + ensureDrawingReady）
                 await loadPage(0);
 
                 updatePageNavigation();
             } else if (firstFile.process_status === 'pending' || firstFile.process_status === 'processing') {
-                // 正在处理，轮询等待
+                // 正在處理，輪詢等待
                 document.getElementById('canvasPlaceholder').innerHTML =
-                    '⏳ 课件正在处理中，请稍候...';
-                UIModule.toast('课件正在处理中，请稍候...', 'info');
+                    '⏳ 課件正在處理中，請稍候...';
+                UIModule.toast('課件正在處理中，請稍候...', 'info');
                 pptPollTimer = setTimeout(loadPPTFiles, 3000);
             } else if (firstFile.process_status === 'failed') {
                 document.getElementById('canvasPlaceholder').innerHTML =
-                    '❌ 课件处理失败，请重新上传';
-                UIModule.toast('课件处理失败，请重新上传', 'error');
+                    '❌ 課件處理失敗，請重新上傳';
+                UIModule.toast('課件處理失敗，請重新上傳', 'error');
             }
         }
     } catch (error) {
-        UIModule.toast(`获取课件列表失败: ${error.message}`, 'error');
+        UIModule.toast(`獲取課件列表失敗: ${error.message}`, 'error');
     }
 }
 
@@ -527,20 +527,20 @@ async function loadThumbnails() {
     const container = document.getElementById('thumbnailsContainer');
     container.innerHTML = '';
 
-    // 先创建所有 DOM 元素
+    // 先創建所有 DOM 元素
     const thumbElements = [];
     for (let i = 0; i < state.totalPages; i++) {
         const thumb = document.createElement('div');
         thumb.className = 'thumbnail' + (i === 0 ? ' active' : '');
         const imgEl = document.createElement('img');
-        imgEl.alt = `页面 ${i + 1}`;
+        imgEl.alt = `頁面 ${i + 1}`;
         thumb.appendChild(imgEl);
         thumb.addEventListener('click', () => loadPage(i));
         container.appendChild(thumb);
         thumbElements.push({ imgEl, pageNumber: i });
     }
 
-    // 并发控制：每批最多 3 个缩略图同时加载
+    // 並發控制：每批最多 3 個縮略圖同時加載
     const BATCH_SIZE = 3;
     for (let i = 0; i < thumbElements.length; i += BATCH_SIZE) {
         const batch = thumbElements.slice(i, i + BATCH_SIZE);
@@ -553,7 +553,7 @@ async function loadThumbnails() {
 async function loadThumbnailImage(imgEl, pageNumber) {
     try {
         const apiPageNum = pageNumber + 1;
-        // 使用缩略图接口而非全尺寸图片
+        // 使用縮略圖接口而非全尺寸圖片
         const url = `${API_BASE}/classroom/ppt/${state.currentFileId}/thumb/${apiPageNum}`;
         const response = await fetch(url, {
             headers: AuthModule.getAuthHeaders(),
@@ -562,19 +562,19 @@ async function loadThumbnailImage(imgEl, pageNumber) {
         const blob = await response.blob();
         imgEl.src = URL.createObjectURL(blob);
     } catch (error) {
-        console.error(`缩略图 ${pageNumber} 加载失败:`, error);
+        console.error(`縮略圖 ${pageNumber} 加載失敗:`, error);
     }
 }
 
 // ==================== PUSH TO STUDENTS ====================
 async function pushToStudents() {
     if (state.roomStatus === 'ended') {
-        UIModule.toast('课程已结束，无法推送', 'error');
+        UIModule.toast('課程已結束，無法推送', 'error');
         return;
     }
 
     if (state.roomStatus === 'paused') {
-        UIModule.toast('课程已暂停，请先继续', 'error');
+        UIModule.toast('課程已暫停，請先繼續', 'error');
         return;
     }
 
@@ -583,7 +583,7 @@ async function pushToStudents() {
 
         const payload = {
             page_id: state.currentFileId,
-            page_number: state.currentPage + 1,  // 后端页码从 1 开始
+            page_number: state.currentPage + 1,  // 後端頁碼從 1 開始
             annotations_json: annotationsJson,
         };
 
@@ -599,7 +599,7 @@ async function pushToStudents() {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '推送失败');
+            throw new Error(data.message || '推送失敗');
         }
 
         // WebSocket push
@@ -610,9 +610,9 @@ async function pushToStudents() {
             }));
         }
 
-        UIModule.toast('已推送给学生', 'success');
+        UIModule.toast('已推送給學生', 'success');
     } catch (error) {
-        UIModule.toast(`推送失败: ${error.message}`, 'error');
+        UIModule.toast(`推送失敗: ${error.message}`, 'error');
     }
 }
 
@@ -632,7 +632,7 @@ async function changeRoomStatus(newStatus) {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '状态更新失败');
+            throw new Error(data.message || '狀態更新失敗');
         }
 
         state.roomStatus = newStatus;
@@ -643,9 +643,9 @@ async function changeRoomStatus(newStatus) {
             document.getElementById('clearBtn').disabled = true;
         }
 
-        UIModule.toast(`课室状态已更新为: ${getStatusLabel(newStatus)}`, 'success');
+        UIModule.toast(`課室狀態已更新為: ${getStatusLabel(newStatus)}`, 'success');
     } catch (error) {
-        UIModule.toast(`状态更新失败: ${error.message}`, 'error');
+        UIModule.toast(`狀態更新失敗: ${error.message}`, 'error');
     }
 }
 
@@ -676,9 +676,9 @@ function updateRoomStatusUI() {
 function getStatusLabel(status) {
     const labels = {
         'draft': '草稿',
-        'active': '进行中',
-        'paused': '已暂停',
-        'ended': '已结束',
+        'active': '進行中',
+        'paused': '已暫停',
+        'ended': '已結束',
     };
     return labels[status] || status;
 }
@@ -699,16 +699,16 @@ function connectWebSocket() {
     state.ws.onopen = () => {
         state.wsConnected = true;
         wsRetryCount = 0;
-        UIModule.toast('已连接到课室', 'info');
+        UIModule.toast('已連接到課室', 'info');
         startHeartbeat();
     };
 
     state.ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        // 如果服务器返回错误 (房间不存在/无权限)，停止重连
+        // 如果伺服器返回錯誤 (房間不存在/無權限)，停止重連
         if (msg.type === 'error') {
             wsFatalError = true;
-            UIModule.toast('错误: ' + msg.message, 'error');
+            UIModule.toast('錯誤: ' + msg.message, 'error');
             setTimeout(() => { window.location.href = '/classroom'; }, 3000);
             return;
         }
@@ -721,10 +721,10 @@ function connectWebSocket() {
 
         wsRetryCount++;
         if (wsRetryCount > WS_MAX_RETRIES) {
-            UIModule.toast('无法连接到课室，请返回房间列表', 'error');
+            UIModule.toast('無法連接到課室，請返回房間列表', 'error');
             return;
         }
-        UIModule.toast(`连接已断开，${wsRetryCount}/${WS_MAX_RETRIES} 次重试...`, 'error');
+        UIModule.toast(`連接已斷開，${wsRetryCount}/${WS_MAX_RETRIES} 次重試...`, 'error');
         setTimeout(connectWebSocket, 3000);
     };
 
@@ -736,7 +736,7 @@ function connectWebSocket() {
 function handleWebSocketMessage(message) {
     switch (message.type) {
         case 'connected':
-            // 连接成功后从 API 获取房间详情（含 status）
+            // 連接成功後從 API 獲取房間詳情（含 status）
             loadRoomInfo();
             break;
         case 'student_joined':
@@ -748,7 +748,7 @@ function handleWebSocketMessage(message) {
                 document.getElementById('studentCount').textContent =
                     message.online_count ?? message.active_count ?? state.students.size;
             }
-            UIModule.toast(`学生 ${message.display_name || message.student_username} 已加入`, 'info');
+            UIModule.toast(`學生 ${message.display_name || message.student_username} 已加入`, 'info');
             break;
         case 'student_left':
             removeStudent(message.student_username);
@@ -756,7 +756,7 @@ function handleWebSocketMessage(message) {
                 document.getElementById('studentCount').textContent =
                     message.online_count ?? message.active_count ?? state.students.size;
             }
-            UIModule.toast(`学生 ${message.student_username} 已离开`, 'info');
+            UIModule.toast(`學生 ${message.student_username} 已離開`, 'info');
             break;
         case 'room_status_changed':
             state.roomStatus = message.status || 'draft';
@@ -804,7 +804,7 @@ function renderStudents() {
     if (count === 0) {
         container.innerHTML = `
             <div style="color: #999; font-size: 12px; text-align: center; padding: 20px;">
-                暂无学生连接
+                暫無學生連接
             </div>
         `;
         return;
@@ -814,13 +814,13 @@ function renderStudents() {
     state.students.forEach((student) => {
         const studentEl = document.createElement('div');
         studentEl.className = 'student-item';
-        const initials = (student.name || '学').substring(0, 1).toUpperCase();
+        const initials = (student.name || '學').substring(0, 1).toUpperCase();
         studentEl.innerHTML = `
             <div class="status-indicator"></div>
             <div class="student-avatar">${initials}</div>
             <div class="student-info">
                 <div class="student-name">${student.name || '未命名'}</div>
-                <div class="student-status">在线</div>
+                <div class="student-status">在線</div>
             </div>
         `;
         container.appendChild(studentEl);
@@ -839,7 +839,7 @@ async function loadRoomInfo() {
             state.roomStatus = room.room_status || 'draft';
             updateRoomStatusUI();
 
-            // 更新课室信息显示
+            // 更新課室資訊顯示
             if (room.title) {
                 document.getElementById('roomId').textContent = room.title;
             }
@@ -847,14 +847,14 @@ async function loadRoomInfo() {
                 document.getElementById('teacherName').textContent = room.teacher_display_name;
             }
 
-            // 加载已有的 PPT 文件
+            // 加載已有的 PPT 文件
             loadPPTFiles();
 
-            // 加载已有的学生列表
+            // 加載已有的學生列表
             loadExistingStudents();
         }
     } catch (error) {
-        console.error('获取房间信息失败:', error);
+        console.error('獲取房間資訊失敗:', error);
     }
 }
 
@@ -874,7 +874,7 @@ async function loadExistingStudents() {
             });
         }
     } catch (error) {
-        console.error('获取学生列表失败:', error);
+        console.error('獲取學生列表失敗:', error);
     }
 }
 
@@ -918,7 +918,7 @@ document.getElementById('fabricCanvas').addEventListener('click', (e) => {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        const text = prompt('输入文字:');
+        const text = prompt('輸入文字:');
         if (text) {
             const fabricText = new fabric.Text(text, {
                 left: x,

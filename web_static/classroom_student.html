@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>学生课堂</title>
+    <title>學生課堂</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <!-- Marked.js for markdown rendering -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
@@ -15,7 +15,7 @@
     <!-- Splash Screen -->
     <div class="splash-screen" id="splashScreen">
         <div class="splash-content">
-            <div class="splash-title">学生课堂</div>
+            <div class="splash-title">學生課堂</div>
             <div class="splash-subtitle">CLASSROOM</div>
             <div class="splash-loader">
                 <div class="loader-dot"></div>
@@ -30,16 +30,16 @@
         <!-- Top Bar -->
         <div class="top-bar">
             <div class="top-bar-left">
-                <div class="top-bar-title" id="roomTitle">课堂</div>
+                <div class="top-bar-title" id="roomTitle">課堂</div>
                 <div class="top-bar-teacher" id="teacherName"></div>
             </div>
             <div class="top-bar-center">
                 <div class="page-info">
-                    <span id="pageNumber">第 0 页</span>
+                    <span id="pageNumber">第 0 頁</span>
                 </div>
                 <div class="page-info">
                     <div class="status-indicator" id="statusIndicator"></div>
-                    <span class="status-label" id="statusLabel">已连接</span>
+                    <span class="status-label" id="statusLabel">已連接</span>
                 </div>
                 <div class="online-count">
                     <span>👥</span>
@@ -52,14 +52,14 @@
         <div class="main-content">
             <div class="page-display-container">
                 <div class="canvas-wrapper">
-                    <img id="pageImage" class="page-image" alt="PPT 页面">
+                    <img id="pageImage" class="page-image" alt="PPT 頁面">
                     <canvas id="annotationCanvas" style="display: none;"></canvas>
                 </div>
                 <div id="loadingSpinner" style="display: none;">
                     <div class="loading-spinner"></div>
                 </div>
                 <div id="noPageMessage" class="no-page-message" style="display: none;">
-                    等待老师推送页面...
+                    等待老師推送頁面...
                 </div>
             </div>
         </div>
@@ -68,7 +68,7 @@
         <div class="bottom-bar">
             <button class="bottom-bar-button" id="backButton">
                 <span>←</span>
-                <span>返回房间列表</span>
+                <span>返回房間列表</span>
             </button>
         </div>
     </div>
@@ -80,10 +80,10 @@
     <div class="ai-float" id="aiFloatingWindow" style="display: none;">
         <!-- Drag handle header -->
         <div class="ai-float-header" id="aiFloatHeader">
-            <span class="ai-float-title">🤖 AI 课件助手</span>
+            <span class="ai-float-title">🤖 AI 課件助手</span>
             <div class="ai-float-actions">
                 <button class="ai-float-btn" id="aiFloatExpandBtn" title="放大">&#9634;</button>
-                <button class="ai-float-btn" id="aiFloatCloseBtn" title="关闭">&#10005;</button>
+                <button class="ai-float-btn" id="aiFloatCloseBtn" title="關閉">&#10005;</button>
             </div>
         </div>
         <!-- Chat body -->
@@ -91,13 +91,13 @@
             <div class="ai-chat-content" id="aiChatContent">
                 <div class="ai-chat-welcome" id="aiChatWelcome">
                     <div class="ai-chat-welcome-icon">🤖</div>
-                    <div class="ai-chat-welcome-text">我是课堂 AI 助手，可以帮你理解当前课件内容。试试问我问题吧！</div>
+                    <div class="ai-chat-welcome-text">我是課堂 AI 助手，可以幫你理解當前課件內容。試試問我問題吧！</div>
                 </div>
             </div>
         </div>
         <!-- Input area -->
         <div class="ai-float-input-area">
-            <input type="text" class="ai-chat-input" id="aiChatInput" placeholder="对当前课件内容提问...">
+            <input type="text" class="ai-chat-input" id="aiChatInput" placeholder="對當前課件內容提問...">
             <button class="ai-chat-send-button" id="aiChatSendButton">→</button>
         </div>
     </div>
@@ -105,8 +105,8 @@
     <!-- Overlay for Room Status Messages -->
     <div class="overlay" id="statusOverlay">
         <div class="overlay-message">
-            <div class="overlay-message-title" id="overlayTitle">课堂已结束</div>
-            <div class="overlay-message-text" id="overlayText">本课堂已由老师结束，请返回课堂列表。</div>
+            <div class="overlay-message-title" id="overlayTitle">課堂已結束</div>
+            <div class="overlay-message-text" id="overlayText">本課堂已由老師結束，請返回課堂列表。</div>
         </div>
     </div>
 

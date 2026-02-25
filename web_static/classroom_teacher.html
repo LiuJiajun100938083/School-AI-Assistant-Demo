@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教师课堂 - 课件演示系统</title>
+    <title>教師課堂 - 課件演示系統</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="/static/css/classroom_teacher.css">
 </head>
@@ -12,17 +12,17 @@
         <!-- TOP TOOLBAR -->
         <div class="toolbar">
             <div class="toolbar-left">
-                <button class="tool-btn back-btn" id="backToListBtn" title="返回课堂列表">
+                <button class="tool-btn back-btn" id="backToListBtn" title="返回課堂列表">
                     <span>←</span> 返回
                 </button>
 
                 <div class="separator"></div>
 
-                <button class="tool-btn" id="penBtn" title="画笔">
-                    <span>🖊</span> 画笔
+                <button class="tool-btn" id="penBtn" title="畫筆">
+                    <span>🖊</span> 畫筆
                 </button>
-                <button class="tool-btn" id="highlighterBtn" title="荧光笔">
-                    <span>🖍</span> 荧光笔
+                <button class="tool-btn" id="highlighterBtn" title="螢光筆">
+                    <span>🖍</span> 螢光筆
                 </button>
                 <button class="tool-btn" id="eraserBtn" title="橡皮擦">
                     <span>🧹</span> 橡皮擦
@@ -48,27 +48,27 @@
                 <div class="separator"></div>
 
                 <div class="slider-group">
-                    <label>笔宽:</label>
+                    <label>筆寬:</label>
                     <input type="range" id="lineWidthSlider" min="1" max="10" value="2">
                 </div>
             </div>
 
             <div class="toolbar-center">
-                <button class="tool-btn" id="undoBtn" title="撤销">↶ 撤销</button>
+                <button class="tool-btn" id="undoBtn" title="撤銷">↶ 撤銷</button>
                 <button class="tool-btn" id="redoBtn" title="重做">↷ 重做</button>
             </div>
 
             <div class="toolbar-right">
-                <button class="push-btn" id="pushBtn" title="推送给学生">📤 推送给学生</button>
+                <button class="push-btn" id="pushBtn" title="推送給學生">📤 推送給學生</button>
 
                 <div class="separator"></div>
 
                 <div class="page-nav">
-                    <button class="tool-btn" id="prevBtn" title="上一页">◄ 上一页</button>
+                    <button class="tool-btn" id="prevBtn" title="上一頁">◄ 上一頁</button>
                     <div class="page-display">
                         <span id="currentPage">-</span> / <span id="totalPages">-</span>
                     </div>
-                    <button class="tool-btn" id="nextBtn" title="下一页">下一页 ►</button>
+                    <button class="tool-btn" id="nextBtn" title="下一頁">下一頁 ►</button>
                 </div>
             </div>
         </div>
@@ -78,7 +78,7 @@
             <!-- LEFT SIDEBAR -->
             <div class="left-sidebar">
                 <div class="upload-section">
-                    <button class="upload-btn" id="uploadBtn">📤 上传课件</button>
+                    <button class="upload-btn" id="uploadBtn">📤 上傳課件</button>
                     <input type="file" id="pptFile" accept=".pptx">
                 </div>
                 <div class="thumbnails-container" id="thumbnailsContainer"></div>
@@ -91,7 +91,7 @@
                     <canvas id="fabricCanvas"></canvas>
                 </div>
                 <div class="canvas-placeholder" id="canvasPlaceholder">
-                    上传课件后开始
+                    上傳課件後開始
                 </div>
             </div>
 
@@ -99,22 +99,22 @@
             <div class="right-sidebar">
                 <!-- Room Info -->
                 <div class="sidebar-section">
-                    <div class="sidebar-section-title">课室信息</div>
+                    <div class="sidebar-section-title">課室資訊</div>
                     <div class="room-info">
                         <div class="room-info-item">
-                            <span>课室号:</span>
+                            <span>課室號:</span>
                             <span id="roomId">-</span>
                         </div>
                         <div class="room-info-item">
-                            <span>讲师:</span>
+                            <span>講師:</span>
                             <span id="teacherName">-</span>
                         </div>
                         <div class="room-info-item">
-                            <span>状态:</span>
+                            <span>狀態:</span>
                             <span class="room-status draft" id="roomStatus">草稿</span>
                         </div>
                         <div class="room-info-item">
-                            <span>学生人数:</span>
+                            <span>學生人數:</span>
                             <span id="studentCount">0</span>
                         </div>
                     </div>
@@ -122,21 +122,21 @@
 
                 <!-- Room Controls -->
                 <div class="sidebar-section">
-                    <div class="sidebar-section-title">课室控制</div>
+                    <div class="sidebar-section-title">課室控制</div>
                     <div class="room-controls">
-                        <button class="control-btn primary" id="startClassBtn">🟢 开始上课</button>
-                        <button class="control-btn" id="pauseBtn" style="display: none;">⏸ 暂停</button>
-                        <button class="control-btn" id="resumeBtn" style="display: none;">▶ 继续</button>
-                        <button class="control-btn" id="endClassBtn">🔴 结束</button>
+                        <button class="control-btn primary" id="startClassBtn">🟢 開始上課</button>
+                        <button class="control-btn" id="pauseBtn" style="display: none;">⏸ 暫停</button>
+                        <button class="control-btn" id="resumeBtn" style="display: none;">▶ 繼續</button>
+                        <button class="control-btn" id="endClassBtn">🔴 結束</button>
                     </div>
                 </div>
 
                 <!-- Student List -->
                 <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column;">
-                    <div class="sidebar-section-title">在线学生</div>
+                    <div class="sidebar-section-title">在線學生</div>
                     <div class="students-container" id="studentsList">
                         <div style="color: #999; font-size: 12px; text-align: center; padding: 20px;">
-                            暂无学生连接
+                            暫無學生連接
                         </div>
                     </div>
                 </div>
@@ -147,11 +147,11 @@
     <!-- Confirm Modal -->
     <div class="modal" id="confirmModal">
         <div class="modal-content">
-            <div class="modal-title" id="confirmTitle">确认操作</div>
-            <div class="modal-body" id="confirmBody">确认执行此操作吗？</div>
+            <div class="modal-title" id="confirmTitle">確認操作</div>
+            <div class="modal-body" id="confirmBody">確認執行此操作嗎？</div>
             <div class="modal-buttons">
                 <button class="modal-btn" id="confirmCancel">取消</button>
-                <button class="modal-btn primary" id="confirmOk">确认</button>
+                <button class="modal-btn primary" id="confirmOk">確認</button>
             </div>
         </div>
     </div>

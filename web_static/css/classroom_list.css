@@ -1,10 +1,10 @@
 /**
- * 课堂列表 — 样式
- * 统一至主页 Apple-Style 设计系统
+ * 課堂列表 — 樣式
+ * 統一至主頁 Apple-Style 設計系統
  */
 
 :root {
-    /* 品牌绿 */
+    /* 品牌綠 */
     --brand: #006633;
     --brand-hover: #007A3D;
     --brand-active: #005528;
@@ -28,12 +28,12 @@
     --text-tertiary: #A1A1A6;
     --text-placeholder: #C7C7CC;
 
-    /* 边框 */
+    /* 邊框 */
     --border-light: rgba(0, 0, 0, 0.04);
     --border-default: rgba(0, 0, 0, 0.08);
     --border-strong: rgba(0, 0, 0, 0.12);
 
-    /* 阴影系统 */
+    /* 陰影系統 */
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.03), 0 4px 8px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.03);
@@ -43,7 +43,7 @@
     --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.08);
     --shadow-input-focus: 0 0 0 4px rgba(0, 102, 51, 0.08);
 
-    /* 圆角 */
+    /* 圓角 */
     --radius-xs: 4px;
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -52,7 +52,7 @@
     --radius-2xl: 24px;
     --radius-full: 9999px;
 
-    /* 间距 */
+    /* 間距 */
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;
@@ -61,14 +61,14 @@
     --space-6: 24px;
     --space-8: 32px;
 
-    /* 动画 */
+    /* 動畫 */
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --duration-fast: 0.15s;
     --duration-base: 0.2s;
     --duration-slow: 0.3s;
 
-    /* 字体 */
+    /* 字體 */
     --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', sans-serif;
 }
 
@@ -88,7 +88,7 @@ html, body {
     color: var(--text-primary);
 }
 
-/* ========== Splash Screen — 纯白 + 品牌绿三点脉冲 ========== */
+/* ========== Splash Screen — 純白 + 品牌綠三點脈衝 ========== */
 .splash-screen {
     position: fixed;
     inset: 0;
@@ -166,7 +166,7 @@ html, body {
     flex-direction: column;
 }
 
-/* ========== Header — 对齐主页 top bar ========== */
+/* ========== Header — 對齊主頁 top bar ========== */
 .header {
     display: flex;
     justify-content: space-between;
