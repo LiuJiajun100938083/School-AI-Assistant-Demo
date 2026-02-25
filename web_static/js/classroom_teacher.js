@@ -472,6 +472,8 @@ async function loadThumbnails() {
     const container = document.getElementById('thumbnailsContainer');
     container.innerHTML = '';
 
+    // 先创建所有 DOM 元素
+    const thumbElements = [];
     for (let i = 0; i < state.totalPages; i++) {
         const thumb = document.createElement('div');
         thumb.className = 'thumbnail' + (i === 0 ? ' active' : '');
@@ -480,16 +482,24 @@ async function loadThumbnails() {
         thumb.appendChild(imgEl);
         thumb.addEventListener('click', () => loadPage(i));
         container.appendChild(thumb);
+        thumbElements.push({ imgEl, pageNumber: i });
+    }
 
-        // 异步加载缩略图（带 Authorization header）
-        loadThumbnailImage(imgEl, i);
+    // 并发控制：每批最多 3 个缩略图同时加载
+    const BATCH_SIZE = 3;
+    for (let i = 0; i < thumbElements.length; i += BATCH_SIZE) {
+        const batch = thumbElements.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(({ imgEl, pageNumber }) =>
+            loadThumbnailImage(imgEl, pageNumber)
+        ));
     }
 }
 
 async function loadThumbnailImage(imgEl, pageNumber) {
     try {
         const apiPageNum = pageNumber + 1;
-        const url = `${API_BASE}/classroom/ppt/${state.currentFileId}/page/${apiPageNum}`;
+        // 使用缩略图接口而非全尺寸图片
+        const url = `${API_BASE}/classroom/ppt/${state.currentFileId}/thumb/${apiPageNum}`;
         const response = await fetch(url, {
             headers: AuthModule.getAuthHeaders(),
         });

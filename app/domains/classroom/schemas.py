@@ -32,10 +32,9 @@ class CreateRoomRequest(BaseModel):
         description="房间描述",
     )
     allowed_classes: List[str] = Field(
-        ...,
-        min_length=1,
+        default=[],
         max_length=50,
-        description="允许加入的班级列表",
+        description="允许加入的班级列表，留空表示不限制",
         examples=[["7A", "7B"]],
     )
 

@@ -114,12 +114,10 @@ class ClassroomService:
         if not teacher or teacher["role"] not in ("teacher", "admin"):
             raise RoomAccessDeniedError("只有教师可以创建教室房间")
 
-        # 去重并清理班级名称
+        # 去重并清理班级名称（空列表表示不限制班级）
         cleaned_classes = list(dict.fromkeys(
             c.strip() for c in allowed_classes if c.strip()
         ))
-        if not cleaned_classes:
-            raise EnrollmentError("至少需要指定一个班级")
 
         room_id = str(uuid.uuid4())
         now = datetime.now()
@@ -341,11 +339,12 @@ class ClassroomService:
         if student["role"] != "student":
             raise EnrollmentError("只有学生可以加入课堂")
 
-        # 校验班级权限
+        # 校验班级权限（空列表表示不限制班级）
         allowed = self._get_allowed_classes(room)
-        student_class = (student.get("class_name") or "").strip()
-        if not student_class or student_class not in allowed:
-            raise ClassNotAllowedError(student_class)
+        if allowed:
+            student_class = (student.get("class_name") or "").strip()
+            if not student_class or student_class not in allowed:
+                raise ClassNotAllowedError(student_class)
 
         # 检查是否已注册
         existing = self._enrollment_repo.get_enrollment(

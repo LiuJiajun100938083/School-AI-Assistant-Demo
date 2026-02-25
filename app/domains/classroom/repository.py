@@ -65,12 +65,12 @@ class ClassroomRoomRepository(BaseRepository):
         """
         查询对某班级可见的活跃房间
 
-        使用 JSON_CONTAINS 匹配 allowed_classes 数组中是否包含该班级。
-        注意: class_name 作为 JSON 字符串需要加引号传入。
+        allowed_classes 为空数组时表示不限制班级，对所有学生可见。
+        否则使用 JSON_CONTAINS 匹配。
         """
         return self.find_all(
             where=(
-                "JSON_CONTAINS(allowed_classes, %s) "
+                "(JSON_LENGTH(allowed_classes) = 0 OR JSON_CONTAINS(allowed_classes, %s)) "
                 "AND room_status IN ('active', 'paused') "
                 "AND is_deleted = FALSE"
             ),
@@ -113,14 +113,14 @@ class ClassroomRoomRepository(BaseRepository):
         self,
         class_name: str,
     ) -> List[Dict[str, Any]]:
-        """查询班级可见的房间列表 (含学生计数)"""
+        """查询班级可见的房间列表 (含学生计数)，空 allowed_classes 对所有学生可见"""
         sql = (
             "SELECT r.*, "
             "  (SELECT COUNT(*) FROM classroom_enrollments e "
             "   WHERE e.room_id = r.room_id AND e.is_active = TRUE"
             "  ) AS student_count "
             "FROM classroom_rooms r "
-            "WHERE JSON_CONTAINS(r.allowed_classes, %s) "
+            "WHERE (JSON_LENGTH(r.allowed_classes) = 0 OR JSON_CONTAINS(r.allowed_classes, %s)) "
             "  AND r.room_status IN ('active', 'paused') "
             "  AND r.is_deleted = FALSE "
             "ORDER BY r.created_at DESC"

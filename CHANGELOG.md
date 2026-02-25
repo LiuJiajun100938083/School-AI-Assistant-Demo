@@ -11,6 +11,30 @@
 
 ---
 
+## [v3.0.12] [2026-02-25] 课堂创建允许空班级 + 缩略图加载优化
+
+### 修复
+
+- **创建课堂不填班级 422 错误** — `allowed_classes` 从必填 `min_length=1` 改为 `default=[]`，空列表表示不限制班级
+- **Service 层去掉"至少需要指定一个班级"校验** — 空 `allowed_classes` 放行所有学生加入
+- **Repository SQL 查询** — 学生可见房间查询加 `JSON_LENGTH(allowed_classes) = 0 OR ...`，不限制班级的房间对所有学生可见
+
+### 优化
+
+- **缩略图加载从全尺寸改为 thumb 接口** — 从 `/page/{n}`（700KB-2MB/张）改为 `/thumb/{n}`（~30KB/张），总传输量 ~35MB → ~2MB
+- **并发控制** — 缩略图加载从 29 个全并发改为每批 3 个，避免打满服务器
+
+### 涉及文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/domains/classroom/schemas.py` | `allowed_classes` default=[] |
+| `app/domains/classroom/service.py` | 去掉空班级校验 + 加入房间空列表跳过检查 |
+| `app/domains/classroom/repository.py` | SQL 加 JSON_LENGTH=0 条件 |
+| `web_static/js/classroom_teacher.js` | 缩略图用 /thumb/ 接口 + 批量并发控制 |
+
+---
+
 ## [v3.0.11] [2026-02-25] 课堂页面 UI 统一至主页 Apple-Style 设计系统
 
 ### 修改
