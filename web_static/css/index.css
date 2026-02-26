@@ -187,8 +187,6 @@ p, span, div, li, label {
 
 .splash-content {
     text-align: center;
-    /* 初始完全不可見，由 GSAP 控制 */
-    opacity: 0;
 }
 
 .splash-icon {
@@ -198,11 +196,10 @@ p, span, div, li, label {
 .splash-mascot {
     width: 120px;
     height: auto;
-    /* 初始：模糊 + 微放大，GSAP 控制「點亮」效果 */
-    filter: blur(6px) drop-shadow(0 4px 20px rgba(0,102,51,0.15));
+    /* 初始透明 + 模糊，GSAP 控制「點亮」 */
     opacity: 0;
-    transform: scale(1.01);
-    will-change: filter, opacity, transform;
+    filter: blur(6px);
+    will-change: filter, opacity;
 }
 
 .splash-title {
@@ -211,6 +208,8 @@ p, span, div, li, label {
     color: #FFFFFF;
     letter-spacing: 0.05em;
     margin-bottom: var(--space-2);
+    opacity: 0;
+    filter: blur(8px);
 }
 
 .splash-subtitle {
@@ -218,6 +217,8 @@ p, span, div, li, label {
     color: rgba(255, 255, 255, 0.5);
     letter-spacing: 0.05em;
     font-weight: 400;
+    opacity: 0;
+    filter: blur(8px);
 }
 
 /* 載入提示：細線掃過 */
@@ -242,32 +243,15 @@ p, span, div, li, label {
 }
 
 /* ================================================
-   玻璃面板（第二幕：空間展開時的容器）
+   過渡遮罩（第二幕：splash → login 的深綠遮罩）
    ================================================ */
 .glass-panel {
     position: fixed;
     inset: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
     z-index: 9998;
-    pointer-events: none;
     opacity: 0;
-}
-
-.glass-panel-inner {
-    width: 40%;
-    height: 70vh;
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 40px;
-    pointer-events: auto;
-    will-change: width, height, border-radius;
-    /* 極淡噪點質感 */
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.015'/%3E%3C/svg%3E");
-    background-size: 256px;
+    pointer-events: none;
 }
 
 /* ================================================
@@ -318,18 +302,19 @@ p, span, div, li, label {
     position: relative;
     z-index: 2;
     text-align: center;
-    padding: var(--space-10);
+    padding: var(--space-10) var(--space-8);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--space-3);
-    max-width: 380px;
+    width: 100%;
+    max-width: 440px;
     height: 100%;
     justify-content: center;
 }
 
 .brand-mascot {
-    width: 140px;
+    width: 130px;
     height: auto;
     filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.15));
 }
@@ -343,15 +328,15 @@ p, span, div, li, label {
 }
 
 .brand-app-name {
-    font-size: 28px;
-    font-weight: 500;
+    font-size: 34px;
+    font-weight: 600;
     color: #FFFFFF;
     letter-spacing: 0.02em;
     line-height: 1.3;
 }
 
 .brand-school {
-    font-size: 13px;
+    font-size: 14px;
     color: rgba(255, 255, 255, 0.45);
     line-height: 1.5;
     font-weight: 400;
@@ -381,7 +366,7 @@ p, span, div, li, label {
     opacity: 0;
     transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    padding: 0 var(--space-3);
+    padding: 0;
 }
 
 .brand-quote .quote-item.active {

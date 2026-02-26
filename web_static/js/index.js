@@ -52,7 +52,8 @@ const IndexAPI = {
         return this._fetch('/api/verify');
     },
 
-    async login(username, password) {
+    async login(username, password)
+    {
         return this._fetch('/api/login', {
             method: 'POST',
             body: JSON.stringify({ username, password })
@@ -2490,7 +2491,6 @@ window.toolboxManager = null;
 document.addEventListener('DOMContentLoaded', function () {
     const splashScreen   = document.getElementById('splashScreen');
     const glassPanel     = document.getElementById('glassPanel');
-    const glassPanelInner = document.getElementById('glassPanelInner');
     const loginContainer = document.getElementById('loginContainer');
     if (!splashScreen || !loginContainer) return;
 
@@ -2526,87 +2526,63 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ════════════════════════════════════════════
        第一幕：系統喚醒（System Wake）≈ 2.5s
+       各元素 CSS 已設 opacity:0，GSAP 直接控制
        ════════════════════════════════════════════ */
     const tl = gsap.timeline();
 
     tl
-        // 內容容器淡入
-        .to(splashContent, { opacity: 1, duration: 0.4, ease: 'power2.out' })
-
-        // 小馬「點亮」：blur → 清晰，opacity 0 → 1
+        // 小馬「點亮」：blur 6→0，opacity 0→1
         .to(splashMascot, {
-            opacity: 1,
-            filter: 'blur(0px) drop-shadow(0 4px 20px rgba(0,102,51,0.15))',
-            scale: 1,
-            duration: 1.2,
-            ease: EASE
-        }, 0.2)
+            opacity: 1, filter: 'blur(0px)',
+            duration: 1.2, ease: EASE
+        }, 0.3)
 
         // 標題依序出現（blur → 清晰）
-        .fromTo(splashTitle,
-            { opacity: 0, y: 10, filter: 'blur(8px)' },
-            { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power2.out' },
-            0.8
-        )
-        .fromTo(splashSub,
-            { opacity: 0, y: 10, filter: 'blur(8px)' },
-            { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power2.out' },
-            1.0
-        )
-
-        // 載入細線：左→右掃過
-        .to(loaderBar, {
-            x: '200%', duration: 1.2, ease: 'power2.inOut'
+        .to(splashTitle, {
+            opacity: 1, filter: 'blur(0px)',
+            duration: 0.6, ease: 'power2.out'
+        }, 0.9)
+        .to(splashSub, {
+            opacity: 1, filter: 'blur(0px)',
+            duration: 0.6, ease: 'power2.out'
         }, 1.1)
 
-        // 細線淡出
-        .to(loaderBar, {
-            opacity: 0, duration: 0.3, ease: 'power2.in'
-        }, 2.1)
+        // 載入細線：左→右掃過，再淡出
+        .to(loaderBar, { x: '200%', duration: 1.0, ease: 'power2.inOut' }, 1.2)
+        .to(loaderBar, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 2.0)
 
     /* ════════════════════════════════════════════
-       第二幕：空間展開（Interface Deployment）≈ 1.1s
-       玻璃面板生成 → 展開 → 化為左右分屏
+       第二幕：空間展開（Interface Deployment）
+       splash 整體淡出 → 深綠遮罩 → 登入頁面
        ════════════════════════════════════════════ */
 
-        // 啟動畫面文字淡出
-        .to([splashTitle, splashSub], {
-            opacity: 0, duration: 0.35, ease: 'power2.in'
-        }, 2.5)
-
-        // 提取小馬到 body 層（保持位置不變）
+        // 提取小馬到 body 層（一次性設完屬性再 append，避免閃爍）
         .add(() => {
             const r = splashMascot.getBoundingClientRect();
-            splashMascot.style.position = 'fixed';
-            splashMascot.style.left = r.left + 'px';
-            splashMascot.style.top = r.top + 'px';
-            splashMascot.style.width = r.width + 'px';
-            splashMascot.style.height = 'auto';
-            splashMascot.style.zIndex = '10001';
-            splashMascot.style.pointerEvents = 'none';
-            splashMascot.style.margin = '0';
+            Object.assign(splashMascot.style, {
+                position: 'fixed',
+                left: r.left + 'px',
+                top: r.top + 'px',
+                width: r.width + 'px',
+                height: 'auto',
+                zIndex: '10001',
+                pointerEvents: 'none',
+                margin: '0',
+                filter: 'blur(0px)'
+            });
             document.body.appendChild(splashMascot);
-        }, 2.7)
+        }, 2.5)
 
-        // 玻璃面板出現（在小馬身後）
-        .to(glassPanel, { opacity: 1, duration: 0.4, ease: EASE }, 2.75)
+        // 深綠遮罩升起（蓋住 splash 背景）
+        .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.5)
 
-        // Splash 背景淡去
-        .to(splashScreen, {
-            opacity: 0, duration: 0.5, ease: EASE,
-            onComplete() { splashScreen.style.display = 'none'; }
-        }, 2.8)
+        // splash 藏在遮罩後面直接移除
+        .add(() => { splashScreen.style.display = 'none'; }, 2.9)
 
-        // 玻璃面板展開：40% → 85%寬度
-        .to(glassPanelInner, {
-            width: '85%', height: '82vh', borderRadius: '32px',
-            duration: 0.8, ease: EASE
-        }, 3.0)
-
-        // 面板展開後：隱藏玻璃層，顯示真正的登入界面
+        // 準備登入容器（藏在遮罩後面）
         .add(() => {
             loginContainer.style.display = 'flex';
-            gsap.set(loginContainer, { opacity: 0 });
+            gsap.set(loginContainer, { opacity: 1 });
             gsap.set(brandPanel, { opacity: 0 });
             gsap.set(formPanel, { opacity: 0 });
             gsap.set(brandMascot, { opacity: 0 });
@@ -2615,23 +2591,22 @@ document.addEventListener('DOMContentLoaded', function () {
             gsap.set(loginHeader, { opacity: 0, y: 20 });
             gsap.set(inputGroups, { opacity: 0, y: 20 });
             gsap.set(loginButton, { opacity: 0, y: 20, scale: 0.98 });
-        }, 3.65)
+        }, 2.95)
 
-        // 玻璃層淡出，登入容器淡入（無縫交接）
+        // 遮罩淡去，露出登入頁面
         .to(glassPanel, {
-            opacity: 0, duration: 0.4, ease: EASE,
+            opacity: 0, duration: 0.6, ease: EASE,
             onComplete() { glassPanel.style.display = 'none'; }
-        }, 3.7)
-        .to(loginContainer, { opacity: 1, duration: 0.4, ease: EASE }, 3.7)
-        .to(brandPanel, { opacity: 1, duration: 0.5, ease: EASE }, 3.75)
-        .to(formPanel, { opacity: 1, duration: 0.5, ease: EASE }, 3.8)
+        }, 3.0)
+        .to(brandPanel, { opacity: 1, duration: 0.6, ease: EASE }, 3.05)
+        .to(formPanel, { opacity: 1, duration: 0.6, ease: EASE }, 3.1)
 
     /* ════════════════════════════════════════════
-       第三幕：內容進入（Content Enter）≈ 0.9s
+       第三幕：內容進入（Content Enter）
        小馬滑動 + 左側文字 + 右側表單
        ════════════════════════════════════════════ */
 
-        // 小馬沿曲線滑向左側面板
+        // 小馬滑向左側面板
         .add(() => {
             const target = brandMascot.getBoundingClientRect();
             const source = splashMascot.getBoundingClientRect();
@@ -2647,36 +2622,36 @@ document.addEventListener('DOMContentLoaded', function () {
                     gsap.set(brandMascot, { opacity: 1 });
                 }
             });
-        }, 3.85)
+        }, 3.2)
 
-        // 左側文字依次出現（blur → 清晰）
+        // 左側文字依次出現（blur → 清晰，stagger 0.12s）
         .to(brandWelcome, {
             opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out'
-        }, 4.0)
+        }, 3.4)
         .to(brandAppName, {
             opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out'
-        }, 4.12)
+        }, 3.52)
         .to(brandSchool, {
             opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.35, ease: 'power2.out'
-        }, 4.24)
+        }, 3.64)
         .to(brandQuote, {
             opacity: 1, y: 0, duration: 0.4, ease: 'power2.out'
-        }, 4.36)
+        }, 3.76)
 
-        // 右側表單內容錯位入場
+        // 右側表單內容錯位入場（與左側並行）
         .to(loginHeader, {
             opacity: 1, y: 0, duration: 0.5, ease: 'power2.out'
-        }, 4.0)
+        }, 3.4)
         .to(inputGroups, {
             opacity: 1, y: 0, duration: 0.5,
             stagger: 0.12, ease: 'power2.out'
-        }, 4.15)
+        }, 3.55)
         .to(loginButton, {
             opacity: 1, y: 0, scale: 1, duration: 0.5, ease: EASE,
             onComplete() {
                 document.getElementById('usernameInput')?.focus();
             }
-        }, 4.4);
+        }, 3.8);
 
     /* ════════════════════════════════════════════
        名人名言輪播（純 opacity，8 秒間隔）
