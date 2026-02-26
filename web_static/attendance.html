@@ -6,25 +6,28 @@
     <title>培僑中學點名系統</title>
     <!-- 引入 CSS -->
     <link rel="stylesheet" href="/static/css/attendance.css">
+    <!-- GSAP 動畫引擎 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
 <body>
 <!-- 滑鼠聚光燈 -->
 <div class="spotlight-container">
     <div class="spotlight" id="spotlight"></div>
 </div>
-<!-- Apple 風格啟動畫面 -->
+<!-- 系統喚醒啟動畫面 -->
 <div class="splash-screen" id="splashScreen">
     <div class="splash-content">
         <div class="splash-icon">📋</div>
         <div class="splash-title">點名系統</div>
         <div class="splash-subtitle">晨讀 · 留堂 · 課外活動</div>
         <div class="splash-loader">
-            <div class="loader-dot"></div>
-            <div class="loader-dot"></div>
-            <div class="loader-dot"></div>
+            <div class="splash-loader-bar"></div>
         </div>
     </div>
 </div>
+
+<!-- 過渡遮罩層 -->
+<div class="glass-panel" id="glassPanel"></div>
 <!-- 頂部導航 -->
 <div class="header">
     <div class="header-left">

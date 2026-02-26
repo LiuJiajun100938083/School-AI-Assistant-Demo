@@ -318,21 +318,21 @@ p, span, div, li, label {
     flex: 0 0 12%;
 }
 
-/* ── Logo：身份象徵，非主角 ── */
+/* ── Logo：身份象徵 ── */
 .brand-mascot {
-    width: 124px;
+    width: 160px;
     height: auto;
     filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12));
     flex-shrink: 0;
 }
 
-/* ── Logo → 歡迎：32px ── */
+/* ── Logo → 歡迎：40px ── */
 .brand-welcome {
     font-size: 13px;
     color: rgba(255, 255, 255, 0.6);
     letter-spacing: 0.08em;
     font-weight: 400;
-    margin-top: 32px;
+    margin-top: 40px;
     text-transform: uppercase;
 }
 
@@ -4674,6 +4674,20 @@ th {
 .home-title-section {
     text-align: center;
     margin-bottom: var(--space-10, 40px);
+}
+
+/* ── 主頁吉祥物 ── */
+.home-mascot {
+    width: 80px;
+    height: auto;
+    margin-bottom: var(--space-4);
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.08));
+    animation: homeMascotFloat 3s ease-in-out infinite;
+}
+
+@keyframes homeMascotFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
 }
 
 .home-title {

@@ -3464,67 +3464,91 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ========== Apple風格啟動動畫控制 (纯JS動畫版本) ==========
-    function showMainInterface() {
-        const splash = document.getElementById('splashScreen');
-        const header = document.querySelector('.header');
-        const leftPanel = document.querySelector('.left-panel');
-        const rightPanel = document.querySelector('.right-panel');
-
-        // 淡出启動畫面
-        if (splash) {
-            splash.classList.add('fade-out');
-        }
-
-        // 纯 JavaScript 動畫函數 - 相容所有浏览器
-        function animateIn(element, fromX, fromY, delay) {
-            if (!element) return;
-
-            setTimeout(() => {
-                // 1. 先移除 CSS 中的 !important 影響，用 inline style 覆蓋
-                element.style.cssText = `
-                        opacity: 0 !important;
-                        transform: translate(${fromX}px, ${fromY}px) !important;
-                        transition: none !important;
-                        visibility: visible !important;
-                    `;
-
-                // 2. 强制浏览器重绘
-                void element.offsetWidth;
-
-                // 3. 設定過渡動畫并改变到最终狀態
-                element.style.cssText = `
-                        opacity: 1 !important;
-                        transform: translate(0, 0) !important;
-                        transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-                                    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                        visibility: visible !important;
-                    `;
-            }, delay);
-        }
-
-        // Header 從上方滑入 (200ms 延遲)
-        animateIn(header, 0, -30, 200);
-
-        // 左側面板從左側滑入 (400ms 延遲)
-        animateIn(leftPanel, -50, 0, 400);
-
-        // 右側面板從右側滑入 (600ms 延遲)
-        animateIn(rightPanel, 50, 0, 600);
-
-        // 移除启動畫面
-        setTimeout(() => {
-            if (splash) {
-                splash.style.display = 'none';
-            }
-        }, 1500);
-    }
-
-    // 頁面完全載入后開始動畫
+    // ========== GSAP 啟動動畫（深綠系統喚醒，與 Login 一致） ==========
     window.addEventListener('load', () => {
-        setTimeout(() => {
-            showMainInterface();
-        }, 1200);
+        if (typeof gsap === 'undefined') return;
+
+        const splashScreen = document.getElementById('splashScreen');
+        const glassPanel   = document.getElementById('glassPanel');
+        const header       = document.querySelector('.header');
+        const leftPanel    = document.querySelector('.left-panel');
+        const rightPanel   = document.querySelector('.right-panel');
+        if (!splashScreen) return;
+
+        const splashIcon   = splashScreen.querySelector('.splash-icon');
+        const splashTitle  = splashScreen.querySelector('.splash-title');
+        const splashSub    = splashScreen.querySelector('.splash-subtitle');
+        const loaderBar    = splashScreen.querySelector('.splash-loader-bar');
+
+        const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+        // 隱藏主界面元素，等動畫結束再顯示
+        gsap.set([header, leftPanel, rightPanel].filter(Boolean), { opacity: 0 });
+
+        /* ═══ 第一幕：系統喚醒 ≈ 2.5s ═══ */
+        const tl = gsap.timeline();
+
+        tl
+            // emoji 點亮：blur → clear
+            .to(splashIcon, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 1.0, ease: EASE
+            }, 0.3)
+
+            // 標題依序出現
+            .to(splashTitle, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 0.6, ease: 'power2.out'
+            }, 0.8)
+            .to(splashSub, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 0.6, ease: 'power2.out'
+            }, 1.0)
+
+            // 細線 loader 掃過
+            .to(loaderBar, { x: '200%', duration: 1.0, ease: 'power2.inOut' }, 1.1)
+            .to(loaderBar, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 1.9)
+
+        /* ═══ 第二幕：過渡到主界面 ═══ */
+
+            // 深綠遮罩升起
+            .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.3)
+
+            // splash 藏在遮罩後移除
+            .add(() => { splashScreen.style.display = 'none'; }, 2.7)
+
+            // 準備主界面元素
+            .add(() => {
+                if (header)     gsap.set(header, { opacity: 0, y: -30 });
+                if (leftPanel)  gsap.set(leftPanel, { opacity: 0, x: -50 });
+                if (rightPanel) gsap.set(rightPanel, { opacity: 0, x: 50 });
+            }, 2.75)
+
+            // 遮罩淡去，露出主界面
+            .to(glassPanel, {
+                opacity: 0, duration: 0.6, ease: EASE,
+                onComplete() { glassPanel.style.display = 'none'; }
+            }, 2.8)
+
+        /* ═══ 第三幕：界面元素進入 ═══ */
+
+            // Header 從上方滑入
+            .to(header, {
+                opacity: 1, y: 0,
+                duration: 0.6, ease: 'power2.out'
+            }, 2.9)
+
+            // 左側面板從左側滑入
+            .to(leftPanel, {
+                opacity: 1, x: 0,
+                duration: 0.7, ease: 'power2.out'
+            }, 3.05)
+
+            // 右側面板從右側滑入
+            .to(rightPanel, {
+                opacity: 1, x: 0,
+                duration: 0.7, ease: 'power2.out'
+            }, 3.15);
     });
     // ========== 滑鼠聚光燈效果 ==========
     const spotlight = document.getElementById('spotlight');
