@@ -221,10 +221,20 @@ const IndexUI = {
     showLoginInterface() {
         const el = this.elements;
         el.loginContainer.style.display = 'flex';
-        el.loginContainer.classList.add('is-ready');
         el.mainContainer.style.display = 'none';
         el.homeContainer.style.display = 'none';
-        el.usernameInput.focus();
+        // GSAP 快速入場（從主界面退回登入時）
+        if (typeof gsap !== 'undefined') {
+            const bp = el.loginContainer.querySelector('.login-brand-panel');
+            const fp = el.loginContainer.querySelector('.login-form-panel');
+            gsap.set([bp, fp], { opacity: 1, x: 0 });
+            gsap.fromTo(el.loginContainer, { opacity: 0 }, {
+                opacity: 1, duration: 0.4, ease: 'power2.out',
+                onComplete() { el.usernameInput.focus(); }
+            });
+        } else {
+            el.usernameInput.focus();
+        }
     },
 
     showLoginError(message) {
@@ -2469,29 +2479,140 @@ window.toolboxManager = null;
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', function () {
-    // ── 啟動畫面 → 登入頁絲滑過渡 ──
-    const splashScreen = document.getElementById('splashScreen');
+    // ══════════════════════════════════════════════
+    //  GSAP 啟動畫面 → 登入頁 絲滑過渡
+    // ══════════════════════════════════════════════
+    const splashScreen  = document.getElementById('splashScreen');
     const loginContainer = document.getElementById('loginContainer');
+    if (!splashScreen || !loginContainer) return;
 
-    setTimeout(() => {
-        if (!splashScreen || !loginContainer) return;
+    const splashContent = splashScreen.querySelector('.splash-content');
+    const splashMascot  = splashScreen.querySelector('.splash-mascot');
+    const splashTitle   = splashScreen.querySelector('.splash-title');
+    const splashSub     = splashScreen.querySelector('.splash-subtitle');
+    const splashLoader  = splashScreen.querySelector('.splash-loader');
+    const brandPanel    = loginContainer.querySelector('.login-brand-panel');
+    const formPanel     = loginContainer.querySelector('.login-form-panel');
+    const brandMascot   = loginContainer.querySelector('.brand-mascot');
+    const brandWelcome  = loginContainer.querySelector('.brand-welcome');
+    const brandAppName  = loginContainer.querySelector('.brand-app-name');
+    const brandSchool   = loginContainer.querySelector('.brand-school');
+    const brandQuote    = loginContainer.querySelector('.brand-quote');
+    const loginCard     = loginContainer.querySelector('.login-card');
+    const loginHeader   = loginContainer.querySelector('.login-header');
+    const inputGroups   = loginContainer.querySelectorAll('.input-group');
+    const loginButton   = loginContainer.querySelector('.login-button');
 
-        // 1) 先讓登入容器可見（但左右面板 opacity:0）
-        loginContainer.style.display = 'flex';
+    // ── 第一幕：啟動畫面入場 ──
+    const tlSplash = gsap.timeline();
+    tlSplash
+        .to(splashContent, {
+            opacity: 1, y: 0, duration: 0.7,
+            ease: 'power2.out'
+        })
+        .from(splashMascot, {
+            scale: 0.8, duration: 0.5,
+            ease: 'back.out(1.4)'
+        }, '-=0.4');
 
-        // 2) 啟動畫面開始向左收縮（clip-path 動畫）
-        splashScreen.classList.add('morph-to-panel');
+    // ── 第二幕：啟動 → 登入 過渡（1.8s 後） ──
+    const tlTransition = gsap.timeline({
+        delay: 1.8,
+        onStart() {
+            // 讓登入容器可見但透明
+            loginContainer.style.display = 'flex';
+            gsap.set(brandPanel, { opacity: 0 });
+            gsap.set(formPanel, { opacity: 0, x: 60 });
+            // 品牌面板內容初始隱藏
+            gsap.set([brandMascot, brandWelcome, brandAppName, brandSchool, brandQuote], {
+                opacity: 0, y: 20
+            });
+            // 右側表單內容初始隱藏
+            gsap.set(loginHeader, { opacity: 0, y: 25 });
+            gsap.set(inputGroups, { opacity: 0, y: 20 });
+            gsap.set(loginButton, { opacity: 0, y: 15, scale: 0.95 });
+        }
+    });
 
-        // 3) 稍微延遲後觸發左右面板入場
-        setTimeout(() => {
-            loginContainer.classList.add('is-ready');
-        }, 300);
+    tlTransition
+        // ── 啟動畫面淡出：內容先散開消失 ──
+        .to(splashLoader, {
+            opacity: 0, y: 10, duration: 0.3,
+            ease: 'power2.in'
+        })
+        .to(splashSub, {
+            opacity: 0, y: -8, duration: 0.25,
+            ease: 'power2.in'
+        }, '-=0.15')
+        .to(splashTitle, {
+            opacity: 0, y: -12, duration: 0.3,
+            ease: 'power2.in'
+        }, '-=0.15')
+        .to(splashMascot, {
+            opacity: 0, scale: 0.85, duration: 0.35,
+            ease: 'power2.in'
+        }, '-=0.2')
 
-        // 4) 動畫結束後移除啟動畫面
-        setTimeout(() => {
-            splashScreen.style.display = 'none';
-        }, 1000);
-    }, 1800);
+        // ── 啟動畫面整體淡出 ──
+        .to(splashScreen, {
+            opacity: 0, duration: 0.4,
+            ease: 'power2.inOut',
+            onComplete() { splashScreen.style.display = 'none'; }
+        }, '-=0.15')
+
+        // ── 左側品牌面板入場 ──
+        .to(brandPanel, {
+            opacity: 1, duration: 0.6,
+            ease: 'power2.out'
+        }, '-=0.25')
+
+        // ── 品牌面板內容：依次入場 ──
+        .to(brandMascot, {
+            opacity: 1, y: 0, duration: 0.5,
+            ease: 'power3.out'
+        }, '-=0.3')
+        .to(brandWelcome, {
+            opacity: 1, y: 0, duration: 0.4,
+            ease: 'power2.out'
+        }, '-=0.2')
+        .to(brandAppName, {
+            opacity: 1, y: 0, duration: 0.4,
+            ease: 'power2.out'
+        }, '-=0.2')
+        .to(brandSchool, {
+            opacity: 1, y: 0, duration: 0.35,
+            ease: 'power2.out'
+        }, '-=0.15')
+        .to(brandQuote, {
+            opacity: 1, y: 0, duration: 0.4,
+            ease: 'power2.out'
+        }, '-=0.1')
+
+        // ── 右側表單面板同時入場（與品牌面板內容並行） ──
+        .to(formPanel, {
+            opacity: 1, x: 0, duration: 0.7,
+            ease: 'power3.out'
+        }, '-=1.0')
+
+        // ── 右側內容：錯位彈入 ──
+        .to(loginHeader, {
+            opacity: 1, y: 0, duration: 0.45,
+            ease: 'power2.out'
+        }, '-=0.5')
+        .to(inputGroups, {
+            opacity: 1, y: 0, duration: 0.4,
+            stagger: 0.1,
+            ease: 'power2.out'
+        }, '-=0.25')
+        .to(loginButton, {
+            opacity: 1, y: 0, scale: 1, duration: 0.45,
+            ease: 'back.out(1.6)',
+            onComplete() {
+                // 過渡結束，聚焦用戶名
+                const usernameInput = document.getElementById('usernameInput');
+                if (usernameInput) usernameInput.focus();
+            }
+        }, '-=0.15');
 
     // 名人名言滚动
     const quotes = [

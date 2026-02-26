@@ -182,39 +182,25 @@ p, span, div, li, label {
     justify-content: center;
     align-items: center;
     z-index: 9999;
-}
-
-.splash-screen.fade-out {
-    opacity: 0;
-    transform: scale(1.02);
-    pointer-events: none;
+    /* 過渡完全由 GSAP 控制 */
 }
 
 .splash-content {
     text-align: center;
-    animation: fadeSlideUp 0.8s var(--ease-out) forwards;
-}
-
-@keyframes fadeSlideUp {
-    0% { opacity: 0; transform: translateY(24px); }
-    100% { opacity: 1; transform: translateY(0); }
+    opacity: 0;
+    transform: translateY(24px);
+    /* 入場由 GSAP 控制，不用 CSS animation */
 }
 
 .splash-icon {
     font-size: 80px;
     margin-bottom: var(--space-6);
-    animation: gentlePulse 2.5s ease-in-out infinite;
 }
 
 .splash-mascot {
     width: 140px;
     height: auto;
     filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.2));
-}
-
-@keyframes gentlePulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.03); }
 }
 
 .splash-title {
@@ -276,14 +262,7 @@ p, span, div, li, label {
     justify-content: center;
     position: relative;
     overflow: hidden;
-    opacity: 0;
-    transform: translateX(-30px);
-    transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
-}
-
-.login-container.is-ready .login-brand-panel {
-    opacity: 1;
-    transform: translateX(0);
+    /* 初始隱藏，GSAP 控制入場 */
 }
 
 /* 波浪裝飾 */
@@ -377,11 +356,12 @@ p, span, div, li, label {
 
 .brand-quote .quote-wrapper {
     position: relative;
-    min-height: 80px;
+    min-height: 120px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding: 0 var(--space-2);
 }
 
 .brand-quote .quote-item {
@@ -391,6 +371,7 @@ p, span, div, li, label {
     transform: translateY(12px);
     transition: all 0.6s var(--ease-out);
     pointer-events: none;
+    padding: 0 var(--space-2);
 }
 
 .brand-quote .quote-item.active {
@@ -405,44 +386,44 @@ p, span, div, li, label {
 }
 
 .brand-quote .quote-chinese {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 400;
     color: rgba(255, 255, 255, 0.85);
-    margin-bottom: var(--space-1);
-    line-height: 1.7;
+    margin-bottom: var(--space-2);
+    line-height: 1.8;
 }
 
 .brand-quote .quote-english {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
     font-style: italic;
-    margin-bottom: var(--space-2);
-    line-height: 1.5;
+    margin-bottom: var(--space-3);
+    line-height: 1.6;
 }
 
 .brand-quote .quote-author {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
 }
 
 .brand-quote .quote-indicators {
     display: flex;
     justify-content: center;
-    gap: 6px;
-    margin-top: var(--space-3);
+    gap: 8px;
+    margin-top: var(--space-6);
 }
 
 .brand-quote .quote-indicator {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.2);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .brand-quote .quote-indicator.active {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.75);
     transform: scale(1.3);
 }
 
@@ -454,14 +435,7 @@ p, span, div, li, label {
     justify-content: center;
     padding: var(--space-10);
     background: var(--bg-card);
-    opacity: 0;
-    transform: translateX(30px);
-    transition: opacity 0.8s var(--ease-out) 0.15s, transform 0.8s var(--ease-out) 0.15s;
-}
-
-.login-container.is-ready .login-form-panel {
-    opacity: 1;
-    transform: translateX(0);
+    /* 初始隱藏，GSAP 控制入場 */
 }
 
 .login-card {
@@ -673,24 +647,7 @@ p, span, div, li, label {
     display: none;
 }
 
-/* ================================================
-   啟動畫面 → 登入過渡動畫
-   ================================================ */
-/* 啟動畫面過渡：向左收縮並淡出 */
-.splash-screen.morph-to-panel {
-    animation: splashMorph 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes splashMorph {
-    0% {
-        clip-path: inset(0 0 0 0);
-        opacity: 1;
-    }
-    100% {
-        clip-path: inset(0 55% 0 0);
-        opacity: 0;
-    }
-}
+/* 過渡動畫完全由 GSAP 控制，不再使用 CSS keyframes */
 
 .quote-wrapper {
     position: relative;
