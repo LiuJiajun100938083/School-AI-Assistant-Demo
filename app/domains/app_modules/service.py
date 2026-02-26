@@ -20,7 +20,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "name": "AI 學習對話",
         "icon": "💬",
         "description": "一對一AI輔導對話",
-        "url": "__internal_chat__",
+        "url": "/chat",
         "roles": ["student", "teacher", "admin"],
         "enabled": True,
         "order": 1,
