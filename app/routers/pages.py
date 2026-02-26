@@ -21,6 +21,7 @@
 
 import logging
 import os
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -191,12 +192,51 @@ async def play_shared_game(token: str):
 
 @router.get("/uploaded_games/{game_uuid}")
 async def serve_uploaded_game(game_uuid: str):
-    """提供用户上传的游戏（沙盒运行）"""
+    """提供用户上传的游戏（沙盒运行），自动注入返回游戏中心按钮"""
     # 安全检查：防止路径遍历
     safe_uuid = game_uuid.replace("/", "").replace("\\", "").replace("..", "")
     file_path = os.path.join(STATIC_DIR, "uploaded_games", f"{safe_uuid}.html")
 
     if os.path.exists(file_path):
-        return FileResponse(file_path, media_type="text/html")
+        with open(file_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        # 注入浮动返回按钮（固定在左上角）
+        back_button_html = """
+<!-- 返回游戏中心按钮（自动注入） -->
+<div id="__gc_back_btn__" style="
+    position:fixed; top:12px; left:12px; z-index:999999;
+    display:flex; align-items:center; gap:6px;
+    padding:8px 14px; border-radius:999px;
+    background:rgba(0,0,0,0.55); backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,0.18);
+    color:#fff; font-size:13px; font-weight:600;
+    cursor:pointer; user-select:none;
+    font-family:system-ui,-apple-system,sans-serif;
+    box-shadow:0 4px 16px rgba(0,0,0,0.3);
+    transition:opacity .2s,transform .2s;
+" onclick="window.location.href='/games'"
+   onmouseenter="this.style.opacity='1';this.style.transform='scale(1.05)'"
+   onmouseleave="this.style.opacity='0.85';this.style.transform='scale(1)'">
+    <span style="font-size:16px">←</span>
+    <span>返回遊戲中心</span>
+</div>
+"""
+        # 在 <body> 标签后注入
+        if "<body" in html_content:
+            # 找到 <body...> 的闭合 >
+            html_content = re.sub(
+                r"(<body[^>]*>)",
+                r"\1" + back_button_html,
+                html_content,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        else:
+            # 没有 body 标签则直接在开头插入
+            html_content = back_button_html + html_content
+
+        return HTMLResponse(content=html_content, media_type="text/html")
+
     logger.warning(f"上传游戏文件不存在: {file_path}")
     return HTMLResponse(content="<h1>游戏未找到</h1>", status_code=404)
