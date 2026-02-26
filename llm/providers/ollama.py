@@ -108,9 +108,15 @@ class OllamaProvider(BaseLLMProvider):
         if self.stop_tokens:
             payload["options"]["stop"] = self.stop_tokens
 
+        logger.info(f"🔗 Ollama 請求: model={self.model}, num_ctx={self.num_ctx}, num_predict={self.max_tokens}")
         async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=10.0)) as client:
             async with client.stream("POST", url, json=payload) as response:
-                response.raise_for_status()
+                if response.status_code != 200:
+                    # 讀取 Ollama 錯誤詳情
+                    error_body = await response.aread()
+                    error_text = error_body.decode("utf-8", errors="replace")[:500]
+                    logger.error(f"❌ Ollama API 錯誤 {response.status_code}: {error_text}")
+                    response.raise_for_status()
 
                 async for line in response.aiter_lines():
                     if not line:
