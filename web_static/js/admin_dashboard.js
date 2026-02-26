@@ -1210,11 +1210,38 @@ const AdminApp = {
         });
     },
 
-    /* ---------- 管理員信息 ---------- */
+    /* ---------- 管理員/教師信息 ---------- */
     loadAdminInfo() {
         const adminName = localStorage.getItem('admin_name') || '管理员';
+        const role = (typeof AuthModule !== 'undefined' && AuthModule.getUserRole)
+            ? AuthModule.getUserRole() : (localStorage.getItem('user_role') || 'admin');
+
         document.getElementById('adminName').textContent = adminName;
         document.getElementById('adminAvatar').textContent = adminName[0].toUpperCase();
+
+        // 角色徽章
+        const badge = document.getElementById('roleBadge');
+        if (badge) {
+            if (role === 'admin') {
+                badge.textContent = '管理員';
+                badge.className = 'role-badge role-admin';
+            } else {
+                badge.textContent = '教師';
+                badge.className = 'role-badge role-teacher';
+            }
+        }
+
+        // 教師：隱藏管理員專屬標籤
+        if (role !== 'admin') {
+            document.querySelectorAll('.tab-button.admin-only').forEach(btn => {
+                btn.style.display = 'none';
+            });
+            // 同時隱藏對應的 tab-pane
+            ['users', 'settings', 'notice', 'appmgr'].forEach(tab => {
+                const pane = document.getElementById(tab + '-tab');
+                if (pane) pane.style.display = 'none';
+            });
+        }
     },
 
     /* ---------- 切換標籤頁 ---------- */

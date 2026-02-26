@@ -20,6 +20,7 @@
             <div class="user-info">
                 <div class="user-avatar" id="adminAvatar">A</div>
                 <span id="adminName">管理員</span>
+                <span class="role-badge" id="roleBadge">管理員</span>
             </div>
         </div>
     </nav>
@@ -65,16 +66,16 @@
                 <button class="tab-button" data-action="switchTab" data-tab="analysis">
                     <span>📊 學生分析</span>
                 </button>
-                <button class="tab-button" data-action="switchTab" data-tab="users">
+                <button class="tab-button admin-only" data-action="switchTab" data-tab="users">
                     <span>👥 用戶管理</span>
                 </button>
-                <button class="tab-button" data-action="switchTab" data-tab="settings">
+                <button class="tab-button admin-only" data-action="switchTab" data-tab="settings">
                     <span>⚙️ 系統設定</span>
                 </button>
-                <button class="tab-button" data-action="switchTab" data-tab="notice">
+                <button class="tab-button admin-only" data-action="switchTab" data-tab="notice">
                     <span>📝 通告管理</span>
                 </button>
-                <button class="tab-button" data-action="switchTab" data-tab="appmgr">
+                <button class="tab-button admin-only" data-action="switchTab" data-tab="appmgr">
                     <span>📱 應用管理</span>
                 </button>
             </div>
