@@ -1373,7 +1373,7 @@ const AdminApp = {
         e.preventDefault();
         const code = document.getElementById('editSubjectCode').value;
         const subjectData = {
-            name: document.getElementById('editSubjectName').value,
+            subject_name: document.getElementById('editSubjectName').value,
             icon: document.getElementById('editSubjectIcon').value || '📚',
             description: document.getElementById('editSubjectDescription').value
         };
