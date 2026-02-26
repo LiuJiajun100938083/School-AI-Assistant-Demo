@@ -29,7 +29,6 @@ from ..rag.context import (
 )
 from ..parsers.thinking_parser import (
     StreamEvent,
-    StreamingThinkingParser,
     clean_special_markers
 )
 
@@ -60,8 +59,8 @@ async def stream_ai_subject(
     2. RAG 檢索知識庫上下文（在線程池中執行）
     3. 構建完整 prompt + 應用思考模式
     4. 調用 OllamaProvider.async_stream() 逐 token 流式輸出
-    5. 通過 StreamingThinkingParser 增量解析 thinking/answer
-    6. yield StreamEvent 事件
+    5. 逐 token yield StreamEvent（answer 事件）
+    6. Ollama /api/chat 自動分離 thinking，content 只含 answer
 
     Args:
         question: 用戶問題
@@ -112,37 +111,23 @@ async def stream_ai_subject(
             thinking_prompt = apply_thinking_mode(prompt, task_type="no_think")
 
         # 6. 獲取 LLM 提供者並開始流式生成
+        #    async_stream 使用 /api/chat + think 參數，Ollama 自動分離 thinking/answer，
+        #    content 中只有 answer，無需 StreamingThinkingParser。
         provider = get_ollama_provider()
-        parser = StreamingThinkingParser()
+        answer_parts = []
 
         logger.info(f"🔄 開始流式生成: 科目={subject_code}, 思考模式={'開' if enable_thinking else '關'}, 問題={question[:50]}...")
 
         async for token in provider.async_stream(thinking_prompt, enable_thinking=enable_thinking):
-            events = parser.feed(token)
-            for event in events:
-                yield event
+            if token:
+                answer_parts.append(token)
+                yield StreamEvent(type="answer", content=token)
 
-        # 7. flush 解析器剩餘 buffer
-        for event in parser.finish():
-            yield event
+        raw_answer = "".join(answer_parts)
 
-        # 8. 防禦性回退：如果解析器從未切換到 answer 狀態
-        #    （即模型未輸出 </think> 標籤），將所有內容視為回答
-        raw_thinking = parser.full_thinking
-        raw_answer = parser.full_answer
-
-        if not raw_answer.strip() and raw_thinking.strip():
-            logger.warning(
-                "⚠️ 未檢測到 </think> 標籤，將全部輸出視為回答"
-            )
-            raw_answer = raw_thinking
-            raw_thinking = ""
-            # 補發 answer 事件，讓前端能顯示內容
-            yield StreamEvent(type="answer", content=raw_answer)
-
-        # 9. 構建完整的 thinking 元數據（包含知識庫、臨時文檔等）
+        # 7. 構建完整的 thinking 元數據（包含知識庫、臨時文檔等）
         full_thinking = _build_full_thinking(
-            raw_thinking=raw_thinking,
+            raw_thinking="",
             temp_docs=temp_docs,
             kb_context=kb_context
         )

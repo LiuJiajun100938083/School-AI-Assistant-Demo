@@ -728,7 +728,6 @@ async def classroom_ai_stream(
     from llm.providers.ollama import get_ollama_provider
     from llm.rag.context import build_prompt_context
     from llm.prompts.templates import apply_thinking_mode
-    from llm.parsers.thinking_parser import StreamingThinkingParser
 
     def sse_event(event_type: str, data: dict) -> str:
         return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -860,29 +859,15 @@ async def classroom_ai_stream(
             full_answer = []
             try:
                 provider = get_ollama_provider()
-                parser = StreamingThinkingParser()
 
+                # async_stream 使用 /api/chat，Ollama 自动分离 thinking/answer，
+                # content 中只有 answer，无需 StreamingThinkingParser
                 async for token in provider.async_stream(
                     thinking_prompt, enable_thinking=False,
                 ):
-                    events = parser.feed(token)
-                    for evt in events:
-                        if evt.type == "answer" and evt.content:
-                            full_answer.append(evt.content)
-                            yield sse_event("answer", {"content": evt.content})
-
-                # flush 剩余
-                for evt in parser.finish():
-                    if evt.type == "answer" and evt.content:
-                        full_answer.append(evt.content)
-                        yield sse_event("answer", {"content": evt.content})
-
-                # 防御性: 如果 parser 没有进入 answer 阶段
-                raw_answer = parser.full_answer
-                raw_thinking = parser.full_thinking
-                if not raw_answer.strip() and raw_thinking.strip():
-                    full_answer.append(raw_thinking)
-                    yield sse_event("answer", {"content": raw_thinking})
+                    if token:
+                        full_answer.append(token)
+                        yield sse_event("answer", {"content": token})
 
             except Exception as e:
                 logger.error("课堂 AI 流式生成失败: %s", e)
