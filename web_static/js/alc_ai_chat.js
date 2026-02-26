@@ -233,11 +233,18 @@
         inputBox.value = '';
         inputBox.focus();
 
-        // 显示打字动画
-        const loadingEl = document.createElement('div');
-        loadingEl.className = 'alc-message alc-message--ai';
-        loadingEl.innerHTML = '<div class="alc-message-avatar">🤖</div><div class="alc-message-content"><div class="alc-typing-indicator"><span></span><span></span><span></span></div></div>';
-        messagesEl.appendChild(loadingEl);
+        // 创建 AI 消息气泡（用于流式填充）
+        const aiMsgEl = document.createElement('div');
+        aiMsgEl.className = 'alc-message alc-message--ai';
+        const avatarEl = document.createElement('div');
+        avatarEl.className = 'alc-message-avatar';
+        avatarEl.textContent = '🤖';
+        const contentEl = document.createElement('div');
+        contentEl.className = 'alc-message-content';
+        contentEl.innerHTML = '<div class="alc-typing-indicator"><span></span><span></span><span></span></div>';
+        aiMsgEl.appendChild(avatarEl);
+        aiMsgEl.appendChild(contentEl);
+        messagesEl.appendChild(aiMsgEl);
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
         const requestBody = { question };
@@ -246,13 +253,96 @@
         }
 
         try {
-            const resp = await $.apiPost(`${$.API_BASE}/ai-ask`, requestBody);
-            const result = resp.data || resp;
-            loadingEl.remove();
-            renderAiMessage('assistant', result.answer || '暂无回答', result.sources, result.page_references, result.related_nodes);
+            const response = await $.apiStreamPost(`${$.API_BASE}/ai-ask-stream`, requestBody);
+            if (!response) return;
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullAnswer = '';
+            let relatedNodes = null;
+            let pageReferences = null;
+            let sseBuffer = '';
+
+            // 移除打字动画，开始流式显示
+            contentEl.innerHTML = '<span class="alc-streaming-text"></span><span class="alc-streaming-cursor">▍</span>';
+            const streamText = contentEl.querySelector('.alc-streaming-text');
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                sseBuffer += decoder.decode(value, { stream: true });
+                const lines = sseBuffer.split('\n');
+                sseBuffer = lines.pop(); // 保留不完整的行
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const dataStr = line.slice(6).trim();
+                    if (!dataStr) continue;
+
+                    try {
+                        const event = JSON.parse(dataStr);
+                        if (event.type === 'token' && event.content) {
+                            fullAnswer += event.content;
+                            streamText.textContent = fullAnswer;
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        } else if (event.type === 'done') {
+                            relatedNodes = event.related_nodes || [];
+                            pageReferences = event.page_references || [];
+                        }
+                    } catch (e) {
+                        // 跳过解析失败的行
+                    }
+                }
+            }
+
+            // 流式完成：渲染 Markdown + 附加信息
+            const cursor = contentEl.querySelector('.alc-streaming-cursor');
+            if (cursor) cursor.remove();
+
+            if (fullAnswer && typeof marked !== 'undefined') {
+                let html = DOMPurify.sanitize(marked.parse(fullAnswer));
+                html = linkifyPageReferences(html);
+                contentEl.innerHTML = html;
+            } else if (fullAnswer) {
+                contentEl.innerHTML = `<p>${$.escapeHtml(fullAnswer).replace(/\n/g, '<br>')}</p>`;
+            } else {
+                contentEl.innerHTML = '<p>暂无回答</p>';
+            }
+
+            // 页码快捷导航按钮
+            if (pageReferences && pageReferences.length > 0) {
+                const allPages = new Set();
+                pageReferences.forEach(ref => {
+                    if (ref.page_numbers) ref.page_numbers.forEach(p => allPages.add(p));
+                });
+                const sortedPages = Array.from(allPages).sort((a, b) => a - b);
+                if (sortedPages.length > 0) {
+                    const btnsHtml = sortedPages.map(p =>
+                        `<button class="alc-page-ref-btn" data-page="${p}" title="跳转到第${p}页">第${p}页</button>`
+                    ).join('');
+                    contentEl.insertAdjacentHTML('beforeend',
+                        `<div class="alc-page-refs-bar"><span class="alc-page-refs-label">相关页码：</span>${btnsHtml}</div>`
+                    );
+                }
+            }
+
+            // 知识图谱相关节点芯片
+            if (relatedNodes && relatedNodes.length > 0) {
+                const chipsHtml = relatedNodes.map(n =>
+                    `<button class="alc-kg-node-chip" data-node-id="${n.id}" title="${$.escapeHtml(n.title)}">` +
+                    `<span class="alc-kg-node-chip__icon">${n.icon || '📌'}</span>` +
+                    `<span class="alc-kg-node-chip__title">${$.escapeHtml(n.title)}</span>` +
+                    `</button>`
+                ).join('');
+                contentEl.insertAdjacentHTML('beforeend',
+                    `<div class="alc-kg-nodes-bar">` +
+                    `<span class="alc-kg-nodes-label">📍 相关知识点：</span>${chipsHtml}</div>`
+                );
+            }
+
         } catch (error) {
-            loadingEl.remove();
-            renderAiMessage('assistant', '发送失败，请重试');
+            contentEl.innerHTML = '<p>发送失败，请重试</p>';
             console.error('AI ask error:', error);
         }
 

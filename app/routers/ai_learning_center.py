@@ -434,16 +434,15 @@ async def ai_ask_stream(
     async def event_generator():
         import json as _json
         try:
-            async for token in service.ai_ask_stream(
+            async for event in service.ai_ask_stream(
                 username=current_user.get("username", "unknown"),
                 question=request.question,
                 content_id=request.content_id,
             ):
-                yield f"data: {_json.dumps(token, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
+                yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
         except Exception as e:
             logger.exception("SSE stream error")
-            yield f"data: [DONE]\n\n"
+            yield f"data: {_json.dumps({'type': 'done', 'related_nodes': [], 'page_references': []}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         event_generator(),

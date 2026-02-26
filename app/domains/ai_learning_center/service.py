@@ -1292,65 +1292,83 @@ class LearningCenterService:
         username: str,
         question: str,
         content_id: Optional[int] = None,
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[Dict, None]:
         """
-        AI 问答的流式版本 — 逐 token yield answer 文本。
+        AI 问答的流式版本 — yield 结构化事件字典。
 
-        仅当有 content_id 时走内容感知 RAG + 流式输出；
-        无 content_id 时回退到一次性返回完整回答。
+        事件格式：
+            {"type": "token",  "content": "..."}     # 逐 token 输出
+            {"type": "done",   "related_nodes": [...], "page_references": [...]}  # 完成事件
         """
-        if content_id is None:
-            result = await self.ai_ask(username, question)
-            yield result.get("answer", "")
-            return
-
         import asyncio
         from functools import partial
 
-        from llm.rag.content_indexer import get_content_indexer
-        from llm.rag.retrieval import get_context_for_content
         from llm.rag.context import build_prompt_context
         from llm.prompts.templates import apply_thinking_mode
         from llm.providers.ollama import get_ollama_provider
         from llm.parsers.thinking_parser import StreamingThinkingParser
 
-        # 1. 内容元数据
-        content = self._contents.find_by_id(content_id)
-        if not content:
-            yield "找不到对应的学习内容。"
-            return
-
-        content_title = content.get("title", "")
         loop = asyncio.get_running_loop()
+        full_answer_parts = []
+        page_references = []
+        content_title = ""
 
-        # 2. 懒索引
-        indexer = get_content_indexer()
-        indexed = await loop.run_in_executor(None, indexer.is_indexed, content_id)
-        if not indexed:
-            logger.info("流式懒索引触发: content_id=%s", content_id)
-            await loop.run_in_executor(
-                None, partial(indexer.index, content_id, dict(content))
+        if content_id is not None:
+            # ---- 内容感知 RAG 路径 ----
+            from llm.rag.content_indexer import get_content_indexer
+            from llm.rag.retrieval import get_context_for_content
+
+            content = self._contents.find_by_id(content_id)
+            if not content:
+                yield {"type": "token", "content": "找不到对应的学习内容。"}
+                yield {"type": "done", "related_nodes": [], "page_references": []}
+                return
+
+            content_title = content.get("title", "")
+
+            # 懒索引
+            indexer = get_content_indexer()
+            indexed = await loop.run_in_executor(None, indexer.is_indexed, content_id)
+            if not indexed:
+                logger.info("流式懒索引触发: content_id=%s", content_id)
+                await loop.run_in_executor(
+                    None, partial(indexer.index, content_id, dict(content))
+                )
+
+            # RAG 检索
+            rag_context = await loop.run_in_executor(
+                None, partial(get_context_for_content, question, content_id),
             )
 
-        # 3. RAG 检索
-        rag_context = await loop.run_in_executor(
-            None, partial(get_context_for_content, question, content_id),
-        )
+            system_prompt = (
+                f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
+                f"请基于以下检索到的内容片段回答学生的问题。\n"
+                f"如果片段不足以回答，可结合通用知识，但请注明。"
+            )
+            prompt = build_prompt_context(
+                question=question,
+                system_prompt=system_prompt,
+                kb_context=rag_context,
+            )
+        else:
+            # ---- 通用问答路径 ----
+            system_prompt = (
+                "你是 AI 学习助教，帮助教师和学生解答关于教学平台操作的问题。\n"
+                "请基于你对教学系统的了解，提供清晰、专业的操作指导。\n"
+                "如果不确定，请如实告知。"
+            )
+            kg_hint = self._build_kg_node_hint()
+            if kg_hint:
+                system_prompt += f"\n\n{kg_hint}"
 
-        # 4. 构建 prompt
-        system_prompt = (
-            f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
-            f"请基于以下检索到的内容片段回答学生的问题。\n"
-            f"如果片段不足以回答，可结合通用知识，但请注明。"
-        )
-        prompt = build_prompt_context(
-            question=question,
-            system_prompt=system_prompt,
-            kb_context=rag_context,
-        )
+            prompt = build_prompt_context(
+                question=question,
+                system_prompt=system_prompt,
+            )
+
         thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
 
-        # 5. 流式调用 LLM，过滤 thinking 只输出 answer
+        # 流式调用 LLM，过滤 thinking 只输出 answer
         provider = get_ollama_provider()
         parser = StreamingThinkingParser()
 
@@ -1358,16 +1376,29 @@ class LearningCenterService:
             events = parser.feed(token)
             for evt in events:
                 if evt.type == "answer" and evt.content:
-                    yield evt.content
+                    full_answer_parts.append(evt.content)
+                    yield {"type": "token", "content": evt.content}
 
         for evt in parser.finish():
             if evt.type == "answer" and evt.content:
-                yield evt.content
+                full_answer_parts.append(evt.content)
+                yield {"type": "token", "content": evt.content}
+
+        # 完成后匹配知识图谱节点
+        full_answer = "".join(full_answer_parts)
+        related_nodes = self._match_knowledge_nodes(full_answer)
 
         logger.info(
-            "流式内容感知回答完成: 用户=%s, content_id=%s",
-            username, content_id,
+            "流式回答完成: 用户=%s, content_id=%s, 回答长度=%d",
+            username, content_id, len(full_answer),
         )
+
+        # 发送完成事件（包含元数据）
+        yield {
+            "type": "done",
+            "related_nodes": related_nodes,
+            "page_references": page_references,
+        }
 
     # ================================================================
     # 私有方法

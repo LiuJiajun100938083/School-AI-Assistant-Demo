@@ -117,6 +117,29 @@
     }
 
     /**
+     * POST JSON and return raw Response (for SSE streaming)
+     */
+    async function apiStreamPost(url, body) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+            return null;
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response;
+    }
+
+    /**
      * PUT JSON data
      */
     async function apiPut(url, body) {
@@ -371,6 +394,7 @@
         // Utility functions
         api,
         apiPost,
+        apiStreamPost,
         apiPut,
         apiDelete,
         apiUpload,
