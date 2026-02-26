@@ -221,6 +221,7 @@ const IndexUI = {
     showLoginInterface() {
         const el = this.elements;
         el.loginContainer.style.display = 'flex';
+        el.loginContainer.classList.add('is-ready');
         el.mainContainer.style.display = 'none';
         el.homeContainer.style.display = 'none';
         el.usernameInput.focus();
@@ -2468,43 +2469,29 @@ window.toolboxManager = null;
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', function () {
-    // 启动画面淡出
+    // ── 啟動畫面 → 登入頁絲滑過渡 ──
     const splashScreen = document.getElementById('splashScreen');
-    setTimeout(() => {
-        if (splashScreen) {
-            splashScreen.classList.add('fade-out');
-            setTimeout(() => { splashScreen.style.display = 'none'; }, 600);
-        }
-    }, 1500);
+    const loginContainer = document.getElementById('loginContainer');
 
-    // 吉祥物問候語輪播
-    const mascotGreetings = [
-        '嗨！準備好開始學習了嗎？',
-        '今天也要加油哦！',
-        '學習是一場精彩的冒險！',
-        '有什麼問題儘管問我！',
-        '每天進步一點點！',
-        '知識就是力量！',
-        '讓我們一起探索 AI 的世界！',
-        '好奇心是最好的老師！',
-        '歡迎回來，一起學習吧！'
-    ];
-    const mascotGreetingEl = document.getElementById('mascotGreeting');
-    if (mascotGreetingEl) {
-        // 隨機選擇初始問候語
-        mascotGreetingEl.textContent = mascotGreetings[Math.floor(Math.random() * mascotGreetings.length)];
-        // 每 6 秒切換
-        setInterval(() => {
-            mascotGreetingEl.style.opacity = '0';
-            mascotGreetingEl.style.transform = 'translateY(4px)';
-            setTimeout(() => {
-                mascotGreetingEl.textContent = mascotGreetings[Math.floor(Math.random() * mascotGreetings.length)];
-                mascotGreetingEl.style.opacity = '1';
-                mascotGreetingEl.style.transform = 'translateY(0)';
-            }, 300);
-        }, 6000);
-        mascotGreetingEl.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-    }
+    setTimeout(() => {
+        if (!splashScreen || !loginContainer) return;
+
+        // 1) 先讓登入容器可見（但左右面板 opacity:0）
+        loginContainer.style.display = 'flex';
+
+        // 2) 啟動畫面開始向左收縮（clip-path 動畫）
+        splashScreen.classList.add('morph-to-panel');
+
+        // 3) 稍微延遲後觸發左右面板入場
+        setTimeout(() => {
+            loginContainer.classList.add('is-ready');
+        }, 300);
+
+        // 4) 動畫結束後移除啟動畫面
+        setTimeout(() => {
+            splashScreen.style.display = 'none';
+        }, 1000);
+    }, 1800);
 
     // 名人名言滚动
     const quotes = [
