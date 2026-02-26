@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class LLMConfig:
     """LLM 配置數據類"""
     # 本地模型配置 (Ollama)
-    local_model: str = "qwen3:30b"
+    local_model: str = "qwen3.5:35b"
     local_base_url: str = "http://localhost:11434"
 
     # API 模型配置 (預留，暫未啟用)
@@ -70,7 +70,7 @@ class LLMConfigManager:
 
         # 從環境變量讀取（優先級低於配置文件）
         config = LLMConfig(
-            local_model=os.getenv('LLM_LOCAL_MODEL', 'qwen3:30b'),
+            local_model=os.getenv('LLM_LOCAL_MODEL', 'qwen3.5:35b'),
             local_base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
             api_model=os.getenv('LLM_API_MODEL', 'deepseek-chat'),
             api_base_url=os.getenv('LLM_API_BASE_URL', 'https://api.deepseek.com/v1'),

@@ -126,7 +126,7 @@ class SecuritySettings(BaseSettings):
 class LLMSettings(BaseSettings):
     """LLM 配置"""
     # 本地模型 (Ollama)
-    llm_local_model: str = Field(default="qwen3:30b", description="本地模型名称")
+    llm_local_model: str = Field(default="qwen3.5:35b", description="本地模型名称")
     llm_local_base_url: str = Field(default="http://localhost:11434", description="Ollama 服务地址")
 
     # API 模型 (DeepSeek)

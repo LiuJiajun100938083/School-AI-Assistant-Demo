@@ -190,7 +190,7 @@ class MistakeBookService:
             model = config.local_model
             base_url = config.local_base_url
         except Exception:
-            model = "qwen3:30b-a3b"
+            model = "qwen3.5:35b"
             base_url = "http://localhost:11434"
 
         payload = {
@@ -1413,7 +1413,7 @@ class MistakeBookService:
             model = config.local_model
             base_url = config.local_base_url
         except Exception:
-            model = "qwen3:30b-a3b"
+            model = "qwen3.5:35b"
             base_url = "http://localhost:11434"
 
         # /no_think 指令告訴 Qwen3 不要輸出思考過程
