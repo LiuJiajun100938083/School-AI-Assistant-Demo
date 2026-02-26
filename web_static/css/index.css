@@ -207,6 +207,12 @@ p, span, div, li, label {
     animation: gentlePulse 2.5s ease-in-out infinite;
 }
 
+.splash-mascot {
+    width: 140px;
+    height: auto;
+    filter: drop-shadow(0 8px 24px rgba(0, 102, 200, 0.15));
+}
+
 @keyframes gentlePulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.03); }
@@ -252,35 +258,104 @@ p, span, div, li, label {
 }
 
 /* ================================================
-   登入頁面 - 純白卡片式
+   登入頁面 - 吉祥物雙欄設計
    ================================================ */
 .login-container {
     min-height: 100vh;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: center;
     align-items: center;
-    padding: var(--space-6);
+    gap: var(--space-12);
+    padding: var(--space-8);
     background: var(--bg-page);
     position: relative;
 }
 
+/* ── 吉祥物展示區 ── */
+.login-mascot-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-6);
+    animation: mascotEnter 0.9s var(--ease-out) forwards;
+    z-index: 10;
+}
+
+@keyframes mascotEnter {
+    0% { opacity: 0; transform: translateX(-40px) scale(0.9); }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.mascot-float-wrapper {
+    filter: drop-shadow(0 12px 32px rgba(0, 102, 200, 0.12));
+}
+
+.login-mascot-img {
+    width: 220px;
+    height: auto;
+    transition: transform 0.4s var(--ease-spring);
+}
+
+.login-mascot-img:hover {
+    transform: scale(1.08) rotate(-3deg);
+}
+
+/* 對話氣泡 */
+.mascot-speech-bubble {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4) var(--space-6);
+    position: relative;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+    max-width: 260px;
+    text-align: center;
+    animation: bubbleFadeIn 0.7s var(--ease-out) 0.4s both;
+}
+
+@keyframes bubbleFadeIn {
+    0% { opacity: 0; transform: translateY(8px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mascot-speech-bubble::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    background: var(--bg-card);
+    border-left: 1px solid var(--border-light);
+    border-top: 1px solid var(--border-light);
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.mascot-greeting {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* ── 登錄卡片 ── */
 .login-card {
     background: var(--glass-bg);
     -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
-    padding: var(--space-12) var(--space-10);
+    padding: var(--space-10) var(--space-10);
     border-radius: var(--radius-2xl);
     text-align: center;
     width: 100%;
-    max-width: 420px;
+    max-width: 400px;
     position: relative;
     z-index: 10;
-    /* 三層光影：外陰影 + 內陰影 + 高光描邊 */
     box-shadow: var(--glass-shadow-outer), var(--glass-shadow-inner);
     border: 1px solid var(--glass-border-highlight);
     border-bottom-color: var(--glass-border-bottom);
-    animation: cardEnter 0.7s var(--ease-out) forwards;
+    animation: cardEnter 0.7s var(--ease-out) 0.15s both;
     transition: box-shadow 0.4s var(--ease-out);
     overflow: hidden;
 }
@@ -324,29 +399,25 @@ p, span, div, li, label {
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.login-icon {
-    font-size: 72px;
-    margin-bottom: var(--space-4);
-    animation: iconFloat 4s ease-in-out infinite;
+.login-header {
+    margin-bottom: var(--space-6);
 }
 
-@keyframes iconFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+.login-icon {
+    margin-bottom: var(--space-3);
 }
 
 .login-title {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 600;
     color: var(--brand);
     letter-spacing: -0.5px;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-1);
 }
 
 .login-subtitle {
-    font-size: 15px;
+    font-size: 14px;
     color: var(--text-secondary);
-    margin-bottom: var(--space-8);
     line-height: 1.5;
 }
 
@@ -363,7 +434,7 @@ p, span, div, li, label {
     border-radius: var(--radius-lg);
     background: rgba(255, 255, 255, 0.75);
     color: var(--text-primary);
-    font-size: 17px;
+    font-size: 16px;
     font-family: var(--font-sans);
     transition: all 0.25s var(--ease-out);
     -webkit-appearance: none;
@@ -404,12 +475,25 @@ p, span, div, li, label {
     transition: all 0.25s var(--ease-out);
     margin-top: var(--space-2);
     box-shadow: var(--glass-btn-shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.login-button .btn-icon {
+    transition: transform 0.3s var(--ease-spring);
+    font-size: 18px;
 }
 
 .login-button:hover {
     background: var(--brand-hover);
     transform: translateY(-1px);
     box-shadow: var(--glass-btn-shadow-hover);
+}
+
+.login-button:hover .btn-icon {
+    transform: translateX(4px);
 }
 
 .login-button:active {
@@ -432,6 +516,11 @@ p, span, div, li, label {
     position: relative;
     box-shadow: var(--glass-btn-shadow);
     overflow: hidden;
+}
+
+.login-button.is-loading .btn-text,
+.login-button.is-loading .btn-icon {
+    visibility: hidden;
 }
 
 .login-button.is-loading::before {
@@ -2571,6 +2660,29 @@ p, span, div, li, label {
 
     .header-title { font-size: 15px; }
 
+    .login-container {
+        flex-direction: column;
+        gap: var(--space-6);
+        padding: var(--space-6) var(--space-4);
+    }
+
+    .login-mascot-section {
+        gap: var(--space-3);
+    }
+
+    .login-mascot-img {
+        width: 140px;
+    }
+
+    .mascot-speech-bubble {
+        max-width: 220px;
+        padding: var(--space-3) var(--space-4);
+    }
+
+    .mascot-greeting {
+        font-size: 13px;
+    }
+
     .login-card {
         padding: var(--space-8) var(--space-6);
         max-width: 380px;
@@ -2586,8 +2698,12 @@ p, span, div, li, label {
     }
 
     .quotes-container {
-        bottom: var(--space-8);
+        position: relative;
+        bottom: auto;
+        left: auto;
+        transform: none;
         width: 95%;
+        margin-top: var(--space-6);
     }
 
     .quote-chinese { font-size: 16px; }
@@ -2616,16 +2732,34 @@ p, span, div, li, label {
 }
 
 @media (max-width: 480px) {
+    .login-container {
+        gap: var(--space-4);
+        padding: var(--space-4) var(--space-3);
+    }
+
+    .login-mascot-img {
+        width: 110px;
+    }
+
+    .mascot-speech-bubble {
+        padding: var(--space-2) var(--space-3);
+        max-width: 200px;
+    }
+
+    .mascot-greeting {
+        font-size: 12px;
+    }
+
     .login-card {
         padding: var(--space-6) var(--space-5);
     }
 
-    .login-icon { font-size: 56px; }
+    .login-icon img { width: 44px !important; }
     .login-title { font-size: 22px; }
-    .login-subtitle { font-size: 14px; }
+    .login-subtitle { font-size: 13px; }
 
     .splash-title { font-size: 26px; }
-    .splash-icon { font-size: 64px; }
+    .splash-mascot { width: 100px; }
 
     .quote-chinese { font-size: 14px; }
     .quote-english { font-size: 12px; }
@@ -3977,8 +4111,15 @@ th {
     }
 
     /* 登入卡片適配 */
+    .login-container {
+        flex-direction: row;
+        gap: var(--space-8);
+    }
+    .login-mascot-img {
+        width: 180px;
+    }
     .login-card {
-        max-width: 420px;
+        max-width: 400px;
         padding: var(--space-8) var(--space-6);
     }
 }
@@ -4177,14 +4318,27 @@ th {
         font-size: 14px;
     }
 
+    .login-container {
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+
+    .login-mascot-img {
+        width: 120px;
+    }
+
+    .mascot-speech-bubble {
+        display: none;
+    }
+
     .login-card {
         max-width: 100%;
         margin: var(--space-3);
         padding: var(--space-5) var(--space-4);
     }
 
-    .login-icon {
-        font-size: 52px;
+    .login-icon img {
+        width: 44px !important;
     }
 
     .login-title {
@@ -4307,7 +4461,21 @@ th {
 
     /* 登入頁面 */
     .login-container {
+        flex-direction: column;
+        gap: var(--space-3);
         padding: var(--space-3);
+    }
+
+    .login-mascot-section {
+        gap: var(--space-2);
+    }
+
+    .login-mascot-img {
+        width: 90px;
+    }
+
+    .mascot-speech-bubble {
+        display: none;
     }
 
     .login-card {
@@ -4317,9 +4485,8 @@ th {
         max-width: 100%;
     }
 
-    .login-icon {
-        font-size: 48px;
-        margin-bottom: var(--space-4);
+    .login-icon img {
+        width: 40px !important;
     }
 
     .login-title {
@@ -4335,7 +4502,7 @@ th {
         font-size: 16px;
     }
 
-    .login-btn {
+    .login-button {
         padding: var(--space-4);
         font-size: 16px;
     }
@@ -4345,8 +4512,8 @@ th {
         font-size: 24px;
     }
 
-    .splash-icon {
-        font-size: 56px;
+    .splash-mascot {
+        width: 80px;
     }
 
     .splash-subtitle {
@@ -4388,21 +4555,27 @@ th {
 
 /* === 橫向模式特殊處理 === */
 @media (orientation: landscape) and (max-height: 500px) {
-    .login-card {
+    .login-container {
         flex-direction: row;
-        max-width: 600px;
+        gap: var(--space-6);
+        padding: var(--space-3);
+    }
+
+    .login-mascot-img {
+        width: 120px;
+    }
+
+    .mascot-speech-bubble {
+        display: none;
+    }
+
+    .login-card {
+        max-width: 380px;
         padding: var(--space-4);
     }
 
     .login-card > .login-header {
-        flex: 0 0 40%;
-        border-right: 1px solid var(--border-light);
-        padding-right: var(--space-4);
-    }
-
-    .login-card > .login-form {
-        flex: 1;
-        padding-left: var(--space-4);
+        margin-bottom: var(--space-3);
     }
 
     .splash-content {
@@ -4410,8 +4583,8 @@ th {
         gap: var(--space-6);
     }
 
-    .splash-icon {
-        font-size: 48px;
+    .splash-mascot {
+        width: 80px;
     }
 }
 

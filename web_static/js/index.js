@@ -242,10 +242,8 @@ const IndexUI = {
         el.loginButton.disabled = show;
         if (show) {
             el.loginButton.classList.add('is-loading');
-            el.loginButton.textContent = '';
         } else {
             el.loginButton.classList.remove('is-loading');
-            el.loginButton.textContent = '登入';
         }
     },
 
@@ -2479,16 +2477,33 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }, 1500);
 
-    // 鼠标聚光灯
-    const spotlight = document.getElementById('spotlight');
-    const loginContainer = document.getElementById('loginContainer');
-    if (spotlight && loginContainer) {
-        loginContainer.addEventListener('mousemove', (e) => {
-            spotlight.style.left = e.clientX + 'px';
-            spotlight.style.top = e.clientY + 'px';
-        });
-        loginContainer.addEventListener('mouseleave', () => { spotlight.style.opacity = '0'; });
-        loginContainer.addEventListener('mouseenter', () => { spotlight.style.opacity = '1'; });
+    // 吉祥物問候語輪播
+    const mascotGreetings = [
+        '嗨！準備好開始學習了嗎？',
+        '今天也要加油哦！',
+        '學習是一場精彩的冒險！',
+        '有什麼問題儘管問我！',
+        '每天進步一點點！',
+        '知識就是力量！',
+        '讓我們一起探索 AI 的世界！',
+        '好奇心是最好的老師！',
+        '歡迎回來，一起學習吧！'
+    ];
+    const mascotGreetingEl = document.getElementById('mascotGreeting');
+    if (mascotGreetingEl) {
+        // 隨機選擇初始問候語
+        mascotGreetingEl.textContent = mascotGreetings[Math.floor(Math.random() * mascotGreetings.length)];
+        // 每 6 秒切換
+        setInterval(() => {
+            mascotGreetingEl.style.opacity = '0';
+            mascotGreetingEl.style.transform = 'translateY(4px)';
+            setTimeout(() => {
+                mascotGreetingEl.textContent = mascotGreetings[Math.floor(Math.random() * mascotGreetings.length)];
+                mascotGreetingEl.style.opacity = '1';
+                mascotGreetingEl.style.transform = 'translateY(0)';
+            }, 300);
+        }, 6000);
+        mascotGreetingEl.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     }
 
     // 名人名言滚动
