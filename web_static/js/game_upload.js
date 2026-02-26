@@ -96,7 +96,7 @@ class GameUploadPage {
 
                 // 嘗試加載現有代碼
                 try {
-                    const codeResponse = await fetch(`/uploaded_games/${uuid}`);
+                    const codeResponse = await fetch(`/uploaded_games/${uuid}?raw=1`);
                     if (codeResponse.ok) {
                         document.getElementById('htmlCode').value = await codeResponse.text();
                     }

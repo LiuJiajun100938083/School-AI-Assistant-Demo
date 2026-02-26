@@ -191,13 +191,17 @@ async def play_shared_game(token: str):
 
 
 @router.get("/uploaded_games/{game_uuid}")
-async def serve_uploaded_game(game_uuid: str):
-    """提供用户上传的游戏（沙盒运行），自动注入返回游戏中心按钮"""
+async def serve_uploaded_game(game_uuid: str, raw: str = None):
+    """提供用户上传的游戏（沙盒运行），自动注入返回游戏中心按钮。raw=1 时返回原始内容（编辑用）"""
     # 安全检查：防止路径遍历
     safe_uuid = game_uuid.replace("/", "").replace("\\", "").replace("..", "")
     file_path = os.path.join(STATIC_DIR, "uploaded_games", f"{safe_uuid}.html")
 
     if os.path.exists(file_path):
+        # raw 模式：返回原始文件（编辑器加载用）
+        if raw:
+            return FileResponse(file_path, media_type="text/html")
+
         with open(file_path, "r", encoding="utf-8") as f:
             html_content = f.read()
 
