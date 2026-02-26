@@ -263,8 +263,16 @@ const IndexUI = {
     showMainInterface() {
         const el = this.elements;
         el.loginContainer.style.display = 'none';
-        el.homeContainer.style.display = 'flex';
         el.mainContainer.style.display = 'none';
+        el.homeContainer.style.display = 'flex';
+
+        // 已登入用戶回到主頁時，簡單淡入（取代突然出現）
+        if (typeof gsap !== 'undefined') {
+            gsap.fromTo(el.homeContainer,
+                { opacity: 0 },
+                { opacity: 1, duration: 0.35, ease: 'power2.out' }
+            );
+        }
     },
 
     showHome() {
@@ -2486,6 +2494,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const loginContainer = document.getElementById('loginContainer');
     if (!splashScreen || !loginContainer) return;
 
+    // ── 已登入用戶：跳過整個啟動動畫，直接進入主界面 ──
+    const existingToken = AuthModule && AuthModule.getToken && AuthModule.getToken();
+    if (existingToken) {
+        // 隱藏啟動畫面，不播放任何動畫
+        splashScreen.style.display = 'none';
+        // loginContainer 也隱藏，由 IndexApp.init() 的 _verifyToken() 決定顯示什麼
+        loginContainer.style.display = 'none';
+        return; // 完全跳過 GSAP 動畫和名言輪播初始化（登入頁不會顯示）
+    }
+
     const splashContent = splashScreen.querySelector('.splash-content');
     const splashMascot  = splashScreen.querySelector('.splash-mascot');
     const splashTitle   = splashScreen.querySelector('.splash-title');
@@ -2519,12 +2537,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const tlTransition = gsap.timeline({
         delay: 1.8,
         onStart() {
-            // 讓登入容器可見但透明
+            // 讓登入容器可見但完全透明
             loginContainer.style.display = 'flex';
             gsap.set(brandPanel, { opacity: 0 });
             gsap.set(formPanel, { opacity: 0, x: 60 });
-            // 品牌面板內容初始隱藏
-            gsap.set([brandMascot, brandWelcome, brandAppName, brandSchool, brandQuote], {
+            // 品牌面板內容初始隱藏（小馬由 splash 滑過來，不在這裡顯示）
+            gsap.set(brandMascot, { opacity: 0 });
+            gsap.set([brandWelcome, brandAppName, brandSchool, brandQuote], {
                 opacity: 0, y: 20
             });
             // 右側表單內容初始隱藏
@@ -2535,7 +2554,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     tlTransition
-        // ── 啟動畫面淡出：內容先散開消失 ──
+        // ── 啟動畫面文字淡出（小馬保留！）──
         .to(splashLoader, {
             opacity: 0, y: 10, duration: 0.3,
             ease: 'power2.in'
@@ -2548,33 +2567,63 @@ document.addEventListener('DOMContentLoaded', function () {
             opacity: 0, y: -12, duration: 0.3,
             ease: 'power2.in'
         }, '-=0.15')
-        .to(splashMascot, {
-            opacity: 0, scale: 0.85, duration: 0.35,
-            ease: 'power2.in'
-        }, '-=0.2')
 
-        // ── 啟動畫面整體淡出 ──
+        // ── 啟動畫面背景淡出（小馬提升到最頂層繼續可見）──
+        .add(() => {
+            // 把小馬從 splash 中「提取」到 body 層級，保持屏幕位置不變
+            const rect = splashMascot.getBoundingClientRect();
+            splashMascot.style.position = 'fixed';
+            splashMascot.style.left = rect.left + 'px';
+            splashMascot.style.top = rect.top + 'px';
+            splashMascot.style.width = rect.width + 'px';
+            splashMascot.style.height = 'auto';
+            splashMascot.style.zIndex = '10000';
+            splashMascot.style.pointerEvents = 'none';
+            splashMascot.style.margin = '0';
+            document.body.appendChild(splashMascot);
+        })
         .to(splashScreen, {
-            opacity: 0, duration: 0.4,
+            opacity: 0, duration: 0.5,
             ease: 'power2.inOut',
             onComplete() { splashScreen.style.display = 'none'; }
-        }, '-=0.15')
+        })
 
-        // ── 左側品牌面板入場 ──
+        // ── 左面板 + 右面板背景同時入場 ──
         .to(brandPanel, {
             opacity: 1, duration: 0.6,
             ease: 'power2.out'
-        }, '-=0.25')
-
-        // ── 品牌面板內容：依次入場 ──
-        .to(brandMascot, {
-            opacity: 1, y: 0, duration: 0.5,
-            ease: 'power3.out'
         }, '-=0.3')
+        .to(formPanel, {
+            opacity: 1, x: 0, duration: 0.7,
+            ease: 'power3.out'
+        }, '-=0.5')
+
+        // ── 小馬絲滑滑動到左面板位置 ──
+        .add(() => {
+            // 在此刻動態計算目標位置（面板已可見）
+            const targetRect = brandMascot.getBoundingClientRect();
+            const sourceRect = splashMascot.getBoundingClientRect();
+            const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
+            const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
+            const s = targetRect.width / sourceRect.width;
+
+            gsap.to(splashMascot, {
+                x: dx, y: dy, scale: s,
+                duration: 0.9,
+                ease: 'power3.inOut',
+                onComplete() {
+                    // 滑到位後：隱藏飛行中的小馬，顯示面板中的小馬
+                    splashMascot.style.display = 'none';
+                    gsap.set(brandMascot, { opacity: 1 });
+                }
+            });
+        }, '-=0.6')
+
+        // ── 品牌面板文字依次入場（與小馬滑動並行，但稍晚） ──
         .to(brandWelcome, {
             opacity: 1, y: 0, duration: 0.4,
             ease: 'power2.out'
-        }, '-=0.2')
+        }, '-=0.3')
         .to(brandAppName, {
             opacity: 1, y: 0, duration: 0.4,
             ease: 'power2.out'
@@ -2588,17 +2637,11 @@ document.addEventListener('DOMContentLoaded', function () {
             ease: 'power2.out'
         }, '-=0.1')
 
-        // ── 右側表單面板同時入場（與品牌面板內容並行） ──
-        .to(formPanel, {
-            opacity: 1, x: 0, duration: 0.7,
-            ease: 'power3.out'
-        }, '-=1.0')
-
         // ── 右側內容：錯位彈入 ──
         .to(loginHeader, {
             opacity: 1, y: 0, duration: 0.45,
             ease: 'power2.out'
-        }, '-=0.5')
+        }, '-=0.6')
         .to(inputGroups, {
             opacity: 1, y: 0, duration: 0.4,
             stagger: 0.1,

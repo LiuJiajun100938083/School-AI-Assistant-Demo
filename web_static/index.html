@@ -48,6 +48,13 @@
 <div class="login-edge-light"></div>
 <div class="login-focus-area"></div>
 
+<!-- 已登入用戶跳過啟動動畫（內聯腳本，最早執行） -->
+<script>
+    if (localStorage.getItem('auth_token') || localStorage.getItem('token')) {
+        document.write('<style>#splashScreen{display:none!important}</style>');
+    }
+</script>
+
 <!-- 啟動畫面（全屏居中，之後變形為左面板） -->
 <div class="splash-screen" id="splashScreen">
     <div class="splash-content">
