@@ -4676,18 +4676,53 @@ th {
     margin-bottom: var(--space-10, 40px);
 }
 
-/* ── 主頁吉祥物 ── */
-.home-mascot {
-    width: 80px;
-    height: auto;
-    margin-bottom: var(--space-4);
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.08));
-    animation: homeMascotFloat 3s ease-in-out infinite;
+/* ── 標題橫排佈局 ── */
+.home-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-5);
 }
 
-@keyframes homeMascotFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+.home-title-text {
+    text-align: left;
+}
+
+/* ── 主頁吉祥物 ── */
+.home-mascot {
+    width: 100px;
+    height: auto;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.10));
+    animation: mascotBreath 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    cursor: default;
+    transition: filter 0.4s ease;
+}
+
+.home-mascot:hover {
+    filter: drop-shadow(0 6px 20px rgba(0, 102, 51, 0.25));
+    animation: mascotWave 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 呼吸光感：微縮放 + 陰影明暗交替 */
+@keyframes mascotBreath {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.10));
+    }
+    50% {
+        transform: scale(1.04);
+        filter: drop-shadow(0 6px 18px rgba(0, 102, 51, 0.18));
+    }
+}
+
+/* hover 時輕微搖擺打招呼 */
+@keyframes mascotWave {
+    0%   { transform: rotate(0deg) scale(1.04); }
+    20%  { transform: rotate(-8deg) scale(1.08); }
+    40%  { transform: rotate(6deg) scale(1.08); }
+    60%  { transform: rotate(-4deg) scale(1.06); }
+    80%  { transform: rotate(2deg) scale(1.05); }
+    100% { transform: rotate(0deg) scale(1.04); }
 }
 
 .home-title {
