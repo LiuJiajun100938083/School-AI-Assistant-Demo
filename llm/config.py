@@ -29,7 +29,7 @@ class LLMConfig:
     temperature: float = 0.6
     top_p: float = 0.95
     timeout: int = 120
-    max_tokens: int = 32768
+    max_tokens: int = 81920
 
     # 思考模式
     enable_thinking_mode: bool = True
@@ -78,7 +78,7 @@ class LLMConfigManager:
             temperature=float(os.getenv('LLM_TEMPERATURE', '0.6')),
             top_p=float(os.getenv('LLM_TOP_P', '0.95')),
             timeout=int(os.getenv('LLM_TIMEOUT', '120')),
-            max_tokens=int(os.getenv('LLM_MAX_TOKENS', '32768')),
+            max_tokens=int(os.getenv('LLM_MAX_TOKENS', '81920')),
             enable_thinking_mode=os.getenv('LLM_THINKING_MODE', 'true').lower() == 'true',
             use_api=os.getenv('LLM_USE_API', 'false').lower() == 'true',
         )

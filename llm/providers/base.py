@@ -28,9 +28,9 @@ class BaseLLMProvider(ABC):
         self.temperature = kwargs.get('temperature', 0.6)
         self.top_p = kwargs.get('top_p', 0.95)
         self.timeout = kwargs.get('timeout', 120)
-        self.max_tokens = kwargs.get('max_tokens', 32768)
+        self.max_tokens = kwargs.get('max_tokens', 81920)
         self.stop_tokens = kwargs.get('stop_tokens', [])
-        self.num_ctx = kwargs.get('num_ctx', 65536)
+        self.num_ctx = kwargs.get('num_ctx', 262144)
 
     @abstractmethod
     def invoke(self, prompt: str) -> str:
