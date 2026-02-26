@@ -217,11 +217,12 @@ body {
     left: 0;
     right: 0;
     height: var(--header-height);
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-page);
+    border-bottom: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04), 0 -2px 8px rgba(255, 255, 255, 0.6);
     padding: 0 20px;
     z-index: 100;
     box-shadow: var(--shadow-sm);
@@ -247,7 +248,7 @@ body {
 
 .back-btn {
     padding: 8px 16px;
-    background: var(--fill-secondary);
+    background: var(--bg-page);
     border: none;
     border-radius: var(--radius-sm);
     color: var(--text-primary);
@@ -255,23 +256,33 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: all var(--duration-base) var(--ease-out);
+    box-shadow:
+        3px 3px 8px rgba(0, 0, 0, 0.06),
+        -3px -3px 8px rgba(255, 255, 255, 0.8);
 }
 
 .back-btn:hover {
-    background: var(--fill-primary);
+    box-shadow:
+        4px 4px 10px rgba(0, 0, 0, 0.08),
+        -4px -4px 10px rgba(255, 255, 255, 0.85);
 }
 
 .back-btn:active {
-    transform: scale(0.98);
+    box-shadow:
+        inset 2px 2px 5px rgba(0, 0, 0, 0.06),
+        inset -2px -2px 5px rgba(255, 255, 255, 0.7);
 }
 
 .user-info {
     padding: 8px 14px;
-    background: var(--brand-light);
+    background: var(--bg-page);
     color: var(--brand);
     border-radius: var(--radius-full);
     font-size: 13px;
     font-weight: 600;
+    box-shadow:
+        3px 3px 8px rgba(0, 0, 0, 0.05),
+        -3px -3px 8px rgba(255, 255, 255, 0.8);
 }
 
 /* ========== 主容器 ========== */
@@ -286,12 +297,13 @@ body {
 .left-panel {
     width: var(--left-panel-width);
     min-width: var(--left-panel-width);
-    background: var(--bg-card);
-    border-right: 1px solid var(--border-default);
+    background: var(--bg-page);
+    border-right: none;
     display: flex;
     flex-direction: column;
     transition: all 0.3s var(--ease-out);
     overflow: hidden;
+    box-shadow: 6px 0 16px rgba(0, 0, 0, 0.04), -2px 0 8px rgba(255, 255, 255, 0.6);
 }
 
 .left-panel.collapsed {
@@ -302,7 +314,7 @@ body {
 
 .panel-header {
     padding: 20px;
-    border-bottom: 1px solid var(--border-default);
+    border-bottom: none;
 }
 
 .panel-title {
@@ -322,13 +334,16 @@ body {
 .type-btn {
     flex: 1;
     padding: 12px 16px;
-    background: var(--fill-tertiary);
-    border: 2px solid transparent;
+    background: var(--bg-page);
+    border: none;
     border-radius: var(--radius-md);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all var(--duration-base) var(--ease-out);
+    box-shadow:
+        4px 4px 10px rgba(0, 0, 0, 0.06),
+        -4px -4px 10px rgba(255, 255, 255, 0.8);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -336,43 +351,56 @@ body {
 }
 
 .type-btn:hover {
-    background: var(--fill-secondary);
+    box-shadow:
+        5px 5px 12px rgba(0, 0, 0, 0.08),
+        -5px -5px 12px rgba(255, 255, 255, 0.85);
 }
 
 .type-btn.active {
-    border-color: var(--brand);
     background: var(--brand-light);
     color: var(--brand);
+    box-shadow:
+        inset 3px 3px 6px rgba(0, 0, 0, 0.06),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.7);
 }
 
 .type-btn.morning.active {
-    border-color: var(--system-orange);
     background: rgba(255, 149, 0, 0.1);
     color: var(--system-orange);
+    box-shadow:
+        inset 3px 3px 6px rgba(0, 0, 0, 0.06),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.7);
 }
 
 .type-btn.detention.active {
-    border-color: var(--system-purple);
     background: rgba(175, 82, 222, 0.1);
     color: var(--system-purple);
+    box-shadow:
+        inset 3px 3px 6px rgba(0, 0, 0, 0.06),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.7);
 }
 
 /* ========== 日期輸入 ========== */
 .date-input {
     width: 100%;
     padding: 12px 16px;
-    background: var(--fill-tertiary);
-    border: 1px solid var(--border-default);
+    background: var(--bg-page);
+    border: none;
     border-radius: var(--radius-sm);
     font-size: 14px;
     color: var(--text-primary);
     transition: all var(--duration-base) var(--ease-out);
+    box-shadow:
+        inset 3px 3px 7px rgba(0, 0, 0, 0.06),
+        inset -3px -3px 7px rgba(255, 255, 255, 0.8);
 }
 
 .date-input:focus {
     outline: none;
-    border-color: var(--brand);
-    box-shadow: 0 0 0 3px var(--brand-light);
+    box-shadow:
+        inset 3px 3px 7px rgba(0, 0, 0, 0.08),
+        inset -3px -3px 7px rgba(255, 255, 255, 0.9),
+        0 0 0 2.5px rgba(0, 102, 51, 0.18);
 }
 
 /* ========== 固定名單選擇器 ========== */
@@ -445,8 +473,8 @@ body {
 .panel-footer {
     margin-top: auto;
     padding: 16px 20px;
-    background: var(--bg-card);
-    border-top: 1px solid var(--border-default);
+    background: var(--bg-page);
+    border-top: none;
 }
 
 .panel-footer .selected-count {
@@ -478,12 +506,17 @@ body {
 }
 
 .footer-btn.history {
-    background: var(--fill-tertiary);
+    background: var(--bg-page);
     color: var(--text-primary);
+    box-shadow:
+        4px 4px 10px rgba(0, 0, 0, 0.06),
+        -4px -4px 10px rgba(255, 255, 255, 0.8);
 }
 
 .footer-btn.history:hover {
-    background: var(--fill-secondary);
+    box-shadow:
+        5px 5px 12px rgba(0, 0, 0, 0.08),
+        -5px -5px 12px rgba(255, 255, 255, 0.85);
 }
 
 .footer-btn.history svg {
@@ -510,21 +543,28 @@ body {
 }
 
 .footer-btn.primary.start {
-    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    background: var(--brand);
     color: white;
     padding: 14px 16px;
     font-size: 16px;
-    box-shadow: 0 4px 15px rgba(0, 102, 51, 0.3);
+    box-shadow:
+        5px 5px 14px rgba(0, 0, 0, 0.10),
+        -5px -5px 14px rgba(255, 255, 255, 0.7);
 }
 
 .footer-btn.primary.start:hover {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0, 102, 51, 0.4);
+    background: #007A3D;
+    transform: translateY(-2px);
+    box-shadow:
+        7px 7px 18px rgba(0, 0, 0, 0.12),
+        -7px -7px 18px rgba(255, 255, 255, 0.8);
 }
 
 .footer-btn.primary.start:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(0);
+    box-shadow:
+        inset 3px 3px 8px rgba(0, 60, 30, 0.25),
+        inset -2px -2px 5px rgba(255, 255, 255, 0.08);
 }
 
 .footer-btn.primary.start svg {
@@ -3350,8 +3390,8 @@ textarea:focus-visible {
 /* Tertiary 按鈕 - 頂部輕量操作（如上傳學生）*/
 .header-action-btn {
     padding: 7px 14px;
-    background: transparent;
-    border: 1px solid var(--border-color);
+    background: var(--bg-page);
+    border: none;
     border-radius: 16px;
     color: var(--text-secondary);
     font-size: 13px;
@@ -3361,17 +3401,22 @@ textarea:focus-visible {
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    box-shadow:
+        3px 3px 8px rgba(0, 0, 0, 0.05),
+        -3px -3px 8px rgba(255, 255, 255, 0.8);
 }
 
 .header-action-btn:hover {
-    background: var(--fill-tertiary);
     color: var(--text-primary);
-    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow:
+        4px 4px 10px rgba(0, 0, 0, 0.07),
+        -4px -4px 10px rgba(255, 255, 255, 0.85);
 }
 
 .header-action-btn:active {
-    transform: scale(0.97);
-    background: var(--fill-secondary);
+    box-shadow:
+        inset 2px 2px 5px rgba(0, 0, 0, 0.06),
+        inset -2px -2px 5px rgba(255, 255, 255, 0.7);
 }
 
 /* ============================================================
@@ -3382,9 +3427,11 @@ textarea:focus-visible {
 /* 預設狀態繼承 .type-btn 基礎樣式，無需重複定義 */
 
 .type-btn.activity.active {
-    border-color: var(--system-purple);
     background: rgba(175, 82, 222, 0.1);
     color: var(--system-purple);
+    box-shadow:
+        inset 3px 3px 6px rgba(0, 0, 0, 0.06),
+        inset -3px -3px 6px rgba(255, 255, 255, 0.7);
 }
 
 /* 課外活動配置區域 */
@@ -3431,18 +3478,23 @@ textarea:focus-visible {
 .config-input {
     width: 100%;
     padding: 10px 14px;
-    border: 1px solid var(--border-default);
+    border: none;
     border-radius: var(--radius-sm);
     font-size: 14px;
-    background: var(--bg-card);
+    background: var(--bg-page);
     color: var(--text-primary);
     transition: all var(--duration-base) var(--ease-out);
+    box-shadow:
+        inset 3px 3px 7px rgba(0, 0, 0, 0.06),
+        inset -3px -3px 7px rgba(255, 255, 255, 0.8);
 }
 
 .config-input:focus {
     outline: none;
-    border-color: #AF52DE;
-    box-shadow: 0 0 0 3px rgba(175, 82, 222, 0.15);
+    box-shadow:
+        inset 3px 3px 7px rgba(0, 0, 0, 0.08),
+        inset -3px -3px 7px rgba(255, 255, 255, 0.9),
+        0 0 0 2.5px rgba(175, 82, 222, 0.18);
 }
 
 /* 固定組別區域 */
