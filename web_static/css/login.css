@@ -363,16 +363,15 @@ body {
 
 .login-card {
     width: 100%;
-    max-width: 380px;
+    max-width: 400px;
     text-align: center;
-    background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: #F5F5F7;
     border-radius: 28px;
-    padding: var(--space-10) var(--space-8);
+    padding: var(--space-12) var(--space-8);
     box-shadow:
-        0 20px 60px rgba(0, 0, 0, 0.08),
-        0 4px 12px rgba(0, 0, 0, 0.05);
+        10px 10px 25px rgba(0, 0, 0, 0.07),
+        -10px -10px 25px rgba(255, 255, 255, 0.85);
+    transition: box-shadow 0.4s ease;
 }
 
 .login-header {
@@ -397,7 +396,7 @@ body {
     line-height: 1.5;
 }
 
-/* ── 輸入表單 ── */
+/* ── 輸入表單（Neumorphism） ── */
 .input-group {
     text-align: left;
 }
@@ -407,7 +406,7 @@ body {
     font-size: 12px;
     font-weight: 500;
     color: var(--text-tertiary);
-    margin-bottom: var(--space-1);
+    margin-bottom: var(--space-2);
     letter-spacing: 0.02em;
     text-transform: uppercase;
 }
@@ -418,28 +417,55 @@ body {
     gap: var(--space-6);
 }
 
+.input-wrapper {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--text-placeholder);
+    transition: color 0.35s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.input-wrapper:focus-within .input-icon {
+    color: var(--brand);
+}
+
 .login-input {
     width: 100%;
-    padding: var(--space-3) 0;
+    padding: 14px 16px 14px 46px;
     border: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 0;
-    background: transparent;
+    border-radius: var(--radius-md);
+    background: #F5F5F7;
     color: var(--text-primary);
     font-size: 15px;
     font-family: var(--font-sans);
-    transition: border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        inset 3px 3px 7px rgba(0, 0, 0, 0.06),
+        inset -3px -3px 7px rgba(255, 255, 255, 0.8);
+    transition: box-shadow 0.35s ease;
     -webkit-appearance: none;
 }
 
 .login-input:hover {
-    border-bottom-color: rgba(0, 0, 0, 0.2);
+    box-shadow:
+        inset 3px 3px 7px rgba(0, 0, 0, 0.08),
+        inset -3px -3px 7px rgba(255, 255, 255, 0.85);
 }
 
 .login-input:focus {
     outline: none;
-    border-bottom-color: var(--brand);
-    box-shadow: none;
+    box-shadow:
+        inset 3px 3px 7px rgba(0, 0, 0, 0.08),
+        inset -3px -3px 7px rgba(255, 255, 255, 0.9),
+        0 0 0 2.5px rgba(0, 102, 51, 0.18);
 }
 
 .login-input::placeholder {
@@ -447,14 +473,14 @@ body {
 }
 
 .login-input:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.65) inset !important;
+    -webkit-box-shadow: inset 3px 3px 7px rgba(0, 0, 0, 0.06), inset -3px -3px 7px rgba(255, 255, 255, 0.8), 0 0 0 1000px #F5F5F7 inset !important;
     -webkit-text-fill-color: var(--text-primary) !important;
 }
 
-/* ── 登入按鈕 ── */
+/* ── 登入按鈕（Neumorphism） ── */
 .login-button {
     width: 100%;
-    padding: var(--space-4);
+    padding: 15px var(--space-6);
     background: var(--brand);
     color: var(--text-on-brand);
     border: none;
@@ -464,8 +490,10 @@ body {
     font-family: var(--font-sans);
     cursor: pointer;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-top: var(--space-4);
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.15);
+    margin-top: var(--space-6);
+    box-shadow:
+        5px 5px 14px rgba(0, 0, 0, 0.10),
+        -5px -5px 14px rgba(255, 255, 255, 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -481,8 +509,10 @@ body {
 
 .login-button:hover {
     background: var(--brand-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0, 102, 51, 0.22);
+    transform: translateY(-2px);
+    box-shadow:
+        7px 7px 18px rgba(0, 0, 0, 0.12),
+        -7px -7px 18px rgba(255, 255, 255, 0.8);
 }
 
 .login-button:hover .btn-icon {
@@ -491,14 +521,18 @@ body {
 
 .login-button:active {
     transform: translateY(0);
-    box-shadow: 0 1px 4px rgba(0, 102, 51, 0.15);
+    box-shadow:
+        inset 3px 3px 8px rgba(0, 60, 30, 0.25),
+        inset -2px -2px 5px rgba(255, 255, 255, 0.08);
 }
 
 .login-button:disabled {
     background: var(--text-placeholder);
     cursor: not-allowed;
     transform: none;
-    box-shadow: none;
+    box-shadow:
+        3px 3px 8px rgba(0, 0, 0, 0.06),
+        -3px -3px 8px rgba(255, 255, 255, 0.5);
 }
 
 /* ── 按鈕加載態 ── */
@@ -507,8 +541,11 @@ body {
     color: transparent;
     pointer-events: none;
     position: relative;
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.15);
+    box-shadow:
+        inset 2px 2px 6px rgba(0, 60, 30, 0.2),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.06);
     overflow: hidden;
+    transform: none;
 }
 
 .login-button.is-loading .btn-text,
