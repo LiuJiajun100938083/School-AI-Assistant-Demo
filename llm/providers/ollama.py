@@ -154,7 +154,8 @@ def get_ollama_provider() -> OllamaProvider:
             top_p=config.top_p,
             timeout=config.timeout,
             max_tokens=config.max_tokens,
-            stop_tokens=config.stop_tokens
+            stop_tokens=config.stop_tokens,
+            num_ctx=config.num_ctx
         )
     return _global_provider
 

@@ -30,7 +30,7 @@ class BaseLLMProvider(ABC):
         self.timeout = kwargs.get('timeout', 120)
         self.max_tokens = kwargs.get('max_tokens', 81920)
         self.stop_tokens = kwargs.get('stop_tokens', [])
-        self.num_ctx = kwargs.get('num_ctx', 262144)
+        self.num_ctx = kwargs.get('num_ctx', 65536)
 
     @abstractmethod
     def invoke(self, prompt: str) -> str:

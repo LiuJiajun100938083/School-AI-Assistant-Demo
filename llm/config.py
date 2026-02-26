@@ -30,6 +30,7 @@ class LLMConfig:
     top_p: float = 0.95
     timeout: int = 120
     max_tokens: int = 81920
+    num_ctx: int = 65536
 
     # 思考模式
     enable_thinking_mode: bool = True
@@ -79,6 +80,7 @@ class LLMConfigManager:
             top_p=float(os.getenv('LLM_TOP_P', '0.95')),
             timeout=int(os.getenv('LLM_TIMEOUT', '120')),
             max_tokens=int(os.getenv('LLM_MAX_TOKENS', '81920')),
+            num_ctx=int(os.getenv('LLM_NUM_CTX', '65536')),
             enable_thinking_mode=os.getenv('LLM_THINKING_MODE', 'true').lower() == 'true',
             use_api=os.getenv('LLM_USE_API', 'false').lower() == 'true',
         )
@@ -132,6 +134,7 @@ class LLMConfigManager:
             'top_p': self._config.top_p,
             'timeout': self._config.timeout,
             'max_tokens': self._config.max_tokens,
+            'num_ctx': self._config.num_ctx,
             'enable_thinking_mode': self._config.enable_thinking_mode,
             'use_api': self._config.use_api,
             'stop_tokens': self._config.stop_tokens,
