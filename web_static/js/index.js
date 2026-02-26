@@ -881,7 +881,7 @@ const IndexApp = {
         isStreaming: false,
         allSubjects: {},
 
-        enableThinking: false,
+        enableThinking: true,
 
         // 文件上传
         conversationFiles: [],
@@ -995,7 +995,7 @@ const IndexApp = {
         // 思考模式
         if (el.thinkingToggle) {
             el.thinkingToggle.addEventListener('change', (e) => {
-                this.state.enableThinking = !e.target.checked;
+                this.state.enableThinking = e.target.checked;
             });
         }
 

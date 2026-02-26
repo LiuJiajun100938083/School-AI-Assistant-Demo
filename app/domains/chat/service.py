@@ -238,12 +238,11 @@ class ChatService:
             conv = self.create_conversation(username, subject=subject)
             conversation_id = conv["conversation_id"]
         else:
-            # 确保对话存在（upsert）
-            self._conv_repo.create_conversation(
-                username=username,
-                conversation_id=conversation_id,
-                title=question[:50],
-                subject=subject,
+            # 对话已存在，仅更新 updated_at（不覆盖用户设定的标题）
+            self._conv_repo.update(
+                {"updated_at": datetime.now()},
+                "conversation_id = %s",
+                (conversation_id,),
             )
 
         # 2) 保存用户消息
@@ -328,11 +327,11 @@ class ChatService:
             conv = self.create_conversation(username, subject=subject)
             conversation_id = conv["conversation_id"]
         else:
-            self._conv_repo.create_conversation(
-                username=username,
-                conversation_id=conversation_id,
-                title=question[:50],
-                subject=subject,
+            # 对话已存在，仅更新 updated_at（不覆盖用户设定的标题）
+            self._conv_repo.update(
+                {"updated_at": datetime.now()},
+                "conversation_id = %s",
+                (conversation_id,),
             )
 
         model_used = model or self._settings.llm_local_model
