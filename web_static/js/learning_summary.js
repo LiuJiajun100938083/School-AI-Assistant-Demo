@@ -1101,17 +1101,18 @@ class LearningSummaryManager {
             // 调用API
             const response = await this.requestSummary(validation.messages);
 
-            if (response.success) {
-                this.summaryData = response;
+            const data = response.data || response;
+            if (response.success !== false) {
+                this.summaryData = data;
 
                 // 渲染总结
-                if (response.summary) {
-                    this.summaryRenderer.render(response.summary);
+                if (data.summary) {
+                    this.summaryRenderer.render(data.summary);
                 }
 
                 // 渲染思维导图
-                if (response.mindmap) {
-                    await this.mindmapRenderer.render(response.mindmap);
+                if (data.mindmap) {
+                    await this.mindmapRenderer.render(data.mindmap);
                 }
 
                 this.showToast(SUMMARY_MESSAGES.SUCCESS, 'success');
@@ -1141,9 +1142,9 @@ class LearningSummaryManager {
      */
     async requestSummary(messages) {
         const requestBody = {
-            conversation_id: this.app?.currentConversationId,
+            conversation_id: this.app?.state?.currentConversationId,
             messages: messages,
-            subject: this.app?.currentSubject || 'general',
+            subject: this.app?.state?.currentSubject || 'general',
             include_mindmap: true
         };
 
