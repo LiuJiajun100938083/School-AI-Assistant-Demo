@@ -31,6 +31,7 @@ class BaseLLMProvider(ABC):
         self.max_tokens = kwargs.get('max_tokens', 81920)
         self.stop_tokens = kwargs.get('stop_tokens', [])
         self.num_ctx = kwargs.get('num_ctx', 131072)
+        self.num_gpu = kwargs.get('num_gpu', None)
 
     @abstractmethod
     def invoke(self, prompt: str) -> str:

@@ -1294,7 +1294,7 @@ const ChatApp = {
 
     _validateFile(file) {
         if (file.size > 100 * 1024 * 1024) {
-            ChatUI.showStatusMessage('檔案超過10MB限制', 5000);
+            ChatUI.showStatusMessage('檔案超過100MB限制', 5000);
             return false;
         }
         const supportedExts = ['.txt', '.md', '.docx', '.pdf', '.pptx'];
@@ -1339,13 +1339,14 @@ const ChatApp = {
             if (!result.success) {
                 throw new Error(result.message || '后端文件处理失败');
             }
+            const data = result.data || result;
             return {
                 name: file.name,
                 size: file.size,
                 type: file.type,
-                content: result.content,
+                content: data.content,
                 uploadTime: new Date().toISOString(),
-                tempFileId: result.temp_file_id,
+                tempFileId: data.temp_file_id,
                 processedByBackend: true
             };
         } catch (error) {

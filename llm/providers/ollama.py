@@ -102,13 +102,15 @@ class OllamaProvider(BaseLLMProvider):
                 "top_p": self.top_p,
                 "num_predict": self.max_tokens,
                 "num_ctx": self.num_ctx,
+                **({"num_gpu": self.num_gpu} if self.num_gpu is not None else {}),
             }
         }
 
         if self.stop_tokens:
             payload["options"]["stop"] = self.stop_tokens
 
-        logger.info(f"🔗 Ollama 請求: model={self.model}, num_ctx={self.num_ctx}, num_predict={self.max_tokens}")
+        gpu_info = f", num_gpu={self.num_gpu}" if self.num_gpu is not None else ""
+        logger.info(f"🔗 Ollama 請求: model={self.model}, num_ctx={self.num_ctx}, num_predict={self.max_tokens}{gpu_info}")
         async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=10.0)) as client:
             async with client.stream("POST", url, json=payload) as response:
                 if response.status_code != 200:
@@ -161,7 +163,8 @@ def get_ollama_provider() -> OllamaProvider:
             timeout=config.timeout,
             max_tokens=config.max_tokens,
             stop_tokens=config.stop_tokens,
-            num_ctx=config.num_ctx
+            num_ctx=config.num_ctx,
+            num_gpu=config.num_gpu
         )
     return _global_provider
 

@@ -32,6 +32,10 @@ class LLMConfig:
     max_tokens: int = 81920
     num_ctx: int = 131072
 
+    # GPU 層數控制 (None = Ollama 自動分配，適合大 VRAM 機器)
+    # 設置具體數字可控制多少層放到 GPU，其餘放到 CPU/內存
+    num_gpu: Optional[int] = None
+
     # 思考模式
     enable_thinking_mode: bool = True
 
@@ -81,11 +85,12 @@ class LLMConfigManager:
             timeout=int(os.getenv('LLM_TIMEOUT', '120')),
             max_tokens=int(os.getenv('LLM_MAX_TOKENS', '81920')),
             num_ctx=int(os.getenv('LLM_NUM_CTX', '131072')),
+            num_gpu=int(os.getenv('LLM_NUM_GPU')) if os.getenv('LLM_NUM_GPU') else None,
             enable_thinking_mode=os.getenv('LLM_THINKING_MODE', 'true').lower() == 'true',
             use_api=os.getenv('LLM_USE_API', 'false').lower() == 'true',
         )
 
-        logger.info(f"LLM 配置已加載: model={config.local_model}, use_api={config.use_api}")
+        logger.info(f"LLM 配置已加載: model={config.local_model}, use_api={config.use_api}, num_gpu={config.num_gpu}")
         return config
 
     @property
@@ -135,6 +140,7 @@ class LLMConfigManager:
             'timeout': self._config.timeout,
             'max_tokens': self._config.max_tokens,
             'num_ctx': self._config.num_ctx,
+            'num_gpu': self._config.num_gpu,
             'enable_thinking_mode': self._config.enable_thinking_mode,
             'use_api': self._config.use_api,
             'stop_tokens': self._config.stop_tokens,
