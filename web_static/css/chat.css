@@ -129,6 +129,10 @@ html {
 body {
     font-family: var(--font-sans);
     background: var(--bg-page);
+    /* 微妙漸變底色，讓 glass 效果有層次可透 */
+    background-image:
+        radial-gradient(ellipse at 20% 0%, rgba(0, 102, 51, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(0, 102, 51, 0.03) 0%, transparent 50%);
     color: var(--text-primary);
     line-height: 1.5;
     overflow-x: hidden;
@@ -176,11 +180,13 @@ p, span, div, li, label {
     background: var(--bg-page);
 }
 
-/* ========== 頂部導航欄 - 純白背景 ========== */
+/* ========== 頂部導航欄 - Glassmorphism ========== */
 .header {
-    background: var(--bg-header);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     padding: var(--space-3) var(--space-6);
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--glass-border-bottom);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -188,7 +194,8 @@ p, span, div, li, label {
     gap: var(--space-3);
     position: relative;
     z-index: 100;
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--glass-shadow-outer), var(--glass-shadow-inner);
+    transform: translateZ(0);
 }
 
 .header-left {
@@ -357,14 +364,16 @@ p, span, div, li, label {
     color: var(--text-secondary);
 }
 
-/* 用戶菜單下拉 - 白色卡片 */
+/* 用戶菜單下拉 - Glassmorphism */
 .user-menu {
     position: absolute;
     top: calc(100% + var(--space-2));
     right: 0;
     min-width: 220px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border-highlight);
     border-radius: var(--radius-lg);
     padding: var(--space-2) 0;
     z-index: 1000;
@@ -418,23 +427,26 @@ p, span, div, li, label {
 }
 
 
-/* ========== 側邊欄 - 淺灰背景 + 白色卡片項 ========== */
+/* ========== 側邊欄 - Glassmorphism ========== */
 .sidebar {
     width: 300px;
-    background: var(--bg-sidebar);
+    background: rgba(245, 245, 247, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-radius: var(--radius-xl);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-light);
+    box-shadow: var(--glass-shadow-outer), var(--glass-shadow-inner);
+    border: 1px solid var(--glass-border-highlight);
     flex-shrink: 0;
+    transform: translateZ(0);
 }
 
 .sidebar-header {
     padding: var(--space-4) var(--space-5);
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-light);
+    background: rgba(255, 255, 255, 0.5);
+    border-bottom: 1px solid var(--glass-border-bottom);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -622,17 +634,20 @@ p, span, div, li, label {
 }
 
 
-/* ========== 聊天區域 - 白色卡片 ========== */
+/* ========== 聊天區域 - Glassmorphism 卡片 ========== */
 .chat-container {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-light);
+    box-shadow: var(--glass-shadow-outer), var(--glass-shadow-inner);
+    border: 1px solid var(--glass-border-highlight);
     min-width: 0;
+    transform: translateZ(0);
 }
 
 /* 消息容器 */
@@ -640,7 +655,7 @@ p, span, div, li, label {
     flex: 1;
     overflow-y: auto;
     padding: var(--space-6);
-    background: var(--bg-card);
+    background: transparent;
 }
 
 /* 歡迎消息 - 中央卡片 */
@@ -733,10 +748,13 @@ p, span, div, li, label {
 }
 
 .message.assistant .message-bubble {
-    background: var(--bg-page);
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: var(--text-primary);
     border-bottom-left-radius: var(--radius-xs);
-    border: 1px solid var(--border-light);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.6);
 }
 
 /* 打字指示器 */
@@ -869,29 +887,34 @@ p, span, div, li, label {
 }
 
 
-/* ========== 輸入區域 - 底部懸浮白色大圓角 ========== */
+/* ========== 輸入區域 - Glassmorphism 懸浮欄 ========== */
 .input-container {
     padding: var(--space-4) var(--space-5);
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-radius: var(--radius-xl);
     margin: var(--space-4);
-    border: 1.5px solid var(--border-default);
+    border: 1.5px solid var(--glass-border-highlight);
     transition: all var(--duration-base) var(--ease-out);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--glass-shadow-outer), var(--glass-shadow-inner);
+    transform: translateZ(0);
 }
 
 .input-container:hover {
-    border-color: var(--border-strong);
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: var(--glass-shadow-outer-hover), var(--glass-shadow-inner);
 }
 
 .input-container:focus-within {
     border-color: var(--brand);
-    box-shadow: var(--shadow-input-focus), var(--shadow-md);
+    background: var(--glass-input-bg-focus);
+    box-shadow: var(--glass-input-focus-glow), var(--glass-shadow-outer);
 }
 
 .input-container.drag-over {
     border-color: var(--brand);
-    background: var(--brand-light);
+    background: rgba(232, 245, 236, 0.6);
 }
 
 .input-row {
@@ -940,7 +963,7 @@ p, span, div, li, label {
     color: var(--text-placeholder);
 }
 
-/* 發送按鈕 - 綠色 */
+/* 發送按鈕 - 品牌綠 + Glass 光影 */
 .send-button {
     background: var(--brand);
     color: var(--text-on-brand);
@@ -953,13 +976,13 @@ p, span, div, li, label {
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
     flex-shrink: 0;
-    box-shadow: var(--shadow-button);
+    box-shadow: var(--glass-btn-shadow);
 }
 
 .send-button:hover {
     background: var(--brand-hover);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-button-hover);
+    box-shadow: var(--glass-btn-shadow-hover);
 }
 
 .send-button:active {
@@ -1034,14 +1057,17 @@ p, span, div, li, label {
 
 /* ========== 新對話科目選擇彈窗 ========== */
 .new-chat-modal {
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border-highlight);
     border-radius: var(--radius-xl, 20px);
     padding: 32px;
     width: 90%;
     max-width: 520px;
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-modal), var(--glass-shadow-inner);
     animation: modalSlideIn 0.25s ease-out;
 }
 
@@ -1222,12 +1248,15 @@ p, span, div, li, label {
 }
 
 .modal {
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border-highlight);
     border-radius: var(--radius-2xl);
     padding: var(--space-8);
     min-width: 400px;
     max-width: 90vw;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--shadow-modal), var(--glass-shadow-inner);
     animation: modalIn 0.3s var(--ease-out);
 }
 
@@ -1338,12 +1367,15 @@ p, span, div, li, label {
 }
 
 .confirm-dialog-content {
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border-highlight);
     border-radius: var(--radius-2xl);
     padding: var(--space-8);
     max-width: 400px;
     text-align: center;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--shadow-modal), var(--glass-shadow-inner);
     animation: modalIn 0.3s var(--ease-out);
 }
 
@@ -2525,5 +2557,30 @@ th {
     .message.user .message-bubble {
         background: #f0f0f0;
         color: black;
+    }
+}
+
+/* ========== Glassmorphism 降級方案 ========== */
+@supports not (backdrop-filter: blur(1px)) {
+    .header {
+        background: rgba(255, 255, 255, 0.95);
+    }
+    .sidebar {
+        background: rgba(245, 245, 247, 0.95);
+    }
+    .chat-container {
+        background: rgba(255, 255, 255, 0.95);
+    }
+    .input-container {
+        background: rgba(255, 255, 255, 0.95);
+    }
+    .message.assistant .message-bubble {
+        background: rgba(255, 255, 255, 0.92);
+    }
+    .user-menu,
+    .modal,
+    .new-chat-modal,
+    .confirm-dialog-content {
+        background: rgba(255, 255, 255, 0.95);
     }
 }

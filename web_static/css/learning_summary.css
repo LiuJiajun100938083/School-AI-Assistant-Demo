@@ -43,16 +43,19 @@
     opacity: 1;
 }
 
-/* --- 模態框主體 --- */
+/* --- 模態框主體 - Glassmorphism --- */
 .summary-modal {
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border-highlight, rgba(255, 255, 255, 0.65));
     border-radius: var(--radius-xl);
     width: 90%;
     max-width: 800px;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--shadow-modal), inset 0 1px 1px rgba(255, 255, 255, 0.6);
     transform: translateY(20px) scale(0.97);
     transition: transform 0.3s ease;
     overflow: hidden;
