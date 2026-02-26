@@ -1,6 +1,6 @@
-/* ========== 学习总结组件样式 ========== */
+/* ========== 學習總結組件樣式 ========== */
 
-/* --- 📚 按钮 --- */
+/* --- 📚 按鈕 --- */
 .summary-button {
     background: none;
     border: none;
@@ -25,13 +25,13 @@
     transform: scale(0.93);
 }
 
-/* --- 模态框 overlay --- */
+/* --- 模態框 overlay --- */
 .summary-modal-overlay {
     position: fixed;
     inset: 0;
     background: var(--bg-overlay);
     backdrop-filter: blur(8px);
-    display: none;                /* JS show() 设为 flex */
+    display: none;                /* JS show() 設為 flex */
     justify-content: center;
     align-items: center;
     z-index: 2000;
@@ -43,7 +43,7 @@
     opacity: 1;
 }
 
-/* --- 模态框主体 --- */
+/* --- 模態框主體 --- */
 .summary-modal {
     background: var(--bg-card);
     border-radius: var(--radius-xl);
@@ -62,7 +62,7 @@
     transform: translateY(0) scale(1);
 }
 
-/* --- 模态框头部 --- */
+/* --- 模態框頭部 --- */
 .summary-modal-header {
     display: flex;
     align-items: center;
@@ -99,7 +99,7 @@
     color: var(--text-primary);
 }
 
-/* --- Tab 切换 --- */
+/* --- Tab 切換 --- */
 .summary-tabs {
     display: flex;
     gap: var(--space-2);
@@ -131,7 +131,7 @@
     font-weight: 600;
 }
 
-/* --- 内容区域 --- */
+/* --- 內容區域 --- */
 .summary-content {
     flex: 1;
     overflow: hidden;
@@ -204,7 +204,7 @@
     color: var(--text-primary);
 }
 
-/* --- 思维导图容器 --- */
+/* --- 思維導圖容器 --- */
 .mindmap-container {
     min-height: 400px;
     padding: var(--space-3) !important;
@@ -249,7 +249,7 @@
     background: var(--bg-card-hover);
 }
 
-/* --- 模态框底部 --- */
+/* --- 模態框底部 --- */
 .summary-modal-footer {
     display: flex;
     align-items: center;
@@ -304,7 +304,7 @@
     color: var(--text-primary);
 }
 
-/* --- 加载状态 --- */
+/* --- 載入狀態 --- */
 .summary-loading {
     display: flex;
     flex-direction: column;
@@ -328,7 +328,7 @@
     to { transform: rotate(360deg); }
 }
 
-/* --- 占位提示 --- */
+/* --- 佔位提示 --- */
 .summary-placeholder {
     display: flex;
     align-items: center;
@@ -338,7 +338,7 @@
     font-size: 14px;
 }
 
-/* --- 错误状态 --- */
+/* --- 錯誤狀態 --- */
 .summary-error {
     display: flex;
     align-items: center;
@@ -394,7 +394,7 @@
     color: #fff;
 }
 
-/* --- 响应式 --- */
+/* --- 響應式 --- */
 @media (max-width: 599px) {
     .summary-modal {
         width: 96%;
@@ -423,7 +423,7 @@
     }
 }
 
-/* --- 打印时隐藏 --- */
+/* --- 列印時隱藏 --- */
 @media print {
     .summary-modal-overlay,
     .summary-button,
