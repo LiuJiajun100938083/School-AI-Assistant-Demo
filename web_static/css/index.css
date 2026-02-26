@@ -171,75 +171,103 @@ p, span, div, li, label {
 }
 
 /* ================================================
-   啟動畫面 - 品牌綠漸變
+   第一幕：系統喚醒（System Wake）
+   極深綠背景，企業級 AI 啟動感
    ================================================ */
 .splash-screen {
     position: fixed;
     inset: 0;
-    background: linear-gradient(135deg, #004d26 0%, #006633 40%, #00804a 100%);
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    /* 過渡完全由 GSAP 控制 */
 }
 
 .splash-content {
     text-align: center;
+    /* 初始完全不可見，由 GSAP 控制 */
     opacity: 0;
-    transform: translateY(24px);
-    /* 入場由 GSAP 控制，不用 CSS animation */
 }
 
 .splash-icon {
-    font-size: 80px;
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-8);
 }
 
 .splash-mascot {
-    width: 140px;
+    width: 120px;
     height: auto;
-    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.2));
+    /* 初始：模糊 + 微放大，GSAP 控制「點亮」效果 */
+    filter: blur(6px) drop-shadow(0 4px 20px rgba(0,102,51,0.15));
+    opacity: 0;
+    transform: scale(1.01);
+    will-change: filter, opacity, transform;
 }
 
 .splash-title {
-    font-size: 34px;
-    font-weight: 600;
+    font-size: 28px;
+    font-weight: 500;
     color: #FFFFFF;
-    letter-spacing: -0.5px;
+    letter-spacing: 0.05em;
     margin-bottom: var(--space-2);
 }
 
 .splash-subtitle {
-    font-size: 15px;
-    color: rgba(255, 255, 255, 0.6);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: var(--space-12);
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.05em;
+    font-weight: 400;
 }
 
+/* 載入提示：細線掃過 */
 .splash-loader {
+    margin-top: var(--space-10);
+    width: 60px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.splash-loader-bar {
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 1px;
+    transform: translateX(-100%);
+    will-change: transform;
+}
+
+/* ================================================
+   玻璃面板（第二幕：空間展開時的容器）
+   ================================================ */
+.glass-panel {
+    position: fixed;
+    inset: 0;
     display: flex;
     justify-content: center;
-    gap: var(--space-2);
+    align-items: center;
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 0;
 }
 
-.loader-dot {
-    width: 8px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.7);
-    border-radius: var(--radius-full);
-    animation: loaderPulse 1.4s ease-in-out infinite;
-}
-
-.loader-dot:nth-child(1) { animation-delay: 0s; }
-.loader-dot:nth-child(2) { animation-delay: 0.15s; }
-.loader-dot:nth-child(3) { animation-delay: 0.3s; }
-
-@keyframes loaderPulse {
-    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-    40% { transform: scale(1); opacity: 1; }
+.glass-panel-inner {
+    width: 40%;
+    height: 70vh;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 40px;
+    pointer-events: auto;
+    will-change: width, height, border-radius;
+    /* 極淡噪點質感 */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.015'/%3E%3C/svg%3E");
+    background-size: 256px;
 }
 
 /* ================================================
@@ -256,47 +284,33 @@ p, span, div, li, label {
 /* ── 左側品牌面板 ── */
 .login-brand-panel {
     flex: 0 0 45%;
-    background: linear-gradient(135deg, #004d26 0%, #006633 40%, #00804a 100%);
+    background: linear-gradient(170deg, #005A2E 0%, #006633 50%, #004D29 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     overflow: hidden;
-    /* 初始隱藏，GSAP 控制入場 */
 }
 
-/* 波浪裝飾 */
-.brand-wave {
+/* 頂部柔和光暈 */
+.login-brand-panel::before {
+    content: '';
     position: absolute;
-    right: 0;
-    top: 0;
-    width: 50%;
-    height: 100%;
+    top: -20%;
+    left: -10%;
+    width: 120%;
+    height: 50%;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, transparent 70%);
     pointer-events: none;
 }
 
-/* 浮動圓點 */
-.brand-dots {
+/* 極輕微暗角 */
+.login-brand-panel::after {
+    content: '';
     position: absolute;
     inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.12) 100%);
     pointer-events: none;
-}
-
-.brand-dot {
-    position: absolute;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 50%;
-    animation: dotFloat 8s ease-in-out infinite;
-}
-
-.brand-dot:nth-child(2) { animation-delay: -2s; animation-duration: 10s; }
-.brand-dot:nth-child(3) { animation-delay: -4s; animation-duration: 7s; }
-.brand-dot:nth-child(4) { animation-delay: -1s; animation-duration: 9s; }
-.brand-dot:nth-child(5) { animation-delay: -3s; animation-duration: 11s; }
-
-@keyframes dotFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-20px); }
 }
 
 /* 品牌面板內容 */
@@ -308,94 +322,84 @@ p, span, div, li, label {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-4);
-    max-width: 400px;
+    gap: var(--space-3);
+    max-width: 380px;
+    height: 100%;
+    justify-content: center;
 }
 
 .brand-mascot {
-    width: 180px;
+    width: 140px;
     height: auto;
-    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.2));
-    transition: transform 0.4s var(--ease-spring);
-}
-
-.brand-mascot:hover {
-    transform: scale(1.06) rotate(-2deg);
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.15));
 }
 
 .brand-welcome {
-    font-size: 15px;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    margin-top: var(--space-4);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    margin-top: var(--space-5);
 }
 
 .brand-app-name {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 500;
     color: #FFFFFF;
-    letter-spacing: -0.5px;
-    line-height: 1.2;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
 }
 
 .brand-school {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.45);
     line-height: 1.5;
-    max-width: 280px;
+    font-weight: 400;
 }
 
-/* 名言區域（左面板底部） */
+/* 名言區域 — 純 opacity 淡入淡出 */
 .brand-quote {
     margin-top: auto;
     padding-top: var(--space-8);
+    padding-bottom: var(--space-6);
     width: 100%;
     text-align: center;
 }
 
 .brand-quote .quote-wrapper {
     position: relative;
-    min-height: 120px;
+    min-height: 100px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 0 var(--space-2);
 }
 
 .brand-quote .quote-item {
     position: absolute;
     width: 100%;
     opacity: 0;
-    transform: translateY(12px);
-    transition: all 0.6s var(--ease-out);
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    padding: 0 var(--space-2);
+    padding: 0 var(--space-3);
 }
 
 .brand-quote .quote-item.active {
     opacity: 1;
-    transform: translateY(0);
     pointer-events: auto;
-}
-
-.brand-quote .quote-item.exit {
-    opacity: 0;
-    transform: translateY(-12px);
 }
 
 .brand-quote .quote-chinese {
     font-size: 13px;
     font-weight: 400;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.7);
     margin-bottom: var(--space-2);
     line-height: 1.8;
 }
 
 .brand-quote .quote-english {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.35);
     font-style: italic;
     margin-bottom: var(--space-3);
     line-height: 1.6;
@@ -403,28 +407,29 @@ p, span, div, li, label {
 
 .brand-quote .quote-author {
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.35);
+    color: rgba(255, 255, 255, 0.3);
 }
 
+/* 名言指示器：極簡小點 */
 .brand-quote .quote-indicators {
     display: flex;
     justify-content: center;
-    gap: 8px;
-    margin-top: var(--space-6);
+    gap: 6px;
+    margin-top: var(--space-5);
 }
 
 .brand-quote .quote-indicator {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .brand-quote .quote-indicator.active {
-    background: rgba(255, 255, 255, 0.75);
-    transform: scale(1.3);
+    background: rgba(255, 255, 255, 0.6);
+    transform: scale(1.4);
 }
 
 /* ── 右側表單面板 ── */
@@ -434,14 +439,22 @@ p, span, div, li, label {
     align-items: center;
     justify-content: center;
     padding: var(--space-10);
-    background: var(--bg-card);
-    /* 初始隱藏，GSAP 控制入場 */
+    background: #F5F5F7;
 }
 
 .login-card {
     width: 100%;
     max-width: 380px;
     text-align: center;
+    /* 玻璃毛玻璃卡片 */
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-radius: 28px;
+    padding: var(--space-10) var(--space-8);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.08),
+        0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .login-header {
@@ -453,10 +466,10 @@ p, span, div, li, label {
 }
 
 .login-title {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 600;
     color: var(--text-primary);
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
     margin-bottom: var(--space-2);
 }
 
@@ -466,48 +479,49 @@ p, span, div, li, label {
     line-height: 1.5;
 }
 
-/* 輸入組 */
+/* 輸入組 — 底線風格 */
 .input-group {
     text-align: left;
 }
 
 .input-label {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    color: var(--text-secondary);
-    margin-bottom: var(--space-2);
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-1);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-6);
 }
 
 .login-input {
     width: 100%;
-    padding: var(--space-4) var(--space-5);
-    border: 1.5px solid var(--border-default);
-    border-radius: var(--radius-md);
-    background: var(--bg-page);
+    padding: var(--space-3) 0;
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0;
+    background: transparent;
     color: var(--text-primary);
     font-size: 15px;
     font-family: var(--font-sans);
-    transition: all 0.25s var(--ease-out);
+    transition: border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     -webkit-appearance: none;
 }
 
 .login-input:hover {
-    border-color: var(--border-strong);
-    background: #EEEEF0;
+    border-bottom-color: rgba(0, 0, 0, 0.2);
 }
 
 .login-input:focus {
     outline: none;
-    border-color: var(--brand);
-    background: var(--bg-card);
-    box-shadow: var(--glass-input-focus-glow);
+    border-bottom-color: var(--brand);
+    box-shadow: none;
 }
 
 .login-input::placeholder {
@@ -515,7 +529,7 @@ p, span, div, li, label {
 }
 
 .login-input:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 1000px var(--bg-page) inset !important;
+    -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.65) inset !important;
     -webkit-text-fill-color: var(--text-primary) !important;
 }
 
@@ -526,38 +540,39 @@ p, span, div, li, label {
     color: var(--text-on-brand);
     border: none;
     border-radius: var(--radius-full);
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 500;
     font-family: var(--font-sans);
     cursor: pointer;
-    transition: all 0.3s var(--ease-out);
-    margin-top: var(--space-3);
-    box-shadow: 0 4px 14px rgba(0, 102, 51, 0.25);
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: var(--space-4);
+    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    letter-spacing: 0.5px;
+    letter-spacing: 0.02em;
 }
 
 .login-button .btn-icon {
-    transition: transform 0.3s var(--ease-spring);
-    font-size: 18px;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 16px;
+    opacity: 0.8;
 }
 
 .login-button:hover {
     background: var(--brand-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 102, 51, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 102, 51, 0.22);
 }
 
 .login-button:hover .btn-icon {
-    transform: translateX(4px);
+    transform: translateX(3px);
 }
 
 .login-button:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+    box-shadow: 0 1px 4px rgba(0, 102, 51, 0.15);
 }
 
 .login-button:disabled {
@@ -573,7 +588,7 @@ p, span, div, li, label {
     color: transparent;
     pointer-events: none;
     position: relative;
-    box-shadow: 0 4px 14px rgba(0, 102, 51, 0.25);
+    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.15);
     overflow: hidden;
 }
 
@@ -589,11 +604,11 @@ p, span, div, li, label {
     background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(255, 255, 255, 0.18) 40%,
-        rgba(255, 255, 255, 0.18) 60%,
+        rgba(255, 255, 255, 0.12) 40%,
+        rgba(255, 255, 255, 0.12) 60%,
         transparent 100%
     );
-    animation: btnShimmer 1.4s var(--ease-out) infinite;
+    animation: btnShimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 .login-button.is-loading::after {
@@ -604,10 +619,10 @@ p, span, div, li, label {
     align-items: center;
     justify-content: center;
     color: var(--text-on-brand);
-    font-size: 15px;
-    font-weight: 500;
-    letter-spacing: 1px;
-    animation: btnTextPulse 1.8s ease-in-out infinite;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    animation: btnTextPulse 2s ease-in-out infinite;
 }
 
 @keyframes btnShimmer {
@@ -616,7 +631,7 @@ p, span, div, li, label {
 }
 
 @keyframes btnTextPulse {
-    0%, 100% { opacity: 0.6; }
+    0%, 100% { opacity: 0.5; }
     50%      { opacity: 1; }
 }
 
@@ -647,63 +662,7 @@ p, span, div, li, label {
     display: none;
 }
 
-/* 過渡動畫完全由 GSAP 控制，不再使用 CSS keyframes */
-
-.quote-wrapper {
-    position: relative;
-    min-height: 100px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-
-.quote-item {
-    position: absolute;
-    width: 100%;
-    opacity: 0;
-    transform: translateY(16px);
-    transition: all 0.6s var(--ease-out);
-    pointer-events: none;
-}
-
-.quote-item.active {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-.quote-item.exit {
-    opacity: 0;
-    transform: translateY(-16px);
-}
-
-.quote-chinese {
-    font-size: 17px;
-    font-weight: 500;
-    color: var(--text-primary);
-    letter-spacing: 0.5px;
-    margin-bottom: var(--space-2);
-    line-height: 1.7;
-}
-
-.quote-english {
-    font-size: 14px;
-    color: var(--text-secondary);
-    font-style: italic;
-    margin-bottom: var(--space-3);
-    line-height: 1.5;
-}
-
-.quote-author {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--brand);
-}
-
-.quote-author::before {
-    content: '— ';
-}
+/* 過渡動畫完全由 GSAP 控制 */
 
 .quote-indicators {
     display: flex;
@@ -2737,9 +2696,7 @@ p, span, div, li, label {
         margin: var(--space-5);
     }
 
-    .quote-chinese { font-size: 16px; }
-    .quote-english { font-size: 13px; }
-    .quote-decoration { display: none; }
+    /* 名言由 .brand-quote 內部統一控制 */
 
     .toolbox-panel { width: 95%; max-height: 90vh; }
     .toolbox-header, .toolbox-content { padding: var(--space-5) var(--space-6); }
@@ -2775,11 +2732,8 @@ p, span, div, li, label {
     .login-title { font-size: 22px; }
     .login-subtitle { font-size: 13px; }
 
-    .splash-title { font-size: 26px; }
-    .splash-mascot { width: 100px; }
-
-    .quote-chinese { font-size: 14px; }
-    .quote-english { font-size: 12px; }
+    .splash-title { font-size: 22px; }
+    .splash-mascot { width: 90px; }
 
     .header {
         padding: var(--space-2) var(--space-3);
@@ -4445,13 +4399,17 @@ th {
     }
 
     .login-input {
-        padding: var(--space-3) var(--space-4);
+        padding: var(--space-3) 0;
         font-size: 16px;
+    }
+
+    .login-card {
+        padding: var(--space-6) var(--space-4);
     }
 
     /* 啟動畫面 */
     .splash-title {
-        font-size: 24px;
+        font-size: 22px;
     }
 
     .splash-mascot {
@@ -4459,7 +4417,7 @@ th {
     }
 
     .splash-subtitle {
-        font-size: 14px;
+        font-size: 12px;
     }
 
     /* 管理員按鈕 */
@@ -4520,11 +4478,6 @@ th {
 
     .login-header {
         margin-bottom: var(--space-4);
-    }
-
-    .splash-content {
-        flex-direction: row;
-        gap: var(--space-6);
     }
 
     .splash-mascot {

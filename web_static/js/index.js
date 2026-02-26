@@ -223,13 +223,13 @@ const IndexUI = {
         el.loginContainer.style.display = 'flex';
         el.mainContainer.style.display = 'none';
         el.homeContainer.style.display = 'none';
-        // GSAP 快速入場（從主界面退回登入時）
+        // 登出回到登入頁時，0.5 秒淡入（系統已在後台運行的感覺）
         if (typeof gsap !== 'undefined') {
             const bp = el.loginContainer.querySelector('.login-brand-panel');
             const fp = el.loginContainer.querySelector('.login-form-panel');
             gsap.set([bp, fp], { opacity: 1, x: 0 });
             gsap.fromTo(el.loginContainer, { opacity: 0 }, {
-                opacity: 1, duration: 0.4, ease: 'power2.out',
+                opacity: 1, duration: 0.5, ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
                 onComplete() { el.usernameInput.focus(); }
             });
         } else {
@@ -266,11 +266,11 @@ const IndexUI = {
         el.mainContainer.style.display = 'none';
         el.homeContainer.style.display = 'flex';
 
-        // 已登入用戶回到主頁時，簡單淡入（取代突然出現）
+        // 已登入用戶：0.5 秒淡入（系統已在後台運行）
         if (typeof gsap !== 'undefined') {
             gsap.fromTo(el.homeContainer,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.35, ease: 'power2.out' }
+                { opacity: 1, duration: 0.5, ease: 'cubic-bezier(0.4, 0, 0.2, 1)' }
             );
         }
     },
@@ -2483,32 +2483,35 @@ class ToolboxManager {
 window.toolboxManager = null;
 
 /* ============================================================
-   啟動畫面 + 名言輪播 + 聚光燈
+   企業級啟動動畫 + 名言輪播
+   System Wake → Interface Deployment → Content Enter
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', function () {
-    // ══════════════════════════════════════════════
-    //  GSAP 啟動畫面 → 登入頁 絲滑過渡
-    // ══════════════════════════════════════════════
-    const splashScreen  = document.getElementById('splashScreen');
+    const splashScreen   = document.getElementById('splashScreen');
+    const glassPanel     = document.getElementById('glassPanel');
+    const glassPanelInner = document.getElementById('glassPanelInner');
     const loginContainer = document.getElementById('loginContainer');
     if (!splashScreen || !loginContainer) return;
 
-    // ── 已登入用戶：跳過整個啟動動畫，直接進入主界面 ──
-    const existingToken = AuthModule && AuthModule.getToken && AuthModule.getToken();
-    if (existingToken) {
-        // 隱藏啟動畫面，不播放任何動畫
+    // ── 統一 easing ──
+    const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+    // ── 已登入用戶：跳過全部動畫 ──
+    const hasToken = AuthModule && AuthModule.getToken && AuthModule.getToken();
+    if (hasToken) {
         splashScreen.style.display = 'none';
-        // loginContainer 也隱藏，由 IndexApp.init() 的 _verifyToken() 決定顯示什麼
+        if (glassPanel) glassPanel.style.display = 'none';
         loginContainer.style.display = 'none';
-        return; // 完全跳過 GSAP 動畫和名言輪播初始化（登入頁不會顯示）
+        return;
     }
 
+    // ── DOM 引用 ──
     const splashContent = splashScreen.querySelector('.splash-content');
     const splashMascot  = splashScreen.querySelector('.splash-mascot');
     const splashTitle   = splashScreen.querySelector('.splash-title');
     const splashSub     = splashScreen.querySelector('.splash-subtitle');
-    const splashLoader  = splashScreen.querySelector('.splash-loader');
+    const loaderBar     = splashScreen.querySelector('.splash-loader-bar');
     const brandPanel    = loginContainer.querySelector('.login-brand-panel');
     const formPanel     = loginContainer.querySelector('.login-form-panel');
     const brandMascot   = loginContainer.querySelector('.brand-mascot');
@@ -2521,224 +2524,223 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputGroups   = loginContainer.querySelectorAll('.input-group');
     const loginButton   = loginContainer.querySelector('.login-button');
 
-    // ── 第一幕：啟動畫面入場 ──
-    const tlSplash = gsap.timeline();
-    tlSplash
-        .to(splashContent, {
-            opacity: 1, y: 0, duration: 0.7,
-            ease: 'power2.out'
-        })
-        .from(splashMascot, {
-            scale: 0.8, duration: 0.5,
-            ease: 'back.out(1.4)'
-        }, '-=0.4');
+    /* ════════════════════════════════════════════
+       第一幕：系統喚醒（System Wake）≈ 2.5s
+       ════════════════════════════════════════════ */
+    const tl = gsap.timeline();
 
-    // ── 第二幕：啟動 → 登入 過渡（1.8s 後） ──
-    const tlTransition = gsap.timeline({
-        delay: 1.8,
-        onStart() {
-            // 讓登入容器可見但完全透明
-            loginContainer.style.display = 'flex';
-            gsap.set(brandPanel, { opacity: 0 });
-            gsap.set(formPanel, { opacity: 0, x: 60 });
-            // 品牌面板內容初始隱藏（小馬由 splash 滑過來，不在這裡顯示）
-            gsap.set(brandMascot, { opacity: 0 });
-            gsap.set([brandWelcome, brandAppName, brandSchool, brandQuote], {
-                opacity: 0, y: 20
-            });
-            // 右側表單內容初始隱藏
-            gsap.set(loginHeader, { opacity: 0, y: 25 });
-            gsap.set(inputGroups, { opacity: 0, y: 20 });
-            gsap.set(loginButton, { opacity: 0, y: 15, scale: 0.95 });
-        }
-    });
+    tl
+        // 內容容器淡入
+        .to(splashContent, { opacity: 1, duration: 0.4, ease: 'power2.out' })
 
-    tlTransition
-        // ── 啟動畫面文字淡出（小馬保留！）──
-        .to(splashLoader, {
-            opacity: 0, y: 10, duration: 0.3,
-            ease: 'power2.in'
-        })
-        .to(splashSub, {
-            opacity: 0, y: -8, duration: 0.25,
-            ease: 'power2.in'
-        }, '-=0.15')
-        .to(splashTitle, {
-            opacity: 0, y: -12, duration: 0.3,
-            ease: 'power2.in'
-        }, '-=0.15')
+        // 小馬「點亮」：blur → 清晰，opacity 0 → 1
+        .to(splashMascot, {
+            opacity: 1,
+            filter: 'blur(0px) drop-shadow(0 4px 20px rgba(0,102,51,0.15))',
+            scale: 1,
+            duration: 1.2,
+            ease: EASE
+        }, 0.2)
 
-        // ── 啟動畫面背景淡出（小馬提升到最頂層繼續可見）──
+        // 標題依序出現（blur → 清晰）
+        .fromTo(splashTitle,
+            { opacity: 0, y: 10, filter: 'blur(8px)' },
+            { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power2.out' },
+            0.8
+        )
+        .fromTo(splashSub,
+            { opacity: 0, y: 10, filter: 'blur(8px)' },
+            { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power2.out' },
+            1.0
+        )
+
+        // 載入細線：左→右掃過
+        .to(loaderBar, {
+            x: '200%', duration: 1.2, ease: 'power2.inOut'
+        }, 1.1)
+
+        // 細線淡出
+        .to(loaderBar, {
+            opacity: 0, duration: 0.3, ease: 'power2.in'
+        }, 2.1)
+
+    /* ════════════════════════════════════════════
+       第二幕：空間展開（Interface Deployment）≈ 1.1s
+       玻璃面板生成 → 展開 → 化為左右分屏
+       ════════════════════════════════════════════ */
+
+        // 啟動畫面文字淡出
+        .to([splashTitle, splashSub], {
+            opacity: 0, duration: 0.35, ease: 'power2.in'
+        }, 2.5)
+
+        // 提取小馬到 body 層（保持位置不變）
         .add(() => {
-            // 把小馬從 splash 中「提取」到 body 層級，保持屏幕位置不變
-            const rect = splashMascot.getBoundingClientRect();
+            const r = splashMascot.getBoundingClientRect();
             splashMascot.style.position = 'fixed';
-            splashMascot.style.left = rect.left + 'px';
-            splashMascot.style.top = rect.top + 'px';
-            splashMascot.style.width = rect.width + 'px';
+            splashMascot.style.left = r.left + 'px';
+            splashMascot.style.top = r.top + 'px';
+            splashMascot.style.width = r.width + 'px';
             splashMascot.style.height = 'auto';
-            splashMascot.style.zIndex = '10000';
+            splashMascot.style.zIndex = '10001';
             splashMascot.style.pointerEvents = 'none';
             splashMascot.style.margin = '0';
             document.body.appendChild(splashMascot);
-        })
+        }, 2.7)
+
+        // 玻璃面板出現（在小馬身後）
+        .to(glassPanel, { opacity: 1, duration: 0.4, ease: EASE }, 2.75)
+
+        // Splash 背景淡去
         .to(splashScreen, {
-            opacity: 0, duration: 0.5,
-            ease: 'power2.inOut',
+            opacity: 0, duration: 0.5, ease: EASE,
             onComplete() { splashScreen.style.display = 'none'; }
-        })
+        }, 2.8)
 
-        // ── 左面板 + 右面板背景同時入場 ──
-        .to(brandPanel, {
-            opacity: 1, duration: 0.6,
-            ease: 'power2.out'
-        }, '-=0.3')
-        .to(formPanel, {
-            opacity: 1, x: 0, duration: 0.7,
-            ease: 'power3.out'
-        }, '-=0.5')
+        // 玻璃面板展開：40% → 85%寬度
+        .to(glassPanelInner, {
+            width: '85%', height: '82vh', borderRadius: '32px',
+            duration: 0.8, ease: EASE
+        }, 3.0)
 
-        // ── 小馬絲滑滑動到左面板位置 ──
+        // 面板展開後：隱藏玻璃層，顯示真正的登入界面
         .add(() => {
-            // 在此刻動態計算目標位置（面板已可見）
-            const targetRect = brandMascot.getBoundingClientRect();
-            const sourceRect = splashMascot.getBoundingClientRect();
-            const dx = targetRect.left + targetRect.width / 2 - (sourceRect.left + sourceRect.width / 2);
-            const dy = targetRect.top + targetRect.height / 2 - (sourceRect.top + sourceRect.height / 2);
-            const s = targetRect.width / sourceRect.width;
+            loginContainer.style.display = 'flex';
+            gsap.set(loginContainer, { opacity: 0 });
+            gsap.set(brandPanel, { opacity: 0 });
+            gsap.set(formPanel, { opacity: 0 });
+            gsap.set(brandMascot, { opacity: 0 });
+            gsap.set([brandWelcome, brandAppName, brandSchool], { opacity: 0, y: 16, filter: 'blur(6px)' });
+            gsap.set(brandQuote, { opacity: 0, y: 16 });
+            gsap.set(loginHeader, { opacity: 0, y: 20 });
+            gsap.set(inputGroups, { opacity: 0, y: 20 });
+            gsap.set(loginButton, { opacity: 0, y: 20, scale: 0.98 });
+        }, 3.65)
+
+        // 玻璃層淡出，登入容器淡入（無縫交接）
+        .to(glassPanel, {
+            opacity: 0, duration: 0.4, ease: EASE,
+            onComplete() { glassPanel.style.display = 'none'; }
+        }, 3.7)
+        .to(loginContainer, { opacity: 1, duration: 0.4, ease: EASE }, 3.7)
+        .to(brandPanel, { opacity: 1, duration: 0.5, ease: EASE }, 3.75)
+        .to(formPanel, { opacity: 1, duration: 0.5, ease: EASE }, 3.8)
+
+    /* ════════════════════════════════════════════
+       第三幕：內容進入（Content Enter）≈ 0.9s
+       小馬滑動 + 左側文字 + 右側表單
+       ════════════════════════════════════════════ */
+
+        // 小馬沿曲線滑向左側面板
+        .add(() => {
+            const target = brandMascot.getBoundingClientRect();
+            const source = splashMascot.getBoundingClientRect();
+            const dx = target.left + target.width / 2 - (source.left + source.width / 2);
+            const dy = target.top + target.height / 2 - (source.top + source.height / 2);
+            const s = target.width / source.width;
 
             gsap.to(splashMascot, {
                 x: dx, y: dy, scale: s,
-                duration: 0.9,
-                ease: 'power3.inOut',
+                duration: 0.7, ease: 'power3.inOut',
                 onComplete() {
-                    // 滑到位後：隱藏飛行中的小馬，顯示面板中的小馬
                     splashMascot.style.display = 'none';
                     gsap.set(brandMascot, { opacity: 1 });
                 }
             });
-        }, '-=0.6')
+        }, 3.85)
 
-        // ── 品牌面板文字依次入場（與小馬滑動並行，但稍晚） ──
+        // 左側文字依次出現（blur → 清晰）
         .to(brandWelcome, {
-            opacity: 1, y: 0, duration: 0.4,
-            ease: 'power2.out'
-        }, '-=0.3')
+            opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out'
+        }, 4.0)
         .to(brandAppName, {
-            opacity: 1, y: 0, duration: 0.4,
-            ease: 'power2.out'
-        }, '-=0.2')
+            opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out'
+        }, 4.12)
         .to(brandSchool, {
-            opacity: 1, y: 0, duration: 0.35,
-            ease: 'power2.out'
-        }, '-=0.15')
+            opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.35, ease: 'power2.out'
+        }, 4.24)
         .to(brandQuote, {
-            opacity: 1, y: 0, duration: 0.4,
-            ease: 'power2.out'
-        }, '-=0.1')
+            opacity: 1, y: 0, duration: 0.4, ease: 'power2.out'
+        }, 4.36)
 
-        // ── 右側內容：錯位彈入 ──
+        // 右側表單內容錯位入場
         .to(loginHeader, {
-            opacity: 1, y: 0, duration: 0.45,
-            ease: 'power2.out'
-        }, '-=0.6')
+            opacity: 1, y: 0, duration: 0.5, ease: 'power2.out'
+        }, 4.0)
         .to(inputGroups, {
-            opacity: 1, y: 0, duration: 0.4,
-            stagger: 0.1,
-            ease: 'power2.out'
-        }, '-=0.25')
+            opacity: 1, y: 0, duration: 0.5,
+            stagger: 0.12, ease: 'power2.out'
+        }, 4.15)
         .to(loginButton, {
-            opacity: 1, y: 0, scale: 1, duration: 0.45,
-            ease: 'back.out(1.6)',
+            opacity: 1, y: 0, scale: 1, duration: 0.5, ease: EASE,
             onComplete() {
-                // 過渡結束，聚焦用戶名
-                const usernameInput = document.getElementById('usernameInput');
-                if (usernameInput) usernameInput.focus();
+                document.getElementById('usernameInput')?.focus();
             }
-        }, '-=0.15');
+        }, 4.4);
 
-    // 名人名言滚动
+    /* ════════════════════════════════════════════
+       名人名言輪播（純 opacity，8 秒間隔）
+       ════════════════════════════════════════════ */
     const quotes = [
-        { chinese: "\u300C\u4EBA\u5DE5\u667A\u6167\u662F\u65B0\u7684\u96FB\u529B\u3002\u300D", english: "AI is the new electricity.", author: "Andrew Ng\uFF08\u5433\u6069\u9054\uFF09" },
-        { chinese: "\u300CAI \u662F\u6211\u5011\u9019\u500B\u6642\u4EE3\u6700\u5F37\u5927\u7684\u6280\u8853\u529B\u91CF\u3002\u300D", english: "AI is the most powerful technology force of our time.", author: "Jensen Huang\uFF08\u9EC3\u4EC1\u52F3\uFF09" },
-        { chinese: "\u300CAI \u5C07\u6539\u8B8A\u6BCF\u4E00\u500B\u7522\u696D\u8207\u6BCF\u4E00\u500B\u696D\u52D9\u529F\u80FD\u3002\u300D", english: "AI will transform every industry and every business function.", author: "Satya Nadella\uFF08\u5FAE\u8EDF CEO\uFF09" },
-        { chinese: "\u300CAI \u6700\u5927\u7684\u9032\u6B65\u5C07\u4F86\u81EA\u8B93\u5B83\u66F4\u52A0\u4EE5\u4EBA\u70BA\u4E2D\u5FC3\u3002\u300D", english: "The greatest advances in AI will come from making it more human-centered.", author: "Fei-Fei Li\uFF08\u674E\u98DB\u98DB\uFF09" },
-        { chinese: "\u300C\u6A5F\u5668\u5E38\u5E38\u4EE5\u9A5A\u4EBA\u7684\u65B9\u5F0F\u8B93\u6211\u611F\u5230\u610F\u5916\u3002\u300D", english: "Machines take me by surprise with great frequency.", author: "Alan Turing\uFF08\u827E\u502B\u30FB\u5716\u9748\uFF09" },
-        { chinese: "\u300CAI \u5C0D\u4EBA\u985E\u6587\u660E\u7684\u5B58\u5728\u69CB\u6210\u6839\u672C\u6027\u98A8\u96AA\u3002\u300D", english: "AI is a fundamental risk to the existence of human civilization.", author: "Elon Musk\uFF08\u4F0A\u9686\u30FB\u99AC\u65AF\u514B\uFF09" },
-        { chinese: "\u300C\u5B8C\u5168\u4EBA\u5DE5\u667A\u6167\u7684\u767C\u5C55\u53EF\u80FD\u610F\u5473\u8457\u4EBA\u985E\u7684\u7D42\u7D50\u3002\u300D", english: "The development of full artificial intelligence could spell the end of the human race.", author: "Stephen Hawking\uFF08\u53F2\u8482\u82AC\u30FB\u970D\u91D1\uFF09" },
-        { chinese: "\u300CAI \u53EF\u80FD\u662F\u4EBA\u985E\u8FC4\u4ECA\u70BA\u6B62\u6700\u91CD\u8981\u7684\u7814\u7A76\u65B9\u5411\u3002\u300D", english: "AI is probably the most important thing humanity has ever worked on.", author: "Bill Gates\uFF08\u6BD4\u723E\u00B7\u84CB\u8332\uFF09" },
-        { chinese: "\u300C21 \u4E16\u7D00\u7684\u6587\u76F2\u4E0D\u662F\u4E0D\u6703\u8B80\u5BEB\u7684\u4EBA\uFF0C\u800C\u662F\u4E0D\u6703\u5B78\u7FD2\u3001\u653E\u4E0B\u820A\u77E5\u8B58\u4E26\u91CD\u65B0\u5B78\u7FD2\u7684\u4EBA\u3002\u300D", english: "The illiterate of the 21st century will not be those who cannot read and write, but those who cannot learn, unlearn, and relearn.", author: "Alvin Toffler\uFF08\u963F\u723E\u6587\u00B7\u6258\u592B\u52D2\uFF09" },
-        { chinese: "\u300C\u6559\u80B2\u4E0D\u662F\u70BA\u751F\u6D3B\u505A\u6E96\u5099\uFF1B\u6559\u80B2\u672C\u8EAB\u5C31\u662F\u751F\u6D3B\u3002\u300D", english: "Education is not preparation for life; education is life itself.", author: "John Dewey\uFF08\u7D04\u7FF0\u00B7\u675C\u5A01\uFF09" },
-        { chinese: "\u300C\u6559\u5E2B\u6700\u5927\u7684\u6210\u529F\uFF0C\u662F\u80FD\u8AAA\uFF1A\u5B69\u5B50\u5011\u5B78\u7FD2\u6642\u597D\u50CF\u4E0D\u518D\u9700\u8981\u6211\u4E86\u3002\u300D", english: "The greatest sign of success for a teacher is to be able to say, 'The children are now working as if I did not exist.'", author: "Maria Montessori\uFF08\u8499\u7279\u68AD\u5229\uFF09" },
-        { chinese: "\u300C\u5275\u9020\u529B\u5728\u6559\u80B2\u4E2D\u8207\u8B80\u5BEB\u80FD\u529B\u540C\u6A23\u91CD\u8981\u3002\u300D", english: "Creativity is as important in education as literacy.", author: "Ken Robinson\uFF08\u80AF\u00B7\u7F85\u8CD3\u905C\u7235\u58EB\uFF09" },
-        { chinese: "\u300C\u6559\u80B2\u662F\u4E00\u500B\u81EA\u6211\u7D44\u7E54\u7CFB\u7D71\uFF0C\u5B78\u7FD2\u662F\u4E00\u7A2E\u81EA\u7136\u6E67\u73FE\u7684\u73FE\u8C61\u3002\u300D", english: "Education is a self-organizing system, where learning is an emergent phenomenon.", author: "Sugata Mitra\uFF08\u7C73\u7279\u62C9\u6559\u6388\uFF09" }
+        { chinese: '「人工智慧是新的電力。」', english: 'AI is the new electricity.', author: 'Andrew Ng（吳恩達）' },
+        { chinese: '「AI 是我們這個時代最強大的技術力量。」', english: 'AI is the most powerful technology force of our time.', author: 'Jensen Huang（黃仁勳）' },
+        { chinese: '「AI 將改變每一個產業與每一個業務功能。」', english: 'AI will transform every industry and every business function.', author: 'Satya Nadella（微軟 CEO）' },
+        { chinese: '「AI 最大的進步將來自讓它更加以人為中心。」', english: 'The greatest advances in AI will come from making it more human-centered.', author: 'Fei-Fei Li（李飛飛）' },
+        { chinese: '「機器常常以驚人的方式讓我感到意外。」', english: 'Machines take me by surprise with great frequency.', author: 'Alan Turing（艾倫·圖靈）' },
+        { chinese: '「AI 可能是人類迄今為止最重要的研究方向。」', english: 'AI is probably the most important thing humanity has ever worked on.', author: 'Bill Gates（比爾·蓋茲）' },
+        { chinese: '「教育不是為生活做準備；教育本身就是生活。」', english: 'Education is not preparation for life; education is life itself.', author: 'John Dewey（約翰·杜威）' },
+        { chinese: '「創造力在教育中與讀寫能力同樣重要。」', english: 'Creativity is as important in education as literacy.', author: 'Ken Robinson（肯·羅賓遜爵士）' },
+        { chinese: '「教師最大的成功，是能說：孩子們學習時好像不再需要我了。」', english: "The greatest sign of success for a teacher is to be able to say, 'The children are now working as if I did not exist.'", author: 'Maria Montessori（蒙特梭利）' },
+        { chinese: '「教育是一個自我組織系統，學習是一種自然湧現的現象。」', english: 'Education is a self-organizing system, where learning is an emergent phenomenon.', author: 'Sugata Mitra（米特拉教授）' }
     ];
 
-    const quoteWrapper = document.getElementById('quoteWrapper');
+    const quoteWrapper    = document.getElementById('quoteWrapper');
     const quoteIndicators = document.getElementById('quoteIndicators');
     if (!quoteWrapper || !quoteIndicators) return;
 
-    let currentIndex = 0;
-    let intervalId = null;
+    let currentIdx = 0;
+    let autoTimer  = null;
 
-    function generateQuotesHTML() {
-        quoteWrapper.innerHTML = quotes.map((quote, index) => `
-            <div class="quote-item ${index === 0 ? 'active' : ''}" data-index="${index}">
-                <div class="quote-chinese">${quote.chinese}</div>
-                <div class="quote-english">${quote.english}</div>
-                <div class="quote-author">${quote.author}</div>
-            </div>
-        `).join('');
+    // 生成 HTML
+    quoteWrapper.innerHTML = quotes.map((q, i) =>
+        `<div class="quote-item${i === 0 ? ' active' : ''}" data-index="${i}">
+            <div class="quote-chinese">${q.chinese}</div>
+            <div class="quote-english">${q.english}</div>
+            <div class="quote-author">${q.author}</div>
+        </div>`
+    ).join('');
 
-        quoteIndicators.innerHTML = quotes.map((_, index) => `
-            <div class="quote-indicator ${index === 0 ? 'active' : ''}" data-index="${index}">
-                <div class="quote-indicator-progress"></div>
-            </div>
-        `).join('');
-    }
+    quoteIndicators.innerHTML = quotes.map((_, i) =>
+        `<div class="quote-indicator${i === 0 ? ' active' : ''}" data-index="${i}"></div>`
+    ).join('');
 
-    function showQuote(index) {
+    function switchQuote(next) {
+        if (next === currentIdx) return;
         const items = quoteWrapper.querySelectorAll('.quote-item');
-        const indicators = quoteIndicators.querySelectorAll('.quote-indicator');
-
-        items.forEach((item, i) => {
-            item.classList.remove('active', 'exit');
-            if (i === currentIndex) item.classList.add('exit');
-        });
-        indicators.forEach(ind => ind.classList.remove('active'));
-
-        currentIndex = index;
-
-        setTimeout(() => {
-            items.forEach((item, i) => {
-                item.classList.remove('exit');
-                if (i === currentIndex) item.classList.add('active');
-            });
-            indicators[currentIndex].classList.add('active');
-        }, 100);
-    }
-
-    function nextQuote() {
-        showQuote((currentIndex + 1) % quotes.length);
+        const dots  = quoteIndicators.querySelectorAll('.quote-indicator');
+        items[currentIdx].classList.remove('active');
+        dots[currentIdx].classList.remove('active');
+        currentIdx = next;
+        items[currentIdx].classList.add('active');
+        dots[currentIdx].classList.add('active');
     }
 
     function startAutoPlay() {
-        if (intervalId) clearInterval(intervalId);
-        intervalId = setInterval(nextQuote, 5000);
+        if (autoTimer) clearInterval(autoTimer);
+        autoTimer = setInterval(() => {
+            switchQuote((currentIdx + 1) % quotes.length);
+        }, 8000);
     }
 
-    function handleIndicatorClick(e) {
-        const indicator = e.target.closest('.quote-indicator');
-        if (!indicator) return;
-        const index = parseInt(indicator.dataset.index);
-        if (index === currentIndex) return;
-        showQuote(index);
+    quoteIndicators.addEventListener('click', (e) => {
+        const dot = e.target.closest('.quote-indicator');
+        if (!dot) return;
+        switchQuote(parseInt(dot.dataset.index));
         startAutoPlay();
-    }
+    });
 
-    generateQuotesHTML();
-    quoteIndicators.addEventListener('click', handleIndicatorClick);
-    setTimeout(() => startAutoPlay(), 2000);
+    // 動畫結束後啟動輪播
+    setTimeout(startAutoPlay, 5000);
 });
 
 /* ============================================================
