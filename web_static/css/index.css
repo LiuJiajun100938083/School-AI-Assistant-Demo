@@ -297,62 +297,78 @@ p, span, div, li, label {
     pointer-events: none;
 }
 
-/* 品牌面板內容 */
+/* ── 品牌面板內容：三段式垂直結構 ──
+   頂部留白 12% ｜ 核心品牌 60% ｜ 底部信息 28%
+   ─────────────────────────────────── */
 .brand-panel-content {
     position: relative;
     z-index: 2;
     text-align: center;
-    padding: var(--space-10) var(--space-8);
-    padding-top: 18vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-3);
     width: 100%;
-    max-width: 440px;
     height: 100%;
+    padding: 0 var(--space-8);
 }
 
+/* ── 頂部留白 ── */
+.brand-panel-content::before {
+    content: '';
+    flex: 0 0 12%;
+}
+
+/* ── Logo：身份象徵，非主角 ── */
 .brand-mascot {
-    width: 130px;
+    width: 124px;
     height: auto;
-    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.15));
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12));
+    flex-shrink: 0;
 }
 
+/* ── Logo → 歡迎：32px ── */
 .brand-welcome {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.55);
-    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.08em;
     font-weight: 400;
-    margin-top: var(--space-5);
+    margin-top: 32px;
+    text-transform: uppercase;
 }
 
+/* ── 歡迎 → 主標題：16px ── */
 .brand-app-name {
     font-size: 34px;
     font-weight: 600;
     color: #FFFFFF;
     letter-spacing: 0.02em;
-    line-height: 1.3;
+    line-height: 1.2;
+    margin-top: 16px;
 }
 
+/* ── 主標題 → 副標題：20px ── */
 .brand-school {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.45);
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.5);
     line-height: 1.5;
     font-weight: 400;
+    letter-spacing: 0.02em;
+    margin-top: 20px;
 }
 
-/* 名言區域 — 純 opacity 淡入淡出 */
+/* ── 名言區域：底部信息區 ──
+   與核心品牌區保持 60-80px 距離
+   寬度限制 60%，視覺權重降低 */
 .brand-quote {
-    margin-top: var(--space-12);
-    padding-bottom: var(--space-8);
-    width: 100%;
+    margin-top: auto;
+    padding-bottom: var(--space-10);
+    width: 60%;
     text-align: center;
 }
 
 .brand-quote .quote-wrapper {
     position: relative;
-    min-height: 100px;
+    min-height: 90px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -365,7 +381,6 @@ p, span, div, li, label {
     opacity: 0;
     transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    padding: 0;
 }
 
 .brand-quote .quote-item.active {
@@ -374,39 +389,39 @@ p, span, div, li, label {
 }
 
 .brand-quote .quote-chinese {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 400;
-    color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.65);
     margin-bottom: var(--space-2);
-    line-height: 1.8;
+    line-height: 1.9;
 }
 
 .brand-quote .quote-english {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
     font-style: italic;
     margin-bottom: var(--space-3);
-    line-height: 1.6;
+    line-height: 1.7;
 }
 
 .brand-quote .quote-author {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.35);
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
 }
 
-/* 名言指示器：極簡小點 */
+/* 名言指示器：極簡，不搶焦點 */
 .brand-quote .quote-indicators {
     display: flex;
     justify-content: center;
-    gap: 6px;
-    margin-top: var(--space-5);
+    gap: 5px;
+    margin-top: 16px;
 }
 
 .brand-quote .quote-indicator {
-    width: 4px;
-    height: 4px;
+    width: 3px;
+    height: 3px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.12);
     cursor: pointer;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
