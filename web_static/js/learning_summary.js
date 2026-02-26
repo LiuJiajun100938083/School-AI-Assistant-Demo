@@ -925,6 +925,7 @@ class LearningSummaryManager {
         `;
 
         this.modal.innerHTML = modalContent;
+        this.modal.style.display = 'none';
         document.body.appendChild(this.modal);
 
         // 设置渲染器容器
