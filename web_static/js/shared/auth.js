@@ -108,7 +108,7 @@ const AuthModule = {
      * @param {string} redirectUrl - 跳轉地址（預設 '/'）
      * @returns {Promise<Object|false>} 成功返回用戶資料，失敗返回 false（已跳轉）
      */
-    async requireAuth(redirectUrl = '/') {
+    async requireAuth(redirectUrl = '/login') {
         if (!this.isAuthenticated()) {
             window.location.href = redirectUrl;
             return false;

@@ -69,8 +69,14 @@ async def favicon():
 
 @router.get("/")
 async def index():
-    """主页"""
+    """主页（应用导航）"""
     return _serve_page("index.html")
+
+
+@router.get("/login")
+async def login_page():
+    """登入页面"""
+    return _serve_page("login.html")
 
 
 @router.get("/chat")

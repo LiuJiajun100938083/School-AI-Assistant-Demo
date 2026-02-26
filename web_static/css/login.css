@@ -1,0 +1,683 @@
+/* ========================================
+   培僑中學 AI 學習夥伴 — 登入頁面樣式
+   ========================================
+   從 index.css 中獨立出的登入頁專屬樣式。
+   包含：Splash 開屏、過渡遮罩、登入表單、品牌面板、名言輪播。
+   ======================================== */
+
+html {
+    color-scheme: light only !important;
+}
+
+/* ========== 基礎重置 ========== */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ========== 設計系統變量（與 index.css 共享） ========== */
+:root {
+    color-scheme: light only;
+    /* 品牌綠 */
+    --brand: #006633;
+    --brand-hover: #007A3D;
+    --brand-active: #005528;
+    --brand-light: #E8F5EC;
+    --brand-lighter: #F0F9F3;
+    --brand-border: #B8D4C0;
+
+    /* 背景 */
+    --bg-page: #F5F5F7;
+    --bg-card: #FFFFFF;
+    --bg-overlay: rgba(0, 0, 0, 0.25);
+
+    /* 文字 */
+    --text-primary: #1D1D1F;
+    --text-secondary: #6E6E73;
+    --text-tertiary: #A1A1A6;
+    --text-placeholder: #C7C7CC;
+    --text-on-brand: #FFFFFF;
+
+    /* 邊框 */
+    --border-light: rgba(0, 0, 0, 0.04);
+    --border-default: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.12);
+    --border-focus: #006633;
+
+    /* 功能色 */
+    --color-error: #FF3B30;
+
+    /* 陰影 */
+    --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.08);
+
+    /* 圓角 */
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-full: 9999px;
+
+    /* 間距 */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+
+    /* 動畫 */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration-fast: 0.15s;
+    --duration-base: 0.2s;
+    --duration-slow: 0.3s;
+
+    /* 字體 */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', sans-serif;
+}
+
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    line-height: 1.5;
+    overflow-x: hidden;
+}
+
+/* ========== 清除舊效果殘留 ========== */
+.particles-container,
+.spotlight-container,
+.spotlight,
+.particle,
+.login-bg-layer,
+.login-edge-light,
+.login-focus-area {
+    display: none !important;
+}
+
+/* ================================================
+   第一幕：系統喚醒（Splash Screen）
+   ================================================ */
+.splash-screen {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.splash-content {
+    text-align: center;
+}
+
+.splash-icon {
+    margin-bottom: var(--space-8);
+}
+
+.splash-mascot {
+    width: 120px;
+    height: auto;
+    opacity: 0;
+    filter: blur(6px);
+    will-change: filter, opacity;
+}
+
+.splash-title {
+    font-size: 28px;
+    font-weight: 500;
+    color: #FFFFFF;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-2);
+    opacity: 0;
+    filter: blur(8px);
+}
+
+.splash-subtitle {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    opacity: 0;
+    filter: blur(8px);
+}
+
+.splash-loader {
+    margin-top: var(--space-10);
+    width: 60px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.splash-loader-bar {
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 1px;
+    transform: translateX(-100%);
+    will-change: transform;
+}
+
+/* ================================================
+   過渡遮罩（Splash → Login 的深綠遮罩）
+   ================================================ */
+.glass-panel {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    z-index: 9998;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ================================================
+   登入頁面 — 左右分屏佈局
+   ================================================ */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: row;
+    background: var(--bg-page);
+    position: relative;
+}
+
+/* ── 左側品牌面板 ── */
+.login-brand-panel {
+    flex: 0 0 45%;
+    background: linear-gradient(170deg, #005A2E 0%, #006633 50%, #004D29 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-brand-panel::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: -10%;
+    width: 120%;
+    height: 50%;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.login-brand-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.12) 100%);
+    pointer-events: none;
+}
+
+.brand-panel-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 var(--space-8);
+}
+
+.brand-panel-content::before {
+    content: '';
+    flex: 0 0 12%;
+}
+
+.brand-mascot {
+    width: 160px;
+    height: auto;
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12));
+    flex-shrink: 0;
+}
+
+.brand-welcome {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.08em;
+    font-weight: 400;
+    margin-top: 40px;
+    text-transform: uppercase;
+}
+
+.brand-app-name {
+    font-size: 34px;
+    font-weight: 600;
+    color: #FFFFFF;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    margin-top: 16px;
+}
+
+.brand-school {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.5;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    margin-top: 20px;
+}
+
+/* ── 名言區域 ── */
+.brand-quote {
+    margin-top: auto;
+    padding-bottom: var(--space-10);
+    width: 60%;
+    text-align: center;
+}
+
+.brand-quote .quote-wrapper {
+    position: relative;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.brand-quote .quote-item {
+    position: absolute;
+    width: 100%;
+    opacity: 0;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.brand-quote .quote-item.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.brand-quote .quote-chinese {
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
+    margin-bottom: var(--space-2);
+    line-height: 1.9;
+}
+
+.brand-quote .quote-english {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
+    font-style: italic;
+    margin-bottom: var(--space-3);
+    line-height: 1.7;
+}
+
+.brand-quote .quote-author {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.brand-quote .quote-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 16px;
+}
+
+.brand-quote .quote-indicator {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brand-quote .quote-indicator.active {
+    background: rgba(255, 255, 255, 0.6);
+    transform: scale(1.4);
+}
+
+/* ── 右側表單面板 ── */
+.login-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-10);
+    background: #F5F5F7;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 380px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-radius: 28px;
+    padding: var(--space-10) var(--space-8);
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.08),
+        0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.login-header {
+    margin-bottom: var(--space-8);
+}
+
+.login-icon {
+    margin-bottom: var(--space-4);
+}
+
+.login-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+    margin-bottom: var(--space-2);
+}
+
+.login-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* ── 輸入表單 ── */
+.input-group {
+    text-align: left;
+}
+
+.input-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-1);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.login-input {
+    width: 100%;
+    padding: var(--space-3) 0;
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-family: var(--font-sans);
+    transition: border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-appearance: none;
+}
+
+.login-input:hover {
+    border-bottom-color: rgba(0, 0, 0, 0.2);
+}
+
+.login-input:focus {
+    outline: none;
+    border-bottom-color: var(--brand);
+    box-shadow: none;
+}
+
+.login-input::placeholder {
+    color: var(--text-placeholder);
+}
+
+.login-input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.65) inset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+}
+
+/* ── 登入按鈕 ── */
+.login-button {
+    width: 100%;
+    padding: var(--space-4);
+    background: var(--brand);
+    color: var(--text-on-brand);
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: 15px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: var(--space-4);
+    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    letter-spacing: 0.02em;
+}
+
+.login-button .btn-icon {
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.login-button:hover {
+    background: var(--brand-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 102, 51, 0.22);
+}
+
+.login-button:hover .btn-icon {
+    transform: translateX(3px);
+}
+
+.login-button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 102, 51, 0.15);
+}
+
+.login-button:disabled {
+    background: var(--text-placeholder);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ── 按鈕加載態 ── */
+.login-button.is-loading {
+    background: var(--brand);
+    color: transparent;
+    pointer-events: none;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.15);
+    overflow: hidden;
+}
+
+.login-button.is-loading .btn-text,
+.login-button.is-loading .btn-icon {
+    visibility: hidden;
+}
+
+.login-button.is-loading::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.12) 40%,
+        rgba(255, 255, 255, 0.12) 60%,
+        transparent 100%
+    );
+    animation: btnShimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.login-button.is-loading::after {
+    content: '驗證中';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-on-brand);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    animation: btnTextPulse 2s ease-in-out infinite;
+}
+
+@keyframes btnShimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes btnTextPulse {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 1; }
+}
+
+/* ── 錯誤與載入 ── */
+.login-error {
+    display: none;
+    margin-top: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: rgba(255, 59, 48, 0.08);
+    border: 1px solid rgba(255, 59, 48, 0.15);
+    border-radius: var(--radius-md);
+    color: var(--color-error);
+    font-size: 13px;
+    text-align: left;
+}
+
+.login-loading {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    display: none;
+    border-radius: var(--radius-2xl);
+    z-index: 20;
+    pointer-events: none;
+}
+
+.loading-spinner {
+    display: none;
+}
+
+/* ================================================
+   響應式
+   ================================================ */
+
+/* --- 平板 (max-width: 768px) --- */
+@media (max-width: 768px) {
+    .login-container {
+        flex-direction: column;
+    }
+    .login-brand-panel {
+        display: none;
+    }
+    .login-form-panel {
+        flex: 1;
+        padding: var(--space-8) var(--space-6);
+    }
+    .login-card {
+        max-width: 400px;
+    }
+    .login-title { font-size: 24px; }
+}
+
+/* --- iPad 橫向 (834px - 1023px) --- */
+@media (min-width: 834px) and (max-width: 1023px) {
+    .login-brand-panel {
+        flex: 0 0 40%;
+    }
+    .brand-mascot {
+        width: 150px;
+    }
+}
+
+/* --- iPad 直向 (600px - 833px) --- */
+@media (min-width: 600px) and (max-width: 833px) {
+    .login-brand-panel { display: none; }
+    .login-form-panel { padding: var(--space-6); }
+    .login-title { font-size: 24px; }
+}
+
+/* --- 小平板 / 大手機 (480px - 599px) --- */
+@media (min-width: 480px) and (max-width: 599px) {
+    .login-brand-panel { display: none; }
+    .login-form-panel { padding: var(--space-5) var(--space-4); }
+    .login-title { font-size: 22px; }
+}
+
+/* --- 手機 (< 480px) --- */
+@media (max-width: 479px) {
+    .login-brand-panel { display: none; }
+    .login-form-panel { padding: var(--space-4) var(--space-3); }
+    .login-card {
+        max-width: 100%;
+        padding: var(--space-6) var(--space-4);
+    }
+    .login-title { font-size: 20px; }
+    .login-subtitle { font-size: 13px; }
+    .login-input {
+        padding: var(--space-3) 0;
+        font-size: 16px;
+    }
+    .splash-title { font-size: 22px; }
+    .splash-mascot { width: 80px; }
+    .splash-subtitle { font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+    .splash-title { font-size: 22px; }
+    .splash-mascot { width: 90px; }
+}
+
+/* --- 橫向模式 --- */
+@media (orientation: landscape) and (max-height: 500px) {
+    .login-brand-panel {
+        flex: 0 0 35%;
+    }
+    .brand-mascot { width: 100px; }
+    .brand-app-name { font-size: 22px; }
+    .brand-quote { display: none; }
+    .login-form-panel { padding: var(--space-4); }
+    .login-header { margin-bottom: var(--space-4); }
+    .splash-mascot { width: 80px; }
+}
+
+/* ========== 減少動畫模式 ========== */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ========== 列印：隱藏登入 ========== */
+@media print {
+    .splash-screen,
+    .glass-panel,
+    .login-container {
+        display: none !important;
+    }
+}

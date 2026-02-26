@@ -5,87 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>培僑中學 學習夥伴</title>
     <link rel="stylesheet" href="/static/css/index.css">
-    <!-- GSAP 動畫引擎 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
 <body>
-<!-- 已登入用戶跳過啟動動畫（內聯腳本，最早執行，零閃爍） -->
+<!-- 未登入用戶直接跳轉登入頁（最早執行，零閃爍） -->
 <script>
-    if (localStorage.getItem('auth_token') || localStorage.getItem('token')) {
-        document.write('<style>#splashScreen,.glass-panel{display:none!important}</style>');
+    if (!localStorage.getItem('auth_token') && !localStorage.getItem('token')) {
+        window.location.replace('/login');
     }
 </script>
-
-<!-- 第一幕：系統喚醒 -->
-<div class="splash-screen" id="splashScreen">
-    <div class="splash-content">
-        <div class="splash-icon">
-            <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="splash-mascot">
-        </div>
-        <div class="splash-title">AI 學習夥伴</div>
-        <div class="splash-subtitle">培僑中學</div>
-        <div class="splash-loader">
-            <div class="splash-loader-bar"></div>
-        </div>
-    </div>
-</div>
-
-<!-- 過渡遮罩層 -->
-<div class="glass-panel" id="glassPanel"></div>
-
-<!-- 登入界面：左右分屏 -->
-<div id="loginContainer" class="login-container" style="display: none;">
-
-    <!-- ====== 左側品牌面板 ====== -->
-    <div class="login-brand-panel">
-        <div class="brand-panel-content">
-            <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="brand-mascot">
-            <div class="brand-welcome">歡迎回來</div>
-            <div class="brand-app-name">AI 學習夥伴</div>
-            <div class="brand-school">培僑中學AI學習系統</div>
-            <div class="brand-quote" id="quotesContainer">
-                <div class="quote-wrapper" id="quoteWrapper"></div>
-                <div class="quote-indicators" id="quoteIndicators"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ====== 右側登入表單 ====== -->
-    <div class="login-form-panel">
-        <div class="login-card">
-            <div class="login-header">
-                <div class="login-icon">
-                    <img src="/static/images/pkms_logo.png" alt="培僑中學" style="width: 48px; height: auto;">
-                </div>
-                <div class="login-title">登入帳戶</div>
-                <div class="login-subtitle">請輸入您的用戶名和密碼</div>
-            </div>
-
-            <form id="loginForm" class="login-form">
-                <div class="input-group">
-                    <label class="input-label" for="usernameInput">用戶名</label>
-                    <input type="text" id="usernameInput" class="login-input" placeholder="請輸入用戶名"
-                           maxlength="20" required autocomplete="username">
-                </div>
-                <div class="input-group">
-                    <label class="input-label" for="passwordInput">密碼</label>
-                    <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼"
-                           required autocomplete="current-password">
-                </div>
-                <button type="submit" id="loginButton" class="login-button">
-                    <span class="btn-text">登入</span>
-                    <span class="btn-icon">→</span>
-                </button>
-            </form>
-
-            <div id="loginError" class="login-error"></div>
-            <div id="loginLoading" class="login-loading">
-                <div class="loading-spinner"><span></span></div>
-            </div>
-        </div>
-    </div>
-
-</div>
 
 <!-- 密碼修改模態框 -->
 <div id="changePasswordModal" class="modal-overlay">
@@ -105,8 +32,8 @@
     </div>
 </div>
 
-<!-- 应用导航首页 -->
-<div id="homeContainer" class="home-container" style="display: none;">
+<!-- 應用導航首頁 -->
+<div id="homeContainer" class="home-container">
     <div class="home-header-bar">
         <div class="home-header-left">
             <img src="/static/images/pkms_logo.png" alt="培僑中學" class="home-logo">
@@ -145,7 +72,7 @@
             </div>
         </div>
         <div class="home-apps-grid" id="homeAppsGrid">
-            <!-- 应用卡片将由 JS 动态生成 -->
+            <!-- 應用卡片將由 JS 動態生成 -->
         </div>
     </div>
 </div>
