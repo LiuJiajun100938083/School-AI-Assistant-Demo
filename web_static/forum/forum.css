@@ -211,6 +211,7 @@ a {
     grid-template-columns: 260px 1fr 280px;
     gap: var(--space-5);
     padding: var(--space-5);
+    width: 100%;
     max-width: 1600px;
     margin: 0 auto;
     flex: 1;
