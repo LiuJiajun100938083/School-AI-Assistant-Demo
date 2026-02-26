@@ -1306,7 +1306,6 @@ class LearningCenterService:
         from llm.rag.context import build_prompt_context
         from llm.prompts.templates import apply_thinking_mode
         from llm.providers.ollama import get_ollama_provider
-        from llm.parsers.thinking_parser import StreamingThinkingParser
 
         loop = asyncio.get_running_loop()
         full_answer_parts = []
@@ -1368,21 +1367,15 @@ class LearningCenterService:
 
         thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
 
-        # 流式调用 LLM，过滤 thinking 只输出 answer
+        # 流式调用 LLM — async_stream 使用 /api/chat + think:true，
+        # Ollama 会将 thinking 放在独立字段，content 中只有 answer，
+        # 因此无需 StreamingThinkingParser，直接 yield 即可。
         provider = get_ollama_provider()
-        parser = StreamingThinkingParser()
 
         async for token in provider.async_stream(thinking_prompt):
-            events = parser.feed(token)
-            for evt in events:
-                if evt.type == "answer" and evt.content:
-                    full_answer_parts.append(evt.content)
-                    yield {"type": "token", "content": evt.content}
-
-        for evt in parser.finish():
-            if evt.type == "answer" and evt.content:
-                full_answer_parts.append(evt.content)
-                yield {"type": "token", "content": evt.content}
+            if token:
+                full_answer_parts.append(token)
+                yield {"type": "token", "content": token}
 
         # 完成后匹配知识图谱节点
         full_answer = "".join(full_answer_parts)
