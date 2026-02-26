@@ -2,7 +2,8 @@
 页面路由 - PageRouter
 ======================
 处理所有 HTML 静态页面的路由：
-- GET  /                     - 主页
+- GET  /                     - 主页（登录 + 应用导航）
+- GET  /chat                 - AI 学习对话
 - GET  /student-report       - 学生分析报告
 - GET  /attendance           - 考勤系统
 - GET  /admin                - 管理员面板
@@ -70,6 +71,12 @@ async def favicon():
 async def index():
     """主页"""
     return _serve_page("index.html")
+
+
+@router.get("/chat")
+async def chat_page():
+    """AI 學習對話（獨立頁面）"""
+    return _serve_page("chat.html")
 
 
 @router.get("/student-report")

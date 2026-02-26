@@ -1,8 +1,11 @@
 'use strict';
 
 /**
- * 首頁（AI 學習夥伴）— 前端核心模組
- * ====================================
+ * 首頁（AI 學習夥伴）— 前端核心模組（精簡版）
+ * ================================================
+ *
+ * 聊天功能已移至 /chat 頁面（chat.js），
+ * 本檔案僅負責：登入、首頁應用導航、密碼修改。
  *
  * 架構：
  *   IndexAPI  — API 請求封裝
@@ -10,8 +13,7 @@
  *   IndexApp  — 主控制器（狀態、事件、業務流程）
  *
  * 依賴共享模組: AuthModule, UIModule, Utils, APIClient
- * 外部依賴:     PrismJS, MathJax, LearningSummaryManager（可選）
- * 加載順序: shared/* -> learning_modes_frontend.js -> learning_summary.js -> index.js
+ * 外部依賴:     GSAP（啟動動畫）
  */
 
 /* ============================================================
@@ -52,8 +54,7 @@ const IndexAPI = {
         return this._fetch('/api/verify');
     },
 
-    async login(username, password)
-    {
+    async login(username, password) {
         return this._fetch('/api/login', {
             method: 'POST',
             body: JSON.stringify({ username, password })
@@ -77,43 +78,6 @@ const IndexAPI = {
         return resp;
     },
 
-    async fetchConversations(username) {
-        return this._fetch(`/api/conversations/${username}`);
-    },
-
-    async fetchConversation(username, conversationId) {
-        return this._fetch(`/api/conversations/${username}/${conversationId}`);
-    },
-
-    async createConversation(username, title, subject) {
-        return this._fetch(`/api/conversations/${username}`, {
-            method: 'POST',
-            body: JSON.stringify({ title, subject })
-        });
-    },
-
-    async deleteConversation(username, conversationId) {
-        return this._fetch(`/api/conversations/${username}/${conversationId}`, {
-            method: 'DELETE'
-        });
-    },
-
-    async sendStreamMessage(requestBody) {
-        return this._fetch('/api/chat/stream', {
-            method: 'POST',
-            body: JSON.stringify(requestBody)
-        });
-    },
-
-    async processTempFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        return this._fetch('/api/process-temp-file', {
-            method: 'POST',
-            body: formData
-        });
-    },
-
     async fetchApps() {
         return this._fetch('/api/apps');
     }
@@ -128,9 +92,8 @@ const IndexUI = {
 
     cacheElements() {
         this.elements = {
-            // 登录
+            // 登入
             loginContainer:      document.getElementById('loginContainer'),
-            mainContainer:       document.getElementById('mainContainer'),
             homeContainer:       document.getElementById('homeContainer'),
             loginForm:           document.getElementById('loginForm'),
             usernameInput:       document.getElementById('usernameInput'),
@@ -139,21 +102,7 @@ const IndexUI = {
             loginError:          document.getElementById('loginError'),
             loginLoading:        document.getElementById('loginLoading'),
 
-            // 用户信息
-            userInfo:            document.getElementById('userInfo'),
-            userAvatar:          document.getElementById('userAvatar'),
-            userName:            document.getElementById('userName'),
-            userClass:           document.getElementById('userClass'),
-            userMenu:            document.getElementById('userMenu'),
-            viewProfile:         document.getElementById('viewProfile'),
-            viewReport:          document.getElementById('viewReport'),
-            changePassword:      document.getElementById('changePassword'),
-            logoutButton:        document.getElementById('logoutButton'),
-            adminPanel:          document.getElementById('adminPanel'),
-            adminSeparator:      document.getElementById('adminSeparator'),
-            adminButton:         document.getElementById('adminButton'),
-
-            // 密码修改
+            // 密碼修改
             changePasswordModal: document.getElementById('changePasswordModal'),
             changePasswordForm:  document.getElementById('changePasswordForm'),
             oldPasswordInput:    document.getElementById('oldPasswordInput'),
@@ -161,48 +110,8 @@ const IndexUI = {
             confirmPasswordInput:document.getElementById('confirmPasswordInput'),
             passwordError:       document.getElementById('passwordError'),
             cancelPasswordChange:document.getElementById('cancelPasswordChange'),
-            confirmPasswordChange:document.getElementById('confirmPasswordChange'),
 
-            // 确认删除
-            confirmDialog:        document.getElementById('confirmDialog'),
-            confirmDialogMessage: document.getElementById('confirmDialogMessage'),
-            confirmCancel:        document.getElementById('confirmCancel'),
-            confirmDelete:        document.getElementById('confirmDelete'),
-
-            // 主界面
-            headerTitle:         document.getElementById('headerTitle'),
-            subjectSelector:     document.getElementById('subjectSelector'),
-            modeSelector:        document.getElementById('modeSelector'),
-            statusIndicator:     document.getElementById('statusIndicator'),
-            sidebar:             document.getElementById('sidebar'),
-            sidebarToggle:       document.getElementById('sidebarToggle'),
-            sidebarOverlay:      document.getElementById('sidebarOverlay'),
-            sidebarCloseBtn:     document.getElementById('sidebarCloseBtn'),
-            newChatButton:       document.getElementById('newChatButton'),
-            conversationsList:   document.getElementById('conversationsList'),
-            messagesContainer:   document.getElementById('messagesContainer'),
-            messageInput:        document.getElementById('messageInput'),
-            sendButton:          document.getElementById('sendButton'),
-            featureList:         document.getElementById('featureList'),
-            thinkingToggle:      document.getElementById('thinkingToggle'),
-            thinkingToggleText:  document.getElementById('thinkingToggleText'),
-            backToHomeBtn:       document.getElementById('backToHomeBtn'),
-
-            // 新建对话科目弹窗
-            newChatModal:        document.getElementById('newChatModal'),
-            newChatModalClose:   document.getElementById('newChatModalClose'),
-            subjectGrid:         document.getElementById('subjectGrid'),
-            newChatNameSection:  document.getElementById('newChatNameSection'),
-            newChatNameInput:    document.getElementById('newChatNameInput'),
-            newChatConfirmBtn:   document.getElementById('newChatConfirmBtn'),
-
-            // 文件上传
-            conversationFiles:   document.getElementById('conversationFiles'),
-            fileUploadBtn:       document.getElementById('fileUploadBtn'),
-            fileUploadInput:     document.getElementById('fileUploadInput'),
-            inputContainer:      document.getElementById('inputContainer'),
-
-            // 首页
+            // 首頁
             homeAppsGrid:        document.getElementById('homeAppsGrid'),
             homeUserInfo:        document.getElementById('homeUserInfo'),
             homeUserAvatar:      document.getElementById('homeUserAvatar'),
@@ -212,19 +121,18 @@ const IndexUI = {
             homeAdminPanel:      document.getElementById('homeAdminPanel'),
             homeAdminSeparator:  document.getElementById('homeAdminSeparator'),
 
-            // 启动画面
+            // 啟動畫面
             splashScreen:        document.getElementById('splashScreen')
         };
     },
 
-    /* ---------- 登录界面 ---------- */
+    /* ---------- 登入介面 ---------- */
 
     showLoginInterface() {
         const el = this.elements;
         el.loginContainer.style.display = 'flex';
-        el.mainContainer.style.display = 'none';
         el.homeContainer.style.display = 'none';
-        // 登出回到登入頁時，0.5 秒淡入（系統已在後台運行的感覺）
+        // 登出回到登入頁時，0.5 秒淡入
         if (typeof gsap !== 'undefined') {
             const bp = el.loginContainer.querySelector('.login-brand-panel');
             const fp = el.loginContainer.querySelector('.login-form-panel');
@@ -259,15 +167,14 @@ const IndexUI = {
         }
     },
 
-    /* ---------- 主界面 ---------- */
+    /* ---------- 主介面 ---------- */
 
     showMainInterface() {
         const el = this.elements;
         el.loginContainer.style.display = 'none';
-        el.mainContainer.style.display = 'none';
         el.homeContainer.style.display = 'flex';
 
-        // 已登入用戶：0.5 秒淡入（系統已在後台運行）
+        // 已登入用戶：0.5 秒淡入
         if (typeof gsap !== 'undefined') {
             gsap.fromTo(el.homeContainer,
                 { opacity: 0 },
@@ -276,27 +183,7 @@ const IndexUI = {
         }
     },
 
-    showHome() {
-        const el = this.elements;
-        el.mainContainer.style.display = 'none';
-        el.homeContainer.style.display = 'flex';
-    },
-
-    showChat() {
-        const el = this.elements;
-        el.homeContainer.style.display = 'none';
-        el.mainContainer.style.display = 'flex';
-    },
-
-    /* ---------- 用户信息 ---------- */
-
-    updateUserDisplay(userProfile) {
-        const el = this.elements;
-        el.userName.textContent = userProfile.display_name || userProfile.username;
-        el.userClass.textContent = userProfile.class_name || '未分班';
-        const firstChar = (userProfile.display_name || userProfile.username).charAt(0).toUpperCase();
-        el.userAvatar.textContent = firstChar;
-    },
+    /* ---------- 首頁用戶資訊 ---------- */
 
     updateHomeUserInfo(info) {
         if (!info) return;
@@ -310,7 +197,7 @@ const IndexUI = {
             const el = document.getElementById(id);
             if (el) el.textContent = val;
         }
-        // 管理员面板
+        // 管理員面板
         if (info.role === 'admin' || info.role === 'teacher') {
             const ap = this.elements.homeAdminPanel;
             const as = this.elements.homeAdminSeparator;
@@ -319,45 +206,9 @@ const IndexUI = {
         }
     },
 
-    toggleUserMenu() {
-        const menu = this.elements.userMenu;
-        const isVisible = menu.style.display === 'block';
-        menu.style.display = isVisible ? 'none' : 'block';
-    },
-
-    hideUserMenu() {
-        this.elements.userMenu.style.display = 'none';
-    },
-
-    showAdminFeatures(isTeacher) {
-        const el = this.elements;
-        if (el.adminButton) {
-            el.adminButton.style.display = 'flex';
-            el.adminButton.innerHTML = isTeacher
-                ? '<span>⚙️</span>教學管理'
-                : '<span>⚙️</span>管理后台';
-        }
-        if (el.adminPanel) el.adminPanel.style.display = 'flex';
-        if (el.adminSeparator) el.adminSeparator.style.display = 'block';
-    },
-
-    /* ---------- 状态 ---------- */
-
-    updateStatusIndicator(online) {
-        const el = this.elements.statusIndicator;
-        if (online) {
-            el.className = 'status-indicator status-online';
-            el.textContent = '● 連接正常';
-        } else {
-            el.className = 'status-indicator status-offline';
-            el.textContent = '● 連接異常';
-        }
-    },
-
-    /* ---------- 密码修改模态框 ---------- */
+    /* ---------- 密碼修改模態框 ---------- */
 
     showChangePasswordModal() {
-        this.hideUserMenu();
         this.elements.changePasswordModal.style.display = 'flex';
         this.elements.oldPasswordInput.focus();
     },
@@ -369,197 +220,9 @@ const IndexUI = {
         el.passwordError.textContent = '';
     },
 
-    /* ---------- 确认删除对话框 ---------- */
+    /* ---------- 首頁應用卡片 ---------- */
 
-    showConfirmDialog(message) {
-        this.elements.confirmDialogMessage.textContent = message;
-        this.elements.confirmDialog.style.display = 'flex';
-    },
-
-    hideConfirmDialog() {
-        this.elements.confirmDialog.style.display = 'none';
-    },
-
-    /* ---------- 侧边栏 ---------- */
-
-    toggleSidebar() {
-        const el = this.elements;
-        const isOpen = el.sidebar.classList.toggle('open');
-        el.sidebarOverlay.classList.toggle('active', isOpen);
-        if (window.innerWidth <= 833) {
-            document.body.style.overflow = isOpen ? 'hidden' : '';
-        }
-    },
-
-    closeSidebar() {
-        const el = this.elements;
-        el.sidebar.classList.remove('open');
-        el.sidebarOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    },
-
-    handleResize() {
-        if (window.innerWidth > 833) {
-            this.closeSidebar();
-        }
-    },
-
-    /* ---------- 新建对话弹窗 ---------- */
-
-    showNewChatModal(allSubjects, onSubjectCardClick) {
-        const el = this.elements;
-        if (el.subjectGrid) {
-            el.subjectGrid.innerHTML = '';
-            const subjectOrder = [
-                'ict', 'ces', 'history',
-                'chinese', 'english',
-                'math', 'physics', 'chemistry', 'biology', 'science',
-                'economics', 'geography', 'visual_arts'
-            ];
-
-            const renderSubject = (code) => {
-                const info = IndexApp._getSubjectInfo(code);
-                const card = document.createElement('div');
-                card.className = 'subject-card';
-                card.innerHTML = `
-                    <div class="subject-card-icon">${info.icon}</div>
-                    <div class="subject-card-name">${info.name}</div>
-                `;
-                card.addEventListener('click', (e) => onSubjectCardClick(code, info, e));
-                el.subjectGrid.appendChild(card);
-            };
-
-            for (const code of subjectOrder) {
-                if (allSubjects[code]) renderSubject(code);
-            }
-            for (const code of Object.keys(allSubjects)) {
-                if (!subjectOrder.includes(code)) renderSubject(code);
-            }
-        }
-
-        // 重置
-        IndexApp._selectedSubjectCode = null;
-        IndexApp._selectedSubjectInfo = null;
-        if (el.newChatNameSection) el.newChatNameSection.style.display = 'none';
-        if (el.newChatNameInput) el.newChatNameInput.value = '';
-
-        el.newChatModal.style.display = 'flex';
-    },
-
-    hideNewChatModal() {
-        this.elements.newChatModal.style.display = 'none';
-    },
-
-    /* ---------- 对话列表 ---------- */
-
-    renderConversations(conversations, currentConversationId) {
-        const list = this.elements.conversationsList;
-        list.innerHTML = '';
-
-        const seenIds = new Set();
-        const unique = conversations.filter(conv => {
-            if (seenIds.has(conv.id)) return false;
-            seenIds.add(conv.id);
-            return true;
-        });
-
-        unique.forEach(conv => {
-            const item = document.createElement('div');
-            item.className = 'conversation-item';
-            if (conv.id === currentConversationId) {
-                item.classList.add('active');
-            }
-            const subjectInfo = IndexApp._getSubjectInfo(conv.subject);
-            item.innerHTML = `
-                <div class="conversation-title">${subjectInfo.icon} ${conv.title}</div>
-                <div class="conversation-meta">${conv.message_count || 0} 條訊息 · ${IndexApp._formatDate(conv.updated_at)}</div>
-                <button class="delete-conversation-btn" title="刪除對話">×</button>
-            `;
-
-            item.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('delete-conversation-btn')) {
-                    IndexApp.loadConversation(conv.id);
-                }
-            });
-
-            const deleteBtn = item.querySelector('.delete-conversation-btn');
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                IndexApp._showConfirmDelete(conv);
-            });
-
-            list.appendChild(item);
-        });
-    },
-
-    /* ---------- 学科选择器 ---------- */
-
-    updateSubjectSelector(allSubjects, currentSubject) {
-        const sel = this.elements.subjectSelector;
-        if (!sel) return;
-        sel.innerHTML = '';
-
-        const subjectOrder = [
-            'ict', 'ces', 'history',
-            'chinese', 'english',
-            'math', 'physics', 'chemistry', 'biology', 'science',
-            'economics', 'geography', 'visual_arts'
-        ];
-
-        const addOption = (code, subject) => {
-            let icon = subject.icon;
-            if (!icon && subject.config) icon = subject.config.icon;
-            icon = icon || '📚';
-            const option = document.createElement('option');
-            option.value = code;
-            option.textContent = `${icon} ${subject.name}`;
-            sel.appendChild(option);
-        };
-
-        for (const code of subjectOrder) {
-            if (allSubjects[code]) addOption(code, allSubjects[code]);
-        }
-        for (const [code, subject] of Object.entries(allSubjects)) {
-            if (!subjectOrder.includes(code)) addOption(code, subject);
-        }
-
-        if (currentSubject && allSubjects[currentSubject]) {
-            sel.value = currentSubject;
-        } else if (Object.keys(allSubjects).length > 0) {
-            sel.value = Object.keys(allSubjects)[0];
-        }
-    },
-
-    updateSubjectTitle(subjectInfo) {
-        this.elements.headerTitle.textContent = `${subjectInfo.icon} ${subjectInfo.name} AI 學習夥伴`;
-    },
-
-    /* ---------- 功能列表 ---------- */
-
-    updateFeatureList(allSubjects) {
-        const el = this.elements.featureList;
-        if (!el) return;
-
-        let html = '';
-        const codes = Object.keys(allSubjects).slice(0, 6);
-        codes.forEach(code => {
-            const s = allSubjects[code];
-            html += `<div class="feature-item">${s.icon} <strong>${s.name}</strong>：${s.description || '學科知識輔導'}</div>`;
-        });
-        if (Object.keys(allSubjects).length > 6) {
-            html += `<div class="feature-item">➕ 以及其他 ${Object.keys(allSubjects).length - 6} 個學科...</div>`;
-        }
-        html += `
-            <div class="feature-item">🧠 <strong>推理模式</strong>：顯示AI完整思考過程</div>
-            <div class="feature-item">💾 <strong>記憶功能</strong>：保存你的學習對話</div>
-            <div class="feature-item">📎 <strong>文檔上傳</strong>：直接拖曳檔案到輸入框進行智能問答</div>
-        `;
-        el.innerHTML = html;
-    },
-
-    /* ---------- 首页应用卡片 ---------- */
-
-    // SVG 图标映射（Lucide 风格，24×24，2px stroke）
+    // SVG 圖標映射（Lucide 風格，24x24，2px stroke）
     _appIcons: {
         ai_chat:          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
         ai_learning_center:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
@@ -577,7 +240,7 @@ const IndexUI = {
         admin_dashboard:  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
     },
 
-    // 分组配置：显示名称 + 排序权重 + 是否默认折叠
+    // 分組配置：顯示名稱 + 排序權重 + 是否預設折疊
     _categoryConfig: {
         learning:  { label: '學習工具',  order: 1, collapsed: false },
         community: { label: '社區',      order: 2, collapsed: false },
@@ -590,7 +253,7 @@ const IndexUI = {
         const grid = this.elements.homeAppsGrid;
         if (!grid) return;
 
-        // 按 category 分组
+        // 按 category 分組
         const groups = {};
         for (const app of apps) {
             const cat = app.category || 'other';
@@ -605,7 +268,7 @@ const IndexUI = {
             return oa - ob;
         });
 
-        // 渲染各分组
+        // 渲染各分組
         let html = '';
         for (const cat of sortedCats) {
             const cfg = this._categoryConfig[cat] || { label: cat, order: 99, collapsed: true };
@@ -639,7 +302,7 @@ const IndexUI = {
         }
         grid.innerHTML = html;
 
-        // 绑定折叠切换事件
+        // 綁定折疊切換事件
         grid.querySelectorAll('[data-toggle-group]').forEach(header => {
             header.addEventListener('click', () => {
                 const groupEl = header.closest('.home-group');
@@ -648,230 +311,6 @@ const IndexUI = {
                 gridEl.classList.toggle('home-group__grid--collapsed', isNowCollapsed);
             });
         });
-    },
-
-    /* ---------- 消息区域 ---------- */
-
-    clearMessages() {
-        this.elements.messagesContainer.innerHTML = '';
-    },
-
-    addWelcomeMessage(currentSubject, currentUser, userInfo) {
-        const subjectInfo = IndexApp._getSubjectInfo(currentSubject);
-        this.elements.messagesContainer.innerHTML = `
-            <div class="welcome-message">
-                <div class="welcome-title">👋 欢迎，${userInfo?.display_name || currentUser}！</div>
-                <div class="welcome-subtitle">开始使用 ${subjectInfo.name} AI 学习伙伴</div>
-                <div class="feature-list" id="welcomeFeatureList">
-                    <div class="feature-item">🖥️ <strong>本地模式</strong>：快速响应，精准问答</div>
-                    <div class="feature-item">📎 <strong>文档上传</strong>：直接拖拽文件到输入框进行智能问答</div>
-                </div>
-            </div>
-        `;
-    },
-
-    scrollToBottom(force = false) {
-        const container = this.elements.messagesContainer;
-        const threshold = 150;
-        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
-        if (isNearBottom || force) {
-            requestAnimationFrame(() => {
-                container.scrollTop = container.scrollHeight;
-            });
-        }
-    },
-
-    autoResizeTextarea() {
-        const input = this.elements.messageInput;
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-    },
-
-    /* ---------- 文件相关 ---------- */
-
-    addFileProcessingIndicator(file, sanitizeId) {
-        const filesDiv = this.elements.conversationFiles;
-        if (!filesDiv) return;
-
-        const processingItem = document.createElement('div');
-        processingItem.className = 'file-processing-item';
-        processingItem.id = `processing-${sanitizeId(file.name)}`;
-        processingItem.innerHTML = `
-            <div class="file-processing-spinner"></div>
-            <span>正在處理 "${file.name}"...</span>
-        `;
-        filesDiv.appendChild(processingItem);
-        filesDiv.style.display = 'block';
-    },
-
-    removeFileProcessingIndicator(fileName, sanitizeId) {
-        const item = document.getElementById(`processing-${sanitizeId(fileName)}`);
-        if (item) item.remove();
-    },
-
-    addConversationFileItem(fileData, getFileIcon, formatFileSize) {
-        const filesDiv = this.elements.conversationFiles;
-        if (!filesDiv) return;
-
-        const processingInfo = fileData.processedLocally
-            ? '(前端處理)'
-            : fileData.processedByBackend ? '(後端處理)' : '';
-
-        const fileItem = document.createElement('div');
-        fileItem.className = 'conversation-file-item';
-        fileItem.innerHTML = `
-            <span class="conversation-file-icon">${getFileIcon(fileData.name)}</span>
-            <div class="conversation-file-info">
-                <div class="conversation-file-name">${fileData.name} ${processingInfo}</div>
-                <div class="conversation-file-size">${formatFileSize(fileData.size)}</div>
-            </div>
-            <button class="conversation-file-remove" data-filename="${fileData.name}">×</button>
-        `;
-
-        // Bind remove button
-        fileItem.querySelector('.conversation-file-remove').addEventListener('click', () => {
-            IndexApp.removeConversationFile(fileData.name);
-        });
-
-        filesDiv.appendChild(fileItem);
-        filesDiv.style.display = 'block';
-    },
-
-    clearConversationFiles() {
-        const filesDiv = this.elements.conversationFiles;
-        if (filesDiv) {
-            filesDiv.innerHTML = '';
-            filesDiv.style.display = 'none';
-        }
-    },
-
-    /* ---------- Toast / Status ---------- */
-
-    showStatusMessage(message, duration = 3000) {
-        const statusDiv = document.createElement('div');
-        statusDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            padding: 12px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 9999;
-            font-size: 14px;
-            max-width: 300px;
-            word-wrap: break-word;
-        `;
-        statusDiv.textContent = message;
-        document.body.appendChild(statusDiv);
-        setTimeout(() => {
-            if (document.body.contains(statusDiv)) {
-                document.body.removeChild(statusDiv);
-            }
-        }, duration);
-    },
-
-    /* ---------- 打字指示器 ---------- */
-
-    addTypingIndicator(currentSubject) {
-        const subjectInfo = IndexApp._getSubjectInfo(currentSubject);
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message assistant';
-        messageDiv.id = 'typing-indicator';
-
-        const bubbleDiv = document.createElement('div');
-        bubbleDiv.className = 'message-bubble';
-        bubbleDiv.innerHTML = `
-            <div class="subject-badge">${subjectInfo.icon} ${subjectInfo.name}</div>
-            <div class="typing-indicator">
-                正在思考中
-                <div class="typing-dots">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
-            </div>
-        `;
-
-        messageDiv.appendChild(bubbleDiv);
-        this.elements.messagesContainer.appendChild(messageDiv);
-        this.scrollToBottom(true);
-        return messageDiv;
-    },
-
-    removeTypingIndicator() {
-        const indicator = document.getElementById('typing-indicator');
-        if (indicator) indicator.remove();
-        if (window.MathJax && window.MathJax.typesetPromise) {
-            window.MathJax.typesetPromise([this.elements.messagesContainer]);
-        }
-    },
-
-    /* ---------- 流式消息 ---------- */
-
-    createStreamingMessage(currentSubject) {
-        const subjectInfo = IndexApp._getSubjectInfo(currentSubject);
-
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message assistant';
-
-        const bubbleDiv = document.createElement('div');
-        bubbleDiv.className = 'message-bubble';
-
-        // 学科标签
-        const badgeDiv = document.createElement('div');
-        badgeDiv.className = 'subject-badge';
-        badgeDiv.textContent = `${subjectInfo.icon} ${subjectInfo.name}`;
-        bubbleDiv.appendChild(badgeDiv);
-
-        // Thinking 区域（初始隐藏）
-        const thinkingSection = document.createElement('div');
-        thinkingSection.className = 'reasoning-section';
-        thinkingSection.style.display = 'none';
-        thinkingSection.innerHTML = `
-            <div class="section-header section-header-toggle">
-                <span>思考過程</span>
-                <span class="collapse-indicator expanded">▾</span>
-            </div>
-            <div class="section-content">
-                <span class="streaming-text-thinking"></span>
-                <span class="streaming-cursor"></span>
-            </div>
-        `;
-        bubbleDiv.appendChild(thinkingSection);
-
-        // 绑定 thinking section toggle
-        thinkingSection.querySelector('.section-header-toggle').addEventListener('click', function () {
-            this.nextElementSibling.classList.toggle('collapsed');
-            this.querySelector('.collapse-indicator').classList.toggle('expanded');
-        });
-
-        // Answer 区域
-        const answerDiv = document.createElement('div');
-        answerDiv.className = 'answer-content';
-        answerDiv.innerHTML = '<span class="streaming-text-answer"></span><span class="streaming-cursor"></span>';
-        answerDiv.style.display = 'none';
-        bubbleDiv.appendChild(answerDiv);
-
-        messageDiv.appendChild(bubbleDiv);
-        this.elements.messagesContainer.appendChild(messageDiv);
-        this.scrollToBottom(true);
-
-        return {
-            messageDiv,
-            bubbleDiv,
-            thinkingSection,
-            thinkingText: thinkingSection.querySelector('.streaming-text-thinking'),
-            thinkingCursor: thinkingSection.querySelector('.streaming-cursor'),
-            answerDiv,
-            answerText: answerDiv.querySelector('.streaming-text-answer'),
-            answerCursor: answerDiv.querySelector('.streaming-cursor'),
-            fullThinking: '',
-            fullAnswer: '',
-            phase: 'init'
-        };
     }
 };
 
@@ -890,27 +329,8 @@ const IndexApp = {
         userRole: 'student',
         isAdmin: false,
         isTeacher: false,
-
-        currentConversationId: null,
-        currentSubject: 'ict',
-        currentMode: 'local',
-        websocket: null,
-        conversations: [],
-        isStreaming: false,
-        allSubjects: {},
-
-        enableThinking: true,
-
-        // 文件上传
-        conversationFiles: [],
-        processingFiles: new Set()
+        allSubjects: {}
     },
-
-    // 新建对话弹窗临时状态
-    _selectedSubjectCode: null,
-    _selectedSubjectInfo: null,
-    _newChatResolve: null,
-    _pendingDeleteAction: null,
 
     /* ---------- 初始化 ---------- */
 
@@ -921,139 +341,26 @@ const IndexApp = {
 
         this._bindEvents();
 
-        // 检查认证状态
+        // 檢查認證狀態
         if (this.state.authToken) {
             await this._verifyToken();
         } else {
             IndexUI.showLoginInterface();
         }
-
-        // 延迟绑定文件上传事件
-        setTimeout(() => this._bindFileUploadEvents(), 100);
     },
 
-    /* ---------- 事件绑定 ---------- */
+    /* ---------- 事件綁定 ---------- */
 
     _bindEvents() {
         const el = IndexUI.elements;
 
-        // 登录
+        // 登入
         el.loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             this._login();
         });
 
-        // 用户菜单
-        el.userInfo.addEventListener('click', (e) => {
-            e.stopPropagation();
-            IndexUI.toggleUserMenu();
-        });
-        document.addEventListener('click', () => {
-            IndexUI.hideUserMenu();
-        });
-        el.viewProfile.addEventListener('click', () => this._showProfile());
-
-        if (el.viewReport) {
-            el.viewReport.addEventListener('click', () => {
-                IndexUI.hideUserMenu();
-                window.location.href = '/student-report';
-            });
-        }
-
-        el.changePassword.addEventListener('click', () => IndexUI.showChangePasswordModal());
-        el.logoutButton.addEventListener('click', () => this.logout());
-
-        if (el.adminPanel) {
-            el.adminPanel.addEventListener('click', () => {
-                window.location.href = '/admin';
-            });
-        }
-
-        // 密码修改
-        el.changePasswordForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this._handleChangePassword();
-        });
-        el.cancelPasswordChange.addEventListener('click', () => IndexUI.hideChangePasswordModal());
-
-        // 确认删除
-        el.confirmCancel.addEventListener('click', () => {
-            IndexUI.hideConfirmDialog();
-            this._pendingDeleteAction = null;
-        });
-        el.confirmDelete.addEventListener('click', () => {
-            if (this._pendingDeleteAction) {
-                this._pendingDeleteAction();
-            }
-            IndexUI.hideConfirmDialog();
-            this._pendingDeleteAction = null;
-        });
-
-        // 学科/模式选择
-        el.subjectSelector.addEventListener('change', (e) => this._changeSubject(e.target.value));
-        el.modeSelector.addEventListener('change', () => this._changeMode());
-
-        // 侧边栏
-        el.sidebarToggle.addEventListener('click', () => IndexUI.toggleSidebar());
-        el.sidebarOverlay.addEventListener('click', () => IndexUI.closeSidebar());
-        el.sidebarCloseBtn.addEventListener('click', () => IndexUI.closeSidebar());
-
-        // 新建对话
-        el.newChatButton.addEventListener('click', () => this.createNewConversation());
-
-        // 发送消息
-        el.sendButton.addEventListener('click', () => this.sendMessage());
-        el.messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
-
-        // 思考模式
-        if (el.thinkingToggle) {
-            el.thinkingToggle.addEventListener('change', (e) => {
-                this.state.enableThinking = e.target.checked;
-            });
-        }
-
-        // 新建对话弹窗
-        if (el.newChatModalClose) {
-            el.newChatModalClose.addEventListener('click', () => this._hideNewChatModal());
-        }
-        if (el.newChatModal) {
-            el.newChatModal.addEventListener('click', (e) => {
-                if (e.target === el.newChatModal) this._hideNewChatModal();
-            });
-        }
-        if (el.newChatConfirmBtn) {
-            el.newChatConfirmBtn.addEventListener('click', () => this._confirmNewChat());
-        }
-        if (el.newChatNameInput) {
-            el.newChatNameInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') this._confirmNewChat();
-            });
-        }
-
-        // 自动调整输入框高度
-        el.messageInput.addEventListener('input', () => IndexUI.autoResizeTextarea());
-
-        // 返回首页
-        if (el.backToHomeBtn) {
-            el.backToHomeBtn.addEventListener('click', () => this.showHome());
-        }
-
-        // 管理后台按钮
-        if (el.adminButton) {
-            el.adminButton.addEventListener('click', () => {
-                window.location.href = '/admin';
-            });
-        }
-
-        // 窗口大小改变
-        window.addEventListener('resize', () => IndexUI.handleResize());
-
-        // 首页用户头像菜单
+        // 首頁用戶頭像選單
         if (el.homeUserInfo) {
             el.homeUserInfo.addEventListener('click', (e) => {
                 const menu = el.homeUserMenu;
@@ -1064,34 +371,34 @@ const IndexApp = {
             });
         }
 
-        // 首页密码修改
+        // 首頁密碼修改
         const homeChangePasswordBtn = document.getElementById('homeChangePassword');
         if (homeChangePasswordBtn) {
             homeChangePasswordBtn.addEventListener('click', () => {
-                el.changePasswordModal.style.display = 'flex';
+                IndexUI.showChangePasswordModal();
             });
         }
 
-        // 首页管理后台
+        // 首頁管理後台
         if (el.homeAdminPanel) {
             el.homeAdminPanel.addEventListener('click', () => {
                 window.location.href = '/admin';
             });
         }
 
-        // 首页退出登录
+        // 首頁退出登入
         const homeLogoutBtn = document.getElementById('homeLogout');
         if (homeLogoutBtn) {
             homeLogoutBtn.addEventListener('click', () => this.logout());
         }
 
-        // 点击页面空白处关闭首页用户菜单
+        // 點擊頁面空白處關閉首頁用戶選單
         document.addEventListener('click', () => {
             const menu = document.getElementById('homeUserMenu');
             if (menu) menu.classList.remove('active');
         });
 
-        // 首页应用卡片点击（事件委托）
+        // 首頁應用卡片點擊（事件委託）
         if (el.homeAppsGrid) {
             el.homeAppsGrid.addEventListener('click', (e) => {
                 const card = e.target.closest('.home-app-card');
@@ -1101,71 +408,41 @@ const IndexApp = {
                 this._openApp(appId, url);
             });
         }
+
+        // 密碼修改
+        el.changePasswordForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this._handleChangePassword();
+        });
+        el.cancelPasswordChange.addEventListener('click', () => IndexUI.hideChangePasswordModal());
     },
 
-    _bindFileUploadEvents() {
-        const el = IndexUI.elements;
-        if (!el.fileUploadBtn || !el.fileUploadInput) return;
-
-        el.fileUploadBtn.addEventListener('click', () => {
-            el.fileUploadInput.click();
-        });
-
-        el.fileUploadInput.addEventListener('change', (e) => {
-            this._handleConversationFileSelect(Array.from(e.target.files));
-            e.target.value = '';
-        });
-
-        if (el.inputContainer) {
-            el.inputContainer.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                el.inputContainer.classList.add('drag-over');
-            });
-            el.inputContainer.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                el.inputContainer.classList.remove('drag-over');
-            });
-            el.inputContainer.addEventListener('drop', (e) => {
-                e.preventDefault();
-                el.inputContainer.classList.remove('drag-over');
-                this._handleConversationFileSelect(Array.from(e.dataTransfer.files));
-            });
-        }
-    },
-
-    /* ---------- 认证 ---------- */
+    /* ---------- 認證 ---------- */
 
     async _verifyToken() {
         try {
             const response = await IndexAPI.verify();
             if (response.ok) {
                 const result = await response.json();
-                if (!result.success) throw new Error('Token验证失败');
+                if (!result.success) throw new Error('Token驗證失敗');
                 const userProfile = result.data;
                 this.state.currentUser = userProfile.username;
                 this.state.userRole = userProfile.role || 'student';
                 this.state.isAdmin = (this.state.userRole === 'admin');
                 this.state.isTeacher = (this.state.userRole === 'teacher');
-                IndexUI.updateUserDisplay(userProfile);
+
                 IndexUI.showMainInterface();
 
                 await this._loadSubjectOptions();
-                await this._loadConversations();
-                this._setupWebSocket();
-                this._checkSystemStatus();
-
-                if (this.state.isAdmin || this.state.isTeacher) {
-                    IndexUI.showAdminFeatures(this.state.isTeacher);
-                }
 
                 this.state.userInfo = userProfile;
                 this._loadHomeApps();
                 IndexUI.updateHomeUserInfo(userProfile);
             } else {
-                throw new Error('Token验证失败');
+                throw new Error('Token驗證失敗');
             }
         } catch (error) {
-            console.error('Token验证错误:', error);
+            console.error('Token驗證錯誤:', error);
             this._clearAuth();
             IndexUI.showLoginInterface();
         }
@@ -1198,17 +475,9 @@ const IndexApp = {
                 AuthModule.setToken(this.state.authToken);
                 localStorage.setItem('user_role', result.role);
 
-                IndexUI.updateUserDisplay(result.user_info);
                 IndexUI.showMainInterface();
 
                 await this._loadSubjectOptions();
-                await this._loadConversations();
-                this._setupWebSocket();
-                this._checkSystemStatus();
-
-                if (this.state.isAdmin || this.state.isTeacher) {
-                    IndexUI.showAdminFeatures(this.state.isTeacher);
-                }
 
                 this.state.userInfo = result.user_info;
                 this._loadHomeApps();
@@ -1217,7 +486,7 @@ const IndexApp = {
                 IndexUI.showLoginError(result.detail || '登入失敗，請檢查用戶名和密碼');
             }
         } catch (error) {
-            console.error('登录错误:', error);
+            console.error('登入錯誤:', error);
             IndexUI.showLoginError('網絡錯誤，請稍後重試');
         } finally {
             IndexUI.showLoginLoading(false);
@@ -1226,9 +495,6 @@ const IndexApp = {
 
     logout() {
         this._clearAuth();
-        if (this.state.websocket) {
-            this.state.websocket.close();
-        }
         IndexUI.showLoginInterface();
     },
 
@@ -1240,25 +506,7 @@ const IndexApp = {
         AuthModule.removeToken();
     },
 
-    /* ---------- 用户操作 ---------- */
-
-    _showProfile() {
-        IndexUI.hideUserMenu();
-        const info = this.state.userInfo;
-        if (info) {
-            const lines = [
-                `用户名: ${info.username}`,
-                `显示名称: ${info.display_name || '未设置'}`,
-                `班级: ${info.class_name || '未分班'}`,
-                `登录次数: ${info.login_count || 0}`,
-                `最后登录: ${info.last_login ? new Date(info.last_login).toLocaleString() : '首次登录'}`
-            ];
-            if (this.state.isAdmin) {
-                lines.push('权限: 管理员');
-            }
-            alert('个人资料\n\n' + lines.join('\n'));
-        }
-    },
+    /* ---------- 密碼修改 ---------- */
 
     async _handleChangePassword() {
         const el = IndexUI.elements;
@@ -1294,7 +542,7 @@ const IndexApp = {
         }
     },
 
-    /* ---------- 学科管理 ---------- */
+    /* ---------- 學科管理 ---------- */
 
     async _loadSubjectOptions() {
         try {
@@ -1341,8 +589,6 @@ const IndexApp = {
                 }
 
                 this.state.allSubjects = subjectsMap;
-                IndexUI.updateSubjectSelector(this.state.allSubjects, this.state.currentSubject);
-                IndexUI.updateFeatureList(this.state.allSubjects);
 
                 if (Object.keys(this.state.allSubjects).length === 0) {
                     this._useDefaultSubjects();
@@ -1372,8 +618,6 @@ const IndexApp = {
             'geography':   { code: 'geography',   name: '地理',               icon: '🌍', description: '地理學科' },
             'visual_arts': { code: 'visual_arts', name: '視覺藝術',           icon: '🎨', description: '視覺藝術' }
         };
-        IndexUI.updateSubjectSelector(this.state.allSubjects, this.state.currentSubject);
-        IndexUI.updateFeatureList(this.state.allSubjects);
     },
 
     _getSubjectInfo(subjectCode) {
@@ -1390,38 +634,7 @@ const IndexApp = {
         return { code: subjectCode, name: subjectCode, icon: '📚' };
     },
 
-    _changeSubject(subject) {
-        this.state.currentSubject = subject;
-        this._updateSubjectTitle();
-    },
-
-    _changeMode() {
-        this.state.currentMode = 'local';
-        this._updateSubjectTitle();
-    },
-
-    _updateSubjectTitle() {
-        const info = this._getSubjectInfo(this.state.currentSubject);
-        IndexUI.updateSubjectTitle(info);
-    },
-
-    /* ---------- 系统状态 ---------- */
-
-    async _checkSystemStatus() {
-        try {
-            const response = await IndexAPI.verify();
-            IndexUI.updateStatusIndicator(response.ok);
-        } catch (error) {
-            console.error('检查系统状态失败:', error);
-            IndexUI.updateStatusIndicator(false);
-        }
-    },
-
-    _setupWebSocket() {
-        // WebSocket 逻辑（如果需要的话）
-    },
-
-    /* ---------- 首页应用 ---------- */
+    /* ---------- 首頁應用 ---------- */
 
     async _loadHomeApps() {
         try {
@@ -1430,1062 +643,18 @@ const IndexApp = {
             const data = await response.json();
             IndexUI.renderHomeApps(data.apps || []);
         } catch (error) {
-            console.error('加载应用列表失败:', error);
+            console.error('載入應用列表失敗:', error);
         }
     },
 
     _openApp(appId, url) {
-        if (url === '__internal_chat__') {
-            this.showChat();
-        } else {
-            window.location.href = url;
-        }
-    },
-
-    showHome() {
-        IndexUI.showHome();
-    },
-
-    showChat() {
-        IndexUI.showChat();
-    },
-
-    /* ---------- 对话管理 ---------- */
-
-    async _loadConversations() {
-        try {
-            const response = await IndexAPI.fetchConversations(this.state.currentUser);
-            const result = await response.json();
-            this.state.conversations = result.conversations;
-            IndexUI.renderConversations(this.state.conversations, this.state.currentConversationId);
-        } catch (error) {
-            console.error('加载对话失败:', error);
-        }
-    },
-
-    _formatDate(dateString) {
-        const date = new Date(dateString);
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        if (messageDate.getTime() === today.getTime()) {
-            return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-        } else {
-            return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
-        }
-    },
-
-    async loadConversation(conversationId) {
-        try {
-            if (!this.state.currentUser) {
-                console.warn('currentUser 未设置，无法加载对话');
-                return;
-            }
-            const response = await IndexAPI.fetchConversation(this.state.currentUser, conversationId);
-            if (!response.ok) {
-                console.error('加载对话失败:', response.status);
-                return;
-            }
-            const conversation = await response.json();
-
-            this.state.currentConversationId = conversationId;
-            this.state.currentSubject = conversation.subject || '';
-            const sel = IndexUI.elements.subjectSelector;
-            if (sel) sel.value = conversation.subject || '';
-            this._updateSubjectTitle();
-
-            IndexUI.clearMessages();
-            this._clearConversationFiles();
-
-            const messages = conversation.messages || [];
-            if (messages.length === 0) {
-                IndexUI.addWelcomeMessage(this.state.currentSubject, this.state.currentUser, this.state.userInfo);
-            } else {
-                messages.forEach(msg => {
-                    this._addMessage(msg.role, msg.content, msg.thinking);
-                });
-            }
-
-            IndexUI.renderConversations(this.state.conversations, this.state.currentConversationId);
-            IndexUI.scrollToBottom(true);
-        } catch (error) {
-            console.error('加载对话失败:', error);
-        }
-    },
-
-    async createNewConversation() {
-        return new Promise((resolve) => {
-            this._newChatResolve = resolve;
-            IndexUI.showNewChatModal(
-                this.state.allSubjects,
-                (code, info, e) => this._onSubjectCardClick(code, info, e)
-            );
-        });
-    },
-
-    _onSubjectCardClick(subjectCode, subjectInfo, e) {
-        this._selectedSubjectCode = subjectCode;
-        this._selectedSubjectInfo = subjectInfo;
-
-        const el = IndexUI.elements;
-        el.subjectGrid.querySelectorAll('.subject-card').forEach(c => c.classList.remove('selected'));
-        e.currentTarget.classList.add('selected');
-
-        el.newChatNameSection.style.display = '';
-        el.newChatNameInput.value = `${subjectInfo.name} 對話`;
-        el.newChatNameInput.focus();
-        el.newChatNameInput.select();
-    },
-
-    async _confirmNewChat() {
-        const subjectCode = this._selectedSubjectCode;
-        const subjectInfo = this._selectedSubjectInfo;
-        if (!subjectCode) return;
-
-        const el = IndexUI.elements;
-        const title = el.newChatNameInput.value.trim() || `${subjectInfo.icon} ${subjectInfo.name} 對話`;
-
-        this._hideNewChatModal();
-
-        this.state.currentSubject = subjectCode;
-        if (el.subjectSelector) el.subjectSelector.value = subjectCode;
-        this._updateSubjectTitle();
-
-        try {
-            const response = await IndexAPI.createConversation(this.state.currentUser, title, subjectCode);
-            const result = await response.json();
-            this.state.currentConversationId = result.conversation_id;
-            IndexUI.clearMessages();
-            IndexUI.addWelcomeMessage(this.state.currentSubject, this.state.currentUser, this.state.userInfo);
-            this._clearConversationFiles();
-            this._loadConversations();
-        } catch (error) {
-            console.error('創建對話失敗:', error);
-            IndexUI.showStatusMessage('創建對話失敗，請稍後重試', 3000);
-        }
-
-        if (this._newChatResolve) {
-            const resolve = this._newChatResolve;
-            this._newChatResolve = null;
-            resolve();
-        }
-    },
-
-    _hideNewChatModal() {
-        IndexUI.hideNewChatModal();
-        if (this._newChatResolve) {
-            const resolve = this._newChatResolve;
-            this._newChatResolve = null;
-            resolve();
-        }
-    },
-
-    _showConfirmDelete(conv) {
-        this._pendingDeleteAction = () => this._deleteConversation(conv.id, conv.title);
-        IndexUI.showConfirmDialog(`確定要刪除對話「${conv.title}」嗎？此操作無法撤銷。`);
-    },
-
-    async _deleteConversation(conversationId, title) {
-        try {
-            const response = await IndexAPI.deleteConversation(this.state.currentUser, conversationId);
-            if (response.ok) {
-                await response.json();
-                if (conversationId === this.state.currentConversationId) {
-                    this.state.currentConversationId = null;
-                    IndexUI.clearMessages();
-                    IndexUI.addWelcomeMessage(this.state.currentSubject, this.state.currentUser, this.state.userInfo);
-                    this._clearConversationFiles();
-                }
-                this.state.conversations = this.state.conversations.filter(c => c.id !== conversationId);
-                IndexUI.renderConversations(this.state.conversations, this.state.currentConversationId);
-                IndexUI.showStatusMessage(`對話「${title}」刪除成功`, 3000);
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || '刪除失敗');
-            }
-        } catch (error) {
-            console.error('刪除對話失敗:', error);
-            alert(`刪除對話失敗: ${error.message}\n請稍後重試`);
-        }
-    },
-
-    /* ---------- 文件上传 ---------- */
-
-    async _handleConversationFileSelect(files) {
-        for (const file of files) {
-            if (this.state.processingFiles.has(file.name)) continue;
-            if (!this._validateFile(file)) continue;
-
-            IndexUI.addFileProcessingIndicator(file, this._sanitizeId);
-
-            try {
-                let fileData;
-                const fileName = file.name.toLowerCase();
-
-                if (fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-                    const content = await this._processFileLocally(file);
-                    fileData = {
-                        name: file.name,
-                        size: file.size,
-                        content,
-                        uploadTime: new Date().toISOString(),
-                        processedLocally: true
-                    };
-                } else {
-                    fileData = await this._processFileViaBackend(file);
-                }
-
-                IndexUI.removeFileProcessingIndicator(file.name, this._sanitizeId);
-                this._addConversationFile(fileData);
-            } catch (error) {
-                console.error('檔案處理失敗:', error);
-                IndexUI.removeFileProcessingIndicator(file.name, this._sanitizeId);
-                IndexUI.showStatusMessage(`檔案「${file.name}」處理失敗: ${error.message}`, 5000);
-            }
-        }
-    },
-
-    _validateFile(file) {
-        if (file.size > 100 * 1024 * 1024) {
-            IndexUI.showStatusMessage('檔案超過10MB限制', 5000);
-            return false;
-        }
-        const supportedExts = ['.txt', '.md', '.docx', '.pdf', '.pptx'];
-        const fileName = file.name.toLowerCase();
-        const isSupported = supportedExts.some(ext => fileName.endsWith(ext));
-        if (!isSupported) {
-            IndexUI.showStatusMessage(`不支援的檔案格式，支援: ${supportedExts.join(', ')}`, 5000);
-            return false;
-        }
-        if (this.state.conversationFiles.some(f => f.name === file.name)) {
-            IndexUI.showStatusMessage(`檔案「${file.name}」已在當前對話中`, 3000);
-            return false;
-        }
-        return true;
-    },
-
-    async _processFileLocally(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = () => reject(new Error('檔案讀取失敗'));
-            reader.readAsText(file, 'utf-8');
-        });
-    },
-
-    async _processFileViaBackend(file) {
-        try {
-            const response = await IndexAPI.processTempFile(file);
-            if (!response.ok) {
-                const errorText = await response.text();
-                try {
-                    const errorData = JSON.parse(errorText);
-                    throw new Error(errorData.detail || errorData.message || '後端處理失敗');
-                } catch (parseError) {
-                    if (parseError.message.includes('後端處理失敗') || parseError.message.includes('detail')) {
-                        throw parseError;
-                    }
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-            }
-            const result = await response.json();
-            if (!result.success) {
-                throw new Error(result.message || '后端文件处理失败');
-            }
-            return {
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                content: result.content,
-                uploadTime: new Date().toISOString(),
-                tempFileId: result.temp_file_id,
-                processedByBackend: true
-            };
-        } catch (error) {
-            if (error.message.includes('Failed to fetch') || error.message.includes('网络错误')) {
-                throw new Error(`後端服務不可用，${file.name} 需要伺服器處理`);
-            }
-            throw error;
-        }
-    },
-
-    _addConversationFile(fileData) {
-        this.state.conversationFiles.push(fileData);
-        IndexUI.addConversationFileItem(fileData, this._getFileIcon, this._formatFileSize);
-
-        const msg = fileData.processedLocally
-            ? `${fileData.name} 已添加到對話（前端處理）`
-            : `${fileData.name} 已添加到對話（后端解析完成）`;
-        IndexUI.showStatusMessage(msg, 3000);
-    },
-
-    removeConversationFile(fileName) {
-        this.state.conversationFiles = this.state.conversationFiles.filter(f => f.name !== fileName);
-        const filesDiv = IndexUI.elements.conversationFiles;
-        if (filesDiv) {
-            const items = filesDiv.querySelectorAll('.conversation-file-item');
-            items.forEach(item => {
-                const nameEl = item.querySelector('.conversation-file-name');
-                if (nameEl && nameEl.textContent.includes(fileName)) {
-                    item.remove();
-                }
-            });
-            if (this.state.conversationFiles.length === 0) {
-                filesDiv.style.display = 'none';
-            }
-        }
-    },
-
-    _clearConversationFiles() {
-        this.state.conversationFiles = [];
-        this.state.processingFiles.clear();
-        IndexUI.clearConversationFiles();
-    },
-
-    _getFileIcon(filename) {
-        const ext = filename.toLowerCase().split('.').pop();
-        const icons = { txt: '📄', md: '📝', docx: '📘', pdf: '📕', pptx: '📊' };
-        return icons[ext] || '📄';
-    },
-
-    _formatFileSize(bytes) {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
-        return Math.round(bytes / (1024 * 1024)) + ' MB';
-    },
-
-    _sanitizeId(str) {
-        return str.replace(/[^a-zA-Z0-9]/g, '_');
-    },
-
-    /* ---------- 消息发送 ---------- */
-
-    async sendMessage() {
-        const el = IndexUI.elements;
-        const message = el.messageInput.value.trim();
-
-        if (!message && this.state.conversationFiles.length === 0) return;
-        if (!message && this.state.conversationFiles.length > 0) {
-            IndexUI.showStatusMessage('請輸入針對檔案的問題...', 3000);
-            el.messageInput.focus();
-            return;
-        }
-        if (this.state.isStreaming) return;
-
-        this.state.isStreaming = true;
-        el.sendButton.disabled = true;
-        el.messageInput.disabled = true;
-        el.messageInput.value = '';
-        IndexUI.autoResizeTextarea();
-
-        if (!this.state.currentConversationId) {
-            await this.createNewConversation();
-            if (!this.state.currentConversationId) {
-                this.state.isStreaming = false;
-                el.sendButton.disabled = false;
-                el.messageInput.disabled = false;
-                el.messageInput.value = message;
-                return;
-            }
-        }
-
-        const enhancedMessage = this._buildMessageWithFileContent(message);
-        this._addUserMessageWithFiles(message);
-        IndexUI.addTypingIndicator(this.state.currentSubject);
-
-        try {
-            const requestBody = {
-                question: enhancedMessage,
-                subject: this.state.currentSubject,
-                use_api: false,
-                model: 'deepseek-chat',
-                conversation_id: this.state.currentConversationId,
-                enable_thinking: this.state.enableThinking
-            };
-
-            const response = await IndexAPI.sendStreamMessage(requestBody);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            IndexUI.removeTypingIndicator();
-            const streamCtx = IndexUI.createStreamingMessage(this.state.currentSubject);
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let sseBuffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                sseBuffer += decoder.decode(value, { stream: true });
-                const parts = sseBuffer.split('\n\n');
-                sseBuffer = parts.pop() || '';
-
-                for (const part of parts) {
-                    this._processSSEPart(part, streamCtx);
-                }
-            }
-
-            if (sseBuffer.trim()) {
-                this._processSSEPart(sseBuffer, streamCtx);
-            }
-
-            this._finalizeStreamingMessage(streamCtx);
-            this._clearConversationFiles();
-            await this._loadConversations();
-
-        } catch (error) {
-            console.error('發送訊息失敗:', error);
-            IndexUI.removeTypingIndicator();
-            const errorMessage = error.message === 'Failed to fetch'
-                ? '網絡連接失敗，請檢查網絡'
-                : `發送失敗: ${error.message}`;
-            IndexUI.showStatusMessage(errorMessage, 5000);
-            el.messageInput.value = message;
-        } finally {
-            this.state.isStreaming = false;
-            el.sendButton.disabled = false;
-            el.messageInput.disabled = false;
-            el.messageInput.focus();
-        }
-    },
-
-    _processSSEPart(partRaw, streamCtx) {
-        const partText = partRaw.trim();
-        if (!partText) return;
-
-        let eventType = null;
-        let dataStr = null;
-        for (const sLine of partText.split('\n')) {
-            const sl = sLine.trim();
-            if (sl.startsWith('event: ')) {
-                eventType = sl.slice(7).trim();
-            } else if (sl.startsWith('data: ')) {
-                dataStr = sl.slice(6);
-            }
-        }
-
-        if (dataStr) {
-            try {
-                const eventData = JSON.parse(dataStr);
-                if (eventType) eventData.type = eventType;
-                this._handleStreamEvent(eventData, streamCtx);
-            } catch (parseErr) {
-                console.warn('SSE 解析跳过:', partText.slice(0, 100));
-            }
-        }
-    },
-
-    _handleStreamEvent(eventData, ctx) {
-        switch (eventData.type) {
-            case 'meta':
-                if (eventData.conversation_id) {
-                    this.state.currentConversationId = eventData.conversation_id;
-                }
-                break;
-
-            case 'thinking':
-                if (ctx.phase === 'init') {
-                    ctx.phase = 'thinking';
-                    ctx.thinkingSection.style.display = '';
-                }
-                ctx.fullThinking += (eventData.content || eventData.token || '');
-                ctx.thinkingText.textContent = ctx.fullThinking;
-                const thinkingSectionContent = ctx.thinkingSection.querySelector('.section-content');
-                if (thinkingSectionContent) {
-                    requestAnimationFrame(() => {
-                        thinkingSectionContent.scrollTop = thinkingSectionContent.scrollHeight;
-                    });
-                }
-                IndexUI.scrollToBottom();
-                break;
-
-            case 'answer':
-                if (ctx.phase !== 'answer') {
-                    ctx.phase = 'answer';
-                    if (ctx.thinkingCursor) ctx.thinkingCursor.remove();
-                    const contentEl = ctx.thinkingSection.querySelector('.section-content');
-                    if (contentEl) contentEl.classList.add('collapsed');
-                    const indicator = ctx.thinkingSection.querySelector('.collapse-indicator');
-                    if (indicator) indicator.classList.remove('expanded');
-                    ctx.answerDiv.style.display = '';
-                }
-                ctx.fullAnswer += (eventData.content || eventData.token || '');
-                ctx.answerText.textContent = ctx.fullAnswer;
-                IndexUI.scrollToBottom();
-                break;
-
-            case 'done':
-                ctx.phase = 'done';
-                if (eventData.full_answer) ctx.fullAnswer = eventData.full_answer;
-                if (eventData.full_thinking) ctx.fullThinking = eventData.full_thinking;
-                if (eventData.conversation_id) {
-                    this.state.currentConversationId = eventData.conversation_id;
-                }
-                break;
-
-            case 'error':
-                IndexUI.showStatusMessage(eventData.message, 5000);
-                break;
-        }
-    },
-
-    _finalizeStreamingMessage(ctx) {
-        ctx.bubbleDiv.querySelectorAll('.streaming-cursor').forEach(el => el.remove());
-
-        if (ctx.fullThinking) {
-            const sections = this._parseThinkingContent(ctx.fullThinking);
-            let thinkingHtml = '';
-
-            if (sections.knowledge) {
-                thinkingHtml += this._buildSectionHtml('knowledge-section', '參考資料', sections.knowledge);
-            }
-            if (sections.reasoning) {
-                thinkingHtml += this._buildSectionHtml('reasoning-section', '分析過程', sections.reasoning);
-            }
-            if (sections.thinking) {
-                thinkingHtml += this._buildSectionHtml('thinking-section', '思考筆記', sections.thinking);
-            }
-            if (!thinkingHtml && ctx.fullThinking.trim()) {
-                thinkingHtml = this._buildSectionHtml('reasoning-section', '思考過程', ctx.fullThinking);
-            }
-
-            ctx.thinkingSection.outerHTML = thinkingHtml;
-        } else {
-            ctx.thinkingSection.remove();
-        }
-
-        ctx.answerDiv.innerHTML = `<div class="answer-content">${this._formatTextWithMath(ctx.fullAnswer)}</div>`;
-
-        this._renderMath(ctx.messageDiv);
-        if (typeof Prism !== 'undefined' && Prism && typeof Prism.highlightAll === 'function') {
-            Prism.highlightAll();
-        }
-
-        // Bind section-header-toggle events for the finalized sections
-        ctx.bubbleDiv.querySelectorAll('.section-header').forEach(header => {
-            if (!header._bound) {
-                header._bound = true;
-                header.addEventListener('click', function () {
-                    this.nextElementSibling.classList.toggle('collapsed');
-                    this.querySelector('.collapse-indicator').classList.toggle('expanded');
-                });
-            }
-        });
-
-        IndexUI.scrollToBottom(true);
-    },
-
-    _buildSectionHtml(sectionClass, title, content) {
-        return `
-            <div class="${sectionClass}">
-                <div class="section-header">
-                    <span>${title}</span>
-                    <span class="collapse-indicator">▾</span>
-                </div>
-                <div class="section-content collapsed">${this._formatTextWithMath(content)}</div>
-            </div>
-        `;
-    },
-
-    /* ---------- 消息显示 ---------- */
-
-    _addMessage(role, content, thinking) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${role}`;
-
-        const bubbleDiv = document.createElement('div');
-        bubbleDiv.className = 'message-bubble';
-
-        if (role === 'assistant') {
-            const subjectInfo = this._getSubjectInfo(this.state.currentSubject);
-            let html = `<div class="subject-badge">${subjectInfo.icon} ${subjectInfo.name}</div>`;
-
-            if (thinking) {
-                const sections = this._parseThinkingContent(thinking);
-                if (sections.knowledge) {
-                    html += this._buildSectionHtml('knowledge-section', '參考資料', sections.knowledge);
-                }
-                if (sections.reasoning) {
-                    html += this._buildSectionHtml('reasoning-section', '分析過程', sections.reasoning);
-                }
-                if (sections.thinking) {
-                    html += this._buildSectionHtml('thinking-section', '思考筆記', sections.thinking);
-                }
-            }
-
-            html += `<div class="answer-content">${this._formatTextWithMath(content)}</div>`;
-            bubbleDiv.innerHTML = html;
-
-            // Bind section toggle
-            bubbleDiv.querySelectorAll('.section-header').forEach(header => {
-                header.addEventListener('click', function () {
-                    this.nextElementSibling.classList.toggle('collapsed');
-                    this.querySelector('.collapse-indicator').classList.toggle('expanded');
-                });
-            });
-        } else {
-            bubbleDiv.innerHTML = this._formatTextWithMath(content);
-        }
-
-        messageDiv.appendChild(bubbleDiv);
-        IndexUI.elements.messagesContainer.appendChild(messageDiv);
-        this._renderMath(messageDiv);
-        IndexUI.scrollToBottom(true);
-        if (typeof Prism !== 'undefined' && Prism && typeof Prism.highlightAll === 'function') {
-            Prism.highlightAll();
-        }
-    },
-
-    _addUserMessageWithFiles(message) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message user';
-
-        let content = '<div class="message-bubble">';
-        if (this.state.conversationFiles.length > 0) {
-            content += '<div style="margin-bottom: 8px;">';
-            this.state.conversationFiles.forEach(file => {
-                content += `<span style="background: rgba(0,122,255,0.1); padding: 4px 8px; margin-right: 4px; border-radius: 12px; font-size: 12px;">📄 ${file.name}</span>`;
-            });
-            content += '</div>';
-        }
-        content += `<div>${this._escapeHtml(message)}</div></div>`;
-        messageDiv.innerHTML = content;
-
-        IndexUI.elements.messagesContainer.appendChild(messageDiv);
-        IndexUI.scrollToBottom(true);
-    },
-
-    _buildMessageWithFileContent(userMessage) {
-        let enhanced = '';
-        if (this.state.conversationFiles.length > 0) {
-            enhanced += '【用户在此对话中上传的文件内容】\n\n';
-            this.state.conversationFiles.forEach((file, index) => {
-                enhanced += `文件 ${index + 1}: ${file.name}\n`;
-                enhanced += '文件内容:\n';
-                enhanced += file.content;
-                enhanced += '\n\n---\n\n';
-            });
-            enhanced += '【用户基于以上文件内容的问题】\n';
-        }
-        enhanced += userMessage;
-        return enhanced;
-    },
-
-    /* ---------- 文本格式化 ---------- */
-
-    _formatTextWithMath(text) {
-        if (!text) return '';
-
-        // 1. 提取并保护代码块
-        const codeBlocks = {};
-        let blockCounter = 0;
-
-        // 1a. 正常闭合的代码块
-        let processedText = text.replace(/```(\w+)?[ \t]*\n?([\s\S]*?)```/g,
-            (match, language, code) => {
-                const placeholder = `%%CODE_BLOCK_${blockCounter}%%`;
-                codeBlocks[placeholder] = { language, code };
-                blockCounter++;
-                return placeholder;
-            }
-        );
-
-        // 1b. 未闭合的代码块
-        processedText = processedText.replace(/```(\w+)?[ \t]*\n?([\s\S]+)$/g,
-            (match, language, code) => {
-                if (code.trim().length > 50) {
-                    const placeholder = `%%CODE_BLOCK_${blockCounter}%%`;
-                    codeBlocks[placeholder] = { language: language || 'plaintext', code: code.trim() };
-                    blockCounter++;
-                    return placeholder;
-                }
-                return match;
-            }
-        );
-
-        // 2. 检测未被代码块包裹的 HTML 内容
-        processedText = processedText.replace(
-            /((?:^|\n)\s*)(<!DOCTYPE[\s\S]*?<\/html\s*>)/gi,
-            (match, prefix, htmlBlock) => {
-                const placeholder = `%%CODE_BLOCK_${blockCounter}%%`;
-                codeBlocks[placeholder] = { language: 'html', code: htmlBlock };
-                blockCounter++;
-                return prefix + placeholder;
-            }
-        );
-        processedText = processedText.replace(
-            /((?:^|\n)\s*)(<html[\s\S]*?<\/html\s*>)/gi,
-            (match, prefix, htmlBlock) => {
-                const placeholder = `%%CODE_BLOCK_${blockCounter}%%`;
-                codeBlocks[placeholder] = { language: 'html', code: htmlBlock };
-                blockCounter++;
-                return prefix + placeholder;
-            }
-        );
-
-        // 2b. 截断的 HTML 文档
-        processedText = processedText.replace(
-            /((?:^|\n)\s*)(<!DOCTYPE[\s\S]{100,})$/gi,
-            (match, prefix, htmlBlock) => {
-                const placeholder = `%%CODE_BLOCK_${blockCounter}%%`;
-                codeBlocks[placeholder] = { language: 'html', code: htmlBlock.trim() };
-                blockCounter++;
-                return prefix + placeholder;
-            }
-        );
-        processedText = processedText.replace(
-            /((?:^|\n)\s*)(<html[\s\S]{100,})$/gi,
-            (match, prefix, htmlBlock) => {
-                const placeholder = `%%CODE_BLOCK_${blockCounter}%%`;
-                codeBlocks[placeholder] = { language: 'html', code: htmlBlock.trim() };
-                blockCounter++;
-                return prefix + placeholder;
-            }
-        );
-
-        // 转义散落的 HTML 标签
-        processedText = processedText
-            .replace(/<(!DOCTYPE[^>]*)>/gi, '&lt;$1&gt;')
-            .replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/</g, '&lt;').replace(/>/g, '&gt;'))
-            .replace(/<(\/?(?:html|head|body|div|span|style|script|link|meta|title|form|input|button|table|tr|td|th|ul|ol|li|p|h[1-6]|img|a|iframe|canvas|svg|section|header|footer|nav|main|article|aside)(?:\s[^>]*)?)\/?\s*>/gi, '&lt;$1&gt;');
-
-        // 3. 处理表格
-        processedText = this._processMarkdownTables(processedText);
-
-        // 4. 处理 Markdown 标题
-        processedText = processedText.replace(/^#####\s+(.+?)[\r]?$/gm, '<h6 class="md-h6">$1</h6>');
-        processedText = processedText.replace(/^####\s+(.+?)[\r]?$/gm, '<h5 class="md-h5">$1</h5>');
-        processedText = processedText.replace(/^###\s+(.+?)[\r]?$/gm, '<h4 class="md-h4">$1</h4>');
-        processedText = processedText.replace(/^##\s+(.+?)[\r]?$/gm, '<h3 class="md-h3">$1</h3>');
-        processedText = processedText.replace(/^#\s+(.+?)[\r]?$/gm, '<h2 class="md-h2">$1</h2>');
-
-        // 4b. 处理列表
-        processedText = processedText.replace(/^-\s+(.+?)[\r]?$/gm,
-            '<li style="margin-left: 20px; list-style-type: disc;">$1</li>');
-        processedText = processedText.replace(/^\d+\.\s+(.+?)[\r]?$/gm,
-            '<li style="margin-left: 20px; list-style-type: decimal;">$1</li>');
-
-        // 5. 引用块
-        processedText = processedText.replace(/^>\s+(.+?)[\r]?$/gm,
-            '<blockquote class="md-blockquote">$1</blockquote>');
-
-        // 6. 水平分割线
-        processedText = processedText.replace(/^---+[\r]?$/gm, '<hr class="md-hr">');
-
-        // 7. 其他格式
-        processedText = processedText
-            .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n/g, '<br>');
-
-        // 8. 清理多余 <br>
-        processedText = processedText.replace(/(<\/h[2-6]>)<br>/g, '$1');
-        processedText = processedText.replace(/<br>(<h[2-6])/g, '$1');
-        processedText = processedText.replace(/(<\/li>)<br>/g, '$1');
-        processedText = processedText.replace(/<br>(<li)/g, '$1');
-        processedText = processedText.replace(/(<\/blockquote>)<br>/g, '$1');
-        processedText = processedText.replace(/<br>(<blockquote)/g, '$1');
-        processedText = processedText.replace(/(<hr class="md-hr">)<br>/g, '$1');
-        processedText = processedText.replace(/<br>(<hr class="md-hr">)/g, '$1');
-        processedText = processedText.replace(/<br>(<div class="table-)/g, '$1');
-        processedText = processedText.replace(/(<\/table><\/div>)<br>/g, '$1');
-        processedText = processedText.replace(/(<\/div>)<br>(<div class="table-)/g, '$1$2');
-
-        // 9. 恢复代码块
-        for (const [placeholder, block] of Object.entries(codeBlocks)) {
-            const codeHtml = this._createCodeBlockHtml(block.code, block.language);
-            processedText = processedText.replace(placeholder, codeHtml);
-        }
-
-        return processedText;
-    },
-
-    _detectCodeLanguage(code) {
-        if (/^(import |from |def |class |print\(|if __name__)/m.test(code)) return 'python';
-        if (/^(const |let |var |function |=>|console\.)/m.test(code)) return 'javascript';
-        if (/^(public class |System\.out|private |protected )/m.test(code)) return 'java';
-        if (/^(#include|int main|void |printf|scanf)/m.test(code)) return 'c';
-        if (/^(std::|cout|cin|#include <iostream>)/m.test(code)) return 'cpp';
-        if (/^(\$|#!\/bin\/(bash|sh)|apt |sudo |npm |pip |cd |ls |mkdir )/m.test(code)) return 'bash';
-        if (/^\s*[\{\[]\s*"/.test(code)) return 'json';
-        if (/^(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)/im.test(code)) return 'sql';
-        if (/^[.#@][\w-]+\s*\{|^[\w-]+\s*:\s*[\w#]/m.test(code)) return 'css';
-        if (/<[a-z][\s\S]*>/i.test(code)) return 'html';
-        return 'plaintext';
-    },
-
-    _createCodeBlockHtml(code, language) {
-        const blockId = `code-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        language = language || this._detectCodeLanguage(code);
-
-        const escapedCode = code
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-        const isHtml = (language || '').toLowerCase() === 'html';
-        const previewBtnHtml = isHtml
-            ? `<button class="preview-html-button" data-preview-id="${blockId}">▶ 預覽</button>`
-            : '';
-
-        return `
-            <div class="code-block-wrapper">
-                <div class="code-block-header">
-                    <span class="code-language">${(language || 'plaintext').toUpperCase()}</span>
-                    <div class="code-block-actions">
-                        ${previewBtnHtml}
-                        <button class="copy-button" data-copy-id="${blockId}">複製</button>
-                    </div>
-                </div>
-                <div class="code-block-content">
-                    <pre id="${blockId}"><code class="language-${language || 'plaintext'}">${escapedCode}</code></pre>
-                </div>
-                ${isHtml ? `<div class="html-preview-container" id="preview-${blockId}" style="display:none;">
-                    <div class="html-preview-header">
-                        <span>HTML 預覽</span>
-                        <button class="preview-close-btn" data-close-preview-id="${blockId}">✕ 關閉</button>
-                    </div>
-                    <iframe class="html-preview-iframe" sandbox="allow-scripts allow-same-origin" title="HTML Preview"></iframe>
-                </div>` : ''}
-            </div>
-        `;
-    },
-
-    _renderMath(element) {
-        if (window.MathJax && window.MathJax.typesetPromise) {
-            window.MathJax.typesetPromise([element]);
-        }
-    },
-
-    _parseThinkingContent(thinking) {
-        const sections = { knowledge: null, reasoning: null, thinking: null };
-        if (!thinking || typeof thinking !== 'string') return sections;
-
-        const pairRegex = /【\s*([^】]+)\s*】([\s\S]*?)(?=【|$)/g;
-        let m;
-        while ((m = pairRegex.exec(thinking)) !== null) {
-            const header = (m[1] || '').trim();
-            const body = (m[2] || '').trim();
-            if (!body) continue;
-
-            const isKnowledge = /📚|知识库|检索|来源|引用|参考|sources?|reference|retrieval|embeddings?|向量|文档|文件|chunk|資料|資料來源/i.test(header);
-            const isReasoning = /🧠|深度推理|推理过程|reasoning|analysis|chain|演绎|归纳/i.test(header);
-            const isThinking = /💭|思考过程|思考|思维|思路|draft|plan|cot/i.test(header);
-
-            if (isKnowledge) {
-                const cleaned = body.replace(/^\s*(无|暂无|未找到)[^\n]*\n?/gmi, '').trim();
-                if (cleaned && cleaned.length > 10) sections.knowledge = cleaned;
-                continue;
-            }
-            if (isReasoning) { sections.reasoning = body; continue; }
-            if (isThinking) { sections.thinking = body; continue; }
-
-            if (/知识|检索|来源|参考/i.test(header)) {
-                sections.knowledge = body;
-            } else if (/推理|思考|思路/i.test(header)) {
-                sections.thinking = body;
-            }
-        }
-
-        if (sections.thinking && !sections.knowledge) {
-            const t = sections.thinking;
-            const kbScore =
-                ((t.match(/https?:\/\//g) || []).length >= 1 ? 1 : 0) +
-                (/来源|Source|Doc(?:ument)?|文档|文件|chunk|向量|embedding|检索|reference/i.test(t) ? 1 : 0) +
-                ((t.match(/\[[0-9]+\]/g) || []).length >= 2 ? 1 : 0);
-            if (kbScore >= 2) {
-                sections.knowledge = sections.thinking;
-                sections.thinking = null;
-            }
-        }
-
-        return sections;
-    },
-
-    _processMarkdownTables(text) {
-        const tableWithTitleRegex = /^(###?\s*\*?\*?([^*\n]+)\*?\*?)\s*\n\s*(\|[^\n]+\|)\s*\n\s*(\|[-:\s|]+\|)\s*\n((?:\s*\|[^\n]+\|\s*\n?)+)/gm;
-        text = text.replace(tableWithTitleRegex, (match, titleLine, title, headerRow, separatorRow, dataRows) => {
-            return this._renderMarkdownTable(headerRow.trim(), separatorRow.trim(), dataRows.trim(), title.trim());
-        });
-
-        const tableRegex = /^\s*(\|[^\n]+\|)\s*\n\s*(\|[-:\s|]+\|)\s*\n((?:\s*\|[^\n]+\|\s*\n?)+)/gm;
-        text = text.replace(tableRegex, (match, headerRow, separatorRow, dataRows) => {
-            if (!/-/.test(separatorRow)) return match;
-            return this._renderMarkdownTable(headerRow.trim(), separatorRow.trim(), dataRows.trim());
-        });
-
-        return text;
-    },
-
-    _renderMarkdownTable(headerRow, separatorRow, dataRows, title) {
-        try {
-            const parseRow = (row) => {
-                let cleaned = row.trim();
-                if (cleaned.startsWith('|')) cleaned = cleaned.substring(1);
-                if (cleaned.endsWith('|')) cleaned = cleaned.slice(0, -1);
-                return cleaned.split('|').map(cell => cell.trim());
-            };
-
-            const headers = parseRow(headerRow).map(h => h.replace(/\*\*/g, ''));
-            if (headers.length === 0) {
-                return headerRow + '\n' + separatorRow + '\n' + dataRows;
-            }
-
-            const rows = dataRows.trim().split('\n')
-                .filter(row => row.trim().length > 0 && row.includes('|'))
-                .map(row => parseRow(row))
-                .filter(row => row.length > 0 && row.some(cell => cell.length > 0));
-
-            if (rows.length === 0) {
-                return headerRow + '\n' + separatorRow + '\n' + dataRows;
-            }
-
-            let tableHtml = '';
-            if (title) tableHtml += `<div class="table-title">${title}</div>`;
-            tableHtml += '<div class="table-container"><table class="ai-table"><thead><tr>';
-            headers.forEach(header => {
-                tableHtml += `<th>${this._escapeHtml(header)}</th>`;
-            });
-            tableHtml += '</tr></thead><tbody>';
-            rows.forEach(row => {
-                tableHtml += '<tr>';
-                for (let i = 0; i < headers.length; i++) {
-                    tableHtml += `<td>${this._escapeHtml(row[i] || '')}</td>`;
-                }
-                tableHtml += '</tr>';
-            });
-            tableHtml += '</tbody></table></div>';
-            return tableHtml;
-
-        } catch (error) {
-            console.warn('表格解析失敗:', error);
-            return headerRow + '\n' + separatorRow + '\n' + dataRows;
-        }
-    },
-
-    _escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        window.location.href = url;
     }
 };
 
 /* ============================================================
-   全局函數（代碼塊複製 / HTML 預覽）
-   ============================================================ */
-
-function copyCodeBlock(blockId, btn) {
-    const codeBlock = document.getElementById(blockId);
-    if (!codeBlock) return;
-    navigator.clipboard.writeText(codeBlock.textContent).then(() => {
-        if (btn) {
-            btn.textContent = '已複製！';
-            btn.style.background = '#4caf50';
-            setTimeout(() => {
-                btn.textContent = '複製';
-                btn.style.background = '';
-            }, 2000);
-        }
-    });
-}
-
-function previewHtmlCode(blockId) {
-    const codeBlock = document.getElementById(blockId);
-    const previewContainer = document.getElementById('preview-' + blockId);
-    if (!codeBlock || !previewContainer) return;
-
-    const htmlCode = codeBlock.textContent;
-    const iframe = previewContainer.querySelector('.html-preview-iframe');
-
-    previewContainer.style.display = 'block';
-
-    let fullHtml = htmlCode.trim();
-    if (!fullHtml.toLowerCase().startsWith('<!doctype') && !fullHtml.toLowerCase().startsWith('<html')) {
-        fullHtml = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 16px; margin: 0; color: #333; }
-        * { box-sizing: border-box; }
-    </style>
-</head>
-<body>${fullHtml}</body>
-</html>`;
-    }
-
-    iframe.srcdoc = fullHtml;
-
-    iframe.onload = function () {
-        try {
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
-            const height = Math.min(doc.body.scrollHeight + 32, 600);
-            iframe.style.height = height + 'px';
-        } catch (e) {
-            iframe.style.height = '300px';
-        }
-    };
-}
-
-function closeHtmlPreview(blockId) {
-    const previewContainer = document.getElementById('preview-' + blockId);
-    if (previewContainer) {
-        previewContainer.style.display = 'none';
-        const iframe = previewContainer.querySelector('.html-preview-iframe');
-        if (iframe) iframe.srcdoc = '';
-    }
-}
-
-/* ============================================================
-   事件委派：代碼塊按鈕（複製 / 預覽 / 關閉預覽）
-   ============================================================ */
-
-document.addEventListener('click', (e) => {
-    // 複製按鈕
-    const copyBtn = e.target.closest('[data-copy-id]');
-    if (copyBtn) {
-        copyCodeBlock(copyBtn.dataset.copyId, copyBtn);
-        return;
-    }
-    // 預覽按鈕
-    const previewBtn = e.target.closest('[data-preview-id]');
-    if (previewBtn) {
-        previewHtmlCode(previewBtn.dataset.previewId);
-        return;
-    }
-    // 關閉預覽按鈕
-    const closeBtn = e.target.closest('[data-close-preview-id]');
-    if (closeBtn) {
-        closeHtmlPreview(closeBtn.dataset.closePreviewId);
-        return;
-    }
-});
-
-/* ============================================================
-   ToolboxManager 空殼（向後兼容）
-   ============================================================ */
-
-class ToolboxManager {
-    constructor(userRole) { this.userRole = userRole; }
-    open() {}
-    close() {}
-    render() {}
-    renderDock() {}
-    navigateTo(url) { window.location.href = url; }
-    hasAccess(roles) { return roles.includes(this.userRole); }
-}
-window.toolboxManager = null;
-
-/* ============================================================
    企業級啟動動畫 + 名言輪播
-   System Wake → Interface Deployment → Content Enter
+   System Wake -> Interface Deployment -> Content Enter
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -2494,10 +663,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const loginContainer = document.getElementById('loginContainer');
     if (!splashScreen || !loginContainer) return;
 
-    // ── 統一 easing ──
+    // -- 統一 easing --
     const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
-    // ── 已登入用戶：跳過全部動畫 ──
+    // -- 已登入用戶：跳過全部動畫 --
     const hasToken = AuthModule && AuthModule.getToken && AuthModule.getToken();
     if (hasToken) {
         splashScreen.style.display = 'none';
@@ -2506,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    // ── DOM 引用 ──
+    // -- DOM 引用 --
     const splashContent = splashScreen.querySelector('.splash-content');
     const splashMascot  = splashScreen.querySelector('.splash-mascot');
     const splashTitle   = splashScreen.querySelector('.splash-title');
@@ -2524,20 +693,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputGroups   = loginContainer.querySelectorAll('.input-group');
     const loginButton   = loginContainer.querySelector('.login-button');
 
-    /* ════════════════════════════════════════════
-       第一幕：系統喚醒（System Wake）≈ 2.5s
-       各元素 CSS 已設 opacity:0，GSAP 直接控制
-       ════════════════════════════════════════════ */
+    /* ====================================================
+       第一幕：系統喚醒（System Wake）~ 2.5s
+       ==================================================== */
     const tl = gsap.timeline();
 
     tl
-        // 小馬「點亮」：blur 6→0，opacity 0→1
+        // 小馬「點亮」：blur 6->0，opacity 0->1
         .to(splashMascot, {
             opacity: 1, filter: 'blur(0px)',
             duration: 1.2, ease: EASE
         }, 0.3)
 
-        // 標題依序出現（blur → 清晰）
+        // 標題依序出現（blur -> 清晰）
         .to(splashTitle, {
             opacity: 1, filter: 'blur(0px)',
             duration: 0.6, ease: 'power2.out'
@@ -2547,16 +715,16 @@ document.addEventListener('DOMContentLoaded', function () {
             duration: 0.6, ease: 'power2.out'
         }, 1.1)
 
-        // 載入細線：左→右掃過，再淡出
+        // 載入細線：左->右掃過，再淡出
         .to(loaderBar, { x: '200%', duration: 1.0, ease: 'power2.inOut' }, 1.2)
         .to(loaderBar, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 2.0)
 
-    /* ════════════════════════════════════════════
+    /* ====================================================
        第二幕：空間展開（Interface Deployment）
-       splash 整體淡出 → 深綠遮罩 → 登入頁面
-       ════════════════════════════════════════════ */
+       splash 整體淡出 -> 深綠遮罩 -> 登入頁面
+       ==================================================== */
 
-        // 提取小馬到 body 層（一次性設完屬性再 append，避免閃爍）
+        // 提取小馬到 body 層
         .add(() => {
             const r = splashMascot.getBoundingClientRect();
             Object.assign(splashMascot.style, {
@@ -2601,10 +769,10 @@ document.addEventListener('DOMContentLoaded', function () {
         .to(brandPanel, { opacity: 1, duration: 0.6, ease: EASE }, 3.05)
         .to(formPanel, { opacity: 1, duration: 0.6, ease: EASE }, 3.1)
 
-    /* ════════════════════════════════════════════
+    /* ====================================================
        第三幕：內容進入（Content Enter）
        小馬滑動 + 左側文字 + 右側表單
-       ════════════════════════════════════════════ */
+       ==================================================== */
 
         // 小馬滑向左側面板
         .add(() => {
@@ -2624,7 +792,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }, 3.2)
 
-        // 左側文字依次出現（blur → 清晰，stagger 0.12s）
+        // 左側文字依次出現（blur -> 清晰，stagger 0.12s）
         .to(brandWelcome, {
             opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out'
         }, 3.4)
@@ -2653,9 +821,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }, 3.8);
 
-    /* ════════════════════════════════════════════
+    /* ====================================================
        名人名言輪播（純 opacity，8 秒間隔）
-       ════════════════════════════════════════════ */
+       ==================================================== */
     const quotes = [
         { chinese: '「人工智慧是新的電力。」', english: 'AI is the new electricity.', author: 'Andrew Ng（吳恩達）' },
         { chinese: '「AI 是我們這個時代最強大的技術力量。」', english: 'AI is the most powerful technology force of our time.', author: 'Jensen Huang（黃仁勳）' },
@@ -2724,11 +892,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 document.addEventListener('DOMContentLoaded', () => {
     IndexApp.init();
-
-    // 初始化學習總結功能
-    if (typeof LearningSummaryManager !== 'undefined') {
-        window.learningSummaryManager = new LearningSummaryManager(IndexApp);
-    }
 });
 
 // 全局引用（向後兼容 HTML 中的 window.app 引用）

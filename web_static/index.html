@@ -5,41 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>培僑中學 學習夥伴</title>
     <link rel="stylesheet" href="/static/css/index.css">
-    <!-- 学习模式样式 -->
-    <link rel="stylesheet" href="/static/css/learning_modes.css">
-    <!-- PrismJS 代码高亮（自定义主题在 index.css 中） -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
-    <!-- MathJax配置和加载 -->
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['\\(', '\\)'], ['$', '$']],
-                displayMath: [['\\[', '\\]'], ['$$', '$$']],
-                processEscapes: true,
-                processEnvironments: true
-            },
-            options: {
-                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-            },
-            startup: {
-                ready() {
-                    MathJax.startup.defaultReady();
-                }
-            }
-        };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script"></script>
     <!-- GSAP 動畫引擎 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
@@ -140,39 +105,6 @@
     </div>
 </div>
 
-<!-- 確認刪除對話框 -->
-<div id="confirmDialog" class="confirm-dialog">
-    <div class="confirm-dialog-content">
-        <div class="confirm-dialog-title">⚠️ 確認刪除</div>
-        <div id="confirmDialogMessage" class="confirm-dialog-message"></div>
-        <div class="confirm-dialog-buttons">
-            <button id="confirmCancel" class="confirm-dialog-button cancel">取消</button>
-            <button id="confirmDelete" class="confirm-dialog-button danger">刪除</button>
-        </div>
-    </div>
-</div>
-
-<!-- 新建对话 - 科目选择弹窗 -->
-<div id="newChatModal" class="modal-overlay" style="display:none;">
-    <div class="new-chat-modal">
-        <div class="new-chat-modal-header">
-            <div class="new-chat-modal-title">開始新對話</div>
-            <button class="new-chat-modal-close" id="newChatModalClose">✕</button>
-        </div>
-        <div class="new-chat-modal-subtitle">選擇學科</div>
-        <div class="subject-grid" id="subjectGrid">
-            <!-- 科目卡片由 JS 动态生成 -->
-        </div>
-        <div class="new-chat-name-section" id="newChatNameSection" style="display:none;">
-            <div class="new-chat-name-label">對話名稱</div>
-            <div class="new-chat-name-row">
-                <input type="text" id="newChatNameInput" class="new-chat-name-input" placeholder="輸入對話名稱（可留空）" maxlength="50">
-                <button id="newChatConfirmBtn" class="new-chat-confirm-btn">開始</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- 应用导航首页 -->
 <div id="homeContainer" class="home-container" style="display: none;">
     <div class="home-header-bar">
@@ -219,120 +151,6 @@
     </div>
 </div>
 
-<!-- 主界面 -->
-<div id="mainContainer" class="main-container" style="display: none;">
-    <!-- 顶部工具栏 -->
-    <div class="header">
-        <div class="header-left">
-            <button id="backToHomeBtn" class="back-home-btn" title="返回首頁">←</button>
-            <button id="sidebarToggle" class="new-chat-btn">☰</button>
-            <div id="headerTitle" class="header-title">💻 ICT AI 學習夥伴</div>
-            <!-- 科目选择器（隐藏，仅作数据载体） -->
-            <select id="subjectSelector" class="subject-selector" style="display:none;">
-                <option value="ict">💻 ICT (載入中...)</option>
-            </select>
-            <!-- 添加隐藏的固定值 -->
-            <input type="hidden" id="modeSelector" value="local">
-        </div>
-        <div class="header-right">
-            <!-- 管理員按鈕（僅管理員可見） -->
-            <button id="adminButton" class="admin-button" style="display: none;">
-                <span>⚙️</span>管理後台
-            </button>
-
-            <div id="statusIndicator" class="status-indicator status-online">● 連接正常</div>
-
-            <!-- 用戶資訊區域 -->
-            <div class="user-info" id="userInfo">
-                <div class="user-avatar" id="userAvatar">A</div>
-                <div class="user-details">
-                    <div class="user-name" id="userName">學生</div>
-                    <div class="user-class" id="userClass">未分班</div>
-                </div>
-                <div class="user-menu" id="userMenu">
-                    <div class="user-menu-item" id="viewProfile">
-                        <span>👤 個人資料</span>
-                    </div>
-                    <div class="user-menu-item" id="viewReport">
-                        <span>📊 學習分析報告</span>
-                    </div>
-                    <div class="user-menu-item" id="changePassword">
-                        <span>🔐 修改密碼</span>
-                    </div>
-                    <div class="user-menu-separator"></div>
-                    <div class="user-menu-item" id="adminPanel" style="display: none;">
-                        <span>⚙️ 管理後台</span>
-                    </div>
-                    <div class="user-menu-separator" id="adminSeparator" style="display: none;"></div>
-                    <div class="user-menu-item" id="logoutButton">
-                        <span>🚪 退出登入</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="content-container">
-        <!-- 側邊欄遮罩（移動端） -->
-        <div id="sidebarOverlay" class="sidebar-overlay"></div>
-
-        <!-- 侧边栏 -->
-        <div id="sidebar" class="sidebar">
-            <!-- 關閉按鈕（移動端） -->
-            <button id="sidebarCloseBtn" class="sidebar-close-btn">✕</button>
-            <div class="sidebar-header">
-                <h3>對話歷史</h3>
-                <button id="newChatButton" class="new-chat-btn">+ 新對話</button>
-            </div>
-            <div id="conversationsList" class="conversations-list">
-                <!-- 對話列表將在這裡動態生成 -->
-            </div>
-        </div>
-
-        <!-- 聊天区域 -->
-        <div class="chat-container">
-            <div id="messagesContainer" class="messages-container">
-                <div class="welcome-message">
-                    <div class="welcome-title">歡迎使用 AI 學習夥伴！</div>
-                    <div class="welcome-subtitle">選擇科目並開始提問吧</div>
-                    <div class="feature-list" id="featureList">
-                        <!-- 功能列表将动态生成 -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- ChatGPT风格输入区域 -->
-            <div class="input-container" id="inputContainer">
-                <!-- 当前对话中的文件显示区域 -->
-                <div class="conversation-files" id="conversationFiles" style="display: none;">
-                    <!-- 文件将在这里显示 -->
-                </div>
-
-                <div class="input-row">
-                    <button class="file-upload-btn" id="fileUploadBtn" title="上傳檔案到當前對話">📎</button>
-                    <input type="file" id="fileUploadInput" class="file-upload-input"
-                           accept=".txt,.docx,.pdf,.pptx,.md" multiple>
-
-                    <textarea id="messageInput" class="message-input"
-                              placeholder="輸入訊息或拖曳檔案到此處..." rows="1"></textarea>
-
-                    <!-- 思考模式开关 -->
-                    <label class="thinking-toggle" id="thinkingToggleLabel" title="開啟後 AI 會先進行深度推理再回答，適合複雜問題">
-                        <input type="checkbox" id="thinkingToggle" checked>
-                        <span class="thinking-toggle-slider"></span>
-                        <span class="thinking-toggle-text" id="thinkingToggleText">深度思考</span>
-                    </label>
-
-                    <button id="sendButton" class="send-button">發送</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 共享模組 -->
-<script src="/static/js/learning_modes_frontend.js"></script>
-<script src="/static/js/learning_summary.js"></script>
 <script src="/static/js/shared/utils.js"></script>
 <script src="/static/js/shared/auth.js"></script>
 <script src="/static/js/shared/ui.js"></script>

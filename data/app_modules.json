@@ -4,7 +4,7 @@
     "name": "AI 學習對話",
     "icon": "💬",
     "description": "一對一AI輔導對話",
-    "url": "__internal_chat__",
+    "url": "/chat",
     "roles": [
       "student",
       "teacher",
