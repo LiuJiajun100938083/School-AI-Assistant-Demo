@@ -31,12 +31,16 @@ window.slc = (() => {
     const GRADES = ['中一', '中二', '中三', '中四', '中五', '中六'];
     const ADMIN_API = '/api/admin/learning-center';
 
+    // ── 獲取 Token ──
+    function _getToken() {
+        return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+    }
+
     // ── API ──
     const API = {
         _headers() {
-            const token = localStorage.getItem('token') || '';
             return {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${_getToken()}`,
                 'Content-Type': 'application/json',
             };
         },
@@ -108,10 +112,9 @@ window.slc = (() => {
 
         // ── Admin APIs ──
         async adminUpload(formData) {
-            const token = localStorage.getItem('token') || '';
             const r = await fetch(`${ADMIN_API}/upload`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
+                headers: { 'Authorization': `Bearer ${_getToken()}` },
                 body: formData,
             });
             return r.json();
@@ -618,6 +621,12 @@ window.slc = (() => {
         async init() {
             console.log('🏫 學校學習中心初始化...');
 
+            // 檢查登入
+            if (!_getToken()) {
+                window.location.href = '/login';
+                return;
+            }
+
             // 檢查角色 — 解碼 JWT
             App._detectRole();
 
@@ -964,7 +973,7 @@ window.slc = (() => {
 
         // ── Admin ──
         _detectRole() {
-            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const token = _getToken();
             if (!token) return;
             try {
                 const parts = token.split('.');
