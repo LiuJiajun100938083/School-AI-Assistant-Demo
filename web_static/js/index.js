@@ -257,6 +257,8 @@ const HomeApp = {
 
         if (this.state.authToken) {
             await this._verifyToken();
+            // 數據加載完成後，觸發啟動動畫
+            this._playSplashAnimation();
         } else {
             // 無 token，跳轉登入頁
             window.location.href = '/login';
@@ -508,6 +510,101 @@ const HomeApp = {
 
     _openApp(appId, url) {
         window.location.href = url;
+    },
+
+    /* ---------- 啟動動畫 ---------- */
+
+    _playSplashAnimation() {
+        if (typeof gsap === 'undefined') {
+            // GSAP 未載入，直接移除 splash
+            const splash = document.getElementById('splashScreen');
+            if (splash) splash.style.display = 'none';
+            return;
+        }
+
+        const splashScreen = document.getElementById('splashScreen');
+        const glassPanel   = document.getElementById('glassPanel');
+        const homeContainer = document.getElementById('homeContainer');
+        if (!splashScreen) return;
+
+        const splashIcon   = splashScreen.querySelector('.splash-icon');
+        const splashTitle  = splashScreen.querySelector('.splash-title');
+        const splashSub    = splashScreen.querySelector('.splash-subtitle');
+        const splashLoader = splashScreen.querySelector('.splash-loader');
+
+        const headerBar    = document.querySelector('.home-header-bar');
+        const titleSection = document.querySelector('.home-title-section');
+        const appsGrid     = document.querySelector('.home-apps-grid');
+
+        const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+        // 隱藏主界面元素，等動畫結束再顯示
+        gsap.set([headerBar, titleSection, appsGrid].filter(Boolean), { opacity: 0 });
+
+        /* ═══ 第一幕：系統喚醒 ≈ 2.5s ═══ */
+        const tl = gsap.timeline();
+
+        tl
+            // 吉祥物圖示點亮：blur → clear
+            .to(splashIcon, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 1.0, ease: EASE
+            }, 0.3)
+
+            // 標題依序出現
+            .to(splashTitle, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 0.6, ease: 'power2.out'
+            }, 0.8)
+            .to(splashSub, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 0.6, ease: 'power2.out'
+            }, 1.0)
+
+            // 骨牌 loader 淡入 → 淡出
+            .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.1)
+            .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 1.9)
+
+        /* ═══ 第二幕：過渡到主界面 ═══ */
+
+            // 深綠遮罩升起
+            .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.3)
+
+            // splash 藏在遮罩後移除
+            .add(() => { splashScreen.style.display = 'none'; }, 2.7)
+
+            // 準備主界面元素
+            .add(() => {
+                if (headerBar)    gsap.set(headerBar, { opacity: 0, y: -30 });
+                if (titleSection) gsap.set(titleSection, { opacity: 0, y: 20 });
+                if (appsGrid)     gsap.set(appsGrid, { opacity: 0, y: 30 });
+            }, 2.75)
+
+            // 遮罩淡去，露出主界面
+            .to(glassPanel, {
+                opacity: 0, duration: 0.6, ease: EASE,
+                onComplete() { glassPanel.style.display = 'none'; }
+            }, 2.8)
+
+        /* ═══ 第三幕：界面元素進入 ═══ */
+
+            // Header 從上方滑入
+            .to(headerBar, {
+                opacity: 1, y: 0,
+                duration: 0.6, ease: 'power2.out'
+            }, 2.9)
+
+            // 標題區域淡入上滑
+            .to(titleSection, {
+                opacity: 1, y: 0,
+                duration: 0.7, ease: 'power2.out'
+            }, 3.0)
+
+            // 應用卡片區域淡入上滑
+            .to(appsGrid, {
+                opacity: 1, y: 0,
+                duration: 0.7, ease: 'power2.out'
+            }, 3.15);
     }
 };
 

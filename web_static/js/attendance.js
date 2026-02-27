@@ -3478,7 +3478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const splashIcon   = splashScreen.querySelector('.splash-icon');
         const splashTitle  = splashScreen.querySelector('.splash-title');
         const splashSub    = splashScreen.querySelector('.splash-subtitle');
-        const loaderBar    = splashScreen.querySelector('.splash-loader-bar');
+        const splashLoader = splashScreen.querySelector('.splash-loader');
 
         const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
@@ -3505,9 +3505,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 duration: 0.6, ease: 'power2.out'
             }, 1.0)
 
-            // 細線 loader 掃過
-            .to(loaderBar, { x: '200%', duration: 1.0, ease: 'power2.inOut' }, 1.1)
-            .to(loaderBar, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 1.9)
+            // 骨牌 loader 淡入 → 淡出
+            .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.1)
+            .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 1.9)
 
         /* ═══ 第二幕：過渡到主界面 ═══ */
 

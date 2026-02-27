@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const splashMascot  = splashScreen.querySelector('.splash-mascot');
     const splashTitle   = splashScreen.querySelector('.splash-title');
     const splashSub     = splashScreen.querySelector('.splash-subtitle');
-    const loaderBar     = splashScreen.querySelector('.splash-loader-bar');
+    const splashLoader  = splashScreen.querySelector('.splash-loader');
     const brandPanel    = loginContainer.querySelector('.login-brand-panel');
     const formPanel     = loginContainer.querySelector('.login-form-panel');
     const brandMascot   = loginContainer.querySelector('.brand-mascot');
@@ -207,8 +207,8 @@ document.addEventListener('DOMContentLoaded', function () {
             duration: 0.6, ease: 'power2.out'
         }, 1.1)
 
-        .to(loaderBar, { x: '200%', duration: 1.0, ease: 'power2.inOut' }, 1.2)
-        .to(loaderBar, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 2.0)
+        .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.2)
+        .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 2.1)
 
     /* ====================================================
        第二幕：空間展開（Interface Deployment）

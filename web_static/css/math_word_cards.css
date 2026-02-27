@@ -26,10 +26,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-se
 .splash-icon { font-size: 80px; margin-bottom: 20px; animation: pulse 2s infinite; }
 .splash-title { font-size: 32px; font-weight: 700; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .splash-subtitle { font-size: 16px; color: var(--text-secondary); margin: 8px 0 30px; }
-.splash-loader { display: flex; justify-content: center; gap: 8px; }
-.loader-dot { width: 10px; height: 10px; background: var(--accent-blue); border-radius: 50%; animation: bounce 1.4s infinite; }
-.loader-dot:nth-child(1) { animation-delay: -0.32s; }
-.loader-dot:nth-child(2) { animation-delay: -0.16s; }
+.splash-loader { margin-top: 40px; display: flex; justify-content: center; opacity: 0; }
 
 /* Container */
 .mwv-container { min-height: 100vh; display: flex; flex-direction: column; }
@@ -201,7 +198,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-se
 
 /* Animations */
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 
 /* Responsive */
 @media (max-width: 768px) {

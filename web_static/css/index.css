@@ -174,6 +174,75 @@ p, span, div, li, label {
 }
 
 /* ================================================
+   系統喚醒啟動畫面（深綠主題，與 Login 一致）
+   ================================================ */
+.splash-screen {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.splash-content {
+    text-align: center;
+}
+
+.splash-icon {
+    margin-bottom: 32px;
+    opacity: 0;
+    filter: blur(6px);
+    will-change: filter, opacity;
+}
+
+.splash-mascot {
+    width: 120px;
+    height: auto;
+    filter: drop-shadow(0 4px 20px rgba(0, 102, 51, 0.35));
+}
+
+.splash-title {
+    font-size: 28px;
+    font-weight: 500;
+    color: #FFFFFF;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    opacity: 0;
+    filter: blur(8px);
+}
+
+.splash-subtitle {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    opacity: 0;
+    filter: blur(8px);
+}
+
+.splash-loader {
+    margin-top: 40px;
+    display: flex;
+    justify-content: center;
+    opacity: 0;
+}
+
+/* ================================================
+   過渡遮罩（splash → 主界面 的深綠遮罩）
+   ================================================ */
+.glass-panel {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    z-index: 9998;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ================================================
    （登入頁面樣式已移至 login.css）
    ================================================ */
 
