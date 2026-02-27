@@ -441,9 +441,17 @@
      * 利用 PDF Open Parameters 标准：在 URL 后添加 #page=N。
      */
     function navigatePdfToPage(page) {
+        // 优先使用 PDF.js viewer 的 goToPage（iPad/Safari 兼容）
+        if ($.modules.media && $.modules.media.pdfGoToPage) {
+            $.modules.media.pdfGoToPage(page);
+            $.showToast(`已跳转到第 ${page} 页`, 'info');
+            return;
+        }
+
+        // Fallback: iframe 方式（桌面浏览器原生 PDF 插件）
         const iframe = document.querySelector('.alc-ebook-doc-iframe');
         if (!iframe) {
-            console.warn('未找到 PDF iframe，无法跳转页码');
+            console.warn('未找到 PDF viewer，无法跳转页码');
             return;
         }
 
@@ -451,13 +459,9 @@
         const baseSrc = currentSrc.replace(/#.*$/, '');
         const newSrc = `${baseSrc}#page=${page}`;
 
-        // 使用 contentWindow.location.replace() 导航到带页码的 URL
-        // Chrome PDF viewer 只在加载时读取 #page=N，hash 变化不会触发跳页
-        // replace() 会利用浏览器缓存，PDF 文件不重新下载，减少闪烁
         try {
             iframe.contentWindow.location.replace(newSrc);
         } catch (e) {
-            // 跨域 iframe fallback
             iframe.src = newSrc;
         }
 
