@@ -43,47 +43,33 @@ class SchoolLearningCenterService:
     # ================================================================
 
     def get_subjects_with_content(self) -> List[Dict]:
-        """获取有学习内容的科目列表"""
-        subject_codes = self._contents.find_distinct_subjects()
-        if not subject_codes:
+        """获取所有活跃学科（从 subjects 表），并统计每个学科的内容数量"""
+        try:
+            rows = self._contents.raw_query(
+                "SELECT subject_code, subject_name, config FROM subjects WHERE is_active = 1 ORDER BY id ASC"
+            )
+        except Exception:
+            rows = []
+
+        if not rows:
             return []
 
         result = []
-        for code in subject_codes:
+        for row in rows:
+            code = row.get("subject_code")
+            config = row.get("config") or {}
+            if isinstance(config, str):
+                try:
+                    config = json.loads(config)
+                except Exception:
+                    config = {}
             count = self._contents.count_published_by_subject(code)
-            try:
-                rows = self._contents.raw_query(
-                    "SELECT subject_code, subject_name, config FROM subjects WHERE subject_code = %s",
-                    (code,),
-                )
-                if rows:
-                    row = rows[0]
-                    config = row.get("config") or {}
-                    if isinstance(config, str):
-                        try:
-                            config = json.loads(config)
-                        except Exception:
-                            config = {}
-                    result.append({
-                        "subject_code": code,
-                        "subject_name": row.get("subject_name", code),
-                        "icon": config.get("icon", "📚"),
-                        "content_count": count,
-                    })
-                else:
-                    result.append({
-                        "subject_code": code,
-                        "subject_name": code,
-                        "icon": "📚",
-                        "content_count": count,
-                    })
-            except Exception:
-                result.append({
-                    "subject_code": code,
-                    "subject_name": code,
-                    "icon": "📚",
-                    "content_count": count,
-                })
+            result.append({
+                "subject_code": code,
+                "subject_name": row.get("subject_name", code),
+                "icon": config.get("icon", "📚"),
+                "content_count": count,
+            })
 
         return result
 
