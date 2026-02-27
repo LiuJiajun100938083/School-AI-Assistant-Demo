@@ -28,7 +28,7 @@ class LLMConfig:
     # 通用參數
     temperature: float = 0.6
     top_p: float = 0.95
-    timeout: int = 120
+    timeout: int = 300
     max_tokens: int = 81920
     num_ctx: int = 131072
 

@@ -89,6 +89,15 @@ class OllamaProvider(BaseLLMProvider):
         Yields:
             str: 每次生成的文本片段
         """
+        # --- 動態 num_ctx：根據 prompt 長度自適應 ---
+        # 中文約 1.5 字符/token，預留 max_tokens 給生成 + 1024 安全邊距
+        # 下限 8192（短對話極速響應），上限為配置值（長對話完整支持）
+        estimated_tokens = int(len(prompt) / 1.5)
+        dynamic_num_ctx = min(
+            max(estimated_tokens + self.max_tokens + 1024, 8192),
+            self.num_ctx
+        )
+
         url = f"{self.base_url}/api/chat"
         payload = {
             "model": self.model,
@@ -101,7 +110,7 @@ class OllamaProvider(BaseLLMProvider):
                 "temperature": self.temperature,
                 "top_p": self.top_p,
                 "num_predict": self.max_tokens,
-                "num_ctx": self.num_ctx,
+                "num_ctx": dynamic_num_ctx,
                 **({"num_gpu": self.num_gpu} if self.num_gpu is not None else {}),
             }
         }
@@ -110,7 +119,7 @@ class OllamaProvider(BaseLLMProvider):
             payload["options"]["stop"] = self.stop_tokens
 
         gpu_info = f", num_gpu={self.num_gpu}" if self.num_gpu is not None else ""
-        logger.info(f"🔗 Ollama 請求: model={self.model}, num_ctx={self.num_ctx}, num_predict={self.max_tokens}{gpu_info}")
+        logger.info(f"🔗 Ollama 請求: model={self.model}, num_ctx={dynamic_num_ctx}(prompt≈{estimated_tokens}tok), num_predict={self.max_tokens}{gpu_info}")
         async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=10.0)) as client:
             async with client.stream("POST", url, json=payload) as response:
                 if response.status_code != 200:
