@@ -1353,7 +1353,7 @@ class LearningCenterService:
         if content_id is not None:
             # ---- 内容感知 RAG 路径 ----
             from llm.rag.content_indexer import get_content_indexer
-            from llm.rag.retrieval import get_context_for_content
+            from llm.rag.retrieval import get_context_for_content_with_pages
 
             content = self._contents.find_by_id(content_id)
             if not content:
@@ -1362,6 +1362,8 @@ class LearningCenterService:
                 return
 
             content_title = content.get("title", "")
+            is_pdf = (content.get("mime_type") or "").lower().find("pdf") >= 0 or \
+                     (content.get("file_name") or content.get("file_path") or "").lower().endswith(".pdf")
 
             # 懒索引
             indexer = get_content_indexer()
@@ -1372,10 +1374,12 @@ class LearningCenterService:
                     None, partial(indexer.index, content_id, dict(content))
                 )
 
-            # RAG 检索
-            rag_context = await loop.run_in_executor(
-                None, partial(get_context_for_content, question, content_id),
+            # RAG 检索（带页码引用）
+            rag_context, page_refs = await loop.run_in_executor(
+                None, partial(get_context_for_content_with_pages, question, content_id),
             )
+            if is_pdf and page_refs:
+                page_references = page_refs
 
             system_prompt = (
                 f"你是 AI 学习助教。学生正在阅读「{content_title}」。\n"
