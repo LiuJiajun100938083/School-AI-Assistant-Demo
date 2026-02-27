@@ -48,7 +48,9 @@ class SchoolLearningCenterService:
             rows = self._contents.raw_query(
                 "SELECT subject_code, subject_name, config FROM subjects WHERE is_active = 1 ORDER BY id ASC"
             )
-        except Exception:
+            logger.info("SLC: 从 subjects 表查到 %d 条学科", len(rows) if rows else 0)
+        except Exception as e:
+            logger.exception("SLC: 查询 subjects 表失败: %s", e)
             rows = []
 
         if not rows:
@@ -63,7 +65,14 @@ class SchoolLearningCenterService:
                     config = json.loads(config)
                 except Exception:
                     config = {}
-            count = self._contents.count_published_by_subject(code)
+            elif isinstance(config, dict):
+                pass  # MySQL JSON 列已自动解析
+            else:
+                config = {}
+            try:
+                count = self._contents.count_published_by_subject(code)
+            except Exception:
+                count = 0
             result.append({
                 "subject_code": code,
                 "subject_name": row.get("subject_name", code),

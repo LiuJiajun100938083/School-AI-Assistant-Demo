@@ -48,6 +48,7 @@ window.slc = (() => {
         async getSubjects() {
             const r = await fetch('/api/school-learning-center/subjects', { headers: this._headers() });
             const j = await r.json();
+            if (!r.ok) console.error('getSubjects error:', r.status, j);
             return j.data || [];
         },
 
