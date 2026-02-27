@@ -1367,15 +1367,18 @@ class LearningCenterService:
 
         thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
 
-        # 流式调用 LLM — async_stream 使用 /api/chat + think:true，
-        # Ollama 会将 thinking 放在独立字段，content 中只有 answer，
-        # 因此无需 StreamingThinkingParser，直接 yield 即可。
+        # 流式调用 LLM — async_stream yield 元組 (type, content)
+        # type 為 "thinking" 或 "answer"
         provider = get_ollama_provider()
 
-        async for token in provider.async_stream(thinking_prompt):
-            if token:
-                full_answer_parts.append(token)
-                yield {"type": "token", "content": token}
+        async for token_type, token_content in provider.async_stream(thinking_prompt):
+            if not token_content:
+                continue
+            if token_type == "thinking":
+                yield {"type": "thinking", "content": token_content}
+            else:
+                full_answer_parts.append(token_content)
+                yield {"type": "token", "content": token_content}
 
         # 完成后匹配知识图谱节点
         full_answer = "".join(full_answer_parts)

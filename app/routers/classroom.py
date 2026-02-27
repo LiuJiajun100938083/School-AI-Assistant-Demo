@@ -860,14 +860,14 @@ async def classroom_ai_stream(
             try:
                 provider = get_ollama_provider()
 
-                # async_stream 使用 /api/chat，Ollama 自动分离 thinking/answer，
-                # content 中只有 answer，无需 StreamingThinkingParser
-                async for token in provider.async_stream(
+                # async_stream yield 元組 (type, content)
+                # 課堂模式關閉思考，但仍需解構元組
+                async for token_type, token_content in provider.async_stream(
                     thinking_prompt, enable_thinking=False,
                 ):
-                    if token:
-                        full_answer.append(token)
-                        yield sse_event("answer", {"content": token})
+                    if token_content:
+                        full_answer.append(token_content)
+                        yield sse_event("answer", {"content": token_content})
 
             except Exception as e:
                 logger.error("课堂 AI 流式生成失败: %s", e)
