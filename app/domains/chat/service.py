@@ -495,6 +495,7 @@ class ChatService:
                 use_api=False,
                 conversation_history=[],
                 model=self._settings.llm_local_model,
+                task_type="summary",
             )
         except Exception as e:
             logger.error("生成总结失败: %s", e)

@@ -40,11 +40,53 @@ class OllamaProvider(BaseLLMProvider):
             logger.error(f"❌ Ollama 提供者初始化失敗: {e}")
             raise
 
+    def _calc_dynamic_num_ctx(self, prompt: str) -> int:
+        """根據 prompt 長度動態計算 num_ctx（所有調用路徑共用）"""
+        estimated_tokens = int(len(prompt) / 1.5)
+        return min(
+            max(estimated_tokens + self.max_tokens + 1024, 8192),
+            self.num_ctx
+        )
+
     def invoke(self, prompt: str) -> str:
-        """同步調用 Ollama"""
-        if self._llm is None:
-            raise RuntimeError("Ollama LLM 未初始化")
-        return self._llm.invoke(prompt)
+        """
+        同步調用 Ollama（使用 httpx + 動態 num_ctx）
+
+        不再依賴 langchain OllamaLLM，確保與 async_stream 一致的動態上下文窗口。
+        """
+        dynamic_num_ctx = self._calc_dynamic_num_ctx(prompt)
+
+        url = f"{self.base_url}/api/chat"
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+            "think": False,
+            "options": {
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "num_predict": self.max_tokens,
+                "num_ctx": dynamic_num_ctx,
+                **({"num_gpu": self.num_gpu} if self.num_gpu is not None else {}),
+            }
+        }
+
+        if self.stop_tokens:
+            payload["options"]["stop"] = self.stop_tokens
+
+        estimated_tokens = int(len(prompt) / 1.5)
+        logger.info(f"🔗 Ollama invoke: model={self.model}, num_ctx={dynamic_num_ctx}(prompt≈{estimated_tokens}tok)")
+
+        with httpx.Client(timeout=httpx.Timeout(self.timeout, connect=10.0)) as client:
+            response = client.post(url, json=payload)
+            if response.status_code != 200:
+                error_text = response.text[:500]
+                logger.error(f"❌ Ollama API 錯誤 {response.status_code}: {error_text}")
+                response.raise_for_status()
+
+            data = response.json()
+            msg = data.get("message") or {}
+            return msg.get("content") or ""
 
     def invoke_with_messages(self, messages: List[Dict]) -> str:
         """使用消息列表格式調用（轉換為單一 prompt）"""
@@ -90,13 +132,8 @@ class OllamaProvider(BaseLLMProvider):
             tuple[str, str]: (type, content) — type 為 "thinking" 或 "answer"
         """
         # --- 動態 num_ctx：根據 prompt 長度自適應 ---
-        # 中文約 1.5 字符/token，預留 max_tokens 給生成 + 1024 安全邊距
-        # 下限 8192（短對話極速響應），上限為配置值（長對話完整支持）
+        dynamic_num_ctx = self._calc_dynamic_num_ctx(prompt)
         estimated_tokens = int(len(prompt) / 1.5)
-        dynamic_num_ctx = min(
-            max(estimated_tokens + self.max_tokens + 1024, 8192),
-            self.num_ctx
-        )
 
         url = f"{self.base_url}/api/chat"
         payload = {
