@@ -814,72 +814,79 @@ window.slc = (() => {
             }
         },
 
-        openContent(contentId, contentType) {
-            // 根據內容類型決定如何打開
-            if (contentType === 'document') {
-                // PDF 用 iframe 打開
-                UI.openContentModal('文檔查看', `<iframe src="/api/school-learning-center/contents/${contentId}/file" style="width:100%;height:70vh;border:none;"></iframe>`);
-                // 實際上需要根據文件路徑構建 URL
-                // 這裡先使用簡化版
-                fetch(`/api/school-learning-center/contents/${contentId}`, {
-                    headers: API._headers(),
-                }).then(r => r.json()).then(j => {
-                    const data = j.data;
-                    if (data && data.file_path) {
-                        const filePath = data.file_path.replace(/^uploads\//, '/uploads/');
-                        UI.openContentModal(
-                            data.title || '文檔',
-                            `<iframe src="${filePath}" style="width:100%;height:70vh;border:none;"></iframe>`
-                        );
-                    }
-                }).catch(() => {});
-            } else if (contentType === 'video_external') {
-                fetch(`/api/school-learning-center/contents/${contentId}`, {
-                    headers: API._headers(),
-                }).then(r => r.json()).then(j => {
-                    const data = j.data;
-                    if (data && data.external_url) {
-                        UI.openContentModal(
-                            data.title || '視頻',
-                            `<iframe src="${data.embed_url || data.external_url}" style="width:100%;height:70vh;border:none;" allowfullscreen></iframe>`
-                        );
-                    }
-                }).catch(() => {});
-            } else if (contentType === 'article') {
-                fetch(`/api/school-learning-center/contents/${contentId}`, {
-                    headers: API._headers(),
-                }).then(r => r.json()).then(j => {
-                    const data = j.data;
-                    if (data) {
-                        const html = data.article_content
-                            ? _renderMarkdown(data.article_content)
-                            : `<p>${_escHtml(data.description || '暫無內容')}</p>`;
-                        UI.openContentModal(data.title || '文章', `<div style="max-width:800px;margin:0 auto;line-height:1.8;font-size:15px;">${html}</div>`);
-                    }
-                }).catch(() => {});
-            } else if (contentType === 'video_local') {
-                fetch(`/api/school-learning-center/contents/${contentId}`, {
-                    headers: API._headers(),
-                }).then(r => r.json()).then(j => {
-                    const data = j.data;
-                    if (data && data.file_path) {
-                        const filePath = data.file_path.replace(/^uploads\//, '/uploads/');
-                        UI.openContentModal(
-                            data.title || '視頻',
-                            `<video controls style="width:100%;max-height:70vh;"><source src="${filePath}" type="${data.mime_type || 'video/mp4'}">瀏覽器不支持視頻播放</video>`
-                        );
-                    }
-                }).catch(() => {});
+        async openContent(contentId, contentType) {
+            // 統一先拿內容詳情
+            let data;
+            try {
+                const r = await fetch(`/api/school-learning-center/contents/${contentId}`, { headers: API._headers() });
+                const j = await r.json();
+                data = j.data;
+            } catch (e) {
+                console.error('載入內容失敗:', e);
+                return;
+            }
+            if (!data) return;
+
+            const _type = contentType || data.content_type || '';
+
+            if (_type === 'document') {
+                const fileUrl = _getFileUrl(data);
+                if (!fileUrl) {
+                    UI.openContentModal(data.title || '文檔', '<p style="padding:20px;">無法載入文件</p>');
+                    return;
+                }
+                const isPdf = (data.mime_type || '').includes('pdf')
+                    || (data.file_name || data.file_path || '').toLowerCase().endsWith('.pdf');
+
+                if (isPdf && window.pdfjsLib) {
+                    // PDF.js — iPad/Safari 兼容
+                    UI.openContentModal(data.title || '文檔', '<div id="slcPdfContainer" style="height:70vh;"></div>');
+                    setTimeout(() => {
+                        const container = document.getElementById('slcPdfContainer');
+                        if (container) _renderPdfViewer(container, fileUrl, 1, data);
+                    }, 50);
+                } else {
+                    UI.openContentModal(
+                        data.title || '文檔',
+                        `<iframe src="${_escHtml(fileUrl)}" style="width:100%;height:70vh;border:none;"></iframe>
+                         <div style="text-align:center;margin-top:8px;">
+                             <a href="${_escHtml(fileUrl)}" download="${_escHtml(data.title || 'download')}" style="color:var(--slc-primary);">下載文件</a>
+                         </div>`
+                    );
+                }
+            } else if (_type === 'video_external') {
+                const embedUrl = _parseVideoEmbed(data.external_url);
+                if (embedUrl) {
+                    UI.openContentModal(
+                        data.title || '視頻',
+                        `<div style="position:relative;width:100%;padding-top:56.25%;"><iframe src="${_escHtml(embedUrl)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>`
+                    );
+                } else {
+                    UI.openContentModal(
+                        data.title || '視頻',
+                        `<p>外部視頻連結：<a href="${_escHtml(data.external_url || '')}" target="_blank">${_escHtml(data.external_url || '無連結')}</a></p>`
+                    );
+                }
+            } else if (_type === 'video_local') {
+                const fileUrl = _getFileUrl(data);
+                if (fileUrl) {
+                    UI.openContentModal(
+                        data.title || '視頻',
+                        `<video controls style="width:100%;max-height:70vh;"><source src="${_escHtml(fileUrl)}" type="${data.mime_type || 'video/mp4'}">瀏覽器不支持視頻播放</video>`
+                    );
+                }
+            } else if (_type === 'article') {
+                const html = data.article_content
+                    ? _renderMarkdown(data.article_content)
+                    : `<p>${_escHtml(data.description || '暫無內容')}</p>`;
+                UI.openContentModal(data.title || '文章', `<div style="max-width:800px;margin:0 auto;line-height:1.8;font-size:15px;">${html}</div>`);
+            } else if (_type === 'image') {
+                const fileUrl = _getFileUrl(data);
+                if (fileUrl) {
+                    UI.openContentModal(data.title || '圖片', `<img src="${_escHtml(fileUrl)}" alt="${_escHtml(data.title || '')}" style="max-width:100%;max-height:70vh;display:block;margin:0 auto;" />`);
+                }
             } else {
-                // Fallback: 打開內容詳情
-                fetch(`/api/school-learning-center/contents/${contentId}`, {
-                    headers: API._headers(),
-                }).then(r => r.json()).then(j => {
-                    const data = j.data;
-                    if (data) {
-                        UI.openContentModal(data.title || '資源', `<div style="padding:20px;">${_escHtml(data.description || '暫無描述')}</div>`);
-                    }
-                }).catch(() => {});
+                UI.openContentModal(data.title || '資源', `<div style="padding:20px;">${_escHtml(data.description || '暫無描述')}</div>`);
             }
         },
 
@@ -1433,6 +1440,197 @@ window.slc = (() => {
     };
 
     // ── 工具函數 ──
+
+    /** 從內容數據中獲取文件 URL */
+    function _getFileUrl(content) {
+        if (!content) return '';
+        if (content.file_path) {
+            return content.file_path.replace(/^uploads\//, '/uploads/');
+        }
+        return '';
+    }
+
+    /** 解析視頻外鏈為嵌入 URL */
+    function _parseVideoEmbed(url) {
+        if (!url) return '';
+        // YouTube
+        let m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+        if (m) return `https://www.youtube.com/embed/${m[1]}`;
+        // Bilibili
+        m = url.match(/bilibili\.com\/video\/(BV[\w]+)/);
+        if (m) return `https://player.bilibili.com/player.html?bvid=${m[1]}&high_quality=1`;
+        return url; // fallback: 直接用原始 URL
+    }
+
+    /** PDF.js 渲染器 — iPad/Safari 兼容 */
+    async function _renderPdfViewer(container, fileUrl, startPage, content) {
+        if (window.pdfjsLib && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        container.innerHTML = `
+            <div class="slc-pdf-viewer">
+                <div class="slc-pdf-toolbar">
+                    <button class="slc-pdf-btn" data-action="prev" title="上一頁">◀</button>
+                    <span class="slc-pdf-page-info">
+                        <input class="slc-pdf-page-input" type="number" min="1" value="1" />
+                        <span>/ <span class="slc-pdf-total">-</span></span>
+                    </span>
+                    <button class="slc-pdf-btn" data-action="next" title="下一頁">▶</button>
+                    <span class="slc-pdf-separator"></span>
+                    <button class="slc-pdf-btn" data-action="zoomout" title="縮小">−</button>
+                    <span class="slc-pdf-zoom-label">100%</span>
+                    <button class="slc-pdf-btn" data-action="zoomin" title="放大">+</button>
+                    <span class="slc-pdf-separator"></span>
+                    <a href="${_escHtml(fileUrl)}" class="slc-pdf-btn" download="${_escHtml((content && content.title) || 'download')}" title="下載">⬇</a>
+                </div>
+                <div class="slc-pdf-scroll-area">
+                    <div class="slc-pdf-pages"></div>
+                </div>
+                <div class="slc-pdf-loading">載入 PDF 中...</div>
+            </div>`;
+
+        const viewer = container.querySelector('.slc-pdf-viewer');
+        const pagesContainer = viewer.querySelector('.slc-pdf-pages');
+        const scrollArea = viewer.querySelector('.slc-pdf-scroll-area');
+        const loadingEl = viewer.querySelector('.slc-pdf-loading');
+        const pageInput = viewer.querySelector('.slc-pdf-page-input');
+        const totalEl = viewer.querySelector('.slc-pdf-total');
+        const zoomLabel = viewer.querySelector('.slc-pdf-zoom-label');
+
+        let pdfDoc = null;
+        let scale = 1.5;
+        let currentPage = startPage || 1;
+        const renderedPages = new Map();
+
+        try {
+            pdfDoc = await pdfjsLib.getDocument(fileUrl).promise;
+        } catch (err) {
+            console.error('[PDF.js] Failed to load:', err);
+            loadingEl.textContent = 'PDF 載入失敗';
+            return;
+        }
+
+        const numPages = pdfDoc.numPages;
+        totalEl.textContent = numPages;
+        pageInput.max = numPages;
+        pageInput.value = currentPage;
+        loadingEl.style.display = 'none';
+
+        for (let i = 1; i <= numPages; i++) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'slc-pdf-page';
+            pageDiv.dataset.page = i;
+            pagesContainer.appendChild(pageDiv);
+        }
+
+        async function renderPage(pageNum) {
+            if (renderedPages.has(pageNum) || !pdfDoc) return;
+            renderedPages.set(pageNum, true);
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale });
+                const pageDiv = pagesContainer.querySelector(`[data-page="${pageNum}"]`);
+                if (!pageDiv) return;
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                canvas.style.width = '100%';
+                canvas.style.height = 'auto';
+                pageDiv.style.minHeight = '';
+                pageDiv.innerHTML = '';
+                pageDiv.appendChild(canvas);
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport }).promise;
+                renderedPages.set(pageNum, canvas);
+            } catch (err) {
+                console.error(`[PDF.js] Error rendering page ${pageNum}:`, err);
+            }
+        }
+
+        function renderVisiblePages() {
+            const scrollTop = scrollArea.scrollTop;
+            const scrollBottom = scrollTop + scrollArea.clientHeight;
+            const pageDivs = pagesContainer.querySelectorAll('.slc-pdf-page');
+            pageDivs.forEach(div => {
+                const top = div.offsetTop;
+                const bottom = top + (div.offsetHeight || 200);
+                const pageNum = parseInt(div.dataset.page);
+                if (bottom >= scrollTop - 500 && top <= scrollBottom + 500) {
+                    renderPage(pageNum);
+                }
+            });
+            const centerY = scrollTop + scrollArea.clientHeight / 2;
+            for (const div of pageDivs) {
+                const top = div.offsetTop;
+                const bottom = top + (div.offsetHeight || 200);
+                if (centerY >= top && centerY <= bottom) {
+                    const p = parseInt(div.dataset.page);
+                    if (p !== currentPage) {
+                        currentPage = p;
+                        pageInput.value = p;
+                    }
+                    break;
+                }
+            }
+        }
+
+        async function goToPage(pageNum) {
+            pageNum = Math.max(1, Math.min(numPages, pageNum));
+            currentPage = pageNum;
+            pageInput.value = pageNum;
+            await renderPage(pageNum);
+            const target = pagesContainer.querySelector(`[data-page="${pageNum}"]`);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function rerender() {
+            renderedPages.clear();
+            pagesContainer.querySelectorAll('.slc-pdf-page').forEach(div => {
+                div.innerHTML = '';
+                div.style.minHeight = '200px';
+            });
+            zoomLabel.textContent = Math.round(scale / 1.5 * 100) + '%';
+            await renderPage(currentPage);
+            renderVisiblePages();
+        }
+
+        viewer.querySelector('.slc-pdf-toolbar').addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'prev') goToPage(currentPage - 1);
+            else if (action === 'next') goToPage(currentPage + 1);
+            else if (action === 'zoomin') { scale = Math.min(4, scale + 0.3); rerender(); }
+            else if (action === 'zoomout') { scale = Math.max(0.5, scale - 0.3); rerender(); }
+        });
+
+        pageInput.addEventListener('change', () => {
+            const p = parseInt(pageInput.value);
+            if (p >= 1 && p <= numPages) goToPage(p);
+        });
+        pageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const p = parseInt(pageInput.value);
+                if (p >= 1 && p <= numPages) goToPage(p);
+            }
+        });
+
+        let _scrollTimer = null;
+        scrollArea.addEventListener('scroll', () => {
+            if (_scrollTimer) clearTimeout(_scrollTimer);
+            _scrollTimer = setTimeout(renderVisiblePages, 80);
+        }, { passive: true });
+
+        for (let i = 1; i <= Math.min(3, numPages); i++) {
+            await renderPage(i);
+        }
+        if (startPage > 1) {
+            setTimeout(() => goToPage(startPage), 100);
+        }
+    }
+
     function _escHtml(str) {
         if (!str) return '';
         const div = document.createElement('div');

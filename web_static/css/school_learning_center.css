@@ -1331,3 +1331,121 @@
         right: -100vw;
     }
 }
+
+/* ============================================================
+   PDF.js 查看器樣式
+   ============================================================ */
+.slc-pdf-viewer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 70vh;
+    background: #f5f5f5;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.slc-pdf-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #333;
+    color: #fff;
+    font-size: 13px;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.slc-pdf-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.slc-pdf-btn:hover { background: rgba(255,255,255,0.25); }
+
+.slc-pdf-page-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.slc-pdf-page-input {
+    width: 44px;
+    height: 24px;
+    padding: 0 4px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 3px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    text-align: center;
+    font-size: 13px;
+    -moz-appearance: textfield;
+}
+.slc-pdf-page-input::-webkit-inner-spin-button,
+.slc-pdf-page-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.slc-pdf-separator {
+    width: 1px;
+    height: 18px;
+    background: rgba(255,255,255,0.2);
+    margin: 0 4px;
+}
+
+.slc-pdf-zoom-label {
+    min-width: 36px;
+    text-align: center;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.slc-pdf-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+}
+
+.slc-pdf-pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.slc-pdf-page {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.slc-pdf-page canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.slc-pdf-loading {
+    padding: 40px;
+    text-align: center;
+    color: #888;
+    font-size: 14px;
+}
