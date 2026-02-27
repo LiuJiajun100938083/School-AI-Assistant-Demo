@@ -247,37 +247,72 @@ window.slc = (() => {
             });
         },
 
-        // --- 教學資源 ---
-        renderResources(items) {
-            const grid = document.getElementById('resourceGrid');
-            if (!grid) return;
-            if (!items.length) {
-                grid.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">📄</div><div class="slc-empty-state__text">該科目暫無教學資源</div></div>';
+        // --- 教學資源（電子教科書目錄） ---
+        renderEbookDirectory(items) {
+            const nav = document.getElementById('slcEbookDirectory');
+            if (!nav) return;
+            if (!items || !items.length) {
+                nav.innerHTML = '<p class="slc-ebook-nav-empty">該科目暫無教學資源</p>';
                 return;
             }
-            grid.innerHTML = items.map(item => {
-                const typeLabel = { document: '📄 文檔', video_local: '🎬 視頻', video_external: '🎬 視頻', article: '📝 文章', image: '🖼️ 圖片' };
-                const typeClass = item.content_type || 'document';
-                const grade = item.grade_level ? `<span class="slc-resource-card__grade">${item.grade_level}</span>` : '';
-                return `
-                <div class="slc-resource-card" onclick="slc.openContent(${item.id}, '${item.content_type}')">
-                    <div class="slc-resource-card__body">
-                        <span class="slc-resource-card__type-badge --${typeClass}">${typeLabel[item.content_type] || item.content_type}</span>
-                        <div class="slc-resource-card__title">${_escHtml(item.title)}</div>
-                        <div class="slc-resource-card__desc">${_escHtml(item.description || '')}</div>
+
+            const typeIcon = { document: '📄', video_local: '🎬', video_external: '🔗', article: '📝', image: '🖼️' };
+            const typeLabel = { document: '文檔', video_local: '本地視頻', video_external: '外部視頻', article: '文章', image: '圖片' };
+
+            // 按類型分組
+            const grouped = {};
+            items.forEach(item => {
+                const t = item.content_type || 'document';
+                if (!grouped[t]) grouped[t] = [];
+                grouped[t].push(item);
+            });
+
+            const typeOrder = ['document', 'video_local', 'video_external', 'article', 'image'];
+            let html = '';
+
+            typeOrder.forEach(t => {
+                if (!grouped[t] || !grouped[t].length) return;
+                const icon = typeIcon[t] || '📎';
+                const label = typeLabel[t] || t;
+                html += `<div class="slc-ebook-folder">
+                    <div class="slc-ebook-folder-header">
+                        <span class="slc-ebook-folder-arrow">▾</span>
+                        <span class="slc-ebook-folder-icon">${icon}</span>
+                        <span class="slc-ebook-folder-name">${label} (${grouped[t].length})</span>
                     </div>
-                    <div class="slc-resource-card__meta">
-                        ${grade}
-                        <span>👁️ ${item.view_count || 0}</span>
-                        <span style="margin-left:auto">${_formatDate(item.created_at)}</span>
-                    </div>
-                </div>`;
-            }).join('');
+                    <ul class="slc-ebook-folder-items">`;
+                grouped[t].forEach(item => {
+                    html += `<li class="slc-ebook-item" data-id="${item.id}" data-type="${t}">
+                        <span class="slc-ebook-item-icon">${icon}</span>
+                        <span class="slc-ebook-item-title">${_escHtml(item.title)}</span>
+                    </li>`;
+                });
+                html += `</ul></div>`;
+            });
+
+            nav.innerHTML = html;
+
+            // 文件夾摺疊
+            nav.querySelectorAll('.slc-ebook-folder-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    header.closest('.slc-ebook-folder').classList.toggle('slc-ebook-folder--collapsed');
+                });
+            });
+
+            // 點擊內容項 → 右側內嵌顯示
+            nav.querySelectorAll('.slc-ebook-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    nav.querySelectorAll('.slc-ebook-item').forEach(i => i.classList.remove('slc-ebook-item--active'));
+                    item.classList.add('slc-ebook-item--active');
+                    const contentId = item.getAttribute('data-id');
+                    App.openContent(parseInt(contentId));
+                });
+            });
         },
 
         showResourceLoading() {
-            const grid = document.getElementById('resourceGrid');
-            if (grid) grid.innerHTML = '<div class="slc-loading"><div class="slc-loading__spinner"></div><div>加載中...</div></div>';
+            const nav = document.getElementById('slcEbookDirectory');
+            if (nav) nav.innerHTML = '<p class="slc-ebook-nav-empty">加載中...</p>';
         },
 
         // --- 知識圖譜 ---
@@ -490,23 +525,22 @@ window.slc = (() => {
             }
         },
 
-        // --- 內容查看器 ---
-        openContentModal(title, html) {
-            const overlay = document.getElementById('contentModal');
-            if (!overlay) return;
-            document.getElementById('modalTitle').textContent = title;
-            document.getElementById('modalBody').innerHTML = html;
-            overlay.classList.add('--visible');
-        },
-
-        closeContentModal() {
-            const overlay = document.getElementById('contentModal');
-            if (overlay) overlay.classList.remove('--visible');
+        // --- 內容查看器（內嵌版） ---
+        closeEbookViewer() {
+            const welcome = document.getElementById('slcEbookWelcome');
+            const viewer = document.getElementById('slcEbookViewer');
+            const bodyEl = document.getElementById('slcViewerBody');
+            if (welcome) welcome.style.display = '';
+            if (viewer) viewer.style.display = 'none';
+            if (bodyEl) bodyEl.innerHTML = '';
             // 清除當前內容上下文
             state.currentContentId = null;
             state.currentContentTitle = null;
             state.pdfGoToPage = null;
             _updateAIContentContext();
+            // 取消目錄高亮
+            const nav = document.getElementById('slcEbookDirectory');
+            if (nav) nav.querySelectorAll('.slc-ebook-item').forEach(i => i.classList.remove('slc-ebook-item--active'));
         },
 
         // --- Header stats ---
@@ -677,6 +711,12 @@ window.slc = (() => {
                 });
             }
 
+            // 電子書側邊欄開關
+            const sidebarToggle = document.getElementById('slcSidebarToggle');
+            if (sidebarToggle) sidebarToggle.addEventListener('click', App.toggleEbookSidebar);
+            const sidebarClose = document.getElementById('slcSidebarClose');
+            if (sidebarClose) sidebarClose.addEventListener('click', App.closeEbookSidebar);
+
             // AI FAB
             const fab = document.getElementById('aiFab');
             if (fab) fab.addEventListener('click', App.toggleAIWindow);
@@ -746,10 +786,12 @@ window.slc = (() => {
                     UI.showResourceLoading();
                     try {
                         state.contents = await API.getContents(subjectCode, grade, state.contentTypeFilter);
-                        UI.renderResources(state.contents);
+                        UI.renderEbookDirectory(state.contents);
+                        // 自動展開側邊欄
+                        App.openEbookSidebar();
                     } catch (e) {
                         console.error('載入資源失敗:', e);
-                        UI.renderResources([]);
+                        UI.renderEbookDirectory([]);
                     }
                     break;
                 case 'map':
@@ -793,7 +835,7 @@ window.slc = (() => {
             UI.showResourceLoading();
             try {
                 const result = await API.searchContents(keyword, state.currentSubject?.subject_code);
-                UI.renderResources(result);
+                UI.renderEbookDirectory(result);
             } catch (e) {
                 console.error('搜索失敗:', e);
             }
@@ -824,6 +866,19 @@ window.slc = (() => {
         },
 
         async openContent(contentId, contentType) {
+            const welcome = document.getElementById('slcEbookWelcome');
+            const viewer = document.getElementById('slcEbookViewer');
+            const titleEl = document.getElementById('slcViewerTitle');
+            const descEl = document.getElementById('slcViewerDesc');
+            const bodyEl = document.getElementById('slcViewerBody');
+
+            if (!viewer || !bodyEl) return;
+
+            // 確保在教學資源 Tab
+            if (state.currentTab !== 'resources') {
+                await App.switchTab('resources');
+            }
+
             // 統一先拿內容詳情
             let data;
             try {
@@ -842,67 +897,120 @@ window.slc = (() => {
             state.pdfGoToPage = null;  // 重置，PDF 渲染後會重新設置
             _updateAIContentContext();
 
+            // 隱藏歡迎頁，顯示查看器
+            if (welcome) welcome.style.display = 'none';
+            viewer.style.display = 'flex';
+
+            // 設置標題 / 描述
+            if (titleEl) titleEl.textContent = data.title || '';
+            if (descEl) descEl.textContent = data.description || '';
+
+            // 清空舊內容
+            bodyEl.innerHTML = '';
+
+            // 高亮目錄中的活躍項
+            const nav = document.getElementById('slcEbookDirectory');
+            if (nav) {
+                nav.querySelectorAll('.slc-ebook-item').forEach(i => {
+                    i.classList.toggle('slc-ebook-item--active', i.getAttribute('data-id') == contentId);
+                });
+            }
+
             const _type = contentType || data.content_type || '';
 
-            if (_type === 'document') {
-                const fileUrl = _getFileUrl(data);
-                if (!fileUrl) {
-                    UI.openContentModal(data.title || '文檔', '<p style="padding:20px;">無法載入文件</p>');
-                    return;
-                }
-                const isPdf = (data.mime_type || '').includes('pdf')
-                    || (data.file_name || data.file_path || '').toLowerCase().endsWith('.pdf');
+            switch (_type) {
+                case 'document': {
+                    const fileUrl = _getFileUrl(data);
+                    if (!fileUrl) {
+                        bodyEl.innerHTML = '<p class="slc-ebook-error" style="padding:20px;">無法載入文件</p>';
+                        break;
+                    }
+                    const isPdf = (data.mime_type || '').includes('pdf')
+                        || (data.file_name || data.file_path || '').toLowerCase().endsWith('.pdf');
 
-                if (isPdf && window.pdfjsLib) {
-                    // PDF.js — iPad/Safari 兼容
-                    UI.openContentModal(data.title || '文檔', '<div id="slcPdfContainer" style="height:70vh;"></div>');
-                    setTimeout(() => {
-                        const container = document.getElementById('slcPdfContainer');
-                        if (container) _renderPdfViewer(container, fileUrl, 1, data);
-                    }, 50);
-                } else {
-                    UI.openContentModal(
-                        data.title || '文檔',
-                        `<iframe src="${_escHtml(fileUrl)}" style="width:100%;height:70vh;border:none;"></iframe>
-                         <div style="text-align:center;margin-top:8px;">
-                             <a href="${_escHtml(fileUrl)}" download="${_escHtml(data.title || 'download')}" style="color:var(--slc-primary);">下載文件</a>
-                         </div>`
-                    );
+                    if (isPdf && window.pdfjsLib) {
+                        // PDF.js — iPad/Safari 兼容
+                        _renderPdfViewer(bodyEl, fileUrl, 1, data);
+                    } else {
+                        bodyEl.innerHTML = `
+                            <iframe src="${_escHtml(fileUrl)}" style="width:100%;height:80vh;border:none;"></iframe>
+                            <div style="text-align:center;margin-top:8px;">
+                                <a href="${_escHtml(fileUrl)}" download="${_escHtml(data.title || 'download')}" style="color:var(--slc-primary);">下載文件</a>
+                            </div>`;
+                    }
+                    break;
                 }
-            } else if (_type === 'video_external') {
-                const embedUrl = _parseVideoEmbed(data.external_url);
-                if (embedUrl) {
-                    UI.openContentModal(
-                        data.title || '視頻',
-                        `<div style="position:relative;width:100%;padding-top:56.25%;"><iframe src="${_escHtml(embedUrl)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>`
-                    );
-                } else {
-                    UI.openContentModal(
-                        data.title || '視頻',
-                        `<p>外部視頻連結：<a href="${_escHtml(data.external_url || '')}" target="_blank">${_escHtml(data.external_url || '無連結')}</a></p>`
-                    );
+                case 'video_external': {
+                    const embedUrl = _parseVideoEmbed(data.external_url);
+                    if (embedUrl) {
+                        bodyEl.innerHTML = `<div class="slc-ebook-video-wrap">
+                            <iframe class="slc-ebook-iframe" src="${_escHtml(embedUrl)}"
+                                frameborder="0" allowfullscreen
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                            </iframe>
+                        </div>`;
+                    } else {
+                        bodyEl.innerHTML = `<p>外部視頻連結：<a href="${_escHtml(data.external_url || '')}" target="_blank" rel="noopener">${_escHtml(data.external_url || '無連結')}</a></p>`;
+                    }
+                    break;
                 }
-            } else if (_type === 'video_local') {
-                const fileUrl = _getFileUrl(data);
-                if (fileUrl) {
-                    UI.openContentModal(
-                        data.title || '視頻',
-                        `<video controls style="width:100%;max-height:70vh;"><source src="${_escHtml(fileUrl)}" type="${data.mime_type || 'video/mp4'}">瀏覽器不支持視頻播放</video>`
-                    );
+                case 'video_local': {
+                    const fileUrl = _getFileUrl(data);
+                    if (fileUrl) {
+                        bodyEl.innerHTML = `<video class="slc-ebook-video" controls>
+                            <source src="${_escHtml(fileUrl)}" type="${data.mime_type || 'video/mp4'}">
+                            瀏覽器不支持視頻播放
+                        </video>`;
+                    } else {
+                        bodyEl.innerHTML = '<p class="slc-ebook-error">無法載入視頻</p>';
+                    }
+                    break;
                 }
-            } else if (_type === 'article') {
-                const html = data.article_content
-                    ? _renderMarkdown(data.article_content)
-                    : `<p>${_escHtml(data.description || '暫無內容')}</p>`;
-                UI.openContentModal(data.title || '文章', `<div style="max-width:800px;margin:0 auto;line-height:1.8;font-size:15px;">${html}</div>`);
-            } else if (_type === 'image') {
-                const fileUrl = _getFileUrl(data);
-                if (fileUrl) {
-                    UI.openContentModal(data.title || '圖片', `<img src="${_escHtml(fileUrl)}" alt="${_escHtml(data.title || '')}" style="max-width:100%;max-height:70vh;display:block;margin:0 auto;" />`);
+                case 'article': {
+                    const articleContent = data.article_content || data.description || '';
+                    if (typeof marked !== 'undefined' && articleContent) {
+                        const html = marked.parse(articleContent);
+                        const clean = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
+                        bodyEl.innerHTML = `<div class="slc-ebook-article">${clean}</div>`;
+                    } else {
+                        bodyEl.innerHTML = `<div class="slc-ebook-article">${_escHtml(articleContent) || '<p>暫無內容</p>'}</div>`;
+                    }
+                    break;
                 }
-            } else {
-                UI.openContentModal(data.title || '資源', `<div style="padding:20px;">${_escHtml(data.description || '暫無描述')}</div>`);
+                case 'image': {
+                    const fileUrl = data.image_url || _getFileUrl(data);
+                    if (fileUrl) {
+                        bodyEl.innerHTML = `<img class="slc-ebook-image" src="${_escHtml(fileUrl)}" alt="${_escHtml(data.title || '')}" />`;
+                    } else {
+                        bodyEl.innerHTML = '<p class="slc-ebook-error">無法載入圖片</p>';
+                    }
+                    break;
+                }
+                default: {
+                    const fileUrl = _getFileUrl(data);
+                    if (fileUrl) {
+                        bodyEl.innerHTML = `<p>檔案：<a href="${_escHtml(fileUrl)}" target="_blank" rel="noopener">${_escHtml(data.title || '下載')}</a></p>`;
+                    } else {
+                        bodyEl.innerHTML = `<div style="padding:20px;">${_escHtml(data.description || '暫無描述')}</div>`;
+                    }
+                }
             }
+        },
+
+        // --- 電子書側邊欄 ---
+        openEbookSidebar() {
+            const container = document.getElementById('slcEbookContainer');
+            if (container) container.classList.add('slc-ebook--sidebar-open');
+        },
+
+        closeEbookSidebar() {
+            const container = document.getElementById('slcEbookContainer');
+            if (container) container.classList.remove('slc-ebook--sidebar-open');
+        },
+
+        toggleEbookSidebar() {
+            const container = document.getElementById('slcEbookContainer');
+            if (container) container.classList.toggle('slc-ebook--sidebar-open');
         },
 
         // --- AI 聊天 ---
@@ -1737,8 +1845,8 @@ window.slc = (() => {
             AdminUI.showToast(`已跳轉到第 ${pageNum} 頁`, 'info');
             return;
         }
-        // Fallback: 嘗試找到 PDF 容器中的頁面元素
-        const container = document.getElementById('slcPdfContainer');
+        // Fallback: 嘗試找到 PDF 容器中的頁面元素（內嵌查看器）
+        const container = document.getElementById('slcViewerBody');
         if (container) {
             const target = container.querySelector(`[data-page="${pageNum}"]`);
             if (target) {
@@ -1796,8 +1904,9 @@ window.slc = (() => {
         openContent: (id, type) => App.openContent(id, type),
         toggleAIWindow: () => App.toggleAIWindow(),
         sendAIMessage: () => App.sendAIMessage(),
-        closeModal: () => UI.closeContentModal(),
+        closeModal: () => UI.closeEbookViewer(),
         toggleMobileSidebar: () => App.toggleMobileSidebar(),
+        toggleEbookSidebar: () => App.toggleEbookSidebar(),
         // AI 內容感知
         navigatePdfToPage: (page) => _navigatePdfToPage(page),
         clearContentContext: () => {

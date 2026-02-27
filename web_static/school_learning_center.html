@@ -56,24 +56,45 @@
             <!-- Tab 內容面板 -->
             <div class="slc-tab-panels">
 
-                <!-- Tab: 教學資源 -->
+                <!-- Tab: 教學資源（電子教科書風格） -->
                 <section id="tab-resources" class="slc-tab-panel --active">
-                    <div class="slc-search-bar">
-                        <input class="slc-search-input" id="searchInput" placeholder="搜索資源..." type="text">
-                        <button class="slc-search-btn" onclick="slc.doSearch()">🔍 搜索</button>
-                    </div>
-                    <div class="slc-type-filters">
-                        <button class="slc-type-chip" data-type="document" onclick="slc.filterByType('document')">📄 文檔</button>
-                        <button class="slc-type-chip" data-type="video_local" onclick="slc.filterByType('video_local')">🎬 本地視頻</button>
-                        <button class="slc-type-chip" data-type="video_external" onclick="slc.filterByType('video_external')">🔗 外部視頻</button>
-                        <button class="slc-type-chip" data-type="article" onclick="slc.filterByType('article')">📝 文章</button>
-                        <button class="slc-type-chip" data-type="image" onclick="slc.filterByType('image')">🖼️ 圖片</button>
-                    </div>
-                    <div class="slc-resource-grid" id="resourceGrid">
-                        <div class="slc-loading">
-                            <div class="slc-loading__spinner"></div>
-                            <div>加載資源...</div>
-                        </div>
+                    <div class="slc-ebook" id="slcEbookContainer">
+                        <!-- 側邊欄展開按鈕 -->
+                        <button class="slc-ebook-toggle" id="slcSidebarToggle" title="展開目錄">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                        </button>
+
+                        <!-- 左側目錄欄（默認收起） -->
+                        <aside class="slc-ebook-sidebar">
+                            <div class="slc-ebook-sidebar-header">
+                                <h3 class="slc-ebook-sidebar-title">📄 目錄</h3>
+                                <button class="slc-ebook-sidebar-close" id="slcSidebarClose" title="收起目錄">✕</button>
+                            </div>
+                            <nav id="slcEbookDirectory" class="slc-ebook-nav">
+                                <p class="slc-ebook-nav-empty">加載中...</p>
+                            </nav>
+                        </aside>
+
+                        <!-- 右側內容區 -->
+                        <main class="slc-ebook-content">
+                            <!-- 預設歡迎頁 -->
+                            <div id="slcEbookWelcome" class="slc-ebook-welcome">
+                                <div class="slc-ebook-welcome-icon">📖</div>
+                                <h3>從左側目錄選擇內容開始學習</h3>
+                                <p>點擊左側 ▶ 按鈕展開目錄</p>
+                            </div>
+
+                            <!-- 內容查看器（動態填充） -->
+                            <div id="slcEbookViewer" class="slc-ebook-viewer" style="display:none;">
+                                <div class="slc-ebook-viewer-header">
+                                    <h2 id="slcViewerTitle" class="slc-ebook-viewer-title"></h2>
+                                    <p id="slcViewerDesc" class="slc-ebook-viewer-desc"></p>
+                                </div>
+                                <div id="slcViewerBody" class="slc-ebook-viewer-body">
+                                    <!-- 視頻 / 圖片 / 文件 / 文章 在此渲染 -->
+                                </div>
+                            </div>
+                        </main>
                     </div>
                 </section>
 
@@ -308,17 +329,6 @@
             </div>
         </div>
 
-    </div>
-</div>
-
-<!-- ── 內容查看模態框 ── -->
-<div class="slc-modal-overlay" id="contentModal">
-    <div class="slc-modal-content">
-        <div class="slc-modal-header">
-            <span class="slc-modal-header__title" id="modalTitle">資源查看</span>
-            <button class="slc-modal-header__close" onclick="slc.closeModal()">✕</button>
-        </div>
-        <div class="slc-modal-body" id="modalBody"></div>
     </div>
 </div>
 

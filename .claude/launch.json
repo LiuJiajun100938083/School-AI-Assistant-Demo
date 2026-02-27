@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "main-app",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "app.main"],
+      "port": 8002
+    },
+    {
+      "name": "china-economy-game",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["china_economy_game/run.py"],
+      "port": 8000
+    }
+  ]
+}

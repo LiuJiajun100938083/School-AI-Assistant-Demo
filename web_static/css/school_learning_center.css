@@ -1450,6 +1450,357 @@
     font-size: 14px;
 }
 
+/* ════════════════════════════════════════════
+   電子教科書（ebook）分欄佈局
+   ════════════════════════════════════════════ */
+
+.slc-ebook {
+    display: flex;
+    gap: 0;
+    min-height: 0;
+    height: 100%;
+    flex: 1;
+    background-color: var(--slc-card-bg);
+    overflow: hidden;
+    position: relative;
+}
+
+/* --- 側邊欄展開/收起按鈕 --- */
+.slc-ebook-toggle {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 30;
+    width: 24px;
+    height: 56px;
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--slc-border);
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--slc-text-secondary);
+    font-size: 12px;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+}
+
+.slc-ebook-toggle:hover {
+    background: rgba(255,255,255,1);
+    color: var(--slc-text);
+    width: 28px;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+}
+
+.slc-ebook.slc-ebook--sidebar-open .slc-ebook-toggle {
+    left: 240px;
+}
+
+.slc-ebook.slc-ebook--sidebar-open .slc-ebook-toggle svg {
+    transform: rotate(180deg);
+}
+
+/* --- 左側目錄欄 --- */
+.slc-ebook-sidebar {
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+    background-color: var(--slc-bg);
+    border-right: none;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+}
+
+.slc-ebook--sidebar-open .slc-ebook-sidebar {
+    width: 240px;
+    min-width: 200px;
+    max-width: 280px;
+    border-right: 1px solid var(--slc-border);
+    opacity: 1;
+}
+
+.slc-ebook-sidebar-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--slc-border);
+    background-color: var(--slc-card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.slc-ebook-sidebar-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--slc-text);
+}
+
+.slc-ebook-sidebar-close {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--slc-text-secondary);
+    font-size: 14px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.slc-ebook-sidebar-close:hover {
+    background: var(--slc-border);
+    color: var(--slc-text);
+}
+
+/* --- 目錄導航區 --- */
+.slc-ebook-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+.slc-ebook-nav-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--slc-text-secondary);
+    font-size: 13px;
+}
+
+/* --- 文件夾分組 --- */
+.slc-ebook-folder {
+    margin-bottom: 2px;
+}
+
+.slc-ebook-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--slc-text);
+    transition: background-color 0.15s;
+}
+
+.slc-ebook-folder-header:hover {
+    background-color: var(--slc-border);
+}
+
+.slc-ebook-folder-arrow {
+    font-size: 10px;
+    color: var(--slc-text-secondary);
+    transition: transform 0.15s;
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.slc-ebook-folder--collapsed .slc-ebook-folder-arrow {
+    transform: rotate(-90deg);
+}
+
+.slc-ebook-folder--collapsed .slc-ebook-folder-items {
+    display: none;
+}
+
+.slc-ebook-folder-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.slc-ebook-folder-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- 目錄列表項 --- */
+.slc-ebook-folder-items {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 4px 0;
+}
+
+.slc-ebook-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px 6px 36px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+}
+
+.slc-ebook-item:hover {
+    background-color: var(--slc-primary-light);
+    color: var(--slc-text);
+}
+
+.slc-ebook-item--active {
+    background-color: var(--slc-primary-light);
+    color: var(--slc-primary);
+    border-left-color: var(--slc-primary);
+    font-weight: 600;
+}
+
+.slc-ebook-item-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.slc-ebook-item-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* --- 右側內容區 --- */
+.slc-ebook-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-y: auto;
+    background-color: #fafafa;
+    position: relative;
+}
+
+/* --- 歡迎頁 --- */
+.slc-ebook-welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--slc-text-secondary);
+    padding: 32px;
+}
+
+.slc-ebook-welcome-icon {
+    font-size: 48px;
+    opacity: 0.25;
+}
+
+.slc-ebook-welcome h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--slc-text-secondary);
+}
+
+.slc-ebook-welcome p {
+    margin: 0;
+    font-size: 13px;
+}
+
+/* --- 內容查看器 --- */
+.slc-ebook-viewer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.slc-ebook-viewer-header {
+    padding: 8px 16px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.slc-ebook-viewer-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--slc-text);
+    letter-spacing: -0.3px;
+}
+
+.slc-ebook-viewer-desc {
+    margin: 0;
+    font-size: 12px;
+    color: var(--slc-text-secondary);
+    line-height: 1.4;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slc-ebook-viewer-body {
+    flex: 1;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- 查看器內的內容類型 --- */
+.slc-ebook-video {
+    width: 100%;
+    max-height: none;
+    background-color: #000;
+    border-radius: 4px;
+    flex: 1;
+}
+
+.slc-ebook-video-wrap {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    background-color: #000;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.slc-ebook-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.slc-ebook-image {
+    max-width: 100%;
+    max-height: calc(100vh - 200px);
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    margin: 0 auto;
+    display: block;
+}
+
+.slc-ebook-article {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--slc-text);
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 16px 24px;
+}
+
 /* ── AI 內容上下文指示器 ── */
 .slc-ai-content-context {
     display: none;
