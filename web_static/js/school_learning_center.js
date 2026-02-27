@@ -19,6 +19,10 @@ window.slc = (() => {
         paths: [],
         aiMessages: [],
         aiStreaming: false,
+        // 當前查看的內容（用於 AI 助教內容感知問答）
+        currentContentId: null,
+        currentContentTitle: null,
+        pdfGoToPage: null,  // PDF.js goToPage 函數引用
         // Admin
         isAdmin: false,
         userRole: 'student',
@@ -498,6 +502,11 @@ window.slc = (() => {
         closeContentModal() {
             const overlay = document.getElementById('contentModal');
             if (overlay) overlay.classList.remove('--visible');
+            // 清除當前內容上下文
+            state.currentContentId = null;
+            state.currentContentTitle = null;
+            state.pdfGoToPage = null;
+            _updateAIContentContext();
         },
 
         // --- Header stats ---
@@ -827,6 +836,12 @@ window.slc = (() => {
             }
             if (!data) return;
 
+            // 記錄當前查看的內容（供 AI 助教使用）
+            state.currentContentId = contentId;
+            state.currentContentTitle = data.title || '';
+            state.pdfGoToPage = null;  // 重置，PDF 渲染後會重新設置
+            _updateAIContentContext();
+
             const _type = contentType || data.content_type || '';
 
             if (_type === 'document') {
@@ -920,6 +935,7 @@ window.slc = (() => {
                 const response = await API.aiAskStream(
                     question,
                     state.currentSubject?.subject_code,
+                    state.currentContentId,  // 傳遞當前查看的內容 ID
                 );
 
                 const reader = response.body.getReader();
@@ -949,7 +965,14 @@ window.slc = (() => {
                                     assistantMsg.querySelector('.slc-ai-msg__bubble').innerHTML = _renderMarkdown(display);
                                 }
                             } else if (event.type === 'done') {
-                                // 完成
+                                // 渲染頁碼引用按鈕
+                                if (event.page_references && event.page_references.length > 0) {
+                                    _renderPageReferences(assistantMsg, event.page_references);
+                                }
+                                // 渲染相關知識節點
+                                if (event.related_nodes && event.related_nodes.length > 0) {
+                                    _renderRelatedNodes(assistantMsg, event.related_nodes);
+                                }
                             }
                         } catch (e) { /* skip */ }
                     }
@@ -1585,6 +1608,9 @@ window.slc = (() => {
             if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
+        // 暴露 goToPage 到 state，供 AI 助教頁碼跳轉使用
+        state.pdfGoToPage = goToPage;
+
         async function rerender() {
             renderedPages.clear();
             pagesContainer.querySelectorAll('.slc-pdf-page').forEach(div => {
@@ -1629,6 +1655,99 @@ window.slc = (() => {
         if (startPage > 1) {
             setTimeout(() => goToPage(startPage), 100);
         }
+    }
+
+    /** 更新 AI 聊天窗口中的內容上下文指示器 */
+    function _updateAIContentContext() {
+        let indicator = document.getElementById('slcAiContentContext');
+        if (!indicator) {
+            // 動態創建指示器（插到 AI 輸入框上方）
+            const inputArea = document.querySelector('.slc-ai-input-area');
+            if (!inputArea) return;
+            indicator = document.createElement('div');
+            indicator.id = 'slcAiContentContext';
+            indicator.className = 'slc-ai-content-context';
+            inputArea.parentNode.insertBefore(indicator, inputArea);
+        }
+        if (state.currentContentId && state.currentContentTitle) {
+            indicator.innerHTML = `
+                <span class="slc-ai-content-context__label">📄 正在查看：</span>
+                <span class="slc-ai-content-context__title">${_escHtml(state.currentContentTitle)}</span>
+                <button class="slc-ai-content-context__clear" onclick="slc.clearContentContext()" title="取消關聯">✕</button>
+            `;
+            indicator.style.display = 'flex';
+        } else {
+            indicator.style.display = 'none';
+        }
+    }
+
+    /** 渲染 AI 回覆中的頁碼引用按鈕 */
+    function _renderPageReferences(msgElement, pageRefs) {
+        if (!msgElement || !pageRefs || !pageRefs.length) return;
+        const bubble = msgElement.querySelector('.slc-ai-msg__bubble');
+        if (!bubble) return;
+
+        // 去重頁碼
+        const seen = new Set();
+        const uniqueRefs = [];
+        for (const ref of pageRefs) {
+            const page = ref.page || ref.page_number;
+            if (page && !seen.has(page)) {
+                seen.add(page);
+                uniqueRefs.push(ref);
+            }
+        }
+        if (!uniqueRefs.length) return;
+
+        const refsDiv = document.createElement('div');
+        refsDiv.className = 'slc-ai-page-refs';
+        refsDiv.innerHTML = `
+            <div class="slc-ai-page-refs__label">📖 相關頁面：</div>
+            <div class="slc-ai-page-refs__buttons">
+                ${uniqueRefs.map(ref => {
+                    const page = ref.page || ref.page_number;
+                    return `<button class="slc-ai-page-ref-btn" onclick="slc.navigatePdfToPage(${page})" title="${_escHtml(ref.snippet || '')}">第 ${page} 頁</button>`;
+                }).join('')}
+            </div>
+        `;
+        bubble.appendChild(refsDiv);
+    }
+
+    /** 渲染 AI 回覆中的相關知識節點 */
+    function _renderRelatedNodes(msgElement, nodes) {
+        if (!msgElement || !nodes || !nodes.length) return;
+        const bubble = msgElement.querySelector('.slc-ai-msg__bubble');
+        if (!bubble) return;
+
+        const nodesDiv = document.createElement('div');
+        nodesDiv.className = 'slc-ai-related-nodes';
+        nodesDiv.innerHTML = `
+            <div class="slc-ai-related-nodes__label">🔗 相關知識點：</div>
+            <div class="slc-ai-related-nodes__list">
+                ${nodes.map(n => `<span class="slc-ai-node-tag" style="border-color:${n.color || '#006633'}">${n.icon || '📌'} ${_escHtml(n.title)}</span>`).join('')}
+            </div>
+        `;
+        bubble.appendChild(nodesDiv);
+    }
+
+    /** 跳轉到 PDF 指定頁碼 */
+    function _navigatePdfToPage(pageNum) {
+        if (state.pdfGoToPage) {
+            state.pdfGoToPage(pageNum);
+            AdminUI.showToast(`已跳轉到第 ${pageNum} 頁`, 'info');
+            return;
+        }
+        // Fallback: 嘗試找到 PDF 容器中的頁面元素
+        const container = document.getElementById('slcPdfContainer');
+        if (container) {
+            const target = container.querySelector(`[data-page="${pageNum}"]`);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                AdminUI.showToast(`已跳轉到第 ${pageNum} 頁`, 'info');
+                return;
+            }
+        }
+        AdminUI.showToast('請先打開 PDF 文檔', 'info');
     }
 
     function _escHtml(str) {
@@ -1679,6 +1798,14 @@ window.slc = (() => {
         sendAIMessage: () => App.sendAIMessage(),
         closeModal: () => UI.closeContentModal(),
         toggleMobileSidebar: () => App.toggleMobileSidebar(),
+        // AI 內容感知
+        navigatePdfToPage: (page) => _navigatePdfToPage(page),
+        clearContentContext: () => {
+            state.currentContentId = null;
+            state.currentContentTitle = null;
+            state.pdfGoToPage = null;
+            _updateAIContentContext();
+        },
         // Admin
         toggleAdminPanel: () => App.toggleAdminPanel(),
         switchAdminTab: (tab) => App.switchAdminTab(tab),

@@ -1449,3 +1449,122 @@
     color: #888;
     font-size: 14px;
 }
+
+/* ── AI 內容上下文指示器 ── */
+.slc-ai-content-context {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--slc-primary-light);
+    border-top: 1px solid var(--slc-border);
+    font-size: 12px;
+    color: var(--slc-text);
+}
+
+.slc-ai-content-context__label {
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.slc-ai-content-context__title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--slc-primary-dark);
+    font-weight: 600;
+}
+
+.slc-ai-content-context__clear {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--slc-text-secondary);
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.slc-ai-content-context__clear:hover {
+    background: rgba(0,0,0,0.08);
+    color: var(--slc-text);
+}
+
+/* ── AI 回覆頁碼引用 ── */
+.slc-ai-page-refs {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+}
+
+.slc-ai-page-refs__label {
+    font-size: 12px;
+    color: var(--slc-text-secondary);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.slc-ai-page-refs__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.slc-ai-page-ref-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    background: var(--slc-primary-light);
+    color: var(--slc-primary);
+    border: 1px solid var(--slc-primary);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-weight: 500;
+}
+
+.slc-ai-page-ref-btn:hover {
+    background: var(--slc-primary);
+    color: white;
+}
+
+.slc-ai-page-ref-btn:active {
+    transform: scale(0.95);
+}
+
+/* ── AI 回覆相關知識節點 ── */
+.slc-ai-related-nodes {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+}
+
+.slc-ai-related-nodes__label {
+    font-size: 12px;
+    color: var(--slc-text-secondary);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.slc-ai-related-nodes__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.slc-ai-node-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 8px;
+    font-size: 11px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    color: var(--slc-text);
+}

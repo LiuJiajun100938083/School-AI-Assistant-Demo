@@ -733,7 +733,9 @@ class SchoolLearningCenterService:
         from llm.prompts.templates import apply_thinking_mode
         from llm.providers.ollama import get_ollama_provider
 
+        loop = asyncio.get_running_loop()
         full_answer_parts = []
+        page_references = []
 
         # 获取科目名称
         subject_name = subject_code or "学习"
@@ -748,20 +750,65 @@ class SchoolLearningCenterService:
             except Exception:
                 pass
 
-        system_prompt = (
-            f"你是学校 AI 学习助教，当前科目是「{subject_name}」。\n"
-            f"帮助学生解答该科目的学习问题。\n"
-            f"请基于你的知识，提供清晰、专业的解答。\n"
-            f"如果不确定，请如实告知。"
-        )
-        kg_hint = self._build_kg_node_hint(subject_code=subject_code)
-        if kg_hint:
-            system_prompt += f"\n\n{kg_hint}"
+        if content_id is not None:
+            # ---- 内容感知 RAG 路径（PDF/文档问答） ----
+            from llm.rag.content_indexer import get_content_indexer
+            from llm.rag.retrieval import get_context_for_content_with_pages
 
-        prompt = build_prompt_context(
-            question=question,
-            system_prompt=system_prompt,
-        )
+            content = self._contents.find_by_id(content_id)
+            if not content:
+                yield {"type": "token", "content": "找不到对应的学习内容。"}
+                yield {"type": "done", "related_nodes": [], "page_references": []}
+                return
+
+            content_title = content.get("title", "")
+            is_pdf = (content.get("mime_type") or "").lower().find("pdf") >= 0 or \
+                     (content.get("file_name") or content.get("file_path") or "").lower().endswith(".pdf")
+
+            # 懒索引：如果该内容尚未被向量化，先触发索引
+            indexer = get_content_indexer()
+            indexed = await loop.run_in_executor(None, indexer.is_indexed, content_id)
+            if not indexed:
+                logger.info("SLC 流式懒索引触发: content_id=%s", content_id)
+                await loop.run_in_executor(
+                    None, partial(indexer.index, content_id, dict(content))
+                )
+
+            # RAG 检索（带页码引用）
+            rag_context, page_refs = await loop.run_in_executor(
+                None, partial(get_context_for_content_with_pages, question, content_id),
+            )
+            if is_pdf and page_refs:
+                page_references = page_refs
+
+            system_prompt = (
+                f"你是学校 AI 学习助教，当前科目是「{subject_name}」。\n"
+                f"学生正在阅读「{content_title}」。\n"
+                f"请基于以下检索到的内容片段回答学生的问题。\n"
+                f"如果片段不足以回答，可结合通用知识，但请注明。"
+            )
+            prompt = build_prompt_context(
+                question=question,
+                system_prompt=system_prompt,
+                kb_context=rag_context,
+            )
+        else:
+            # ---- 通用问答路径 ----
+            system_prompt = (
+                f"你是学校 AI 学习助教，当前科目是「{subject_name}」。\n"
+                f"帮助学生解答该科目的学习问题。\n"
+                f"请基于你的知识，提供清晰、专业的解答。\n"
+                f"如果不确定，请如实告知。"
+            )
+            kg_hint = self._build_kg_node_hint(subject_code=subject_code)
+            if kg_hint:
+                system_prompt += f"\n\n{kg_hint}"
+
+            prompt = build_prompt_context(
+                question=question,
+                system_prompt=system_prompt,
+            )
+
         thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
 
         provider = get_ollama_provider()
@@ -778,12 +825,15 @@ class SchoolLearningCenterService:
         full_answer = "".join(full_answer_parts)
         related_nodes = self._match_knowledge_nodes(full_answer, subject_code=subject_code)
 
-        logger.info("SLC AI 回答完成: user=%s, subject=%s", username, subject_code)
+        logger.info(
+            "SLC AI 回答完成: user=%s, subject=%s, content_id=%s, page_refs=%d",
+            username, subject_code, content_id, len(page_references),
+        )
 
         yield {
             "type": "done",
             "related_nodes": related_nodes,
-            "page_references": [],
+            "page_references": page_references,
         }
 
     # ================================================================
