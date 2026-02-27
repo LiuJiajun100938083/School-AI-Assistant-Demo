@@ -112,22 +112,29 @@ async def stream_ai_subject(
 
         # 6. 獲取 LLM 提供者並開始流式生成
         #    async_stream 使用 /api/chat + think 參數，Ollama 自動分離 thinking/answer，
-        #    content 中只有 answer，無需 StreamingThinkingParser。
+        #    yield 元組 (type, content)，type 為 "thinking" 或 "answer"
         provider = get_ollama_provider()
         answer_parts = []
+        thinking_parts = []
 
         logger.info(f"🔄 開始流式生成: 科目={subject_code}, 思考模式={'開' if enable_thinking else '關'}, 問題={question[:50]}...")
 
-        async for token in provider.async_stream(thinking_prompt, enable_thinking=enable_thinking):
-            if token:
-                answer_parts.append(token)
-                yield StreamEvent(type="answer", content=token)
+        async for token_type, token_content in provider.async_stream(thinking_prompt, enable_thinking=enable_thinking):
+            if not token_content:
+                continue
+            if token_type == "thinking":
+                thinking_parts.append(token_content)
+                yield StreamEvent(type="thinking", content=token_content)
+            else:
+                answer_parts.append(token_content)
+                yield StreamEvent(type="answer", content=token_content)
 
         raw_answer = "".join(answer_parts)
+        raw_thinking = "".join(thinking_parts)
 
         # 7. 構建完整的 thinking 元數據（包含知識庫、臨時文檔等）
         full_thinking = _build_full_thinking(
-            raw_thinking="",
+            raw_thinking=raw_thinking,
             temp_docs=temp_docs,
             kb_context=kb_context
         )

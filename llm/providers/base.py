@@ -54,7 +54,7 @@ class BaseLLMProvider(ABC):
             on_chunk(result)
         return result
 
-    async def async_stream(self, prompt: str) -> AsyncGenerator[str, None]:
+    async def async_stream(self, prompt: str, enable_thinking: bool = True) -> AsyncGenerator[tuple, None]:
         """
         異步流式調用 LLM — 逐 token yield
 
@@ -62,10 +62,10 @@ class BaseLLMProvider(ABC):
         默認實現回退到同步 invoke()，一次性返回完整結果。
 
         Yields:
-            str: 每次生成的文本片段（token）
+            tuple[str, str]: (type, content) — type 為 "thinking" 或 "answer"
         """
         result = self.invoke(prompt)
-        yield result
+        yield ("answer", result)
 
     def get_model_info(self) -> Dict:
         """獲取模型信息"""

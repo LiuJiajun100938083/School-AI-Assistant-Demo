@@ -73,21 +73,21 @@ class OllamaProvider(BaseLLMProvider):
             on_chunk(result)
         return result
 
-    async def async_stream(self, prompt: str, enable_thinking: bool = True) -> AsyncGenerator[str, None]:
+    async def async_stream(self, prompt: str, enable_thinking: bool = True) -> AsyncGenerator[tuple, None]:
         """
         異步流式調用 Ollama — 逐 token yield
 
-        使用 /api/chat 端點（而非 /api/generate），確保：
+        使用 /api/chat 端點，確保：
         - 模型的 chat template 被正確應用
-        - Qwen3 /think 思考模式能正確觸發 <think>...</think> 標籤
-        - StreamingThinkingParser 可以正確分離 thinking 和 answer
+        - Qwen3 /think 思考模式能正確觸發
+        - Ollama 的 think 參數自動分離 thinking 和 answer
 
         Args:
             prompt: 完整的提示詞（已包含 /think 或 /no_think 前綴）
             enable_thinking: 是否開啟思考模式（Ollama think 參數硬開關）
 
         Yields:
-            str: 每次生成的文本片段
+            tuple[str, str]: (type, content) — type 為 "thinking" 或 "answer"
         """
         # --- 動態 num_ctx：根據 prompt 長度自適應 ---
         # 中文約 1.5 字符/token，預留 max_tokens 給生成 + 1024 安全邊距
@@ -139,12 +139,18 @@ class OllamaProvider(BaseLLMProvider):
                         logger.warning(f"跳過無效 JSON 行: {line[:100]}")
                         continue
 
-                    # /api/chat 返回格式：{"message": {"role": "assistant", "content": "token"}, "done": false}
-                    # 注意: content 可能為 null（Ollama 思考階段），需用 `or` 防禦
+                    # Ollama /api/chat + think:true 返回格式：
+                    #   思考階段: {"message": {"role":"assistant", "thinking":"...", "content":""}}
+                    #   回答階段: {"message": {"role":"assistant", "thinking":"",  "content":"..."}}
                     msg = chunk.get("message") or {}
-                    token = msg.get("content") or ""
-                    if token:
-                        yield token
+
+                    thinking_token = msg.get("thinking") or ""
+                    answer_token = msg.get("content") or ""
+
+                    if thinking_token:
+                        yield ("thinking", thinking_token)
+                    if answer_token:
+                        yield ("answer", answer_token)
 
                     if chunk.get("done", False):
                         return
