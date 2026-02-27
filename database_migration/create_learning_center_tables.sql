@@ -172,3 +172,34 @@ CREATE TABLE IF NOT EXISTS lc_path_steps (
     FOREIGN KEY (node_id) REFERENCES lc_knowledge_nodes(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='學習中心 - 路徑步驟';
+
+
+-- ============================================================
+-- v2.0 擴展：學校 AI 學習中心 — 科目 + 年級維度
+-- ============================================================
+-- 所有新列 DEFAULT NULL，向後兼容已有數據。
+-- subject_code 匹配 subjects.subject_code，
+-- grade_level 值為 '中一'~'中六'，匹配 classes.grade。
+
+-- 分類表加科目
+ALTER TABLE lc_categories
+  ADD COLUMN IF NOT EXISTS subject_code VARCHAR(50) DEFAULT NULL COMMENT '科目代碼';
+
+-- 內容表加科目+年級
+ALTER TABLE lc_contents
+  ADD COLUMN IF NOT EXISTS subject_code VARCHAR(50) DEFAULT NULL COMMENT '科目代碼',
+  ADD COLUMN IF NOT EXISTS grade_level VARCHAR(20) DEFAULT NULL COMMENT '年級: 中一~中六';
+
+-- 知識節點加科目+年級
+ALTER TABLE lc_knowledge_nodes
+  ADD COLUMN IF NOT EXISTS subject_code VARCHAR(50) DEFAULT NULL COMMENT '科目代碼',
+  ADD COLUMN IF NOT EXISTS grade_level VARCHAR(20) DEFAULT NULL COMMENT '年級: 中一~中六';
+
+-- 知識邊加科目
+ALTER TABLE lc_knowledge_edges
+  ADD COLUMN IF NOT EXISTS subject_code VARCHAR(50) DEFAULT NULL COMMENT '科目代碼';
+
+-- 學習路徑加科目+年級
+ALTER TABLE lc_learning_paths
+  ADD COLUMN IF NOT EXISTS subject_code VARCHAR(50) DEFAULT NULL COMMENT '科目代碼',
+  ADD COLUMN IF NOT EXISTS grade_level VARCHAR(20) DEFAULT NULL COMMENT '年級: 中一~中六';

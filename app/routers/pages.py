@@ -141,6 +141,12 @@ async def ai_learning_center():
     return _serve_page("ai_learning_center.html")
 
 
+@router.get("/school-learning-center")
+async def school_learning_center():
+    """學校學習中心（按科目和年級組織）"""
+    return _serve_page("school_learning_center.html")
+
+
 # ====================================================================== #
 #  课堂教学页面                                                             #
 # ====================================================================== #

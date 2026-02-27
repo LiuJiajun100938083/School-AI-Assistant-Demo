@@ -15,6 +15,21 @@
     "category": "learning"
   },
   {
+    "id": "school_learning_center",
+    "name": "學校學習中心",
+    "icon": "🏫",
+    "description": "按科目和年級組織的學習資源平台",
+    "url": "/school-learning-center",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 2,
+    "category": "learning"
+  },
+  {
     "id": "ai_learning_center",
     "name": "AI 學習中心",
     "icon": "🧠",
@@ -26,7 +41,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 2,
+    "order": 3,
     "category": "learning"
   },
   {

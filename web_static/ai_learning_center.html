@@ -443,6 +443,18 @@
                         <select id="contentCategorySelect" class="alc-form-input">
                             <option value="">選擇分類</option>
                         </select>
+                        <select id="contentSubjectSelect" class="alc-form-input">
+                            <option value="">選擇科目（可選）</option>
+                        </select>
+                        <select id="contentGradeSelect" class="alc-form-input">
+                            <option value="">選擇年級（可選）</option>
+                            <option value="中一">中一</option>
+                            <option value="中二">中二</option>
+                            <option value="中三">中三</option>
+                            <option value="中四">中四</option>
+                            <option value="中五">中五</option>
+                            <option value="中六">中六</option>
+                        </select>
                         <!-- 外部視頻連結輸入（僅 video_external 時顯示） -->
                         <div id="externalVideoSection" style="display: none;">
                             <input type="text" id="externalVideoUrlInput" class="alc-form-input" placeholder="輸入視頻連結，如 https://www.youtube.com/watch?v=... 或 https://www.bilibili.com/video/BV..." />
@@ -484,6 +496,18 @@
                         <select id="nodeCategorySelect" class="alc-form-input">
                             <option value="">選擇分類</option>
                         </select>
+                        <select id="nodeSubjectSelect" class="alc-form-input">
+                            <option value="">選擇科目（可選）</option>
+                        </select>
+                        <select id="nodeGradeSelect" class="alc-form-input">
+                            <option value="">選擇年級（可選）</option>
+                            <option value="中一">中一</option>
+                            <option value="中二">中二</option>
+                            <option value="中三">中三</option>
+                            <option value="中四">中四</option>
+                            <option value="中五">中五</option>
+                            <option value="中六">中六</option>
+                        </select>
                         <textarea id="nodeDescInput" class="alc-form-input" placeholder="描述" rows="3"></textarea>
                         <button id="createNodeBtn" class="alc-btn alc-btn--primary">建立知識點</button>
                     </div>
@@ -513,6 +537,18 @@
                             <option value="beginner">初級</option>
                             <option value="intermediate">中級</option>
                             <option value="advanced">高級</option>
+                        </select>
+                        <select id="pathSubjectSelect" class="alc-form-input">
+                            <option value="">選擇科目（可選）</option>
+                        </select>
+                        <select id="pathGradeSelect" class="alc-form-input">
+                            <option value="">選擇年級（可選）</option>
+                            <option value="中一">中一</option>
+                            <option value="中二">中二</option>
+                            <option value="中三">中三</option>
+                            <option value="中四">中四</option>
+                            <option value="中五">中五</option>
+                            <option value="中六">中六</option>
                         </select>
                         <input type="number" id="pathDurationInput" class="alc-form-input" placeholder="預期時長（小時）" />
                         <button id="createPathBtn" class="alc-btn alc-btn--primary">建立路徑</button>
@@ -620,6 +656,21 @@
                     spellcheck="false"
                     placeholder='{ "paths": [ { "id": "path1", "title": "路徑名稱", "steps": [...] } ] }'
                 ></textarea>
+                <!-- 科目/年級選擇 -->
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <select id="pathImportSubjectSelect" class="alc-form-input" style="flex:1;">
+                        <option value="">選擇科目（可選）</option>
+                    </select>
+                    <select id="pathImportGradeSelect" class="alc-form-input" style="flex:1;">
+                        <option value="">選擇年級（可選）</option>
+                        <option value="中一">中一</option>
+                        <option value="中二">中二</option>
+                        <option value="中三">中三</option>
+                        <option value="中四">中四</option>
+                        <option value="中五">中五</option>
+                        <option value="中六">中六</option>
+                    </select>
+                </div>
                 <label class="alc-batch-import-checkbox">
                     <input type="checkbox" id="pathImportClearExisting" />
                     <span>導入前清空現有學習路徑（⚠️ 不可撤銷）</span>
@@ -667,6 +718,22 @@
   ]
 }'
                 ></textarea>
+
+                <!-- 科目/年級選擇 -->
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <select id="batchImportSubjectSelect" class="alc-form-input" style="flex:1;">
+                        <option value="">選擇科目（可選）</option>
+                    </select>
+                    <select id="batchImportGradeSelect" class="alc-form-input" style="flex:1;">
+                        <option value="">選擇年級（可選）</option>
+                        <option value="中一">中一</option>
+                        <option value="中二">中二</option>
+                        <option value="中三">中三</option>
+                        <option value="中四">中四</option>
+                        <option value="中五">中五</option>
+                        <option value="中六">中六</option>
+                    </select>
+                </div>
 
                 <!-- 選項 -->
                 <label class="alc-batch-import-checkbox">

@@ -163,9 +163,9 @@ class LearningCenterService:
         self._categories.soft_delete("id = %s", (category_id,))
         logger.info("删除分类: %s", category_id)
 
-    def get_categories(self) -> List[Dict]:
+    def get_categories(self, subject_code: Optional[str] = None) -> List[Dict]:
         """获取分类列表（树形结构）"""
-        categories = self._categories.find_tree()
+        categories = self._categories.find_tree(subject_code=subject_code)
 
         # 构建树形结构
         category_map = {c["id"]: dict(c) for c in categories}
@@ -206,6 +206,8 @@ class LearningCenterService:
         tags: Optional[List[str]] = None,
         category_ids: Optional[List[int]] = None,
         status: str = "draft",
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
     ) -> Dict:
         """创建内容"""
         if not title or not title.strip():
@@ -234,6 +236,8 @@ class LearningCenterService:
             "tags": json.dumps(tags) if tags else None,
             "status": status,
             "view_count": 0,
+            "subject_code": subject_code,
+            "grade_level": grade_level,
             "created_by": username,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
@@ -272,6 +276,7 @@ class LearningCenterService:
             "title", "description", "content_type", "status",
             "file_path", "external_url", "article_content",
             "thumbnail_path", "duration", "video_platform",
+            "subject_code", "grade_level",
         ):
             if key in data:
                 update_fields[key] = data[key]
@@ -340,6 +345,8 @@ class LearningCenterService:
         search: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
     ) -> Dict:
         """获取已发布内容列表（分页）"""
         result = self._contents.find_published(
@@ -348,6 +355,8 @@ class LearningCenterService:
             search=search or "",
             page=page,
             page_size=page_size,
+            subject_code=subject_code,
+            grade_level=grade_level,
         )
 
         # 处理 tags
@@ -381,10 +390,12 @@ class LearningCenterService:
         keyword: str,
         page: int = 1,
         page_size: int = 20,
+        subject_code: Optional[str] = None,
     ) -> Dict:
         """搜索内容"""
         result = self._contents.search_contents(
-            keyword=keyword, page=page, page_size=page_size
+            keyword=keyword, page=page, page_size=page_size,
+            subject_code=subject_code,
         )
 
         for item in result.get("items", []):
@@ -392,9 +403,9 @@ class LearningCenterService:
 
         return result
 
-    def get_stats(self) -> Dict:
+    def get_stats(self, subject_code: Optional[str] = None) -> Dict:
         """获取学习中心统计信息"""
-        by_type = self._contents.get_stats()
+        by_type = self._contents.get_stats(subject_code=subject_code)
         total_contents = sum(by_type.values())
         by_category = self._content_categories.count_by_category()
 
@@ -413,10 +424,10 @@ class LearningCenterService:
     # 知识地图
     # ================================================================
 
-    def get_knowledge_map(self) -> Dict:
+    def get_knowledge_map(self, subject_code: Optional[str] = None) -> Dict:
         """获取知识地图（节点和边）"""
-        nodes_data = self._nodes.find_active()
-        edges_data = self._edges.find_all_edges()
+        nodes_data = self._nodes.find_active(subject_code=subject_code)
+        edges_data = self._edges.find_all_edges(subject_code=subject_code)
 
         nodes = []
         for node in nodes_data:
@@ -438,6 +449,8 @@ class LearningCenterService:
         icon: str = "📌",
         color: str = "#006633",
         category_id: Optional[int] = None,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
     ) -> Dict:
         """创建知识节点"""
         if not title or not title.strip():
@@ -450,6 +463,8 @@ class LearningCenterService:
             "icon": icon,
             "color": color,
             "category_id": category_id,
+            "subject_code": subject_code,
+            "grade_level": grade_level,
             "position_x": 0,
             "position_y": 0,
             "is_pinned": 0,
@@ -525,6 +540,7 @@ class LearningCenterService:
         relation_type: str = "related",
         label: str = "",
         weight: float = 1.0,
+        subject_code: Optional[str] = None,
     ) -> Dict:
         """创建知识边"""
         source = self._nodes.find_by_id(source_node_id)
@@ -541,6 +557,7 @@ class LearningCenterService:
             "relation_type": relation_type,
             "label": label,
             "weight": weight,
+            "subject_code": subject_code,
         }
 
         new_id = self._edges.insert_get_id(edge_data)
@@ -586,6 +603,8 @@ class LearningCenterService:
         content_links: List[Dict] = None,
         source_pdf: Optional[str] = None,
         clear_existing: bool = False,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
     ) -> Dict:
         """
         批量导入知识图谱（节点 + 边 + 内容关联）
@@ -629,6 +648,8 @@ class LearningCenterService:
                 "icon": node.get("icon", "📌"),
                 "color": node.get("color", "#006633"),
                 "category_id": node.get("category_id"),
+                "subject_code": subject_code,
+                "grade_level": grade_level,
                 "position_x": 0,
                 "position_y": 0,
                 "is_pinned": 0,
@@ -662,6 +683,7 @@ class LearningCenterService:
                 "relation_type": edge.get("relation_type", "related"),
                 "label": edge.get("label", ""),
                 "weight": edge.get("weight", 1.0),
+                "subject_code": subject_code,
             }
             try:
                 self._edges.insert_get_id(edge_data)
@@ -737,9 +759,15 @@ class LearningCenterService:
     # 学习路径
     # ================================================================
 
-    def get_paths(self) -> List[Dict]:
+    def get_paths(
+        self,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
+    ) -> List[Dict]:
         """获取所有已发布路径"""
-        paths = self._paths.find_published()
+        paths = self._paths.find_published(
+            subject_code=subject_code, grade_level=grade_level,
+        )
         result = []
         for path in paths:
             path_dict = dict(path)
@@ -790,6 +818,8 @@ class LearningCenterService:
         difficulty: str = "beginner",
         estimated_hours: float = 1.0,
         tags: Optional[List[str]] = None,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
     ) -> Dict:
         """创建学习路径"""
         if not title or not title.strip():
@@ -809,6 +839,8 @@ class LearningCenterService:
             "difficulty": difficulty,
             "estimated_hours": estimated_hours,
             "tags": json.dumps(tags) if tags else None,
+            "subject_code": subject_code,
+            "grade_level": grade_level,
             "status": "published",
             "created_by": username,
             "created_at": datetime.now(),
@@ -909,6 +941,8 @@ class LearningCenterService:
         admin: Tuple[str, str],
         paths: List[Dict],
         clear_existing: bool = False,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
     ) -> Dict:
         """
         批量导入学习路径和步骤。
@@ -969,6 +1003,8 @@ class LearningCenterService:
                 "difficulty": p.get("difficulty", "beginner"),
                 "estimated_hours": p.get("estimated_hours", 1.0),
                 "tags": json.dumps(p.get("tags")) if p.get("tags") else None,
+                "subject_code": subject_code,
+                "grade_level": grade_level,
                 "status": "published",
                 "created_by": username,
                 "created_at": datetime.now(),
@@ -1046,9 +1082,9 @@ class LearningCenterService:
     # AI 助手
     # ================================================================
 
-    def _build_kg_node_hint(self) -> str:
+    def _build_kg_node_hint(self, subject_code: Optional[str] = None) -> str:
         """构建知识图谱节点提示，供 system prompt 注入。"""
-        nodes = self._nodes.find_active()
+        nodes = self._nodes.find_active(subject_code=subject_code)
         if not nodes:
             return ""
         lines = [f"- [{n['id']}] {n['title']}" for n in nodes]
@@ -1087,6 +1123,7 @@ class LearningCenterService:
         question: str,
         content_id: Optional[int] = None,
         context_filter: Optional[str] = None,
+        subject_code: Optional[str] = None,
     ) -> Dict:
         """
         AI 问答（支持内容感知模式）。
@@ -1117,8 +1154,8 @@ class LearningCenterService:
                 "如果不确定，请如实告知。"
             )
 
-            # 注入知识图谱节点提示
-            kg_hint = self._build_kg_node_hint()
+            # 注入知识图谱节点提示（按科目过滤）
+            kg_hint = self._build_kg_node_hint(subject_code=subject_code)
             if kg_hint:
                 system_prompt += f"\n\n{kg_hint}"
 
@@ -1134,7 +1171,7 @@ class LearningCenterService:
             )
             answer, thinking = parse_llm_response(raw_response)
 
-            logger.info("AI 通用回答: 用户=%s", username)
+            logger.info("AI 通用回答: 用户=%s, subject=%s", username, subject_code)
 
             related_nodes = self._match_knowledge_nodes(answer)
             return {
@@ -1292,6 +1329,7 @@ class LearningCenterService:
         username: str,
         question: str,
         content_id: Optional[int] = None,
+        subject_code: Optional[str] = None,
     ) -> AsyncGenerator[Dict, None]:
         """
         AI 问答的流式版本 — yield 结构化事件字典。
@@ -1356,7 +1394,7 @@ class LearningCenterService:
                 "请基于你对教学系统的了解，提供清晰、专业的操作指导。\n"
                 "如果不确定，请如实告知。"
             )
-            kg_hint = self._build_kg_node_hint()
+            kg_hint = self._build_kg_node_hint(subject_code=subject_code)
             if kg_hint:
                 system_prompt += f"\n\n{kg_hint}"
 
@@ -1395,6 +1433,66 @@ class LearningCenterService:
             "related_nodes": related_nodes,
             "page_references": page_references,
         }
+
+    # ================================================================
+    # 科目列表（School Learning Center 专用）
+    # ================================================================
+
+    def get_subjects_with_content(self) -> List[Dict]:
+        """
+        获取有学习内容的科目列表。
+
+        从 lc_contents 中提取不重复的 subject_code，
+        然后查询 subjects 表获取科目名称和图标等信息。
+
+        Returns:
+            科目列表 [{subject_code, subject_name, icon, content_count}, ...]
+        """
+        subject_codes = self._contents.find_distinct_subjects()
+        if not subject_codes:
+            return []
+
+        # 尝试查询 subjects 表获取科目详情
+        result = []
+        for code in subject_codes:
+            count = self._contents.count_published_by_subject(code)
+            # 尝试从 subjects 表获取名称
+            try:
+                rows = self._contents.raw_query(
+                    "SELECT subject_code, subject_name, config FROM subjects WHERE subject_code = %s",
+                    (code,),
+                )
+                if rows:
+                    row = rows[0]
+                    config = row.get("config") or {}
+                    if isinstance(config, str):
+                        import json as _json
+                        try:
+                            config = _json.loads(config)
+                        except Exception:
+                            config = {}
+                    result.append({
+                        "subject_code": code,
+                        "subject_name": row.get("subject_name", code),
+                        "icon": config.get("icon", "📚"),
+                        "content_count": count,
+                    })
+                else:
+                    result.append({
+                        "subject_code": code,
+                        "subject_name": code,
+                        "icon": "📚",
+                        "content_count": count,
+                    })
+            except Exception:
+                result.append({
+                    "subject_code": code,
+                    "subject_name": code,
+                    "icon": "📚",
+                    "content_count": count,
+                })
+
+        return result
 
     # ================================================================
     # 私有方法

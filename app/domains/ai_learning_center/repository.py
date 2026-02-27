@@ -27,24 +27,34 @@ class LCCategoryRepository(BaseRepository):
     # 查询
     # ============================================================
 
-    def find_active(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def find_active(
+        self,
+        parent_id: Optional[int] = None,
+        subject_code: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """
         查询活跃分类（未删除）
 
         Args:
             parent_id: 父分类ID（可选，用于按父分类筛选）
+            subject_code: 科目代码（可选）
 
         Returns:
             分类列表
         """
+        conditions = ["is_deleted = 0"]
+        params: list = []
+
         if parent_id is not None:
-            return self.find_all(
-                "is_deleted = 0 AND parent_id = %s",
-                (parent_id,),
-                order_by="sort_order ASC",
-            )
+            conditions.append("parent_id = %s")
+            params.append(parent_id)
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+
         return self.find_all(
-            "is_deleted = 0",
+            " AND ".join(conditions),
+            tuple(params) if params else None,
             order_by="sort_order ASC",
         )
 
@@ -52,14 +62,25 @@ class LCCategoryRepository(BaseRepository):
         """根据 slug 查询分类"""
         return self.find_one("slug = %s AND is_deleted = 0", (slug,))
 
-    def find_tree(self) -> List[Dict[str, Any]]:
+    def find_tree(self, subject_code: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         获取所有分类用于树形构建
 
+        Args:
+            subject_code: 科目代码（可选，过滤特定科目的分类）
+
         返回扁平列表，前端根据 parent_id 构建树形结构
         """
+        conditions = ["is_deleted = 0"]
+        params: list = []
+
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+
         return self.find_all(
-            "is_deleted = 0",
+            " AND ".join(conditions),
+            tuple(params) if params else None,
             order_by="parent_id ASC, sort_order ASC",
         )
 
@@ -89,6 +110,8 @@ class LCContentRepository(BaseRepository):
         search: str = "",
         page: int = 1,
         page_size: int = 20,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         查询已发布内容（分页）
@@ -100,6 +123,8 @@ class LCContentRepository(BaseRepository):
             search: 搜索关键词
             page: 页码
             page_size: 每页条数
+            subject_code: 科目代码（可选）
+            grade_level: 年级（可选，如 '中一'~'中六'）
 
         Returns:
             {items: [...], total: int, page: int, page_size: int}
@@ -122,6 +147,14 @@ class LCContentRepository(BaseRepository):
             search_keyword = f"%{search}%"
             params.extend([search_keyword, search_keyword])
 
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+
+        if grade_level:
+            conditions.append("grade_level = %s")
+            params.append(grade_level)
+
         where = " AND ".join(conditions)
         return self.paginate(
             page=page,
@@ -136,6 +169,7 @@ class LCContentRepository(BaseRepository):
         keyword: str,
         page: int = 1,
         page_size: int = 20,
+        subject_code: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         全文搜索内容
@@ -144,17 +178,29 @@ class LCContentRepository(BaseRepository):
             keyword: 搜索关键词
             page: 页码
             page_size: 每页条数
+            subject_code: 科目代码（可选）
 
         Returns:
             {items: [...], total: int, page: int, page_size: int}
         """
         search_keyword = f"%{keyword}%"
-        where = "status = 'published' AND is_deleted = 0 AND (title LIKE %s OR description LIKE %s)"
+        conditions = [
+            "status = 'published'",
+            "is_deleted = 0",
+            "(title LIKE %s OR description LIKE %s)",
+        ]
+        params: list = [search_keyword, search_keyword]
+
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+
+        where = " AND ".join(conditions)
         return self.paginate(
             page=page,
             page_size=page_size,
             where=where,
-            params=(search_keyword, search_keyword),
+            params=tuple(params),
             order_by="created_at DESC",
         )
 
@@ -163,6 +209,32 @@ class LCContentRepository(BaseRepository):
         return self.raw_execute(
             "UPDATE lc_contents SET view_count = view_count + 1 WHERE id = %s",
             (content_id,),
+        )
+
+    def find_distinct_subjects(self) -> List[str]:
+        """
+        获取所有已发布内容中的不重复科目代码列表
+
+        Returns:
+            科目代码列表（排除 NULL）
+        """
+        rows = self.raw_query(
+            """
+            SELECT DISTINCT subject_code
+            FROM lc_contents
+            WHERE subject_code IS NOT NULL
+              AND subject_code != ''
+              AND is_deleted = 0
+            ORDER BY subject_code ASC
+            """
+        )
+        return [row["subject_code"] for row in rows]
+
+    def count_published_by_subject(self, subject_code: str) -> int:
+        """统计特定科目的已发布内容数量"""
+        return self.count(
+            "status = 'published' AND is_deleted = 0 AND subject_code = %s",
+            (subject_code,),
         )
 
     def find_by_node(self, node_id: int) -> List[Dict[str, Any]]:
@@ -182,19 +254,31 @@ class LCContentRepository(BaseRepository):
             (node_id,),
         )
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self, subject_code: Optional[str] = None) -> Dict[str, int]:
         """
         获取内容统计信息
 
         按内容类型统计
+
+        Args:
+            subject_code: 科目代码（可选，过滤特定科目的统计）
         """
+        conditions = ["status = 'published'", "is_deleted = 0"]
+        params: list = []
+
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+
+        where = " AND ".join(conditions)
         rows = self.raw_query(
-            """
+            f"""
             SELECT content_type, COUNT(*) as count
             FROM lc_contents
-            WHERE status = 'published' AND is_deleted = 0
+            WHERE {where}
             GROUP BY content_type
-            """
+            """,
+            tuple(params) if params else None,
         )
         stats = {}
         for row in rows:
@@ -265,10 +349,23 @@ class LCKnowledgeNodeRepository(BaseRepository):
     # 查询
     # ============================================================
 
-    def find_active(self) -> List[Dict[str, Any]]:
-        """查询所有活跃节点（未删除）"""
+    def find_active(self, subject_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        查询所有活跃节点（未删除）
+
+        Args:
+            subject_code: 科目代码（可选）
+        """
+        conditions = ["is_deleted = 0"]
+        params: list = []
+
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+
         return self.find_all(
-            "is_deleted = 0",
+            " AND ".join(conditions),
+            tuple(params) if params else None,
             order_by="created_at DESC",
         )
 
@@ -328,10 +425,23 @@ class LCKnowledgeEdgeRepository(BaseRepository):
             (node_id, node_id),
         )
 
-    def find_all_edges(self) -> List[Dict[str, Any]]:
-        """获取所有边"""
+    def find_all_edges(self, subject_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        获取所有边
+
+        Args:
+            subject_code: 科目代码（可选）
+        """
+        conditions = ["1 = 1"]
+        params: list = []
+
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+
         return self.find_all(
-            "1 = 1",
+            " AND ".join(conditions),
+            tuple(params) if params else None,
             order_by="weight DESC",
         )
 
@@ -439,10 +549,31 @@ class LCLearningPathRepository(BaseRepository):
     # 查询
     # ============================================================
 
-    def find_published(self) -> List[Dict[str, Any]]:
-        """查询所有已发布的学习路径"""
+    def find_published(
+        self,
+        subject_code: Optional[str] = None,
+        grade_level: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        查询所有已发布的学习路径
+
+        Args:
+            subject_code: 科目代码（可选）
+            grade_level: 年级（可选，如 '中一'~'中六'）
+        """
+        conditions = ["status = 'published'", "is_deleted = 0"]
+        params: list = []
+
+        if subject_code:
+            conditions.append("subject_code = %s")
+            params.append(subject_code)
+        if grade_level:
+            conditions.append("grade_level = %s")
+            params.append(grade_level)
+
         return self.find_all(
-            "status = 'published' AND is_deleted = 0",
+            " AND ".join(conditions),
+            tuple(params) if params else None,
             order_by="created_at DESC",
         )
 

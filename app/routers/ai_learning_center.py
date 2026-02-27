@@ -67,6 +67,8 @@ class CreateContentRequest(BaseModel):
     external_url: Optional[str] = None
     video_platform: Optional[str] = None
     category_ids: Optional[List[int]] = None
+    subject_code: Optional[str] = None
+    grade_level: Optional[str] = None
 
 
 class UpdateContentRequest(BaseModel):
@@ -77,6 +79,8 @@ class UpdateContentRequest(BaseModel):
     external_url: Optional[str] = None
     video_platform: Optional[str] = None
     category_ids: Optional[List[int]] = None
+    subject_code: Optional[str] = None
+    grade_level: Optional[str] = None
 
 
 class CreateKnowledgeNodeRequest(BaseModel):
@@ -85,6 +89,8 @@ class CreateKnowledgeNodeRequest(BaseModel):
     icon: Optional[str] = "📌"
     color: Optional[str] = "#006633"
     category_id: Optional[int] = None
+    subject_code: Optional[str] = None
+    grade_level: Optional[str] = None
 
 
 class UpdateKnowledgeNodeRequest(BaseModel):
@@ -110,6 +116,7 @@ class CreateKnowledgeEdgeRequest(BaseModel):
     relation_type: str = "related"
     label: str = ""
     weight: float = 1.0
+    subject_code: Optional[str] = None
 
 
 class BatchNodeInput(BaseModel):
@@ -137,6 +144,8 @@ class BatchContentLinkInput(BaseModel):
 class BatchImportKnowledgeGraphRequest(BaseModel):
     clear_existing: bool = Field(False, description="导入前是否清空现有节点和边")
     source_pdf: Optional[str] = Field(None, description="PDF文件名，用于自动匹配content_id")
+    subject_code: Optional[str] = Field(None, description="科目代码")
+    grade_level: Optional[str] = Field(None, description="年级（中一~中六）")
     nodes: List[BatchNodeInput]
     edges: List[BatchEdgeInput] = []
     content_links: List[BatchContentLinkInput] = []
@@ -149,6 +158,8 @@ class CreatePathRequest(BaseModel):
     difficulty: str = "beginner"
     estimated_hours: float = 1.0
     tags: Optional[List[str]] = None
+    subject_code: Optional[str] = None
+    grade_level: Optional[str] = None
 
 
 class UpdatePathRequest(BaseModel):
@@ -202,6 +213,8 @@ class BatchPathInput(BaseModel):
 
 class BatchImportPathsRequest(BaseModel):
     clear_existing: bool = Field(False, description="导入前是否清空现有学习路径")
+    subject_code: Optional[str] = Field(None, description="科目代码")
+    grade_level: Optional[str] = Field(None, description="年级（中一~中六）")
     paths: List[BatchPathInput]
 
 
@@ -209,6 +222,30 @@ class AIAskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000)
     content_id: Optional[int] = None
     context_filter: Optional[str] = None
+    subject_code: Optional[str] = None
+
+
+# ================================================================
+# 公開端點 - 科目列表（School Learning Center 專用）
+# ================================================================
+
+@router.get("/api/learning-center/subjects")
+async def get_subjects(
+    current_user: dict = Depends(get_current_user),
+):
+    """獲取有學習內容的科目列表"""
+    try:
+        service = get_services().learning_center
+        loop = asyncio.get_event_loop()
+        subjects = await loop.run_in_executor(
+            None, service.get_subjects_with_content
+        )
+        return success_response(data=subjects)
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("Error fetching subjects")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
 # ================================================================
@@ -217,13 +254,16 @@ class AIAskRequest(BaseModel):
 
 @router.get("/api/learning-center/stats")
 async def get_statistics(
+    subject_code: Optional[str] = Query(None, description="科目代碼"),
     current_user: dict = Depends(get_current_user),
 ):
     """獲取學習中心統計數據"""
     try:
         service = get_services().learning_center
         loop = asyncio.get_event_loop()
-        stats = await loop.run_in_executor(None, service.get_stats)
+        stats = await loop.run_in_executor(
+            None, lambda: service.get_stats(subject_code=subject_code)
+        )
         return success_response(data=stats)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -234,13 +274,16 @@ async def get_statistics(
 
 @router.get("/api/learning-center/categories")
 async def get_categories(
+    subject_code: Optional[str] = Query(None, description="科目代碼"),
     current_user: dict = Depends(get_current_user),
 ):
     """獲取所有分類"""
     try:
         service = get_services().learning_center
         loop = asyncio.get_event_loop()
-        categories = await loop.run_in_executor(None, service.get_categories)
+        categories = await loop.run_in_executor(
+            None, lambda: service.get_categories(subject_code=subject_code)
+        )
         return success_response(data=categories)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -259,6 +302,8 @@ async def list_contents(
     category_id: Optional[int] = Query(None, description="分類 ID 過濾"),
     tag: Optional[str] = Query(None, description="標籤過濾"),
     search: Optional[str] = Query(None, description="搜尋內容"),
+    subject_code: Optional[str] = Query(None, description="科目代碼"),
+    grade_level: Optional[str] = Query(None, description="年級（中一~中六）"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=1000),
     current_user: dict = Depends(get_current_user),
@@ -276,6 +321,8 @@ async def list_contents(
                 search=search,
                 page=page,
                 page_size=page_size,
+                subject_code=subject_code,
+                grade_level=grade_level,
             ),
         )
         return paginated_response(
@@ -317,13 +364,16 @@ async def get_content_detail(
 
 @router.get("/api/learning-center/knowledge-map")
 async def get_knowledge_map(
+    subject_code: Optional[str] = Query(None, description="科目代碼"),
     current_user: dict = Depends(get_current_user),
 ):
     """獲取知識圖譜"""
     try:
         service = get_services().learning_center
         loop = asyncio.get_event_loop()
-        map_data = await loop.run_in_executor(None, service.get_knowledge_map)
+        map_data = await loop.run_in_executor(
+            None, lambda: service.get_knowledge_map(subject_code=subject_code)
+        )
         return success_response(data=map_data)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -334,13 +384,20 @@ async def get_knowledge_map(
 
 @router.get("/api/learning-center/paths")
 async def list_paths(
+    subject_code: Optional[str] = Query(None, description="科目代碼"),
+    grade_level: Optional[str] = Query(None, description="年級（中一~中六）"),
     current_user: dict = Depends(get_current_user),
 ):
     """列出已發布的學習路徑"""
     try:
         service = get_services().learning_center
         loop = asyncio.get_event_loop()
-        paths = await loop.run_in_executor(None, service.get_paths)
+        paths = await loop.run_in_executor(
+            None,
+            lambda: service.get_paths(
+                subject_code=subject_code, grade_level=grade_level
+            ),
+        )
         return success_response(data=paths)
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -376,6 +433,7 @@ async def get_path_detail(
 @router.get("/api/learning-center/search")
 async def global_search(
     keyword: str = Query(..., min_length=1),
+    subject_code: Optional[str] = Query(None, description="科目代碼"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=1000),
     current_user: dict = Depends(get_current_user),
@@ -386,7 +444,10 @@ async def global_search(
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: service.search_contents(keyword=keyword, page=page, page_size=page_size),
+            lambda: service.search_contents(
+                keyword=keyword, page=page, page_size=page_size,
+                subject_code=subject_code,
+            ),
         )
         return paginated_response(
             data=result.get("items", []),
@@ -414,6 +475,7 @@ async def ai_ask(
             question=request.question,
             content_id=request.content_id,
             context_filter=request.context_filter,
+            subject_code=request.subject_code,
         )
         return success_response(data=result)
     except AppException as e:
@@ -438,6 +500,7 @@ async def ai_ask_stream(
                 username=current_user.get("username", "unknown"),
                 question=request.question,
                 content_id=request.content_id,
+                subject_code=request.subject_code,
             ):
                 yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
         except Exception as e:
@@ -545,6 +608,8 @@ async def create_content(
             video_platform=request.video_platform,
             category_ids=request.category_ids,
             status="published",
+            subject_code=request.subject_code,
+            grade_level=request.grade_level,
         )
         return success_response(data=content, message="內容創建成功")
     except AppException as e:
@@ -638,6 +703,8 @@ async def upload_file(
     external_url: Optional[str] = Form(None),
     video_platform: Optional[str] = Form(None),
     category_ids: Optional[str] = Form(None),
+    subject_code: Optional[str] = Form(None),
+    grade_level: Optional[str] = Form(None),
     admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """上傳文件並創建內容"""
@@ -672,6 +739,8 @@ async def upload_file(
                 external_url=external_url,
                 video_platform=video_platform,
                 status="published",
+                subject_code=subject_code,
+                grade_level=grade_level,
             )
             # 关联分类
             if parsed_category_ids:
@@ -704,6 +773,8 @@ async def upload_file(
             mime_type=file.content_type,
             tags=tag_list,
             status="published",
+            subject_code=subject_code,
+            grade_level=grade_level,
         )
 
         # 关联分类
@@ -747,6 +818,8 @@ async def create_knowledge_node(
             icon=request.icon or "📌",
             color=request.color or "#006633",
             category_id=request.category_id,
+            subject_code=request.subject_code,
+            grade_level=request.grade_level,
         )
         return success_response(data=node, message="知識節點創建成功")
     except AppException as e:
@@ -856,6 +929,7 @@ async def create_knowledge_edge(
             relation_type=request.relation_type,
             label=request.label,
             weight=request.weight,
+            subject_code=request.subject_code,
         )
         return success_response(data=edge, message="知識邊創建成功")
     except AppException as e:
@@ -902,6 +976,8 @@ async def create_path(
             difficulty=request.difficulty,
             estimated_hours=request.estimated_hours,
             tags=request.tags,
+            subject_code=request.subject_code,
+            grade_level=request.grade_level,
         )
         return success_response(data=path, message="學習路徑創建成功")
     except AppException as e:
@@ -1011,6 +1087,8 @@ async def batch_import_knowledge_graph(
             content_links=[cl.model_dump() for cl in request.content_links],
             source_pdf=request.source_pdf,
             clear_existing=request.clear_existing,
+            subject_code=request.subject_code,
+            grade_level=request.grade_level,
         )
         return success_response(data=result, message="知識圖譜批量導入成功")
     except AppException as e:
@@ -1044,6 +1122,8 @@ async def batch_import_paths(
             admin=admin_info,
             paths=[p.model_dump() for p in request.paths],
             clear_existing=request.clear_existing,
+            subject_code=request.subject_code,
+            grade_level=request.grade_level,
         )
         return success_response(data=result, message="學習路徑批量導入成功")
     except AppException as e:

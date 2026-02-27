@@ -1,0 +1,996 @@
+/* ============================================================
+   學校 AI 學習中心 — school_learning_center.css
+   ============================================================ */
+
+:root {
+    --slc-primary: #006633;
+    --slc-primary-light: #e8f5e9;
+    --slc-primary-dark: #004d26;
+    --slc-bg: #f5f7fa;
+    --slc-card-bg: #ffffff;
+    --slc-border: #e0e6ed;
+    --slc-text: #2c3e50;
+    --slc-text-secondary: #7f8c8d;
+    --slc-sidebar-width: 240px;
+    --slc-header-height: 56px;
+    --slc-grade-bar-height: 48px;
+    --slc-radius: 12px;
+    --slc-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --slc-shadow-hover: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+/* ── 全局重置 ── */
+.slc-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--slc-bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--slc-text);
+}
+
+/* ── Header ── */
+.slc-header {
+    display: flex;
+    align-items: center;
+    height: var(--slc-header-height);
+    padding: 0 20px;
+    background: var(--slc-primary);
+    color: white;
+    flex-shrink: 0;
+    z-index: 100;
+    gap: 16px;
+}
+
+.slc-header__back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.9;
+    transition: opacity 0.2s;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.slc-header__back:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.15);
+}
+
+.slc-header__title {
+    font-size: 18px;
+    font-weight: 600;
+    flex: 1;
+}
+
+.slc-header__stats {
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+/* ── Main layout: sidebar + content ── */
+.slc-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ── 左側邊欄：科目列表 ── */
+.slc-sidebar {
+    width: var(--slc-sidebar-width);
+    background: var(--slc-card-bg);
+    border-right: 1px solid var(--slc-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.slc-sidebar__header {
+    padding: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--slc-text-secondary);
+    border-bottom: 1px solid var(--slc-border);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.slc-sidebar__list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.slc-subject-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 2px;
+    font-size: 14px;
+    color: var(--slc-text);
+}
+
+.slc-subject-item:hover {
+    background: var(--slc-primary-light);
+}
+
+.slc-subject-item.--active {
+    background: var(--slc-primary);
+    color: white;
+    font-weight: 600;
+}
+
+.slc-subject-item__icon {
+    font-size: 20px;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.slc-subject-item__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slc-subject-item__count {
+    font-size: 11px;
+    background: rgba(0,0,0,0.08);
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.slc-subject-item.--active .slc-subject-item__count {
+    background: rgba(255,255,255,0.25);
+    color: white;
+}
+
+/* ── 右側內容區 ── */
+.slc-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── 年級篩選欄 ── */
+.slc-grade-bar {
+    display: flex;
+    align-items: center;
+    height: var(--slc-grade-bar-height);
+    padding: 0 20px;
+    gap: 8px;
+    background: var(--slc-card-bg);
+    border-bottom: 1px solid var(--slc-border);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.slc-grade-bar__label {
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    white-space: nowrap;
+    margin-right: 4px;
+}
+
+.slc-grade-chip {
+    padding: 4px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--slc-border);
+    background: var(--slc-card-bg);
+    transition: all 0.2s;
+    white-space: nowrap;
+    color: var(--slc-text);
+}
+
+.slc-grade-chip:hover {
+    border-color: var(--slc-primary);
+    color: var(--slc-primary);
+}
+
+.slc-grade-chip.--active {
+    background: var(--slc-primary);
+    color: white;
+    border-color: var(--slc-primary);
+}
+
+/* ── Tab 導航 ── */
+.slc-tab-nav {
+    display: flex;
+    padding: 0 20px;
+    gap: 0;
+    background: var(--slc-card-bg);
+    border-bottom: 2px solid var(--slc-border);
+    flex-shrink: 0;
+}
+
+.slc-tab-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--slc-text-secondary);
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.slc-tab-btn:hover {
+    color: var(--slc-primary);
+}
+
+.slc-tab-btn.--active {
+    color: var(--slc-primary);
+    border-bottom-color: var(--slc-primary);
+    font-weight: 600;
+}
+
+/* ── Tab 內容面板 ── */
+.slc-tab-panels {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.slc-tab-panel {
+    display: none;
+}
+
+.slc-tab-panel.--active {
+    display: block;
+}
+
+/* ── 搜索框 ── */
+.slc-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.slc-search-input {
+    flex: 1;
+    padding: 8px 14px;
+    border: 1px solid var(--slc-border);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.slc-search-input:focus {
+    border-color: var(--slc-primary);
+}
+
+.slc-search-btn {
+    padding: 8px 16px;
+    background: var(--slc-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.slc-search-btn:hover {
+    background: var(--slc-primary-dark);
+}
+
+/* ── 類型篩選 ── */
+.slc-type-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.slc-type-chip {
+    padding: 4px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--slc-border);
+    background: var(--slc-card-bg);
+    transition: all 0.2s;
+    color: var(--slc-text-secondary);
+}
+
+.slc-type-chip:hover, .slc-type-chip.--active {
+    background: var(--slc-primary);
+    color: white;
+    border-color: var(--slc-primary);
+}
+
+/* ── 資源卡片網格 ── */
+.slc-resource-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.slc-resource-card {
+    background: var(--slc-card-bg);
+    border-radius: var(--slc-radius);
+    border: 1px solid var(--slc-border);
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.15s;
+    cursor: pointer;
+}
+
+.slc-resource-card:hover {
+    box-shadow: var(--slc-shadow-hover);
+    transform: translateY(-2px);
+}
+
+.slc-resource-card__type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.slc-resource-card__type-badge.--document { background: #e3f2fd; color: #1565c0; }
+.slc-resource-card__type-badge.--video_local,
+.slc-resource-card__type-badge.--video_external { background: #fce4ec; color: #c62828; }
+.slc-resource-card__type-badge.--article { background: #f3e5f5; color: #6a1b9a; }
+.slc-resource-card__type-badge.--image { background: #fff3e0; color: #e65100; }
+
+.slc-resource-card__body {
+    padding: 16px;
+}
+
+.slc-resource-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 8px 0 6px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.slc-resource-card__desc {
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.slc-resource-card__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--slc-border);
+    font-size: 12px;
+    color: var(--slc-text-secondary);
+}
+
+.slc-resource-card__grade {
+    background: var(--slc-primary-light);
+    color: var(--slc-primary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* ── 知識圖譜容器 ── */
+.slc-map-container {
+    width: 100%;
+    height: calc(100vh - var(--slc-header-height) - var(--slc-grade-bar-height) - 90px);
+    min-height: 400px;
+    background: var(--slc-card-bg);
+    border-radius: var(--slc-radius);
+    border: 1px solid var(--slc-border);
+    position: relative;
+    overflow: hidden;
+}
+
+.slc-map-container svg {
+    width: 100%;
+    height: 100%;
+}
+
+.slc-map-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--slc-text-secondary);
+    font-size: 16px;
+    gap: 12px;
+}
+
+.slc-map-empty__icon {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+/* ── 知識圖譜節點詳情面板 ── */
+.slc-node-detail {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 320px;
+    max-height: calc(100% - 32px);
+    background: var(--slc-card-bg);
+    border-radius: var(--slc-radius);
+    box-shadow: var(--slc-shadow-hover);
+    overflow-y: auto;
+    display: none;
+    z-index: 10;
+}
+
+.slc-node-detail.--visible {
+    display: block;
+}
+
+.slc-node-detail__header {
+    padding: 16px;
+    border-bottom: 1px solid var(--slc-border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.slc-node-detail__title {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.slc-node-detail__close {
+    cursor: pointer;
+    padding: 4px;
+    border: none;
+    background: none;
+    font-size: 18px;
+    color: var(--slc-text-secondary);
+}
+
+.slc-node-detail__body {
+    padding: 16px;
+}
+
+.slc-node-detail__desc {
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.slc-node-detail__resources {
+    border-top: 1px solid var(--slc-border);
+    padding-top: 12px;
+}
+
+.slc-node-detail__resources h4 {
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    margin-bottom: 8px;
+}
+
+.slc-node-resource-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 13px;
+}
+
+.slc-node-resource-item:hover {
+    background: var(--slc-primary-light);
+}
+
+/* ── 學習路徑 ── */
+.slc-path-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.slc-path-card {
+    background: var(--slc-card-bg);
+    border-radius: var(--slc-radius);
+    border: 1px solid var(--slc-border);
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.slc-path-card:hover {
+    box-shadow: var(--slc-shadow-hover);
+}
+
+.slc-path-card__header {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.slc-path-card__icon {
+    font-size: 28px;
+    width: 40px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.slc-path-card__info {
+    flex: 1;
+}
+
+.slc-path-card__title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.slc-path-card__desc {
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.slc-path-card__meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.slc-path-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--slc-text-secondary);
+    background: var(--slc-bg);
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+.slc-path-card__toggle {
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--slc-text-secondary);
+    transition: transform 0.2s;
+    background: none;
+    border: none;
+    padding: 4px;
+}
+
+.slc-path-card__toggle.--expanded {
+    transform: rotate(180deg);
+}
+
+.slc-path-card__steps {
+    display: none;
+    border-top: 1px solid var(--slc-border);
+    padding: 16px;
+}
+
+.slc-path-card__steps.--expanded {
+    display: block;
+}
+
+/* ── 路徑步驟時間線 ── */
+.slc-step-timeline {
+    position: relative;
+    padding-left: 32px;
+}
+
+.slc-step-timeline::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--slc-border);
+}
+
+.slc-step-item {
+    position: relative;
+    padding: 12px 0;
+    font-size: 14px;
+}
+
+.slc-step-item::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 16px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--slc-primary);
+    border: 2px solid var(--slc-card-bg);
+    z-index: 1;
+}
+
+.slc-step-item__title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.slc-step-item__desc {
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    line-height: 1.5;
+}
+
+.slc-step-item__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--slc-primary);
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.slc-step-item__link:hover {
+    text-decoration: underline;
+}
+
+/* ── 空狀態 ── */
+.slc-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--slc-text-secondary);
+    text-align: center;
+}
+
+.slc-empty-state__icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.slc-empty-state__text {
+    font-size: 16px;
+}
+
+/* ── Loading ── */
+.slc-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 12px;
+    color: var(--slc-text-secondary);
+}
+
+.slc-loading__spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--slc-border);
+    border-top-color: var(--slc-primary);
+    border-radius: 50%;
+    animation: slc-spin 0.8s linear infinite;
+}
+
+@keyframes slc-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── AI 浮動聊天窗 ── */
+.slc-ai-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--slc-primary);
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,102,51,0.4);
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    transition: transform 0.2s;
+}
+
+.slc-ai-fab:hover {
+    transform: scale(1.08);
+}
+
+.slc-ai-window {
+    position: fixed;
+    bottom: 90px;
+    right: 24px;
+    width: 380px;
+    max-height: 500px;
+    background: var(--slc-card-bg);
+    border-radius: var(--slc-radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    display: none;
+    flex-direction: column;
+    z-index: 201;
+    overflow: hidden;
+}
+
+.slc-ai-window.--visible {
+    display: flex;
+}
+
+.slc-ai-window__header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--slc-primary);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    gap: 8px;
+}
+
+.slc-ai-window__close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 2px;
+    opacity: 0.8;
+}
+
+.slc-ai-window__close:hover {
+    opacity: 1;
+}
+
+.slc-ai-window__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    min-height: 200px;
+    max-height: 340px;
+}
+
+.slc-ai-msg {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+}
+
+.slc-ai-msg.--user {
+    flex-direction: row-reverse;
+}
+
+.slc-ai-msg__bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.slc-ai-msg.--user .slc-ai-msg__bubble {
+    background: var(--slc-primary);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.slc-ai-msg.--assistant .slc-ai-msg__bubble {
+    background: var(--slc-bg);
+    color: var(--slc-text);
+    border-bottom-left-radius: 4px;
+}
+
+.slc-ai-msg.--thinking .slc-ai-msg__bubble {
+    background: #fff3e0;
+    color: #e65100;
+    font-size: 13px;
+    font-style: italic;
+}
+
+.slc-ai-window__input {
+    display: flex;
+    padding: 12px;
+    border-top: 1px solid var(--slc-border);
+    gap: 8px;
+}
+
+.slc-ai-window__textarea {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--slc-border);
+    border-radius: 8px;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    min-height: 36px;
+    max-height: 80px;
+    font-family: inherit;
+}
+
+.slc-ai-window__textarea:focus {
+    border-color: var(--slc-primary);
+}
+
+.slc-ai-window__send {
+    padding: 8px 16px;
+    background: var(--slc-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    align-self: flex-end;
+    transition: background 0.2s;
+}
+
+.slc-ai-window__send:hover {
+    background: var(--slc-primary-dark);
+}
+
+.slc-ai-window__send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ── 難度標籤 ── */
+.slc-difficulty {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.slc-difficulty.--beginner { background: #e8f5e9; color: #2e7d32; }
+.slc-difficulty.--intermediate { background: #fff3e0; color: #e65100; }
+.slc-difficulty.--advanced { background: #fce4ec; color: #c62828; }
+
+/* ── 響應式設計 ── */
+@media (max-width: 768px) {
+    .slc-sidebar {
+        position: fixed;
+        left: -100%;
+        top: var(--slc-header-height);
+        bottom: 0;
+        z-index: 150;
+        transition: left 0.3s ease;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.1);
+    }
+
+    .slc-sidebar.--mobile-open {
+        left: 0;
+    }
+
+    .slc-resource-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .slc-ai-window {
+        width: calc(100vw - 32px);
+        right: 16px;
+    }
+
+    .slc-header__menu-btn {
+        display: flex;
+    }
+}
+
+@media (min-width: 769px) {
+    .slc-header__menu-btn {
+        display: none;
+    }
+}
+
+/* ── 模態框（PDF / 視頻 / 文章 查看器） ── */
+.slc-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.slc-modal-overlay.--visible {
+    display: flex;
+}
+
+.slc-modal-content {
+    background: var(--slc-card-bg);
+    border-radius: var(--slc-radius);
+    width: 90vw;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.slc-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--slc-border);
+    gap: 8px;
+}
+
+.slc-modal-header__title {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slc-modal-header__close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--slc-text-secondary);
+    padding: 4px;
+}
+
+.slc-modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+}
+
+.slc-modal-body iframe {
+    width: 100%;
+    height: 70vh;
+    border: none;
+}
+
+.slc-modal-body canvas {
+    width: 100%;
+}

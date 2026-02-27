@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學校學習中心 - 培僑中學</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/school_learning_center.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+</head>
+<body>
+
+<div id="app" class="slc-page">
+
+    <!-- ── Header ── -->
+    <header class="slc-header">
+        <button class="slc-header__back" onclick="window.location.href='/'">← 返回</button>
+        <button class="slc-header__menu-btn" onclick="slc.toggleMobileSidebar()">☰</button>
+        <div class="slc-header__title">🏫 學校學習中心</div>
+        <div class="slc-header__stats" id="headerStats"></div>
+    </header>
+
+    <!-- ── Main: 側邊欄 + 內容區 ── -->
+    <div class="slc-main">
+
+        <!-- 左側邊欄: 科目列表 -->
+        <aside class="slc-sidebar">
+            <div class="slc-sidebar__header">📚 學科</div>
+            <div class="slc-sidebar__list" id="subjectList">
+                <div class="slc-loading">
+                    <div class="slc-loading__spinner"></div>
+                    <div>加載科目...</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 右側內容區 -->
+        <div class="slc-content">
+
+            <!-- 年級篩選欄 -->
+            <div class="slc-grade-bar" id="gradeBar"></div>
+
+            <!-- Tab 導航 -->
+            <nav class="slc-tab-nav">
+                <button class="slc-tab-btn --active" data-tab="resources">📄 教學資源</button>
+                <button class="slc-tab-btn" data-tab="map">🗺️ 知識圖譜</button>
+                <button class="slc-tab-btn" data-tab="paths">🛤️ 學習路徑</button>
+            </nav>
+
+            <!-- Tab 內容面板 -->
+            <div class="slc-tab-panels">
+
+                <!-- Tab: 教學資源 -->
+                <section id="tab-resources" class="slc-tab-panel --active">
+                    <div class="slc-search-bar">
+                        <input class="slc-search-input" id="searchInput" placeholder="搜索資源..." type="text">
+                        <button class="slc-search-btn" onclick="slc.doSearch()">🔍 搜索</button>
+                    </div>
+                    <div class="slc-type-filters">
+                        <button class="slc-type-chip" data-type="document" onclick="slc.filterByType('document')">📄 文檔</button>
+                        <button class="slc-type-chip" data-type="video_local" onclick="slc.filterByType('video_local')">🎬 本地視頻</button>
+                        <button class="slc-type-chip" data-type="video_external" onclick="slc.filterByType('video_external')">🔗 外部視頻</button>
+                        <button class="slc-type-chip" data-type="article" onclick="slc.filterByType('article')">📝 文章</button>
+                        <button class="slc-type-chip" data-type="image" onclick="slc.filterByType('image')">🖼️ 圖片</button>
+                    </div>
+                    <div class="slc-resource-grid" id="resourceGrid">
+                        <div class="slc-loading">
+                            <div class="slc-loading__spinner"></div>
+                            <div>加載資源...</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: 知識圖譜 -->
+                <section id="tab-map" class="slc-tab-panel">
+                    <div class="slc-map-container" id="knowledgeMapContainer">
+                        <div class="slc-loading">
+                            <div class="slc-loading__spinner"></div>
+                            <div>加載知識圖譜...</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab: 學習路徑 -->
+                <section id="tab-paths" class="slc-tab-panel">
+                    <div class="slc-path-list" id="pathList">
+                        <div class="slc-loading">
+                            <div class="slc-loading__spinner"></div>
+                            <div>加載學習路徑...</div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── 內容查看模態框 ── -->
+<div class="slc-modal-overlay" id="contentModal">
+    <div class="slc-modal-content">
+        <div class="slc-modal-header">
+            <span class="slc-modal-header__title" id="modalTitle">資源查看</span>
+            <button class="slc-modal-header__close" onclick="slc.closeModal()">✕</button>
+        </div>
+        <div class="slc-modal-body" id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ── AI 助教 FAB ── -->
+<button class="slc-ai-fab" id="aiFab" title="AI 助教">🤖</button>
+
+<!-- ── AI 聊天窗 ── -->
+<div class="slc-ai-window" id="aiWindow">
+    <div class="slc-ai-window__header">
+        <span>🤖</span>
+        <span>AI 學習助教</span>
+        <button class="slc-ai-window__close" onclick="slc.toggleAIWindow()">✕</button>
+    </div>
+    <div class="slc-ai-window__messages" id="aiMessages"></div>
+    <div class="slc-ai-window__input">
+        <textarea class="slc-ai-window__textarea" id="aiInput" placeholder="輸入問題..." rows="1"></textarea>
+        <button class="slc-ai-window__send" id="aiSendBtn">發送</button>
+    </div>
+</div>
+
+<!-- ── Scripts ── -->
+<script src="/static/js/school_learning_center.js" charset="UTF-8"></script>
+<script>
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.slc._init);
+} else {
+    window.slc._init();
+}
+</script>
+
+</body>
+</html>

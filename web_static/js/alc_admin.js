@@ -39,6 +39,7 @@
 
         setupAdminTabs();
         setupAdminForms();
+        loadSubjectOptions();
     }
 
     function toggleAdminPanel() {
@@ -512,6 +513,8 @@
         const typeSelect = $.getElement('contentTypeSelect');
         const descInput = $.getElement('contentDescInput');
         const categorySelect = $.getElement('contentCategorySelect');
+        const subjectSelect = $.getElement('contentSubjectSelect');
+        const gradeSelect = $.getElement('contentGradeSelect');
 
         const formData = new FormData();
         formData.append('file', file);
@@ -520,6 +523,12 @@
         formData.append('tags', '');
         if (categorySelect && categorySelect.value) {
             formData.append('category_ids', categorySelect.value);
+        }
+        if (subjectSelect && subjectSelect.value) {
+            formData.append('subject_code', subjectSelect.value);
+        }
+        if (gradeSelect && gradeSelect.value) {
+            formData.append('grade_level', gradeSelect.value);
         }
 
         // Determine content type
@@ -554,11 +563,15 @@
         const typeSelect = $.getElement('contentTypeSelect');
         const descInput = $.getElement('contentDescInput');
         const categorySelect = $.getElement('contentCategorySelect');
+        const subjectSelect = $.getElement('contentSubjectSelect');
+        const gradeSelect = $.getElement('contentGradeSelect');
 
         const title = titleInput ? titleInput.value.trim() : '';
         const contentType = typeSelect ? typeSelect.value : '';
         const description = descInput ? descInput.value.trim() : '';
         const categoryId = categorySelect ? categorySelect.value : '';
+        const subjectCode = subjectSelect ? subjectSelect.value : '';
+        const gradeLevel = gradeSelect ? gradeSelect.value : '';
 
         if (!title) {
             $.showToast('請輸入標題', 'error');
@@ -590,6 +603,8 @@
                 formData.append('tags', '');
                 if (videoPlatform) formData.append('video_platform', videoPlatform);
                 if (categoryId) formData.append('category_ids', categoryId);
+                if (subjectCode) formData.append('subject_code', subjectCode);
+                if (gradeLevel) formData.append('grade_level', gradeLevel);
 
                 const response = await $.apiUpload(`${ADMIN_API}/upload`, formData);
                 if (response.success) {
@@ -616,6 +631,8 @@
                 content_type: contentType,
             };
             if (categoryId) body.category_ids = [parseInt(categoryId)];
+            if (subjectCode) body.subject_code = subjectCode;
+            if (gradeLevel) body.grade_level = gradeLevel;
 
             const response = await $.apiPost(`${ADMIN_API}/contents`, body);
             if (response.success) {
@@ -689,10 +706,14 @@
         const nameInput = $.getElement('nodeNameInput');
         const descInput = $.getElement('nodeDescInput');
         const categorySelect = $.getElement('nodeCategorySelect');
+        const subjectSelect = $.getElement('nodeSubjectSelect');
+        const gradeSelect = $.getElement('nodeGradeSelect');
 
         const title = nameInput ? nameInput.value.trim() : '';
         const description = descInput ? descInput.value.trim() : '';
         const categoryId = categorySelect ? categorySelect.value : '';
+        const subjectCode = subjectSelect ? subjectSelect.value : '';
+        const gradeLevel = gradeSelect ? gradeSelect.value : '';
 
         if (!title) {
             $.showToast('请输入知识点名称', 'error');
@@ -703,6 +724,8 @@
             const editingId = nameInput && nameInput.getAttribute('data-editing-id');
             const body = { title, description };
             if (categoryId) body.category_id = parseInt(categoryId);
+            if (subjectCode) body.subject_code = subjectCode;
+            if (gradeLevel) body.grade_level = gradeLevel;
 
             let response;
             if (editingId) {
@@ -738,12 +761,18 @@
         }
 
         try {
-            const response = await $.apiPost(`${ADMIN_API}/knowledge-edges`, {
+            const edgeBody = {
                 source_node_id: parseInt(sourceId),
                 target_node_id: parseInt(targetId),
                 relation_type: relationType || 'related',
                 label: relationType || '',
-            });
+            };
+            // Inherit subject_code from source node if available
+            const sourceNode = $.state.nodes.find(n => n.id == sourceId);
+            if (sourceNode && sourceNode.subject_code) {
+                edgeBody.subject_code = sourceNode.subject_code;
+            }
+            const response = await $.apiPost(`${ADMIN_API}/knowledge-edges`, edgeBody);
 
             if (response.success) {
                 $.showToast('知识点连接成功', 'success');
@@ -925,6 +954,14 @@
         // 4. 組裝請求並提交
         payload.clear_existing = clearExisting;
         if (!payload.edges) payload.edges = [];
+
+        // 附加科目/年級
+        const batchSubjectSelect = $.getElement('batchImportSubjectSelect');
+        const batchGradeSelect = $.getElement('batchImportGradeSelect');
+        const batchSubjectCode = batchSubjectSelect ? batchSubjectSelect.value : '';
+        const batchGradeLevel = batchGradeSelect ? batchGradeSelect.value : '';
+        if (batchSubjectCode) payload.subject_code = batchSubjectCode;
+        if (batchGradeLevel) payload.grade_level = batchGradeLevel;
 
         if (submitBtn) submitBtn.disabled = true;
         if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
@@ -1133,10 +1170,17 @@
         }
 
         // 4. 組裝請求
+        const pathSubjectSelect = $.getElement('pathImportSubjectSelect');
+        const pathGradeSelect = $.getElement('pathImportGradeSelect');
+        const pathSubjectCode = pathSubjectSelect ? pathSubjectSelect.value : '';
+        const pathGradeLevel = pathGradeSelect ? pathGradeSelect.value : '';
+
         const requestBody = {
             paths: payload.paths,
             clear_existing: clearExisting
         };
+        if (pathSubjectCode) requestBody.subject_code = pathSubjectCode;
+        if (pathGradeLevel) requestBody.grade_level = pathGradeLevel;
 
         if (submitBtn) submitBtn.disabled = true;
         if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
@@ -1266,11 +1310,15 @@
         const descInput = $.getElement('pathDescInput');
         const diffSelect = $.getElement('pathDifficultySelect');
         const durationInput = $.getElement('pathDurationInput');
+        const subjectSelect = $.getElement('pathSubjectSelect');
+        const gradeSelect = $.getElement('pathGradeSelect');
 
         const title = nameInput ? nameInput.value.trim() : '';
         const description = descInput ? descInput.value.trim() : '';
         const difficulty = diffSelect ? diffSelect.value : 'beginner';
         const estimatedHours = durationInput ? parseFloat(durationInput.value) || 0 : 0;
+        const subjectCode = subjectSelect ? subjectSelect.value : '';
+        const gradeLevel = gradeSelect ? gradeSelect.value : '';
 
         if (!title) {
             $.showToast('请输入路径名称', 'error');
@@ -1280,6 +1328,8 @@
         try {
             const editingId = nameInput && nameInput.getAttribute('data-editing-id');
             const body = { title, description, difficulty, estimated_hours: estimatedHours };
+            if (subjectCode) body.subject_code = subjectCode;
+            if (gradeLevel) body.grade_level = gradeLevel;
 
             let response;
             if (editingId) {
@@ -1337,6 +1387,52 @@
         }
     }
 
+    // ==================== ADMIN: LOAD SUBJECT OPTIONS ====================
+
+    /**
+     * 從 /api/subjects 載入科目列表，填充所有科目下拉選單。
+     */
+    async function loadSubjectOptions() {
+        try {
+            const token = localStorage.getItem('token');
+            const resp = await fetch('/api/subjects', {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            const data = await resp.json();
+
+            // /api/subjects returns { subjects: { code: { code, name, icon }, ... } }
+            const subjectsMap = data.subjects || {};
+            const subjects = Object.values(subjectsMap);
+
+            // All subject selects that need to be populated
+            const selectIds = [
+                'contentSubjectSelect',
+                'nodeSubjectSelect',
+                'pathSubjectSelect',
+                'batchImportSubjectSelect',
+                'pathImportSubjectSelect',
+            ];
+
+            selectIds.forEach(id => {
+                const select = $.getElement(id);
+                if (!select) return;
+                // Keep the first "placeholder" option
+                const placeholder = select.options[0];
+                select.innerHTML = '';
+                select.appendChild(placeholder);
+                subjects.forEach(subj => {
+                    const opt = document.createElement('option');
+                    opt.value = subj.code;
+                    const icon = subj.icon ? subj.icon + ' ' : '';
+                    opt.textContent = icon + subj.name;
+                    select.appendChild(opt);
+                });
+            });
+        } catch (error) {
+            console.error('Failed to load subject options:', error);
+        }
+    }
+
     // Register module functions
     $.modules.admin = {
         setupAdminPanel,
@@ -1353,5 +1449,6 @@
         closePathImportModal,
         editPath,
         deletePath,
+        loadSubjectOptions,
     };
 })();
