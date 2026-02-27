@@ -29,7 +29,7 @@ window.slc = (() => {
     };
 
     const GRADES = ['中一', '中二', '中三', '中四', '中五', '中六'];
-    const ADMIN_API = '/api/admin/learning-center';
+    const ADMIN_API = '/api/admin/school-learning-center';
 
     // ── 獲取 Token ──
     function _getToken() {
@@ -46,7 +46,7 @@ window.slc = (() => {
         },
 
         async getSubjects() {
-            const r = await fetch('/api/learning-center/subjects', { headers: this._headers() });
+            const r = await fetch('/api/school-learning-center/subjects', { headers: this._headers() });
             const j = await r.json();
             return j.data || [];
         },
@@ -56,14 +56,14 @@ window.slc = (() => {
             if (subjectCode) params.set('subject_code', subjectCode);
             if (gradeLevel) params.set('grade_level', gradeLevel);
             if (contentType) params.set('content_type', contentType);
-            const r = await fetch(`/api/learning-center/contents?${params}`, { headers: this._headers() });
+            const r = await fetch(`/api/school-learning-center/contents?${params}`, { headers: this._headers() });
             const j = await r.json();
             return j.data || [];
         },
 
         async getKnowledgeMap(subjectCode) {
             const params = subjectCode ? `?subject_code=${subjectCode}` : '';
-            const r = await fetch(`/api/learning-center/knowledge-map${params}`, { headers: this._headers() });
+            const r = await fetch(`/api/school-learning-center/knowledge-map${params}`, { headers: this._headers() });
             const j = await r.json();
             return j.data || { nodes: [], edges: [] };
         },
@@ -73,20 +73,20 @@ window.slc = (() => {
             if (subjectCode) params.set('subject_code', subjectCode);
             if (gradeLevel) params.set('grade_level', gradeLevel);
             const qs = params.toString();
-            const r = await fetch(`/api/learning-center/paths${qs ? '?' + qs : ''}`, { headers: this._headers() });
+            const r = await fetch(`/api/school-learning-center/paths${qs ? '?' + qs : ''}`, { headers: this._headers() });
             const j = await r.json();
             return j.data || [];
         },
 
         async getPathDetail(pathId) {
-            const r = await fetch(`/api/learning-center/paths/${pathId}`, { headers: this._headers() });
+            const r = await fetch(`/api/school-learning-center/paths/${pathId}`, { headers: this._headers() });
             const j = await r.json();
             return j.data || null;
         },
 
         async getStats(subjectCode) {
             const params = subjectCode ? `?subject_code=${subjectCode}` : '';
-            const r = await fetch(`/api/learning-center/stats${params}`, { headers: this._headers() });
+            const r = await fetch(`/api/school-learning-center/stats${params}`, { headers: this._headers() });
             const j = await r.json();
             return j.data || {};
         },
@@ -94,7 +94,7 @@ window.slc = (() => {
         async searchContents(keyword, subjectCode) {
             const params = new URLSearchParams({ keyword });
             if (subjectCode) params.set('subject_code', subjectCode);
-            const r = await fetch(`/api/learning-center/search?${params}`, { headers: this._headers() });
+            const r = await fetch(`/api/school-learning-center/search?${params}`, { headers: this._headers() });
             const j = await r.json();
             return j.data || [];
         },
@@ -103,7 +103,7 @@ window.slc = (() => {
             const body = { question };
             if (subjectCode) body.subject_code = subjectCode;
             if (contentId) body.content_id = contentId;
-            return fetch('/api/learning-center/ai-ask-stream', {
+            return fetch('/api/school-learning-center/ai-ask-stream', {
                 method: 'POST',
                 headers: this._headers(),
                 body: JSON.stringify(body),
@@ -164,7 +164,7 @@ window.slc = (() => {
         },
 
         async adminBatchImportGraph(body) {
-            const r = await fetch(`${ADMIN_API}/knowledge-graph/import`, {
+            const r = await fetch(`${ADMIN_API}/knowledge-graph/batch-import`, {
                 method: 'POST',
                 headers: this._headers(),
                 body: JSON.stringify(body),
@@ -817,10 +817,10 @@ window.slc = (() => {
             // 根據內容類型決定如何打開
             if (contentType === 'document') {
                 // PDF 用 iframe 打開
-                UI.openContentModal('文檔查看', `<iframe src="/api/learning-center/contents/${contentId}/file" style="width:100%;height:70vh;border:none;"></iframe>`);
+                UI.openContentModal('文檔查看', `<iframe src="/api/school-learning-center/contents/${contentId}/file" style="width:100%;height:70vh;border:none;"></iframe>`);
                 // 實際上需要根據文件路徑構建 URL
                 // 這裡先使用簡化版
-                fetch(`/api/learning-center/contents/${contentId}`, {
+                fetch(`/api/school-learning-center/contents/${contentId}`, {
                     headers: API._headers(),
                 }).then(r => r.json()).then(j => {
                     const data = j.data;
@@ -833,7 +833,7 @@ window.slc = (() => {
                     }
                 }).catch(() => {});
             } else if (contentType === 'video_external') {
-                fetch(`/api/learning-center/contents/${contentId}`, {
+                fetch(`/api/school-learning-center/contents/${contentId}`, {
                     headers: API._headers(),
                 }).then(r => r.json()).then(j => {
                     const data = j.data;
@@ -845,7 +845,7 @@ window.slc = (() => {
                     }
                 }).catch(() => {});
             } else if (contentType === 'article') {
-                fetch(`/api/learning-center/contents/${contentId}`, {
+                fetch(`/api/school-learning-center/contents/${contentId}`, {
                     headers: API._headers(),
                 }).then(r => r.json()).then(j => {
                     const data = j.data;
@@ -857,7 +857,7 @@ window.slc = (() => {
                     }
                 }).catch(() => {});
             } else if (contentType === 'video_local') {
-                fetch(`/api/learning-center/contents/${contentId}`, {
+                fetch(`/api/school-learning-center/contents/${contentId}`, {
                     headers: API._headers(),
                 }).then(r => r.json()).then(j => {
                     const data = j.data;
@@ -871,7 +871,7 @@ window.slc = (() => {
                 }).catch(() => {});
             } else {
                 // Fallback: 打開內容詳情
-                fetch(`/api/learning-center/contents/${contentId}`, {
+                fetch(`/api/school-learning-center/contents/${contentId}`, {
                     headers: API._headers(),
                 }).then(r => r.json()).then(j => {
                     const data = j.data;

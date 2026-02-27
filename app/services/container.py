@@ -76,6 +76,14 @@ from app.domains.ai_learning_center.repository import (
     LCLearningPathRepository,
     LCPathStepRepository,
 )
+from app.domains.school_learning_center.repository import (
+    SLCContentRepository,
+    SLCKnowledgeNodeRepository,
+    SLCKnowledgeEdgeRepository,
+    SLCNodeContentRepository,
+    SLCLearningPathRepository,
+    SLCPathStepRepository,
+)
 
 # Service imports
 from app.domains.classroom.service import ClassroomService
@@ -90,6 +98,7 @@ from app.domains.subject.service import SubjectService
 from app.domains.user.service import UserService
 from app.domains.vision.service import VisionService
 from app.domains.ai_learning_center.service import LearningCenterService
+from app.domains.school_learning_center.service import SchoolLearningCenterService
 from app.domains.game_upload.service import GameUploadService
 
 logger = logging.getLogger(__name__)
@@ -135,6 +144,7 @@ class ServiceContainer:
         self._mistake_book: Optional[MistakeBookService] = None
         self._vision: Optional[VisionService] = None
         self._learning_center: Optional[LearningCenterService] = None
+        self._school_learning_center: Optional[SchoolLearningCenterService] = None
         self._game_upload: Optional[GameUploadService] = None
 
     # ================================================================== #
@@ -279,6 +289,21 @@ class ServiceContainer:
                 settings=self._settings,
             )
         return self._learning_center
+
+    @property
+    def school_learning_center(self) -> SchoolLearningCenterService:
+        """学校学习中心服务（独立于 AI 学习中心）"""
+        if self._school_learning_center is None:
+            self._school_learning_center = SchoolLearningCenterService(
+                content_repo=self._get_repo(SLCContentRepository),
+                node_repo=self._get_repo(SLCKnowledgeNodeRepository),
+                edge_repo=self._get_repo(SLCKnowledgeEdgeRepository),
+                node_content_repo=self._get_repo(SLCNodeContentRepository),
+                path_repo=self._get_repo(SLCLearningPathRepository),
+                step_repo=self._get_repo(SLCPathStepRepository),
+                settings=self._settings,
+            )
+        return self._school_learning_center
 
     @property
     def game_upload(self) -> GameUploadService:
