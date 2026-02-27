@@ -1,0 +1,192 @@
+{
+  "nodes": [
+    {
+      "temp_id": "stu_root",
+      "title": "ULearning Student Guide",
+      "description": "ULearning LMS 學生端使用手冊，涵蓋登入、課件學習、資源、作業、討論、考試、成績等核心功能。",
+      "icon": "📘",
+      "color": "#1565C0"
+    },
+    {
+      "temp_id": "stu_basics",
+      "title": "LMS Basics",
+      "description": "ULearning 基礎概念與術語，包括 Announcements、Assignments、Calendar、Classes、Courseware 等核心術語定義。",
+      "icon": "📖",
+      "color": "#1976D2"
+    },
+    {
+      "temp_id": "stu_terminology",
+      "title": "ULearning Terminology",
+      "description": "關鍵術語：Announcements（公告）、Assignments（作業）、Calendar（日曆）、Classes（班級）、Courseware（課件）、Discussions（討論）、Grades（成績）、Groups（小組）、Members（成員）等。",
+      "icon": "📝",
+      "color": "#42A5F5"
+    },
+    {
+      "temp_id": "stu_login",
+      "title": "Login",
+      "description": "學生登入 ULearning 平台的步驟與注意事項。",
+      "icon": "🔑",
+      "color": "#2E7D32"
+    },
+    {
+      "temp_id": "stu_announcements",
+      "title": "Announcements",
+      "description": "查看與閱讀課程公告。教師可針對整門課程或特定班級發佈公告，超級管理員可發佈全平台公告。",
+      "icon": "📢",
+      "color": "#F57F17"
+    },
+    {
+      "temp_id": "stu_courseware",
+      "title": "Courseware",
+      "description": "數位學習內容，由教師創建。四層結構：Courseware → Module → Topic → Page。包含文字、圖片、視頻、音頻、插件、測試題等。",
+      "icon": "📚",
+      "color": "#6A1B9A"
+    },
+    {
+      "temp_id": "stu_cw_viewing",
+      "title": "Viewing Courseware",
+      "description": "查看課件學習界面：學習進度百分比、已花費時間、已獲得分數、各模組學習數據，以及可執行的操作。",
+      "icon": "👁️",
+      "color": "#7B1FA2"
+    },
+    {
+      "temp_id": "stu_cw_content_types",
+      "title": "Courseware Content Types",
+      "description": "課件支持的內容類型：富文本（含圖片/連結）、練習題（13 種題型）、視頻、音頻、外部連結、插件等。提交練習後會顯示結果。",
+      "icon": "🎨",
+      "color": "#8E24AA"
+    },
+    {
+      "temp_id": "stu_resources",
+      "title": "Resources",
+      "description": "教師為課程選擇或上傳的補充學習資源。支持 8 種類型：video、audio、image、document、link、rich text、micro course 及 others。",
+      "icon": "📁",
+      "color": "#00838F"
+    },
+    {
+      "temp_id": "stu_res_viewing",
+      "title": "Viewing Resources",
+      "description": "查看資源列表、在新視窗中開啟資源、使用內建導航按鈕、下載資源（需教師設置允許下載）。",
+      "icon": "🔍",
+      "color": "#0097A7"
+    },
+    {
+      "temp_id": "stu_res_micro",
+      "title": "Micro Course",
+      "description": "微課是一種特殊的資源類型，可在資源頁面中查看和學習。",
+      "icon": "🎬",
+      "color": "#00ACC1"
+    },
+    {
+      "temp_id": "stu_assignments",
+      "title": "Assignments",
+      "description": "教師創建的評估活動。三種類型：Individual Assignment（個人作業）、Group Assignment（小組作業）、Quiz（測驗）。需注意截止日期。",
+      "icon": "✏️",
+      "color": "#E65100"
+    },
+    {
+      "temp_id": "stu_assign_quiz",
+      "title": "Completing Quiz Assignment",
+      "description": "完成測驗作業的步驟：進入 Assignment 頁面 → 點擊 Write the homework → 作答 → 提交。注意嘗試次數限制與重試規則。",
+      "icon": "❓",
+      "color": "#EF6C00"
+    },
+    {
+      "temp_id": "stu_assign_individual",
+      "title": "Working on Individual Assignment",
+      "description": "完成個人作業的步驟：查看作業要求 → 上傳或線上填寫答案 → 提交。注意截止日期與提交狀態。",
+      "icon": "👤",
+      "color": "#F57C00"
+    },
+    {
+      "temp_id": "stu_discussions",
+      "title": "Discussions",
+      "description": "課程討論區，促進學生間的非正式交流。可按課程或班級分配。顯示總體討論數據與各討論項的時間限制。",
+      "icon": "💬",
+      "color": "#AD1457"
+    },
+    {
+      "temp_id": "stu_disc_viewing",
+      "title": "Viewing and Replying Discussions",
+      "description": "查看討論列表、瀏覽各討論項的數據與截止時間、點擊 View 進入具體討論並回覆。",
+      "icon": "💭",
+      "color": "#C2185B"
+    },
+    {
+      "temp_id": "stu_exams",
+      "title": "Exams",
+      "description": "教師為學生安排的考試。注意考試的開始/結束日期與進度狀態。",
+      "icon": "📝",
+      "color": "#B71C1C"
+    },
+    {
+      "temp_id": "stu_exam_taking",
+      "title": "Taking Exam",
+      "description": "參加考試的步驟：進入 Exams 頁面 → 點擊 Start exam → 確認開始 → 作答 → 提交。注意時間限制。",
+      "icon": "⏱️",
+      "color": "#D32F2F"
+    },
+    {
+      "temp_id": "stu_grades",
+      "title": "Grades",
+      "description": "查看課程成績。成績由多項組成：Courseware Learning（課件學習）、Courseware Time（學習時長）、Courseware Progress（進度）、Assignments（作業）、Discussions（討論）、Attendance（出勤）、Participation（參與）、Exams（考試），各項權重總和為 100%。",
+      "icon": "📊",
+      "color": "#4E342E"
+    },
+    {
+      "temp_id": "stu_members",
+      "title": "Members",
+      "description": "查看課程成員信息，包括教師和同學列表。",
+      "icon": "👥",
+      "color": "#546E7A"
+    }
+  ],
+  "edges": [
+    { "source": "stu_root", "target": "stu_basics", "relation_type": "包含", "label": "基礎知識" },
+    { "source": "stu_basics", "target": "stu_terminology", "relation_type": "包含", "label": "術語定義" },
+    { "source": "stu_root", "target": "stu_login", "relation_type": "包含", "label": "第一步" },
+    { "source": "stu_login", "target": "stu_announcements", "relation_type": "前置", "label": "登入後" },
+    { "source": "stu_root", "target": "stu_announcements", "relation_type": "包含", "label": "公告" },
+    { "source": "stu_root", "target": "stu_courseware", "relation_type": "包含", "label": "核心功能" },
+    { "source": "stu_courseware", "target": "stu_cw_viewing", "relation_type": "包含", "label": "查看" },
+    { "source": "stu_courseware", "target": "stu_cw_content_types", "relation_type": "包含", "label": "內容類型" },
+    { "source": "stu_root", "target": "stu_resources", "relation_type": "包含", "label": "資源" },
+    { "source": "stu_resources", "target": "stu_res_viewing", "relation_type": "包含", "label": "查看" },
+    { "source": "stu_resources", "target": "stu_res_micro", "relation_type": "包含", "label": "微課" },
+    { "source": "stu_root", "target": "stu_assignments", "relation_type": "包含", "label": "作業" },
+    { "source": "stu_assignments", "target": "stu_assign_quiz", "relation_type": "包含", "label": "測驗" },
+    { "source": "stu_assignments", "target": "stu_assign_individual", "relation_type": "包含", "label": "個人" },
+    { "source": "stu_root", "target": "stu_discussions", "relation_type": "包含", "label": "討論" },
+    { "source": "stu_discussions", "target": "stu_disc_viewing", "relation_type": "包含", "label": "查看與回覆" },
+    { "source": "stu_root", "target": "stu_exams", "relation_type": "包含", "label": "考試" },
+    { "source": "stu_exams", "target": "stu_exam_taking", "relation_type": "包含", "label": "參加考試" },
+    { "source": "stu_root", "target": "stu_grades", "relation_type": "包含", "label": "成績" },
+    { "source": "stu_root", "target": "stu_members", "relation_type": "包含", "label": "成員" },
+    { "source": "stu_courseware", "target": "stu_grades", "relation_type": "影響", "label": "學習數據計入成績" },
+    { "source": "stu_assignments", "target": "stu_grades", "relation_type": "影響", "label": "作業分數計入成績" },
+    { "source": "stu_discussions", "target": "stu_grades", "relation_type": "影響", "label": "討論分數計入成績" },
+    { "source": "stu_exams", "target": "stu_grades", "relation_type": "影響", "label": "考試分數計入成績" }
+  ],
+  "content_links": [
+    { "node": "stu_root",              "content_id": 5, "anchor": { "type": "page", "value": 1 } },
+    { "node": "stu_basics",            "content_id": 5, "anchor": { "type": "page_range", "from": 5, "to": 7 } },
+    { "node": "stu_terminology",       "content_id": 5, "anchor": { "type": "page_range", "from": 5, "to": 7 } },
+    { "node": "stu_login",             "content_id": 5, "anchor": { "type": "page_range", "from": 8, "to": 9 } },
+    { "node": "stu_announcements",     "content_id": 5, "anchor": { "type": "page_range", "from": 10, "to": 11 } },
+    { "node": "stu_courseware",        "content_id": 5, "anchor": { "type": "page", "value": 12 } },
+    { "node": "stu_cw_viewing",        "content_id": 5, "anchor": { "type": "page_range", "from": 12, "to": 16 } },
+    { "node": "stu_cw_content_types",  "content_id": 5, "anchor": { "type": "page_range", "from": 17, "to": 29 } },
+    { "node": "stu_resources",         "content_id": 5, "anchor": { "type": "page", "value": 30 } },
+    { "node": "stu_res_viewing",       "content_id": 5, "anchor": { "type": "page_range", "from": 30, "to": 32 } },
+    { "node": "stu_res_micro",         "content_id": 5, "anchor": { "type": "page_range", "from": 33, "to": 37 } },
+    { "node": "stu_assignments",       "content_id": 5, "anchor": { "type": "page", "value": 38 } },
+    { "node": "stu_assign_quiz",       "content_id": 5, "anchor": { "type": "page_range", "from": 38, "to": 41 } },
+    { "node": "stu_assign_individual", "content_id": 5, "anchor": { "type": "page_range", "from": 42, "to": 46 } },
+    { "node": "stu_discussions",       "content_id": 5, "anchor": { "type": "page", "value": 47 } },
+    { "node": "stu_disc_viewing",      "content_id": 5, "anchor": { "type": "page_range", "from": 47, "to": 51 } },
+    { "node": "stu_exams",             "content_id": 5, "anchor": { "type": "page", "value": 52 } },
+    { "node": "stu_exam_taking",       "content_id": 5, "anchor": { "type": "page_range", "from": 52, "to": 56 } },
+    { "node": "stu_grades",            "content_id": 5, "anchor": { "type": "page_range", "from": 57, "to": 58 } },
+    { "node": "stu_members",           "content_id": 5, "anchor": { "type": "page_range", "from": 59, "to": 60 } }
+  ]
+}

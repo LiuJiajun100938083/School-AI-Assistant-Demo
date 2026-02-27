@@ -409,12 +409,14 @@ window.slc = (() => {
 
             const contents = (node.contents || []);
             const resourcesHtml = contents.length
-                ? contents.map(c => `
-                    <div class="slc-node-resource-item" onclick="slc.openContent(${c.content_id}, '${c.content_type || 'document'}')">
+                ? contents.map(c => {
+                    const pg = c.anchor?.type === 'page' ? c.anchor.value : 0;
+                    return `
+                    <div class="slc-node-resource-item" onclick="slc.openContent(${c.content_id}, '${c.content_type || 'document'}', ${pg})">
                         📎 ${_escHtml(c.content_title || '資源')}
-                        ${c.anchor?.type === 'page' ? `<span style="color:var(--slc-primary);font-size:12px">第${c.anchor.value}頁</span>` : ''}
-                    </div>
-                `).join('')
+                        ${pg ? `<span style="color:var(--slc-primary);font-size:12px">第${pg}頁</span>` : ''}
+                    </div>`;
+                }).join('')
                 : '<div style="font-size:13px;color:var(--slc-text-secondary)">暫無關聯資源</div>';
 
             panel.innerHTML = `
@@ -481,7 +483,7 @@ window.slc = (() => {
 
             container.innerHTML = `<div class="slc-step-timeline">${steps.map(s => {
                 const link = s.content_id
-                    ? `<a class="slc-step-item__link" onclick="event.stopPropagation(); slc.openContent(${s.content_id}, '${s.content_type || 'document'}')">
+                    ? `<a class="slc-step-item__link" onclick="event.stopPropagation(); slc.openContent(${s.content_id}, '${s.content_type || 'document'}', ${s.anchor?.type === 'page' ? s.anchor.value : 0})">
                         📎 ${_escHtml(s.content_title || '查看資源')}
                         ${s.anchor?.type === 'page' ? ` (第${s.anchor.value}頁)` : ''}
                        </a>`
@@ -865,7 +867,7 @@ window.slc = (() => {
             }
         },
 
-        async openContent(contentId, contentType) {
+        async openContent(contentId, contentType, startPage) {
             const welcome = document.getElementById('slcEbookWelcome');
             const viewer = document.getElementById('slcEbookViewer');
             const titleEl = document.getElementById('slcViewerTitle');
@@ -930,7 +932,7 @@ window.slc = (() => {
 
                     if (isPdf && window.pdfjsLib) {
                         // PDF.js — iPad/Safari 兼容
-                        _renderPdfViewer(bodyEl, fileUrl, 1, data);
+                        _renderPdfViewer(bodyEl, fileUrl, startPage || 1, data);
                     } else {
                         bodyEl.innerHTML = `
                             <iframe src="${_escHtml(fileUrl)}" style="width:100%;height:80vh;border:none;"></iframe>
@@ -1901,7 +1903,7 @@ window.slc = (() => {
         filterByType: (type) => App.filterByType(type),
         doSearch: () => App.doSearch(),
         togglePathSteps: (id) => App.togglePathSteps(id),
-        openContent: (id, type) => App.openContent(id, type),
+        openContent: (id, type, page) => App.openContent(id, type, page),
         toggleAIWindow: () => App.toggleAIWindow(),
         sendAIMessage: () => App.sendAIMessage(),
         closeModal: () => UI.closeEbookViewer(),

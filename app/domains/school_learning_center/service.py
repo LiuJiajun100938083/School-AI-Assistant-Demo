@@ -46,7 +46,7 @@ class SchoolLearningCenterService:
         """获取所有活跃学科（从 subjects 表），并统计每个学科的内容数量"""
         try:
             rows = self._contents.raw_query(
-                "SELECT subject_code, subject_name, config FROM subjects WHERE is_active = 1 ORDER BY id ASC"
+                "SELECT subject_code, subject_name, config FROM subjects ORDER BY id ASC"
             )
             logger.info("SLC: 从 subjects 表查到 %d 条学科", len(rows) if rows else 0)
         except Exception as e:

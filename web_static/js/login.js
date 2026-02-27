@@ -303,6 +303,80 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 3.8);
 
     /* ====================================================
+       小馬視差跟蹤 — 3D 扭頭看鼠標效果
+       ==================================================== */
+    (function initMascotTracker() {
+        // 等動畫完成後再啟動跟蹤
+        const DELAY = 4200; // ms，略晚於 timeline 結束
+        const MAX_ROTATE_Y = 12;   // 左右旋轉最大角度
+        const MAX_ROTATE_X = 8;    // 上下旋轉最大角度
+        const MAX_SHIFT_X  = 8;    // 左右位移 px
+        const MAX_SHIFT_Y  = 5;    // 上下位移 px
+        const SHADOW_BASE  = 4;    // 陰影基礎偏移
+        const SHADOW_RANGE = 10;   // 陰影跟隨範圍
+
+        let active = false;
+        let rafId  = null;
+        let mouseX = 0.5;  // 0~1 歸一化，0.5 = 畫面中央
+        let mouseY = 0.5;
+
+        // GSAP quickTo 實現絲滑插值（比直接 set 平滑很多）
+        let qRotY, qRotX, qX, qY;
+
+        setTimeout(() => {
+            if (!brandMascot) return;
+
+            qRotY = gsap.quickTo(brandMascot, 'rotateY', { duration: 0.6, ease: 'power2.out' });
+            qRotX = gsap.quickTo(brandMascot, 'rotateX', { duration: 0.6, ease: 'power2.out' });
+            qX    = gsap.quickTo(brandMascot, 'x',       { duration: 0.8, ease: 'power2.out' });
+            qY    = gsap.quickTo(brandMascot, 'y',       { duration: 0.8, ease: 'power2.out' });
+
+            // 設置透視父層
+            gsap.set(brandMascot.parentElement, { perspective: 800 });
+
+            document.addEventListener('mousemove', onMouseMove);
+            active = true;
+        }, DELAY);
+
+        function onMouseMove(e) {
+            // 歸一化到 -1 ~ 1（以畫面中央為 0）
+            mouseX = (e.clientX / window.innerWidth  - 0.5) * 2;
+            mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+
+            if (!rafId) rafId = requestAnimationFrame(updateTransform);
+        }
+
+        function updateTransform() {
+            rafId = null;
+            if (!active || !brandMascot) return;
+
+            // 旋轉：鼠標在右邊 → 小馬向右轉（rotateY 正值）
+            qRotY(mouseX * MAX_ROTATE_Y);
+            // 鼠標在上方 → 小馬向上仰（rotateX 正值）
+            qRotX(-mouseY * MAX_ROTATE_X);
+            // 微位移：跟隨鼠標方向
+            qX(mouseX * MAX_SHIFT_X);
+            qY(mouseY * MAX_SHIFT_Y);
+
+            // 動態陰影：光源在鼠標反方向
+            const shadowX = -mouseX * SHADOW_RANGE + SHADOW_BASE;
+            const shadowY = -mouseY * SHADOW_RANGE + SHADOW_BASE + 4;
+            brandMascot.style.filter =
+                `drop-shadow(${shadowX.toFixed(1)}px ${shadowY.toFixed(1)}px 16px rgba(0, 0, 0, 0.15))`;
+        }
+
+        // 鼠標離開窗口時回復原位
+        document.addEventListener('mouseleave', () => {
+            if (!active) return;
+            qRotY(0);
+            qRotX(0);
+            qX(0);
+            qY(0);
+            brandMascot.style.filter = 'drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12))';
+        });
+    })();
+
+    /* ====================================================
        名人名言輪播（純 opacity，8 秒間隔）
        ==================================================== */
     const quotes = [

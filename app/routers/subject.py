@@ -98,8 +98,8 @@ async def create_subject(request: Request):
         body = await request.json()
 
         subject = get_services().subject.create_subject(
-            subject_code=body.get("subject_code", "").strip(),
-            subject_name=body.get("subject_name", "").strip(),
+            subject_code=(body.get("subject_code") or body.get("code") or "").strip(),
+            subject_name=(body.get("subject_name") or body.get("name") or "").strip(),
             icon=body.get("icon", "📚"),
             description=body.get("description", ""),
             system_prompt=body.get("system_prompt", ""),

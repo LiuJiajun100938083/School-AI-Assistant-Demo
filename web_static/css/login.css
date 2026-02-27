@@ -250,6 +250,8 @@ body {
     height: auto;
     filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12));
     flex-shrink: 0;
+    will-change: transform, filter;
+    transform-style: preserve-3d;
 }
 
 .brand-welcome {

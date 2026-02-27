@@ -887,18 +887,20 @@ p, span, div, li, label {
 }
 
 
-/* ========== 輸入區域 - Glassmorphism 懸浮欄 ========== */
+/* ========== 輸入區域 — 雙行佈局 ========== */
 .input-container {
     padding: var(--space-4) var(--space-5);
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-radius: var(--radius-xl);
     margin: var(--space-4);
     border: 1.5px solid var(--glass-border-highlight);
     transition: all var(--duration-base) var(--ease-out);
     box-shadow: var(--glass-shadow-outer), var(--glass-shadow-inner);
     transform: translateZ(0);
+    display: flex;
+    flex-direction: column;
 }
 
 .input-container:hover {
@@ -908,7 +910,7 @@ p, span, div, li, label {
 
 .input-container:focus-within {
     border-color: var(--brand);
-    background: var(--glass-input-bg-focus);
+    background: rgba(255, 255, 255, 0.92);
     box-shadow: var(--glass-input-focus-glow), var(--glass-shadow-outer);
 }
 
@@ -917,76 +919,117 @@ p, span, div, li, label {
     background: rgba(232, 245, 236, 0.6);
 }
 
-.input-row {
+/* ── 第一行：輸入區 ── */
+.input-area {
     display: flex;
-    gap: var(--space-3);
     align-items: flex-end;
 }
-
-.file-upload-btn {
-    background: none;
-    border: none;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    font-size: 22px;
-    padding: var(--space-2);
-    border-radius: var(--radius-md);
-    transition: all var(--duration-fast);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.file-upload-btn:hover {
-    background: var(--bg-card-hover);
-    color: var(--brand);
-}
-
-.file-upload-input { display: none; }
 
 .message-input {
     flex: 1;
     background: none;
     border: none;
     color: var(--text-primary);
-    font-size: 16px;
+    font-size: 15px;
     font-family: var(--font-sans);
     resize: none;
     outline: none;
     min-height: 24px;
     max-height: 150px;
-    line-height: 1.5;
-    padding: var(--space-2) 0;
+    line-height: 1.6;
+    padding: var(--space-1) 0;
 }
 
 .message-input::placeholder {
     color: var(--text-placeholder);
 }
 
-/* 發送按鈕 - 品牌綠 + Glass 光影 */
+.file-upload-input { display: none; }
+
+/* ── 第二行：工具欄 ── */
+.input-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--space-3);
+    margin-top: var(--space-3);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+/* ── 工具欄按鈕（附件等） ── */
+.toolbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: var(--radius-full);
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.toolbar-btn svg {
+    flex-shrink: 0;
+}
+
+.toolbar-btn:hover {
+    color: var(--brand);
+    background: var(--brand-lighter);
+    border-color: var(--brand-border);
+}
+
+.toolbar-btn-label {
+    line-height: 1;
+}
+
+/* ── 工具欄分隔線 ── */
+.toolbar-divider {
+    width: 1px;
+    height: 18px;
+    background: rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+}
+
+/* ── 發送按鈕 ── */
 .send-button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background: var(--brand);
     color: var(--text-on-brand);
     border: none;
-    border-radius: var(--radius-md);
-    padding: var(--space-2) var(--space-5);
-    font-size: 15px;
+    border-radius: var(--radius-full);
+    padding: 7px 18px;
+    font-size: 13px;
     font-weight: 600;
     font-family: var(--font-sans);
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
     flex-shrink: 0;
-    box-shadow: var(--glass-btn-shadow);
+    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+    letter-spacing: 0.02em;
 }
 
 .send-button:hover {
     background: var(--brand-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--glass-btn-shadow-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(0, 102, 51, 0.28);
 }
 
 .send-button:active {
     transform: scale(0.97);
+    box-shadow: 0 1px 4px rgba(0, 102, 51, 0.15);
 }
 
 .send-button:disabled {
@@ -996,62 +1039,110 @@ p, span, div, li, label {
     box-shadow: none;
 }
 
-/* ========== 深度思考開關 ========== */
+.send-btn-icon {
+    transition: transform 0.2s var(--ease-out);
+    flex-shrink: 0;
+}
+
+.send-button:hover .send-btn-icon {
+    transform: translateX(2px);
+}
+
+/* ========== 深度思考開關（Neumorphism） ========== */
 .thinking-toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
-    cursor: pointer;
+    gap: 8px;
     flex-shrink: 0;
     user-select: none;
-    padding: 4px 0;
 }
 
-.thinking-toggle input[type="checkbox"] {
+.thinking-toggle-checkbox {
     display: none;
 }
 
-.thinking-toggle-slider {
+/* 開關軌道 */
+.thinking-switch {
     position: relative;
-    width: 36px;
-    height: 20px;
-    background: #ccc;
-    border-radius: 10px;
-    transition: background 0.3s ease;
+    width: 48px;
+    height: 24px;
+    background: #e4e4e4;
+    border-radius: 50px;
+    box-shadow:
+        inset -2px -2px 5px rgba(255, 255, 255, 0.85),
+        inset 2px 2px 5px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
     flex-shrink: 0;
+    overflow: hidden;
+    transition: background 0.3s ease;
 }
 
-.thinking-toggle-slider::after {
-    content: '';
+/* 滑塊 */
+.thinking-switch-knob {
     position: absolute;
-    left: 2px;
-    top: 2px;
-    width: 16px;
-    height: 16px;
-    background: #fff;
+    width: 28px;
+    height: 18px;
+    background: linear-gradient(145deg, #e8e8e8, #d0d0d0);
+    border-radius: 50px;
+    top: 3px;
+    left: 3px;
+    box-shadow:
+        -1px -1px 3px rgba(255, 255, 255, 0.9),
+        1px 1px 3px rgba(0, 0, 0, 0.12);
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 5px;
+}
+
+/* LED 燈 */
+.thinking-switch-led {
+    width: 5px;
+    height: 5px;
+    background: #b0b0b0;
     border-radius: 50%;
-    transition: transform 0.3s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 0 3px 1px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
 }
 
-.thinking-toggle input[type="checkbox"]:checked + .thinking-toggle-slider {
-    background: var(--brand, #006633);
+/* ── 開啟狀態 ── */
+.thinking-toggle-checkbox:checked + .thinking-switch {
+    background: #dce8df;
 }
 
-.thinking-toggle input[type="checkbox"]:checked + .thinking-toggle-slider::after {
-    transform: translateX(16px);
+.thinking-toggle-checkbox:checked + .thinking-switch .thinking-switch-knob {
+    left: 17px;
+    background: linear-gradient(145deg, #e0e0e0, #c8c8c8);
+    box-shadow:
+        -1px -1px 3px rgba(255, 255, 255, 0.9),
+        1px 1px 3px rgba(0, 0, 0, 0.15);
 }
 
+.thinking-toggle-checkbox:checked + .thinking-switch .thinking-switch-led {
+    background: #2ecc40;
+    box-shadow: 0 0 6px 2px rgba(46, 204, 64, 0.5);
+}
+
+/* Hover 效果 */
+.thinking-switch:hover .thinking-switch-knob {
+    box-shadow:
+        -1px -1px 4px rgba(255, 255, 255, 0.95),
+        1px 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* 標籤文字 */
 .thinking-toggle-text {
     font-size: 12px;
-    color: var(--text-secondary, #6E6E73);
+    color: var(--text-tertiary);
     white-space: nowrap;
     font-weight: 500;
     line-height: 1;
+    transition: color 0.3s ease;
 }
 
-.thinking-toggle input[type="checkbox"]:checked ~ .thinking-toggle-text {
-    color: var(--brand, #006633);
+.thinking-toggle-checkbox:checked ~ .thinking-toggle-text {
+    color: var(--brand);
 }
 
 
@@ -2251,6 +2342,15 @@ th {
     }
     .thinking-toggle {
         gap: 0;
+    }
+    .toolbar-btn-label {
+        display: none;
+    }
+    .send-btn-text {
+        display: none;
+    }
+    .send-button {
+        padding: 7px 12px;
     }
 }
 

@@ -2,15 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "main-app",
+      "name": "dev-server",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "app.main"],
-      "port": 8002
-    },
-    {
-      "name": "china-economy-game",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["china_economy_game/run.py"],
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
       "port": 8000
     }
   ]
