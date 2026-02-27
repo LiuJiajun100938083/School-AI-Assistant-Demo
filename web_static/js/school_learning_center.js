@@ -19,9 +19,17 @@ window.slc = (() => {
         paths: [],
         aiMessages: [],
         aiStreaming: false,
+        // Admin
+        isAdmin: false,
+        userRole: 'student',
+        adminPanelOpen: false,
+        adminTab: 'upload',
+        adminNodes: [],
+        uploadFile: null,
     };
 
     const GRADES = ['中一', '中二', '中三', '中四', '中五', '中六'];
+    const ADMIN_API = '/api/admin/learning-center';
 
     // ── API ──
     const API = {
@@ -96,6 +104,95 @@ window.slc = (() => {
                 headers: this._headers(),
                 body: JSON.stringify(body),
             });
+        },
+
+        // ── Admin APIs ──
+        async adminUpload(formData) {
+            const token = localStorage.getItem('token') || '';
+            const r = await fetch(`${ADMIN_API}/upload`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+            return r.json();
+        },
+
+        async adminCreateContent(body) {
+            const r = await fetch(`${ADMIN_API}/contents`, {
+                method: 'POST',
+                headers: this._headers(),
+                body: JSON.stringify(body),
+            });
+            return r.json();
+        },
+
+        async adminDeleteContent(id) {
+            const r = await fetch(`${ADMIN_API}/contents/${id}`, {
+                method: 'DELETE',
+                headers: this._headers(),
+            });
+            return r.json();
+        },
+
+        async adminCreateNode(body) {
+            const r = await fetch(`${ADMIN_API}/knowledge-nodes`, {
+                method: 'POST',
+                headers: this._headers(),
+                body: JSON.stringify(body),
+            });
+            return r.json();
+        },
+
+        async adminDeleteNode(id) {
+            const r = await fetch(`${ADMIN_API}/knowledge-nodes/${id}`, {
+                method: 'DELETE',
+                headers: this._headers(),
+            });
+            return r.json();
+        },
+
+        async adminCreateEdge(body) {
+            const r = await fetch(`${ADMIN_API}/knowledge-edges`, {
+                method: 'POST',
+                headers: this._headers(),
+                body: JSON.stringify(body),
+            });
+            return r.json();
+        },
+
+        async adminBatchImportGraph(body) {
+            const r = await fetch(`${ADMIN_API}/knowledge-graph/import`, {
+                method: 'POST',
+                headers: this._headers(),
+                body: JSON.stringify(body),
+            });
+            return r.json();
+        },
+
+        async adminCreatePath(body) {
+            const r = await fetch(`${ADMIN_API}/paths`, {
+                method: 'POST',
+                headers: this._headers(),
+                body: JSON.stringify(body),
+            });
+            return r.json();
+        },
+
+        async adminDeletePath(id) {
+            const r = await fetch(`${ADMIN_API}/paths/${id}`, {
+                method: 'DELETE',
+                headers: this._headers(),
+            });
+            return r.json();
+        },
+
+        async adminBatchImportPaths(body) {
+            const r = await fetch(`${ADMIN_API}/paths/batch-import`, {
+                method: 'POST',
+                headers: this._headers(),
+                body: JSON.stringify(body),
+            });
+            return r.json();
         },
     };
 
@@ -410,10 +507,119 @@ window.slc = (() => {
         },
     };
 
+    // ── Admin UI ──
+    const AdminUI = {
+        showToast(message, type = 'info') {
+            let toast = document.querySelector('.slc-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.className = 'slc-toast';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.className = `slc-toast --${type}`;
+            // Trigger reflow
+            toast.offsetHeight;
+            toast.classList.add('--visible');
+            setTimeout(() => toast.classList.remove('--visible'), 2500);
+        },
+
+        updateSubjectLabel() {
+            const label = document.getElementById('adminSubjectLabel');
+            if (label) {
+                label.textContent = state.currentSubject
+                    ? `${state.currentSubject.icon || '📚'} ${state.currentSubject.subject_name}`
+                    : '— 未選科目 —';
+            }
+        },
+
+        renderAdminContents(items) {
+            const el = document.getElementById('slcContentsList');
+            if (!el) return;
+            if (!items || !items.length) {
+                el.innerHTML = '<div style="padding:16px;color:var(--slc-text-secondary);text-align:center;">該科目暫無內容</div>';
+                return;
+            }
+            const typeLabel = { document: '📄', video_local: '🎬', video_external: '🔗', article: '📝', image: '🖼️' };
+            el.innerHTML = items.map(c => `
+                <div class="slc-admin-list-item">
+                    <div class="slc-admin-list-item__info">
+                        <div class="slc-admin-list-item__title">${typeLabel[c.content_type] || '📄'} ${_escHtml(c.title)}</div>
+                        <div class="slc-admin-list-item__meta">${c.grade_level || '通用'} · ${c.content_type} · 👁️${c.view_count || 0}</div>
+                    </div>
+                    <div class="slc-admin-list-item__actions">
+                        <button class="slc-admin-btn --danger" style="margin-top:0;padding:4px 8px;font-size:11px;" onclick="slc.deleteContent(${c.id}, '${_escHtml(c.title).replace(/'/g, "\\'")}')">刪除</button>
+                    </div>
+                </div>
+            `).join('');
+        },
+
+        renderAdminNodes(nodes) {
+            const el = document.getElementById('slcNodesList');
+            if (!el) return;
+            if (!nodes || !nodes.length) {
+                el.innerHTML = '<div style="padding:16px;color:var(--slc-text-secondary);text-align:center;">暫無知識節點</div>';
+                return;
+            }
+            el.innerHTML = nodes.map(n => `
+                <div class="slc-admin-list-item">
+                    <div class="slc-admin-list-item__info">
+                        <div class="slc-admin-list-item__title">${n.icon || '📌'} ${_escHtml(n.title)}</div>
+                        <div class="slc-admin-list-item__meta">${_escHtml(n.description || '').substring(0, 50)}</div>
+                    </div>
+                    <div class="slc-admin-list-item__actions">
+                        <button class="slc-admin-btn --danger" style="margin-top:0;padding:4px 8px;font-size:11px;" onclick="slc.deleteNode(${n.id})">刪除</button>
+                    </div>
+                </div>
+            `).join('');
+
+            // 更新邊的下拉選項
+            AdminUI.populateEdgeDropdowns(nodes);
+        },
+
+        populateEdgeDropdowns(nodes) {
+            const source = document.getElementById('slcEdgeSource');
+            const target = document.getElementById('slcEdgeTarget');
+            [source, target].forEach(sel => {
+                if (!sel) return;
+                const val = sel.value;
+                sel.innerHTML = '<option value="">選擇知識點</option>';
+                nodes.forEach(n => {
+                    sel.innerHTML += `<option value="${n.id}">${_escHtml(n.title)}</option>`;
+                });
+                sel.value = val;
+            });
+        },
+
+        renderAdminPaths(paths) {
+            const el = document.getElementById('slcPathsList');
+            if (!el) return;
+            if (!paths || !paths.length) {
+                el.innerHTML = '<div style="padding:16px;color:var(--slc-text-secondary);text-align:center;">暫無學習路徑</div>';
+                return;
+            }
+            const diffLabel = { beginner: '入門', intermediate: '進階', advanced: '高級' };
+            el.innerHTML = paths.map(p => `
+                <div class="slc-admin-list-item">
+                    <div class="slc-admin-list-item__info">
+                        <div class="slc-admin-list-item__title">${p.icon || '🎯'} ${_escHtml(p.title)}</div>
+                        <div class="slc-admin-list-item__meta">${diffLabel[p.difficulty] || p.difficulty} · ${p.estimated_hours || 1}h · ${(p.steps || []).length} 步</div>
+                    </div>
+                    <div class="slc-admin-list-item__actions">
+                        <button class="slc-admin-btn --danger" style="margin-top:0;padding:4px 8px;font-size:11px;" onclick="slc.deletePath(${p.id})">刪除</button>
+                    </div>
+                </div>
+            `).join('');
+        },
+    };
+
     // ── App 邏輯 ──
     const App = {
         async init() {
             console.log('🏫 學校學習中心初始化...');
+
+            // 檢查角色 — 解碼 JWT
+            App._detectRole();
 
             // 載入科目
             try {
@@ -433,6 +639,11 @@ window.slc = (() => {
             }
 
             UI.renderGradeBar();
+
+            // Admin 初始化
+            if (state.isAdmin) {
+                App._setupAdmin();
+            }
 
             // Tab 切換
             document.querySelectorAll('.slc-tab-btn').forEach(btn => {
@@ -472,6 +683,9 @@ window.slc = (() => {
             state.currentSubject = state.subjects.find(s => s.subject_code === subjectCode) || null;
             UI.renderSubjects(state.subjects);
 
+            // 更新管理面板科目標籤
+            if (state.isAdmin) AdminUI.updateSubjectLabel();
+
             // 更新 URL
             const url = new URL(window.location);
             url.searchParams.set('subject', subjectCode);
@@ -479,6 +693,11 @@ window.slc = (() => {
 
             // 刷新當前 Tab 數據
             await App.loadCurrentTab();
+
+            // 如果管理面板打開，刷新管理面板數據
+            if (state.adminPanelOpen) {
+                App.switchAdminTab(state.adminTab);
+            }
 
             // 更新統計
             try {
@@ -742,6 +961,465 @@ window.slc = (() => {
             const sidebar = document.querySelector('.slc-sidebar');
             if (sidebar) sidebar.classList.toggle('--mobile-open');
         },
+
+        // ── Admin ──
+        _detectRole() {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            if (!token) return;
+            try {
+                const parts = token.split('.');
+                if (parts.length !== 3) return;
+                const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+                state.userRole = payload.role || 'student';
+                state.isAdmin = ['teacher', 'admin'].includes(state.userRole);
+            } catch (e) {
+                console.warn('Token decode failed:', e);
+            }
+        },
+
+        _setupAdmin() {
+            // 顯示管理按鈕
+            const btn = document.getElementById('slcAdminToggle');
+            if (btn) btn.style.display = 'flex';
+
+            // 文件上傳區事件
+            const dropZone = document.getElementById('slcFileDropZone');
+            const fileInput = document.getElementById('slcFileInput');
+            if (dropZone && fileInput) {
+                dropZone.addEventListener('click', () => fileInput.click());
+                dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('--dragover'); });
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('--dragover'));
+                dropZone.addEventListener('drop', e => {
+                    e.preventDefault();
+                    dropZone.classList.remove('--dragover');
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        state.uploadFile = e.dataTransfer.files[0];
+                        const nameEl = document.getElementById('slcFileName');
+                        if (nameEl) {
+                            nameEl.textContent = `📎 ${state.uploadFile.name} (${(state.uploadFile.size / 1024).toFixed(1)} KB)`;
+                            nameEl.style.display = 'block';
+                        }
+                    }
+                });
+                fileInput.addEventListener('change', () => {
+                    if (fileInput.files && fileInput.files[0]) {
+                        state.uploadFile = fileInput.files[0];
+                        const nameEl = document.getElementById('slcFileName');
+                        if (nameEl) {
+                            nameEl.textContent = `📎 ${state.uploadFile.name} (${(state.uploadFile.size / 1024).toFixed(1)} KB)`;
+                            nameEl.style.display = 'block';
+                        }
+                    }
+                });
+            }
+        },
+
+        toggleAdminPanel() {
+            state.adminPanelOpen = !state.adminPanelOpen;
+            const panel = document.getElementById('slcAdminPanel');
+            const overlay = document.getElementById('slcAdminOverlay');
+            if (panel) panel.classList.toggle('--visible', state.adminPanelOpen);
+            if (overlay) overlay.classList.toggle('--visible', state.adminPanelOpen);
+            if (state.adminPanelOpen) {
+                AdminUI.updateSubjectLabel();
+                // 加載當前 admin tab 數據
+                App.switchAdminTab(state.adminTab);
+            }
+        },
+
+        switchAdminTab(tab) {
+            state.adminTab = tab;
+            // Update tab buttons
+            document.querySelectorAll('.slc-admin-tab').forEach(btn => {
+                btn.classList.toggle('--active', btn.dataset.adminTab === tab);
+            });
+            // Update panels
+            document.querySelectorAll('.slc-admin-tab-panel').forEach(panel => {
+                panel.classList.toggle('--active', panel.id === `adminTab-${tab}`);
+            });
+
+            // Load data
+            if (tab === 'contents') App._loadAdminContents();
+            if (tab === 'nodes') App._loadAdminNodes();
+            if (tab === 'paths') App._loadAdminPaths();
+        },
+
+        onContentTypeChange() {
+            const typeSelect = document.getElementById('slcContentType');
+            const dropZone = document.getElementById('slcFileDropZone');
+            const externalSection = document.getElementById('slcExternalVideoSection');
+            const articleSection = document.getElementById('slcArticleSection');
+            const type = typeSelect ? typeSelect.value : 'document';
+
+            if (dropZone) dropZone.style.display = type === 'video_external' || type === 'article' ? 'none' : '';
+            if (externalSection) externalSection.style.display = type === 'video_external' ? 'block' : 'none';
+            if (articleSection) articleSection.style.display = type === 'article' ? 'block' : 'none';
+        },
+
+        async submitContent() {
+            const subjectCode = state.currentSubject?.subject_code;
+            if (!subjectCode) {
+                AdminUI.showToast('請先選擇一個科目', 'error');
+                return;
+            }
+
+            const title = document.getElementById('slcContentTitle')?.value.trim();
+            const desc = document.getElementById('slcContentDesc')?.value.trim() || '';
+            const contentType = document.getElementById('slcContentType')?.value || 'document';
+            const grade = document.getElementById('slcContentGrade')?.value || '';
+
+            if (!title) {
+                AdminUI.showToast('請輸入標題', 'error');
+                return;
+            }
+
+            try {
+                if (contentType === 'video_external') {
+                    const extUrl = document.getElementById('slcExternalUrl')?.value.trim();
+                    const platform = document.getElementById('slcVideoPlatform')?.value || '';
+                    if (!extUrl) {
+                        AdminUI.showToast('請輸入視頻連結', 'error');
+                        return;
+                    }
+                    const formData = new FormData();
+                    formData.append('title', title);
+                    formData.append('description', desc);
+                    formData.append('content_type', 'video_external');
+                    formData.append('external_url', extUrl);
+                    formData.append('tags', '');
+                    formData.append('subject_code', subjectCode);
+                    if (grade) formData.append('grade_level', grade);
+                    if (platform) formData.append('video_platform', platform);
+
+                    const r = await API.adminUpload(formData);
+                    if (r.success) {
+                        AdminUI.showToast('視頻連結上傳成功', 'success');
+                        App._resetUploadForm();
+                        App.loadCurrentTab();
+                    } else {
+                        AdminUI.showToast(r.message || '上傳失敗', 'error');
+                    }
+                } else if (contentType === 'article') {
+                    const articleContent = document.getElementById('slcArticleContent')?.value.trim() || '';
+                    const body = {
+                        title, description: desc, content_type: 'article',
+                        subject_code: subjectCode, article_content: articleContent,
+                    };
+                    if (grade) body.grade_level = grade;
+
+                    const r = await API.adminCreateContent(body);
+                    if (r.success) {
+                        AdminUI.showToast('文章創建成功', 'success');
+                        App._resetUploadForm();
+                        App.loadCurrentTab();
+                    } else {
+                        AdminUI.showToast(r.message || '創建失敗', 'error');
+                    }
+                } else {
+                    // 文件上傳
+                    if (!state.uploadFile) {
+                        AdminUI.showToast('請選擇文件', 'error');
+                        return;
+                    }
+                    const formData = new FormData();
+                    formData.append('file', state.uploadFile);
+                    formData.append('title', title);
+                    formData.append('description', desc);
+                    formData.append('content_type', contentType);
+                    formData.append('tags', '');
+                    formData.append('subject_code', subjectCode);
+                    if (grade) formData.append('grade_level', grade);
+
+                    const r = await API.adminUpload(formData);
+                    if (r.success) {
+                        AdminUI.showToast(`${state.uploadFile.name} 上傳成功`, 'success');
+                        App._resetUploadForm();
+                        App.loadCurrentTab();
+                    } else {
+                        AdminUI.showToast(r.message || '上傳失敗', 'error');
+                    }
+                }
+            } catch (e) {
+                console.error('上傳失敗:', e);
+                AdminUI.showToast('上傳失敗', 'error');
+            }
+        },
+
+        _resetUploadForm() {
+            const fields = ['slcContentTitle', 'slcContentDesc', 'slcExternalUrl', 'slcArticleContent'];
+            fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            state.uploadFile = null;
+            const nameEl = document.getElementById('slcFileName');
+            if (nameEl) { nameEl.style.display = 'none'; nameEl.textContent = ''; }
+            const fileInput = document.getElementById('slcFileInput');
+            if (fileInput) fileInput.value = '';
+        },
+
+        async _loadAdminContents() {
+            const subjectCode = state.currentSubject?.subject_code;
+            try {
+                const items = await API.getContents(subjectCode, null, null, 1, 200);
+                AdminUI.renderAdminContents(items);
+            } catch (e) {
+                console.error('載入管理內容失敗:', e);
+            }
+        },
+
+        async deleteContent(id, title) {
+            if (!confirm(`確定要刪除「${title}」嗎？`)) return;
+            try {
+                const r = await API.adminDeleteContent(id);
+                if (r.success) {
+                    AdminUI.showToast('已刪除', 'success');
+                    App._loadAdminContents();
+                    App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '刪除失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('刪除失敗', 'error');
+            }
+        },
+
+        // ── Knowledge Nodes ──
+        async _loadAdminNodes() {
+            const subjectCode = state.currentSubject?.subject_code;
+            try {
+                const mapData = await API.getKnowledgeMap(subjectCode);
+                state.adminNodes = mapData.nodes || [];
+                AdminUI.renderAdminNodes(state.adminNodes);
+            } catch (e) {
+                console.error('載入節點失敗:', e);
+            }
+        },
+
+        async submitNode() {
+            const subjectCode = state.currentSubject?.subject_code;
+            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+
+            const title = document.getElementById('slcNodeTitle')?.value.trim();
+            const desc = document.getElementById('slcNodeDesc')?.value.trim() || '';
+            const grade = document.getElementById('slcNodeGrade')?.value || '';
+
+            if (!title) { AdminUI.showToast('請輸入知識點名稱', 'error'); return; }
+
+            try {
+                const body = { title, description: desc, subject_code: subjectCode };
+                if (grade) body.grade_level = grade;
+
+                const r = await API.adminCreateNode(body);
+                if (r.success) {
+                    AdminUI.showToast('知識節點已創建', 'success');
+                    document.getElementById('slcNodeTitle').value = '';
+                    document.getElementById('slcNodeDesc').value = '';
+                    App._loadAdminNodes();
+                    if (state.currentTab === 'map') App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '創建失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('創建失敗', 'error');
+            }
+        },
+
+        async submitEdge() {
+            const sourceId = document.getElementById('slcEdgeSource')?.value;
+            const targetId = document.getElementById('slcEdgeTarget')?.value;
+            const relType = document.getElementById('slcEdgeType')?.value.trim() || 'related';
+
+            if (!sourceId || !targetId) { AdminUI.showToast('請選擇來源和目標節點', 'error'); return; }
+
+            try {
+                const body = {
+                    source_node_id: parseInt(sourceId),
+                    target_node_id: parseInt(targetId),
+                    relation_type: relType,
+                    label: relType,
+                };
+                const sourceNode = state.adminNodes.find(n => n.id == sourceId);
+                if (sourceNode && sourceNode.subject_code) body.subject_code = sourceNode.subject_code;
+
+                const r = await API.adminCreateEdge(body);
+                if (r.success) {
+                    AdminUI.showToast('連接已建立', 'success');
+                    document.getElementById('slcEdgeType').value = 'related';
+                    if (state.currentTab === 'map') App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '建立連接失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('建立連接失敗', 'error');
+            }
+        },
+
+        async deleteNode(id) {
+            if (!confirm('確定要刪除此知識節點嗎？')) return;
+            try {
+                const r = await API.adminDeleteNode(id);
+                if (r.success) {
+                    AdminUI.showToast('節點已刪除', 'success');
+                    App._loadAdminNodes();
+                    if (state.currentTab === 'map') App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '刪除失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('刪除失敗', 'error');
+            }
+        },
+
+        async submitBatchNodes() {
+            const subjectCode = state.currentSubject?.subject_code;
+            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+
+            const jsonStr = document.getElementById('slcBatchNodeJson')?.value.trim();
+            const grade = document.getElementById('slcBatchNodeGrade')?.value || '';
+            const clearExisting = document.getElementById('slcBatchClear')?.checked || false;
+            const resultEl = document.getElementById('slcBatchNodeResult');
+
+            if (!jsonStr) { AdminUI.showToast('請輸入 JSON 數據', 'error'); return; }
+
+            let payload;
+            try { payload = JSON.parse(jsonStr); } catch (e) {
+                AdminUI.showToast('JSON 格式無效', 'error');
+                if (resultEl) { resultEl.style.display = 'block'; resultEl.style.background = '#fce4ec'; resultEl.textContent = `JSON 解析失敗: ${e.message}`; }
+                return;
+            }
+
+            if (!payload.nodes || !Array.isArray(payload.nodes) || !payload.nodes.length) {
+                AdminUI.showToast('JSON 中必須包含 nodes 陣列', 'error');
+                return;
+            }
+
+            if (clearExisting && !confirm('⚠️ 確定清空該科目所有知識點嗎？')) return;
+
+            payload.clear_existing = clearExisting;
+            if (!payload.edges) payload.edges = [];
+            payload.subject_code = subjectCode;
+            if (grade) payload.grade_level = grade;
+
+            try {
+                const r = await API.adminBatchImportGraph(payload);
+                if (r.success) {
+                    const d = r.data || {};
+                    if (resultEl) {
+                        resultEl.style.display = 'block';
+                        resultEl.style.background = '#e8f5e9';
+                        resultEl.innerHTML = `<strong>✅ 導入完成</strong><br>建立 ${d.created_nodes || 0} 節點、${d.created_edges || 0} 連接`;
+                    }
+                    AdminUI.showToast('批量導入成功', 'success');
+                    App._loadAdminNodes();
+                    if (state.currentTab === 'map') App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '導入失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('導入失敗', 'error');
+            }
+        },
+
+        // ── Learning Paths ──
+        async _loadAdminPaths() {
+            const subjectCode = state.currentSubject?.subject_code;
+            try {
+                const paths = await API.getPaths(subjectCode, null);
+                AdminUI.renderAdminPaths(paths);
+            } catch (e) {
+                console.error('載入路徑失敗:', e);
+            }
+        },
+
+        async submitPath() {
+            const subjectCode = state.currentSubject?.subject_code;
+            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+
+            const title = document.getElementById('slcPathTitle')?.value.trim();
+            const desc = document.getElementById('slcPathDesc')?.value.trim() || '';
+            const difficulty = document.getElementById('slcPathDifficulty')?.value || 'beginner';
+            const hours = parseFloat(document.getElementById('slcPathHours')?.value) || 1;
+            const grade = document.getElementById('slcPathGrade')?.value || '';
+
+            if (!title) { AdminUI.showToast('請輸入路徑標題', 'error'); return; }
+
+            try {
+                const body = { title, description: desc, difficulty, estimated_hours: hours, subject_code: subjectCode };
+                if (grade) body.grade_level = grade;
+
+                const r = await API.adminCreatePath(body);
+                if (r.success) {
+                    AdminUI.showToast('學習路徑已創建', 'success');
+                    document.getElementById('slcPathTitle').value = '';
+                    document.getElementById('slcPathDesc').value = '';
+                    App._loadAdminPaths();
+                    if (state.currentTab === 'paths') App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '創建失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('創建失敗', 'error');
+            }
+        },
+
+        async deletePath(id) {
+            if (!confirm('確定要刪除此學習路徑嗎？')) return;
+            try {
+                const r = await API.adminDeletePath(id);
+                if (r.success) {
+                    AdminUI.showToast('路徑已刪除', 'success');
+                    App._loadAdminPaths();
+                    if (state.currentTab === 'paths') App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '刪除失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('刪除失敗', 'error');
+            }
+        },
+
+        async submitBatchPaths() {
+            const subjectCode = state.currentSubject?.subject_code;
+            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+
+            const jsonStr = document.getElementById('slcBatchPathJson')?.value.trim();
+            const grade = document.getElementById('slcBatchPathGrade')?.value || '';
+            const resultEl = document.getElementById('slcBatchPathResult');
+
+            if (!jsonStr) { AdminUI.showToast('請輸入 JSON 數據', 'error'); return; }
+
+            let paths;
+            try { paths = JSON.parse(jsonStr); } catch (e) {
+                AdminUI.showToast('JSON 格式無效', 'error');
+                if (resultEl) { resultEl.style.display = 'block'; resultEl.style.background = '#fce4ec'; resultEl.textContent = `JSON 解析失敗: ${e.message}`; }
+                return;
+            }
+
+            if (!Array.isArray(paths) || !paths.length) {
+                AdminUI.showToast('JSON 必須是路徑陣列', 'error');
+                return;
+            }
+
+            try {
+                const body = { paths, subject_code: subjectCode };
+                if (grade) body.grade_level = grade;
+
+                const r = await API.adminBatchImportPaths(body);
+                if (r.success) {
+                    const d = r.data || {};
+                    if (resultEl) {
+                        resultEl.style.display = 'block';
+                        resultEl.style.background = '#e8f5e9';
+                        resultEl.innerHTML = `<strong>✅ 導入完成</strong><br>建立 ${d.created_paths || d.created || 0} 條路徑`;
+                    }
+                    AdminUI.showToast('批量導入成功', 'success');
+                    App._loadAdminPaths();
+                    if (state.currentTab === 'paths') App.loadCurrentTab();
+                } else {
+                    AdminUI.showToast(r.message || '導入失敗', 'error');
+                }
+            } catch (e) {
+                AdminUI.showToast('導入失敗', 'error');
+            }
+        },
     };
 
     // ── 工具函數 ──
@@ -793,5 +1471,18 @@ window.slc = (() => {
         sendAIMessage: () => App.sendAIMessage(),
         closeModal: () => UI.closeContentModal(),
         toggleMobileSidebar: () => App.toggleMobileSidebar(),
+        // Admin
+        toggleAdminPanel: () => App.toggleAdminPanel(),
+        switchAdminTab: (tab) => App.switchAdminTab(tab),
+        onContentTypeChange: () => App.onContentTypeChange(),
+        submitContent: () => App.submitContent(),
+        deleteContent: (id, title) => App.deleteContent(id, title),
+        submitNode: () => App.submitNode(),
+        submitEdge: () => App.submitEdge(),
+        deleteNode: (id) => App.deleteNode(id),
+        submitBatchNodes: () => App.submitBatchNodes(),
+        submitPath: () => App.submitPath(),
+        deletePath: (id) => App.deletePath(id),
+        submitBatchPaths: () => App.submitBatchPaths(),
     };
 })();

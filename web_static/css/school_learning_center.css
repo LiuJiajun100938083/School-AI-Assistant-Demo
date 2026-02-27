@@ -994,3 +994,340 @@
 .slc-modal-body canvas {
     width: 100%;
 }
+
+/* ══════════════════════════════════════════════════
+   管理面板樣式
+   ══════════════════════════════════════════════════ */
+
+/* Header 管理按鈕 */
+.slc-header__admin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.slc-header__admin-btn:hover {
+    background: rgba(255,255,255,0.25);
+}
+
+/* 管理面板遮罩 */
+.slc-admin-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 400;
+    display: none;
+}
+
+.slc-admin-overlay.--visible {
+    display: block;
+}
+
+/* 管理面板側滑 */
+.slc-admin-panel {
+    position: fixed;
+    top: 0;
+    right: -480px;
+    width: 460px;
+    max-width: 90vw;
+    height: 100vh;
+    background: var(--slc-card-bg);
+    z-index: 401;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+    transition: right 0.3s ease;
+}
+
+.slc-admin-panel.--visible {
+    right: 0;
+}
+
+.slc-admin-panel__header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--slc-primary);
+    color: white;
+    font-weight: 600;
+    font-size: 15px;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.slc-admin-panel__subject {
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.9;
+    font-weight: 400;
+}
+
+.slc-admin-panel__close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 2px 6px;
+    opacity: 0.8;
+}
+
+.slc-admin-panel__close:hover {
+    opacity: 1;
+}
+
+/* 管理面板 Tab */
+.slc-admin-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--slc-border);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.slc-admin-tab {
+    flex: 1;
+    padding: 10px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--slc-text-secondary);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.slc-admin-tab:hover {
+    color: var(--slc-primary);
+}
+
+.slc-admin-tab.--active {
+    color: var(--slc-primary);
+    border-bottom-color: var(--slc-primary);
+    font-weight: 600;
+}
+
+/* 管理面板內容區 */
+.slc-admin-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+.slc-admin-tab-panel {
+    display: none;
+    padding: 16px;
+}
+
+.slc-admin-tab-panel.--active {
+    display: block;
+}
+
+/* 管理面板表單 */
+.slc-admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.slc-admin-form label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--slc-text-secondary);
+    margin-top: 6px;
+}
+
+.slc-admin-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--slc-border);
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+    box-sizing: border-box;
+    background: var(--slc-card-bg);
+    color: var(--slc-text);
+}
+
+.slc-admin-input:focus {
+    border-color: var(--slc-primary);
+}
+
+.slc-admin-input::placeholder {
+    color: var(--slc-text-secondary);
+    opacity: 0.6;
+}
+
+/* 拖放上傳區 */
+.slc-admin-dropzone {
+    border: 2px dashed var(--slc-border);
+    border-radius: 10px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 13px;
+    color: var(--slc-text-secondary);
+    margin-top: 6px;
+}
+
+.slc-admin-dropzone:hover,
+.slc-admin-dropzone.--dragover {
+    border-color: var(--slc-primary);
+    background: var(--slc-primary-light);
+}
+
+/* 管理面板按鈕 */
+.slc-admin-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 8px;
+}
+
+.slc-admin-btn.--primary {
+    background: var(--slc-primary);
+    color: white;
+}
+
+.slc-admin-btn.--primary:hover {
+    background: var(--slc-primary-dark);
+}
+
+.slc-admin-btn.--primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.slc-admin-btn.--danger {
+    background: #ff3b30;
+    color: white;
+}
+
+.slc-admin-btn.--danger:hover {
+    background: #e0352b;
+}
+
+.slc-admin-btn.--secondary {
+    background: var(--slc-bg);
+    color: var(--slc-text);
+    border: 1px solid var(--slc-border);
+}
+
+.slc-admin-btn.--secondary:hover {
+    background: var(--slc-border);
+}
+
+/* 管理面板列表 */
+.slc-admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.slc-admin-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--slc-bg);
+    border-radius: 8px;
+    font-size: 13px;
+    gap: 8px;
+}
+
+.slc-admin-list-item__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.slc-admin-list-item__title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slc-admin-list-item__meta {
+    font-size: 11px;
+    color: var(--slc-text-secondary);
+    margin-top: 2px;
+}
+
+.slc-admin-list-item__actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.slc-admin-list-item__actions button {
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+/* Toast 通知 */
+.slc-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 500;
+    transition: transform 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.slc-toast.--visible {
+    transform: translateX(-50%) translateY(0);
+}
+
+.slc-toast.--success {
+    background: #27ae60;
+    color: white;
+}
+
+.slc-toast.--error {
+    background: #e74c3c;
+    color: white;
+}
+
+.slc-toast.--info {
+    background: #3498db;
+    color: white;
+}
+
+/* 響應式 — 管理面板 */
+@media (max-width: 500px) {
+    .slc-admin-panel {
+        width: 100vw;
+        max-width: 100vw;
+        right: -100vw;
+    }
+}
