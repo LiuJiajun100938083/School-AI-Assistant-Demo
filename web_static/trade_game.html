@@ -562,6 +562,10 @@
 
         const logRef = useRef(null);
 
+        // Ref to track the latest player state for rapid-click validation
+        const playerRef = useRef(playerState);
+        playerRef.current = playerState;
+
         const addLog = useCallback((msg, type = 'info') => {
             setLog(prev => [...prev, { msg, type, turn }]);
         }, [turn]);
@@ -642,7 +646,7 @@
                 const newPrices = doMarket(evt);
 
                 // AI takes its turn
-                const aiActions = aiTurn({ ...aiState }, newPrices, difficulty);
+                const aiActions = aiTurn({ ...aiState, inventory: { ...aiState.inventory } }, newPrices, difficulty);
                 if (aiActions.length > 0) {
                     setAiState(prev => {
                         const next = { ...prev, inventory: { ...prev.inventory } };
@@ -668,17 +672,27 @@
 
         // Buy resource
         const handleBuy = (resKey, qty) => {
+            const current = playerRef.current;
             const price = prices[resKey];
             const cost = price * qty;
-            if (cost > playerState.money) {
-                addLog(`❌ 資金不足！需要 $${cost}，只有 $${playerState.money}`, 'error');
+            if (cost > current.money) {
+                addLog(`❌ 資金不足！需要 $${cost}，只有 $${current.money}`, 'error');
                 return;
             }
-            setPlayerState(prev => ({
-                ...prev,
-                money: prev.money - cost,
-                inventory: { ...prev.inventory, [resKey]: prev.inventory[resKey] + qty },
-            }));
+            setPlayerState(prev => {
+                if (cost > prev.money) return prev; // Guard against stale state
+                return {
+                    ...prev,
+                    money: prev.money - cost,
+                    inventory: { ...prev.inventory, [resKey]: prev.inventory[resKey] + qty },
+                };
+            });
+            // Optimistically update ref so next rapid click sees correct values
+            playerRef.current = {
+                ...current,
+                money: current.money - cost,
+                inventory: { ...current.inventory, [resKey]: current.inventory[resKey] + qty },
+            };
             const isGood = price < RESOURCE_TYPES[Object.keys(RESOURCE_TYPES).find(k => RESOURCE_TYPES[k].key === resKey)].basePrice;
             setStats(s => ({
                 ...s,
@@ -691,17 +705,27 @@
 
         // Sell resource
         const handleSell = (resKey, qty) => {
-            if (playerState.inventory[resKey] < qty) {
-                addLog(`❌ 庫存不足！只有 ${playerState.inventory[resKey]} 單位 ${resKey}`, 'error');
+            const current = playerRef.current;
+            if (current.inventory[resKey] < qty) {
+                addLog(`❌ 庫存不足！只有 ${current.inventory[resKey]} 單位 ${resKey}`, 'error');
                 return;
             }
             const price = prices[resKey];
             const income = price * qty;
-            setPlayerState(prev => ({
-                ...prev,
-                money: prev.money + income,
-                inventory: { ...prev.inventory, [resKey]: prev.inventory[resKey] - qty },
-            }));
+            setPlayerState(prev => {
+                if (prev.inventory[resKey] < qty) return prev; // Guard against stale state
+                return {
+                    ...prev,
+                    money: prev.money + income,
+                    inventory: { ...prev.inventory, [resKey]: prev.inventory[resKey] - qty },
+                };
+            });
+            // Optimistically update ref so next rapid click sees correct values
+            playerRef.current = {
+                ...current,
+                money: current.money + income,
+                inventory: { ...current.inventory, [resKey]: current.inventory[resKey] - qty },
+            };
             const resType = Object.keys(RESOURCE_TYPES).find(k => RESOURCE_TYPES[k].key === resKey);
             const isGood = price > RESOURCE_TYPES[resType].basePrice;
             setStats(s => ({
