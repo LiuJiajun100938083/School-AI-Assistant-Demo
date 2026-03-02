@@ -1295,10 +1295,9 @@
             setLoading(true);
             try {
                 const data = await TradeGameBridge.getAllScores(classFilter || undefined);
-                setScores(data || []);
-                // Extract unique classes
-                const allClasses = [...new Set((data || []).map(s => s.class_name).filter(Boolean))];
-                setClasses(allClasses);
+                // data = { scores: [...], classes: [...], summary: {...} }
+                setScores(data?.scores || []);
+                setClasses(data?.classes || []);
             } catch (err) {
                 console.error('Failed to load scores:', err);
             }
