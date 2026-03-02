@@ -88,6 +88,31 @@
     const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
     // =====================================================================
+    //  Lucide-react icon polyfills (emoji replacements)
+    //  防止未替換的 lucide-react 圖標引用導致 ReferenceError
+    // =====================================================================
+    const AlertCircle = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '⚠️');
+    const Trophy = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '🏆');
+    const Star = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '⭐');
+    const ArrowUp = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '⬆️');
+    const ArrowDown = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '⬇️');
+    const Shield = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '🛡️');
+    const Info = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, 'ℹ️');
+    const X = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '✕');
+    const ChevronRight = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '▶');
+    const TrendingUp = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '📈');
+    const TrendingDown = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '📉');
+    const DollarSign = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '💰');
+    const BarChart3 = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '📊');
+    const BookOpen = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '📖');
+    const Zap = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '⚡');
+    const Lock = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '🔒');
+    const RefreshCw = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '🔄');
+    const CheckCircle = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '✅');
+    const XCircle = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '❌');
+    const HelpCircle = ({ className, size }) => React.createElement('span', { className, style: { fontSize: size || 16 } }, '❓');
+
+    // =====================================================================
     //  TradeGameBridge — Auth + API integration
     // =====================================================================
     const TradeGameBridge = {
