@@ -847,9 +847,9 @@ class LearningSummaryManager {
      * 建立總結按鈕
      */
     createButton() {
-        const inputRow = $('.input-row');
+        const inputRow = $('.input-toolbar') || $('.input-row');
         if (!inputRow) {
-            console.error('找不到 .input-row 元素');
+            console.error('找不到 .input-toolbar 元素');
             return;
         }
 
@@ -858,12 +858,12 @@ class LearningSummaryManager {
             id: 'summaryButton',
             className: 'summary-button',
             title: '生成學習總結和思維導圖'
-        }, '📚');
+        }, '📚 總結');
 
-        // 插入到發送按鈕之後
+        // 插入到發送按鈕之前
         const sendButton = $('#sendButton');
-        if (sendButton && sendButton.nextSibling) {
-            inputRow.insertBefore(this.summaryBtn, sendButton.nextSibling);
+        if (sendButton) {
+            inputRow.insertBefore(this.summaryBtn, sendButton);
         } else {
             inputRow.appendChild(this.summaryBtn);
         }
