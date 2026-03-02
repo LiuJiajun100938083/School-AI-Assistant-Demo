@@ -66,6 +66,7 @@ from app.domains.mistake_book.repository import (
     StudentMasteryRepository,
 )
 from app.domains.game_upload.repository import GameUploadRepository
+from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.ai_learning_center.repository import (
     LCCategoryRepository,
     LCContentRepository,
@@ -100,6 +101,7 @@ from app.domains.vision.service import VisionService
 from app.domains.ai_learning_center.service import LearningCenterService
 from app.domains.school_learning_center.service import SchoolLearningCenterService
 from app.domains.game_upload.service import GameUploadService
+from app.domains.trade_game.service import TradeGameService
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +148,7 @@ class ServiceContainer:
         self._learning_center: Optional[LearningCenterService] = None
         self._school_learning_center: Optional[SchoolLearningCenterService] = None
         self._game_upload: Optional[GameUploadService] = None
+        self._trade_game: Optional[TradeGameService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -313,6 +316,15 @@ class ServiceContainer:
                 game_repo=self._get_repo(GameUploadRepository),
             )
         return self._game_upload
+
+    @property
+    def trade_game(self) -> TradeGameService:
+        """全球貿易大亨遊戲服務"""
+        if self._trade_game is None:
+            self._trade_game = TradeGameService(
+                score_repo=self._get_repo(TradeGameRepository),
+            )
+        return self._trade_game
 
     @property
     def vision(self) -> VisionService:

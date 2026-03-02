@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全球貿易大亨 Global Trade Tycoon</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 18 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Shared Auth & API modules -->
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+        /* Loading spinner */
+        .trade-spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #60a5fa; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        /* Animations */
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out; }
+        .animate-pulse-slow { animation: pulse 2s ease-in-out infinite; }
+
+        /* Game card hover */
+        .game-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .game-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+
+        /* Modal overlay */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 50; display: flex; align-items: center; justify-content: center; }
+
+        /* Progress bar */
+        .progress-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+        /* Table styles for dashboard */
+        .score-table { width: 100%; border-collapse: collapse; }
+        .score-table th, .score-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .score-table th { background: rgba(255,255,255,0.05); color: #94a3b8; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .score-table tr:hover { background: rgba(255,255,255,0.03); }
+
+        /* Emoji icon sizing */
+        .emoji-icon { font-size: 1.2em; vertical-align: middle; }
+        .emoji-icon-lg { font-size: 1.5em; }
+        .emoji-icon-xl { font-size: 2em; }
+
+        /* Tooltip */
+        .tip-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(250,204,21,0.3); border-radius: 12px; padding: 16px; }
+    </style>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'game-bg': '#0f172a',
+                        'game-card': '#1e293b',
+                        'game-border': '#334155',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+    /* =====================================================================
+     *  全球貿易大亨 - Global Trade Tycoon
+     *  Standalone React game with Auth Bridge + Teacher Dashboard
+     * ===================================================================== */
+
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // =====================================================================
+    //  TradeGameBridge — Auth + API integration
+    // =====================================================================
+    const TradeGameBridge = {
+        user: null,       // { id, username, name, role, class_name }
+        _ready: false,
+
+        async init() {
+            const userData = await AuthModule.requireAuth('/login');
+            if (!userData) return false;
+
+            // Also fetch user info for display_name and class
+            let userInfo = null;
+            try {
+                userInfo = await AuthModule.getUserInfo();
+            } catch(e) {
+                console.warn('getUserInfo failed, using verify data', e);
+            }
+
+            this.user = {
+                id: userData.id || userData.user_id,
+                username: userData.username || userData.sub,
+                name: userInfo?.display_name || userInfo?.real_name || userInfo?.nickname || userData.display_name || userData.username || userData.sub || '玩家',
+                role: userData.role || 'student',
+                class_name: userInfo?.class_name || userData.class_name || '',
+            };
+            this._ready = true;
+            return true;
+        },
+
+        isTeacher() {
+            return this.user && ['teacher', 'admin'].includes(this.user.role);
+        },
+
+        async checkPlayed() {
+            const resp = await APIClient.get('/api/trade-game/scores/check');
+            return resp?.data || { played: false, score: null };
+        },
+
+        async submitScore(scoreData) {
+            return APIClient.post('/api/trade-game/scores', scoreData);
+        },
+
+        async getLeaderboard(difficulty, limit = 50) {
+            const params = { limit };
+            if (difficulty) params.difficulty = difficulty;
+            const resp = await APIClient.get('/api/trade-game/scores/leaderboard', params);
+            return resp?.data || [];
+        },
+
+        async getAllScores(className) {
+            const params = {};
+            if (className) params.class_name = className;
+            const resp = await APIClient.get('/api/trade-game/scores/all', params);
+            return resp?.data || [];
+        },
+
+        async deleteScore(scoreId) {
+            return APIClient.delete(`/api/trade-game/scores/${scoreId}`);
+        },
+
+        async updateScore(scoreId, data) {
+            return APIClient.put(`/api/trade-game/scores/${scoreId}`, data);
+        },
+
+        getExportUrl(className) {
+            const token = AuthModule.getToken();
+            let url = `/api/trade-game/scores/export?token=${encodeURIComponent(token)}`;
+            if (className) url += `&class_name=${encodeURIComponent(className)}`;
+            return url;
+        }
+    };
+
+    // =====================================================================
+    //  Game Constants & Data
+    // =====================================================================
+
+    const RESOURCE_TYPES = {
+        FOOD: { key: 'food', name: '農產品', icon: '🌾', basePrice: 50, color: '#22c55e' },
+        INDUSTRY: { key: 'industry', name: '工業品', icon: '🏭', basePrice: 100, color: '#3b82f6' },
+        TECH: { key: 'tech', name: '高科技', icon: '💻', basePrice: 200, color: '#a855f7' },
+    };
+
+    const AI_DIFFICULTIES = {
+        EASY: { name: '新手 AI', desc: '適合初學者，AI 較為保守', bonusMoney: 0, icon: '🤖', color: '#22c55e' },
+        NORMAL: { name: '標準 AI', desc: 'AI 有一定的策略能力', bonusMoney: 500, icon: '🤖', color: '#f59e0b' },
+        HARD: { name: '貿易大鱷', desc: 'AI 非常激進且精於算計', bonusMoney: 1500, icon: '🤖', color: '#ef4444' },
+    };
+
+    const SPECIALIZATIONS = {
+        AGRI: { name: '農業國', desc: '農產品生產+，工業/科技較弱', icon: '🌾', production: { food: 12, industry: 2, tech: 1 }, color: '#22c55e' },
+        IND: { name: '工業國', desc: '工業品生產+，均衡發展', icon: '🏭', production: { food: 2, industry: 6, tech: 1 }, color: '#3b82f6' },
+        TECH: { name: '科技國', desc: '高科技生產+，農業較弱', icon: '💻', production: { food: 1, industry: 2, tech: 4 }, color: '#a855f7' },
+    };
+
+    const KNOWLEDGE_TIPS = [
+        { id: 1, title: '比較優勢', content: '每個國家應該專注生產自己相對擅長的商品，然後透過貿易互通有無。即使一個國家在所有產品上都不如另一個國家，它仍然可以透過專注於「比較優勢」的產品來獲益。', category: '貿易理論' },
+        { id: 2, title: '供需法則', content: '當某種商品的供給減少或需求增加時，價格會上升；反之亦然。在遊戲中，隨機事件會影響市場供需，掌握這個規律可以幫你做出更好的交易決策。', category: '經濟學基礎' },
+        { id: 3, title: '貿易保護主義', content: '政府可以透過關稅、配額等手段保護國內產業。雖然短期內可能保護了某些產業，但長期來看可能導致效率降低和消費者福利損失。', category: '貿易政策' },
+        { id: 4, title: '經濟安全', content: '一個國家如果過度依賴某種進口商品，可能面臨供應鏈風險。適當的經濟多元化和戰略儲備可以提高國家的經濟安全。', category: '國家安全' },
+        { id: 5, title: '分散風險', content: '不要把所有的資源都投入到單一商品。多元化的投資組合可以降低風險，確保在市場波動時不會全軍覆沒。', category: '投資策略' },
+        { id: 6, title: '貿易制裁', content: '國家之間可以透過經濟制裁來施加政治壓力。制裁可能包括禁運、凍結資產等。雖然有效，但也可能傷害自身經濟。', category: '國際關係' },
+        { id: 7, title: '通貨膨脹', content: '當貨幣供應量增加但商品數量不變時，物價會上漲。在遊戲中，持有過多現金而不投資可能會因為通脹效應而貶值。', category: '貨幣經濟' },
+        { id: 8, title: '機會成本', content: '每次做決策時，你放棄的最佳替代方案就是機會成本。買入一種商品意味著你放棄了用這筆錢買其他商品的機會。', category: '決策分析' },
+    ];
+
+    const EVENTS = [
+        {
+            id: 'recession',
+            name: '全球經濟衰退',
+            description: '全球經濟陷入衰退，所有商品價格下跌',
+            icon: '📉',
+            effects: { food: -0.2, industry: -0.3, tech: -0.4 },
+            securityImpact: -10,
+        },
+        {
+            id: 'emerging',
+            name: '新興市場崛起',
+            description: '新興市場快速發展，工業品和農產品需求大增',
+            icon: '📈',
+            effects: { food: 0.3, industry: 0.4, tech: 0.1 },
+            securityImpact: 5,
+        },
+        {
+            id: 'conflict',
+            name: '地緣政治衝突',
+            description: '地區衝突升級，供應鏈受到衝擊',
+            icon: '⚠️',
+            effects: { food: 0.1, industry: -0.2, tech: -0.1 },
+            securityImpact: -15,
+        },
+        {
+            id: 'techbubble',
+            name: '科技泡沫破裂',
+            description: '科技股崩盤，高科技產品價值大幅下滑',
+            icon: '💻',
+            effects: { food: 0.1, industry: 0.1, tech: -0.5 },
+            securityImpact: -5,
+        },
+        {
+            id: 'stable',
+            name: '平穩的一年',
+            description: '全球經濟平穩發展，市場波動較小',
+            icon: '⚡',
+            effects: { food: 0.05, industry: 0.05, tech: 0.05 },
+            securityImpact: 5,
+        },
+    ];
+
+    const FEEDBACK_TAGS = [
+        '學到了比較優勢', '理解了供需法則', '認識了貿易風險',
+        '學會了分散投資', '了解了制裁影響', '很有趣想再玩',
+        '難度適中', '太簡單了', '太難了',
+    ];
+
+    const MAX_TURNS = 20;
+
+    // =====================================================================
+    //  Helper: calculate score (composite national power)
+    // =====================================================================
+    function calcScore(state) {
+        const inventoryValue =
+            (state.inventory.food || 0) * RESOURCE_TYPES.FOOD.basePrice +
+            (state.inventory.industry || 0) * RESOURCE_TYPES.INDUSTRY.basePrice +
+            (state.inventory.tech || 0) * RESOURCE_TYPES.TECH.basePrice;
+        return Math.round(state.money + inventoryValue + state.security * 10);
+    }
+
+    // =====================================================================
+    //  Helper: generate market prices
+    // =====================================================================
+    function generatePrices(basePrices, event) {
+        const prices = {};
+        for (const [key, res] of Object.entries(RESOURCE_TYPES)) {
+            const base = res.basePrice;
+            const eventMod = event ? (event.effects[res.key] || 0) : 0;
+            const randomMod = (Math.random() - 0.5) * 0.3;
+            const finalPrice = Math.max(10, Math.round(base * (1 + eventMod + randomMod)));
+            prices[res.key] = finalPrice;
+        }
+        return prices;
+    }
+
+    // =====================================================================
+    //  Helper: AI decision
+    // =====================================================================
+    function aiTurn(aiState, prices, difficulty) {
+        const actions = [];
+        const diff = AI_DIFFICULTIES[difficulty];
+
+        // AI strategy: buy low, sell high, invest in security
+        for (const [key, res] of Object.entries(RESOURCE_TYPES)) {
+            const price = prices[res.key];
+            const owned = aiState.inventory[res.key] || 0;
+
+            // Sell if price is significantly above base
+            if (price > res.basePrice * 1.2 && owned > 2) {
+                const sellQty = Math.min(owned - 1, Math.ceil(owned * 0.5));
+                aiState.inventory[res.key] -= sellQty;
+                aiState.money += sellQty * price;
+                actions.push({ type: 'sell', resource: res.key, qty: sellQty, price });
+            }
+            // Buy if price is below base
+            else if (price < res.basePrice * 0.85 && aiState.money > price * 3) {
+                const buyQty = Math.min(5, Math.floor(aiState.money * 0.2 / price));
+                if (buyQty > 0) {
+                    aiState.inventory[res.key] += buyQty;
+                    aiState.money -= buyQty * price;
+                    actions.push({ type: 'buy', resource: res.key, qty: buyQty, price });
+                }
+            }
+        }
+
+        // Hard AI invests more in security
+        if (difficulty === 'HARD' && aiState.security < 80 && aiState.money > 300) {
+            const invest = Math.min(300, Math.floor(aiState.money * 0.15));
+            aiState.money -= invest;
+            aiState.security = Math.min(100, aiState.security + Math.floor(invest / 30));
+        } else if (aiState.security < 50 && aiState.money > 200) {
+            const invest = Math.min(200, Math.floor(aiState.money * 0.1));
+            aiState.money -= invest;
+            aiState.security = Math.min(100, aiState.security + Math.floor(invest / 30));
+        }
+
+        return actions;
+    }
+
+    // =====================================================================
+    //  KnowledgeTip Component
+    // =====================================================================
+    function KnowledgeTip({ tip, onClose }) {
+        if (!tip) return null;
+        return (
+            <div className="modal-overlay" onClick={onClose}>
+                <div className="tip-card max-w-md mx-4 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-start mb-3">
+                        <div>
+                            <span className="text-xs text-yellow-400 font-semibold">{tip.category}</span>
+                            <h3 className="text-lg font-bold text-yellow-300 mt-1">💡 {tip.title}</h3>
+                        </div>
+                        <button onClick={onClose} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+                    </div>
+                    <p className="text-gray-300 text-sm leading-relaxed">{tip.content}</p>
+                    <div className="mt-4 text-right">
+                        <button onClick={onClose} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-sm font-medium transition-colors">
+                            我學到了！
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  EventDisplay Component
+    // =====================================================================
+    function EventDisplay({ event }) {
+        if (!event) return null;
+        return (
+            <div className="bg-gray-800/80 border border-gray-600 rounded-xl p-4 mb-4 animate-fade-in-up">
+                <div className="flex items-center gap-3">
+                    <span className="text-3xl">{event.icon}</span>
+                    <div>
+                        <h3 className="font-bold text-white">{event.name}</h3>
+                        <p className="text-sm text-gray-400">{event.description}</p>
+                    </div>
+                </div>
+                <div className="flex gap-3 mt-3 text-xs">
+                    {Object.entries(event.effects).map(([key, val]) => (
+                        <span key={key} className={`px-2 py-1 rounded ${val >= 0 ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
+                            {key === 'food' ? '🌾' : key === 'industry' ? '🏭' : '💻'} {val >= 0 ? '+' : ''}{Math.round(val * 100)}%
+                        </span>
+                    ))}
+                    <span className={`px-2 py-1 rounded ${event.securityImpact >= 0 ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
+                        🛡️ {event.securityImpact >= 0 ? '+' : ''}{event.securityImpact}
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  SetupScreen Component
+    // =====================================================================
+    function SetupScreen({ playerName, onStart }) {
+        const [difficulty, setDifficulty] = useState('NORMAL');
+        const [playerSpec, setPlayerSpec] = useState('AGRI');
+        const [aiSpec, setAiSpec] = useState('IND');
+        const [showRules, setShowRules] = useState(false);
+
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="max-w-2xl w-full animate-fade-in-up">
+                    {/* Title */}
+                    <div className="text-center mb-8">
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 bg-clip-text text-transparent">
+                            🌍 全球貿易大亨
+                        </h1>
+                        <p className="text-gray-400 mt-2">Global Trade Tycoon - 體驗國際貿易的策略與智慧</p>
+                    </div>
+
+                    <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700 space-y-6">
+                        {/* Player Name */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">👤 玩家名稱</label>
+                            <input
+                                type="text"
+                                value={playerName}
+                                readOnly
+                                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white cursor-not-allowed opacity-75"
+                            />
+                        </div>
+
+                        {/* Difficulty */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">🤖 AI 難度</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {Object.entries(AI_DIFFICULTIES).map(([key, diff]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setDifficulty(key)}
+                                        className={`p-3 rounded-xl border-2 transition-all text-center ${
+                                            difficulty === key
+                                                ? 'border-amber-500 bg-amber-500/10'
+                                                : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                                        }`}
+                                    >
+                                        <div className="text-2xl mb-1">{diff.icon}</div>
+                                        <div className="font-semibold text-sm" style={{ color: diff.color }}>{diff.name}</div>
+                                        <div className="text-xs text-gray-400 mt-1">{diff.desc}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Player Specialization */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">🏳️ 你的國家特色</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {Object.entries(SPECIALIZATIONS).map(([key, spec]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setPlayerSpec(key)}
+                                        className={`p-3 rounded-xl border-2 transition-all text-center ${
+                                            playerSpec === key
+                                                ? 'border-blue-500 bg-blue-500/10'
+                                                : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                                        }`}
+                                    >
+                                        <div className="text-2xl mb-1">{spec.icon}</div>
+                                        <div className="font-semibold text-sm" style={{ color: spec.color }}>{spec.name}</div>
+                                        <div className="text-xs text-gray-400 mt-1">{spec.desc}</div>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            🌾{spec.production.food} 🏭{spec.production.industry} 💻{spec.production.tech}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* AI Specialization */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">⚔️ AI 對手國家</label>
+                            <div className="grid grid-cols-3 gap-3">
+                                {Object.entries(SPECIALIZATIONS).map(([key, spec]) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setAiSpec(key)}
+                                        className={`p-3 rounded-xl border-2 transition-all text-center ${
+                                            aiSpec === key
+                                                ? 'border-red-500 bg-red-500/10'
+                                                : 'border-gray-600 bg-gray-700/30 hover:border-gray-500'
+                                        }`}
+                                    >
+                                        <div className="text-2xl mb-1">{spec.icon}</div>
+                                        <div className="font-semibold text-sm" style={{ color: spec.color }}>{spec.name}</div>
+                                        <div className="text-xs text-gray-400 mt-1">{spec.desc}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Rules toggle */}
+                        <div>
+                            <button onClick={() => setShowRules(!showRules)} className="flex items-center gap-2 text-sm text-amber-400 hover:text-amber-300 transition-colors">
+                                📖 {showRules ? '隱藏遊戲規則' : '查看遊戲規則'}
+                            </button>
+                            {showRules && (
+                                <div className="mt-3 bg-gray-700/40 rounded-lg p-4 text-sm text-gray-300 space-y-2 animate-fade-in-up">
+                                    <p>🎯 <strong>目標：</strong>在 {MAX_TURNS} 回合內，透過貿易獲得比 AI 更高的綜合國力分數</p>
+                                    <p>💰 <strong>綜合國力 =</strong> 資金 + 庫存價值 + 安全指數×10</p>
+                                    <p>📈 <strong>每回合：</strong>生產資源 → 查看市場 → 交易/投資 → 結算</p>
+                                    <p>🛡️ <strong>安全指數：</strong>降到 0 或資金歸零即破產出局！</p>
+                                    <p>⚡ <strong>隨機事件：</strong>每回合可能發生影響市場的全球事件</p>
+                                    <p>⚔️ <strong>制裁：</strong>可對 AI 發動經濟制裁，但也會反噬自身</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Start Button */}
+                        <button
+                            onClick={() => onStart(difficulty, playerSpec, aiSpec)}
+                            className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold text-lg rounded-xl transition-all transform hover:scale-[1.02] shadow-lg shadow-amber-500/20"
+                        >
+                            🚀 開始遊戲
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  GameScreen Component (main gameplay)
+    // =====================================================================
+    function GameScreen({ config, playerName, onGameEnd, isTrialMode }) {
+        const { difficulty, playerSpec, aiSpec } = config;
+        const playerProd = SPECIALIZATIONS[playerSpec].production;
+        const aiProd = SPECIALIZATIONS[aiSpec].production;
+
+        const [turn, setTurn] = useState(1);
+        const [phase, setPhase] = useState('production'); // production, market, action, event, summary
+        const [playerState, setPlayerState] = useState({
+            money: 1500,
+            security: 100,
+            inventory: { food: 10, industry: 5, tech: 2 },
+        });
+        const [aiState, setAiState] = useState({
+            money: 1500 + AI_DIFFICULTIES[difficulty].bonusMoney,
+            security: 100,
+            inventory: { food: 10, industry: 5, tech: 2 },
+        });
+        const [prices, setPrices] = useState(() => generatePrices(RESOURCE_TYPES, null));
+        const [currentEvent, setCurrentEvent] = useState(null);
+        const [log, setLog] = useState([]);
+        const [showTip, setShowTip] = useState(null);
+        const [stats, setStats] = useState({
+            trades: 0, good_trades: 0, bad_trades: 0,
+            security_invests: 0, sanctions_used: 0, tips_read: 0,
+            bankrupt_reason: null,
+        });
+        const [gameOver, setGameOver] = useState(false);
+        const [tradeInput, setTradeInput] = useState({ resource: 'food', qty: 1 });
+        const [selectedFeedback, setSelectedFeedback] = useState([]);
+        const [leaderboard, setLeaderboard] = useState([]);
+        const [submitting, setSubmitting] = useState(false);
+        const [submitted, setSubmitted] = useState(false);
+
+        const logRef = useRef(null);
+
+        const addLog = useCallback((msg, type = 'info') => {
+            setLog(prev => [...prev, { msg, type, turn }]);
+        }, [turn]);
+
+        // Scroll log to bottom
+        useEffect(() => {
+            if (logRef.current) {
+                logRef.current.scrollTop = logRef.current.scrollHeight;
+            }
+        }, [log]);
+
+        // Check bankrupt
+        useEffect(() => {
+            if (gameOver) return;
+            if (playerState.money <= 0) {
+                setStats(s => ({ ...s, bankrupt_reason: 'money' }));
+                endGame('bankrupt');
+            } else if (playerState.security <= 0) {
+                setStats(s => ({ ...s, bankrupt_reason: 'security' }));
+                endGame('bankrupt');
+            }
+        }, [playerState.money, playerState.security, gameOver]);
+
+        // Start of turn: production
+        const doProduction = useCallback(() => {
+            setPlayerState(prev => ({
+                ...prev,
+                inventory: {
+                    food: prev.inventory.food + playerProd.food,
+                    industry: prev.inventory.industry + playerProd.industry,
+                    tech: prev.inventory.tech + playerProd.tech,
+                },
+            }));
+            setAiState(prev => ({
+                ...prev,
+                inventory: {
+                    food: prev.inventory.food + aiProd.food,
+                    industry: prev.inventory.industry + aiProd.industry,
+                    tech: prev.inventory.tech + aiProd.tech,
+                },
+            }));
+            addLog(`回合 ${turn}：生產完成 🌾+${playerProd.food} 🏭+${playerProd.industry} 💻+${playerProd.tech}`, 'production');
+        }, [turn, playerProd, aiProd, addLog]);
+
+        // Generate event
+        const doEvent = useCallback(() => {
+            if (Math.random() < 0.6) {
+                const evt = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+                setCurrentEvent(evt);
+                setPlayerState(prev => ({
+                    ...prev,
+                    security: Math.max(0, Math.min(100, prev.security + evt.securityImpact)),
+                }));
+                setAiState(prev => ({
+                    ...prev,
+                    security: Math.max(0, Math.min(100, prev.security + evt.securityImpact)),
+                }));
+                addLog(`📰 事件：${evt.name} — ${evt.description}`, 'event');
+                return evt;
+            } else {
+                setCurrentEvent(null);
+                return null;
+            }
+        }, [addLog]);
+
+        // Generate new market prices
+        const doMarket = useCallback((evt) => {
+            const newPrices = generatePrices(RESOURCE_TYPES, evt);
+            setPrices(newPrices);
+            return newPrices;
+        }, []);
+
+        // Start turn sequence
+        useEffect(() => {
+            if (phase === 'production' && !gameOver) {
+                doProduction();
+                const evt = doEvent();
+                const newPrices = doMarket(evt);
+
+                // AI takes its turn
+                const aiActions = aiTurn({ ...aiState }, newPrices, difficulty);
+                if (aiActions.length > 0) {
+                    setAiState(prev => {
+                        const next = { ...prev, inventory: { ...prev.inventory } };
+                        // AI state already mutated by aiTurn, recalculate
+                        let money = prev.money;
+                        let inv = { ...prev.inventory };
+                        for (const act of aiActions) {
+                            if (act.type === 'buy') {
+                                inv[act.resource] += act.qty;
+                                money -= act.qty * act.price;
+                            } else if (act.type === 'sell') {
+                                inv[act.resource] -= act.qty;
+                                money += act.qty * act.price;
+                            }
+                        }
+                        return { ...prev, money, inventory: inv };
+                    });
+                }
+
+                setPhase('action');
+            }
+        }, [turn, gameOver]);
+
+        // Buy resource
+        const handleBuy = (resKey, qty) => {
+            const price = prices[resKey];
+            const cost = price * qty;
+            if (cost > playerState.money) {
+                addLog(`❌ 資金不足！需要 $${cost}，只有 $${playerState.money}`, 'error');
+                return;
+            }
+            setPlayerState(prev => ({
+                ...prev,
+                money: prev.money - cost,
+                inventory: { ...prev.inventory, [resKey]: prev.inventory[resKey] + qty },
+            }));
+            const isGood = price < RESOURCE_TYPES[Object.keys(RESOURCE_TYPES).find(k => RESOURCE_TYPES[k].key === resKey)].basePrice;
+            setStats(s => ({
+                ...s,
+                trades: s.trades + 1,
+                good_trades: s.good_trades + (isGood ? 1 : 0),
+                bad_trades: s.bad_trades + (isGood ? 0 : 1),
+            }));
+            addLog(`💰 買入 ${qty} 單位 ${resKey} @ $${price}，花費 $${cost}`, 'trade');
+        };
+
+        // Sell resource
+        const handleSell = (resKey, qty) => {
+            if (playerState.inventory[resKey] < qty) {
+                addLog(`❌ 庫存不足！只有 ${playerState.inventory[resKey]} 單位 ${resKey}`, 'error');
+                return;
+            }
+            const price = prices[resKey];
+            const income = price * qty;
+            setPlayerState(prev => ({
+                ...prev,
+                money: prev.money + income,
+                inventory: { ...prev.inventory, [resKey]: prev.inventory[resKey] - qty },
+            }));
+            const resType = Object.keys(RESOURCE_TYPES).find(k => RESOURCE_TYPES[k].key === resKey);
+            const isGood = price > RESOURCE_TYPES[resType].basePrice;
+            setStats(s => ({
+                ...s,
+                trades: s.trades + 1,
+                good_trades: s.good_trades + (isGood ? 1 : 0),
+                bad_trades: s.bad_trades + (isGood ? 0 : 1),
+            }));
+            addLog(`💰 賣出 ${qty} 單位 ${resKey} @ $${price}，收入 $${income}`, 'trade');
+        };
+
+        // Invest in security
+        const handleInvestSecurity = (amount) => {
+            const invest = Math.min(amount, playerState.money);
+            if (invest <= 0) {
+                addLog('❌ 沒有足夠的資金投資安全', 'error');
+                return;
+            }
+            const gain = Math.floor(invest / 25);
+            setPlayerState(prev => ({
+                ...prev,
+                money: prev.money - invest,
+                security: Math.min(100, prev.security + gain),
+            }));
+            setStats(s => ({ ...s, security_invests: s.security_invests + 1 }));
+            addLog(`🛡️ 投資安全 $${invest} → 安全指數 +${gain}`, 'security');
+        };
+
+        // Use sanction
+        const handleSanction = () => {
+            if (playerState.money < 200) {
+                addLog('❌ 發動制裁至少需要 $200', 'error');
+                return;
+            }
+            const cost = 200;
+            const damage = Math.floor(Math.random() * 300) + 100;
+            const selfDamage = Math.floor(Math.random() * 100) + 50;
+            setPlayerState(prev => ({
+                ...prev,
+                money: prev.money - cost - selfDamage,
+                security: Math.max(0, prev.security - 5),
+            }));
+            setAiState(prev => ({
+                ...prev,
+                money: Math.max(0, prev.money - damage),
+                security: Math.max(0, prev.security - 10),
+            }));
+            setStats(s => ({ ...s, sanctions_used: s.sanctions_used + 1 }));
+            addLog(`⚔️ 對 AI 發動制裁！AI 損失 $${damage}，你自損 $${selfDamage + cost}`, 'sanction');
+        };
+
+        // Read knowledge tip
+        const handleReadTip = () => {
+            const unread = KNOWLEDGE_TIPS.filter(t => !log.some(l => l.msg.includes(t.title)));
+            if (unread.length === 0) {
+                const tip = KNOWLEDGE_TIPS[Math.floor(Math.random() * KNOWLEDGE_TIPS.length)];
+                setShowTip(tip);
+            } else {
+                const tip = unread[Math.floor(Math.random() * unread.length)];
+                setShowTip(tip);
+            }
+            setStats(s => ({ ...s, tips_read: s.tips_read + 1 }));
+        };
+
+        // End turn
+        const handleEndTurn = () => {
+            if (turn >= MAX_TURNS) {
+                endGame(calcScore(playerState) > calcScore(aiState) ? 'win' : 'lose');
+            } else {
+                setTurn(t => t + 1);
+                setPhase('production');
+                setCurrentEvent(null);
+            }
+        };
+
+        // End game
+        const endGame = useCallback((result) => {
+            setGameOver(true);
+            const playerScore = calcScore(playerState);
+            const aiScore = calcScore(aiState);
+            const finalResult = result || (playerScore > aiScore ? 'win' : 'lose');
+
+            addLog(`🏁 遊戲結束！${finalResult === 'win' ? '🏆 你贏了！' : finalResult === 'bankrupt' ? '💀 你破產了...' : '📉 你輸了...'}`, 'end');
+
+            // Submit score if not trial mode
+            if (!isTrialMode) {
+                submitGameScore(finalResult, playerScore, aiScore);
+            }
+
+            // Load leaderboard
+            TradeGameBridge.getLeaderboard(difficulty).then(data => {
+                setLeaderboard(data || []);
+            }).catch(err => console.error('Failed to load leaderboard:', err));
+        }, [playerState, aiState, difficulty, isTrialMode, stats, turn, config]);
+
+        // Submit score to backend
+        const submitGameScore = async (result, playerScore, aiScore) => {
+            if (submitted || submitting) return;
+            setSubmitting(true);
+            try {
+                const payload = {
+                    difficulty: difficulty,
+                    player_spec: playerSpec,
+                    ai_spec: aiSpec,
+                    result: result,
+                    player_score: playerScore,
+                    ai_score: aiScore,
+                    turns_played: Math.min(turn, MAX_TURNS),
+                    final_money: playerState.money,
+                    final_security: playerState.security,
+                    final_inventory: { ...playerState.inventory },
+                    stats: { ...stats },
+                    feedback_tags: selectedFeedback,
+                };
+                await TradeGameBridge.submitScore(payload);
+                setSubmitted(true);
+                addLog('✅ 成績已提交', 'success');
+            } catch (err) {
+                console.error('Score submit error:', err);
+                addLog('❌ 成績提交失敗: ' + (err.message || '未知錯誤'), 'error');
+            }
+            setSubmitting(false);
+        };
+
+        const playerScore = calcScore(playerState);
+        const aiScore = calcScore(aiState);
+        const turnProgress = (turn / MAX_TURNS) * 100;
+
+        // ---- Game Over Screen ----
+        if (gameOver) {
+            const result = stats.bankrupt_reason ? 'bankrupt' : (playerScore > aiScore ? 'win' : 'lose');
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="max-w-2xl w-full animate-fade-in-up space-y-6">
+                        {/* Result Header */}
+                        <div className="text-center">
+                            <div className="text-6xl mb-4">
+                                {result === 'win' ? '🏆' : result === 'bankrupt' ? '💀' : '📉'}
+                            </div>
+                            <h1 className={`text-3xl font-bold ${result === 'win' ? 'text-yellow-400' : result === 'bankrupt' ? 'text-red-400' : 'text-gray-400'}`}>
+                                {result === 'win' ? '恭喜獲勝！' : result === 'bankrupt' ? '破產出局' : '很遺憾，你輸了'}
+                            </h1>
+                            <p className="text-gray-400 mt-2">
+                                {result === 'win'
+                                    ? '你展現了出色的貿易智慧！'
+                                    : result === 'bankrupt'
+                                    ? `破產原因：${stats.bankrupt_reason === 'money' ? '資金歸零' : '安全指數歸零'}`
+                                    : 'AI 的綜合國力超過了你，下次再接再厲！'}
+                            </p>
+                        </div>
+
+                        {/* Score comparison */}
+                        <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700">
+                            <h2 className="text-lg font-bold text-white mb-4">📊 最終結算</h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-center">
+                                    <div className="text-sm text-blue-400 mb-1">👤 {playerName}</div>
+                                    <div className="text-3xl font-bold text-white">{playerScore.toLocaleString()}</div>
+                                    <div className="text-xs text-gray-400 mt-1">
+                                        💰${playerState.money} | 🛡️{playerState.security} | 🌾{playerState.inventory.food} 🏭{playerState.inventory.industry} 💻{playerState.inventory.tech}
+                                    </div>
+                                </div>
+                                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
+                                    <div className="text-sm text-red-400 mb-1">🤖 AI ({AI_DIFFICULTIES[difficulty].name})</div>
+                                    <div className="text-3xl font-bold text-white">{aiScore.toLocaleString()}</div>
+                                    <div className="text-xs text-gray-400 mt-1">
+                                        💰${aiState.money} | 🛡️{aiState.security} | 🌾{aiState.inventory.food} 🏭{aiState.inventory.industry} 💻{aiState.inventory.tech}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-3 mt-4">
+                                <div className="bg-gray-700/40 rounded-lg p-3 text-center">
+                                    <div className="text-xs text-gray-400">交易次數</div>
+                                    <div className="text-lg font-bold text-white">{stats.trades}</div>
+                                </div>
+                                <div className="bg-gray-700/40 rounded-lg p-3 text-center">
+                                    <div className="text-xs text-gray-400">好交易 / 壞交易</div>
+                                    <div className="text-lg font-bold text-white">{stats.good_trades} / {stats.bad_trades}</div>
+                                </div>
+                                <div className="bg-gray-700/40 rounded-lg p-3 text-center">
+                                    <div className="text-xs text-gray-400">錦囊閱讀</div>
+                                    <div className="text-lg font-bold text-white">{stats.tips_read}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Feedback Tags (only for non-trial, not submitted yet) */}
+                        {!isTrialMode && !submitted && (
+                            <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700">
+                                <h2 className="text-lg font-bold text-white mb-3">📝 學習反饋</h2>
+                                <p className="text-sm text-gray-400 mb-3">選擇你在遊戲中學到的內容（可多選）：</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {FEEDBACK_TAGS.map(tag => (
+                                        <button
+                                            key={tag}
+                                            onClick={() => {
+                                                setSelectedFeedback(prev =>
+                                                    prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                                                );
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+                                                selectedFeedback.includes(tag)
+                                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50'
+                                                    : 'bg-gray-700/40 text-gray-400 border border-gray-600 hover:border-gray-500'
+                                            }`}
+                                        >
+                                            {tag}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => submitGameScore(result, playerScore, aiScore)}
+                                    disabled={submitting}
+                                    className="mt-4 px-6 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    {submitting ? '提交中...' : '✅ 提交成績與反饋'}
+                                </button>
+                            </div>
+                        )}
+
+                        {submitted && (
+                            <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-4 text-center text-green-400">
+                                ✅ 成績已成功提交！
+                            </div>
+                        )}
+
+                        {isTrialMode && (
+                            <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-4 text-center text-amber-400">
+                                ℹ️ 試玩模式 — 成績不會被記錄
+                            </div>
+                        )}
+
+                        {/* Leaderboard */}
+                        {leaderboard.length > 0 && (
+                            <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700">
+                                <h2 className="text-lg font-bold text-white mb-3">🏆 排行榜</h2>
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {leaderboard.slice(0, 20).map((entry, i) => (
+                                        <div key={i} className="flex items-center justify-between bg-gray-700/30 rounded-lg px-4 py-2">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-lg font-bold ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
+                                                    #{i + 1}
+                                                </span>
+                                                <span className="text-white text-sm">{entry.student_name || entry.player_name || '???'}</span>
+                                                {entry.class_name && <span className="text-xs text-gray-500">{entry.class_name}</span>}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-xs px-2 py-0.5 rounded ${entry.result === 'win' ? 'bg-green-900/40 text-green-400' : entry.result === 'bankrupt' ? 'bg-red-900/40 text-red-400' : 'bg-gray-700 text-gray-400'}`}>
+                                                    {entry.result === 'win' ? '勝' : entry.result === 'bankrupt' ? '破產' : '敗'}
+                                                </span>
+                                                <span className="text-amber-400 font-bold">{(entry.player_score || 0).toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 justify-center">
+                            {(isTrialMode || TradeGameBridge.isTeacher()) && (
+                                <button
+                                    onClick={() => onGameEnd('restart')}
+                                    className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors"
+                                >
+                                    🔄 重新挑戰
+                                </button>
+                            )}
+                            {isTrialMode && (
+                                <button
+                                    onClick={() => onGameEnd('dashboard')}
+                                    className="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-xl font-medium transition-colors"
+                                >
+                                    📊 返回管理面板
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ---- Active Game Screen ----
+        return (
+            <div className="min-h-screen p-4 max-w-6xl mx-auto">
+                {/* Top Bar */}
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h1 className="text-xl font-bold text-white">🌍 全球貿易大亨</h1>
+                        {isTrialMode && <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">試玩模式</span>}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm">
+                        <span className="text-gray-400">回合 <span className="text-white font-bold">{turn}</span> / {MAX_TURNS}</span>
+                        <div className="w-32">
+                            <div className="progress-bar">
+                                <div className="progress-fill bg-amber-500" style={{ width: `${turnProgress}%` }}></div>
+                            </div>
+                        </div>
+                        <button onClick={handleReadTip} className="text-yellow-400 hover:text-yellow-300 transition-colors text-lg" title="經濟知識錦囊">
+                            💡
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Left Column: Player + AI status */}
+                    <div className="space-y-4">
+                        {/* Player Status */}
+                        <div className="bg-gray-800/60 rounded-xl p-4 border border-blue-500/30">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-sm font-bold text-blue-400">👤 {playerName}</h2>
+                                <span className="text-xs text-gray-400">{SPECIALIZATIONS[playerSpec].name} {SPECIALIZATIONS[playerSpec].icon}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="bg-gray-700/40 rounded-lg p-2">
+                                    <div className="text-xs text-gray-400">💰 資金</div>
+                                    <div className="text-lg font-bold text-green-400">${playerState.money.toLocaleString()}</div>
+                                </div>
+                                <div className="bg-gray-700/40 rounded-lg p-2">
+                                    <div className="text-xs text-gray-400">🛡️ 安全</div>
+                                    <div className="text-lg font-bold" style={{ color: playerState.security > 60 ? '#22c55e' : playerState.security > 30 ? '#f59e0b' : '#ef4444' }}>
+                                        {playerState.security}
+                                    </div>
+                                    <div className="progress-bar mt-1">
+                                        <div
+                                            className="progress-fill"
+                                            style={{
+                                                width: `${playerState.security}%`,
+                                                backgroundColor: playerState.security > 60 ? '#22c55e' : playerState.security > 30 ? '#f59e0b' : '#ef4444'
+                                            }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                                {Object.entries(RESOURCE_TYPES).map(([k, res]) => (
+                                    <div key={k} className="flex-1 bg-gray-700/30 rounded-lg p-2 text-center">
+                                        <div className="text-lg">{res.icon}</div>
+                                        <div className="text-sm font-bold text-white">{playerState.inventory[res.key]}</div>
+                                        <div className="text-xs text-gray-500">{res.name}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 text-right">
+                                <span className="text-xs text-gray-400">綜合國力: </span>
+                                <span className="text-sm font-bold text-amber-400">{playerScore.toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        {/* AI Status */}
+                        <div className="bg-gray-800/60 rounded-xl p-4 border border-red-500/30">
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-sm font-bold text-red-400">🤖 AI ({AI_DIFFICULTIES[difficulty].name})</h2>
+                                <span className="text-xs text-gray-400">{SPECIALIZATIONS[aiSpec].name} {SPECIALIZATIONS[aiSpec].icon}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="bg-gray-700/40 rounded-lg p-2">
+                                    <div className="text-xs text-gray-400">💰 資金</div>
+                                    <div className="text-lg font-bold text-green-400">${aiState.money.toLocaleString()}</div>
+                                </div>
+                                <div className="bg-gray-700/40 rounded-lg p-2">
+                                    <div className="text-xs text-gray-400">🛡️ 安全</div>
+                                    <div className="text-lg font-bold" style={{ color: aiState.security > 60 ? '#22c55e' : aiState.security > 30 ? '#f59e0b' : '#ef4444' }}>
+                                        {aiState.security}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 mt-2">
+                                {Object.entries(RESOURCE_TYPES).map(([k, res]) => (
+                                    <div key={k} className="flex-1 bg-gray-700/30 rounded-lg p-2 text-center">
+                                        <div className="text-lg">{res.icon}</div>
+                                        <div className="text-sm font-bold text-white">{aiState.inventory[res.key]}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 text-right">
+                                <span className="text-xs text-gray-400">綜合國力: </span>
+                                <span className="text-sm font-bold text-amber-400">{aiScore.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Center Column: Market + Actions */}
+                    <div className="space-y-4">
+                        {/* Current Event */}
+                        {currentEvent && <EventDisplay event={currentEvent} />}
+
+                        {/* Market Prices */}
+                        <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+                            <h2 className="text-sm font-bold text-white mb-3">📊 市場行情</h2>
+                            <div className="space-y-2">
+                                {Object.entries(RESOURCE_TYPES).map(([k, res]) => {
+                                    const price = prices[res.key];
+                                    const diff = price - res.basePrice;
+                                    const pctChange = ((diff / res.basePrice) * 100).toFixed(1);
+                                    return (
+                                        <div key={k} className="flex items-center justify-between bg-gray-700/30 rounded-lg px-3 py-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xl">{res.icon}</span>
+                                                <span className="text-sm text-white">{res.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-white font-bold">${price}</span>
+                                                <span className={`text-xs ${diff >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {diff >= 0 ? '📈' : '📉'} {diff >= 0 ? '+' : ''}{pctChange}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Trade Actions */}
+                        <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700">
+                            <h2 className="text-sm font-bold text-white mb-3">💰 交易操作</h2>
+                            <div className="space-y-3">
+                                {/* Resource selector */}
+                                <div className="flex gap-2">
+                                    {Object.entries(RESOURCE_TYPES).map(([k, res]) => (
+                                        <button
+                                            key={k}
+                                            onClick={() => setTradeInput(prev => ({ ...prev, resource: res.key }))}
+                                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                                                tradeInput.resource === res.key
+                                                    ? 'bg-white/10 border border-white/20 text-white'
+                                                    : 'bg-gray-700/30 text-gray-400 hover:bg-gray-700/50'
+                                            }`}
+                                        >
+                                            {res.icon} {res.name}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Quantity */}
+                                <div className="flex items-center gap-2">
+                                    <label className="text-xs text-gray-400">數量：</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="99"
+                                        value={tradeInput.qty}
+                                        onChange={e => setTradeInput(prev => ({ ...prev, qty: Math.max(1, parseInt(e.target.value) || 1) }))}
+                                        className="w-20 px-3 py-1.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-center text-sm"
+                                    />
+                                    <div className="flex gap-1 ml-auto">
+                                        {[1, 3, 5, 10].map(n => (
+                                            <button
+                                                key={n}
+                                                onClick={() => setTradeInput(prev => ({ ...prev, qty: n }))}
+                                                className="px-2 py-1 bg-gray-700/40 text-gray-400 rounded text-xs hover:bg-gray-600/40"
+                                            >
+                                                {n}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Buy / Sell */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleBuy(tradeInput.resource, tradeInput.qty)}
+                                        className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        買入 (${(prices[tradeInput.resource] * tradeInput.qty).toLocaleString()})
+                                    </button>
+                                    <button
+                                        onClick={() => handleSell(tradeInput.resource, tradeInput.qty)}
+                                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        賣出 (${(prices[tradeInput.resource] * tradeInput.qty).toLocaleString()})
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Special Actions */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => handleInvestSecurity(150)}
+                                className="flex-1 py-2.5 bg-blue-600/60 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                                🛡️ 投資安全 ($150)
+                            </button>
+                            <button
+                                onClick={handleSanction}
+                                className="flex-1 py-2.5 bg-purple-600/60 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                                ⚔️ 經濟制裁 ($200)
+                            </button>
+                        </div>
+
+                        {/* End Turn */}
+                        <button
+                            onClick={handleEndTurn}
+                            className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                        >
+                            {turn >= MAX_TURNS ? '🏁 結束遊戲' : `⏭️ 結束回合 (${turn}/${MAX_TURNS})`}
+                        </button>
+                    </div>
+
+                    {/* Right Column: Log */}
+                    <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700 flex flex-col" style={{ maxHeight: '80vh' }}>
+                        <h2 className="text-sm font-bold text-white mb-3">📜 事件記錄</h2>
+                        <div ref={logRef} className="flex-1 overflow-y-auto space-y-1 text-xs">
+                            {log.map((entry, i) => (
+                                <div key={i} className={`px-2 py-1 rounded ${
+                                    entry.type === 'error' ? 'bg-red-900/20 text-red-400'
+                                    : entry.type === 'trade' ? 'bg-green-900/10 text-green-400'
+                                    : entry.type === 'event' ? 'bg-amber-900/10 text-amber-400'
+                                    : entry.type === 'sanction' ? 'bg-purple-900/10 text-purple-400'
+                                    : entry.type === 'security' ? 'bg-blue-900/10 text-blue-400'
+                                    : entry.type === 'end' ? 'bg-amber-900/20 text-amber-300 font-bold'
+                                    : entry.type === 'success' ? 'bg-green-900/20 text-green-400'
+                                    : 'text-gray-400'
+                                }`}>
+                                    <span className="text-gray-600 mr-1">[{entry.turn}]</span> {entry.msg}
+                                </div>
+                            ))}
+                            {log.length === 0 && <div className="text-gray-500 text-center py-4">遊戲開始，祝你好運！</div>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Knowledge Tip Modal */}
+                {showTip && <KnowledgeTip tip={showTip} onClose={() => setShowTip(null)} />}
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  AlreadyPlayedScreen — for students who have already played
+    // =====================================================================
+    function AlreadyPlayedScreen({ scoreData }) {
+        const [leaderboard, setLeaderboard] = useState([]);
+
+        useEffect(() => {
+            TradeGameBridge.getLeaderboard(scoreData?.difficulty).then(data => {
+                setLeaderboard(data || []);
+            }).catch(() => {});
+        }, [scoreData]);
+
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="max-w-lg w-full animate-fade-in-up space-y-6">
+                    <div className="text-center">
+                        <div className="text-5xl mb-4">✅</div>
+                        <h1 className="text-2xl font-bold text-white">你已完成遊戲</h1>
+                        <p className="text-gray-400 mt-2">每位同學只能遊玩一次</p>
+                    </div>
+
+                    {scoreData && (
+                        <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700 text-center">
+                            <div className="text-sm text-gray-400 mb-2">你的綜合國力分數</div>
+                            <div className="text-4xl font-bold text-amber-400">{(scoreData.player_score || 0).toLocaleString()}</div>
+                            <div className="flex justify-center gap-4 mt-3 text-sm">
+                                <span className={`px-3 py-1 rounded-full ${
+                                    scoreData.result === 'win' ? 'bg-green-900/40 text-green-400'
+                                    : scoreData.result === 'bankrupt' ? 'bg-red-900/40 text-red-400'
+                                    : 'bg-gray-700 text-gray-400'
+                                }`}>
+                                    {scoreData.result === 'win' ? '🏆 勝利' : scoreData.result === 'bankrupt' ? '💀 破產' : '📉 落敗'}
+                                </span>
+                                <span className="text-gray-400">
+                                    難度: {AI_DIFFICULTIES[scoreData.difficulty]?.name || scoreData.difficulty}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Leaderboard */}
+                    {leaderboard.length > 0 && (
+                        <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700">
+                            <h2 className="text-lg font-bold text-white mb-3">🏆 排行榜</h2>
+                            <div className="space-y-2 max-h-72 overflow-y-auto">
+                                {leaderboard.slice(0, 20).map((entry, i) => (
+                                    <div key={i} className="flex items-center justify-between bg-gray-700/30 rounded-lg px-4 py-2">
+                                        <div className="flex items-center gap-3">
+                                            <span className={`text-lg font-bold ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
+                                                #{i + 1}
+                                            </span>
+                                            <span className="text-white text-sm">{entry.student_name || '???'}</span>
+                                        </div>
+                                        <span className="text-amber-400 font-bold">{(entry.player_score || 0).toLocaleString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="text-center">
+                        <a href="/static/game_center.html" className="text-blue-400 hover:text-blue-300 text-sm">
+                            ← 返回遊戲中心
+                        </a>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  TeacherDashboard Component
+    // =====================================================================
+    function TeacherDashboard({ onTrialPlay }) {
+        const [scores, setScores] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [classFilter, setClassFilter] = useState('');
+        const [classes, setClasses] = useState([]);
+        const [editModal, setEditModal] = useState(null);
+        const [editValue, setEditValue] = useState('');
+        const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+        const loadScores = useCallback(async () => {
+            setLoading(true);
+            try {
+                const data = await TradeGameBridge.getAllScores(classFilter || undefined);
+                setScores(data || []);
+                // Extract unique classes
+                const allClasses = [...new Set((data || []).map(s => s.class_name).filter(Boolean))];
+                setClasses(allClasses);
+            } catch (err) {
+                console.error('Failed to load scores:', err);
+            }
+            setLoading(false);
+        }, [classFilter]);
+
+        useEffect(() => {
+            loadScores();
+        }, [loadScores]);
+
+        // Summary stats
+        const totalPlays = scores.length;
+        const wins = scores.filter(s => s.result === 'win').length;
+        const winRate = totalPlays > 0 ? ((wins / totalPlays) * 100).toFixed(1) : '0.0';
+        const avgScore = totalPlays > 0 ? Math.round(scores.reduce((sum, s) => sum + (s.player_score || 0), 0) / totalPlays) : 0;
+
+        // Handle edit
+        const handleEdit = async () => {
+            if (!editModal) return;
+            const newScore = parseInt(editValue);
+            if (isNaN(newScore)) return;
+            try {
+                await TradeGameBridge.updateScore(editModal.id, { player_score: newScore });
+                setEditModal(null);
+                loadScores();
+            } catch (err) {
+                alert('更新失敗: ' + (err.message || '未知錯誤'));
+            }
+        };
+
+        // Handle delete
+        const handleDelete = async () => {
+            if (!deleteConfirm) return;
+            try {
+                await TradeGameBridge.deleteScore(deleteConfirm.id);
+                setDeleteConfirm(null);
+                loadScores();
+            } catch (err) {
+                alert('刪除失敗: ' + (err.message || '未知錯誤'));
+            }
+        };
+
+        return (
+            <div className="min-h-screen p-4 max-w-6xl mx-auto animate-fade-in-up">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold text-white">🌍 全球貿易大亨 — 教師管理</h1>
+                        <p className="text-sm text-gray-400 mt-1">管理學生遊戲成績、查看統計數據</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => window.open(TradeGameBridge.getExportUrl(classFilter || undefined), '_blank')}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                        >
+                            📄 下載 CSV
+                        </button>
+                        <button
+                            onClick={onTrialPlay}
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                        >
+                            🎮 試玩遊戲
+                        </button>
+                        <a
+                            href="/static/game_center.html"
+                            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                            ← 返回
+                        </a>
+                    </div>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                    <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700 text-center">
+                        <div className="text-2xl font-bold text-white">{totalPlays}</div>
+                        <div className="text-xs text-gray-400 mt-1">👥 總遊玩次數</div>
+                    </div>
+                    <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700 text-center">
+                        <div className="text-2xl font-bold text-green-400">{wins}</div>
+                        <div className="text-xs text-gray-400 mt-1">🏆 勝利次數</div>
+                    </div>
+                    <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700 text-center">
+                        <div className="text-2xl font-bold text-blue-400">{winRate}%</div>
+                        <div className="text-xs text-gray-400 mt-1">📈 勝率</div>
+                    </div>
+                    <div className="bg-gray-800/60 rounded-xl p-4 border border-gray-700 text-center">
+                        <div className="text-2xl font-bold text-amber-400">{avgScore.toLocaleString()}</div>
+                        <div className="text-xs text-gray-400 mt-1">⚡ 平均分數</div>
+                    </div>
+                </div>
+
+                {/* Filter */}
+                <div className="flex items-center gap-3 mb-4">
+                    <label className="text-sm text-gray-400">班級篩選：</label>
+                    <select
+                        value={classFilter}
+                        onChange={e => setClassFilter(e.target.value)}
+                        className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                    >
+                        <option value="">全部班級</option>
+                        {classes.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+                    <button onClick={loadScores} className="px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm transition-colors">
+                        🔄 刷新
+                    </button>
+                </div>
+
+                {/* Scores Table */}
+                <div className="bg-gray-800/60 rounded-xl border border-gray-700 overflow-hidden">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="trade-spinner"></div>
+                        </div>
+                    ) : scores.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                            目前沒有遊戲記錄
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="score-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>學生姓名</th>
+                                        <th>班級</th>
+                                        <th>難度</th>
+                                        <th>國家</th>
+                                        <th>結果</th>
+                                        <th>分數</th>
+                                        <th>AI 分數</th>
+                                        <th>回合</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {scores.map((score, idx) => (
+                                        <tr key={score.id || idx}>
+                                            <td className="text-gray-500">{idx + 1}</td>
+                                            <td className="text-white font-medium">{score.student_name || '—'}</td>
+                                            <td className="text-gray-400">{score.class_name || '—'}</td>
+                                            <td>
+                                                <span className="text-xs px-2 py-0.5 rounded" style={{
+                                                    backgroundColor: AI_DIFFICULTIES[score.difficulty]?.color + '20' || '#33415520',
+                                                    color: AI_DIFFICULTIES[score.difficulty]?.color || '#94a3b8'
+                                                }}>
+                                                    {AI_DIFFICULTIES[score.difficulty]?.name || score.difficulty}
+                                                </span>
+                                            </td>
+                                            <td className="text-gray-400 text-xs">
+                                                {SPECIALIZATIONS[score.player_spec]?.icon || '—'} vs {SPECIALIZATIONS[score.ai_spec]?.icon || '—'}
+                                            </td>
+                                            <td>
+                                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                                    score.result === 'win' ? 'bg-green-900/40 text-green-400'
+                                                    : score.result === 'bankrupt' ? 'bg-red-900/40 text-red-400'
+                                                    : 'bg-gray-700 text-gray-400'
+                                                }`}>
+                                                    {score.result === 'win' ? '勝' : score.result === 'bankrupt' ? '破產' : '敗'}
+                                                </span>
+                                            </td>
+                                            <td className="text-amber-400 font-bold">{(score.player_score || 0).toLocaleString()}</td>
+                                            <td className="text-gray-400">{(score.ai_score || 0).toLocaleString()}</td>
+                                            <td className="text-gray-400">{score.turns_played || '—'}</td>
+                                            <td>
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={() => { setEditModal(score); setEditValue(String(score.player_score || 0)); }}
+                                                        className="px-2 py-1 bg-blue-600/40 hover:bg-blue-600 text-blue-400 hover:text-white rounded text-xs transition-colors"
+                                                        title="編輯分數"
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setDeleteConfirm(score)}
+                                                        className="px-2 py-1 bg-red-600/40 hover:bg-red-600 text-red-400 hover:text-white rounded text-xs transition-colors"
+                                                        title="刪除記錄"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Edit Modal */}
+                {editModal && (
+                    <div className="modal-overlay" onClick={() => setEditModal(null)}>
+                        <div className="bg-gray-800 rounded-2xl p-6 border border-gray-600 max-w-sm w-full mx-4 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                            <h3 className="text-lg font-bold text-white mb-4">✏️ 編輯成績</h3>
+                            <p className="text-sm text-gray-400 mb-3">
+                                學生：<span className="text-white">{editModal.student_name}</span>
+                            </p>
+                            <label className="block text-sm text-gray-400 mb-1">綜合國力分數：</label>
+                            <input
+                                type="number"
+                                value={editValue}
+                                onChange={e => setEditValue(e.target.value)}
+                                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white mb-4"
+                            />
+                            <div className="flex gap-3 justify-end">
+                                <button onClick={() => setEditModal(null)} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm transition-colors">
+                                    取消
+                                </button>
+                                <button onClick={handleEdit} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">
+                                    確認修改
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Confirm Modal */}
+                {deleteConfirm && (
+                    <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+                        <div className="bg-gray-800 rounded-2xl p-6 border border-red-500/30 max-w-sm w-full mx-4 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                            <h3 className="text-lg font-bold text-red-400 mb-4">⚠️ 確認刪除</h3>
+                            <p className="text-sm text-gray-300 mb-1">
+                                確定要刪除 <span className="text-white font-medium">{deleteConfirm.student_name}</span> 的遊戲記錄嗎？
+                            </p>
+                            <p className="text-xs text-gray-500 mb-4">刪除後該學生可以重新遊玩。此操作不可撤銷。</p>
+                            <div className="flex gap-3 justify-end">
+                                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm transition-colors">
+                                    取消
+                                </button>
+                                <button onClick={handleDelete} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors">
+                                    確認刪除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  App Component (Root)
+    // =====================================================================
+    function App() {
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+        const [ready, setReady] = useState(false);
+        const [gamePhase, setGamePhase] = useState('init'); // init, setup, playing, done
+        const [trialMode, setTrialMode] = useState(false);
+        const [existingScore, setExistingScore] = useState(null);
+        const [gameConfig, setGameConfig] = useState(null);
+
+        // Initialize
+        useEffect(() => {
+            (async () => {
+                try {
+                    const ok = await TradeGameBridge.init();
+                    if (!ok) return; // redirected to login
+
+                    // Check if student has already played
+                    if (!TradeGameBridge.isTeacher()) {
+                        const checkResult = await TradeGameBridge.checkPlayed();
+                        if (checkResult.played) {
+                            setExistingScore(checkResult.score);
+                            setGamePhase('already_played');
+                            setReady(true);
+                            setLoading(false);
+                            return;
+                        }
+                    }
+
+                    setGamePhase(TradeGameBridge.isTeacher() ? 'dashboard' : 'setup');
+                    setReady(true);
+                } catch (err) {
+                    setError(err.message || '初始化失敗');
+                }
+                setLoading(false);
+            })();
+        }, []);
+
+        // Handle game start
+        const handleStartGame = (difficulty, playerSpec, aiSpec) => {
+            setGameConfig({ difficulty, playerSpec, aiSpec });
+            setGamePhase('playing');
+        };
+
+        // Handle game end
+        const handleGameEnd = (action) => {
+            if (action === 'restart') {
+                setGameConfig(null);
+                setGamePhase(trialMode ? 'setup' : 'setup');
+            } else if (action === 'dashboard') {
+                setTrialMode(false);
+                setGamePhase('dashboard');
+                setGameConfig(null);
+            }
+        };
+
+        // Handle teacher trial play
+        const handleTrialPlay = () => {
+            setTrialMode(true);
+            setGamePhase('setup');
+        };
+
+        // Loading state
+        if (loading) {
+            return (
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="trade-spinner mx-auto mb-4"></div>
+                        <p className="text-gray-400">載入中...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Error state
+        if (error) {
+            return (
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="text-4xl mb-4">⚠️</div>
+                        <p className="text-red-400 mb-2">初始化失敗</p>
+                        <p className="text-sm text-gray-500">{error}</p>
+                        <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
+                            🔄 重試
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Already played (student)
+        if (gamePhase === 'already_played') {
+            return <AlreadyPlayedScreen scoreData={existingScore} />;
+        }
+
+        // Teacher dashboard
+        if (gamePhase === 'dashboard') {
+            return <TeacherDashboard onTrialPlay={handleTrialPlay} />;
+        }
+
+        // Setup screen
+        if (gamePhase === 'setup') {
+            return (
+                <div>
+                    {trialMode && (
+                        <div className="fixed top-0 left-0 right-0 bg-amber-600/90 text-white text-center py-2 text-sm z-40">
+                            ℹ️ 試玩模式 — 成績不會被記錄 &nbsp;
+                            <button onClick={() => { setTrialMode(false); setGamePhase('dashboard'); }} className="underline hover:no-underline ml-2">
+                                返回管理面板
+                            </button>
+                        </div>
+                    )}
+                    <div className={trialMode ? 'pt-10' : ''}>
+                        <SetupScreen
+                            playerName={TradeGameBridge.user?.name || '玩家'}
+                            onStart={handleStartGame}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
+        // Playing
+        if (gamePhase === 'playing' && gameConfig) {
+            return (
+                <div>
+                    {trialMode && (
+                        <div className="fixed top-0 left-0 right-0 bg-amber-600/90 text-white text-center py-2 text-sm z-40">
+                            ℹ️ 試玩模式 — 成績不會被記錄
+                        </div>
+                    )}
+                    <div className={trialMode ? 'pt-10' : ''}>
+                        <GameScreen
+                            config={gameConfig}
+                            playerName={TradeGameBridge.user?.name || '玩家'}
+                            onGameEnd={handleGameEnd}
+                            isTrialMode={trialMode}
+                        />
+                    </div>
+                </div>
+            );
+        }
+
+        // Fallback
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="trade-spinner"></div>
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  Mount React App
+    // =====================================================================
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+    </script>
+</body>
+</html>

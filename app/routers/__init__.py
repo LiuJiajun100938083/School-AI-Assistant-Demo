@@ -46,6 +46,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.chinese_learning import router as chinese_learning_router
     from app.routers.attendance import router as attendance_router
     from app.routers.school_learning_center import router as school_learning_center_router
+    from app.routers.trade_game import trade_game_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -67,8 +68,9 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(chinese_learning_router)
     app.include_router(attendance_router)
     app.include_router(school_learning_center_router)
+    app.include_router(trade_game_router)
 
-    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center")
+    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game")
 
     # ====== 2. 外部模块路由（条件加载） ====== #
     _register_optional_routers(app)
@@ -90,6 +92,13 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_game_upload_system()
     except Exception as e:
         logger.warning("游戏上传系统初始化失败: %s", e)
+
+    # 初始化全球貿易大亨系統
+    try:
+        from app.routers.trade_game import init_trade_game_system
+        init_trade_game_system()
+    except Exception as e:
+        logger.warning("全球貿易大亨系統初始化失敗: %s", e)
 
     # 论坛系统
     try:

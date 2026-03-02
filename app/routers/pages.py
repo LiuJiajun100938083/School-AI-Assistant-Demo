@@ -191,6 +191,12 @@ async def china_economy_game():
     return _serve_page("china_economy_game.html")
 
 
+@router.get("/trade-game")
+async def trade_game():
+    """全球貿易大亨"""
+    return _serve_page("trade_game.html")
+
+
 @router.get("/game_upload")
 async def game_upload():
     """游戏上传页"""

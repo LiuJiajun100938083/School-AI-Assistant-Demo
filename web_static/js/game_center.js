@@ -149,7 +149,20 @@ const GameConfig = {
         physics: [],
         chemistry: [],
         biology: [],
-        ces: []
+        ces: [
+            {
+                id: 'trade_game',
+                name: '全球貿易大亨',
+                nameEn: 'Global Trade Tycoon',
+                icon: '🌐',
+                description: '模擬國際貿易：比較優勢、供需法則與經濟安全',
+                url: '/trade-game',
+                difficulty: ['中一', '中二', '中三'],
+                tags: ['貿易', '經濟', '國際', '策略', '公民'],
+                badge: '新',
+                roles: ['student', 'teacher', 'admin']
+            }
+        ]
     }
 };
 
