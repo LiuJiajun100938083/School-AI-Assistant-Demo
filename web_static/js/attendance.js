@@ -21,12 +21,15 @@ function updateClock() {
     const clockEl = document.getElementById('liveClock');
     const dateEl = document.getElementById('liveDate');
 
-    // 數字時鐘
+    // 數字時鐘 + 倒影同步
     if (clockEl) {
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
-        clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+        const timeStr = `${hours}:${minutes}:${seconds}`;
+        clockEl.textContent = timeStr;
+        const reflectionEl = document.getElementById('liveClockReflection');
+        if (reflectionEl) reflectionEl.textContent = timeStr;
     }
 
     if (dateEl) {
