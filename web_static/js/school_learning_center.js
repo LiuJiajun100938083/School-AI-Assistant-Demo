@@ -326,6 +326,12 @@ window.slc = (() => {
             detail.id = 'nodeDetail';
             container.appendChild(detail);
 
+            // Re-create tooltip element
+            const tooltipEl = document.createElement('div');
+            tooltipEl.className = 'slc-kg-tooltip';
+            tooltipEl.id = 'slcKgTooltip';
+            container.appendChild(tooltipEl);
+
             if (!mapData.nodes || !mapData.nodes.length) {
                 container.innerHTML = '<div class="slc-map-empty"><div class="slc-map-empty__icon">🗺️</div><div>該科目暫無知識圖譜</div></div>';
                 return;
@@ -339,68 +345,249 @@ window.slc = (() => {
 
             const g = svg.append('g');
 
-            // Zoom
+            // Zoom (pan + scroll zoom, no drag on nodes)
             const zoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', (e) => g.attr('transform', e.transform));
             svg.call(zoom);
 
-            // Force simulation
             const nodes = mapData.nodes.map(n => ({ ...n }));
-            const nodeMap = {};
-            nodes.forEach(n => { nodeMap[n.id] = n; });
+            const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
             const edges = (mapData.edges || []).filter(e =>
-                nodeMap[e.source_node_id] && nodeMap[e.target_node_id]
-            ).map(e => ({ source: e.source_node_id, target: e.target_node_id, ...e }));
+                nodeMap.has(e.source_node_id) && nodeMap.has(e.target_node_id)
+            ).map(e => ({ ...e }));
 
-            const simulation = d3.forceSimulation(nodes)
-                .force('link', d3.forceLink(edges).id(d => d.id).distance(120))
-                .force('charge', d3.forceManyBody().strength(-300))
-                .force('center', d3.forceCenter(width / 2, height / 2))
-                .force('collision', d3.forceCollide().radius(40));
+            // --- Build hierarchy via BFS (包含 edges define parent→child) ---
+            const inDegree = new Map(nodes.map(n => [n.id, 0]));
+            const childrenMap = new Map(nodes.map(n => [n.id, []]));
+            const adjacencyMap = new Map(nodes.map(n => [n.id, new Set()]));
 
-            // Links
+            edges.forEach(e => {
+                const s = e.source_node_id, t = e.target_node_id;
+                adjacencyMap.get(s).add(t);
+                adjacencyMap.get(t).add(s);
+                const rel = e.relation_type || '';
+                const label = e.label || '';
+                if (rel === 'contains' || rel === '包含' || label === '包含') {
+                    inDegree.set(t, (inDegree.get(t) || 0) + 1);
+                    childrenMap.get(s).push(t);
+                }
+            });
+
+            // Roots = zero in-degree nodes
+            const roots = nodes.filter(n => (inDegree.get(n.id) || 0) === 0);
+            nodes.forEach(n => { n._depth = Infinity; });
+            const queue = [];
+            roots.forEach(r => { r._depth = 0; queue.push(r); });
+            while (queue.length > 0) {
+                const cur = queue.shift();
+                (childrenMap.get(cur.id) || []).forEach(kidId => {
+                    const kid = nodeMap.get(kidId);
+                    if (kid && kid._depth > cur._depth + 1) {
+                        kid._depth = cur._depth + 1;
+                        queue.push(kid);
+                    }
+                });
+            }
+            // Orphans (no hierarchy edges) treated as depth 1
+            nodes.forEach(n => { if (n._depth === Infinity) n._depth = 1; });
+
+            // --- Radial layout ---
+            const radii = [0, 220, 430, 650];
+            const tierRadius = { 0: 28, 1: 20, 2: 16, 3: 13 };
+            const tierIcon = { 0: 18, 1: 15, 2: 13, 3: 11 };
+            const tierFont = { 0: 12, 1: 11, 2: 11, 3: 10 };
+
+            // Count visible leaf descendants for angular allocation
+            const _descCache = new Map();
+            function leafCount(nodeId) {
+                if (_descCache.has(nodeId)) return _descCache.get(nodeId);
+                const kids = childrenMap.get(nodeId) || [];
+                const count = kids.length === 0 ? 1 : kids.reduce((s, id) => s + leafCount(id), 0);
+                _descCache.set(nodeId, count);
+                return count;
+            }
+
+            function layoutCluster(root, cx, cy) {
+                root.x = cx; root.y = cy;
+                function placeChildren(parentId, centerAngle, arcSpan, depth) {
+                    const kids = (childrenMap.get(parentId) || []).map(id => nodeMap.get(id)).filter(Boolean);
+                    if (kids.length === 0) return;
+                    const r = radii[Math.min(depth, radii.length - 1)] || (depth * 140);
+                    const totalLeaves = kids.reduce((s, k) => s + leafCount(k.id), 0);
+                    let angle = centerAngle - arcSpan / 2;
+                    kids.forEach(kid => {
+                        const weight = leafCount(kid.id) / totalLeaves;
+                        const kidArc = arcSpan * weight;
+                        const kidAngle = angle + kidArc / 2;
+                        kid.x = cx + Math.cos(kidAngle) * r;
+                        kid.y = cy + Math.sin(kidAngle) * r;
+                        placeChildren(kid.id, kidAngle, kidArc, depth + 1);
+                        angle += kidArc;
+                    });
+                }
+                placeChildren(root.id, -Math.PI / 2, 2 * Math.PI, 1);
+            }
+
+            if (roots.length === 1) {
+                layoutCluster(roots[0], 0, 0);
+            } else if (roots.length > 1) {
+                const maxR = radii[radii.length - 1] || 400;
+                const clusterDiam = maxR * 2 + 100;
+                const totalW = roots.length * clusterDiam;
+                let ox = -totalW / 2 + clusterDiam / 2;
+                roots.forEach(root => { layoutCluster(root, ox, 0); ox += clusterDiam; });
+            }
+            _descCache.clear();
+
+            // Place orphan nodes that have no parent and no children on a separate ring
+            const placedIds = new Set();
+            nodes.forEach(n => { if (n.x !== undefined && n.y !== undefined) placedIds.add(n.id); });
+            const orphans = nodes.filter(n => !placedIds.has(n.id));
+            if (orphans.length > 0) {
+                const oRadius = (radii[radii.length - 1] || 400) + 80;
+                orphans.forEach((n, i) => {
+                    const angle = (2 * Math.PI * i) / orphans.length - Math.PI / 2;
+                    n.x = Math.cos(angle) * oRadius;
+                    n.y = Math.sin(angle) * oRadius;
+                });
+            }
+
+            // --- Draw edges (static positions) ---
             const link = g.selectAll('.link')
                 .data(edges).enter().append('line')
                 .attr('class', 'link')
-                .attr('stroke', '#ccc').attr('stroke-width', 1.5)
-                .attr('stroke-opacity', 0.6);
+                .attr('stroke', '#ccc').attr('stroke-width', 1.2)
+                .attr('stroke-opacity', 0.5)
+                .attr('x1', d => nodeMap.get(d.source_node_id).x)
+                .attr('y1', d => nodeMap.get(d.source_node_id).y)
+                .attr('x2', d => nodeMap.get(d.target_node_id).x)
+                .attr('y2', d => nodeMap.get(d.target_node_id).y);
 
-            // Node groups
+            // --- Draw nodes (static positions, no drag) ---
             const nodeGroup = g.selectAll('.node')
                 .data(nodes).enter().append('g')
                 .attr('class', 'node')
                 .style('cursor', 'pointer')
-                .call(d3.drag()
-                    .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-                    .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-                    .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
-                );
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+
+            // Glow ring for root nodes
+            nodeGroup.filter(d => d._depth === 0)
+                .append('circle')
+                .attr('r', d => (tierRadius[0] || 28) + 6)
+                .attr('fill', 'none')
+                .attr('stroke', d => d.color || '#006633')
+                .attr('stroke-width', 2.5)
+                .attr('stroke-opacity', 0.35);
 
             nodeGroup.append('circle')
-                .attr('r', d => (d.node_size || 40) / 2 + 8)
+                .attr('r', d => tierRadius[Math.min(d._depth, 3)] || 14)
                 .attr('fill', d => d.color || '#006633')
-                .attr('opacity', 0.85);
+                .attr('stroke', '#fff')
+                .attr('stroke-width', d => d._depth === 0 ? 3 : 2)
+                .style('filter', d => `drop-shadow(0 2px ${d._depth === 0 ? 6 : 3}px rgba(0,0,0,0.2))`);
 
             nodeGroup.append('text')
                 .text(d => d.icon || '💡')
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'central')
-                .attr('font-size', '16px');
+                .attr('font-size', d => (tierIcon[Math.min(d._depth, 3)] || 12) + 'px')
+                .attr('pointer-events', 'none');
 
             nodeGroup.append('text')
-                .text(d => d.title.length > 8 ? d.title.slice(0, 8) + '…' : d.title)
+                .text(d => {
+                    const maxLen = d._depth === 0 ? 10 : 8;
+                    return d.title.length > maxLen ? d.title.slice(0, maxLen) + '…' : d.title;
+                })
                 .attr('text-anchor', 'middle')
-                .attr('dy', d => (d.node_size || 40) / 2 + 18)
-                .attr('font-size', '12px')
-                .attr('fill', '#333');
+                .attr('dy', d => (tierRadius[Math.min(d._depth, 3)] || 14) + 14)
+                .attr('font-size', d => (tierFont[Math.min(d._depth, 3)] || 10) + 'px')
+                .attr('font-weight', d => d._depth === 0 ? '600' : '400')
+                .attr('fill', '#333')
+                .attr('pointer-events', 'none');
 
             nodeGroup.on('click', (e, d) => UI.showNodeDetail(d));
 
-            simulation.on('tick', () => {
-                link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-                    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-                nodeGroup.attr('transform', d => `translate(${d.x},${d.y})`);
-            });
+            // --- Hover highlight + Tooltip ---
+            let _hoverTimer = null;
+            let _tooltipTimer = null;
+            const tooltip = document.getElementById('slcKgTooltip');
+
+            function edgeConnectsNode(d, nodeId) {
+                return d.source_node_id === nodeId || d.target_node_id === nodeId;
+            }
+
+            function handleNodeHover(hoveredNode, isEntering) {
+                if (!isEntering || !hoveredNode) {
+                    nodeGroup.transition().duration(200).attr('opacity', 1);
+                    link.transition().duration(200)
+                        .attr('stroke-opacity', 0.5).attr('stroke-width', 1.2).attr('stroke', '#ccc');
+                    return;
+                }
+                const neighbors = adjacencyMap.get(hoveredNode.id) || new Set();
+                nodeGroup.transition().duration(200)
+                    .attr('opacity', d => (d.id === hoveredNode.id || neighbors.has(d.id)) ? 1 : 0.15);
+                link.transition().duration(200)
+                    .attr('stroke-opacity', d => edgeConnectsNode(d, hoveredNode.id) ? 0.9 : 0.08)
+                    .attr('stroke-width', d => edgeConnectsNode(d, hoveredNode.id) ? 2.5 : 1.2)
+                    .attr('stroke', d => edgeConnectsNode(d, hoveredNode.id) ? (hoveredNode.color || '#006633') : '#ccc');
+            }
+
+            function showNodeTooltip(node, event) {
+                if (!tooltip) return;
+                const contents = node.contents || [];
+                const neighborCount = (adjacencyMap.get(node.id) || new Set()).size;
+                const desc = (node.description || '').substring(0, 80);
+                tooltip.innerHTML = `
+                    <div class="slc-kg-tooltip-title">${node.icon || '💡'} ${_escHtml(node.title)}</div>
+                    ${desc ? `<div class="slc-kg-tooltip-desc">${_escHtml(desc)}${node.description && node.description.length > 80 ? '...' : ''}</div>` : ''}
+                    <div class="slc-kg-tooltip-meta">
+                        ${contents.length > 0 ? `<span>📄 ${contents.length} 份資源</span>` : ''}
+                        <span>↗ ${neighborCount} 個相關節點</span>
+                    </div>
+                `;
+                const rect = container.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+                const tw = 240, th = tooltip.offsetHeight || 120;
+                let left = mouseX + 16, top = mouseY - 10;
+                if (left + tw > rect.width) left = mouseX - tw - 16;
+                if (top + th > rect.height) top = rect.height - th - 8;
+                if (top < 8) top = 8;
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.opacity = '1';
+                tooltip.style.pointerEvents = 'auto';
+            }
+
+            function hideNodeTooltip() {
+                _tooltipTimer = setTimeout(() => {
+                    if (tooltip) {
+                        tooltip.style.opacity = '0';
+                        tooltip.style.pointerEvents = 'none';
+                    }
+                }, 200);
+            }
+
+            nodeGroup
+                .on('mouseenter', (event, d) => {
+                    clearTimeout(_hoverTimer);
+                    clearTimeout(_tooltipTimer);
+                    _hoverTimer = setTimeout(() => {
+                        handleNodeHover(d, true);
+                    }, 350);
+                    _tooltipTimer = setTimeout(() => {
+                        showNodeTooltip(d, event);
+                    }, 500);
+                })
+                .on('mouseleave', () => {
+                    clearTimeout(_hoverTimer);
+                    handleNodeHover(null, false);
+                    hideNodeTooltip();
+                });
+
+            // Center the view
+            const initialTransform = d3.zoomIdentity.translate(width / 2, height / 2).scale(0.38);
+            svg.call(zoom.transform, initialTransform);
         },
 
         showNodeDetail(node) {

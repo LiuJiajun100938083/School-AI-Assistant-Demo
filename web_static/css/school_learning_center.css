@@ -515,6 +515,51 @@
     background: var(--slc-primary-light);
 }
 
+/* ── 知識圖譜 Hover Tooltip ── */
+.slc-kg-tooltip {
+    position: absolute;
+    z-index: 30;
+    width: 240px;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid var(--slc-border);
+    border-radius: var(--slc-radius);
+    padding: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.slc-kg-tooltip-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--slc-text-primary);
+    margin-bottom: 6px;
+}
+
+.slc-kg-tooltip-desc {
+    color: var(--slc-text-secondary);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.slc-kg-tooltip-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--slc-text-secondary);
+    padding-top: 8px;
+    border-top: 1px solid var(--slc-border);
+}
+
+.slc-kg-tooltip-meta span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
 /* ── 學習路徑 ── */
 .slc-path-list {
     display: flex;
