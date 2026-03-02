@@ -499,13 +499,24 @@ class GameUploadService:
         # 是 React 代码，进行包装
         logger.info("检测到 React/JSX 代码，自动包装...")
 
-        # 清理 import 语句（Babel 会处理）
+        # 解析 lucide-react 导入，提取使用的图标名称
+        lucide_icons_used = set()
         lines = content.split('\n')
+        for line in lines:
+            if 'from "lucide-react"' in line or "from 'lucide-react'" in line:
+                icon_match = re.search(r'import\s*\{([^}]+)\}', line)
+                if icon_match:
+                    icons = [i.strip() for i in icon_match.group(1).split(',') if i.strip()]
+                    lucide_icons_used.update(icons)
+
+        # 清理 import 语句（Babel 不认识 ES Module imports）
         cleaned_lines = []
         for line in lines:
             if 'from "react"' in line or "from 'react'" in line:
                 continue
             if 'from "lucide-react"' in line or "from 'lucide-react'" in line:
+                continue
+            if 'from "react-dom"' in line or "from 'react-dom'" in line:
                 continue
             if line.strip().startswith('export default'):
                 line = line.replace('export default ', '')
@@ -522,6 +533,9 @@ class GameUploadService:
             match = re.search(r'class\s+([A-Z][a-zA-Z0-9]*)\s+extends', content)
             if match:
                 component_name = match.group(1)
+
+        # 生成 lucide 图标 polyfill 代码
+        lucide_polyfill_code = self._generate_lucide_polyfills(lucide_icons_used)
 
         # 生成完整 HTML
         wrapped_html = f'''<!DOCTYPE html>
@@ -542,37 +556,9 @@ class GameUploadService:
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const {{ useState, useEffect, useRef, useCallback, useMemo, useContext, createContext }} = React;
+        const {{ useState, useEffect, useRef, useCallback, useMemo, useContext, createContext, useReducer, forwardRef, memo, Fragment }} = React;
 
-        // Lucide 圖標替代（使用 Emoji）
-        const LucideIcons = {{
-            Play: () => <span>▶️</span>,
-            Users: () => <span>👥</span>,
-            BookOpen: () => <span>📖</span>,
-            CheckCircle: () => <span>✅</span>,
-            XCircle: () => <span>❌</span>,
-            Trophy: () => <span>🏆</span>,
-            Gavel: () => <span>⚖️</span>,
-            Landmark: () => <span>🏛️</span>,
-            Briefcase: () => <span>💼</span>,
-            Award: () => <span>🎖️</span>,
-            ArrowRight: () => <span>→</span>,
-            Timer: () => <span>⏱️</span>,
-            Star: () => <span>⭐</span>,
-            Heart: () => <span>❤️</span>,
-            Settings: () => <span>⚙️</span>,
-            Home: () => <span>🏠</span>,
-            Search: () => <span>🔍</span>,
-            Menu: () => <span>☰</span>,
-            X: () => <span>✕</span>,
-            Check: () => <span>✓</span>,
-            ChevronRight: () => <span>›</span>,
-            ChevronLeft: () => <span>‹</span>,
-            ChevronDown: () => <span>▼</span>,
-            ChevronUp: () => <span>▲</span>,
-        }};
-
-        const {{ Play, Users, BookOpen, CheckCircle, XCircle, Trophy, Gavel, Landmark, Briefcase, Award, ArrowRight, Timer, Star, Heart, Settings, Home, Search, Menu, X, Check, ChevronRight, ChevronLeft, ChevronDown, ChevronUp }} = LucideIcons;
+{lucide_polyfill_code}
 
 {cleaned_content}
 
@@ -584,6 +570,147 @@ class GameUploadService:
 </html>'''
 
         return wrapped_html
+
+    # lucide-react 图标 → emoji 映射（涵盖常用图标）
+    _LUCIDE_EMOJI_MAP = {
+        # Alerts & Status
+        "AlertCircle": "⚠️", "AlertTriangle": "⚠️", "AlertOctagon": "🛑",
+        "CheckCircle": "✅", "CheckCircle2": "✅", "XCircle": "❌",
+        "HelpCircle": "❓", "Info": "ℹ️", "Ban": "🚫",
+        "ShieldAlert": "🛡️", "ShieldCheck": "🛡️", "ShieldX": "🛡️",
+        # Actions
+        "Check": "✓", "X": "✕", "Plus": "+", "Minus": "−",
+        "Play": "▶️", "Pause": "⏸️", "Square": "⏹️",
+        "SkipForward": "⏭️", "SkipBack": "⏮️",
+        "RefreshCw": "🔄", "RefreshCcw": "🔄", "RotateCw": "🔄", "RotateCcw": "🔄",
+        "Undo": "↩️", "Redo": "↪️", "Repeat": "🔁",
+        "Download": "📥", "Upload": "📤", "Share": "📤", "Share2": "📤",
+        "Copy": "📋", "Clipboard": "📋", "ClipboardCheck": "📋",
+        "Save": "💾", "Edit": "✏️", "Edit2": "✏️", "Edit3": "✏️",
+        "Trash": "🗑️", "Trash2": "🗑️",
+        "Send": "📨", "Mail": "📧", "Inbox": "📥",
+        "Printer": "🖨️", "ExternalLink": "🔗", "Link": "🔗", "Link2": "🔗",
+        # Arrows & Navigation
+        "ArrowRight": "→", "ArrowLeft": "←", "ArrowUp": "↑", "ArrowDown": "↓",
+        "ArrowUpRight": "↗️", "ArrowDownRight": "↘️",
+        "ArrowUpLeft": "↖️", "ArrowDownLeft": "↙️",
+        "ChevronRight": "›", "ChevronLeft": "‹",
+        "ChevronDown": "▼", "ChevronUp": "▲",
+        "ChevronsRight": "»", "ChevronsLeft": "«",
+        "ChevronsDown": "⬇️", "ChevronsUp": "⬆️",
+        "MoveRight": "➡️", "MoveLeft": "⬅️",
+        "CornerDownRight": "↳", "CornerRightDown": "↴",
+        # UI
+        "Menu": "☰", "MoreHorizontal": "⋯", "MoreVertical": "⋮",
+        "Grip": "⠿", "GripVertical": "⠿", "GripHorizontal": "⠿",
+        "Maximize": "⬜", "Maximize2": "⬜", "Minimize": "▬", "Minimize2": "▬",
+        "Sidebar": "☰", "PanelLeft": "◧", "PanelRight": "◨",
+        "Columns": "☷", "Rows": "☰", "LayoutGrid": "⊞",
+        "Filter": "🔽", "SlidersHorizontal": "⚙️", "Settings": "⚙️", "Settings2": "⚙️",
+        "Search": "🔍", "ZoomIn": "🔍", "ZoomOut": "🔍",
+        "Eye": "👁️", "EyeOff": "🙈",
+        # Objects
+        "Home": "🏠", "Building": "🏢", "Building2": "🏢",
+        "School": "🏫", "Landmark": "🏛️", "Castle": "🏰",
+        "Store": "🏪", "Hospital": "🏥", "Church": "⛪",
+        "Briefcase": "💼", "Wallet": "👛",
+        "BookOpen": "📖", "Book": "📕", "BookMarked": "📑",
+        "Newspaper": "📰", "FileText": "📄", "File": "📁",
+        "Folder": "📂", "FolderOpen": "📂",
+        "Image": "🖼️", "Camera": "📷", "Video": "🎥", "Film": "🎬",
+        "Music": "🎵", "Mic": "🎤", "Volume2": "🔊", "VolumeX": "🔇",
+        "Phone": "📱", "Smartphone": "📱", "Tablet": "📱",
+        "Monitor": "🖥️", "Laptop": "💻", "Tv": "📺",
+        "Keyboard": "⌨️", "Mouse": "🖱️",
+        "Wifi": "📶", "WifiOff": "📶", "Bluetooth": "📶",
+        "Battery": "🔋", "BatteryCharging": "🔋",
+        "Clock": "🕐", "Timer": "⏱️", "Hourglass": "⏳", "Watch": "⌚",
+        "Calendar": "📅", "CalendarDays": "📅",
+        "Bell": "🔔", "BellOff": "🔕", "BellRing": "🔔",
+        "Lock": "🔒", "Unlock": "🔓", "Key": "🔑",
+        "Shield": "🛡️", "Sword": "⚔️",
+        "Flag": "🚩", "Bookmark": "🔖",
+        "Tag": "🏷️", "Tags": "🏷️", "Hash": "#️⃣",
+        "Gift": "🎁", "Package": "📦",
+        "ShoppingCart": "🛒", "ShoppingBag": "🛍️",
+        "CreditCard": "💳", "Banknote": "💵",
+        "Gem": "💎", "Crown": "👑",
+        # People
+        "User": "👤", "Users": "👥", "UserPlus": "👤",
+        "UserMinus": "👤", "UserCheck": "👤", "UserX": "👤",
+        # Data & Charts
+        "BarChart": "📊", "BarChart2": "📊", "BarChart3": "📊", "BarChart4": "📊",
+        "LineChart": "📈", "PieChart": "🥧", "TrendingUp": "📈", "TrendingDown": "📉",
+        "Activity": "📈", "Gauge": "🎯",
+        "Database": "🗄️", "Server": "🖥️", "HardDrive": "💾",
+        "Table": "📊", "Table2": "📊",
+        # Nature & Weather
+        "Sun": "☀️", "Moon": "🌙", "Cloud": "☁️", "CloudRain": "🌧️",
+        "CloudSnow": "🌨️", "CloudLightning": "⛈️", "Wind": "💨",
+        "Snowflake": "❄️", "Droplet": "💧", "Flame": "🔥",
+        "Thermometer": "🌡️", "Umbrella": "☂️",
+        "Mountain": "⛰️", "Trees": "🌲", "Leaf": "🍃", "Flower": "🌸",
+        "Bug": "🐛", "Fish": "🐟", "Bird": "🐦",
+        # Symbols
+        "Star": "⭐", "Heart": "❤️", "HeartOff": "💔",
+        "ThumbsUp": "👍", "ThumbsDown": "👎",
+        "Smile": "😊", "Frown": "☹️", "Meh": "😐", "Laugh": "😄",
+        "Trophy": "🏆", "Award": "🎖️", "Medal": "🏅",
+        "Target": "🎯", "Crosshair": "⊕",
+        "Zap": "⚡", "ZapOff": "⚡", "Power": "⏻",
+        "Lightbulb": "💡", "Lamp": "💡",
+        "Rocket": "🚀", "Plane": "✈️", "Car": "🚗", "Truck": "🚚",
+        "Ship": "🚢", "Anchor": "⚓", "Compass": "🧭",
+        "Globe": "🌍", "Globe2": "🌍", "Map": "🗺️", "MapPin": "📍",
+        "Navigation": "🧭", "Signpost": "🪧",
+        # Misc
+        "Gavel": "⚖️", "Scale": "⚖️", "Hammer": "🔨", "Wrench": "🔧",
+        "Scissors": "✂️", "Paintbrush": "🖌️", "Palette": "🎨",
+        "Code": "💻", "Terminal": "💻", "Code2": "💻",
+        "Binary": "01", "Braces": "{}", "Hash": "#",
+        "Percent": "%", "DollarSign": "💲", "Euro": "€",
+        "CircleDollarSign": "💰", "Coins": "🪙",
+        "MessageCircle": "💬", "MessageSquare": "💬",
+        "Quote": "❝", "Type": "🔤",
+        "AlignLeft": "☰", "AlignCenter": "☰", "AlignRight": "☰",
+        "Bold": "𝐁", "Italic": "𝐼", "Underline": "U̲",
+        "List": "☰", "ListOrdered": "☰",
+        "Fingerprint": "🔏", "QrCode": "📱", "Scan": "📷",
+        "LifeBuoy": "🆘", "Headphones": "🎧", "Speaker": "🔊",
+        "Megaphone": "📢",
+        "PartyPopper": "🎉", "Sparkles": "✨", "Wand2": "🪄",
+        "Puzzle": "🧩", "Dices": "🎲", "Gamepad2": "🎮",
+    }
+
+    def _generate_lucide_polyfills(self, icons_used: set) -> str:
+        """
+        为上传的 React 代码生成 lucide-react 图标 polyfill
+
+        动态解析 import 的图标名称，生成对应的 emoji React 组件。
+        对于未知图标名称，使用 ⚡ 作为默认 emoji。
+
+        Args:
+            icons_used: 从 import 语句中提取的图标名称集合
+
+        Returns:
+            JavaScript 代码字符串，包含所有图标组件的定义
+        """
+        if not icons_used:
+            return "        // No lucide-react icons detected"
+
+        polyfill_lines = [
+            "        // Lucide-react icon polyfills (auto-generated emoji replacements)",
+        ]
+
+        for icon_name in sorted(icons_used):
+            emoji = self._LUCIDE_EMOJI_MAP.get(icon_name, "⚡")
+            # 使用 React.createElement 避免 JSX 在 f-string 中转义问题
+            polyfill_lines.append(
+                f"        const {icon_name} = ({{ className, size, ...props }}) => "
+                f"React.createElement('span', {{ className, style: {{ fontSize: size || '1em' }} }}, '{emoji}');"
+            )
+
+        return "\n".join(polyfill_lines)
 
     def _save_html_file(self, file_path: Path, content: str) -> int:
         """保存 HTML 文件并返回文件大小"""

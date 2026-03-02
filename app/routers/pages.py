@@ -217,7 +217,7 @@ async def play_shared_game(token: str):
 
 @router.get("/uploaded_games/{game_uuid}")
 async def serve_uploaded_game(game_uuid: str, raw: str = None):
-    """提供用户上传的游戏（沙盒运行），自动注入返回游戏中心按钮。raw=1 时返回原始内容（编辑用）"""
+    """提供用户上传的游戏（沙盒运行），自动注入返回按钮 + lucide 图标 polyfill。raw=1 返回原始内容（编辑用）"""
     # 安全检查：防止路径遍历
     safe_uuid = game_uuid.replace("/", "").replace("\\", "").replace("..", "")
     file_path = os.path.join(STATIC_DIR, "uploaded_games", f"{safe_uuid}.html")
@@ -253,7 +253,6 @@ async def serve_uploaded_game(game_uuid: str, raw: str = None):
 """
         # 在 <body> 标签后注入
         if "<body" in html_content:
-            # 找到 <body...> 的闭合 >
             html_content = re.sub(
                 r"(<body[^>]*>)",
                 r"\1" + back_button_html,
@@ -262,10 +261,179 @@ async def serve_uploaded_game(game_uuid: str, raw: str = None):
                 flags=re.IGNORECASE,
             )
         else:
-            # 没有 body 标签则直接在开头插入
             html_content = back_button_html + html_content
 
-        return HTMLResponse(content=html_content, media_type="text/html")
+        # 注入 lucide-react 图标 polyfill（修复缺失图标导致的 ReferenceError）
+        html_content = _inject_lucide_polyfills(html_content)
+
+        return HTMLResponse(
+            content=html_content,
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     logger.warning(f"上传游戏文件不存在: {file_path}")
     return HTMLResponse(content="<h1>游戏未找到</h1>", status_code=404)
+
+
+# lucide-react icon → emoji 映射（在 serve 时动态注入，修复已上传游戏的缺失图标）
+_LUCIDE_EMOJI_MAP = {
+    "AlertCircle": "⚠️", "AlertTriangle": "⚠️", "AlertOctagon": "🛑",
+    "CheckCircle": "✅", "CheckCircle2": "✅", "XCircle": "❌",
+    "HelpCircle": "❓", "Info": "ℹ️", "Ban": "🚫",
+    "ShieldAlert": "🛡️", "ShieldCheck": "🛡️", "ShieldX": "🛡️",
+    "Check": "✓", "X": "✕", "Plus": "+", "Minus": "−",
+    "Play": "▶️", "Pause": "⏸️", "Square": "⏹️",
+    "RefreshCw": "🔄", "RefreshCcw": "🔄", "RotateCw": "🔄",
+    "Undo": "↩️", "Redo": "↪️", "Repeat": "🔁",
+    "Download": "📥", "Upload": "📤", "Share": "📤", "Share2": "📤",
+    "Copy": "📋", "Clipboard": "📋", "Save": "💾",
+    "Edit": "✏️", "Edit2": "✏️", "Edit3": "✏️",
+    "Trash": "🗑️", "Trash2": "🗑️",
+    "Send": "📨", "Mail": "📧", "ExternalLink": "🔗", "Link": "🔗",
+    "ArrowRight": "→", "ArrowLeft": "←", "ArrowUp": "↑", "ArrowDown": "↓",
+    "ArrowUpRight": "↗️", "ArrowDownRight": "↘️",
+    "ChevronRight": "›", "ChevronLeft": "‹",
+    "ChevronDown": "▼", "ChevronUp": "▲",
+    "ChevronsRight": "»", "ChevronsLeft": "«",
+    "Menu": "☰", "MoreHorizontal": "⋯", "MoreVertical": "⋮",
+    "Maximize": "⬜", "Minimize": "▬", "Filter": "🔽",
+    "SlidersHorizontal": "⚙️", "Settings": "⚙️",
+    "Search": "🔍", "ZoomIn": "🔍", "ZoomOut": "🔍",
+    "Eye": "👁️", "EyeOff": "🙈",
+    "Home": "🏠", "Building": "🏢", "School": "🏫", "Landmark": "🏛️",
+    "Briefcase": "💼", "Wallet": "👛",
+    "BookOpen": "📖", "Book": "📕", "BookMarked": "📑",
+    "FileText": "📄", "File": "📁", "Folder": "📂",
+    "Image": "🖼️", "Camera": "📷", "Video": "🎥",
+    "Music": "🎵", "Mic": "🎤", "Volume2": "🔊", "VolumeX": "🔇",
+    "Phone": "📱", "Monitor": "🖥️", "Laptop": "💻",
+    "Clock": "🕐", "Timer": "⏱️", "Hourglass": "⏳",
+    "Calendar": "📅", "Bell": "🔔", "BellOff": "🔕",
+    "Lock": "🔒", "Unlock": "🔓", "Key": "🔑",
+    "Shield": "🛡️", "Flag": "🚩", "Bookmark": "🔖",
+    "Tag": "🏷️", "Gift": "🎁", "Package": "📦",
+    "ShoppingCart": "🛒", "CreditCard": "💳", "Banknote": "💵",
+    "Gem": "💎", "Crown": "👑",
+    "User": "👤", "Users": "👥", "UserPlus": "👤",
+    "BarChart": "📊", "BarChart2": "📊", "BarChart3": "📊",
+    "LineChart": "📈", "PieChart": "🥧",
+    "TrendingUp": "📈", "TrendingDown": "📉", "Activity": "📈",
+    "Database": "🗄️", "Server": "🖥️",
+    "Sun": "☀️", "Moon": "🌙", "Cloud": "☁️",
+    "Star": "⭐", "Heart": "❤️", "HeartOff": "💔",
+    "ThumbsUp": "👍", "ThumbsDown": "👎",
+    "Smile": "😊", "Frown": "☹️", "Meh": "😐", "Laugh": "😄",
+    "Trophy": "🏆", "Award": "🎖️", "Medal": "🏅",
+    "Target": "🎯", "Zap": "⚡", "Power": "⏻",
+    "Lightbulb": "💡", "Rocket": "🚀", "Globe": "🌍",
+    "MapPin": "📍", "Compass": "🧭",
+    "Gavel": "⚖️", "Scale": "⚖️", "Hammer": "🔨", "Wrench": "🔧",
+    "Code": "💻", "Terminal": "💻",
+    "DollarSign": "💲", "CircleDollarSign": "💰", "Coins": "🪙",
+    "MessageCircle": "💬", "MessageSquare": "💬",
+    "GraduationCap": "🎓", "ScrollText": "📜",
+    "Sparkles": "✨", "Wand2": "🪄", "PartyPopper": "🎉",
+    "Puzzle": "🧩", "Dices": "🎲", "Gamepad2": "🎮",
+    "Flame": "🔥", "Droplet": "💧", "Snowflake": "❄️",
+    "Mountain": "⛰️", "Leaf": "🍃",
+    "LifeBuoy": "🆘", "Megaphone": "📢",
+}
+
+
+def _inject_lucide_polyfills(html_content: str) -> str:
+    """
+    在已上传游戏的 Babel script 中注入 lucide-react 图标 polyfill。
+
+    扫描 <script type="text/babel"> 块，检测所有大写开头的未定义标识符
+    （可能是 lucide-react 图标引用），自动注入 emoji 替代组件。
+    仅对使用 Babel 的页面生效，不影响普通 HTML 游戏。
+    """
+    # 只处理含有 Babel script 的页面
+    if 'type="text/babel"' not in html_content and "type='text/babel'" not in html_content:
+        return html_content
+
+    # 收集所有可能需要 polyfill 的 lucide 图标名称
+    # 策略：在 Babel 脚本中查找形如 <IconName 或 {IconName} 的引用
+    # 这些是 JSX 中使用组件的典型模式
+    icon_refs = set()
+    babel_match = re.search(
+        r'<script[^>]*type=["\']text/babel["\'][^>]*>(.*?)</script>',
+        html_content,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if babel_match:
+        babel_code = babel_match.group(1)
+        # 查找 JSX 标签形式: <AlertCircle  或 <AlertCircle/> 或 <AlertCircle ...>
+        jsx_icons = re.findall(r'<([A-Z][a-zA-Z0-9]+)[\s/>]', babel_code)
+        icon_refs.update(jsx_icons)
+        # 查找变量引用: {AlertCircle} 或 AlertCircle(
+        var_icons = re.findall(r'\b([A-Z][a-zA-Z0-9]+)\s*(?:[,}\)]|&&|\|\|)', babel_code)
+        icon_refs.update(var_icons)
+
+    # 过滤：只处理已知的 lucide 图标 + 在代码中找不到定义的
+    icons_to_inject = set()
+    for icon_name in icon_refs:
+        # 跳过 React 内置组件和 HTML 标签
+        if icon_name in ('React', 'ReactDOM', 'Fragment', 'Component',
+                         'Suspense', 'StrictMode', 'Profiler',
+                         'Div', 'Span', 'Input', 'Button', 'Form',
+                         'Table', 'Select', 'Option', 'Label',
+                         'Head', 'Html', 'Body', 'Script', 'Style',
+                         'Symbol', 'Path', 'Svg', 'Circle', 'Rect',
+                         'Line', 'Polyline', 'Polygon', 'Image',
+                         'Text', 'View'):
+            continue
+        # 检查是否在代码中已经有定义（const/function/class）
+        if babel_match:
+            babel_code = babel_match.group(1)
+            defined_pattern = (
+                rf'(?:const|let|var|function|class)\s+{re.escape(icon_name)}\b'
+            )
+            if re.search(defined_pattern, babel_code):
+                continue
+        # 是已知的 lucide 图标，或代码中使用了但未定义的组件
+        if icon_name in _LUCIDE_EMOJI_MAP:
+            icons_to_inject.add(icon_name)
+        elif not re.search(
+            rf'(?:const|let|var|function|class)\s+{re.escape(icon_name)}\b',
+            html_content,
+        ):
+            # 未知图标但代码中未定义 → 用默认 emoji
+            icons_to_inject.add(icon_name)
+
+    if not icons_to_inject:
+        return html_content
+
+    # 生成 polyfill script（普通 JS，不需要 Babel）
+    polyfill_lines = [
+        '<script>',
+        '// Auto-injected lucide-react icon polyfills',
+    ]
+    for icon_name in sorted(icons_to_inject):
+        emoji = _LUCIDE_EMOJI_MAP.get(icon_name, '⚡')
+        polyfill_lines.append(
+            f'window.{icon_name} = function(props) {{'
+            f' return React.createElement("span", '
+            f'{{ className: props && props.className || "", '
+            f'style: {{ fontSize: (props && props.size || 16) + "px" }} }}, '
+            f'"{emoji}"); }};'
+        )
+    polyfill_lines.append('</script>')
+    polyfill_snippet = '\n'.join(polyfill_lines)
+
+    # 在 Babel script 之前注入（确保组件在 Babel 编译后的代码中可用）
+    html_content = re.sub(
+        r'(<script[^>]*type=["\']text/babel["\'])',
+        polyfill_snippet + r'\n\1',
+        html_content,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+    logger.debug("注入了 %d 个 lucide 图标 polyfill: %s", len(icons_to_inject), icons_to_inject)
+    return html_content
