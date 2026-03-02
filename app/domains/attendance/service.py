@@ -1038,14 +1038,18 @@ class AttendanceService:
 
         records = self._record.get_session_records(session_id)
         total = len(records)
-        checked_in = sum(1 for r in records if r.get("scan_time"))
-        absent = total - checked_in
+        on_time = sum(1 for r in records if r.get("attendance_status") == "present")
+        late = sum(1 for r in records if r.get("attendance_status") == "late")
+        very_late = sum(1 for r in records if r.get("attendance_status") == "very_late")
+        absent = sum(1 for r in records if r.get("attendance_status", "absent") == "absent")
 
         session["records"] = records
         session["students"] = records  # 前端 loadSessionDetail 期望 data.students
         session["stats"] = {
             "total": total,
-            "checked_in": checked_in,
+            "on_time": on_time,
+            "late": late,
+            "very_late": very_late,
             "absent": absent,
         }
         return session
