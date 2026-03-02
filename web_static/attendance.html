@@ -192,10 +192,26 @@
         <!-- 簽到區（會話開始後顯示） -->
         <div id="sessionPanel" style="display: none;">            <!-- 簽到輸入 -->
             <div class="scan-section">
-                <!-- 🆕 新增：即時時鐘顯示 -->
+                <!-- 即時時鐘顯示 (模擬錶盤 + 數字時鐘) -->
                 <div class="live-clock-container">
-                    <div class="live-clock" id="liveClock">00:00:00</div>
-                    <div class="live-date" id="liveDate">2025年1月15日 星期三</div>
+                    <div class="analog-clock" id="analogClock">
+                        <div class="clock-face">
+                            <!-- 12/3/6/9 刻度 -->
+                            <span class="clock-mark mark-12"></span>
+                            <span class="clock-mark mark-3"></span>
+                            <span class="clock-mark mark-6"></span>
+                            <span class="clock-mark mark-9"></span>
+                            <!-- 指針 -->
+                            <div class="clock-hand hand-hour" id="clockHandHour"></div>
+                            <div class="clock-hand hand-minute" id="clockHandMinute"></div>
+                            <div class="clock-hand hand-second" id="clockHandSecond"></div>
+                            <div class="clock-center-dot"></div>
+                        </div>
+                    </div>
+                    <div class="digital-clock-group">
+                        <div class="live-clock" id="liveClock">00:00:00</div>
+                        <div class="live-date" id="liveDate">2025年1月15日 星期三</div>
+                    </div>
                 </div>
 
                 <div class="scan-title" id="sessionTitle">晨讀點名進行中</div>

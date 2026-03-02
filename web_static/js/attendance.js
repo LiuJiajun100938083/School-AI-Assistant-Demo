@@ -15,12 +15,13 @@ function stopLiveClock() {
     }
 }
 
-// 更新時鐘顯示
+// 更新時鐘顯示（數字 + 模擬錶盤）
 function updateClock() {
     const now = new Date();
     const clockEl = document.getElementById('liveClock');
     const dateEl = document.getElementById('liveDate');
 
+    // 數字時鐘
     if (clockEl) {
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
@@ -36,6 +37,23 @@ function updateClock() {
         const weekday = weekdays[now.getDay()];
         dateEl.textContent = `${year}年${month}月${day}日 ${weekday}`;
     }
+
+    // 模擬錶盤指針
+    const h = now.getHours() % 12;
+    const m = now.getMinutes();
+    const s = now.getSeconds();
+
+    const hourDeg   = h * 30 + m * 0.5;           // 每小時30° + 每分鐘0.5°
+    const minuteDeg = m * 6 + s * 0.1;             // 每分鐘6°  + 每秒0.1°
+    const secondDeg = s * 6;                       // 每秒6°
+
+    const hourHand   = document.getElementById('clockHandHour');
+    const minuteHand = document.getElementById('clockHandMinute');
+    const secondHand = document.getElementById('clockHandSecond');
+
+    if (hourHand)   hourHand.style.transform   = `rotate(${hourDeg}deg)`;
+    if (minuteHand) minuteHand.style.transform = `rotate(${minuteDeg}deg)`;
+    if (secondHand) secondHand.style.transform = `rotate(${secondDeg}deg)`;
 }
 
 

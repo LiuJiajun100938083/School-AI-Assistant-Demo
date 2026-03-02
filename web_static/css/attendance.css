@@ -643,10 +643,139 @@ body {
 }
 
 .live-clock-container {
-    text-align: center;
-    padding: 15px 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 18px 0 22px;
     border-bottom: 1px solid var(--border-default);
     margin-bottom: 20px;
+}
+
+/* ===== 模擬錶盤 (Neumorphic Analog Clock) ===== */
+.analog-clock {
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #e6e9ef, #ffffff);
+    box-shadow:
+        6px 6px 14px rgba(0, 0, 0, 0.08),
+       -6px -6px 14px rgba(255, 255, 255, 0.9),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.clock-face {
+    width: 94px;
+    height: 94px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #f0f2f5 0%, #fafbfc 100%);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+    position: relative;
+}
+
+/* 刻度線 */
+.clock-mark {
+    position: absolute;
+    background: #b0b3b8;
+    border-radius: 1px;
+}
+
+.clock-mark.mark-12 {
+    width: 2px;
+    height: 10px;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+}
+
+.clock-mark.mark-6 {
+    width: 2px;
+    height: 10px;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+}
+
+.clock-mark.mark-3 {
+    width: 10px;
+    height: 2px;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--text-primary);
+}
+
+.clock-mark.mark-9 {
+    width: 10px;
+    height: 2px;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--text-primary);
+}
+
+/* 指針 — 共用基礎 */
+.clock-hand {
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    transform-origin: bottom center;
+    border-radius: 2px;
+}
+
+/* 時針 */
+.clock-hand.hand-hour {
+    width: 3px;
+    height: 22px;
+    margin-left: -1.5px;
+    background: #3a3a3c;
+    border-radius: 2px;
+    z-index: 3;
+}
+
+/* 分針 */
+.clock-hand.hand-minute {
+    width: 2.5px;
+    height: 30px;
+    margin-left: -1.25px;
+    background: #3a3a3c;
+    border-radius: 2px;
+    z-index: 4;
+}
+
+/* 秒針 */
+.clock-hand.hand-second {
+    width: 1px;
+    height: 34px;
+    margin-left: -0.5px;
+    background: var(--brand);
+    z-index: 5;
+    transition: none;
+}
+
+/* 中心圓點 */
+.clock-center-dot {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--brand);
+    z-index: 6;
+    box-shadow: 0 0 0 1.5px #fff;
+}
+
+/* ===== 數字時鐘區 ===== */
+.digital-clock-group {
+    text-align: left;
 }
 
 .live-clock {
@@ -655,6 +784,7 @@ body {
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
     letter-spacing: -1px;
+    line-height: 1.1;
 }
 
 .live-date {
@@ -2779,6 +2909,24 @@ body {
     .live-clock {
         font-size: 40px;
     }
+
+    .analog-clock {
+        width: 96px;
+        height: 96px;
+    }
+
+    .clock-face {
+        width: 80px;
+        height: 80px;
+    }
+
+    .clock-hand.hand-hour   { height: 18px; }
+    .clock-hand.hand-minute { height: 26px; }
+    .clock-hand.hand-second { height: 29px; }
+
+    .live-clock-container {
+        gap: 20px;
+    }
 }
 
 /* iPad直屏及小螢幕 */
@@ -2823,6 +2971,24 @@ body {
 
     .scan-section {
         padding: 16px;
+    }
+
+    .analog-clock {
+        width: 86px;
+        height: 86px;
+    }
+
+    .clock-face {
+        width: 72px;
+        height: 72px;
+    }
+
+    .clock-hand.hand-hour   { height: 16px; }
+    .clock-hand.hand-minute { height: 22px; }
+    .clock-hand.hand-second { height: 26px; }
+
+    .live-clock-container {
+        gap: 16px;
     }
 
     .live-clock {
@@ -2916,6 +3082,25 @@ body {
 
     .scan-title {
         font-size: 18px;
+    }
+
+    .analog-clock {
+        width: 72px;
+        height: 72px;
+    }
+
+    .clock-face {
+        width: 60px;
+        height: 60px;
+    }
+
+    .clock-hand.hand-hour   { height: 14px; }
+    .clock-hand.hand-minute { height: 18px; }
+    .clock-hand.hand-second { height: 22px; }
+    .clock-center-dot { width: 5px; height: 5px; }
+
+    .live-clock-container {
+        gap: 12px;
     }
 
     .live-clock {
