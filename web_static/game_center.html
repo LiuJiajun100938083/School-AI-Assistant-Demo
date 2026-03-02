@@ -6,6 +6,8 @@
     <title>遊戲中心 - AI學習夥伴</title>
     <link rel="stylesheet" href="/static/css/game_center.css">
     <link rel="stylesheet" href="/static/css/spinner.css">
+    <!-- GSAP 動畫引擎（啟動畫面） -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
 <body>
     <!-- 启动画面 -->
@@ -19,6 +21,9 @@
             </div>
         </div>
     </div>
+
+    <!-- 過渡遮罩層 -->
+    <div class="glass-panel" id="glassPanel"></div>
 
     <!-- 主容器 -->
     <div class="game-center-container">

@@ -481,14 +481,50 @@ const GameCenterApp = {
     },
 
     _hideSplash() {
-        setTimeout(() => {
-            this.elements.splashScreen?.classList.add('fade-out');
-            setTimeout(() => {
-                if (this.elements.splashScreen) {
-                    this.elements.splashScreen.style.display = 'none';
-                }
-            }, 500);
-        }, 800);
+        const splashScreen = document.getElementById('splashScreen');
+        const glassPanel   = document.getElementById('glassPanel');
+
+        if (!splashScreen) return;
+
+        if (typeof gsap === 'undefined') {
+            splashScreen.style.display = 'none';
+            if (glassPanel) glassPanel.style.display = 'none';
+            return;
+        }
+
+        const splashIcon   = splashScreen.querySelector('.splash-icon');
+        const splashTitle  = splashScreen.querySelector('.splash-title');
+        const splashSub    = splashScreen.querySelector('.splash-subtitle');
+        const splashLoader = splashScreen.querySelector('.splash-loader');
+
+        const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+        const tl = gsap.timeline();
+
+        tl
+            /* ═══ 第一幕：系統喚醒 ═══ */
+            .to(splashIcon, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 1.0, ease: EASE
+            }, 0.3)
+            .to(splashTitle, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 0.6, ease: 'power2.out'
+            }, 0.8)
+            .to(splashSub, {
+                opacity: 1, filter: 'blur(0px)',
+                duration: 0.6, ease: 'power2.out'
+            }, 1.0)
+            .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.1)
+            .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 1.9)
+
+            /* ═══ 第二幕：過渡到主界面 ═══ */
+            .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.3)
+            .add(() => { splashScreen.style.display = 'none'; }, 2.7)
+            .to(glassPanel, {
+                opacity: 0, duration: 0.6, ease: EASE,
+                onComplete() { glassPanel.style.display = 'none'; }
+            }, 2.8);
     },
 
     /* ---------- 數據過濾 ---------- */

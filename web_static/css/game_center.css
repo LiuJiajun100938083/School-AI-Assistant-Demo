@@ -105,48 +105,49 @@ body {
 }
 
 /* ==========================================================================
-   启动画面
+   系統喚醒啟動畫面（深綠主題，與 Login / Index / Attendance 一致）
    ========================================================================== */
 
 .splash-screen {
     position: fixed;
     inset: 0;
-    background: var(--bg-card);
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 9999;
-    transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
-}
-
-.splash-screen.fade-out {
-    opacity: 0;
-    transform: scale(1.02);
-    pointer-events: none;
 }
 
 .splash-content {
     text-align: center;
-    animation: fadeSlideUp 0.6s var(--ease-out) forwards;
 }
 
 .splash-icon {
-    font-size: 72px;
-    margin-bottom: var(--space-6);
+    font-size: 88px;
+    margin-bottom: 32px;
+    opacity: 0;
+    filter: blur(6px);
+    will-change: filter, opacity;
 }
 
 .splash-title {
     font-size: 28px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: var(--space-2);
+    font-weight: 500;
+    color: #FFFFFF;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    opacity: 0;
+    filter: blur(8px);
 }
 
 .splash-subtitle {
-    font-size: 15px;
-    color: var(--text-secondary);
-    margin-bottom: var(--space-8);
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    opacity: 0;
+    filter: blur(8px);
 }
 
 .splash-loader {
@@ -154,6 +155,16 @@ body {
     display: flex;
     justify-content: center;
     opacity: 0;
+}
+
+/* 過渡遮罩（splash → 主界面 的深綠遮罩） */
+.glass-panel {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    z-index: 9998;
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* ==========================================================================
@@ -730,12 +741,6 @@ body {
 /* ==========================================================================
    动画
    ========================================================================== */
-
-@keyframes fadeSlideUp {
-    0% { opacity: 0; transform: translateY(20px); }
-    100% { opacity: 1; transform: translateY(0); }
-}
-
 
 
 /* ==========================================================================
