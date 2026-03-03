@@ -159,6 +159,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "class_diary_review",
+        "name": "課室日誌",
+        "icon": "📋",
+        "description": "查看每日課堂評級記錄",
+        "url": "/class-diary/review",
+        "roles": ["teacher", "admin"],
+        "enabled": True,
+        "order": 13,
+        "category": "teaching",
+    },
+    {
         "id": "admin_dashboard",
         "name": "管理後台",
         "icon": "⚙️",
@@ -166,7 +177,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "url": "/admin",
         "roles": ["admin"],
         "enabled": True,
-        "order": 13,
+        "order": 14,
         "category": "admin",
     },
 ]

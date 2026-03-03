@@ -18,6 +18,17 @@
 
 const AdminAPI = {
 
+    /* ---------- 通用 ---------- */
+    async fetchWithAuth(url, options = {}) {
+        const headers = { ...AuthModule.getAuthHeaders(), ...(options.headers || {}) };
+        const resp = await fetch(url, { ...options, headers });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || err.error?.message || `請求失敗 (${resp.status})`);
+        }
+        return resp.json();
+    },
+
     /* ---------- 學科 ---------- */
     async fetchSubjects() {
         const resp = await fetch('/api/admin/subjects', {
@@ -1200,6 +1211,17 @@ const AdminApp = {
             btn.addEventListener('click', () => this.saveAppsConfig());
         });
 
+        // 課室日誌管理按鈕
+        document.querySelectorAll('[data-action="addClass"]').forEach(btn => {
+            btn.addEventListener('click', () => this.addClass());
+        });
+        document.querySelectorAll('[data-action="batchDownloadQR"]').forEach(btn => {
+            btn.addEventListener('click', () => this.batchDownloadQR());
+        });
+        document.querySelectorAll('[data-action="addReviewer"]').forEach(btn => {
+            btn.addEventListener('click', () => this.addReviewer());
+        });
+
         // Tab button click listener for knowledge tab auto-load
         document.querySelectorAll('[data-action="switchTab"]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1237,7 +1259,7 @@ const AdminApp = {
                 btn.style.display = 'none';
             });
             // 同時隱藏對應的 tab-pane
-            ['users', 'settings', 'notice', 'appmgr'].forEach(tab => {
+            ['users', 'settings', 'notice', 'appmgr', 'classdiary'].forEach(tab => {
                 const pane = document.getElementById(tab + '-tab');
                 if (pane) pane.style.display = 'none';
             });
@@ -1275,6 +1297,8 @@ const AdminApp = {
             }
         } else if (tabName === 'appmgr') {
             this.loadAppsConfig();
+        } else if (tabName === 'classdiary') {
+            this.loadClassDiaryTab();
         }
     },
 
@@ -2512,6 +2536,236 @@ ${report.teacher_attention_points || '暫無'}
         } catch (error) {
             console.error('重置失敗:', error);
             alert('重置失敗: ' + error.message);
+        }
+    },
+
+    /* ============================================================
+       課室日誌管理
+       ============================================================ */
+
+    async addClass() {
+        const codeEl = document.getElementById('newClassCode');
+        const nameEl = document.getElementById('newClassName');
+        const gradeEl = document.getElementById('newClassGrade');
+
+        const classCode = codeEl.value.trim();
+        if (!classCode) { alert('請輸入班級代碼'); return; }
+
+        try {
+            await AdminAPI.fetchWithAuth('/api/class-diary/admin/classes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    class_code: classCode,
+                    class_name: nameEl.value.trim() || classCode,
+                    grade: gradeEl.value.trim(),
+                }),
+            });
+            codeEl.value = '';
+            nameEl.value = '';
+            gradeEl.value = '';
+            this.loadClassDiaryQRGrid();
+        } catch (error) {
+            alert('添加班級失敗: ' + error.message);
+        }
+    },
+
+    async deleteClass(classCode) {
+        if (!confirm(`確定刪除班級 ${classCode}？`)) return;
+        try {
+            await AdminAPI.fetchWithAuth(`/api/class-diary/admin/classes/${encodeURIComponent(classCode)}`, {
+                method: 'DELETE',
+            });
+            this.loadClassDiaryQRGrid();
+        } catch (error) {
+            alert('刪除班級失敗: ' + error.message);
+        }
+    },
+
+    async loadClassDiaryTab() {
+        await Promise.all([
+            this.loadClassDiaryQRGrid(),
+            this.loadReviewers(),
+            this.loadTeachersForReviewer(),
+        ]);
+    },
+
+    async loadClassDiaryQRGrid() {
+        const grid = document.getElementById('classDiaryQRGrid');
+        try {
+            const data = await AdminAPI.fetchWithAuth('/api/class-diary/admin/classes');
+            const classes = data.data || [];
+
+            if (classes.length === 0) {
+                grid.innerHTML = '<p style="color:var(--text-secondary);">尚無班級記錄。請先在數據庫中添加班級。</p>';
+                return;
+            }
+
+            grid.innerHTML = classes.map(c => `
+                <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem;text-align:center;position:relative;">
+                    <button onclick="AdminApp.deleteClass('${c.class_code}')"
+                        style="position:absolute;top:8px;right:8px;width:24px;height:24px;border:none;background:none;color:var(--text-secondary);cursor:pointer;font-size:1rem;line-height:1;border-radius:4px;"
+                        title="刪除班級">✕</button>
+                    <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.25rem;">${c.class_code}</div>
+                    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem;">${c.class_name || ''} ${c.grade ? '(' + c.grade + ')' : ''}</div>
+                    <div id="qr-wrap-${c.class_code}" style="min-height:140px;display:flex;align-items:center;justify-content:center;">
+                        <div class="spinner-small" id="qr-loading-${c.class_code}"></div>
+                    </div>
+                    <img id="qr-${c.class_code}" style="width:160px;height:160px;border:1px solid #eee;border-radius:8px;margin-bottom:0.5rem;display:none;" alt="QR">
+                    <div id="qr-actions-${c.class_code}" style="display:none;gap:0.5rem;justify-content:center;">
+                        <button onclick="AdminApp.downloadQR('${c.class_code}')"
+                            style="padding:6px 12px;border:1px solid var(--primary);border-radius:6px;background:var(--primary);color:#fff;font-size:0.8rem;cursor:pointer;">
+                            ⬇️ 下載 PNG
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            // 自動載入所有 QR 碼
+            for (const c of classes) {
+                this.showQR(c.class_code);
+            }
+        } catch (error) {
+            grid.innerHTML = '<p style="color:red;">載入班級失敗: ' + error.message + '</p>';
+        }
+    },
+
+    async showQR(classCode) {
+        const img = document.getElementById(`qr-${classCode}`);
+        const loading = document.getElementById(`qr-loading-${classCode}`);
+        const actions = document.getElementById(`qr-actions-${classCode}`);
+        try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const resp = await fetch(`/api/class-diary/admin/qr/${encodeURIComponent(classCode)}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!resp.ok) throw new Error('生成失敗');
+            const blob = await resp.blob();
+            // 存儲 blob 供下載用
+            img._qrBlob = blob;
+            img.src = URL.createObjectURL(blob);
+            img.style.display = 'block';
+            if (loading) loading.style.display = 'none';
+            if (actions) actions.style.display = 'flex';
+        } catch (error) {
+            if (loading) loading.innerHTML = '<span style="color:red;font-size:0.8rem;">生成失敗</span>';
+        }
+    },
+
+    downloadQR(classCode) {
+        const img = document.getElementById(`qr-${classCode}`);
+        if (!img || !img._qrBlob) {
+            alert('請先生成 QR 碼');
+            return;
+        }
+        const url = URL.createObjectURL(img._qrBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `QR_${classCode}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+
+    async batchDownloadQR() {
+        try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            const resp = await fetch('/api/class-diary/admin/qr/batch', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.detail || '下載失敗');
+            }
+            const blob = new Blob([await resp.arrayBuffer()], { type: 'application/zip' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'class_diary_qrcodes.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+            alert('批量下載失敗: ' + error.message);
+        }
+    },
+
+    async loadTeachersForReviewer() {
+        try {
+            const data = await AdminAPI.fetchWithAuth('/api/admin/users?role=teacher');
+            const users = data.data || data.users || [];
+            const select = document.getElementById('reviewerSelect');
+            select.innerHTML = '<option value="">選擇教師帳戶...</option>';
+            users.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.username;
+                opt.textContent = `${u.display_name || u.username} (${u.username})`;
+                select.appendChild(opt);
+            });
+        } catch (error) {
+            console.error('載入教師列表失敗:', error);
+        }
+    },
+
+    async loadReviewers() {
+        const container = document.getElementById('reviewersList');
+        try {
+            const data = await AdminAPI.fetchWithAuth('/api/class-diary/admin/reviewers');
+            const reviewers = data.data || [];
+
+            if (reviewers.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.9rem;">尚未添加任何 Reviewer。</p>';
+                return;
+            }
+
+            container.innerHTML = reviewers.map(r => `
+                <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 16px;">
+                    <div>
+                        <span style="font-weight:600;">${r.username}</span>
+                        <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:8px;">由 ${r.granted_by} 授權</span>
+                    </div>
+                    <button onclick="AdminApp.removeReviewer('${r.username}')"
+                        style="padding:4px 10px;border:1px solid #EF4444;border-radius:6px;background:#fff;color:#EF4444;font-size:0.8rem;cursor:pointer;">
+                        移除
+                    </button>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = '<p style="color:red;">載入失敗: ' + error.message + '</p>';
+        }
+    },
+
+    async addReviewer() {
+        const select = document.getElementById('reviewerSelect');
+        const username = select.value;
+        if (!username) {
+            alert('請選擇教師帳戶');
+            return;
+        }
+        try {
+            await AdminAPI.fetchWithAuth('/api/class-diary/admin/reviewers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username }),
+            });
+            select.value = '';
+            await this.loadReviewers();
+        } catch (error) {
+            alert('添加失敗: ' + error.message);
+        }
+    },
+
+    async removeReviewer(username) {
+        if (!confirm(`確定移除 ${username} 的 Review 權限？`)) return;
+        try {
+            await AdminAPI.fetchWithAuth(`/api/class-diary/admin/reviewers/${username}`, {
+                method: 'DELETE',
+            });
+            await this.loadReviewers();
+        } catch (error) {
+            alert('移除失敗: ' + error.message);
         }
     }
 };

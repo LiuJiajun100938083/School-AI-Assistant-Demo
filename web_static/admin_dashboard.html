@@ -78,6 +78,9 @@
                 <button class="tab-button admin-only" data-action="switchTab" data-tab="appmgr">
                     <span>📱 應用管理</span>
                 </button>
+                <button class="tab-button admin-only" data-action="switchTab" data-tab="classdiary">
+                    <span>📋 課室日誌</span>
+                </button>
             </div>
 
             <div class="tab-content">
@@ -449,6 +452,64 @@
                 </div>
 
                 <!-- 應用管理標籤 -->
+                <!-- 課室日誌管理標籤 -->
+                <div class="tab-pane" id="classdiary-tab">
+                    <div class="d-flex justify-between align-center mb-3">
+                        <h3>📋 課室日誌管理</h3>
+                    </div>
+
+                    <!-- 添加班級 -->
+                    <div style="margin-bottom:2rem;">
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);">➕ 添加班級</h4>
+                        <div style="display:flex;gap:10px;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
+                            <input type="text" id="newClassCode" placeholder="班級代碼 (如 1A)"
+                                style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:140px;">
+                            <input type="text" id="newClassName" placeholder="班級名稱 (如 中一A班)"
+                                style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:180px;">
+                            <input type="text" id="newClassGrade" placeholder="年級 (如 中一)"
+                                style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:120px;">
+                            <button class="btn btn-primary" data-action="addClass" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
+                                ➕ 添加
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- QR 碼管理 -->
+                    <div style="margin-bottom:2rem;">
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);">🔲 QR 碼管理</h4>
+                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
+                            為每個班級生成 QR 碼，教師掃碼後可在手機上填寫課堂評級。
+                        </p>
+                        <div style="margin-bottom:1rem;">
+                            <button class="btn btn-primary" data-action="batchDownloadQR" style="border-radius:8px;padding:8px 16px;">
+                                📦 批量下載全部 QR 碼 (ZIP)
+                            </button>
+                        </div>
+                        <div id="classDiaryQRGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+                            <p style="color:var(--text-secondary);">載入中...</p>
+                        </div>
+                    </div>
+
+                    <!-- Reviewer 管理 -->
+                    <div>
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);">👥 Review 授權管理</h4>
+                        <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
+                            設定哪些教師帳戶可以查看「課室日誌 Review」頁面。管理員自動擁有查看權限。
+                        </p>
+                        <div style="display:flex;gap:10px;margin-bottom:1rem;align-items:center;">
+                            <select id="reviewerSelect" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;">
+                                <option value="">選擇教師帳戶...</option>
+                            </select>
+                            <button class="btn btn-primary" data-action="addReviewer" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
+                                ➕ 添加
+                            </button>
+                        </div>
+                        <div id="reviewersList" style="display:flex;flex-direction:column;gap:8px;">
+                            <p style="color:var(--text-secondary);">載入中...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="tab-pane" id="appmgr-tab">
                     <div class="d-flex justify-between align-center mb-3">
                         <h3>首頁應用管理</h3>

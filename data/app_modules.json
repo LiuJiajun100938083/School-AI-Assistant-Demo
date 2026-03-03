@@ -15,21 +15,6 @@
     "category": "learning"
   },
   {
-    "id": "school_learning_center",
-    "name": "學校學習中心",
-    "icon": "🏫",
-    "description": "按科目和年級組織的學習資源平台",
-    "url": "/school-learning-center",
-    "roles": [
-      "student",
-      "teacher",
-      "admin"
-    ],
-    "enabled": true,
-    "order": 2,
-    "category": "learning"
-  },
-  {
     "id": "ai_learning_center",
     "name": "AI 學習中心",
     "icon": "🧠",
@@ -41,7 +26,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 3,
+    "order": 2,
     "category": "learning"
   },
   {
@@ -204,6 +189,20 @@
     "category": "teaching"
   },
   {
+    "id": "class_diary_review",
+    "name": "課室日誌",
+    "icon": "📋",
+    "description": "查看每日課堂評級記錄",
+    "url": "/class-diary/review",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 13,
+    "category": "teaching"
+  },
+  {
     "id": "admin_dashboard",
     "name": "管理後台",
     "icon": "⚙️",
@@ -213,7 +212,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 13,
+    "order": 14,
     "category": "admin"
   }
 ]

@@ -67,6 +67,10 @@ from app.domains.mistake_book.repository import (
 )
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
+from app.domains.class_diary.repository import (
+    ClassDiaryEntryRepository,
+    ClassDiaryReviewerRepository,
+)
 from app.domains.ai_learning_center.repository import (
     LCCategoryRepository,
     LCContentRepository,
@@ -102,6 +106,7 @@ from app.domains.ai_learning_center.service import LearningCenterService
 from app.domains.school_learning_center.service import SchoolLearningCenterService
 from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
+from app.domains.class_diary.service import ClassDiaryService
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +154,7 @@ class ServiceContainer:
         self._school_learning_center: Optional[SchoolLearningCenterService] = None
         self._game_upload: Optional[GameUploadService] = None
         self._trade_game: Optional[TradeGameService] = None
+        self._class_diary: Optional[ClassDiaryService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -325,6 +331,17 @@ class ServiceContainer:
                 score_repo=self._get_repo(TradeGameRepository),
             )
         return self._trade_game
+
+    @property
+    def class_diary(self) -> ClassDiaryService:
+        """課室日誌服務"""
+        if self._class_diary is None:
+            self._class_diary = ClassDiaryService(
+                entry_repo=self._get_repo(ClassDiaryEntryRepository),
+                reviewer_repo=self._get_repo(ClassDiaryReviewerRepository),
+                user_repo=self._get_repo(UserRepository),
+            )
+        return self._class_diary
 
     @property
     def vision(self) -> VisionService:

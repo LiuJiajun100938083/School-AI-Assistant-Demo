@@ -47,6 +47,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.attendance import router as attendance_router
     from app.routers.school_learning_center import router as school_learning_center_router
     from app.routers.trade_game import trade_game_router
+    from app.routers.class_diary import router as class_diary_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -69,13 +70,54 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(attendance_router)
     app.include_router(school_learning_center_router)
     app.include_router(trade_game_router)
+    app.include_router(class_diary_router)
 
-    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game")
+    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, class_diary")
 
-    # ====== 2. 外部模块路由（条件加载） ====== #
+    # ====== 2. 数据库迁移 ====== #
+    _run_schema_migrations()
+
+    # ====== 3. 外部模块路由（条件加载） ====== #
     _register_optional_routers(app)
 
     logger.info("所有路由注册完成")
+
+
+def _run_schema_migrations() -> None:
+    """
+    运行必要的数据库 schema 迁移。
+    每次启动时安全执行（幂等操作）。
+    """
+    try:
+        from app.infrastructure.database import get_database_pool
+        pool = get_database_pool()
+
+        # --- 确保 classes 表存在 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS classes (
+                class_id    INT AUTO_INCREMENT PRIMARY KEY,
+                class_code  VARCHAR(20) UNIQUE NOT NULL   COMMENT '班級代碼，如 S1A',
+                class_name  VARCHAR(100) NOT NULL          COMMENT '班級名稱',
+                grade       VARCHAR(20)                    COMMENT '年級，如 中一',
+                teacher_id  INT                            COMMENT '班主任 → users.id',
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # --- 确保 users 表有 class_name 列 ---
+        # 代码中广泛使用 class_name（VARCHAR）而非 class_id（INT），
+        # 需要在 users 表中添加此列以兼容现有代码逻辑。
+        cols = pool.execute("SHOW COLUMNS FROM users LIKE 'class_name'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE users ADD COLUMN class_name VARCHAR(100) "
+                "DEFAULT '' COMMENT '班級名稱' AFTER class_id"
+            )
+            logger.info("数据库迁移: 已为 users 表添加 class_name 列")
+
+        logger.info("数据库 schema 迁移完成")
+    except Exception as e:
+        logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
 
 
 def _register_optional_routers(app: FastAPI) -> None:
@@ -99,6 +141,13 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_trade_game_system()
     except Exception as e:
         logger.warning("全球貿易大亨系統初始化失敗: %s", e)
+
+    # 初始化課室日誌系統
+    try:
+        from app.routers.class_diary import init_class_diary_tables
+        init_class_diary_tables()
+    except Exception as e:
+        logger.warning("課室日誌系統初始化失敗: %s", e)
 
     # 论坛系统
     try:

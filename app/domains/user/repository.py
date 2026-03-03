@@ -84,6 +84,25 @@ class UserRepository(BaseRepository):
         """获取 users 表的列信息"""
         return self.raw_query("SHOW COLUMNS FROM users")
 
+    def get_students_by_class(self, class_name: str) -> List[Dict[str, Any]]:
+        """获取指定班级的所有活跃学生"""
+        return self.find_all(
+            "role = 'student' AND is_active = TRUE AND class_name = %s",
+            (class_name,),
+            columns="username, display_name",
+            order_by="display_name ASC",
+        )
+
+    def get_distinct_class_names(self) -> List[str]:
+        """获取所有学生的不重复班级名称"""
+        rows = self.raw_query(
+            "SELECT DISTINCT class_name FROM users "
+            "WHERE role = 'student' AND is_active = TRUE "
+            "AND class_name IS NOT NULL AND class_name != '' "
+            "ORDER BY class_name"
+        )
+        return [r["class_name"] for r in rows]
+
     # ============================================================
     # 写入
     # ============================================================

@@ -1,0 +1,671 @@
+/* ========================================
+   課室日誌 — 移動端評級表單樣式
+   簡潔扁平設計 - 與管理後台一致
+
+   設計核心：
+   ✓ 純白背景，無灰色區塊
+   ✓ 小圓角或直角
+   ✓ 無陰影，用細邊框代替
+   ✓ 減少懸停動效
+   ✓ 線條分隔代替卡片堆疊
+   ======================================== */
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+    --brand: #006633;
+    --brand-hover: #005528;
+    --brand-light: #E8F5EC;
+    --brand-lighter: #F5FAF7;
+    --brand-border: #D0E5D8;
+
+    --success: #34C759;
+    --success-bg: #E8F9EE;
+    --warning: #FF9500;
+    --danger: #FF3B30;
+
+    --bg: #FFFFFF;
+    --text-primary: #1D1D1F;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --border: #E5E5E5;
+    --border-light: #EEEEEE;
+    --light: #FAFAFA;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
+}
+
+html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: #FFFFFF;
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* ========== Desktop Block Screen ========== */
+.desktop-block {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #FFFFFF;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: var(--text-primary);
+    padding: 2rem;
+}
+
+.desktop-block .block-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.desktop-block h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.desktop-block p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* ========== Page Header ========== */
+.page-header {
+    background: #FFFFFF;
+    padding: 16px 20px;
+    text-align: center;
+    color: var(--text-primary);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
+}
+
+.page-header h1 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.page-header .subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* ========== Main Content ========== */
+.main-content {
+    padding: 16px;
+    max-width: 480px;
+    margin: 0 auto;
+    padding-bottom: 5rem;
+}
+
+/* ========== Card ========== */
+.card {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.card-title .icon {
+    font-size: 16px;
+}
+
+/* ========== Form Fields ========== */
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.form-label .required {
+    color: var(--danger);
+    margin-left: 2px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 15px;
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    background: #FFFFFF;
+    transition: border-color 0.15s;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--brand);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 64px;
+}
+
+.form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+
+/* ========== Period Selector ========== */
+.period-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.period-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #FFFFFF;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s;
+}
+
+.period-btn.active {
+    border-color: var(--brand);
+    background: var(--brand-light);
+    color: var(--brand);
+}
+
+.period-selects {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.period-selects .form-select {
+    flex: 1;
+}
+
+.period-selects .separator {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+}
+
+/* ========== Star Rating ========== */
+.star-rating-group {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.star-rating {
+    flex: 1;
+    min-width: 140px;
+}
+
+.star-rating .rating-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.star-rating .rating-label .required {
+    color: var(--danger);
+}
+
+.stars {
+    display: flex;
+    gap: 4px;
+}
+
+.star {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: transform 0.1s;
+    color: var(--border);
+    user-select: none;
+}
+
+.star:active {
+    transform: scale(0.9);
+}
+
+.star.filled {
+    color: var(--warning);
+}
+
+.star-value {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    text-align: center;
+}
+
+/* ========== Student Picker (Collapsible Chips) ========== */
+.picker-wrap {
+    margin-bottom: 8px;
+}
+
+.picker-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--light);
+    font-size: 13px;
+    font-family: var(--font-sans);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.picker-toggle:active {
+    border-color: var(--brand);
+}
+
+.picker-toggle .picker-toggle-arrow {
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+.picker-wrap.open .picker-toggle {
+    border-color: var(--brand);
+    background: var(--brand-light);
+    color: var(--brand);
+}
+
+.picker-wrap.open .picker-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+.picker-toggle .picker-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--brand);
+    color: #FFFFFF;
+    line-height: 1.4;
+}
+
+.student-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
+    overflow: hidden;
+    max-height: 500px;
+    transition: max-height 0.25s ease, padding-top 0.25s ease, opacity 0.2s ease;
+    opacity: 1;
+}
+
+.student-picker.collapsed {
+    max-height: 0;
+    padding-top: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.student-picker:empty {
+    display: none;
+}
+
+.student-chip {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background: #FFFFFF;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.student-chip:active {
+    transform: scale(0.95);
+}
+
+.student-chip.selected {
+    background: var(--brand);
+    color: #FFFFFF;
+    border-color: var(--brand);
+}
+
+/* ========== Signature Pad ========== */
+.signature-area {
+    margin-top: 8px;
+}
+
+.signature-canvas-wrap {
+    position: relative;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    background: var(--light);
+    overflow: hidden;
+}
+
+.signature-canvas-wrap.signing {
+    border-color: var(--brand);
+    border-style: solid;
+}
+
+#signatureCanvas {
+    display: block;
+    width: 100%;
+    height: 150px;
+    touch-action: none;
+}
+
+.signature-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.signature-placeholder.hidden {
+    opacity: 0;
+}
+
+.signature-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.btn-clear-sig {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #FFFFFF;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.btn-clear-sig:active {
+    border-color: var(--brand);
+}
+
+/* ========== Submit Button ========== */
+.submit-section {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #FFFFFF;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    z-index: 100;
+}
+
+.btn-submit {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    display: block;
+    padding: 12px;
+    border: none;
+    border-radius: 4px;
+    background: var(--brand);
+    color: #FFFFFF;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-submit:active {
+    background: var(--brand-hover);
+}
+
+.btn-submit:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ========== Existing Records ========== */
+.existing-records {
+    margin-top: 20px;
+}
+
+.existing-records .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.record-card {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+.record-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.record-period {
+    font-weight: 600;
+    color: var(--brand);
+    font-size: 14px;
+}
+
+.record-subject {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.record-ratings {
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.record-ratings span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.record-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid #C6F0D2;
+}
+
+/* ========== Success Toast ========== */
+.toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 32px;
+    border-radius: 6px;
+    text-align: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    min-width: 280px;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+.toast .toast-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+}
+
+.toast .toast-msg {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.toast .toast-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.toast .toast-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.toast .btn-toast {
+    padding: 8px 20px;
+    border-radius: 4px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.toast .btn-toast.primary {
+    background: var(--brand);
+    color: #FFFFFF;
+}
+
+.toast .btn-toast.secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+/* ========== Toast Overlay ========== */
+.toast.show::before {
+    content: '';
+    position: fixed;
+    inset: -100vh -100vw;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: -1;
+}
+
+/* ========== Loading ========== */
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.loading-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--brand);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ========== Responsive ========== */
+@media (min-width: 480px) {
+    .main-content {
+        padding: 20px;
+    }
+}

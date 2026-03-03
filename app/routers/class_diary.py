@@ -1,0 +1,537 @@
+"""
+課室日誌路由
+=============
+教師掃碼課堂評級 + Review 查看 + 管理員 QR 碼 / Reviewer 管理。
+
+公開端點（無需登入）:
+    POST  /api/class-diary/entries              提交評級
+    GET   /api/class-diary/entries/by-class      查某班某日記錄
+    PUT   /api/class-diary/entries/{id}          修改記錄
+
+需登入端點:
+    GET   /api/class-diary/review               Review 記錄
+    GET   /api/class-diary/review/classes        班級列表
+    GET   /api/class-diary/review/summary        匯總
+
+管理員端點:
+    GET   /api/class-diary/admin/qr/{code}       生成 QR 碼
+    GET   /api/class-diary/admin/qr/batch        批量 QR ZIP
+    GET   /api/class-diary/admin/reviewers       列出 reviewer
+    POST  /api/class-diary/admin/reviewers       添加 reviewer
+    DELETE /api/class-diary/admin/reviewers/{u}   移除 reviewer
+    GET   /api/class-diary/admin/classes          班級列表
+"""
+
+import logging
+from datetime import date, datetime
+from typing import Optional
+
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import Response, StreamingResponse
+
+from app.core.exceptions import AppException, AuthorizationError
+from app.core.responses import error_response, success_response
+from app.domains.class_diary.schemas import (
+    CreateEntryRequest,
+    ReviewerRequest,
+    UpdateEntryRequest,
+)
+from app.infrastructure.database.pool import get_database_pool
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["課室日誌"])
+
+
+# ====================================================================== #
+#  工具函數                                                                #
+# ====================================================================== #
+
+def _get_service():
+    from app.services.container import get_services
+    return get_services().class_diary
+
+
+def _verify_request(request: Request):
+    """從 JWT 提取 (username, role)"""
+    from app.services.container import get_services
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        token = request.query_params.get("token", "")
+    if not token:
+        raise AppException(code="UNAUTHORIZED", message="未登入", status_code=401)
+    payload = get_services().auth.verify_token(token)
+    return payload["username"], payload["role"]
+
+
+def _verify_admin(request: Request):
+    username, role = _verify_request(request)
+    if role != "admin":
+        raise AuthorizationError("需要管理員權限")
+    return username, role
+
+
+def _verify_reviewer(request: Request):
+    """驗證 reviewer 或 admin 權限"""
+    username, role = _verify_request(request)
+    service = _get_service()
+    if not service.check_review_access(username, role):
+        from app.domains.class_diary.exceptions import ReviewAccessDeniedError
+        raise ReviewAccessDeniedError()
+    return username, role
+
+
+def _get_base_url(request: Request) -> str:
+    """從請求中提取站點根 URL"""
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", "localhost"))
+    return f"{scheme}://{host}"
+
+
+# ====================================================================== #
+#  數據庫初始化                                                            #
+# ====================================================================== #
+
+def init_class_diary_tables():
+    """創建課室日誌相關數據表"""
+    pool = get_database_pool()
+
+    sqls = [
+        """
+        CREATE TABLE IF NOT EXISTS class_diary_entries (
+            id                  INT AUTO_INCREMENT PRIMARY KEY,
+            class_code          VARCHAR(20)  NOT NULL          COMMENT '班級代碼',
+            entry_date          DATE         NOT NULL          COMMENT '上課日期',
+            period_start        TINYINT      NOT NULL          COMMENT '起始節數 0=早會,1-9',
+            period_end          TINYINT      NOT NULL          COMMENT '結束節數',
+            subject             VARCHAR(100) NOT NULL          COMMENT '科目',
+            absent_students     TEXT                           COMMENT '缺席學生',
+            late_students       TEXT                           COMMENT '遲到學生',
+            discipline_rating   TINYINT      NOT NULL DEFAULT 0 COMMENT '紀律 1-5',
+            cleanliness_rating  TINYINT      NOT NULL DEFAULT 0 COMMENT '整潔 1-5',
+            commended_students  TEXT                           COMMENT '嘉許學生',
+            appearance_issues   TEXT                           COMMENT '儀表違規',
+            rule_violations     TEXT                           COMMENT '課堂違規',
+            signature           MEDIUMTEXT                     COMMENT '手寫簽名 base64',
+            submitted_from      VARCHAR(255)                   COMMENT '提交來源 UA',
+            created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_class_date (class_code, entry_date),
+            INDEX idx_date (entry_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS class_diary_reviewers (
+            id          INT AUTO_INCREMENT PRIMARY KEY,
+            username    VARCHAR(100) NOT NULL UNIQUE     COMMENT '被授權用戶名',
+            granted_by  VARCHAR(100) NOT NULL            COMMENT '授權管理員',
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """,
+    ]
+
+    for sql in sqls:
+        try:
+            pool.execute_write(sql)
+        except Exception as e:
+            # 表已存在時忽略
+            if "already exists" not in str(e).lower():
+                logger.error("創建課室日誌表失敗: %s", e)
+
+    logger.info("課室日誌數據表初始化完成")
+
+
+# ====================================================================== #
+#  公開端點 — 教師掃碼提交（無需登入）                                        #
+# ====================================================================== #
+
+@router.post("/api/class-diary/entries")
+async def create_entry(request: Request):
+    """提交課堂評級（移動端，無需登入）"""
+    try:
+        body = await request.json()
+        entry_data = CreateEntryRequest(**body)
+
+        user_agent = request.headers.get("User-Agent", "")
+
+        service = _get_service()
+        result = service.create_entry(entry_data.model_dump(), user_agent)
+
+        return success_response(result, "評級提交成功")
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("提交評級失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/entries/by-class")
+async def get_entries_by_class(
+    class_code: str = Query(..., description="班級代碼"),
+    entry_date: str = Query(..., description="日期 YYYY-MM-DD"),
+):
+    """查詢某班某日的評級記錄（公開，用於教師掃碼後查看已填記錄）"""
+    try:
+        service = _get_service()
+        entries = service.get_entries_by_class_date(class_code, entry_date)
+
+        # 公開端點不返回簽名數據（節省帶寬）
+        for entry in entries:
+            if "signature" in entry:
+                entry["signature"] = bool(entry.get("signature"))
+
+        return success_response(entries)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("查詢記錄失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/classes")
+async def get_classes_public():
+    """公開端點 — 取得班級列表（供移動端表單選擇班級）"""
+    try:
+        service = _get_service()
+        classes = service.get_all_classes()
+        return success_response(classes)
+    except Exception as e:
+        logger.exception("取得班級列表失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/students/{class_code}")
+async def get_students_for_class(class_code: str):
+    """公開端點 — 取得該班學生列表（供移動端表單選擇學生）"""
+    try:
+        service = _get_service()
+        students = service.get_students_for_class(class_code)
+        return success_response(students)
+    except Exception as e:
+        logger.exception("取得學生列表失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.put("/api/class-diary/entries/{entry_id}")
+async def update_entry(entry_id: int, request: Request):
+    """修改已提交的評級記錄"""
+    try:
+        body = await request.json()
+        update_data = UpdateEntryRequest(**body)
+
+        service = _get_service()
+        result = service.update_entry(entry_id, update_data.model_dump(exclude_none=True))
+
+        return success_response(result, "記錄更新成功")
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("更新記錄失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
+#  Review 端點（需登入 + reviewer 權限）                                    #
+# ====================================================================== #
+
+@router.get("/api/class-diary/review")
+async def review_entries(
+    request: Request,
+    class_code: Optional[str] = Query(None, description="班級代碼"),
+    entry_date: Optional[str] = Query(None, description="日期 YYYY-MM-DD"),
+):
+    """查看課堂評級記錄（需 reviewer 或 admin 權限）"""
+    try:
+        _verify_reviewer(request)
+
+        service = _get_service()
+
+        if not entry_date:
+            entry_date = str(date.today())
+
+        if class_code:
+            entries = service.get_entries_by_class_date(class_code, entry_date)
+        else:
+            entries = service.get_entries_by_date(entry_date)
+
+        return success_response(entries)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("Review 查詢失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/review/classes")
+async def review_classes(
+    request: Request,
+    entry_date: Optional[str] = Query(None, description="日期 YYYY-MM-DD"),
+):
+    """獲取某日有記錄的班級列表"""
+    try:
+        _verify_reviewer(request)
+
+        service = _get_service()
+        if not entry_date:
+            entry_date = str(date.today())
+
+        classes = service.get_classes_with_entries(entry_date)
+        return success_response(classes)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("查詢班級列表失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/review/summary")
+async def review_summary(
+    request: Request,
+    class_code: str = Query(..., description="班級代碼"),
+    entry_date: str = Query(..., description="日期 YYYY-MM-DD"),
+):
+    """某班某日的匯總數據"""
+    try:
+        _verify_reviewer(request)
+
+        service = _get_service()
+        summary = service.get_summary(class_code, entry_date)
+        return success_response(summary)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("查詢匯總失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/review/check-access")
+async def check_review_access(request: Request):
+    """檢查當前用戶是否有 review 權限"""
+    try:
+        username, role = _verify_request(request)
+        service = _get_service()
+        has_access = service.check_review_access(username, role)
+        return success_response({"has_access": has_access})
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
+#  管理員端點                                                              #
+# ====================================================================== #
+
+@router.get("/api/class-diary/admin/classes")
+async def admin_list_classes(request: Request):
+    """列出所有班級（管理員用）"""
+    try:
+        _verify_admin(request)
+        service = _get_service()
+        classes = service.get_all_classes()
+        return success_response(classes)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("查詢班級失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/admin/qr/{class_code}")
+async def generate_qr(class_code: str, request: Request):
+    """為指定班級生成 QR 碼 PNG"""
+    try:
+        _verify_admin(request)
+
+        service = _get_service()
+        base_url = _get_base_url(request)
+        png_data = service.generate_qr_code(class_code, base_url)
+
+        return Response(
+            content=png_data,
+            media_type="image/png",
+            headers={"Content-Disposition": f'inline; filename="QR_{class_code}.png"'},
+        )
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("生成 QR 碼失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/admin/qr/batch")
+async def batch_qr(request: Request):
+    """批量生成所有班級 QR 碼 ZIP"""
+    try:
+        _verify_admin(request)
+
+        service = _get_service()
+        classes = service.get_all_classes()
+        class_codes = [c["class_code"] for c in classes]
+
+        if not class_codes:
+            return error_response("NO_CLASSES", "沒有班級記錄", status_code=404)
+
+        base_url = _get_base_url(request)
+        zip_data = service.generate_qr_codes_zip(class_codes, base_url)
+
+        return Response(
+            content=zip_data,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": 'attachment; filename="class_diary_qrcodes.zip"'
+            },
+        )
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("批量生成 QR 碼失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ---------- Reviewer 管理 ---------- #
+
+@router.get("/api/class-diary/admin/reviewers")
+async def list_reviewers(request: Request):
+    """列出所有 reviewer"""
+    try:
+        _verify_admin(request)
+        service = _get_service()
+        reviewers = service.get_all_reviewers()
+        return success_response(reviewers)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.post("/api/class-diary/admin/reviewers")
+async def add_reviewer(request: Request):
+    """添加 reviewer"""
+    try:
+        admin_user, _ = _verify_admin(request)
+        body = await request.json()
+        data = ReviewerRequest(**body)
+
+        service = _get_service()
+        added = service.add_reviewer(data.username, admin_user)
+
+        if not added:
+            return error_response("ALREADY_EXISTS", "該用戶已是 Reviewer", status_code=409)
+
+        return success_response({"username": data.username}, "Reviewer 添加成功")
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.delete("/api/class-diary/admin/reviewers/{username}")
+async def remove_reviewer(username: str, request: Request):
+    """移除 reviewer"""
+    try:
+        _verify_admin(request)
+        service = _get_service()
+        removed = service.remove_reviewer(username)
+
+        if not removed:
+            return error_response("NOT_FOUND", "該用戶不是 Reviewer", status_code=404)
+
+        return success_response(None, "Reviewer 已移除")
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.delete("/api/class-diary/admin/entries/{entry_id}")
+async def admin_delete_entry(entry_id: int, request: Request):
+    """管理員刪除記錄"""
+    try:
+        _verify_admin(request)
+        service = _get_service()
+        service.delete_entry(entry_id)
+        return success_response(None, "記錄已刪除")
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ---------- 班級管理 ---------- #
+
+@router.post("/api/class-diary/admin/classes")
+async def create_class(request: Request):
+    """創建班級"""
+    try:
+        _verify_admin(request)
+        body = await request.json()
+
+        class_code = (body.get("class_code") or "").strip()
+        class_name = (body.get("class_name") or "").strip()
+        grade = (body.get("grade") or "").strip()
+
+        if not class_code:
+            return error_response("VALIDATION_ERROR", "班級代碼不可為空", status_code=400)
+        if not class_name:
+            class_name = class_code  # 默認使用代碼作為名稱
+
+        from app.infrastructure.database import get_database_pool
+        pool = get_database_pool()
+
+        # 檢查是否已存在
+        existing = pool.execute(
+            "SELECT class_id FROM classes WHERE class_code = %s", (class_code,)
+        )
+        if existing:
+            return error_response("ALREADY_EXISTS", f"班級 {class_code} 已存在", status_code=409)
+
+        pool.execute(
+            "INSERT INTO classes (class_code, class_name, grade) VALUES (%s, %s, %s)",
+            (class_code, class_name, grade),
+        )
+
+        return success_response(
+            {"class_code": class_code, "class_name": class_name, "grade": grade},
+            "班級創建成功",
+        )
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("創建班級失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.delete("/api/class-diary/admin/classes/{class_code}")
+async def delete_class(class_code: str, request: Request):
+    """刪除班級"""
+    try:
+        _verify_admin(request)
+
+        from app.infrastructure.database import get_database_pool
+        pool = get_database_pool()
+
+        result = pool.execute(
+            "DELETE FROM classes WHERE class_code = %s", (class_code,)
+        )
+
+        return success_response(None, "班級已刪除")
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)

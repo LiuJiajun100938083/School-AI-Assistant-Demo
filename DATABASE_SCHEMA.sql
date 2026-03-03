@@ -49,6 +49,7 @@ CREATE TABLE users (
     phone_encrypted      TEXT                              COMMENT '電話(加密存儲)',
     role                 ENUM('student','teacher','admin') DEFAULT 'student' COMMENT '角色',
     class_id             INT                               COMMENT '所屬班級ID',
+    class_name           VARCHAR(100) DEFAULT ''           COMMENT '班級名稱(冗餘欄位，方便查詢)',
     is_active            BOOLEAN DEFAULT TRUE              COMMENT '帳號是否啟用',
     is_locked            BOOLEAN DEFAULT FALSE             COMMENT '帳號是否鎖定',
     created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1584,6 +1585,50 @@ CREATE TABLE learning_analytics (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- ====================================================================
+-- 模組 11: 課室日誌 (Class Diary)          class_diary_*      (2 表)
+-- ====================================================================
+
+-- --------------------------------------------------------------------
+-- 11.1  class_diary_entries — 課堂評級記錄
+-- 說明: 教師掃碼後填寫的每節課評級，包含紀律、整潔、考勤等
+-- --------------------------------------------------------------------
+CREATE TABLE class_diary_entries (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    class_code          VARCHAR(20)  NOT NULL              COMMENT '班級代碼，如 5B',
+    entry_date          DATE         NOT NULL              COMMENT '上課日期',
+    period_start        TINYINT      NOT NULL              COMMENT '起始節數 (0=早會, 1-9)',
+    period_end          TINYINT      NOT NULL              COMMENT '結束節數',
+    subject             VARCHAR(100) NOT NULL              COMMENT '科目名稱',
+    absent_students     TEXT                               COMMENT '缺席學生（自由文本）',
+    late_students       TEXT                               COMMENT '遲到學生（自由文本）',
+    discipline_rating   TINYINT      NOT NULL DEFAULT 0    COMMENT '紀律評級 1-5（5最佳）',
+    cleanliness_rating  TINYINT      NOT NULL DEFAULT 0    COMMENT '整潔評級 1-5（5最佳）',
+    commended_students  TEXT                               COMMENT '值得嘉許的學生（姓名+原因）',
+    appearance_issues   TEXT                               COMMENT '儀表違規記錄',
+    rule_violations     TEXT                               COMMENT '課堂違規記錄',
+    signature           MEDIUMTEXT                         COMMENT '教師手寫簽名 (base64 PNG)',
+    submitted_from      VARCHAR(255)                       COMMENT '提交來源 User-Agent 摘要',
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_class_date (class_code, entry_date),
+    INDEX idx_date (entry_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- --------------------------------------------------------------------
+-- 11.2  class_diary_reviewers — Review 授權用戶
+-- 說明: 管理員授權哪些帳戶可以查看課室日誌 Review
+-- --------------------------------------------------------------------
+CREATE TABLE class_diary_reviewers (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    username    VARCHAR(100) NOT NULL UNIQUE         COMMENT '被授權的用戶名',
+    granted_by  VARCHAR(100) NOT NULL                COMMENT '授權管理員',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 -- ╔══════════════════════════════════════════════════════════════════════╗
 -- ║                        表關係速查 (ER 概要)                         ║
 -- ╠══════════════════════════════════════════════════════════════════════╣
@@ -1631,5 +1676,8 @@ CREATE TABLE learning_analytics (
 -- ║  activity_groups ─< activity_group_students            (1:N)       ║
 -- ║  activity_sessions ─┬─< activity_session_students     (1:N)       ║
 -- ║                     └─< activity_records               (1:N)       ║
+-- ║                                                                    ║
+-- ║  class_diary_entries   (獨立表，class_code 關聯 classes)           ║
+-- ║  class_diary_reviewers (獨立表，username 關聯 users)               ║
 -- ║                                                                    ║
 -- ╚══════════════════════════════════════════════════════════════════════╝

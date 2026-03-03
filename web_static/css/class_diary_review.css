@@ -1,0 +1,480 @@
+/* ========================================
+   課室日誌 Review 頁面
+   簡潔扁平設計 - 與管理後台一致
+
+   設計核心：
+   ✓ 純白背景，無灰色區塊
+   ✓ 小圓角或直角
+   ✓ 無陰影，用細邊框代替
+   ✓ 減少懸停動效
+   ✓ 線條分隔代替卡片堆疊
+   ======================================== */
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --brand: #006633;
+    --brand-hover: #005528;
+    --brand-light: #E8F5EC;
+    --brand-lighter: #F5FAF7;
+    --brand-border: #D0E5D8;
+
+    --success: #34C759;
+    --warning: #FF9500;
+    --danger: #FF3B30;
+    --info: #007AFF;
+
+    --bg: #FFFFFF;
+    --text-primary: #1D1D1F;
+    --text-secondary: #666666;
+    --text-tertiary: #999999;
+    --text-on-brand: #FFFFFF;
+    --border: #E5E5E5;
+    --border-light: #EEEEEE;
+    --light: #FAFAFA;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
+}
+
+html {
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: #FFFFFF;
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* ========== 導航欄 ========== */
+.navbar {
+    background: #FFFFFF;
+    padding: 16px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.user-badge {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.btn-back {
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-back:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+/* ========== 無權訪問 ========== */
+.no-access {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    padding: 2rem;
+}
+
+.no-access .icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+
+.no-access h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.no-access p {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* ========== 主容器 ========== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px;
+}
+
+/* ========== 篩選欄 ========== */
+.filter-bar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.filter-bar label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.filter-bar select,
+.filter-bar input[type="date"] {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    background: #FFFFFF;
+    color: var(--text-primary);
+    min-width: 160px;
+}
+
+.filter-bar select:focus,
+.filter-bar input[type="date"]:focus {
+    outline: none;
+    border-color: var(--brand);
+}
+
+/* ========== 班級匯總卡片 ========== */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.summary-card:hover {
+    border-color: var(--brand);
+    transform: none;
+    box-shadow: none;
+}
+
+.summary-card.active {
+    background: var(--brand-light);
+    border-color: var(--brand);
+}
+
+.summary-card.active .summary-class {
+    color: var(--brand);
+}
+
+.summary-class {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.summary-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.summary-meta .rating {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+/* ========== 記錄列表 ========== */
+.entries-section {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.entries-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.entries-header h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.entries-count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--light);
+    padding: 2px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+}
+
+/* ========== 表格 ========== */
+.entries-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.entries-table th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.entries-table td {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+.entries-table tr:last-child td {
+    border-bottom: none;
+}
+
+.entries-table tr:hover {
+    background: var(--brand-lighter);
+}
+
+/* 星級 */
+.mini-stars {
+    color: var(--warning);
+    letter-spacing: 1px;
+    font-size: 14px;
+}
+
+.mini-stars .empty {
+    color: var(--border);
+}
+
+/* 節數標籤 */
+.period-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--brand-light);
+    color: var(--brand);
+    white-space: nowrap;
+    border: 1px solid var(--brand-border);
+}
+
+/* 簽名縮略圖 */
+.sig-thumb {
+    width: 56px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    object-fit: contain;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.sig-thumb:hover {
+    border-color: var(--brand);
+}
+
+/* 文字截斷 */
+.cell-text {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ========== 空狀態 ========== */
+.empty-state {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-secondary);
+}
+
+.empty-state .icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    font-size: 14px;
+}
+
+/* 匯總區空狀態 */
+.summary-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 32px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+}
+
+.summary-empty .icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+/* ========== 簽名模態框 ========== */
+.sig-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.sig-modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sig-modal {
+    background: #FFFFFF;
+    border-radius: 6px;
+    padding: 24px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    border: 1px solid var(--border);
+}
+
+.sig-modal img {
+    max-width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.sig-modal button {
+    padding: 8px 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #FFFFFF;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: border-color 0.15s;
+}
+
+.sig-modal button:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+/* ========== 滾動條 ========== */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #D0D0D0;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #B0B0B0;
+}
+
+/* ========== 響應式 ========== */
+@media (max-width: 768px) {
+    .navbar {
+        padding: 12px 16px;
+    }
+
+    .container {
+        padding: 16px;
+    }
+
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .filter-bar select,
+    .filter-bar input[type="date"] {
+        width: 100%;
+    }
+
+    .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .entries-table th,
+    .entries-table td {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .cell-text {
+        max-width: 80px;
+    }
+}

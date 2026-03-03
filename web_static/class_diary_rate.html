@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>課堂評級</title>
+    <link rel="stylesheet" href="/static/css/class_diary_rate.css">
+</head>
+<body>
+
+<!-- Desktop Block Screen -->
+<div class="desktop-block" id="desktopBlock">
+    <div>
+        <div class="block-icon">📱</div>
+        <h2>請使用手機掃碼</h2>
+        <p>課堂評級表單僅支持手機/平板使用。<br>請用手機掃描教室的QR碼填寫。</p>
+    </div>
+</div>
+
+<!-- Page Header -->
+<div class="page-header">
+    <h1>📝 課堂評級</h1>
+    <div class="subtitle" id="headerInfo">載入中...</div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content" id="mainContent">
+
+    <!-- Period & Subject Card -->
+    <div class="card">
+        <div class="card-title"><span class="icon">🕐</span> 課堂信息</div>
+
+        <div class="form-group">
+            <label class="form-label">班級 <span class="required">*</span></label>
+            <select class="form-select" id="classSelect">
+                <option value="">選擇班級</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">節數類型</label>
+            <div class="period-toggle">
+                <button class="period-btn active" data-count="1" onclick="setPeriodCount(1)">一節課</button>
+                <button class="period-btn" data-count="2" onclick="setPeriodCount(2)">兩節課</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">節數 <span class="required">*</span></label>
+            <div class="period-selects">
+                <select class="form-select" id="periodStart">
+                    <option value="">選擇節數</option>
+                    <option value="0">早會</option>
+                    <option value="1">第一節</option>
+                    <option value="2">第二節</option>
+                    <option value="3">第三節</option>
+                    <option value="4">第四節</option>
+                    <option value="5">第五節</option>
+                    <option value="6">第六節</option>
+                    <option value="7">第七節</option>
+                    <option value="8">第八節</option>
+                    <option value="9">第九節</option>
+                </select>
+                <span class="separator" id="periodSeparator" style="display:none;">→</span>
+                <select class="form-select" id="periodEnd" style="display:none;">
+                    <option value="">結束節數</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">科目 <span class="required">*</span></label>
+            <input type="text" class="form-input" id="subject" placeholder="輸入科目名稱" autocomplete="off">
+        </div>
+    </div>
+
+    <!-- Rating Card -->
+    <div class="card">
+        <div class="card-title"><span class="icon">⭐</span> 課堂評級</div>
+
+        <div class="star-rating-group">
+            <div class="star-rating">
+                <div class="rating-label">紀律 <span class="required">*</span></div>
+                <div class="stars" id="disciplineStars" data-field="discipline">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                </div>
+                <div class="star-value" id="disciplineValue">未評分</div>
+            </div>
+
+            <div class="star-rating">
+                <div class="rating-label">整潔 <span class="required">*</span></div>
+                <div class="stars" id="cleanlinessStars" data-field="cleanliness">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                </div>
+                <div class="star-value" id="cleanlinessValue">未評分</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Card -->
+    <div class="card">
+        <div class="card-title"><span class="icon">📋</span> 考勤記錄</div>
+
+        <div class="form-group">
+            <label class="form-label">缺席學生</label>
+            <div class="picker-wrap" id="wrap-absentStudents">
+                <button type="button" class="picker-toggle" onclick="togglePicker('absentStudents')">
+                    <span class="picker-toggle-text">點擊選擇學生</span>
+                    <span class="picker-toggle-arrow">▾</span>
+                </button>
+                <div class="student-picker collapsed" id="picker-absentStudents"></div>
+            </div>
+            <textarea class="form-textarea" id="absentStudents" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">遲到學生</label>
+            <div class="picker-wrap" id="wrap-lateStudents">
+                <button type="button" class="picker-toggle" onclick="togglePicker('lateStudents')">
+                    <span class="picker-toggle-text">點擊選擇學生</span>
+                    <span class="picker-toggle-arrow">▾</span>
+                </button>
+                <div class="student-picker collapsed" id="picker-lateStudents"></div>
+            </div>
+            <textarea class="form-textarea" id="lateStudents" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+        </div>
+    </div>
+
+    <!-- Commendation & Violations Card -->
+    <div class="card">
+        <div class="card-title"><span class="icon">📝</span> 嘉許與違規</div>
+
+        <div class="form-group">
+            <label class="form-label">值得嘉許的學生</label>
+            <div class="picker-wrap" id="wrap-commendedStudents">
+                <button type="button" class="picker-toggle" onclick="togglePicker('commendedStudents')">
+                    <span class="picker-toggle-text">點擊選擇學生</span>
+                    <span class="picker-toggle-arrow">▾</span>
+                </button>
+                <div class="student-picker collapsed" id="picker-commendedStudents"></div>
+            </div>
+            <textarea class="form-textarea" id="commendedStudents" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">儀表違規</label>
+            <div class="picker-wrap" id="wrap-appearanceIssues">
+                <button type="button" class="picker-toggle" onclick="togglePicker('appearanceIssues')">
+                    <span class="picker-toggle-text">點擊選擇學生</span>
+                    <span class="picker-toggle-arrow">▾</span>
+                </button>
+                <div class="student-picker collapsed" id="picker-appearanceIssues"></div>
+            </div>
+            <textarea class="form-textarea" id="appearanceIssues" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">課堂違規</label>
+            <div class="picker-wrap" id="wrap-ruleViolations">
+                <button type="button" class="picker-toggle" onclick="togglePicker('ruleViolations')">
+                    <span class="picker-toggle-text">點擊選擇學生</span>
+                    <span class="picker-toggle-arrow">▾</span>
+                </button>
+                <div class="student-picker collapsed" id="picker-ruleViolations"></div>
+            </div>
+            <textarea class="form-textarea" id="ruleViolations" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+        </div>
+    </div>
+
+    <!-- Signature Card -->
+    <div class="card">
+        <div class="card-title"><span class="icon">✍️</span> 教師簽名 <span class="required">*</span></div>
+        <div class="signature-area">
+            <div class="signature-canvas-wrap" id="signatureWrap">
+                <canvas id="signatureCanvas"></canvas>
+                <div class="signature-placeholder" id="sigPlaceholder">請在此處手寫簽名</div>
+            </div>
+            <div class="signature-actions">
+                <button class="btn-clear-sig" onclick="clearSignature()">清除簽名</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Records -->
+    <div class="existing-records" id="existingRecords" style="display:none;">
+        <div class="section-title">📄 今日已提交記錄</div>
+        <div id="recordsList"></div>
+    </div>
+
+</div>
+
+<!-- Submit Button (Fixed at bottom) -->
+<div class="submit-section">
+    <button class="btn-submit" id="submitBtn" onclick="submitForm()">提交評級</button>
+</div>
+
+<!-- Success Toast -->
+<div class="toast" id="successToast">
+    <div class="toast-icon">✅</div>
+    <div class="toast-msg">提交成功！</div>
+    <div class="toast-sub">評級記錄已保存</div>
+    <div class="toast-actions">
+        <button class="btn-toast primary" onclick="continueRating()">繼續填寫下一節</button>
+        <button class="btn-toast secondary" onclick="closeToast()">完成</button>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+</div>
+
+<script src="/static/js/class_diary_rate.js"></script>
+</body>
+</html>

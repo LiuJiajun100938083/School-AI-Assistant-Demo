@@ -170,6 +170,22 @@ async def classroom_student(room_id: str):
 
 
 # ====================================================================== #
+#  課室日誌頁面                                                             #
+# ====================================================================== #
+
+@router.get("/class-diary/rate/{class_code}")
+async def class_diary_rate(class_code: str):
+    """教師掃碼評級表單（移動端）"""
+    return _serve_page("class_diary_rate.html")
+
+
+@router.get("/class-diary/review")
+async def class_diary_review():
+    """課室日誌 Review 頁面"""
+    return _serve_page("class_diary_review.html")
+
+
+# ====================================================================== #
 #  游戏相关页面                                                            #
 # ====================================================================== #
 
