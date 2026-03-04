@@ -38,6 +38,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "learning",
     },
     {
+        "id": "school_learning_center",
+        "name": "學校學習中心",
+        "icon": "🏫",
+        "description": "按科目和年級組織的學習資源",
+        "url": "/school-learning-center",
+        "roles": ["student", "teacher", "admin"],
+        "enabled": True,
+        "order": 2,
+        "category": "learning",
+    },
+    {
         "id": "game_center",
         "name": "遊戲中心",
         "icon": "🎯",
@@ -45,7 +56,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "url": "/games",
         "roles": ["student", "teacher", "admin"],
         "enabled": True,
-        "order": 2,
+        "order": 3,
         "category": "learning",
     },
     {
