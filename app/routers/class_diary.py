@@ -344,32 +344,9 @@ async def admin_list_classes(request: Request):
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
-@router.get("/api/class-diary/admin/qr/{class_code}")
-async def generate_qr(class_code: str, request: Request):
-    """為指定班級生成 QR 碼 PNG"""
-    try:
-        _verify_admin(request)
-
-        service = _get_service()
-        base_url = _get_base_url(request)
-        png_data = service.generate_qr_code(class_code, base_url)
-
-        return Response(
-            content=png_data,
-            media_type="image/png",
-            headers={"Content-Disposition": f'inline; filename="QR_{class_code}.png"'},
-        )
-
-    except AppException as e:
-        return error_response(e.code, e.message, status_code=e.status_code)
-    except Exception as e:
-        logger.exception("生成 QR 碼失敗")
-        return error_response("SERVER_ERROR", str(e), status_code=500)
-
-
 @router.get("/api/class-diary/admin/qr/batch")
 async def batch_qr(request: Request):
-    """批量生成所有班級 QR 碼 ZIP"""
+    """批量生成所有班級 QR 碼 ZIP（必須在 {class_code} 路由之前，否則 'batch' 被當作 class_code）"""
     try:
         _verify_admin(request)
 
@@ -395,6 +372,29 @@ async def batch_qr(request: Request):
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
         logger.exception("批量生成 QR 碼失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/admin/qr/{class_code}")
+async def generate_qr(class_code: str, request: Request):
+    """為指定班級生成 QR 碼 PNG"""
+    try:
+        _verify_admin(request)
+
+        service = _get_service()
+        base_url = _get_base_url(request)
+        png_data = service.generate_qr_code(class_code, base_url)
+
+        return Response(
+            content=png_data,
+            media_type="image/png",
+            headers={"Content-Disposition": f'inline; filename="QR_{class_code}.png"'},
+        )
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("生成 QR 碼失敗")
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
