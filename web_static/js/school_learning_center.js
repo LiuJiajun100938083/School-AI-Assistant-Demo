@@ -916,8 +916,8 @@ window.slc = (() => {
         updateSubjectLabel() {
             const label = document.getElementById('adminSubjectLabel');
             if (label) {
-                label.textContent = state.currentSubject
-                    ? `${_safeIcon(state.currentSubject.icon, 'books')} ${state.currentSubject.subject_name}`
+                label.innerHTML = state.currentSubject
+                    ? `${_safeIcon(state.currentSubject.icon, 'books')} ${_escHtml(state.currentSubject.subject_name)}`
                     : '— 未選科目 —';
             }
         },
