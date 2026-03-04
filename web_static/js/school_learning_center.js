@@ -2027,15 +2027,17 @@ window.slc = (() => {
 
             if (!jsonStr) { AdminUI.showToast('請輸入 JSON 數據', 'error'); return; }
 
-            let paths;
-            try { paths = JSON.parse(jsonStr); } catch (e) {
+            let parsed;
+            try { parsed = JSON.parse(jsonStr); } catch (e) {
                 AdminUI.showToast('JSON 格式無效', 'error');
                 if (resultEl) { resultEl.style.display = 'block'; resultEl.style.background = '#fce4ec'; resultEl.textContent = `JSON 解析失敗: ${e.message}`; }
                 return;
             }
 
-            if (!Array.isArray(paths) || !paths.length) {
-                AdminUI.showToast('JSON 必須是路徑陣列', 'error');
+            // Support both array and {paths:[...]} wrapper format
+            const paths = Array.isArray(parsed) ? parsed : (parsed.paths || []);
+            if (!paths.length) {
+                AdminUI.showToast('JSON 中未找到路徑數據（支持陣列或含 paths 欄位的對象）', 'error');
                 return;
             }
 
