@@ -6,6 +6,12 @@
     <title>登入 — 培僑中學 學習夥伴</title>
     <link rel="stylesheet" href="/static/css/login.css">
     <link rel="stylesheet" href="/static/css/spinner.css">
+    <!-- Brand Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <!-- QR Code Generator (lightweight, ~4KB) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 </head>
 <body>
 <!-- 已登入用戶直接跳轉主頁（最早執行，零閃爍） -->
@@ -25,6 +31,17 @@
             <div class="brand-welcome">歡迎回來</div>
             <div class="brand-app-name">AI 學習夥伴</div>
             <div class="brand-school">培僑中學AI學習系統</div>
+
+            <!-- QR Code 區域 -->
+            <div class="brand-qr-section">
+                <div class="qr-container" id="qrContainer"></div>
+                <div class="qr-text-group">
+                    <div class="qr-label-zh">掃碼登入</div>
+                    <div class="qr-label-en">Scan to login</div>
+                </div>
+                <div class="qr-url" id="qrUrl"></div>
+            </div>
+
             <div class="brand-quote" id="quotesContainer">
                 <div class="quote-wrapper" id="quoteWrapper"></div>
                 <div class="quote-indicators" id="quoteIndicators"></div>
@@ -37,7 +54,7 @@
         <div class="login-card">
             <div class="login-header">
                 <div class="login-icon">
-                    <img src="/static/images/pkms_logo.png" alt="培僑中學" style="width: 48px; height: auto;">
+                    <img src="/static/images/pkms_logo.png" alt="培僑中學" style="width: 96px; height: auto;">
                 </div>
                 <div class="login-title">登入帳戶</div>
                 <div class="login-subtitle">請輸入您的用戶名和密碼</div>
@@ -81,6 +98,44 @@
 
 </div>
 
+<!-- 動態生成 QR Code -->
+<script>
+(function() {
+    var container = document.getElementById('qrContainer');
+    var urlLabel = document.getElementById('qrUrl');
+    if (!container || typeof qrcode === 'undefined') return;
+
+    var siteUrl = window.location.origin;
+
+    // 生成 QR Code (Type 4, Error Correction Level M)
+    var qr = qrcode(0, 'M');
+    qr.addData(siteUrl);
+    qr.make();
+
+    // 渲染成 SVG 風格的 table（白色前景，透明背景）
+    var cellSize = 3;
+    var moduleCount = qr.getModuleCount();
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
+              (moduleCount * cellSize) + ' ' + (moduleCount * cellSize) +
+              '" shape-rendering="crispEdges">';
+    for (var r = 0; r < moduleCount; r++) {
+        for (var c = 0; c < moduleCount; c++) {
+            if (qr.isDark(r, c)) {
+                svg += '<rect x="' + (c * cellSize) + '" y="' + (r * cellSize) +
+                       '" width="' + cellSize + '" height="' + cellSize + '" fill="#ffffff"/>';
+            }
+        }
+    }
+    svg += '</svg>';
+    container.innerHTML = svg;
+
+    // 顯示簡化的 URL
+    if (urlLabel) {
+        var display = siteUrl.replace(/^https?:\/\//, '');
+        urlLabel.textContent = display;
+    }
+})();
+</script>
 <script src="/static/js/shared/utils.js"></script>
 <script src="/static/js/shared/auth.js"></script>
 <script src="/static/js/shared/ui.js"></script>
