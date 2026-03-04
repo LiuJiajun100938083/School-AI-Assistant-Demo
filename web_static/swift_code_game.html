@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwiftUI 代碼學堂</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 18 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Shared Auth & API modules -->
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+
+    <style>
+        * { box-sizing: border-box; -webkit-touch-callout: none; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            overscroll-behavior: none;
+        }
+
+        /* Loading spinner */
+        .game-spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #60a5fa; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+        /* Code font */
+        .code-font { font-family: 'SF Mono', 'Menlo', 'Consolas', 'Courier New', monospace; }
+
+        /* Prevent text selection during drag */
+        .no-select { user-select: none; -webkit-user-select: none; }
+
+        /* Drag active state - prevent scroll */
+        .drag-active { touch-action: none; overflow: hidden; }
+
+        /* Star animation */
+        @keyframes starPop {
+            0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+            60% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .star-pop { animation: starPop 0.4s ease-out forwards; }
+
+        /* Shake animation for wrong answer */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-6px); }
+            80% { transform: translateX(6px); }
+        }
+        .shake { animation: shake 0.4s ease-in-out; }
+
+        /* Correct answer glow */
+        @keyframes correctGlow {
+            0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.6); }
+            50% { box-shadow: 0 0 20px 8px rgba(52, 199, 89, 0.3); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
+        }
+        .correct-glow { animation: correctGlow 0.8s ease-out; }
+
+        /* Bounce back for drag */
+        @keyframes bounceBack {
+            0% { transform: scale(1.05); }
+            50% { transform: scale(0.95); }
+            100% { transform: scale(1); }
+        }
+        .bounce-back { animation: bounceBack 0.3s ease-out; }
+
+        /* Fade in */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+
+        /* Slide up */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-up { animation: slideUp 0.5s ease-out; }
+
+        /* Confetti particle */
+        @keyframes confettiFall {
+            0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(60vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* Pulse for drop zone highlight */
+        @keyframes dropPulse {
+            0%, 100% { border-color: rgba(96, 165, 250, 0.4); background: rgba(96, 165, 250, 0.05); }
+            50% { border-color: rgba(96, 165, 250, 0.8); background: rgba(96, 165, 250, 0.15); }
+        }
+        .drop-pulse { animation: dropPulse 1s ease-in-out infinite; }
+
+        /* Level card hover */
+        .level-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .level-card:active { transform: scale(0.96); }
+
+        /* Device frame */
+        .device-frame {
+            background: #F2F2F7;
+            border-radius: 24px;
+            border: 3px solid #1C1C1E;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.05);
+        }
+
+        /* iOS colors for preview */
+        .ios-bg { background: #F2F2F7; }
+        .ios-white { background: #FFFFFF; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        // ============================================================
+        // Section 1: SF Symbol Emoji Mapping
+        // ============================================================
+        const SF_SYMBOLS = {
+            'flame': '🔥',
+            'teddybear.fill': '🧸',
+            'circle': '⭕',
+            'star.fill': '⭐',
+            'heart.fill': '❤️',
+            'hand.thumbsup.fill': '👍',
+            'person.fill': '👤',
+            'house.fill': '🏠',
+            'gear': '⚙️',
+            'bell.fill': '🔔',
+            'sun.max.fill': '☀️',
+            'moon.fill': '🌙',
+            'cloud.fill': '☁️',
+            'bolt.fill': '⚡',
+            'leaf.fill': '🍃',
+        };
+
+        // ============================================================
+        // Section 2: iOS Color Mapping
+        // ============================================================
+        const IOS_COLORS = {
+            '.blue': '#007AFF',
+            '.red': '#FF3B30',
+            '.green': '#34C759',
+            '.orange': '#FF9500',
+            '.yellow': '#FFCC00',
+            '.purple': '#AF52DE',
+            '.pink': '#FF2D55',
+            '.teal': '#30D5C8',
+            '.cyan': '#32ADE6',
+            '.indigo': '#5856D6',
+            '.mint': '#00C7BE',
+            '.brown': '#A2845E',
+            '.gray': '#8E8E93',
+            '.black': '#000000',
+            '.white': '#FFFFFF',
+        };
+
+        // ============================================================
+        // Section 3: Font Size Mapping
+        // ============================================================
+        const FONT_SIZES = {
+            '.largeTitle': { fontSize: '34px', fontWeight: 'bold' },
+            '.title': { fontSize: '28px', fontWeight: 'bold' },
+            '.title2': { fontSize: '22px', fontWeight: 'bold' },
+            '.title3': { fontSize: '20px', fontWeight: '600' },
+            '.headline': { fontSize: '17px', fontWeight: '600' },
+            '.body': { fontSize: '17px', fontWeight: 'normal' },
+            '.callout': { fontSize: '16px', fontWeight: 'normal' },
+            '.subheadline': { fontSize: '15px', fontWeight: 'normal' },
+            '.footnote': { fontSize: '13px', fontWeight: 'normal' },
+            '.caption': { fontSize: '12px', fontWeight: 'normal' },
+            '.caption2': { fontSize: '11px', fontWeight: 'normal' },
+        };
+
+        // ============================================================
+        // Section 4: Level Definitions
+        // ============================================================
+        const LEVELS = [
+            {
+                id: 1, title: '基本元件', subtitle: 'Text 與 Image',
+                icon: '📝', phase: 'quiz', requiredStars: 0,
+                quizIds: [1, 2, 3, 4, 5],
+            },
+            {
+                id: 2, title: '排版容器', subtitle: 'VStack 與 HStack',
+                icon: '📐', phase: 'quiz', requiredStars: 2,
+                quizIds: [6, 7, 8, 9, 10],
+            },
+            {
+                id: 3, title: '修飾器', subtitle: '字型、顏色、大小',
+                icon: '🎨', phase: 'quiz', requiredStars: 4,
+                quizIds: [11, 12, 13, 14, 15],
+            },
+            {
+                id: 4, title: '按鈕', subtitle: 'Button 互動',
+                icon: '👆', phase: 'quiz', requiredStars: 6,
+                quizIds: [16, 17, 18, 19, 20],
+            },
+            {
+                id: 5, title: '拼裝：基本元件', subtitle: '動手組合 Text 和 Image',
+                icon: '🧩', phase: 'dragDrop', requiredStars: 8,
+                challengeIds: [1, 2, 3],
+            },
+            {
+                id: 6, title: '拼裝：排版與修飾', subtitle: '組合 Stack 和修飾器',
+                icon: '🏗️', phase: 'dragDrop', requiredStars: 10,
+                challengeIds: [4, 5, 6],
+            },
+            {
+                id: 7, title: '最終挑戰', subtitle: '打地鼠遊戲佈局',
+                icon: '🎯', phase: 'dragDrop', requiredStars: 12,
+                challengeIds: [7],
+            },
+        ];
+
+        // ============================================================
+        // Section 5: Quiz Questions (20 questions)
+        // ============================================================
+        const QUIZ_QUESTIONS = [
+            // --- Level 1: 基本元件 ---
+            {
+                id: 1, levelId: 1,
+                prompt: '以下哪段程式碼會顯示「Hello」這個文字？',
+                targetUI: { type: 'Text', props: { content: 'Hello' }, modifiers: [] },
+                options: [
+                    { id: 'a', code: 'Text("Hello")', correct: true },
+                    { id: 'b', code: 'Label("Hello")', correct: false },
+                    { id: 'c', code: 'print("Hello")', correct: false },
+                    { id: 'd', code: 'String("Hello")', correct: false },
+                ],
+                explanation: 'Text( ) 是 SwiftUI 中用來顯示文字的元件。括號內的文字就是顯示的內容。',
+            },
+            {
+                id: 2, levelId: 1,
+                prompt: '以下哪段程式碼會顯示一個火焰圖示？',
+                targetUI: { type: 'Image', props: { systemName: 'flame' }, modifiers: [] },
+                options: [
+                    { id: 'a', code: 'Image(systemName: "flame")', correct: true },
+                    { id: 'b', code: 'Icon("flame")', correct: false },
+                    { id: 'c', code: 'Text("🔥")', correct: false },
+                ],
+                explanation: 'Image(systemName: "flame") 使用 iOS 內建的 SF Symbol 圖示。systemName 指定圖示名稱。',
+            },
+            {
+                id: 3, levelId: 1,
+                prompt: '哪段程式碼會顯示一隻小熊？',
+                targetUI: { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                options: [
+                    { id: 'a', code: 'Image(systemName: "teddybear.fill")', correct: true },
+                    { id: 'b', code: 'Image(systemName: "bear")', correct: false },
+                    { id: 'c', code: 'Image("teddybear")', correct: false },
+                ],
+                explanation: '"teddybear.fill" 是小熊圖示的 SF Symbol 名稱。.fill 代表填滿的版本。',
+            },
+            {
+                id: 4, levelId: 1,
+                prompt: '以下哪段程式碼會顯示一個圓形？',
+                targetUI: { type: 'Image', props: { systemName: 'circle' }, modifiers: [] },
+                options: [
+                    { id: 'a', code: 'Image(systemName: "circle")', correct: true },
+                    { id: 'b', code: 'Circle()', correct: false },
+                    { id: 'c', code: 'Image(name: "circle")', correct: false },
+                ],
+                explanation: 'Image(systemName: "circle") 顯示一個圓形圖示。注意參數名稱是 systemName。',
+            },
+            {
+                id: 5, levelId: 1,
+                prompt: '哪段程式碼會同時顯示「Score:」這個文字？',
+                targetUI: { type: 'Text', props: { content: 'Score:' }, modifiers: [] },
+                options: [
+                    { id: 'a', code: 'Text("Score:")', correct: true },
+                    { id: 'b', code: 'Text(Score:)', correct: false },
+                    { id: 'c', code: 'String("Score:")', correct: false },
+                    { id: 'd', code: 'Label("Score:")', correct: false },
+                ],
+                explanation: 'Text() 裡面的文字需要用雙引號 " " 包住。',
+            },
+            // --- Level 2: 排版容器 ---
+            {
+                id: 6, levelId: 2,
+                prompt: '哪段程式碼會讓 A 和 B 上下排列（垂直）？',
+                targetUI: {
+                    type: 'VStack', children: [
+                        { type: 'Text', props: { content: 'A' }, modifiers: [] },
+                        { type: 'Text', props: { content: 'B' }, modifiers: [] },
+                    ]
+                },
+                options: [
+                    { id: 'a', code: 'VStack {\n  Text("A")\n  Text("B")\n}', correct: true },
+                    { id: 'b', code: 'HStack {\n  Text("A")\n  Text("B")\n}', correct: false },
+                    { id: 'c', code: 'Text("A")\nText("B")', correct: false },
+                ],
+                explanation: 'VStack 代表 Vertical Stack（垂直堆疊），會將子元件由上到下排列。',
+            },
+            {
+                id: 7, levelId: 2,
+                prompt: '哪段程式碼會讓 A 和 B 左右排列（水平）？',
+                targetUI: {
+                    type: 'HStack', children: [
+                        { type: 'Text', props: { content: 'A' }, modifiers: [] },
+                        { type: 'Text', props: { content: 'B' }, modifiers: [] },
+                    ]
+                },
+                options: [
+                    { id: 'a', code: 'HStack {\n  Text("A")\n  Text("B")\n}', correct: true },
+                    { id: 'b', code: 'VStack {\n  Text("A")\n  Text("B")\n}', correct: false },
+                    { id: 'c', code: 'Row {\n  Text("A")\n  Text("B")\n}', correct: false },
+                ],
+                explanation: 'HStack 代表 Horizontal Stack（水平堆疊），會將子元件由左到右排列。',
+            },
+            {
+                id: 8, levelId: 2,
+                prompt: '看看這個畫面，用了什麼排版？',
+                targetUI: {
+                    type: 'VStack', children: [
+                        { type: 'Text', props: { content: '標題' }, modifiers: [] },
+                        {
+                            type: 'HStack', children: [
+                                { type: 'Text', props: { content: '左' }, modifiers: [] },
+                                { type: 'Text', props: { content: '右' }, modifiers: [] },
+                            ]
+                        },
+                    ]
+                },
+                options: [
+                    { id: 'a', code: 'VStack {\n  Text("標題")\n  HStack {\n    Text("左")\n    Text("右")\n  }\n}', correct: true },
+                    { id: 'b', code: 'HStack {\n  Text("標題")\n  VStack {\n    Text("左")\n    Text("右")\n  }\n}', correct: false },
+                    { id: 'c', code: 'VStack {\n  Text("標題")\n  Text("左")\n  Text("右")\n}', correct: false },
+                ],
+                explanation: '外層 VStack 讓「標題」和下面的一行上下排列，內層 HStack 讓「左」和「右」左右排列。這就是嵌套！',
+            },
+            {
+                id: 9, levelId: 2,
+                prompt: '三隻小熊要並排顯示，應該用什麼容器？',
+                targetUI: {
+                    type: 'HStack', children: [
+                        { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                        { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                        { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                    ]
+                },
+                options: [
+                    { id: 'a', code: 'HStack {\n  Image(systemName: "teddybear.fill")\n  Image(systemName: "teddybear.fill")\n  Image(systemName: "teddybear.fill")\n}', correct: true },
+                    { id: 'b', code: 'VStack {\n  Image(systemName: "teddybear.fill")\n  Image(systemName: "teddybear.fill")\n  Image(systemName: "teddybear.fill")\n}', correct: false },
+                ],
+                explanation: '要讓元件左右並排，用 HStack！三隻小熊在同一行顯示。',
+            },
+            {
+                id: 10, levelId: 2,
+                prompt: 'ContentView 的 body 裡只能放一個 View。如果要放多個元件，怎麼辦？',
+                targetUI: {
+                    type: 'VStack', children: [
+                        { type: 'Text', props: { content: '第一行' }, modifiers: [] },
+                        { type: 'Text', props: { content: '第二行' }, modifiers: [] },
+                        { type: 'Text', props: { content: '第三行' }, modifiers: [] },
+                    ]
+                },
+                options: [
+                    { id: 'a', code: '用 VStack 或 HStack\n把多個元件包起來', correct: true },
+                    { id: 'b', code: '直接放多個元件\n不需要容器', correct: false },
+                    { id: 'c', code: '每個元件各寫\n一個 ContentView', correct: false },
+                ],
+                explanation: 'body 裡只能回傳一個 View，所以用 VStack 或 HStack 把多個元件「包」成一個！',
+            },
+            // --- Level 3: 修飾器 ---
+            {
+                id: 11, levelId: 3,
+                prompt: '哪個修飾器可以把文字變大（標題大小）？',
+                targetUI: { type: 'Text', props: { content: 'Hello' }, modifiers: [{ type: 'font', value: '.title' }] },
+                options: [
+                    { id: 'a', code: 'Text("Hello")\n  .font(.title)', correct: true },
+                    { id: 'b', code: 'Text("Hello")\n  .size(.title)', correct: false },
+                    { id: 'c', code: 'Text("Hello")\n  .fontSize(.title)', correct: false },
+                ],
+                explanation: '.font(.title) 可以設定字體大小。.title 是標題等級，比預設的 .body 大。',
+            },
+            {
+                id: 12, levelId: 3,
+                prompt: '怎樣讓文字變成藍色？',
+                targetUI: { type: 'Text', props: { content: 'Hello' }, modifiers: [{ type: 'foregroundColor', value: '.blue' }] },
+                options: [
+                    { id: 'a', code: 'Text("Hello")\n  .foregroundColor(.blue)', correct: true },
+                    { id: 'b', code: 'Text("Hello")\n  .color(.blue)', correct: false },
+                    { id: 'c', code: 'Text("Hello")\n  .textColor(.blue)', correct: false },
+                    { id: 'd', code: 'Text("Hello")\n  .background(.blue)', correct: false },
+                ],
+                explanation: '.foregroundColor() 改變前景顏色（文字或圖示的顏色）。.background() 則是改變背景色。',
+            },
+            {
+                id: 13, levelId: 3,
+                prompt: '哪段程式碼會讓文字加粗並且是湖水綠色？',
+                targetUI: {
+                    type: 'Text', props: { content: 'Score:' },
+                    modifiers: [{ type: 'bold' }, { type: 'foregroundColor', value: '.teal' }]
+                },
+                options: [
+                    { id: 'a', code: 'Text("Score:")\n  .bold()\n  .foregroundColor(.teal)', correct: true },
+                    { id: 'b', code: 'Text("Score:")\n  .foregroundColor(.teal)', correct: false },
+                    { id: 'c', code: 'Text("Score:")\n  .bold()\n  .foregroundColor(.blue)', correct: false },
+                ],
+                explanation: '修飾器可以串聯使用！.bold() 加粗，.foregroundColor(.teal) 設為湖水綠色。',
+            },
+            {
+                id: 14, levelId: 3,
+                prompt: '怎樣給元件加上內邊距（留白）？',
+                targetUI: {
+                    type: 'Text', props: { content: 'Hello' },
+                    modifiers: [{ type: 'padding', value: 20 }, { type: 'background', value: '.blue' }]
+                },
+                options: [
+                    { id: 'a', code: 'Text("Hello")\n  .padding(20)\n  .background(.blue)', correct: true },
+                    { id: 'b', code: 'Text("Hello")\n  .margin(20)\n  .background(.blue)', correct: false },
+                    { id: 'c', code: 'Text("Hello")\n  .background(.blue)\n  .space(20)', correct: false },
+                ],
+                explanation: '.padding() 在元件周圍加上留白空間。數字越大，留白越多。',
+            },
+            {
+                id: 15, levelId: 3,
+                prompt: '怎樣把圖片裁切成圓形？',
+                targetUI: {
+                    type: 'Image', props: { systemName: 'teddybear.fill' },
+                    modifiers: [{ type: 'clipShape', value: 'Circle()' }]
+                },
+                options: [
+                    { id: 'a', code: 'Image(systemName: "teddybear.fill")\n  .clipShape(Circle())', correct: true },
+                    { id: 'b', code: 'Image(systemName: "teddybear.fill")\n  .shape(.circle)', correct: false },
+                    { id: 'c', code: 'Image(systemName: "teddybear.fill")\n  .cornerRadius(999)', correct: false },
+                ],
+                explanation: '.clipShape(Circle()) 會把元件裁切成圓形。Circle() 是一個圓形形狀。',
+            },
+            // --- Level 4: 按鈕 ---
+            {
+                id: 16, levelId: 4,
+                prompt: '哪段程式碼會建立一個文字按鈕？',
+                targetUI: { type: 'Button', props: { title: 'Click me' }, modifiers: [] },
+                options: [
+                    { id: 'a', code: 'Button("Click me") {\n  // 按下後的動作\n}', correct: true },
+                    { id: 'b', code: 'Click("Click me") {\n  // 按下後的動作\n}', correct: false },
+                    { id: 'c', code: 'Text("Click me")\n  .onTap { }', correct: false },
+                ],
+                explanation: 'Button("文字") { 動作 } 是建立文字按鈕的方法。按下按鈕會執行大括號裡的動作。',
+            },
+            {
+                id: 17, levelId: 4,
+                prompt: '怎樣把小熊圖片變成可以按的按鈕？',
+                targetUI: {
+                    type: 'Button', props: {},
+                    children: [{ type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] }],
+                    modifiers: []
+                },
+                options: [
+                    { id: 'a', code: 'Button(action: {\n  // 動作\n}) {\n  Image(systemName:\n    "teddybear.fill")\n}', correct: true },
+                    { id: 'b', code: 'Image(systemName:\n  "teddybear.fill")\n  .clickable()', correct: false },
+                    { id: 'c', code: 'Button(Image(\n  "teddybear.fill"))', correct: false },
+                ],
+                explanation: 'Button(action: { }) { 外觀 } 可以把任何 View 變成按鈕。action 裡放動作，大括號裡放按鈕的外觀。',
+            },
+            {
+                id: 18, levelId: 4,
+                prompt: '按鈕的兩個重要部分是什麼？',
+                targetUI: {
+                    type: 'Button', props: { title: '開始' }, modifiers: []
+                },
+                options: [
+                    { id: 'a', code: '「外觀」和「指令」\n（Label 和 Action）', correct: true },
+                    { id: 'b', code: '「顏色」和「大小」\n（Color 和 Size）', correct: false },
+                    { id: 'c', code: '「位置」和「文字」\n（Position 和 Text）', correct: false },
+                ],
+                explanation: '按鈕由「外觀」（顯示什麼）和「指令」（按下做什麼）兩部分組成。',
+            },
+            {
+                id: 19, levelId: 4,
+                prompt: '在打地鼠遊戲中，地鼠圖片需要變成按鈕。哪個寫法正確？',
+                targetUI: {
+                    type: 'Button', props: {},
+                    children: [{ type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] }],
+                    modifiers: []
+                },
+                options: [
+                    { id: 'a', code: 'Button(action: {\n  score += 1\n}) {\n  Image(systemName:\n    "teddybear.fill")\n}', correct: true },
+                    { id: 'b', code: 'Image(systemName:\n  "teddybear.fill")\n  .onPress {\n    score += 1\n  }', correct: false },
+                ],
+                explanation: '用 Button(action:) { } 包住 Image，按下圖片就會加分！這就是打地鼠的核心機制。',
+            },
+            {
+                id: 20, levelId: 4,
+                prompt: '文字按鈕和 View 按鈕，哪個可以放圖片當外觀？',
+                targetUI: {
+                    type: 'Button', props: {},
+                    children: [{ type: 'Image', props: { systemName: 'star.fill' }, modifiers: [] }],
+                    modifiers: []
+                },
+                options: [
+                    { id: 'a', code: 'View 按鈕\nButton(action:) { 圖片 }', correct: true },
+                    { id: 'b', code: '文字按鈕\nButton("圖片") { }', correct: false },
+                    { id: 'c', code: '兩種都可以\n效果一樣', correct: false },
+                ],
+                explanation: '文字按鈕 Button("...") 只能顯示文字。要放圖片或其他 View，用 Button(action:) { View }。',
+            },
+        ];
+
+        // ============================================================
+        // Section 6: Drag & Drop Challenges (7 challenges)
+        // ============================================================
+        const DND_CHALLENGES = [
+            // --- Level 5: 拼裝基本元件 ---
+            {
+                id: 1, levelId: 5,
+                title: '顯示一段文字',
+                description: '把程式碼積木拖到正確位置，讓畫面顯示「Hello World」',
+                targetUI: { type: 'Text', props: { content: 'Hello World' }, modifiers: [] },
+                slots: [
+                    { id: 's1', label: '拖入元件', acceptTypes: ['view'] },
+                ],
+                blocks: [
+                    { id: 'b1', code: 'Text("Hello World")', type: 'view', correctSlot: 's1' },
+                    { id: 'b2', code: 'Text("Goodbye")', type: 'view', correctSlot: null },
+                    { id: 'b3', code: 'Image(systemName: "flame")', type: 'view', correctSlot: null },
+                ],
+            },
+            {
+                id: 2, levelId: 5,
+                title: '顯示小熊圖示',
+                description: '選出正確的程式碼來顯示一隻小熊',
+                targetUI: { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                slots: [
+                    { id: 's1', label: '拖入元件', acceptTypes: ['view'] },
+                ],
+                blocks: [
+                    { id: 'b1', code: 'Image(systemName:\n  "teddybear.fill")', type: 'view', correctSlot: 's1' },
+                    { id: 'b2', code: 'Image(systemName:\n  "flame")', type: 'view', correctSlot: null },
+                    { id: 'b3', code: 'Text("🧸")', type: 'view', correctSlot: null },
+                ],
+            },
+            {
+                id: 3, levelId: 5,
+                title: '顯示文字加圖示',
+                description: '同時顯示「Score:」文字和一個星星圖示',
+                targetUI: {
+                    type: 'VStack', children: [
+                        { type: 'Text', props: { content: 'Score:' }, modifiers: [] },
+                        { type: 'Image', props: { systemName: 'star.fill' }, modifiers: [] },
+                    ]
+                },
+                slots: [
+                    { id: 's1', label: '第一個元件', acceptTypes: ['view'] },
+                    { id: 's2', label: '第二個元件', acceptTypes: ['view'] },
+                ],
+                blocks: [
+                    { id: 'b1', code: 'Text("Score:")', type: 'view', correctSlot: 's1' },
+                    { id: 'b2', code: 'Image(systemName:\n  "star.fill")', type: 'view', correctSlot: 's2' },
+                    { id: 'b3', code: 'Text("Timer:")', type: 'view', correctSlot: null },
+                    { id: 'b4', code: 'Image(systemName:\n  "flame")', type: 'view', correctSlot: null },
+                ],
+            },
+            // --- Level 6: 拼裝排版與修飾 ---
+            {
+                id: 4, levelId: 6,
+                title: '水平排列兩個文字',
+                description: '用正確的容器讓「左」和「右」左右排列',
+                targetUI: {
+                    type: 'HStack', children: [
+                        { type: 'Text', props: { content: '左' }, modifiers: [] },
+                        { type: 'Text', props: { content: '右' }, modifiers: [] },
+                    ]
+                },
+                slots: [
+                    { id: 's0', label: '選擇容器', acceptTypes: ['container'] },
+                    { id: 's1', label: '第一個元件', acceptTypes: ['view'] },
+                    { id: 's2', label: '第二個元件', acceptTypes: ['view'] },
+                ],
+                blocks: [
+                    { id: 'b0', code: 'HStack {', type: 'container', correctSlot: 's0' },
+                    { id: 'b0x', code: 'VStack {', type: 'container', correctSlot: null },
+                    { id: 'b1', code: 'Text("左")', type: 'view', correctSlot: 's1' },
+                    { id: 'b2', code: 'Text("右")', type: 'view', correctSlot: 's2' },
+                    { id: 'b3', code: 'Text("上")', type: 'view', correctSlot: null },
+                ],
+            },
+            {
+                id: 5, levelId: 6,
+                title: '加上標題修飾器',
+                description: '讓「Score:」文字變成標題大小、湖水綠色',
+                targetUI: {
+                    type: 'Text', props: { content: 'Score:' },
+                    modifiers: [{ type: 'font', value: '.title' }, { type: 'foregroundColor', value: '.teal' }]
+                },
+                slots: [
+                    { id: 's1', label: '拖入元件', acceptTypes: ['view'] },
+                    { id: 's2', label: '拖入修飾器 1', acceptTypes: ['modifier'] },
+                    { id: 's3', label: '拖入修飾器 2', acceptTypes: ['modifier'] },
+                ],
+                blocks: [
+                    { id: 'b1', code: 'Text("Score:")', type: 'view', correctSlot: 's1' },
+                    { id: 'b2', code: '.font(.title)', type: 'modifier', correctSlot: 's2' },
+                    { id: 'b3', code: '.foregroundColor(.teal)', type: 'modifier', correctSlot: 's3' },
+                    { id: 'b4', code: '.font(.caption)', type: 'modifier', correctSlot: null },
+                    { id: 'b5', code: '.foregroundColor(.blue)', type: 'modifier', correctSlot: null },
+                ],
+            },
+            {
+                id: 6, levelId: 6,
+                title: '嵌套排版',
+                description: '建立一個「上面是標題，下面兩個元件左右排」的佈局',
+                targetUI: {
+                    type: 'VStack', children: [
+                        { type: 'Text', props: { content: '標題' }, modifiers: [{ type: 'font', value: '.title' }] },
+                        {
+                            type: 'HStack', children: [
+                                { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                                { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                            ]
+                        },
+                    ]
+                },
+                slots: [
+                    { id: 's0', label: '外層容器', acceptTypes: ['container'] },
+                    { id: 's1', label: '第一個元件', acceptTypes: ['view'] },
+                    { id: 's2', label: '內層容器', acceptTypes: ['container'] },
+                    { id: 's3', label: '內層元件 1', acceptTypes: ['view'] },
+                    { id: 's4', label: '內層元件 2', acceptTypes: ['view'] },
+                ],
+                blocks: [
+                    { id: 'b0', code: 'VStack {', type: 'container', correctSlot: 's0' },
+                    { id: 'b0x', code: 'HStack {', type: 'container', correctSlot: 's2' },
+                    { id: 'b1', code: 'Text("標題")\n  .font(.title)', type: 'view', correctSlot: 's1' },
+                    { id: 'b3', code: 'Image(systemName:\n  "teddybear.fill")', type: 'view', correctSlot: 's3' },
+                    { id: 'b4', code: 'Image(systemName:\n  "teddybear.fill")', type: 'view', correctSlot: 's4' },
+                    { id: 'b5', code: 'Text("其他")', type: 'view', correctSlot: null },
+                ],
+            },
+            // --- Level 7: 最終挑戰 ---
+            {
+                id: 7, levelId: 7,
+                title: '打地鼠遊戲佈局',
+                description: '組合完整的打地鼠遊戲畫面！上面是分數和計時，中間是地鼠和地洞，下面是姓名。',
+                targetUI: {
+                    type: 'VStack', children: [
+                        {
+                            type: 'HStack', children: [
+                                { type: 'Text', props: { content: 'Score:' }, modifiers: [{ type: 'foregroundColor', value: '.teal' }, { type: 'font', value: '.title' }] },
+                                { type: 'Text', props: { content: 'Timer:' }, modifiers: [{ type: 'foregroundColor', value: '.teal' }, { type: 'font', value: '.title' }] },
+                            ]
+                        },
+                        {
+                            type: 'HStack', children: [
+                                { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                                { type: 'Image', props: { systemName: 'circle' }, modifiers: [] },
+                                { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                            ]
+                        },
+                        { type: 'Text', props: { content: '6B01 王小明' }, modifiers: [] },
+                    ]
+                },
+                slots: [
+                    { id: 's0', label: '外層容器', acceptTypes: ['container'] },
+                    { id: 's1', label: '上方容器', acceptTypes: ['container'] },
+                    { id: 's2', label: '分數文字', acceptTypes: ['view'] },
+                    { id: 's3', label: '計時文字', acceptTypes: ['view'] },
+                    { id: 's4', label: '中間容器', acceptTypes: ['container'] },
+                    { id: 's5', label: '地鼠 1', acceptTypes: ['view'] },
+                    { id: 's6', label: '地洞', acceptTypes: ['view'] },
+                    { id: 's7', label: '地鼠 2', acceptTypes: ['view'] },
+                    { id: 's8', label: '姓名', acceptTypes: ['view'] },
+                ],
+                blocks: [
+                    { id: 'c0', code: 'VStack {', type: 'container', correctSlot: 's0' },
+                    { id: 'c1', code: 'HStack {', type: 'container', correctSlot: 's1' },
+                    { id: 'c2', code: 'HStack {', type: 'container', correctSlot: 's4' },
+                    { id: 'b1', code: 'Text("Score:")\n  .foregroundColor(.teal)\n  .font(.title)', type: 'view', correctSlot: 's2' },
+                    { id: 'b2', code: 'Text("Timer:")\n  .foregroundColor(.teal)\n  .font(.title)', type: 'view', correctSlot: 's3' },
+                    { id: 'b3', code: 'Image(systemName:\n  "teddybear.fill")', type: 'view', correctSlot: 's5' },
+                    { id: 'b4', code: 'Image(systemName:\n  "circle")', type: 'view', correctSlot: 's6' },
+                    { id: 'b5', code: 'Image(systemName:\n  "teddybear.fill")', type: 'view', correctSlot: 's7' },
+                    { id: 'b6', code: 'Text("6B01 王小明")', type: 'view', correctSlot: 's8' },
+                    // Distractors
+                    { id: 'd1', code: 'Text("Hello")', type: 'view', correctSlot: null },
+                    { id: 'd2', code: 'Image(systemName:\n  "flame")', type: 'view', correctSlot: null },
+                    { id: 'd3', code: 'VStack {', type: 'container', correctSlot: null },
+                ],
+            },
+        ];
+
+        // ============================================================
+        // Section 7: Auth Bridge (minimal)
+        // ============================================================
+        const SwiftGameBridge = {
+            user: null,
+            async init() {
+                try {
+                    if (typeof AuthModule === 'undefined') return false;
+                    // Try silent auth - don't force redirect to login
+                    const token = AuthModule.getToken();
+                    if (!token) return false;
+                    const ok = await AuthModule.verify();
+                    if (!ok) return false;
+                    const decoded = AuthModule.decodeToken();
+                    if (!decoded) return false;
+                    let userInfo = null;
+                    try { userInfo = await AuthModule.getUserInfo(); } catch(e) {}
+                    this.user = {
+                        id: decoded.id || decoded.user_id,
+                        username: decoded.username || decoded.sub,
+                        name: userInfo?.display_name || decoded.display_name || decoded.username || '同學',
+                        role: decoded.role || 'student',
+                        className: userInfo?.class_name || '',
+                    };
+                    return true;
+                } catch {
+                    return false;
+                }
+            },
+        };
+
+        // ============================================================
+        // Section 8: SwiftUI Preview Engine
+        // ============================================================
+        function applyModifiers(style, modifiers) {
+            if (!modifiers) return style;
+            const s = { ...style };
+            modifiers.forEach(mod => {
+                switch (mod.type) {
+                    case 'font':
+                        const fs = FONT_SIZES[mod.value];
+                        if (fs) { s.fontSize = fs.fontSize; s.fontWeight = fs.fontWeight; }
+                        break;
+                    case 'bold':
+                        s.fontWeight = 'bold';
+                        break;
+                    case 'foregroundColor':
+                        s.color = IOS_COLORS[mod.value] || mod.value;
+                        break;
+                    case 'background':
+                        s.backgroundColor = IOS_COLORS[mod.value] || mod.value;
+                        s.padding = s.padding || '4px 8px';
+                        s.borderRadius = s.borderRadius || '4px';
+                        break;
+                    case 'padding':
+                        s.padding = typeof mod.value === 'number' ? `${mod.value}px` : mod.value;
+                        break;
+                    case 'frame':
+                        if (mod.width) s.width = `${mod.width}px`;
+                        if (mod.height) s.height = `${mod.height}px`;
+                        break;
+                    case 'cornerRadius':
+                        s.borderRadius = `${mod.value}px`;
+                        break;
+                    case 'clipShape':
+                        if (mod.value === 'Circle()') {
+                            s.borderRadius = '50%';
+                            s.overflow = 'hidden';
+                        }
+                        break;
+                    case 'resizable':
+                        s.width = s.width || '60px';
+                        s.height = s.height || '60px';
+                        break;
+                    case 'scaledToFit':
+                        s.objectFit = 'contain';
+                        break;
+                }
+            });
+            return s;
+        }
+
+        function SwiftUIPreview({ uiTree, scale = 1 }) {
+            const renderNode = (node, key) => {
+                if (!node) return null;
+                let style = {};
+                style = applyModifiers(style, node.modifiers);
+
+                switch (node.type) {
+                    case 'Text':
+                        return <span key={key} style={{ fontSize: '17px', color: '#1C1C1E', ...style }}>{node.props?.content}</span>;
+                    case 'Image': {
+                        const emoji = SF_SYMBOLS[node.props?.systemName] || '❓';
+                        return <span key={key} style={{ fontSize: '40px', lineHeight: 1, ...style }}>{emoji}</span>;
+                    }
+                    case 'VStack':
+                        return (
+                            <div key={key} style={{
+                                display: 'flex', flexDirection: 'column',
+                                alignItems: 'center', gap: '8px', ...style
+                            }}>
+                                {(node.children || []).map((child, i) => renderNode(child, `${key}-${i}`))}
+                            </div>
+                        );
+                    case 'HStack':
+                        return (
+                            <div key={key} style={{
+                                display: 'flex', flexDirection: 'row',
+                                alignItems: 'center', gap: '16px', ...style
+                            }}>
+                                {(node.children || []).map((child, i) => renderNode(child, `${key}-${i}`))}
+                            </div>
+                        );
+                    case 'Button':
+                        if (node.children && node.children.length > 0) {
+                            return (
+                                <div key={key} style={{
+                                    padding: '8px', borderRadius: '8px',
+                                    cursor: 'pointer', ...style
+                                }}>
+                                    {node.children.map((child, i) => renderNode(child, `${key}-${i}`))}
+                                </div>
+                            );
+                        }
+                        return (
+                            <div key={key} style={{
+                                padding: '10px 20px', borderRadius: '10px',
+                                background: '#007AFF', color: '#fff',
+                                fontSize: '17px', fontWeight: '500',
+                                cursor: 'pointer', display: 'inline-block', ...style
+                            }}>
+                                {node.props?.title || 'Button'}
+                            </div>
+                        );
+                    default:
+                        return null;
+                }
+            };
+
+            return (
+                <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+                    {renderNode(uiTree, 'root')}
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 9: DeviceFrame Component
+        // ============================================================
+        function DeviceFrame({ children, title = 'My App' }) {
+            return (
+                <div className="device-frame" style={{ padding: '36px 12px 12px', minWidth: '240px', maxWidth: '340px', margin: '0 auto' }}>
+                    {/* Status bar */}
+                    <div style={{
+                        position: 'absolute', top: '10px', left: '16px', right: '16px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        fontSize: '12px', color: '#1C1C1E', fontWeight: '600',
+                    }}>
+                        <span>9:41</span>
+                        <span style={{ fontSize: '11px', fontWeight: 'bold' }}>{title}</span>
+                        <span style={{ fontSize: '11px' }}>🔋</span>
+                    </div>
+                    {/* Content area */}
+                    <div style={{
+                        background: '#FFFFFF', borderRadius: '14px',
+                        padding: '20px 16px', minHeight: '200px',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center',
+                    }}>
+                        {children}
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 10: Code Syntax Highlighting
+        // ============================================================
+        function HighlightedCode({ code, fontSize = '15px' }) {
+            const highlightCode = (text) => {
+                let html = text
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"([^"]*)"/g, '<span style="color:#FC6A5D">"$1"</span>')
+                    .replace(/\b(Text|Image|VStack|HStack|Button|Circle|Spacer)\b/g, '<span style="color:#5DD8FF">$1</span>')
+                    .replace(/\b(systemName|action|contentMode|width|height)\b/g, '<span style="color:#D4D4D4">$1</span>')
+                    .replace(/(\.\w+)\(/g, '<span style="color:#B281EB">$1</span>(')
+                    .replace(/\b(\d+)\b/g, '<span style="color:#D0BF69">$1</span>')
+                    .replace(/\b(struct|var|some|func|let)\b/g, '<span style="color:#FC5FA3">$1</span>');
+                return html;
+            };
+            return (
+                <pre className="code-font" style={{
+                    fontSize, lineHeight: 1.6, margin: 0,
+                    padding: '12px 16px', background: '#1E1E1E',
+                    borderRadius: '10px', whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word', color: '#D4D4D4',
+                    textAlign: 'left', overflow: 'auto',
+                }}>
+                    <code dangerouslySetInnerHTML={{ __html: highlightCode(code) }} />
+                </pre>
+            );
+        }
+
+        // ============================================================
+        // Section 11: Star Display Component
+        // ============================================================
+        function Stars({ count, max = 3, size = 24, animated = false }) {
+            return (
+                <div style={{ display: 'flex', gap: '4px' }}>
+                    {Array.from({ length: max }).map((_, i) => (
+                        <span key={i} className={animated && i < count ? 'star-pop' : ''}
+                            style={{
+                                fontSize: `${size}px`,
+                                opacity: i < count ? 1 : 0.3,
+                                animationDelay: animated ? `${i * 0.15}s` : '0s',
+                                filter: i < count ? 'none' : 'grayscale(1)',
+                            }}>⭐</span>
+                    ))}
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 12: Level Select Screen
+        // ============================================================
+        function LevelSelectScreen({ progress, totalStars, onSelectLevel, playerName }) {
+            return (
+                <div className="fade-in" style={{ padding: '24px 16px', maxWidth: '600px', margin: '0 auto' }}>
+                    {/* Header */}
+                    <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '8px' }}>📱</div>
+                        <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: '0 0 8px', color: '#f1f5f9' }}>
+                            SwiftUI 代碼學堂
+                        </h1>
+                        <p style={{ fontSize: '16px', color: '#94a3b8', margin: '0 0 12px' }}>
+                            學習用程式碼建立 App 畫面！
+                        </p>
+                        {playerName && (
+                            <p style={{ fontSize: '14px', color: '#64748b' }}>👋 {playerName}</p>
+                        )}
+                        <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '8px',
+                            background: '#1e293b', padding: '8px 16px', borderRadius: '20px',
+                            marginTop: '8px',
+                        }}>
+                            <span style={{ fontSize: '20px' }}>⭐</span>
+                            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#fbbf24' }}>{totalStars}</span>
+                            <span style={{ fontSize: '14px', color: '#94a3b8' }}>/ {LEVELS.length * 3}</span>
+                        </div>
+                    </div>
+
+                    {/* Phase labels */}
+                    <div style={{ marginBottom: '16px' }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            marginBottom: '12px', padding: '0 4px',
+                        }}>
+                            <span style={{ fontSize: '14px', fontWeight: '600', color: '#60a5fa' }}>📖 概念認識</span>
+                            <div style={{ flex: 1, height: '1px', background: '#334155' }}></div>
+                        </div>
+                    </div>
+
+                    {/* Level Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                        {LEVELS.map((level, index) => {
+                            const isUnlocked = totalStars >= level.requiredStars;
+                            const levelProgress = progress.levels?.[level.id];
+                            const stars = levelProgress?.stars || 0;
+                            const isCompleted = levelProgress?.completed;
+
+                            // Add phase separator before Level 5
+                            const showDragDropLabel = level.id === 5;
+
+                            return (
+                                <React.Fragment key={level.id}>
+                                    {showDragDropLabel && (
+                                        <div style={{
+                                            gridColumn: '1 / -1',
+                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                            margin: '8px 0 4px', padding: '0 4px',
+                                        }}>
+                                            <span style={{ fontSize: '14px', fontWeight: '600', color: '#34d399' }}>🧩 動手拼裝</span>
+                                            <div style={{ flex: 1, height: '1px', background: '#334155' }}></div>
+                                        </div>
+                                    )}
+                                    <div
+                                        className="level-card"
+                                        onClick={() => isUnlocked && onSelectLevel(level)}
+                                        style={{
+                                            background: isUnlocked ? '#1e293b' : '#0f172a',
+                                            border: `2px solid ${isCompleted ? '#34d399' : isUnlocked ? '#334155' : '#1e293b'}`,
+                                            borderRadius: '16px',
+                                            padding: '16px',
+                                            cursor: isUnlocked ? 'pointer' : 'not-allowed',
+                                            opacity: isUnlocked ? 1 : 0.5,
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                        }}
+                                    >
+                                        {!isUnlocked && (
+                                            <div style={{
+                                                position: 'absolute', top: '8px', right: '8px',
+                                                fontSize: '16px',
+                                            }}>🔒</div>
+                                        )}
+                                        {isCompleted && (
+                                            <div style={{
+                                                position: 'absolute', top: '8px', right: '8px',
+                                                fontSize: '16px',
+                                            }}>✅</div>
+                                        )}
+                                        <div style={{ fontSize: '32px', marginBottom: '8px' }}>{level.icon}</div>
+                                        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f1f5f9', marginBottom: '2px' }}>
+                                            {level.title}
+                                        </div>
+                                        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>
+                                            {level.subtitle}
+                                        </div>
+                                        {isUnlocked && <Stars count={stars} size={18} />}
+                                        {!isUnlocked && (
+                                            <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                                需要 {level.requiredStars} ⭐ 解鎖
+                                            </div>
+                                        )}
+                                    </div>
+                                </React.Fragment>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 13: Quiz Mode
+        // ============================================================
+        function QuizMode({ level, onComplete, onBack }) {
+            const questions = level.quizIds.map(id => QUIZ_QUESTIONS.find(q => q.id === id)).filter(Boolean);
+            const [currentIdx, setCurrentIdx] = useState(0);
+            const [selected, setSelected] = useState(null);
+            const [isCorrect, setIsCorrect] = useState(null);
+            const [mistakes, setMistakes] = useState(0);
+            const [showExplanation, setShowExplanation] = useState(false);
+            const [finished, setFinished] = useState(false);
+
+            const question = questions[currentIdx];
+            if (!question && !finished) return null;
+
+            const handleSelect = (option) => {
+                if (selected) return; // Already answered
+                setSelected(option.id);
+                if (option.correct) {
+                    setIsCorrect(true);
+                    setShowExplanation(true);
+                    // Auto advance after delay
+                    setTimeout(() => {
+                        if (currentIdx < questions.length - 1) {
+                            setCurrentIdx(currentIdx + 1);
+                            setSelected(null);
+                            setIsCorrect(null);
+                            setShowExplanation(false);
+                        } else {
+                            setFinished(true);
+                        }
+                    }, 2000);
+                } else {
+                    setIsCorrect(false);
+                    setMistakes(m => m + 1);
+                    // Allow retry after shake
+                    setTimeout(() => {
+                        setSelected(null);
+                        setIsCorrect(null);
+                    }, 800);
+                }
+            };
+
+            // Calculate stars
+            const calcStars = () => {
+                if (mistakes === 0) return 3;
+                if (mistakes <= 2) return 2;
+                return 1;
+            };
+
+            if (finished) {
+                const stars = calcStars();
+                return (
+                    <div className="slide-up" style={{ padding: '32px 16px', maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
+                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>🎉</div>
+                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px', color: '#f1f5f9' }}>
+                            關卡完成！
+                        </h2>
+                        <p style={{ fontSize: '16px', color: '#94a3b8', marginBottom: '24px' }}>
+                            {level.title} - {mistakes === 0 ? '完美通關！' : `答錯了 ${mistakes} 次`}
+                        </p>
+                        <div style={{ marginBottom: '32px' }}>
+                            <Stars count={stars} max={3} size={40} animated={true} />
+                        </div>
+                        <button
+                            onClick={() => onComplete(stars)}
+                            style={{
+                                padding: '14px 40px', fontSize: '18px', fontWeight: 'bold',
+                                background: '#3b82f6', color: '#fff', border: 'none',
+                                borderRadius: '12px', cursor: 'pointer',
+                                minWidth: '44px', minHeight: '44px',
+                            }}
+                        >
+                            繼續 →
+                        </button>
+                    </div>
+                );
+            }
+
+            return (
+                <div style={{ padding: '16px', maxWidth: '600px', margin: '0 auto' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                        <button onClick={onBack} style={{
+                            background: '#1e293b', border: '1px solid #334155', borderRadius: '10px',
+                            color: '#94a3b8', padding: '8px 16px', fontSize: '14px', cursor: 'pointer',
+                            minWidth: '44px', minHeight: '44px',
+                        }}>
+                            ← 返回
+                        </button>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9' }}>{level.icon} {level.title}</div>
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>第 {currentIdx + 1} / {questions.length} 題</div>
+                        </div>
+                        <div style={{ width: '80px' }}></div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div style={{ height: '4px', background: '#1e293b', borderRadius: '2px', marginBottom: '20px' }}>
+                        <div style={{
+                            height: '100%', background: '#3b82f6', borderRadius: '2px',
+                            width: `${((currentIdx) / questions.length) * 100}%`,
+                            transition: 'width 0.3s ease',
+                        }}></div>
+                    </div>
+
+                    {/* Question prompt */}
+                    <p style={{ fontSize: '18px', fontWeight: '600', color: '#f1f5f9', marginBottom: '20px', lineHeight: 1.5 }}>
+                        {question.prompt}
+                    </p>
+
+                    {/* Preview */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <DeviceFrame title="預覽">
+                            <SwiftUIPreview uiTree={question.targetUI} />
+                        </DeviceFrame>
+                    </div>
+
+                    {/* Options */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {question.options.map((option) => {
+                            const isSelected = selected === option.id;
+                            const isWrong = isSelected && !isCorrect;
+                            const isRight = isSelected && isCorrect;
+                            let borderColor = '#334155';
+                            let bg = '#1e293b';
+                            if (isRight) { borderColor = '#34C759'; bg = 'rgba(52, 199, 89, 0.15)'; }
+                            if (isWrong) { borderColor = '#FF3B30'; bg = 'rgba(255, 59, 48, 0.15)'; }
+
+                            return (
+                                <div
+                                    key={option.id}
+                                    className={`${isWrong ? 'shake' : ''} ${isRight ? 'correct-glow' : ''}`}
+                                    onClick={() => handleSelect(option)}
+                                    style={{
+                                        background: bg, border: `2px solid ${borderColor}`,
+                                        borderRadius: '12px', padding: '14px 16px',
+                                        cursor: selected ? 'default' : 'pointer',
+                                        transition: 'border-color 0.2s, background 0.2s',
+                                        minHeight: '44px',
+                                    }}
+                                >
+                                    <HighlightedCode code={option.code} fontSize="14px" />
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Explanation */}
+                    {showExplanation && (
+                        <div className="fade-in" style={{
+                            marginTop: '16px', padding: '16px', background: 'rgba(52, 199, 89, 0.1)',
+                            border: '1px solid rgba(52, 199, 89, 0.3)', borderRadius: '12px',
+                        }}>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#34C759', marginBottom: '4px' }}>
+                                ✅ 答對了！
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#94a3b8', lineHeight: 1.5 }}>
+                                {question.explanation}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 14: Drag & Drop Mode
+        // ============================================================
+        function DragDropMode({ level, onComplete, onBack }) {
+            const challenges = level.challengeIds.map(id => DND_CHALLENGES.find(c => c.id === id)).filter(Boolean);
+            const [currentIdx, setCurrentIdx] = useState(0);
+            const [slotContents, setSlotContents] = useState({});
+            const [hintsUsed, setHintsUsed] = useState(0);
+            const [finished, setFinished] = useState(false);
+            const [dragState, setDragState] = useState({ isDragging: false, block: null, pos: { x: 0, y: 0 }, offset: { x: 0, y: 0 }, activeSlot: null });
+            const [checked, setChecked] = useState(false);
+            const [checkResult, setCheckResult] = useState(null);
+            const [challengeFinished, setChallengeFinished] = useState(false);
+            const slotRefs = useRef({});
+
+            const challenge = challenges[currentIdx];
+            if (!challenge && !finished) return null;
+
+            // Reset when changing challenge
+            useEffect(() => {
+                setSlotContents({});
+                setChecked(false);
+                setCheckResult(null);
+                setChallengeFinished(false);
+                slotRefs.current = {};
+            }, [currentIdx]);
+
+            // Available blocks (not yet placed)
+            const placedBlockIds = new Set(Object.values(slotContents).map(b => b?.id).filter(Boolean));
+            const availableBlocks = challenge ? challenge.blocks.filter(b => !placedBlockIds.has(b.id)) : [];
+
+            // Touch/Mouse drag handlers
+            const handleDragStart = useCallback((block, e) => {
+                e.preventDefault();
+                const touch = e.touches ? e.touches[0] : e;
+                const rect = e.currentTarget.getBoundingClientRect();
+                document.body.classList.add('drag-active');
+                setDragState({
+                    isDragging: true, block,
+                    pos: { x: touch.clientX, y: touch.clientY },
+                    offset: { x: touch.clientX - rect.left, y: touch.clientY - rect.top },
+                    activeSlot: null,
+                });
+            }, []);
+
+            const handleDragMove = useCallback((e) => {
+                if (!dragState.isDragging) return;
+                e.preventDefault();
+                const touch = e.touches ? e.touches[0] : e;
+                const pos = { x: touch.clientX, y: touch.clientY };
+
+                let activeSlot = null;
+                for (const [slotId, el] of Object.entries(slotRefs.current)) {
+                    if (!el) continue;
+                    const rect = el.getBoundingClientRect();
+                    if (pos.x >= rect.left && pos.x <= rect.right && pos.y >= rect.top && pos.y <= rect.bottom) {
+                        // Check type compatibility
+                        const slot = challenge.slots.find(s => s.id === slotId);
+                        if (slot && slot.acceptTypes.includes(dragState.block.type)) {
+                            activeSlot = slotId;
+                        }
+                        break;
+                    }
+                }
+                setDragState(prev => ({ ...prev, pos, activeSlot }));
+            }, [dragState.isDragging, dragState.block, challenge]);
+
+            const handleDragEnd = useCallback(() => {
+                if (!dragState.isDragging) return;
+                document.body.classList.remove('drag-active');
+                if (dragState.activeSlot && dragState.block) {
+                    setSlotContents(prev => ({ ...prev, [dragState.activeSlot]: dragState.block }));
+                    setChecked(false);
+                    setCheckResult(null);
+                }
+                setDragState({ isDragging: false, block: null, pos: { x: 0, y: 0 }, offset: { x: 0, y: 0 }, activeSlot: null });
+            }, [dragState]);
+
+            // Global event listeners
+            useEffect(() => {
+                const onMove = (e) => handleDragMove(e);
+                const onEnd = () => handleDragEnd();
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+                return () => {
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('touchend', onEnd);
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onEnd);
+                };
+            }, [handleDragMove, handleDragEnd]);
+
+            // Remove block from slot
+            const removeFromSlot = (slotId) => {
+                setSlotContents(prev => {
+                    const next = { ...prev };
+                    delete next[slotId];
+                    return next;
+                });
+                setChecked(false);
+                setCheckResult(null);
+            };
+
+            // Check answer
+            const handleCheck = () => {
+                const allCorrect = challenge.slots.every(slot => {
+                    const placed = slotContents[slot.id];
+                    if (!placed) return false;
+                    return placed.correctSlot === slot.id;
+                });
+                setChecked(true);
+                setCheckResult(allCorrect);
+                if (allCorrect) {
+                    setChallengeFinished(true);
+                }
+            };
+
+            // Hint
+            const handleHint = () => {
+                setHintsUsed(h => h + 1);
+                // Find first empty or wrong slot
+                for (const slot of challenge.slots) {
+                    const placed = slotContents[slot.id];
+                    if (!placed || placed.correctSlot !== slot.id) {
+                        const correctBlock = challenge.blocks.find(b => b.correctSlot === slot.id);
+                        if (correctBlock) {
+                            setSlotContents(prev => ({ ...prev, [slot.id]: correctBlock }));
+                            break;
+                        }
+                    }
+                }
+            };
+
+            // Next challenge or finish
+            const handleNext = () => {
+                if (currentIdx < challenges.length - 1) {
+                    setCurrentIdx(currentIdx + 1);
+                } else {
+                    setFinished(true);
+                }
+            };
+
+            // Build live preview tree from slot contents
+            const buildLiveTree = () => {
+                if (!challenge) return null;
+                // For simple challenges (no container slots), just show placed views
+                const hasContainerSlots = challenge.slots.some(s => s.acceptTypes.includes('container'));
+
+                if (!hasContainerSlots) {
+                    // Simple: wrap in VStack
+                    const children = challenge.slots
+                        .map(slot => {
+                            const block = slotContents[slot.id];
+                            if (!block) return null;
+                            // Try to find matching target child
+                            return findTargetNodeForBlock(challenge.targetUI, block);
+                        })
+                        .filter(Boolean);
+                    if (children.length === 0) return null;
+                    if (children.length === 1) return children[0];
+                    return { type: 'VStack', children };
+                }
+
+                // Complex: reconstruct from challenge 7 structure
+                return reconstructTree(challenge, slotContents);
+            };
+
+            const findTargetNodeForBlock = (targetUI, block) => {
+                // Simple heuristic: parse block code to create UI node
+                const code = block.code;
+                if (code.startsWith('Text(')) {
+                    const match = code.match(/Text\("([^"]*)"\)/);
+                    const content = match ? match[1] : '?';
+                    const modifiers = [];
+                    if (code.includes('.font(.title)')) modifiers.push({ type: 'font', value: '.title' });
+                    if (code.includes('.font(.caption)')) modifiers.push({ type: 'font', value: '.caption' });
+                    if (code.includes('.foregroundColor(.teal)')) modifiers.push({ type: 'foregroundColor', value: '.teal' });
+                    if (code.includes('.foregroundColor(.blue)')) modifiers.push({ type: 'foregroundColor', value: '.blue' });
+                    if (code.includes('.bold()')) modifiers.push({ type: 'bold' });
+                    return { type: 'Text', props: { content }, modifiers };
+                }
+                if (code.startsWith('Image(')) {
+                    const match = code.match(/systemName:\s*"([^"]*)"/);
+                    const name = match ? match[1] : 'questionmark';
+                    return { type: 'Image', props: { systemName: name }, modifiers: [] };
+                }
+                return null;
+            };
+
+            const reconstructTree = (challenge, slots) => {
+                // For challenge 7 (and similar complex ones), build tree from slot structure
+                const containerSlots = challenge.slots.filter(s => s.acceptTypes.includes('container'));
+                const viewSlots = challenge.slots.filter(s => s.acceptTypes.includes('view'));
+
+                // Check if we have the outer container
+                const outerContainer = slots['s0'];
+                if (!outerContainer) {
+                    // Just show whatever views we have
+                    const views = viewSlots.map(s => slots[s.id]).filter(Boolean).map(b => findTargetNodeForBlock(null, b)).filter(Boolean);
+                    return views.length > 0 ? (views.length === 1 ? views[0] : { type: 'VStack', children: views }) : null;
+                }
+
+                const outerType = outerContainer.code.includes('VStack') ? 'VStack' : 'HStack';
+
+                // Build children based on challenge structure
+                if (challenge.id === 7) {
+                    // Special handling for whack-a-mole
+                    const row1Container = slots['s1'];
+                    const row2Container = slots['s4'];
+                    const children = [];
+
+                    if (row1Container) {
+                        const row1Type = row1Container.code.includes('HStack') ? 'HStack' : 'VStack';
+                        const row1Children = ['s2', 's3'].map(sid => slots[sid]).filter(Boolean).map(b => findTargetNodeForBlock(null, b)).filter(Boolean);
+                        if (row1Children.length > 0) children.push({ type: row1Type, children: row1Children });
+                    }
+                    if (row2Container) {
+                        const row2Type = row2Container.code.includes('HStack') ? 'HStack' : 'VStack';
+                        const row2Children = ['s5', 's6', 's7'].map(sid => slots[sid]).filter(Boolean).map(b => findTargetNodeForBlock(null, b)).filter(Boolean);
+                        if (row2Children.length > 0) children.push({ type: row2Type, children: row2Children });
+                    }
+                    const nameBlock = slots['s8'];
+                    if (nameBlock) {
+                        const nameNode = findTargetNodeForBlock(null, nameBlock);
+                        if (nameNode) children.push(nameNode);
+                    }
+                    return children.length > 0 ? { type: outerType, children } : null;
+                }
+
+                if (challenge.id === 6) {
+                    const children = [];
+                    const s1Block = slots['s1'];
+                    if (s1Block) {
+                        const node = findTargetNodeForBlock(null, s1Block);
+                        if (node) children.push(node);
+                    }
+                    const innerContainer = slots['s2'];
+                    if (innerContainer) {
+                        const innerType = innerContainer.code.includes('HStack') ? 'HStack' : 'VStack';
+                        const innerChildren = ['s3', 's4'].map(sid => slots[sid]).filter(Boolean).map(b => findTargetNodeForBlock(null, b)).filter(Boolean);
+                        if (innerChildren.length > 0) children.push({ type: innerType, children: innerChildren });
+                    }
+                    return children.length > 0 ? { type: outerType, children } : null;
+                }
+
+                if (challenge.id === 4) {
+                    const containerBlock = slots['s0'];
+                    const cType = containerBlock.code.includes('HStack') ? 'HStack' : 'VStack';
+                    const viewChildren = ['s1', 's2'].map(sid => slots[sid]).filter(Boolean).map(b => findTargetNodeForBlock(null, b)).filter(Boolean);
+                    return viewChildren.length > 0 ? { type: cType, children: viewChildren } : null;
+                }
+
+                return null;
+            };
+
+            // Stars calculation
+            const calcStars = () => {
+                if (hintsUsed === 0) return 3;
+                if (hintsUsed === 1) return 2;
+                return 1;
+            };
+
+            // Finished screen
+            if (finished) {
+                const stars = calcStars();
+                return (
+                    <div className="slide-up" style={{ padding: '32px 16px', maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
+                        <div style={{ fontSize: '64px', marginBottom: '16px' }}>
+                            {level.id === 7 ? '🏆' : '🎉'}
+                        </div>
+                        <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px', color: '#f1f5f9' }}>
+                            {level.id === 7 ? '🎊 恭喜通關！' : '關卡完成！'}
+                        </h2>
+                        <p style={{ fontSize: '16px', color: '#94a3b8', marginBottom: '24px' }}>
+                            {level.title} - {hintsUsed === 0 ? '完美通關，沒有使用提示！' : `使用了 ${hintsUsed} 次提示`}
+                        </p>
+                        <div style={{ marginBottom: '32px' }}>
+                            <Stars count={stars} max={3} size={40} animated={true} />
+                        </div>
+                        <button
+                            onClick={() => onComplete(stars)}
+                            style={{
+                                padding: '14px 40px', fontSize: '18px', fontWeight: 'bold',
+                                background: '#3b82f6', color: '#fff', border: 'none',
+                                borderRadius: '12px', cursor: 'pointer',
+                            }}
+                        >
+                            繼續 →
+                        </button>
+                    </div>
+                );
+            }
+
+            const allSlotsFilled = challenge.slots.every(s => slotContents[s.id]);
+            const liveTree = buildLiveTree();
+
+            return (
+                <div className="no-select" style={{ padding: '16px', maxWidth: '700px', margin: '0 auto' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <button onClick={onBack} style={{
+                            background: '#1e293b', border: '1px solid #334155', borderRadius: '10px',
+                            color: '#94a3b8', padding: '8px 16px', fontSize: '14px', cursor: 'pointer',
+                            minHeight: '44px',
+                        }}>
+                            ← 返回
+                        </button>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#f1f5f9' }}>{level.icon} {challenge.title}</div>
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>
+                                挑戰 {currentIdx + 1} / {challenges.length}
+                            </div>
+                        </div>
+                        <button onClick={handleHint} style={{
+                            background: '#1e293b', border: '1px solid #334155', borderRadius: '10px',
+                            color: '#fbbf24', padding: '8px 16px', fontSize: '14px', cursor: 'pointer',
+                            minHeight: '44px',
+                        }}>
+                            💡 提示
+                        </button>
+                    </div>
+
+                    {/* Description */}
+                    <p style={{ fontSize: '15px', color: '#94a3b8', marginBottom: '16px', lineHeight: 1.5 }}>
+                        {challenge.description}
+                    </p>
+
+                    {/* Target + Live Preview side by side on larger screens */}
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px', textAlign: 'center' }}>🎯 目標畫面</div>
+                            <DeviceFrame title="目標">
+                                <SwiftUIPreview uiTree={challenge.targetUI} />
+                            </DeviceFrame>
+                        </div>
+                        <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px', textAlign: 'center' }}>🔄 你的畫面</div>
+                            <DeviceFrame title="即時預覽">
+                                {liveTree ? (
+                                    <SwiftUIPreview uiTree={liveTree} />
+                                ) : (
+                                    <div style={{ color: '#C7C7CC', fontSize: '14px' }}>拖入積木開始拼裝...</div>
+                                )}
+                            </DeviceFrame>
+                        </div>
+                    </div>
+
+                    {/* Code Slots */}
+                    <div style={{
+                        background: '#1e293b', borderRadius: '14px', padding: '16px',
+                        marginBottom: '16px', border: '1px solid #334155',
+                    }}>
+                        <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '10px' }}>📝 程式碼結構</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {challenge.slots.map((slot) => {
+                                const placed = slotContents[slot.id];
+                                const isActive = dragState.activeSlot === slot.id;
+                                const isWrong = checked && placed && placed.correctSlot !== slot.id;
+
+                                return (
+                                    <div
+                                        key={slot.id}
+                                        ref={el => slotRefs.current[slot.id] = el}
+                                        className={`${isActive ? 'drop-pulse' : ''} ${isWrong ? 'shake' : ''}`}
+                                        onClick={() => placed && removeFromSlot(slot.id)}
+                                        style={{
+                                            minHeight: '52px', borderRadius: '10px',
+                                            border: `2px dashed ${isActive ? '#60a5fa' : isWrong ? '#FF3B30' : placed ? '#475569' : '#334155'}`,
+                                            background: isActive ? 'rgba(96, 165, 250, 0.1)' : placed ? '#0f172a' : 'rgba(15, 23, 42, 0.5)',
+                                            padding: '10px 14px',
+                                            display: 'flex', alignItems: 'center',
+                                            transition: 'border-color 0.2s, background 0.2s',
+                                            cursor: placed ? 'pointer' : 'default',
+                                        }}
+                                    >
+                                        {placed ? (
+                                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <HighlightedCode code={placed.code} fontSize="13px" />
+                                                <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '8px', flexShrink: 0 }}>✕</span>
+                                            </div>
+                                        ) : (
+                                            <span style={{ color: '#475569', fontSize: '14px' }}>
+                                                {slot.label}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Block Palette */}
+                    <div style={{ marginBottom: '16px' }}>
+                        <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px' }}>🧱 可用積木（長按拖拽）</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {availableBlocks.map((block) => (
+                                <div
+                                    key={block.id}
+                                    onTouchStart={(e) => handleDragStart(block, e)}
+                                    onMouseDown={(e) => handleDragStart(block, e)}
+                                    style={{
+                                        padding: '10px 14px', background: '#1e293b',
+                                        border: `2px solid ${block.type === 'container' ? '#60a5fa' : block.type === 'modifier' ? '#B281EB' : '#475569'}`,
+                                        borderRadius: '10px', cursor: 'grab',
+                                        touchAction: 'none', minWidth: '44px', minHeight: '44px',
+                                        opacity: dragState.isDragging && dragState.block?.id === block.id ? 0.4 : 1,
+                                    }}
+                                >
+                                    <HighlightedCode code={block.code} fontSize="13px" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Check / Next button */}
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                        {!challengeFinished ? (
+                            <>
+                                <button
+                                    onClick={() => { setSlotContents({}); setChecked(false); setCheckResult(null); }}
+                                    style={{
+                                        padding: '12px 24px', fontSize: '16px',
+                                        background: '#334155', color: '#94a3b8', border: 'none',
+                                        borderRadius: '10px', cursor: 'pointer', minHeight: '44px',
+                                    }}
+                                >
+                                    🔄 重置
+                                </button>
+                                <button
+                                    onClick={handleCheck}
+                                    disabled={!allSlotsFilled}
+                                    style={{
+                                        padding: '12px 32px', fontSize: '16px', fontWeight: 'bold',
+                                        background: allSlotsFilled ? '#3b82f6' : '#334155',
+                                        color: allSlotsFilled ? '#fff' : '#64748b',
+                                        border: 'none', borderRadius: '10px',
+                                        cursor: allSlotsFilled ? 'pointer' : 'not-allowed',
+                                        minHeight: '44px',
+                                    }}
+                                >
+                                    ✓ 檢查答案
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                onClick={handleNext}
+                                style={{
+                                    padding: '14px 40px', fontSize: '18px', fontWeight: 'bold',
+                                    background: '#34C759', color: '#fff', border: 'none',
+                                    borderRadius: '12px', cursor: 'pointer',
+                                }}
+                            >
+                                {currentIdx < challenges.length - 1 ? '下一題 →' : '完成關卡 🎉'}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Check result feedback */}
+                    {checked && !challengeFinished && (
+                        <div className="fade-in" style={{
+                            marginTop: '12px', padding: '12px 16px',
+                            background: 'rgba(255, 59, 48, 0.1)',
+                            border: '1px solid rgba(255, 59, 48, 0.3)',
+                            borderRadius: '10px', textAlign: 'center',
+                        }}>
+                            <span style={{ fontSize: '14px', color: '#FF6B6B' }}>
+                                ❌ 還不太對，試試看其他組合！紅色框的是放錯的。
+                            </span>
+                        </div>
+                    )}
+                    {challengeFinished && (
+                        <div className="fade-in" style={{
+                            marginTop: '12px', padding: '12px 16px',
+                            background: 'rgba(52, 199, 89, 0.1)',
+                            border: '1px solid rgba(52, 199, 89, 0.3)',
+                            borderRadius: '10px', textAlign: 'center',
+                        }}>
+                            <span style={{ fontSize: '14px', color: '#34C759' }}>
+                                ✅ 完美！程式碼和目標畫面一模一樣！
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Drag Ghost */}
+                    {dragState.isDragging && dragState.block && (
+                        <div style={{
+                            position: 'fixed',
+                            left: dragState.pos.x - dragState.offset.x,
+                            top: dragState.pos.y - dragState.offset.y,
+                            zIndex: 10000, pointerEvents: 'none',
+                            transform: 'rotate(2deg) scale(1.05)',
+                            opacity: 0.9, padding: '10px 14px',
+                            background: '#2563EB', border: '2px solid #60A5FA',
+                            borderRadius: '10px',
+                            boxShadow: '0 12px 40px rgba(37, 99, 235, 0.4)',
+                        }}>
+                            <HighlightedCode code={dragState.block.code} fontSize="13px" />
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 15: Completion Screen
+        // ============================================================
+        function CompletionScreen({ totalStars, onRestart }) {
+            return (
+                <div className="slide-up" style={{ padding: '48px 24px', maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
+                    <div style={{ fontSize: '80px', marginBottom: '16px' }}>🏆</div>
+                    <h1 style={{ fontSize: '32px', fontWeight: 'bold', margin: '0 0 12px', color: '#f1f5f9' }}>
+                        恭喜你！全部通關！
+                    </h1>
+                    <p style={{ fontSize: '18px', color: '#94a3b8', marginBottom: '24px', lineHeight: 1.6 }}>
+                        你已經學會了 SwiftUI 的基本元件、排版、修飾器和按鈕，
+                        並且成功組裝了打地鼠遊戲的畫面佈局！
+                    </p>
+                    <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '8px',
+                        background: '#1e293b', padding: '12px 24px', borderRadius: '20px',
+                        marginBottom: '32px',
+                    }}>
+                        <span style={{ fontSize: '28px' }}>⭐</span>
+                        <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#fbbf24' }}>{totalStars}</span>
+                        <span style={{ fontSize: '16px', color: '#94a3b8' }}>/ {LEVELS.length * 3}</span>
+                    </div>
+                    <div style={{ marginBottom: '32px' }}>
+                        <p style={{ fontSize: '16px', color: '#64748b' }}>
+                            📌 現在你可以打開 Xcode，動手寫出真正的打地鼠 App！
+                        </p>
+                    </div>
+                    <button
+                        onClick={onRestart}
+                        style={{
+                            padding: '14px 40px', fontSize: '18px', fontWeight: 'bold',
+                            background: '#3b82f6', color: '#fff', border: 'none',
+                            borderRadius: '12px', cursor: 'pointer',
+                        }}
+                    >
+                        🔄 再玩一次
+                    </button>
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 16: Main App Component
+        // ============================================================
+        function App() {
+            const [gamePhase, setGamePhase] = useState('loading');
+            const [currentLevel, setCurrentLevel] = useState(null);
+            const [playerName, setPlayerName] = useState('');
+            const [progress, setProgress] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('swift_code_game_progress');
+                    return saved ? JSON.parse(saved) : { levels: {}, totalStars: 0 };
+                } catch { return { levels: {}, totalStars: 0 }; }
+            });
+
+            // Save progress
+            useEffect(() => {
+                localStorage.setItem('swift_code_game_progress', JSON.stringify(progress));
+            }, [progress]);
+
+            // Calculate total stars
+            const totalStars = useMemo(() => {
+                return Object.values(progress.levels || {}).reduce((sum, l) => sum + (l.stars || 0), 0);
+            }, [progress]);
+
+            // Auth init
+            useEffect(() => {
+                (async () => {
+                    try {
+                        const ok = await SwiftGameBridge.init();
+                        if (ok && SwiftGameBridge.user) {
+                            setPlayerName(SwiftGameBridge.user.name);
+                        }
+                    } catch {}
+                    setGamePhase('levelSelect');
+                })();
+            }, []);
+
+            const handleSelectLevel = (level) => {
+                setCurrentLevel(level);
+                setGamePhase(level.phase);
+            };
+
+            const handleLevelComplete = (stars) => {
+                const levelId = currentLevel.id;
+                setProgress(prev => {
+                    const prevStars = prev.levels?.[levelId]?.stars || 0;
+                    const newStars = Math.max(prevStars, stars);
+                    return {
+                        ...prev,
+                        levels: {
+                            ...prev.levels,
+                            [levelId]: { stars: newStars, completed: true },
+                        },
+                    };
+                });
+
+                // Check if all levels completed
+                const allCompleted = LEVELS.every(l => {
+                    if (l.id === currentLevel.id) return true;
+                    return progress.levels?.[l.id]?.completed;
+                });
+
+                if (allCompleted && currentLevel.id === 7) {
+                    setGamePhase('complete');
+                } else {
+                    setGamePhase('levelSelect');
+                }
+                setCurrentLevel(null);
+            };
+
+            const handleBack = () => {
+                setGamePhase('levelSelect');
+                setCurrentLevel(null);
+            };
+
+            // Loading
+            if (gamePhase === 'loading') {
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+                        <div className="game-spinner" style={{ marginBottom: '16px' }}></div>
+                        <div style={{ color: '#94a3b8' }}>載入中...</div>
+                    </div>
+                );
+            }
+
+            // Level select
+            if (gamePhase === 'levelSelect') {
+                return (
+                    <LevelSelectScreen
+                        progress={progress}
+                        totalStars={totalStars}
+                        onSelectLevel={handleSelectLevel}
+                        playerName={playerName}
+                    />
+                );
+            }
+
+            // Quiz mode
+            if (gamePhase === 'quiz' && currentLevel) {
+                return (
+                    <QuizMode
+                        level={currentLevel}
+                        onComplete={handleLevelComplete}
+                        onBack={handleBack}
+                    />
+                );
+            }
+
+            // Drag & Drop mode
+            if (gamePhase === 'dragDrop' && currentLevel) {
+                return (
+                    <DragDropMode
+                        level={currentLevel}
+                        onComplete={handleLevelComplete}
+                        onBack={handleBack}
+                    />
+                );
+            }
+
+            // Completion
+            if (gamePhase === 'complete') {
+                return (
+                    <CompletionScreen
+                        totalStars={totalStars}
+                        onRestart={() => { setGamePhase('levelSelect'); }}
+                    />
+                );
+            }
+
+            return null;
+        }
+
+        // ============================================================
+        // Section 17: Mount App
+        // ============================================================
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

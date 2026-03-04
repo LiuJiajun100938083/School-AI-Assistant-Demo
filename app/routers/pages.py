@@ -213,6 +213,12 @@ async def trade_game():
     return _serve_page("trade_game.html")
 
 
+@router.get("/swift-code-game")
+async def swift_code_game():
+    """SwiftUI 代碼學堂"""
+    return _serve_page("swift_code_game.html")
+
+
 @router.get("/game_upload")
 async def game_upload():
     """游戏上传页"""
