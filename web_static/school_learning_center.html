@@ -30,8 +30,11 @@
     <div class="slc-main">
 
         <!-- 左側邊欄: 科目列表 -->
-        <aside class="slc-sidebar">
-            <div class="slc-sidebar__header">📚 學科</div>
+        <aside class="slc-sidebar" id="slcSidebar">
+            <div class="slc-sidebar__header">
+                <span class="slc-sidebar__header-text">📚 學科</span>
+                <button class="slc-sidebar__toggle" id="slcSidebarCollapseBtn" title="收起/展開學科列表">◀</button>
+            </div>
             <div class="slc-sidebar__list" id="subjectList">
                 <div class="slc-loading">
                     <div class="slc-loading__spinner"></div>
@@ -146,13 +149,13 @@
         <!-- Tab: 上傳內容 -->
         <div class="slc-admin-tab-panel --active" id="adminTab-upload">
             <div class="slc-admin-form">
-                <label>標題 <span style="color:#e74c3c">*</span></label>
+                <label>標題 <span style="color:var(--slc-danger)">*</span></label>
                 <input type="text" id="slcContentTitle" class="slc-admin-input" placeholder="資源標題">
 
                 <label>描述</label>
                 <textarea id="slcContentDesc" class="slc-admin-input" rows="2" placeholder="簡短描述"></textarea>
 
-                <label>內容類型 <span style="color:#e74c3c">*</span></label>
+                <label>內容類型 <span style="color:var(--slc-danger)">*</span></label>
                 <select id="slcContentType" class="slc-admin-input" onchange="slc.onContentTypeChange()">
                     <option value="document">📄 文檔 (PDF/Word)</option>
                     <option value="video_local">🎬 本地視頻</option>
@@ -181,7 +184,7 @@
 
                 <!-- 外部視頻連結區（默認隱藏） -->
                 <div id="slcExternalVideoSection" style="display:none;">
-                    <label>視頻連結 <span style="color:#e74c3c">*</span></label>
+                    <label>視頻連結 <span style="color:var(--slc-danger)">*</span></label>
                     <input type="text" id="slcExternalUrl" class="slc-admin-input" placeholder="https://www.youtube.com/watch?v=...">
                     <label>視頻平台</label>
                     <select id="slcVideoPlatform" class="slc-admin-input">
@@ -213,9 +216,9 @@
         <!-- Tab: 知識圖譜 -->
         <div class="slc-admin-tab-panel" id="adminTab-nodes">
             <!-- 創建知識節點 -->
-            <div class="slc-admin-form" style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--slc-border);">
-                <h4 style="margin:0 0 12px;">➕ 新增知識節點</h4>
-                <label>名稱 <span style="color:#e74c3c">*</span></label>
+            <div class="slc-admin-form" class="slc-admin-section">
+                <h4 class="slc-admin-section__title">➕ 新增知識節點</h4>
+                <label>名稱 <span style="color:var(--slc-danger)">*</span></label>
                 <input type="text" id="slcNodeTitle" class="slc-admin-input" placeholder="知識點名稱">
                 <label>描述</label>
                 <textarea id="slcNodeDesc" class="slc-admin-input" rows="2" placeholder="知識點描述"></textarea>
@@ -233,8 +236,8 @@
             </div>
 
             <!-- 創建連接 -->
-            <div class="slc-admin-form" style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--slc-border);">
-                <h4 style="margin:0 0 12px;">🔗 連接知識節點</h4>
+            <div class="slc-admin-form" class="slc-admin-section">
+                <h4 class="slc-admin-section__title">🔗 連接知識節點</h4>
                 <label>來源節點</label>
                 <select id="slcEdgeSource" class="slc-admin-input"><option value="">選擇知識點</option></select>
                 <label>目標節點</label>
@@ -246,7 +249,7 @@
 
             <!-- 批量導入 -->
             <div class="slc-admin-form">
-                <h4 style="margin:0 0 12px;">📦 批量導入知識圖譜</h4>
+                <h4 class="slc-admin-section__title">📦 批量導入知識圖譜</h4>
                 <label>年級</label>
                 <select id="slcBatchNodeGrade" class="slc-admin-input">
                     <option value="">通用</option>
@@ -268,7 +271,7 @@
             </div>
 
             <!-- 現有節點列表 -->
-            <h4 style="margin:20px 0 12px;">📌 現有知識節點</h4>
+            <h4 class="slc-admin-section__title" style="margin-top:var(--slc-space-md);">📌 現有知識節點</h4>
             <div id="slcNodesList" class="slc-admin-list">
                 <div style="color:var(--slc-text-secondary);font-size:13px;">切換到此 Tab 時自動加載</div>
             </div>
@@ -277,9 +280,9 @@
         <!-- Tab: 學習路徑 -->
         <div class="slc-admin-tab-panel" id="adminTab-paths">
             <!-- 創建路徑 -->
-            <div class="slc-admin-form" style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--slc-border);">
-                <h4 style="margin:0 0 12px;">➕ 新增學習路徑</h4>
-                <label>路徑標題 <span style="color:#e74c3c">*</span></label>
+            <div class="slc-admin-form" class="slc-admin-section">
+                <h4 class="slc-admin-section__title">➕ 新增學習路徑</h4>
+                <label>路徑標題 <span style="color:var(--slc-danger)">*</span></label>
                 <input type="text" id="slcPathTitle" class="slc-admin-input" placeholder="學習路徑標題">
                 <label>描述</label>
                 <textarea id="slcPathDesc" class="slc-admin-input" rows="2" placeholder="路徑描述"></textarea>
@@ -305,8 +308,8 @@
             </div>
 
             <!-- 批量導入路徑 -->
-            <div class="slc-admin-form" style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--slc-border);">
-                <h4 style="margin:0 0 12px;">📦 批量導入學習路徑</h4>
+            <div class="slc-admin-form" class="slc-admin-section">
+                <h4 class="slc-admin-section__title">📦 批量導入學習路徑</h4>
                 <label>年級</label>
                 <select id="slcBatchPathGrade" class="slc-admin-input">
                     <option value="">通用</option>
@@ -324,7 +327,7 @@
             </div>
 
             <!-- 現有路徑列表 -->
-            <h4 style="margin:20px 0 12px;">🛤️ 現有學習路徑</h4>
+            <h4 class="slc-admin-section__title" style="margin-top:var(--slc-space-md);">🛤️ 現有學習路徑</h4>
             <div id="slcPathsList" class="slc-admin-list">
                 <div style="color:var(--slc-text-secondary);font-size:13px;">切換到此 Tab 時自動加載</div>
             </div>

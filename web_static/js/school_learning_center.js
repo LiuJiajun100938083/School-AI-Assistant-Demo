@@ -773,7 +773,7 @@ window.slc = (() => {
             const el = document.getElementById('slcContentsList');
             if (!el) return;
             if (!items || !items.length) {
-                el.innerHTML = '<div style="padding:16px;color:var(--slc-text-secondary);text-align:center;">該科目暫無內容</div>';
+                el.innerHTML = '<div class="slc-admin-empty">該科目暫無內容</div>';
                 return;
             }
             const typeLabel = { document: '📄', video_local: '🎬', video_external: '🔗', article: '📝', image: '🖼️' };
@@ -784,7 +784,7 @@ window.slc = (() => {
                         <div class="slc-admin-list-item__meta">${c.grade_level || '通用'} · ${c.content_type} · 👁️${c.view_count || 0}</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
-                        <button class="slc-admin-btn --danger" style="margin-top:0;padding:4px 8px;font-size:11px;" onclick="slc.deleteContent(${c.id}, '${_escHtml(c.title).replace(/'/g, "\\'")}')">刪除</button>
+                        <button class="slc-admin-btn --danger --sm" onclick="slc.deleteContent(${c.id}, '${_escHtml(c.title).replace(/'/g, "\\'")}')">刪除</button>
                     </div>
                 </div>
             `).join('');
@@ -794,7 +794,7 @@ window.slc = (() => {
             const el = document.getElementById('slcNodesList');
             if (!el) return;
             if (!nodes || !nodes.length) {
-                el.innerHTML = '<div style="padding:16px;color:var(--slc-text-secondary);text-align:center;">暫無知識節點</div>';
+                el.innerHTML = '<div class="slc-admin-empty">暫無知識節點</div>';
                 return;
             }
             el.innerHTML = nodes.map(n => `
@@ -804,7 +804,7 @@ window.slc = (() => {
                         <div class="slc-admin-list-item__meta">${_escHtml(n.description || '').substring(0, 50)}</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
-                        <button class="slc-admin-btn --danger" style="margin-top:0;padding:4px 8px;font-size:11px;" onclick="slc.deleteNode(${n.id})">刪除</button>
+                        <button class="slc-admin-btn --danger --sm" onclick="slc.deleteNode(${n.id})">刪除</button>
                     </div>
                 </div>
             `).join('');
@@ -831,7 +831,7 @@ window.slc = (() => {
             const el = document.getElementById('slcPathsList');
             if (!el) return;
             if (!paths || !paths.length) {
-                el.innerHTML = '<div style="padding:16px;color:var(--slc-text-secondary);text-align:center;">暫無學習路徑</div>';
+                el.innerHTML = '<div class="slc-admin-empty">暫無學習路徑</div>';
                 return;
             }
             const diffLabel = { beginner: '入門', intermediate: '進階', advanced: '高級' };
@@ -842,7 +842,7 @@ window.slc = (() => {
                         <div class="slc-admin-list-item__meta">${diffLabel[p.difficulty] || p.difficulty} · ${p.estimated_hours || 1}h · ${(p.steps || []).length} 步</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
-                        <button class="slc-admin-btn --danger" style="margin-top:0;padding:4px 8px;font-size:11px;" onclick="slc.deletePath(${p.id})">刪除</button>
+                        <button class="slc-admin-btn --danger --sm" onclick="slc.deletePath(${p.id})">刪除</button>
                     </div>
                 </div>
             `).join('');
@@ -899,6 +899,17 @@ window.slc = (() => {
                     if (e.key === 'Enter') App.doSearch();
                 });
             }
+
+            // 學科側邊欄折疊
+            const collapseBtn = document.getElementById('slcSidebarCollapseBtn');
+            if (collapseBtn) collapseBtn.addEventListener('click', App.toggleSidebarCollapse);
+            // 恢復用戶偏好
+            try {
+                if (localStorage.getItem('slc_sidebar_collapsed') === '1') {
+                    const sb = document.getElementById('slcSidebar');
+                    if (sb) sb.classList.add('--collapsed');
+                }
+            } catch {}
 
             // 電子書側邊欄開關
             const sidebarToggle = document.getElementById('slcSidebarToggle');
@@ -1297,6 +1308,14 @@ window.slc = (() => {
         toggleMobileSidebar() {
             const sidebar = document.querySelector('.slc-sidebar');
             if (sidebar) sidebar.classList.toggle('--mobile-open');
+        },
+
+        toggleSidebarCollapse() {
+            const sidebar = document.getElementById('slcSidebar');
+            if (!sidebar) return;
+            sidebar.classList.toggle('--collapsed');
+            const collapsed = sidebar.classList.contains('--collapsed');
+            try { localStorage.setItem('slc_sidebar_collapsed', collapsed ? '1' : ''); } catch {}
         },
 
         // ── Admin ──
@@ -2095,6 +2114,7 @@ window.slc = (() => {
         sendAIMessage: () => App.sendAIMessage(),
         closeModal: () => UI.closeEbookViewer(),
         toggleMobileSidebar: () => App.toggleMobileSidebar(),
+        toggleSidebarCollapse: () => App.toggleSidebarCollapse(),
         toggleEbookSidebar: () => App.toggleEbookSidebar(),
         // AI 內容感知
         navigatePdfToPage: (page) => _navigatePdfToPage(page),
