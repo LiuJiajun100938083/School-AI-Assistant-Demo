@@ -145,7 +145,20 @@ const GameConfig = {
                 roles: ['student', 'teacher', 'admin']
             }
         ],
-        ict: [],
+        ict: [
+            {
+                id: 'swift_code_game',
+                name: 'SwiftUI 代碼學堂',
+                nameEn: 'SwiftUI Code Academy',
+                icon: '💻',
+                description: '看圖選代碼 + 拖拽拼代碼，從零開始理解 SwiftUI 界面編程',
+                url: '/swift-code-game',
+                difficulty: ['中一', '中二', '中三'],
+                tags: ['編程', 'SwiftUI', '代碼', '拖拽', 'iOS'],
+                badge: '新',
+                roles: ['student', 'teacher', 'admin']
+            }
+        ],
         physics: [],
         chemistry: [],
         biology: [],
