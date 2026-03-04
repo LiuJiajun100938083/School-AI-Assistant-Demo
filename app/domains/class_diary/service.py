@@ -187,7 +187,7 @@ class ClassDiaryService:
             PNG 圖片的 bytes
         """
         import qrcode
-        from qrcode.image.pil import PilImage
+        from PIL import Image, ImageDraw, ImageFont
 
         url = f"{base_url}/class-diary/rate/{class_code}"
         qr = qrcode.QRCode(
@@ -199,10 +199,32 @@ class ClassDiaryService:
         qr.add_data(url)
         qr.make(fit=True)
 
-        img = qr.make_image(fill_color="black", back_color="white")
+        qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+        qr_w, qr_h = qr_img.size
+
+        # 在 QR 碼下方添加班級名稱
+        label_height = 48
+        canvas = Image.new("RGB", (qr_w, qr_h + label_height), "white")
+        canvas.paste(qr_img, (0, 0))
+
+        draw = ImageDraw.Draw(canvas)
+        label = class_code
+        try:
+            font = ImageFont.truetype("/System/Library/Fonts/STHeiti Medium.ttc", 28)
+        except (OSError, IOError):
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+            except (OSError, IOError):
+                font = ImageFont.load_default()
+
+        bbox = draw.textbbox((0, 0), label, font=font)
+        text_w = bbox[2] - bbox[0]
+        text_x = (qr_w - text_w) // 2
+        text_y = qr_h + (label_height - (bbox[3] - bbox[1])) // 2
+        draw.text((text_x, text_y), label, fill="black", font=font)
 
         buf = io.BytesIO()
-        img.save(buf, format="PNG")
+        canvas.save(buf, format="PNG")
         buf.seek(0)
         return buf.getvalue()
 
