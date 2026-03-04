@@ -754,8 +754,8 @@ p, span, div, li, label {
 /* ── App Card Grid ── */
 .home-group__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-4);
     transition: max-height 0.25s ease, opacity 0.2s ease;
     max-height: 2000px;
     opacity: 1;
@@ -771,14 +771,14 @@ p, span, div, li, label {
 .home-app-card {
     background: var(--bg-card);
     border: 1px solid var(--border-light);
-    border-radius: var(--radius-sm);
-    padding: var(--space-4);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
     cursor: pointer;
     transition: border-color var(--duration-fast), background var(--duration-fast);
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: var(--space-3);
+    gap: var(--space-4);
     text-align: left;
 }
 
@@ -793,25 +793,25 @@ p, span, div, li, label {
 
 /* 圖標容器 */
 .home-app-card .tool-icon {
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--brand-lighter);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     color: var(--brand);
 }
 
 .home-app-card .tool-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 26px;
+    height: 26px;
 }
 
 /* emoji 回退 */
 .home-app-card__emoji {
-    font-size: 18px;
+    font-size: 24px;
     line-height: 1;
 }
 
@@ -822,17 +822,17 @@ p, span, div, li, label {
 }
 
 .home-app-card .tool-name {
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.3;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 
 .home-app-card .tool-desc {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-secondary);
-    line-height: 1.4;
+    line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -875,7 +875,7 @@ p, span, div, li, label {
     }
 
     .home-group__grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     }
 
     .home-welcome {

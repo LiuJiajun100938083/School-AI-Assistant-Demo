@@ -713,53 +713,33 @@ const HomeApp = {
         const tl = gsap.timeline();
 
         tl
-            // 第一幕：系統喚醒
-            .to(splashIcon, {
+            // 第一幕：系統喚醒（全部同時出現）
+            .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
                 opacity: 1, filter: 'blur(0px)',
-                duration: 1.0, ease: EASE
-            }, 0.3)
-            .to(splashTitle, {
-                opacity: 1, filter: 'blur(0px)',
-                duration: 0.6, ease: 'power2.out'
-            }, 0.8)
-            .to(splashSub, {
-                opacity: 1, filter: 'blur(0px)',
-                duration: 0.6, ease: 'power2.out'
-            }, 1.0)
-            .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.1)
-            .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 1.9)
+                duration: 0.6, ease: EASE
+            }, 0.1)
+            .to(splashLoader, { opacity: 1, duration: 0.3, ease: 'power2.out' }, 0.3)
+            .to(splashLoader, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0.9)
 
             // 第二幕：過渡
-            .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.3)
-            .add(() => { splashScreen.style.display = 'none'; }, 2.7)
+            .to(glassPanel, { opacity: 1, duration: 0.3, ease: EASE }, 1.2)
+            .add(() => { splashScreen.style.display = 'none'; }, 1.5)
             .add(() => {
-                if (header)  gsap.set(header,  { opacity: 0, y: -20 });
-                if (sidebar) gsap.set(sidebar, { opacity: 0, x: -20 });
-                if (welcome) gsap.set(welcome, { opacity: 0, y: 15 });
-                if (appsGrid) gsap.set(appsGrid, { opacity: 0, y: 20 });
-            }, 2.75)
+                if (header)  gsap.set(header,  { opacity: 0, y: -10 });
+                if (sidebar) gsap.set(sidebar, { opacity: 0, x: -10 });
+                if (welcome) gsap.set(welcome, { opacity: 0, y: 10 });
+                if (appsGrid) gsap.set(appsGrid, { opacity: 0, y: 10 });
+            }, 1.5)
             .to(glassPanel, {
-                opacity: 0, duration: 0.6, ease: EASE,
+                opacity: 0, duration: 0.4, ease: EASE,
                 onComplete() { glassPanel.style.display = 'none'; }
-            }, 2.8)
+            }, 1.55)
 
-            // 第三幕：界面元素進入
-            .to(header, {
-                opacity: 1, y: 0,
-                duration: 0.5, ease: 'power2.out'
-            }, 2.9)
-            .to(sidebar, {
-                opacity: 1, x: 0,
-                duration: 0.5, ease: 'power2.out'
-            }, 2.95)
-            .to(welcome, {
-                opacity: 1, y: 0,
-                duration: 0.5, ease: 'power2.out'
-            }, 3.0)
-            .to(appsGrid, {
-                opacity: 1, y: 0,
-                duration: 0.6, ease: 'power2.out'
-            }, 3.1);
+            // 第三幕：界面元素同時進入
+            .to([header, sidebar, welcome, appsGrid].filter(Boolean), {
+                opacity: 1, y: 0, x: 0,
+                duration: 0.4, ease: 'power2.out'
+            }, 1.6);
     }
 };
 

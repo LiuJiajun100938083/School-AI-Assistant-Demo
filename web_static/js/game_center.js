@@ -515,29 +515,21 @@ const GameCenterApp = {
         const tl = gsap.timeline();
 
         tl
-            /* ═══ 第一幕：系統喚醒 ═══ */
-            .to(splashIcon, {
+            /* ═══ 第一幕：系統喚醒（全部同時出現） ═══ */
+            .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
                 opacity: 1, filter: 'blur(0px)',
-                duration: 1.0, ease: EASE
-            }, 0.3)
-            .to(splashTitle, {
-                opacity: 1, filter: 'blur(0px)',
-                duration: 0.6, ease: 'power2.out'
-            }, 0.8)
-            .to(splashSub, {
-                opacity: 1, filter: 'blur(0px)',
-                duration: 0.6, ease: 'power2.out'
-            }, 1.0)
-            .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.1)
-            .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 1.9)
+                duration: 0.6, ease: EASE
+            }, 0.1)
+            .to(splashLoader, { opacity: 1, duration: 0.3, ease: 'power2.out' }, 0.3)
+            .to(splashLoader, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0.9)
 
             /* ═══ 第二幕：過渡到主界面 ═══ */
-            .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.3)
-            .add(() => { splashScreen.style.display = 'none'; }, 2.7)
+            .to(glassPanel, { opacity: 1, duration: 0.3, ease: EASE }, 1.2)
+            .add(() => { splashScreen.style.display = 'none'; }, 1.5)
             .to(glassPanel, {
-                opacity: 0, duration: 0.6, ease: EASE,
+                opacity: 0, duration: 0.4, ease: EASE,
                 onComplete() { glassPanel.style.display = 'none'; }
-            }, 2.8);
+            }, 1.55);
     },
 
     /* ---------- 數據過濾 ---------- */
