@@ -1,0 +1,791 @@
+{
+  "meta": {
+    "subject_code": "ICT",
+    "source_pdf": "2025-26中五ICT必修A.pdf",
+    "exported_at": "2026-03-04T15:36:33.833094",
+    "description": "SLC knowledge graph for ICT"
+  },
+  "subject_code": "ICT",
+  "source_pdf": "2025-26中五ICT必修A.pdf",
+  "nodes": [
+    {
+      "id": "node_1",
+      "title": "資訊系統",
+      "description": "資訊系統的組成、功能與設計考量。系統自動化流程以減省人力成本、減少人為錯誤及提升效率。【第1章 p.2】",
+      "icon": "🖥️",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "node_2",
+      "title": "資訊處理流程",
+      "description": "數據的收集、組織、儲存、處理、分析、傳輸和演示七個步驟。【第1章 p.3】",
+      "icon": "🔄",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "node_3",
+      "title": "數據與資訊",
+      "description": "資訊是經過處理的數據，具有意義且有助決策。GIGO（無用輸入無用輸出）概念。【第1-2章 p.5】",
+      "icon": "📊",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "node_4",
+      "title": "數據控制",
+      "description": "數據驗證與核實方法，包括格式檢查、範圍檢查、長度檢查、類型檢查等，確保數據準確性。【第2章 p.4】",
+      "icon": "✅",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "node_5",
+      "title": "數據組織",
+      "description": "以特定方式將收集的數據作管理，包括輸入和分類，以不同設備儲存數據。【第2章 p.4】",
+      "icon": "📁",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "node_6",
+      "title": "數據驗證方法",
+      "description": "格式檢查(Format Check)、範圍檢查(Range Check)、長度檢查(Length Check)、類型檢查(Type Check)等驗證方法。【第2章 p.6】",
+      "icon": "🔍",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "node_7",
+      "title": "數據核實方法",
+      "description": "雙重輸入法、視覺核實法等核實方法，確保輸入數據的正確性。【第2章 p.8】",
+      "icon": "✔️",
+      "color": "#1E88E5"
+    },
+    {
+      "id": "node_8",
+      "title": "數據表示與編碼",
+      "description": "數據在計算機中的表示方式，包括數字系統、字符編碼和多媒體格式。【第3A章 p.10】",
+      "icon": "💾",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_9",
+      "title": "數據表示基礎",
+      "description": "位元(bit)與字節(byte)的概念，數據單位轉換(KB/MB/GB/TB)。【第3A章 p.10】",
+      "icon": "🔢",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_10",
+      "title": "數字系統",
+      "description": "二進制(Binary)、十進制(Denary/Decimal)、十六進制(Hexadecimal)的概念及互相轉換方法。【第3B章 p.12】",
+      "icon": "🔢",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_11",
+      "title": "二進制運算",
+      "description": "二進制的加法運算及溢位(overflow)概念。帶符號二進制數的表示法。【第3B章 p.14】",
+      "icon": "➕",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_12",
+      "title": "字符編碼系統",
+      "description": "ASCII碼和Unicode編碼系統的概念、特點和應用。ASCII使用7位，Unicode支持多語言。【第3C章 p.16】",
+      "icon": "🔤",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_13",
+      "title": "多媒體檔案",
+      "description": "多媒體檔案的壓縮方式：無損壓縮和有損壓縮的概念與區別。【第3D章 p.19】",
+      "icon": "🎬",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_14",
+      "title": "多媒體：文本",
+      "description": "文本格式(TXT/RTF/DOC/PDF)的特點和適用場景。【第3E章 p.23】",
+      "icon": "📝",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_15",
+      "title": "多媒體：圖像",
+      "description": "點陣圖與矢量圖的概念與區別，解像度、色深等屬性。常見格式：BMP/JPEG/GIF/PNG/TIFF/SVG。【第3F章 p.25】",
+      "icon": "🖼️",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_16",
+      "title": "多媒體：音頻",
+      "description": "聲音的數碼化過程（採樣、量化）、取樣率和位元深度。常見格式：WAV/MP3/AAC/MIDI。【第3G章 p.29】",
+      "icon": "🔊",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_17",
+      "title": "多媒體：視頻",
+      "description": "視頻的組成（幀率、解像度、比特率）。常見格式：AVI/MP4/MOV/FLV。編解碼器概念。【第3H章 p.32】",
+      "icon": "🎥",
+      "color": "#43A047"
+    },
+    {
+      "id": "node_18",
+      "title": "試算表",
+      "description": "試算表的基本概念、功能和應用，包括函數、圖表和數據分析。【第4A章 p.36】",
+      "icon": "📊",
+      "color": "#FB8C00"
+    },
+    {
+      "id": "node_19",
+      "title": "試算表基礎",
+      "description": "儲存格、工作表、公式概念。絕對引用($)與相對引用的區別。自動填充功能。【第4A章 p.36】",
+      "icon": "📋",
+      "color": "#FB8C00"
+    },
+    {
+      "id": "node_20",
+      "title": "試算表函數",
+      "description": "常用函數：SUM/AVERAGE/MAX/MIN/COUNT/COUNTA/COUNTIF/SUMIF/IF/VLOOKUP/ROUND/INT/RANK等。【第4B章 p.41】",
+      "icon": "🔢",
+      "color": "#FB8C00"
+    },
+    {
+      "id": "node_21",
+      "title": "邏輯函數",
+      "description": "IF函數的使用及巢狀IF。AND/OR邏輯運算符的配合使用。【第4B章 p.46】",
+      "icon": "🔀",
+      "color": "#FB8C00"
+    },
+    {
+      "id": "node_22",
+      "title": "查找函數",
+      "description": "VLOOKUP函數的語法和應用：在表格中垂直查找對應的值。【第4B章 p.48】",
+      "icon": "🔎",
+      "color": "#FB8C00"
+    },
+    {
+      "id": "node_23",
+      "title": "試算表演示",
+      "description": "圖表類型（柱狀圖、折線圖、圓餅圖、散點圖等）的選擇與製作。數據可視化原則。【第4C章 p.51】",
+      "icon": "📈",
+      "color": "#FB8C00"
+    },
+    {
+      "id": "node_24",
+      "title": "試算表數據分析",
+      "description": "排序(Sort)與篩選(Filter)功能。數據透視表的基本使用。趨勢分析。【第4C章 p.54】",
+      "icon": "📉",
+      "color": "#FB8C00"
+    },
+    {
+      "id": "node_25",
+      "title": "數據庫與SQL",
+      "description": "關聯式數據庫的基本概念和SQL結構化查詢語言。【第5A章 p.58】",
+      "icon": "🗃️",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_26",
+      "title": "數據庫基礎",
+      "description": "關聯式數據庫概念：表(Table)、記錄(Record)、欄位(Field)、主鍵(Primary Key)。【第5A章 p.58】",
+      "icon": "📦",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_27",
+      "title": "數據庫設計",
+      "description": "實體關係圖(ERD)、數據類型選擇、正規化概念。一對一、一對多、多對多關係。【第5A章 p.60】",
+      "icon": "📐",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_28",
+      "title": "SQL查詢基礎",
+      "description": "SELECT語句、WHERE子句、ORDER BY排序、DISTINCT去重。基本查詢語法。【第5B章 p.62】",
+      "icon": "💻",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_29",
+      "title": "SQL條件與運算",
+      "description": "比較運算符、LIKE模式匹配、BETWEEN範圍、IN列表、AND/OR/NOT邏輯運算。【第5B章 p.65】",
+      "icon": "⚙️",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_30",
+      "title": "SQL聚合函數",
+      "description": "COUNT/SUM/AVG/MAX/MIN聚合函數，GROUP BY分組，HAVING條件過濾。【第5C章 p.69】",
+      "icon": "📊",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_31",
+      "title": "SQL數據操作",
+      "description": "INSERT INTO插入、UPDATE更新、DELETE刪除語句。CREATE TABLE建表。【第5C章 p.72】",
+      "icon": "✏️",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_32",
+      "title": "SQL進階查詢",
+      "description": "多表連接(JOIN)、子查詢(Subquery)概念。內連接與外連接的區別。【第5C章 p.74】",
+      "icon": "🔗",
+      "color": "#8E24AA"
+    },
+    {
+      "id": "node_33",
+      "title": "數據安全與私隱",
+      "description": "數據加密、備份策略、訪問控制。個人資料（私隱）條例的基本概念。【第2章 p.9】",
+      "icon": "🔒",
+      "color": "#1E88E5"
+    }
+  ],
+  "edges": [
+    {
+      "source": "node_1",
+      "target": "node_2",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_1",
+      "target": "node_3",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_1",
+      "target": "node_4",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_1",
+      "target": "node_5",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_1",
+      "target": "node_33",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_4",
+      "target": "node_6",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_4",
+      "target": "node_7",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_8",
+      "target": "node_9",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_8",
+      "target": "node_10",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_8",
+      "target": "node_12",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_8",
+      "target": "node_13",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_10",
+      "target": "node_11",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_13",
+      "target": "node_14",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_13",
+      "target": "node_15",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_13",
+      "target": "node_16",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_13",
+      "target": "node_17",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_18",
+      "target": "node_19",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_18",
+      "target": "node_20",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_18",
+      "target": "node_23",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_18",
+      "target": "node_24",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_20",
+      "target": "node_21",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_20",
+      "target": "node_22",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_25",
+      "target": "node_26",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_25",
+      "target": "node_27",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_25",
+      "target": "node_28",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_28",
+      "target": "node_29",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_28",
+      "target": "node_30",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_25",
+      "target": "node_31",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_25",
+      "target": "node_32",
+      "relation_type": "includes",
+      "label": "包含",
+      "weight": 1.0
+    },
+    {
+      "source": "node_3",
+      "target": "node_8",
+      "relation_type": "prerequisite",
+      "label": "前置知識",
+      "weight": 1.0
+    },
+    {
+      "source": "node_8",
+      "target": "node_18",
+      "relation_type": "prerequisite",
+      "label": "前置知識",
+      "weight": 1.0
+    },
+    {
+      "source": "node_4",
+      "target": "node_25",
+      "relation_type": "prerequisite",
+      "label": "前置知識",
+      "weight": 1.0
+    },
+    {
+      "source": "node_18",
+      "target": "node_25",
+      "relation_type": "prerequisite",
+      "label": "前置知識",
+      "weight": 1.0
+    },
+    {
+      "source": "node_20",
+      "target": "node_30",
+      "relation_type": "related",
+      "label": "相關",
+      "weight": 1.0
+    },
+    {
+      "source": "node_24",
+      "target": "node_28",
+      "relation_type": "related",
+      "label": "相關",
+      "weight": 1.0
+    },
+    {
+      "source": "node_6",
+      "target": "node_27",
+      "relation_type": "related",
+      "label": "相關",
+      "weight": 1.0
+    },
+    {
+      "source": "node_5",
+      "target": "node_26",
+      "relation_type": "related",
+      "label": "相關",
+      "weight": 1.0
+    },
+    {
+      "source": "node_15",
+      "target": "node_17",
+      "relation_type": "related",
+      "label": "相關",
+      "weight": 1.0
+    },
+    {
+      "source": "node_16",
+      "target": "node_17",
+      "relation_type": "related",
+      "label": "相關",
+      "weight": 1.0
+    },
+    {
+      "source": "node_12",
+      "target": "node_14",
+      "relation_type": "related",
+      "label": "相關",
+      "weight": 1.0
+    }
+  ],
+  "content_links": [
+    {
+      "node": "node_1",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 2
+      }
+    },
+    {
+      "node": "node_2",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 3
+      }
+    },
+    {
+      "node": "node_3",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 5
+      }
+    },
+    {
+      "node": "node_4",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "node_5",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 4
+      }
+    },
+    {
+      "node": "node_6",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 6
+      }
+    },
+    {
+      "node": "node_7",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 8
+      }
+    },
+    {
+      "node": "node_8",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 10
+      }
+    },
+    {
+      "node": "node_9",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 10
+      }
+    },
+    {
+      "node": "node_10",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 12
+      }
+    },
+    {
+      "node": "node_11",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 14
+      }
+    },
+    {
+      "node": "node_12",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 16
+      }
+    },
+    {
+      "node": "node_13",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 19
+      }
+    },
+    {
+      "node": "node_14",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 23
+      }
+    },
+    {
+      "node": "node_15",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 25
+      }
+    },
+    {
+      "node": "node_16",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 29
+      }
+    },
+    {
+      "node": "node_17",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 32
+      }
+    },
+    {
+      "node": "node_18",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 36
+      }
+    },
+    {
+      "node": "node_19",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 36
+      }
+    },
+    {
+      "node": "node_20",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 41
+      }
+    },
+    {
+      "node": "node_21",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 46
+      }
+    },
+    {
+      "node": "node_22",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 48
+      }
+    },
+    {
+      "node": "node_23",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 51
+      }
+    },
+    {
+      "node": "node_24",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 54
+      }
+    },
+    {
+      "node": "node_25",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 58
+      }
+    },
+    {
+      "node": "node_26",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 58
+      }
+    },
+    {
+      "node": "node_27",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 60
+      }
+    },
+    {
+      "node": "node_28",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 62
+      }
+    },
+    {
+      "node": "node_29",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 65
+      }
+    },
+    {
+      "node": "node_30",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 69
+      }
+    },
+    {
+      "node": "node_31",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 72
+      }
+    },
+    {
+      "node": "node_32",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 74
+      }
+    },
+    {
+      "node": "node_33",
+      "content_id": 1,
+      "anchor": {
+        "type": "page",
+        "value": 9
+      }
+    }
+  ]
+}

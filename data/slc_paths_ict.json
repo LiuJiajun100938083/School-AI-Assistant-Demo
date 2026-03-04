@@ -1,0 +1,344 @@
+{
+  "meta": {
+    "subject_code": "ICT",
+    "exported_at": "2026-03-04T15:36:33.837864",
+    "description": "SLC learning paths for ICT"
+  },
+  "subject_code": "ICT",
+  "paths": [
+    {
+      "id": "path_16",
+      "title": "資訊系統入門",
+      "description": "從零開始認識資訊系統的基本概念，了解數據處理的完整流程和數據質量控制方法。",
+      "difficulty": "beginner",
+      "estimated_hours": 3.0,
+      "icon": "🖥️",
+      "tags": [
+        "資訊系統",
+        "數據處理",
+        "入門"
+      ],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "認識資訊系統",
+          "description": "了解資訊系統的定義、組成部份和設計考量。以圖書館管理系統為例思考系統功能。",
+          "node_match": "資訊系統",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "資訊處理七步驟",
+          "description": "學習數據的收集、組織、儲存、處理、分析、傳輸和演示七個步驟。",
+          "node_match": "資訊處理流程",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "數據與資訊的區別",
+          "description": "理解數據和資訊的差異，認識GIGO（無用輸入無用輸出）概念。",
+          "node_match": "數據與資訊",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "數據控制概覽",
+          "description": "了解為何需要數據控制，以及數據驗證與核實的基本概念。",
+          "node_match": "數據控制",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "數據驗證方法",
+          "description": "學習格式檢查、範圍檢查、長度檢查、類型檢查等常見驗證方法。",
+          "node_match": "數據驗證方法",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "數據核實方法",
+          "description": "學習雙重輸入法、視覺核實法等核實方法，確保數據正確性。",
+          "node_match": "數據核實方法",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "數據安全與私隱",
+          "description": "了解數據加密、備份策略、訪問控制和個人資料私隱條例。",
+          "node_match": "數據安全與私隱",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_17",
+      "title": "數據表示與編碼",
+      "description": "深入理解計算機如何表示和編碼各種數據，從二進制基礎到多媒體格式。",
+      "difficulty": "intermediate",
+      "estimated_hours": 5.0,
+      "icon": "💾",
+      "tags": [
+        "數據表示",
+        "編碼",
+        "多媒體"
+      ],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "數據表示基礎",
+          "description": "認識位元(bit)和字節(byte)的概念，掌握數據單位轉換(KB/MB/GB/TB)。",
+          "node_match": "數據表示基礎",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "數字系統轉換",
+          "description": "學習二進制、十進制、十六進制之間的互相轉換方法。",
+          "node_match": "數字系統",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "二進制運算",
+          "description": "掌握二進制加法運算，理解溢位(overflow)和帶符號數表示。",
+          "node_match": "二進制運算",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "字符編碼系統",
+          "description": "比較ASCII碼和Unicode的特點，理解字符編碼在多語言環境的重要性。",
+          "node_match": "字符編碼系統",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "多媒體檔案壓縮",
+          "description": "區分無損壓縮和有損壓縮的概念與應用場景。",
+          "node_match": "多媒體檔案",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "文本格式",
+          "description": "了解TXT、RTF、DOC、PDF等文本格式的特點和適用場景。",
+          "node_match": "多媒體：文本",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "圖像格式",
+          "description": "區分點陣圖與矢量圖，了解解像度、色深，比較BMP/JPEG/GIF/PNG/SVG格式。",
+          "node_match": "多媒體：圖像",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 8,
+          "title": "音頻格式",
+          "description": "理解聲音數碼化過程，認識取樣率和位元深度，比較WAV/MP3/AAC/MIDI格式。",
+          "node_match": "多媒體：音頻",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 9,
+          "title": "視頻格式",
+          "description": "了解視頻的幀率、解像度、比特率概念，比較AVI/MP4/MOV/FLV格式。",
+          "node_match": "多媒體：視頻",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_18",
+      "title": "試算表應用",
+      "description": "掌握試算表的核心功能，從基礎操作到進階函數和數據分析。",
+      "difficulty": "intermediate",
+      "estimated_hours": 6.0,
+      "icon": "📊",
+      "tags": [
+        "試算表",
+        "函數",
+        "數據分析"
+      ],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "試算表基礎概念",
+          "description": "認識儲存格、工作表、公式概念。區分絕對引用($)與相對引用。",
+          "node_match": "試算表基礎",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "基本函數",
+          "description": "學習SUM/AVERAGE/MAX/MIN/COUNT等常用統計函數。",
+          "node_match": "試算表函數",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "條件函數",
+          "description": "掌握COUNTIF/SUMIF條件統計函數的使用方法。",
+          "node_match": "試算表函數",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "邏輯函數",
+          "description": "學習IF函數及巢狀IF的使用，配合AND/OR邏輯運算符。",
+          "node_match": "邏輯函數",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "查找函數VLOOKUP",
+          "description": "掌握VLOOKUP函數的語法和實際應用。",
+          "node_match": "查找函數",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "圖表製作",
+          "description": "學習選擇合適的圖表類型（柱狀圖、折線圖、圓餅圖等）進行數據可視化。",
+          "node_match": "試算表演示",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "數據分析",
+          "description": "掌握排序、篩選功能和數據透視表的基本使用。",
+          "node_match": "試算表數據分析",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_19",
+      "title": "數據庫與SQL基礎",
+      "description": "從關聯式數據庫概念到SQL查詢語言，系統學習數據庫管理技能。",
+      "difficulty": "intermediate",
+      "estimated_hours": 7.0,
+      "icon": "🗃️",
+      "tags": [
+        "數據庫",
+        "SQL",
+        "查詢"
+      ],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "數據庫基本概念",
+          "description": "理解表(Table)、記錄(Record)、欄位(Field)、主鍵(Primary Key)等核心概念。",
+          "node_match": "數據庫基礎",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "數據庫設計",
+          "description": "學習實體關係圖(ERD)、數據類型選擇和正規化概念。",
+          "node_match": "數據庫設計",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "SQL基本查詢",
+          "description": "掌握SELECT語句、WHERE子句、ORDER BY排序和DISTINCT去重。",
+          "node_match": "SQL查詢基礎",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "SQL條件與運算",
+          "description": "學習LIKE模式匹配、BETWEEN範圍、IN列表和邏輯運算符。",
+          "node_match": "SQL條件與運算",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "SQL聚合函數",
+          "description": "掌握COUNT/SUM/AVG/MAX/MIN和GROUP BY分組、HAVING過濾。",
+          "node_match": "SQL聚合函數",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "SQL數據操作",
+          "description": "學習INSERT INTO、UPDATE、DELETE語句和CREATE TABLE建表。",
+          "node_match": "SQL數據操作",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "SQL進階查詢",
+          "description": "了解多表連接(JOIN)和子查詢(Subquery)的概念與使用。",
+          "node_match": "SQL進階查詢",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_20",
+      "title": "ICT必修A綜合複習",
+      "description": "涵蓋必修A所有核心概念的綜合複習路徑，適合考前溫習。",
+      "difficulty": "advanced",
+      "estimated_hours": 4.0,
+      "icon": "🎯",
+      "tags": [
+        "複習",
+        "綜合",
+        "考試準備"
+      ],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "資訊系統回顧",
+          "description": "複習資訊系統概念、處理流程和數據質量控制。",
+          "node_match": "資訊系統",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "數據表示重點",
+          "description": "複習數字系統轉換、字符編碼和多媒體格式要點。",
+          "node_match": "數據表示與編碼",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "多媒體格式對比",
+          "description": "對比各種文本、圖像、音頻、視頻格式的特點。",
+          "node_match": "多媒體檔案",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "試算表函數精要",
+          "description": "複習所有重要函數：IF/VLOOKUP/COUNTIF/SUMIF等。",
+          "node_match": "試算表函數",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "數據庫概念精要",
+          "description": "複習關聯式數據庫核心概念和ERD設計。",
+          "node_match": "數據庫基礎",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "SQL語法精要",
+          "description": "複習SELECT查詢、條件過濾、聚合函數和數據操作語句。",
+          "node_match": "SQL查詢基礎",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "數據安全與私隱",
+          "description": "複習數據安全措施和個人資料私隱條例要點。",
+          "node_match": "數據安全與私隱",
+          "source_pdf": "2025-26中五ICT必修A.pdf"
+        }
+      ]
+    }
+  ]
+}
