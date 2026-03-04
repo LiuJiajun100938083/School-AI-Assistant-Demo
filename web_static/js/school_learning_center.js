@@ -35,6 +35,70 @@ window.slc = (() => {
     const GRADES = ['中一', '中二', '中三', '中四', '中五', '中六'];
     const ADMIN_API = '/api/admin/school-learning-center';
 
+    // ── SVG 圖標系統（取代所有 emoji）──
+    const _ICONS = {
+        school:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+        books:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+        doc:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+        video:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><path d="M10 8l6 4-6 4V8z"/></svg>',
+        link:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+        article:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+        image:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+        clip:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
+        map:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>',
+        path:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg>',
+        pin:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+        target:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+        bulb:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>',
+        eye:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+        plus:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+        pkg:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+        gear:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+        clock:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        steps:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>',
+        chat:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+        person:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+        book:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+        download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+        chevron:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+        close:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+        node:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>',
+        upload:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+        menu:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+        arrow:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>',
+        send:     '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>',
+        expand:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+        shrink:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+        folder:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    };
+
+    /** Return an inline SVG icon string. `name` = key in _ICONS, `size` = px (default 14). */
+    function _icon(name, size) {
+        const s = size || 14;
+        const svg = _ICONS[name];
+        if (!svg) return '';
+        return svg.replace('<svg', `<svg width="${s}" height="${s}" class="slc-icon" style="display:inline-block;vertical-align:middle"`);
+    }
+
+    /** Emoji → icon name mapping for backend data that might contain emoji */
+    const _EMOJI_TO_ICON = {
+        '\u{1F4A1}': 'bulb',  '\u{1F4CC}': 'pin',   '\u{1F3AF}': 'target',
+        '\u{1F4DA}': 'books', '\u{1F4C4}': 'doc',   '\u{1F3AC}': 'video',
+        '\u{1F517}': 'link',  '\u{1F4DD}': 'article','\u{1F5BC}': 'image',
+        '\u{1F4CE}': 'clip',  '\u{1F5FA}': 'map',
+    };
+
+    /** Convert an icon string (possibly emoji from backend) to safe SVG markup for HTML contexts */
+    function _safeIcon(iconStr, fallback, size) {
+        if (!iconStr) return _icon(fallback || 'bulb', size);
+        const mapped = _EMOJI_TO_ICON[iconStr] || _EMOJI_TO_ICON[iconStr.replace(/\uFE0F/g, '')];
+        if (mapped) return _icon(mapped, size);
+        if (/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FE0F}]/u.test(iconStr)) {
+            return _icon(fallback || 'bulb', size);
+        }
+        return iconStr;
+    }
+
     // ── 獲取 Token ──
     function _getToken() {
         return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
@@ -211,13 +275,13 @@ window.slc = (() => {
             const list = document.getElementById('subjectList');
             if (!list) return;
             if (!subjects.length) {
-                list.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">📚</div><div>暫無科目資源</div></div>';
+                list.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">' + _icon('books', 28) + '</div><div>暫無科目資源</div></div>';
                 return;
             }
             list.innerHTML = subjects.map(s => `
                 <div class="slc-subject-item ${state.currentSubject?.subject_code === s.subject_code ? '--active' : ''}"
                      data-code="${s.subject_code}" onclick="slc.selectSubject('${s.subject_code}')">
-                    <span class="slc-subject-item__icon">${s.icon || '📚'}</span>
+                    <span class="slc-subject-item__icon">${_safeIcon(s.icon, 'books')}</span>
                     <span class="slc-subject-item__name">${s.subject_name}</span>
                     <span class="slc-subject-item__count">${s.content_count || 0}</span>
                 </div>
@@ -256,7 +320,7 @@ window.slc = (() => {
                 return;
             }
 
-            const typeIcon = { document: '📄', video_local: '🎬', video_external: '🔗', article: '📝', image: '🖼️' };
+            const typeIcon = { document: _icon('doc'), video_local: _icon('video'), video_external: _icon('link'), article: _icon('article'), image: _icon('image') };
             const typeLabel = { document: '文檔', video_local: '本地視頻', video_external: '外部視頻', article: '文章', image: '圖片' };
 
             // 按類型分組
@@ -272,11 +336,11 @@ window.slc = (() => {
 
             typeOrder.forEach(t => {
                 if (!grouped[t] || !grouped[t].length) return;
-                const icon = typeIcon[t] || '📎';
+                const icon = typeIcon[t] || _icon('clip');
                 const label = typeLabel[t] || t;
                 html += `<div class="slc-ebook-folder">
                     <div class="slc-ebook-folder-header">
-                        <span class="slc-ebook-folder-arrow">▾</span>
+                        <span class="slc-ebook-folder-arrow">${_icon('chevron', 12)}</span>
                         <span class="slc-ebook-folder-icon">${icon}</span>
                         <span class="slc-ebook-folder-name">${label} (${grouped[t].length})</span>
                     </div>
@@ -333,7 +397,7 @@ window.slc = (() => {
             container.appendChild(tooltipEl);
 
             if (!mapData.nodes || !mapData.nodes.length) {
-                container.innerHTML = '<div class="slc-map-empty"><div class="slc-map-empty__icon">🗺️</div><div>該科目暫無知識圖譜</div></div>';
+                container.innerHTML = '<div class="slc-map-empty"><div class="slc-map-empty__icon">${_icon('map', 40)}</div><div>該科目暫無知識圖譜</div></div>';
                 return;
             }
 
@@ -367,7 +431,7 @@ window.slc = (() => {
                 adjacencyMap.get(t).add(s);
                 const rel = e.relation_type || '';
                 const label = e.label || '';
-                if (rel === 'contains' || rel === '包含' || label === '包含') {
+                if (rel === 'contains' || rel === 'includes' || rel === '包含' || label === '包含') {
                     inDegree.set(t, (inDegree.get(t) || 0) + 1);
                     childrenMap.get(s).push(t);
                 }
@@ -392,10 +456,10 @@ window.slc = (() => {
             nodes.forEach(n => { if (n._depth === Infinity) n._depth = 1; });
 
             // --- Radial layout ---
-            const radii = [0, 220, 430, 650];
-            const tierRadius = { 0: 28, 1: 20, 2: 16, 3: 13 };
-            const tierIcon = { 0: 18, 1: 15, 2: 13, 3: 11 };
-            const tierFont = { 0: 12, 1: 11, 2: 11, 3: 10 };
+            const radii = [0, 140, 260, 360];
+            const tierRadius = { 0: 26, 1: 18, 2: 14, 3: 11 };
+            const tierIcon = { 0: 16, 1: 13, 2: 11, 3: 10 };
+            const tierFont = { 0: 12, 1: 11, 2: 10, 3: 9 };
 
             // Count visible leaf descendants for angular allocation
             const _descCache = new Map();
@@ -431,11 +495,20 @@ window.slc = (() => {
             if (roots.length === 1) {
                 layoutCluster(roots[0], 0, 0);
             } else if (roots.length > 1) {
-                const maxR = radii[radii.length - 1] || 400;
-                const clusterDiam = maxR * 2 + 100;
-                const totalW = roots.length * clusterDiam;
-                let ox = -totalW / 2 + clusterDiam / 2;
-                roots.forEach(root => { layoutCluster(root, ox, 0); ox += clusterDiam; });
+                // Arrange clusters in a grid (2 columns) instead of a single row
+                const maxR = radii[radii.length - 1] || 360;
+                const clusterDiam = maxR * 2 + 80;
+                const cols = Math.min(roots.length, Math.ceil(Math.sqrt(roots.length)));
+                const rows = Math.ceil(roots.length / cols);
+                const totalW = cols * clusterDiam;
+                const totalH = rows * clusterDiam;
+                roots.forEach((root, i) => {
+                    const col = i % cols;
+                    const row = Math.floor(i / cols);
+                    const cx = -totalW / 2 + clusterDiam / 2 + col * clusterDiam;
+                    const cy = -totalH / 2 + clusterDiam / 2 + row * clusterDiam;
+                    layoutCluster(root, cx, cy);
+                });
             }
             _descCache.clear();
 
@@ -456,12 +529,53 @@ window.slc = (() => {
             const link = g.selectAll('.link')
                 .data(edges).enter().append('line')
                 .attr('class', 'link')
-                .attr('stroke', '#ccc').attr('stroke-width', 1.2)
-                .attr('stroke-opacity', 0.5)
+                .attr('stroke', d => {
+                    const rel = d.relation_type || '';
+                    if (rel === 'prerequisite') return '#F59E0B';
+                    if (rel === 'related') return '#94A3B8';
+                    return '#A7F3D0';
+                })
+                .attr('stroke-width', d => {
+                    const rel = d.relation_type || '';
+                    if (rel === 'includes' || rel === 'contains') return 1.8;
+                    return 1.2;
+                })
+                .attr('stroke-opacity', 0.6)
+                .attr('stroke-dasharray', d => {
+                    const rel = d.relation_type || '';
+                    if (rel === 'related') return '4,3';
+                    if (rel === 'prerequisite') return '6,3';
+                    return 'none';
+                })
                 .attr('x1', d => nodeMap.get(d.source_node_id).x)
                 .attr('y1', d => nodeMap.get(d.source_node_id).y)
                 .attr('x2', d => nodeMap.get(d.target_node_id).x)
                 .attr('y2', d => nodeMap.get(d.target_node_id).y);
+
+            // --- Edge labels ---
+            const edgeLabel = g.selectAll('.edge-label')
+                .data(edges).enter().append('text')
+                .attr('class', 'edge-label')
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'central')
+                .attr('font-size', '9px')
+                .attr('fill', d => {
+                    const rel = d.relation_type || '';
+                    if (rel === 'prerequisite') return '#B45309';
+                    if (rel === 'related') return '#64748B';
+                    return '#059669';
+                })
+                .attr('opacity', 0.8)
+                .attr('pointer-events', 'none')
+                .attr('x', d => {
+                    const s = nodeMap.get(d.source_node_id), t = nodeMap.get(d.target_node_id);
+                    return (s.x + t.x) / 2;
+                })
+                .attr('y', d => {
+                    const s = nodeMap.get(d.source_node_id), t = nodeMap.get(d.target_node_id);
+                    return (s.y + t.y) / 2 - 6;
+                })
+                .text(d => d.label || d.relation_type || '');
 
             // --- Draw nodes (static positions, no drag) ---
             const nodeGroup = g.selectAll('.node')
@@ -487,7 +601,7 @@ window.slc = (() => {
                 .style('filter', d => `drop-shadow(0 2px ${d._depth === 0 ? 6 : 3}px rgba(0,0,0,0.2))`);
 
             nodeGroup.append('text')
-                .text(d => d.icon || '💡')
+                .text('◆')
                 .attr('text-anchor', 'middle')
                 .attr('dominant-baseline', 'central')
                 .attr('font-size', d => (tierIcon[Math.min(d._depth, 3)] || 12) + 'px')
@@ -520,16 +634,22 @@ window.slc = (() => {
                 if (!isEntering || !hoveredNode) {
                     nodeGroup.transition().duration(200).attr('opacity', 1);
                     link.transition().duration(200)
-                        .attr('stroke-opacity', 0.5).attr('stroke-width', 1.2).attr('stroke', '#ccc');
+                        .attr('stroke-opacity', 0.6)
+                        .attr('stroke-width', d => {
+                            const rel = d.relation_type || '';
+                            return (rel === 'includes' || rel === 'contains') ? 1.8 : 1.2;
+                        });
+                    edgeLabel.transition().duration(200).attr('opacity', 0.8);
                     return;
                 }
                 const neighbors = adjacencyMap.get(hoveredNode.id) || new Set();
                 nodeGroup.transition().duration(200)
                     .attr('opacity', d => (d.id === hoveredNode.id || neighbors.has(d.id)) ? 1 : 0.15);
                 link.transition().duration(200)
-                    .attr('stroke-opacity', d => edgeConnectsNode(d, hoveredNode.id) ? 0.9 : 0.08)
-                    .attr('stroke-width', d => edgeConnectsNode(d, hoveredNode.id) ? 2.5 : 1.2)
-                    .attr('stroke', d => edgeConnectsNode(d, hoveredNode.id) ? (hoveredNode.color || '#006633') : '#ccc');
+                    .attr('stroke-opacity', d => edgeConnectsNode(d, hoveredNode.id) ? 0.9 : 0.06)
+                    .attr('stroke-width', d => edgeConnectsNode(d, hoveredNode.id) ? 3 : 1);
+                edgeLabel.transition().duration(200)
+                    .attr('opacity', d => edgeConnectsNode(d, hoveredNode.id) ? 1 : 0.1);
             }
 
             function showNodeTooltip(node, event) {
@@ -538,11 +658,11 @@ window.slc = (() => {
                 const neighborCount = (adjacencyMap.get(node.id) || new Set()).size;
                 const desc = (node.description || '').substring(0, 80);
                 tooltip.innerHTML = `
-                    <div class="slc-kg-tooltip-title">${node.icon || '💡'} ${_escHtml(node.title)}</div>
+                    <div class="slc-kg-tooltip-title">${_safeIcon(node.icon, 'bulb')} ${_escHtml(node.title)}</div>
                     ${desc ? `<div class="slc-kg-tooltip-desc">${_escHtml(desc)}${node.description && node.description.length > 80 ? '...' : ''}</div>` : ''}
                     <div class="slc-kg-tooltip-meta">
-                        ${contents.length > 0 ? `<span>📄 ${contents.length} 份資源</span>` : ''}
-                        <span>↗ ${neighborCount} 個相關節點</span>
+                        ${contents.length > 0 ? `<span>${_icon('doc')} ${contents.length} 份資源</span>` : ''}
+                        <span>${_icon('arrow')} ${neighborCount} 個相關節點</span>
                     </div>
                 `;
                 const rect = container.getBoundingClientRect();
@@ -585,8 +705,17 @@ window.slc = (() => {
                     hideNodeTooltip();
                 });
 
-            // Center the view
-            const initialTransform = d3.zoomIdentity.translate(width / 2, height / 2).scale(0.38);
+            // Center the view — auto-fit all nodes
+            const xs = nodes.map(n => n.x).filter(v => v !== undefined);
+            const ys = nodes.map(n => n.y).filter(v => v !== undefined);
+            const graphW = (Math.max(...xs) - Math.min(...xs)) || 1;
+            const graphH = (Math.max(...ys) - Math.min(...ys)) || 1;
+            const graphCx = (Math.max(...xs) + Math.min(...xs)) / 2;
+            const graphCy = (Math.max(...ys) + Math.min(...ys)) / 2;
+            const fitScale = Math.min(width / (graphW + 200), height / (graphH + 200), 1.2);
+            const initialTransform = d3.zoomIdentity
+                .translate(width / 2 - graphCx * fitScale, height / 2 - graphCy * fitScale)
+                .scale(fitScale);
             svg.call(zoom.transform, initialTransform);
         },
 
@@ -600,23 +729,38 @@ window.slc = (() => {
                     const pg = c.anchor?.type === 'page' ? c.anchor.value : 0;
                     return `
                     <div class="slc-node-resource-item" onclick="slc.openContent(${c.content_id}, '${c.content_type || 'document'}', ${pg})">
-                        📎 ${_escHtml(c.content_title || '資源')}
+                        ${_icon('clip')} ${_escHtml(c.content_title || '資源')}
                         ${pg ? `<span style="color:var(--slc-primary);font-size:12px">第${pg}頁</span>` : ''}
                     </div>`;
                 }).join('')
                 : '<div style="font-size:13px;color:var(--slc-text-secondary)">暫無關聯資源</div>';
 
+            // Find learning paths that reference this node
+            const relatedPaths = (state.paths || []).filter(p =>
+                (p.steps || []).some(s => s.node_id === node.id)
+            );
+            const pathsHtml = relatedPaths.length
+                ? relatedPaths.map(p => `
+                    <div class="slc-node-resource-item" onclick="slc.jumpToPath(${p.id})" style="cursor:pointer">
+                        ${_icon('path')} ${_escHtml(p.title)}
+                    </div>`).join('')
+                : '<div style="font-size:13px;color:var(--slc-text-secondary)">暫無相關路徑</div>';
+
             panel.innerHTML = `
                 <div class="slc-node-detail__header">
-                    <span>${node.icon || '💡'}</span>
+                    <span>${_safeIcon(node.icon, 'bulb', 18)}</span>
                     <span class="slc-node-detail__title">${_escHtml(node.title)}</span>
-                    <button class="slc-node-detail__close" onclick="document.getElementById('nodeDetail').classList.remove('--visible')">✕</button>
+                    <button class="slc-node-detail__close" onclick="document.getElementById('nodeDetail').classList.remove('--visible')">${_icon('close', 16)}</button>
                 </div>
                 <div class="slc-node-detail__body">
                     <div class="slc-node-detail__desc">${_escHtml(node.description || '暫無描述')}</div>
                     <div class="slc-node-detail__resources">
-                        <h4>📎 關聯資源</h4>
+                        <h4>${_icon('clip')} 關聯資源</h4>
                         ${resourcesHtml}
+                    </div>
+                    <div class="slc-node-detail__resources" style="margin-top:8px">
+                        <h4>${_icon('path')} 相關學習路徑</h4>
+                        ${pathsHtml}
                     </div>
                 </div>
             `;
@@ -633,7 +777,7 @@ window.slc = (() => {
             const list = document.getElementById('pathList');
             if (!list) return;
             if (!paths.length) {
-                list.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">🗺️</div><div class="slc-empty-state__text">該科目暫無學習路徑</div></div>';
+                list.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">${_icon('map', 40)}</div><div class="slc-empty-state__text">該科目暫無學習路徑</div></div>';
                 return;
             }
             list.innerHTML = paths.map(p => {
@@ -642,15 +786,15 @@ window.slc = (() => {
                 return `
                 <div class="slc-path-card" data-path-id="${p.id}">
                     <div class="slc-path-card__header" onclick="slc.togglePathSteps(${p.id})">
-                        <span class="slc-path-card__icon">${p.icon || '🎯'}</span>
+                        <span class="slc-path-card__icon">${_safeIcon(p.icon, 'target')}</span>
                         <div class="slc-path-card__info">
                             <div class="slc-path-card__title">${_escHtml(p.title)}</div>
                             <div class="slc-path-card__desc">${_escHtml(p.description || '')}</div>
                         </div>
                         <div class="slc-path-card__meta">
                             <span class="slc-difficulty --${p.difficulty || 'beginner'}">${diffLabel[p.difficulty] || p.difficulty}</span>
-                            <span class="slc-path-meta-item">⏱ ${p.estimated_hours || 1}h</span>
-                            <span class="slc-path-meta-item">📋 ${stepsCount} 步</span>
+                            <span class="slc-path-meta-item">${_icon('clock')} ${p.estimated_hours || 1}h</span>
+                            <span class="slc-path-meta-item">${_icon('steps')} ${stepsCount} 步</span>
                         </div>
                         <button class="slc-path-card__toggle" id="toggleBtn-${p.id}">▼</button>
                     </div>
@@ -669,17 +813,22 @@ window.slc = (() => {
             }
 
             container.innerHTML = `<div class="slc-step-timeline">${steps.map(s => {
-                const link = s.content_id
+                const contentLink = s.content_id
                     ? `<a class="slc-step-item__link" onclick="event.stopPropagation(); slc.openContent(${s.content_id}, '${s.content_type || 'document'}', ${s.anchor?.type === 'page' ? s.anchor.value : 0})">
-                        📎 ${_escHtml(s.content_title || '查看資源')}
+                        ${_icon('clip')} ${_escHtml(s.content_title || '查看資源')}
                         ${s.anchor?.type === 'page' ? ` (第${s.anchor.value}頁)` : ''}
+                       </a>`
+                    : '';
+                const nodeLink = s.node_id
+                    ? `<a class="slc-step-item__link slc-step-item__link--node" onclick="event.stopPropagation(); slc.focusNode(${s.node_id})">
+                        ${_icon('node')} 查看知識點
                        </a>`
                     : '';
                 return `
                 <div class="slc-step-item">
                     <div class="slc-step-item__title">${s.step_order + 1}. ${_escHtml(s.title)}</div>
                     <div class="slc-step-item__desc">${_escHtml(s.description || '')}</div>
-                    ${link}
+                    <div class="slc-step-item__links">${contentLink}${nodeLink}</div>
                 </div>`;
             }).join('')}</div>`;
         },
@@ -764,7 +913,7 @@ window.slc = (() => {
             const label = document.getElementById('adminSubjectLabel');
             if (label) {
                 label.textContent = state.currentSubject
-                    ? `${state.currentSubject.icon || '📚'} ${state.currentSubject.subject_name}`
+                    ? `${_safeIcon(state.currentSubject.icon, 'books')} ${state.currentSubject.subject_name}`
                     : '— 未選科目 —';
             }
         },
@@ -776,12 +925,12 @@ window.slc = (() => {
                 el.innerHTML = '<div class="slc-admin-empty">該科目暫無內容</div>';
                 return;
             }
-            const typeLabel = { document: '📄', video_local: '🎬', video_external: '🔗', article: '📝', image: '🖼️' };
+            const typeLabel = { document: _icon('doc'), video_local: _icon('video'), video_external: _icon('link'), article: _icon('article'), image: _icon('image') };
             el.innerHTML = items.map(c => `
                 <div class="slc-admin-list-item">
                     <div class="slc-admin-list-item__info">
-                        <div class="slc-admin-list-item__title">${typeLabel[c.content_type] || '📄'} ${_escHtml(c.title)}</div>
-                        <div class="slc-admin-list-item__meta">${c.grade_level || '通用'} · ${c.content_type} · 👁️${c.view_count || 0}</div>
+                        <div class="slc-admin-list-item__title">${typeLabel[c.content_type] || _icon('doc')} ${_escHtml(c.title)}</div>
+                        <div class="slc-admin-list-item__meta">${c.grade_level || '通用'} · ${c.content_type} · ${_icon('eye')} ${c.view_count || 0}</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
                         <button class="slc-admin-btn --danger --sm" onclick="slc.deleteContent(${c.id}, '${_escHtml(c.title).replace(/'/g, "\\'")}')">刪除</button>
@@ -800,7 +949,7 @@ window.slc = (() => {
             el.innerHTML = nodes.map(n => `
                 <div class="slc-admin-list-item">
                     <div class="slc-admin-list-item__info">
-                        <div class="slc-admin-list-item__title">${n.icon || '📌'} ${_escHtml(n.title)}</div>
+                        <div class="slc-admin-list-item__title">${_safeIcon(n.icon, 'pin')} ${_escHtml(n.title)}</div>
                         <div class="slc-admin-list-item__meta">${_escHtml(n.description || '').substring(0, 50)}</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
@@ -838,7 +987,7 @@ window.slc = (() => {
             el.innerHTML = paths.map(p => `
                 <div class="slc-admin-list-item">
                     <div class="slc-admin-list-item__info">
-                        <div class="slc-admin-list-item__title">${p.icon || '🎯'} ${_escHtml(p.title)}</div>
+                        <div class="slc-admin-list-item__title">${_safeIcon(p.icon, 'target')} ${_escHtml(p.title)}</div>
                         <div class="slc-admin-list-item__meta">${diffLabel[p.difficulty] || p.difficulty} · ${p.estimated_hours || 1}h · ${(p.steps || []).length} 步</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
@@ -852,7 +1001,7 @@ window.slc = (() => {
     // ── App 邏輯 ──
     const App = {
         async init() {
-            console.log('🏫 學校學習中心初始化...');
+            console.log('[SLC] 學校學習中心初始化...');
 
             // 檢查登入
             if (!_getToken()) {
@@ -935,7 +1084,7 @@ window.slc = (() => {
                 });
             }
 
-            console.log('🏫 學校學習中心初始化完成');
+            console.log('[SLC] 學校學習中心初始化完成');
         },
 
         async selectSubject(subjectCode) {
@@ -1062,6 +1211,85 @@ window.slc = (() => {
                 }
                 stepsEl.classList.add('--expanded');
                 if (toggleBtn) toggleBtn.classList.add('--expanded');
+            }
+        },
+
+        // 跳轉到知識圖譜並聚焦某節點
+        async focusNode(nodeId) {
+            // 切到知識圖譜 Tab
+            if (state.currentTab !== 'map') {
+                await App.switchTab('map');
+                // 等渲染完成
+                await new Promise(r => setTimeout(r, 500));
+            }
+            // 在 SVG 中找到該節點並高亮 + 居中
+            const container = document.getElementById('knowledgeMapContainer');
+            if (!container) return;
+            const svgEl = container.querySelector('svg');
+            if (!svgEl) return;
+            const nodeGroups = svgEl.querySelectorAll('g.node');
+            let targetNode = null;
+            let targetData = null;
+            nodeGroups.forEach(ng => {
+                const d = ng.__data__;
+                if (d && d.id === nodeId) {
+                    targetNode = ng;
+                    targetData = d;
+                }
+            });
+            if (!targetNode || !targetData) return;
+
+            // 觸發 zoom 居中到該節點
+            const width = svgEl.clientWidth || svgEl.getAttribute('width');
+            const height = svgEl.clientHeight || svgEl.getAttribute('height');
+            const zoomScale = 1.2;
+            const tx = width / 2 - targetData.x * zoomScale;
+            const ty = height / 2 - targetData.y * zoomScale;
+            const transform = d3.zoomIdentity.translate(tx, ty).scale(zoomScale);
+            d3.select(svgEl).transition().duration(600).call(
+                d3.zoom().on('zoom', (e) => svgEl.querySelector('g').setAttribute('transform', e.transform)).transform,
+                transform
+            );
+
+            // 閃爍高亮節點
+            const circle = targetNode.querySelector('circle');
+            if (circle) {
+                const origStroke = circle.getAttribute('stroke');
+                const origStrokeWidth = circle.getAttribute('stroke-width');
+                let blinks = 0;
+                const blinkInterval = setInterval(() => {
+                    circle.setAttribute('stroke', blinks % 2 === 0 ? '#F59E0B' : origStroke);
+                    circle.setAttribute('stroke-width', blinks % 2 === 0 ? '4' : origStrokeWidth);
+                    blinks++;
+                    if (blinks >= 6) {
+                        clearInterval(blinkInterval);
+                        circle.setAttribute('stroke', origStroke);
+                        circle.setAttribute('stroke-width', origStrokeWidth);
+                    }
+                }, 300);
+            }
+
+            // 顯示節點詳情面板
+            if (targetData) UI.showNodeDetail(targetData);
+        },
+
+        // 跳轉到學習路徑並展開
+        async jumpToPath(pathId) {
+            if (state.currentTab !== 'paths') {
+                await App.switchTab('paths');
+                await new Promise(r => setTimeout(r, 500));
+            }
+            const stepsEl = document.getElementById(`pathSteps-${pathId}`);
+            if (stepsEl && !stepsEl.classList.contains('--expanded')) {
+                await App.togglePathSteps(pathId);
+            }
+            // 滾動到該路徑
+            const card = document.querySelector(`.slc-path-card[data-path-id="${pathId}"]`);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.outline = '2px solid var(--slc-primary)';
+                card.style.outlineOffset = '2px';
+                setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 2000);
             }
         },
 
@@ -1237,7 +1465,7 @@ window.slc = (() => {
             state.aiStreaming = true;
 
             UI.addAIMessage('user', question);
-            const assistantMsg = UI.addAIMessage('assistant', '⏳ 思考中...');
+            const assistantMsg = UI.addAIMessage('assistant', '');
 
             try {
                 const response = await API.aiAskStream(
@@ -1352,7 +1580,7 @@ window.slc = (() => {
                         state.uploadFile = e.dataTransfer.files[0];
                         const nameEl = document.getElementById('slcFileName');
                         if (nameEl) {
-                            nameEl.textContent = `📎 ${state.uploadFile.name} (${(state.uploadFile.size / 1024).toFixed(1)} KB)`;
+                            nameEl.innerHTML = `${_icon('clip')} ${_escHtml(state.uploadFile.name)} (${(state.uploadFile.size / 1024).toFixed(1)} KB)`;
                             nameEl.style.display = 'block';
                         }
                     }
@@ -1362,7 +1590,7 @@ window.slc = (() => {
                         state.uploadFile = fileInput.files[0];
                         const nameEl = document.getElementById('slcFileName');
                         if (nameEl) {
-                            nameEl.textContent = `📎 ${state.uploadFile.name} (${(state.uploadFile.size / 1024).toFixed(1)} KB)`;
+                            nameEl.innerHTML = `${_icon('clip')} ${_escHtml(state.uploadFile.name)} (${(state.uploadFile.size / 1024).toFixed(1)} KB)`;
                             nameEl.style.display = 'block';
                         }
                     }
@@ -1647,7 +1875,7 @@ window.slc = (() => {
                 return;
             }
 
-            if (clearExisting && !confirm('⚠️ 確定清空該科目所有知識點嗎？')) return;
+            if (clearExisting && !confirm('確定清空該科目所有知識點嗎？')) return;
 
             payload.clear_existing = clearExisting;
             if (!payload.edges) payload.edges = [];
@@ -1822,7 +2050,7 @@ window.slc = (() => {
                     <span class="slc-pdf-zoom-label">100%</span>
                     <button class="slc-pdf-btn" data-action="zoomin" title="放大">+</button>
                     <span class="slc-pdf-separator"></span>
-                    <a href="${_escHtml(fileUrl)}" class="slc-pdf-btn" download="${_escHtml((content && content.title) || 'download')}" title="下載">⬇</a>
+                    <a href="${_escHtml(fileUrl)}" class="slc-pdf-btn" download="${_escHtml((content && content.title) || 'download')}" title="下載">${_icon('download', 16)}</a>
                 </div>
                 <div class="slc-pdf-scroll-area">
                     <div class="slc-pdf-pages"></div>
@@ -1987,9 +2215,9 @@ window.slc = (() => {
         }
         if (state.currentContentId && state.currentContentTitle) {
             indicator.innerHTML = `
-                <span class="slc-ai-content-context__label">📄 正在查看：</span>
+                <span class="slc-ai-content-context__label">${_icon('doc')} 正在查看：</span>
                 <span class="slc-ai-content-context__title">${_escHtml(state.currentContentTitle)}</span>
-                <button class="slc-ai-content-context__clear" onclick="slc.clearContentContext()" title="取消關聯">✕</button>
+                <button class="slc-ai-content-context__clear" onclick="slc.clearContentContext()" title="取消關聯">${_icon('close', 12)}</button>
             `;
             indicator.style.display = 'flex';
         } else {
@@ -2018,7 +2246,7 @@ window.slc = (() => {
         const refsDiv = document.createElement('div');
         refsDiv.className = 'slc-ai-page-refs';
         refsDiv.innerHTML = `
-            <div class="slc-ai-page-refs__label">📖 相關頁面：</div>
+            <div class="slc-ai-page-refs__label">${_icon('book')} 相關頁面：</div>
             <div class="slc-ai-page-refs__buttons">
                 ${uniqueRefs.map(ref => {
                     const page = ref.page || ref.page_number;
@@ -2038,9 +2266,9 @@ window.slc = (() => {
         const nodesDiv = document.createElement('div');
         nodesDiv.className = 'slc-ai-related-nodes';
         nodesDiv.innerHTML = `
-            <div class="slc-ai-related-nodes__label">🔗 相關知識點：</div>
+            <div class="slc-ai-related-nodes__label">${_icon('link')} 相關知識點：</div>
             <div class="slc-ai-related-nodes__list">
-                ${nodes.map(n => `<span class="slc-ai-node-tag" style="border-color:${n.color || '#006633'}">${n.icon || '📌'} ${_escHtml(n.title)}</span>`).join('')}
+                ${nodes.map(n => `<span class="slc-ai-node-tag" style="border-color:${n.color || '#006633'}">${_safeIcon(n.icon, 'pin')} ${_escHtml(n.title)}</span>`).join('')}
             </div>
         `;
         bubble.appendChild(nodesDiv);
@@ -2137,5 +2365,7 @@ window.slc = (() => {
         submitPath: () => App.submitPath(),
         deletePath: (id) => App.deletePath(id),
         submitBatchPaths: () => App.submitBatchPaths(),
+        focusNode: (nodeId) => App.focusNode(nodeId),
+        jumpToPath: (pathId) => App.jumpToPath(pathId),
     };
 })();

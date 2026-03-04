@@ -396,7 +396,7 @@
     // =====================================================================
     //  SetupScreen Component
     // =====================================================================
-    function SetupScreen({ playerName, onStart }) {
+    function SetupScreen({ playerName, onStart, showTrialOption, onTrialStart }) {
         const [difficulty, setDifficulty] = useState('NORMAL');
         const [playerSpec, setPlayerSpec] = useState('AGRI');
         const [aiSpec, setAiSpec] = useState('IND');
@@ -518,6 +518,16 @@
                         >
                             🚀 開始遊戲
                         </button>
+
+                        {/* Trial Play Button (for students) */}
+                        {showTrialOption && onTrialStart && (
+                            <button
+                                onClick={() => onTrialStart(difficulty, playerSpec, aiSpec)}
+                                className="w-full py-3 bg-gray-700/60 hover:bg-gray-600/60 text-gray-300 hover:text-white font-medium rounded-xl transition-all border border-gray-600 hover:border-gray-500"
+                            >
+                                🎮 試玩模式（不計分）
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -998,10 +1008,10 @@
                             )}
                             {isTrialMode && (
                                 <button
-                                    onClick={() => onGameEnd('dashboard')}
+                                    onClick={() => onGameEnd('back')}
                                     className="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-xl font-medium transition-colors"
                                 >
-                                    📊 返回管理面板
+                                    {TradeGameBridge.isTeacher() ? '📊 返回管理面板' : '← 返回'}
                                 </button>
                             )}
                         </div>
@@ -1261,7 +1271,7 @@
     // =====================================================================
     //  AlreadyPlayedScreen — for students who have already played
     // =====================================================================
-    function AlreadyPlayedScreen({ scoreData }) {
+    function AlreadyPlayedScreen({ scoreData, onTrialPlay }) {
         const [leaderboard, setLeaderboard] = useState([]);
 
         useEffect(() => {
@@ -1318,7 +1328,13 @@
                         </div>
                     )}
 
-                    <div className="text-center">
+                    <div className="flex flex-col items-center gap-3">
+                        <button
+                            onClick={onTrialPlay}
+                            className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                        >
+                            🎮 試玩遊戲（不計分）
+                        </button>
                         <a href="/static/game_center.html" className="text-blue-400 hover:text-blue-300 text-sm">
                             ← 返回遊戲中心
                         </a>
@@ -1640,18 +1656,30 @@
         const handleGameEnd = (action) => {
             if (action === 'restart') {
                 setGameConfig(null);
-                setGamePhase(trialMode ? 'setup' : 'setup');
-            } else if (action === 'dashboard') {
+                setGamePhase('setup');
+            } else if (action === 'back' || action === 'dashboard') {
                 setTrialMode(false);
-                setGamePhase('dashboard');
                 setGameConfig(null);
+                if (TradeGameBridge.isTeacher()) {
+                    setGamePhase('dashboard');
+                } else {
+                    // Student: return to already_played or setup
+                    setGamePhase(existingScore ? 'already_played' : 'setup');
+                }
             }
         };
 
-        // Handle teacher trial play
+        // Handle trial play (both teacher and student)
         const handleTrialPlay = () => {
             setTrialMode(true);
             setGamePhase('setup');
+        };
+
+        // Handle student trial start from SetupScreen (set trial + start immediately)
+        const handleTrialStart = (difficulty, playerSpec, aiSpec) => {
+            setTrialMode(true);
+            setGameConfig({ difficulty, playerSpec, aiSpec });
+            setGamePhase('playing');
         };
 
         // Loading state
@@ -1684,7 +1712,7 @@
 
         // Already played (student)
         if (gamePhase === 'already_played') {
-            return <AlreadyPlayedScreen scoreData={existingScore} />;
+            return <AlreadyPlayedScreen scoreData={existingScore} onTrialPlay={handleTrialPlay} />;
         }
 
         // Teacher dashboard
@@ -1699,8 +1727,15 @@
                     {trialMode && (
                         <div className="fixed top-0 left-0 right-0 bg-amber-600/90 text-white text-center py-2 text-sm z-40">
                             ℹ️ 試玩模式 — 成績不會被記錄 &nbsp;
-                            <button onClick={() => { setTrialMode(false); setGamePhase('dashboard'); }} className="underline hover:no-underline ml-2">
-                                返回管理面板
+                            <button onClick={() => {
+                                setTrialMode(false);
+                                if (TradeGameBridge.isTeacher()) {
+                                    setGamePhase('dashboard');
+                                } else {
+                                    setGamePhase(existingScore ? 'already_played' : 'setup');
+                                }
+                            }} className="underline hover:no-underline ml-2">
+                                {TradeGameBridge.isTeacher() ? '返回管理面板' : '退出試玩'}
                             </button>
                         </div>
                     )}
@@ -1708,6 +1743,8 @@
                         <SetupScreen
                             playerName={TradeGameBridge.user?.name || '玩家'}
                             onStart={handleStartGame}
+                            showTrialOption={!trialMode && !TradeGameBridge.isTeacher()}
+                            onTrialStart={handleTrialStart}
                         />
                     </div>
                 </div>
