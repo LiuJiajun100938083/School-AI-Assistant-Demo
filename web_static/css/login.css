@@ -70,6 +70,21 @@ html {
     --space-8: 32px;
     --space-10: 40px;
     --space-12: 48px;
+    --space-16: 64px;
+
+    /* 字體層級 */
+    --type-display: 40px;
+    --type-h1: 28px;
+    --type-h2: 18px;
+    --type-body: 15px;
+    --type-caption: 13px;
+    --type-micro: 11px;
+
+    /* 白色文字透明度（綠底用） */
+    --white-primary: rgba(255, 255, 255, 0.95);
+    --white-secondary: rgba(255, 255, 255, 0.70);
+    --white-tertiary: rgba(255, 255, 255, 0.45);
+    --white-muted: rgba(255, 255, 255, 0.25);
 
     /* 動畫 */
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -163,11 +178,11 @@ body {
 
 .brand-panel-content::before {
     content: '';
-    flex: 0 0 12%;
+    flex: 0 0 var(--space-16);
 }
 
 .brand-mascot {
-    width: 320px;
+    width: 280px;
     height: auto;
     filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12));
     flex-shrink: 0;
@@ -176,41 +191,41 @@ body {
 }
 
 .brand-welcome {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--type-caption);
+    color: var(--white-secondary);
     letter-spacing: 0.08em;
     font-weight: 400;
-    margin-top: 40px;
+    margin-top: var(--space-8);
     text-transform: uppercase;
 }
 
 .brand-app-name {
     font-family: 'Noto Sans TC', sans-serif;
-    font-size: 36px;
+    font-size: var(--type-display);
     font-weight: 700;
     color: #FFFFFF;
     letter-spacing: 1px;
     line-height: 1.2;
-    margin-top: 14px;
+    margin-top: var(--space-2);
 }
 
 .brand-school {
     font-family: 'Noto Sans TC', sans-serif;
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.85);
+    font-size: var(--type-h2);
+    color: var(--white-secondary);
     line-height: 1.5;
     font-weight: 400;
     letter-spacing: 0.02em;
-    margin-top: 18px;
+    margin-top: var(--space-2);
 }
 
 /* ── QR Code 區域 ── */
 .brand-qr-section {
-    margin-top: 32px;
+    margin-top: var(--space-10);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
 }
 
 .qr-container {
@@ -232,24 +247,23 @@ body {
 
 .qr-label-zh {
     font-family: 'Noto Sans TC', sans-serif;
-    font-size: 14px;
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: var(--type-caption);
+    font-weight: 500;
+    color: var(--white-secondary);
     letter-spacing: 0.03em;
     line-height: 1.4;
 }
 
 .qr-label-en {
-    font-size: 11px;
+    font-size: var(--type-micro);
     font-weight: 400;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--white-tertiary);
     letter-spacing: 0.05em;
-    margin-top: 2px;
 }
 
 .qr-url {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.25);
+    font-size: var(--type-micro);
+    color: var(--white-muted);
     font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
     word-break: break-all;
     max-width: 180px;
@@ -260,8 +274,8 @@ body {
 /* ── 名言區域 ── */
 .brand-quote {
     margin-top: auto;
-    padding-bottom: var(--space-10);
-    width: 60%;
+    padding-bottom: var(--space-12);
+    width: 70%;
     text-align: center;
 }
 
@@ -289,44 +303,44 @@ body {
 
 .brand-quote .quote-chinese {
     font-family: 'Noto Sans TC', sans-serif;
-    font-size: 14px;
+    font-size: var(--type-caption);
     font-weight: 400;
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--white-secondary);
     margin-bottom: var(--space-2);
     line-height: 1.9;
 }
 
 .brand-quote .quote-english {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.35);
+    font-size: var(--type-micro);
+    color: var(--white-tertiary);
     font-style: italic;
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
     line-height: 1.7;
 }
 
 .brand-quote .quote-author {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.3);
+    font-size: var(--type-micro);
+    color: var(--white-tertiary);
 }
 
 .brand-quote .quote-indicators {
     display: flex;
     justify-content: center;
-    gap: 5px;
-    margin-top: 16px;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
 }
 
 .brand-quote .quote-indicator {
-    width: 3px;
-    height: 3px;
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--white-muted);
     cursor: pointer;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .brand-quote .quote-indicator.active {
-    background: rgba(255, 255, 255, 0.6);
+    background: var(--white-secondary);
     transform: scale(1.4);
 }
 
@@ -346,7 +360,7 @@ body {
     text-align: center;
     background: #F5F5F7;
     border-radius: 28px;
-    padding: var(--space-12) var(--space-8);
+    padding: var(--space-12) var(--space-10);
     box-shadow:
         10px 10px 25px rgba(0, 0, 0, 0.07),
         -10px -10px 25px rgba(255, 255, 255, 0.85);
@@ -354,15 +368,20 @@ body {
 }
 
 .login-header {
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-10);
 }
 
 .login-icon {
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+
+.login-logo-img {
+    width: 96px;
+    height: auto;
 }
 
 .login-title {
-    font-size: 24px;
+    font-size: var(--type-h1);
     font-weight: 600;
     color: var(--text-primary);
     letter-spacing: -0.3px;
@@ -370,7 +389,7 @@ body {
 }
 
 .login-subtitle {
-    font-size: 14px;
+    font-size: var(--type-body);
     color: var(--text-secondary);
     line-height: 1.5;
 }
@@ -382,7 +401,7 @@ body {
 
 .input-label {
     display: block;
-    font-size: 12px;
+    font-size: var(--type-caption);
     font-weight: 500;
     color: var(--text-tertiary);
     margin-bottom: var(--space-2);
@@ -419,7 +438,7 @@ body {
 
 .login-input {
     width: 100%;
-    padding: 14px 16px 14px 46px;
+    padding: var(--space-4) var(--space-4) var(--space-4) 48px;
     border: none;
     border-radius: var(--radius-md);
     background: #F5F5F7;
@@ -459,17 +478,17 @@ body {
 /* ── 登入按鈕（Neumorphism） ── */
 .login-button {
     width: 100%;
-    padding: 15px var(--space-6);
+    padding: var(--space-4) var(--space-6);
     background: var(--brand);
     color: var(--text-on-brand);
     border: none;
     border-radius: var(--radius-full);
-    font-size: 15px;
+    font-size: var(--type-body);
     font-weight: 500;
     font-family: var(--font-sans);
     cursor: pointer;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-top: var(--space-6);
+    margin-top: var(--space-8);
     box-shadow:
         5px 5px 14px rgba(0, 0, 0, 0.10),
         -5px -5px 14px rgba(255, 255, 255, 0.7);
@@ -573,7 +592,7 @@ body {
 /* ── 錯誤與載入 ── */
 .login-error {
     display: none;
-    margin-top: var(--space-3);
+    margin-top: var(--space-4);
     padding: var(--space-3) var(--space-4);
     background: rgba(255, 59, 48, 0.08);
     border: 1px solid rgba(255, 59, 48, 0.15);
@@ -625,7 +644,7 @@ body {
         flex: 0 0 40%;
     }
     .brand-mascot {
-        width: 150px;
+        width: 160px;
     }
 }
 
