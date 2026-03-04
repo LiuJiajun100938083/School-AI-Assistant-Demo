@@ -117,9 +117,15 @@ class AttendanceService:
                 skipped += 1
                 continue
 
+            cn = row.get("class_number", 0)
+            try:
+                cn = int(cn) if cn not in (None, "") else 0
+            except (ValueError, TypeError):
+                cn = 0
+
             self._student.upsert_student({
                 "class_name": (row.get("class_name") or "").strip(),
-                "class_number": (row.get("class_number") or "").strip(),
+                "class_number": cn,
                 "user_login": user_login,
                 "english_name": (row.get("english_name") or "").strip(),
                 "chinese_name": (row.get("chinese_name") or "").strip(),
