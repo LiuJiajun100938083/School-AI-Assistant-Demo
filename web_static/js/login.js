@@ -4,7 +4,7 @@
  * 登入頁面 — 前端核心模組
  * ========================
  *
- * 獨立負責：Splash 開屏動畫、登入表單、名言輪播。
+ * 獨立負責：登入表單、名言輪播。
  * 登入成功後跳轉至主頁 (/)。
  *
  * 架構：
@@ -13,7 +13,6 @@
  *   LoginApp  — 主控制器（狀態、事件、業務流程）
  *
  * 依賴共享模組: AuthModule
- * 外部依賴:     GSAP（啟動動畫）
  */
 
 /* ============================================================
@@ -45,8 +44,7 @@ const LoginUI = {
             passwordInput:   document.getElementById('passwordInput'),
             loginButton:     document.getElementById('loginButton'),
             loginError:      document.getElementById('loginError'),
-            loginLoading:    document.getElementById('loginLoading'),
-            splashScreen:    document.getElementById('splashScreen')
+            loginLoading:    document.getElementById('loginLoading')
         };
     },
 
@@ -69,26 +67,6 @@ const LoginUI = {
         } else {
             el.loginButton.classList.remove('is-loading');
         }
-    },
-
-    /**
-     * 登出回到登入頁時的淡入效果
-     */
-    showLoginInterface() {
-        const el = this.elements;
-        el.loginContainer.style.display = 'flex';
-
-        if (typeof gsap !== 'undefined') {
-            const bp = el.loginContainer.querySelector('.login-brand-panel');
-            const fp = el.loginContainer.querySelector('.login-form-panel');
-            gsap.set([bp, fp], { opacity: 1, x: 0 });
-            gsap.fromTo(el.loginContainer, { opacity: 0 }, {
-                opacity: 1, duration: 0.5, ease: 'cubic-bezier(0.4, 0, 0.2, 1)',
-                onComplete() { el.usernameInput.focus(); }
-            });
-        } else {
-            el.usernameInput.focus();
-        }
     }
 };
 
@@ -101,6 +79,9 @@ const LoginApp = {
     async init() {
         LoginUI.cacheElements();
         this._bindEvents();
+
+        // 自動聚焦用戶名輸入框
+        LoginUI.elements.usernameInput?.focus();
     },
 
     _bindEvents() {
@@ -148,237 +129,10 @@ const LoginApp = {
 };
 
 /* ============================================================
-   企業級啟動動畫 + 名言輪播
-   System Wake -> Interface Deployment -> Content Enter
+   名人名言輪播（純 opacity，8 秒間隔）
    ============================================================ */
 
 document.addEventListener('DOMContentLoaded', function () {
-    const splashScreen   = document.getElementById('splashScreen');
-    const glassPanel     = document.getElementById('glassPanel');
-    const loginContainer = document.getElementById('loginContainer');
-    if (!splashScreen || !loginContainer) return;
-
-    const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
-
-    // 已登入用戶：跳過動畫（理論上不會到這裡，但做防禦性處理）
-    const hasToken = AuthModule && AuthModule.getToken && AuthModule.getToken();
-    if (hasToken) {
-        splashScreen.style.display = 'none';
-        if (glassPanel) glassPanel.style.display = 'none';
-        loginContainer.style.display = 'none';
-        return;
-    }
-
-    // DOM 引用
-    const splashContent = splashScreen.querySelector('.splash-content');
-    const splashMascot  = splashScreen.querySelector('.splash-mascot');
-    const splashTitle   = splashScreen.querySelector('.splash-title');
-    const splashSub     = splashScreen.querySelector('.splash-subtitle');
-    const splashLoader  = splashScreen.querySelector('.splash-loader');
-    const brandPanel    = loginContainer.querySelector('.login-brand-panel');
-    const formPanel     = loginContainer.querySelector('.login-form-panel');
-    const brandMascot   = loginContainer.querySelector('.brand-mascot');
-    const brandWelcome  = loginContainer.querySelector('.brand-welcome');
-    const brandAppName  = loginContainer.querySelector('.brand-app-name');
-    const brandSchool   = loginContainer.querySelector('.brand-school');
-    const brandQuote    = loginContainer.querySelector('.brand-quote');
-    const loginCard     = loginContainer.querySelector('.login-card');
-    const loginHeader   = loginContainer.querySelector('.login-header');
-    const inputGroups   = loginContainer.querySelectorAll('.input-group');
-    const loginButton   = loginContainer.querySelector('.login-button');
-
-    /* ====================================================
-       第一幕：系統喚醒（System Wake）~ 2.5s
-       ==================================================== */
-    const tl = gsap.timeline();
-
-    tl
-        .to(splashMascot, {
-            opacity: 1, filter: 'blur(0px)',
-            duration: 1.2, ease: EASE
-        }, 0.3)
-
-        .to(splashTitle, {
-            opacity: 1, filter: 'blur(0px)',
-            duration: 0.6, ease: 'power2.out'
-        }, 0.9)
-        .to(splashSub, {
-            opacity: 1, filter: 'blur(0px)',
-            duration: 0.6, ease: 'power2.out'
-        }, 1.1)
-
-        .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.2)
-        .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 2.1)
-
-    /* ====================================================
-       第二幕：空間展開（Interface Deployment）
-       ==================================================== */
-
-        .add(() => {
-            const r = splashMascot.getBoundingClientRect();
-            Object.assign(splashMascot.style, {
-                position: 'fixed',
-                left: r.left + 'px',
-                top: r.top + 'px',
-                width: r.width + 'px',
-                height: 'auto',
-                zIndex: '10001',
-                pointerEvents: 'none',
-                margin: '0',
-                filter: 'blur(0px)'
-            });
-            document.body.appendChild(splashMascot);
-        }, 2.5)
-
-        .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.5)
-
-        .add(() => { splashScreen.style.display = 'none'; }, 2.9)
-
-        .add(() => {
-            loginContainer.style.display = 'flex';
-            gsap.set(loginContainer, { opacity: 1 });
-            gsap.set(brandPanel, { opacity: 0 });
-            gsap.set(formPanel, { opacity: 0 });
-            gsap.set(brandMascot, { opacity: 0 });
-            gsap.set([brandWelcome, brandAppName, brandSchool], { opacity: 0, y: 16, filter: 'blur(6px)' });
-            gsap.set(brandQuote, { opacity: 0, y: 16 });
-            gsap.set(loginHeader, { opacity: 0, y: 20 });
-            gsap.set(inputGroups, { opacity: 0, y: 20 });
-            gsap.set(loginButton, { opacity: 0, y: 20, scale: 0.98 });
-        }, 2.95)
-
-        .to(glassPanel, {
-            opacity: 0, duration: 0.6, ease: EASE,
-            onComplete() { glassPanel.style.display = 'none'; }
-        }, 3.0)
-        .to(brandPanel, { opacity: 1, duration: 0.6, ease: EASE }, 3.05)
-        .to(formPanel, { opacity: 1, duration: 0.6, ease: EASE }, 3.1)
-
-    /* ====================================================
-       第三幕：內容進入（Content Enter）
-       ==================================================== */
-
-        .add(() => {
-            const target = brandMascot.getBoundingClientRect();
-            const source = splashMascot.getBoundingClientRect();
-            const dx = target.left + target.width / 2 - (source.left + source.width / 2);
-            const dy = target.top + target.height / 2 - (source.top + source.height / 2);
-            const s = target.width / source.width;
-
-            gsap.to(splashMascot, {
-                x: dx, y: dy, scale: s,
-                duration: 0.7, ease: 'power3.inOut',
-                onComplete() {
-                    splashMascot.style.display = 'none';
-                    gsap.set(brandMascot, { opacity: 1 });
-                }
-            });
-        }, 3.2)
-
-        .to(brandWelcome, {
-            opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out'
-        }, 3.4)
-        .to(brandAppName, {
-            opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.4, ease: 'power2.out'
-        }, 3.52)
-        .to(brandSchool, {
-            opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.35, ease: 'power2.out'
-        }, 3.64)
-        .to(brandQuote, {
-            opacity: 1, y: 0, duration: 0.4, ease: 'power2.out'
-        }, 3.76)
-
-        .to(loginHeader, {
-            opacity: 1, y: 0, duration: 0.5, ease: 'power2.out'
-        }, 3.4)
-        .to(inputGroups, {
-            opacity: 1, y: 0, duration: 0.5,
-            stagger: 0.12, ease: 'power2.out'
-        }, 3.55)
-        .to(loginButton, {
-            opacity: 1, y: 0, scale: 1, duration: 0.5, ease: EASE,
-            onComplete() {
-                document.getElementById('usernameInput')?.focus();
-            }
-        }, 3.8);
-
-    /* ====================================================
-       小馬視差跟蹤 — 3D 扭頭看鼠標效果
-       ==================================================== */
-    (function initMascotTracker() {
-        // 等動畫完成後再啟動跟蹤
-        const DELAY = 4200; // ms，略晚於 timeline 結束
-        const MAX_ROTATE_Y = 12;   // 左右旋轉最大角度
-        const MAX_ROTATE_X = 8;    // 上下旋轉最大角度
-        const MAX_SHIFT_X  = 8;    // 左右位移 px
-        const MAX_SHIFT_Y  = 5;    // 上下位移 px
-        const SHADOW_BASE  = 4;    // 陰影基礎偏移
-        const SHADOW_RANGE = 10;   // 陰影跟隨範圍
-
-        let active = false;
-        let rafId  = null;
-        let mouseX = 0.5;  // 0~1 歸一化，0.5 = 畫面中央
-        let mouseY = 0.5;
-
-        // GSAP quickTo 實現絲滑插值（比直接 set 平滑很多）
-        let qRotY, qRotX, qX, qY;
-
-        setTimeout(() => {
-            if (!brandMascot) return;
-
-            qRotY = gsap.quickTo(brandMascot, 'rotateY', { duration: 0.6, ease: 'power2.out' });
-            qRotX = gsap.quickTo(brandMascot, 'rotateX', { duration: 0.6, ease: 'power2.out' });
-            qX    = gsap.quickTo(brandMascot, 'x',       { duration: 0.8, ease: 'power2.out' });
-            qY    = gsap.quickTo(brandMascot, 'y',       { duration: 0.8, ease: 'power2.out' });
-
-            // 設置透視父層
-            gsap.set(brandMascot.parentElement, { perspective: 800 });
-
-            document.addEventListener('mousemove', onMouseMove);
-            active = true;
-        }, DELAY);
-
-        function onMouseMove(e) {
-            // 歸一化到 -1 ~ 1（以畫面中央為 0）
-            mouseX = (e.clientX / window.innerWidth  - 0.5) * 2;
-            mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
-
-            if (!rafId) rafId = requestAnimationFrame(updateTransform);
-        }
-
-        function updateTransform() {
-            rafId = null;
-            if (!active || !brandMascot) return;
-
-            // 旋轉：鼠標在右邊 → 小馬向右轉（rotateY 正值）
-            qRotY(mouseX * MAX_ROTATE_Y);
-            // 鼠標在上方 → 小馬向上仰（rotateX 正值）
-            qRotX(-mouseY * MAX_ROTATE_X);
-            // 微位移：跟隨鼠標方向
-            qX(mouseX * MAX_SHIFT_X);
-            qY(mouseY * MAX_SHIFT_Y);
-
-            // 動態陰影：光源在鼠標反方向
-            const shadowX = -mouseX * SHADOW_RANGE + SHADOW_BASE;
-            const shadowY = -mouseY * SHADOW_RANGE + SHADOW_BASE + 4;
-            brandMascot.style.filter =
-                `drop-shadow(${shadowX.toFixed(1)}px ${shadowY.toFixed(1)}px 16px rgba(0, 0, 0, 0.15))`;
-        }
-
-        // 鼠標離開窗口時回復原位
-        document.addEventListener('mouseleave', () => {
-            if (!active) return;
-            qRotY(0);
-            qRotX(0);
-            qX(0);
-            qY(0);
-            brandMascot.style.filter = 'drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12))';
-        });
-    })();
-
-    /* ====================================================
-       名人名言輪播（純 opacity，8 秒間隔）
-       ==================================================== */
     const quotes = [
         { chinese: '「人工智慧是新的電力。」', english: 'AI is the new electricity.', author: 'Andrew Ng（吳恩達）' },
         { chinese: '「AI 是我們這個時代最強大的技術力量。」', english: 'AI is the most powerful technology force of our time.', author: 'Jensen Huang（黃仁勳）' },
@@ -436,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
         startAutoPlay();
     });
 
-    setTimeout(startAutoPlay, 5000);
+    startAutoPlay();
 });
 
 /* ============================================================

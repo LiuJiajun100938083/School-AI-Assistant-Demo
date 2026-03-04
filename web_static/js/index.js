@@ -4,8 +4,7 @@
  * 首頁（AI 學習夥伴）— 前端核心模組
  * ====================================
  *
- * 僅負責：首頁應用導航、密碼修改。
- * 登入邏輯已獨立至 login.js。
+ * v4.0 — SaaS Flat Dashboard
  *
  * 架構：
  *   HomeAPI  — API 請求封裝
@@ -21,9 +20,6 @@
 
 const HomeAPI = {
 
-    /**
-     * 通用請求封裝（附帶 JWT，自動處理 401）
-     */
     async _fetch(url, options = {}) {
         const defaults = { headers: {} };
         const token = AuthModule.getToken();
@@ -100,7 +96,15 @@ const HomeUI = {
             homeUserClass:       document.getElementById('homeUserClass'),
             homeUserMenu:        document.getElementById('homeUserMenu'),
             homeAdminPanel:      document.getElementById('homeAdminPanel'),
-            homeAdminSeparator:  document.getElementById('homeAdminSeparator')
+            homeAdminSeparator:  document.getElementById('homeAdminSeparator'),
+
+            // SaaS 新增
+            homeSidebar:         document.getElementById('homeSidebar'),
+            homeSidebarNav:      document.getElementById('homeSidebarNav'),
+            homeFilterBar:       document.getElementById('homeFilterBar'),
+            homeWelcome:         document.getElementById('homeWelcome'),
+            homeWelcomeTitle:    document.getElementById('homeWelcomeTitle'),
+            homeWelcomeStats:    document.getElementById('homeWelcomeStats'),
         };
     },
 
@@ -141,9 +145,8 @@ const HomeUI = {
         el.passwordError.textContent = '';
     },
 
-    /* ---------- 首頁應用卡片 ---------- */
+    /* ---------- SVG 圖標映射 ---------- */
 
-    // SVG 圖標映射（Lucide 風格，24x24，2px stroke）
     _appIcons: {
         ai_chat:          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
         ai_learning_center:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
@@ -163,14 +166,106 @@ const HomeUI = {
         admin_dashboard:  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
     },
 
-    // 分組配置
+    /* ---------- 分組配置 ---------- */
+
     _categoryConfig: {
-        learning:  { label: '學習工具',  order: 1, collapsed: false },
-        community: { label: '社區',      order: 2, collapsed: false },
-        teaching:  { label: '教學管理',  order: 3, collapsed: true  },
-        admin:     { label: '系統管理',  order: 4, collapsed: true  },
-        other:     { label: '其他',      order: 5, collapsed: true  },
+        learning:  { label: '學習工具',  order: 1, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
+        community: { label: '社區',      order: 2, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+        teaching:  { label: '教學管理',  order: 3, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
+        admin:     { label: '系統管理',  order: 4, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>' },
+        other:     { label: '其他',      order: 5, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
     },
+
+    /* ---------- Sidebar 導航 ---------- */
+
+    renderSidebarNav(apps) {
+        const nav = this.elements.homeSidebarNav;
+        if (!nav) return;
+
+        const counts = {};
+        for (const app of apps) {
+            const cat = app.category || 'other';
+            counts[cat] = (counts[cat] || 0) + 1;
+        }
+
+        const sortedCats = Object.keys(counts).sort((a, b) => {
+            const oa = (this._categoryConfig[a] || {}).order || 99;
+            const ob = (this._categoryConfig[b] || {}).order || 99;
+            return oa - ob;
+        });
+
+        const allIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>';
+
+        let html = `
+            <div class="home-sidebar__item home-sidebar__item--active" data-sidebar-cat="all">
+                <span class="home-sidebar__item-icon">${allIcon}</span>
+                <span>全部應用</span>
+                <span class="home-sidebar__item-count">${apps.length}</span>
+            </div>`;
+
+        for (const cat of sortedCats) {
+            const cfg = this._categoryConfig[cat] || { label: cat, icon: '' };
+            html += `
+                <div class="home-sidebar__item" data-sidebar-cat="${cat}">
+                    <span class="home-sidebar__item-icon">${cfg.icon || ''}</span>
+                    <span>${cfg.label}</span>
+                    <span class="home-sidebar__item-count">${counts[cat]}</span>
+                </div>`;
+        }
+
+        nav.innerHTML = html;
+    },
+
+    /* ---------- 手機 Filter Bar ---------- */
+
+    renderFilterBar(apps) {
+        const bar = this.elements.homeFilterBar;
+        if (!bar) return;
+
+        const counts = {};
+        for (const app of apps) {
+            const cat = app.category || 'other';
+            counts[cat] = (counts[cat] || 0) + 1;
+        }
+
+        const sortedCats = Object.keys(counts).sort((a, b) => {
+            const oa = (this._categoryConfig[a] || {}).order || 99;
+            const ob = (this._categoryConfig[b] || {}).order || 99;
+            return oa - ob;
+        });
+
+        let html = `<button class="home-filter-bar__tab home-filter-bar__tab--active" data-filter-cat="all">全部</button>`;
+        for (const cat of sortedCats) {
+            const cfg = this._categoryConfig[cat] || { label: cat };
+            html += `<button class="home-filter-bar__tab" data-filter-cat="${cat}">${cfg.label}</button>`;
+        }
+        bar.innerHTML = html;
+    },
+
+    /* ---------- Welcome 統計 ---------- */
+
+    renderWelcomeStats(apps, userName) {
+        const title = this.elements.homeWelcomeTitle;
+        if (title && userName) {
+            title.textContent = `歡迎回來，${userName}`;
+        }
+
+        const statsEl = this.elements.homeWelcomeStats;
+        if (!statsEl) return;
+
+        const catCount = new Set(apps.map(a => a.category)).size;
+        statsEl.innerHTML = `
+            <div class="home-stat">
+                <div class="home-stat__value">${apps.length}</div>
+                <div class="home-stat__label">應用</div>
+            </div>
+            <div class="home-stat">
+                <div class="home-stat__value">${catCount}</div>
+                <div class="home-stat__label">分類</div>
+            </div>`;
+    },
+
+    /* ---------- 首頁應用卡片 ---------- */
 
     renderHomeApps(apps) {
         const grid = this.elements.homeAppsGrid;
@@ -191,7 +286,7 @@ const HomeUI = {
 
         let html = '';
         for (const cat of sortedCats) {
-            const cfg = this._categoryConfig[cat] || { label: cat, order: 99, collapsed: true };
+            const cfg = this._categoryConfig[cat] || { label: cat, order: 99, collapsed: false };
             const items = groups[cat];
             const isCollapsed = cfg.collapsed;
 
@@ -201,7 +296,7 @@ const HomeUI = {
                          data-toggle-group="${cat}">
                         <span class="home-group__label">${cfg.label}</span>
                         <span class="home-group__count">${items.length}</span>
-                        <svg class="home-group__chevron" width="16" height="16" viewBox="0 0 24 24"
+                        <svg class="home-group__chevron" width="14" height="14" viewBox="0 0 24 24"
                              fill="none" stroke="currentColor" stroke-width="2"
                              stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"/>
@@ -209,12 +304,16 @@ const HomeUI = {
                     </div>
                     <div class="home-group__grid${isCollapsed ? ' home-group__grid--collapsed' : ''}">
                         ${items.map(app => {
-                            const icon = this._appIcons[app.id] || `<span class="home-app-card__emoji">${app.icon}</span>`;
+                            const icon = this._appIcons[app.id]
+                                ? `<div class="tool-icon">${this._appIcons[app.id]}</div>`
+                                : `<div class="tool-icon"><span class="home-app-card__emoji">${app.icon}</span></div>`;
                             return `
                                 <div class="home-app-card" data-app-id="${app.id}" data-app-url="${app.url}">
-                                    <div class="tool-icon">${icon}</div>
-                                    <div class="tool-name">${app.name}</div>
-                                    <div class="tool-desc">${app.description}</div>
+                                    ${icon}
+                                    <div class="home-app-card__text">
+                                        <div class="tool-name">${app.name}</div>
+                                        <div class="tool-desc">${app.description}</div>
+                                    </div>
                                 </div>`;
                         }).join('')}
                     </div>
@@ -222,7 +321,7 @@ const HomeUI = {
         }
         grid.innerHTML = html;
 
-        // 綁定折疊切換事件
+        // 折疊切換
         grid.querySelectorAll('[data-toggle-group]').forEach(header => {
             header.addEventListener('click', () => {
                 const groupEl = header.closest('.home-group');
@@ -258,10 +357,8 @@ const HomeApp = {
 
         if (this.state.authToken) {
             await this._verifyToken();
-            // 數據加載完成後，觸發啟動動畫
             this._playSplashAnimation();
         } else {
-            // 無 token，跳轉登入頁
             window.location.href = '/login';
         }
     },
@@ -324,6 +421,55 @@ const HomeApp = {
             this._handleChangePassword();
         });
         el.cancelPasswordChange.addEventListener('click', () => HomeUI.hideChangePasswordModal());
+    },
+
+    /* ---------- 分類導航 ---------- */
+
+    _bindCategoryNav() {
+        // Sidebar 點擊
+        const sidebarNav = document.getElementById('homeSidebarNav');
+        if (sidebarNav) {
+            sidebarNav.addEventListener('click', (e) => {
+                const item = e.target.closest('.home-sidebar__item');
+                if (!item) return;
+
+                sidebarNav.querySelectorAll('.home-sidebar__item').forEach(
+                    el => el.classList.remove('home-sidebar__item--active')
+                );
+                item.classList.add('home-sidebar__item--active');
+
+                const cat = item.dataset.sidebarCat;
+                this._filterByCategory(cat);
+            });
+        }
+
+        // Filter bar 點擊 (手機)
+        const filterBar = document.getElementById('homeFilterBar');
+        if (filterBar) {
+            filterBar.addEventListener('click', (e) => {
+                const tab = e.target.closest('.home-filter-bar__tab');
+                if (!tab) return;
+
+                filterBar.querySelectorAll('.home-filter-bar__tab').forEach(
+                    el => el.classList.remove('home-filter-bar__tab--active')
+                );
+                tab.classList.add('home-filter-bar__tab--active');
+
+                const cat = tab.dataset.filterCat;
+                this._filterByCategory(cat);
+            });
+        }
+    },
+
+    _filterByCategory(cat) {
+        const groups = document.querySelectorAll('.home-group');
+        groups.forEach(group => {
+            if (cat === 'all') {
+                group.style.display = '';
+            } else {
+                group.style.display = group.dataset.category === cat ? '' : 'none';
+            }
+        });
     },
 
     /* ---------- 認證 ---------- */
@@ -503,7 +649,17 @@ const HomeApp = {
             const response = await HomeAPI.fetchApps();
             if (!response.ok) return;
             const data = await response.json();
-            HomeUI.renderHomeApps(data.apps || []);
+            const apps = data.apps || [];
+
+            HomeUI.renderHomeApps(apps);
+            HomeUI.renderSidebarNav(apps);
+            HomeUI.renderFilterBar(apps);
+            HomeUI.renderWelcomeStats(
+                apps,
+                this.state.userInfo?.display_name || this.state.currentUser
+            );
+
+            this._bindCategoryNav();
         } catch (error) {
             console.error('載入應用列表失敗:', error);
         }
@@ -517,15 +673,13 @@ const HomeApp = {
 
     _playSplashAnimation() {
         if (typeof gsap === 'undefined') {
-            // GSAP 未載入，直接移除 splash
             const splash = document.getElementById('splashScreen');
             if (splash) splash.style.display = 'none';
             return;
         }
 
-        const splashScreen = document.getElementById('splashScreen');
-        const glassPanel   = document.getElementById('glassPanel');
-        const homeContainer = document.getElementById('homeContainer');
+        const splashScreen  = document.getElementById('splashScreen');
+        const glassPanel    = document.getElementById('glassPanel');
         if (!splashScreen) return;
 
         const splashIcon   = splashScreen.querySelector('.splash-icon');
@@ -533,26 +687,24 @@ const HomeApp = {
         const splashSub    = splashScreen.querySelector('.splash-subtitle');
         const splashLoader = splashScreen.querySelector('.splash-loader');
 
-        const headerBar    = document.querySelector('.home-header-bar');
-        const titleSection = document.querySelector('.home-title-section');
+        const header       = document.querySelector('.home-header');
+        const sidebar      = document.querySelector('.home-sidebar');
+        const welcome      = document.querySelector('.home-welcome');
         const appsGrid     = document.querySelector('.home-apps-grid');
 
         const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
-        // 隱藏主界面元素，等動畫結束再顯示
-        gsap.set([headerBar, titleSection, appsGrid].filter(Boolean), { opacity: 0 });
+        // 隱藏主界面元素
+        gsap.set([header, sidebar, welcome, appsGrid].filter(Boolean), { opacity: 0 });
 
-        /* ═══ 第一幕：系統喚醒 ≈ 2.5s ═══ */
         const tl = gsap.timeline();
 
         tl
-            // 吉祥物圖示點亮：blur → clear
+            // 第一幕：系統喚醒
             .to(splashIcon, {
                 opacity: 1, filter: 'blur(0px)',
                 duration: 1.0, ease: EASE
             }, 0.3)
-
-            // 標題依序出現
             .to(splashTitle, {
                 opacity: 1, filter: 'blur(0px)',
                 duration: 0.6, ease: 'power2.out'
@@ -561,51 +713,40 @@ const HomeApp = {
                 opacity: 1, filter: 'blur(0px)',
                 duration: 0.6, ease: 'power2.out'
             }, 1.0)
-
-            // 骨牌 loader 淡入 → 淡出
             .to(splashLoader, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 1.1)
             .to(splashLoader, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 1.9)
 
-        /* ═══ 第二幕：過渡到主界面 ═══ */
-
-            // 深綠遮罩升起
+            // 第二幕：過渡
             .to(glassPanel, { opacity: 1, duration: 0.5, ease: EASE }, 2.3)
-
-            // splash 藏在遮罩後移除
             .add(() => { splashScreen.style.display = 'none'; }, 2.7)
-
-            // 準備主界面元素
             .add(() => {
-                if (headerBar)    gsap.set(headerBar, { opacity: 0, y: -30 });
-                if (titleSection) gsap.set(titleSection, { opacity: 0, y: 20 });
-                if (appsGrid)     gsap.set(appsGrid, { opacity: 0, y: 30 });
+                if (header)  gsap.set(header,  { opacity: 0, y: -20 });
+                if (sidebar) gsap.set(sidebar, { opacity: 0, x: -20 });
+                if (welcome) gsap.set(welcome, { opacity: 0, y: 15 });
+                if (appsGrid) gsap.set(appsGrid, { opacity: 0, y: 20 });
             }, 2.75)
-
-            // 遮罩淡去，露出主界面
             .to(glassPanel, {
                 opacity: 0, duration: 0.6, ease: EASE,
                 onComplete() { glassPanel.style.display = 'none'; }
             }, 2.8)
 
-        /* ═══ 第三幕：界面元素進入 ═══ */
-
-            // Header 從上方滑入
-            .to(headerBar, {
+            // 第三幕：界面元素進入
+            .to(header, {
                 opacity: 1, y: 0,
-                duration: 0.6, ease: 'power2.out'
+                duration: 0.5, ease: 'power2.out'
             }, 2.9)
-
-            // 標題區域淡入上滑
-            .to(titleSection, {
+            .to(sidebar, {
+                opacity: 1, x: 0,
+                duration: 0.5, ease: 'power2.out'
+            }, 2.95)
+            .to(welcome, {
                 opacity: 1, y: 0,
-                duration: 0.7, ease: 'power2.out'
+                duration: 0.5, ease: 'power2.out'
             }, 3.0)
-
-            // 應用卡片區域淡入上滑
             .to(appsGrid, {
                 opacity: 1, y: 0,
-                duration: 0.7, ease: 'power2.out'
-            }, 3.15);
+                duration: 0.6, ease: 'power2.out'
+            }, 3.1);
     }
 };
 
@@ -617,5 +758,5 @@ document.addEventListener('DOMContentLoaded', () => {
     HomeApp.init();
 });
 
-// 向後兼容（部分頁面可能引用 window.app）
+// 向後兼容
 window.app = HomeApp;

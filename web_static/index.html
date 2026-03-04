@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -52,13 +52,15 @@
     </div>
 </div>
 
-<!-- 應用導航首頁 -->
+<!-- 主界面 -->
 <div id="homeContainer" class="home-container">
-    <div class="home-header-bar">
-        <div class="home-header-left">
-            <img src="/static/images/pkms_logo.png" alt="培僑中學" class="home-logo">
+    <!-- HEADER -->
+    <header class="home-header">
+        <div class="home-header__left">
+            <img src="/static/images/pkms_logo.png" alt="培僑中學" class="home-header__logo">
+            <span class="home-header__brand">AI 學習夥伴</span>
         </div>
-        <div class="home-header-right">
+        <div class="home-header__right">
             <div class="home-user-info" id="homeUserInfo">
                 <div class="user-avatar" id="homeUserAvatar">A</div>
                 <div class="user-details">
@@ -80,20 +82,46 @@
                 </div>
             </div>
         </div>
-    </div>
-    <div class="home-content">
-        <div class="home-title-section">
-            <div class="home-title-row">
-                <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="home-mascot">
-                <div class="home-title-text">
-                    <div class="home-title">AI 學習應用助手</div>
-                    <div class="home-subtitle">選擇下方應用開始使用</div>
-                </div>
+    </header>
+
+    <!-- BODY: SIDEBAR + MAIN -->
+    <div class="home-body">
+        <!-- SIDEBAR -->
+        <aside class="home-sidebar" id="homeSidebar">
+            <nav class="home-sidebar__nav" id="homeSidebarNav">
+                <!-- JS 動態生成分類導航 -->
+            </nav>
+            <div class="home-sidebar__footer">
+                <div class="home-sidebar__version">v3.0</div>
             </div>
-        </div>
-        <div class="home-apps-grid" id="homeAppsGrid">
-            <!-- 應用卡片將由 JS 動態生成 -->
-        </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="home-main">
+            <!-- 歡迎橫幅 -->
+            <section class="home-welcome" id="homeWelcome">
+                <div class="home-welcome__text">
+                    <img src="/static/images/ai_hourse.png" alt="" class="home-welcome__mascot">
+                    <div>
+                        <h1 class="home-welcome__title" id="homeWelcomeTitle">歡迎回來</h1>
+                        <p class="home-welcome__subtitle">選擇下方應用開始使用</p>
+                    </div>
+                </div>
+                <div class="home-welcome__stats" id="homeWelcomeStats">
+                    <!-- JS 動態生成統計 -->
+                </div>
+            </section>
+
+            <!-- 分類過濾 (手機用) -->
+            <div class="home-filter-bar" id="homeFilterBar">
+                <!-- JS 動態生成 -->
+            </div>
+
+            <!-- 應用卡片網格 -->
+            <div class="home-apps-grid" id="homeAppsGrid">
+                <!-- JS 動態生成 -->
+            </div>
+        </main>
     </div>
 </div>
 

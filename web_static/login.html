@@ -6,8 +6,6 @@
     <title>登入 — 培僑中學 學習夥伴</title>
     <link rel="stylesheet" href="/static/css/login.css">
     <link rel="stylesheet" href="/static/css/spinner.css">
-    <!-- GSAP 動畫引擎（僅登入頁需要） -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
 <body>
 <!-- 已登入用戶直接跳轉主頁（最早執行，零閃爍） -->
@@ -17,25 +15,8 @@
     }
 </script>
 
-<!-- 第一幕：系統喚醒 -->
-<div class="splash-screen" id="splashScreen">
-    <div class="splash-content">
-        <div class="splash-icon">
-            <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="splash-mascot">
-        </div>
-        <div class="splash-title">AI 學習夥伴</div>
-        <div class="splash-subtitle">培僑中學</div>
-        <div class="splash-loader">
-            <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-        </div>
-    </div>
-</div>
-
-<!-- 過渡遮罩層 -->
-<div class="glass-panel" id="glassPanel"></div>
-
 <!-- 登入界面：左右分屏 -->
-<div id="loginContainer" class="login-container" style="display: none;">
+<div id="loginContainer" class="login-container">
 
     <!-- ====== 左側品牌面板 ====== -->
     <div class="login-brand-panel">
