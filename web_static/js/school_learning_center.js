@@ -397,7 +397,7 @@ window.slc = (() => {
             container.appendChild(tooltipEl);
 
             if (!mapData.nodes || !mapData.nodes.length) {
-                container.innerHTML = '<div class="slc-map-empty"><div class="slc-map-empty__icon">${_icon('map', 40)}</div><div>該科目暫無知識圖譜</div></div>';
+                container.innerHTML = `<div class="slc-map-empty"><div class="slc-map-empty__icon">${_icon('map', 40)}</div><div>該科目暫無知識圖譜</div></div>`;
                 return;
             }
 
@@ -777,7 +777,7 @@ window.slc = (() => {
             const list = document.getElementById('pathList');
             if (!list) return;
             if (!paths.length) {
-                list.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">${_icon('map', 40)}</div><div class="slc-empty-state__text">該科目暫無學習路徑</div></div>';
+                list.innerHTML = `<div class="slc-empty-state"><div class="slc-empty-state__icon">${_icon('map', 40)}</div><div class="slc-empty-state__text">該科目暫無學習路徑</div></div>`;
                 return;
             }
             list.innerHTML = paths.map(p => {
@@ -839,28 +839,32 @@ window.slc = (() => {
         },
 
         // --- AI 聊天 ---
-        addAIMessage(role, content) {
+        addAIMessage(role, content, opts = {}) {
             const container = document.getElementById('aiMessages');
-            if (!container) return;
+            if (!container) return null;
             const msg = document.createElement('div');
             msg.className = `slc-ai-msg --${role}`;
-            msg.innerHTML = `<div class="slc-ai-msg__bubble">${
-                role === 'assistant' ? _renderMarkdown(content) : _escHtml(content)
-            }</div>`;
+            // 頭像
+            const avatar = document.createElement('div');
+            avatar.className = 'slc-ai-msg__avatar';
+            if (role === 'assistant') {
+                avatar.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>';
+            } else {
+                avatar.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+            }
+            msg.appendChild(avatar);
+            // 氣泡
+            const bubble = document.createElement('div');
+            bubble.className = 'slc-ai-msg__bubble';
+            if (opts.typing) {
+                bubble.innerHTML = '<div class="slc-typing-indicator"><span></span><span></span><span></span></div>';
+            } else {
+                bubble.innerHTML = role === 'assistant' ? _renderMarkdown(content) : _escHtml(content);
+            }
+            msg.appendChild(bubble);
             container.appendChild(msg);
             container.scrollTop = container.scrollHeight;
             return msg;
-        },
-
-        updateLastAIMessage(content) {
-            const container = document.getElementById('aiMessages');
-            if (!container) return;
-            const msgs = container.querySelectorAll('.slc-ai-msg.--assistant');
-            if (msgs.length) {
-                const last = msgs[msgs.length - 1];
-                last.querySelector('.slc-ai-msg__bubble').innerHTML = _renderMarkdown(content);
-                container.scrollTop = container.scrollHeight;
-            }
         },
 
         // --- 內容查看器（內嵌版） ---
@@ -1070,6 +1074,12 @@ window.slc = (() => {
             const fab = document.getElementById('aiFab');
             if (fab) fab.addEventListener('click', App.toggleAIWindow);
 
+            // AI 窗口按鈕
+            const aiExpandBtn = document.getElementById('aiExpandBtn');
+            if (aiExpandBtn) aiExpandBtn.addEventListener('click', App.toggleAIWindowSize);
+            const aiCloseBtn = document.getElementById('aiCloseBtn');
+            if (aiCloseBtn) aiCloseBtn.addEventListener('click', App.toggleAIWindow);
+
             // AI 發送
             const aiSendBtn = document.getElementById('aiSendBtn');
             if (aiSendBtn) aiSendBtn.addEventListener('click', App.sendAIMessage);
@@ -1080,6 +1090,27 @@ window.slc = (() => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         App.sendAIMessage();
+                    }
+                });
+            }
+
+            // AI 拖拽
+            _setupAiWindowDrag();
+
+            // AI 訊息區事件委託（頁碼跳轉 + 知識節點點擊）
+            const aiMsgs = document.getElementById('aiMessages');
+            if (aiMsgs) {
+                aiMsgs.addEventListener('click', (e) => {
+                    const pageRef = e.target.closest('.slc-ai-page-ref, .slc-ai-page-ref-btn');
+                    if (pageRef) {
+                        const page = parseInt(pageRef.dataset.page, 10);
+                        if (!isNaN(page)) _navigatePdfToPage(page);
+                        return;
+                    }
+                    const chip = e.target.closest('.slc-ai-node-chip');
+                    if (chip) {
+                        const nodeId = parseInt(chip.dataset.nodeId, 10);
+                        if (!isNaN(nodeId)) App.focusNode(nodeId);
                     }
                 });
             }
@@ -1445,13 +1476,24 @@ window.slc = (() => {
         toggleAIWindow() {
             const win = document.getElementById('aiWindow');
             if (!win) return;
-            win.classList.toggle('--visible');
-            if (win.classList.contains('--visible')) {
+            const isVisible = win.classList.toggle('--visible');
+            if (isVisible) {
                 const subjectName = state.currentSubject?.subject_name || '學習';
                 if (!state.aiMessages.length) {
                     UI.addAIMessage('assistant', `你好！我是 ${subjectName} 科目的 AI 助教，有什麼可以幫你的嗎？`);
                 }
                 document.getElementById('aiInput')?.focus();
+            }
+        },
+
+        toggleAIWindowSize() {
+            const win = document.getElementById('aiWindow');
+            if (!win) return;
+            const isExpanded = win.classList.toggle('--expanded');
+            const btn = document.getElementById('aiExpandBtn');
+            if (btn) {
+                btn.innerHTML = isExpanded ? '&#9635;' : '&#9634;';
+                btn.title = isExpanded ? '縮小' : '放大';
             }
         },
 
@@ -1465,20 +1507,30 @@ window.slc = (() => {
             state.aiStreaming = true;
 
             UI.addAIMessage('user', question);
-            const assistantMsg = UI.addAIMessage('assistant', '');
+            // 顯示打字動畫
+            const assistantMsg = UI.addAIMessage('assistant', '', { typing: true });
+            const bubble = assistantMsg?.querySelector('.slc-ai-msg__bubble');
 
             try {
                 const response = await API.aiAskStream(
                     question,
                     state.currentSubject?.subject_code,
-                    state.currentContentId,  // 傳遞當前查看的內容 ID
+                    state.currentContentId,
                 );
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
-                let answerParts = [];
-                let thinkingParts = [];
+                let fullAnswer = '';
+                let relatedNodes = null;
+                let pageReferences = null;
+
+                // 移除打字動畫，開始串流顯示
+                if (bubble) {
+                    bubble.innerHTML = '<span class="slc-streaming-text"></span><span class="slc-streaming-cursor">\u258D</span>';
+                }
+                const streamText = bubble?.querySelector('.slc-streaming-text');
+                const messagesEl = document.getElementById('aiMessages');
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -1492,43 +1544,48 @@ window.slc = (() => {
                         if (!line.startsWith('data: ')) continue;
                         try {
                             const event = JSON.parse(line.slice(6));
-                            if (event.type === 'thinking') {
-                                thinkingParts.push(event.content);
-                            } else if (event.type === 'token') {
-                                answerParts.push(event.content);
-                                const display = answerParts.join('');
-                                if (assistantMsg) {
-                                    assistantMsg.querySelector('.slc-ai-msg__bubble').innerHTML = _renderMarkdown(display);
-                                }
+                            if (event.type === 'token' && event.content) {
+                                fullAnswer += event.content;
+                                if (streamText) streamText.textContent = fullAnswer;
+                                if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
                             } else if (event.type === 'done') {
-                                // 渲染頁碼引用按鈕
-                                if (event.page_references && event.page_references.length > 0) {
-                                    _renderPageReferences(assistantMsg, event.page_references);
-                                }
-                                // 渲染相關知識節點
-                                if (event.related_nodes && event.related_nodes.length > 0) {
-                                    _renderRelatedNodes(assistantMsg, event.related_nodes);
-                                }
+                                pageReferences = event.page_references || [];
+                                relatedNodes = event.related_nodes || [];
                             }
                         } catch (e) { /* skip */ }
                     }
                 }
 
-                // 如果沒有任何 answer，顯示提示
-                if (!answerParts.length) {
-                    if (assistantMsg) {
-                        assistantMsg.querySelector('.slc-ai-msg__bubble').innerHTML = '抱歉，暫時無法回答此問題。';
+                // 串流完成：移除游標，渲染 Markdown + linkify
+                const cursor = bubble?.querySelector('.slc-streaming-cursor');
+                if (cursor) cursor.remove();
+
+                if (bubble) {
+                    if (fullAnswer) {
+                        let html = _renderMarkdown(fullAnswer);
+                        html = _linkifyPageReferences(html);
+                        bubble.innerHTML = html;
+                    } else {
+                        bubble.innerHTML = '抱歉，暫時無法回答此問題。';
                     }
+                }
+
+                // 頁碼快捷按鈕
+                if (pageReferences && pageReferences.length > 0) {
+                    _renderPageReferences(assistantMsg, pageReferences);
+                }
+                // 相關知識節點
+                if (relatedNodes && relatedNodes.length > 0) {
+                    _renderRelatedNodes(assistantMsg, relatedNodes);
                 }
             } catch (e) {
                 console.error('AI 回答錯誤:', e);
-                if (assistantMsg) {
-                    assistantMsg.querySelector('.slc-ai-msg__bubble').innerHTML = 'AI 助教暫時無法回答，請稍後再試。';
+                if (bubble) {
+                    bubble.innerHTML = 'AI 助教暫時無法回答，請稍後再試。';
                 }
             }
 
             state.aiStreaming = false;
-            // Scroll
             const container = document.getElementById('aiMessages');
             if (container) container.scrollTop = container.scrollHeight;
         },
@@ -2201,18 +2258,68 @@ window.slc = (() => {
         }
     }
 
+    /** 初始化 AI 聊天窗口拖拽行為 */
+    function _setupAiWindowDrag() {
+        const win = document.getElementById('aiWindow');
+        const header = document.getElementById('aiWindowHeader');
+        if (!win || !header) return;
+
+        let dragState = null;
+        let lastX = 0, lastY = 0, rafPending = false;
+
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button')) return;
+            e.preventDefault();
+            const rect = win.getBoundingClientRect();
+            win.style.left = rect.left + 'px';
+            win.style.top = rect.top + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
+            dragState = { offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+            win.style.transition = 'none';
+            win.classList.add('--dragging');
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState) return;
+            lastX = e.clientX; lastY = e.clientY;
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                if (dragState) {
+                    win.style.left = Math.max(0, Math.min(lastX - dragState.offsetX, window.innerWidth - win.offsetWidth)) + 'px';
+                    win.style.top = Math.max(0, Math.min(lastY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
+                }
+            });
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragState) return;
+            dragState = null;
+            win.style.transition = '';
+            win.classList.remove('--dragging');
+            document.body.style.userSelect = '';
+        });
+    }
+
+    /** 將 AI 回答中的【第X頁】轉為可點擊連結 */
+    function _linkifyPageReferences(html) {
+        return html.replace(
+            /【第([\d,、\u2013\-]+)[页頁]】/g,
+            (match, pages) => {
+                const firstPage = parseInt(pages.replace(/[、\u2013\-]/g, ',').split(',')[0], 10);
+                if (isNaN(firstPage)) return match;
+                return `<span class="slc-ai-page-ref" data-page="${firstPage}" title="跳轉到第${firstPage}頁">${match}</span>`;
+            }
+        );
+    }
+
     /** 更新 AI 聊天窗口中的內容上下文指示器 */
     function _updateAIContentContext() {
-        let indicator = document.getElementById('slcAiContentContext');
-        if (!indicator) {
-            // 動態創建指示器（插到 AI 輸入框上方）
-            const inputArea = document.querySelector('.slc-ai-input-area');
-            if (!inputArea) return;
-            indicator = document.createElement('div');
-            indicator.id = 'slcAiContentContext';
-            indicator.className = 'slc-ai-content-context';
-            inputArea.parentNode.insertBefore(indicator, inputArea);
-        }
+        const indicator = document.getElementById('slcAiContentContext');
+        if (!indicator) return;
         if (state.currentContentId && state.currentContentTitle) {
             indicator.innerHTML = `
                 <span class="slc-ai-content-context__label">${_icon('doc')} 正在查看：</span>
@@ -2250,7 +2357,7 @@ window.slc = (() => {
             <div class="slc-ai-page-refs__buttons">
                 ${uniqueRefs.map(ref => {
                     const page = ref.page || ref.page_number;
-                    return `<button class="slc-ai-page-ref-btn" onclick="slc.navigatePdfToPage(${page})" title="${_escHtml(ref.snippet || '')}">第 ${page} 頁</button>`;
+                    return `<button class="slc-ai-page-ref-btn" data-page="${page}" title="${_escHtml(ref.snippet || '')}">第 ${page} 頁</button>`;
                 }).join('')}
             </div>
         `;
@@ -2268,7 +2375,7 @@ window.slc = (() => {
         nodesDiv.innerHTML = `
             <div class="slc-ai-related-nodes__label">${_icon('link')} 相關知識點：</div>
             <div class="slc-ai-related-nodes__list">
-                ${nodes.map(n => `<span class="slc-ai-node-tag" style="border-color:${n.color || '#006633'}">${_safeIcon(n.icon, 'pin')} ${_escHtml(n.title)}</span>`).join('')}
+                ${nodes.map(n => `<button class="slc-ai-node-chip" data-node-id="${n.id}" title="${_escHtml(n.title)}">${_safeIcon(n.icon, 'pin')} ${_escHtml(n.title)}</button>`).join('')}
             </div>
         `;
         bubble.appendChild(nodesDiv);
@@ -2339,6 +2446,7 @@ window.slc = (() => {
         togglePathSteps: (id) => App.togglePathSteps(id),
         openContent: (id, type, page) => App.openContent(id, type, page),
         toggleAIWindow: () => App.toggleAIWindow(),
+        toggleAIWindowSize: () => App.toggleAIWindowSize(),
         sendAIMessage: () => App.sendAIMessage(),
         closeModal: () => UI.closeEbookViewer(),
         toggleMobileSidebar: () => App.toggleMobileSidebar(),

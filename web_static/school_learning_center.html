@@ -339,17 +339,33 @@
 <!-- ── AI 助教 FAB ── -->
 <button class="slc-ai-fab" id="aiFab" title="AI 助教"><svg width="22" height="22" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
 
-<!-- ── AI 聊天窗 ── -->
+<!-- ── AI 聊天窗（ALC 風格：拖拽 + 展開 + 打字動畫 + 串流游標） ── -->
 <div class="slc-ai-window" id="aiWindow">
-    <div class="slc-ai-window__header">
-        <span><svg width="16" height="16" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-        <span>AI 學習助教</span>
-        <button class="slc-ai-window__close" onclick="slc.toggleAIWindow()"><svg width="16" height="16" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <!-- 拖拽標題列 -->
+    <div class="slc-ai-window__header" id="aiWindowHeader">
+        <span class="slc-ai-window__title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
+            AI 學習助教
+        </span>
+        <div class="slc-ai-window__actions">
+            <button class="slc-ai-window__action-btn" id="aiExpandBtn" title="放大/縮小">&#9634;</button>
+            <button class="slc-ai-window__action-btn" id="aiCloseBtn" title="關閉">&#10005;</button>
+        </div>
     </div>
-    <div class="slc-ai-window__messages" id="aiMessages"></div>
-    <div class="slc-ai-window__input">
-        <textarea class="slc-ai-window__textarea" id="aiInput" placeholder="輸入問題..." rows="1"></textarea>
-        <button class="slc-ai-window__send" id="aiSendBtn">發送</button>
+    <!-- 內容上下文指示條 -->
+    <div id="slcAiContentContext" class="slc-ai-content-context" style="display:none;"></div>
+    <!-- 聊天主體 -->
+    <div class="slc-ai-window__body">
+        <div class="slc-ai-window__messages" id="aiMessages"></div>
+    </div>
+    <!-- 輸入區 -->
+    <div class="slc-ai-window__input-area">
+        <textarea class="slc-ai-window__textarea" id="aiInput" placeholder="輸入問題..." rows="2"></textarea>
+        <button class="slc-ai-window__send-btn" id="aiSendBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16027450 C3.34915502,0.9031770599 2.40734225,1.01428416 1.77946707,1.4855763 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.99701575 L3.03521743,10.4380088 C3.03521743,10.5951061 3.19218622,10.7522035 3.50612381,10.7522035 L16.6915026,11.5376905 C16.6915026,11.5376905 17.1624089,11.5376905 17.1624089,12.0089827 C17.1624089,12.4802748 16.6915026,12.4744748 16.6915026,12.4744748 Z"></path>
+            </svg>
+        </button>
     </div>
 </div>
 
