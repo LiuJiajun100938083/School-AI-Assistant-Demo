@@ -50,7 +50,6 @@
     /* ── 佈局 ── */
     --slc-sidebar-width: 220px;
     --slc-header-height: 48px;
-    --slc-grade-bar-height: 44px;
 }
 
 /* ── 全局重置 ── */
@@ -287,29 +286,23 @@
 /* ═══════════════════════════════════════════════
    年級篩選欄
    ═══════════════════════════════════════════════ */
-.slc-grade-bar {
+.slc-sidebar__grade {
     display: flex;
-    align-items: center;
-    height: var(--slc-grade-bar-height);
-    padding: 0 var(--slc-space-md);
-    gap: var(--slc-space-sm);
-    background: var(--slc-card-bg);
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: var(--slc-space-xs) var(--slc-space-sm);
     border-bottom: 1px solid var(--slc-border);
     flex-shrink: 0;
-    overflow-x: auto;
 }
 
-.slc-grade-bar__label {
-    font-size: var(--slc-font-sm);
-    color: var(--slc-text-secondary);
-    white-space: nowrap;
-    margin-right: var(--slc-space-xs);
+.slc-sidebar.--collapsed .slc-sidebar__grade {
+    display: none;
 }
 
 .slc-grade-chip {
-    padding: var(--slc-space-xs) 12px;
-    border-radius: 20px;
-    font-size: var(--slc-font-sm);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
     cursor: pointer;
     border: 1px solid var(--slc-border);
     background: var(--slc-card-bg);
@@ -540,7 +533,7 @@
    ═══════════════════════════════════════════════ */
 .slc-map-container {
     width: 100%;
-    height: calc(100vh - var(--slc-header-height) - var(--slc-grade-bar-height) - 90px);
+    height: calc(100vh - var(--slc-header-height) - 90px);
     min-height: 400px;
     background: var(--slc-card-bg);
     border-radius: var(--slc-radius-md);
@@ -1757,7 +1750,8 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 70vh;
+    flex: 1;
+    min-height: 0;
     background: var(--slc-bg);
     border-radius: var(--slc-radius-sm);
     overflow: hidden;

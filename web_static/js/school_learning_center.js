@@ -298,7 +298,7 @@ window.slc = (() => {
                 return `<button class="slc-grade-chip ${active ? '--active' : ''}"
                             onclick="slc.selectGrade(${isAll ? 'null' : `'${g}'`})">${g}</button>`;
             }).join('');
-            bar.innerHTML = `<span class="slc-grade-bar__label">年級：</span>${chips}`;
+            bar.innerHTML = chips;
         },
 
         // --- Tab ---
@@ -1950,7 +1950,8 @@ window.slc = (() => {
                     }
                     AdminUI.showToast('批量導入成功', 'success');
                     App._loadAdminNodes();
-                    if (state.currentTab === 'map') App.loadCurrentTab();
+                    // Switch to knowledge map tab to show results
+                    App.switchTab('map');
                 } else {
                     AdminUI.showToast(r.message || '導入失敗', 'error');
                 }
@@ -2055,7 +2056,8 @@ window.slc = (() => {
                     }
                     AdminUI.showToast('批量導入成功', 'success');
                     App._loadAdminPaths();
-                    if (state.currentTab === 'paths') App.loadCurrentTab();
+                    // Switch to paths tab to show results
+                    App.switchTab('paths');
                 } else {
                     AdminUI.showToast(r.message || '導入失敗', 'error');
                 }

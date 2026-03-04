@@ -587,11 +587,28 @@ class SchoolLearningCenterService:
         # 预加载节点和内容用于匹配
         all_nodes = self._nodes.find_active(subject_code=subject_code)
         node_title_map = {}
+        node_list = []  # for fuzzy matching
         for n in all_nodes:
             title = (n.get("title") or "").strip()
             if title:
                 node_title_map[title] = n["id"]
                 node_title_map[title.lower()] = n["id"]
+                node_list.append((title, n["id"]))
+
+        def match_node_id(node_match: str) -> Optional[int]:
+            if not node_match:
+                return None
+            # Exact match
+            nid = node_title_map.get(node_match) or node_title_map.get(node_match.lower())
+            if nid:
+                return nid
+            # Substring match: node title in node_match or node_match in node title
+            nm_lower = node_match.lower()
+            for title, nid in node_list:
+                t_lower = title.lower()
+                if t_lower in nm_lower or nm_lower in t_lower:
+                    return nid
+            return None
 
         all_contents = self._contents.raw_query(
             "SELECT id, file_name, title FROM slc_contents WHERE is_deleted = 0 AND status = 'published' AND subject_code = %s",
@@ -643,9 +660,7 @@ class SchoolLearningCenterService:
             for step in p.get("steps", []):
                 node_id = step.get("node_id")
                 if not node_id and step.get("node_match"):
-                    node_id = node_title_map.get(step["node_match"])
-                    if not node_id:
-                        node_id = node_title_map.get(step["node_match"].lower())
+                    node_id = match_node_id(step["node_match"])
 
                 content_id = step.get("content_id")
                 if not content_id and step.get("source_pdf"):
