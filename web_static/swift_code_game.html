@@ -1045,6 +1045,11 @@
             const [finished, setFinished] = useState(false);
 
             const question = questions[currentIdx];
+            // Shuffle options so correct answer isn't always first
+            const shuffledOptions = useMemo(() => {
+                if (!question) return [];
+                return [...question.options].sort(() => Math.random() - 0.5);
+            }, [currentIdx]);
             if (!question && !finished) return null;
 
             const handleSelect = (option) => {
@@ -1152,7 +1157,7 @@
 
                     {/* Options */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {question.options.map((option) => {
+                        {shuffledOptions.map((option) => {
                             const isSelected = selected === option.id;
                             const isWrong = isSelected && !isCorrect;
                             const isRight = isSelected && isCorrect;
