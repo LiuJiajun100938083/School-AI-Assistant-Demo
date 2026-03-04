@@ -3,9 +3,9 @@
 =============
 教師掃碼課堂評級 + Review 查看 + 管理員 QR 碼 / Reviewer 管理。
 
-公開端點（無需登入）:
+教師端點（需教師/管理員登入）:
     POST  /api/class-diary/entries              提交評級
-    GET   /api/class-diary/entries/by-class      查某班某日記錄
+    GET   /api/class-diary/entries/by-class      查某班某日記錄（公開）
     PUT   /api/class-diary/entries/{id}          修改記錄
 
 需登入端點:
@@ -147,8 +147,16 @@ def init_class_diary_tables():
 
 @router.post("/api/class-diary/entries")
 async def create_entry(request: Request):
-    """提交課堂評級（移動端，無需登入）"""
+    """提交課堂評級（需教師/管理員登入）"""
     try:
+        username, role = _verify_request(request)
+        if role == "student":
+            raise AppException(
+                code="FORBIDDEN",
+                message="僅限教師或管理員提交評級",
+                status_code=403,
+            )
+
         body = await request.json()
         entry_data = CreateEntryRequest(**body)
 

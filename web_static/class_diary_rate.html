@@ -8,12 +8,19 @@
 </head>
 <body>
 
-<!-- Desktop Block Screen -->
-<div class="desktop-block" id="desktopBlock">
+<!-- 未登入 → 跳轉登入頁（帶回跳）；有 refresh_token 的話由 JS 自動續期 -->
+<script>
+    if (!localStorage.getItem('auth_token') && !localStorage.getItem('token') && !localStorage.getItem('refresh_token')) {
+        window.location.replace('/login?redirect=' + encodeURIComponent(window.location.pathname));
+    }
+</script>
+
+<!-- 無權限遮罩（學生角色） -->
+<div class="no-permission" id="noPermission" style="display:none;">
     <div>
-        <div class="block-icon">📱</div>
-        <h2>請使用手機掃碼</h2>
-        <p>課堂評級表單僅支持手機/平板使用。<br>請用手機掃描教室的QR碼填寫。</p>
+        <div class="block-icon">🔒</div>
+        <h2>僅限教師使用</h2>
+        <p>課堂評級表單僅供教師及管理員填寫。<br>如有疑問，請聯繫管理員。</p>
     </div>
 </div>
 
@@ -218,6 +225,7 @@
     <div class="spinner"></div>
 </div>
 
+<script src="/static/js/shared/auth.js"></script>
 <script src="/static/js/class_diary_rate.js"></script>
 </body>
 </html>

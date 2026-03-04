@@ -1,6 +1,6 @@
 /**
- * 課室日誌 — 移動端評級表單
- * 獨立頁面，無需登入，教師掃碼後填寫
+ * 課室日誌 — 評級表單
+ * 需要教師/管理員登入，學生角色無法訪問
  */
 
 /* ============================================================
@@ -30,7 +30,32 @@ const PICKER_FIELDS = [
 /* ============================================================
    初始化
    ============================================================ */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    const loginUrl = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+
+    // ── 身份驗證（含自動續期）──
+    // AuthModule.verify() 會在 access token 過期時自動用 refresh token 換新
+    // 教師只需登入一次，之後半年內都不用再登入
+    const user = await AuthModule.verify();
+
+    if (!user) {
+        // 沒有有效登入，跳轉登入頁
+        AuthModule.clearAll();
+        window.location.replace(loginUrl);
+        return;
+    }
+
+    const role = user.role || 'student';
+    if (role === 'student') {
+        // 學生無權訪問
+        document.getElementById('noPermission').style.display = 'flex';
+        document.getElementById('mainContent').style.display = 'none';
+        document.querySelector('.submit-section').style.display = 'none';
+        document.querySelector('.page-header').style.display = 'none';
+        return;
+    }
+
+    // ── 正常初始化（教師/管理員）──
     // 從 URL 取得 class_code（QR 碼掃入的班級）
     const pathParts = window.location.pathname.split('/');
     const urlClass = decodeURIComponent(pathParts[pathParts.length - 1] || '');
@@ -57,10 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 初始化簽名板
     initSignaturePad();
-
-    // 移動裝置檢測（寬度 > 1024 認為是桌面）
-    checkDevice();
-    window.addEventListener('resize', checkDevice);
 });
 
 
@@ -127,16 +148,6 @@ function clearAllPickers() {
         if (wrap) wrap.classList.remove('open');
         updateToggleText(fieldId);
     });
-}
-
-
-/* ============================================================
-   裝置檢測
-   ============================================================ */
-function checkDevice() {
-    const isDesktop = window.innerWidth > 1024 &&
-        !(/Android|iPhone|iPad|iPod|Mobile|webOS/i.test(navigator.userAgent));
-    document.getElementById('desktopBlock').style.display = isDesktop ? 'flex' : 'none';
 }
 
 
@@ -531,9 +542,13 @@ async function submitForm() {
     showLoading(true);
 
     try {
+        const token = AuthModule.getToken();
         const resp = await fetch('/api/class-diary/entries', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
             body: JSON.stringify(payload),
         });
 

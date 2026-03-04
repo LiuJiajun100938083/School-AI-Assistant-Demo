@@ -913,7 +913,7 @@ const ChatApp = {
         this.state.currentUser = null;
         this.state.userInfo = null;
         this.state.isAdmin = false;
-        AuthModule.removeToken();
+        AuthModule.clearAll();
     },
 
     /* ---------- 用户操作 ---------- */

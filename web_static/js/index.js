@@ -34,9 +34,16 @@ const HomeAPI = {
             ...options,
             headers: { ...defaults.headers, ...options.headers }
         };
-        const resp = await fetch(url, merged);
+        let resp = await fetch(url, merged);
+        if (resp.status === 401 && AuthModule.getRefreshToken()) {
+            const refreshed = await AuthModule.refresh();
+            if (refreshed) {
+                merged.headers['Authorization'] = `Bearer ${AuthModule.getToken()}`;
+                resp = await fetch(url, merged);
+            }
+        }
         if (resp.status === 401) {
-            AuthModule.removeToken();
+            AuthModule.clearAll();
             window.location.href = '/login';
             throw new Error('認證失效，請重新登入');
         }
@@ -355,6 +362,12 @@ const HomeApp = {
         this.state.authToken = AuthModule.getToken();
         this._bindEvents();
 
+        // 沒有 access token 但有 refresh token → 先嘗試續期
+        if (!this.state.authToken && AuthModule.getRefreshToken()) {
+            const refreshed = await AuthModule.refresh();
+            if (refreshed) this.state.authToken = AuthModule.getToken();
+        }
+
         if (this.state.authToken) {
             await this._verifyToken();
             this._playSplashAnimation();
@@ -511,7 +524,7 @@ const HomeApp = {
         this.state.currentUser = null;
         this.state.userInfo = null;
         this.state.isAdmin = false;
-        AuthModule.removeToken();
+        AuthModule.clearAll();
     },
 
     /* ---------- 密碼修改 ---------- */

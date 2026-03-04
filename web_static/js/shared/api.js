@@ -35,9 +35,16 @@ const APIClient = {
         try {
             const resp = await fetch(url, options);
 
-            // 401 → 跳轉登入
-            if (resp.status === 401) {
-                window.AuthModule?.removeToken();
+            // 401 → 嘗試自動續期，再失敗才跳轉
+            if (resp.status === 401 && window.AuthModule) {
+                const refreshed = await window.AuthModule.refresh();
+                if (refreshed) {
+                    // 用新 token 重試一次
+                    const newHeaders = { ...options.headers, ...window.AuthModule.getAuthHeaders() };
+                    const retryResp = await fetch(url, { ...options, headers: newHeaders });
+                    if (retryResp.ok) return await retryResp.json();
+                }
+                window.AuthModule.clearAll();
                 window.location.href = '/';
                 return;
             }

@@ -53,8 +53,8 @@ body {
     min-height: 100vh;
 }
 
-/* ========== Desktop Block Screen ========== */
-.desktop-block {
+/* ========== No Permission Screen ========== */
+.no-permission {
     display: none;
     position: fixed;
     inset: 0;
@@ -67,18 +67,18 @@ body {
     padding: 2rem;
 }
 
-.desktop-block .block-icon {
+.no-permission .block-icon {
     font-size: 64px;
     margin-bottom: 16px;
 }
 
-.desktop-block h2 {
+.no-permission h2 {
     font-size: 18px;
     font-weight: 600;
     margin-bottom: 8px;
 }
 
-.desktop-block p {
+.no-permission p {
     font-size: 14px;
     color: var(--text-secondary);
     line-height: 1.6;

@@ -112,10 +112,15 @@ const LoginApp = {
 
             if (response.ok && result.success) {
                 AuthModule.setToken(result.access_token);
+                if (result.refresh_token) {
+                    AuthModule.setRefreshToken(result.refresh_token);
+                }
                 localStorage.setItem('user_role', result.role);
 
-                // 登入成功，跳轉主頁
-                window.location.href = '/';
+                // 登入成功，跳轉回原頁面或主頁
+                const params = new URLSearchParams(window.location.search);
+                const redirect = params.get('redirect');
+                window.location.href = redirect || '/';
             } else {
                 LoginUI.showLoginError(result.detail || '登入失敗，請檢查用戶名和密碼');
             }
