@@ -149,6 +149,102 @@ const AssignmentUI = {
         not_submitted: '未提交'
     },
 
+    // ---- Sidebar Rendering ----
+    renderSidebarNav(items, activeKey) {
+        return items.map(item =>
+            `<button class="sidebar-nav-item ${activeKey === item.key ? 'active' : ''}"
+                onclick="${item.action}">
+                <span>${item.label}</span>
+                <span class="sidebar-nav-count">${item.count}</span>
+            </button>`
+        ).join('');
+    },
+
+    renderSidebarStats(stats) {
+        return stats.map(s =>
+            `<div class="sidebar-stat-item">
+                <span class="sidebar-stat-label">${s.label}</span>
+                <span class="sidebar-stat-value">${s.value}</span>
+            </div>`
+        ).join('');
+    },
+
+    renderWorkspaceHeader(title, subtitle = '', actionsHtml = '') {
+        return `<div class="workspace-header">
+            <div>
+                <h2 class="workspace-title">${title}</h2>
+                ${subtitle ? `<p class="workspace-subtitle">${subtitle}</p>` : ''}
+            </div>
+            <div class="workspace-header-actions">${actionsHtml}</div>
+        </div>`;
+    },
+
+    // Skeleton loading placeholders
+    skeletonCards(count = 3) {
+        return Array.from({ length: count }, () => `
+            <div class="skeleton-card">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+                    <div style="flex:1">
+                        <div class="skeleton skeleton-heading"></div>
+                        <div class="skeleton skeleton-text long"></div>
+                    </div>
+                    <div class="skeleton skeleton-badge" style="margin-left:12px"></div>
+                </div>
+                <div style="display:flex;gap:16px">
+                    <div class="skeleton skeleton-text short"></div>
+                    <div class="skeleton skeleton-text short"></div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    skeletonDetail() {
+        return `
+            <div class="skeleton-card" style="margin-bottom:16px">
+                <div class="skeleton skeleton-heading" style="width:60%"></div>
+                <div style="display:flex;gap:12px;margin-top:12px">
+                    <div class="skeleton skeleton-badge"></div>
+                    <div class="skeleton skeleton-badge" style="width:80px"></div>
+                    <div class="skeleton skeleton-badge" style="width:100px"></div>
+                </div>
+            </div>
+            <div style="display:grid;gap:12px">
+                ${Array.from({ length: 3 }, () => `
+                    <div class="skeleton-card" style="display:flex;align-items:center;gap:12px">
+                        <div class="skeleton skeleton-avatar"></div>
+                        <div style="flex:1">
+                            <div class="skeleton skeleton-text medium"></div>
+                            <div class="skeleton skeleton-text short"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    skeletonSubmission() {
+        return `
+            <div style="display:grid;grid-template-columns:1fr 380px;gap:24px">
+                <div>
+                    <div class="skeleton-card" style="margin-bottom:16px">
+                        <div class="skeleton skeleton-heading"></div>
+                        <div class="skeleton skeleton-text long"></div>
+                        <div class="skeleton skeleton-text long"></div>
+                        <div class="skeleton skeleton-text medium"></div>
+                    </div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading" style="width:30%"></div>
+                    <div style="display:grid;gap:12px;margin-top:16px">
+                        <div class="skeleton skeleton-text long"></div>
+                        <div class="skeleton skeleton-text long"></div>
+                        <div class="skeleton skeleton-text long"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     formatDate(d) {
         if (!d) return '—';
         const dt = new Date(d);
@@ -187,7 +283,7 @@ const AssignmentUI = {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${this.ICON.inbox}</div>
             <div class="empty-state-text">尚無作業</div>
-            <div class="empty-state-hint">點擊右上角「+ 新增作業」開始</div></div>`;
+            <div class="empty-state-hint">點擊左側「+ 新增作業」開始</div></div>`;
         return `<div class="assignment-table"><table>
             <thead><tr><th>標題</th><th>目標</th><th>截止日</th><th>提交</th><th>狀態</th></tr></thead>
             <tbody>${assignments.map(a => {
@@ -207,15 +303,18 @@ const AssignmentUI = {
     renderTeacherGridView(assignments) {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${AssignmentUI.ICON.inbox}</div>
-            <div class="empty-state-text">尚無作業</div></div>`;
+            <div class="empty-state-text">尚無作業</div>
+            <div class="empty-state-hint">點擊左側「+ 新增作業」開始</div></div>`;
         return `<div class="assignment-grid">${assignments.map(a => {
             const pct = a.submission_count > 0 ? Math.round((a.graded_count||0)/(a.submission_count)*100) : 0;
-            return `<div class="grid-card" onclick="AssignmentApp.viewAssignment(${a.id})">
+            const desc = a.description ? a.description.slice(0, 60) : '';
+            return `<div class="grid-card" data-status="${a.status}" tabindex="0" onclick="AssignmentApp.viewAssignment(${a.id})" onkeydown="event.key==='Enter'&&this.click()">
                 <div class="grid-card-header">
                     <div class="grid-card-icon">${AssignmentUI.ICON.file}</div>
                     ${this.badge(a.status)}
                 </div>
                 <div class="grid-card-title">${a.title}</div>
+                ${desc ? `<div class="grid-card-desc">${desc}</div>` : ''}
                 <div class="grid-card-meta">
                     <span>${AssignmentUI.ICON.clock} 截止: ${this.formatDate(a.deadline)}</span>
                     <span>${AssignmentUI.ICON.folder} ${a.submission_count||0} 份提交</span>
@@ -231,13 +330,24 @@ const AssignmentUI = {
     },
 
     // ---- Student List View ----
+    deadlineWarning(deadline) {
+        if (!deadline) return '';
+        const diff = new Date(deadline) - new Date();
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        if (days < 0) return `<span class="deadline-warn overdue">已逾期</span>`;
+        if (days <= 1) return `<span class="deadline-warn urgent">今天截止</span>`;
+        if (days <= 3) return `<span class="deadline-warn soon">還剩 ${days} 天</span>`;
+        return '';
+    },
+
     renderStudentAssignments(assignments) {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${AssignmentUI.ICON.inbox}</div>
             <div class="empty-state-text">暫無作業</div></div>`;
         return `<div class="assignment-grid">${assignments.map(a => {
             const st = a.submission_status || 'not_submitted';
-            return `<div class="grid-card" onclick="AssignmentApp.viewStudentAssignment(${a.id})">
+            const warn = st === 'not_submitted' ? this.deadlineWarning(a.deadline) : '';
+            return `<div class="grid-card" data-status="${st}" tabindex="0" onclick="AssignmentApp.viewStudentAssignment(${a.id})" onkeydown="event.key==='Enter'&&this.click()">
                 <div class="grid-card-header">
                     <div class="grid-card-icon">${AssignmentUI.ICON.file}</div>
                     ${this.badge(st)}
@@ -245,7 +355,7 @@ const AssignmentUI = {
                 <div class="grid-card-title">${a.title}</div>
                 <div class="grid-card-meta">
                     <span>${AssignmentUI.ICON.user} ${a.created_by_name||''}</span>
-                    <span>${AssignmentUI.ICON.clock} 截止: ${this.formatDate(a.deadline)}</span>
+                    <span>${AssignmentUI.ICON.clock} 截止: ${this.formatDate(a.deadline)} ${warn}</span>
                 </div>
                 <div class="grid-card-footer">
                     ${a.my_score !== null && a.my_score !== undefined ?
@@ -265,7 +375,7 @@ const AssignmentUI = {
             <div class="empty-state-text">尚無學生提交</div></div>`;
         return `<div class="assignment-grid">${submissions.map(s => {
             const initial = (s.student_name || s.username || '?')[0].toUpperCase();
-            return `<div class="submission-card" onclick="AssignmentApp.viewSubmission(${s.id})">
+            return `<div class="submission-card" tabindex="0" onclick="AssignmentApp.viewSubmission(${s.id})" onkeydown="event.key==='Enter'&&this.click()">
                 <div class="student-avatar">${initial}</div>
                 <div class="submission-info">
                     <h4>${s.student_name || s.username}</h4>
@@ -304,43 +414,184 @@ const AssignmentUI = {
         }).join('')}</div>`;
     },
 
-    // ---- Grading Panel ----
-    renderGradingPanel(rubricItems, existingScores = [], feedback = '') {
+    // ---- Grading Panel (type-aware) ----
+    renderGradingPanel(rubricItems, existingScores = [], feedback = '', rubricType = 'points', rubricConfig = null) {
         const scoreMap = {};
         const reasonMap = {};
+        const levelMap = {};
         if (existingScores) {
             existingScores.forEach(s => {
                 scoreMap[s.rubric_item_id] = s.points;
                 if (s.reason) reasonMap[s.rubric_item_id] = s.reason;
+                if (s.selected_level) levelMap[s.rubric_item_id] = s.selected_level;
             });
         }
-        let html = `<div class="grading-panel">
-            <h3>${AssignmentUI.ICON.inbox} 批改面板</h3>
+        const typeObj = AssignmentApp.RUBRIC_TYPES?.find(t => t.id === rubricType);
+        const typeBadge = typeObj ? `<span class="badge" style="background:var(--brand-light);color:var(--brand);font-size:11px;">${typeObj.icon} ${typeObj.name}</span>` : '';
+        let html = `<div class="grading-panel" data-rubric-type="${rubricType}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4);">
+                <h3 style="margin:0;">${AssignmentUI.ICON.inbox} 批改面板</h3>
+                ${typeBadge}
+            </div>
             <button class="btn btn-ai" style="width:100%;margin-bottom:16px;" onclick="AssignmentApp.doAiGrade()">
                 ${AssignmentUI.ICON.ai} AI 自動批改
             </button>
             <div id="aiGradeStatus"></div>`;
 
-        rubricItems.forEach(item => {
-            const val = scoreMap[item.id] !== undefined ? scoreMap[item.id] : '';
-            const reason = reasonMap[item.id] || '';
-            html += `<div class="rubric-score-item">
-                <div class="rubric-score-row">
-                    <label>${item.title}</label>
-                    <span class="max-pts">/ ${item.max_points}</span>
-                    <input type="number" class="rubric-input" data-id="${item.id}" data-max="${item.max_points}"
-                        value="${val}" min="0" max="${item.max_points}" step="0.5"
-                        oninput="AssignmentApp.updateGradeTotal()">
-                </div>
-                <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
+        if (rubricType === 'holistic') {
+            // Holistic: select one level
+            const levels = (rubricConfig?.levels) || [];
+            levels.forEach(lv => {
+                const sel = existingScores.length && existingScores[0]?.selected_level === lv.label ? 'selected' : '';
+                html += `<div class="holistic-option ${sel}" data-label="${lv.label}" data-min="${lv.min}" data-max="${lv.max}"
+                    onclick="AssignmentApp._selectHolisticLevel(this)">
+                    <div class="holistic-option-header">
+                        <span>${lv.label}</span><span>${lv.min}-${lv.max} 分</span>
+                    </div>
+                    <div class="holistic-option-desc">${lv.description || ''}</div>
+                </div>`;
+            });
+            html += `<div class="form-group" style="margin-top:12px;">
+                <label>分數 (在所選等級範圍內)</label>
+                <input type="number" id="holisticScore" class="rubric-input" value="${existingScores[0]?.points || ''}"
+                    style="width:100px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
             </div>`;
-        });
+            html += `<div id="aiReason_holistic" class="ai-reason">${reasonMap[0] || ''}</div>`;
 
-        html += `<div class="grade-total">
-            <span>總分</span>
-            <span><span id="gradeTotal">0</span> / ${rubricItems.reduce((s,i)=>s+parseFloat(i.max_points),0)}</span>
-        </div>
-        <div class="form-group" style="margin-top:16px;">
+        } else if (rubricType === 'checklist') {
+            rubricItems.forEach(item => {
+                const passed = (scoreMap[item.id] || 0) > 0;
+                const reason = reasonMap[item.id] || '';
+                html += `<div class="rubric-score-item">
+                    <div class="rubric-score-row" style="justify-content:space-between;">
+                        <label>${item.title}</label>
+                        <span class="check-toggle ${passed ? 'passed' : 'failed'}" data-id="${item.id}"
+                            onclick="AssignmentApp._toggleCheck(this)">
+                            ${passed ? '✅ 通過' : '❌ 不通過'}
+                        </span>
+                    </div>
+                    <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
+                </div>`;
+            });
+            const maxScore = rubricConfig?.max_score || 100;
+            html += `<div class="grade-total">
+                <span>得分</span>
+                <span><span id="gradeTotal">0</span> / ${maxScore}</span>
+            </div>`;
+
+        } else if (rubricType === 'competency') {
+            const levelLabels = rubricConfig?.level_labels || ['Not Yet', 'Approaching', 'Meeting', 'Exceeding'];
+            rubricItems.forEach(item => {
+                const sel = levelMap[item.id] || '';
+                const reason = reasonMap[item.id] || '';
+                html += `<div class="rubric-score-item">
+                    <label style="font-weight:500;margin-bottom:4px;">${item.title}</label>
+                    <div class="level-btn-group">
+                        ${levelLabels.map(l => `<button class="level-btn ${sel === l ? 'selected' : ''}"
+                            data-id="${item.id}" data-level="${l}"
+                            onclick="AssignmentApp._selectLevel(this)">${l}</button>`).join('')}
+                    </div>
+                    <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
+                </div>`;
+            });
+
+        } else if (rubricType === 'analytic_levels') {
+            rubricItems.forEach(item => {
+                const val = scoreMap[item.id] !== undefined ? scoreMap[item.id] : '';
+                const sel = levelMap[item.id] || '';
+                const reason = reasonMap[item.id] || '';
+                const levels = item.level_definitions || [];
+                html += `<div class="rubric-score-item">
+                    <div class="rubric-score-row">
+                        <label>${item.title}</label>
+                        <span class="max-pts">/ ${item.max_points}</span>
+                        <input type="number" class="rubric-input" data-id="${item.id}" data-max="${item.max_points}"
+                            value="${val}" min="0" max="${item.max_points}" step="0.5"
+                            oninput="AssignmentApp.updateGradeTotal()">
+                    </div>
+                    <div class="level-btn-group">
+                        ${levels.map(l => `<button class="level-btn ${sel === l.level ? 'selected' : ''}"
+                            data-id="${item.id}" data-level="${l.level}" data-points="${l.points}"
+                            onclick="AssignmentApp._selectAnalyticLevel(this)"
+                            title="${l.description || ''}">${l.level} (${l.points})</button>`).join('')}
+                    </div>
+                    <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
+                </div>`;
+            });
+            html += `<div class="grade-total">
+                <span>總分</span>
+                <span><span id="gradeTotal">0</span> / ${rubricItems.reduce((s,i)=>s+parseFloat(i.max_points||0),0)}</span>
+            </div>`;
+
+        } else if (rubricType === 'weighted_pct') {
+            const totalScore = rubricConfig?.total_score || 100;
+            rubricItems.forEach(item => {
+                const val = scoreMap[item.id] !== undefined ? scoreMap[item.id] : '';
+                const reason = reasonMap[item.id] || '';
+                html += `<div class="rubric-score-item">
+                    <div class="rubric-score-row">
+                        <label>${item.title} <span style="color:var(--text-tertiary);font-size:12px;">(${item.weight||0}%)</span></label>
+                        <span class="max-pts">/ ${totalScore}</span>
+                        <input type="number" class="rubric-input" data-id="${item.id}" data-max="${totalScore}" data-weight="${item.weight||0}"
+                            value="${val}" min="0" max="${totalScore}" step="0.5"
+                            oninput="AssignmentApp.updateGradeTotal()">
+                    </div>
+                    <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
+                </div>`;
+            });
+            html += `<div class="grade-total">
+                <span>加權總分</span>
+                <span><span id="gradeTotal">0</span></span>
+            </div>`;
+
+        } else if (rubricType === 'dse_criterion') {
+            rubricItems.forEach(item => {
+                const val = scoreMap[item.id] !== undefined ? scoreMap[item.id] : '';
+                const reason = reasonMap[item.id] || '';
+                const levels = item.level_definitions || [];
+                html += `<div class="rubric-score-item">
+                    <div class="rubric-score-row">
+                        <label>${item.title}</label>
+                        <span class="max-pts">/ ${item.max_points}</span>
+                        <input type="number" class="rubric-input" data-id="${item.id}" data-max="${item.max_points}"
+                            value="${val}" min="0" max="${item.max_points}" step="1"
+                            oninput="AssignmentApp.updateGradeTotal()">
+                    </div>
+                    ${levels.length ? `<div style="font-size:12px;color:var(--text-tertiary);margin-top:4px;">
+                        ${levels.filter(l=>l.description).map(l=>`<div><strong>${l.level}:</strong> ${l.description}</div>`).join('')}
+                    </div>` : ''}
+                    <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
+                </div>`;
+            });
+            html += `<div class="grade-total">
+                <span>總分</span>
+                <span><span id="gradeTotal">0</span> / ${rubricItems.reduce((s,i)=>s+parseFloat(i.max_points||0),0)}</span>
+            </div>`;
+
+        } else {
+            // Default: points
+            rubricItems.forEach(item => {
+                const val = scoreMap[item.id] !== undefined ? scoreMap[item.id] : '';
+                const reason = reasonMap[item.id] || '';
+                html += `<div class="rubric-score-item">
+                    <div class="rubric-score-row">
+                        <label>${item.title}</label>
+                        <span class="max-pts">/ ${item.max_points}</span>
+                        <input type="number" class="rubric-input" data-id="${item.id}" data-max="${item.max_points}"
+                            value="${val}" min="0" max="${item.max_points}" step="0.5"
+                            oninput="AssignmentApp.updateGradeTotal()">
+                    </div>
+                    <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
+                </div>`;
+            });
+            html += `<div class="grade-total">
+                <span>總分</span>
+                <span><span id="gradeTotal">0</span> / ${rubricItems.reduce((s,i)=>s+parseFloat(i.max_points||0),0)}</span>
+            </div>`;
+        }
+
+        // Feedback + submit (always present except pure competency keeps submit)
+        html += `<div class="form-group" style="margin-top:16px;">
             <label>教師評語</label>
             <textarea id="gradeFeedback" rows="3" placeholder="輸入評語...">${feedback}</textarea>
         </div>
@@ -365,6 +616,7 @@ const AssignmentApp = {
         selectedFiles: [],
         targets: null,
         aiReasons: {},
+        sidebarFilter: 'all',
     },
 
     async init() {
@@ -407,32 +659,157 @@ const AssignmentApp = {
     async showTeacherList() {
         this.state.phase = 'list';
         this.setBreadcrumb([{ label: '作業列表' }]);
-        this.setHeaderActions(`
-            <div class="view-toggle">
-                <button onclick="AssignmentApp.setView('list')" class="${this.state.view === 'list' ? 'active' : ''}" title="列表模式">☰</button>
-                <button onclick="AssignmentApp.setView('grid')" class="${this.state.view === 'grid' ? 'active' : ''}" title="網格模式">⊞</button>
-            </div>
-            <button class="btn btn-primary" onclick="AssignmentApp.openCreateModal()">+ 新增作業</button>
-        `);
+        this.setHeaderActions('');
 
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-spinner"></div></div>';
+        main.innerHTML = `<div class="assignment-grid">${AssignmentUI.skeletonCards(4)}</div>`;
 
         const resp = await AssignmentAPI.listTeacherAssignments();
         if (!resp || !resp.success) { main.innerHTML = '<div class="empty-state"><div class="empty-state-text">載入失敗</div></div>'; return; }
 
-        const items = resp.data || [];
-        main.innerHTML = this.state.view === 'grid'
-            ? AssignmentUI.renderTeacherGridView(items)
-            : AssignmentUI.renderTeacherListView(items);
+        this._teacherAssignments = resp.data || [];
+        this.renderSidebar();
+        this._sidebarFilter('all');
+    },
+
+    // ---- Sidebar ----
+    renderSidebar() {
+        const isTeacher = this.state.role === 'teacher' || this.state.role === 'admin';
+
+        // Action button (teacher only)
+        const actionEl = document.getElementById('sidebarAction');
+        if (actionEl) {
+            actionEl.innerHTML = isTeacher
+                ? `<button class="btn btn-primary" style="width:100%;" onclick="AssignmentApp.openCreateModal()">+ 新增作業</button>`
+                : '';
+        }
+
+        this._updateSidebarNav();
+        this._updateSidebarStats();
+    },
+
+    _updateSidebarNav() {
+        const isTeacher = this.state.role === 'teacher' || this.state.role === 'admin';
+        const navEl = document.getElementById('sidebarNav');
+        if (!navEl) return;
+
+        let items;
+        if (isTeacher) {
+            const data = this._teacherAssignments || [];
+            const counts = { all: data.length, draft: 0, published: 0, closed: 0 };
+            data.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+            items = [
+                { key: 'all', label: '全部', count: counts.all, action: "AssignmentApp._sidebarFilter('all')" },
+                { key: 'draft', label: '草稿', count: counts.draft, action: "AssignmentApp._sidebarFilter('draft')" },
+                { key: 'published', label: '已發布', count: counts.published, action: "AssignmentApp._sidebarFilter('published')" },
+                { key: 'closed', label: '已關閉', count: counts.closed, action: "AssignmentApp._sidebarFilter('closed')" },
+            ];
+        } else {
+            const data = this._studentAssignments || [];
+            const counts = { all: data.length, not_submitted: 0, submitted: 0, graded: 0 };
+            data.forEach(a => {
+                const st = a.submission_status || 'not_submitted';
+                if (counts[st] !== undefined) counts[st]++;
+            });
+            items = [
+                { key: 'all', label: '全部', count: counts.all, action: "AssignmentApp._sidebarFilter('all')" },
+                { key: 'not_submitted', label: '待提交', count: counts.not_submitted, action: "AssignmentApp._sidebarFilter('not_submitted')" },
+                { key: 'submitted', label: '已提交', count: counts.submitted, action: "AssignmentApp._sidebarFilter('submitted')" },
+                { key: 'graded', label: '已批改', count: counts.graded, action: "AssignmentApp._sidebarFilter('graded')" },
+            ];
+        }
+
+        navEl.innerHTML = AssignmentUI.renderSidebarNav(items, this.state.sidebarFilter);
+    },
+
+    _updateSidebarStats() {
+        const isTeacher = this.state.role === 'teacher' || this.state.role === 'admin';
+        const statsEl = document.getElementById('sidebarStats');
+        if (!statsEl) return;
+
+        let stats;
+        if (isTeacher) {
+            const data = this._teacherAssignments || [];
+            const totalSubs = data.reduce((s, a) => s + (a.submission_count || 0), 0);
+            const totalGraded = data.reduce((s, a) => s + (a.graded_count || 0), 0);
+            stats = [
+                { label: '作業總數', value: data.length },
+                { label: '總提交', value: totalSubs },
+                { label: '待批改', value: totalSubs - totalGraded },
+            ];
+        } else {
+            const data = this._studentAssignments || [];
+            const pending = data.filter(a => (a.submission_status || 'not_submitted') === 'not_submitted').length;
+            const graded = data.filter(a => a.submission_status === 'graded').length;
+            stats = [
+                { label: '作業總數', value: data.length },
+                { label: '待提交', value: pending },
+                { label: '已批改', value: graded },
+            ];
+        }
+
+        statsEl.innerHTML = AssignmentUI.renderSidebarStats(stats);
+    },
+
+    _sidebarFilter(key) {
+        this.state.sidebarFilter = key;
+        this.state.phase = 'list';
+        this._updateSidebarNav();
+
+        const isTeacher = this.state.role === 'teacher' || this.state.role === 'admin';
+
+        // Reset to list context
+        this.setBreadcrumb([{ label: isTeacher ? '作業列表' : '我的作業' }]);
+        this.setHeaderActions('');
+
+        const main = document.getElementById('mainContent');
+
+        if (isTeacher) {
+            const items = this._teacherAssignments || [];
+            const filtered = key === 'all' ? items : items.filter(a => a.status === key);
+
+            const viewToggle = `<div class="view-toggle">
+                <button onclick="AssignmentApp.setView('list')" class="${this.state.view === 'list' ? 'active' : ''}" title="列表模式">☰</button>
+                <button onclick="AssignmentApp.setView('grid')" class="${this.state.view === 'grid' ? 'active' : ''}" title="網格模式">⊞</button>
+            </div>`;
+
+            const header = AssignmentUI.renderWorkspaceHeader(
+                '作業列表',
+                `${filtered.length} 項作業`,
+                viewToggle
+            );
+
+            const content = this.state.view === 'grid'
+                ? AssignmentUI.renderTeacherGridView(filtered)
+                : AssignmentUI.renderTeacherListView(filtered);
+
+            main.innerHTML = header + content;
+        } else {
+            const items = this._studentAssignments || [];
+            const filtered = key === 'all' ? items
+                : items.filter(a => (a.submission_status || 'not_submitted') === key);
+
+            const header = AssignmentUI.renderWorkspaceHeader(
+                '我的作業',
+                `${filtered.length} 項作業`
+            );
+
+            main.innerHTML = header + AssignmentUI.renderStudentAssignments(filtered);
+        }
+    },
+
+    toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const isOpen = sidebar.classList.contains('open');
+        sidebar.classList.toggle('open', !isOpen);
+        overlay.classList.toggle('active', !isOpen);
     },
 
     setView(v) {
         this.state.view = v;
         localStorage.setItem('asg_view', v);
-        if (this.state.role === 'teacher' || this.state.role === 'admin') {
-            this.showTeacherList();
-        }
+        this._sidebarFilter(this.state.sidebarFilter);
     },
 
     // ---- Teacher: View Assignment (Submissions) ----
@@ -441,7 +818,7 @@ const AssignmentApp = {
         this.state.currentAssignment = id;
 
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-spinner"></div></div>';
+        main.innerHTML = AssignmentUI.skeletonDetail();
 
         const [asgResp, subResp] = await Promise.all([
             AssignmentAPI.getTeacherAssignment(id),
@@ -466,31 +843,67 @@ const AssignmentApp = {
         // Assignment detail + submissions
         const target = asg.target_type === 'all' ? '所有人' :
             asg.target_type === 'class' ? `班級: ${asg.target_value}` : `學生: ${asg.target_value}`;
-        const rubricHtml = asg.rubric_items?.length ?
-            `<div style="margin-top:12px;"><strong>評分標準:</strong>
-            ${asg.rubric_items.map(r => `<span class="badge" style="margin:2px;background:var(--brand-light);color:var(--brand);">${r.title} (${r.max_points}分)</span>`).join('')}
-            <span style="font-weight:600;margin-left:8px;">滿分: ${asg.max_score}</span></div>` : '';
+        const typeLabel = (AssignmentApp.RUBRIC_TYPES.find(t => t.id === (asg.rubric_type || 'points')) || {}).name || '簡單計分';
+        const gradedCount = asg.graded_count || 0;
+        const subCount = asg.submission_count || 0;
+
+        // Stat cards
+        const stats = [
+            { icon: AssignmentUI.ICON.clock, label: '截止日', value: AssignmentUI.formatDate(asg.deadline) },
+            { icon: AssignmentUI.ICON.folder, label: '已提交', value: `${subCount} 份` },
+            { icon: AssignmentUI.ICON.check, label: '已批改', value: `${gradedCount} / ${subCount}` },
+        ];
+        if (asg.avg_score) stats.push({ icon: AssignmentUI.ICON.chart, label: '平均分', value: Number(asg.avg_score).toFixed(1) });
+
+        // Rubric pills
+        const rubricPills = (asg.rubric_items || []).map(r =>
+            `<span class="badge" style="margin:2px;background:rgba(0,0,0,0.04);color:var(--text-secondary);">${r.title}${r.max_points ? ' ('+r.max_points+'分)' : r.weight ? ' ('+r.weight+'%)' : ''}</span>`
+        ).join('');
+
+        // Submission filter tabs
+        const ungradedCount = subs.filter(s => s.status === 'submitted').length;
+        const gradedSubCount = subs.filter(s => s.status === 'graded').length;
+        this._currentSubs = subs;
 
         main.innerHTML = `
-            <div class="form-section">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div class="detail-hero fade-in">
+                <div class="detail-hero-header">
                     <div>
-                        <h3>${asg.title} ${AssignmentUI.badge(asg.status)}</h3>
-                        <p style="color:var(--text-secondary);margin-top:8px;">${asg.description || '無描述'}</p>
-                        <div style="margin-top:12px;font-size:13px;color:var(--text-secondary);display:flex;gap:16px;">
-                            <span>${AssignmentUI.ICON.user} ${target}</span>
-                            <span>${AssignmentUI.ICON.clock} 截止: ${AssignmentUI.formatDate(asg.deadline)}</span>
-                            <span>${AssignmentUI.ICON.folder} ${asg.submission_count||0} 份提交</span>
-                            <span>${AssignmentUI.ICON.check} ${asg.graded_count||0} 已批改</span>
-                            ${asg.avg_score ? `<span>${AssignmentUI.ICON.chart} 平均: ${Number(asg.avg_score).toFixed(1)}</span>` : ''}
-                        </div>
-                        ${rubricHtml}
+                        <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${asg.title} ${AssignmentUI.badge(asg.status)}</h3>
+                        ${asg.description ? `<p style="color:var(--text-secondary);margin-top:6px;font-size:14px;">${asg.description}</p>` : ''}
+                        <div style="margin-top:8px;font-size:13px;color:var(--text-tertiary);">${AssignmentUI.ICON.user} ${target}</div>
                     </div>
                 </div>
+                <div class="detail-stats">
+                    ${stats.map(s => `<div class="stat-card">
+                        <div class="stat-icon">${s.icon}</div>
+                        <div><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>
+                    </div>`).join('')}
+                </div>
+                ${rubricPills ? `<div style="margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
+                    <span class="badge" style="background:var(--brand-light);color:var(--brand);">${typeLabel}</span>
+                    ${rubricPills}
+                    ${asg.max_score != null ? `<span style="font-weight:600;font-size:13px;margin-left:4px;">滿分: ${asg.max_score}</span>` : ''}
+                </div>` : ''}
             </div>
-            <h3 style="margin-bottom:16px;">學生提交</h3>
-            ${AssignmentUI.renderSubmissionsList(subs)}
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;">
+                <h3 style="margin:0;">學生提交</h3>
+                <div class="filter-tabs" style="margin:0;">
+                    <button class="filter-tab active" onclick="AssignmentApp._filterSubs('all', this)">全部 <span class="count">${subs.length}</span></button>
+                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('submitted', this)">待批改 <span class="count">${ungradedCount}</span></button>
+                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('graded', this)">已批改 <span class="count">${gradedSubCount}</span></button>
+                </div>
+            </div>
+            <div id="submissionsArea">${AssignmentUI.renderSubmissionsList(subs)}</div>
         `;
+    },
+
+    _filterSubs(status, btn) {
+        document.querySelectorAll('#submissionsArea').closest('div')?.parentElement
+            ?.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const filtered = status === 'all' ? this._currentSubs : this._currentSubs.filter(s => s.status === status);
+        document.getElementById('submissionsArea').innerHTML = AssignmentUI.renderSubmissionsList(filtered);
     },
 
     // ---- Teacher: View Single Submission (Grading) ----
@@ -499,7 +912,7 @@ const AssignmentApp = {
         this.state.currentSubmission = subId;
 
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-spinner"></div></div>';
+        main.innerHTML = AssignmentUI.skeletonSubmission();
 
         const resp = await AssignmentAPI.getSubmission(subId);
         if (!resp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
@@ -519,6 +932,8 @@ const AssignmentApp = {
             ...s,
             reason: this.state.aiReasons[s.rubric_item_id] || ''
         }));
+        const rubricType = asg.rubric_type || 'points';
+        const rubricConfig = asg.rubric_config || null;
 
         main.innerHTML = `
             <div class="two-col">
@@ -539,7 +954,8 @@ const AssignmentApp = {
                     <div id="swiftOutputArea"></div>
                 </div>
                 <div>
-                    ${rubricItems.length ? AssignmentUI.renderGradingPanel(rubricItems, existingScores, sub.feedback || '') : `
+                    ${(rubricItems.length || rubricType === 'holistic') ?
+                        AssignmentUI.renderGradingPanel(rubricItems, existingScores, sub.feedback || '', rubricType, rubricConfig) : `
                     <div class="grading-panel">
                         <h3>${AssignmentUI.ICON.inbox} 快速評分</h3>
                         <p style="color:var(--text-tertiary);font-size:14px;">此作業未設定評分標準</p>
@@ -552,7 +968,78 @@ const AssignmentApp = {
         this.updateGradeTotal();
     },
 
+    // Grading helpers
+    _selectLevel(btn) {
+        const id = btn.dataset.id;
+        btn.closest('.level-btn-group').querySelectorAll('.level-btn').forEach(b => {
+            if (b.dataset.id === id) b.classList.remove('selected');
+        });
+        btn.classList.add('selected');
+    },
+
+    _selectAnalyticLevel(btn) {
+        const id = btn.dataset.id;
+        btn.closest('.level-btn-group').querySelectorAll('.level-btn').forEach(b => {
+            if (b.dataset.id === id) b.classList.remove('selected');
+        });
+        btn.classList.add('selected');
+        // Fill in points
+        const inp = document.querySelector(`.rubric-input[data-id="${id}"]`);
+        if (inp) {
+            inp.value = btn.dataset.points;
+            this.updateGradeTotal();
+        }
+    },
+
+    _toggleCheck(el) {
+        const isPassed = el.classList.contains('passed');
+        el.classList.toggle('passed', !isPassed);
+        el.classList.toggle('failed', isPassed);
+        el.innerHTML = !isPassed ? '✅ 通過' : '❌ 不通過';
+        this.updateGradeTotal();
+    },
+
+    _selectHolisticLevel(el) {
+        document.querySelectorAll('.holistic-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        const min = parseFloat(el.dataset.min) || 0;
+        const max = parseFloat(el.dataset.max) || 100;
+        const scoreInput = document.getElementById('holisticScore');
+        if (scoreInput && !scoreInput.value) {
+            scoreInput.value = Math.round((min + max) / 2);
+        }
+    },
+
     updateGradeTotal() {
+        const panel = document.querySelector('.grading-panel');
+        const rubricType = panel?.dataset.rubricType || 'points';
+
+        if (rubricType === 'checklist') {
+            const toggles = document.querySelectorAll('.check-toggle');
+            let passed = 0;
+            toggles.forEach(t => { if (t.classList.contains('passed')) passed++; });
+            const total = toggles.length || 1;
+            const maxScore = 100; // Will be computed on server
+            const score = Math.round(passed / total * maxScore * 10) / 10;
+            const el = document.getElementById('gradeTotal');
+            if (el) el.textContent = score.toFixed(1);
+            return;
+        }
+
+        if (rubricType === 'weighted_pct') {
+            const inputs = document.querySelectorAll('.rubric-input');
+            let total = 0;
+            inputs.forEach(inp => {
+                const v = parseFloat(inp.value) || 0;
+                const w = parseFloat(inp.dataset.weight) || 0;
+                total += v * w / 100;
+            });
+            const el = document.getElementById('gradeTotal');
+            if (el) el.textContent = total.toFixed(1);
+            return;
+        }
+
+        // Default for points, analytic_levels, dse_criterion
         const inputs = document.querySelectorAll('.rubric-input');
         let total = 0;
         inputs.forEach(inp => {
@@ -566,25 +1053,63 @@ const AssignmentApp = {
     },
 
     async doGrade() {
-        const inputs = document.querySelectorAll('.rubric-input');
+        const panel = document.querySelector('.grading-panel');
+        const rubricType = panel?.dataset.rubricType || 'points';
         const scores = [];
-        inputs.forEach(inp => {
-            scores.push({
-                rubric_item_id: parseInt(inp.dataset.id),
-                points: parseFloat(inp.value) || 0
-            });
-        });
-        const feedback = document.getElementById('gradeFeedback')?.value || '';
 
+        if (rubricType === 'holistic') {
+            const selected = document.querySelector('.holistic-option.selected');
+            const pts = parseFloat(document.getElementById('holisticScore')?.value) || 0;
+            scores.push({
+                rubric_item_id: 0,
+                points: pts,
+                selected_level: selected?.dataset.label || '',
+            });
+        } else if (rubricType === 'checklist') {
+            document.querySelectorAll('.check-toggle').forEach(t => {
+                scores.push({
+                    rubric_item_id: parseInt(t.dataset.id),
+                    points: t.classList.contains('passed') ? 1 : 0,
+                });
+            });
+        } else if (rubricType === 'competency') {
+            document.querySelectorAll('.level-btn.selected').forEach(btn => {
+                scores.push({
+                    rubric_item_id: parseInt(btn.dataset.id),
+                    points: null,
+                    selected_level: btn.dataset.level,
+                });
+            });
+        } else if (rubricType === 'analytic_levels') {
+            document.querySelectorAll('.rubric-input').forEach(inp => {
+                const id = parseInt(inp.dataset.id);
+                const selectedBtn = document.querySelector(`.level-btn.selected[data-id="${id}"]`);
+                scores.push({
+                    rubric_item_id: id,
+                    points: parseFloat(inp.value) || 0,
+                    selected_level: selectedBtn?.dataset.level || '',
+                });
+            });
+        } else {
+            // points, weighted_pct, dse_criterion
+            document.querySelectorAll('.rubric-input').forEach(inp => {
+                scores.push({
+                    rubric_item_id: parseInt(inp.dataset.id),
+                    points: parseFloat(inp.value) || 0,
+                });
+            });
+        }
+
+        const feedback = document.getElementById('gradeFeedback')?.value || '';
         const resp = await AssignmentAPI.gradeSubmission(this.state.currentSubmission, {
             rubric_scores: scores,
             feedback: feedback
         });
         if (resp?.success) {
-            alert('批改完成！');
+            UIModule.toast('批改完成', 'success');
             this.viewAssignment(this.state.currentAssignment);
         } else {
-            alert('批改失敗: ' + (resp?.message || resp?.detail || '未知錯誤'));
+            UIModule.toast('批改失敗: ' + (resp?.message || resp?.detail || '未知錯誤'), 'error');
         }
     },
 
@@ -599,18 +1124,56 @@ const AssignmentApp = {
         }
 
         const result = resp.data;
-        if (statusEl) statusEl.innerHTML = `<div style="color:var(--color-success);font-size:14px;margin-bottom:12px;">${AssignmentUI.ICON.check} AI 批改完成，分數已填入</div>`;
+        const panel = document.querySelector('.grading-panel');
+        const rubricType = panel?.dataset.rubricType || 'points';
+        if (statusEl) statusEl.innerHTML = `<div style="color:var(--color-success);font-size:14px;margin-bottom:12px;">${AssignmentUI.ICON.check} AI 批改完成，結果已填入</div>`;
 
-        // Fill in scores
-        (result.items || []).forEach(item => {
-            const inp = document.querySelector(`.rubric-input[data-id="${item.rubric_item_id}"]`);
-            if (inp) inp.value = item.points;
-            const reasonEl = document.getElementById(`aiReason_${item.rubric_item_id}`);
-            if (reasonEl) reasonEl.textContent = `AI: ${item.reason || ''}`;
-            this.state.aiReasons[item.rubric_item_id] = item.reason || '';
-        });
+        if (rubricType === 'holistic') {
+            // Select the level
+            document.querySelectorAll('.holistic-option').forEach(o => {
+                o.classList.toggle('selected', o.dataset.label === result.selected_level);
+            });
+            const scoreInput = document.getElementById('holisticScore');
+            if (scoreInput && result.points != null) scoreInput.value = result.points;
+            const reasonEl = document.getElementById('aiReason_holistic');
+            if (reasonEl) reasonEl.textContent = `AI: ${result.reason || ''}`;
+        } else {
+            (result.items || []).forEach(item => {
+                if (rubricType === 'checklist') {
+                    const toggle = document.querySelector(`.check-toggle[data-id="${item.rubric_item_id}"]`);
+                    if (toggle) {
+                        const passed = item.passed || (item.points > 0);
+                        toggle.classList.toggle('passed', passed);
+                        toggle.classList.toggle('failed', !passed);
+                        toggle.innerHTML = passed ? '✅ 通過' : '❌ 不通過';
+                    }
+                } else if (rubricType === 'competency') {
+                    const btn = document.querySelector(`.level-btn[data-id="${item.rubric_item_id}"][data-level="${item.selected_level}"]`);
+                    if (btn) {
+                        btn.closest('.level-btn-group').querySelectorAll(`.level-btn[data-id="${item.rubric_item_id}"]`).forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                    }
+                } else if (rubricType === 'analytic_levels') {
+                    const inp = document.querySelector(`.rubric-input[data-id="${item.rubric_item_id}"]`);
+                    if (inp) inp.value = item.points;
+                    if (item.selected_level) {
+                        const btn = document.querySelector(`.level-btn[data-id="${item.rubric_item_id}"][data-level="${item.selected_level}"]`);
+                        if (btn) {
+                            btn.closest('.level-btn-group').querySelectorAll(`.level-btn[data-id="${item.rubric_item_id}"]`).forEach(b => b.classList.remove('selected'));
+                            btn.classList.add('selected');
+                        }
+                    }
+                } else {
+                    const inp = document.querySelector(`.rubric-input[data-id="${item.rubric_item_id}"]`);
+                    if (inp) inp.value = item.points;
+                }
 
-        // Fill in feedback
+                const reasonEl = document.getElementById(`aiReason_${item.rubric_item_id}`);
+                if (reasonEl) reasonEl.textContent = `AI: ${item.reason || ''}`;
+                this.state.aiReasons[item.rubric_item_id] = item.reason || '';
+            });
+        }
+
         if (result.overall_feedback) {
             const fb = document.getElementById('gradeFeedback');
             if (fb) fb.value = result.overall_feedback;
@@ -619,9 +1182,22 @@ const AssignmentApp = {
         this.updateGradeTotal();
     },
 
+    // ---- Rubric Type Definitions ----
+    RUBRIC_TYPES: [
+        { id: 'points', icon: '📊', name: '簡單計分', desc: '各項設定滿分，直接打分' },
+        { id: 'analytic_levels', icon: '📋', name: '分級量規', desc: '每項有等級描述和對應分數' },
+        { id: 'weighted_pct', icon: '📐', name: '權重百分比', desc: '各項按權重計算總分' },
+        { id: 'checklist', icon: '✅', name: '通過清單', desc: '每項只有通過/不通過' },
+        { id: 'competency', icon: '🎯', name: '能力等級', desc: '無分數，按能力等級評估' },
+        { id: 'dse_criterion', icon: '🏫', name: 'DSE 標準', desc: '按等級描述打分，適用 DSE 評核' },
+        { id: 'holistic', icon: '📝', name: '整體評分', desc: '整體選擇一個等級' },
+    ],
+
     // ---- Teacher: Create/Edit ----
     async openCreateModal(editId = null) {
         this.state.editingId = editId;
+        this.state.currentStep = 1;
+        this.state.selectedRubricType = 'points';
         document.getElementById('createModalTitle').textContent = editId ? '編輯作業' : '創建作業';
 
         // Load targets
@@ -629,6 +1205,9 @@ const AssignmentApp = {
             const resp = await AssignmentAPI.getTargets();
             if (resp?.success) this.state.targets = resp.data;
         }
+
+        // Render rubric type selector
+        this._renderRubricTypeGrid();
 
         // Reset form
         if (!editId) {
@@ -638,11 +1217,10 @@ const AssignmentApp = {
             document.getElementById('asgDeadline').value = '';
             document.getElementById('asgMaxFiles').value = '5';
             document.getElementById('asgAllowLate').checked = false;
-            document.getElementById('rubricRows').innerHTML = '';
-            this.addRubricRow();
+            this.state.selectedRubricType = 'points';
+            this._selectRubricType('points');
             this.onTargetTypeChange();
         } else {
-            // Load assignment for editing
             const resp = await AssignmentAPI.getTeacherAssignment(editId);
             if (resp?.success) {
                 const a = resp.data;
@@ -655,27 +1233,395 @@ const AssignmentApp = {
                 }
                 document.getElementById('asgMaxFiles').value = a.max_files || 5;
                 document.getElementById('asgAllowLate').checked = !!a.allow_late;
-
-                // Load rubric items
-                const rows = document.getElementById('rubricRows');
-                rows.innerHTML = '';
-                (a.rubric_items || []).forEach(item => {
-                    this.addRubricRow(item.title, item.max_points);
-                });
-                if (!a.rubric_items?.length) this.addRubricRow();
-
                 this.onTargetTypeChange();
                 if (a.target_value) {
                     document.getElementById('asgTargetValue').value = a.target_value;
                 }
+                // Set rubric type and hydrate editor
+                const rType = a.rubric_type || 'points';
+                this.state.selectedRubricType = rType;
+                this._selectRubricType(rType);
+                this._hydrateRubricEditor(rType, a.rubric_items || [], a.rubric_config);
             }
         }
 
+        this.goToStep(1);
         document.getElementById('createModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        // Focus first input after animation
+        setTimeout(() => document.getElementById('asgTitle')?.focus(), 300);
     },
 
     closeCreateModal() {
         document.getElementById('createModal').classList.remove('active');
+        document.body.style.overflow = '';
+    },
+
+    goToStep(n) {
+        this.state.currentStep = n;
+        document.getElementById('step1').style.display = n === 1 ? '' : 'none';
+        document.getElementById('step2').style.display = n === 2 ? '' : 'none';
+        document.getElementById('stepItem1').className = `step-item ${n === 1 ? 'active' : 'completed'}`;
+        document.getElementById('stepItem2').className = `step-item ${n === 2 ? 'active' : ''}`;
+        // Animated progress line
+        const line = document.querySelector('.step-line');
+        if (line) line.classList.toggle('filled', n >= 2);
+        // Checkmark for completed step
+        const circle1 = document.querySelector('#stepItem1 .step-circle');
+        if (circle1) circle1.textContent = n >= 2 ? '✓' : '1';
+    },
+
+    _renderRubricTypeGrid() {
+        const grid = document.getElementById('rubricTypeGrid');
+        grid.innerHTML = this.RUBRIC_TYPES.map(t =>
+            `<div class="rubric-type-card ${t.id === this.state.selectedRubricType ? 'selected' : ''}"
+                  data-type="${t.id}" onclick="AssignmentApp._selectRubricType('${t.id}')">
+                <div class="type-icon">${t.icon}</div>
+                <div class="type-name">${t.name}</div>
+                <div class="type-desc">${t.desc}</div>
+            </div>`
+        ).join('');
+    },
+
+    _selectRubricType(type) {
+        this.state.selectedRubricType = type;
+        // Update card selection
+        document.querySelectorAll('.rubric-type-card').forEach(c => {
+            c.classList.toggle('selected', c.dataset.type === type);
+        });
+        // Render editor with defaults (hydrate with empty data adds default items)
+        this._hydrateRubricEditor(type, [], null);
+    },
+
+    _renderRubricEditor(type) {
+        const area = document.getElementById('rubricEditorArea');
+        switch (type) {
+            case 'points': area.innerHTML = this._editorPoints(); break;
+            case 'analytic_levels': area.innerHTML = this._editorAnalyticLevels(); break;
+            case 'weighted_pct': area.innerHTML = this._editorWeightedPct(); break;
+            case 'checklist': area.innerHTML = this._editorChecklist(); break;
+            case 'competency': area.innerHTML = this._editorCompetency(); break;
+            case 'dse_criterion': area.innerHTML = this._editorDSECriterion(); break;
+            case 'holistic': area.innerHTML = this._editorHolistic(); break;
+        }
+    },
+
+    // ---- Type Editors ----
+    _editorPoints() {
+        return `<div class="form-group">
+            <label>評分項目</label>
+            <div class="rubric-editor">
+                <div class="rubric-header"><span>項目名稱</span><span>滿分</span><span></span></div>
+                <div id="rubricRows"></div>
+                <div class="rubric-total"><span>合計</span><span id="rubricTotal">0</span><span></span></div>
+            </div>
+            <button class="add-rubric-btn" onclick="AssignmentApp.addRubricRow()">+ 添加項目</button>
+        </div>`;
+    },
+
+    _editorAnalyticLevels() {
+        return `<div class="form-group">
+            <label>分級評分標準</label>
+            <div id="analyticCriteria"></div>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addAnalyticCriterion()">+ 添加標準</button>
+        </div>`;
+    },
+
+    _addAnalyticCriterion(title = '', maxPts = 10, levels = null) {
+        const container = document.getElementById('analyticCriteria');
+        const card = document.createElement('div');
+        card.className = 'criterion-card';
+        const defaultLevels = levels || [
+            { level: '優秀', points: maxPts, description: '' },
+            { level: '良好', points: Math.round(maxPts * 0.7), description: '' },
+            { level: '及格', points: Math.round(maxPts * 0.4), description: '' },
+            { level: '不及格', points: 0, description: '' },
+        ];
+        card.innerHTML = `
+            <div class="criterion-card-header">
+                <input type="text" class="criterion-title" placeholder="標準名稱" value="${title}">
+                <span style="font-size:13px;color:var(--text-tertiary);white-space:nowrap;">滿分:</span>
+                <input type="number" class="criterion-max" style="width:70px;" value="${maxPts}" min="0" step="0.5">
+                <button class="remove-btn" onclick="this.closest('.criterion-card').remove()">✕</button>
+            </div>
+            <div class="criterion-card-body">
+                <div class="level-rows">
+                    ${defaultLevels.map(l => `<div class="level-row">
+                        <input type="text" class="lv-label" placeholder="等級" value="${l.level}">
+                        <input type="number" class="lv-points" placeholder="分數" value="${l.points}" min="0" step="0.5">
+                        <textarea class="lv-desc" placeholder="描述..." rows="1">${l.description || ''}</textarea>
+                        <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>
+                    </div>`).join('')}
+                </div>
+                <button style="width:100%;padding:4px;border:1px dashed var(--border-strong);background:none;color:var(--brand);cursor:pointer;border-radius:4px;margin-top:4px;font-size:13px;"
+                    onclick="AssignmentApp._addLevelRow(this)">+ 添加等級</button>
+            </div>`;
+        container.appendChild(card);
+    },
+
+    _addLevelRow(btn) {
+        const rows = btn.previousElementSibling;
+        const row = document.createElement('div');
+        row.className = 'level-row';
+        row.innerHTML = `
+            <input type="text" class="lv-label" placeholder="等級" value="">
+            <input type="number" class="lv-points" placeholder="分數" value="0" min="0" step="0.5">
+            <textarea class="lv-desc" placeholder="描述..." rows="1"></textarea>
+            <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
+        rows.appendChild(row);
+    },
+
+    _editorWeightedPct() {
+        return `<div class="form-group">
+            <label>總分設定</label>
+            <input type="number" id="weightTotalScore" value="100" min="1" style="width:120px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
+        </div>
+        <div class="form-group">
+            <label>評分項目 (權重需合計 100%)</label>
+            <div class="rubric-editor">
+                <div class="rubric-header"><span>項目名稱</span><span>權重 %</span><span></span></div>
+                <div id="weightRows"></div>
+            </div>
+            <div id="weightValidation" class="weight-validation valid">合計: 0%</div>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addWeightRow()">+ 添加項目</button>
+        </div>`;
+    },
+
+    _addWeightRow(title = '', weight = '') {
+        const rows = document.getElementById('weightRows');
+        const row = document.createElement('div');
+        row.className = 'rubric-row';
+        row.innerHTML = `
+            <input type="text" class="wt-title" placeholder="項目名稱" value="${title}">
+            <input type="number" class="wt-weight" placeholder="%" value="${weight}" min="0" max="100" step="1"
+                oninput="AssignmentApp._updateWeightTotal()">
+            <button class="remove-btn" onclick="this.parentElement.remove();AssignmentApp._updateWeightTotal();">✕</button>`;
+        rows.appendChild(row);
+        this._updateWeightTotal();
+    },
+
+    _updateWeightTotal() {
+        const inputs = document.querySelectorAll('.wt-weight');
+        let total = 0;
+        inputs.forEach(inp => total += parseFloat(inp.value) || 0);
+        const el = document.getElementById('weightValidation');
+        if (el) {
+            el.textContent = `合計: ${total}%`;
+            el.className = `weight-validation ${Math.abs(total - 100) < 0.01 ? 'valid' : 'invalid'}`;
+        }
+    },
+
+    _editorChecklist() {
+        return `<div class="form-group">
+            <label>滿分設定</label>
+            <input type="number" id="checklistMaxScore" value="100" min="1" style="width:120px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
+        </div>
+        <div class="form-group">
+            <label>檢查項目 (通過/不通過)</label>
+            <div class="rubric-editor" style="border-bottom:none;">
+                <div id="checklistItems"></div>
+            </div>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addChecklistItem()">+ 添加項目</button>
+        </div>`;
+    },
+
+    _addChecklistItem(title = '') {
+        const container = document.getElementById('checklistItems');
+        const item = document.createElement('div');
+        item.className = 'checklist-item';
+        item.innerHTML = `
+            <span style="color:var(--text-tertiary);">☐</span>
+            <input type="text" class="cl-title" placeholder="檢查項目" value="${title}">
+            <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
+        container.appendChild(item);
+    },
+
+    _editorCompetency() {
+        return `<div class="form-group">
+            <label>能力等級標籤 (可自定義)</label>
+            <div id="competencyLevels" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+            <button class="add-rubric-btn" style="border-top:1px dashed var(--border-strong);" onclick="AssignmentApp._addCompetencyLevel()">+ 添加等級</button>
+        </div>
+        <div class="form-group">
+            <label>評估標準</label>
+            <div class="rubric-editor" style="border-bottom:none;">
+                <div id="competencyItems"></div>
+            </div>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addCompetencyItem()">+ 添加標準</button>
+        </div>
+        <div style="padding:8px 12px;background:rgba(0,122,255,0.08);border-radius:8px;font-size:13px;color:var(--color-info);">
+            此類型無數字分數，老師為每項選擇一個能力等級。
+        </div>`;
+    },
+
+    _initCompetencyLevels(labels = null) {
+        const defaults = labels || ['Not Yet', 'Approaching', 'Meeting', 'Exceeding'];
+        const container = document.getElementById('competencyLevels');
+        container.innerHTML = '';
+        defaults.forEach(l => this._addCompetencyLevelTag(l));
+    },
+
+    _addCompetencyLevel() {
+        const name = prompt('輸入等級名稱:');
+        if (name && name.trim()) this._addCompetencyLevelTag(name.trim());
+    },
+
+    _addCompetencyLevelTag(name) {
+        const container = document.getElementById('competencyLevels');
+        const tag = document.createElement('span');
+        tag.className = 'badge';
+        tag.style.cssText = 'background:var(--brand-light);color:var(--brand);padding:4px 12px;cursor:pointer;';
+        tag.innerHTML = `${name} <span onclick="event.stopPropagation();this.parentElement.remove();" style="margin-left:4px;cursor:pointer;">✕</span>`;
+        tag.dataset.label = name;
+        container.appendChild(tag);
+    },
+
+    _addCompetencyItem(title = '') {
+        const container = document.getElementById('competencyItems');
+        const item = document.createElement('div');
+        item.className = 'checklist-item';
+        item.innerHTML = `
+            <input type="text" class="comp-title" placeholder="評估標準名稱" value="${title}">
+            <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
+        container.appendChild(item);
+    },
+
+    _editorDSECriterion() {
+        return `<div class="form-group">
+            <label>每項最高等級</label>
+            <input type="number" id="dseMaxLevel" value="7" min="1" max="20" style="width:80px;padding:8px;border:1px solid var(--border-default);border-radius:6px;">
+        </div>
+        <div class="form-group">
+            <label>DSE 評分標準</label>
+            <div id="dseCriteria"></div>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addDSECriterion()">+ 添加標準</button>
+        </div>`;
+    },
+
+    _addDSECriterion(title = '', maxPts = null, levels = null) {
+        const container = document.getElementById('dseCriteria');
+        const maxLevel = maxPts || parseInt(document.getElementById('dseMaxLevel')?.value) || 7;
+        const card = document.createElement('div');
+        card.className = 'criterion-card';
+        const defaultLevels = levels || [
+            { level: '1', description: '' },
+            { level: '2', description: '' },
+            { level: '3', description: '' },
+            { level: '4', description: '' },
+            { level: '5', description: '' },
+            { level: '6', description: '' },
+            { level: '7', description: '' },
+        ];
+        card.innerHTML = `
+            <div class="criterion-card-header">
+                <input type="text" class="dse-title" placeholder="評核準則名稱" value="${title}">
+                <span style="font-size:13px;color:var(--text-tertiary);white-space:nowrap;">滿分:</span>
+                <input type="number" class="dse-max" style="width:60px;" value="${maxLevel}" min="1">
+                <button class="remove-btn" onclick="this.closest('.criterion-card').remove()">✕</button>
+            </div>
+            <div class="criterion-card-body">
+                <div class="level-rows">
+                    ${defaultLevels.map(l => `<div class="level-row" style="grid-template-columns:80px 1fr 36px;">
+                        <input type="text" class="dse-lv-label" placeholder="等級" value="${l.level}">
+                        <textarea class="dse-lv-desc" placeholder="等級描述..." rows="1">${l.description || ''}</textarea>
+                        <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>
+                    </div>`).join('')}
+                </div>
+                <button style="width:100%;padding:4px;border:1px dashed var(--border-strong);background:none;color:var(--brand);cursor:pointer;border-radius:4px;margin-top:4px;font-size:13px;"
+                    onclick="AssignmentApp._addDSELevelRow(this)">+ 添加等級</button>
+            </div>`;
+        container.appendChild(card);
+    },
+
+    _addDSELevelRow(btn) {
+        const rows = btn.previousElementSibling;
+        const row = document.createElement('div');
+        row.className = 'level-row';
+        row.style.gridTemplateColumns = '80px 1fr 36px';
+        row.innerHTML = `
+            <input type="text" class="dse-lv-label" placeholder="等級" value="">
+            <textarea class="dse-lv-desc" placeholder="等級描述..." rows="1"></textarea>
+            <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>`;
+        rows.appendChild(row);
+    },
+
+    _editorHolistic() {
+        return `<div class="form-group">
+            <label>整體評分等級</label>
+            <div id="holisticLevels"></div>
+            <button class="add-rubric-btn" onclick="AssignmentApp._addHolisticLevel()">+ 添加等級</button>
+        </div>
+        <div style="padding:8px 12px;background:rgba(0,122,255,0.08);border-radius:8px;font-size:13px;color:var(--color-info);">
+            無細項拆分，老師直接選擇一個整體等級。
+        </div>`;
+    },
+
+    _addHolisticLevel(label = '', min = '', max = '', desc = '') {
+        const container = document.getElementById('holisticLevels');
+        const div = document.createElement('div');
+        div.className = 'holistic-level';
+        div.innerHTML = `
+            <div class="holistic-level-header">
+                <input type="text" class="hl-label" placeholder="等級" value="${label}">
+                <input type="number" class="hl-min" placeholder="最低" value="${min}" min="0">
+                <input type="number" class="hl-max" placeholder="最高" value="${max}" min="0">
+                <span style="font-size:12px;color:var(--text-tertiary);">分</span>
+                <button class="remove-btn" onclick="this.closest('.holistic-level').remove()">✕</button>
+            </div>
+            <textarea class="hl-desc" placeholder="等級描述..." rows="2">${desc}</textarea>`;
+        container.appendChild(div);
+    },
+
+    // Hydrate editor with existing data when editing
+    _hydrateRubricEditor(type, items, config) {
+        const area = document.getElementById('rubricEditorArea');
+        this._renderRubricEditor(type);
+
+        switch (type) {
+            case 'points':
+                items.forEach(item => this.addRubricRow(item.title, item.max_points));
+                if (!items.length) this.addRubricRow();
+                break;
+            case 'analytic_levels':
+                items.forEach(item => {
+                    this._addAnalyticCriterion(item.title, item.max_points || 10, item.level_definitions);
+                });
+                if (!items.length) this._addAnalyticCriterion();
+                break;
+            case 'weighted_pct':
+                if (config?.total_score) document.getElementById('weightTotalScore').value = config.total_score;
+                items.forEach(item => this._addWeightRow(item.title, item.weight));
+                if (!items.length) this._addWeightRow();
+                break;
+            case 'checklist':
+                if (config?.max_score) document.getElementById('checklistMaxScore').value = config.max_score;
+                items.forEach(item => this._addChecklistItem(item.title));
+                if (!items.length) this._addChecklistItem();
+                break;
+            case 'competency':
+                this._initCompetencyLevels(config?.level_labels);
+                items.forEach(item => this._addCompetencyItem(item.title));
+                if (!items.length) this._addCompetencyItem();
+                break;
+            case 'dse_criterion':
+                if (config?.max_level) document.getElementById('dseMaxLevel').value = config.max_level;
+                items.forEach(item => {
+                    this._addDSECriterion(item.title, item.max_points, item.level_definitions);
+                });
+                if (!items.length) this._addDSECriterion();
+                break;
+            case 'holistic':
+                if (config?.levels) {
+                    config.levels.forEach(lv => this._addHolisticLevel(lv.label, lv.min, lv.max, lv.description || ''));
+                } else {
+                    this._addHolisticLevel('A', 90, 100, '');
+                    this._addHolisticLevel('B', 80, 89, '');
+                    this._addHolisticLevel('C', 70, 79, '');
+                    this._addHolisticLevel('D', 60, 69, '');
+                    this._addHolisticLevel('F', 0, 59, '');
+                }
+                break;
+        }
     },
 
     onTargetTypeChange() {
@@ -684,24 +1630,18 @@ const AssignmentApp = {
         const label = document.getElementById('targetValueLabel');
         const select = document.getElementById('asgTargetValue');
 
-        if (type === 'all') {
-            group.style.display = 'none';
-            return;
-        }
-
+        if (type === 'all') { group.style.display = 'none'; return; }
         group.style.display = '';
         select.innerHTML = '';
 
         if (type === 'class') {
             label.textContent = '選擇班級';
-            const classes = this.state.targets?.classes || [];
-            classes.forEach(c => {
+            (this.state.targets?.classes || []).forEach(c => {
                 select.innerHTML += `<option value="${c}">${c}</option>`;
             });
         } else if (type === 'student') {
             label.textContent = '選擇學生';
-            const students = this.state.targets?.students || [];
-            students.forEach(s => {
+            (this.state.targets?.students || []).forEach(s => {
                 select.innerHTML += `<option value="${s.username}">${s.display_name || s.username} (${s.class_name || ''})</option>`;
             });
         }
@@ -709,14 +1649,14 @@ const AssignmentApp = {
 
     addRubricRow(title = '', maxPoints = '') {
         const rows = document.getElementById('rubricRows');
+        if (!rows) return;
         const row = document.createElement('div');
         row.className = 'rubric-row';
         row.innerHTML = `
             <input type="text" class="rubric-title" placeholder="評分項目名稱" value="${title}">
             <input type="number" class="rubric-points" placeholder="滿分" value="${maxPoints}" min="0" step="0.5"
                 oninput="AssignmentApp.updateRubricTotal()">
-            <button class="remove-btn" onclick="this.parentElement.remove();AssignmentApp.updateRubricTotal();">✕</button>
-        `;
+            <button class="remove-btn" onclick="this.parentElement.remove();AssignmentApp.updateRubricTotal();">✕</button>`;
         rows.appendChild(row);
         this.updateRubricTotal();
     },
@@ -725,25 +1665,17 @@ const AssignmentApp = {
         const inputs = document.querySelectorAll('.rubric-points');
         let total = 0;
         inputs.forEach(inp => total += parseFloat(inp.value) || 0);
-        document.getElementById('rubricTotal').textContent = total;
+        const el = document.getElementById('rubricTotal');
+        if (el) el.textContent = total;
     },
 
     _getFormData() {
-        const rubricRows = document.querySelectorAll('#rubricRows .rubric-row');
-        const rubric_items = [];
-        rubricRows.forEach(row => {
-            const title = row.querySelector('.rubric-title').value.trim();
-            const points = parseFloat(row.querySelector('.rubric-points').value) || 0;
-            if (title && points > 0) rubric_items.push({ title, max_points: points });
-        });
-
+        const rubricType = this.state.selectedRubricType || 'points';
         const targetType = document.getElementById('asgTargetType').value;
         let targetValue = null;
-        if (targetType !== 'all') {
-            targetValue = document.getElementById('asgTargetValue').value;
-        }
+        if (targetType !== 'all') targetValue = document.getElementById('asgTargetValue').value;
 
-        return {
+        const base = {
             title: document.getElementById('asgTitle').value.trim(),
             description: document.getElementById('asgDesc').value.trim(),
             target_type: targetType,
@@ -751,13 +1683,103 @@ const AssignmentApp = {
             deadline: document.getElementById('asgDeadline').value || null,
             max_files: parseInt(document.getElementById('asgMaxFiles').value) || 5,
             allow_late: document.getElementById('asgAllowLate').checked,
-            rubric_items
+            rubric_type: rubricType,
+            rubric_config: null,
+            rubric_items: [],
         };
+
+        switch (rubricType) {
+            case 'points': {
+                const rows = document.querySelectorAll('#rubricRows .rubric-row');
+                rows.forEach(row => {
+                    const title = row.querySelector('.rubric-title').value.trim();
+                    const pts = parseFloat(row.querySelector('.rubric-points').value) || 0;
+                    if (title && pts > 0) base.rubric_items.push({ title, max_points: pts });
+                });
+                break;
+            }
+            case 'analytic_levels': {
+                document.querySelectorAll('#analyticCriteria .criterion-card').forEach(card => {
+                    const title = card.querySelector('.criterion-title').value.trim();
+                    const maxPts = parseFloat(card.querySelector('.criterion-max').value) || 10;
+                    const levels = [];
+                    card.querySelectorAll('.level-row').forEach(lr => {
+                        levels.push({
+                            level: lr.querySelector('.lv-label').value.trim(),
+                            points: parseFloat(lr.querySelector('.lv-points').value) || 0,
+                            description: lr.querySelector('.lv-desc').value.trim(),
+                        });
+                    });
+                    if (title) base.rubric_items.push({ title, max_points: maxPts, level_definitions: levels });
+                });
+                break;
+            }
+            case 'weighted_pct': {
+                base.rubric_config = { total_score: parseFloat(document.getElementById('weightTotalScore')?.value) || 100 };
+                document.querySelectorAll('#weightRows .rubric-row').forEach(row => {
+                    const title = row.querySelector('.wt-title').value.trim();
+                    const weight = parseFloat(row.querySelector('.wt-weight').value) || 0;
+                    if (title) base.rubric_items.push({ title, max_points: base.rubric_config.total_score, weight });
+                });
+                break;
+            }
+            case 'checklist': {
+                base.rubric_config = { max_score: parseFloat(document.getElementById('checklistMaxScore')?.value) || 100 };
+                document.querySelectorAll('#checklistItems .checklist-item').forEach(item => {
+                    const title = item.querySelector('.cl-title').value.trim();
+                    if (title) base.rubric_items.push({ title, max_points: 1 });
+                });
+                break;
+            }
+            case 'competency': {
+                const labels = [];
+                document.querySelectorAll('#competencyLevels .badge').forEach(tag => {
+                    if (tag.dataset.label) labels.push(tag.dataset.label);
+                });
+                base.rubric_config = { level_labels: labels };
+                document.querySelectorAll('#competencyItems .checklist-item').forEach(item => {
+                    const title = item.querySelector('.comp-title').value.trim();
+                    if (title) base.rubric_items.push({ title, max_points: 0 });
+                });
+                break;
+            }
+            case 'dse_criterion': {
+                const maxLevel = parseInt(document.getElementById('dseMaxLevel')?.value) || 7;
+                base.rubric_config = { max_level: maxLevel };
+                document.querySelectorAll('#dseCriteria .criterion-card').forEach(card => {
+                    const title = card.querySelector('.dse-title').value.trim();
+                    const maxPts = parseFloat(card.querySelector('.dse-max').value) || maxLevel;
+                    const levels = [];
+                    card.querySelectorAll('.level-row').forEach(lr => {
+                        levels.push({
+                            level: lr.querySelector('.dse-lv-label').value.trim(),
+                            description: lr.querySelector('.dse-lv-desc').value.trim(),
+                        });
+                    });
+                    if (title) base.rubric_items.push({ title, max_points: maxPts, level_definitions: levels });
+                });
+                break;
+            }
+            case 'holistic': {
+                const levels = [];
+                document.querySelectorAll('#holisticLevels .holistic-level').forEach(lv => {
+                    levels.push({
+                        label: lv.querySelector('.hl-label').value.trim(),
+                        min: parseFloat(lv.querySelector('.hl-min').value) || 0,
+                        max: parseFloat(lv.querySelector('.hl-max').value) || 100,
+                        description: lv.querySelector('.hl-desc').value.trim(),
+                    });
+                });
+                base.rubric_config = { levels };
+                break;
+            }
+        }
+        return base;
     },
 
     async saveAsDraft() {
         const data = this._getFormData();
-        if (!data.title) { alert('請輸入標題'); return; }
+        if (!data.title) { UIModule.toast('請輸入標題', 'warning'); return; }
 
         let resp;
         if (this.state.editingId) {
@@ -767,16 +1789,17 @@ const AssignmentApp = {
         }
 
         if (resp?.success) {
+            UIModule.toast('草稿已保存', 'success');
             this.closeCreateModal();
             this.showTeacherList();
         } else {
-            alert('保存失敗: ' + (resp?.message || resp?.detail || ''));
+            UIModule.toast('保存失敗: ' + (resp?.message || resp?.detail || ''), 'error');
         }
     },
 
     async saveAndPublish() {
         const data = this._getFormData();
-        if (!data.title) { alert('請輸入標題'); return; }
+        if (!data.title) { UIModule.toast('請輸入標題', 'warning'); return; }
 
         let resp;
         if (this.state.editingId) {
@@ -793,10 +1816,11 @@ const AssignmentApp = {
         }
 
         if (resp?.success) {
+            UIModule.toast('作業已發布', 'success');
             this.closeCreateModal();
             this.showTeacherList();
         } else {
-            alert('發布失敗: ' + (resp?.message || resp?.detail || ''));
+            UIModule.toast('發布失敗: ' + (resp?.message || resp?.detail || ''), 'error');
         }
     },
 
@@ -805,59 +1829,53 @@ const AssignmentApp = {
     },
 
     async publishAssignment(id) {
-        if (!confirm('確定要發布此作業？')) return;
+        if (!await UIModule.confirm('確定要發布此作業？', '發布作業')) return;
         const resp = await AssignmentAPI.publishAssignment(id);
-        if (resp?.success) this.viewAssignment(id);
-        else alert('發布失敗');
+        if (resp?.success) {
+            UIModule.toast('作業已發布', 'success');
+            this.viewAssignment(id);
+        } else {
+            UIModule.toast('發布失敗', 'error');
+        }
     },
 
     async closeAssignment(id) {
-        if (!confirm('確定要關閉此作業？關閉後學生將無法提交。')) return;
+        if (!await UIModule.confirm('確定要關閉此作業？關閉後學生將無法提交。', '關閉作業')) return;
         const resp = await AssignmentAPI.closeAssignment(id);
-        if (resp?.success) this.viewAssignment(id);
-        else alert('關閉失敗');
+        if (resp?.success) {
+            UIModule.toast('作業已關閉', 'success');
+            this.viewAssignment(id);
+        } else {
+            UIModule.toast('關閉失敗', 'error');
+        }
     },
 
     async deleteAssignment(id) {
-        if (!confirm('確定要刪除此作業？此操作不可撤銷。')) return;
+        if (!await UIModule.confirm('確定要刪除此作業？此操作不可撤銷。', '刪除作業')) return;
         const resp = await AssignmentAPI.deleteAssignment(id);
-        if (resp?.success) this.showTeacherList();
-        else alert('刪除失敗');
+        if (resp?.success) {
+            UIModule.toast('作業已刪除', 'success');
+            this.showTeacherList();
+        } else {
+            UIModule.toast('刪除失敗', 'error');
+        }
     },
 
     // ---- Student ----
     async showStudentList() {
         this.state.phase = 'list';
         this.setBreadcrumb([{ label: '我的作業' }]);
-
-        const tabs = ['', 'not_submitted', 'submitted', 'graded'];
-        const tabLabels = ['全部', '待提交', '已提交', '已批改'];
-        this.setHeaderActions(`<div class="tabs" style="border:none;">
-            ${tabs.map((t, i) => `<button class="tab-btn ${i === 0 ? 'active' : ''}"
-                onclick="AssignmentApp.filterStudentAssignments('${t}', this)">${tabLabels[i]}</button>`).join('')}
-        </div>`);
+        this.setHeaderActions('');
 
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-spinner"></div></div>';
+        main.innerHTML = `<div class="assignment-grid">${AssignmentUI.skeletonCards(3)}</div>`;
 
         const resp = await AssignmentAPI.listMyAssignments();
         if (!resp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
 
         this._studentAssignments = resp.data || [];
-        main.innerHTML = AssignmentUI.renderStudentAssignments(this._studentAssignments);
-    },
-
-    async filterStudentAssignments(status, btn) {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        if (btn) btn.classList.add('active');
-
-        const main = document.getElementById('mainContent');
-        main.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-spinner"></div></div>';
-
-        const resp = await AssignmentAPI.listMyAssignments(status);
-        if (!resp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
-
-        main.innerHTML = AssignmentUI.renderStudentAssignments(resp.data || []);
+        this.renderSidebar();
+        this._sidebarFilter('all');
     },
 
     async viewStudentAssignment(id) {
@@ -865,7 +1883,7 @@ const AssignmentApp = {
         this.state.currentAssignment = id;
 
         const main = document.getElementById('mainContent');
-        main.innerHTML = '<div style="text-align:center;padding:40px"><div class="loading-spinner"></div></div>';
+        main.innerHTML = AssignmentUI.skeletonDetail();
 
         const resp = await AssignmentAPI.getMyAssignment(id);
         if (!resp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
@@ -882,14 +1900,23 @@ const AssignmentApp = {
             sub.status === 'submitted' ? `<button class="btn btn-warning" onclick="AssignmentApp.openSubmitModal(${id})">重新提交</button>` : ''
         );
 
-        let html = `<div class="form-section">
-            <h3>${asg.title}</h3>
-            <p style="color:var(--text-secondary);margin-top:8px;">${asg.description || '無描述'}</p>
-            <div style="margin-top:12px;font-size:13px;color:var(--text-secondary);display:flex;gap:16px;flex-wrap:wrap;">
-                <span>${AssignmentUI.ICON.user} ${asg.created_by_name || ''}</span>
-                <span>${AssignmentUI.ICON.clock} 截止: ${AssignmentUI.formatDate(asg.deadline)}</span>
-                <span>${AssignmentUI.ICON.clip} 最多 ${asg.max_files || 5} 個文件</span>
-                ${asg.allow_late ? '<span>${AssignmentUI.ICON.clock} 允許逾期</span>' : ''}
+        const deadlineWarn = !sub ? AssignmentUI.deadlineWarning(asg.deadline) : '';
+        let html = `<div class="detail-hero fade-in">
+            <h3 style="margin:0;">${asg.title}</h3>
+            ${asg.description ? `<p style="color:var(--text-secondary);margin-top:6px;font-size:14px;">${asg.description}</p>` : ''}
+            <div class="detail-stats" style="margin-top:12px;">
+                <div class="stat-card">
+                    <div class="stat-icon">${AssignmentUI.ICON.user}</div>
+                    <div><div class="stat-value">${asg.created_by_name || ''}</div><div class="stat-label">教師</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">${AssignmentUI.ICON.clock}</div>
+                    <div><div class="stat-value">${AssignmentUI.formatDate(asg.deadline)} ${deadlineWarn}</div><div class="stat-label">截止日</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">${AssignmentUI.ICON.clip}</div>
+                    <div><div class="stat-value">最多 ${asg.max_files || 5} 個</div><div class="stat-label">文件限制</div></div>
+                </div>
             </div>
         </div>`;
 
@@ -902,40 +1929,80 @@ const AssignmentApp = {
                     ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
                 </div>
                 ${AssignmentUI.renderFiles(sub.files)}
+                <div id="codePreviewArea"></div>
+                <div id="swiftOutputArea"></div>
             </div>`;
 
             if (sub.status === 'graded') {
                 const rubricItems = asg.rubric_items || [];
                 const scores = sub.rubric_scores || [];
                 const scoreMap = {};
-                scores.forEach(s => scoreMap[s.rubric_item_id] = s.points);
+                const levelMap = {};
+                scores.forEach(s => {
+                    scoreMap[s.rubric_item_id] = s.points;
+                    if (s.selected_level) levelMap[s.rubric_item_id] = s.selected_level;
+                });
+                const rType = asg.rubric_type || 'points';
 
-                html += `<div class="form-section">
-                    <h3>${AssignmentUI.ICON.chart} 成績</h3>
-                    <div class="grade-total" style="border-top:none;padding-top:0;">
-                        <span>總分</span>
-                        <span style="color:var(--brand);font-size:24px;">${sub.score} / ${asg.max_score}</span>
+                html += `<div class="form-section fade-in">
+                    <h3>${AssignmentUI.ICON.chart} 成績</h3>`;
+
+                if (rType !== 'competency') {
+                    const pctScore = asg.max_score > 0 ? Math.round((sub.score || 0) / asg.max_score * 100) : 0;
+                    const scoreColor = pctScore >= 80 ? 'var(--color-success)' : pctScore >= 60 ? 'var(--color-warning)' : 'var(--color-error)';
+                    html += `<div class="student-score-hero">
+                        <div class="score-big" style="color:${scoreColor}">${sub.score != null ? sub.score : '—'}</div>
+                        ${asg.max_score != null ? `<div class="score-max">/ ${asg.max_score}</div>` : ''}
                     </div>`;
+                }
 
-                if (rubricItems.length) {
+                if (rType === 'competency') {
+                    html += '<div style="margin-top:12px;">';
+                    rubricItems.forEach(item => {
+                        const level = levelMap[item.id] || '—';
+                        html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-light);">
+                            <span style="flex:1;font-size:14px;">${item.title}</span>
+                            <span class="badge" style="background:var(--brand-light);color:var(--brand);">${level}</span>
+                        </div>`;
+                    });
+                    html += '</div>';
+                } else if (rType === 'checklist') {
+                    html += '<div style="margin-top:12px;">';
+                    rubricItems.forEach(item => {
+                        const passed = (scoreMap[item.id] || 0) > 0;
+                        html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-light);">
+                            <span>${passed ? '✅' : '❌'}</span>
+                            <span style="flex:1;font-size:14px;">${item.title}</span>
+                        </div>`;
+                    });
+                    html += '</div>';
+                } else if (rType === 'holistic') {
+                    const selLevel = scores[0]?.selected_level || '';
+                    if (selLevel) {
+                        html += `<div style="margin-top:8px;"><span class="badge" style="background:var(--brand-light);color:var(--brand);padding:4px 12px;font-size:14px;">${selLevel}</span></div>`;
+                    }
+                } else if (rubricItems.length) {
                     html += '<div style="margin-top:12px;">';
                     rubricItems.forEach(item => {
                         const pts = scoreMap[item.id] !== undefined ? scoreMap[item.id] : '—';
-                        const pct = pts !== '—' ? (pts / item.max_points * 100) : 0;
+                        const maxPts = item.max_points || 0;
+                        const pct = pts !== '—' && maxPts > 0 ? (pts / maxPts * 100) : 0;
                         const color = pct >= 80 ? 'var(--color-success)' : pct >= 60 ? 'var(--color-warning)' : 'var(--color-error)';
+                        const selLevel = levelMap[item.id];
                         html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-light);">
-                            <span style="flex:1;font-size:14px;">${item.title}</span>
+                            <span style="flex:1;font-size:14px;">${item.title}${selLevel ? ' <span class="badge" style="background:rgba(0,0,0,0.04);font-size:11px;">'+selLevel+'</span>' : ''}</span>
                             <span style="color:${color};font-weight:600;">${pts}</span>
-                            <span style="color:var(--text-tertiary);font-size:13px;">/ ${item.max_points}</span>
+                            ${maxPts > 0 ? `<span style="color:var(--text-tertiary);font-size:13px;">/ ${maxPts}</span>` : ''}
+                            ${rType === 'weighted_pct' && item.weight ? `<span style="color:var(--text-tertiary);font-size:12px;">(${item.weight}%)</span>` : ''}
                         </div>`;
                     });
                     html += '</div>';
                 }
 
                 if (sub.feedback) {
-                    html += `<div style="margin-top:16px;padding:12px;background:var(--brand-light);border-radius:8px;">
-                        <div style="font-size:13px;font-weight:600;color:var(--brand);margin-bottom:4px;">教師評語</div>
-                        <p style="font-size:14px;color:var(--text-primary);">${sub.feedback}</p>
+                    html += `<div class="teacher-note">
+                        <div class="teacher-note-header">${AssignmentUI.ICON.edit} 教師評語</div>
+                        <p>${sub.feedback}</p>
                     </div>`;
                 }
                 html += '</div>';
@@ -952,6 +2019,9 @@ const AssignmentApp = {
         document.getElementById('submitContent').value = '';
         document.getElementById('selectedFiles').innerHTML = '';
         document.getElementById('submitModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        // Focus first input after animation
+        setTimeout(() => document.getElementById('submitContent')?.focus(), 300);
 
         // Setup upload zone
         const zone = document.getElementById('uploadZone');
@@ -971,11 +2041,12 @@ const AssignmentApp = {
 
     closeSubmitModal() {
         document.getElementById('submitModal').classList.remove('active');
+        document.body.style.overflow = '';
     },
 
     _addFiles(fileList) {
         for (const f of fileList) {
-            if (this.state.selectedFiles.length >= 5) { alert('最多 5 個文件'); break; }
+            if (this.state.selectedFiles.length >= 5) { UIModule.toast('最多 5 個文件', 'warning'); break; }
             this.state.selectedFiles.push(f);
         }
         this._renderSelectedFiles();
@@ -1017,10 +2088,10 @@ const AssignmentApp = {
 
         if (resp?.success) {
             this.closeSubmitModal();
-            alert('提交成功！');
+            UIModule.toast('提交成功', 'success');
             this.viewStudentAssignment(this.state.currentAssignment);
         } else {
-            alert('提交失敗: ' + (resp?.message || resp?.detail || ''));
+            UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
         }
     },
 
@@ -1081,4 +2152,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // AuthModule 由 shared/auth.js 自動掛載，無需 init
     // 短暫延遲確保 token 讀取完成
     setTimeout(() => AssignmentApp.init(), 50);
+
+    // Click overlay to close modals
+    ['createModal', 'submitModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('click', (e) => {
+            if (e.target === el) {
+                if (id === 'createModal') AssignmentApp.closeCreateModal();
+                else AssignmentApp.closeSubmitModal();
+            }
+        });
+    });
+
+    // ESC key closes modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const createModal = document.getElementById('createModal');
+            const submitModal = document.getElementById('submitModal');
+            if (createModal?.classList.contains('active')) {
+                AssignmentApp.closeCreateModal();
+            } else if (submitModal?.classList.contains('active')) {
+                AssignmentApp.closeSubmitModal();
+            }
+        }
+    });
 });

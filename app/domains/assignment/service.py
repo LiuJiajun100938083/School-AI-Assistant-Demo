@@ -92,6 +92,24 @@ class AssignmentService:
     # 老師操作
     # ================================================================
 
+    def _calc_max_score(self, rubric_type: str, rubric_items: Optional[List[Dict]],
+                         rubric_config: Optional[Dict] = None) -> Optional[float]:
+        """根據評分類型計算滿分"""
+        if rubric_type == "competency":
+            return None  # 能力等級制無數字分數
+        if rubric_type == "holistic":
+            if rubric_config and rubric_config.get("levels"):
+                return max((lv.get("max", 0) for lv in rubric_config["levels"]), default=100)
+            return 100.0
+        if rubric_type == "weighted_pct":
+            return float(rubric_config.get("total_score", 100)) if rubric_config else 100.0
+        if rubric_type == "checklist":
+            return float(rubric_config.get("max_score", 100)) if rubric_config else 100.0
+        # points / analytic_levels / dse_criterion
+        if rubric_items:
+            return sum(item.get("max_points", 0) or 0 for item in rubric_items)
+        return 100.0
+
     def create_assignment(
         self,
         teacher_id: int,
@@ -103,6 +121,8 @@ class AssignmentService:
         deadline: Optional[str] = None,
         max_files: int = 5,
         allow_late: bool = False,
+        rubric_type: str = "points",
+        rubric_config: Optional[Dict] = None,
         rubric_items: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:
         """創建作業 (草稿狀態)"""
@@ -117,13 +137,11 @@ class AssignmentService:
             except ValueError:
                 raise ValidationError("截止日期格式無效", field="deadline")
 
-        # 計算滿分 (各評分項目合計)
-        max_score = 100.0
-        if rubric_items:
-            max_score = sum(item.get("max_points", 0) for item in rubric_items)
+        # 計算滿分
+        max_score = self._calc_max_score(rubric_type, rubric_items, rubric_config)
 
         # 插入作業
-        assignment_id = self._assignment_repo.insert_get_id({
+        insert_data = {
             "title": title.strip(),
             "description": description.strip() if description else "",
             "created_by": teacher_id,
@@ -131,19 +149,24 @@ class AssignmentService:
             "target_type": target_type,
             "target_value": target_value,
             "max_score": max_score,
+            "rubric_type": rubric_type,
             "deadline": deadline_dt,
             "status": "draft",
             "allow_late": allow_late,
             "max_files": max_files,
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
-        })
+        }
+        if rubric_config is not None:
+            insert_data["rubric_config"] = json.dumps(rubric_config, ensure_ascii=False)
+
+        assignment_id = self._assignment_repo.insert_get_id(insert_data)
 
         # 插入評分標準
         if rubric_items:
             self._rubric_repo.batch_insert(assignment_id, rubric_items)
 
-        logger.info("教師 %s 創建了作業 #%d: %s", teacher_name, assignment_id, title)
+        logger.info("教師 %s 創建了作業 #%d: %s (類型=%s)", teacher_name, assignment_id, title, rubric_type)
         return self.get_assignment_detail(assignment_id)
 
     def update_assignment(
@@ -159,6 +182,8 @@ class AssignmentService:
             raise ValidationError("只有草稿狀態的作業可以編輯")
 
         rubric_items = fields.pop("rubric_items", None)
+        rubric_type = fields.pop("rubric_type", None)
+        rubric_config = fields.pop("rubric_config", None)
 
         allowed = {"title", "description", "target_type", "target_value",
                     "deadline", "max_files", "allow_late"}
@@ -173,15 +198,25 @@ class AssignmentService:
                 else:
                     update_data[key] = value
 
+        if rubric_type is not None:
+            update_data["rubric_type"] = rubric_type
+        if rubric_config is not None:
+            update_data["rubric_config"] = json.dumps(rubric_config, ensure_ascii=False)
+
         # 更新評分標準
         if rubric_items is not None:
             self._rubric_repo.delete_by_assignment(assignment_id)
             if rubric_items:
                 self._rubric_repo.batch_insert(assignment_id, rubric_items)
             # 重新計算滿分
-            update_data["max_score"] = sum(
-                item.get("max_points", 0) for item in rubric_items
-            ) if rubric_items else 100.0
+            effective_type = rubric_type or assignment.get("rubric_type") or "points"
+            effective_config = rubric_config
+            if effective_config is None and assignment.get("rubric_config"):
+                cfg = assignment["rubric_config"]
+                effective_config = json.loads(cfg) if isinstance(cfg, str) else cfg
+            update_data["max_score"] = self._calc_max_score(
+                effective_type, rubric_items, effective_config
+            )
 
         update_data["updated_at"] = datetime.now()
 
@@ -262,10 +297,27 @@ class AssignmentService:
 
         return result
 
+    @staticmethod
+    def _deserialize_json_fields(data: Dict) -> Dict:
+        """反序列化 JSON 字段"""
+        for key in ("rubric_config", "level_definitions"):
+            val = data.get(key)
+            if isinstance(val, str):
+                try:
+                    data[key] = json.loads(val)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        return data
+
     def get_assignment_detail(self, assignment_id: int) -> Dict[str, Any]:
         """獲取作業完整詳情"""
         assignment = self._get_assignment_or_raise(assignment_id)
-        assignment["rubric_items"] = self._rubric_repo.find_by_assignment(assignment_id)
+        self._deserialize_json_fields(assignment)
+
+        rubric_items = self._rubric_repo.find_by_assignment(assignment_id)
+        for item in rubric_items:
+            self._deserialize_json_fields(item)
+        assignment["rubric_items"] = rubric_items
 
         stats = self._submission_repo.get_submission_stats(assignment_id)
         assignment["submission_count"] = stats["total_submissions"] if stats else 0
@@ -302,12 +354,49 @@ class AssignmentService:
         # 附加作業信息 (含評分標準)
         assignment = self._assignment_repo.find_by_id(submission["assignment_id"])
         if assignment:
+            self._deserialize_json_fields(assignment)
             submission["assignment"] = assignment
-            submission["rubric_items"] = self._rubric_repo.find_by_assignment(
+            rubric_items = self._rubric_repo.find_by_assignment(
                 submission["assignment_id"]
             )
+            for item in rubric_items:
+                self._deserialize_json_fields(item)
+            submission["rubric_items"] = rubric_items
 
         return submission
+
+    def _calc_total_score(self, rubric_type: str, rubric_scores: List[Dict],
+                           rubric_items: List[Dict], rubric_config: Optional[Dict]) -> Optional[float]:
+        """根據評分類型計算學生總分"""
+        if rubric_type == "competency":
+            return None
+
+        if rubric_type == "holistic":
+            # 整體評分: 直接取第一個分數
+            if rubric_scores:
+                return rubric_scores[0].get("points") or 0
+            return 0
+
+        if rubric_type == "checklist":
+            # 通過清單: passed / total × max_score
+            max_score = float(rubric_config.get("max_score", 100)) if rubric_config else 100.0
+            total_items = len(rubric_items) if rubric_items else 1
+            passed = sum(1 for s in rubric_scores if (s.get("points") or 0) > 0)
+            return round(passed / total_items * max_score, 1)
+
+        if rubric_type == "weighted_pct":
+            # 權重百分比: sum(score × weight / 100)
+            item_map = {item["id"]: item for item in rubric_items}
+            total = 0.0
+            for s in rubric_scores:
+                item = item_map.get(s["rubric_item_id"], {})
+                weight = float(item.get("weight", 0) or 0)
+                pts = float(s.get("points", 0) or 0)
+                total += pts * weight / 100.0
+            return round(total, 1)
+
+        # points / analytic_levels / dse_criterion: sum of points
+        return sum(float(s.get("points", 0) or 0) for s in rubric_scores)
 
     def grade_submission(
         self,
@@ -316,17 +405,24 @@ class AssignmentService:
         rubric_scores: List[Dict],
         feedback: str = "",
     ) -> Dict[str, Any]:
-        """批改提交 - 逐項打分"""
+        """批改提交 - 逐項打分 (支持多種評分類型)"""
         submission = self._submission_repo.find_by_id(submission_id)
         if not submission:
             raise SubmissionNotFoundError(submission_id)
+
+        # 獲取作業信息以確定評分類型
+        assignment = self._assignment_repo.find_by_id(submission["assignment_id"])
+        rubric_type = (assignment or {}).get("rubric_type") or "points"
+        rubric_config_raw = (assignment or {}).get("rubric_config")
+        rubric_config = json.loads(rubric_config_raw) if isinstance(rubric_config_raw, str) else rubric_config_raw
+        rubric_items = self._rubric_repo.find_by_assignment(submission["assignment_id"])
 
         # 保存逐項得分
         if rubric_scores:
             self._score_repo.batch_upsert(submission_id, rubric_scores)
 
         # 計算總分
-        total_score = sum(s.get("points", 0) for s in rubric_scores)
+        total_score = self._calc_total_score(rubric_type, rubric_scores, rubric_items, rubric_config)
 
         # 更新提交狀態
         self._submission_repo.update(
@@ -342,7 +438,7 @@ class AssignmentService:
             params=(submission_id,),
         )
 
-        logger.info("提交 #%d 已批改，總分: %s", submission_id, total_score)
+        logger.info("提交 #%d 已批改，總分: %s (類型=%s)", submission_id, total_score, rubric_type)
         return self.get_submission_detail(submission_id)
 
     def get_available_targets(self) -> Dict[str, Any]:
@@ -369,6 +465,134 @@ class AssignmentService:
     # AI 批改
     # ================================================================
 
+    def _build_ai_prompt(self, rubric_type: str, assignment: Dict,
+                          rubric_items: List[Dict], rubric_config: Optional[Dict],
+                          submission: Dict, file_contents: str) -> str:
+        """根據評分類型構建 AI 批改提示"""
+        base = f"""你是一位專業的作業批改助手。請根據以下評分標準嚴格批改學生的作業。
+
+## 作業標題
+{assignment['title']}
+
+## 作業描述
+{assignment.get('description', '無')}
+
+## 學生提交備註
+{submission.get('content', '無')}
+
+## 學生提交文件內容
+{file_contents if file_contents else '（無可讀取的文件內容）'}
+"""
+
+        if rubric_type == "holistic":
+            levels_text = ""
+            if rubric_config and rubric_config.get("levels"):
+                levels_text = "\n".join(
+                    f"- {lv['label']} ({lv.get('min',0)}-{lv.get('max',100)}分): {lv.get('description','')}"
+                    for lv in rubric_config["levels"]
+                )
+            return base + f"""
+## 整體評分等級
+{levels_text}
+
+請以嚴格 JSON 格式返回:
+{{"selected_level": "等級標籤", "points": 分數, "reason": "評分理由", "overall_feedback": "總體評語"}}
+"""
+
+        if rubric_type == "checklist":
+            items_text = "\n".join(f"- id={item['id']}: {item['title']}" for item in rubric_items)
+            return base + f"""
+## 檢查清單 (每項判斷通過/不通過)
+{items_text}
+
+請以嚴格 JSON 格式返回:
+{{"items": [{{"rubric_item_id": ID, "passed": true或false, "reason": "理由"}}, ...], "overall_feedback": "總體評語"}}
+"""
+
+        if rubric_type == "competency":
+            level_labels = (rubric_config or {}).get("level_labels", ["Not Yet", "Approaching", "Meeting", "Exceeding"])
+            labels_text = " / ".join(level_labels)
+            items_text = "\n".join(f"- id={item['id']}: {item['title']}" for item in rubric_items)
+            return base + f"""
+## 能力等級評估 (等級: {labels_text})
+{items_text}
+
+請以嚴格 JSON 格式返回 (無數字分數):
+{{"items": [{{"rubric_item_id": ID, "selected_level": "等級", "reason": "理由"}}, ...], "overall_feedback": "總體評語"}}
+"""
+
+        if rubric_type == "analytic_levels":
+            items_text = ""
+            for item in rubric_items:
+                ld = item.get("level_definitions") or []
+                if isinstance(ld, str):
+                    try: ld = json.loads(ld)
+                    except: ld = []
+                levels = ", ".join(f"{l['level']}={l.get('points',0)}分" for l in ld)
+                items_text += f"- id={item['id']}: {item['title']} (滿分{item['max_points']}) 等級: [{levels}]\n"
+            return base + f"""
+## 分級評分標準
+{items_text}
+
+請為每項選擇一個等級，以嚴格 JSON 格式返回:
+{{"items": [{{"rubric_item_id": ID, "selected_level": "等級名", "points": 分數, "reason": "理由"}}, ...], "overall_feedback": "總體評語"}}
+"""
+
+        if rubric_type == "weighted_pct":
+            total_score = (rubric_config or {}).get("total_score", 100)
+            items_text = "\n".join(
+                f"- id={item['id']}: {item['title']} (權重{item.get('weight',0)}%)"
+                for item in rubric_items
+            )
+            return base + f"""
+## 權重百分比評分 (滿分 {total_score})
+{items_text}
+
+請為每項打分 (0-{total_score})，以嚴格 JSON 格式返回:
+{{"items": [{{"rubric_item_id": ID, "points": 分數, "reason": "理由"}}, ...], "overall_feedback": "總體評語"}}
+"""
+
+        if rubric_type == "dse_criterion":
+            items_text = ""
+            for item in rubric_items:
+                ld = item.get("level_definitions") or []
+                if isinstance(ld, str):
+                    try: ld = json.loads(ld)
+                    except: ld = []
+                desc = "; ".join(f"Level {l['level']}: {l.get('description','')}" for l in ld if l.get("description"))
+                items_text += f"- id={item['id']}: {item['title']} (max {item['max_points']}) [{desc}]\n"
+            return base + f"""
+## DSE 標準量規
+{items_text}
+
+請為每項選擇等級 (0-max)，以嚴格 JSON 格式返回:
+{{"items": [{{"rubric_item_id": ID, "points": 等級數, "reason": "理由"}}, ...], "overall_feedback": "總體評語"}}
+"""
+
+        # Default: points
+        rubric_text = "\n".join(
+            f"{i+1}. {item['title']} (滿分 {item['max_points']} 分)"
+            for i, item in enumerate(rubric_items)
+        )
+        id_hint = ", ".join(
+            f'id={item["id"]}:"{item["title"]}"(滿分{item["max_points"]})'
+            for item in rubric_items
+        )
+        return base + f"""
+## 評分標準
+{rubric_text}
+
+請以嚴格的 JSON 格式返回批改結果，不要包含任何其他文字：
+{{"items": [{{"rubric_item_id": {rubric_items[0]['id']}, "points": 分數, "reason": "評分理由"}}, ...], "overall_feedback": "總體評語"}}
+
+注意：
+- 每個 rubric_item_id 必須對應上述評分標準的 ID
+- points 不能超過該項的滿分
+- reason 請簡短說明得分或失分原因
+- overall_feedback 請給出總體評價和改進建議
+
+評分標準 ID 對照: {id_hint}"""
+
     def ai_grade_submission(self, submission_id: int) -> Dict[str, Any]:
         """AI 自動批改一份提交"""
         if not self._ask_ai_func:
@@ -381,56 +605,27 @@ class AssignmentService:
         assignment = self._assignment_repo.find_by_id(submission["assignment_id"])
         if not assignment:
             raise AssignmentNotFoundError(submission["assignment_id"])
+        self._deserialize_json_fields(assignment)
+
+        rubric_type = assignment.get("rubric_type") or "points"
+        rubric_config = assignment.get("rubric_config")
 
         # 讀取評分標準
         rubric_items = self._rubric_repo.find_by_assignment(assignment["id"])
-        if not rubric_items:
+        for item in rubric_items:
+            self._deserialize_json_fields(item)
+
+        if not rubric_items and rubric_type != "holistic":
             raise ValidationError("此作業沒有設定評分標準，無法使用 AI 批改")
 
         # 讀取提交文件
         files = self._file_repo.find_by_submission(submission_id)
         file_contents = self._extract_file_contents(files)
 
-        # 構建評分標準文本
-        rubric_text = "\n".join(
-            f"{i+1}. {item['title']} (滿分 {item['max_points']} 分)"
-            for i, item in enumerate(rubric_items)
+        prompt = self._build_ai_prompt(
+            rubric_type, assignment, rubric_items, rubric_config,
+            submission, file_contents
         )
-
-        # 構建 prompt
-        prompt = f"""你是一位專業的作業批改助手。請根據以下評分標準嚴格批改學生的作業。
-
-## 作業標題
-{assignment['title']}
-
-## 作業描述
-{assignment.get('description', '無')}
-
-## 評分標準
-{rubric_text}
-
-## 學生提交備註
-{submission.get('content', '無')}
-
-## 學生提交文件內容
-{file_contents if file_contents else '（無可讀取的文件內容）'}
-
-請以嚴格的 JSON 格式返回批改結果，不要包含任何其他文字：
-{{"items": [{{"rubric_item_id": {rubric_items[0]['id']}, "points": 分數, "reason": "評分理由"}}, ...], "overall_feedback": "總體評語"}}
-
-注意：
-- 每個 rubric_item_id 必須對應上述評分標準的 ID
-- points 不能超過該項的滿分
-- reason 請簡短說明得分或失分原因
-- overall_feedback 請給出總體評價和改進建議
-"""
-
-        # 構建 rubric_item_id 列表提示
-        id_hint = ", ".join(
-            f'id={item["id"]}:"{item["title"]}"(滿分{item["max_points"]})'
-            for item in rubric_items
-        )
-        prompt += f"\n評分標準 ID 對照: {id_hint}"
 
         try:
             model = None
@@ -445,8 +640,7 @@ class AssignmentService:
                 model=model,
             )
 
-            # 解析 JSON
-            result = self._parse_ai_response(answer, rubric_items)
+            result = self._parse_ai_response(answer, rubric_items, rubric_type)
             return result
 
         except Exception as e:
@@ -458,26 +652,23 @@ class AssignmentService:
             }
 
     def _parse_ai_response(
-        self, answer: str, rubric_items: List[Dict]
+        self, answer: str, rubric_items: List[Dict], rubric_type: str = "points"
     ) -> Dict[str, Any]:
         """解析 AI 回應中的 JSON"""
-        # 嘗試直接解析
         try:
             result = json.loads(answer)
-            return self._validate_ai_result(result, rubric_items)
+            return self._validate_ai_result(result, rubric_items, rubric_type)
         except json.JSONDecodeError:
             pass
 
-        # 嘗試提取 JSON 塊
         json_match = re.search(r'\{[\s\S]*\}', answer)
         if json_match:
             try:
                 result = json.loads(json_match.group())
-                return self._validate_ai_result(result, rubric_items)
+                return self._validate_ai_result(result, rubric_items, rubric_type)
             except json.JSONDecodeError:
                 pass
 
-        # 解析失敗，返回空結果
         return {
             "items": [],
             "overall_feedback": answer[:500],
@@ -485,27 +676,50 @@ class AssignmentService:
         }
 
     def _validate_ai_result(
-        self, result: Dict, rubric_items: List[Dict]
+        self, result: Dict, rubric_items: List[Dict], rubric_type: str = "points"
     ) -> Dict[str, Any]:
         """驗證和修正 AI 結果"""
-        valid_ids = {item["id"]: item["max_points"] for item in rubric_items}
+        # 整體評分特殊處理
+        if rubric_type == "holistic":
+            return {
+                "selected_level": result.get("selected_level", ""),
+                "points": float(result.get("points", 0)),
+                "reason": result.get("reason", ""),
+                "overall_feedback": result.get("overall_feedback", ""),
+                "items": [],
+                "error": False,
+            }
+
+        valid_ids = {item["id"]: item for item in rubric_items}
         validated_items = []
 
         for item in result.get("items", []):
             rid = item.get("rubric_item_id")
-            points = float(item.get("points", 0))
+            if rid not in valid_ids:
+                continue
 
-            if rid in valid_ids:
-                # 確保不超過滿分
-                max_p = float(valid_ids[rid])
-                points = min(points, max_p)
-                points = max(points, 0)
+            rubric_item = valid_ids[rid]
+            entry = {
+                "rubric_item_id": rid,
+                "reason": item.get("reason", ""),
+            }
 
-                validated_items.append({
-                    "rubric_item_id": rid,
-                    "points": points,
-                    "reason": item.get("reason", ""),
-                })
+            if rubric_type == "checklist":
+                passed = item.get("passed", False)
+                entry["points"] = 1 if passed else 0
+                entry["passed"] = passed
+            elif rubric_type == "competency":
+                entry["selected_level"] = item.get("selected_level", "")
+                entry["points"] = None
+            else:
+                points = float(item.get("points", 0) or 0)
+                max_p = float(rubric_item.get("max_points", 0) or 1000)
+                points = max(0, min(points, max_p))
+                entry["points"] = points
+                if item.get("selected_level"):
+                    entry["selected_level"] = item["selected_level"]
+
+            validated_items.append(entry)
 
         return {
             "items": validated_items,
@@ -782,30 +996,109 @@ class AssignmentService:
     # Swift 運行
     # ================================================================
 
+    @staticmethod
+    def _find_swift_env():
+        """查找 swiftc 可執行檔路徑及所需的環境變數"""
+        import shutil
+        import glob as _glob
+
+        swift_base = os.path.join(
+            os.environ.get("LOCALAPPDATA", ""), "Programs", "Swift"
+        )
+
+        # 1. 嘗試系統 PATH
+        swiftc = shutil.which("swiftc")
+        if swiftc:
+            return swiftc, None
+
+        # 2. Windows 默認安裝位置
+        tc_pattern = os.path.join(swift_base, "Toolchains", "*", "usr", "bin", "swiftc.exe")
+        matches = sorted(_glob.glob(tc_pattern), reverse=True)
+        if not matches:
+            return "swiftc", None
+
+        swiftc_exe = matches[0]
+        toolchain_bin = os.path.dirname(swiftc_exe)
+
+        # 收集 DLL 路徑
+        extra_paths = [toolchain_bin]
+        rt_pattern = os.path.join(swift_base, "Runtimes", "*", "usr", "bin")
+        for p in sorted(_glob.glob(rt_pattern), reverse=True):
+            extra_paths.append(p)
+
+        env = os.environ.copy()
+        env["PATH"] = ";".join(extra_paths) + ";" + env.get("PATH", "")
+
+        # SDKROOT
+        sdk_pattern = os.path.join(swift_base, "Platforms", "*", "Windows.platform", "Developer", "SDKs", "Windows.sdk")
+        sdk_matches = sorted(_glob.glob(sdk_pattern), reverse=True)
+        if sdk_matches:
+            env["SDKROOT"] = sdk_matches[0]
+
+        # Windows SDK (UCRT) include / lib paths
+        winsdk_base = os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "Windows Kits", "10")
+        sdk_versions = sorted(_glob.glob(os.path.join(winsdk_base, "Include", "*")), reverse=True)
+        if sdk_versions:
+            sv = os.path.basename(sdk_versions[0])
+            inc = os.path.join(winsdk_base, "Include", sv)
+            lib = os.path.join(winsdk_base, "Lib", sv)
+            env["INCLUDE"] = ";".join([
+                os.path.join(inc, "ucrt"), os.path.join(inc, "um"), os.path.join(inc, "shared"),
+            ]) + ";" + env.get("INCLUDE", "")
+            env["LIB"] = ";".join([
+                os.path.join(lib, "ucrt", "x64"), os.path.join(lib, "um", "x64"),
+            ]) + ";" + env.get("LIB", "")
+
+        # VC Tools include / lib
+        vc_pattern = os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+                                  "Microsoft Visual Studio", "2022", "BuildTools", "VC", "Tools", "MSVC", "*")
+        vc_matches = sorted(_glob.glob(vc_pattern), reverse=True)
+        if vc_matches:
+            vc = vc_matches[0]
+            env["INCLUDE"] = os.path.join(vc, "include") + ";" + env.get("INCLUDE", "")
+            env["LIB"] = os.path.join(vc, "lib", "x64") + ";" + env.get("LIB", "")
+
+        return swiftc_exe, env
+
     def run_swift_code(self, code: str) -> Dict[str, Any]:
         """
         運行 Swift 代碼
 
-        將代碼寫入臨時文件，使用 swift 命令編譯運行。
+        使用 swiftc 編譯後執行。
         """
         import subprocess
         import tempfile
 
         tmp_file = None
+        exe_path = None
         try:
+            swiftc_path, env = self._find_swift_env()
+
             # 寫入臨時文件
             tmp_file = tempfile.NamedTemporaryFile(
                 suffix=".swift", mode="w", delete=False, encoding="utf-8"
             )
             tmp_file.write(code)
             tmp_file.close()
+            exe_path = tmp_file.name.replace(".swift", ".exe")
 
-            # 運行 swift
+            # 編譯
+            compile_result = subprocess.run(
+                [swiftc_path, "-o", exe_path, tmp_file.name],
+                capture_output=True, text=True, timeout=30, env=env,
+            )
+            if compile_result.returncode != 0:
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": compile_result.stderr,
+                    "return_code": compile_result.returncode,
+                }
+
+            # 執行
             result = subprocess.run(
-                ["swift", tmp_file.name],
-                capture_output=True,
-                text=True,
-                timeout=10,
+                [exe_path],
+                capture_output=True, text=True, timeout=10, env=env,
             )
 
             return {
@@ -840,6 +1133,14 @@ class AssignmentService:
             # 清理臨時文件
             if tmp_file and os.path.exists(tmp_file.name):
                 os.unlink(tmp_file.name)
+            if exe_path and os.path.exists(exe_path):
+                os.unlink(exe_path)
+            # 清理編譯產生的 .lib / .exp 文件
+            if exe_path:
+                for ext in (".lib", ".exp"):
+                    p = exe_path.replace(".exe", ext)
+                    if os.path.exists(p):
+                        os.unlink(p)
 
     # ================================================================
     # 輔助方法

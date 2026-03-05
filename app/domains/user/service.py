@@ -347,7 +347,6 @@ class UserService:
         if "role" in update_data:
             self._validate_role(update_data["role"])
 
-        update_data["updated_by"] = updated_by
         update_data["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         self._repo.update_user(username, update_data)

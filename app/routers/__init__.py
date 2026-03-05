@@ -195,6 +195,36 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- 多类型评分标准扩展 ---
+        # assignments 表: rubric_type, rubric_config
+        cols = pool.execute("SHOW COLUMNS FROM assignments LIKE 'rubric_type'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE assignments "
+                "ADD COLUMN rubric_type VARCHAR(30) DEFAULT 'points' COMMENT '评分类型' AFTER max_score, "
+                "ADD COLUMN rubric_config JSON DEFAULT NULL COMMENT '类型配置 JSON' AFTER rubric_type"
+            )
+            logger.info("数据库迁移: assignments 表添加 rubric_type, rubric_config")
+
+        # assignment_rubric_items 表: level_definitions, weight
+        cols = pool.execute("SHOW COLUMNS FROM assignment_rubric_items LIKE 'level_definitions'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE assignment_rubric_items "
+                "ADD COLUMN level_definitions JSON DEFAULT NULL COMMENT '等级定义 JSON' AFTER max_points, "
+                "ADD COLUMN weight DECIMAL(5,2) DEFAULT NULL COMMENT '权重百分比' AFTER level_definitions"
+            )
+            logger.info("数据库迁移: assignment_rubric_items 表添加 level_definitions, weight")
+
+        # submission_rubric_scores 表: selected_level
+        cols = pool.execute("SHOW COLUMNS FROM submission_rubric_scores LIKE 'selected_level'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE submission_rubric_scores "
+                "ADD COLUMN selected_level VARCHAR(100) DEFAULT NULL COMMENT '选择的等级' AFTER points"
+            )
+            logger.info("数据库迁移: submission_rubric_scores 表添加 selected_level")
+
         logger.info("数据库 schema 迁移完成 (含作業管理表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)

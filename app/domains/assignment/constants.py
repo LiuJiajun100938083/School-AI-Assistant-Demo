@@ -75,6 +75,17 @@ TEXT_READABLE_EXTENSIONS = {
 # 可通過 FileProcessor 提取文本的擴展名
 DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".pptx", ".doc", ".ppt"}
 
+# 評分類型
+RUBRIC_TYPES = (
+    "points",           # 簡單計分 (默認)
+    "analytic_levels",  # 分級描述量規
+    "weighted_pct",     # 權重百分比制
+    "checklist",        # 通過/不通過清單
+    "competency",       # 能力等級制
+    "dse_criterion",    # DSE 標準量規
+    "holistic",         # 整體評分
+)
+
 # 作業狀態
 ASSIGNMENT_STATUS = ("draft", "published", "closed")
 

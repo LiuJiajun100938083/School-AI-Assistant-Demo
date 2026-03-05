@@ -66,6 +66,8 @@ async def create_assignment(
             deadline=request.deadline,
             max_files=request.max_files,
             allow_late=request.allow_late,
+            rubric_type=request.rubric_type,
+            rubric_config=request.rubric_config,
             rubric_items=[item.dict() for item in request.rubric_items],
         ),
     )
@@ -147,6 +149,9 @@ async def update_assignment(
     fields = request.dict(exclude_unset=True)
     if "rubric_items" in fields and fields["rubric_items"] is not None:
         fields["rubric_items"] = [item.dict() for item in request.rubric_items]
+    if "rubric_scores" in fields:
+        # rubric_scores belongs to grading, not update
+        fields.pop("rubric_scores", None)
 
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
@@ -262,13 +267,22 @@ async def grade_submission(
     user = services.user.get_user(username)
     teacher_id = user["id"] if user else 0
 
+    scores_data = []
+    for s in request.rubric_scores:
+        sd = {"rubric_item_id": s.rubric_item_id}
+        if s.points is not None:
+            sd["points"] = s.points
+        if s.selected_level is not None:
+            sd["selected_level"] = s.selected_level
+        scores_data.append(sd)
+
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
         lambda: services.assignment.grade_submission(
             submission_id=submission_id,
             teacher_id=teacher_id,
-            rubric_scores=[s.dict() for s in request.rubric_scores],
+            rubric_scores=scores_data,
             feedback=request.feedback,
         ),
     )

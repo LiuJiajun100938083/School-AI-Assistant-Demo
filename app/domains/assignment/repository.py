@@ -11,6 +11,7 @@
 5. RubricScoreRepository - 逐項得分
 """
 
+import json
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -188,12 +189,21 @@ class RubricItemRepository(BaseRepository):
 
         inserted = 0
         for i, item in enumerate(items):
-            self.insert({
+            data = {
                 "assignment_id": assignment_id,
                 "item_order": i,
                 "title": item.get("title", ""),
-                "max_points": item.get("max_points", 0),
-            })
+                "max_points": item.get("max_points") or 0,
+            }
+            # 等級定義 (JSON)
+            ld = item.get("level_definitions")
+            if ld is not None:
+                data["level_definitions"] = json.dumps(ld, ensure_ascii=False) if isinstance(ld, (list, dict)) else ld
+            # 權重
+            w = item.get("weight")
+            if w is not None:
+                data["weight"] = w
+            self.insert(data)
             inserted += 1
         return inserted
 
@@ -225,13 +235,15 @@ class RubricScoreRepository(BaseRepository):
 
         count = 0
         for score in scores:
+            data = {
+                "submission_id": submission_id,
+                "rubric_item_id": score["rubric_item_id"],
+                "points": score.get("points"),
+                "selected_level": score.get("selected_level"),
+            }
             self.upsert(
-                data={
-                    "submission_id": submission_id,
-                    "rubric_item_id": score["rubric_item_id"],
-                    "points": score["points"],
-                },
-                update_fields=["points"],
+                data=data,
+                update_fields=["points", "selected_level"],
             )
             count += 1
         return count

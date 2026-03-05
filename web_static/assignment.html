@@ -7,32 +7,60 @@
     <link rel="stylesheet" href="/static/css/assignment.css">
 </head>
 <body>
-    <!-- Header -->
-    <header class="app-header">
-        <div style="display:flex;align-items:center;gap:12px;">
-            <a href="/" class="back-btn" title="返回" onclick="event.preventDefault(); history.length > 1 ? history.back() : location.href='/';">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                <span>返回</span>
-            </a>
-            <h1>作業管理</h1>
-            <nav class="breadcrumb" id="breadcrumb"></nav>
-        </div>
-        <div class="header-actions" id="headerActions"></div>
-    </header>
+    <!-- App Shell -->
+    <div class="app-shell">
 
-    <!-- Main Content -->
-    <div class="main-content" id="mainContent">
-        <div class="empty-state">
-            <div class="loading-spinner"></div>
-            <p style="margin-top:12px;">載入中...</p>
+        <!-- Top Bar -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle" onclick="AssignmentApp.toggleSidebar()" aria-label="切換側邊欄">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <a href="/" class="topbar-back" title="返回首頁" onclick="event.preventDefault(); history.length > 1 ? history.back() : location.href='/';">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </a>
+                <div class="topbar-divider"></div>
+                <h1 class="topbar-title">作業管理</h1>
+                <nav class="topbar-breadcrumb breadcrumb" id="breadcrumb"></nav>
+            </div>
+            <div class="topbar-actions" id="headerActions"></div>
+        </header>
+
+        <!-- Body: Sidebar + Workspace -->
+        <div class="app-body">
+
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-inner">
+                    <!-- Primary Action (teacher: new assignment) -->
+                    <div class="sidebar-section" id="sidebarAction"></div>
+
+                    <!-- Navigation / Filters -->
+                    <nav class="sidebar-nav" id="sidebarNav"></nav>
+
+                    <!-- Quick Stats -->
+                    <div class="sidebar-stats" id="sidebarStats"></div>
+                </div>
+            </aside>
+
+            <!-- Sidebar overlay for mobile -->
+            <div class="sidebar-overlay" id="sidebarOverlay" onclick="AssignmentApp.toggleSidebar()"></div>
+
+            <!-- Main Workspace -->
+            <main class="workspace" id="mainContent" aria-live="polite">
+                <div class="workspace-loading">
+                    <div class="loading-spinner"></div>
+                    <p>載入中...</p>
+                </div>
+            </main>
         </div>
     </div>
 
     <!-- Submit Modal -->
-    <div class="modal-overlay" id="submitModal">
+    <div class="modal-overlay" id="submitModal" role="dialog" aria-modal="true" aria-labelledby="submitModalTitle">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>提交作業</h2>
+                <h2 id="submitModalTitle">提交作業</h2>
                 <button class="modal-close" onclick="AssignmentApp.closeSubmitModal()">&times;</button>
             </div>
             <div class="form-group">
@@ -49,80 +77,90 @@
                 <input type="file" id="fileInput" multiple style="display:none">
                 <div class="file-list" id="selectedFiles" style="margin-top:12px;"></div>
             </div>
-            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+            <div class="modal-footer">
                 <button class="btn btn-outline" onclick="AssignmentApp.closeSubmitModal()">取消</button>
                 <button class="btn btn-primary" id="submitBtn" onclick="AssignmentApp.doSubmit()">提交</button>
             </div>
         </div>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div class="modal-overlay" id="createModal">
-        <div class="modal-content" style="max-width:700px;">
+    <!-- Create/Edit Panel (Step Wizard) -->
+    <div class="modal-overlay" id="createModal" role="dialog" aria-modal="true" aria-labelledby="createModalTitle">
+        <div class="modal-content create-panel">
             <div class="modal-header">
                 <h2 id="createModalTitle">創建作業</h2>
                 <button class="modal-close" onclick="AssignmentApp.closeCreateModal()">&times;</button>
             </div>
-            <div class="form-group">
-                <label>作業標題 *</label>
-                <input type="text" id="asgTitle" placeholder="輸入作業標題">
-            </div>
-            <div class="form-group">
-                <label>作業描述</label>
-                <textarea id="asgDesc" rows="3" placeholder="描述作業要求..."></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>目標類型</label>
-                    <select id="asgTargetType" onchange="AssignmentApp.onTargetTypeChange()">
-                        <option value="all">所有學生</option>
-                        <option value="class">指定班級</option>
-                        <option value="student">指定學生</option>
-                    </select>
+
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step-item active" id="stepItem1" onclick="AssignmentApp.goToStep(1)">
+                    <div class="step-circle">1</div>
+                    <span>基本信息</span>
                 </div>
-                <div class="form-group" id="targetValueGroup" style="display:none;">
-                    <label id="targetValueLabel">目標值</label>
-                    <select id="asgTargetValue"></select>
+                <div class="step-line"></div>
+                <div class="step-item" id="stepItem2" onclick="AssignmentApp.goToStep(2)">
+                    <div class="step-circle">2</div>
+                    <span>評分標準</span>
                 </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>截止日期</label>
-                    <input type="datetime-local" id="asgDeadline">
-                </div>
-                <div class="form-group">
-                    <label>最大文件數</label>
-                    <input type="number" id="asgMaxFiles" value="5" min="1" max="20">
-                </div>
-            </div>
-            <div class="form-group" style="display:flex;align-items:center;gap:8px;">
-                <input type="checkbox" id="asgAllowLate">
-                <label for="asgAllowLate" style="margin:0;">允許逾期提交</label>
             </div>
 
-            <!-- Rubric Editor -->
-            <div class="form-group">
-                <label>評分標準</label>
-                <div class="rubric-editor">
-                    <div class="rubric-header">
-                        <span>評分項目</span>
-                        <span>滿分</span>
-                        <span></span>
+            <!-- Step 1: Basic Info -->
+            <div class="step-content" id="step1">
+                <div class="form-group">
+                    <label>作業標題 *</label>
+                    <input type="text" id="asgTitle" placeholder="輸入作業標題">
+                </div>
+                <div class="form-group">
+                    <label>作業描述</label>
+                    <textarea id="asgDesc" rows="4" placeholder="描述作業要求..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>目標類型</label>
+                        <select id="asgTargetType" onchange="AssignmentApp.onTargetTypeChange()">
+                            <option value="all">所有學生</option>
+                            <option value="class">指定班級</option>
+                            <option value="student">指定學生</option>
+                        </select>
                     </div>
-                    <div id="rubricRows"></div>
-                    <div class="rubric-total">
-                        <span>合計</span>
-                        <span id="rubricTotal">0</span>
-                        <span></span>
+                    <div class="form-group" id="targetValueGroup" style="display:none;">
+                        <label id="targetValueLabel">目標值</label>
+                        <select id="asgTargetValue"></select>
                     </div>
                 </div>
-                <button class="add-rubric-btn" onclick="AssignmentApp.addRubricRow()">+ 添加評分項目</button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>截止日期</label>
+                        <input type="datetime-local" id="asgDeadline">
+                    </div>
+                    <div class="form-group">
+                        <label>最大文件數</label>
+                        <input type="number" id="asgMaxFiles" value="5" min="1" max="20">
+                    </div>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="asgAllowLate">
+                    <label for="asgAllowLate">允許逾期提交</label>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="AssignmentApp.closeCreateModal()">取消</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp.goToStep(2)">下一步</button>
+                </div>
             </div>
 
-            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
-                <button class="btn btn-outline" onclick="AssignmentApp.closeCreateModal()">取消</button>
-                <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()">保存草稿</button>
-                <button class="btn btn-primary" onclick="AssignmentApp.saveAndPublish()">發布</button>
+            <!-- Step 2: Rubric Configuration -->
+            <div class="step-content" id="step2" style="display:none;">
+                <div class="form-group">
+                    <label>選擇評分方式</label>
+                    <div class="rubric-type-grid" id="rubricTypeGrid"></div>
+                </div>
+                <div id="rubricEditorArea"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="AssignmentApp.goToStep(1)">上一步</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()">保存草稿</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp.saveAndPublish()">發布</button>
+                </div>
             </div>
         </div>
     </div>

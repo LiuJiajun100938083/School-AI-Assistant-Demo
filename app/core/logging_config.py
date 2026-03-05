@@ -95,6 +95,12 @@ def setup_logging(
     root_logger.handlers.clear()
 
     # ---- 控制台 Handler ----
+    # Windows 默认使用 cp1252 编码，无法输出中文，强制使用 UTF-8
+    if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
     if enable_color and sys.stdout.isatty():
