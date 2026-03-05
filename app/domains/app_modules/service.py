@@ -181,6 +181,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "assignment",
+        "name": "作業管理",
+        "icon": "📝",
+        "description": "佈置作業、上交文件、AI 批改評分",
+        "url": "/assignment",
+        "roles": ["student", "teacher", "admin"],
+        "enabled": True,
+        "order": 14,
+        "category": "teaching",
+    },
+    {
         "id": "admin_dashboard",
         "name": "管理後台",
         "icon": "⚙️",
@@ -188,7 +199,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "url": "/admin",
         "roles": ["admin"],
         "enabled": True,
-        "order": 14,
+        "order": 15,
         "category": "admin",
     },
 ]

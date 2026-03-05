@@ -47,6 +47,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.attendance import router as attendance_router
     from app.routers.school_learning_center import router as school_learning_center_router
     from app.routers.trade_game import trade_game_router
+    from app.routers.assignment import router as assignment_router
     from app.routers.class_diary import router as class_diary_router
 
     app.include_router(auth_router)
@@ -70,9 +71,10 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(attendance_router)
     app.include_router(school_learning_center_router)
     app.include_router(trade_game_router)
+    app.include_router(assignment_router)
     app.include_router(class_diary_router)
 
-    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, class_diary")
+    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, assignment, class_diary")
 
     # ====== 2. 数据库迁移 ====== #
     _run_schema_migrations()
@@ -115,7 +117,85 @@ def _run_schema_migrations() -> None:
             )
             logger.info("数据库迁移: 已为 users 表添加 class_name 列")
 
-        logger.info("数据库 schema 迁移完成")
+        # --- 作業管理系統表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS assignments (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                title           VARCHAR(255) NOT NULL           COMMENT '作業標題',
+                description     TEXT                            COMMENT '作業描述',
+                created_by      INT                             COMMENT '教師 user id',
+                created_by_name VARCHAR(100)                    COMMENT '教師名',
+                target_type     ENUM('all','class','student') DEFAULT 'all' COMMENT '目標類型',
+                target_value    VARCHAR(255)                    COMMENT '班級名 或 逗號分隔 username',
+                max_score       DECIMAL(5,1) DEFAULT 100        COMMENT '滿分',
+                deadline        DATETIME                        COMMENT '截止日期',
+                status          ENUM('draft','published','closed') DEFAULT 'draft',
+                allow_late      BOOLEAN DEFAULT FALSE           COMMENT '允許逾期',
+                max_files       INT DEFAULT 5                   COMMENT '最大文件數',
+                published_at    DATETIME                        COMMENT '發布時間',
+                created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                is_deleted      BOOLEAN DEFAULT FALSE           COMMENT '軟刪除'
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS assignment_submissions (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                assignment_id   INT NOT NULL                    COMMENT '作業ID',
+                student_id      INT NOT NULL                    COMMENT '學生 user id',
+                student_name    VARCHAR(100)                    COMMENT '學生名',
+                username        VARCHAR(100)                    COMMENT '用戶名',
+                class_name      VARCHAR(100)                    COMMENT '班級',
+                content         TEXT                            COMMENT '文字備註',
+                status          ENUM('submitted','graded','returned') DEFAULT 'submitted',
+                score           DECIMAL(5,1)                    COMMENT '得分',
+                feedback        TEXT                            COMMENT '教師評語',
+                graded_by       INT                             COMMENT '批改教師 id',
+                graded_at       DATETIME                        COMMENT '批改時間',
+                is_late         BOOLEAN DEFAULT FALSE           COMMENT '是否逾期',
+                submitted_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_assignment_student (assignment_id, student_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS submission_files (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                submission_id   INT NOT NULL                    COMMENT '提交ID',
+                original_name   VARCHAR(255)                    COMMENT '原始文件名',
+                stored_name     VARCHAR(255)                    COMMENT 'UUID存儲名',
+                file_path       VARCHAR(500)                    COMMENT '相對路徑',
+                file_size       BIGINT                          COMMENT '字節數',
+                file_type       VARCHAR(20)                     COMMENT '類型: pdf/doc/image/video/code/archive',
+                mime_type       VARCHAR(100)                    COMMENT 'MIME 類型',
+                INDEX idx_submission (submission_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS assignment_rubric_items (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                assignment_id   INT NOT NULL                    COMMENT '作業ID',
+                item_order      INT DEFAULT 0                   COMMENT '排序',
+                title           VARCHAR(255) NOT NULL           COMMENT '評分項目名',
+                max_points      DECIMAL(5,1) NOT NULL           COMMENT '該項滿分',
+                INDEX idx_assignment (assignment_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS submission_rubric_scores (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                submission_id   INT NOT NULL                    COMMENT '提交ID',
+                rubric_item_id  INT NOT NULL                    COMMENT '評分項目ID',
+                points          DECIMAL(5,1)                    COMMENT '該項得分',
+                UNIQUE KEY uk_submission_rubric (submission_id, rubric_item_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        logger.info("数据库 schema 迁移完成 (含作業管理表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
 

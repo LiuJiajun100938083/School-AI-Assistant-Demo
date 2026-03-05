@@ -219,6 +219,12 @@ async def swift_code_game():
     return _serve_page("swift_code_game.html")
 
 
+@router.get("/assignment")
+async def assignment_page():
+    """作業管理頁"""
+    return _serve_page("assignment.html")
+
+
 @router.get("/game_upload")
 async def game_upload():
     """游戏上传页"""

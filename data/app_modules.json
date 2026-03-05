@@ -30,6 +30,21 @@
     "category": "learning"
   },
   {
+    "id": "school_learning_center",
+    "name": "學校學習中心",
+    "icon": "🏫",
+    "description": "按科目和年級組織的學習資源",
+    "url": "/school-learning-center",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 2,
+    "category": "learning"
+  },
+  {
     "id": "game_center",
     "name": "遊戲中心",
     "icon": "🎯",
@@ -41,7 +56,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 2,
+    "order": 3,
     "category": "learning"
   },
   {
@@ -203,6 +218,21 @@
     "category": "teaching"
   },
   {
+    "id": "assignment",
+    "name": "作業管理",
+    "icon": "📝",
+    "description": "佈置作業、上交文件、AI 批改評分",
+    "url": "/assignment",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 14,
+    "category": "teaching"
+  },
+  {
     "id": "admin_dashboard",
     "name": "管理後台",
     "icon": "⚙️",
@@ -212,7 +242,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 14,
+    "order": 15,
     "category": "admin"
   }
 ]
