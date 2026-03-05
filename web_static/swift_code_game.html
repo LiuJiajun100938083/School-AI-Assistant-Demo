@@ -123,6 +123,52 @@
         /* iOS colors for preview */
         .ios-bg { background: #F2F2F7; }
         .ios-white { background: #FFFFFF; }
+
+        /* View Tree styles */
+        .view-tree { font-family: 'SF Mono', 'Menlo', monospace; font-size: 13px; }
+        .view-tree-node {
+            padding: 3px 6px; border-radius: 6px; cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .view-tree-node:hover { background: rgba(96,165,250,0.12); }
+        .view-tree-node.highlighted {
+            background: rgba(96,165,250,0.25);
+            box-shadow: 0 0 0 2px rgba(96,165,250,0.5);
+        }
+
+        /* Preview highlight overlay */
+        .preview-highlight {
+            outline: 2px solid rgba(96,165,250,0.7);
+            outline-offset: 2px;
+            border-radius: 4px;
+            transition: outline-color 0.15s;
+        }
+
+        /* Build animation step */
+        @keyframes stepFadeIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .step-fade-in { animation: stepFadeIn 0.4s ease-out; }
+
+        /* Sandbox block palette */
+        .sandbox-block {
+            padding: 8px 12px; border-radius: 8px; cursor: grab;
+            border: 2px solid #475569; background: #1e293b;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .sandbox-block:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .sandbox-block:active { cursor: grabbing; }
+
+        /* Build step progress dots */
+        .step-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #334155; transition: background 0.2s, transform 0.2s;
+            cursor: pointer;
+        }
+        .step-dot.active { background: #3b82f6; transform: scale(1.3); }
+        .step-dot.done { background: #34C759; }
     </style>
 </head>
 <body>
@@ -781,50 +827,56 @@
             return s;
         }
 
-        function SwiftUIPreview({ uiTree, scale = 1 }) {
-            const renderNode = (node, key) => {
+        function SwiftUIPreview({ uiTree, scale = 1, highlightPath, onHoverPath }) {
+            const renderNode = (node, key, path = '0') => {
                 if (!node) return null;
                 let style = {};
                 style = applyModifiers(style, node.modifiers);
+                const isHL = highlightPath === path;
+                const hlClass = isHL ? 'preview-highlight' : '';
+                const hoverHandlers = onHoverPath ? {
+                    onMouseEnter: (e) => { e.stopPropagation(); onHoverPath(path); },
+                    onMouseLeave: (e) => { e.stopPropagation(); onHoverPath(null); },
+                } : {};
 
                 switch (node.type) {
                     case 'Text':
-                        return <span key={key} style={{ fontSize: '17px', color: '#1C1C1E', ...style }}>{node.props?.content}</span>;
+                        return <span key={key} className={hlClass} {...hoverHandlers} style={{ fontSize: '17px', color: '#1C1C1E', ...style }}>{node.props?.content}</span>;
                     case 'Image': {
                         const emoji = SF_SYMBOLS[node.props?.systemName] || '❓';
-                        return <span key={key} style={{ fontSize: '40px', lineHeight: 1, ...style }}>{emoji}</span>;
+                        return <span key={key} className={hlClass} {...hoverHandlers} style={{ fontSize: '40px', lineHeight: 1, ...style }}>{emoji}</span>;
                     }
                     case 'VStack':
                         return (
-                            <div key={key} style={{
+                            <div key={key} className={hlClass} {...hoverHandlers} style={{
                                 display: 'flex', flexDirection: 'column',
                                 alignItems: 'center', gap: '8px', ...style
                             }}>
-                                {(node.children || []).map((child, i) => renderNode(child, `${key}-${i}`))}
+                                {(node.children || []).map((child, i) => renderNode(child, `${key}-${i}`, `${path}-${i}`))}
                             </div>
                         );
                     case 'HStack':
                         return (
-                            <div key={key} style={{
+                            <div key={key} className={hlClass} {...hoverHandlers} style={{
                                 display: 'flex', flexDirection: 'row',
                                 alignItems: 'center', gap: '16px', ...style
                             }}>
-                                {(node.children || []).map((child, i) => renderNode(child, `${key}-${i}`))}
+                                {(node.children || []).map((child, i) => renderNode(child, `${key}-${i}`, `${path}-${i}`))}
                             </div>
                         );
                     case 'Button':
                         if (node.children && node.children.length > 0) {
                             return (
-                                <div key={key} style={{
+                                <div key={key} className={hlClass} {...hoverHandlers} style={{
                                     padding: '8px', borderRadius: '8px',
                                     cursor: 'pointer', ...style
                                 }}>
-                                    {node.children.map((child, i) => renderNode(child, `${key}-${i}`))}
+                                    {node.children.map((child, i) => renderNode(child, `${key}-${i}`, `${path}-${i}`))}
                                 </div>
                             );
                         }
                         return (
-                            <div key={key} style={{
+                            <div key={key} className={hlClass} {...hoverHandlers} style={{
                                 padding: '10px 20px', borderRadius: '10px',
                                 background: '#007AFF', color: '#fff',
                                 fontSize: '17px', fontWeight: '500',
@@ -840,7 +892,7 @@
 
             return (
                 <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
-                    {renderNode(uiTree, 'root')}
+                    {renderNode(uiTree, 'root', '0')}
                 </div>
             );
         }
@@ -903,6 +955,202 @@
         }
 
         // ============================================================
+        // Section 10b: View Hierarchy Tree + Code ↔ Preview Helpers
+        // ============================================================
+        const NODE_ICONS = { Text: '📝', Image: '🖼️', VStack: '📦', HStack: '📦', Button: '👆' };
+        const MOD_ICON = '🎨';
+
+        // Convert uiTree to code string for display
+        function uiTreeToCode(node, indent = 0) {
+            if (!node) return '';
+            const pad = '  '.repeat(indent);
+            let code = '';
+            switch (node.type) {
+                case 'Text':
+                    code = `${pad}Text("${node.props?.content || ''}")`;
+                    break;
+                case 'Image':
+                    code = `${pad}Image(systemName: "${node.props?.systemName || ''}")`;
+                    break;
+                case 'Button':
+                    code = `${pad}Button("${node.props?.title || 'Action'}")`;
+                    break;
+                case 'VStack':
+                case 'HStack':
+                    code = `${pad}${node.type} {\n`;
+                    (node.children || []).forEach(c => { code += uiTreeToCode(c, indent + 1) + '\n'; });
+                    code += `${pad}}`;
+                    break;
+                default:
+                    code = `${pad}${node.type}`;
+            }
+            if (node.modifiers && node.modifiers.length > 0) {
+                node.modifiers.forEach(m => {
+                    switch (m.type) {
+                        case 'font': code += `\n${pad}  .font(${m.value})`; break;
+                        case 'bold': code += `\n${pad}  .bold()`; break;
+                        case 'foregroundColor': code += `\n${pad}  .foregroundColor(${m.value})`; break;
+                        case 'background': code += `\n${pad}  .background(${m.value})`; break;
+                        case 'padding': code += `\n${pad}  .padding(${m.value})`; break;
+                        case 'frame': code += `\n${pad}  .frame(width: ${m.width || '_'}, height: ${m.height || '_'})`; break;
+                        case 'cornerRadius': code += `\n${pad}  .cornerRadius(${m.value})`; break;
+                        case 'clipShape': code += `\n${pad}  .clipShape(${m.value})`; break;
+                        default: code += `\n${pad}  .${m.type}()`;
+                    }
+                });
+            }
+            return code;
+        }
+
+        // Flatten uiTree into ordered build steps for animation
+        function flattenBuildSteps(node, path = '0') {
+            if (!node) return [];
+            const steps = [];
+            // Step 1: the element itself (without modifiers)
+            steps.push({ path, node: { ...node, modifiers: [], children: node.children ? [] : undefined }, description: describeNode(node) });
+            // Step 2+: each modifier
+            if (node.modifiers) {
+                node.modifiers.forEach((m, i) => {
+                    steps.push({ path, modifier: m, modIndex: i, description: describeModifier(m) });
+                });
+            }
+            // Step 3+: children
+            if (node.children) {
+                node.children.forEach((child, i) => {
+                    steps.push({ path: `${path}-${i}`, isChild: true, parentPath: path, node: { ...child, modifiers: [], children: child.children ? [] : undefined }, description: `加入 ${describeNode(child)}` });
+                    if (child.modifiers) {
+                        child.modifiers.forEach((m, j) => {
+                            steps.push({ path: `${path}-${i}`, modifier: m, modIndex: j, description: describeModifier(m) });
+                        });
+                    }
+                    if (child.children) {
+                        child.children.forEach((gc, k) => {
+                            steps.push({ path: `${path}-${i}-${k}`, isChild: true, parentPath: `${path}-${i}`, node: { ...gc, modifiers: [], children: gc.children ? [] : undefined }, description: `加入 ${describeNode(gc)}` });
+                            if (gc.modifiers) {
+                                gc.modifiers.forEach((m2, l) => {
+                                    steps.push({ path: `${path}-${i}-${k}`, modifier: m2, modIndex: l, description: describeModifier(m2) });
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+            return steps;
+        }
+
+        function describeNode(node) {
+            switch (node.type) {
+                case 'Text': return `Text("${node.props?.content || ''}")`;
+                case 'Image': return `Image(${node.props?.systemName || ''})`;
+                case 'VStack': return 'VStack { } 垂直容器';
+                case 'HStack': return 'HStack { } 水平容器';
+                case 'Button': return `Button("${node.props?.title || ''}")`;
+                default: return node.type;
+            }
+        }
+
+        function describeModifier(m) {
+            switch (m.type) {
+                case 'font': return `加上 .font(${m.value}) 改變字型大小`;
+                case 'bold': return '加上 .bold() 讓文字變粗';
+                case 'foregroundColor': return `加上 .foregroundColor(${m.value}) 改變顏色`;
+                case 'background': return `加上 .background(${m.value}) 加背景色`;
+                case 'padding': return `加上 .padding(${m.value}) 加內邊距`;
+                case 'clipShape': return `加上 .clipShape(${m.value}) 裁切形狀`;
+                case 'cornerRadius': return `加上 .cornerRadius(${m.value}) 圓角`;
+                default: return `加上 .${m.type}()`;
+            }
+        }
+
+        // Build a partial uiTree from build steps up to stepIndex
+        function buildPartialTree(originalTree, steps, stepIndex) {
+            if (stepIndex < 0 || !originalTree) return null;
+            // Start from nothing and reconstruct
+            let tree = null;
+            for (let i = 0; i <= stepIndex && i < steps.length; i++) {
+                const step = steps[i];
+                if (i === 0) {
+                    // Root node
+                    tree = { ...step.node };
+                    if (originalTree.children) tree.children = [];
+                } else if (step.modifier) {
+                    // Add modifier to node at path
+                    const target = findNodeByPath(tree, step.path);
+                    if (target) {
+                        if (!target.modifiers) target.modifiers = [];
+                        target.modifiers = [...target.modifiers, step.modifier];
+                    }
+                } else if (step.isChild && step.node) {
+                    const parent = findNodeByPath(tree, step.parentPath);
+                    if (parent && parent.children !== undefined) {
+                        const childCopy = { ...step.node };
+                        if (step.node.children !== undefined) childCopy.children = [];
+                        parent.children = [...parent.children, childCopy];
+                    }
+                }
+            }
+            return tree;
+        }
+
+        function findNodeByPath(tree, path) {
+            if (!tree || !path) return null;
+            const parts = path.split('-').map(Number);
+            let node = tree;
+            for (let i = 1; i < parts.length; i++) {
+                if (!node.children || !node.children[parts[i]]) return null;
+                node = node.children[parts[i]];
+            }
+            return node;
+        }
+
+        // ViewTree component
+        function ViewTree({ uiTree, highlightPath, onHoverPath }) {
+            const renderTreeNode = (node, path = '0', depth = 0) => {
+                if (!node) return null;
+                const isHighlighted = highlightPath === path;
+                const icon = NODE_ICONS[node.type] || '❓';
+                let label = node.type;
+                if (node.type === 'Text') label = `Text("${node.props?.content || ''}")`;
+                else if (node.type === 'Image') label = `Image(${node.props?.systemName || ''})`;
+                else if (node.type === 'Button') label = `Button("${node.props?.title || ''}")`;
+
+                return (
+                    <div key={path} style={{ paddingLeft: `${depth * 16}px` }}>
+                        <div
+                            className={`view-tree-node ${isHighlighted ? 'highlighted' : ''}`}
+                            onMouseEnter={() => onHoverPath && onHoverPath(path)}
+                            onMouseLeave={() => onHoverPath && onHoverPath(null)}
+                        >
+                            <span>{icon}</span>
+                            <span style={{ color: '#5DD8FF' }}>{label}</span>
+                        </div>
+                        {node.modifiers && node.modifiers.map((m, i) => (
+                            <div key={`${path}-m${i}`} style={{ paddingLeft: `${(depth + 1) * 16}px` }}>
+                                <div className="view-tree-node" style={{ fontSize: '12px', color: '#B281EB' }}>
+                                    <span>{MOD_ICON}</span>
+                                    <span>.{m.type}({m.value || ''})</span>
+                                </div>
+                            </div>
+                        ))}
+                        {node.children && node.children.map((child, i) =>
+                            renderTreeNode(child, `${path}-${i}`, depth + 1)
+                        )}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="view-tree" style={{
+                    background: '#0f172a', borderRadius: '10px', padding: '12px',
+                    border: '1px solid #334155', overflow: 'auto', maxHeight: '300px',
+                }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>🌳 結構樹</div>
+                    {renderTreeNode(uiTree)}
+                </div>
+            );
+        }
+
+        // ============================================================
         // Section 11: Star Display Component
         // ============================================================
         function Stars({ count, max = 3, size = 24, animated = false }) {
@@ -924,7 +1172,7 @@
         // ============================================================
         // Section 12: Level Select Screen
         // ============================================================
-        function LevelSelectScreen({ progress, totalStars, onSelectLevel, playerName }) {
+        function LevelSelectScreen({ progress, totalStars, onSelectLevel, onExplore, onSandbox, playerName }) {
             return (
                 <div className="fade-in" style={{ padding: '24px 16px', maxWidth: '600px', margin: '0 auto' }}>
                     {/* Header */}
@@ -1028,6 +1276,35 @@
                             );
                         })}
                     </div>
+
+                    {/* Explore Tools Section */}
+                    <div style={{ marginTop: '24px' }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            marginBottom: '12px', padding: '0 4px',
+                        }}>
+                            <span style={{ fontSize: '14px', fontWeight: '600', color: '#f59e0b' }}>🔬 探索工具</span>
+                            <div style={{ flex: 1, height: '1px', background: '#334155' }}></div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                            <div className="level-card" onClick={onExplore} style={{
+                                background: '#1e293b', border: '2px solid #f59e0b33',
+                                borderRadius: '16px', padding: '16px', cursor: 'pointer',
+                            }}>
+                                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎬</div>
+                                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f1f5f9', marginBottom: '2px' }}>逐層構建</div>
+                                <div style={{ fontSize: '12px', color: '#94a3b8' }}>看代碼如何一步步構建畫面</div>
+                            </div>
+                            <div className="level-card" onClick={onSandbox} style={{
+                                background: '#1e293b', border: '2px solid #f59e0b33',
+                                borderRadius: '16px', padding: '16px', cursor: 'pointer',
+                            }}>
+                                <div style={{ fontSize: '32px', marginBottom: '8px' }}>🎨</div>
+                                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f1f5f9', marginBottom: '2px' }}>自由沙盒</div>
+                                <div style={{ fontSize: '12px', color: '#94a3b8' }}>自由組裝元件即時看效果</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -1043,6 +1320,7 @@
             const [mistakes, setMistakes] = useState(0);
             const [showExplanation, setShowExplanation] = useState(false);
             const [finished, setFinished] = useState(false);
+            const [highlightPath, setHighlightPath] = useState(null);
 
             const question = questions[currentIdx];
             // Shuffle options so correct answer isn't always first
@@ -1058,17 +1336,7 @@
                 if (option.correct) {
                     setIsCorrect(true);
                     setShowExplanation(true);
-                    // Auto advance after delay
-                    setTimeout(() => {
-                        if (currentIdx < questions.length - 1) {
-                            setCurrentIdx(currentIdx + 1);
-                            setSelected(null);
-                            setIsCorrect(null);
-                            setShowExplanation(false);
-                        } else {
-                            setFinished(true);
-                        }
-                    }, 2000);
+                    // Wait for student to click "Next" button
                 } else {
                     setIsCorrect(false);
                     setMistakes(m => m + 1);
@@ -1077,6 +1345,17 @@
                         setSelected(null);
                         setIsCorrect(null);
                     }, 800);
+                }
+            };
+
+            const handleNext = () => {
+                if (currentIdx < questions.length - 1) {
+                    setCurrentIdx(currentIdx + 1);
+                    setSelected(null);
+                    setIsCorrect(null);
+                    setShowExplanation(false);
+                } else {
+                    setFinished(true);
                 }
             };
 
@@ -1148,11 +1427,16 @@
                         {question.prompt}
                     </p>
 
-                    {/* Preview */}
-                    <div style={{ marginBottom: '24px' }}>
-                        <DeviceFrame title="預覽">
-                            <SwiftUIPreview uiTree={question.targetUI} />
-                        </DeviceFrame>
+                    {/* Preview + Structure Tree (side by side) */}
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <div style={{ flex: '1 1 220px', minWidth: '220px' }}>
+                            <DeviceFrame title="預覽">
+                                <SwiftUIPreview uiTree={question.targetUI} highlightPath={highlightPath} onHoverPath={setHighlightPath} />
+                            </DeviceFrame>
+                        </div>
+                        <div style={{ flex: '1 1 180px', minWidth: '180px', alignSelf: 'center' }}>
+                            <ViewTree uiTree={question.targetUI} highlightPath={highlightPath} onHoverPath={setHighlightPath} />
+                        </div>
                     </div>
 
                     {/* Options */}
@@ -1197,6 +1481,23 @@
                             <div style={{ fontSize: '14px', color: '#94a3b8', lineHeight: 1.5 }}>
                                 {question.explanation}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Next question button — shown after correct answer */}
+                    {isCorrect && (
+                        <div className="fade-in" style={{ marginTop: '16px', textAlign: 'center' }}>
+                            <button
+                                onClick={handleNext}
+                                style={{
+                                    padding: '12px 32px', fontSize: '16px', fontWeight: 'bold',
+                                    background: '#3b82f6', color: '#fff', border: 'none',
+                                    borderRadius: '12px', cursor: 'pointer',
+                                    minWidth: '44px', minHeight: '44px',
+                                }}
+                            >
+                                {currentIdx < questions.length - 1 ? '下一題 →' : '查看結果 →'}
+                            </button>
                         </div>
                     )}
                 </div>
@@ -1709,6 +2010,416 @@
         }
 
         // ============================================================
+        // Section 14b: Build Animation (Layer-by-Layer)
+        // ============================================================
+        // Prebuilt example trees for the explore mode
+        const EXPLORE_EXAMPLES = [
+            {
+                id: 1, title: '基本文字', icon: '📝',
+                tree: { type: 'Text', props: { content: 'Hello World' }, modifiers: [{ type: 'font', value: '.title' }, { type: 'foregroundColor', value: '.blue' }] },
+            },
+            {
+                id: 2, title: '垂直排版', icon: '📐',
+                tree: {
+                    type: 'VStack', children: [
+                        { type: 'Text', props: { content: '標題' }, modifiers: [{ type: 'font', value: '.title' }, { type: 'bold' }] },
+                        { type: 'Image', props: { systemName: 'star.fill' }, modifiers: [{ type: 'foregroundColor', value: '.yellow' }] },
+                        { type: 'Text', props: { content: '副標題' }, modifiers: [{ type: 'font', value: '.caption' }, { type: 'foregroundColor', value: '.gray' }] },
+                    ]
+                },
+            },
+            {
+                id: 3, title: '水平排版 + 修飾', icon: '🎨',
+                tree: {
+                    type: 'HStack', children: [
+                        { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] },
+                        { type: 'VStack', children: [
+                            { type: 'Text', props: { content: '小熊' }, modifiers: [{ type: 'font', value: '.headline' }, { type: 'bold' }] },
+                            { type: 'Text', props: { content: '可愛的玩具' }, modifiers: [{ type: 'font', value: '.caption' }, { type: 'foregroundColor', value: '.gray' }] },
+                        ]},
+                    ]
+                },
+            },
+            {
+                id: 4, title: '按鈕互動', icon: '👆',
+                tree: {
+                    type: 'VStack', children: [
+                        { type: 'Text', props: { content: 'Score: 0' }, modifiers: [{ type: 'font', value: '.title2' }] },
+                        { type: 'Button', props: { title: '開始遊戲' }, modifiers: [{ type: 'foregroundColor', value: '.white' }, { type: 'background', value: '.blue' }] },
+                    ]
+                },
+            },
+        ];
+
+        function BuildAnimationMode({ onBack }) {
+            const [exampleIdx, setExampleIdx] = useState(0);
+            const example = EXPLORE_EXAMPLES[exampleIdx];
+            const steps = useMemo(() => flattenBuildSteps(example.tree), [exampleIdx]);
+            const [stepIdx, setStepIdx] = useState(-1);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const timerRef = useRef(null);
+
+            // Auto-play
+            useEffect(() => {
+                if (isPlaying) {
+                    timerRef.current = setInterval(() => {
+                        setStepIdx(prev => {
+                            if (prev >= steps.length - 1) { setIsPlaying(false); return prev; }
+                            return prev + 1;
+                        });
+                    }, 1200);
+                }
+                return () => clearInterval(timerRef.current);
+            }, [isPlaying, steps.length]);
+
+            // Reset on example change
+            useEffect(() => { setStepIdx(-1); setIsPlaying(false); }, [exampleIdx]);
+
+            const partialTree = stepIdx >= 0 ? buildPartialTree(example.tree, steps, stepIdx) : null;
+            const currentStep = stepIdx >= 0 && stepIdx < steps.length ? steps[stepIdx] : null;
+            const codeStr = partialTree ? uiTreeToCode(partialTree) : '';
+
+            return (
+                <div className="fade-in" style={{ padding: '16px', maxWidth: '700px', margin: '0 auto' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                        <button onClick={onBack} style={{
+                            background: '#1e293b', border: '1px solid #334155', borderRadius: '10px',
+                            color: '#94a3b8', padding: '8px 16px', fontSize: '14px', cursor: 'pointer', minHeight: '44px',
+                        }}>← 返回</button>
+                        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f1f5f9' }}>🎬 逐層構建</div>
+                        <div style={{ width: '80px' }}></div>
+                    </div>
+
+                    {/* Example selector */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                        {EXPLORE_EXAMPLES.map((ex, i) => (
+                            <button key={ex.id} onClick={() => setExampleIdx(i)} style={{
+                                padding: '8px 14px', borderRadius: '10px', fontSize: '13px', cursor: 'pointer',
+                                background: exampleIdx === i ? '#3b82f6' : '#1e293b',
+                                color: exampleIdx === i ? '#fff' : '#94a3b8',
+                                border: `1px solid ${exampleIdx === i ? '#3b82f6' : '#334155'}`,
+                                minHeight: '44px',
+                            }}>
+                                {ex.icon} {ex.title}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Main content: preview + code */}
+                    <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <div style={{ flex: '1 1 240px', minWidth: '240px' }}>
+                            <DeviceFrame title="逐步預覽">
+                                {partialTree ? (
+                                    <div className="step-fade-in" key={stepIdx}>
+                                        <SwiftUIPreview uiTree={partialTree} />
+                                    </div>
+                                ) : (
+                                    <div style={{ color: '#C7C7CC', fontSize: '14px', textAlign: 'center' }}>
+                                        點擊 ▶ 開始
+                                    </div>
+                                )}
+                            </DeviceFrame>
+                        </div>
+                        <div style={{ flex: '1 1 260px', minWidth: '260px' }}>
+                            {/* Generated code */}
+                            <div style={{ marginBottom: '12px' }}>
+                                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>📄 目前程式碼</div>
+                                {codeStr ? (
+                                    <HighlightedCode code={codeStr} fontSize="13px" />
+                                ) : (
+                                    <div style={{ background: '#1E1E1E', borderRadius: '10px', padding: '16px', color: '#64748b', fontSize: '13px', fontFamily: 'monospace' }}>
+                                        // 等待開始...
+                                    </div>
+                                )}
+                            </div>
+                            {/* Structure tree */}
+                            {partialTree && <ViewTree uiTree={partialTree} />}
+                        </div>
+                    </div>
+
+                    {/* Current step description */}
+                    <div style={{
+                        background: '#1e293b', borderRadius: '12px', padding: '14px 16px',
+                        marginBottom: '16px', border: '1px solid #334155',
+                        minHeight: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                        {currentStep ? (
+                            <span style={{ fontSize: '15px', color: '#f1f5f9' }}>
+                                <span style={{ color: '#fbbf24', marginRight: '8px' }}>Step {stepIdx + 1}/{steps.length}</span>
+                                {currentStep.description}
+                            </span>
+                        ) : (
+                            <span style={{ fontSize: '14px', color: '#64748b' }}>
+                                {stepIdx >= steps.length - 1 ? '✅ 構建完成！' : '點擊下方按鈕開始逐步構建'}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Step dots */}
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+                        {steps.map((_, i) => (
+                            <div key={i}
+                                className={`step-dot ${i === stepIdx ? 'active' : i < stepIdx ? 'done' : ''}`}
+                                onClick={() => { setStepIdx(i); setIsPlaying(false); }}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Controls */}
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                        <button onClick={() => { setStepIdx(-1); setIsPlaying(false); }} style={{
+                            padding: '10px 20px', fontSize: '14px', background: '#334155', color: '#94a3b8',
+                            border: 'none', borderRadius: '10px', cursor: 'pointer', minHeight: '44px',
+                        }}>⏮ 重置</button>
+                        <button onClick={() => setStepIdx(prev => Math.max(-1, prev - 1))} disabled={stepIdx <= -1} style={{
+                            padding: '10px 20px', fontSize: '14px',
+                            background: stepIdx <= -1 ? '#1e293b' : '#334155',
+                            color: stepIdx <= -1 ? '#475569' : '#94a3b8',
+                            border: 'none', borderRadius: '10px', cursor: stepIdx <= -1 ? 'not-allowed' : 'pointer', minHeight: '44px',
+                        }}>◀ 上一步</button>
+                        <button onClick={() => {
+                            if (isPlaying) { setIsPlaying(false); }
+                            else { if (stepIdx >= steps.length - 1) setStepIdx(-1); setIsPlaying(true); }
+                        }} style={{
+                            padding: '10px 28px', fontSize: '16px', fontWeight: 'bold',
+                            background: isPlaying ? '#f59e0b' : '#3b82f6', color: '#fff',
+                            border: 'none', borderRadius: '10px', cursor: 'pointer', minHeight: '44px',
+                        }}>{isPlaying ? '⏸ 暫停' : '▶ 播放'}</button>
+                        <button onClick={() => setStepIdx(prev => Math.min(steps.length - 1, prev + 1))} disabled={stepIdx >= steps.length - 1} style={{
+                            padding: '10px 20px', fontSize: '14px',
+                            background: stepIdx >= steps.length - 1 ? '#1e293b' : '#334155',
+                            color: stepIdx >= steps.length - 1 ? '#475569' : '#94a3b8',
+                            border: 'none', borderRadius: '10px', cursor: stepIdx >= steps.length - 1 ? 'not-allowed' : 'pointer', minHeight: '44px',
+                        }}>下一步 ▶</button>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================================
+        // Section 14c: Sandbox Mode (Free Play)
+        // ============================================================
+        const SANDBOX_BLOCKS = [
+            { id: 'sb-text-hi', code: 'Text("哈囉")', type: 'view', treeNode: { type: 'Text', props: { content: '哈囉' }, modifiers: [] } },
+            { id: 'sb-text-score', code: 'Text("Score: 0")', type: 'view', treeNode: { type: 'Text', props: { content: 'Score: 0' }, modifiers: [] } },
+            { id: 'sb-img-star', code: 'Image(systemName: "star.fill")', type: 'view', treeNode: { type: 'Image', props: { systemName: 'star.fill' }, modifiers: [] } },
+            { id: 'sb-img-bear', code: 'Image(systemName: "teddybear.fill")', type: 'view', treeNode: { type: 'Image', props: { systemName: 'teddybear.fill' }, modifiers: [] } },
+            { id: 'sb-img-heart', code: 'Image(systemName: "heart.fill")', type: 'view', treeNode: { type: 'Image', props: { systemName: 'heart.fill' }, modifiers: [] } },
+            { id: 'sb-img-flame', code: 'Image(systemName: "flame")', type: 'view', treeNode: { type: 'Image', props: { systemName: 'flame' }, modifiers: [] } },
+            { id: 'sb-btn', code: 'Button("點擊")', type: 'view', treeNode: { type: 'Button', props: { title: '點擊' }, modifiers: [] } },
+        ];
+        const SANDBOX_CONTAINERS = [
+            { id: 'sb-vstack', code: 'VStack { }', type: 'container', containerType: 'VStack' },
+            { id: 'sb-hstack', code: 'HStack { }', type: 'container', containerType: 'HStack' },
+        ];
+        const SANDBOX_MODIFIERS = [
+            { id: 'sb-mod-title', code: '.font(.title)', mod: { type: 'font', value: '.title' } },
+            { id: 'sb-mod-caption', code: '.font(.caption)', mod: { type: 'font', value: '.caption' } },
+            { id: 'sb-mod-bold', code: '.bold()', mod: { type: 'bold' } },
+            { id: 'sb-mod-red', code: '.foregroundColor(.red)', mod: { type: 'foregroundColor', value: '.red' } },
+            { id: 'sb-mod-blue', code: '.foregroundColor(.blue)', mod: { type: 'foregroundColor', value: '.blue' } },
+            { id: 'sb-mod-green', code: '.foregroundColor(.green)', mod: { type: 'foregroundColor', value: '.green' } },
+            { id: 'sb-mod-orange', code: '.foregroundColor(.orange)', mod: { type: 'foregroundColor', value: '.orange' } },
+            { id: 'sb-mod-pad', code: '.padding(8)', mod: { type: 'padding', value: 8 } },
+            { id: 'sb-mod-bgblue', code: '.background(.blue)', mod: { type: 'background', value: '.blue' } },
+        ];
+
+        function SandboxMode({ onBack }) {
+            // Sandbox state: a list of placed items in order
+            // Each item: { id, treeNode } for views, or { id, containerType, children: [] } for containers
+            const [items, setItems] = useState([]);
+            const [selectedIdx, setSelectedIdx] = useState(null); // index of selected item for modifier attachment
+            const [highlightPath, setHighlightPath] = useState(null);
+            const idCounter = useRef(0);
+
+            const addView = (block) => {
+                idCounter.current++;
+                const node = JSON.parse(JSON.stringify(block.treeNode));
+                setItems(prev => [...prev, { uid: `v${idCounter.current}`, node }]);
+            };
+
+            const addContainer = (container) => {
+                idCounter.current++;
+                setItems(prev => [...prev, {
+                    uid: `c${idCounter.current}`,
+                    isContainer: true,
+                    containerType: container.containerType,
+                    children: [],
+                }]);
+            };
+
+            const addModifier = (mod) => {
+                if (selectedIdx === null) return;
+                setItems(prev => {
+                    const next = [...prev];
+                    const item = { ...next[selectedIdx] };
+                    if (item.isContainer) return next; // can't modify containers
+                    item.node = { ...item.node, modifiers: [...(item.node.modifiers || []), { ...mod.mod }] };
+                    next[selectedIdx] = item;
+                    return next;
+                });
+            };
+
+            const removeItem = (idx) => {
+                setItems(prev => prev.filter((_, i) => i !== idx));
+                if (selectedIdx === idx) setSelectedIdx(null);
+                else if (selectedIdx > idx) setSelectedIdx(selectedIdx - 1);
+            };
+
+            const moveToContainer = (viewIdx, containerIdx) => {
+                setItems(prev => {
+                    const next = [...prev];
+                    const view = next[viewIdx];
+                    if (!view || view.isContainer) return next;
+                    const container = { ...next[containerIdx] };
+                    if (!container.isContainer) return next;
+                    container.children = [...container.children, view];
+                    next[containerIdx] = container;
+                    return next.filter((_, i) => i !== viewIdx);
+                });
+                setSelectedIdx(null);
+            };
+
+            // Build the tree for preview
+            const buildSandboxTree = () => {
+                const nodes = items.map(item => {
+                    if (item.isContainer) {
+                        return {
+                            type: item.containerType,
+                            children: item.children.map(c => c.node),
+                            modifiers: [],
+                        };
+                    }
+                    return item.node;
+                });
+                if (nodes.length === 0) return null;
+                if (nodes.length === 1) return nodes[0];
+                return { type: 'VStack', children: nodes, modifiers: [] };
+            };
+
+            const sandboxTree = buildSandboxTree();
+            const codeStr = sandboxTree ? uiTreeToCode(sandboxTree) : '';
+
+            return (
+                <div className="fade-in" style={{ padding: '16px', maxWidth: '800px', margin: '0 auto' }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                        <button onClick={onBack} style={{
+                            background: '#1e293b', border: '1px solid #334155', borderRadius: '10px',
+                            color: '#94a3b8', padding: '8px 16px', fontSize: '14px', cursor: 'pointer', minHeight: '44px',
+                        }}>← 返回</button>
+                        <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f1f5f9' }}>🎨 自由沙盒</div>
+                        <button onClick={() => { setItems([]); setSelectedIdx(null); }} style={{
+                            background: '#334155', border: 'none', borderRadius: '10px',
+                            color: '#94a3b8', padding: '8px 16px', fontSize: '14px', cursor: 'pointer', minHeight: '44px',
+                        }}>🔄 清空</button>
+                    </div>
+
+                    <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px', lineHeight: 1.5 }}>
+                        自由拼裝元件，即時看到效果。點擊已放置的元件可選中它，再點修飾器即可套用。
+                    </p>
+
+                    {/* Block palettes */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', width: '100%', marginBottom: '2px' }}>📦 容器</div>
+                        {SANDBOX_CONTAINERS.map(c => (
+                            <div key={c.id} className="sandbox-block" onClick={() => addContainer(c)}
+                                style={{ borderColor: '#60a5fa' }}>
+                                <HighlightedCode code={c.code} fontSize="12px" />
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', width: '100%', marginBottom: '2px' }}>🧱 元件</div>
+                        {SANDBOX_BLOCKS.map(b => (
+                            <div key={b.id} className="sandbox-block" onClick={() => addView(b)}>
+                                <HighlightedCode code={b.code} fontSize="12px" />
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '12px', color: '#64748b', width: '100%', marginBottom: '2px' }}>🎨 修飾器 {selectedIdx !== null ? <span style={{ color: '#fbbf24' }}>（套用到選中元件）</span> : <span style={{ color: '#475569' }}>（先選中元件）</span>}</div>
+                        {SANDBOX_MODIFIERS.map(m => (
+                            <div key={m.id} className="sandbox-block" onClick={() => addModifier(m)}
+                                style={{ borderColor: '#B281EB', opacity: selectedIdx !== null ? 1 : 0.4, cursor: selectedIdx !== null ? 'pointer' : 'not-allowed' }}>
+                                <HighlightedCode code={m.code} fontSize="12px" />
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Main: placed items + preview + code */}
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                        {/* Left: placed items list */}
+                        <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+                            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>🗂️ 已放置元件（點擊選中/刪除）</div>
+                            <div style={{
+                                background: '#0f172a', borderRadius: '10px', border: '1px solid #334155',
+                                padding: '10px', minHeight: '120px',
+                            }}>
+                                {items.length === 0 ? (
+                                    <div style={{ color: '#475569', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+                                        點擊上方元件開始添加
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        {items.map((item, idx) => (
+                                            <div key={item.uid} style={{
+                                                display: 'flex', alignItems: 'center', gap: '6px',
+                                                padding: '6px 10px', borderRadius: '8px',
+                                                background: selectedIdx === idx ? 'rgba(96,165,250,0.15)' : '#1e293b',
+                                                border: `1px solid ${selectedIdx === idx ? '#60a5fa' : '#334155'}`,
+                                                cursor: 'pointer',
+                                            }}>
+                                                <div style={{ flex: 1 }} onClick={() => setSelectedIdx(selectedIdx === idx ? null : idx)}>
+                                                    <span style={{ fontSize: '12px', color: '#5DD8FF', fontFamily: 'monospace' }}>
+                                                        {item.isContainer ? `${item.containerType} { ${item.children.length} 個子元件 }` : uiTreeToCode(item.node)}
+                                                    </span>
+                                                </div>
+                                                {item.isContainer && selectedIdx !== null && selectedIdx !== idx && !items[selectedIdx]?.isContainer && (
+                                                    <button onClick={(e) => { e.stopPropagation(); moveToContainer(selectedIdx, idx); }}
+                                                        style={{ fontSize: '11px', color: '#34C759', background: 'rgba(52,199,89,0.15)', border: '1px solid rgba(52,199,89,0.3)', borderRadius: '6px', padding: '2px 8px', cursor: 'pointer' }}>
+                                                        放入
+                                                    </button>
+                                                )}
+                                                <button onClick={(e) => { e.stopPropagation(); removeItem(idx); }}
+                                                    style={{ fontSize: '14px', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>✕</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Right: preview + code + tree */}
+                        <div style={{ flex: '1 1 280px', minWidth: '280px' }}>
+                            <div style={{ marginBottom: '12px' }}>
+                                <DeviceFrame title="即時預覽">
+                                    {sandboxTree ? (
+                                        <SwiftUIPreview uiTree={sandboxTree} highlightPath={highlightPath} onHoverPath={setHighlightPath} />
+                                    ) : (
+                                        <div style={{ color: '#C7C7CC', fontSize: '14px', textAlign: 'center' }}>添加元件看效果...</div>
+                                    )}
+                                </DeviceFrame>
+                            </div>
+                            {sandboxTree && (
+                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                    <div style={{ flex: '1 1 140px' }}>
+                                        <ViewTree uiTree={sandboxTree} highlightPath={highlightPath} onHoverPath={setHighlightPath} />
+                                    </div>
+                                    <div style={{ flex: '1 1 160px' }}>
+                                        <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '6px' }}>📄 程式碼</div>
+                                        <HighlightedCode code={codeStr} fontSize="12px" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ============================================================
         // Section 15: Completion Screen
         // ============================================================
         function CompletionScreen({ totalStars, onRestart }) {
@@ -1842,6 +2553,8 @@
                         progress={progress}
                         totalStars={totalStars}
                         onSelectLevel={handleSelectLevel}
+                        onExplore={() => setGamePhase('explore')}
+                        onSandbox={() => setGamePhase('sandbox')}
                         playerName={playerName}
                     />
                 );
@@ -1867,6 +2580,16 @@
                         onBack={handleBack}
                     />
                 );
+            }
+
+            // Build Animation (Explore) mode
+            if (gamePhase === 'explore') {
+                return <BuildAnimationMode onBack={handleBack} />;
+            }
+
+            // Sandbox mode
+            if (gamePhase === 'sandbox') {
+                return <SandboxMode onBack={handleBack} />;
             }
 
             // Completion
