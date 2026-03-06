@@ -115,6 +115,17 @@
                     <label>作業描述</label>
                     <textarea id="asgDesc" rows="4" placeholder="描述作業要求..."></textarea>
                 </div>
+                <!-- 附件上傳 -->
+                <div class="form-group">
+                    <label>附件 <span style="color:var(--text-tertiary);font-weight:400;">(PDF、Word、PPT、圖片等)</span></label>
+                    <div class="attachment-zone" id="attachmentZone">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                        <span>點擊或拖拽文件到此處上傳</span>
+                    </div>
+                    <input type="file" id="attachmentInput" multiple style="display:none">
+                    <div id="existingAttachments"></div>
+                    <div id="pendingAttachments"></div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>目標類型</label>

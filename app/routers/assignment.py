@@ -305,6 +305,57 @@ async def ai_grade_submission(
 
 
 # ================================================================
+# 作業附件
+# ================================================================
+
+@router.post("/api/assignments/teacher/{assignment_id}/attachments")
+async def upload_attachments(
+    assignment_id: int,
+    files: List[UploadFile] = File(...),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """上傳作業附件 (教師用，multipart)"""
+    username, _ = teacher_info
+    services = get_services()
+    user = services.user.get_user(username)
+    teacher_id = user["id"] if user else 0
+
+    results = []
+    for f in files:
+        result = await services.assignment.upload_attachment(
+            assignment_id=assignment_id,
+            teacher_id=teacher_id,
+            file=f,
+        )
+        results.append(result)
+
+    return success_response(data=results, message=f"已上傳 {len(results)} 個附件")
+
+
+@router.delete("/api/assignments/teacher/{assignment_id}/attachments/{file_id}")
+async def delete_attachment(
+    assignment_id: int,
+    file_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """刪除作業附件"""
+    username, _ = teacher_info
+    services = get_services()
+    user = services.user.get_user(username)
+    teacher_id = user["id"] if user else 0
+
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        lambda: services.assignment.delete_attachment(
+            attachment_id=file_id,
+            teacher_id=teacher_id,
+        ),
+    )
+    return success_response(message="附件已刪除")
+
+
+# ================================================================
 # 學生端點
 # ================================================================
 

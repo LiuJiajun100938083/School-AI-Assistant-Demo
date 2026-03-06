@@ -515,18 +515,11 @@ body {
     background: var(--bg-card);
     border-radius: var(--radius-card);
     border: 1px solid var(--border-default);
-    border-left: 3px solid var(--border-default);
-    padding: var(--space-4) var(--space-5);
+    padding: 12px 16px;
     cursor: pointer;
     transition: all var(--duration-base) var(--ease-out);
     outline: none;
 }
-.grid-card[data-status="published"] { border-left-color: var(--brand); }
-.grid-card[data-status="draft"] { border-left-color: var(--text-tertiary); }
-.grid-card[data-status="closed"] { border-left-color: var(--color-warning); }
-.grid-card[data-status="submitted"] { border-left-color: var(--color-info); }
-.grid-card[data-status="graded"] { border-left-color: var(--color-success); }
-.grid-card[data-status="not_submitted"] { border-left-color: var(--border-default); }
 
 .grid-card:hover {
     border-color: var(--border-strong);
@@ -541,25 +534,19 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: var(--space-3);
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
 }
-.grid-card-icon {
-    width: 36px;
-    height: 36px;
-    background: var(--brand-light);
-    border-radius: var(--radius-card);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--brand);
-}
-.grid-card-icon svg { width: 18px; height: 18px; }
 .grid-card-title {
     font-size: 15px;
     font-weight: 600;
-    margin-bottom: var(--space-1);
     color: var(--text-primary);
     line-height: 1.3;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .grid-card-desc {
     font-size: var(--type-meta);
@@ -573,17 +560,52 @@ body {
     font-size: var(--type-meta);
     color: var(--text-secondary);
     display: flex;
-    flex-direction: column;
-    gap: 3px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
 }
-.grid-card-meta span { display: flex; align-items: center; gap: var(--space-1); }
+.grid-card-meta .meta-dot {
+    color: var(--text-tertiary);
+    margin: 0 2px;
+    font-size: 11px;
+}
 .grid-card-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: var(--space-3);
-    padding-top: var(--space-3);
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid var(--border-light);
+}
+.grid-card-teacher {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.grid-card-progress-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.grid-card-progress {
+    width: 60px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.grid-card-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--brand);
+    transition: width var(--duration-base) var(--ease-out);
+}
+.grid-card-progress-text {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    min-width: 28px;
+    text-align: right;
 }
 
 /* ============================================================
@@ -945,6 +967,34 @@ body {
 .upload-zone-icon { margin-bottom: var(--space-3); color: var(--text-tertiary); }
 .upload-zone-text { font-size: var(--type-body); color: var(--text-secondary); }
 .upload-zone-hint { font-size: var(--type-badge); color: var(--text-tertiary); margin-top: var(--space-1); }
+
+/* ---- Attachment Zone (Create/Edit modal) ---- */
+.attachment-zone {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    cursor: pointer;
+    transition: all var(--duration-base);
+    color: var(--text-secondary);
+    font-size: var(--type-body);
+}
+.attachment-zone:hover,
+.attachment-zone.dragover {
+    border-color: var(--brand);
+    background: var(--brand-lighter);
+    color: var(--brand);
+}
+.attachment-zone svg {
+    flex-shrink: 0;
+    color: var(--text-tertiary);
+}
+.attachment-zone:hover svg,
+.attachment-zone.dragover svg {
+    color: var(--brand);
+}
 
 /* ============================================================
    Modal

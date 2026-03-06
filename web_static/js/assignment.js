@@ -98,6 +98,22 @@ const AssignmentAPI = {
         return resp.json();
     },
 
+    // Attachments
+    async uploadAttachments(assignmentId, files) {
+        const formData = new FormData();
+        for (const f of files) formData.append('files', f);
+        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/attachments`, {
+            method: 'POST',
+            headers: this._authHeaders(),
+            body: formData
+        });
+        if (resp.status === 401) { window.location.href = '/'; return null; }
+        return resp.json();
+    },
+    async deleteAttachment(assignmentId, fileId) {
+        return this._call(`/api/assignments/teacher/${assignmentId}/attachments/${fileId}`, { method: 'DELETE' });
+    },
+
     // Swift
     async runSwift(code) {
         return this._call('/api/assignments/run-swift', {
@@ -285,13 +301,13 @@ const AssignmentUI = {
             <div class="empty-state-text">尚無作業</div>
             <div class="empty-state-hint">點擊左側「+ 新增作業」開始</div></div>`;
         return `<div class="assignment-table"><table>
-            <thead><tr><th>標題</th><th>目標</th><th>截止日</th><th>提交</th><th>狀態</th></tr></thead>
+            <thead><tr><th>標題</th><th>教師</th><th>目標</th><th>截止日</th><th>提交</th><th>狀態</th></tr></thead>
             <tbody>${assignments.map(a => {
-                const pct = a.submission_count > 0 ? Math.round((a.graded_count||0)/(a.submission_count)*100) : 0;
                 const target = a.target_type === 'all' ? '所有人' :
-                    a.target_type === 'class' ? `班級: ${a.target_value}` : `學生: ${a.target_value}`;
+                    a.target_type === 'class' ? a.target_value : '指定學生';
                 return `<tr onclick="AssignmentApp.viewAssignment(${a.id})">
                     <td class="title-cell">${a.title}</td>
+                    <td>${a.created_by_name || ''}</td>
                     <td>${target}</td>
                     <td>${this.formatDate(a.deadline)}</td>
                     <td>${a.submission_count||0} 份</td>
@@ -299,7 +315,7 @@ const AssignmentUI = {
             }).join('')}</tbody></table></div>`;
     },
 
-    // ---- Teacher Grid View ----
+    // ---- Teacher Grid View (SaaS redesign) ----
     renderTeacherGridView(assignments) {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${AssignmentUI.ICON.inbox}</div>
@@ -308,23 +324,29 @@ const AssignmentUI = {
         return `<div class="assignment-grid">${assignments.map(a => {
             const pct = a.submission_count > 0 ? Math.round((a.graded_count||0)/(a.submission_count)*100) : 0;
             const desc = a.description ? a.description.slice(0, 60) : '';
+            const target = a.target_type === 'all' ? '所有人' :
+                a.target_type === 'class' ? a.target_value : '指定學生';
             return `<div class="grid-card" data-status="${a.status}" tabindex="0" onclick="AssignmentApp.viewAssignment(${a.id})" onkeydown="event.key==='Enter'&&this.click()">
                 <div class="grid-card-header">
-                    <div class="grid-card-icon">${AssignmentUI.ICON.file}</div>
+                    <div class="grid-card-title">${a.title}</div>
                     ${this.badge(a.status)}
                 </div>
-                <div class="grid-card-title">${a.title}</div>
                 ${desc ? `<div class="grid-card-desc">${desc}</div>` : ''}
                 <div class="grid-card-meta">
-                    <span>${AssignmentUI.ICON.clock} 截止: ${this.formatDate(a.deadline)}</span>
-                    <span>${AssignmentUI.ICON.folder} ${a.submission_count||0} 份提交</span>
+                    <span>截止：${this.formatDate(a.deadline)}</span>
+                    <span class="meta-dot">·</span>
+                    <span>${a.submission_count||0}份提交</span>
+                    <span class="meta-dot">·</span>
+                    <span>${target}</span>
                 </div>
                 <div class="grid-card-footer">
-                    <span style="font-size:13px;color:var(--text-secondary)">
-                        ${a.target_type === 'all' ? '所有人' :
-                          a.target_type === 'class' ? a.target_value : '指定學生'}
-                    </span>
-                    ${this.progressRing(pct)}
+                    <span class="grid-card-teacher">${a.created_by_name || ''}</span>
+                    <div class="grid-card-progress-wrap">
+                        <div class="grid-card-progress">
+                            <div class="grid-card-progress-fill" style="width:${pct}%"></div>
+                        </div>
+                        <span class="grid-card-progress-text">${pct}%</span>
+                    </div>
                 </div></div>`;
         }).join('')}</div>`;
     },
@@ -347,23 +369,30 @@ const AssignmentUI = {
         return `<div class="assignment-grid">${assignments.map(a => {
             const st = a.submission_status || 'not_submitted';
             const warn = st === 'not_submitted' ? this.deadlineWarning(a.deadline) : '';
+            const pct = st === 'graded' ? 100 : st === 'submitted' ? 50 : 0;
+            const desc = a.description ? a.description.slice(0, 60) : '';
             return `<div class="grid-card" data-status="${st}" tabindex="0" onclick="AssignmentApp.viewStudentAssignment(${a.id})" onkeydown="event.key==='Enter'&&this.click()">
                 <div class="grid-card-header">
-                    <div class="grid-card-icon">${AssignmentUI.ICON.file}</div>
+                    <div class="grid-card-title">${a.title}</div>
                     ${this.badge(st)}
                 </div>
-                <div class="grid-card-title">${a.title}</div>
+                ${desc ? `<div class="grid-card-desc">${desc}</div>` : ''}
                 <div class="grid-card-meta">
-                    <span>${AssignmentUI.ICON.user} ${a.created_by_name||''}</span>
-                    <span>${AssignmentUI.ICON.clock} 截止: ${this.formatDate(a.deadline)} ${warn}</span>
+                    <span>截止：${this.formatDate(a.deadline)}</span>
+                    <span class="meta-dot">·</span>
+                    <span>${a.created_by_name||''}</span>
+                    ${warn ? `<span class="meta-dot">·</span>${warn}` : ''}
                 </div>
                 <div class="grid-card-footer">
                     ${a.my_score !== null && a.my_score !== undefined ?
                         `<span class="submission-score">${a.my_score}/${a.max_score}</span>` :
-                        '<span style="color:var(--text-tertiary)">未評分</span>'}
-                    ${st === 'graded' ? this.progressRing(100) :
-                      st === 'submitted' ? this.progressRing(50) :
-                      this.progressRing(0)}
+                        '<span style="color:var(--text-tertiary);font-size:13px;">未評分</span>'}
+                    <div class="grid-card-progress-wrap">
+                        <div class="grid-card-progress">
+                            <div class="grid-card-progress-fill" style="width:${pct}%"></div>
+                        </div>
+                        <span class="grid-card-progress-text">${pct}%</span>
+                    </div>
                 </div></div>`;
         }).join('')}</div>`;
     },
@@ -617,6 +646,10 @@ const AssignmentApp = {
         targets: null,
         aiReasons: {},
         sidebarFilter: 'all',
+        // Attachment state for create/edit modal
+        pendingAttachments: [],    // new File objects to upload
+        existingAttachments: [],   // already uploaded (from server)
+        deletedAttachmentIds: [],  // IDs to delete on save
     },
 
     async init() {
@@ -872,6 +905,10 @@ const AssignmentApp = {
                         <h3 style="margin:0;display:flex;align-items:center;gap:8px;">${asg.title} ${AssignmentUI.badge(asg.status)}</h3>
                         ${asg.description ? `<p style="color:var(--text-secondary);margin-top:6px;font-size:14px;">${asg.description}</p>` : ''}
                         <div style="margin-top:8px;font-size:13px;color:var(--text-tertiary);">${AssignmentUI.ICON.user} ${target}</div>
+                        ${(asg.attachments && asg.attachments.length) ? `<div style="margin-top:12px;">
+                            <div style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px;">${AssignmentUI.ICON.clip} 附件</div>
+                            ${AssignmentUI.renderFiles(asg.attachments)}
+                        </div>` : ''}
                     </div>
                 </div>
                 <div class="detail-stats">
@@ -1198,6 +1235,9 @@ const AssignmentApp = {
         this.state.editingId = editId;
         this.state.currentStep = 1;
         this.state.selectedRubricType = 'points';
+        this.state.pendingAttachments = [];
+        this.state.existingAttachments = [];
+        this.state.deletedAttachmentIds = [];
         document.getElementById('createModalTitle').textContent = editId ? '編輯作業' : '創建作業';
 
         // Load targets
@@ -1242,8 +1282,14 @@ const AssignmentApp = {
                 this.state.selectedRubricType = rType;
                 this._selectRubricType(rType);
                 this._hydrateRubricEditor(rType, a.rubric_items || [], a.rubric_config);
+                // Load existing attachments
+                this.state.existingAttachments = a.attachments || [];
             }
         }
+
+        // Render attachment lists
+        this._renderAttachmentLists();
+        this._setupAttachmentZone();
 
         this.goToStep(1);
         document.getElementById('createModal').classList.add('active');
@@ -1777,6 +1823,83 @@ const AssignmentApp = {
         return base;
     },
 
+    // ---- Attachment Helpers ----
+    _setupAttachmentZone() {
+        const zone = document.getElementById('attachmentZone');
+        const input = document.getElementById('attachmentInput');
+        if (!zone || !input) return;
+        zone.onclick = () => input.click();
+        input.onchange = (e) => { this._addPendingAttachments(e.target.files); input.value = ''; };
+        zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+        zone.ondragleave = () => zone.classList.remove('dragover');
+        zone.ondrop = (e) => {
+            e.preventDefault(); zone.classList.remove('dragover');
+            this._addPendingAttachments(e.dataTransfer.files);
+        };
+    },
+
+    _addPendingAttachments(fileList) {
+        const total = this.state.pendingAttachments.length + this.state.existingAttachments.filter(a => !this.state.deletedAttachmentIds.includes(a.id)).length;
+        for (const f of fileList) {
+            if (total + this.state.pendingAttachments.length >= 10) { UIModule.toast('附件最多 10 個', 'warning'); break; }
+            this.state.pendingAttachments.push(f);
+        }
+        this._renderAttachmentLists();
+    },
+
+    removePendingAttachment(index) {
+        this.state.pendingAttachments.splice(index, 1);
+        this._renderAttachmentLists();
+    },
+
+    markDeleteAttachment(id) {
+        this.state.deletedAttachmentIds.push(id);
+        this._renderAttachmentLists();
+    },
+
+    _renderAttachmentLists() {
+        // Existing attachments (from server)
+        const existingEl = document.getElementById('existingAttachments');
+        if (existingEl) {
+            const visible = this.state.existingAttachments.filter(a => !this.state.deletedAttachmentIds.includes(a.id));
+            existingEl.innerHTML = visible.map(a =>
+                `<div class="file-item">
+                    <span class="file-item-icon">${AssignmentUI.ICON.clip}</span>
+                    <div class="file-item-info">
+                        <div class="name">${a.original_name}</div>
+                        <div class="size">${AssignmentUI.formatFileSize(a.file_size)}</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="AssignmentApp.markDeleteAttachment(${a.id})" title="移除">✕</button>
+                </div>`
+            ).join('');
+        }
+        // Pending attachments (new files)
+        const pendingEl = document.getElementById('pendingAttachments');
+        if (pendingEl) {
+            pendingEl.innerHTML = this.state.pendingAttachments.map((f, i) =>
+                `<div class="file-item">
+                    <span class="file-item-icon">${AssignmentUI.ICON.clip}</span>
+                    <div class="file-item-info">
+                        <div class="name">${f.name}</div>
+                        <div class="size">${AssignmentUI.formatFileSize(f.size)}</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline" onclick="AssignmentApp.removePendingAttachment(${i})" title="移除">✕</button>
+                </div>`
+            ).join('');
+        }
+    },
+
+    async _syncAttachments(assignmentId) {
+        // Delete marked attachments
+        for (const id of this.state.deletedAttachmentIds) {
+            await AssignmentAPI.deleteAttachment(assignmentId, id);
+        }
+        // Upload new attachments
+        if (this.state.pendingAttachments.length > 0) {
+            await AssignmentAPI.uploadAttachments(assignmentId, this.state.pendingAttachments);
+        }
+    },
+
     async saveAsDraft() {
         const data = this._getFormData();
         if (!data.title) { UIModule.toast('請輸入標題', 'warning'); return; }
@@ -1789,6 +1912,10 @@ const AssignmentApp = {
         }
 
         if (resp?.success) {
+            const asgId = this.state.editingId || resp.data?.id;
+            if (asgId && (this.state.pendingAttachments.length > 0 || this.state.deletedAttachmentIds.length > 0)) {
+                await this._syncAttachments(asgId);
+            }
             UIModule.toast('草稿已保存', 'success');
             this.closeCreateModal();
             this.showTeacherList();
@@ -1805,13 +1932,23 @@ const AssignmentApp = {
         if (this.state.editingId) {
             resp = await AssignmentAPI.updateAssignment(this.state.editingId, data);
             if (resp?.success) {
+                // Sync attachments before publishing
+                if (this.state.pendingAttachments.length > 0 || this.state.deletedAttachmentIds.length > 0) {
+                    await this._syncAttachments(this.state.editingId);
+                }
                 resp = await AssignmentAPI.publishAssignment(this.state.editingId);
             }
         } else {
             resp = await AssignmentAPI.createAssignment(data);
             if (resp?.success) {
                 const newId = resp.data?.id;
-                if (newId) resp = await AssignmentAPI.publishAssignment(newId);
+                if (newId) {
+                    // Sync attachments before publishing
+                    if (this.state.pendingAttachments.length > 0 || this.state.deletedAttachmentIds.length > 0) {
+                        await this._syncAttachments(newId);
+                    }
+                    resp = await AssignmentAPI.publishAssignment(newId);
+                }
             }
         }
 
@@ -1904,6 +2041,10 @@ const AssignmentApp = {
         let html = `<div class="detail-hero fade-in">
             <h3 style="margin:0;">${asg.title}</h3>
             ${asg.description ? `<p style="color:var(--text-secondary);margin-top:6px;font-size:14px;">${asg.description}</p>` : ''}
+            ${(asg.attachments && asg.attachments.length) ? `<div style="margin-top:12px;">
+                <div style="font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px;">${AssignmentUI.ICON.clip} 附件</div>
+                ${AssignmentUI.renderFiles(asg.attachments)}
+            </div>` : ''}
             <div class="detail-stats" style="margin-top:12px;">
                 <div class="stat-card">
                     <div class="stat-icon">${AssignmentUI.ICON.user}</div>

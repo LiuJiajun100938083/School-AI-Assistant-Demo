@@ -66,6 +66,7 @@ from app.domains.mistake_book.repository import (
     StudentMasteryRepository,
 )
 from app.domains.assignment.repository import (
+    AssignmentAttachmentRepository,
     AssignmentRepository,
     RubricItemRepository,
     RubricScoreRepository,
@@ -352,6 +353,7 @@ class ServiceContainer:
                 rubric_repo=self._get_repo(RubricItemRepository),
                 score_repo=self._get_repo(RubricScoreRepository),
                 user_repo=self._get_repo(UserRepository),
+                attachment_repo=self._get_repo(AssignmentAttachmentRepository),
                 settings=self._settings,
             )
         return self._assignment

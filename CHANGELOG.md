@@ -11,6 +11,90 @@
 
 ---
 
+## [v3.0.42] [2026-03-06] 作業管理 SaaS 級重構 — 多類型評分 + 側邊欄佈局 + AI 批改增強
+
+### 新增
+
+- **7 種評分類型** — 新增 `points`（簡單計分）、`analytic_levels`（分級描述量規）、`weighted_pct`（權重百分比制）、`checklist`（通過/不通過清單）、`competency`（能力等級制）、`dse_criterion`（DSE 標準量規）、`holistic`（整體評分）7 種評分方式，`constants.py` 定義 `RUBRIC_TYPES` 元組
+- **評分標準資料結構擴展** — `RubricItemInput` 新增 `weight`（權重百分比）、`level_definitions`（等級定義列表）；`RubricScoreInput` 新增 `selected_level`（選擇的等級）；`CreateAssignmentRequest` / `UpdateAssignmentRequest` 新增 `rubric_type`、`rubric_config` 字段
+- **資料庫遷移** — `assignments` 表新增 `rubric_type`（VARCHAR(30)）、`rubric_config`（JSON）；`assignment_rubric_items` 表新增 `level_definitions`（JSON）、`weight`（DECIMAL(5,2)）；`submission_rubric_scores` 表新增 `selected_level`（VARCHAR(100)）
+- **側邊欄佈局** — 全新 App Shell 結構：頂部導航欄（`topbar`）+ 左側邊欄（`sidebar`）+ 主工作區（`workspace`）三欄佈局，取代舊的 Header + Main 結構
+- **側邊欄導航與篩選** — 教師可按「全部 / 草稿 / 已發布 / 已關閉」篩選；學生可按「全部 / 待提交 / 已提交 / 已批改」篩選；底部展示快速統計數據
+- **Skeleton Loading** — 新增骨架屏載入佔位符（`skeletonCards`、`skeletonDetail`、`skeletonSubmission`），替代舊的 spinner 載入狀態
+- **截止日期提醒** — 學生視圖新增 `deadlineWarning()`，自動顯示「已逾期」「今天截止」「還剩 N 天」警示標籤
+- **創建作業分步嚮導** — 創建/編輯作業彈窗改為 2 步分步表單：Step 1 基本信息 → Step 2 評分標準配置，含步驟指示器（`step-indicator`）
+- **評分類型選擇面板** — Step 2 提供視覺化的評分方式選擇卡片（`rubric-type-grid`），每種類型配圖標和描述
+- **多類型批改面板** — 批改面板根據 `rubric_type` 動態渲染不同 UI：整體評分（等級選擇卡片）、通過清單（toggle 開關）、能力等級（按鈕組）、分級量規（等級+分數）、權重百分比（含權重顯示）、DSE 標準（含描述展開）
+- **Windows Swift 編譯環境自動探測** — `_find_swift_env()` 自動搜索 Windows 本地安裝的 Swift Toolchain、Runtime DLL、SDKROOT、Windows SDK (UCRT)、VC Tools 路徑，支持 `swiftc` 編譯後執行（取代舊的 `swift` 直接運行）
+
+### 修改
+
+- **AI 批改提示重構** — 提取 `_build_ai_prompt()` 方法，根據 7 種評分類型生成不同的 AI 批改 prompt 模板，每種類型指定不同的 JSON 返回格式
+- **AI 結果驗證增強** — `_validate_ai_result()` 支持整體評分、通過清單、能力等級等類型的專用驗證邏輯
+- **滿分計算重構** — 提取 `_calc_max_score()` 方法，按類型計算：`competency` 無數字分數、`holistic` 從等級最大值、`weighted_pct` / `checklist` 從配置、其他從項目合計
+- **總分計算重構** — 提取 `_calc_total_score()` 方法，支持加權百分比計算、通過率換算、能力等級無分數等邏輯
+- **JSON 字段反序列化** — 新增 `_deserialize_json_fields()` 靜態方法，統一處理 `rubric_config`、`level_definitions` 的 JSON 字串 → 對象轉換
+- **Repository 層擴展** — `RubricItemRepository.batch_insert()` 支持 `level_definitions`（JSON 序列化）和 `weight` 字段；`RubricScoreRepository.batch_upsert()` 支持 `selected_level`
+- **路由層適配** — `create_assignment` 傳遞 `rubric_type` / `rubric_config`；`grade_submission` 構建包含 `selected_level` 的評分資料
+- **HTML 語義化增強** — Modal 添加 `role="dialog"`、`aria-modal="true"`、`aria-labelledby`；卡片添加 `tabindex="0"` 和鍵盤事件支持
+- **空狀態提示更新** — 「點擊右上角」→「點擊左側」，配合側邊欄佈局調整
+- **Swift 編譯流程** — 從 `swift xxx.swift` 直接執行改為 `swiftc -o xxx.exe xxx.swift` 編譯後運行，並清理 `.lib` / `.exp` 附加產物
+
+### 修復
+
+- **Windows 控制台中文輸出** — `logging_config.py` 在 Windows 平台強制 `sys.stdout.reconfigure(encoding="utf-8")`，解決 cp1252 編碼無法輸出中文日誌的問題
+- **launch.json 路徑修正** — `.venv/bin/python` → `.venv/Scripts/python`，修正 Windows 環境下 venv 路徑
+- **user_service 多餘字段** — 移除 `update_data["updated_by"]` 賦值（該欄位不存在）
+- **update_assignment 字段洩漏** — 路由層剔除 `rubric_scores` 字段，避免誤傳入更新邏輯
+
+### 前端樣式
+
+- **全新 CSS 組件** — `topbar`（頂部欄）、`sidebar`（側邊欄）、`workspace`（工作區）、`step-indicator`（分步指示器）、`skeleton`（骨架屏）、`holistic-option`（整體評分選項）、`level-btn`（等級按鈕）、`check-toggle`（通過切換）、`deadline-warn`（截止提醒）、`rubric-type-grid`（評分類型選擇）
+- **Modal 動畫** — 新增 `modalFadeIn`（背景淡入）、`modalSlideUp`（內容上滑）、`fadeInUp`（卡片入場）動畫
+- **響應式適配** — `@media (max-width: 1024px)` 側邊欄收起為 overlay 模式，`sidebar-overlay` 遮罩層支持觸控關閉
+
+### 涉及文件 (12 個)
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/assignment/constants.py` | +11 新增 `RUBRIC_TYPES` |
+| `app/domains/assignment/schemas.py` | +24/-6 新增 `LevelDefinition`、擴展 Rubric 字段 |
+| `app/domains/assignment/repository.py` | +30/-12 支持 `level_definitions`、`weight`、`selected_level` |
+| `app/domains/assignment/service.py` | +463/-108 多類型評分邏輯、AI prompt 重構、Swift 環境探測 |
+| `app/routers/__init__.py` | +30 資料庫遷移 3 張表共 4 個新欄位 |
+| `app/routers/assignment.py` | +16/-5 路由層適配新字段 |
+| `app/domains/user/service.py` | -1 移除多餘 `updated_by` |
+| `app/core/logging_config.py` | +6 Windows UTF-8 修復 |
+| `.claude/launch.json` | +1/-1 Windows venv 路徑 |
+| `web_static/assignment.html` | +180/-80 App Shell 三欄佈局 + 分步嚮導 |
+| `web_static/css/assignment.css` | +1221/-225 全新側邊欄/骨架屏/動畫樣式 |
+| `web_static/js/assignment.js` | +1455/-340 側邊欄邏輯 + 7 種評分 UI + 分步表單 |
+
+---
+
+## [v3.0.41] [2026-03-06] 新增作業管理系統 — 佈置作業、上交文件、AI 批改評分
+
+### 新增
+
+- **作業管理後端** — 完整的 DDD 結構：`domains/assignment/` 包含 `constants.py`（狀態/擴展名常量）、`errors.py`（自定義異常）、`repository.py`（5 個 Repository 類）、`schemas.py`（Pydantic 模型）、`service.py`（業務邏輯層）
+- **資料庫表** — 4 張核心表：`assignments`（作業）、`assignment_submissions`（提交）、`assignment_files`（文件）、`assignment_rubric_items`（評分標準）、`submission_rubric_scores`（逐項得分）
+- **作業 CRUD** — 教師創建作業（草稿→發布→關閉）、編輯、刪除、按班級/學生分配
+- **文件上傳** — 學生提交作業支持多文件上傳（含大小/類型/數量限制）
+- **逐項評分** — 教師按評分標準逐項打分，自動計算總分
+- **AI 批改** — 整合 AI 對話接口，自動讀取學生提交文件內容，按評分標準生成逐項分數和評語
+- **Swift 代碼運行** — 作業中支持運行 Swift 代碼片段
+- **RESTful API** — 14 個端點覆蓋教師和學生全部操作流程
+- **前端完整 SPA** — `assignment.html` + `assignment.css` + `assignment.js`，角色自適應（教師/學生），支持列表/卡片視圖切換
+- **UI 設計系統** — 統一使用應用品牌綠色（#006633），8px 網格間距，語義化 CSS 變量，SVG 圖標系統
+
+### 修改
+
+- **路由註冊** — `app/routers/__init__.py` 新增作業管理路由和資料庫遷移
+- **DI 容器** — 注入 `AssignmentService` 到依賴注入容器
+- **主頁入口** — 主頁 dashboard 新增作業管理模組卡片
+
+---
+
 ## [v3.0.40] [2026-03-05] 遊戲中心 UI 系統化重構 + 主頁卡片放大 + 啟動動畫加速
 
 ### 重構

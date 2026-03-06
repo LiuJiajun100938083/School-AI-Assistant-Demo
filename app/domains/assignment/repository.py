@@ -3,12 +3,13 @@
 """
 作業管理 Repository
 ====================
-數據訪問層，包含 5 個 Repository:
+數據訪問層，包含 6 個 Repository:
 1. AssignmentRepository - 作業主表
 2. SubmissionRepository - 提交記錄
 3. SubmissionFileRepository - 提交文件
 4. RubricItemRepository - 評分標準項目
 5. RubricScoreRepository - 逐項得分
+6. AssignmentAttachmentRepository - 作業附件
 """
 
 import json
@@ -254,3 +255,21 @@ class RubricScoreRepository(BaseRepository):
             where="submission_id = %s",
             params=(submission_id,),
         )
+
+
+class AssignmentAttachmentRepository(BaseRepository):
+    """作業附件 Repository"""
+
+    TABLE = "assignment_attachments"
+
+    def find_by_assignment(self, assignment_id: int) -> List[Dict[str, Any]]:
+        """查詢某作業的所有附件（排除已刪除）"""
+        return self.find_all(
+            where="assignment_id = %s AND is_deleted = 0",
+            params=(assignment_id,),
+            order_by="uploaded_at ASC",
+        )
+
+    def soft_delete_attachment(self, attachment_id: int) -> int:
+        """軟刪除附件"""
+        return self.soft_delete(attachment_id)

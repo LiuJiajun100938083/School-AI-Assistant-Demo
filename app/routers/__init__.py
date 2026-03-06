@@ -225,6 +225,23 @@ def _run_schema_migrations() -> None:
             )
             logger.info("数据库迁移: submission_rubric_scores 表添加 selected_level")
 
+        # --- 作业附件表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS assignment_attachments (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                assignment_id INT NOT NULL,
+                original_name VARCHAR(500) NOT NULL,
+                stored_name VARCHAR(500) NOT NULL,
+                file_path VARCHAR(1000) NOT NULL,
+                file_size BIGINT DEFAULT 0,
+                file_type VARCHAR(50) DEFAULT '',
+                mime_type VARCHAR(200) DEFAULT '',
+                uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                is_deleted TINYINT(1) DEFAULT 0,
+                INDEX idx_attachment_assignment (assignment_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
         logger.info("数据库 schema 迁移完成 (含作業管理表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)

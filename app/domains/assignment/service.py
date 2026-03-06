@@ -45,6 +45,7 @@ from app.domains.assignment.exceptions import (
     TooManyFilesError,
 )
 from app.domains.assignment.repository import (
+    AssignmentAttachmentRepository,
     AssignmentRepository,
     RubricItemRepository,
     RubricScoreRepository,
@@ -70,6 +71,7 @@ class AssignmentService:
         rubric_repo: RubricItemRepository,
         score_repo: RubricScoreRepository,
         user_repo: UserRepository,
+        attachment_repo: Optional["AssignmentAttachmentRepository"] = None,
         settings=None,
     ):
         self._assignment_repo = assignment_repo
@@ -78,6 +80,7 @@ class AssignmentService:
         self._rubric_repo = rubric_repo
         self._score_repo = score_repo
         self._user_repo = user_repo
+        self._attachment_repo = attachment_repo
         self._settings = settings
         self._ask_ai_func: Optional[Callable] = None
 
@@ -318,6 +321,12 @@ class AssignmentService:
         for item in rubric_items:
             self._deserialize_json_fields(item)
         assignment["rubric_items"] = rubric_items
+
+        # 附件
+        if self._attachment_repo:
+            assignment["attachments"] = self._attachment_repo.find_by_assignment(assignment_id)
+        else:
+            assignment["attachments"] = []
 
         stats = self._submission_repo.get_submission_stats(assignment_id)
         assignment["submission_count"] = stats["total_submissions"] if stats else 0
@@ -842,6 +851,12 @@ class AssignmentService:
 
         assignment["rubric_items"] = self._rubric_repo.find_by_assignment(assignment_id)
 
+        # 附件
+        if self._attachment_repo:
+            assignment["attachments"] = self._attachment_repo.find_by_assignment(assignment_id)
+        else:
+            assignment["attachments"] = []
+
         # 查詢學生的提交
         user = self._user_repo.find_one(
             where="username = %s",
@@ -991,6 +1006,79 @@ class AssignmentService:
             "file_size": file_size,
             "file_type": file_type,
         }
+
+    # ================================================================
+    # 作業附件
+    # ================================================================
+
+    async def upload_attachment(
+        self, assignment_id: int, teacher_id: int, file: UploadFile
+    ) -> Dict[str, Any]:
+        """上傳作業附件（教師用）"""
+        assignment = self._get_assignment_or_raise(assignment_id)
+        if assignment.get("created_by") != teacher_id:
+            from app.core.exceptions import AuthorizationError
+            raise AuthorizationError("只有作業創建者可以上傳附件")
+
+        if not self._attachment_repo:
+            raise ValidationError("附件功能未初始化")
+
+        original_name = file.filename or "unnamed"
+        ext = Path(original_name).suffix.lower()
+
+        file_type = EXTENSION_TYPE_MAP.get(ext)
+        if not file_type:
+            raise InvalidFileTypeError(ext)
+
+        content = await file.read()
+        file_size = len(content)
+        if file_size > MAX_FILE_SIZE:
+            raise FileTooLargeError(MAX_FILE_SIZE // 1024 // 1024)
+
+        stored_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = UPLOAD_DIR / stored_name
+
+        with open(file_path, "wb") as fh:
+            fh.write(content)
+
+        file_id = self._attachment_repo.insert_get_id({
+            "assignment_id": assignment_id,
+            "original_name": original_name,
+            "stored_name": stored_name,
+            "file_path": f"uploads/assignments/{stored_name}",
+            "file_size": file_size,
+            "file_type": file_type,
+            "mime_type": file.content_type or "",
+        })
+
+        logger.info("作業 #%d 上傳附件: %s (%d bytes)", assignment_id, original_name, file_size)
+        return {
+            "id": file_id,
+            "original_name": original_name,
+            "stored_name": stored_name,
+            "file_path": f"uploads/assignments/{stored_name}",
+            "file_size": file_size,
+            "file_type": file_type,
+        }
+
+    def delete_attachment(self, attachment_id: int, teacher_id: int) -> bool:
+        """刪除作業附件（軟刪除）"""
+        if not self._attachment_repo:
+            raise ValidationError("附件功能未初始化")
+
+        attachment = self._attachment_repo.find_by_id(attachment_id)
+        if not attachment:
+            raise NotFoundError("附件不存在")
+
+        # 驗證歸屬
+        assignment = self._assignment_repo.find_by_id(attachment["assignment_id"])
+        if not assignment or assignment.get("created_by") != teacher_id:
+            from app.core.exceptions import AuthorizationError
+            raise AuthorizationError("只有作業創建者可以刪除附件")
+
+        self._attachment_repo.soft_delete_attachment(attachment_id)
+        logger.info("刪除附件 #%d (作業 #%d)", attachment_id, attachment["assignment_id"])
+        return True
 
     # ================================================================
     # Swift 運行
