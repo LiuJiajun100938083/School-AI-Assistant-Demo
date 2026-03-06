@@ -1016,8 +1016,13 @@ const AssignmentApp = {
                     ${asg.max_score != null ? `<span style="font-weight:600;font-size:13px;margin-left:4px;">滿分: ${asg.max_score}</span>` : ''}
                 </div>` : ''}
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;">
-                <h3 style="margin:0;">學生提交</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <h3 style="margin:0;">學生提交</h3>
+                    ${ungradedCount > 0 ? `<button class="btn btn-sm btn-ai" onclick="AssignmentApp.batchAiGrade()" id="batchAiBtn">
+                        ${AssignmentUI.ICON.ai} 一鍵AI批改 (${ungradedCount})
+                    </button>` : ''}
+                </div>
                 <div class="filter-tabs" style="margin:0;">
                     <button class="filter-tab active" onclick="AssignmentApp._filterSubs('all', this)">全部 <span class="count">${subs.length}</span></button>
                     <button class="filter-tab" onclick="AssignmentApp._filterSubs('submitted', this)">待批改 <span class="count">${ungradedCount}</span></button>
@@ -1025,6 +1030,7 @@ const AssignmentApp = {
                     <button class="filter-tab" onclick="AssignmentApp._filterSubs('proxy', this)">代提交 <span class="count">${notSubmitted.length}</span></button>
                 </div>
             </div>
+            <div id="batchAiProgress" style="display:none;"></div>
             <div id="submissionsArea">${AssignmentUI.renderSubmissionsList(subs)}</div>
         `;
     },
@@ -1316,6 +1322,95 @@ const AssignmentApp = {
         }
 
         this.updateGradeTotal();
+    },
+
+    // ---- Batch AI Grade ----
+    async batchAiGrade() {
+        const ungraded = (this._currentSubs || []).filter(s => s.status === 'submitted');
+        if (!ungraded.length) {
+            UIModule.toast('沒有待批改的提交', 'info');
+            return;
+        }
+
+        const btn = document.getElementById('batchAiBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 批改中...`; }
+
+        const progressEl = document.getElementById('batchAiProgress');
+        let done = 0, success = 0, fail = 0;
+        const total = ungraded.length;
+
+        const updateProgress = () => {
+            if (!progressEl) return;
+            progressEl.style.display = 'block';
+            const pct = Math.round((done / total) * 100);
+            progressEl.innerHTML = `
+                <div class="batch-ai-progress">
+                    <div class="batch-ai-bar">
+                        <div class="batch-ai-bar-fill" style="width:${pct}%"></div>
+                    </div>
+                    <div class="batch-ai-stats">
+                        <span>進度: ${done}/${total}</span>
+                        <span style="color:var(--color-success);">✓ ${success}</span>
+                        ${fail ? `<span style="color:var(--color-error);">✗ ${fail}</span>` : ''}
+                    </div>
+                </div>`;
+        };
+        updateProgress();
+
+        for (const sub of ungraded) {
+            try {
+                // Step 1: AI grade
+                const aiResp = await AssignmentAPI.aiGrade(sub.id);
+                if (!aiResp?.success || aiResp.data?.error) {
+                    fail++; done++; updateProgress(); continue;
+                }
+                const result = aiResp.data;
+
+                // Step 2: Build scores from AI result and auto-save
+                const scores = [];
+                if (result.selected_level !== undefined) {
+                    // Holistic
+                    scores.push({
+                        rubric_item_id: 0,
+                        points: result.points || 0,
+                        selected_level: result.selected_level || '',
+                    });
+                } else {
+                    (result.items || []).forEach(item => {
+                        const entry = { rubric_item_id: item.rubric_item_id };
+                        if (item.points != null) entry.points = item.points;
+                        if (item.passed != null) entry.points = item.passed ? 1 : 0;
+                        if (item.selected_level) entry.selected_level = item.selected_level;
+                        scores.push(entry);
+                    });
+                }
+
+                const gradeResp = await AssignmentAPI.gradeSubmission(sub.id, {
+                    rubric_scores: scores,
+                    feedback: result.overall_feedback || 'AI 自動批改',
+                });
+
+                if (gradeResp?.success) { success++; } else { fail++; }
+            } catch (e) {
+                console.error('Batch AI grade error:', e);
+                fail++;
+            }
+            done++;
+            updateProgress();
+        }
+
+        // Done
+        if (progressEl) {
+            progressEl.innerHTML = `
+                <div class="batch-ai-progress batch-ai-done">
+                    <span>${AssignmentUI.ICON.check} 批改完成！成功 ${success} 份${fail ? `，失敗 ${fail} 份` : ''}</span>
+                </div>`;
+        }
+
+        UIModule.toast(`AI 批改完成: ${success} 成功, ${fail} 失敗`, success > 0 ? 'success' : 'error');
+
+        // Refresh view after a short delay
+        setTimeout(() => this.viewAssignment(this.state.currentAssignment), 1500);
     },
 
     // ---- Rubric Type Definitions ----

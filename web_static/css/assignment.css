@@ -1586,6 +1586,45 @@ body {
 }
 
 /* ============================================================
+   Batch AI Grade Progress
+   ============================================================ */
+
+.batch-ai-progress {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-3);
+}
+.batch-ai-bar {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: var(--space-2);
+}
+.batch-ai-bar-fill {
+    height: 100%;
+    background: var(--brand);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+.batch-ai-stats {
+    display: flex;
+    gap: var(--space-4);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.batch-ai-done {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--color-success, #248A3D);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+/* ============================================================
    Loading & Empty
    ============================================================ */
 
