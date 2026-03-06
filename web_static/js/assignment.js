@@ -427,6 +427,7 @@ const AssignmentUI = {
             const isCode = f.file_type === 'code';
             const ext = f.original_name.split('.').pop().toLowerCase();
             const isSwift = ext === 'swift';
+            const isHtml = ext === 'html' || ext === 'htm';
             return `<div class="file-item">
                 <span class="file-item-icon">${icon}</span>
                 <div class="file-item-info">
@@ -438,6 +439,7 @@ const AssignmentUI = {
                     ${f.file_type === 'pdf' ? `<button class="btn btn-sm btn-outline" onclick="window.open('/${f.file_path}','_blank')">查看</button>` : ''}
                     ${isCode ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.viewCode(${f.id},'${f.file_path}','${f.original_name}')">查看代碼</button>` : ''}
                     ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${f.file_path}')">▶ 運行</button>` : ''}
+                    ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${f.file_path}','${f.original_name}')">▶ 預覽</button>` : ''}
                     <a class="btn btn-sm btn-outline" href="/${f.file_path}" download="${f.original_name}">下載</a>
                 </div></div>`;
         }).join('')}</div>`;
@@ -989,6 +991,7 @@ const AssignmentApp = {
                     </div>
                     <div id="codePreviewArea"></div>
                     <div id="swiftOutputArea"></div>
+                    <div id="htmlPreviewArea"></div>
                 </div>
                 <div>
                     ${(rubricItems.length || rubricType === 'holistic') ?
@@ -2072,6 +2075,7 @@ const AssignmentApp = {
                 ${AssignmentUI.renderFiles(sub.files)}
                 <div id="codePreviewArea"></div>
                 <div id="swiftOutputArea"></div>
+                <div id="htmlPreviewArea"></div>
             </div>`;
 
             if (sub.status === 'graded') {
@@ -2278,6 +2282,53 @@ const AssignmentApp = {
             </div>`;
         } catch (e) {
             area.innerHTML = `<div class="swift-output error">${e.message}</div>`;
+        }
+    },
+
+    // ---- HTML iframe preview ----
+    previewHtml(filePath, fileName) {
+        const area = document.getElementById('htmlPreviewArea');
+        if (!area) return;
+
+        // Toggle off if same file already previewing
+        if (area.dataset.currentFile === filePath && area.innerHTML !== '') {
+            area.innerHTML = '';
+            area.dataset.currentFile = '';
+            return;
+        }
+
+        area.dataset.currentFile = filePath;
+        area.innerHTML = `<div class="form-section">
+            <div class="html-preview-header">
+                <h3>▶ ${this._escapeHtml(fileName)}</h3>
+                <div class="html-preview-controls">
+                    <button class="btn btn-sm btn-outline" onclick="AssignmentApp.toggleHtmlPreviewSize()" title="切換大小">⛶</button>
+                    <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closeHtmlPreview()" title="關閉預覽">✕</button>
+                </div>
+            </div>
+            <div class="html-preview-container" id="htmlPreviewContainer">
+                <iframe
+                    src="${filePath}"
+                    sandbox="allow-scripts allow-forms"
+                    class="html-preview-iframe"
+                    title="HTML Preview"
+                ></iframe>
+            </div>
+        </div>`;
+    },
+
+    closeHtmlPreview() {
+        const area = document.getElementById('htmlPreviewArea');
+        if (area) {
+            area.innerHTML = '';
+            area.dataset.currentFile = '';
+        }
+    },
+
+    toggleHtmlPreviewSize() {
+        const container = document.getElementById('htmlPreviewContainer');
+        if (container) {
+            container.classList.toggle('html-preview-expanded');
         }
     },
 
