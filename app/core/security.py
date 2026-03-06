@@ -454,6 +454,10 @@ class LoginAttemptTracker:
 
     def record_failure(self, ip: str, username: str) -> None:
         """记录登录失败"""
+        # 白名单 IP 不记录失败，避免学校共享 IP 场景误锁
+        if ip in self.ip_whitelist:
+            return
+
         now = datetime.now(timezone.utc).timestamp()
         cutoff = now - self.time_window
         ip_user_key = self._ip_user_key(ip, username)

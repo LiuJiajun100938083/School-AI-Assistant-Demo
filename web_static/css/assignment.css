@@ -1485,6 +1485,19 @@ body {
     display: block;
 }
 
+/* Video Preview */
+.video-preview-container {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    background: #000;
+}
+.video-preview-player {
+    width: 100%;
+    max-height: 500px;
+    display: block;
+}
+
 /* ============================================================
    Loading & Empty
    ============================================================ */

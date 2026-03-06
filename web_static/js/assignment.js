@@ -440,6 +440,7 @@ const AssignmentUI = {
                     ${isCode ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.viewCode(${f.id},'${f.file_path}','${f.original_name}')">查看代碼</button>` : ''}
                     ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${f.file_path}')">▶ 運行</button>` : ''}
                     ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${f.file_path}','${f.original_name}')">▶ 預覽</button>` : ''}
+                    ${f.file_type === 'video' ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewVideo('/${f.file_path}','${f.original_name}')">▶ 播放</button>` : ''}
                     <a class="btn btn-sm btn-outline" href="/${f.file_path}" download="${f.original_name}">下載</a>
                 </div></div>`;
         }).join('')}</div>`;
@@ -2329,6 +2330,40 @@ const AssignmentApp = {
         const container = document.getElementById('htmlPreviewContainer');
         if (container) {
             container.classList.toggle('html-preview-expanded');
+        }
+    },
+
+    // ---- Video inline player ----
+    previewVideo(filePath, fileName) {
+        const area = document.getElementById('htmlPreviewArea');
+        if (!area) return;
+
+        if (area.dataset.currentFile === filePath && area.innerHTML !== '') {
+            area.innerHTML = '';
+            area.dataset.currentFile = '';
+            return;
+        }
+
+        area.dataset.currentFile = filePath;
+        area.innerHTML = `<div class="form-section">
+            <div class="html-preview-header">
+                <h3>▶ ${this._escapeHtml(fileName)}</h3>
+                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closeVideoPreview()" title="關閉">✕</button>
+            </div>
+            <div class="video-preview-container">
+                <video controls preload="metadata" class="video-preview-player">
+                    <source src="${filePath}" />
+                    您的瀏覽器不支持視頻播放。
+                </video>
+            </div>
+        </div>`;
+    },
+
+    closeVideoPreview() {
+        const area = document.getElementById('htmlPreviewArea');
+        if (area) {
+            area.innerHTML = '';
+            area.dataset.currentFile = '';
         }
     },
 
