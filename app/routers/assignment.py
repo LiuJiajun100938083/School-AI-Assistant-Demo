@@ -17,7 +17,8 @@ Swift 運行:
 
 import asyncio
 import logging
-from typing import List, Optional, Tuple
+import threading
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Body, Depends, File, Form, Query, Request, UploadFile
 
@@ -309,6 +310,157 @@ async def ai_grade_submission(
         lambda: services.assignment.ai_grade_submission(submission_id, extra_prompt=extra_prompt),
     )
     return success_response(data=result, message="AI 批改完成")
+
+
+# ================================================================
+# 批量 AI 批改（背景任務）
+# ================================================================
+
+_batch_jobs: Dict[int, dict] = {}  # assignment_id → job state
+
+
+def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
+                         teacher_id: int, extra_prompt: str):
+    """背景線程：逐份 AI 批改 + 自動保存"""
+    job = _batch_jobs.get(assignment_id)
+    if not job:
+        return
+    job["status"] = "running"
+
+    services = get_services()
+
+    for sub_id in submission_ids:
+        # 檢查取消
+        if job.get("cancelled"):
+            job["status"] = "cancelled"
+            return
+
+        try:
+            # Step 1: AI 批改
+            result = services.assignment.ai_grade_submission(sub_id, extra_prompt=extra_prompt)
+            if result.get("error"):
+                job["fail"] += 1
+                job["done"] += 1
+                continue
+
+            # Step 2: 構建分數並保存
+            scores = []
+            if result.get("selected_level") is not None:
+                scores.append({
+                    "rubric_item_id": 0,
+                    "points": result.get("points", 0),
+                    "selected_level": result.get("selected_level", ""),
+                })
+            else:
+                for item in result.get("items", []):
+                    entry: dict = {"rubric_item_id": item["rubric_item_id"]}
+                    if item.get("points") is not None:
+                        entry["points"] = item["points"]
+                    if item.get("passed") is not None:
+                        entry["points"] = 1 if item["passed"] else 0
+                    if item.get("selected_level"):
+                        entry["selected_level"] = item["selected_level"]
+                    scores.append(entry)
+
+            services.assignment.grade_submission(
+                submission_id=sub_id,
+                teacher_id=teacher_id,
+                rubric_scores=scores,
+                feedback=result.get("overall_feedback", "AI 自動批改"),
+            )
+            job["success"] += 1
+
+        except Exception as e:
+            logger.error("批量 AI 批改 submission #%d 失敗: %s", sub_id, e)
+            job["fail"] += 1
+
+        job["done"] += 1
+
+    job["status"] = "done"
+
+
+@router.post("/api/assignments/teacher/{assignment_id}/batch-ai-grade")
+async def start_batch_ai_grade(
+    assignment_id: int,
+    req: Request,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """啟動批量 AI 批改（背景執行）"""
+    # 防止重複啟動
+    existing = _batch_jobs.get(assignment_id)
+    if existing and existing.get("status") == "running":
+        return success_response(data=existing, message="批改任務進行中")
+
+    extra_prompt = ""
+    try:
+        body = await req.json()
+        extra_prompt = (body.get("extra_prompt") or "") if isinstance(body, dict) else ""
+    except Exception:
+        pass
+
+    services = get_services()
+    username, _ = teacher_info
+    user = services.user.get_user(username)
+    teacher_id = user["id"] if user else 0
+
+    # 查詢未批改的提交
+    subs = services.assignment.list_submissions(assignment_id, status="submitted")
+    if not subs:
+        return error_response("沒有待批改的提交")
+
+    sub_ids = [s["id"] for s in subs]
+
+    job = {
+        "status": "running",
+        "total": len(sub_ids),
+        "done": 0,
+        "success": 0,
+        "fail": 0,
+        "cancelled": False,
+        "extra_prompt": extra_prompt,
+    }
+    _batch_jobs[assignment_id] = job
+
+    # 啟動背景線程
+    t = threading.Thread(
+        target=_batch_grade_worker,
+        args=(assignment_id, sub_ids, teacher_id, extra_prompt),
+        daemon=True,
+    )
+    t.start()
+
+    return success_response(data=job, message="批改任務已啟動")
+
+
+@router.get("/api/assignments/teacher/{assignment_id}/batch-ai-grade/status")
+async def get_batch_ai_status(
+    assignment_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """查詢批量 AI 批改進度"""
+    job = _batch_jobs.get(assignment_id)
+    if not job:
+        return success_response(data={"status": "idle"})
+    return success_response(data={
+        "status": job["status"],
+        "total": job["total"],
+        "done": job["done"],
+        "success": job["success"],
+        "fail": job["fail"],
+    })
+
+
+@router.post("/api/assignments/teacher/{assignment_id}/batch-ai-grade/cancel")
+async def cancel_batch_ai_grade(
+    assignment_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """取消批量 AI 批改"""
+    job = _batch_jobs.get(assignment_id)
+    if not job or job["status"] != "running":
+        return error_response("沒有正在進行的批改任務")
+    job["cancelled"] = True
+    return success_response(message="已請求取消")
 
 
 # ================================================================

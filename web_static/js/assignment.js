@@ -75,6 +75,19 @@ const AssignmentAPI = {
             body: JSON.stringify({ extra_prompt: extraPrompt }),
         });
     },
+    // Batch AI Grade
+    async startBatchAiGrade(assignmentId, extraPrompt = '') {
+        return this._call(`/api/assignments/teacher/${assignmentId}/batch-ai-grade`, {
+            method: 'POST',
+            body: JSON.stringify({ extra_prompt: extraPrompt }),
+        });
+    },
+    async getBatchAiStatus(assignmentId) {
+        return this._call(`/api/assignments/teacher/${assignmentId}/batch-ai-grade/status`);
+    },
+    async cancelBatchAiGrade(assignmentId) {
+        return this._call(`/api/assignments/teacher/${assignmentId}/batch-ai-grade/cancel`, { method: 'POST' });
+    },
     async getTargets() {
         return this._call('/api/assignments/teacher/targets');
     },
@@ -1036,6 +1049,19 @@ const AssignmentApp = {
             <div id="batchAiProgress" style="display:none;"></div>
             <div id="submissionsArea">${AssignmentUI.renderSubmissionsList(subs)}</div>
         `;
+
+        // Check if there's an active batch AI grading job
+        this._stopBatchPolling();
+        this._checkBatchAiStatus(id);
+    },
+
+    async _checkBatchAiStatus(assignmentId) {
+        try {
+            const resp = await AssignmentAPI.getBatchAiStatus(assignmentId);
+            if (resp?.success && resp.data?.status === 'running') {
+                this._startBatchPolling(assignmentId);
+            }
+        } catch (e) { /* ignore */ }
     },
 
     _filterSubs(status, btn) {
@@ -1403,88 +1429,96 @@ const AssignmentApp = {
         const extraPrompt = (document.getElementById('batchAiExtraPrompt')?.value || '').trim();
         this.closeBatchAiModal();
 
-        const ungraded = (this._currentSubs || []).filter(s => s.status === 'submitted');
-        if (!ungraded.length) return;
-
+        const assignmentId = this.state.currentAssignment;
         const btn = document.getElementById('batchAiBtn');
-        if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 批改中...`; }
+        if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 啟動中...`; }
+
+        // Call backend to start batch grading
+        const resp = await AssignmentAPI.startBatchAiGrade(assignmentId, extraPrompt);
+        if (!resp?.success) {
+            UIModule.toast('啟動批改失敗: ' + (resp?.message || ''), 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = `${AssignmentUI.ICON.ai} 一鍵AI批改`; }
+            return;
+        }
+
+        UIModule.toast('AI 批改已在後台啟動', 'success');
+        // Start polling
+        this._startBatchPolling(assignmentId);
+    },
+
+    _batchPollTimer: null,
+
+    _startBatchPolling(assignmentId) {
+        // Clear any existing poll
+        if (this._batchPollTimer) clearInterval(this._batchPollTimer);
+
+        // Update immediately, then poll every 2s
+        this._pollBatchStatus(assignmentId);
+        this._batchPollTimer = setInterval(() => this._pollBatchStatus(assignmentId), 2000);
+    },
+
+    _stopBatchPolling() {
+        if (this._batchPollTimer) {
+            clearInterval(this._batchPollTimer);
+            this._batchPollTimer = null;
+        }
+    },
+
+    async _pollBatchStatus(assignmentId) {
+        const resp = await AssignmentAPI.getBatchAiStatus(assignmentId);
+        if (!resp?.success) return;
+        const job = resp.data;
 
         const progressEl = document.getElementById('batchAiProgress');
-        let done = 0, success = 0, fail = 0;
-        const total = ungraded.length;
+        const btn = document.getElementById('batchAiBtn');
 
-        const updateProgress = () => {
-            if (!progressEl) return;
-            progressEl.style.display = 'block';
-            const pct = Math.round((done / total) * 100);
-            progressEl.innerHTML = `
-                <div class="batch-ai-progress">
-                    <div class="batch-ai-bar">
-                        <div class="batch-ai-bar-fill" style="width:${pct}%"></div>
-                    </div>
-                    <div class="batch-ai-stats">
-                        <span>進度: ${done}/${total}</span>
-                        <span style="color:var(--color-success);">✓ ${success}</span>
-                        ${fail ? `<span style="color:var(--color-error);">✗ ${fail}</span>` : ''}
-                    </div>
-                </div>`;
-        };
-        updateProgress();
-
-        for (const sub of ungraded) {
-            try {
-                // Step 1: AI grade (with extra prompt)
-                const aiResp = await AssignmentAPI.aiGrade(sub.id, extraPrompt);
-                if (!aiResp?.success || aiResp.data?.error) {
-                    fail++; done++; updateProgress(); continue;
-                }
-                const result = aiResp.data;
-
-                // Step 2: Build scores from AI result and auto-save
-                const scores = [];
-                if (result.selected_level !== undefined) {
-                    // Holistic
-                    scores.push({
-                        rubric_item_id: 0,
-                        points: result.points || 0,
-                        selected_level: result.selected_level || '',
-                    });
-                } else {
-                    (result.items || []).forEach(item => {
-                        const entry = { rubric_item_id: item.rubric_item_id };
-                        if (item.points != null) entry.points = item.points;
-                        if (item.passed != null) entry.points = item.passed ? 1 : 0;
-                        if (item.selected_level) entry.selected_level = item.selected_level;
-                        scores.push(entry);
-                    });
-                }
-
-                const gradeResp = await AssignmentAPI.gradeSubmission(sub.id, {
-                    rubric_scores: scores,
-                    feedback: result.overall_feedback || 'AI 自動批改',
-                });
-
-                if (gradeResp?.success) { success++; } else { fail++; }
-            } catch (e) {
-                console.error('Batch AI grade error:', e);
-                fail++;
-            }
-            done++;
-            updateProgress();
+        if (job.status === 'idle') {
+            this._stopBatchPolling();
+            if (progressEl) progressEl.style.display = 'none';
+            return;
         }
 
-        // Done
+        if (job.status === 'running') {
+            if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 批改中 ${job.done}/${job.total}`; }
+            if (progressEl) {
+                progressEl.style.display = 'block';
+                const pct = job.total > 0 ? Math.round((job.done / job.total) * 100) : 0;
+                progressEl.innerHTML = `
+                    <div class="batch-ai-progress">
+                        <div class="batch-ai-bar">
+                            <div class="batch-ai-bar-fill" style="width:${pct}%"></div>
+                        </div>
+                        <div class="batch-ai-stats">
+                            <span>進度: ${job.done}/${job.total}</span>
+                            <span style="color:var(--color-success);">✓ ${job.success}</span>
+                            ${job.fail ? `<span style="color:var(--color-error);">✗ ${job.fail}</span>` : ''}
+                            <button class="btn btn-sm btn-outline" onclick="AssignmentApp._cancelBatchAiGrade()" style="margin-left:auto;">取消</button>
+                        </div>
+                    </div>`;
+            }
+            return;
+        }
+
+        // done / cancelled
+        this._stopBatchPolling();
+        const isDone = job.status === 'done';
+        const label = isDone ? '批改完成' : '已取消';
         if (progressEl) {
+            progressEl.style.display = 'block';
             progressEl.innerHTML = `
                 <div class="batch-ai-progress batch-ai-done">
-                    <span>${AssignmentUI.ICON.check} 批改完成！成功 ${success} 份${fail ? `，失敗 ${fail} 份` : ''}</span>
+                    <span>${AssignmentUI.ICON.check} ${label}！成功 ${job.success} 份${job.fail ? `，失敗 ${job.fail} 份` : ''}</span>
                 </div>`;
         }
+        UIModule.toast(`AI ${label}: ${job.success} 成功, ${job.fail} 失敗`, job.success > 0 ? 'success' : 'warning');
+        // Refresh after a short delay
+        setTimeout(() => this.viewAssignment(assignmentId), 1500);
+    },
 
-        UIModule.toast(`AI 批改完成: ${success} 成功, ${fail} 失敗`, success > 0 ? 'success' : 'error');
-
-        // Refresh view after a short delay
-        setTimeout(() => this.viewAssignment(this.state.currentAssignment), 1500);
+    async _cancelBatchAiGrade() {
+        const assignmentId = this.state.currentAssignment;
+        await AssignmentAPI.cancelBatchAiGrade(assignmentId);
+        UIModule.toast('正在取消...', 'info');
     },
 
     // ---- Rubric Type Definitions ----
