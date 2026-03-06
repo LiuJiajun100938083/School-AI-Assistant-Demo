@@ -392,9 +392,12 @@ async def start_batch_ai_grade(
         return success_response(data=existing, message="批改任務進行中")
 
     extra_prompt = ""
+    mode = "remaining"
     try:
         body = await req.json()
-        extra_prompt = (body.get("extra_prompt") or "") if isinstance(body, dict) else ""
+        if isinstance(body, dict):
+            extra_prompt = body.get("extra_prompt") or ""
+            mode = body.get("mode") or "remaining"
     except Exception:
         pass
 
@@ -403,10 +406,17 @@ async def start_batch_ai_grade(
     user = services.user.get_user(username)
     teacher_id = user["id"] if user else 0
 
-    # 查詢未批改的提交
-    subs = services.assignment.list_submissions(assignment_id, status="submitted")
+    # 根據模式查詢提交
+    if mode == "all":
+        # 全部重新批改：取所有已提交和已批改的
+        all_subs = services.assignment.list_submissions(assignment_id)
+        subs = [s for s in all_subs if s.get("status") in ("submitted", "graded")]
+    else:
+        # 批改剩餘：僅取未批改的
+        subs = services.assignment.list_submissions(assignment_id, status="submitted")
+
     if not subs:
-        return error_response("沒有待批改的提交")
+        return error_response("沒有可批改的提交")
 
     sub_ids = [s["id"] for s in subs]
 

@@ -76,10 +76,10 @@ const AssignmentAPI = {
         });
     },
     // Batch AI Grade
-    async startBatchAiGrade(assignmentId, extraPrompt = '') {
+    async startBatchAiGrade(assignmentId, extraPrompt = '', mode = 'remaining') {
         return this._call(`/api/assignments/teacher/${assignmentId}/batch-ai-grade`, {
             method: 'POST',
-            body: JSON.stringify({ extra_prompt: extraPrompt }),
+            body: JSON.stringify({ extra_prompt: extraPrompt, mode }),
         });
     },
     async getBatchAiStatus(assignmentId) {
@@ -1035,8 +1035,8 @@ const AssignmentApp = {
             <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;flex-wrap:wrap;gap:8px;">
                 <div style="display:flex;align-items:center;gap:12px;">
                     <h3 style="margin:0;">學生提交</h3>
-                    ${ungradedCount > 0 ? `<button class="btn btn-sm btn-ai" onclick="AssignmentApp.batchAiGrade()" id="batchAiBtn">
-                        ${AssignmentUI.ICON.ai} 一鍵AI批改 (${ungradedCount})
+                    ${(ungradedCount + gradedSubCount) > 0 ? `<button class="btn btn-sm btn-ai" onclick="AssignmentApp.batchAiGrade()" id="batchAiBtn">
+                        ${AssignmentUI.ICON.ai} 一鍵AI批改
                     </button>` : ''}
                 </div>
                 <div class="filter-tabs" style="margin:0;">
@@ -1355,61 +1355,93 @@ const AssignmentApp = {
 
     // ---- Batch AI Grade ----
     batchAiGrade() {
-        const ungraded = (this._currentSubs || []).filter(s => s.status === 'submitted');
-        if (!ungraded.length) {
-            UIModule.toast('沒有待批改的提交', 'info');
+        const allSubs = (this._currentSubs || []).filter(s => s.status === 'submitted' || s.status === 'graded');
+        const ungraded = allSubs.filter(s => s.status === 'submitted');
+        const graded = allSubs.filter(s => s.status === 'graded');
+
+        if (!allSubs.length) {
+            UIModule.toast('沒有可批改的提交', 'info');
             return;
         }
 
-        // Show confirmation modal with extra prompt input
-        const modal = document.getElementById('batchAiModal');
-        if (!modal) {
-            // Create modal if not in DOM
-            const div = document.createElement('div');
-            div.innerHTML = `
-            <div class="modal-overlay" id="batchAiModal">
-                <div class="batch-ai-modal">
-                    <div class="batch-ai-modal-header">
-                        <h3>${AssignmentUI.ICON.ai} 一鍵 AI 批改</h3>
-                        <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closeBatchAiModal()">✕</button>
-                    </div>
-                    <div class="batch-ai-modal-body">
-                        <div class="batch-ai-modal-info">
-                            即將對 <strong>${ungraded.length}</strong> 份待批改提交進行 AI 自動批改並保存評分。
-                        </div>
-                        <label class="batch-ai-label">額外提示（選填）</label>
-                        <textarea id="batchAiExtraPrompt" class="batch-ai-textarea" rows="4"
-                            placeholder="例如：&#10;• 評分寬鬆一些，鼓勵為主&#10;• 嚴格按照標準扣分&#10;• 重點關注代碼的可讀性&#10;• 如果有部分完成也給相應分數"></textarea>
-                        <div class="batch-ai-modal-tips">
-                            <span style="font-weight:500;">💡 提示範例：</span>
-                            <div class="batch-ai-tip-chips">
-                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('評分寬鬆一些，以鼓勵學生為主')">寬鬆評分</button>
-                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('嚴格按照評分標準，不符合要求的必須扣分')">嚴格評分</button>
-                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('重點關注代碼是否能正確運行，功能是否完整')">重功能</button>
-                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('注重代碼風格和可讀性，命名規範、縮進、註釋等')">重代碼風格</button>
-                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('部分完成的也酌情給分，不要全部扣掉')">部分給分</button>
+        // Default mode: if there are ungraded, default to "remaining"; otherwise "all"
+        const defaultMode = ungraded.length > 0 ? 'remaining' : 'all';
+        const defaultCount = defaultMode === 'remaining' ? ungraded.length : allSubs.length;
+
+        // Remove old modal if exists to ensure fresh counts
+        const oldModal = document.getElementById('batchAiModal');
+        if (oldModal) oldModal.remove();
+
+        const div = document.createElement('div');
+        div.innerHTML = `
+        <div class="modal-overlay" id="batchAiModal">
+            <div class="batch-ai-modal">
+                <div class="batch-ai-modal-header">
+                    <h3>${AssignmentUI.ICON.ai} 一鍵 AI 批改</h3>
+                    <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closeBatchAiModal()">✕</button>
+                </div>
+                <div class="batch-ai-modal-body">
+                    <label class="batch-ai-label">批改範圍</label>
+                    <div class="batch-ai-mode-select">
+                        <label class="batch-ai-mode-option${defaultMode === 'remaining' ? ' selected' : ''}${!ungraded.length ? ' disabled' : ''}">
+                            <input type="radio" name="batchAiMode" value="remaining"
+                                ${defaultMode === 'remaining' ? 'checked' : ''} ${!ungraded.length ? 'disabled' : ''}
+                                onchange="AssignmentApp._updateBatchMode()">
+                            <div class="batch-ai-mode-content">
+                                <span class="batch-ai-mode-title">📝 批改剩餘</span>
+                                <span class="batch-ai-mode-desc">僅批改尚未評分的提交 (<strong>${ungraded.length}</strong> 份)</span>
                             </div>
-                        </div>
+                        </label>
+                        <label class="batch-ai-mode-option${defaultMode === 'all' ? ' selected' : ''}">
+                            <input type="radio" name="batchAiMode" value="all"
+                                ${defaultMode === 'all' ? 'checked' : ''}
+                                onchange="AssignmentApp._updateBatchMode()">
+                            <div class="batch-ai-mode-content">
+                                <span class="batch-ai-mode-title">🔄 全部重新批改</span>
+                                <span class="batch-ai-mode-desc">重新批改所有提交，覆蓋已有評分 (<strong>${allSubs.length}</strong> 份)</span>
+                            </div>
+                        </label>
                     </div>
-                    <div class="batch-ai-modal-footer">
-                        <button class="btn btn-outline" onclick="AssignmentApp.closeBatchAiModal()">取消</button>
-                        <button class="btn btn-ai" id="batchAiStartBtn" onclick="AssignmentApp._startBatchAiGrade()">
-                            ${AssignmentUI.ICON.ai} 開始批改 (${ungraded.length} 份)
-                        </button>
+                    <label class="batch-ai-label">額外提示（選填）</label>
+                    <textarea id="batchAiExtraPrompt" class="batch-ai-textarea" rows="4"
+                        placeholder="例如：&#10;• 評分寬鬆一些，鼓勵為主&#10;• 嚴格按照標準扣分&#10;• 重點關注代碼的可讀性&#10;• 如果有部分完成也給相應分數"></textarea>
+                    <div class="batch-ai-modal-tips">
+                        <span style="font-weight:500;">💡 提示範例：</span>
+                        <div class="batch-ai-tip-chips">
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('評分寬鬆一些，以鼓勵學生為主')">寬鬆評分</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('嚴格按照評分標準，不符合要求的必須扣分')">嚴格評分</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('重點關注代碼是否能正確運行，功能是否完整')">重功能</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('注重代碼風格和可讀性，命名規範、縮進、註釋等')">重代碼風格</button>
+                            <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('部分完成的也酌情給分，不要全部扣掉')">部分給分</button>
+                        </div>
                     </div>
                 </div>
-            </div>`;
-            document.body.appendChild(div.firstElementChild);
-        } else {
-            // Update count and show
-            modal.querySelector('.batch-ai-modal-info strong').textContent = ungraded.length;
-            const startBtn = document.getElementById('batchAiStartBtn');
-            if (startBtn) startBtn.innerHTML = `${AssignmentUI.ICON.ai} 開始批改 (${ungraded.length} 份)`;
-            document.getElementById('batchAiExtraPrompt').value = '';
-            modal.classList.remove('hidden');
-            modal.style.display = '';
-        }
+                <div class="batch-ai-modal-footer">
+                    <button class="btn btn-outline" onclick="AssignmentApp.closeBatchAiModal()">取消</button>
+                    <button class="btn btn-ai" id="batchAiStartBtn" onclick="AssignmentApp._startBatchAiGrade()">
+                        ${AssignmentUI.ICON.ai} 開始批改 (${defaultCount} 份)
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(div.firstElementChild);
         document.body.style.overflow = 'hidden';
+    },
+
+    _updateBatchMode() {
+        const selected = document.querySelector('input[name="batchAiMode"]:checked')?.value || 'remaining';
+        const allSubs = (this._currentSubs || []).filter(s => s.status === 'submitted' || s.status === 'graded');
+        const ungraded = allSubs.filter(s => s.status === 'submitted');
+        const count = selected === 'remaining' ? ungraded.length : allSubs.length;
+
+        // Update selected styling
+        document.querySelectorAll('.batch-ai-mode-option').forEach(el => el.classList.remove('selected'));
+        const checkedRadio = document.querySelector('input[name="batchAiMode"]:checked');
+        if (checkedRadio) checkedRadio.closest('.batch-ai-mode-option')?.classList.add('selected');
+
+        // Update button text
+        const btn = document.getElementById('batchAiStartBtn');
+        if (btn) btn.innerHTML = `${AssignmentUI.ICON.ai} 開始批改 (${count} 份)`;
     },
 
     _insertAiTip(text) {
@@ -1427,6 +1459,7 @@ const AssignmentApp = {
 
     async _startBatchAiGrade() {
         const extraPrompt = (document.getElementById('batchAiExtraPrompt')?.value || '').trim();
+        const mode = document.querySelector('input[name="batchAiMode"]:checked')?.value || 'remaining';
         this.closeBatchAiModal();
 
         const assignmentId = this.state.currentAssignment;
@@ -1434,7 +1467,7 @@ const AssignmentApp = {
         if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 啟動中...`; }
 
         // Call backend to start batch grading
-        const resp = await AssignmentAPI.startBatchAiGrade(assignmentId, extraPrompt);
+        const resp = await AssignmentAPI.startBatchAiGrade(assignmentId, extraPrompt, mode);
         if (!resp?.success) {
             UIModule.toast('啟動批改失敗: ' + (resp?.message || ''), 'error');
             if (btn) { btn.disabled = false; btn.innerHTML = `${AssignmentUI.ICON.ai} 一鍵AI批改`; }
