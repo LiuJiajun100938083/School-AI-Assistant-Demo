@@ -15,7 +15,7 @@
 
 <div id="app" class="mb-page">
 
-    <!-- 頂部導航（科目切換內嵌） -->
+    <!-- 頂部導航 -->
     <header class="mb-header">
         <div class="mb-header__title">
             <a href="/">
@@ -23,16 +23,9 @@
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
-            <span>錯題本</span>
+            <span id="headerTitle">錯題本</span>
         </div>
-        <div class="mb-header__actions">
-            <div class="mb-subject-bar" id="subjectBar">
-                <button class="mb-subject-chip mb-subject-chip--active" data-subject="all">全部</button>
-                <button class="mb-subject-chip" data-subject="chinese">中文</button>
-                <button class="mb-subject-chip" data-subject="math">數學</button>
-                <button class="mb-subject-chip" data-subject="english">英文</button>
-            </div>
-        </div>
+        <div class="mb-header__actions" id="headerActions"></div>
     </header>
 
     <!-- 內容區 -->
@@ -40,7 +33,7 @@
         <main id="mainContent"></main>
     </div>
 
-    <!-- 底部標籤欄（SVG 圖標） -->
+    <!-- 底部標籤欄（3 Tab） -->
     <nav class="mb-tab-bar" id="tabBar">
         <div class="mb-tab-bar__item mb-tab-bar__item--active" data-tab="home">
             <span class="mb-tab-bar__icon">
@@ -49,29 +42,18 @@
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 </svg>
             </span>
-            <span class="mb-tab-bar__label">錯題</span>
+            <span class="mb-tab-bar__label">錯題本</span>
         </div>
-        <div class="mb-tab-bar__item" data-tab="review">
+        <div class="mb-tab-bar__item" data-tab="learn">
             <span class="mb-tab-bar__icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="17 1 21 5 17 9"></polyline>
-                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                    <polyline points="7 23 3 19 7 15"></polyline>
-                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                 </svg>
             </span>
-            <span class="mb-tab-bar__label">複習</span>
+            <span class="mb-tab-bar__label">學習</span>
+            <span class="mb-tab-bar__badge" id="learnBadge" style="display:none"></span>
         </div>
-        <div class="mb-tab-bar__item" data-tab="practice">
-            <span class="mb-tab-bar__icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 20h9"></path>
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                </svg>
-            </span>
-            <span class="mb-tab-bar__label">練習</span>
-        </div>
-        <div class="mb-tab-bar__item" data-tab="analysis">
+        <div class="mb-tab-bar__item" data-tab="profile">
             <span class="mb-tab-bar__icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -79,7 +61,7 @@
                     <line x1="6" y1="20" x2="6" y2="14"></line>
                 </svg>
             </span>
-            <span class="mb-tab-bar__label">分析</span>
+            <span class="mb-tab-bar__label">我的</span>
         </div>
     </nav>
 

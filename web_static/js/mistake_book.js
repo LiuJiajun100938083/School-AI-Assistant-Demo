@@ -84,15 +84,31 @@ const App = {
             el.classList.toggle('mb-tab-bar__item--active', el.dataset.tab === tab);
         });
 
+        // Update header title
+        const titleMap = { home: '錯題本', learn: '學習', profile: '我的' };
+        const titleEl = document.getElementById('headerTitle');
+        if (titleEl) titleEl.textContent = titleMap[tab] || '錯題本';
+
         const main = document.getElementById('mainContent');
         main.innerHTML = UI.loading();
 
+        // Render subject chips in header for home tab only
+        const headerActions = document.getElementById('headerActions');
+        if (tab === 'home') {
+            headerActions.innerHTML = UI.subjectChips();
+            headerActions.addEventListener('click', e => {
+                const chip = e.target.closest('.mb-subject-chip');
+                if (chip) this.setSubject(chip.dataset.subject);
+            });
+        } else {
+            headerActions.innerHTML = '';
+        }
+
         switch (tab) {
-            case 'home':     Views.renderHome(main);     break;
-            case 'review':   Views.renderReview(main);   break;
-            case 'practice': Views.renderPractice(main);  break;
-            case 'analysis': Views.renderAnalysis(main);  break;
-            default:         Views.renderHome(main);
+            case 'home':    Views.renderHome(main);    break;
+            case 'learn':   Views.renderLearn(main);   break;
+            case 'profile': Views.renderProfile(main); break;
+            default:        Views.renderHome(main);
         }
     },
 
@@ -110,11 +126,6 @@ const App = {
         document.getElementById('tabBar').addEventListener('click', e => {
             const item = e.target.closest('.mb-tab-bar__item');
             if (item) this.navigate(item.dataset.tab);
-        });
-
-        document.getElementById('subjectBar').addEventListener('click', e => {
-            const chip = e.target.closest('.mb-subject-chip');
-            if (chip) this.setSubject(chip.dataset.subject);
         });
 
         document.getElementById('uploadPanel').addEventListener('click', e => {
@@ -244,6 +255,16 @@ const UI = {
         return `<div class="mb-empty"><div class="mb-empty__icon">${icon}</div><div class="mb-empty__text">${text}</div></div>`;
     },
 
+    subjectChips() {
+        const current = App.state.currentSubject;
+        return `<div class="mb-subject-bar">
+            ${['all','chinese','math','english'].map(s => {
+                const label = {all:'全部',chinese:'中文',math:'數學',english:'英文'}[s];
+                return `<button class="mb-subject-chip${current===s?' mb-subject-chip--active':''}" data-subject="${s}">${label}</button>`;
+            }).join('')}
+        </div>`;
+    },
+
     toast(message, type = 'info') {
         const el = document.createElement('div');
         el.className = `mb-toast mb-toast--${type}`;
@@ -363,49 +384,38 @@ const UI = {
 
 const Views = {
 
-    /* ---- 首頁 ---- */
+    /* ---- 錯題本 Tab ---- */
     async renderHome(container) {
         const subject = App.state.currentSubject;
 
-        const [dashRes, listRes] = await Promise.all([
+        const [dashRes, listRes, reviewRes] = await Promise.all([
             API.getDashboard(),
             API.getMistakes(subject),
+            API.getReviewQueue(subject, 50),
         ]);
 
         const dash = dashRes?.data || {};
         const list = listRes?.data || { items: [], total: 0 };
+        const reviewItems = reviewRes?.data?.items || [];
         App.state.dashboard = dash;
         App.state.mistakes = list;
 
-        const total = dash.total_mistakes || 0;
-        const streak = dash.review_streak || 0;
-        const mastery = dash.mastery_overview || {};
-        const reviewDue = dash.review_due || 0;
+        const reviewDue = reviewItems.length;
 
-        let avgMastery = 0;
-        const mKeys = Object.keys(mastery);
-        if (mKeys.length) {
-            avgMastery = Math.round(mKeys.reduce((s, k) => s + (mastery[k].avg_mastery || 0), 0) / mKeys.length);
+        // Update learn badge
+        const badge = document.getElementById('learnBadge');
+        if (badge) {
+            if (reviewDue > 0) { badge.textContent = reviewDue; badge.style.display = ''; }
+            else { badge.style.display = 'none'; }
         }
 
-        // Hero headline
-        let headline = `${total} 道錯題`;
-        if (reviewDue > 0) headline = `${reviewDue} 道錯題待複習`;
-        else if (total === 0) headline = '開始記錄你的錯題';
-
         container.innerHTML = `
-            <!-- Hero Card -->
-            <div class="mb-hero">
-                <div class="mb-hero__greeting">Hi，${UI.escapeHtml(App.state.user?.display_name || App.state.user?.username || '同學')}</div>
-                <div class="mb-hero__headline">${headline}</div>
-                <div class="mb-hero__meta">
-                    <span>掌握度 ${avgMastery}%</span>
-                    <span>連續複習 ${streak} 天</span>
-                </div>
-                ${reviewDue > 0 ? `<button class="mb-hero__cta" onclick="App.navigate('review')">立即複習 ${Icons.arrowR(14)}</button>` : ''}
-            </div>
+            ${reviewDue > 0 ? `
+            <div class="mb-banner" onclick="App.navigate('learn')">
+                <div class="mb-banner__text">${Icons.repeat(14)} <strong>${reviewDue}</strong> 題待複習</div>
+                <div class="mb-banner__action">開始 ${Icons.arrowR(14)}</div>
+            </div>` : ''}
 
-            <!-- Quick Actions -->
             <div class="mb-quick-actions">
                 <div class="mb-quick-action" onclick="Upload.open('photo')">
                     <div class="mb-quick-action__icon">${Icons.camera(20)}</div>
@@ -423,7 +433,6 @@ const Views = {
                 </div>
             </div>
 
-            <!-- Mistake List -->
             <div class="mb-list-section">
                 <div class="mb-list-section__header">
                     <span class="mb-list-section__title">最近錯題</span>
@@ -562,6 +571,69 @@ const Views = {
         document.getElementById('detailPanel').classList.remove('mb-detail-panel--active');
     },
 
+    /* ---- 學習 Tab（合併複習 + 練習） ---- */
+    async renderLearn(container) {
+        if (!App.state._learnMode) App.state._learnMode = 'review';
+        const mode = App.state._learnMode;
+
+        // Pre-fetch review queue
+        const subject = App.state.currentSubject;
+        const reviewRes = await API.getReviewQueue(subject);
+        const reviewItems = reviewRes?.data?.items || [];
+        const reviewCount = reviewItems.length;
+
+        // Update tab badge
+        const badge = document.getElementById('learnBadge');
+        if (badge) {
+            if (reviewCount > 0) { badge.textContent = reviewCount; badge.style.display = ''; }
+            else { badge.style.display = 'none'; }
+        }
+
+        container.innerHTML = `
+            <div class="mb-segmented-control">
+                <button class="mb-segmented-control__item${mode === 'review' ? ' mb-segmented-control__item--active' : ''}"
+                        data-mode="review">復習${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
+                <button class="mb-segmented-control__item${mode === 'practice' ? ' mb-segmented-control__item--active' : ''}"
+                        data-mode="practice">練習</button>
+            </div>
+            <div id="learnContent"></div>
+        `;
+
+        // Bind segmented control
+        container.querySelector('.mb-segmented-control').addEventListener('click', e => {
+            const btn = e.target.closest('.mb-segmented-control__item');
+            if (!btn || btn.classList.contains('mb-segmented-control__item--active')) return;
+            App.state._learnMode = btn.dataset.mode;
+            container.querySelectorAll('.mb-segmented-control__item').forEach(b =>
+                b.classList.toggle('mb-segmented-control__item--active', b.dataset.mode === btn.dataset.mode));
+            const content = document.getElementById('learnContent');
+            content.innerHTML = UI.loading();
+            if (btn.dataset.mode === 'review') {
+                this.renderReview(content);
+            } else {
+                this.renderPractice(content);
+            }
+        });
+
+        // Render initial content
+        const content = document.getElementById('learnContent');
+        if (mode === 'review') {
+            if (reviewItems.length) {
+                App.state._reviewQueue = reviewItems;
+                App.state._reviewIdx = 0;
+                this._renderReviewCard(content);
+            } else {
+                content.innerHTML = `<div class="mb-empty-state">
+                    <div class="mb-empty-state__icon">${Icons.check(40)}</div>
+                    <div class="mb-empty-state__title">今日複習已完成</div>
+                    <div class="mb-empty-state__desc">沒有需要複習的錯題，去練習提升吧</div>
+                </div>`;
+            }
+        } else {
+            this.renderPractice(content);
+        }
+    },
+
     /* ---- 複習頁 ---- */
     async renderReview(container) {
         const subject = App.state.currentSubject;
@@ -625,27 +697,47 @@ const Views = {
     async _submitReview(mistakeId, result) {
         await API.recordReview(mistakeId, result);
         App.state._reviewIdx++;
-        this._renderReviewCard(document.getElementById('mainContent'));
+        // Use learnContent if inside Learn tab, otherwise mainContent
+        const container = document.getElementById('learnContent') || document.getElementById('mainContent');
+        this._renderReviewCard(container);
     },
 
     /* ---- 練習頁 ---- */
     async renderPractice(container) {
         const subject = App.state.currentSubject;
         if (subject === 'all') {
-            container.innerHTML = UI.empty('', '請先選擇一個科目，再開始 AI 練習');
+            container.innerHTML = `
+                <div class="mb-practice-setup">
+                    <div class="mb-practice-setup__icon">${Icons.target(40)}</div>
+                    <div class="mb-practice-setup__title">AI 智能練習</div>
+                    <div class="mb-practice-setup__desc">選擇一個科目，根據薄弱知識點自動出題</div>
+                    <div class="mb-practice-subjects"></div>
+                </div>
+            `;
+            const subjectsDiv = container.querySelector('.mb-practice-subjects');
+            subjectsDiv.innerHTML = ['chinese', 'math', 'english'].map(s =>
+                `<button class="mb-btn mb-btn--secondary" data-practice-subject="${s}">${UI.subjectLabel(s)}</button>`
+            ).join('');
+            subjectsDiv.addEventListener('click', e => {
+                const btn = e.target.closest('[data-practice-subject]');
+                if (btn) {
+                    App.state.currentSubject = btn.dataset.practiceSubject;
+                    this.renderPractice(container);
+                }
+            });
             return;
         }
 
         container.innerHTML = `
-            <div style="padding:40px 20px;text-align:center">
-                <div style="margin-bottom:20px">${Icons.target(48)}</div>
-                <div style="font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em">AI 智能練習</div>
-                <div style="font-size:14px;color:var(--mb-text-secondary);margin-bottom:28px">
+            <div class="mb-practice-setup">
+                <div class="mb-practice-setup__icon">${Icons.target(40)}</div>
+                <div class="mb-practice-setup__title">AI 智能練習</div>
+                <div class="mb-practice-setup__desc">
                     根據你的${UI.subjectLabel(subject)}薄弱知識點自動出題
                 </div>
-                <div style="margin-bottom:20px;max-width:240px;margin-left:auto;margin-right:auto">
-                    <label style="font-size:12px;color:var(--mb-text-tertiary);font-weight:500">題目數量</label>
-                    <select class="mb-select" id="practiceCount" style="margin-top:6px">
+                <div class="mb-practice-setup__form">
+                    <label class="mb-practice-setup__label">題目數量</label>
+                    <select class="mb-select" id="practiceCount">
                         <option value="3">3 題 · 快速練習</option>
                         <option value="5" selected>5 題 · 標準練習</option>
                         <option value="10">10 題 · 深度練習</option>
@@ -674,7 +766,8 @@ const Views = {
         }
 
         App.state._practiceSession = res.data;
-        this._renderPracticeQuestions(document.getElementById('mainContent'), res.data);
+        const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+        this._renderPracticeQuestions(target, res.data);
     },
 
     _renderPracticeQuestions(container, session) {
@@ -725,7 +818,7 @@ const Views = {
             answers.push({ question_idx: i, answer });
         });
 
-        const container = document.getElementById('mainContent');
+        const container = document.getElementById('learnContent') || document.getElementById('mainContent');
         container.innerHTML = UI.loading();
 
         const res = await API.submitPractice(session.session_id, answers);
@@ -764,18 +857,87 @@ const Views = {
         });
 
         html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center">
-            <button class="mb-btn mb-btn--primary" onclick="App.navigate('practice')">再練一組</button>
+            <button class="mb-btn mb-btn--primary" onclick="App.state._learnMode='practice';App.navigate('learn')">再練一組</button>
             <button class="mb-btn mb-btn--secondary" onclick="App.navigate('home')">回到首頁</button>
         </div>`;
 
         container.innerHTML = html;
     },
 
-    /* ---- 分析頁 ---- */
+    /* ---- 我的 Tab（個人分析） ---- */
+    async renderProfile(container) {
+        container.innerHTML = UI.loading();
+
+        const dashRes = await API.getDashboard();
+        const dash = dashRes?.data || {};
+        App.state.dashboard = dash;
+
+        const totalMistakes = dash.total_mistakes || 0;
+        const reviewStreak = dash.review_streak || 0;
+
+        // Compute overall avg mastery from per-subject mastery_overview
+        const overview = dash.mastery_overview || {};
+        const masteryVals = Object.values(overview).map(v => v.avg_mastery || 0).filter(v => v > 0);
+        const avgMastery = masteryVals.length ? Math.round(masteryVals.reduce((a, b) => a + b, 0) / masteryVals.length) : 0;
+
+        container.innerHTML = `
+            <div class="mb-stat-row">
+                <div class="mb-stat-block">
+                    <div class="mb-stat-block__value">${totalMistakes}</div>
+                    <div class="mb-stat-block__label">總錯題</div>
+                </div>
+                <div class="mb-stat-block">
+                    <div class="mb-stat-block__value">${avgMastery}%</div>
+                    <div class="mb-stat-block__label">平均掌握</div>
+                </div>
+                <div class="mb-stat-block">
+                    <div class="mb-stat-block__value">${reviewStreak}<span class="mb-stat-block__unit">天</span></div>
+                    <div class="mb-stat-block__label">連續複習</div>
+                </div>
+            </div>
+
+            <div class="mb-profile-subjects">${UI.subjectChips()}</div>
+
+            <div id="profileAnalysis">${UI.loading()}</div>
+        `;
+
+        // Bind subject chips inside profile
+        container.querySelector('.mb-profile-subjects')?.addEventListener('click', e => {
+            const chip = e.target.closest('.mb-subject-chip');
+            if (chip) {
+                App.state.currentSubject = chip.dataset.subject;
+                container.querySelectorAll('.mb-subject-chip').forEach(el =>
+                    el.classList.toggle('mb-subject-chip--active', el.dataset.subject === chip.dataset.subject));
+                const analysisDiv = document.getElementById('profileAnalysis');
+                analysisDiv.innerHTML = UI.loading();
+                if (chip.dataset.subject === 'all') {
+                    analysisDiv.innerHTML = `<div class="mb-empty-state">
+                        <div class="mb-empty-state__desc">選擇一個科目查看詳細分析報告</div>
+                    </div>`;
+                } else {
+                    this.renderAnalysis(analysisDiv);
+                }
+            }
+        });
+
+        // Render analysis
+        const analysisDiv = document.getElementById('profileAnalysis');
+        if (App.state.currentSubject === 'all') {
+            analysisDiv.innerHTML = `<div class="mb-empty-state">
+                <div class="mb-empty-state__desc">選擇一個科目查看詳細分析報告</div>
+            </div>`;
+        } else {
+            this.renderAnalysis(analysisDiv);
+        }
+    },
+
+    /* ---- 分析頁（內部使用） ---- */
     async renderAnalysis(container) {
         const subject = App.state.currentSubject;
         if (subject === 'all') {
-            container.innerHTML = UI.empty('', '請先選擇一個科目查看分析報告');
+            container.innerHTML = `<div class="mb-empty-state">
+                <div class="mb-empty-state__desc">選擇一個科目查看詳細分析報告</div>
+            </div>`;
             return;
         }
 

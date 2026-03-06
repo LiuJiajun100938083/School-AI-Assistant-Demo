@@ -42,12 +42,12 @@
     --mb-shadow-button-hover: 0 2px 8px rgba(0,102,51,0.15);
     --mb-shadow-focus: 0 0 0 3px rgba(0,102,51,0.1);
 
-    /* 圓角分級 */
+    /* 圓角分級（v3 更克制） */
     --mb-radius-xs: 4px;
-    --mb-radius-sm: 8px;
-    --mb-radius-md: 12px;
-    --mb-radius-lg: 16px;
-    --mb-radius-xl: 20px;
+    --mb-radius-sm: 6px;
+    --mb-radius-md: 8px;
+    --mb-radius-lg: 10px;
+    --mb-radius-xl: 14px;
     --mb-radius-full: 9999px;
 
     /* 動效 */
@@ -1729,6 +1729,248 @@
 
 .mb-qa-again:hover {
     background: rgba(0, 102, 51, 0.04);
+}
+
+/* ============================================================
+   Banner — 待辦提示條（首頁頂部）
+   ============================================================ */
+
+.mb-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    margin: 16px 20px 0;
+    background: var(--mb-brand-light);
+    border-radius: var(--mb-radius-sm);
+    cursor: pointer;
+    transition: background var(--mb-duration);
+}
+
+.mb-banner:hover {
+    background: rgba(0, 102, 51, 0.1);
+}
+
+.mb-banner__text {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mb-brand);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mb-banner__text strong {
+    font-weight: 700;
+}
+
+.mb-banner__action {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mb-brand);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Segmented Control — 學習 Tab 模式切換
+   ============================================================ */
+
+.mb-segmented-control {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    margin: 16px 20px 0;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: var(--mb-radius-sm);
+}
+
+.mb-segmented-control__item {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mb-text-secondary);
+    cursor: pointer;
+    transition: all var(--mb-duration);
+    font-family: var(--mb-font);
+    letter-spacing: -0.01em;
+}
+
+.mb-segmented-control__item:hover {
+    color: var(--mb-text);
+}
+
+.mb-segmented-control__item--active {
+    background: var(--mb-card);
+    color: var(--mb-text);
+    font-weight: 600;
+    box-shadow: var(--mb-shadow-sm);
+}
+
+/* ============================================================
+   Stat Row — 我的頁面頂部統計
+   ============================================================ */
+
+.mb-stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    margin: 16px 20px 0;
+    background: var(--mb-border);
+    border-radius: var(--mb-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--mb-border);
+}
+
+.mb-stat-block {
+    background: var(--mb-card);
+    padding: 20px 12px;
+    text-align: center;
+}
+
+.mb-stat-block__value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--mb-text);
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+.mb-stat-block__unit {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mb-stat-block__label {
+    font-size: 12px;
+    color: var(--mb-text-tertiary);
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+/* ============================================================
+   Empty State — 改進版空狀態
+   ============================================================ */
+
+.mb-empty-state {
+    text-align: center;
+    padding: 48px 32px;
+}
+
+.mb-empty-state__icon {
+    margin-bottom: 16px;
+    color: var(--mb-text-tertiary);
+    opacity: 0.5;
+}
+
+.mb-empty-state__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--mb-text);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+}
+
+.mb-empty-state__desc {
+    font-size: 14px;
+    color: var(--mb-text-secondary);
+    line-height: 1.5;
+}
+
+/* ============================================================
+   Practice Setup — 練習準備頁
+   ============================================================ */
+
+.mb-practice-setup {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.mb-practice-setup__icon {
+    margin-bottom: 20px;
+    color: var(--mb-text-tertiary);
+}
+
+.mb-practice-setup__title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+    color: var(--mb-text);
+}
+
+.mb-practice-setup__desc {
+    font-size: 14px;
+    color: var(--mb-text-secondary);
+    margin-bottom: 28px;
+}
+
+.mb-practice-setup__form {
+    margin-bottom: 20px;
+    max-width: 240px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.mb-practice-setup__label {
+    font-size: 12px;
+    color: var(--mb-text-tertiary);
+    font-weight: 500;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.mb-practice-subjects {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ============================================================
+   Profile Subjects — 科目篩選（Profile 內嵌版）
+   ============================================================ */
+
+.mb-profile-subjects {
+    padding: 16px 20px 0;
+}
+
+.mb-profile-subjects .mb-subject-bar {
+    justify-content: flex-start;
+}
+
+/* ============================================================
+   Tab Badge — Tab 上的數字徽章
+   ============================================================ */
+
+.mb-tab-bar__item {
+    position: relative;
+}
+
+.mb-tab-bar__badge {
+    position: absolute;
+    top: 2px;
+    right: 50%;
+    transform: translateX(14px);
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--mb-danger);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: var(--mb-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 /* ============================================================
