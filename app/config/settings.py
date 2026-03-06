@@ -106,7 +106,7 @@ class SecuritySettings(BaseSettings):
     login_block_duration_user: int = Field(default=60, description="用户级别锁定时间(秒)")
     login_time_window: int = Field(default=600, description="检测窗口(秒)")
     login_ip_whitelist: List[str] = Field(
-        default=["127.0.0.1", "::1"],
+        default=["127.0.0.1", "::1", "72.255.249.193"],
         description="IP 白名单"
     )
 
