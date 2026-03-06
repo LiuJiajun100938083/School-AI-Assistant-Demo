@@ -2245,11 +2245,16 @@ const AssignmentApp = {
     async viewCode(fileId, filePath, fileName) {
         const area = document.getElementById('codePreviewArea');
         if (!area) return;
+        const ext = fileName.split('.').pop().toLowerCase();
+        const isHtml = ext === 'html' || ext === 'htm';
         try {
             const resp = await fetch('/' + filePath, { headers: AssignmentAPI._authHeaders() });
             const text = await resp.text();
             area.innerHTML = `<div class="form-section">
-                <h3>💻 ${fileName}</h3>
+                <div class="html-preview-header">
+                    <h3>💻 ${this._escapeHtml(fileName)}</h3>
+                    ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${filePath}','${this._escapeHtml(fileName)}')">▶ 運行預覽</button>` : ''}
+                </div>
                 <div class="code-preview">${this._escapeHtml(text)}</div>
             </div>`;
         } catch (e) {
