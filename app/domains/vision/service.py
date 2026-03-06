@@ -598,6 +598,75 @@ Output JSON only.
     #  響應解析
     # ================================================================
 
+    @staticmethod
+    def _extract_json_from_thinking(text: str) -> str:
+        """
+        從 thinking 模式的混合文本中智能提取 JSON 塊。
+
+        thinking 輸出通常是：推理文字 + JSON 塊 + 可能更多推理文字。
+        策略：找到所有 '{' 位置，從每個位置做括號匹配，
+        嘗試解析為 JSON，返回第一個含 'question' 或 'answer' 鍵的有效 JSON 字符串。
+        """
+        import re as _re
+
+        # 先嘗試 ```json ... ``` 塊
+        if "```json" in text:
+            block = text.split("```json")[1].split("```")[0].strip()
+            if block:
+                return block
+        if "```" in text:
+            parts = text.split("```")
+            if len(parts) >= 3:
+                block = parts[1].strip()
+                if block.startswith("{"):
+                    return block
+
+        # 從每個 '{' 位置做括號匹配，嘗試提取完整 JSON 對象
+        candidates = []
+        i = 0
+        while i < len(text):
+            if text[i] == '{':
+                depth = 0
+                in_str = False
+                esc = False
+                for j in range(i, len(text)):
+                    ch = text[j]
+                    if esc:
+                        esc = False
+                        continue
+                    if ch == '\\' and in_str:
+                        esc = True
+                        continue
+                    if ch == '"' and not esc:
+                        in_str = not in_str
+                        continue
+                    if in_str:
+                        continue
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            candidate = text[i:j + 1]
+                            # 快速檢查是否包含 OCR 相關的鍵
+                            if ('"question"' in candidate or '"answer"' in candidate):
+                                candidates.append(candidate)
+                            break
+            i += 1
+
+        # 優先選擇最大的候選（通常包含最完整的數據）
+        if candidates:
+            candidates.sort(key=len, reverse=True)
+            return candidates[0]
+
+        # 回退：傳統的 find/rfind 方法
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            return text[start:end + 1]
+
+        return text
+
     def _parse_ocr_response(
         self,
         raw_response: str,
@@ -606,18 +675,8 @@ Output JSON only.
     ) -> OCRResult:
         """解析視覺模型的 JSON 輸出"""
         try:
-            # 嘗試提取 JSON（模型可能包裹在 ```json ... ``` 中）
-            json_str = raw_response.strip()
-            if "```json" in json_str:
-                json_str = json_str.split("```json")[1].split("```")[0].strip()
-            elif "```" in json_str:
-                json_str = json_str.split("```")[1].split("```")[0].strip()
-
-            # 嘗試找到第一個 { 和最後一個 }
-            start = json_str.find("{")
-            end = json_str.rfind("}")
-            if start != -1 and end != -1:
-                json_str = json_str[start : end + 1]
+            # 智能提取 JSON（處理 thinking 模式的混合文本）
+            json_str = self._extract_json_from_thinking(raw_response)
 
             data = self._safe_json_loads(json_str)
 
