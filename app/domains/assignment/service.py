@@ -663,13 +663,15 @@ class AssignmentService:
     def _parse_ai_response(
         self, answer: str, rubric_items: List[Dict], rubric_type: str = "points"
     ) -> Dict[str, Any]:
-        """解析 AI 回應中的 JSON"""
+        """解析 AI 回應中的 JSON（含截斷修復）"""
+        # 1) 直接解析
         try:
             result = json.loads(answer)
             return self._validate_ai_result(result, rubric_items, rubric_type)
         except json.JSONDecodeError:
             pass
 
+        # 2) 提取 JSON 區塊
         json_match = re.search(r'\{[\s\S]*\}', answer)
         if json_match:
             try:
@@ -678,11 +680,47 @@ class AssignmentService:
             except json.JSONDecodeError:
                 pass
 
+        # 3) 嘗試修復截斷的 JSON — 逐個提取完整的 item 對象
+        repaired = self._repair_truncated_json(answer, rubric_type)
+        if repaired:
+            return self._validate_ai_result(repaired, rubric_items, rubric_type)
+
         return {
             "items": [],
             "overall_feedback": answer[:500],
             "error": True,
         }
+
+    def _repair_truncated_json(self, answer: str, rubric_type: str) -> Optional[Dict]:
+        """修復被截斷的 AI JSON 回應，提取已完成的 item"""
+        try:
+            # 提取所有完整的 item 對象 {...}
+            item_pattern = r'\{\s*"rubric_item_id"\s*:\s*\d+[^{}]*\}'
+            items = re.findall(item_pattern, answer)
+            if not items:
+                return None
+
+            parsed_items = []
+            for item_str in items:
+                try:
+                    parsed_items.append(json.loads(item_str))
+                except json.JSONDecodeError:
+                    continue
+
+            if not parsed_items:
+                return None
+
+            # 提取 overall_feedback（如果有）
+            fb_match = re.search(r'"overall_feedback"\s*:\s*"([^"]*)"', answer)
+            feedback = fb_match.group(1) if fb_match else "（AI 回應被截斷，已自動修復部分評分）"
+
+            logger.warning("AI 回應被截斷，成功修復 %d/%d 項評分", len(parsed_items), len(items))
+            return {
+                "items": parsed_items,
+                "overall_feedback": feedback,
+            }
+        except Exception:
+            return None
 
     def _validate_ai_result(
         self, result: Dict, rubric_items: List[Dict], rubric_type: str = "points"
