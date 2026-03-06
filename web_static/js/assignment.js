@@ -88,6 +88,16 @@ const AssignmentAPI = {
     async cancelBatchAiGrade(assignmentId) {
         return this._call(`/api/assignments/teacher/${assignmentId}/batch-ai-grade/cancel`, { method: 'POST' });
     },
+    // Excel export (returns raw Response, not parsed JSON)
+    async exportExcel(assignmentId) {
+        const token = AuthModule?.getToken?.() || localStorage.getItem('auth_token');
+        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/export-excel`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (resp.status === 401) { window.location.href = '/'; return null; }
+        if (!resp.ok) throw new Error('匯出失敗');
+        return resp;
+    },
     async getTargets() {
         return this._call('/api/assignments/teacher/targets');
     },
@@ -1038,6 +1048,9 @@ const AssignmentApp = {
                     ${(ungradedCount + gradedSubCount) > 0 ? `<button class="btn btn-sm btn-ai" onclick="AssignmentApp.batchAiGrade()" id="batchAiBtn">
                         ${AssignmentUI.ICON.ai} 一鍵AI批改
                     </button>` : ''}
+                    ${subs.length > 0 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportGradeExcel()" id="exportExcelBtn">
+                        匯出成績
+                    </button>` : ''}
                 </div>
                 <div class="filter-tabs" style="margin:0;">
                     <button class="filter-tab active" onclick="AssignmentApp._filterSubs('all', this)">全部 <span class="count">${subs.length}</span></button>
@@ -1455,6 +1468,44 @@ const AssignmentApp = {
         const modal = document.getElementById('batchAiModal');
         if (modal) { modal.remove(); }
         document.body.style.overflow = '';
+    },
+
+    // ---- Excel Export ----
+    async exportGradeExcel() {
+        const assignmentId = this.state.currentAssignment;
+        if (!assignmentId) return;
+
+        const btn = document.getElementById('exportExcelBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '匯出中...'; }
+
+        try {
+            const resp = await AssignmentAPI.exportExcel(assignmentId);
+            if (!resp) return;
+
+            // Extract filename from Content-Disposition header
+            const cd = resp.headers.get('content-disposition');
+            let filename = '成績.xlsx';
+            if (cd) {
+                const match = cd.match(/filename\*?=['"]?(?:UTF-8'')?([^;\r\n"']*)['"]?/i);
+                if (match) filename = decodeURIComponent(match[1]);
+            }
+
+            const blob = await resp.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            UIModule.toast('成績匯出成功', 'success');
+        } catch (e) {
+            console.error('匯出失敗:', e);
+            UIModule.toast('匯出失敗: ' + (e.message || ''), 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '匯出成績'; }
+        }
     },
 
     async _startBatchAiGrade() {
