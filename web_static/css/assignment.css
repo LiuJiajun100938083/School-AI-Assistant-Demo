@@ -1499,6 +1499,93 @@ body {
 }
 
 /* ============================================================
+   Teacher Proxy Submit (Drag & Drop)
+   ============================================================ */
+
+.proxy-drop-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-card);
+    border: 2px dashed var(--border-default);
+    padding: var(--space-3) var(--space-4);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    transition: all 0.2s ease;
+    cursor: default;
+    position: relative;
+}
+.proxy-drop-card.proxy-submitted {
+    border-style: solid;
+    border-width: 1px;
+}
+.proxy-drop-card:hover {
+    border-color: var(--brand-border);
+    background: var(--bg-card-hover);
+}
+.proxy-drop-card.proxy-drag-over {
+    border-color: var(--brand);
+    background: var(--brand-lighter);
+    box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.12);
+    transform: scale(1.01);
+}
+.proxy-drop-hint {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.proxy-drop-text {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+.proxy-drop-card.proxy-drag-over .proxy-drop-text {
+    color: var(--brand);
+    font-weight: 500;
+    font-style: normal;
+}
+.proxy-files-area {
+    width: 100%;
+    border-top: 1px solid var(--border-default);
+    padding-top: var(--space-3);
+    margin-top: var(--space-2);
+}
+.proxy-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: var(--space-3);
+}
+.proxy-file-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+.proxy-file-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.proxy-file-size {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+.proxy-actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+}
+
+/* ============================================================
    Loading & Empty
    ============================================================ */
 

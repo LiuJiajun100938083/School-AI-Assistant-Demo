@@ -139,7 +139,7 @@ async def update_assignment(
     request: UpdateAssignmentRequest,
     teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
-    """更新草稿作業"""
+    """更新作業（草稿和已發布均可）"""
     username, _ = teacher_info
     services = get_services()
 
@@ -412,6 +412,38 @@ async def submit_assignment(
         files=files if files else None,
     )
     return success_response(data=result, message="提交成功")
+
+
+@router.post("/api/assignments/teacher/{assignment_id}/submit-for-student")
+async def teacher_submit_for_student(
+    assignment_id: int,
+    student_username: str = Form(...),
+    content: str = Form(default=""),
+    files: List[UploadFile] = File(default=[]),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """教師代替學生提交作業"""
+    services = get_services()
+
+    # 查找學生信息
+    student_user = services.user.get_user(student_username)
+    if not student_user:
+        return error_response(f"找不到學生: {student_username}", status_code=404)
+
+    student = {
+        "id": student_user["id"],
+        "username": student_user.get("username", student_username),
+        "display_name": student_user.get("display_name") or student_user.get("name", student_username),
+        "class_name": student_user.get("class_name", ""),
+    }
+
+    result = await services.assignment.submit_assignment(
+        assignment_id=assignment_id,
+        student=student,
+        content=content or f"（由教師 {teacher_info[0]} 代為提交）",
+        files=files if files else None,
+    )
+    return success_response(data=result, message="代提交成功")
 
 
 # ================================================================

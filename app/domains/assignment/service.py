@@ -178,11 +178,11 @@ class AssignmentService:
         teacher_id: int,
         **fields,
     ) -> Dict[str, Any]:
-        """更新草稿作業"""
+        """更新作業（草稿和已發布狀態均可編輯）"""
         assignment = self._get_assignment_or_raise(assignment_id)
 
-        if assignment["status"] != "draft":
-            raise ValidationError("只有草稿狀態的作業可以編輯")
+        if assignment["status"] == "closed":
+            raise ValidationError("已關閉的作業無法編輯")
 
         rubric_items = fields.pop("rubric_items", None)
         rubric_type = fields.pop("rubric_type", None)

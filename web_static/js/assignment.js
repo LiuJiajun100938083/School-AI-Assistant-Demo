@@ -97,6 +97,19 @@ const AssignmentAPI = {
         if (resp.status === 401) { window.location.href = '/'; return null; }
         return resp.json();
     },
+    async teacherSubmitForStudent(assignmentId, studentUsername, files, content = '') {
+        const formData = new FormData();
+        formData.append('student_username', studentUsername);
+        formData.append('content', content);
+        if (files) { for (const f of files) formData.append('files', f); }
+        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/submit-for-student`, {
+            method: 'POST',
+            headers: this._authHeaders(),
+            body: formData
+        });
+        if (resp.status === 401) { window.location.href = '/'; return null; }
+        return resp.json();
+    },
 
     // Attachments
     async uploadAttachments(assignmentId, files) {
@@ -417,6 +430,64 @@ const AssignmentUI = {
                         this.badge(s.status)}
                 </div></div>`;
         }).join('')}</div>`;
+    },
+
+    // ---- Proxy Submit List (Teacher drag-drop) ----
+    renderProxySubmitList(notSubmitted, submissions) {
+        // Group: not submitted first, then already submitted
+        const allCards = [];
+
+        // Not submitted students — show drag-drop zones
+        notSubmitted.forEach(s => {
+            const initial = (s.display_name || s.username || '?')[0].toUpperCase();
+            allCards.push(`<div class="proxy-drop-card" data-username="${s.username}"
+                ondragover="AssignmentApp._proxyDragOver(event)"
+                ondragleave="AssignmentApp._proxyDragLeave(event)"
+                ondrop="AssignmentApp._proxyDrop(event, '${s.username}')">
+                <div class="student-avatar">${initial}</div>
+                <div class="submission-info">
+                    <h4>${s.display_name || s.username}</h4>
+                    <p>${s.class_name || ''}</p>
+                </div>
+                <div class="proxy-drop-hint">
+                    <span class="badge badge-not_submitted">未提交</span>
+                    <span class="proxy-drop-text">拖拽文件到此處</span>
+                </div>
+                <div class="proxy-files-area" id="proxyFiles_${s.username}" style="display:none;"></div>
+            </div>`);
+        });
+
+        // Already submitted students — show status
+        submissions.forEach(s => {
+            const initial = (s.student_name || s.username || '?')[0].toUpperCase();
+            allCards.push(`<div class="proxy-drop-card proxy-submitted"
+                data-username="${s.username}"
+                ondragover="AssignmentApp._proxyDragOver(event)"
+                ondragleave="AssignmentApp._proxyDragLeave(event)"
+                ondrop="AssignmentApp._proxyDrop(event, '${s.username}')">
+                <div class="student-avatar">${initial}</div>
+                <div class="submission-info">
+                    <h4>${s.student_name || s.username}</h4>
+                    <p>${s.class_name || ''} · ${this.formatDate(s.submitted_at)}</p>
+                </div>
+                <div class="proxy-drop-hint">
+                    ${s.score !== null && s.score !== undefined ?
+                        `<span class="submission-score">${s.score}</span>` :
+                        this.badge(s.status)}
+                    <span class="proxy-drop-text">拖拽可重新提交</span>
+                </div>
+                <div class="proxy-files-area" id="proxyFiles_${s.username}" style="display:none;"></div>
+            </div>`);
+        });
+
+        if (!allCards.length) return `<div class="empty-state">
+            <div class="empty-state-icon">${this.ICON.inbox}</div>
+            <div class="empty-state-text">沒有可代提交的學生</div></div>`;
+
+        return `<div class="proxy-submit-hint" style="margin-bottom:12px;padding:12px 16px;background:var(--brand-lighter);border-radius:var(--radius-card);font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;">
+            ${this.ICON.upload} 將文件拖拽到學生卡片上即可代為提交作業
+        </div>
+        <div class="assignment-grid">${allCards.join('')}</div>`;
     },
 
     // ---- File List ----
@@ -856,14 +927,33 @@ const AssignmentApp = {
         const main = document.getElementById('mainContent');
         main.innerHTML = AssignmentUI.skeletonDetail();
 
-        const [asgResp, subResp] = await Promise.all([
+        const [asgResp, subResp, targetResp] = await Promise.all([
             AssignmentAPI.getTeacherAssignment(id),
             AssignmentAPI.listSubmissions(id),
+            AssignmentAPI.getTargets(),
         ]);
 
         if (!asgResp?.success) { main.innerHTML = '<p>載入失敗</p>'; return; }
         const asg = asgResp.data;
         const subs = subResp?.data || [];
+        this._currentAsg = asg;
+
+        // Filter students based on assignment target
+        const allStudents = targetResp?.data?.students || [];
+        let targetStudents = allStudents;
+        if (asg.target_type === 'class' && asg.target_value) {
+            const targetClasses = asg.target_value.split(',').map(c => c.trim());
+            targetStudents = allStudents.filter(s => targetClasses.includes(s.class_name));
+        } else if (asg.target_type === 'student' && asg.target_value) {
+            const targetUsernames = asg.target_value.split(',').map(u => u.trim());
+            targetStudents = allStudents.filter(s => targetUsernames.includes(s.username));
+        }
+        this._targetStudents = targetStudents;
+
+        // Identify students who haven't submitted
+        const submittedUsernames = new Set(subs.map(s => s.username));
+        const notSubmitted = targetStudents.filter(s => !submittedUsernames.has(s.username));
+        this._notSubmittedStudents = notSubmitted;
 
         this.setBreadcrumb([
             { label: '作業列表', action: 'AssignmentApp.showTeacherList()' },
@@ -872,7 +962,7 @@ const AssignmentApp = {
         this.setHeaderActions(`
             ${asg.status === 'draft' ? `<button class="btn btn-success" onclick="AssignmentApp.publishAssignment(${id})">發布</button>` : ''}
             ${asg.status === 'published' ? `<button class="btn btn-warning" onclick="AssignmentApp.closeAssignment(${id})">關閉提交</button>` : ''}
-            ${asg.status === 'draft' ? `<button class="btn btn-outline" onclick="AssignmentApp.editAssignment(${id})">編輯</button>` : ''}
+            ${asg.status !== 'closed' ? `<button class="btn btn-outline" onclick="AssignmentApp.editAssignment(${id})">編輯</button>` : ''}
             <button class="btn btn-outline btn-danger" onclick="AssignmentApp.deleteAssignment(${id})">刪除作業</button>
         `);
 
@@ -932,6 +1022,7 @@ const AssignmentApp = {
                     <button class="filter-tab active" onclick="AssignmentApp._filterSubs('all', this)">全部 <span class="count">${subs.length}</span></button>
                     <button class="filter-tab" onclick="AssignmentApp._filterSubs('submitted', this)">待批改 <span class="count">${ungradedCount}</span></button>
                     <button class="filter-tab" onclick="AssignmentApp._filterSubs('graded', this)">已批改 <span class="count">${gradedSubCount}</span></button>
+                    <button class="filter-tab" onclick="AssignmentApp._filterSubs('proxy', this)">代提交 <span class="count">${notSubmitted.length}</span></button>
                 </div>
             </div>
             <div id="submissionsArea">${AssignmentUI.renderSubmissionsList(subs)}</div>
@@ -939,9 +1030,13 @@ const AssignmentApp = {
     },
 
     _filterSubs(status, btn) {
-        document.querySelectorAll('#submissionsArea').closest('div')?.parentElement
-            ?.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
+        if (status === 'proxy') {
+            document.getElementById('submissionsArea').innerHTML =
+                AssignmentUI.renderProxySubmitList(this._notSubmittedStudents || [], this._currentSubs || []);
+            return;
+        }
         const filtered = status === 'all' ? this._currentSubs : this._currentSubs.filter(s => s.status === status);
         document.getElementById('submissionsArea').innerHTML = AssignmentUI.renderSubmissionsList(filtered);
     },
@@ -2373,6 +2468,122 @@ const AssignmentApp = {
         if (area) {
             area.innerHTML = '';
             area.dataset.currentFile = '';
+        }
+    },
+
+    // ---- Teacher Proxy Submit (drag-drop) ----
+    _proxyPendingFiles: {},
+
+    _proxyDragOver(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = e.currentTarget;
+        card.classList.add('proxy-drag-over');
+    },
+
+    _proxyDragLeave(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = e.currentTarget;
+        card.classList.remove('proxy-drag-over');
+    },
+
+    _proxyDrop(e, username) {
+        e.preventDefault();
+        e.stopPropagation();
+        const card = e.currentTarget;
+        card.classList.remove('proxy-drag-over');
+
+        const files = Array.from(e.dataTransfer.files);
+        if (!files.length) return;
+
+        // Store files for this student
+        if (!this._proxyPendingFiles[username]) {
+            this._proxyPendingFiles[username] = [];
+        }
+        this._proxyPendingFiles[username].push(...files);
+
+        // Show the files on the card
+        this._renderProxyFiles(username);
+    },
+
+    _renderProxyFiles(username) {
+        const area = document.getElementById(`proxyFiles_${username}`);
+        if (!area) return;
+
+        const files = this._proxyPendingFiles[username] || [];
+        if (!files.length) { area.style.display = 'none'; return; }
+
+        area.style.display = 'block';
+        area.innerHTML = `
+            <div class="proxy-file-list">
+                ${files.map((f, i) => `<div class="proxy-file-item">
+                    <span class="proxy-file-name">${this._escapeHtml(f.name)}</span>
+                    <span class="proxy-file-size">${AssignmentUI.formatFileSize(f.size)}</span>
+                    <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();AssignmentApp._removeProxyFile('${username}',${i})" title="移除">✕</button>
+                </div>`).join('')}
+            </div>
+            <div class="proxy-actions">
+                <button class="btn btn-sm btn-success" onclick="event.stopPropagation();AssignmentApp._doProxySubmit('${username}')">
+                    ${AssignmentUI.ICON.upload} 提交
+                </button>
+                <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();AssignmentApp._clearProxyFiles('${username}')">清除</button>
+            </div>
+        `;
+    },
+
+    _removeProxyFile(username, index) {
+        if (this._proxyPendingFiles[username]) {
+            this._proxyPendingFiles[username].splice(index, 1);
+            this._renderProxyFiles(username);
+        }
+    },
+
+    _clearProxyFiles(username) {
+        this._proxyPendingFiles[username] = [];
+        this._renderProxyFiles(username);
+    },
+
+    async _doProxySubmit(username) {
+        const files = this._proxyPendingFiles[username];
+        if (!files || !files.length) {
+            UIModule.toast('沒有文件可提交', 'warning');
+            return;
+        }
+
+        const assignmentId = this.state.currentAssignment;
+        const card = document.querySelector(`.proxy-drop-card[data-username="${username}"]`);
+        const filesArea = document.getElementById(`proxyFiles_${username}`);
+
+        // Show loading state
+        if (filesArea) {
+            const submitBtn = filesArea.querySelector('.btn-success');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<div class="loading-spinner"></div> 提交中...';
+            }
+        }
+
+        try {
+            const resp = await AssignmentAPI.teacherSubmitForStudent(assignmentId, username, files);
+            if (resp?.success) {
+                UIModule.toast(`已代 ${username} 提交成功`, 'success');
+                this._proxyPendingFiles[username] = [];
+                // Refresh the assignment view
+                this.viewAssignment(assignmentId);
+            } else {
+                UIModule.toast('代提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+                if (filesArea) {
+                    const submitBtn = filesArea.querySelector('.btn-success');
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${AssignmentUI.ICON.upload} 提交`; }
+                }
+            }
+        } catch (e) {
+            UIModule.toast('代提交失敗: ' + e.message, 'error');
+            if (filesArea) {
+                const submitBtn = filesArea.querySelector('.btn-success');
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = `${AssignmentUI.ICON.upload} 提交`; }
+            }
         }
     },
 
