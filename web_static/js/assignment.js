@@ -69,8 +69,11 @@ const AssignmentAPI = {
             method: 'POST', body: JSON.stringify(data)
         });
     },
-    async aiGrade(subId) {
-        return this._call(`/api/assignments/teacher/submissions/${subId}/ai-grade`, { method: 'POST' });
+    async aiGrade(subId, extraPrompt = '') {
+        return this._call(`/api/assignments/teacher/submissions/${subId}/ai-grade`, {
+            method: 'POST',
+            body: JSON.stringify({ extra_prompt: extraPrompt }),
+        });
     },
     async getTargets() {
         return this._call('/api/assignments/teacher/targets');
@@ -1325,12 +1328,83 @@ const AssignmentApp = {
     },
 
     // ---- Batch AI Grade ----
-    async batchAiGrade() {
+    batchAiGrade() {
         const ungraded = (this._currentSubs || []).filter(s => s.status === 'submitted');
         if (!ungraded.length) {
             UIModule.toast('沒有待批改的提交', 'info');
             return;
         }
+
+        // Show confirmation modal with extra prompt input
+        const modal = document.getElementById('batchAiModal');
+        if (!modal) {
+            // Create modal if not in DOM
+            const div = document.createElement('div');
+            div.innerHTML = `
+            <div class="modal-overlay" id="batchAiModal">
+                <div class="batch-ai-modal">
+                    <div class="batch-ai-modal-header">
+                        <h3>${AssignmentUI.ICON.ai} 一鍵 AI 批改</h3>
+                        <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closeBatchAiModal()">✕</button>
+                    </div>
+                    <div class="batch-ai-modal-body">
+                        <div class="batch-ai-modal-info">
+                            即將對 <strong>${ungraded.length}</strong> 份待批改提交進行 AI 自動批改並保存評分。
+                        </div>
+                        <label class="batch-ai-label">額外提示（選填）</label>
+                        <textarea id="batchAiExtraPrompt" class="batch-ai-textarea" rows="4"
+                            placeholder="例如：&#10;• 評分寬鬆一些，鼓勵為主&#10;• 嚴格按照標準扣分&#10;• 重點關注代碼的可讀性&#10;• 如果有部分完成也給相應分數"></textarea>
+                        <div class="batch-ai-modal-tips">
+                            <span style="font-weight:500;">💡 提示範例：</span>
+                            <div class="batch-ai-tip-chips">
+                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('評分寬鬆一些，以鼓勵學生為主')">寬鬆評分</button>
+                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('嚴格按照評分標準，不符合要求的必須扣分')">嚴格評分</button>
+                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('重點關注代碼是否能正確運行，功能是否完整')">重功能</button>
+                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('注重代碼風格和可讀性，命名規範、縮進、註釋等')">重代碼風格</button>
+                                <button class="batch-ai-chip" onclick="AssignmentApp._insertAiTip('部分完成的也酌情給分，不要全部扣掉')">部分給分</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="batch-ai-modal-footer">
+                        <button class="btn btn-outline" onclick="AssignmentApp.closeBatchAiModal()">取消</button>
+                        <button class="btn btn-ai" id="batchAiStartBtn" onclick="AssignmentApp._startBatchAiGrade()">
+                            ${AssignmentUI.ICON.ai} 開始批改 (${ungraded.length} 份)
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.appendChild(div.firstElementChild);
+        } else {
+            // Update count and show
+            modal.querySelector('.batch-ai-modal-info strong').textContent = ungraded.length;
+            const startBtn = document.getElementById('batchAiStartBtn');
+            if (startBtn) startBtn.innerHTML = `${AssignmentUI.ICON.ai} 開始批改 (${ungraded.length} 份)`;
+            document.getElementById('batchAiExtraPrompt').value = '';
+            modal.classList.remove('hidden');
+            modal.style.display = '';
+        }
+        document.body.style.overflow = 'hidden';
+    },
+
+    _insertAiTip(text) {
+        const ta = document.getElementById('batchAiExtraPrompt');
+        if (!ta) return;
+        ta.value = ta.value ? ta.value + '\n' + text : text;
+        ta.focus();
+    },
+
+    closeBatchAiModal() {
+        const modal = document.getElementById('batchAiModal');
+        if (modal) { modal.remove(); }
+        document.body.style.overflow = '';
+    },
+
+    async _startBatchAiGrade() {
+        const extraPrompt = (document.getElementById('batchAiExtraPrompt')?.value || '').trim();
+        this.closeBatchAiModal();
+
+        const ungraded = (this._currentSubs || []).filter(s => s.status === 'submitted');
+        if (!ungraded.length) return;
 
         const btn = document.getElementById('batchAiBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> 批改中...`; }
@@ -1359,8 +1433,8 @@ const AssignmentApp = {
 
         for (const sub of ungraded) {
             try {
-                // Step 1: AI grade
-                const aiResp = await AssignmentAPI.aiGrade(sub.id);
+                // Step 1: AI grade (with extra prompt)
+                const aiResp = await AssignmentAPI.aiGrade(sub.id, extraPrompt);
                 if (!aiResp?.success || aiResp.data?.error) {
                     fail++; done++; updateProgress(); continue;
                 }

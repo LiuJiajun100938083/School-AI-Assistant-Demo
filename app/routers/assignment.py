@@ -19,7 +19,7 @@ import asyncio
 import logging
 from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, Query, Request, UploadFile
 
 from app.core.dependencies import get_current_user, require_teacher
 from app.core.responses import error_response, paginated_response, success_response
@@ -292,14 +292,21 @@ async def grade_submission(
 @router.post("/api/assignments/teacher/submissions/{submission_id}/ai-grade")
 async def ai_grade_submission(
     submission_id: int,
+    req: Request,
     teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
-    """AI 自動批改"""
+    """AI 自動批改（可附帶額外提示）"""
+    extra_prompt = ""
+    try:
+        body = await req.json()
+        extra_prompt = (body.get("extra_prompt") or "") if isinstance(body, dict) else ""
+    except Exception:
+        pass
     services = get_services()
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
-        lambda: services.assignment.ai_grade_submission(submission_id),
+        lambda: services.assignment.ai_grade_submission(submission_id, extra_prompt=extra_prompt),
     )
     return success_response(data=result, message="AI 批改完成")
 

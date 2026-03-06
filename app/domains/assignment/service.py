@@ -476,10 +476,19 @@ class AssignmentService:
 
     def _build_ai_prompt(self, rubric_type: str, assignment: Dict,
                           rubric_items: List[Dict], rubric_config: Optional[Dict],
-                          submission: Dict, file_contents: str) -> str:
+                          submission: Dict, file_contents: str,
+                          extra_prompt: str = "") -> str:
         """根據評分類型構建 AI 批改提示"""
-        base = f"""你是一位專業的作業批改助手。請根據以下評分標準嚴格批改學生的作業。
+        teacher_note = ""
+        if extra_prompt and extra_prompt.strip():
+            teacher_note = f"""
+## 教師批改指示
+{extra_prompt.strip()}
+（請在批改時遵循以上教師的額外要求）
+"""
 
+        base = f"""你是一位專業的作業批改助手。請根據以下評分標準嚴格批改學生的作業。
+{teacher_note}
 ## 作業標題
 {assignment['title']}
 
@@ -602,7 +611,7 @@ class AssignmentService:
 
 評分標準 ID 對照: {id_hint}"""
 
-    def ai_grade_submission(self, submission_id: int) -> Dict[str, Any]:
+    def ai_grade_submission(self, submission_id: int, extra_prompt: str = "") -> Dict[str, Any]:
         """AI 自動批改一份提交"""
         if not self._ask_ai_func:
             raise ValidationError("AI 批改功能未初始化")
@@ -633,7 +642,7 @@ class AssignmentService:
 
         prompt = self._build_ai_prompt(
             rubric_type, assignment, rubric_items, rubric_config,
-            submission, file_contents
+            submission, file_contents, extra_prompt=extra_prompt
         )
 
         try:
