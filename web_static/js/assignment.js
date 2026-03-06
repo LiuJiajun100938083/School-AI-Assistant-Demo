@@ -2247,13 +2247,17 @@ const AssignmentApp = {
         if (!area) return;
         const ext = fileName.split('.').pop().toLowerCase();
         const isHtml = ext === 'html' || ext === 'htm';
+        const isSwift = ext === 'swift';
         try {
             const resp = await fetch('/' + filePath, { headers: AssignmentAPI._authHeaders() });
             const text = await resp.text();
             area.innerHTML = `<div class="form-section">
                 <div class="html-preview-header">
                     <h3>💻 ${this._escapeHtml(fileName)}</h3>
-                    ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${filePath}','${this._escapeHtml(fileName)}')">▶ 運行預覽</button>` : ''}
+                    <div class="html-preview-controls">
+                        ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${filePath}')">▶ 運行</button>` : ''}
+                        ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${filePath}','${this._escapeHtml(fileName)}')">▶ 運行預覽</button>` : ''}
+                    </div>
                 </div>
                 <div class="code-preview">${this._escapeHtml(text)}</div>
             </div>`;
