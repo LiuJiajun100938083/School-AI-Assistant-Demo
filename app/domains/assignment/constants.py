@@ -7,7 +7,7 @@
 """
 
 # 文件大小限制
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB per file
+MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB per file
 MAX_FILES_PER_SUBMISSION = 5
 
 # 允許的文件擴展名 → 類型映射
