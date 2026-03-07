@@ -249,7 +249,8 @@ def _run_schema_migrations() -> None:
                 assignment_id   INT NOT NULL                    COMMENT '作業ID',
                 status          ENUM('pending','running','completed','failed') DEFAULT 'pending',
                 threshold       DECIMAL(5,2) DEFAULT 60.00     COMMENT '相似度閾值',
-                subject         VARCHAR(30) DEFAULT 'general'   COMMENT '科目類型',
+                subject         VARCHAR(30) DEFAULT ''           COMMENT '科目代碼',
+                detect_mode     VARCHAR(20) DEFAULT 'mixed'     COMMENT '作業類型 code/text/mixed',
                 total_pairs     INT DEFAULT 0                   COMMENT '對比總對數',
                 flagged_pairs   INT DEFAULT 0                   COMMENT '標記可疑對數',
                 created_by      INT                             COMMENT '發起教師ID',
@@ -260,14 +261,22 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
-        # 遷移: 為已存在的 plagiarism_reports 表補上 subject 欄位
+        # 遷移: 為已存在的 plagiarism_reports 表補上 subject / detect_mode 欄位
         cols = pool.execute("SHOW COLUMNS FROM plagiarism_reports LIKE 'subject'")
         if not cols:
             pool.execute(
                 "ALTER TABLE plagiarism_reports ADD COLUMN subject VARCHAR(30) "
-                "DEFAULT 'general' COMMENT '科目類型' AFTER threshold"
+                "DEFAULT '' COMMENT '科目代碼' AFTER threshold"
             )
             logger.info("数据库迁移: 已为 plagiarism_reports 表添加 subject 列")
+
+        cols = pool.execute("SHOW COLUMNS FROM plagiarism_reports LIKE 'detect_mode'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE plagiarism_reports ADD COLUMN detect_mode VARCHAR(20) "
+                "DEFAULT 'mixed' COMMENT '作業類型 code/text/mixed' AFTER subject"
+            )
+            logger.info("数据库迁移: 已为 plagiarism_reports 表添加 detect_mode 列")
 
         # --- 抄袭检测配对表 ---
         pool.execute("""

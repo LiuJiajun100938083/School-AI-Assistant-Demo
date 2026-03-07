@@ -1020,14 +1020,16 @@ async def start_plagiarism_check(
     if existing and existing.get("status") == "running":
         return success_response(data=existing, message="檢測任務進行中")
 
-    # 解析閾值和科目
+    # 解析參數
     threshold = 60.0
-    subject = "general"
+    subject = ""
+    detect_mode = "mixed"
     try:
         body = await req.json()
         if isinstance(body, dict):
             threshold = float(body.get("threshold", 60.0))
-            subject = str(body.get("subject", "general"))
+            subject = str(body.get("subject", ""))
+            detect_mode = str(body.get("detect_mode", "mixed"))
     except Exception:
         pass
 
@@ -1044,6 +1046,7 @@ async def start_plagiarism_check(
             teacher_id=teacher_id,
             threshold=threshold,
             subject=subject,
+            detect_mode=detect_mode,
         ),
     )
 

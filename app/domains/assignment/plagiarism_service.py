@@ -76,70 +76,34 @@ EVIDENCE_HIT_THRESHOLD = 70.0
 # 需要命中的最少維度數才給予證據加成
 MIN_EVIDENCE_DIMENSIONS = 2
 
-# ---- 檢測策略預設 ----
-# 不同科目類型的權重和閾值配置，反映各類型的抄襲模式差異
+# ---- 作業類型 (detect_mode) 檢測策略 ----
+# 目前為 ICT 科目設計的三種作業類型，其他科目後續擴充
 DETECTION_PRESETS: Dict[str, Dict[str, Any]] = {
-    "programming": {
-        "label": "程式設計",
+    "code": {
+        "label": "代碼",
         "weights": {
             "structure": 0.15, "identifier": 0.25, "verbatim": 0.25,
             "indent": 0.15, "comment": 0.10, "evidence": 0.10,
         },
         "default_threshold": 60.0,
-        "description": "重視變量名、縮排風格、逐字複製",
+        "description": "程式碼作業，重視變量名、縮排風格、逐字複製",
     },
-    "essay": {
-        "label": "論文 / 報告",
+    "text": {
+        "label": "文字",
         "weights": {
             "structure": 0.10, "identifier": 0.05, "verbatim": 0.40,
             "indent": 0.05, "comment": 0.25, "evidence": 0.15,
         },
         "default_threshold": 50.0,
-        "description": "重視逐字複製和文字段落相似",
+        "description": "文字報告作業，重視逐字複製和段落相似",
     },
-    "math": {
-        "label": "數學 / 理工計算",
-        "weights": {
-            "structure": 0.30, "identifier": 0.15, "verbatim": 0.20,
-            "indent": 0.05, "comment": 0.15, "evidence": 0.15,
-        },
-        "default_threshold": 70.0,
-        "description": "公式結構天然相似，提高閾值避免誤判",
-    },
-    "general": {
-        "label": "通用（自動偵測）",
-        "weights": {
-            "structure": 0.15, "identifier": 0.25, "verbatim": 0.25,
-            "indent": 0.15, "comment": 0.10, "evidence": 0.10,
-        },
+    "mixed": {
+        "label": "混合（自動識別）",
+        "weights": None,  # None 表示逐對自動偵測
         "default_threshold": 60.0,
-        "description": "自動識別每份作業的內容類型（程式碼/文字），動態選擇最佳權重",
+        "description": "自動識別每份作業是代碼還是文字，動態選擇最佳權重",
     },
 }
-
-# subject_code 關鍵字 → 檢測策略 映射
-# 系統科目 code 中如果包含這些關鍵字，自動選擇對應策略
-_SUBJECT_STRATEGY_KEYWORDS: Dict[str, List[str]] = {
-    "programming": ["program", "code", "python", "java", "swift", "web", "app",
-                     "程式", "編程", "编程", "計算機", "计算机", "資訊", "资讯",
-                     "software", "ios", "android", "c++", "css", "html", "js"],
-    "essay": ["chinese", "english", "history", "social", "literature",
-              "國文", "国文", "英文", "歷史", "历史", "社會", "社会",
-              "語文", "语文", "文學", "文学", "作文", "report", "論文", "论文"],
-    "math": ["math", "physics", "chemistry", "數學", "数学",
-             "物理", "化學", "化学", "統計", "统计", "calculus"],
-}
-
-
-def resolve_detection_preset(subject_code: str) -> str:
-    """根據科目 code 自動匹配最適合的檢測策略。"""
-    if not subject_code or subject_code in DETECTION_PRESETS:
-        return subject_code or "general"
-    code_lower = subject_code.lower()
-    for strategy, keywords in _SUBJECT_STRATEGY_KEYWORDS.items():
-        if any(kw in code_lower for kw in keywords):
-            return strategy
-    return "general"
 
 # 保持向後兼容
 SUBJECT_PRESETS = DETECTION_PRESETS
@@ -192,10 +156,15 @@ class PlagiarismService:
         assignment_id: int,
         teacher_id: int,
         threshold: float = DEFAULT_THRESHOLD,
-        subject: str = "general",
+        subject: str = "",
+        detect_mode: str = "mixed",
     ) -> Dict[str, Any]:
         """
         建立檢測報告記錄（狀態=pending）。
+
+        Args:
+            subject: 科目 code（如 "ict"），僅作記錄
+            detect_mode: 作業類型 "code" | "text" | "mixed"
 
         調用者應在背景線程中呼叫 run_check(report_id) 來執行實際檢測。
         """
@@ -203,11 +172,15 @@ class PlagiarismService:
         if not assignment:
             raise AssignmentNotFoundError(assignment_id)
 
+        if detect_mode not in DETECTION_PRESETS:
+            detect_mode = "mixed"
+
         report_id = self._report_repo.insert_get_id({
             "assignment_id": assignment_id,
             "status": "pending",
             "threshold": threshold,
             "subject": subject,
+            "detect_mode": detect_mode,
             "created_by": teacher_id,
             "created_at": datetime.now(),
         })
@@ -218,6 +191,7 @@ class PlagiarismService:
             "status": "pending",
             "threshold": threshold,
             "subject": subject,
+            "detect_mode": detect_mode,
         }
 
     def run_check(
@@ -254,11 +228,10 @@ class PlagiarismService:
         try:
             assignment_id = report["assignment_id"]
             threshold = float(report.get("threshold") or DEFAULT_THRESHOLD)
-            subject = report.get("subject") or "general"
-            strategy = resolve_detection_preset(subject)
-            preset = DETECTION_PRESETS.get(strategy, DETECTION_PRESETS["general"])
-            # general 策略 → 不指定權重，讓 _compute_similarity 逐對自動偵測
-            subject_weights = None if strategy == "general" else preset["weights"]
+            detect_mode = report.get("detect_mode") or "mixed"
+            preset = DETECTION_PRESETS.get(detect_mode, DETECTION_PRESETS["mixed"])
+            # mixed → weights=None，讓 _compute_similarity 逐對自動偵測
+            subject_weights = preset["weights"]
 
             # 1) 提取所有提交的文本
             _progress("extract", 0, 1, "正在讀取學生提交內容...")
@@ -356,7 +329,7 @@ class PlagiarismService:
                             sub_texts[id_a]["text"],
                             sub_texts[id_b]["text"],
                             pair["similarity_score"],
-                            subject=subject,
+                            detect_mode=detect_mode,
                         )
                         pair["ai_analysis"] = ai_result
                     except Exception as e:
@@ -452,14 +425,14 @@ class PlagiarismService:
         if not texts["a"].strip() or not texts["b"].strip():
             return "提交內容為空，無法分析"
 
-        # 嘗試從報告取得科目
+        # 嘗試從報告取得作業類型
         report = self._report_repo.find_by_id(pair.get("report_id")) if pair.get("report_id") else None
-        pair_subject = (report.get("subject") if report else None) or "general"
+        pair_mode = (report.get("detect_mode") if report else None) or "mixed"
 
         result = self._ai_analyze_pair(
             texts["a"], texts["b"],
             float(pair.get("similarity_score", 0)),
-            subject=pair_subject,
+            detect_mode=pair_mode,
         )
 
         # 將結果寫回資料庫
@@ -1297,7 +1270,7 @@ class PlagiarismService:
         text_a: str,
         text_b: str,
         similarity_score: float,
-        subject: str = "general",
+        detect_mode: str = "mixed",
     ) -> str:
         """
         調用 AI 模型分析兩份提交是否存在抄襲。
@@ -1313,19 +1286,17 @@ class PlagiarismService:
         excerpt_a = text_a[:max_len] + ("..." if len(text_a) > max_len else "")
         excerpt_b = text_b[:max_len] + ("..." if len(text_b) > max_len else "")
 
-        strategy = resolve_detection_preset(subject)
-        subject_label = DETECTION_PRESETS.get(strategy, {}).get("label", "通用")
-        subject_hint = {
-            "programming": "這是程式設計科目的作業，注意: 簡單題目結構相似是正常的，重點關注自定義變量名和注釋是否雷同。",
-            "essay": "這是論文/報告科目的作業，重點關注段落是否整段複製、改寫是否只是同義詞替換。",
-            "math": "這是數學/理工計算科目的作業，注意: 公式推導和解題步驟天然相似，重點關注是否有相同的筆誤或非標準寫法。",
-            "general": "請根據內容特徵自行判斷最適合的分析策略。",
-        }.get(strategy, "")
+        mode_label = DETECTION_PRESETS.get(detect_mode, {}).get("label", "混合")
+        mode_hint = {
+            "code": "這是代碼類作業，注意: 簡單題目結構相似是正常的，重點關注自定義變量名和注釋是否雷同。",
+            "text": "這是文字類作業，重點關注段落是否整段複製、改寫是否只是同義詞替換。",
+            "mixed": "這份作業可能包含代碼和文字，請根據實際內容特徵自行判斷最適合的分析策略。",
+        }.get(detect_mode, "")
 
         prompt = f"""你是一位專業的學術誠信分析師。請分析以下兩份學生作業提交是否存在抄襲行為。
 
-## 科目: {subject_label}
-{subject_hint}
+## 作業類型: {mode_label}
+{mode_hint}
 
 ## 自動檢測結果
 綜合相似度: {similarity_score:.1f}%（基於結構、標識符、逐字複製、注釋四個維度的加權得分）

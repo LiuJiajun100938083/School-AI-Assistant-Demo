@@ -2889,13 +2889,6 @@ body {
     color: var(--text-tertiary);
     margin: var(--space-1) 0 0;
 }
-.plag-strategy-hints {
-    margin-top: var(--space-4);
-    padding: var(--space-3);
-    background: var(--bg-main);
-    border-radius: var(--radius-sm, 6px);
-    border: 1px solid var(--border-default);
-}
 .plag-strategy-hint {
     font-size: var(--type-meta);
     color: var(--text-secondary);
@@ -2905,6 +2898,43 @@ body {
 .plag-strategy-hint + .plag-strategy-hint {
     border-top: 1px solid var(--border-default);
 }
+/* ---- Mode Selection Cards ---- */
+.plag-mode-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2);
+}
+.plag-mode-option {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm, 6px);
+    padding: var(--space-3);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) ease, background var(--duration-fast) ease;
+    text-align: center;
+}
+.plag-mode-option:hover {
+    border-color: var(--text-tertiary);
+}
+.plag-mode-option.selected {
+    border-color: var(--text-primary);
+    background: var(--bg-main);
+}
+.plag-mode-option input[type="radio"] {
+    display: none;
+}
+.plag-mode-title {
+    display: block;
+    font-size: var(--type-body);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+.plag-mode-desc {
+    display: block;
+    font-size: var(--type-meta);
+    color: var(--text-tertiary);
+    line-height: 1.3;
+}
+
 .plag-config-footer {
     display: flex;
     justify-content: flex-end;
