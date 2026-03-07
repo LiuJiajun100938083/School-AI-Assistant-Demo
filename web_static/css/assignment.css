@@ -2092,12 +2092,90 @@ body {
     margin-bottom: var(--space-5);
 }
 
+/* ---- Dashboard Header ---- */
+.plag-dashboard-header {
+    margin-bottom: var(--space-5);
+}
+
+.plag-dashboard-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+}
+
+.plag-dashboard-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+.plag-dashboard-actions .btn svg,
+.plag-dashboard-top > .btn svg {
+    vertical-align: -2px;
+    margin-right: 4px;
+}
+
+.plag-dashboard-title h2 {
+    margin: 0;
+    font-size: var(--type-subhead);
+    font-weight: 600;
+}
+
+.plag-dashboard-meta {
+    margin: 4px 0 0;
+    font-size: var(--type-meta);
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* ---- Dashboard Summary (Risk + Metrics) ---- */
+.plag-dashboard-summary {
+    display: flex;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+    align-items: stretch;
+}
+
+.plag-risk-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    min-width: 140px;
+}
+
+.plag-risk-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.plag-risk-label {
+    font-size: var(--type-body);
+    font-weight: 600;
+}
+
+.plag-risk-detail {
+    font-size: var(--type-small);
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.4;
+}
+
 /* ---- Summary Metrics Row ---- */
 .plag-metrics {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: var(--space-3);
-    margin-bottom: var(--space-5);
+    flex: 1;
 }
 
 .plag-metric {
@@ -2721,7 +2799,11 @@ body {
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
-    .plag-metrics { grid-template-columns: repeat(2, 1fr); }
+    .plag-dashboard-summary { flex-direction: column; }
+    .plag-risk-card { flex-direction: row; min-width: auto; padding: var(--space-3) var(--space-4); }
+    .plag-metrics { grid-template-columns: repeat(3, 1fr); }
+    .plag-dashboard-top { flex-direction: column; gap: var(--space-2); align-items: stretch; }
+    .plag-dashboard-actions { justify-content: flex-end; }
     .plagiarism-compare { grid-template-columns: 1fr; }
     .plagiarism-pair-card { grid-template-columns: 1fr; gap: var(--space-2); }
     .pair-card-right { justify-content: flex-end; }
@@ -2729,4 +2811,7 @@ body {
     .plag-score-bar-track { width: 160px; }
     .cluster-card { padding: var(--space-3) var(--space-4); }
     .plag-hub-section { padding: var(--space-3) var(--space-4); }
+}
+@media (max-width: 480px) {
+    .plag-metrics { grid-template-columns: repeat(2, 1fr); }
 }

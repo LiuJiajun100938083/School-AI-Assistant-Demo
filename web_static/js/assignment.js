@@ -767,36 +767,87 @@ const AssignmentUI = {
         const statusMap = { completed: '已完成', running: '檢測中', failed: '失敗', pending: '等待中' };
         const statusClass = { completed: 'badge-graded', running: 'badge-submitted', failed: 'badge-late', pending: 'badge-not_submitted' };
         const flaggedPairs = (pairs || []).filter(p => p.is_flagged);
+        const totalStudents = new Set();
+        (pairs || []).forEach(p => {
+            if (p.student_a_name) totalStudents.add(p.student_a_name);
+            if (p.student_b_name) totalStudents.add(p.student_b_name);
+        });
 
-        // ---- Header ----
+        // 風險等級判定
+        const riskLevel = report.flagged_pairs === 0 ? 'low' : (report.flagged_pairs <= 3 ? 'medium' : 'high');
+        const riskLabel = { low: '低風險', medium: '中等風險', high: '高風險' };
+        const riskColor = { low: 'var(--color-success, #248A3D)', medium: 'var(--text-secondary)', high: 'var(--text-primary)' };
+
+        // ---- Dashboard Header (Action buttons + Title) ----
         let html = `<div class="plagiarism-report fade-in">
-            <div style="margin-bottom:var(--space-5);">
-                <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:4px;">
-                    <h2 style="margin:0;font-size:var(--type-subhead);font-weight:600;">抄袭檢測報告</h2>
-                    <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
+            <div class="plag-dashboard-header">
+                <div class="plag-dashboard-top">
+                    <button class="btn btn-outline btn-sm" onclick="AssignmentApp.closePlagiarismReport()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        返回作業
+                    </button>
+                    <div class="plag-dashboard-actions">
+                        <button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportPlagiarismExcel()" id="plagExportBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            匯出 Excel
+                        </button>
+                        <button class="btn btn-sm btn-outline" onclick="AssignmentApp.startPlagiarismCheck()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                            重新檢測
+                        </button>
+                    </div>
                 </div>
-                <p style="margin:0;font-size:var(--type-meta);color:var(--text-tertiary);">
-                    檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
-                </p>
+                <div class="plag-dashboard-title">
+                    <div>
+                        <h2>抄袭檢測報告</h2>
+                        <p class="plag-dashboard-meta">
+                            <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
+                            檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
+                        </p>
+                    </div>
+                </div>
             </div>`;
 
-        // ---- Summary Metrics ----
-        html += `<div class="plag-metrics">
-            <div class="plag-metric">
-                <div class="plag-metric-value">${report.total_pairs}</div>
-                <div class="plag-metric-label">對比總數</div>
+        // ---- Dashboard Summary (Risk + Metrics) ----
+        html += `<div class="plag-dashboard-summary">
+            <div class="plag-risk-card">
+                <div class="plag-risk-indicator ${riskLevel}">
+                    <svg width="32" height="32" viewBox="0 0 40 40">
+                        <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="3"/>
+                        <circle cx="20" cy="20" r="17" fill="none" stroke="${riskColor[riskLevel]}" stroke-width="3"
+                            stroke-dasharray="${2 * Math.PI * 17}" stroke-dashoffset="${2 * Math.PI * 17 * (1 - (riskLevel === 'low' ? 0.15 : riskLevel === 'medium' ? 0.5 : 0.9))}"
+                            stroke-linecap="round" transform="rotate(-90 20 20)"/>
+                    </svg>
+                    <span class="plag-risk-label" style="color:${riskColor[riskLevel]}">${riskLabel[riskLevel]}</span>
+                </div>
+                <div class="plag-risk-detail">
+                    ${report.flagged_pairs === 0
+                        ? '<span>未發現可疑抄襲行為</span>'
+                        : `<span>發現 <b>${report.flagged_pairs}</b> 對可疑配對${clusters.length > 0 ? `，形成 <b>${clusters.length}</b> 個群組` : ''}</span>`
+                    }
+                </div>
             </div>
-            <div class="plag-metric">
-                <div class="plag-metric-value${report.flagged_pairs > 0 ? ' has-issue' : ''}">${report.flagged_pairs}</div>
-                <div class="plag-metric-label">可疑配對</div>
-            </div>
-            <div class="plag-metric">
-                <div class="plag-metric-value${clusters.length > 0 ? ' has-issue' : ''}">${clusters.length}</div>
-                <div class="plag-metric-label">抄襲群組</div>
-            </div>
-            <div class="plag-metric">
-                <div class="plag-metric-value${hubStudents.length > 0 ? ' has-issue' : ''}">${hubStudents.length}</div>
-                <div class="plag-metric-label">疑似源頭</div>
+            <div class="plag-metrics">
+                <div class="plag-metric">
+                    <div class="plag-metric-value">${totalStudents.size}</div>
+                    <div class="plag-metric-label">參與學生</div>
+                </div>
+                <div class="plag-metric">
+                    <div class="plag-metric-value">${report.total_pairs}</div>
+                    <div class="plag-metric-label">對比總數</div>
+                </div>
+                <div class="plag-metric">
+                    <div class="plag-metric-value${report.flagged_pairs > 0 ? ' has-issue' : ''}">${report.flagged_pairs}</div>
+                    <div class="plag-metric-label">可疑配對</div>
+                </div>
+                <div class="plag-metric">
+                    <div class="plag-metric-value${clusters.length > 0 ? ' has-issue' : ''}">${clusters.length}</div>
+                    <div class="plag-metric-label">抄襲群組</div>
+                </div>
+                <div class="plag-metric">
+                    <div class="plag-metric-value${hubStudents.length > 0 ? ' has-issue' : ''}">${hubStudents.length}</div>
+                    <div class="plag-metric-label">疑似源頭</div>
+                </div>
             </div>
         </div>`;
 
@@ -850,12 +901,10 @@ const AssignmentUI = {
             </div>`;
         }
 
-        // ---- Action Bar + Filter ----
+        // ---- Filter + Pair List ----
         html += `<div class="plag-action-bar">
             <div class="plag-action-bar-left">
                 <h3>配對明細</h3>
-                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportPlagiarismExcel()" id="plagExportBtn">匯出 Excel</button>
-                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.startPlagiarismCheck()">重新檢測</button>
             </div>
             <div class="filter-tabs" style="margin:0;">
                 <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">可疑 <span class="count">${flaggedPairs.length}</span></button>
@@ -1973,10 +2022,8 @@ const AssignmentApp = {
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="workspace-loading"><div class="loading-spinner"></div><p>載入報告中...</p></div>';
 
-        // 更新頂部動作列
-        this.setHeaderActions(`
-            <button class="btn btn-outline" onclick="AssignmentApp.closePlagiarismReport()">返回作業</button>
-        `);
+        // 清空頂部動作列（返回按鈕已整合到報告儀表盤頂部）
+        this.setHeaderActions('');
 
         const resp = await AssignmentAPI.getPlagiarismReport(assignmentId);
         if (!resp?.success) {
@@ -2019,7 +2066,7 @@ const AssignmentApp = {
 
     closePlagiarismReport() {
         this._stopPlagiarismPolling();
-        this.showTeacherAssignmentDetail(this.state.currentAssignment);
+        this.viewAssignment(this.state.currentAssignment);
     },
 
     closePlagiarismPairDetail() {
