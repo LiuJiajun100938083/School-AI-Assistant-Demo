@@ -124,6 +124,22 @@ async def get_targets(
     return success_response(data=targets)
 
 
+@router.get("/api/assignments/teacher/plagiarism-presets")
+async def get_plagiarism_presets(
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """返回檢測策略預設列表（前端用於顯示策略說明）"""
+    from app.domains.assignment.plagiarism_service import DETECTION_PRESETS
+    presets = {}
+    for key, val in DETECTION_PRESETS.items():
+        presets[key] = {
+            "label": val["label"],
+            "description": val["description"],
+            "default_threshold": val["default_threshold"],
+        }
+    return success_response(data=presets)
+
+
 @router.get("/api/assignments/teacher/{assignment_id}")
 async def get_teacher_assignment_detail(
     assignment_id: int,
@@ -990,22 +1006,6 @@ def _plagiarism_worker(assignment_id: int, report_id: int) -> None:
         logger.error("抄袭檢測失敗 (assignment #%d): %s", assignment_id, e)
         job["status"] = "failed"
         job["error"] = str(e)
-
-
-@router.get("/api/assignments/teacher/plagiarism-presets")
-async def get_plagiarism_presets(
-    teacher_info: Tuple[str, str] = Depends(require_teacher),
-):
-    """返回檢測策略預設列表（前端用於顯示策略說明）"""
-    from app.domains.assignment.plagiarism_service import DETECTION_PRESETS
-    presets = {}
-    for key, val in DETECTION_PRESETS.items():
-        presets[key] = {
-            "label": val["label"],
-            "description": val["description"],
-            "default_threshold": val["default_threshold"],
-        }
-    return success_response(data=presets)
 
 
 @router.post("/api/assignments/teacher/{assignment_id}/plagiarism-check")

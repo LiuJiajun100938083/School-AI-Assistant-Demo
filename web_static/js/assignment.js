@@ -1882,8 +1882,7 @@ const AssignmentApp = {
         // 載入科目列表
         let subjectsHtml = '<option value="general">通用（預設）</option>';
         try {
-            const resp = await fetch('/api/subjects', { headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token')}` } });
-            const data = await resp.json();
+            const data = await AssignmentAPI._call('/api/subjects');
             if (data?.subjects) {
                 for (const [code, info] of Object.entries(data.subjects)) {
                     subjectsHtml += `<option value="${code}">${info.icon || '📚'} ${info.name}</option>`;
