@@ -2932,6 +2932,58 @@ body {
     color: var(--text-primary);
 }
 
+/* ---- Diff Highlighting ---- */
+.hl-identical {
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 2px;
+    display: inline;
+}
+.hl-similar {
+    background: rgba(0, 0, 0, 0.03);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.18);
+    border-radius: 2px;
+    display: inline;
+}
+.hl-unique {
+    /* 不加背景，只加左邊框標記 */
+}
+@media (prefers-color-scheme: dark) {
+    .hl-identical { background: rgba(255, 255, 255, 0.08); }
+    .hl-similar { background: rgba(255, 255, 255, 0.04); border-bottom-color: rgba(255, 255, 255, 0.2); }
+}
+
+/* ---- Compare Legend ---- */
+.compare-legend {
+    display: flex;
+    gap: var(--space-4);
+    justify-content: center;
+    margin-top: var(--space-3);
+    font-size: var(--type-meta);
+    color: var(--text-tertiary);
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.legend-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border-default);
+}
+.legend-swatch.hl-identical {
+    background: rgba(0, 0, 0, 0.06);
+}
+.legend-swatch.hl-similar {
+    background: rgba(0, 0, 0, 0.03);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.18);
+}
+.legend-swatch.hl-unique {
+    background: transparent;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .plag-dashboard-summary { flex-direction: column; }

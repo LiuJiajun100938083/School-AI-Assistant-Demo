@@ -1277,20 +1277,134 @@ const AssignmentUI = {
             </div>`;
         }
 
-        // Side-by-side comparison
+        // Side-by-side comparison with diff highlighting
+        const textA = pair.text_a || '（無內容）';
+        const textB = pair.text_b || '（無內容）';
+        const diff = this._diffTexts(textA, textB);
+
         html += `<div class="plagiarism-compare">
             <div class="compare-col">
                 <h4 class="compare-header">${pair.student_a_name || '學生A'}</h4>
-                <pre class="compare-text">${this._escapeHtml(pair.text_a || '（無內容）')}</pre>
+                <pre class="compare-text">${diff.htmlA}</pre>
             </div>
             <div class="compare-col">
                 <h4 class="compare-header">${pair.student_b_name || '學生B'}</h4>
-                <pre class="compare-text">${this._escapeHtml(pair.text_b || '（無內容）')}</pre>
+                <pre class="compare-text">${diff.htmlB}</pre>
             </div>
+        </div>
+        <div class="compare-legend">
+            <span class="legend-item"><span class="legend-swatch hl-identical"></span>完全相同</span>
+            <span class="legend-item"><span class="legend-swatch hl-similar"></span>高度相似</span>
+            <span class="legend-item"><span class="legend-swatch hl-unique"></span>僅此份有</span>
         </div>`;
 
         html += '</div>';
         return html;
+    },
+
+    /**
+     * 行級 diff 對比: 將兩段文本逐行對比，分為「完全相同」「高度相似」「僅此份有」三種 highlight。
+     * 使用 LCS（最長公共子序列）做行匹配，再對相似行做字符級標記。
+     */
+    _diffTexts(textA, textB) {
+        const linesA = textA.split('\n');
+        const linesB = textB.split('\n');
+
+        // 正規化行（去除前後空白）用於比對
+        const normA = linesA.map(l => l.trim());
+        const normB = linesB.map(l => l.trim());
+
+        // 構建 B 行 → 索引映射（快速查找）
+        const bMap = {};
+        normB.forEach((line, i) => {
+            if (!bMap[line]) bMap[line] = [];
+            bMap[line].push(i);
+        });
+
+        // 標記每行狀態: 'identical' | 'similar' | 'unique'
+        const statusA = new Array(linesA.length).fill('unique');
+        const statusB = new Array(linesB.length).fill('unique');
+        const matchedB = new Set();
+
+        // Pass 1: 完全相同行（正規化後）
+        const usedBIndices = new Set();
+        for (let i = 0; i < normA.length; i++) {
+            if (!normA[i]) continue;  // 跳過空行
+            const candidates = bMap[normA[i]] || [];
+            for (const j of candidates) {
+                if (!usedBIndices.has(j)) {
+                    statusA[i] = 'identical';
+                    statusB[j] = 'identical';
+                    usedBIndices.add(j);
+                    matchedB.add(j);
+                    break;
+                }
+            }
+        }
+
+        // Pass 2: 相似行（編輯距離比 < 40% 行長）
+        for (let i = 0; i < normA.length; i++) {
+            if (statusA[i] !== 'unique' || !normA[i]) continue;
+            let bestJ = -1, bestRatio = 0;
+            for (let j = 0; j < normB.length; j++) {
+                if (statusB[j] !== 'unique' || !normB[j]) continue;
+                const ratio = this._similarityRatio(normA[i], normB[j]);
+                if (ratio > 0.6 && ratio > bestRatio) {
+                    bestRatio = ratio;
+                    bestJ = j;
+                }
+            }
+            if (bestJ >= 0) {
+                statusA[i] = 'similar';
+                statusB[bestJ] = 'similar';
+                matchedB.add(bestJ);
+            }
+        }
+
+        // 空行不高亮
+        for (let i = 0; i < normA.length; i++) {
+            if (!normA[i].trim()) statusA[i] = '';
+        }
+        for (let j = 0; j < normB.length; j++) {
+            if (!normB[j].trim()) statusB[j] = '';
+        }
+
+        // 生成帶 <span> 的 HTML
+        const wrapLine = (line, status) => {
+            const escaped = this._escapeHtml(line);
+            if (!status) return escaped;
+            return `<span class="hl-${status}">${escaped}</span>`;
+        };
+
+        return {
+            htmlA: linesA.map((l, i) => wrapLine(l, statusA[i])).join('\n'),
+            htmlB: linesB.map((l, i) => wrapLine(l, statusB[i])).join('\n'),
+        };
+    },
+
+    /** 兩個字串的相似度比率 (0~1)，基於最長公共子序列長度 */
+    _similarityRatio(a, b) {
+        if (a === b) return 1;
+        if (!a || !b) return 0;
+        const lenA = a.length, lenB = b.length;
+        // 短字串快捷判斷
+        if (Math.abs(lenA - lenB) > Math.max(lenA, lenB) * 0.5) return 0;
+        // 簡化 LCS: 只保留兩行（節省記憶體）
+        let prev = new Array(lenB + 1).fill(0);
+        let curr = new Array(lenB + 1).fill(0);
+        for (let i = 1; i <= lenA; i++) {
+            for (let j = 1; j <= lenB; j++) {
+                if (a[i - 1] === b[j - 1]) {
+                    curr[j] = prev[j - 1] + 1;
+                } else {
+                    curr[j] = Math.max(prev[j], curr[j - 1]);
+                }
+            }
+            [prev, curr] = [curr, prev];
+            curr.fill(0);
+        }
+        const lcs = prev[lenB];
+        return (2 * lcs) / (lenA + lenB);
     },
 
     _extractDimensions(fragments) {
