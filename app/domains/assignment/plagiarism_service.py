@@ -107,13 +107,13 @@ DETECTION_PRESETS: Dict[str, Dict[str, Any]] = {
         "description": "公式結構天然相似，提高閾值避免誤判",
     },
     "general": {
-        "label": "通用",
+        "label": "通用（自動偵測）",
         "weights": {
             "structure": 0.15, "identifier": 0.25, "verbatim": 0.25,
             "indent": 0.15, "comment": 0.10, "evidence": 0.10,
         },
         "default_threshold": 60.0,
-        "description": "預設均衡模式",
+        "description": "自動識別每份作業的內容類型（程式碼/文字），動態選擇最佳權重",
     },
 }
 
@@ -257,7 +257,8 @@ class PlagiarismService:
             subject = report.get("subject") or "general"
             strategy = resolve_detection_preset(subject)
             preset = DETECTION_PRESETS.get(strategy, DETECTION_PRESETS["general"])
-            subject_weights = preset["weights"]
+            # general 策略 → 不指定權重，讓 _compute_similarity 逐對自動偵測
+            subject_weights = None if strategy == "general" else preset["weights"]
 
             # 1) 提取所有提交的文本
             _progress("extract", 0, 1, "正在讀取學生提交內容...")
@@ -681,12 +682,25 @@ class PlagiarismService:
                     f"僅 {evidence_hits} 個維度命中，證據不足（需≥{MIN_EVIDENCE_DIMENSIONS}個）"
                 )
 
-        # 加權合成（使用科目權重或全局預設）
-        w = weights or {
-            "structure": WEIGHT_STRUCTURE, "identifier": WEIGHT_IDENTIFIER,
-            "verbatim": WEIGHT_VERBATIM, "indent": WEIGHT_INDENT,
-            "comment": WEIGHT_COMMENT, "evidence": WEIGHT_EVIDENCE,
-        }
+        # ---- 加權合成 ----
+        # 如果調用方提供了明確的科目權重（programming / essay / math），
+        # 直接使用；否則根據每對內容自動偵測最適合的權重。
+        if weights:
+            w = weights
+            auto_detected = False
+        else:
+            auto_detected = True
+            if is_code:
+                w = DETECTION_PRESETS["programming"]["weights"]
+            else:
+                w = DETECTION_PRESETS["essay"]["weights"]
+
+        detected_type = "code" if is_code else "text"
+        if auto_detected:
+            scores["signals"].append(
+                f"自動偵測內容類型: {detected_type}，使用{'程式' if is_code else '文字'}權重"
+            )
+
         final_score = (
             scores["structure_score"] * w.get("structure", WEIGHT_STRUCTURE)
             + scores["identifier_score"] * w.get("identifier", WEIGHT_IDENTIFIER)
