@@ -2296,3 +2296,90 @@ body {
     padding: 3px 8px;
     border-radius: var(--radius-sm);
 }
+
+/* ---- 多維度評分 ---- */
+.pair-dimensions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.dim-tag {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: var(--radius-sm);
+    background: var(--bg, #f3f4f6);
+    color: var(--text-secondary);
+    cursor: default;
+}
+
+.plagiarism-dimension-box {
+    background: var(--bg, #f9fafb);
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+
+.dim-detail-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.dim-detail-label {
+    width: 80px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.dim-detail-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--border, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dim-detail-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .3s ease;
+}
+
+.dim-detail-val {
+    width: 52px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.dim-code-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    margin-top: 6px;
+    background: #eef2ff;
+    color: #6366f1;
+    border-radius: var(--radius-sm);
+}
+
+.dim-signals {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.dim-signal-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #fef2f2;
+    color: #ef4444;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+}

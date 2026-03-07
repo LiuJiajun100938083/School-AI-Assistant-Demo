@@ -855,6 +855,14 @@ const AssignmentUI = {
             const pct = parseFloat(p.similarity_score) || 0;
             const barColor = pct >= 80 ? 'var(--danger)' : pct >= 60 ? '#f59e0b' : 'var(--success)';
             const flagIcon = p.is_flagged ? '<span style="color:var(--danger);font-weight:600;">⚠</span>' : '';
+            // 提取維度分析（matched_fragments[0] 可能是 dimension_breakdown）
+            const dims = this._extractDimensions(p.matched_fragments);
+            const dimHtml = dims ? `<div class="pair-dimensions">
+                <span class="dim-tag" title="結構相似度">結構 ${dims.structure}%</span>
+                <span class="dim-tag" title="標識符重疊">標識符 ${dims.identifier}%</span>
+                <span class="dim-tag" title="逐字複製">逐字 ${dims.verbatim}%</span>
+                <span class="dim-tag" title="注釋相似">注釋 ${dims.comment}%</span>
+            </div>` : '';
             return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
                 <div class="pair-students">
                     <span class="pair-name">${p.student_a_name || '學生A'}</span>
@@ -867,6 +875,7 @@ const AssignmentUI = {
                     </div>
                     <span class="pair-pct" style="color:${barColor};">${pct.toFixed(1)}% ${flagIcon}</span>
                 </div>
+                ${dimHtml}
                 ${p.ai_analysis ? `<div class="pair-ai-hint">${p.ai_analysis.substring(0, 80)}${p.ai_analysis.length > 80 ? '...' : ''}</div>` : ''}
             </div>`;
         }).join('')}</div>`;
@@ -875,6 +884,7 @@ const AssignmentUI = {
     renderPlagiarismPairDetail(pair) {
         const pct = parseFloat(pair.similarity_score) || 0;
         const barColor = pct >= 80 ? 'var(--danger)' : pct >= 60 ? '#f59e0b' : 'var(--success)';
+        const dims = this._extractDimensions(pair.matched_fragments);
 
         let html = `<div class="plagiarism-detail fade-in">
             <div class="plagiarism-header" style="margin-bottom:16px;">
@@ -892,6 +902,29 @@ const AssignmentUI = {
                 <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismPairDetail()">返回報告</button>
             </div>`;
 
+        // 多維度分析面板
+        if (dims) {
+            const mkBar = (label, val, color) => {
+                const v = parseFloat(val) || 0;
+                return `<div class="dim-detail-row">
+                    <span class="dim-detail-label">${label}</span>
+                    <div class="dim-detail-bar-track">
+                        <div class="dim-detail-bar-fill" style="width:${v}%;background:${color};"></div>
+                    </div>
+                    <span class="dim-detail-val" style="color:${color};">${v.toFixed(1)}%</span>
+                </div>`;
+            };
+            html += `<div class="plagiarism-dimension-box">
+                <h4 style="margin:0 0 10px;">多維度分析</h4>
+                ${mkBar('結構相似', dims.structure, '#6366f1')}
+                ${mkBar('標識符重疊', dims.identifier, '#f43f5e')}
+                ${mkBar('逐字複製', dims.verbatim, '#ef4444')}
+                ${mkBar('注釋/字串', dims.comment, '#f59e0b')}
+                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · 長度 ${dims.codeLength} 字元</div>` : ''}
+                ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
+            </div>`;
+        }
+
         // AI Analysis
         if (pair.ai_analysis) {
             html += `<div class="plagiarism-ai-box">
@@ -900,8 +933,8 @@ const AssignmentUI = {
             </div>`;
         }
 
-        // Matched Fragments
-        const fragments = pair.matched_fragments || [];
+        // Matched Fragments (過濾掉 dimension_breakdown 類型)
+        const fragments = (pair.matched_fragments || []).filter(f => f.type !== 'dimension_breakdown');
         if (fragments.length) {
             html += `<div class="plagiarism-fragments">
                 <h4 style="margin:0 0 8px;">匹配片段 (${fragments.length})</h4>
@@ -926,6 +959,21 @@ const AssignmentUI = {
 
         html += '</div>';
         return html;
+    },
+
+    _extractDimensions(fragments) {
+        if (!fragments || !Array.isArray(fragments)) return null;
+        const dim = fragments.find(f => f.type === 'dimension_breakdown');
+        if (!dim) return null;
+        return {
+            structure: dim.structure_score || 0,
+            identifier: dim.identifier_score || 0,
+            verbatim: dim.verbatim_score || 0,
+            comment: dim.comment_score || 0,
+            isCode: dim.is_code || false,
+            codeLength: dim.code_length || 0,
+            signals: dim.signals || [],
+        };
     },
 
     _escapeHtml(str) {
