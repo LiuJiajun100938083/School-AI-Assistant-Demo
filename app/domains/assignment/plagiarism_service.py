@@ -62,8 +62,15 @@ TINY_CODE_FLAG_THRESHOLD = 92.0  # 極短代碼需非常高閾值（幾乎逐字
 SHORT_CODE_FLAG_THRESHOLD = 85.0  # 短代碼需更高閾值才標記可疑
 MEDIUM_CODE_FLAG_THRESHOLD = 70.0  # 中等長度代碼閾值
 
+# Winnowing 算法參數 (MOSS 核心)
+WINNOW_K = 5       # K-gram 長度（Token 級別，不是字元級別）
+WINNOW_W = 4       # 窗口大小
+
 # 多維度評分權重（合計 1.0）
 # 設計原則: 單一維度高分不足以標記，需要多維度同時命中
+# ---- 雙分數體系 ----
+# 邏輯相似度: 結構+Token是否一致（簡單作業天然高，需結合風格分一起看）
+# 風格一致性: 命名+縮排+注釋等「非邏輯」私人習慣
 WEIGHT_STRUCTURE = 0.15    # 結構相似度（骨架比對 — 短代碼天然高，權重低）
 WEIGHT_IDENTIFIER = 0.25   # 標識符指紋（自定義變量名相同 = 強信號）
 WEIGHT_VERBATIM = 0.25     # 逐字複製（最長公共子串比率）
@@ -107,6 +114,68 @@ DETECTION_PRESETS: Dict[str, Dict[str, Any]] = {
 
 # 保持向後兼容
 SUBJECT_PRESETS = DETECTION_PRESETS
+
+# ---- Token 類型（用於代碼 Token 序列化）----
+# 將代碼轉為與變量名無關的原子操作序列
+TOKEN_PATTERNS: List[Tuple[str, str]] = [
+    # 關鍵字 → 保留原名
+    (r'\b(if|else|elif|for|while|do|switch|case|default|break|continue|return)\b', 'KW'),
+    (r'\b(def|function|func|class|struct|enum|protocol|interface)\b', 'DECL'),
+    (r'\b(import|from|include|using|require)\b', 'IMPORT'),
+    (r'\b(try|catch|except|finally|throw|throws|raise)\b', 'ERR'),
+    (r'\b(var|let|const|int|float|double|string|bool|char|void)\b', 'TYPE'),
+    (r'\b(print|println|printf|console|cout|cin|scanf|input|output)\b', 'IO'),
+    (r'\b(true|false|True|False|nil|null|None|undefined)\b', 'LIT'),
+    (r'\b(self|this|super)\b', 'SELF'),
+    (r'\b(and|or|not|in|is|instanceof|typeof)\b', 'LOGOP'),
+    (r'\b(new|del|delete|sizeof)\b', 'MEMOP'),
+    # 數字常量
+    (r'\b\d+\.?\d*\b', 'NUM'),
+    # 字串
+    (r'""".*?"""|\'\'\'.*?\'\'\'', 'STR'),
+    (r'"[^"]*"', 'STR'),
+    (r"'[^']*'", 'STR'),
+    # 運算符
+    (r'\+\+|--', 'INCDEC'),
+    (r'[+\-*/%]=', 'OPASSIGN'),
+    (r'==|!=|<=|>=|<|>', 'CMP'),
+    (r'&&|\|\||!', 'LOGOP'),
+    (r'[+\-*/%]', 'ARITH'),
+    (r'=', 'ASSIGN'),
+    # 括號和分隔符
+    (r'\{', 'LBRACE'),
+    (r'\}', 'RBRACE'),
+    (r'\(', 'LPAREN'),
+    (r'\)', 'RPAREN'),
+    (r'\[', 'LBRACK'),
+    (r'\]', 'RBRACK'),
+    (r';', 'SEMI'),
+    (r',', 'COMMA'),
+    (r'\.', 'DOT'),
+    (r':', 'COLON'),
+    # 標識符（變量名、函數名 → 統一為 VAR）
+    (r'\b[a-zA-Z_]\w*\b', 'VAR'),
+]
+
+# 中學生不太可能自己寫出的高階特徵（AI 生成代碼嫌疑）
+ADVANCED_PATTERNS = [
+    (r'\blambda\s', "Lambda 表達式"),
+    (r'\bmap\s*\(.*lambda', "map+lambda 組合"),
+    (r'\bfilter\s*\(.*lambda', "filter+lambda 組合"),
+    (r'\breduce\s*\(', "reduce 函數"),
+    (r'\[.*\bfor\b.*\bin\b.*\]', "列表推導式"),
+    (r'\{.*\bfor\b.*\bin\b.*\}', "集合/字典推導式"),
+    (r'\b\w+\s*if\s+.*\s+else\s+', "三元表達式"),
+    (r'__\w+__', "Dunder 方法"),
+    (r'\*args|\*\*kwargs', "*args/**kwargs"),
+    (r'@\w+', "裝飾器"),
+    (r'\byield\b', "生成器 yield"),
+    (r'\basync\s+(def|function)\b', "async 函式"),
+    (r'\bawait\b', "await 關鍵字"),
+    (r'<<|>>|&|\||\^|~', "位運算"),
+    (r'\bwalrus\b|:=', "海象運算符 :="),
+    (r'\bwith\s+\w+.*\bas\b', "上下文管理器"),
+]
 
 # 代碼文件擴展名（用於判斷是否啟用代碼感知分析）
 CODE_EXTENSIONS = {
@@ -602,20 +671,13 @@ class PlagiarismService:
         weights: Optional[Dict[str, float]] = None,
     ) -> Tuple[float, List[Dict[str, Any]]]:
         """
-        多維度代碼感知相似度算法。
+        多維度代碼感知相似度算法 — 雙分數體系。
 
-        解決的核心問題:
-        - 短代碼（如簡單 for 迴圈）結構天然相似，不能僅靠 N-gram
-        - 學生直接複製卻不改變量名/注釋 = 強抄襲信號
-        - 需要區分「正常結構相似」與「複製粘貼證據」
+        輸出兩個分數:
+        1. 邏輯相似度: Token 結構、數據流是否一致（簡單作業天然高）
+        2. 風格一致性: 命名、縮排、拼錯、死代碼等「非邏輯」習慣
 
-        評分維度:
-        1. structure_score — 骨架化後的 N-gram 比對（去掉標識符）
-        2. identifier_score — 變量名/函數名指紋匹配
-        3. verbatim_score — 最長公共子串比率（逐字複製偵測）
-        4. comment_score — 注釋和字串字面量的相似度
-
-        最終分數 = 加權合成，並根據代碼長度自適應調整。
+        只有兩個分數同時高才判定為抄襲（解決簡單作業誤報問題）。
 
         Returns:
             (綜合相似度百分比 0-100, 匹配詳情列表)
@@ -642,7 +704,6 @@ class PlagiarismService:
             scores["comment_score"],
         ]
         evidence_hits = sum(1 for s in dimension_scores if s >= EVIDENCE_HIT_THRESHOLD)
-        # 只有多個維度同時命中才給證據加成分
         if evidence_hits >= MIN_EVIDENCE_DIMENSIONS:
             evidence_score = min(evidence_hits / 5.0 * 100, 100)
             scores["signals"].append(
@@ -655,18 +716,43 @@ class PlagiarismService:
                     f"僅 {evidence_hits} 個維度命中，證據不足（需≥{MIN_EVIDENCE_DIMENSIONS}個）"
                 )
 
+        # ---- 雙分數計算 ----
+        if is_code:
+            # 邏輯相似度 = 結構 + 數據流（簡單作業天然高，需結合風格看）
+            logic_score = (
+                scores["structure_score"] * 0.6
+                + scores.get("data_flow_score", 0) * 0.2
+                + scores["verbatim_score"] * 0.2
+            )
+            # 風格一致性 = 命名 + 縮排 + 拼錯/死代碼 + 注釋
+            style_score = (
+                scores["identifier_score"] * 0.35
+                + scores.get("indent_score", 0) * 0.25
+                + scores["comment_score"] * 0.20
+                + max(scores.get("typo_score", 0), scores.get("dead_code_score", 0)) * 0.20
+            )
+        else:
+            logic_score = scores["structure_score"]
+            style_score = scores["verbatim_score"]
+
+        scores["logic_score"] = min(round(logic_score, 1), 100)
+        scores["style_score"] = min(round(style_score, 1), 100)
+
+        if is_code:
+            scores["signals"].append(
+                f"雙分數: 邏輯={logic_score:.0f} 風格={style_score:.0f}"
+            )
+
         # ---- 加權合成 ----
-        # 如果調用方提供了明確的科目權重（programming / essay / math），
-        # 直接使用；否則根據每對內容自動偵測最適合的權重。
         if weights:
             w = weights
             auto_detected = False
         else:
             auto_detected = True
             if is_code:
-                w = DETECTION_PRESETS["programming"]["weights"]
+                w = DETECTION_PRESETS["code"]["weights"]
             else:
-                w = DETECTION_PRESETS["essay"]["weights"]
+                w = DETECTION_PRESETS["text"]["weights"]
 
         detected_type = "code" if is_code else "text"
         if auto_detected:
@@ -683,6 +769,25 @@ class PlagiarismService:
             + evidence_score * w.get("evidence", WEIGHT_EVIDENCE)
         )
 
+        # ---- 雙分數修正: 邏輯高+風格低 → 壓低總分（簡單作業巧合）----
+        if is_code:
+            logic = scores.get("logic_score", 0)
+            style = scores.get("style_score", 0)
+            if logic > 70 and style < 40:
+                # 邏輯相似但風格不同 → 很可能是簡單作業的巧合
+                penalty = (70 - style) / 100  # 風格越低，懲罰越大
+                final_score *= (1 - penalty * 0.4)
+                scores["signals"].append(
+                    f"邏輯高({logic:.0f})但風格低({style:.0f})→ 可能巧合，總分降權"
+                )
+
+            # 強證據加成: 拼錯/死代碼是「實錘」級別
+            forensic = max(scores.get("typo_score", 0), scores.get("dead_code_score", 0))
+            if forensic >= 50:
+                bonus = forensic * 0.15
+                final_score = min(final_score + bonus, 100)
+                scores["signals"].append(f"強物證加成 +{bonus:.0f}")
+
         # 提取匹配片段
         fragments = self._extract_matching_fragments(clean_a, clean_b)
 
@@ -693,7 +798,9 @@ class PlagiarismService:
                     f"逐字={scores['verbatim_score']:.0f} "
                     f"縮排={scores.get('indent_score', 0):.0f} "
                     f"注釋={scores['comment_score']:.0f} "
-                    f"證據={evidence_score:.0f}({evidence_hits}/5維)",
+                    f"證據={evidence_score:.0f}({evidence_hits}/5維)"
+                    f" 邏輯={scores.get('logic_score', 0):.0f}"
+                    f" 風格={scores.get('style_score', 0):.0f}",
             "type": "dimension_breakdown",
             "structure_score": round(scores["structure_score"], 1),
             "identifier_score": round(scores["identifier_score"], 1),
@@ -702,6 +809,13 @@ class PlagiarismService:
             "comment_score": round(scores["comment_score"], 1),
             "evidence_score": round(evidence_score, 1),
             "evidence_hits": evidence_hits,
+            "logic_score": scores.get("logic_score", 0),
+            "style_score": scores.get("style_score", 0),
+            "winnow_score": round(scores.get("winnow_score", 0), 1),
+            "data_flow_score": round(scores.get("data_flow_score", 0), 1),
+            "typo_score": round(scores.get("typo_score", 0), 1),
+            "dead_code_score": round(scores.get("dead_code_score", 0), 1),
+            "ai_suspicion": round(scores.get("ai_suspicion", 0), 1),
             "is_code": is_code,
             "code_length": min(len(clean_a), len(clean_b)),
             "signals": scores.get("signals", []),
@@ -719,42 +833,72 @@ class PlagiarismService:
         n: int,
     ) -> Dict[str, Any]:
         """
-        代碼感知相似度: 基於資深教師經驗的多維度分析。
+        代碼感知相似度: 多維度分析 + Winnowing 指紋 + 非邏輯特徵。
 
-        教師判斷抄襲的核心依據:
-        1. Tab/縮排習慣 — 每個人的習慣不同，抄襲者往往保留原作者的縮排風格
-        2. 不改名直接抄 — 變量名完全不改動是最強信號
-        3. 變量名相同 — 自定義名稱重疊率高
+        === 邏輯相似度（結構是否一致）===
+        1. Token 序列化 + Winnowing 指紋（MOSS 核心，抗插入垃圾代碼）
+        2. 骨架化 N-gram（去掉標識符後的結構比對）
+        3. 數據流分析（變量生命週期，抗調換行順序）
 
-        算法原則: 單一維度不足以定罪，需要多重證據叠加。
+        === 風格一致性（「非邏輯」私人習慣）===
+        4. 標識符指紋（自定義變量名相同 = 強信號）
+        5. 縮排/空格節奏（每個人的習慣不同）
+        6. 拼寫錯誤模式（共享拼錯 = 實錘）
+        7. 死代碼/調試痕跡（相同的 print("test") = 實錘）
+        8. 注釋/字串相似度
+
+        只有邏輯+風格同時高才判定為抄襲。
+
+        同時檢測 AI 生成代碼嫌疑（高階語法、過於規範的注釋/命名）。
         """
         signals: List[str] = []
 
-        # ---- 1) 結構相似度: 將代碼骨架化（替換標識符為佔位符）再比對 ----
+        # ================================================================
+        # 邏輯相似度
+        # ================================================================
+
+        # ---- 1) Winnowing 指紋（MOSS 核心）----
+        tokens_a = self._tokenize_code(raw_a)
+        tokens_b = self._tokenize_code(raw_b)
+        winnow_score = self._winnowing_similarity(tokens_a, tokens_b)
+        token_seq_score = self._token_sequence_similarity(tokens_a, tokens_b)
+
+        if winnow_score > 80:
+            signals.append(f"Winnowing 指紋高度匹配: {winnow_score:.0f}%（抗混淆結構相同）")
+        elif winnow_score > 60:
+            signals.append(f"Winnowing 指紋中度匹配: {winnow_score:.0f}%")
+
+        # ---- 2) 骨架化 N-gram（原有方法）----
         skeleton_a = self._skeletonize(raw_a)
         skeleton_b = self._skeletonize(raw_b)
-        structure_score = self._ngram_jaccard(skeleton_a, skeleton_b, n)
+        skeleton_score = self._ngram_jaccard(skeleton_a, skeleton_b, n)
 
-        # ---- 2) 標識符指紋（教師重點: "不改名"和"variable名一樣"）----
+        # 結構分 = Winnowing 和骨架的加權（Winnowing 更抗混淆，權重更高）
+        structure_score = winnow_score * 0.5 + skeleton_score * 0.3 + token_seq_score * 0.2
+
+        # ---- 3) 數據流分析 ----
+        data_flow_score = self._detect_data_flow_similarity(raw_a, raw_b)
+        if data_flow_score > 80:
+            signals.append(f"數據流模式高度相似: {data_flow_score:.0f}%（變量生命週期一致）")
+
+        # ================================================================
+        # 風格一致性
+        # ================================================================
+
+        # ---- 4) 標識符指紋（教師重點: "不改名"和"variable名一樣"）----
         ids_a = self._extract_identifiers(raw_a)
         ids_b = self._extract_identifiers(raw_b)
         common_kw = self._common_keywords()
 
-        # 區分: 所有標識符 vs 自定義標識符（去除語言/框架關鍵詞）
         unique_ids_a = ids_a - common_kw
         unique_ids_b = ids_b - common_kw
-
-        # 基礎標識符重疊（含通用詞）
         base_id_score = self._set_overlap(ids_a, ids_b)
 
-        # 核心指標: 自定義變量名重疊率（教師最看重的）
         if unique_ids_a and unique_ids_b:
             shared_unique = unique_ids_a & unique_ids_b
             all_unique = unique_ids_a | unique_ids_b
             unique_overlap = len(shared_unique) / max(len(all_unique), 1) * 100
 
-            # 計算「完全不改名」的程度
-            # 如果 A 的所有自定義名都出現在 B 中 = 直接複製不改名
             containment_a_in_b = len(unique_ids_a & unique_ids_b) / max(len(unique_ids_a), 1) * 100
             containment_b_in_a = len(unique_ids_a & unique_ids_b) / max(len(unique_ids_b), 1) * 100
             containment = max(containment_a_in_b, containment_b_in_a)
@@ -776,21 +920,30 @@ class PlagiarismService:
         else:
             identifier_score = base_id_score
             if not unique_ids_a and not unique_ids_b:
-                # 兩份都沒有自定義名（全是框架 API）→ 標識符維度無效
                 identifier_score *= 0.3
                 signals.append("無自定義變量名（標識符維度參考性低）")
 
-        # ---- 3) 逐字複製: 最長公共子串比率 ----
+        # ---- 5) 逐字複製: 最長公共子串比率 ----
         verbatim_score = self._verbatim_ratio(clean_a, clean_b)
 
-        # ---- 4) 縮排指紋（教師重點: "tab的習慣"）----
+        # ---- 6) 縮排指紋（教師重點: "tab的習慣"）----
         indent_score = self._indent_fingerprint_similarity(raw_a, raw_b)
         if indent_score > 85:
             signals.append("縮排習慣高度相似（tab/空格、深度模式一致）")
         elif indent_score > 70:
             signals.append("縮排習慣中度相似")
 
-        # ---- 5) 注釋/字串: 提取注釋和字串字面量單獨比對 ----
+        # ---- 7) 拼寫錯誤模式（強證據）----
+        typo_score, typo_signals = self._detect_shared_typos(raw_a, raw_b)
+        if typo_score > 0:
+            signals.extend([f"共享拼錯: {s}" for s in typo_signals[:3]])
+
+        # ---- 8) 死代碼/調試痕跡（強證據）----
+        dead_code_score, dead_signals = self._detect_dead_code(raw_a, raw_b)
+        if dead_code_score > 0:
+            signals.extend(dead_signals[:3])
+
+        # ---- 9) 注釋/字串 ----
         comments_a = self._extract_comments_and_strings(raw_a)
         comments_b = self._extract_comments_and_strings(raw_b)
         if comments_a and comments_b:
@@ -804,7 +957,14 @@ class PlagiarismService:
                     signals.append(f"共享 {len(unique_shared)} 段獨特注釋/字串")
                     comment_score = max(comment_score, 85.0)
         else:
-            comment_score = structure_score * 0.3  # 無注釋時低權重替代
+            comment_score = structure_score * 0.3
+
+        # ---- 10) AI 生成代碼嫌疑（兩份都檢測）----
+        ai_a_score, ai_a_sig = self._detect_ai_generated(raw_a)
+        ai_b_score, ai_b_sig = self._detect_ai_generated(raw_b)
+        ai_score = max(ai_a_score, ai_b_score)
+        if ai_score >= 40:
+            signals.append(f"AI 生成嫌疑: {', '.join((ai_a_sig or ai_b_sig)[:3])}")
 
         # ---- 長度自適應: 短代碼壓低結構分（因為短代碼天然相似）----
         code_len = min(len(clean_a), len(clean_b))
@@ -817,12 +977,23 @@ class PlagiarismService:
         elif code_len < MEDIUM_CODE_THRESHOLD:
             structure_score *= 0.8
 
+        # ---- 強證據加成: 拼錯/死代碼直接提升可信度 ----
+        # 將強證據分數融入 comment_score（佔用「非邏輯證據」通道）
+        if typo_score > 0 or dead_code_score > 0:
+            forensic_bonus = max(typo_score, dead_code_score)
+            comment_score = max(comment_score, forensic_bonus)
+
         return {
             "structure_score": min(structure_score, 100),
             "identifier_score": min(identifier_score, 100),
             "verbatim_score": min(verbatim_score, 100),
             "indent_score": min(indent_score, 100),
             "comment_score": min(comment_score, 100),
+            "data_flow_score": min(data_flow_score, 100),
+            "winnow_score": min(winnow_score, 100),
+            "typo_score": min(typo_score, 100),
+            "dead_code_score": min(dead_code_score, 100),
+            "ai_suspicion": min(ai_score, 100),
             "signals": signals,
         }
 
@@ -1157,6 +1328,406 @@ class PlagiarismService:
         return [r.strip() for r in results if len(r.strip()) > 3]
 
     # ================================================================
+    # Winnowing 指紋算法 (MOSS 核心)
+    # ================================================================
+
+    @staticmethod
+    def _tokenize_code(code: str) -> List[str]:
+        """
+        將代碼轉為 Token 序列（與變量名無關的原子操作序列）。
+
+        例如:
+            for (int i=0; i<10; i++) { sum += i; }
+            → ['KW', 'LPAREN', 'TYPE', 'VAR', 'ASSIGN', 'NUM', 'SEMI',
+               'VAR', 'CMP', 'NUM', 'SEMI', 'VAR', 'INCDEC', 'RPAREN',
+               'LBRACE', 'VAR', 'OPASSIGN', 'VAR', 'SEMI', 'RBRACE']
+
+        優勢: 無論學生把 i 改成 j，還是把 10 改成 n，Token 序列結構不變。
+        """
+        # 先移除注釋（避免注釋內容干擾 token 化）
+        text = re.sub(r'#[^\n]*', '', code)
+        text = re.sub(r'//[^\n]*', '', text)
+        text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+        text = re.sub(r'""".*?"""|\'\'\'.*?\'\'\'', '""', text, flags=re.DOTALL)
+
+        tokens: List[str] = []
+        pos = 0
+        while pos < len(text):
+            # 跳過空白
+            m = re.match(r'\s+', text[pos:])
+            if m:
+                pos += m.end()
+                continue
+
+            matched = False
+            for pattern, token_type in TOKEN_PATTERNS:
+                m = re.match(pattern, text[pos:])
+                if m:
+                    if token_type == 'KW':
+                        tokens.append(m.group(0).upper())
+                    elif token_type == 'DECL':
+                        tokens.append('DECL_' + m.group(0).upper())
+                    else:
+                        tokens.append(token_type)
+                    pos += m.end()
+                    matched = True
+                    break
+            if not matched:
+                pos += 1
+
+        return tokens
+
+    @staticmethod
+    def _winnowing_fingerprints(tokens: List[str], k: int = WINNOW_K, w: int = WINNOW_W) -> Set[int]:
+        """
+        Winnowing 算法: 從 Token 序列生成穩健的指紋集合。
+
+        1. 用滑動窗口提取 K-Grams（連續 K 個 Token 的哈希值）
+        2. 在每個窗口 W 裡選最小哈希值作為指紋
+        3. 如果學生在中間插入垃圾代碼，只破壞局部指紋，大部分仍能匹配
+
+        Returns:
+            指紋集合（哈希值的 set）
+        """
+        if len(tokens) < k:
+            return set()
+
+        # 生成所有 K-gram 的哈希值
+        hashes = []
+        for i in range(len(tokens) - k + 1):
+            kgram = tuple(tokens[i:i + k])
+            hashes.append(hash(kgram))
+
+        if len(hashes) < w:
+            return set(hashes)
+
+        # Winnowing: 在每個窗口中選最小哈希值
+        fingerprints: Set[int] = set()
+        prev_min_idx = -1
+        for i in range(len(hashes) - w + 1):
+            window = hashes[i:i + w]
+            min_val = min(window)
+            min_idx = i + window.index(min_val)
+            if min_idx != prev_min_idx:
+                fingerprints.add(min_val)
+                prev_min_idx = min_idx
+
+        return fingerprints
+
+    @staticmethod
+    def _winnowing_similarity(tokens_a: List[str], tokens_b: List[str]) -> float:
+        """計算兩組 Token 序列的 Winnowing 指紋相似度（百分比）"""
+        fp_a = PlagiarismService._winnowing_fingerprints(tokens_a)
+        fp_b = PlagiarismService._winnowing_fingerprints(tokens_b)
+
+        if not fp_a or not fp_b:
+            return 0.0
+
+        intersection = fp_a & fp_b
+        union = fp_a | fp_b
+        return len(intersection) / len(union) * 100
+
+    @staticmethod
+    def _token_sequence_similarity(tokens_a: List[str], tokens_b: List[str]) -> float:
+        """Token 序列的 LCS 相似度（捕捉局部順序相同的操作流）"""
+        if not tokens_a or not tokens_b:
+            return 0.0
+
+        # 為了效率，截斷過長的序列
+        max_tokens = 500
+        ta = tokens_a[:max_tokens]
+        tb = tokens_b[:max_tokens]
+
+        from difflib import SequenceMatcher
+        matcher = SequenceMatcher(None, ta, tb, autojunk=False)
+        return matcher.ratio() * 100
+
+    # ================================================================
+    # 「非邏輯」特徵檢測 — 中學生洗代碼時最容易遺漏的痕跡
+    # ================================================================
+
+    @staticmethod
+    def _detect_shared_typos(code_a: str, code_b: str) -> Tuple[float, List[str]]:
+        """
+        拼寫錯誤模式匹配 — 強證據。
+
+        如果兩個學生在變量名或注釋裡都拼錯了同一個單詞
+        （如把 total 寫成 totle），這是非常強的抄襲證據。
+
+        Returns:
+            (相似度 0-100, 共享拼錯列表)
+        """
+        # 常見正確拼寫 → 用於對比
+        common_correct_words = {
+            'result', 'total', 'count', 'number', 'calculate', 'average',
+            'maximum', 'minimum', 'length', 'height', 'width', 'index',
+            'value', 'input', 'output', 'student', 'teacher', 'answer',
+            'question', 'response', 'message', 'button', 'color', 'image',
+            'temperature', 'position', 'address', 'receive', 'separate',
+            'necessary', 'occurrence', 'beginning', 'boundary', 'calendar',
+            'environment', 'definitely', 'immediately', 'unfortunately',
+        }
+
+        def extract_nonstandard_words(code: str) -> Set[str]:
+            """提取不在標準詞庫中的自定義詞（可能包含拼錯的詞）"""
+            # 提取注釋和變量名中的英文詞
+            all_words = set(re.findall(r'\b[a-zA-Z]{4,}\b', code.lower()))
+            # 過濾掉語言關鍵字
+            keywords = PlagiarismService._common_keywords()
+            return {w for w in all_words if w not in {k.lower() for k in keywords}}
+
+        words_a = extract_nonstandard_words(code_a)
+        words_b = extract_nonstandard_words(code_b)
+
+        if not words_a or not words_b:
+            return 0.0, []
+
+        # 找共同的「非標準詞」
+        shared_unusual = words_a & words_b
+        signals = []
+
+        # 檢查是否為拼錯的詞
+        from difflib import get_close_matches
+        shared_typos = []
+        for word in shared_unusual:
+            # 如果與某個正確詞很像但不完全相同 → 可能是拼錯
+            close = get_close_matches(word, common_correct_words, n=1, cutoff=0.75)
+            if close and close[0] != word:
+                shared_typos.append(f"{word}（可能是 {close[0]}）")
+
+        if shared_typos:
+            signals = shared_typos
+            # 每個共享拼錯值 30 分，最多 100
+            score = min(len(shared_typos) * 30, 100)
+        else:
+            # 即使沒有拼錯，共享大量「非常規」自定義詞也是信號
+            if len(shared_unusual) >= 5:
+                score = min(len(shared_unusual) * 8, 60)
+                signals = [f"共享 {len(shared_unusual)} 個非常規自定義詞"]
+            else:
+                score = 0.0
+
+        return score, signals
+
+    @staticmethod
+    def _detect_dead_code(code_a: str, code_b: str) -> Tuple[float, List[str]]:
+        """
+        死代碼/無用變量檢測 — 強證據。
+
+        定義了但沒使用的變量名，或者為了改代碼故意加的 print("test")，
+        如果位置和內容一致，基本實錘。
+
+        Returns:
+            (相似度 0-100, 信號列表)
+        """
+        signals: List[str] = []
+
+        def find_dead_patterns(code: str) -> List[str]:
+            """找出可能的死代碼/調試痕跡"""
+            patterns = []
+            # 調試用的 print 語句
+            for m in re.finditer(
+                r'(?:print|console\.log|println|printf|NSLog)\s*\(\s*["\']([^"\']*)["\']',
+                code,
+            ):
+                content = m.group(1).strip()
+                if content and any(kw in content.lower() for kw in
+                                   ['test', 'debug', 'here', 'check', 'todo', 'temp',
+                                    'xxx', 'aaa', 'bbb', '111', '222', 'hello']):
+                    patterns.append(f"debug_print:{content}")
+
+            # 被注釋掉的代碼行（不是正常注釋）
+            for m in re.finditer(r'(?://|#)\s*((?:if|for|while|def|var|let|const|return)\b.+)', code):
+                patterns.append(f"commented_code:{m.group(1).strip()[:50]}")
+
+            # 定義後從未使用的簡單變量（啟發式）
+            assignments = re.findall(r'\b([a-zA-Z_]\w*)\s*=\s*(?!.*=)', code)
+            for var_name in assignments:
+                if len(var_name) <= 1 or var_name.startswith('_'):
+                    continue
+                # 統計出現次數（排除定義那行）
+                count = len(re.findall(r'\b' + re.escape(var_name) + r'\b', code))
+                if count == 1:
+                    patterns.append(f"unused_var:{var_name}")
+
+            return patterns
+
+        dead_a = find_dead_patterns(code_a)
+        dead_b = find_dead_patterns(code_b)
+
+        if not dead_a or not dead_b:
+            return 0.0, []
+
+        shared_dead = set(dead_a) & set(dead_b)
+
+        if shared_dead:
+            for item in list(shared_dead)[:5]:
+                kind, content = item.split(":", 1)
+                if kind == "debug_print":
+                    signals.append(f"相同調試輸出: \"{content}\"")
+                elif kind == "commented_code":
+                    signals.append(f"相同的被注釋代碼: {content}")
+                elif kind == "unused_var":
+                    signals.append(f"相同的未使用變量: {content}")
+            score = min(len(shared_dead) * 25, 100)
+        else:
+            score = 0.0
+
+        return score, signals
+
+    @staticmethod
+    def _detect_ai_generated(code: str) -> Tuple[float, List[str]]:
+        """
+        AI 生成代碼特徵檢測。
+
+        中學生用 ChatGPT 寫作業的特徵:
+        1. 注釋極其規範（平時不寫注釋的學生突然寫出完美英文文檔注釋）
+        2. 「降維打擊」— 用了超出教學進度的高階語法
+        3. 變量命名過於專業規範（camelCase 完美、命名語義精確）
+
+        Returns:
+            (AI 嫌疑度 0-100, 信號列表)
+        """
+        signals: List[str] = []
+        score = 0.0
+        lines = code.split('\n')
+        non_empty = [l for l in lines if l.strip()]
+        if not non_empty:
+            return 0.0, []
+
+        # 1) 注釋比例 — 中學生通常不寫注釋，大量規範注釋 = 可疑
+        comment_lines = sum(1 for l in non_empty if re.match(r'\s*(#|//|/\*|\*)', l))
+        comment_ratio = comment_lines / len(non_empty) if non_empty else 0
+        if comment_ratio > 0.3:
+            score += 20
+            signals.append(f"注釋比例異常高: {comment_ratio:.0%}")
+
+        # 英文文檔注釋（docstring 風格）
+        docstring_count = len(re.findall(r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'', code))
+        jsdoc_count = len(re.findall(r'/\*\*[\s\S]*?\*/', code))
+        if docstring_count + jsdoc_count >= 2:
+            score += 15
+            signals.append(f"多個規範文檔注釋 ({docstring_count + jsdoc_count} 個)")
+
+        # 2) 高階語法檢測 — 超出中學課程的功能
+        advanced_hits = []
+        for pattern, desc in ADVANCED_PATTERNS:
+            if re.search(pattern, code):
+                advanced_hits.append(desc)
+        if advanced_hits:
+            score += min(len(advanced_hits) * 10, 35)
+            signals.append(f"高階語法: {', '.join(advanced_hits[:4])}")
+
+        # 3) 變量命名過於規範（完美 camelCase 或 snake_case）
+        identifiers = set(re.findall(r'\b([a-zA-Z_]\w{3,})\b', code))
+        keywords = PlagiarismService._common_keywords()
+        custom_ids = {i for i in identifiers if i not in keywords and i not in {k.lower() for k in keywords}}
+
+        if len(custom_ids) >= 4:
+            # 統計符合嚴格命名規範的比例
+            camel = sum(1 for i in custom_ids if re.match(r'^[a-z]+([A-Z][a-z]+)+$', i))
+            snake = sum(1 for i in custom_ids if re.match(r'^[a-z]+(_[a-z]+)+$', i))
+            best_convention = max(camel, snake)
+            convention_ratio = best_convention / len(custom_ids)
+            if convention_ratio > 0.8 and best_convention >= 4:
+                score += 15
+                style = "camelCase" if camel > snake else "snake_case"
+                signals.append(f"命名過於規範: {best_convention}/{len(custom_ids)} 個自定義名符合 {style}")
+
+        # 4) 錯誤處理過於完善（中學生很少寫 try-except）
+        error_handling = len(re.findall(r'\b(try|catch|except|finally)\b', code))
+        if error_handling >= 3:
+            score += 10
+            signals.append(f"過多錯誤處理 ({error_handling} 處)")
+
+        return min(score, 100), signals
+
+    @staticmethod
+    def _detect_data_flow_similarity(code_a: str, code_b: str) -> float:
+        """
+        數據流特徵 — 變量生命週期分析。
+
+        中學生喜歡調換代碼行的順序。此方法檢測變量的依賴關係:
+        - 變量在第幾行賦值，在第幾行被使用
+        - 輸入幾個變量，輸出幾個變量，中間幾次賦值
+
+        即使插入無關代碼或調換順序，這些依賴關係模式是不變的。
+
+        Returns:
+            數據流相似度 0-100
+        """
+
+        def extract_data_flow(code: str) -> List[Tuple[str, str]]:
+            """提取變量的 定義→使用 關係序列"""
+            lines = code.split('\n')
+            var_defined: Dict[str, int] = {}  # var → 首次定義行號
+            flow_events: List[Tuple[str, str]] = []  # (事件類型, 歸一化標識)
+
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#') or stripped.startswith('//'):
+                    continue
+
+                # 賦值（定義）
+                assign_match = re.findall(r'\b([a-zA-Z_]\w*)\s*=(?!=)', stripped)
+                for var in assign_match:
+                    if var not in var_defined:
+                        var_defined[var] = i
+                        flow_events.append(('DEF', var))
+                    else:
+                        flow_events.append(('REDEF', var))
+
+                # 使用（讀取）
+                all_ids = set(re.findall(r'\b([a-zA-Z_]\w*)\b', stripped))
+                assigned_here = set(assign_match)
+                used_ids = all_ids - assigned_here
+                for var in used_ids:
+                    if var in var_defined:
+                        flow_events.append(('USE', var))
+
+                # IO 操作
+                if re.search(r'\b(print|input|scanf|cin|cout|console|readline)\b', stripped):
+                    flow_events.append(('IO', 'IO'))
+
+                # 控制流
+                if re.search(r'\b(if|for|while|switch)\b', stripped):
+                    flow_events.append(('CTRL', 'CTRL'))
+
+                # return
+                if re.search(r'\breturn\b', stripped):
+                    flow_events.append(('RET', 'RET'))
+
+            return flow_events
+
+        flow_a = extract_data_flow(code_a)
+        flow_b = extract_data_flow(code_b)
+
+        if not flow_a or not flow_b:
+            return 0.0
+
+        # 歸一化: 將具體變量名替換為出場順序編號
+        def normalize_flow(events: List[Tuple[str, str]]) -> List[str]:
+            var_map: Dict[str, str] = {}
+            counter = 0
+            result = []
+            for event_type, name in events:
+                if event_type in ('IO', 'CTRL', 'RET'):
+                    result.append(event_type)
+                else:
+                    if name not in var_map:
+                        var_map[name] = f"V{counter}"
+                        counter += 1
+                    result.append(f"{event_type}_{var_map[name]}")
+            return result
+
+        norm_a = normalize_flow(flow_a)
+        norm_b = normalize_flow(flow_b)
+
+        from difflib import SequenceMatcher
+        matcher = SequenceMatcher(None, norm_a, norm_b, autojunk=False)
+        return matcher.ratio() * 100
+
+    # ================================================================
     # 相似度計算工具方法
     # ================================================================
 
@@ -1288,18 +1859,18 @@ class PlagiarismService:
 
         mode_label = DETECTION_PRESETS.get(detect_mode, {}).get("label", "混合")
         mode_hint = {
-            "code": "這是代碼類作業，注意: 簡單題目結構相似是正常的，重點關注自定義變量名和注釋是否雷同。",
+            "code": "這是中學電腦課的代碼作業。注意: 簡單題目（如冒泡排序）結構天然相似，不能僅靠結構判斷。",
             "text": "這是文字類作業，重點關注段落是否整段複製、改寫是否只是同義詞替換。",
             "mixed": "這份作業可能包含代碼和文字，請根據實際內容特徵自行判斷最適合的分析策略。",
         }.get(detect_mode, "")
 
-        prompt = f"""你是一位專業的學術誠信分析師。請分析以下兩份學生作業提交是否存在抄襲行為。
+        prompt = f"""你是一位專業的學術誠信分析師，專門分析中學生作業。請分析以下兩份學生提交是否存在抄襲。
 
 ## 作業類型: {mode_label}
 {mode_hint}
 
 ## 自動檢測結果
-綜合相似度: {similarity_score:.1f}%（基於結構、標識符、逐字複製、注釋四個維度的加權得分）
+綜合相似度: {similarity_score:.1f}%（基於 Winnowing 指紋 + 多維度加權得分）
 
 ## 提交 A 的內容
 {excerpt_a}
@@ -1307,17 +1878,22 @@ class PlagiarismService:
 ## 提交 B 的內容
 {excerpt_b}
 
-## 分析要求
-請重點關注以下抄襲信號（按重要性排列）:
-1. **變量名/函數名**: 自定義命名是否完全相同？（最強信號——獨立開發幾乎不可能取相同的自定義名稱）
-2. **注釋/字串**: 是否保留了相同的注釋文字甚至拼寫錯誤？
-3. **逐字複製**: 是否存在大段完全相同的代碼或文字？
-4. **結構相似**: 整體邏輯和組織結構是否一致？（注意: 簡單題目本身結構相似是正常的）
+## 分析要求（按證據強度排序）
+請重點關注以下「非邏輯」特徵（中學生洗代碼時最容易遺漏的痕跡）:
+
+1. **共享拼寫錯誤** [實錘級]: 兩人是否在變量名或注釋裡拼錯了同一個單詞？（如 totle 代替 total）
+2. **死代碼/調試痕跡** [實錘級]: 相同位置是否有未刪除的 print("test")、被注釋的代碼、未使用的變量？
+3. **變量命名** [強信號]: 自定義命名是否完全相同？（獨立開發幾乎不可能取相同的自定義名稱）
+4. **空格/縮排節奏** [中等信號]: 運算符兩邊是否加空格、花括號換行風格、函數間空行數是否一致？
+5. **注釋/字串** [中等信號]: 是否保留了相同注釋文字？
+6. **AI 生成嫌疑**: 是否存在超出教學進度的語法（lambda、推導式、裝飾器等）？注釋是否過於規範？
+7. **結構相似**: 整體邏輯一致？（注意: 中學簡單題目本身結構相似是正常的，不能單獨作為證據）
 
 ## 回答格式
 請直接用中文給出簡明的分析結論（2-4 句話），包含:
 - 你的判斷：「高度疑似抄襲」/「可能抄襲」/「相似但可能巧合」/「正常相似」
-- 關鍵依據（具體指出哪些變量名/注釋/代碼段雷同）
+- 關鍵依據（具體指出哪些變量名/拼錯/死代碼/注釋雷同）
+- 如果發現 AI 生成嫌疑，額外提醒
 """
 
         try:

@@ -1113,10 +1113,14 @@ const AssignmentUI = {
             const pct = parseFloat(p.similarity_score) || 0;
             const dims = this._extractDimensions(p.matched_fragments);
             const dimHtml = dims ? `<div class="pair-dimensions">
+                ${dims.logicScore ? `<span class="dim-tag">邏輯 ${Math.round(dims.logicScore)}%</span>` : ''}
+                ${dims.styleScore ? `<span class="dim-tag">風格 ${Math.round(dims.styleScore)}%</span>` : ''}
                 <span class="dim-tag">命名 ${dims.identifier}%</span>
                 <span class="dim-tag">逐字 ${dims.verbatim}%</span>
-                <span class="dim-tag">縮排 ${dims.indent}%</span>
-                ${dims.evidenceHits ? `<span class="dim-tag${dims.evidenceHits >= 2 ? ' evidence-hit' : ''}">證據 ${dims.evidenceHits}/5</span>` : ''}
+                ${dims.typo > 0 ? `<span class="dim-tag evidence-hit">拼錯匹配</span>` : ''}
+                ${dims.deadCode > 0 ? `<span class="dim-tag evidence-hit">死代碼匹配</span>` : ''}
+                ${dims.aiSuspicion >= 40 ? `<span class="dim-tag" style="color:var(--text-tertiary)">AI嫌疑</span>` : ''}
+                ${dims.evidenceHits >= 2 ? `<span class="dim-tag evidence-hit">證據 ${dims.evidenceHits}/5</span>` : ''}
             </div>` : '';
             return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
                 <div class="pair-card-left">
@@ -1168,14 +1172,38 @@ const AssignmentUI = {
                     <span class="dim-detail-val">${v.toFixed(1)}%</span>
                 </div>`;
             };
+            // 雙分數卡片
+            const logicPct = Math.round(dims.logicScore || 0);
+            const stylePct = Math.round(dims.styleScore || 0);
             html += `<div class="plagiarism-dimension-box">
-                <h4>多維度分析</h4>
-                ${mkBar('結構相似', dims.structure)}
+                <h4>雙分數判定</h4>
+                <div class="plag-dual-scores">
+                    <div class="plag-dual-card">
+                        <div class="plag-dual-label">邏輯相似度</div>
+                        <div class="plag-dual-value">${logicPct}%</div>
+                        <div class="plag-dual-hint">Token結構 · 數據流 · 逐字</div>
+                    </div>
+                    <div class="plag-dual-card">
+                        <div class="plag-dual-label">風格一致性</div>
+                        <div class="plag-dual-value">${stylePct}%</div>
+                        <div class="plag-dual-hint">命名 · 縮排 · 拼錯 · 死代碼</div>
+                    </div>
+                </div>
+                ${logicPct > 70 && stylePct < 40 ? '<div class="dim-code-badge">邏輯高但風格不同 → 簡單作業巧合的可能性較高</div>' : ''}
+                ${logicPct > 70 && stylePct > 60 ? '<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">邏輯+風格同時高 → 高度可疑</div>' : ''}
+
+                <h4 style="margin-top:var(--space-4)">維度明細</h4>
+                ${dims.winnow ? mkBar('Winnowing 指紋', dims.winnow) : ''}
+                ${mkBar('結構相似 (骨架)', dims.structure)}
+                ${dims.dataFlow ? mkBar('數據流模式', dims.dataFlow) : ''}
                 ${mkBar('變量命名', dims.identifier)}
                 ${mkBar('逐字複製', dims.verbatim)}
                 ${mkBar('縮排指紋', dims.indent)}
                 ${mkBar('注釋/字串', dims.comment)}
+                ${dims.typo > 0 ? mkBar('共享拼錯 (強證據)', dims.typo) : ''}
+                ${dims.deadCode > 0 ? mkBar('死代碼匹配 (強證據)', dims.deadCode) : ''}
                 ${dims.evidenceHits !== undefined ? mkBar('多重證據', dims.evidence) : ''}
+                ${dims.aiSuspicion >= 20 ? mkBar('AI 生成嫌疑', dims.aiSuspicion) : ''}
                 ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元 · 證據命中 ${dims.evidenceHits || 0}/5 維</div>` : ''}
                 ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
             </div>`;
@@ -1229,6 +1257,13 @@ const AssignmentUI = {
             comment: dim.comment_score || 0,
             evidence: dim.evidence_score || 0,
             evidenceHits: dim.evidence_hits || 0,
+            logicScore: dim.logic_score || 0,
+            styleScore: dim.style_score || 0,
+            winnow: dim.winnow_score || 0,
+            dataFlow: dim.data_flow_score || 0,
+            typo: dim.typo_score || 0,
+            deadCode: dim.dead_code_score || 0,
+            aiSuspicion: dim.ai_suspicion || 0,
             isCode: dim.is_code || false,
             codeLength: dim.code_length || 0,
             signals: dim.signals || [],
