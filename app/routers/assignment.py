@@ -950,14 +950,33 @@ _plagiarism_jobs: Dict[int, dict] = {}  # assignment_id → job state
 
 
 def _plagiarism_worker(assignment_id: int, report_id: int) -> None:
-    """背景線程：執行抄袭檢測"""
+    """背景線程：執行抄袭檢測，帶即時進度更新"""
     job = _plagiarism_jobs.get(assignment_id)
     if not job:
         return
     job["status"] = "running"
+
+    def _on_progress(phase: str, done: int, total: int, detail: str = ""):
+        """進度回調: 將進度寫入記憶體中的 job 字典，供 status API 讀取"""
+        job["phase"] = phase
+        job["phase_done"] = done
+        job["phase_total"] = total
+        job["detail"] = detail
+        # 計算總體百分比（4 個階段各佔一定比例）
+        phase_weights = {"extract": 5, "compare": 60, "ai": 30, "save": 5}
+        weight = phase_weights.get(phase, 0)
+        phase_pct = (done / max(total, 1)) * weight
+        # 累計前面已完成階段的百分比
+        phase_order = ["extract", "compare", "ai", "save"]
+        completed_pct = sum(
+            phase_weights[p] for p in phase_order
+            if phase_order.index(p) < phase_order.index(phase)
+        ) if phase in phase_order else 0
+        job["progress"] = min(round(completed_pct + phase_pct), 100)
+
     try:
         services = get_services()
-        services.plagiarism.run_check(report_id)
+        services.plagiarism.run_check(report_id, progress_callback=_on_progress)
         # 完成後更新 job 狀態
         report = services.plagiarism.get_report_by_id(report_id)
         if report:
@@ -966,6 +985,7 @@ def _plagiarism_worker(assignment_id: int, report_id: int) -> None:
             job["flagged_pairs"] = report.get("flagged_pairs", 0)
         else:
             job["status"] = "completed"
+        job["progress"] = 100
     except Exception as e:
         logger.error("抄袭檢測失敗 (assignment #%d): %s", assignment_id, e)
         job["status"] = "failed"
@@ -1034,10 +1054,20 @@ async def get_plagiarism_status(
     teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     """查詢抄袭檢測進度"""
-    # 先查記憶體中的任務狀態
+    # 先查記憶體中的任務狀態（包含即時進度）
     job = _plagiarism_jobs.get(assignment_id)
     if job and job.get("status") == "running":
-        return success_response(data=job)
+        return success_response(data={
+            "status": "running",
+            "report_id": job.get("report_id"),
+            "progress": job.get("progress", 0),
+            "phase": job.get("phase", "extract"),
+            "phase_done": job.get("phase_done", 0),
+            "phase_total": job.get("phase_total", 0),
+            "detail": job.get("detail", "啟動中..."),
+            "total_pairs": job.get("total_pairs", 0),
+            "flagged_pairs": job.get("flagged_pairs", 0),
+        })
 
     # 查資料庫中的最新報告
     services = get_services()

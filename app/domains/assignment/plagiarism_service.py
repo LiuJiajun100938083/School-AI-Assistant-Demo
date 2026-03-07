@@ -149,16 +149,30 @@ class PlagiarismService:
             "threshold": threshold,
         }
 
-    def run_check(self, report_id: int) -> None:
+    def run_check(
+        self,
+        report_id: int,
+        progress_callback: Optional[Callable] = None,
+    ) -> None:
         """
         執行抄袭檢測的完整流程（應在背景線程中調用）。
 
-        步驟:
-        1. 提取所有提交的文本
-        2. 兩兩計算 N-gram 相似度
-        3. 對超過閾值的配對進行 AI 分析
-        4. 寫入配對結果並更新報告
+        Args:
+            report_id: 報告 ID
+            progress_callback: 進度回調函數 fn(phase, done, total, detail)
+                phase: "extract" | "compare" | "ai" | "save"
+                done: 已完成數量
+                total: 總數量
+                detail: 額外說明文字
         """
+
+        def _progress(phase: str, done: int, total: int, detail: str = ""):
+            if progress_callback:
+                try:
+                    progress_callback(phase, done, total, detail)
+                except Exception:
+                    pass  # 回調失敗不應中斷檢測
+
         report = self._report_repo.find_by_id(report_id)
         if not report:
             logger.error("抄袭檢測報告 #%d 不存在", report_id)
@@ -170,12 +184,14 @@ class PlagiarismService:
             assignment_id = report["assignment_id"]
             threshold = float(report.get("threshold") or DEFAULT_THRESHOLD)
 
-            # 1) 取得所有提交及其文本內容
+            # 1) 提取所有提交的文本
+            _progress("extract", 0, 1, "正在讀取學生提交內容...")
             submissions = self._submission_repo.find_by_assignment(assignment_id)
             if len(submissions) < 2:
                 self._report_repo.update_status(
                     report_id, "completed", total_pairs=0, flagged_pairs=0,
                 )
+                _progress("extract", 1, 1, "提交不足 2 份，無需比對")
                 return
 
             sub_texts = self._extract_all_texts(submissions)
@@ -183,23 +199,29 @@ class PlagiarismService:
                 self._report_repo.update_status(
                     report_id, "completed", total_pairs=0, flagged_pairs=0,
                 )
+                _progress("extract", 1, 1, "有效提交不足 2 份")
                 return
 
-            # 2) 兩兩對比 — 先全部算 N-gram（快速），再對 top 可疑配對做 AI 分析
+            _progress("extract", 1, 1, f"已讀取 {len(sub_texts)} 份提交")
+
+            # 2) 兩兩對比
             sub_ids = list(sub_texts.keys())
             all_pairs: List[Dict[str, Any]] = []
             flagged_indices: List[int] = []
+            total_combinations = len(sub_ids) * (len(sub_ids) - 1) // 2
+            compared = 0
 
             for id_a, id_b in combinations(sub_ids, 2):
                 text_a = sub_texts[id_a]["text"]
                 text_b = sub_texts[id_b]["text"]
+                compared += 1
 
                 if not text_a.strip() or not text_b.strip():
                     continue
 
                 score, fragments = self._compute_similarity(text_a, text_b)
 
-                # 長度自適應閾值: 短代碼需要更高的分數才標記可疑
+                # 長度自適應閾值
                 effective_threshold = threshold
                 shorter_len = min(len(text_a.strip()), len(text_b.strip()))
                 if shorter_len < TINY_CODE_THRESHOLD:
@@ -225,18 +247,34 @@ class PlagiarismService:
                     flagged_indices.append(len(all_pairs))
                 all_pairs.append(pair_data)
 
+                # 每 5 對更新一次進度（避免過於頻繁）
+                if compared % 5 == 0 or compared == total_combinations:
+                    _progress(
+                        "compare", compared, total_combinations,
+                        f"已比對 {compared}/{total_combinations} 對"
+                        f"（發現 {len(flagged_indices)} 對可疑）",
+                    )
+
             flagged_count = len(flagged_indices)
 
-            # 3) AI 深度分析 — 僅對 top N 可疑配對（按相似度倒序）
+            # 3) AI 深度分析
             if self._ask_ai_func and flagged_indices:
                 flagged_indices.sort(
                     key=lambda i: all_pairs[i]["similarity_score"], reverse=True
                 )
+                ai_targets = flagged_indices[:MAX_AI_ANALYSIS_PAIRS]
+                ai_total = len(ai_targets)
                 ai_count = 0
-                for idx in flagged_indices[:MAX_AI_ANALYSIS_PAIRS]:
+                for idx in ai_targets:
                     pair = all_pairs[idx]
                     id_a = pair["submission_a_id"]
                     id_b = pair["submission_b_id"]
+                    ai_count += 1
+                    _progress(
+                        "ai", ai_count, ai_total,
+                        f"AI 分析第 {ai_count}/{ai_total} 對"
+                        f"（{pair['student_a_name']} vs {pair['student_b_name']}）",
+                    )
                     try:
                         ai_result = self._ai_analyze_pair(
                             sub_texts[id_a]["text"],
@@ -244,7 +282,6 @@ class PlagiarismService:
                             pair["similarity_score"],
                         )
                         pair["ai_analysis"] = ai_result
-                        ai_count += 1
                     except Exception as e:
                         logger.warning("AI 分析配對失敗: %s", e)
                         pair["ai_analysis"] = f"AI 分析失敗: {e}"
@@ -256,12 +293,14 @@ class PlagiarismService:
                     )
 
             # 4) 寫入資料庫
+            _progress("save", 0, 1, "正在儲存結果...")
             self._pair_repo.batch_insert(all_pairs)
             self._report_repo.update_status(
                 report_id, "completed",
                 total_pairs=len(all_pairs),
                 flagged_pairs=flagged_count,
             )
+            _progress("save", 1, 1, "完成")
             logger.info(
                 "抄袭檢測完成: 報告 #%d, 共 %d 對, 可疑 %d 對",
                 report_id, len(all_pairs), flagged_count,

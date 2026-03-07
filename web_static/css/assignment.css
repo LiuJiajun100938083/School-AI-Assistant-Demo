@@ -1625,6 +1625,125 @@ body {
 }
 
 /* ============================================================
+   Global Floating Plagiarism Progress Bar
+   ============================================================ */
+
+.global-plag-bar {
+    position: fixed;
+    bottom: var(--space-4);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: var(--space-3) var(--space-5);
+    min-width: 380px;
+    max-width: 520px;
+    animation: plagBarSlideUp 0.3s ease;
+}
+
+@keyframes plagBarSlideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.global-plag-inner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.global-plag-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+    font-size: var(--type-small);
+    color: var(--text-secondary);
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.global-plag-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 80px;
+}
+
+.global-plag-fill {
+    height: 100%;
+    background: var(--brand);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.global-plag-pct {
+    font-size: var(--type-small);
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 32px;
+    text-align: right;
+}
+
+/* In-page plagiarism progress box */
+.plag-progress-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.plag-progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--type-small);
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+}
+
+.plag-progress-track {
+    height: 6px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: var(--space-2);
+}
+
+.plag-progress-fill {
+    height: 100%;
+    background: var(--brand);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.plag-progress-detail {
+    font-size: var(--type-badge);
+    color: var(--text-tertiary);
+}
+
+@media (max-width: 600px) {
+    .global-plag-bar {
+        min-width: auto;
+        left: var(--space-3);
+        right: var(--space-3);
+        transform: none;
+    }
+    @keyframes plagBarSlideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+}
+
+/* ============================================================
    Batch AI Grade Modal
    ============================================================ */
 

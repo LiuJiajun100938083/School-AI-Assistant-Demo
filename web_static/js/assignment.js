@@ -1842,8 +1842,52 @@ const AssignmentApp = {
 
     _plagPollTimer: null,
 
+    // ---- 全局抄袭檢測進度條（切換頁面不消失）----
+
+    _plagiarismRunningFor: null,  // 正在檢測的 assignmentId
+
+    _ensureGlobalPlagBar() {
+        if (document.getElementById('globalPlagBar')) return;
+        const bar = document.createElement('div');
+        bar.id = 'globalPlagBar';
+        bar.className = 'global-plag-bar';
+        bar.style.display = 'none';
+        bar.innerHTML = `
+            <div class="global-plag-inner">
+                <div class="global-plag-info">
+                    <div class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></div>
+                    <span id="globalPlagText">抄袭檢測中...</span>
+                </div>
+                <div class="global-plag-track">
+                    <div class="global-plag-fill" id="globalPlagFill" style="width:0%"></div>
+                </div>
+                <span id="globalPlagPct" class="global-plag-pct">0%</span>
+            </div>
+        `;
+        document.body.appendChild(bar);
+    },
+
+    _showGlobalPlagBar(progress, detail) {
+        this._ensureGlobalPlagBar();
+        const bar = document.getElementById('globalPlagBar');
+        const fill = document.getElementById('globalPlagFill');
+        const text = document.getElementById('globalPlagText');
+        const pct = document.getElementById('globalPlagPct');
+        if (bar) bar.style.display = 'block';
+        if (fill) fill.style.width = `${progress}%`;
+        if (text) text.textContent = detail || '抄袭檢測中...';
+        if (pct) pct.textContent = `${progress}%`;
+    },
+
+    _hideGlobalPlagBar() {
+        const bar = document.getElementById('globalPlagBar');
+        if (bar) bar.style.display = 'none';
+        this._plagiarismRunningFor = null;
+    },
+
     _startPlagiarismPolling(assignmentId) {
         if (this._plagPollTimer) clearInterval(this._plagPollTimer);
+        this._plagiarismRunningFor = assignmentId;
         this._pollPlagiarismStatus(assignmentId);
         this._plagPollTimer = setInterval(() => this._pollPlagiarismStatus(assignmentId), 2000);
     },
@@ -1865,6 +1909,7 @@ const AssignmentApp = {
 
         if (job.status === 'idle' || job.status === 'completed' || job.status === 'failed') {
             this._stopPlagiarismPolling();
+            this._hideGlobalPlagBar();
             if (progressEl) progressEl.style.display = 'none';
 
             if (job.status === 'completed') {
@@ -1880,7 +1925,10 @@ const AssignmentApp = {
                 } else {
                     UIModule.toast('檢測完成，未發現可疑抄襲', 'success');
                 }
-                this.showPlagiarismReport();
+                // 如果當前正在看這個作業，自動打開報告
+                if (this.state.currentAssignment === assignmentId) {
+                    this.showPlagiarismReport();
+                }
             } else if (job.status === 'failed') {
                 if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
                 UIModule.toast('抄袭檢測失敗', 'error');
@@ -1891,10 +1939,29 @@ const AssignmentApp = {
         }
 
         if (job.status === 'running') {
-            if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 檢測中...'; }
+            const progress = job.progress || 0;
+            const detail = job.detail || '正在分析學生提交內容...';
+
+            // 更新全局浮動進度條（始終可見）
+            this._showGlobalPlagBar(progress, detail);
+
+            // 更新頁面內元素（如果還在當前頁面）
+            if (btn) { btn.disabled = true; btn.innerHTML = `<div class="loading-spinner"></div> ${progress}%`; }
             if (progressEl) {
                 progressEl.style.display = 'block';
-                progressEl.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:8px;">正在分析學生提交內容...</div>';
+                const phaseLabels = { extract: '讀取提交', compare: '比對分析', ai: 'AI 分析', save: '儲存結果' };
+                const phaseLabel = phaseLabels[job.phase] || job.phase || '';
+                progressEl.innerHTML = `
+                    <div class="plag-progress-box">
+                        <div class="plag-progress-header">
+                            <span>${phaseLabel}</span>
+                            <span>${progress}%</span>
+                        </div>
+                        <div class="plag-progress-track">
+                            <div class="plag-progress-fill" style="width:${progress}%"></div>
+                        </div>
+                        <div class="plag-progress-detail">${detail}</div>
+                    </div>`;
             }
         }
     },
