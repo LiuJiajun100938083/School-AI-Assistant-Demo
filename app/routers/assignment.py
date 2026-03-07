@@ -20,7 +20,7 @@ import io
 import logging
 import math
 import threading
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, File, Form, Query, Request, UploadFile
@@ -940,3 +940,178 @@ async def run_swift_code(
         lambda: services.assignment.run_swift_code(request.code),
     )
     return success_response(data=result)
+
+
+# ================================================================
+# 抄襲檢測
+# ================================================================
+
+_plagiarism_jobs: Dict[int, dict] = {}  # assignment_id → job state
+
+
+def _plagiarism_worker(assignment_id: int, report_id: int) -> None:
+    """背景線程：執行抄袭檢測"""
+    job = _plagiarism_jobs.get(assignment_id)
+    if not job:
+        return
+    job["status"] = "running"
+    try:
+        services = get_services()
+        services.plagiarism.run_check(report_id)
+        # 完成後更新 job 狀態
+        report = services.plagiarism.get_report_by_id(report_id)
+        if report:
+            job["status"] = report.get("status", "completed")
+            job["total_pairs"] = report.get("total_pairs", 0)
+            job["flagged_pairs"] = report.get("flagged_pairs", 0)
+        else:
+            job["status"] = "completed"
+    except Exception as e:
+        logger.error("抄袭檢測失敗 (assignment #%d): %s", assignment_id, e)
+        job["status"] = "failed"
+        job["error"] = str(e)
+
+
+@router.post("/api/assignments/teacher/{assignment_id}/plagiarism-check")
+async def start_plagiarism_check(
+    assignment_id: int,
+    req: Request,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """啟動抄袭檢測（背景執行）"""
+    # 防止重複啟動
+    existing = _plagiarism_jobs.get(assignment_id)
+    if existing and existing.get("status") == "running":
+        return success_response(data=existing, message="檢測任務進行中")
+
+    # 解析閾值
+    threshold = 60.0
+    try:
+        body = await req.json()
+        if isinstance(body, dict):
+            threshold = float(body.get("threshold", 60.0))
+    except Exception:
+        pass
+
+    services = get_services()
+    username, _ = teacher_info
+    user = services.user.get_user(username)
+    teacher_id = user["id"] if user else 0
+
+    loop = asyncio.get_event_loop()
+    report = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.start_check(
+            assignment_id=assignment_id,
+            teacher_id=teacher_id,
+            threshold=threshold,
+        ),
+    )
+
+    report_id = report["report_id"]
+    job: Dict[str, Any] = {
+        "status": "running",
+        "report_id": report_id,
+        "total_pairs": 0,
+        "flagged_pairs": 0,
+    }
+    _plagiarism_jobs[assignment_id] = job
+
+    # 啟動背景線程
+    t = threading.Thread(
+        target=_plagiarism_worker,
+        args=(assignment_id, report_id),
+        daemon=True,
+    )
+    t.start()
+
+    return success_response(data=job, message="抄袭檢測已啟動")
+
+
+@router.get("/api/assignments/teacher/{assignment_id}/plagiarism-check/status")
+async def get_plagiarism_status(
+    assignment_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """查詢抄袭檢測進度"""
+    # 先查記憶體中的任務狀態
+    job = _plagiarism_jobs.get(assignment_id)
+    if job and job.get("status") == "running":
+        return success_response(data=job)
+
+    # 查資料庫中的最新報告
+    services = get_services()
+    loop = asyncio.get_event_loop()
+    report = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_report(assignment_id),
+    )
+
+    if not report:
+        return success_response(data={"status": "idle"})
+
+    return success_response(data={
+        "status": report.get("status", "idle"),
+        "report_id": report.get("id"),
+        "total_pairs": report.get("total_pairs", 0),
+        "flagged_pairs": report.get("flagged_pairs", 0),
+        "created_at": str(report.get("created_at", "")),
+        "completed_at": str(report.get("completed_at", "")) if report.get("completed_at") else None,
+    })
+
+
+@router.get("/api/assignments/teacher/{assignment_id}/plagiarism-report")
+async def get_plagiarism_report(
+    assignment_id: int,
+    flagged_only: bool = Query(False, description="僅顯示可疑配對"),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """取得抄袭檢測報告（含配對列表）"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+
+    report = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_report(assignment_id),
+    )
+    if not report:
+        return error_response("尚未執行過抄袭檢測", status_code=404)
+
+    report_id = report["id"]
+    pairs = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_pairs(report_id, flagged_only=flagged_only),
+    )
+
+    return success_response(data={
+        "report": {
+            "id": report["id"],
+            "assignment_id": report["assignment_id"],
+            "status": report["status"],
+            "threshold": float(report.get("threshold", 60)),
+            "total_pairs": report.get("total_pairs", 0),
+            "flagged_pairs": report.get("flagged_pairs", 0),
+            "created_at": str(report.get("created_at", "")),
+            "completed_at": str(report.get("completed_at", "")) if report.get("completed_at") else None,
+        },
+        "pairs": pairs,
+    })
+
+
+@router.get("/api/assignments/teacher/plagiarism-pairs/{pair_id}")
+async def get_plagiarism_pair_detail(
+    pair_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """取得單個配對的詳細內容（含並排文本）"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+
+    pair = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_pair_detail(pair_id),
+    )
+    if not pair:
+        return error_response("配對不存在", status_code=404)
+
+    return success_response(data=pair)

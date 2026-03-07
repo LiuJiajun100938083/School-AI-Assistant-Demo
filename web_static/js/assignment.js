@@ -158,6 +158,24 @@ const AssignmentAPI = {
         return this._call('/api/assignments/run-swift', {
             method: 'POST', body: JSON.stringify({ code })
         });
+    },
+
+    // Plagiarism Detection
+    async startPlagiarismCheck(assignmentId, threshold = 60) {
+        return this._call(`/api/assignments/teacher/${assignmentId}/plagiarism-check`, {
+            method: 'POST', body: JSON.stringify({ threshold }),
+        });
+    },
+    async getPlagiarismStatus(assignmentId) {
+        return this._call(`/api/assignments/teacher/${assignmentId}/plagiarism-check/status`);
+    },
+    async getPlagiarismReport(assignmentId, flaggedOnly = false) {
+        let url = `/api/assignments/teacher/${assignmentId}/plagiarism-report`;
+        if (flaggedOnly) url += '?flagged_only=true';
+        return this._call(url);
+    },
+    async getPlagiarismPairDetail(pairId) {
+        return this._call(`/api/assignments/teacher/plagiarism-pairs/${pairId}`);
     }
 };
 
@@ -727,6 +745,138 @@ const AssignmentUI = {
         <button class="btn btn-primary" style="width:100%;" onclick="AssignmentApp.doGrade()">提交批改</button>
         </div>`;
         return html;
+    },
+
+    // ---- Plagiarism Detection UI ----
+
+    renderPlagiarismReport(report, pairs) {
+        if (!report) return '<div class="empty-state"><div class="empty-state-text">尚未執行過抄袭檢測</div></div>';
+
+        const statusMap = { completed: '已完成', running: '檢測中', failed: '失敗', pending: '等待中' };
+        const statusClass = { completed: 'badge-graded', running: 'badge-submitted', failed: 'badge-late', pending: 'badge-not_submitted' };
+
+        let html = `<div class="plagiarism-report fade-in">
+            <div class="plagiarism-header">
+                <div>
+                    <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
+                        ${this.ICON.shield || '🔍'} 抄袭檢測報告
+                        <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
+                    </h3>
+                    <p style="color:var(--text-tertiary);font-size:13px;margin-top:4px;">
+                        檢測時間: ${report.created_at || '-'} · 閾值: ${report.threshold}%
+                    </p>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismReport()">返回</button>
+                    <button class="btn btn-sm btn-ai" onclick="AssignmentApp.startPlagiarismCheck()">重新檢測</button>
+                </div>
+            </div>
+            <div class="plagiarism-stats">
+                <div class="stat-card"><div class="stat-value">${report.total_pairs}</div><div class="stat-label">對比總數</div></div>
+                <div class="stat-card"><div class="stat-value" style="color:${report.flagged_pairs > 0 ? 'var(--danger)' : 'var(--success)'}">${report.flagged_pairs}</div><div class="stat-label">可疑配對</div></div>
+            </div>`;
+
+        if (!pairs || !pairs.length) {
+            html += '<div class="empty-state"><div class="empty-state-text">無對比數據</div></div>';
+        } else {
+            // Filter tabs
+            const flaggedPairs = pairs.filter(p => p.is_flagged);
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px;flex-wrap:wrap;gap:8px;">
+                <div class="filter-tabs" style="margin:0;">
+                    <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">可疑 <span class="count">${flaggedPairs.length}</span></button>
+                    <button class="filter-tab" onclick="AssignmentApp._filterPlagPairs('all', this)">全部 <span class="count">${pairs.length}</span></button>
+                </div>
+            </div>`;
+            html += `<div id="plagPairsArea">${this.renderPlagiarismPairs(flaggedPairs.length ? flaggedPairs : pairs)}</div>`;
+        }
+
+        html += '</div>';
+        return html;
+    },
+
+    renderPlagiarismPairs(pairs) {
+        if (!pairs || !pairs.length) return '<div class="empty-state"><div class="empty-state-text">無配對數據</div></div>';
+        return `<div class="plagiarism-pairs-list">${pairs.map(p => {
+            const pct = parseFloat(p.similarity_score) || 0;
+            const barColor = pct >= 80 ? 'var(--danger)' : pct >= 60 ? '#f59e0b' : 'var(--success)';
+            const flagIcon = p.is_flagged ? '<span style="color:var(--danger);font-weight:600;">⚠</span>' : '';
+            return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
+                <div class="pair-students">
+                    <span class="pair-name">${p.student_a_name || '學生A'}</span>
+                    <span class="pair-vs">↔</span>
+                    <span class="pair-name">${p.student_b_name || '學生B'}</span>
+                </div>
+                <div class="pair-score-bar">
+                    <div class="pair-bar-track">
+                        <div class="pair-bar-fill" style="width:${pct}%;background:${barColor};"></div>
+                    </div>
+                    <span class="pair-pct" style="color:${barColor};">${pct.toFixed(1)}% ${flagIcon}</span>
+                </div>
+                ${p.ai_analysis ? `<div class="pair-ai-hint">${p.ai_analysis.substring(0, 80)}${p.ai_analysis.length > 80 ? '...' : ''}</div>` : ''}
+            </div>`;
+        }).join('')}</div>`;
+    },
+
+    renderPlagiarismPairDetail(pair) {
+        const pct = parseFloat(pair.similarity_score) || 0;
+        const barColor = pct >= 80 ? 'var(--danger)' : pct >= 60 ? '#f59e0b' : 'var(--success)';
+
+        let html = `<div class="plagiarism-detail fade-in">
+            <div class="plagiarism-header" style="margin-bottom:16px;">
+                <div>
+                    <h3 style="margin:0;">
+                        ${pair.student_a_name || '學生A'} <span style="color:var(--text-tertiary);font-weight:400;">vs</span> ${pair.student_b_name || '學生B'}
+                    </h3>
+                    <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+                        <div class="pair-bar-track" style="width:200px;">
+                            <div class="pair-bar-fill" style="width:${pct}%;background:${barColor};"></div>
+                        </div>
+                        <span style="font-weight:600;color:${barColor};">${pct.toFixed(1)}%</span>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismPairDetail()">返回報告</button>
+            </div>`;
+
+        // AI Analysis
+        if (pair.ai_analysis) {
+            html += `<div class="plagiarism-ai-box">
+                <h4 style="margin:0 0 6px;">AI 分析</h4>
+                <p style="margin:0;white-space:pre-wrap;">${pair.ai_analysis}</p>
+            </div>`;
+        }
+
+        // Matched Fragments
+        const fragments = pair.matched_fragments || [];
+        if (fragments.length) {
+            html += `<div class="plagiarism-fragments">
+                <h4 style="margin:0 0 8px;">匹配片段 (${fragments.length})</h4>
+                ${fragments.map((f, i) => `<div class="fragment-item">
+                    <span class="fragment-label">片段 ${i + 1} (${f.length} 字元)</span>
+                    <pre class="fragment-text">${this._escapeHtml(f.text || '')}</pre>
+                </div>`).join('')}
+            </div>`;
+        }
+
+        // Side-by-side comparison
+        html += `<div class="plagiarism-compare">
+            <div class="compare-col">
+                <h4 class="compare-header">${pair.student_a_name || '學生A'}</h4>
+                <pre class="compare-text">${this._escapeHtml(pair.text_a || '（無內容）')}</pre>
+            </div>
+            <div class="compare-col">
+                <h4 class="compare-header">${pair.student_b_name || '學生B'}</h4>
+                <pre class="compare-text">${this._escapeHtml(pair.text_b || '（無內容）')}</pre>
+            </div>
+        </div>`;
+
+        html += '</div>';
+        return html;
+    },
+
+    _escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 };
 
@@ -1051,6 +1201,9 @@ const AssignmentApp = {
                     ${subs.length > 0 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportGradeExcel()" id="exportExcelBtn">
                         匯出成績
                     </button>` : ''}
+                    ${subs.length >= 2 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.startPlagiarismCheck()" id="plagiarismBtn" style="border-color:#f59e0b;color:#f59e0b;">
+                        🔍 抄袭檢測
+                    </button>` : ''}
                 </div>
                 <div class="filter-tabs" style="margin:0;">
                     <button class="filter-tab active" onclick="AssignmentApp._filterSubs('all', this)">全部 <span class="count">${subs.length}</span></button>
@@ -1060,12 +1213,17 @@ const AssignmentApp = {
                 </div>
             </div>
             <div id="batchAiProgress" style="display:none;"></div>
+            <div id="plagiarismProgress" style="display:none;"></div>
             <div id="submissionsArea">${AssignmentUI.renderSubmissionsList(subs)}</div>
         `;
 
         // Check if there's an active batch AI grading job
         this._stopBatchPolling();
         this._checkBatchAiStatus(id);
+
+        // Check if there's an active plagiarism check
+        this._stopPlagiarismPolling();
+        this._checkPlagiarismStatus(id);
     },
 
     async _checkBatchAiStatus(assignmentId) {
@@ -1506,6 +1664,139 @@ const AssignmentApp = {
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = '匯出成績'; }
         }
+    },
+
+    // ================================================================
+    // 抄袭檢測
+    // ================================================================
+
+    async startPlagiarismCheck() {
+        const assignmentId = this.state.currentAssignment;
+        if (!assignmentId) return;
+
+        const btn = document.getElementById('plagiarismBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 啟動中...'; }
+
+        const resp = await AssignmentAPI.startPlagiarismCheck(assignmentId);
+        if (!resp?.success) {
+            UIModule.toast('啟動抄袭檢測失敗: ' + (resp?.message || ''), 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '🔍 抄袭檢測'; }
+            return;
+        }
+
+        UIModule.toast('抄袭檢測已在後台啟動', 'success');
+        this._startPlagiarismPolling(assignmentId);
+    },
+
+    _plagPollTimer: null,
+
+    _startPlagiarismPolling(assignmentId) {
+        if (this._plagPollTimer) clearInterval(this._plagPollTimer);
+        this._pollPlagiarismStatus(assignmentId);
+        this._plagPollTimer = setInterval(() => this._pollPlagiarismStatus(assignmentId), 2000);
+    },
+
+    _stopPlagiarismPolling() {
+        if (this._plagPollTimer) {
+            clearInterval(this._plagPollTimer);
+            this._plagPollTimer = null;
+        }
+    },
+
+    async _pollPlagiarismStatus(assignmentId) {
+        const resp = await AssignmentAPI.getPlagiarismStatus(assignmentId);
+        if (!resp?.success) return;
+        const job = resp.data;
+
+        const btn = document.getElementById('plagiarismBtn');
+        const progressEl = document.getElementById('plagiarismProgress');
+
+        if (job.status === 'idle' || job.status === 'completed' || job.status === 'failed') {
+            this._stopPlagiarismPolling();
+            if (btn) { btn.disabled = false; btn.innerHTML = '🔍 抄袭檢測'; }
+            if (progressEl) progressEl.style.display = 'none';
+
+            if (job.status === 'completed') {
+                if (job.flagged_pairs > 0) {
+                    UIModule.toast(`檢測完成！發現 ${job.flagged_pairs} 對可疑抄襲`, 'warning');
+                } else {
+                    UIModule.toast('檢測完成，未發現可疑抄襲', 'success');
+                }
+                // Auto-open report
+                this.showPlagiarismReport();
+            } else if (job.status === 'failed') {
+                UIModule.toast('抄袭檢測失敗', 'error');
+            }
+            return;
+        }
+
+        if (job.status === 'running') {
+            if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 檢測中...'; }
+            if (progressEl) {
+                progressEl.style.display = 'block';
+                progressEl.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:8px;">正在分析學生提交內容...</div>';
+            }
+        }
+    },
+
+    async showPlagiarismReport() {
+        const assignmentId = this.state.currentAssignment;
+        if (!assignmentId) return;
+
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="workspace-loading"><div class="loading-spinner"></div><p>載入報告中...</p></div>';
+
+        const resp = await AssignmentAPI.getPlagiarismReport(assignmentId);
+        if (!resp?.success) {
+            main.innerHTML = '<div class="empty-state"><div class="empty-state-text">尚未執行過抄袭檢測</div></div>';
+            return;
+        }
+
+        this._currentPlagReport = resp.data.report;
+        this._currentPlagPairs = resp.data.pairs;
+        main.innerHTML = AssignmentUI.renderPlagiarismReport(resp.data.report, resp.data.pairs);
+    },
+
+    _filterPlagPairs(mode, btn) {
+        document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+
+        const pairs = this._currentPlagPairs || [];
+        const filtered = mode === 'flagged' ? pairs.filter(p => p.is_flagged) : pairs;
+        const area = document.getElementById('plagPairsArea');
+        if (area) area.innerHTML = AssignmentUI.renderPlagiarismPairs(filtered);
+    },
+
+    async viewPlagiarismPair(pairId) {
+        const main = document.getElementById('mainContent');
+        main.innerHTML = '<div class="workspace-loading"><div class="loading-spinner"></div><p>載入詳情中...</p></div>';
+
+        const resp = await AssignmentAPI.getPlagiarismPairDetail(pairId);
+        if (!resp?.success || !resp.data) {
+            UIModule.toast('載入配對詳情失敗', 'error');
+            this.showPlagiarismReport();
+            return;
+        }
+
+        main.innerHTML = AssignmentUI.renderPlagiarismPairDetail(resp.data);
+    },
+
+    closePlagiarismReport() {
+        this._stopPlagiarismPolling();
+        this.showTeacherAssignmentDetail(this.state.currentAssignment);
+    },
+
+    closePlagiarismPairDetail() {
+        this.showPlagiarismReport();
+    },
+
+    async _checkPlagiarismStatus(assignmentId) {
+        try {
+            const resp = await AssignmentAPI.getPlagiarismStatus(assignmentId);
+            if (resp?.success && resp.data?.status === 'running') {
+                this._startPlagiarismPolling(assignmentId);
+            }
+        } catch (e) { /* ignore */ }
     },
 
     async _startBatchAiGrade() {

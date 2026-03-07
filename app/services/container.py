@@ -73,6 +73,10 @@ from app.domains.assignment.repository import (
     SubmissionFileRepository,
     SubmissionRepository,
 )
+from app.domains.assignment.plagiarism_repository import (
+    PlagiarismPairRepository,
+    PlagiarismReportRepository,
+)
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.class_diary.repository import (
@@ -115,6 +119,7 @@ from app.domains.school_learning_center.service import SchoolLearningCenterServi
 from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
 from app.domains.assignment.service import AssignmentService
+from app.domains.assignment.plagiarism_service import PlagiarismService
 from app.domains.class_diary.service import ClassDiaryService
 
 logger = logging.getLogger(__name__)
@@ -164,6 +169,7 @@ class ServiceContainer:
         self._game_upload: Optional[GameUploadService] = None
         self._trade_game: Optional[TradeGameService] = None
         self._assignment: Optional[AssignmentService] = None
+        self._plagiarism: Optional[PlagiarismService] = None
         self._class_diary: Optional[ClassDiaryService] = None
 
     # ================================================================== #
@@ -359,6 +365,20 @@ class ServiceContainer:
         return self._assignment
 
     @property
+    def plagiarism(self) -> PlagiarismService:
+        """抄袭检测服务"""
+        if self._plagiarism is None:
+            self._plagiarism = PlagiarismService(
+                report_repo=self._get_repo(PlagiarismReportRepository),
+                pair_repo=self._get_repo(PlagiarismPairRepository),
+                assignment_repo=self._get_repo(AssignmentRepository),
+                submission_repo=self._get_repo(SubmissionRepository),
+                file_repo=self._get_repo(SubmissionFileRepository),
+                settings=self._settings,
+            )
+        return self._plagiarism
+
+    @property
     def class_diary(self) -> ClassDiaryService:
         """課室日誌服務"""
         if self._class_diary is None:
@@ -443,6 +463,10 @@ class ServiceContainer:
         # AssignmentService
         if ask_ai:
             self.assignment.set_ai_function(ask_ai)
+
+        # PlagiarismService
+        if ask_ai:
+            self.plagiarism.set_ai_function(ask_ai)
 
         logger.info("外部依赖注入完成")
 

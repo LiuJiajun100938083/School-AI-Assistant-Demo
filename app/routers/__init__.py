@@ -242,6 +242,41 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- 抄袭检测报告表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS plagiarism_reports (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                assignment_id   INT NOT NULL                    COMMENT '作業ID',
+                status          ENUM('pending','running','completed','failed') DEFAULT 'pending',
+                threshold       DECIMAL(5,2) DEFAULT 60.00     COMMENT '相似度閾值',
+                total_pairs     INT DEFAULT 0                   COMMENT '對比總對數',
+                flagged_pairs   INT DEFAULT 0                   COMMENT '標記可疑對數',
+                created_by      INT                             COMMENT '發起教師ID',
+                error_message   TEXT                            COMMENT '錯誤資訊',
+                created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                completed_at    DATETIME,
+                INDEX idx_plag_assignment (assignment_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # --- 抄袭检测配对表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS plagiarism_pairs (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                report_id       INT NOT NULL                    COMMENT '報告ID',
+                submission_a_id INT NOT NULL                    COMMENT '提交A',
+                submission_b_id INT NOT NULL                    COMMENT '提交B',
+                student_a_name  VARCHAR(100) DEFAULT ''         COMMENT '學生A名',
+                student_b_name  VARCHAR(100) DEFAULT ''         COMMENT '學生B名',
+                similarity_score DECIMAL(5,2) NOT NULL          COMMENT '相似度 0-100',
+                matched_fragments JSON                          COMMENT '匹配片段詳情',
+                ai_analysis     TEXT                            COMMENT 'AI 分析說明',
+                is_flagged      TINYINT(1) DEFAULT 0            COMMENT '是否標記為可疑',
+                INDEX idx_plag_report (report_id),
+                INDEX idx_plag_flagged (report_id, is_flagged)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
         logger.info("数据库 schema 迁移完成 (含作業管理表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)

@@ -1954,4 +1954,185 @@ body {
     .score-big { font-size: 32px; }
     .score-max { font-size: var(--type-h2); }
     .step-line { width: 40px; }
+
+    .plagiarism-compare { flex-direction: column; }
+}
+
+/* ============================================================
+   Plagiarism Detection Styles
+   ============================================================ */
+
+.plagiarism-report {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.plagiarism-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.plagiarism-stats {
+    display: flex;
+    gap: var(--space-3);
+    margin: var(--space-4) 0;
+}
+
+.plagiarism-pairs-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.plagiarism-pair-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.plagiarism-pair-card:hover {
+    border-color: var(--brand);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.plagiarism-pair-card.flagged {
+    border-left: 3px solid var(--danger, #ef4444);
+    background: #fef2f2;
+}
+
+.pair-students {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.pair-vs {
+    color: var(--text-tertiary);
+    font-size: 13px;
+}
+
+.pair-score-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pair-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--border, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.pair-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.pair-pct {
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 65px;
+    text-align: right;
+}
+
+.pair-ai-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    background: var(--bg, #f9fafb);
+    border-radius: var(--radius-sm);
+    line-height: 1.4;
+}
+
+/* Plagiarism Detail */
+
+.plagiarism-detail {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.plagiarism-ai-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-4);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.plagiarism-fragments {
+    margin-bottom: var(--space-4);
+}
+
+.fragment-item {
+    margin-bottom: var(--space-2);
+}
+
+.fragment-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+}
+
+.fragment-text {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 120px;
+    overflow-y: auto;
+    margin: 0;
+}
+
+.plagiarism-compare {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.compare-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.compare-header {
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    background: var(--brand-light, #e0f2fe);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    font-size: 14px;
+}
+
+.compare-text {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 500px;
+    overflow-y: auto;
+    margin: 0;
 }
