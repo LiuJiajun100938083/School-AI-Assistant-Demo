@@ -892,10 +892,10 @@ const AssignmentUI = {
             const pct = parseFloat(p.similarity_score) || 0;
             const dims = this._extractDimensions(p.matched_fragments);
             const dimHtml = dims ? `<div class="pair-dimensions">
-                <span class="dim-tag">結構 ${dims.structure}%</span>
-                <span class="dim-tag">標識符 ${dims.identifier}%</span>
+                <span class="dim-tag">命名 ${dims.identifier}%</span>
                 <span class="dim-tag">逐字 ${dims.verbatim}%</span>
-                <span class="dim-tag">注釋 ${dims.comment}%</span>
+                <span class="dim-tag">縮排 ${dims.indent}%</span>
+                ${dims.evidenceHits ? `<span class="dim-tag${dims.evidenceHits >= 2 ? ' evidence-hit' : ''}">證據 ${dims.evidenceHits}/5</span>` : ''}
             </div>` : '';
             return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
                 <div class="pair-card-left">
@@ -950,10 +950,12 @@ const AssignmentUI = {
             html += `<div class="plagiarism-dimension-box">
                 <h4>多維度分析</h4>
                 ${mkBar('結構相似', dims.structure)}
-                ${mkBar('標識符重疊', dims.identifier)}
+                ${mkBar('變量命名', dims.identifier)}
                 ${mkBar('逐字複製', dims.verbatim)}
+                ${mkBar('縮排指紋', dims.indent)}
                 ${mkBar('注釋/字串', dims.comment)}
-                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元</div>` : ''}
+                ${dims.evidenceHits !== undefined ? mkBar('多重證據', dims.evidence) : ''}
+                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元 · 證據命中 ${dims.evidenceHits || 0}/5 維</div>` : ''}
                 ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
             </div>`;
         }
@@ -1002,7 +1004,10 @@ const AssignmentUI = {
             structure: dim.structure_score || 0,
             identifier: dim.identifier_score || 0,
             verbatim: dim.verbatim_score || 0,
+            indent: dim.indent_score || 0,
             comment: dim.comment_score || 0,
+            evidence: dim.evidence_score || 0,
+            evidenceHits: dim.evidence_hits || 0,
             isCode: dim.is_code || false,
             codeLength: dim.code_length || 0,
             signals: dim.signals || [],

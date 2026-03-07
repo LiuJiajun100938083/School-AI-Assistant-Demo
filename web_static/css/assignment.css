@@ -2360,6 +2360,11 @@ body {
     cursor: default;
     font-weight: 500;
 }
+.dim-tag.evidence-hit {
+    background: var(--text-primary);
+    color: var(--bg-card);
+    font-weight: 600;
+}
 
 .pair-ai-hint {
     font-size: var(--type-badge);

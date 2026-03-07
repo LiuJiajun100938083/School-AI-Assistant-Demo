@@ -63,10 +63,18 @@ SHORT_CODE_FLAG_THRESHOLD = 85.0  # 短代碼需更高閾值才標記可疑
 MEDIUM_CODE_FLAG_THRESHOLD = 70.0  # 中等長度代碼閾值
 
 # 多維度評分權重（合計 1.0）
-WEIGHT_STRUCTURE = 0.25    # 結構相似度（標準化後的骨架比對）
-WEIGHT_IDENTIFIER = 0.30   # 標識符指紋（變量名/函數名完全相同 = 強信號）
-WEIGHT_VERBATIM = 0.30     # 逐字複製（最長公共子串比率）
-WEIGHT_COMMENT = 0.15      # 注釋/字串相似度（相同的注釋或獨特字串）
+# 設計原則: 單一維度高分不足以標記，需要多維度同時命中
+WEIGHT_STRUCTURE = 0.15    # 結構相似度（骨架比對 — 短代碼天然高，權重低）
+WEIGHT_IDENTIFIER = 0.25   # 標識符指紋（自定義變量名相同 = 強信號）
+WEIGHT_VERBATIM = 0.25     # 逐字複製（最長公共子串比率）
+WEIGHT_INDENT = 0.15       # 縮排指紋（tab/空格習慣、縮排深度模式）
+WEIGHT_COMMENT = 0.10      # 注釋/字串相似度
+WEIGHT_EVIDENCE = 0.10     # 多重證據加成（多個維度同時命中才加分）
+
+# 多重證據閾值: 單一維度必須超過此值才算「命中」
+EVIDENCE_HIT_THRESHOLD = 70.0
+# 需要命中的最少維度數才給予證據加成
+MIN_EVIDENCE_DIMENSIONS = 2
 
 # 代碼文件擴展名（用於判斷是否啟用代碼感知分析）
 CODE_EXTENSIONS = {
@@ -530,12 +538,36 @@ class PlagiarismService:
         else:
             scores = self._compute_text_similarity(clean_a, clean_b, n)
 
+        # 多重證據加成: 統計有多少個維度超過閾值
+        dimension_scores = [
+            scores["structure_score"],
+            scores["identifier_score"],
+            scores["verbatim_score"],
+            scores.get("indent_score", 0),
+            scores["comment_score"],
+        ]
+        evidence_hits = sum(1 for s in dimension_scores if s >= EVIDENCE_HIT_THRESHOLD)
+        # 只有多個維度同時命中才給證據加成分
+        if evidence_hits >= MIN_EVIDENCE_DIMENSIONS:
+            evidence_score = min(evidence_hits / 5.0 * 100, 100)
+            scores["signals"].append(
+                f"多重證據: {evidence_hits}/5 個維度同時命中（>{EVIDENCE_HIT_THRESHOLD:.0f}分）"
+            )
+        else:
+            evidence_score = 0.0
+            if any(s >= EVIDENCE_HIT_THRESHOLD for s in dimension_scores):
+                scores["signals"].append(
+                    f"僅 {evidence_hits} 個維度命中，證據不足（需≥{MIN_EVIDENCE_DIMENSIONS}個）"
+                )
+
         # 加權合成
         final_score = (
             scores["structure_score"] * WEIGHT_STRUCTURE
             + scores["identifier_score"] * WEIGHT_IDENTIFIER
             + scores["verbatim_score"] * WEIGHT_VERBATIM
+            + scores.get("indent_score", 0) * WEIGHT_INDENT
             + scores["comment_score"] * WEIGHT_COMMENT
+            + evidence_score * WEIGHT_EVIDENCE
         )
 
         # 提取匹配片段
@@ -546,12 +578,17 @@ class PlagiarismService:
             "text": f"[維度分析] 結構={scores['structure_score']:.0f} "
                     f"標識符={scores['identifier_score']:.0f} "
                     f"逐字={scores['verbatim_score']:.0f} "
-                    f"注釋={scores['comment_score']:.0f}",
+                    f"縮排={scores.get('indent_score', 0):.0f} "
+                    f"注釋={scores['comment_score']:.0f} "
+                    f"證據={evidence_score:.0f}({evidence_hits}/5維)",
             "type": "dimension_breakdown",
             "structure_score": round(scores["structure_score"], 1),
             "identifier_score": round(scores["identifier_score"], 1),
             "verbatim_score": round(scores["verbatim_score"], 1),
+            "indent_score": round(scores.get("indent_score", 0), 1),
             "comment_score": round(scores["comment_score"], 1),
+            "evidence_score": round(evidence_score, 1),
+            "evidence_hits": evidence_hits,
             "is_code": is_code,
             "code_length": min(len(clean_a), len(clean_b)),
             "signals": scores.get("signals", []),
@@ -569,7 +606,14 @@ class PlagiarismService:
         n: int,
     ) -> Dict[str, Any]:
         """
-        代碼感知相似度: 分離結構、標識符、注釋三個維度。
+        代碼感知相似度: 基於資深教師經驗的多維度分析。
+
+        教師判斷抄襲的核心依據:
+        1. Tab/縮排習慣 — 每個人的習慣不同，抄襲者往往保留原作者的縮排風格
+        2. 不改名直接抄 — 變量名完全不改動是最強信號
+        3. 變量名相同 — 自定義名稱重疊率高
+
+        算法原則: 單一維度不足以定罪，需要多重證據叠加。
         """
         signals: List[str] = []
 
@@ -578,61 +622,93 @@ class PlagiarismService:
         skeleton_b = self._skeletonize(raw_b)
         structure_score = self._ngram_jaccard(skeleton_a, skeleton_b, n)
 
-        # ---- 2) 標識符指紋: 提取變量名/函數名，比對集合重疊率 ----
+        # ---- 2) 標識符指紋（教師重點: "不改名"和"variable名一樣"）----
         ids_a = self._extract_identifiers(raw_a)
         ids_b = self._extract_identifiers(raw_b)
-        identifier_score = self._set_overlap(ids_a, ids_b)
+        common_kw = self._common_keywords()
 
-        # 偵測: 如果連獨特的標識符都完全相同 = 極強信號
-        unique_ids_a = ids_a - self._common_keywords()
-        unique_ids_b = ids_b - self._common_keywords()
+        # 區分: 所有標識符 vs 自定義標識符（去除語言/框架關鍵詞）
+        unique_ids_a = ids_a - common_kw
+        unique_ids_b = ids_b - common_kw
+
+        # 基礎標識符重疊（含通用詞）
+        base_id_score = self._set_overlap(ids_a, ids_b)
+
+        # 核心指標: 自定義變量名重疊率（教師最看重的）
         if unique_ids_a and unique_ids_b:
-            unique_overlap = len(unique_ids_a & unique_ids_b) / max(len(unique_ids_a | unique_ids_b), 1) * 100
-            if unique_overlap > 80:
-                signals.append("自定義變量名高度重疊")
-                identifier_score = max(identifier_score, unique_overlap)
+            shared_unique = unique_ids_a & unique_ids_b
+            all_unique = unique_ids_a | unique_ids_b
+            unique_overlap = len(shared_unique) / max(len(all_unique), 1) * 100
+
+            # 計算「完全不改名」的程度
+            # 如果 A 的所有自定義名都出現在 B 中 = 直接複製不改名
+            containment_a_in_b = len(unique_ids_a & unique_ids_b) / max(len(unique_ids_a), 1) * 100
+            containment_b_in_a = len(unique_ids_a & unique_ids_b) / max(len(unique_ids_b), 1) * 100
+            containment = max(containment_a_in_b, containment_b_in_a)
+
+            if containment > 90 and len(shared_unique) >= 2:
+                signals.append(
+                    f"不改名直接複製: {len(shared_unique)} 個自定義名完全相同 "
+                    f"({', '.join(sorted(shared_unique)[:5])})"
+                )
+                identifier_score = max(unique_overlap, containment)
+            elif unique_overlap > 70:
+                signals.append(
+                    f"自定義變量名高度重疊: "
+                    f"{', '.join(sorted(shared_unique)[:5])}"
+                )
+                identifier_score = max(base_id_score, unique_overlap)
+            else:
+                identifier_score = base_id_score
+        else:
+            identifier_score = base_id_score
+            if not unique_ids_a and not unique_ids_b:
+                # 兩份都沒有自定義名（全是框架 API）→ 標識符維度無效
+                identifier_score *= 0.3
+                signals.append("無自定義變量名（標識符維度參考性低）")
 
         # ---- 3) 逐字複製: 最長公共子串比率 ----
         verbatim_score = self._verbatim_ratio(clean_a, clean_b)
 
-        # ---- 4) 注釋/字串: 提取注釋和字串字面量單獨比對 ----
+        # ---- 4) 縮排指紋（教師重點: "tab的習慣"）----
+        indent_score = self._indent_fingerprint_similarity(raw_a, raw_b)
+        if indent_score > 85:
+            signals.append("縮排習慣高度相似（tab/空格、深度模式一致）")
+        elif indent_score > 70:
+            signals.append("縮排習慣中度相似")
+
+        # ---- 5) 注釋/字串: 提取注釋和字串字面量單獨比對 ----
         comments_a = self._extract_comments_and_strings(raw_a)
         comments_b = self._extract_comments_and_strings(raw_b)
         if comments_a and comments_b:
             comment_score = self._ngram_jaccard(
                 " ".join(comments_a), " ".join(comments_b), n
             )
-            # 相同的獨特注釋 = 強信號
             if set(comments_a) & set(comments_b):
                 shared = set(comments_a) & set(comments_b)
-                # 過濾掉太短的通用注釋
                 unique_shared = {c for c in shared if len(c.strip()) > 10}
                 if unique_shared:
                     signals.append(f"共享 {len(unique_shared)} 段獨特注釋/字串")
                     comment_score = max(comment_score, 85.0)
         else:
-            comment_score = structure_score * 0.5  # 無注釋時用結構分折半
+            comment_score = structure_score * 0.3  # 無注釋時低權重替代
 
-        # ---- 長度自適應: 短代碼壓低結構分和標識符分（因為短代碼天然相似）----
+        # ---- 長度自適應: 短代碼壓低結構分（因為短代碼天然相似）----
         code_len = min(len(clean_a), len(clean_b))
         if code_len < TINY_CODE_THRESHOLD:
-            # 極短代碼（如 20 行 SwiftUI）: 結構和標識符幾乎必然相似
-            # 只有逐字複製（verbatim）和注釋才是有意義的抄襲信號
             structure_score *= 0.3
-            identifier_score *= 0.4
-            signals.append("極短代碼（僅逐字複製和注釋為有效信號）")
+            signals.append("極短代碼（結構分大幅降權，重點看命名和縮排）")
         elif code_len < SHORT_CODE_THRESHOLD:
             structure_score *= 0.5
-            identifier_score *= 0.7
-            signals.append("短代碼（結構分和標識符分已降權）")
+            signals.append("短代碼（結構分已降權）")
         elif code_len < MEDIUM_CODE_THRESHOLD:
             structure_score *= 0.8
-            signals.append("中等長度代碼（結構分已微調）")
 
         return {
             "structure_score": min(structure_score, 100),
             "identifier_score": min(identifier_score, 100),
             "verbatim_score": min(verbatim_score, 100),
+            "indent_score": min(indent_score, 100),
             "comment_score": min(comment_score, 100),
             "signals": signals,
         }
@@ -651,8 +727,9 @@ class PlagiarismService:
 
         return {
             "structure_score": min(structure_score, 100),
-            "identifier_score": structure_score * 0.8,  # 文本無標識符概念，用結構分替代
+            "identifier_score": structure_score * 0.8,  # 文本無標識符概念
             "verbatim_score": min(verbatim_score, 100),
+            "indent_score": 0.0,  # 文本不適用縮排分析
             "comment_score": structure_score * 0.5,
             "signals": [],
         }
@@ -790,6 +867,156 @@ class PlagiarismService:
             'ok', 'fn', 'args', 'argv', 'argc', 'tmp', 'temp', 'res',
             'req', 'arr', 'obj', 'num', 'sum', 'max', 'min', 'data',
         }
+
+    @staticmethod
+    def _indent_fingerprint_similarity(code_a: str, code_b: str) -> float:
+        """
+        縮排指紋相似度 — 基於資深教師經驗。
+
+        每個學生有自己的縮排習慣:
+        - Tab vs 空格（有人用 tab，有人用 2 空格，有人用 4 空格）
+        - 縮排深度模式（嵌套幾層、每層幾格）
+        - 空行位置和數量
+        - 行尾有無多餘空格
+        - 大括號放置風格（同行 vs 換行）
+
+        抄襲者直接複製時，這些習慣會被保留下來。
+        """
+        lines_a = code_a.split('\n')
+        lines_b = code_b.split('\n')
+
+        fp_a = PlagiarismService._extract_indent_fingerprint(lines_a)
+        fp_b = PlagiarismService._extract_indent_fingerprint(lines_b)
+
+        if not fp_a or not fp_b:
+            return 0.0
+
+        score = 0.0
+        checks = 0
+
+        # 1) Tab vs 空格習慣是否相同
+        checks += 1
+        if fp_a["indent_char"] == fp_b["indent_char"]:
+            score += 1.0
+
+        # 2) 縮排單位大小（2格 vs 4格 vs tab）
+        checks += 1
+        if fp_a["indent_unit"] == fp_b["indent_unit"]:
+            score += 1.0
+        elif fp_a["indent_unit"] and fp_b["indent_unit"]:
+            # 接近的也給部分分
+            ratio = min(fp_a["indent_unit"], fp_b["indent_unit"]) / max(fp_a["indent_unit"], fp_b["indent_unit"])
+            score += ratio * 0.5
+
+        # 3) 縮排深度序列模式（逐行的縮排深度變化）
+        checks += 1
+        depth_sim = PlagiarismService._sequence_similarity(
+            fp_a["depth_sequence"], fp_b["depth_sequence"]
+        )
+        score += depth_sim
+
+        # 4) 空行位置模式
+        checks += 1
+        blank_sim = PlagiarismService._sequence_similarity(
+            fp_a["blank_pattern"], fp_b["blank_pattern"]
+        )
+        score += blank_sim
+
+        # 5) 行尾空格習慣
+        checks += 1
+        if fp_a["trailing_spaces"] == fp_b["trailing_spaces"]:
+            score += 1.0
+        elif abs(fp_a["trailing_spaces"] - fp_b["trailing_spaces"]) <= 0.1:
+            score += 0.5
+
+        # 6) 大括號風格 (same-line vs next-line)
+        checks += 1
+        if fp_a["brace_style"] == fp_b["brace_style"]:
+            score += 1.0
+
+        return (score / max(checks, 1)) * 100
+
+    @staticmethod
+    def _extract_indent_fingerprint(lines: List[str]) -> Dict[str, Any]:
+        """提取一段代碼的縮排指紋特徵"""
+        if not lines:
+            return {}
+
+        tab_count = 0
+        space_count = 0
+        indent_sizes: List[int] = []
+        depth_sequence: List[int] = []
+        blank_pattern: List[int] = []  # 1=空行, 0=非空行
+        trailing_count = 0
+        total_lines = 0
+        brace_same_line = 0
+        brace_next_line = 0
+
+        for i, line in enumerate(lines):
+            blank_pattern.append(1 if line.strip() == '' else 0)
+
+            if line.strip() == '':
+                continue
+
+            total_lines += 1
+
+            # 統計縮排字元
+            stripped = line.lstrip()
+            indent = line[:len(line) - len(stripped)]
+            if '\t' in indent:
+                tab_count += 1
+            if '  ' in indent:
+                space_count += 1
+
+            # 縮排深度
+            if indent:
+                indent_sizes.append(len(indent.replace('\t', '    ')))
+            depth_sequence.append(len(indent.replace('\t', '    ')))
+
+            # 行尾空格
+            if line.rstrip() != line and line.strip():
+                trailing_count += 1
+
+            # 大括號風格
+            if stripped.endswith('{'):
+                brace_same_line += 1
+            if stripped == '{':
+                brace_next_line += 1
+
+        # 推算縮排單位
+        indent_unit = 0
+        if indent_sizes:
+            # 找最小非零縮排作為單位
+            nonzero = [s for s in indent_sizes if s > 0]
+            if nonzero:
+                indent_unit = min(nonzero)
+
+        # 大括號風格
+        total_braces = brace_same_line + brace_next_line
+        if total_braces > 0:
+            brace_style = "same_line" if brace_same_line > brace_next_line else "next_line"
+        else:
+            brace_style = "none"
+
+        return {
+            "indent_char": "tab" if tab_count > space_count else ("space" if space_count > 0 else "none"),
+            "indent_unit": indent_unit,
+            "depth_sequence": depth_sequence,
+            "blank_pattern": blank_pattern,
+            "trailing_spaces": trailing_count / max(total_lines, 1),
+            "brace_style": brace_style,
+        }
+
+    @staticmethod
+    def _sequence_similarity(seq_a: List[int], seq_b: List[int]) -> float:
+        """比較兩個整數序列的相似度（用於縮排深度和空行模式）"""
+        if not seq_a or not seq_b:
+            return 0.0
+
+        # 使用 LCS 比率
+        from difflib import SequenceMatcher
+        matcher = SequenceMatcher(None, seq_a, seq_b, autojunk=False)
+        return matcher.ratio()
 
     @staticmethod
     def _extract_comments_and_strings(code: str) -> List[str]:
