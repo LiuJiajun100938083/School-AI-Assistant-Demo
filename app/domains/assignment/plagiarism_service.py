@@ -545,6 +545,25 @@ class PlagiarismService:
         if not flagged_pairs:
             return {"clusters": [], "hub_students": []}
 
+        # ---- 0) 取得提交元數據（提交時間、代碼長度）----
+        all_sub_ids: Set[int] = set()
+        for p in flagged_pairs:
+            all_sub_ids.add(p["submission_a_id"])
+            all_sub_ids.add(p["submission_b_id"])
+
+        sub_meta: Dict[int, Dict[str, Any]] = {}  # {sub_id: {submitted_at, text_len}}
+        for sid in all_sub_ids:
+            sub = self._submission_repo.find_by_id(sid)
+            if sub:
+                files = self._file_repo.find_by_submission(sid)
+                text = self._extract_submission_text(sub, files)
+                sub_meta[sid] = {
+                    "submitted_at": sub.get("submitted_at"),
+                    "text_len": len(text.strip()) if text else 0,
+                }
+            else:
+                sub_meta[sid] = {"submitted_at": None, "text_len": 0}
+
         # ---- 1) 構建鄰接表 ----
         adjacency: Dict[int, List[Tuple[int, float]]] = defaultdict(list)
         sub_names: Dict[int, str] = {}
@@ -565,7 +584,6 @@ class PlagiarismService:
         for start_node in adjacency:
             if start_node in visited:
                 continue
-            # BFS
             component: List[int] = []
             queue = [start_node]
             while queue:
@@ -581,7 +599,7 @@ class PlagiarismService:
             if len(component) < 2:
                 continue
 
-            # ---- 3) 計算度數 ----
+            # ---- 3) 計算度數 + 提取維度證據 ----
             degree: Dict[int, int] = defaultdict(int)
             weighted_degree: Dict[int, float] = defaultdict(float)
             edges: List[Dict[str, Any]] = []
@@ -606,13 +624,21 @@ class PlagiarismService:
                     })
                     max_score = max(max_score, score)
 
-            # ---- 4) 識別源頭: 度數最高的學生 ----
-            source_id = max(component, key=lambda n: (degree[n], weighted_degree[n]))
+            # ---- 4) 智慧源頭識別: 多信號綜合評分 ----
+            source_id = self._identify_source(
+                component, degree, weighted_degree, sub_meta, edges,
+            )
+
+            # 為每條邊標記方向 (from → to)
+            directed_edges = self._direct_edges(
+                edges, source_id, degree, sub_meta,
+            )
 
             members = []
             for sid in sorted(component, key=lambda n: degree[n], reverse=True):
                 is_source = (sid == source_id and degree[sid] >= 2)
-                members.append({
+                meta = sub_meta.get(sid, {})
+                member_info: Dict[str, Any] = {
                     "name": sub_names.get(sid, str(sid)),
                     "sub_id": sid,
                     "degree": degree[sid],
@@ -620,13 +646,19 @@ class PlagiarismService:
                         weighted_degree[sid] / degree[sid], 1
                     ) if degree[sid] > 0 else 0,
                     "role": "source" if is_source else "member",
-                })
+                    "text_len": meta.get("text_len", 0),
+                }
+                # 提交時間（ISO 字串給前端）
+                ts = meta.get("submitted_at")
+                if ts:
+                    member_info["submitted_at"] = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+                members.append(member_info)
 
             clusters.append({
                 "id": len(clusters) + 1,
                 "size": len(component),
                 "members": members,
-                "edges": edges,
+                "edges": directed_edges,
                 "max_score": round(max_score, 1),
                 "source_student": sub_names.get(source_id, "")
                     if degree[source_id] >= 2 else None,
@@ -658,6 +690,130 @@ class PlagiarismService:
                 })
 
         return {"clusters": clusters, "hub_students": hub_students}
+
+    # ---------- 智慧源頭識別 ----------
+
+    @staticmethod
+    def _identify_source(
+        component: List[int],
+        degree: Dict[int, int],
+        weighted_degree: Dict[int, float],
+        sub_meta: Dict[int, Dict[str, Any]],
+        edges: List[Dict[str, Any]],
+    ) -> int:
+        """
+        多信號綜合評分，識別最可能的抄襲源頭。
+
+        信號權重:
+          1. 度數 (40%): 與最多人相似 → 更可能是被抄的源頭
+          2. 提交時間 (30%): 越早提交 → 越可能是源頭
+          3. 代碼長度 (20%): 代碼越長/越完整 → 越可能是原創
+          4. 平均相似度 (10%): 與他人平均相似度越高 → 越像被大量抄襲
+        """
+        if len(component) < 2:
+            return component[0] if component else 0
+
+        max_degree = max(degree[n] for n in component) or 1
+
+        # 收集提交時間（排序用）
+        times = {}
+        for sid in component:
+            ts = sub_meta.get(sid, {}).get("submitted_at")
+            if ts:
+                times[sid] = ts
+
+        # 按提交時間排名: 最早 = 1.0, 最晚 = 0.0
+        time_rank: Dict[int, float] = {}
+        if times:
+            sorted_by_time = sorted(times.items(), key=lambda x: x[1])
+            n_timed = len(sorted_by_time)
+            for rank, (sid, _) in enumerate(sorted_by_time):
+                time_rank[sid] = 1.0 - (rank / max(n_timed - 1, 1))
+
+        # 代碼長度排名: 最長 = 1.0, 最短 = 0.0
+        lengths = {sid: sub_meta.get(sid, {}).get("text_len", 0) for sid in component}
+        max_len = max(lengths.values()) or 1
+        min_len = min(lengths.values())
+        len_range = max_len - min_len or 1
+
+        scores: Dict[int, float] = {}
+        for sid in component:
+            # 1) 度數分 (0~1)
+            deg_score = degree[sid] / max_degree
+
+            # 2) 時間分 (0~1, 越早越高; 無時間 → 0.5 中立)
+            t_score = time_rank.get(sid, 0.5)
+
+            # 3) 長度分 (0~1, 越長越高)
+            l_score = (lengths[sid] - min_len) / len_range
+
+            # 4) 平均相似度分 (0~1)
+            avg = (weighted_degree[sid] / degree[sid] / 100) if degree[sid] > 0 else 0
+
+            scores[sid] = (
+                0.40 * deg_score
+                + 0.30 * t_score
+                + 0.20 * l_score
+                + 0.10 * avg
+            )
+
+        return max(component, key=lambda n: scores[n])
+
+    @staticmethod
+    def _direct_edges(
+        edges: List[Dict[str, Any]],
+        source_id: int,
+        degree: Dict[int, int],
+        sub_meta: Dict[int, Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:  # noqa: ARG004 – source_id kept for future use
+        """
+        為每條邊推斷方向（from_id → to_id），用於樹圖展示。
+
+        方向推斷邏輯:
+        - 度數高的 → 度數低的
+        - 度數相同時，提交早的 → 提交晚的
+        - 再相同時，代碼長的 → 代碼短的
+        """
+        directed = []
+        for e in edges:
+            a_id, b_id = e["a_id"], e["b_id"]
+            a_deg, b_deg = degree.get(a_id, 0), degree.get(b_id, 0)
+            a_time = sub_meta.get(a_id, {}).get("submitted_at")
+            b_time = sub_meta.get(b_id, {}).get("submitted_at")
+            a_len = sub_meta.get(a_id, {}).get("text_len", 0)
+            b_len = sub_meta.get(b_id, {}).get("text_len", 0)
+
+            # 判定 a → b 還是 b → a
+            # 用元組比較: (度數倒序, 時間正序, 長度倒序)
+            def _rank(sid):
+                deg = degree.get(sid, 0)
+                ts = sub_meta.get(sid, {}).get("submitted_at")
+                # 時間越早排越前（值越小越好），沒時間排最後
+                ts_val = ts if ts else None
+                tlen = sub_meta.get(sid, {}).get("text_len", 0)
+                return (-deg, ts_val if ts_val else "9999", -tlen)
+
+            a_rank = _rank(a_id)
+            b_rank = _rank(b_id)
+
+            # a_id/b_id 與 a_name/b_name 一一對應
+            name_map = {a_id: e.get("a_name", ""), b_id: e.get("b_name", "")}
+
+            if a_rank <= b_rank:
+                from_id, to_id = a_id, b_id
+            else:
+                from_id, to_id = b_id, a_id
+
+            directed.append({
+                "from_id": from_id, "to_id": to_id,
+                "from_name": name_map.get(from_id, ""),
+                "to_name": name_map.get(to_id, ""),
+                # 保留舊字段兼容
+                "a_id": e["a_id"], "b_id": e["b_id"],
+                "a_name": e.get("a_name", ""), "b_name": e.get("b_name", ""),
+                "score": e["score"],
+            })
+        return directed
 
     # ================================================================
     # 多維度代碼感知相似度算法

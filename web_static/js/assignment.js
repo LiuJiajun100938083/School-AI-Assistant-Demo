@@ -873,20 +873,11 @@ const AssignmentUI = {
             </div>`;
         }
 
-        // ---- Cluster Network Graph ----
+        // ---- Cluster Tree Graph ----
         if (clusters.length > 0) {
             html += `<div class="plag-graph-section">
-                <div class="plag-section-title">抄袭關係圖 <span class="count">${clusters.length} 個群組</span></div>
-                <div class="plag-graph-tabs">
-                    <button class="filter-tab active" onclick="AssignmentApp._switchGraphView('network', this)">網絡圖</button>
-                    <button class="filter-tab" onclick="AssignmentApp._switchGraphView('tree', this)">傳播樹</button>
-                </div>
-                <div id="plagGraphNetworkView">
-                    ${clusters.map(c => this._renderClusterNetwork(c)).join('')}
-                </div>
-                <div id="plagGraphTreeView" style="display:none;">
-                    ${this._renderPlagiarismTree(clusters)}
-                </div>
+                <div class="plag-section-title">抄襲傳播樹 <span class="count">${clusters.length} 個群組</span></div>
+                ${this._renderPlagiarismTree(clusters)}
             </div>`;
         }
 
@@ -912,273 +903,235 @@ const AssignmentUI = {
         return html;
     },
 
-    // ---- Network Graph: 源頭居中辐射布局，大群組自適應 ----
-    _renderClusterNetwork(cluster) {
-        const members = cluster.members || [];
-        const edges = cluster.edges || [];
-        if (members.length === 0) return '';
-
-        const source = members.find(m => m.role === 'source');
-        const others = members.filter(m => m.role !== 'source');
-        const N = members.length;
-
-        // 動態計算 SVG 尺寸: 人越多越大
-        const baseSize = 320;
-        const W = Math.max(baseSize, Math.min(700, N * 42));
-        const H = Math.max(baseSize, Math.min(700, N * 42));
-        const cx = W / 2, cy = H / 2;
-
-        // 節點半徑根據人數縮小
-        const nodeR = N > 15 ? 10 : N > 8 ? 13 : 16;
-        const sourceR = nodeR + 6;
-        const fontSize = N > 15 ? 9 : N > 8 ? 10 : 11;
-
-        // 辐射半徑: 名字放在圈外，所以需要留空間
-        const labelSpace = N > 15 ? 50 : 45;
-        const R = Math.min(cx, cy) - labelSpace;
-
-        // 源頭居中，其他人按 degree 排序後均勻分布在外圈
-        others.sort((a, b) => (b.degree || 0) - (a.degree || 0));
-
-        const nodeMap = {};
-        if (source) {
-            nodeMap[source.sub_id] = { x: cx, y: cy, ...source };
-        }
-        others.forEach((m, i) => {
-            const angle = (2 * Math.PI * i) / others.length - Math.PI / 2;
-            nodeMap[m.sub_id] = {
-                x: cx + R * Math.cos(angle),
-                y: cy + R * Math.sin(angle),
-                ...m,
-            };
-        });
-
-        // 只畫高分邊: 人多時提高篩選閾值，避免蛛網
-        const edgeThreshold = N > 15 ? 75 : N > 8 ? 65 : 0;
-        const sortedEdges = [...edges].sort((a, b) => (b.score || 0) - (a.score || 0));
-        // 最多顯示邊數上限
-        const maxEdges = N > 15 ? N * 2 : N > 8 ? N * 3 : edges.length;
-        const visibleEdges = sortedEdges
-            .filter(e => (e.score || 0) >= edgeThreshold)
-            .slice(0, maxEdges);
-
-        // 畫邊 (只標注 >80% 的分數，減少文字重疊)
-        let edgeSvg = '';
-        const showScoreThreshold = N > 10 ? 80 : 60;
-        visibleEdges.forEach(e => {
-            const a = nodeMap[e.a_id], b = nodeMap[e.b_id];
-            if (!a || !b) return;
-            const pct = e.score || 0;
-            const sw = N > 15 ? Math.max(1, (pct / 100) * 3) : Math.max(1.5, (pct / 100) * 4);
-            const opacity = 0.15 + (pct / 100) * 0.5;
-            edgeSvg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"
-                stroke="var(--text-primary)" stroke-width="${sw}" opacity="${opacity}"/>`;
-            if (pct >= showScoreThreshold) {
-                const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-                edgeSvg += `<text x="${mx}" y="${my - 3}" text-anchor="middle"
-                    font-size="${fontSize - 1}" fill="var(--text-tertiary)">${Math.round(pct)}%</text>`;
-            }
-        });
-
-        // 畫節點: 名字放在圓圈外側（沿径向方向）
-        let nodeSvg = '';
-        members.forEach(m => {
-            const n = nodeMap[m.sub_id];
-            if (!n) return;
-            const isSource = m.role === 'source';
-            const r = isSource ? sourceR : nodeR;
-            const fill = isSource ? 'var(--text-primary)' : 'var(--bg-card)';
-            const stroke = isSource ? 'var(--text-primary)' : 'var(--border-default)';
-            const textFill = isSource ? 'var(--bg-card)' : 'var(--text-primary)';
-
-            nodeSvg += `<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
-            // 圓內顯示姓（首字）
-            nodeSvg += `<text x="${n.x}" y="${n.y + 1}" text-anchor="middle" dominant-baseline="central"
-                font-size="${isSource ? fontSize + 2 : fontSize}" font-weight="${isSource ? 700 : 500}" fill="${textFill}">${(m.name || '?')[0]}</text>`;
-
-            // 名字放在圈外: 源頭放下方，其他沿径向放
-            if (isSource) {
-                nodeSvg += `<text x="${n.x}" y="${n.y + r + fontSize + 2}" text-anchor="middle"
-                    font-size="${fontSize}" font-weight="600" fill="var(--text-primary)">${m.name || '?'}</text>`;
-                nodeSvg += `<text x="${n.x}" y="${n.y + r + fontSize * 2 + 4}" text-anchor="middle"
-                    font-size="${fontSize - 2}" fill="var(--text-tertiary)">源頭</text>`;
-            } else {
-                // 計算名字位置: 沿中心→節點方向再往外推
-                const dx = n.x - cx, dy = n.y - cy;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const labelDist = r + fontSize + 4;
-                const lx = n.x + (dx / dist) * labelDist;
-                const ly = n.y + (dy / dist) * labelDist;
-                // 根據角度選擇 text-anchor
-                const angle = Math.atan2(dy, dx);
-                const anchor = Math.abs(angle) > Math.PI * 0.75 ? 'end'
-                    : Math.abs(angle) < Math.PI * 0.25 ? 'start' : 'middle';
-                nodeSvg += `<text x="${lx}" y="${ly + 1}" text-anchor="${anchor}" dominant-baseline="central"
-                    font-size="${fontSize}" fill="var(--text-secondary)">${m.name || '?'}</text>`;
-            }
-        });
-
-        const hiddenEdges = edges.length - visibleEdges.length;
-        return `<div class="plag-network-card">
-            <div class="plag-network-header">
-                <span class="cluster-title">群組 ${cluster.id} <span class="count">${cluster.size} 人</span></span>
-                <span class="cluster-score">最高 <b>${cluster.max_score}%</b></span>
-            </div>
-            <svg class="plag-network-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-                ${edgeSvg}${nodeSvg}
-            </svg>
-            ${source ? `<div class="cluster-source" style="margin-top:var(--space-2);">
-                <span class="cluster-source-badge">疑似源頭</span>
-                <strong>${source.name}</strong>
-                <span style="color:var(--text-tertiary);font-size:var(--type-badge);">與 ${source.degree} 人匹配, 平均 ${source.avg_score}%</span>
-            </div>` : ''}
-            ${hiddenEdges > 0 ? `<div style="font-size:var(--type-badge);color:var(--text-tertiary);margin-top:var(--space-1);">顯示前 ${visibleEdges.length} 條高分關聯，省略 ${hiddenEdges} 條低分</div>` : ''}
-        </div>`;
-    },
-
-    // ---- Tree View: 橫向表格式清單（大群組不用SVG，改用HTML列表）----
+    // ---- Tree View: 統一的 SVG 傳播樹 ----
     _renderPlagiarismTree(clusters) {
         if (!clusters || !clusters.length) return '';
+        return clusters.map(cluster => this._renderTreeCard(cluster)).join('');
+    },
 
-        return clusters.map(cluster => {
-            const source = cluster.members.find(m => m.role === 'source');
-            if (!source) return '';
-            const edges = cluster.edges || [];
-            const N = cluster.members.length;
+    _renderTreeCard(cluster) {
+        const members = cluster.members || [];
+        const edges = cluster.edges || [];
+        const source = members.find(m => m.role === 'source');
+        if (!source) return '';
+        const N = members.length;
 
-            // Build adjacency
-            const edgeMap = {};
+        // 構建有向鄰接表（from → to）; 如果後端有 from_id/to_id 就用，否則退回無向 BFS
+        const childMap = {};   // parentId → [{childId, score}]
+        const hasDirection = edges.length > 0 && edges[0].from_id !== undefined;
+
+        if (hasDirection) {
             edges.forEach(e => {
-                if (!edgeMap[e.a_id]) edgeMap[e.a_id] = [];
-                if (!edgeMap[e.b_id]) edgeMap[e.b_id] = [];
-                edgeMap[e.a_id].push({ target: e.b_id, name: e.b_name, score: e.score });
-                edgeMap[e.b_id].push({ target: e.a_id, name: e.a_name, score: e.score });
+                const pid = e.from_id, cid = e.to_id;
+                if (!childMap[pid]) childMap[pid] = [];
+                childMap[pid].push({ id: cid, score: e.score });
             });
-
-            // BFS from source
+        } else {
+            // 退回無向 BFS（兼容舊數據）
+            const adj = {};
+            edges.forEach(e => {
+                if (!adj[e.a_id]) adj[e.a_id] = [];
+                if (!adj[e.b_id]) adj[e.b_id] = [];
+                adj[e.a_id].push({ id: e.b_id, score: e.score });
+                adj[e.b_id].push({ id: e.a_id, score: e.score });
+            });
+            // BFS 建 childMap
             const visited = new Set([source.sub_id]);
-            const treeNodes = []; // flat list with depth info
-            let frontier = [{ id: source.sub_id, depth: 0, parentName: null, score: 0 }];
-
-            while (frontier.length > 0) {
-                const nextFrontier = [];
-                for (const cur of frontier) {
-                    const member = cluster.members.find(m => m.sub_id === cur.id);
-                    treeNodes.push({
-                        name: member?.name || String(cur.id),
-                        depth: cur.depth,
-                        parentName: cur.parentName,
-                        score: cur.score,
-                        isSource: cur.depth === 0,
-                        degree: member?.degree || 0,
-                    });
-                    for (const edge of (edgeMap[cur.id] || [])) {
-                        if (!visited.has(edge.target)) {
-                            visited.add(edge.target);
-                            nextFrontier.push({
-                                id: edge.target,
-                                depth: cur.depth + 1,
-                                parentName: member?.name || '',
-                                score: edge.score,
-                            });
+            let frontier = [source.sub_id];
+            while (frontier.length) {
+                const next = [];
+                for (const pid of frontier) {
+                    for (const nb of (adj[pid] || [])) {
+                        if (!visited.has(nb.id)) {
+                            visited.add(nb.id);
+                            if (!childMap[pid]) childMap[pid] = [];
+                            childMap[pid].push(nb);
+                            next.push(nb.id);
                         }
                     }
                 }
-                frontier = nextFrontier;
+                frontier = next;
             }
+        }
 
-            // 小群組 (≤8人) 用 SVG 樹圖
-            if (N <= 8) {
-                return this._renderSmallTree(cluster, treeNodes);
+        // BFS 從源頭展開，收集帶深度的節點列表
+        const memberById = {};
+        members.forEach(m => { memberById[m.sub_id] = m; });
+
+        const treeNodes = [];
+        const visited = new Set([source.sub_id]);
+        let frontier = [{ id: source.sub_id, depth: 0, parentName: null, parentId: null, score: 0 }];
+
+        while (frontier.length) {
+            const next = [];
+            for (const cur of frontier) {
+                const m = memberById[cur.id] || { name: String(cur.id), sub_id: cur.id };
+                treeNodes.push({
+                    id: cur.id,
+                    name: m.name || String(cur.id),
+                    depth: cur.depth,
+                    parentName: cur.parentName,
+                    parentId: cur.parentId,
+                    score: cur.score,
+                    isSource: cur.depth === 0,
+                    degree: m.degree || 0,
+                    text_len: m.text_len || 0,
+                    submitted_at: m.submitted_at || null,
+                });
+                const children = (childMap[cur.id] || []).sort((a, b) => (b.score || 0) - (a.score || 0));
+                for (const ch of children) {
+                    if (!visited.has(ch.id)) {
+                        visited.add(ch.id);
+                        next.push({
+                            id: ch.id,
+                            depth: cur.depth + 1,
+                            parentName: m.name || '',
+                            parentId: cur.id,
+                            score: ch.score,
+                        });
+                    }
+                }
             }
+            frontier = next;
+        }
 
-            // 大群組用 HTML 清單（絕不重疊）
-            let listHtml = treeNodes.map(n => {
-                const indent = n.depth * 24;
-                const pctBar = n.score > 0
-                    ? `<div class="plag-tree-bar-track"><div class="plag-tree-bar-fill" style="width:${n.score}%"></div></div><span class="plag-tree-pct">${Math.round(n.score)}%</span>`
-                    : '';
-                const arrow = n.parentName ? `<span class="plag-tree-from">← ${n.parentName}</span>` : '';
-                return `<div class="plag-tree-row${n.isSource ? ' is-source' : ''}" style="padding-left:${indent + 12}px">
-                    <span class="plag-tree-node-dot${n.isSource ? ' source' : ''}"></span>
-                    <span class="plag-tree-name">${n.name}</span>
-                    ${n.isSource ? '<span class="cluster-source-badge" style="margin-left:6px;">源頭</span>' : ''}
-                    ${arrow}
-                    ${pctBar}
-                </div>`;
-            }).join('');
+        // 加入未被樹覆蓋的節點（孤立但在 cluster 中）
+        members.forEach(m => {
+            if (!visited.has(m.sub_id)) {
+                treeNodes.push({
+                    id: m.sub_id, name: m.name, depth: 1,
+                    parentName: source.name, parentId: source.sub_id,
+                    score: 0, isSource: false, degree: m.degree || 0,
+                    text_len: m.text_len || 0, submitted_at: m.submitted_at || null,
+                });
+            }
+        });
 
-            return `<div class="plag-tree-card">
-                <div class="plag-network-header">
-                    <span class="cluster-title">群組 ${cluster.id} — 傳播路徑</span>
-                    <span class="cluster-score"><b>${source.name}</b> → ${N - 1} 人</span>
-                </div>
-                <div class="plag-tree-list">${listHtml}</div>
-            </div>`;
-        }).join('');
-    },
-
-    // 小群組 (≤8人) 的 SVG 樹圖
-    _renderSmallTree(cluster, treeNodes) {
-        const source = cluster.members.find(m => m.role === 'source');
-        // 按深度分層
+        // === SVG 樹狀圖 ===
         const levels = [];
         treeNodes.forEach(n => {
             while (levels.length <= n.depth) levels.push([]);
             levels[n.depth].push(n);
         });
 
-        const levelH = 80;
+        const nodeW = N > 12 ? 80 : N > 6 ? 100 : 120;
+        const levelH = N > 12 ? 90 : 100;
         const maxPerLevel = Math.max(...levels.map(l => l.length), 1);
-        const W = Math.max(360, maxPerLevel * 100);
-        const H = levels.length * levelH + 40;
-        const nodePositions = {};
+        const W = Math.max(380, maxPerLevel * nodeW + 60);
+        const H = levels.length * levelH + 50;
+        const nodeR = N > 12 ? 14 : N > 6 ? 16 : 18;
+        const sourceR = nodeR + 4;
+        const fontSize = N > 12 ? 9 : N > 6 ? 10 : 11;
 
-        let treeSvg = '';
+        const nodePos = {};  // id → {x, y}
+
+        // 先計算每個節點位置
         levels.forEach((level, li) => {
-            const y = 35 + li * levelH;
+            const y = 30 + li * levelH;
             const spacing = W / (level.length + 1);
             level.forEach((node, ni) => {
-                const x = spacing * (ni + 1);
-                nodePositions[node.name] = { x, y };
-
-                // Edge to parent
-                if (li > 0 && node.parentName && nodePositions[node.parentName]) {
-                    const parent = nodePositions[node.parentName];
-                    const pct = node.score || 0;
-                    const sw = Math.max(1.5, (pct / 100) * 4);
-                    const opacity = 0.3 + (pct / 100) * 0.5;
-                    treeSvg += `<line x1="${parent.x}" y1="${parent.y + 18}" x2="${x}" y2="${y - 18}"
-                        stroke="var(--text-primary)" stroke-width="${sw}" opacity="${opacity}"/>`;
-                    const mx = (parent.x + x) / 2, my = (parent.y + 18 + y - 18) / 2;
-                    treeSvg += `<text x="${mx + 10}" y="${my}" font-size="10" fill="var(--text-tertiary)">${Math.round(pct)}%</text>`;
-                }
-
-                const isSource = li === 0;
-                const r = isSource ? 20 : 15;
-                const fill = isSource ? 'var(--text-primary)' : 'var(--bg-card)';
-                const stroke = isSource ? 'var(--text-primary)' : 'var(--border-default)';
-                const textFill = isSource ? 'var(--bg-card)' : 'var(--text-primary)';
-                treeSvg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
-                treeSvg += `<text x="${x}" y="${y + 1}" text-anchor="middle" dominant-baseline="central"
-                    font-size="${isSource ? 12 : 10}" font-weight="${isSource ? 700 : 500}" fill="${textFill}">${(node.name || '?')[0]}</text>`;
-                treeSvg += `<text x="${x}" y="${y + r + 13}" text-anchor="middle"
-                    font-size="11" fill="var(--text-secondary)">${node.name || '?'}</text>`;
-                if (isSource) {
-                    treeSvg += `<text x="${x}" y="${y + r + 25}" text-anchor="middle"
-                        font-size="9" fill="var(--text-tertiary)">源頭</text>`;
-                }
+                nodePos[node.id] = { x: spacing * (ni + 1), y };
             });
         });
 
+        // 畫箭頭和連線
+        let svgContent = '';
+        // 定義箭頭 marker
+        svgContent += `<defs>
+            <marker id="arrowhead-${cluster.id}" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto" fill="var(--text-tertiary)">
+                <polygon points="0 0, 8 3, 0 6"/>
+            </marker>
+        </defs>`;
+
+        // 畫邊: 帶箭頭
+        treeNodes.forEach(node => {
+            if (node.isSource || !node.parentId) return;
+            const parent = nodePos[node.parentId];
+            const child = nodePos[node.id];
+            if (!parent || !child) return;
+
+            const pct = node.score || 0;
+            const sw = Math.max(1.5, (pct / 100) * 3.5);
+            const opacity = 0.25 + (pct / 100) * 0.55;
+
+            // 計算線段起止（避免穿過圓圈）
+            const dx = child.x - parent.x, dy = child.y - parent.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const parentR = (memberById[node.parentId]?.role === 'source') ? sourceR : nodeR;
+            const x1 = parent.x + (dx / dist) * parentR;
+            const y1 = parent.y + (dy / dist) * parentR;
+            const x2 = child.x - (dx / dist) * (nodeR + 6);
+            const y2 = child.y - (dy / dist) * (nodeR + 6);
+
+            svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+                stroke="var(--text-tertiary)" stroke-width="${sw}" opacity="${opacity}"
+                marker-end="url(#arrowhead-${cluster.id})"/>`;
+
+            // 分數標籤
+            if (pct > 0) {
+                const mx = (parent.x + child.x) / 2;
+                const my = (parent.y + child.y) / 2;
+                const offsetX = dx === 0 ? 12 : (dx > 0 ? 10 : -10);
+                svgContent += `<text x="${mx + offsetX}" y="${my - 2}" text-anchor="middle"
+                    font-size="${fontSize - 1}" font-weight="600" fill="var(--text-tertiary)">${Math.round(pct)}%</text>`;
+            }
+        });
+
+        // 畫節點
+        treeNodes.forEach(node => {
+            const pos = nodePos[node.id];
+            if (!pos) return;
+            const isSource = node.isSource;
+            const r = isSource ? sourceR : nodeR;
+            const fill = isSource ? 'var(--text-primary)' : 'var(--bg-card)';
+            const stroke = isSource ? 'var(--text-primary)' : 'var(--border-default)';
+            const textFill = isSource ? 'var(--bg-card)' : 'var(--text-primary)';
+
+            svgContent += `<circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+            // 圓內首字
+            svgContent += `<text x="${pos.x}" y="${pos.y + 1}" text-anchor="middle" dominant-baseline="central"
+                font-size="${isSource ? fontSize + 2 : fontSize}" font-weight="${isSource ? 700 : 500}" fill="${textFill}">${(node.name || '?')[0]}</text>`;
+
+            // 名字（圓下方）
+            svgContent += `<text x="${pos.x}" y="${pos.y + r + 13}" text-anchor="middle"
+                font-size="${fontSize}" font-weight="${isSource ? 600 : 400}" fill="var(--text-primary)">${node.name || '?'}</text>`;
+
+            // 源頭標記
+            if (isSource) {
+                svgContent += `<text x="${pos.x}" y="${pos.y + r + 24}" text-anchor="middle"
+                    font-size="${fontSize - 2}" fill="var(--text-tertiary)">疑似源頭</text>`;
+            }
+
+            // 提交時間提示（非源頭，有時間的）
+            if (!isSource && node.submitted_at) {
+                const t = new Date(node.submitted_at);
+                const timeStr = `${String(t.getMonth()+1).padStart(2,'0')}/${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+                svgContent += `<text x="${pos.x}" y="${pos.y + r + 24}" text-anchor="middle"
+                    font-size="${fontSize - 2}" fill="var(--text-tertiary)">${timeStr}</text>`;
+            }
+        });
+
+        // 源頭信息摘要
+        const sourceTime = source.submitted_at ? (() => {
+            const t = new Date(source.submitted_at);
+            return `${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} 提交`;
+        })() : '';
+        const sourceLen = source.text_len ? `${source.text_len} 字元` : '';
+        const sourceDetail = [sourceTime, sourceLen].filter(Boolean).join(' · ');
+
         return `<div class="plag-tree-card">
             <div class="plag-network-header">
-                <span class="cluster-title">群組 ${cluster.id} — 傳播路徑</span>
-                <span class="cluster-score"><b>${source.name}</b> → ${cluster.members.length - 1} 人</span>
+                <span class="cluster-title">群組 ${cluster.id} <span class="count">${N} 人</span></span>
+                <span class="cluster-score">最高 <b>${cluster.max_score}%</b></span>
             </div>
             <svg class="plag-tree-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
-                ${treeSvg}
+                ${svgContent}
             </svg>
+            <div class="cluster-source" style="margin-top:var(--space-2);">
+                <span class="cluster-source-badge">疑似源頭</span>
+                <strong>${source.name}</strong>
+                <span style="color:var(--text-tertiary);font-size:var(--type-badge);">與 ${source.degree} 人匹配, 平均 ${source.avg_score}%${sourceDetail ? ' · ' + sourceDetail : ''}</span>
+            </div>
         </div>`;
     },
 
@@ -2508,17 +2461,7 @@ const AssignmentApp = {
         );
     },
 
-    _switchGraphView(view, btn) {
-        const net = document.getElementById('plagGraphNetworkView');
-        const tree = document.getElementById('plagGraphTreeView');
-        if (net) net.style.display = view === 'network' ? '' : 'none';
-        if (tree) tree.style.display = view === 'tree' ? '' : 'none';
-        const tabs = btn?.closest('.plag-graph-tabs');
-        if (tabs) {
-            tabs.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-        }
-    },
+    _switchGraphView() { /* removed – tree-only view */ },
 
     _filterPlagPairs(mode, btn) {
         document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));

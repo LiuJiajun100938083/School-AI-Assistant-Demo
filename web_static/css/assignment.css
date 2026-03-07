@@ -2300,12 +2300,6 @@ body {
 .plag-graph-section {
     margin-bottom: var(--space-5);
 }
-.plag-graph-tabs {
-    display: flex;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
-}
-.plag-network-card,
 .plag-tree-card {
     background: var(--bg-card);
     border: 1px solid var(--border-default);
