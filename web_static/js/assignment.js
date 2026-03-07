@@ -1876,6 +1876,16 @@ const AssignmentApp = {
         }
     },
 
+    // ICT 科目的 code 列表（包含這些關鍵字的科目才顯示作業類型選擇）
+    _ictKeywords: ['ict', 'program', 'code', 'python', 'java', 'swift', 'web', 'app',
+        '程式', '編程', '编程', '計算機', '计算机', '資訊', '资讯', 'software', 'ios', 'android'],
+
+    _isIctSubject(code) {
+        if (!code) return false;
+        const lower = code.toLowerCase();
+        return this._ictKeywords.some(kw => lower.includes(kw));
+    },
+
     async showPlagiarismConfigModal() {
         const old = document.getElementById('plagConfigModal');
         if (old) old.remove();
@@ -1901,45 +1911,68 @@ const AssignmentApp = {
                 </div>
                 <div class="plag-config-body">
                     <label class="plag-config-label">科目</label>
-                    <select id="plagSubjectSelect" class="plag-config-select">
+                    <select id="plagSubjectSelect" class="plag-config-select"
+                        onchange="AssignmentApp._onPlagSubjectChange()">
                         ${subjectsHtml}
                     </select>
 
-                    <label class="plag-config-label" style="margin-top:var(--space-4)">作業類型</label>
-                    <div class="plag-mode-options">
-                        <label class="plag-mode-option selected">
-                            <input type="radio" name="plagDetectMode" value="code" checked
-                                onchange="AssignmentApp._onPlagModeChange(this)">
-                            <div class="plag-mode-content">
-                                <span class="plag-mode-title">代碼</span>
-                                <span class="plag-mode-desc">重視變量名、縮排、逐字複製</span>
-                            </div>
-                        </label>
-                        <label class="plag-mode-option">
-                            <input type="radio" name="plagDetectMode" value="text"
-                                onchange="AssignmentApp._onPlagModeChange(this)">
-                            <div class="plag-mode-content">
-                                <span class="plag-mode-title">文字</span>
-                                <span class="plag-mode-desc">重視段落複製、文字相似</span>
-                            </div>
-                        </label>
-                        <label class="plag-mode-option">
-                            <input type="radio" name="plagDetectMode" value="mixed"
-                                onchange="AssignmentApp._onPlagModeChange(this)">
-                            <div class="plag-mode-content">
-                                <span class="plag-mode-title">混合</span>
-                                <span class="plag-mode-desc">自動識別每份作業的類型</span>
-                            </div>
-                        </label>
+                    <div id="plagModeSection" style="display:none;">
+                        <label class="plag-config-label" style="margin-top:var(--space-4)">作業類型</label>
+                        <div class="plag-mode-options">
+                            <label class="plag-mode-option selected">
+                                <input type="radio" name="plagDetectMode" value="code" checked
+                                    onchange="AssignmentApp._onPlagModeChange(this)">
+                                <div class="plag-mode-content">
+                                    <span class="plag-mode-title">代碼</span>
+                                    <span class="plag-mode-desc">變量名、縮排、逐字複製</span>
+                                </div>
+                            </label>
+                            <label class="plag-mode-option">
+                                <input type="radio" name="plagDetectMode" value="text"
+                                    onchange="AssignmentApp._onPlagModeChange(this)">
+                                <div class="plag-mode-content">
+                                    <span class="plag-mode-title">文字</span>
+                                    <span class="plag-mode-desc">段落複製、文字相似</span>
+                                </div>
+                            </label>
+                            <label class="plag-mode-option">
+                                <input type="radio" name="plagDetectMode" value="mixed"
+                                    onchange="AssignmentApp._onPlagModeChange(this)">
+                                <div class="plag-mode-content">
+                                    <span class="plag-mode-title">混合</span>
+                                    <span class="plag-mode-desc">自動識別類型</span>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
-                    <label class="plag-config-label" style="margin-top:var(--space-4)">相似度閾值</label>
-                    <div class="plag-threshold-row">
-                        <input type="range" id="plagThresholdSlider" min="30" max="95" value="60" step="5"
-                            oninput="document.getElementById('plagThresholdVal').textContent=this.value+'%'">
-                        <span id="plagThresholdVal" class="plag-threshold-val">60%</span>
+                    <label class="plag-config-label" style="margin-top:var(--space-4)">檢測嚴格度</label>
+                    <div class="plag-mode-options">
+                        <label class="plag-mode-option">
+                            <input type="radio" name="plagStrictness" value="loose"
+                                onchange="AssignmentApp._onPlagModeChange(this)">
+                            <div class="plag-mode-content">
+                                <span class="plag-mode-title">寬鬆</span>
+                                <span class="plag-mode-desc">只標記高度相似</span>
+                            </div>
+                        </label>
+                        <label class="plag-mode-option selected">
+                            <input type="radio" name="plagStrictness" value="normal" checked
+                                onchange="AssignmentApp._onPlagModeChange(this)">
+                            <div class="plag-mode-content">
+                                <span class="plag-mode-title">標準</span>
+                                <span class="plag-mode-desc">推薦，平衡準確與覆蓋</span>
+                            </div>
+                        </label>
+                        <label class="plag-mode-option">
+                            <input type="radio" name="plagStrictness" value="strict"
+                                onchange="AssignmentApp._onPlagModeChange(this)">
+                            <div class="plag-mode-content">
+                                <span class="plag-mode-title">嚴格</span>
+                                <span class="plag-mode-desc">輕微相似也會標記</span>
+                            </div>
+                        </label>
                     </div>
-                    <p class="plag-config-hint">閾值越低檢出越多（可能有誤報），越高越嚴格</p>
                 </div>
                 <div class="plag-config-footer">
                     <button class="btn btn-outline" onclick="document.getElementById('plagConfigModal').remove()">取消</button>
@@ -1948,25 +1981,35 @@ const AssignmentApp = {
             </div>
         </div>`;
         document.body.appendChild(div.firstElementChild);
+
+        // 初始化: 檢查預設選中的科目是否為 ICT
+        this._onPlagSubjectChange();
+    },
+
+    _onPlagSubjectChange() {
+        const code = document.getElementById('plagSubjectSelect')?.value || '';
+        const section = document.getElementById('plagModeSection');
+        if (section) {
+            section.style.display = this._isIctSubject(code) ? '' : 'none';
+        }
     },
 
     _onPlagModeChange(radio) {
-        document.querySelectorAll('.plag-mode-option').forEach(el => el.classList.remove('selected'));
+        const group = radio.closest('.plag-mode-options');
+        group.querySelectorAll('.plag-mode-option').forEach(el => el.classList.remove('selected'));
         radio.closest('.plag-mode-option').classList.add('selected');
-        // 根據類型建議閾值
-        const suggested = { code: 60, text: 50, mixed: 60 };
-        const slider = document.getElementById('plagThresholdSlider');
-        const val = document.getElementById('plagThresholdVal');
-        if (slider && val) {
-            slider.value = suggested[radio.value] || 60;
-            val.textContent = slider.value + '%';
-        }
     },
 
     async _confirmStartPlagiarism() {
         const subject = document.getElementById('plagSubjectSelect')?.value || '';
-        const detect_mode = document.querySelector('input[name="plagDetectMode"]:checked')?.value || 'mixed';
-        const threshold = parseInt(document.getElementById('plagThresholdSlider')?.value || '60', 10);
+        const isIct = this._isIctSubject(subject);
+        const detect_mode = isIct
+            ? (document.querySelector('input[name="plagDetectMode"]:checked')?.value || 'mixed')
+            : 'mixed';
+        const strictness = document.querySelector('input[name="plagStrictness"]:checked')?.value || 'normal';
+        const thresholdMap = { loose: 75, normal: 60, strict: 45 };
+        const threshold = thresholdMap[strictness] || 60;
+
         const modal = document.getElementById('plagConfigModal');
         if (modal) modal.remove();
 
