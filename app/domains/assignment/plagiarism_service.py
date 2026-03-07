@@ -55,9 +55,11 @@ MAX_FRAGMENTS_PER_PAIR = 10
 MAX_AI_ANALYSIS_PAIRS = 20  # AI 分析上限，避免大班級耗時過長
 
 # 代碼感知檢測參數
+TINY_CODE_THRESHOLD = 200        # 字元數 < 此值視為「極短代碼」（如 20 行 SwiftUI）
 SHORT_CODE_THRESHOLD = 500       # 字元數 < 此值視為「短代碼」
 MEDIUM_CODE_THRESHOLD = 2000     # 字元數 < 此值視為「中等長度」
-SHORT_CODE_FLAG_THRESHOLD = 80.0  # 短代碼需更高閾值才標記可疑
+TINY_CODE_FLAG_THRESHOLD = 92.0  # 極短代碼需非常高閾值（幾乎逐字複製才標記）
+SHORT_CODE_FLAG_THRESHOLD = 85.0  # 短代碼需更高閾值才標記可疑
 MEDIUM_CODE_FLAG_THRESHOLD = 70.0  # 中等長度代碼閾值
 
 # 多維度評分權重（合計 1.0）
@@ -192,7 +194,9 @@ class PlagiarismService:
                 # 長度自適應閾值: 短代碼需要更高的分數才標記可疑
                 effective_threshold = threshold
                 shorter_len = min(len(text_a.strip()), len(text_b.strip()))
-                if shorter_len < SHORT_CODE_THRESHOLD:
+                if shorter_len < TINY_CODE_THRESHOLD:
+                    effective_threshold = max(threshold, TINY_CODE_FLAG_THRESHOLD)
+                elif shorter_len < SHORT_CODE_THRESHOLD:
                     effective_threshold = max(threshold, SHORT_CODE_FLAG_THRESHOLD)
                 elif shorter_len < MEDIUM_CODE_THRESHOLD:
                     effective_threshold = max(threshold, MEDIUM_CODE_FLAG_THRESHOLD)
@@ -609,11 +613,18 @@ class PlagiarismService:
         else:
             comment_score = structure_score * 0.5  # 無注釋時用結構分折半
 
-        # ---- 長度自適應: 短代碼壓低結構分（因為短代碼天然相似）----
+        # ---- 長度自適應: 短代碼壓低結構分和標識符分（因為短代碼天然相似）----
         code_len = min(len(clean_a), len(clean_b))
-        if code_len < SHORT_CODE_THRESHOLD:
-            structure_score *= 0.6  # 短代碼結構相似不稀奇，大幅降權
-            signals.append("短代碼（結構分已降權）")
+        if code_len < TINY_CODE_THRESHOLD:
+            # 極短代碼（如 20 行 SwiftUI）: 結構和標識符幾乎必然相似
+            # 只有逐字複製（verbatim）和注釋才是有意義的抄襲信號
+            structure_score *= 0.3
+            identifier_score *= 0.4
+            signals.append("極短代碼（僅逐字複製和注釋為有效信號）")
+        elif code_len < SHORT_CODE_THRESHOLD:
+            structure_score *= 0.5
+            identifier_score *= 0.7
+            signals.append("短代碼（結構分和標識符分已降權）")
         elif code_len < MEDIUM_CODE_THRESHOLD:
             structure_score *= 0.8
             signals.append("中等長度代碼（結構分已微調）")
@@ -753,6 +764,27 @@ class PlagiarismService:
             # Swift
             'func', 'struct', 'enum', 'protocol', 'extension', 'guard',
             'override', 'mutating', 'throws', 'throw',
+            # SwiftUI / iOS 框架（UI 組件和修飾符 — 學生必須使用，不算抄襲）
+            'View', 'body', 'some', 'var', 'VStack', 'HStack', 'ZStack',
+            'Text', 'Image', 'Button', 'Spacer', 'List', 'NavigationView',
+            'NavigationLink', 'ScrollView', 'ForEach', 'Section', 'Form',
+            'TextField', 'Toggle', 'Picker', 'Slider', 'Stepper', 'Alert',
+            'Sheet', 'TabView', 'GeometryReader', 'LazyVStack', 'LazyHStack',
+            'foregroundColor', 'backgroundColor', 'font', 'padding', 'frame',
+            'bold', 'italic', 'cornerRadius', 'shadow', 'opacity', 'offset',
+            'overlay', 'background', 'clipShape', 'clipped', 'edgesIgnoringSafeArea',
+            'systemName', 'largeTitle', 'title', 'headline', 'subheadline',
+            'caption', 'footnote', 'resizable', 'scaledToFit', 'scaledToFill',
+            'action', 'label', 'content', 'alignment', 'spacing',
+            'onAppear', 'onTapGesture', 'onChange', 'task', 'refreshable',
+            'State', 'Binding', 'ObservedObject', 'EnvironmentObject',
+            'Published', 'StateObject', 'Environment', 'AppStorage',
+            'ContentView', 'PreviewProvider', 'previews', 'App', 'WindowGroup',
+            'Color', 'Font', 'CGFloat', 'Bool', 'Double', 'Int',
+            'teal', 'blue', 'red', 'green', 'white', 'black', 'gray',
+            'primary', 'secondary', 'accentColor',
+            'Circle', 'Rectangle', 'RoundedRectangle', 'Capsule', 'Ellipse',
+            'fill', 'stroke', 'lineWidth', 'rotation', 'trim',
             # 通用短詞
             'get', 'set', 'add', 'put', 'map', 'key', 'val', 'err',
             'ok', 'fn', 'args', 'argv', 'argc', 'tmp', 'temp', 'res',
