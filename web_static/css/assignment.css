@@ -2815,3 +2815,90 @@ body {
 @media (max-width: 480px) {
     .plag-metrics { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---- Plagiarism Config Modal ---- */
+.plag-config-modal {
+    background: var(--bg-card);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-lg, 0 8px 32px rgba(0,0,0,.18));
+    width: 460px;
+    max-width: 95vw;
+    overflow: hidden;
+}
+.plag-config-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border-default);
+}
+.plag-config-header h3 { margin: 0; font-size: var(--type-subhead); font-weight: 600; }
+.plag-config-body {
+    padding: var(--space-5);
+}
+.plag-config-label {
+    display: block;
+    font-size: var(--type-small);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-1);
+}
+.plag-config-label + .plag-config-label { margin-top: var(--space-4); }
+.plag-config-select {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm, 6px);
+    font-size: var(--type-body);
+    background: var(--bg-main);
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+}
+.plag-strategy-info {
+    font-size: var(--type-meta);
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-4);
+}
+.plag-threshold-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+.plag-threshold-row input[type="range"] {
+    flex: 1;
+    accent-color: var(--text-primary);
+}
+.plag-threshold-val {
+    font-size: var(--type-body);
+    font-weight: 600;
+    min-width: 40px;
+    text-align: right;
+}
+.plag-config-hint {
+    font-size: var(--type-meta);
+    color: var(--text-tertiary);
+    margin: var(--space-1) 0 0;
+}
+.plag-strategy-hints {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    background: var(--bg-main);
+    border-radius: var(--radius-sm, 6px);
+    border: 1px solid var(--border-default);
+}
+.plag-strategy-hint {
+    font-size: var(--type-meta);
+    color: var(--text-secondary);
+    padding: var(--space-1) 0;
+    line-height: 1.5;
+}
+.plag-strategy-hint + .plag-strategy-hint {
+    border-top: 1px solid var(--border-default);
+}
+.plag-config-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border-default);
+}

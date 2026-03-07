@@ -76,6 +76,74 @@ EVIDENCE_HIT_THRESHOLD = 70.0
 # 需要命中的最少維度數才給予證據加成
 MIN_EVIDENCE_DIMENSIONS = 2
 
+# ---- 檢測策略預設 ----
+# 不同科目類型的權重和閾值配置，反映各類型的抄襲模式差異
+DETECTION_PRESETS: Dict[str, Dict[str, Any]] = {
+    "programming": {
+        "label": "程式設計",
+        "weights": {
+            "structure": 0.15, "identifier": 0.25, "verbatim": 0.25,
+            "indent": 0.15, "comment": 0.10, "evidence": 0.10,
+        },
+        "default_threshold": 60.0,
+        "description": "重視變量名、縮排風格、逐字複製",
+    },
+    "essay": {
+        "label": "論文 / 報告",
+        "weights": {
+            "structure": 0.10, "identifier": 0.05, "verbatim": 0.40,
+            "indent": 0.05, "comment": 0.25, "evidence": 0.15,
+        },
+        "default_threshold": 50.0,
+        "description": "重視逐字複製和文字段落相似",
+    },
+    "math": {
+        "label": "數學 / 理工計算",
+        "weights": {
+            "structure": 0.30, "identifier": 0.15, "verbatim": 0.20,
+            "indent": 0.05, "comment": 0.15, "evidence": 0.15,
+        },
+        "default_threshold": 70.0,
+        "description": "公式結構天然相似，提高閾值避免誤判",
+    },
+    "general": {
+        "label": "通用",
+        "weights": {
+            "structure": 0.15, "identifier": 0.25, "verbatim": 0.25,
+            "indent": 0.15, "comment": 0.10, "evidence": 0.10,
+        },
+        "default_threshold": 60.0,
+        "description": "預設均衡模式",
+    },
+}
+
+# subject_code 關鍵字 → 檢測策略 映射
+# 系統科目 code 中如果包含這些關鍵字，自動選擇對應策略
+_SUBJECT_STRATEGY_KEYWORDS: Dict[str, List[str]] = {
+    "programming": ["program", "code", "python", "java", "swift", "web", "app",
+                     "程式", "編程", "编程", "計算機", "计算机", "資訊", "资讯",
+                     "software", "ios", "android", "c++", "css", "html", "js"],
+    "essay": ["chinese", "english", "history", "social", "literature",
+              "國文", "国文", "英文", "歷史", "历史", "社會", "社会",
+              "語文", "语文", "文學", "文学", "作文", "report", "論文", "论文"],
+    "math": ["math", "physics", "chemistry", "數學", "数学",
+             "物理", "化學", "化学", "統計", "统计", "calculus"],
+}
+
+
+def resolve_detection_preset(subject_code: str) -> str:
+    """根據科目 code 自動匹配最適合的檢測策略。"""
+    if not subject_code or subject_code in DETECTION_PRESETS:
+        return subject_code or "general"
+    code_lower = subject_code.lower()
+    for strategy, keywords in _SUBJECT_STRATEGY_KEYWORDS.items():
+        if any(kw in code_lower for kw in keywords):
+            return strategy
+    return "general"
+
+# 保持向後兼容
+SUBJECT_PRESETS = DETECTION_PRESETS
+
 # 代碼文件擴展名（用於判斷是否啟用代碼感知分析）
 CODE_EXTENSIONS = {
     ".swift", ".py", ".js", ".ts", ".jsx", ".tsx",
@@ -124,6 +192,7 @@ class PlagiarismService:
         assignment_id: int,
         teacher_id: int,
         threshold: float = DEFAULT_THRESHOLD,
+        subject: str = "general",
     ) -> Dict[str, Any]:
         """
         建立檢測報告記錄（狀態=pending）。
@@ -138,6 +207,7 @@ class PlagiarismService:
             "assignment_id": assignment_id,
             "status": "pending",
             "threshold": threshold,
+            "subject": subject,
             "created_by": teacher_id,
             "created_at": datetime.now(),
         })
@@ -147,6 +217,7 @@ class PlagiarismService:
             "assignment_id": assignment_id,
             "status": "pending",
             "threshold": threshold,
+            "subject": subject,
         }
 
     def run_check(
@@ -183,6 +254,10 @@ class PlagiarismService:
         try:
             assignment_id = report["assignment_id"]
             threshold = float(report.get("threshold") or DEFAULT_THRESHOLD)
+            subject = report.get("subject") or "general"
+            strategy = resolve_detection_preset(subject)
+            preset = DETECTION_PRESETS.get(strategy, DETECTION_PRESETS["general"])
+            subject_weights = preset["weights"]
 
             # 1) 提取所有提交的文本
             _progress("extract", 0, 1, "正在讀取學生提交內容...")
@@ -219,7 +294,7 @@ class PlagiarismService:
                 if not text_a.strip() or not text_b.strip():
                     continue
 
-                score, fragments = self._compute_similarity(text_a, text_b)
+                score, fragments = self._compute_similarity(text_a, text_b, weights=subject_weights)
 
                 # 長度自適應閾值
                 effective_threshold = threshold
@@ -280,6 +355,7 @@ class PlagiarismService:
                             sub_texts[id_a]["text"],
                             sub_texts[id_b]["text"],
                             pair["similarity_score"],
+                            subject=subject,
                         )
                         pair["ai_analysis"] = ai_result
                     except Exception as e:
@@ -375,9 +451,14 @@ class PlagiarismService:
         if not texts["a"].strip() or not texts["b"].strip():
             return "提交內容為空，無法分析"
 
+        # 嘗試從報告取得科目
+        report = self._report_repo.find_by_id(pair.get("report_id")) if pair.get("report_id") else None
+        pair_subject = (report.get("subject") if report else None) or "general"
+
         result = self._ai_analyze_pair(
             texts["a"], texts["b"],
             float(pair.get("similarity_score", 0)),
+            subject=pair_subject,
         )
 
         # 將結果寫回資料庫
@@ -544,6 +625,7 @@ class PlagiarismService:
         text_a: str,
         text_b: str,
         n: int = DEFAULT_NGRAM_SIZE,
+        weights: Optional[Dict[str, float]] = None,
     ) -> Tuple[float, List[Dict[str, Any]]]:
         """
         多維度代碼感知相似度算法。
@@ -599,14 +681,19 @@ class PlagiarismService:
                     f"僅 {evidence_hits} 個維度命中，證據不足（需≥{MIN_EVIDENCE_DIMENSIONS}個）"
                 )
 
-        # 加權合成
+        # 加權合成（使用科目權重或全局預設）
+        w = weights or {
+            "structure": WEIGHT_STRUCTURE, "identifier": WEIGHT_IDENTIFIER,
+            "verbatim": WEIGHT_VERBATIM, "indent": WEIGHT_INDENT,
+            "comment": WEIGHT_COMMENT, "evidence": WEIGHT_EVIDENCE,
+        }
         final_score = (
-            scores["structure_score"] * WEIGHT_STRUCTURE
-            + scores["identifier_score"] * WEIGHT_IDENTIFIER
-            + scores["verbatim_score"] * WEIGHT_VERBATIM
-            + scores.get("indent_score", 0) * WEIGHT_INDENT
-            + scores["comment_score"] * WEIGHT_COMMENT
-            + evidence_score * WEIGHT_EVIDENCE
+            scores["structure_score"] * w.get("structure", WEIGHT_STRUCTURE)
+            + scores["identifier_score"] * w.get("identifier", WEIGHT_IDENTIFIER)
+            + scores["verbatim_score"] * w.get("verbatim", WEIGHT_VERBATIM)
+            + scores.get("indent_score", 0) * w.get("indent", WEIGHT_INDENT)
+            + scores["comment_score"] * w.get("comment", WEIGHT_COMMENT)
+            + evidence_score * w.get("evidence", WEIGHT_EVIDENCE)
         )
 
         # 提取匹配片段
@@ -1196,6 +1283,7 @@ class PlagiarismService:
         text_a: str,
         text_b: str,
         similarity_score: float,
+        subject: str = "general",
     ) -> str:
         """
         調用 AI 模型分析兩份提交是否存在抄襲。
@@ -1211,7 +1299,19 @@ class PlagiarismService:
         excerpt_a = text_a[:max_len] + ("..." if len(text_a) > max_len else "")
         excerpt_b = text_b[:max_len] + ("..." if len(text_b) > max_len else "")
 
+        strategy = resolve_detection_preset(subject)
+        subject_label = DETECTION_PRESETS.get(strategy, {}).get("label", "通用")
+        subject_hint = {
+            "programming": "這是程式設計科目的作業，注意: 簡單題目結構相似是正常的，重點關注自定義變量名和注釋是否雷同。",
+            "essay": "這是論文/報告科目的作業，重點關注段落是否整段複製、改寫是否只是同義詞替換。",
+            "math": "這是數學/理工計算科目的作業，注意: 公式推導和解題步驟天然相似，重點關注是否有相同的筆誤或非標準寫法。",
+            "general": "請根據內容特徵自行判斷最適合的分析策略。",
+        }.get(strategy, "")
+
         prompt = f"""你是一位專業的學術誠信分析師。請分析以下兩份學生作業提交是否存在抄襲行為。
+
+## 科目: {subject_label}
+{subject_hint}
 
 ## 自動檢測結果
 綜合相似度: {similarity_score:.1f}%（基於結構、標識符、逐字複製、注釋四個維度的加權得分）

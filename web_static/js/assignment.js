@@ -171,10 +171,13 @@ const AssignmentAPI = {
     },
 
     // Plagiarism Detection
-    async startPlagiarismCheck(assignmentId, threshold = 60) {
+    async startPlagiarismCheck(assignmentId, { threshold = 60, subject = 'general' } = {}) {
         return this._call(`/api/assignments/teacher/${assignmentId}/plagiarism-check`, {
-            method: 'POST', body: JSON.stringify({ threshold }),
+            method: 'POST', body: JSON.stringify({ threshold, subject }),
         });
+    },
+    async getPlagiarismPresets() {
+        return this._call('/api/assignments/teacher/plagiarism-presets');
     },
     async getPlagiarismStatus(assignmentId) {
         return this._call(`/api/assignments/teacher/${assignmentId}/plagiarism-check/status`);
@@ -802,6 +805,7 @@ const AssignmentUI = {
                         <h2>抄袭檢測報告</h2>
                         <p class="plag-dashboard-meta">
                             <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
+                            ${report.subject && report.subject !== 'general' ? `<span class="badge badge-graded">${report.subject}</span>` : ''}
                             檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
                         </p>
                     </div>
@@ -1867,18 +1871,94 @@ const AssignmentApp = {
         if (this._hasPlagReport) {
             this.showPlagiarismReport();
         } else {
-            this.startPlagiarismCheck();
+            this.showPlagiarismConfigModal();
         }
     },
 
-    async startPlagiarismCheck() {
+    async showPlagiarismConfigModal() {
+        const old = document.getElementById('plagConfigModal');
+        if (old) old.remove();
+
+        // 載入科目列表
+        let subjectsHtml = '<option value="general">通用（預設）</option>';
+        try {
+            const resp = await fetch('/api/subjects', { headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token') || localStorage.getItem('token')}` } });
+            const data = await resp.json();
+            if (data?.subjects) {
+                for (const [code, info] of Object.entries(data.subjects)) {
+                    subjectsHtml += `<option value="${code}">${info.icon || '📚'} ${info.name}</option>`;
+                }
+            }
+        } catch (e) { /* 使用預設 */ }
+
+        // 載入策略預設說明
+        let presetsInfo = {};
+        try {
+            const pr = await AssignmentAPI.getPlagiarismPresets();
+            if (pr?.success) presetsInfo = pr.data;
+        } catch (e) { /* ignore */ }
+
+        const strategyOptions = Object.entries(presetsInfo).map(([key, v]) =>
+            `<div class="plag-strategy-hint" data-strategy="${key}">
+                <strong>${v.label}</strong>: ${v.description}（建議閾值 ${v.default_threshold}%）
+            </div>`
+        ).join('');
+
+        const div = document.createElement('div');
+        div.innerHTML = `
+        <div class="modal-overlay" id="plagConfigModal">
+            <div class="plag-config-modal">
+                <div class="plag-config-header">
+                    <h3>抄袭檢測配置</h3>
+                    <button class="btn btn-sm btn-outline" onclick="document.getElementById('plagConfigModal').remove()">✕</button>
+                </div>
+                <div class="plag-config-body">
+                    <label class="plag-config-label">科目</label>
+                    <select id="plagSubjectSelect" class="plag-config-select" onchange="AssignmentApp._onPlagSubjectChange()">
+                        ${subjectsHtml}
+                    </select>
+                    <div id="plagStrategyHint" class="plag-strategy-info">
+                        系統將根據科目自動選擇最佳檢測策略
+                    </div>
+                    <label class="plag-config-label">相似度閾值</label>
+                    <div class="plag-threshold-row">
+                        <input type="range" id="plagThresholdSlider" min="30" max="95" value="60" step="5"
+                            oninput="document.getElementById('plagThresholdVal').textContent=this.value+'%'">
+                        <span id="plagThresholdVal" class="plag-threshold-val">60%</span>
+                    </div>
+                    <p class="plag-config-hint">閾值越低檢出越多（可能有誤報），越高越嚴格</p>
+                    ${strategyOptions ? `<div class="plag-strategy-hints">${strategyOptions}</div>` : ''}
+                </div>
+                <div class="plag-config-footer">
+                    <button class="btn btn-outline" onclick="document.getElementById('plagConfigModal').remove()">取消</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp._confirmStartPlagiarism()">開始檢測</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(div.firstElementChild);
+    },
+
+    _onPlagSubjectChange() {
+        // 可選: 根據科目調整建議閾值
+    },
+
+    async _confirmStartPlagiarism() {
+        const subject = document.getElementById('plagSubjectSelect')?.value || 'general';
+        const threshold = parseInt(document.getElementById('plagThresholdSlider')?.value || '60', 10);
+        const modal = document.getElementById('plagConfigModal');
+        if (modal) modal.remove();
+
+        this._doStartPlagiarismCheck(subject, threshold);
+    },
+
+    async _doStartPlagiarismCheck(subject = 'general', threshold = 60) {
         const assignmentId = this.state.currentAssignment;
         if (!assignmentId) return;
 
         const btn = document.getElementById('plagiarismBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 啟動中...'; }
 
-        const resp = await AssignmentAPI.startPlagiarismCheck(assignmentId);
+        const resp = await AssignmentAPI.startPlagiarismCheck(assignmentId, { threshold, subject });
         if (!resp?.success) {
             UIModule.toast('啟動抄袭檢測失敗: ' + (resp?.message || ''), 'error');
             if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
@@ -1887,6 +1967,11 @@ const AssignmentApp = {
 
         UIModule.toast('抄袭檢測已在後台啟動', 'success');
         this._startPlagiarismPolling(assignmentId);
+    },
+
+    async startPlagiarismCheck() {
+        // 從報告頁「重新檢測」按鈕觸發 → 彈出配置窗口
+        this.showPlagiarismConfigModal();
     },
 
     _plagPollTimer: null,
