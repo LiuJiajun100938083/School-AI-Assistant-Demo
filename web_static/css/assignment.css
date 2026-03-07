@@ -2320,6 +2320,72 @@ body {
     align-items: center;
     margin-bottom: var(--space-3);
 }
+/* Tree list (大群組 HTML 清單) */
+.plag-tree-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.plag-tree-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: var(--type-body);
+    transition: background var(--duration-fast);
+}
+.plag-tree-row:hover {
+    background: var(--bg-main);
+}
+.plag-tree-row.is-source {
+    font-weight: 600;
+}
+.plag-tree-node-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border-default);
+    flex-shrink: 0;
+}
+.plag-tree-node-dot.source {
+    width: 12px;
+    height: 12px;
+    background: var(--text-primary);
+}
+.plag-tree-name {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.plag-tree-from {
+    font-size: var(--type-meta);
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.plag-tree-bar-track {
+    flex: 1;
+    min-width: 40px;
+    max-width: 120px;
+    height: 4px;
+    background: var(--bg-main);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.plag-tree-bar-fill {
+    height: 100%;
+    background: var(--text-primary);
+    border-radius: 2px;
+}
+.plag-tree-pct {
+    font-size: var(--type-meta);
+    color: var(--text-secondary);
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: 32px;
+    text-align: right;
+}
+
 .plag-network-svg,
 .plag-tree-svg {
     width: 100%;
