@@ -873,36 +873,20 @@ const AssignmentUI = {
             </div>`;
         }
 
-        // ---- Cluster Groups ----
+        // ---- Cluster Network Graph ----
         if (clusters.length > 0) {
-            html += `<div class="plagiarism-clusters">
-                <div class="plag-section-title">群組分析 <span class="count">${clusters.length}</span></div>
-                ${clusters.map(c => {
-                    const source = c.members.find(m => m.role === 'source');
-                    return `<div class="cluster-card">
-                        <div class="cluster-header">
-                            <span class="cluster-title">群組 ${c.id} <span class="count">${c.size} 人</span></span>
-                            <span class="cluster-score">最高 <b>${c.max_score}%</b></span>
-                        </div>
-                        ${source ? `<div class="cluster-source">
-                            <span class="cluster-source-badge">疑似源頭</span>
-                            <strong>${source.name}</strong>
-                            <span style="color:var(--text-tertiary);font-size:var(--type-badge);">與 ${source.degree} 人匹配, 平均 ${source.avg_score}%</span>
-                        </div>` : ''}
-                        <div class="cluster-members">
-                            ${c.members.map(m => `<span class="cluster-member ${m.role === 'source' ? 'is-source' : ''}">
-                                ${m.name}
-                                <span class="cluster-member-deg">${m.degree}</span>
-                            </span>`).join('')}
-                        </div>
-                        <div class="cluster-edges">
-                            ${c.edges.slice(0, 6).map(e => `<div class="cluster-edge">
-                                ${e.a_name} ↔ ${e.b_name}: <b>${e.score.toFixed(1)}%</b>
-                            </div>`).join('')}
-                            ${c.edges.length > 6 ? `<div class="cluster-edge" style="color:var(--text-tertiary);">共 ${c.edges.length} 條關聯</div>` : ''}
-                        </div>
-                    </div>`;
-                }).join('')}
+            html += `<div class="plag-graph-section">
+                <div class="plag-section-title">抄袭關係圖 <span class="count">${clusters.length} 個群組</span></div>
+                <div class="plag-graph-tabs">
+                    <button class="filter-tab active" onclick="AssignmentApp._switchGraphView('network', this)">網絡圖</button>
+                    <button class="filter-tab" onclick="AssignmentApp._switchGraphView('tree', this)">傳播樹</button>
+                </div>
+                <div id="plagGraphNetworkView">
+                    ${clusters.map(c => this._renderClusterNetwork(c)).join('')}
+                </div>
+                <div id="plagGraphTreeView" style="display:none;">
+                    ${this._renderPlagiarismTree(clusters)}
+                </div>
             </div>`;
         }
 
@@ -926,6 +910,189 @@ const AssignmentUI = {
 
         html += '</div>';
         return html;
+    },
+
+    // ---- Network Graph: circular layout per cluster ----
+    _renderClusterNetwork(cluster) {
+        const members = cluster.members || [];
+        const edges = cluster.edges || [];
+        if (members.length === 0) return '';
+
+        const W = 360, H = 280;
+        const cx = W / 2, cy = H / 2 + 10;
+        const R = Math.min(W, H) / 2 - 50;
+
+        // Position nodes in a circle
+        const nodeMap = {};
+        members.forEach((m, i) => {
+            const angle = (2 * Math.PI * i) / members.length - Math.PI / 2;
+            nodeMap[m.sub_id] = {
+                x: cx + R * Math.cos(angle),
+                y: cy + R * Math.sin(angle),
+                ...m,
+            };
+        });
+
+        // Draw edges
+        let edgeSvg = '';
+        edges.forEach(e => {
+            const a = nodeMap[e.a_id], b = nodeMap[e.b_id];
+            if (!a || !b) return;
+            const pct = e.score || 0;
+            const sw = Math.max(1.5, (pct / 100) * 5);
+            const opacity = 0.25 + (pct / 100) * 0.6;
+            const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+            edgeSvg += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"
+                stroke="var(--text-primary)" stroke-width="${sw}" opacity="${opacity}"/>`;
+            edgeSvg += `<text x="${mx}" y="${my - 4}" text-anchor="middle"
+                font-size="10" fill="var(--text-tertiary)">${Math.round(pct)}%</text>`;
+        });
+
+        // Draw nodes
+        let nodeSvg = '';
+        members.forEach(m => {
+            const n = nodeMap[m.sub_id];
+            const isSource = m.role === 'source';
+            const r = isSource ? 22 : 16;
+            const fill = isSource ? 'var(--text-primary)' : 'var(--bg-card)';
+            const stroke = isSource ? 'var(--text-primary)' : 'var(--border-default)';
+            const textFill = isSource ? 'var(--bg-card)' : 'var(--text-primary)';
+            nodeSvg += `<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+            // Name initial in circle
+            nodeSvg += `<text x="${n.x}" y="${n.y + 1}" text-anchor="middle" dominant-baseline="central"
+                font-size="${isSource ? 13 : 11}" font-weight="${isSource ? 700 : 500}" fill="${textFill}">${(m.name || '?')[0]}</text>`;
+            // Full name below
+            nodeSvg += `<text x="${n.x}" y="${n.y + r + 13}" text-anchor="middle"
+                font-size="11" fill="var(--text-secondary)">${m.name || '?'}</text>`;
+            if (isSource) {
+                nodeSvg += `<text x="${n.x}" y="${n.y + r + 25}" text-anchor="middle"
+                    font-size="9" fill="var(--text-tertiary)">源頭</text>`;
+            }
+        });
+
+        const source = members.find(m => m.role === 'source');
+        return `<div class="plag-network-card">
+            <div class="plag-network-header">
+                <span class="cluster-title">群組 ${cluster.id} <span class="count">${cluster.size} 人</span></span>
+                <span class="cluster-score">最高 <b>${cluster.max_score}%</b></span>
+            </div>
+            <svg class="plag-network-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+                ${edgeSvg}${nodeSvg}
+            </svg>
+            ${source ? `<div class="cluster-source" style="margin-top:var(--space-2);">
+                <span class="cluster-source-badge">疑似源頭</span>
+                <strong>${source.name}</strong>
+                <span style="color:var(--text-tertiary);font-size:var(--type-badge);">與 ${source.degree} 人匹配, 平均 ${source.avg_score}%</span>
+            </div>` : ''}
+        </div>`;
+    },
+
+    // ---- Tree View: source at top, members as children ----
+    _renderPlagiarismTree(clusters) {
+        if (!clusters || !clusters.length) return '';
+
+        return clusters.map(cluster => {
+            const source = cluster.members.find(m => m.role === 'source');
+            if (!source) return '';
+            const children = cluster.members.filter(m => m.sub_id !== source.sub_id);
+            const edges = cluster.edges || [];
+
+            // Build adjacency from source to find depth
+            const edgeMap = {};
+            edges.forEach(e => {
+                if (!edgeMap[e.a_id]) edgeMap[e.a_id] = [];
+                if (!edgeMap[e.b_id]) edgeMap[e.b_id] = [];
+                edgeMap[e.a_id].push({ target: e.b_id, name: e.b_name, score: e.score });
+                edgeMap[e.b_id].push({ target: e.a_id, name: e.a_name, score: e.score });
+            });
+
+            // BFS from source to build tree levels
+            const visited = new Set([source.sub_id]);
+            const levels = [[{ ...source, score: 0 }]];
+            let frontier = [source.sub_id];
+
+            while (frontier.length > 0) {
+                const nextLevel = [];
+                const nextFrontier = [];
+                for (const nid of frontier) {
+                    for (const edge of (edgeMap[nid] || [])) {
+                        if (!visited.has(edge.target)) {
+                            visited.add(edge.target);
+                            const member = cluster.members.find(m => m.sub_id === edge.target);
+                            nextLevel.push({
+                                name: member?.name || edge.name,
+                                sub_id: edge.target,
+                                score: edge.score,
+                                parentId: nid,
+                            });
+                            nextFrontier.push(edge.target);
+                        }
+                    }
+                }
+                if (nextLevel.length > 0) {
+                    levels.push(nextLevel);
+                    frontier = nextFrontier;
+                } else {
+                    break;
+                }
+            }
+
+            // SVG tree layout
+            const levelH = 80;
+            const W = 400;
+            const H = levels.length * levelH + 40;
+            const nodePositions = {};
+
+            let treeSvg = '';
+            levels.forEach((level, li) => {
+                const y = 35 + li * levelH;
+                const spacing = W / (level.length + 1);
+                level.forEach((node, ni) => {
+                    const x = spacing * (ni + 1);
+                    nodePositions[node.sub_id] = { x, y };
+
+                    // Draw edge to parent
+                    if (li > 0 && node.parentId != null) {
+                        const parent = nodePositions[node.parentId];
+                        if (parent) {
+                            const pct = node.score || 0;
+                            const sw = Math.max(1.5, (pct / 100) * 4);
+                            const opacity = 0.3 + (pct / 100) * 0.5;
+                            treeSvg += `<line x1="${parent.x}" y1="${parent.y + 18}" x2="${x}" y2="${y - 18}"
+                                stroke="var(--text-primary)" stroke-width="${sw}" opacity="${opacity}"/>`;
+                            const mx = (parent.x + x) / 2, my = (parent.y + 18 + y - 18) / 2;
+                            treeSvg += `<text x="${mx + 8}" y="${my}" font-size="10" fill="var(--text-tertiary)">${Math.round(pct)}%</text>`;
+                        }
+                    }
+
+                    // Node
+                    const isSource = li === 0;
+                    const r = isSource ? 20 : 15;
+                    const fill = isSource ? 'var(--text-primary)' : 'var(--bg-card)';
+                    const stroke = isSource ? 'var(--text-primary)' : 'var(--border-default)';
+                    const textFill = isSource ? 'var(--bg-card)' : 'var(--text-primary)';
+                    treeSvg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+                    treeSvg += `<text x="${x}" y="${y + 1}" text-anchor="middle" dominant-baseline="central"
+                        font-size="${isSource ? 12 : 10}" font-weight="${isSource ? 700 : 500}" fill="${textFill}">${(node.name || '?')[0]}</text>`;
+                    treeSvg += `<text x="${x}" y="${y + r + 13}" text-anchor="middle"
+                        font-size="11" fill="var(--text-secondary)">${node.name || '?'}</text>`;
+                    if (isSource) {
+                        treeSvg += `<text x="${x}" y="${y + r + 25}" text-anchor="middle"
+                            font-size="9" fill="var(--text-tertiary)">源頭</text>`;
+                    }
+                });
+            });
+
+            return `<div class="plag-tree-card">
+                <div class="plag-network-header">
+                    <span class="cluster-title">群組 ${cluster.id} — 傳播路徑</span>
+                    <span class="cluster-score"><b>${source.name}</b> → ${children.length} 人</span>
+                </div>
+                <svg class="plag-tree-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+                    ${treeSvg}
+                </svg>
+            </div>`;
+        }).join('');
     },
 
     renderPlagiarismPairs(pairs) {
@@ -2188,6 +2355,18 @@ const AssignmentApp = {
         main.innerHTML = AssignmentUI.renderPlagiarismReport(
             resp.data.report, resp.data.pairs, resp.data.clusters, resp.data.hub_students
         );
+    },
+
+    _switchGraphView(view, btn) {
+        const net = document.getElementById('plagGraphNetworkView');
+        const tree = document.getElementById('plagGraphTreeView');
+        if (net) net.style.display = view === 'network' ? '' : 'none';
+        if (tree) tree.style.display = view === 'tree' ? '' : 'none';
+        const tabs = btn?.closest('.plag-graph-tabs');
+        if (tabs) {
+            tabs.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
     },
 
     _filterPlagPairs(mode, btn) {
