@@ -928,20 +928,22 @@ class AssignmentService:
         student: Dict,
         content: str = "",
         files: Optional[List[UploadFile]] = None,
+        is_teacher_proxy: bool = False,
     ) -> Dict[str, Any]:
-        """學生提交作業"""
+        """學生提交作業（is_teacher_proxy=True 時跳過狀態與截止日期檢查）"""
         assignment = self._get_assignment_or_raise(assignment_id)
 
-        if assignment["status"] != "published":
-            raise AssignmentNotPublishedError()
+        if not is_teacher_proxy:
+            if assignment["status"] != "published":
+                raise AssignmentNotPublishedError()
 
-        # 檢查截止日期
-        if assignment.get("deadline"):
-            deadline = assignment["deadline"]
-            if isinstance(deadline, str):
-                deadline = datetime.fromisoformat(deadline)
-            if datetime.now() > deadline and not assignment.get("allow_late"):
-                raise DeadlinePassedError()
+            # 檢查截止日期
+            if assignment.get("deadline"):
+                deadline = assignment["deadline"]
+                if isinstance(deadline, str):
+                    deadline = datetime.fromisoformat(deadline)
+                if datetime.now() > deadline and not assignment.get("allow_late"):
+                    raise DeadlinePassedError()
 
         # 檢查文件數量
         max_files = assignment.get("max_files", 5)

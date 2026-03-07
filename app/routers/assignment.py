@@ -631,6 +631,7 @@ async def teacher_submit_for_student(
         student=student,
         content=content or f"（由教師 {teacher_info[0]} 代為提交）",
         files=files if files else None,
+        is_teacher_proxy=True,
     )
     return success_response(data=result, message="代提交成功")
 
