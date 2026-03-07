@@ -806,7 +806,7 @@ const AssignmentUI = {
                         <p class="plag-dashboard-meta">
                             <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
                             ${report.subject ? `<span class="badge badge-graded">${report.subject}</span>` : ''}
-                            ${report.detect_mode ? `<span class="badge badge-submitted">${({code:'代碼',text:'文字',mixed:'混合'})[report.detect_mode] || report.detect_mode}</span>` : ''}
+                            ${report.detect_mode ? `<span class="badge badge-submitted">${({code:'代碼',text:'文字',mixed:'混合',chinese_essay:'中文作文',english_essay:'English Essay'})[report.detect_mode] || report.detect_mode}</span>` : ''}
                             檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
                         </p>
                     </div>
@@ -1149,22 +1149,44 @@ const AssignmentUI = {
             </div>`;
         };
 
+        const listDetectMode = (this._currentPlagReport || {}).detect_mode || '';
+        const isEngList = listDetectMode === 'english_essay';
+
         return `<div class="plagiarism-pairs-list">${pairs.map(p => {
             const pct = parseFloat(p.similarity_score) || 0;
             const dims = this._extractDimensions(p.matched_fragments);
-            const td = dims.totalDims || 9;
-            const dimHtml = dims ? `<div class="pair-dimensions">
-                ${dims.logicScore ? `<span class="dim-tag">邏輯 ${Math.round(dims.logicScore)}%</span>` : ''}
-                ${dims.styleScore ? `<span class="dim-tag">風格 ${Math.round(dims.styleScore)}%</span>` : ''}
-                ${dims.winnow ? `<span class="dim-tag">指紋 ${Math.round(dims.winnow)}%</span>` : ''}
-                ${dims.dataFlow ? `<span class="dim-tag">數據流 ${Math.round(dims.dataFlow)}%</span>` : ''}
-                <span class="dim-tag">命名 ${Math.round(dims.identifier)}%</span>
-                <span class="dim-tag">逐字 ${Math.round(dims.verbatim)}%</span>
-                ${dims.typo > 0 ? `<span class="dim-tag evidence-hit">拼錯 ${Math.round(dims.typo)}%</span>` : ''}
-                ${dims.deadCode > 0 ? `<span class="dim-tag evidence-hit">死代碼 ${Math.round(dims.deadCode)}%</span>` : ''}
-                ${dims.aiSuspicion >= 20 ? `<span class="dim-tag" style="color:var(--text-tertiary)">AI嫌疑 ${Math.round(dims.aiSuspicion)}%</span>` : ''}
-                ${dims.evidenceHits >= 2 ? `<span class="dim-tag evidence-hit">證據 ${dims.evidenceHits}/${td}</span>` : ''}
-            </div>` : '';
+            const td = dims ? (dims.totalDims || 9) : 9;
+            let dimHtml = '';
+            if (dims && isEngList) {
+                // English essay compact dimension tags
+                const risk = dims.riskType || {};
+                const riskLabels = { direct_copy: 'Copy', paraphrase: 'Paraphrase', imitation: 'Imitation' };
+                const primaryRisk = risk.primary_risk || '';
+                const fs = p.final_status || '';
+                const fsLabels = { high_risk: '高風險', review_needed: '需複核', low_risk: '低風險' };
+                dimHtml = `<div class="pair-dimensions">
+                    <span class="dim-tag">Lexical ${Math.round(dims.verbatim)}%</span>
+                    <span class="dim-tag">Align ${Math.round(dims.comment)}%</span>
+                    <span class="dim-tag">Semantic ${Math.round(dims.identifier)}%</span>
+                    ${dims.openingSim >= 50 ? `<span class="dim-tag">Opening ${Math.round(dims.openingSim)}%</span>` : ''}
+                    ${dims.rarePhraseScore >= 30 ? `<span class="dim-tag evidence-hit">Rare ${Math.round(dims.rarePhraseScore)}%</span>` : ''}
+                    ${primaryRisk && primaryRisk !== 'normal' ? `<span class="dim-tag">${riskLabels[primaryRisk] || primaryRisk}</span>` : ''}
+                    ${fs ? `<span class="dim-tag${fs === 'high_risk' ? ' evidence-hit' : ''}" style="${fs === 'review_needed' ? 'color:var(--warning-color,#d69e2e)' : ''}">${fsLabels[fs] || fs}</span>` : ''}
+                </div>`;
+            } else if (dims) {
+                dimHtml = `<div class="pair-dimensions">
+                    ${dims.logicScore ? `<span class="dim-tag">邏輯 ${Math.round(dims.logicScore)}%</span>` : ''}
+                    ${dims.styleScore ? `<span class="dim-tag">風格 ${Math.round(dims.styleScore)}%</span>` : ''}
+                    ${dims.winnow ? `<span class="dim-tag">指紋 ${Math.round(dims.winnow)}%</span>` : ''}
+                    ${dims.dataFlow ? `<span class="dim-tag">數據流 ${Math.round(dims.dataFlow)}%</span>` : ''}
+                    <span class="dim-tag">命名 ${Math.round(dims.identifier)}%</span>
+                    <span class="dim-tag">逐字 ${Math.round(dims.verbatim)}%</span>
+                    ${dims.typo > 0 ? `<span class="dim-tag evidence-hit">拼錯 ${Math.round(dims.typo)}%</span>` : ''}
+                    ${dims.deadCode > 0 ? `<span class="dim-tag evidence-hit">死代碼 ${Math.round(dims.deadCode)}%</span>` : ''}
+                    ${dims.aiSuspicion >= 20 ? `<span class="dim-tag" style="color:var(--text-tertiary)">AI嫌疑 ${Math.round(dims.aiSuspicion)}%</span>` : ''}
+                    ${dims.evidenceHits >= 2 ? `<span class="dim-tag evidence-hit">證據 ${dims.evidenceHits}/${td}</span>` : ''}
+                </div>`;
+            }
             return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
                 <div class="pair-card-left">
                     <div class="pair-students">
@@ -1215,46 +1237,147 @@ const AssignmentUI = {
                     <span class="dim-detail-val">${v.toFixed(1)}%</span>
                 </div>`;
             };
-            // 雙分數卡片
-            const logicPct = Math.round(dims.logicScore || 0);
-            const stylePct = Math.round(dims.styleScore || 0);
-            const td = dims.totalDims || 9;
-            html += `<div class="plagiarism-dimension-box">
-                <h4>雙分數判定</h4>
+            const detectMode = (this._currentPlagReport || {}).detect_mode || '';
+            const isEnglishEssay = detectMode === 'english_essay';
+
+            if (isEnglishEssay) {
+                // ---- English Essay dimension display ----
+                const logicPct = Math.round(dims.logicScore || 0);
+                const stylePct = Math.round(dims.styleScore || 0);
+                const risk = dims.riskType || {};
+                const primaryRisk = risk.primary_risk || 'normal';
+                const riskLabels = { direct_copy: 'Direct Copy', paraphrase: 'Paraphrase', imitation: 'Imitation', normal: 'Normal' };
+                const riskConf = Math.round(risk.risk_confidence_score || 0);
+                const finalStatus = pair.final_status || '';
+                const statusLabels = { high_risk: '高風險', review_needed: '需人工複核', low_risk: '低風險' };
+                const statusColors = { high_risk: 'var(--error-color, #e53e3e)', review_needed: 'var(--warning-color, #d69e2e)', low_risk: 'var(--success-color, #38a169)' };
+
+                html += `<div class="plagiarism-dimension-box">`;
+
+                // Final status badge
+                if (finalStatus) {
+                    html += `<div style="margin-bottom:var(--space-3)">
+                        <span class="badge" style="background:${statusColors[finalStatus] || '#888'};color:#fff;padding:4px 12px;font-size:0.85rem;">
+                            ${statusLabels[finalStatus] || finalStatus}
+                        </span>
+                        ${finalStatus === 'review_needed' ? `<div style="margin-top:var(--space-2);font-size:0.82rem;color:var(--text-secondary);">
+                            主要風險類型: ${riskLabels[primaryRisk] || primaryRisk}
+                            ${riskConf > 0 ? `· 算法信心: ${riskConf}/100` : ''}
+                            ${riskConf <= 40 ? '<br>⚠️ 風險類型接近，需教師判斷' : ''}
+                        </div>` : ''}
+                    </div>`;
+                }
+
+                // Dual scores
+                html += `<h4>雙分數判定</h4>
                 <div class="plag-dual-scores">
                     <div class="plag-dual-card">
                         <div class="plag-dual-label">邏輯相似度</div>
                         <div class="plag-dual-value">${logicPct}%</div>
-                        <div class="plag-dual-hint">Token結構 · Winnowing · 數據流 · 逐字</div>
+                        <div class="plag-dual-hint">Sentence Alignment · Semantic · Discourse</div>
                     </div>
                     <div class="plag-dual-card">
                         <div class="plag-dual-label">風格一致性</div>
                         <div class="plag-dual-value">${stylePct}%</div>
-                        <div class="plag-dual-hint">命名 · 縮排 · 注釋 · 拼錯 · 死代碼</div>
+                        <div class="plag-dual-hint">Lexical · Stylometry · Alignment</div>
                     </div>
-                </div>
-                ${logicPct > 70 && stylePct < 40 ? '<div class="dim-code-badge">邏輯高但風格不同 → 簡單作業巧合的可能性較高</div>' : ''}
-                ${logicPct > 70 && stylePct > 60 ? '<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">邏輯+風格同時高 → 高度可疑</div>' : ''}
+                </div>`;
 
-                <h4 style="margin-top:var(--space-4)">邏輯維度</h4>
-                ${dims.winnow ? mkBar('Winnowing 指紋', dims.winnow) : ''}
-                ${mkBar('結構相似 (骨架)', dims.structure)}
-                ${dims.dataFlow ? mkBar('數據流模式', dims.dataFlow) : ''}
-                ${mkBar('逐字複製', dims.verbatim)}
+                // Core dimensions
+                html += `<h4 style="margin-top:var(--space-4)">核心維度</h4>
+                ${mkBar('Lexical Overlap 逐字重疊', dims.verbatim)}
+                ${mkBar('Sentence Alignment 句子對齊', dims.comment)}
+                ${mkBar('Semantic Paraphrase 語義改寫', dims.identifier)}
+                ${mkBar('Discourse Structure 論述結構', dims.structure)}
+                ${mkBar('Stylometry 文體特徵', dims.indent)}`;
 
-                <h4 style="margin-top:var(--space-4)">風格維度</h4>
-                ${mkBar('變量命名', dims.identifier)}
-                ${mkBar('縮排指紋', dims.indent)}
-                ${mkBar('注釋/字串', dims.comment)}
-                ${dims.typo > 0 ? mkBar('共享拼錯 (強證據)', dims.typo) : ''}
-                ${dims.deadCode > 0 ? mkBar('死代碼匹配 (強證據)', dims.deadCode) : ''}
+                // Opening / Ending
+                html += `<h4 style="margin-top:var(--space-4)">開頭/結尾相似度</h4>
+                ${mkBar('Opening 開頭', dims.openingSim)}
+                ${mkBar('Ending 結尾', dims.endingSim)}`;
 
-                <h4 style="margin-top:var(--space-4)">綜合指標</h4>
-                ${mkBar('多重證據命中', dims.evidence)}
-                ${dims.aiSuspicion >= 20 ? mkBar('AI 生成嫌疑', dims.aiSuspicion) : ''}
-                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元 · 證據命中 ${dims.evidenceHits || 0}/${td} 維</div>` : ''}
-                ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
-            </div>`;
+                // Rare phrases
+                if (dims.rarePhraseScore > 0) {
+                    html += `<h4 style="margin-top:var(--space-4)">罕見短語</h4>
+                    ${mkBar('Rare Phrase Score', dims.rarePhraseScore)}`;
+                    if (dims.rarePhrases && dims.rarePhrases.length) {
+                        html += `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:4px;">
+                            共享短語: ${dims.rarePhrases.slice(0, 8).join(', ')}
+                        </div>`;
+                    }
+                }
+
+                // Risk assessment
+                if (risk && primaryRisk !== 'normal') {
+                    html += `<h4 style="margin-top:var(--space-4)">Risk Assessment 風險評估</h4>
+                    ${mkBar('Direct Copy 風險', risk.risk_direct_copy || 0)}
+                    ${mkBar('Paraphrase 風險', risk.risk_paraphrase || 0)}
+                    ${mkBar('Imitation 風險', risk.risk_imitation || 0)}
+                    <div style="font-size:0.82rem;margin-top:4px;">
+                        <span class="dim-signal-tag">主要類型: ${riskLabels[primaryRisk] || primaryRisk}</span>
+                        <span class="dim-signal-tag">信心: ${riskConf}/100</span>
+                    </div>`;
+                }
+
+                // Evidence & signals
+                html += `<h4 style="margin-top:var(--space-4)">綜合指標</h4>
+                ${mkBar('多重證據命中', dims.evidence)}`;
+
+                // Warnings
+                if (dims.warnings && dims.warnings.length) {
+                    html += `<div class="dim-signals" style="margin-top:var(--space-2)">
+                        ${dims.warnings.map(w => `<span class="dim-signal-tag" style="color:var(--warning-color,#d69e2e);">⚠️ ${w}</span>`).join('')}
+                    </div>`;
+                }
+
+                if (dims.signals && dims.signals.length) {
+                    html += `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>`;
+                }
+
+                html += `</div>`;
+            } else {
+                // ---- Original code/text/chinese_essay dimension display ----
+                // 雙分數卡片
+                const logicPct = Math.round(dims.logicScore || 0);
+                const stylePct = Math.round(dims.styleScore || 0);
+                const td = dims.totalDims || 9;
+                html += `<div class="plagiarism-dimension-box">
+                    <h4>雙分數判定</h4>
+                    <div class="plag-dual-scores">
+                        <div class="plag-dual-card">
+                            <div class="plag-dual-label">邏輯相似度</div>
+                            <div class="plag-dual-value">${logicPct}%</div>
+                            <div class="plag-dual-hint">Token結構 · Winnowing · 數據流 · 逐字</div>
+                        </div>
+                        <div class="plag-dual-card">
+                            <div class="plag-dual-label">風格一致性</div>
+                            <div class="plag-dual-value">${stylePct}%</div>
+                            <div class="plag-dual-hint">命名 · 縮排 · 注釋 · 拼錯 · 死代碼</div>
+                        </div>
+                    </div>
+                    ${logicPct > 70 && stylePct < 40 ? '<div class="dim-code-badge">邏輯高但風格不同 → 簡單作業巧合的可能性較高</div>' : ''}
+                    ${logicPct > 70 && stylePct > 60 ? '<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">邏輯+風格同時高 → 高度可疑</div>' : ''}
+
+                    <h4 style="margin-top:var(--space-4)">邏輯維度</h4>
+                    ${dims.winnow ? mkBar('Winnowing 指紋', dims.winnow) : ''}
+                    ${mkBar('結構相似 (骨架)', dims.structure)}
+                    ${dims.dataFlow ? mkBar('數據流模式', dims.dataFlow) : ''}
+                    ${mkBar('逐字複製', dims.verbatim)}
+
+                    <h4 style="margin-top:var(--space-4)">風格維度</h4>
+                    ${mkBar('變量命名', dims.identifier)}
+                    ${mkBar('縮排指紋', dims.indent)}
+                    ${mkBar('注釋/字串', dims.comment)}
+                    ${dims.typo > 0 ? mkBar('共享拼錯 (強證據)', dims.typo) : ''}
+                    ${dims.deadCode > 0 ? mkBar('死代碼匹配 (強證據)', dims.deadCode) : ''}
+
+                    <h4 style="margin-top:var(--space-4)">綜合指標</h4>
+                    ${mkBar('多重證據命中', dims.evidence)}
+                    ${dims.aiSuspicion >= 20 ? mkBar('AI 生成嫌疑', dims.aiSuspicion) : ''}
+                    ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元 · 證據命中 ${dims.evidenceHits || 0}/${td} 維</div>` : ''}
+                    ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
+                </div>`;
+            }
         }
 
         // AI Analysis
@@ -1430,6 +1553,13 @@ const AssignmentUI = {
             isCode: dim.is_code || false,
             codeLength: dim.code_length || 0,
             signals: dim.signals || [],
+            // English essay intermediates
+            openingSim: dim._opening_sim || 0,
+            endingSim: dim._ending_sim || 0,
+            rarePhraseScore: dim._rare_phrase_score || 0,
+            rarePhrases: dim._rare_phrases || [],
+            riskType: dim._risk_type || null,
+            warnings: dim._warnings || [],
         };
     },
 
@@ -2270,14 +2400,30 @@ const AssignmentApp = {
         }
     },
 
-    // ICT 科目的 code 列表（包含這些關鍵字的科目才顯示作業類型選擇）
+    // ICT 科目的 code 列表（包含這些關鍵字的科目才顯示代碼檢測選項）
     _ictKeywords: ['ict', 'program', 'code', 'python', 'java', 'swift', 'web', 'app',
         '程式', '編程', '编程', '計算機', '计算机', '資訊', '资讯', 'software', 'ios', 'android'],
+    // 中文科目關鍵字
+    _chineseKeywords: ['chinese', '中文', '語文', '语文', '作文'],
+    // 英文科目關鍵字
+    _englishKeywords: ['english', '英文', '英語', '英语', 'eng', 'essay', 'writing', 'composition', 'language arts'],
 
     _isIctSubject(code) {
         if (!code) return false;
         const lower = code.toLowerCase();
         return this._ictKeywords.some(kw => lower.includes(kw));
+    },
+
+    _isChineseSubject(code) {
+        if (!code) return false;
+        const lower = code.toLowerCase();
+        return this._chineseKeywords.some(kw => lower.includes(kw));
+    },
+
+    _isEnglishSubject(code) {
+        if (!code) return false;
+        const lower = code.toLowerCase();
+        return this._englishKeywords.some(kw => lower.includes(kw));
     },
 
     async showPlagiarismConfigModal() {
@@ -2310,34 +2456,9 @@ const AssignmentApp = {
                         ${subjectsHtml}
                     </select>
 
-                    <div id="plagModeSection" style="display:none;">
+                    <div id="plagModeSection">
                         <label class="plag-config-label" style="margin-top:var(--space-4)">作業類型</label>
-                        <div class="plag-mode-options">
-                            <label class="plag-mode-option selected">
-                                <input type="radio" name="plagDetectMode" value="code" checked
-                                    onchange="AssignmentApp._onPlagModeChange(this)">
-                                <div class="plag-mode-content">
-                                    <span class="plag-mode-title">代碼</span>
-                                    <span class="plag-mode-desc">變量名、縮排、逐字複製</span>
-                                </div>
-                            </label>
-                            <label class="plag-mode-option">
-                                <input type="radio" name="plagDetectMode" value="text"
-                                    onchange="AssignmentApp._onPlagModeChange(this)">
-                                <div class="plag-mode-content">
-                                    <span class="plag-mode-title">文字</span>
-                                    <span class="plag-mode-desc">段落複製、文字相似</span>
-                                </div>
-                            </label>
-                            <label class="plag-mode-option">
-                                <input type="radio" name="plagDetectMode" value="mixed"
-                                    onchange="AssignmentApp._onPlagModeChange(this)">
-                                <div class="plag-mode-content">
-                                    <span class="plag-mode-title">混合</span>
-                                    <span class="plag-mode-desc">自動識別類型</span>
-                                </div>
-                            </label>
-                        </div>
+                        <div class="plag-mode-options" id="plagModeOptions"></div>
                     </div>
 
                     <label class="plag-config-label" style="margin-top:var(--space-4)">檢測嚴格度</label>
@@ -2382,10 +2503,54 @@ const AssignmentApp = {
 
     _onPlagSubjectChange() {
         const code = document.getElementById('plagSubjectSelect')?.value || '';
-        const section = document.getElementById('plagModeSection');
-        if (section) {
-            section.style.display = this._isIctSubject(code) ? '' : 'none';
+        const container = document.getElementById('plagModeOptions');
+        if (!container) return;
+
+        const isIct = this._isIctSubject(code);
+        const isChinese = this._isChineseSubject(code);
+        const isEnglish = this._isEnglishSubject(code);
+
+        // 根據科目動態生成模式選項
+        let modes = [];
+        if (isChinese) {
+            modes = [
+                { value: 'chinese_essay', title: '中文作文', desc: '抄襲、套用、仿寫三級檢測', selected: true },
+                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
+                { value: 'mixed', title: '混合', desc: '自動識別類型' },
+            ];
+        } else if (isEnglish) {
+            modes = [
+                { value: 'english_essay', title: 'English Essay', desc: '直接抄襲、改寫、結構模仿三級檢測', selected: true },
+                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
+                { value: 'mixed', title: '混合', desc: '自動識別類型' },
+            ];
+        } else if (isIct) {
+            modes = [
+                { value: 'code', title: '代碼', desc: '變量名、縮排、逐字複製' },
+                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
+                { value: 'mixed', title: '混合', desc: '自動識別類型', selected: true },
+            ];
+        } else {
+            modes = [
+                { value: 'text', title: '文字', desc: '段落複製、文字相似' },
+                { value: 'mixed', title: '混合', desc: '自動識別類型', selected: true },
+            ];
+            // 建議根據作文語言選擇模式
+            const hint = document.getElementById('plagModeHint');
+            if (hint) hint.textContent = '建議根據作文語言選擇模式';
         }
+
+        container.innerHTML = modes.map(m => `
+            <label class="plag-mode-option${m.selected ? ' selected' : ''}">
+                <input type="radio" name="plagDetectMode" value="${m.value}"
+                    ${m.selected ? 'checked' : ''}
+                    onchange="AssignmentApp._onPlagModeChange(this)">
+                <div class="plag-mode-content">
+                    <span class="plag-mode-title">${m.title}</span>
+                    <span class="plag-mode-desc">${m.desc}</span>
+                </div>
+            </label>
+        `).join('');
     },
 
     _onPlagModeChange(radio) {
@@ -2396,10 +2561,7 @@ const AssignmentApp = {
 
     async _confirmStartPlagiarism() {
         const subject = document.getElementById('plagSubjectSelect')?.value || '';
-        const isIct = this._isIctSubject(subject);
-        const detect_mode = isIct
-            ? (document.querySelector('input[name="plagDetectMode"]:checked')?.value || 'mixed')
-            : 'mixed';
+        const detect_mode = document.querySelector('input[name="plagDetectMode"]:checked')?.value || 'mixed';
         const strictness = document.querySelector('input[name="plagStrictness"]:checked')?.value || 'normal';
         const thresholdMap = { loose: 75, normal: 60, strict: 45 };
         const threshold = thresholdMap[strictness] || 60;

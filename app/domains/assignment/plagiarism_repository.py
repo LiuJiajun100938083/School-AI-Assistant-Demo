@@ -13,6 +13,20 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import numpy as np
+
+
+class _NumpyEncoder(json.JSONEncoder):
+    """Handle numpy types for JSON serialization."""
+    def default(self, obj):
+        if isinstance(obj, (np.integer,)):
+            return int(obj)
+        if isinstance(obj, (np.floating,)):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
 from app.infrastructure.database.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -76,7 +90,7 @@ class PlagiarismPairRepository(BaseRepository):
             # 確保 matched_fragments 序列化為 JSON 字符串
             if "matched_fragments" in pair and not isinstance(pair["matched_fragments"], str):
                 pair["matched_fragments"] = json.dumps(
-                    pair["matched_fragments"], ensure_ascii=False
+                    pair["matched_fragments"], ensure_ascii=False, cls=_NumpyEncoder
                 )
             self.insert(pair)
             count += 1

@@ -3,8 +3,9 @@
   "configurations": [
     {
       "name": "dev-server",
-      "runtimeExecutable": ".venv/bin/python",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+      "env": {"LLM_LOCAL_MODEL": "qwen3:30b"},
       "port": 8000
     }
   ]

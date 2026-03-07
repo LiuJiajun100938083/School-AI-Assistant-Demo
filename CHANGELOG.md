@@ -11,6 +11,44 @@
 
 ---
 
+## [v3.0.43] [2026-03-08] 中文作文抄襲檢測引擎 — 8 項核心優化（Cohort 抑制 + 功能段落 + Sigmoid 證據 + 深層風格指紋）
+
+### 新增
+
+- **Cohort Suppression 同批次模板降權（P0-1）** — `rare_phrase_overlap()` 改為**連續加權覆蓋**（非二元過濾），每個共享 n-gram 乘以 `weight = max(0.2, 1.0 - df_ratio)`；新增 `compute_chinese_cohort_suppression()` 函數，對 opening/ending 提取共享 4-8 字 n-grams 並按 batch DF 計算模板覆蓋率，高頻模板片段自動壓低
+- **片段級證據輸出（P0-2）** — 新增 `extract_chinese_evidence_blocks()` 函數，提取 5 種類型證據：共享罕見短語（strong）、高相似句子對（strong/medium）、相似開頭/結尾（medium）、連續對齊鏈（weak）；每個 block 帶 `rank: 1..N`、snippet 截斷 200 字符、跨類型去重、最多 10 條
+- **功能段落結構分析（P0-3）** — 新增 `detect_essay_type()` 自動識別叙事文/議論文（含置信度 0-1），`classify_paragraph_function()` 對每段分類功能角色（叙事文: opening→event→turning_point→reflection；議論文: argument→example→counter→conclusion），`functional_structure_similarity()` 融合功能序列 SequenceMatcher 60% + 長度比例 40%，含 4 層可靠性修正（段落<3 ×0.6、字數<200 ×0.6、置信度<0.5 ×0.7、文體不一致 ×0.7）
+- **Sigmoid Soft Evidence（P0-4）** — 新增 `compute_soft_evidence_score()` 函數，用 sigmoid 平滑取代硬閾值二元計數；`rare_phrase` 作為獨立維度（不埋在 verbatim 裡）；opening/ending 合併為 `boundary = max(opening, ending)`，共 7 維度；維度差異化權重：verbatim/comment=1.5、rare_phrase=1.2、identifier=1.0、structure/indent=0.6、boundary=0.5
+- **功能段落關鍵詞加深（P1-A）** — 每種段落功能類別擴展至 ~16 個關鍵詞模式，新增功能結構 signal 生成（"功能段落序列完全一致"、"功能段落結構高度相似"）
+- **句子對齊鏈連續度（P1-B）** — 新增 `sentence_chain_continuity()` 函數，找出 A 和 B 中索引都遞增且跳躍 ≤3 的對齊鏈，chain_score 融入 comment_score（sentence×0.75 + chain×0.25），`_span_coverage` 保留為獨立中間字段
+- **中文模板短語詞表（P1-C）** — `plagiarism_constants.py` 新增 `CHINESE_TEMPLATE_PHRASES`（50 個模板套語：開頭/結尾/過渡/議論/情感），`rare_phrase_overlap()` 實現兩層降權：第 1 層模板詞表降至 0.3（不依賴 batch），第 2 層 batch DF 降權，取兩層最低值
+- **深層風格指紋（P1-D）** — `style_fingerprint_similarity()` 特徵維度從 32 擴展至 54：新增關聯詞頻率 10 維（因為/所以/但是...）、情感動詞頻率 8 維（感動/高興/難過...）、四字成語密度 1 維、句式模式分布 3 維（短句<10字/中句10-25字/長句>25字），全部按總字數/總句數歸一化；內部分層 `_extract_base_features` + `_extract_deep_features`
+
+### 修改
+
+- **`compute_chinese_essay_similarity()` 簽名變更** — 新增 `batch_texts: Optional[List[str]] = None` 參數，支持批次級 Cohort Suppression
+- **`plagiarism_service.py` Dispatcher 適配** — 所有 analyzer 模式（不只 english_essay）統一傳遞 `batch_texts`；中文作文模式使用 sigmoid soft evidence 分支替代硬閾值
+- **`plagiarism_service.py` Detail Dict 擴展** — 新增 ~20 個中間字段透傳：cohort 統計 7 個（avg_weight/suppressed_count/total_shared/opening_suppression/ending_suppression/suppressed_patterns/cohort_size）、soft evidence 6 個（score/hits/total_dims/signal/detail/rare_phrase_raw）、功能段落 7 個（func_score/essay_type_a,b/confidence_a,b/func_seq_a,b）、句子鏈 3 個（chain_score/chain_count/max_chain_len）
+- **結構分數融合** — `structure_score = func_struct_score × 0.70 + old_para_sim × 0.30`（功能段落結構為主，舊長度結構為輔）
+- **`_extract_chinese_ngrams()` 獨立提取** — 從 `rare_phrase_overlap()` 內部提取為模組級 standalone 函數，供 `compute_chinese_cohort_suppression()` 復用
+
+### 涉及文件 (3 個)
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/assignment/plagiarism_chinese_essay.py` | +850 行：7 個新函數 + 2 個改寫函數 + 編排邏輯升級 |
+| `app/domains/assignment/plagiarism_service.py` | +30 行：batch_texts 傳遞、soft evidence 分支、detail dict 擴展 |
+| `app/domains/assignment/plagiarism_constants.py` | +55 行：50 個中文模板短語 + 關聯詞/情感動詞常量 |
+
+### 設計原則
+
+- **連續加權，非二元過濾** — 所有抑制機制使用平滑權重（0.2-1.0），不存在突變
+- **不改 DETECTION_PRESETS 權重** — 所有新維度折入現有 5 通道（structure/identifier/verbatim/indent/comment），不新增通道
+- **向後兼容** — `batch_texts` 默認 None，舊調用不受影響；所有新字段用 `_` 前綴
+- **不改動 `plagiarism_text_utils.py`** — 新邏輯放在 `plagiarism_chinese_essay.py`
+
+---
+
 ## [v3.0.42] [2026-03-06] 作業管理 SaaS 級重構 — 多類型評分 + 側邊欄佈局 + AI 批改增強
 
 ### 新增

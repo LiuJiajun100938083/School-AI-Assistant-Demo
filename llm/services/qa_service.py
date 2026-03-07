@@ -65,9 +65,19 @@ def ask_ai_local(
         # 獲取 LLM 提供者
         provider = get_ollama_provider()
 
+        # summary 模式（如抄襲分析）用低 temperature 提高一致性
+        original_temp = None
+        if task_type == "summary":
+            original_temp = provider.temperature
+            provider.temperature = 0.1
+
         # 應用思考模式（根據任務類型決定是否思考）
         thinking_prompt = apply_thinking_mode(prompt, task_type=task_type)
         response = provider.invoke(thinking_prompt)
+
+        # 恢復 temperature
+        if original_temp is not None:
+            provider.temperature = original_temp
 
         # 解析響應
         answer, thinking = parse_llm_response(response)
