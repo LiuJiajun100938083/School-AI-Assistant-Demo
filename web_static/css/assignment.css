@@ -2934,22 +2934,27 @@ body {
 
 /* ---- Diff Highlighting ---- */
 .hl-identical {
-    background: rgba(0, 0, 0, 0.06);
+    background: #fde68a;
     border-radius: 2px;
     display: inline;
+    padding: 1px 2px;
 }
 .hl-similar {
-    background: rgba(0, 0, 0, 0.03);
-    border-bottom: 2px solid rgba(0, 0, 0, 0.18);
+    background: #bfdbfe;
     border-radius: 2px;
     display: inline;
+    padding: 1px 2px;
 }
 .hl-unique {
-    /* 不加背景，只加左邊框標記 */
+    background: #fecaca;
+    border-radius: 2px;
+    display: inline;
+    padding: 1px 2px;
 }
 @media (prefers-color-scheme: dark) {
-    .hl-identical { background: rgba(255, 255, 255, 0.08); }
-    .hl-similar { background: rgba(255, 255, 255, 0.04); border-bottom-color: rgba(255, 255, 255, 0.2); }
+    .hl-identical { background: rgba(250, 204, 21, 0.3); }
+    .hl-similar { background: rgba(96, 165, 250, 0.25); }
+    .hl-unique { background: rgba(248, 113, 113, 0.25); }
 }
 
 /* ---- Compare Legend ---- */
@@ -2974,14 +2979,13 @@ body {
     border: 1px solid var(--border-default);
 }
 .legend-swatch.hl-identical {
-    background: rgba(0, 0, 0, 0.06);
+    background: #fde68a;
 }
 .legend-swatch.hl-similar {
-    background: rgba(0, 0, 0, 0.03);
-    border-bottom: 2px solid rgba(0, 0, 0, 0.18);
+    background: #bfdbfe;
 }
 .legend-swatch.hl-unique {
-    background: transparent;
+    background: #fecaca;
 }
 
 /* ---- Responsive ---- */
