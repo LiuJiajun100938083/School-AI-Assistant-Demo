@@ -1963,22 +1963,12 @@ body {
    ============================================================ */
 
 .plagiarism-report {
-    max-width: 900px;
+    max-width: 960px;
     margin: 0 auto;
 }
 
-.plagiarism-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-}
-
-.plagiarism-stats {
-    display: flex;
-    gap: var(--space-3);
-    margin: var(--space-4) 0;
+.plagiarism-report .detail-hero {
+    margin-bottom: var(--space-4);
 }
 
 .plagiarism-pairs-list {

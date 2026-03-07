@@ -1123,3 +1123,215 @@ async def get_plagiarism_pair_detail(
         return error_response("配對不存在", status_code=404)
 
     return success_response(data=pair)
+
+
+@router.get("/api/assignments/teacher/{assignment_id}/plagiarism-report/export-excel")
+async def export_plagiarism_excel(
+    assignment_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """匯出抄袭檢測報告到 Excel"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+
+    report = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_report(assignment_id),
+    )
+    if not report:
+        return error_response("尚未執行過抄袭檢測", status_code=404)
+
+    report_id = report["id"]
+    pairs = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_pairs(report_id),
+    )
+    clusters_data = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_clusters(report_id),
+    )
+
+    assignment = await loop.run_in_executor(
+        None,
+        lambda: services.assignment.get_assignment_detail(assignment_id),
+    )
+
+    wb, filename = _build_plagiarism_export_excel(
+        assignment, report, pairs,
+        clusters_data.get("clusters", []),
+        clusters_data.get("hub_students", []),
+    )
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
+
+
+def _build_plagiarism_export_excel(
+    assignment: dict,
+    report: dict,
+    pairs: List[dict],
+    clusters: List[dict],
+    hub_students: List[dict],
+):
+    """生成抄袭檢測報告 Excel (三個 Sheet: 配對明細 + 群組分析 + 總覽)"""
+    import json
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+    # -- 樣式 --
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="D35400", end_color="D35400", fill_type="solid")
+    title_font = Font(bold=True, size=14)
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+    center_align = Alignment(horizontal="center", vertical="center")
+    left_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    red_fill = PatternFill(start_color="FCE4EC", end_color="FCE4EC", fill_type="solid")
+    yellow_fill = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+
+    wb = Workbook()
+
+    # ============================
+    # Sheet 1: 配對明細
+    # ============================
+    ws1 = wb.active
+    ws1.title = "配對明細"
+
+    assignment_title = assignment.get("title", "作業") if assignment else "作業"
+    ws1["A1"] = f"{assignment_title} - 抄袭檢測報告"
+    ws1["A1"].font = title_font
+    ws1["A2"] = (
+        f"閾值: {report.get('threshold', 60)}% · "
+        f"總配對: {report.get('total_pairs', 0)} · "
+        f"可疑: {report.get('flagged_pairs', 0)} · "
+        f"檢測時間: {report.get('created_at', '-')}"
+    )
+    ws1["A2"].font = Font(size=11, color="666666")
+
+    headers = ["學生A", "學生B", "綜合分數(%)", "結構分", "標識符分", "逐字分", "注釋分", "是否可疑", "信號", "AI 分析"]
+    header_row = 4
+    for col, h in enumerate(headers, 1):
+        cell = ws1.cell(row=header_row, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    # 按相似度倒序
+    sorted_pairs = sorted(pairs, key=lambda p: float(p.get("similarity_score", 0)), reverse=True)
+
+    for row_idx, p in enumerate(sorted_pairs, header_row + 1):
+        is_flagged = p.get("is_flagged", False)
+
+        # 解析維度分數
+        frags = p.get("matched_fragments") or []
+        if isinstance(frags, str):
+            try:
+                frags = json.loads(frags)
+            except (json.JSONDecodeError, TypeError):
+                frags = []
+        dim = None
+        signals_text = ""
+        for f in frags:
+            if isinstance(f, dict) and f.get("type") == "dimension_breakdown":
+                dim = f
+                signals_text = ", ".join(f.get("signals", []))
+                break
+
+        row_data = [
+            p.get("student_a_name", ""),
+            p.get("student_b_name", ""),
+            float(p.get("similarity_score", 0)),
+            dim.get("structure_score", "") if dim else "",
+            dim.get("identifier_score", "") if dim else "",
+            dim.get("verbatim_score", "") if dim else "",
+            dim.get("comment_score", "") if dim else "",
+            "是" if is_flagged else "否",
+            signals_text,
+            (p.get("ai_analysis") or "")[:500],
+        ]
+
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws1.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = thin_border
+            cell.alignment = left_align if col_idx >= 9 else center_align
+
+        # 可疑行標紅
+        if is_flagged:
+            for col_idx in range(1, len(row_data) + 1):
+                ws1.cell(row=row_idx, column=col_idx).fill = red_fill
+
+    # 列寬
+    col_widths = [14, 14, 12, 10, 10, 10, 10, 10, 24, 40]
+    for i, w in enumerate(col_widths, 1):
+        ws1.column_dimensions[chr(64 + i)].width = w
+
+    # ============================
+    # Sheet 2: 群組分析
+    # ============================
+    ws2 = wb.create_sheet("群組分析")
+
+    ws2["A1"] = "抄襲群組分析"
+    ws2["A1"].font = title_font
+
+    if clusters:
+        row = 3
+        g_headers = ["群組", "人數", "最高相似度(%)", "疑似源頭", "成員"]
+        for col, h in enumerate(g_headers, 1):
+            cell = ws2.cell(row=row, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        for c in clusters:
+            row += 1
+            source = c.get("source_student") or "-"
+            members = ", ".join(m.get("name", "") for m in c.get("members", []))
+            for col_idx, val in enumerate(
+                [f"群組 {c.get('id', '')}", c.get("size", 0), c.get("max_score", 0), source, members], 1
+            ):
+                cell = ws2.cell(row=row, column=col_idx, value=val)
+                cell.border = thin_border
+                cell.alignment = left_align if col_idx == 5 else center_align
+
+        for i, w in enumerate([10, 8, 16, 14, 40], 1):
+            ws2.column_dimensions[chr(64 + i)].width = w
+    else:
+        ws2["A3"] = "未發現抄襲群組"
+
+    # ---- Hub 學生 ----
+    if hub_students:
+        row = ws2.max_row + 3
+        ws2.cell(row=row, column=1, value="疑似源頭學生").font = Font(bold=True, size=12)
+        row += 1
+        h_headers = ["學生", "關聯人數", "平均相似度(%)"]
+        for col, h in enumerate(h_headers, 1):
+            cell = ws2.cell(row=row, column=col, value=h)
+            cell.font = header_font
+            cell.fill = PatternFill(start_color="C0392B", end_color="C0392B", fill_type="solid")
+            cell.alignment = center_align
+            cell.border = thin_border
+
+        for hs in hub_students:
+            row += 1
+            for col_idx, val in enumerate(
+                [hs.get("name", ""), hs.get("degree", 0), hs.get("avg_score", 0)], 1
+            ):
+                cell = ws2.cell(row=row, column=col_idx, value=val)
+                cell.border = thin_border
+                cell.fill = red_fill
+                cell.alignment = center_align
+
+    filename = f"{assignment_title}_抄袭檢測報告.xlsx"
+    return wb, filename

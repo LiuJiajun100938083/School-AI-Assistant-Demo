@@ -88,6 +88,16 @@ const AssignmentAPI = {
     async cancelBatchAiGrade(assignmentId) {
         return this._call(`/api/assignments/teacher/${assignmentId}/batch-ai-grade/cancel`, { method: 'POST' });
     },
+    // Plagiarism Excel export (returns raw Response)
+    async exportPlagiarismExcel(assignmentId) {
+        const token = AuthModule?.getToken?.() || localStorage.getItem('auth_token');
+        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/plagiarism-report/export-excel`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (resp.status === 401) { window.location.href = '/'; return null; }
+        if (!resp.ok) throw new Error('匯出失敗');
+        return resp;
+    },
     // Excel export (returns raw Response, not parsed JSON)
     async exportExcel(assignmentId) {
         const token = AuthModule?.getToken?.() || localStorage.getItem('auth_token');
@@ -756,34 +766,47 @@ const AssignmentUI = {
         hubStudents = hubStudents || [];
         const statusMap = { completed: '已完成', running: '檢測中', failed: '失敗', pending: '等待中' };
         const statusClass = { completed: 'badge-graded', running: 'badge-submitted', failed: 'badge-late', pending: 'badge-not_submitted' };
+        const flaggedPairs = (pairs || []).filter(p => p.is_flagged);
 
+        // ---- Hero Section (與 detail-hero 風格一致) ----
         let html = `<div class="plagiarism-report fade-in">
-            <div class="plagiarism-header">
-                <div>
-                    <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-                        🔍 抄袭檢測報告
-                        <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
-                    </h3>
-                    <p style="color:var(--text-tertiary);font-size:13px;margin-top:4px;">
-                        檢測時間: ${report.created_at || '-'} · 閾值: ${report.threshold}%
-                    </p>
+            <div class="detail-hero">
+                <div class="detail-hero-header">
+                    <div>
+                        <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
+                            抄袭檢測報告
+                            <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
+                        </h3>
+                        <div style="margin-top:6px;font-size:13px;color:var(--text-tertiary);">
+                            ${this.ICON.clock} 檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%
+                            ${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
+                        </div>
+                    </div>
                 </div>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismReport()">返回</button>
-                    <button class="btn btn-sm btn-ai" onclick="AssignmentApp.startPlagiarismCheck()">重新檢測</button>
+                <div class="detail-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">${this.ICON.folder}</div>
+                        <div><div class="stat-value">${report.total_pairs}</div><div class="stat-label">對比總數</div></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color:${report.flagged_pairs > 0 ? 'var(--danger)' : 'var(--success)'};">${this.ICON.alert || '⚠'}</div>
+                        <div><div class="stat-value" style="color:${report.flagged_pairs > 0 ? 'var(--danger)' : 'var(--success)'};">${report.flagged_pairs}</div><div class="stat-label">可疑配對</div></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color:${clusters.length > 0 ? '#f59e0b' : 'var(--success)'};">${this.ICON.chart || '📊'}</div>
+                        <div><div class="stat-value" style="color:${clusters.length > 0 ? '#f59e0b' : 'var(--success)'};">${clusters.length}</div><div class="stat-label">抄襲群組</div></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color:${hubStudents.length > 0 ? 'var(--danger)' : 'var(--success)'};">${this.ICON.user || '👤'}</div>
+                        <div><div class="stat-value" style="color:${hubStudents.length > 0 ? 'var(--danger)' : 'var(--success)'};">${hubStudents.length}</div><div class="stat-label">疑似源頭</div></div>
+                    </div>
                 </div>
-            </div>
-            <div class="plagiarism-stats">
-                <div class="stat-card"><div class="stat-value">${report.total_pairs}</div><div class="stat-label">對比總數</div></div>
-                <div class="stat-card"><div class="stat-value" style="color:${report.flagged_pairs > 0 ? 'var(--danger)' : 'var(--success)'}">${report.flagged_pairs}</div><div class="stat-label">可疑配對</div></div>
-                <div class="stat-card"><div class="stat-value" style="color:${clusters.length > 0 ? '#f59e0b' : 'var(--success)'}">${clusters.length}</div><div class="stat-label">抄襲群組</div></div>
-                <div class="stat-card"><div class="stat-value" style="color:${hubStudents.length > 0 ? 'var(--danger)' : 'var(--success)'}">${hubStudents.length}</div><div class="stat-label">疑似源頭</div></div>
             </div>`;
 
         // ---- Hub Students Alert ----
         if (hubStudents.length > 0) {
             html += `<div class="plagiarism-hub-alert">
-                <h4 style="margin:0 0 8px;color:var(--danger);">⚠ 疑似抄襲源頭學生</h4>
+                <h4 style="margin:0 0 8px;color:var(--danger);">疑似抄襲源頭學生</h4>
                 <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">以下學生與 3 人以上高度相似，可能是抄襲的源頭</p>
                 <div class="hub-student-list">
                     ${hubStudents.map(h => `<div class="hub-student-card">
@@ -830,18 +853,25 @@ const AssignmentUI = {
             </div>`;
         }
 
+        // ---- Action Bar + Filter Tabs (與作業提交列表風格一致) ----
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <h3 style="margin:0;">配對明細</h3>
+                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportPlagiarismExcel()" id="plagExportBtn">
+                    匯出 Excel
+                </button>
+                <button class="btn btn-sm btn-ai" onclick="AssignmentApp.startPlagiarismCheck()">重新檢測</button>
+            </div>
+            <div class="filter-tabs" style="margin:0;">
+                <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">可疑 <span class="count">${flaggedPairs.length}</span></button>
+                <button class="filter-tab" onclick="AssignmentApp._filterPlagPairs('all', this)">全部 <span class="count">${(pairs || []).length}</span></button>
+            </div>
+        </div>`;
+
         // ---- Pair List ----
         if (!pairs || !pairs.length) {
             html += '<div class="empty-state"><div class="empty-state-text">無對比數據</div></div>';
         } else {
-            const flaggedPairs = pairs.filter(p => p.is_flagged);
-            html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px;flex-wrap:wrap;gap:8px;">
-                <h4 style="margin:0;">配對明細</h4>
-                <div class="filter-tabs" style="margin:0;">
-                    <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">可疑 <span class="count">${flaggedPairs.length}</span></button>
-                    <button class="filter-tab" onclick="AssignmentApp._filterPlagPairs('all', this)">全部 <span class="count">${pairs.length}</span></button>
-                </div>
-            </div>`;
             html += `<div id="plagPairsArea">${this.renderPlagiarismPairs(flaggedPairs.length ? flaggedPairs : pairs)}</div>`;
         }
 
@@ -1304,8 +1334,8 @@ const AssignmentApp = {
                     ${subs.length > 0 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportGradeExcel()" id="exportExcelBtn">
                         匯出成績
                     </button>` : ''}
-                    ${subs.length >= 2 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.startPlagiarismCheck()" id="plagiarismBtn" style="border-color:#f59e0b;color:#f59e0b;">
-                        🔍 抄袭檢測
+                    ${subs.length >= 2 ? `<button class="btn btn-sm btn-outline" onclick="AssignmentApp.openPlagiarism()" id="plagiarismBtn" style="border-color:#f59e0b;color:#f59e0b;">
+                        抄袭檢測
                     </button>` : ''}
                 </div>
                 <div class="filter-tabs" style="margin:0;">
@@ -1773,6 +1803,17 @@ const AssignmentApp = {
     // 抄袭檢測
     // ================================================================
 
+    _hasPlagReport: false,
+
+    async openPlagiarism() {
+        // 如果已有報告，直接查看；否則啟動檢測
+        if (this._hasPlagReport) {
+            this.showPlagiarismReport();
+        } else {
+            this.startPlagiarismCheck();
+        }
+    },
+
     async startPlagiarismCheck() {
         const assignmentId = this.state.currentAssignment;
         if (!assignmentId) return;
@@ -1783,7 +1824,7 @@ const AssignmentApp = {
         const resp = await AssignmentAPI.startPlagiarismCheck(assignmentId);
         if (!resp?.success) {
             UIModule.toast('啟動抄袭檢測失敗: ' + (resp?.message || ''), 'error');
-            if (btn) { btn.disabled = false; btn.innerHTML = '🔍 抄袭檢測'; }
+            if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
             return;
         }
 
@@ -1816,19 +1857,27 @@ const AssignmentApp = {
 
         if (job.status === 'idle' || job.status === 'completed' || job.status === 'failed') {
             this._stopPlagiarismPolling();
-            if (btn) { btn.disabled = false; btn.innerHTML = '🔍 抄袭檢測'; }
             if (progressEl) progressEl.style.display = 'none';
 
             if (job.status === 'completed') {
+                this._hasPlagReport = true;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '查看報告';
+                    btn.style.borderColor = 'var(--brand)';
+                    btn.style.color = 'var(--brand)';
+                }
                 if (job.flagged_pairs > 0) {
                     UIModule.toast(`檢測完成！發現 ${job.flagged_pairs} 對可疑抄襲`, 'warning');
                 } else {
                     UIModule.toast('檢測完成，未發現可疑抄襲', 'success');
                 }
-                // Auto-open report
                 this.showPlagiarismReport();
             } else if (job.status === 'failed') {
+                if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
                 UIModule.toast('抄袭檢測失敗', 'error');
+            } else {
+                if (btn) { btn.disabled = false; btn.innerHTML = '抄袭檢測'; }
             }
             return;
         }
@@ -1848,6 +1897,11 @@ const AssignmentApp = {
 
         const main = document.getElementById('mainContent');
         main.innerHTML = '<div class="workspace-loading"><div class="loading-spinner"></div><p>載入報告中...</p></div>';
+
+        // 更新頂部動作列
+        this.setHeaderActions(`
+            <button class="btn btn-outline" onclick="AssignmentApp.closePlagiarismReport()">返回作業</button>
+        `);
 
         const resp = await AssignmentAPI.getPlagiarismReport(assignmentId);
         if (!resp?.success) {
@@ -1897,11 +1951,56 @@ const AssignmentApp = {
         this.showPlagiarismReport();
     },
 
+    async exportPlagiarismExcel() {
+        const assignmentId = this.state.currentAssignment;
+        if (!assignmentId) return;
+
+        const btn = document.getElementById('plagExportBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '匯出中...'; }
+
+        try {
+            const resp = await AssignmentAPI.exportPlagiarismExcel(assignmentId);
+            if (!resp) return;
+
+            const cd = resp.headers.get('content-disposition');
+            let filename = '抄袭檢測報告.xlsx';
+            if (cd) {
+                const match = cd.match(/filename\*?=['"]?(?:UTF-8'')?([^;\r\n"']*)['"]?/i);
+                if (match) filename = decodeURIComponent(match[1]);
+            }
+
+            const blob = await resp.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+            UIModule.toast('報告匯出成功', 'success');
+        } catch (e) {
+            console.error('匯出失敗:', e);
+            UIModule.toast('匯出失敗: ' + (e.message || ''), 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '匯出 Excel'; }
+        }
+    },
+
     async _checkPlagiarismStatus(assignmentId) {
         try {
             const resp = await AssignmentAPI.getPlagiarismStatus(assignmentId);
-            if (resp?.success && resp.data?.status === 'running') {
+            if (!resp?.success) return;
+            const data = resp.data;
+            const btn = document.getElementById('plagiarismBtn');
+            if (data.status === 'running') {
                 this._startPlagiarismPolling(assignmentId);
+            } else if (data.status === 'completed' && btn) {
+                // 已有報告，按鈕顯示「查看報告」
+                btn.innerHTML = '查看報告';
+                btn.style.borderColor = 'var(--brand)';
+                btn.style.color = 'var(--brand)';
+                this._hasPlagReport = true;
             }
         } catch (e) { /* ignore */ }
     },
