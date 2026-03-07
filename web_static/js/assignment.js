@@ -768,52 +768,49 @@ const AssignmentUI = {
         const statusClass = { completed: 'badge-graded', running: 'badge-submitted', failed: 'badge-late', pending: 'badge-not_submitted' };
         const flaggedPairs = (pairs || []).filter(p => p.is_flagged);
 
-        // ---- Hero Section (與 detail-hero 風格一致) ----
+        // ---- Header ----
         let html = `<div class="plagiarism-report fade-in">
-            <div class="detail-hero">
-                <div class="detail-hero-header">
-                    <div>
-                        <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-                            抄袭檢測報告
-                            <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
-                        </h3>
-                        <div style="margin-top:6px;font-size:13px;color:var(--text-tertiary);">
-                            ${this.ICON.clock} 檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%
-                            ${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
-                        </div>
-                    </div>
+            <div style="margin-bottom:var(--space-5);">
+                <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:4px;">
+                    <h2 style="margin:0;font-size:var(--type-subhead);font-weight:600;">抄袭檢測報告</h2>
+                    <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
                 </div>
-                <div class="detail-stats">
-                    <div class="stat-card">
-                        <div class="stat-icon">${this.ICON.folder}</div>
-                        <div><div class="stat-value">${report.total_pairs}</div><div class="stat-label">對比總數</div></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="color:${report.flagged_pairs > 0 ? 'var(--danger)' : 'var(--success)'};">${this.ICON.alert || '⚠'}</div>
-                        <div><div class="stat-value" style="color:${report.flagged_pairs > 0 ? 'var(--danger)' : 'var(--success)'};">${report.flagged_pairs}</div><div class="stat-label">可疑配對</div></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="color:${clusters.length > 0 ? '#f59e0b' : 'var(--success)'};">${this.ICON.chart || '📊'}</div>
-                        <div><div class="stat-value" style="color:${clusters.length > 0 ? '#f59e0b' : 'var(--success)'};">${clusters.length}</div><div class="stat-label">抄襲群組</div></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon" style="color:${hubStudents.length > 0 ? 'var(--danger)' : 'var(--success)'};">${this.ICON.user || '👤'}</div>
-                        <div><div class="stat-value" style="color:${hubStudents.length > 0 ? 'var(--danger)' : 'var(--success)'};">${hubStudents.length}</div><div class="stat-label">疑似源頭</div></div>
-                    </div>
-                </div>
+                <p style="margin:0;font-size:var(--type-meta);color:var(--text-tertiary);">
+                    檢測時間 ${report.created_at || '-'} · 閾值 ${report.threshold}%${report.completed_at ? ` · 完成 ${report.completed_at}` : ''}
+                </p>
             </div>`;
 
-        // ---- Hub Students Alert ----
+        // ---- Summary Metrics ----
+        html += `<div class="plag-metrics">
+            <div class="plag-metric">
+                <div class="plag-metric-value">${report.total_pairs}</div>
+                <div class="plag-metric-label">對比總數</div>
+            </div>
+            <div class="plag-metric">
+                <div class="plag-metric-value${report.flagged_pairs > 0 ? ' has-issue' : ''}">${report.flagged_pairs}</div>
+                <div class="plag-metric-label">可疑配對</div>
+            </div>
+            <div class="plag-metric">
+                <div class="plag-metric-value${clusters.length > 0 ? ' has-issue' : ''}">${clusters.length}</div>
+                <div class="plag-metric-label">抄襲群組</div>
+            </div>
+            <div class="plag-metric">
+                <div class="plag-metric-value${hubStudents.length > 0 ? ' has-issue' : ''}">${hubStudents.length}</div>
+                <div class="plag-metric-label">疑似源頭</div>
+            </div>
+        </div>`;
+
+        // ---- Hub Students ----
         if (hubStudents.length > 0) {
-            html += `<div class="plagiarism-hub-alert">
-                <h4 style="margin:0 0 8px;color:var(--danger);">疑似抄襲源頭學生</h4>
-                <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">以下學生與 3 人以上高度相似，可能是抄襲的源頭</p>
+            html += `<div class="plag-hub-section">
+                <div class="plag-section-title">疑似抄襲源頭 <span class="count">${hubStudents.length}</span></div>
+                <p class="plag-hub-desc">以下學生與 3 人以上高度相似，可能是抄襲的源頭</p>
                 <div class="hub-student-list">
                     ${hubStudents.map(h => `<div class="hub-student-card">
                         <div class="hub-avatar">${(h.name || '?')[0].toUpperCase()}</div>
                         <div class="hub-info">
                             <strong>${h.name}</strong>
-                            <span class="hub-meta">與 <b>${h.degree}</b> 人相似 · 平均 ${h.avg_score}%</span>
+                            <span class="hub-meta">與 ${h.degree} 人相似 · 平均 ${h.avg_score}%</span>
                         </div>
                     </div>`).join('')}
                 </div>
@@ -823,18 +820,18 @@ const AssignmentUI = {
         // ---- Cluster Groups ----
         if (clusters.length > 0) {
             html += `<div class="plagiarism-clusters">
-                <h4 style="margin:0 0 12px;">抄襲群組分析</h4>
+                <div class="plag-section-title">群組分析 <span class="count">${clusters.length}</span></div>
                 ${clusters.map(c => {
                     const source = c.members.find(m => m.role === 'source');
                     return `<div class="cluster-card">
                         <div class="cluster-header">
                             <span class="cluster-title">群組 ${c.id} <span class="count">${c.size} 人</span></span>
-                            <span class="cluster-score">最高相似度 <b style="color:var(--danger);">${c.max_score}%</b></span>
+                            <span class="cluster-score">最高 <b>${c.max_score}%</b></span>
                         </div>
                         ${source ? `<div class="cluster-source">
                             <span class="cluster-source-badge">疑似源頭</span>
                             <strong>${source.name}</strong>
-                            <span style="color:var(--text-tertiary);font-size:12px;">(與 ${source.degree} 人匹配, 平均 ${source.avg_score}%)</span>
+                            <span style="color:var(--text-tertiary);font-size:var(--type-badge);">與 ${source.degree} 人匹配, 平均 ${source.avg_score}%</span>
                         </div>` : ''}
                         <div class="cluster-members">
                             ${c.members.map(m => `<span class="cluster-member ${m.role === 'source' ? 'is-source' : ''}">
@@ -846,21 +843,19 @@ const AssignmentUI = {
                             ${c.edges.slice(0, 6).map(e => `<div class="cluster-edge">
                                 ${e.a_name} ↔ ${e.b_name}: <b>${e.score.toFixed(1)}%</b>
                             </div>`).join('')}
-                            ${c.edges.length > 6 ? `<div class="cluster-edge" style="color:var(--text-tertiary);">...共 ${c.edges.length} 條關聯</div>` : ''}
+                            ${c.edges.length > 6 ? `<div class="cluster-edge" style="color:var(--text-tertiary);">共 ${c.edges.length} 條關聯</div>` : ''}
                         </div>
                     </div>`;
                 }).join('')}
             </div>`;
         }
 
-        // ---- Action Bar + Filter Tabs (與作業提交列表風格一致) ----
-        html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;flex-wrap:wrap;gap:8px;">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <h3 style="margin:0;">配對明細</h3>
-                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportPlagiarismExcel()" id="plagExportBtn">
-                    匯出 Excel
-                </button>
-                <button class="btn btn-sm btn-ai" onclick="AssignmentApp.startPlagiarismCheck()">重新檢測</button>
+        // ---- Action Bar + Filter ----
+        html += `<div class="plag-action-bar">
+            <div class="plag-action-bar-left">
+                <h3>配對明細</h3>
+                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportPlagiarismExcel()" id="plagExportBtn">匯出 Excel</button>
+                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.startPlagiarismCheck()">重新檢測</button>
             </div>
             <div class="filter-tabs" style="margin:0;">
                 <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">可疑 <span class="count">${flaggedPairs.length}</span></button>
@@ -881,76 +876,84 @@ const AssignmentUI = {
 
     renderPlagiarismPairs(pairs) {
         if (!pairs || !pairs.length) return '<div class="empty-state"><div class="empty-state-text">無配對數據</div></div>';
+
+        const mkScoreRing = (pct) => {
+            const r = 16, c = 2 * Math.PI * r;
+            const offset = c - (pct / 100) * c;
+            // monochrome: darker for higher scores
+            const strokeColor = pct >= 80 ? 'var(--text-primary)' : pct >= 60 ? 'var(--text-secondary)' : 'var(--text-tertiary)';
+            return `<div class="pair-score-ring">
+                <svg viewBox="0 0 40 40"><circle class="ring-bg" cx="20" cy="20" r="${r}"/><circle class="ring-fill" cx="20" cy="20" r="${r}" stroke="${strokeColor}" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"/></svg>
+                <span class="pair-score-pct">${Math.round(pct)}</span>
+            </div>`;
+        };
+
         return `<div class="plagiarism-pairs-list">${pairs.map(p => {
             const pct = parseFloat(p.similarity_score) || 0;
-            const barColor = pct >= 80 ? 'var(--danger)' : pct >= 60 ? '#f59e0b' : 'var(--success)';
-            const flagIcon = p.is_flagged ? '<span style="color:var(--danger);font-weight:600;">⚠</span>' : '';
-            // 提取維度分析（matched_fragments[0] 可能是 dimension_breakdown）
             const dims = this._extractDimensions(p.matched_fragments);
             const dimHtml = dims ? `<div class="pair-dimensions">
-                <span class="dim-tag" title="結構相似度">結構 ${dims.structure}%</span>
-                <span class="dim-tag" title="標識符重疊">標識符 ${dims.identifier}%</span>
-                <span class="dim-tag" title="逐字複製">逐字 ${dims.verbatim}%</span>
-                <span class="dim-tag" title="注釋相似">注釋 ${dims.comment}%</span>
+                <span class="dim-tag">結構 ${dims.structure}%</span>
+                <span class="dim-tag">標識符 ${dims.identifier}%</span>
+                <span class="dim-tag">逐字 ${dims.verbatim}%</span>
+                <span class="dim-tag">注釋 ${dims.comment}%</span>
             </div>` : '';
             return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
-                <div class="pair-students">
-                    <span class="pair-name">${p.student_a_name || '學生A'}</span>
-                    <span class="pair-vs">↔</span>
-                    <span class="pair-name">${p.student_b_name || '學生B'}</span>
-                </div>
-                <div class="pair-score-bar">
-                    <div class="pair-bar-track">
-                        <div class="pair-bar-fill" style="width:${pct}%;background:${barColor};"></div>
+                <div class="pair-card-left">
+                    <div class="pair-students">
+                        <span>${p.student_a_name || '學生A'}</span>
+                        <span class="pair-vs">vs</span>
+                        <span>${p.student_b_name || '學生B'}</span>
                     </div>
-                    <span class="pair-pct" style="color:${barColor};">${pct.toFixed(1)}% ${flagIcon}</span>
+                    ${dimHtml}
+                    ${p.ai_analysis ? `<div class="pair-ai-hint">${p.ai_analysis.substring(0, 100)}${p.ai_analysis.length > 100 ? '...' : ''}</div>` : ''}
                 </div>
-                ${dimHtml}
-                ${p.ai_analysis ? `<div class="pair-ai-hint">${p.ai_analysis.substring(0, 80)}${p.ai_analysis.length > 80 ? '...' : ''}</div>` : ''}
+                <div class="pair-card-right">
+                    ${mkScoreRing(pct)}
+                    <span class="pair-arrow">›</span>
+                </div>
             </div>`;
         }).join('')}</div>`;
     },
 
     renderPlagiarismPairDetail(pair) {
         const pct = parseFloat(pair.similarity_score) || 0;
-        const barColor = pct >= 80 ? 'var(--danger)' : pct >= 60 ? '#f59e0b' : 'var(--success)';
         const dims = this._extractDimensions(pair.matched_fragments);
 
         let html = `<div class="plagiarism-detail fade-in">
-            <div class="plagiarism-header" style="margin-bottom:16px;">
+            <div class="plag-detail-header">
                 <div>
-                    <h3 style="margin:0;">
+                    <h3 class="plag-detail-title">
                         ${pair.student_a_name || '學生A'} <span style="color:var(--text-tertiary);font-weight:400;">vs</span> ${pair.student_b_name || '學生B'}
                     </h3>
-                    <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
-                        <div class="pair-bar-track" style="width:200px;">
-                            <div class="pair-bar-fill" style="width:${pct}%;background:${barColor};"></div>
+                    <div class="plag-detail-score">
+                        <div class="plag-score-bar-track">
+                            <div class="plag-score-bar-fill" style="width:${pct}%;background:var(--text-primary);"></div>
                         </div>
-                        <span style="font-weight:600;color:${barColor};">${pct.toFixed(1)}%</span>
+                        <span class="plag-score-value">${pct.toFixed(1)}%</span>
                     </div>
                 </div>
                 <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismPairDetail()">返回報告</button>
             </div>`;
 
-        // 多維度分析面板
+        // Dimension Analysis
         if (dims) {
-            const mkBar = (label, val, color) => {
+            const mkBar = (label, val) => {
                 const v = parseFloat(val) || 0;
                 return `<div class="dim-detail-row">
                     <span class="dim-detail-label">${label}</span>
                     <div class="dim-detail-bar-track">
-                        <div class="dim-detail-bar-fill" style="width:${v}%;background:${color};"></div>
+                        <div class="dim-detail-bar-fill" style="width:${v}%;"></div>
                     </div>
-                    <span class="dim-detail-val" style="color:${color};">${v.toFixed(1)}%</span>
+                    <span class="dim-detail-val">${v.toFixed(1)}%</span>
                 </div>`;
             };
             html += `<div class="plagiarism-dimension-box">
-                <h4 style="margin:0 0 10px;">多維度分析</h4>
-                ${mkBar('結構相似', dims.structure, '#6366f1')}
-                ${mkBar('標識符重疊', dims.identifier, '#f43f5e')}
-                ${mkBar('逐字複製', dims.verbatim, '#ef4444')}
-                ${mkBar('注釋/字串', dims.comment, '#f59e0b')}
-                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · 長度 ${dims.codeLength} 字元</div>` : ''}
+                <h4>多維度分析</h4>
+                ${mkBar('結構相似', dims.structure)}
+                ${mkBar('標識符重疊', dims.identifier)}
+                ${mkBar('逐字複製', dims.verbatim)}
+                ${mkBar('注釋/字串', dims.comment)}
+                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元</div>` : ''}
                 ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
             </div>`;
         }
@@ -958,18 +961,18 @@ const AssignmentUI = {
         // AI Analysis
         if (pair.ai_analysis) {
             html += `<div class="plagiarism-ai-box">
-                <h4 style="margin:0 0 6px;">AI 分析</h4>
+                <h4>AI 分析</h4>
                 <p style="margin:0;white-space:pre-wrap;">${pair.ai_analysis}</p>
             </div>`;
         }
 
-        // Matched Fragments (過濾掉 dimension_breakdown 類型)
+        // Matched Fragments
         const fragments = (pair.matched_fragments || []).filter(f => f.type !== 'dimension_breakdown');
         if (fragments.length) {
             html += `<div class="plagiarism-fragments">
-                <h4 style="margin:0 0 8px;">匹配片段 (${fragments.length})</h4>
+                <div class="plag-section-title">匹配片段 <span class="count">${fragments.length}</span></div>
                 ${fragments.map((f, i) => `<div class="fragment-item">
-                    <span class="fragment-label">片段 ${i + 1} (${f.length} 字元)</span>
+                    <span class="fragment-label">片段 ${i + 1} · ${f.length} 字元</span>
                     <pre class="fragment-text">${this._escapeHtml(f.text || '')}</pre>
                 </div>`).join('')}
             </div>`;

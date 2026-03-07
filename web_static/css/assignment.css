@@ -1955,187 +1955,101 @@ body {
     .score-max { font-size: var(--type-h2); }
     .step-line { width: 40px; }
 
-    .plagiarism-compare { flex-direction: column; }
+    .plagiarism-compare { grid-template-columns: 1fr; }
 }
 
 /* ============================================================
-   Plagiarism Detection Styles
+   Plagiarism Detection — Redesigned
+   Apple / Linear / Stripe aesthetic · No colored borders
    ============================================================ */
 
+/* ---- Report Container ---- */
 .plagiarism-report {
     max-width: 960px;
     margin: 0 auto;
 }
 
 .plagiarism-report .detail-hero {
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-5);
 }
 
-.plagiarism-pairs-list {
+/* ---- Summary Metrics Row ---- */
+.plag-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+}
+
+.plag-metric {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+    text-align: center;
+    transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.plag-metric:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.plag-metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.plag-metric-value.has-issue {
+    color: var(--text-primary);
+}
+
+.plag-metric-label {
+    font-size: var(--type-meta);
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+/* ---- Section Headings ---- */
+.plag-section-title {
+    font-size: var(--type-body);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 var(--space-3);
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: var(--space-2);
 }
 
-.plagiarism-pair-card {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: var(--space-3) var(--space-4);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.plagiarism-pair-card:hover {
-    border-color: var(--brand);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-}
-
-.plagiarism-pair-card.flagged {
-    border-left: 3px solid var(--danger, #ef4444);
-    background: #fef2f2;
-}
-
-.pair-students {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.plag-section-title .count {
+    font-size: var(--type-badge);
     font-weight: 500;
-}
-
-.pair-vs {
     color: var(--text-tertiary);
-    font-size: 13px;
+    background: var(--bg-page);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
 }
 
-.pair-score-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.pair-bar-track {
-    flex: 1;
-    height: 8px;
-    background: var(--border, #e5e7eb);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.pair-bar-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-}
-
-.pair-pct {
-    font-weight: 600;
-    font-size: 14px;
-    min-width: 65px;
-    text-align: right;
-}
-
-.pair-ai-hint {
-    font-size: 12px;
-    color: var(--text-secondary);
-    padding: 4px 8px;
-    background: var(--bg, #f9fafb);
-    border-radius: var(--radius-sm);
-    line-height: 1.4;
-}
-
-/* Plagiarism Detail */
-
-.plagiarism-detail {
-    max-width: 1100px;
-    margin: 0 auto;
-}
-
-.plagiarism-ai-box {
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
-    margin-bottom: var(--space-4);
-    font-size: 14px;
-    line-height: 1.6;
-}
-
-.plagiarism-fragments {
+/* ---- Hub Students (Source Suspects) ---- */
+.plag-hub-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
     margin-bottom: var(--space-4);
 }
 
-.fragment-item {
+.plag-hub-section .plag-section-title {
     margin-bottom: var(--space-2);
 }
 
-.fragment-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-tertiary);
-    margin-bottom: 4px;
-}
-
-.fragment-text {
-    background: #fef3c7;
-    border: 1px solid #fcd34d;
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-    font-size: 13px;
+.plag-hub-desc {
+    font-size: var(--type-meta);
+    color: var(--text-secondary);
+    margin: 0 0 var(--space-3);
     line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-all;
-    max-height: 120px;
-    overflow-y: auto;
-    margin: 0;
-}
-
-.plagiarism-compare {
-    display: flex;
-    gap: var(--space-3);
-    margin-top: var(--space-4);
-}
-
-.compare-col {
-    flex: 1;
-    min-width: 0;
-}
-
-.compare-header {
-    margin: 0 0 8px;
-    padding: 8px 12px;
-    background: var(--brand-light, #e0f2fe);
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    font-size: 14px;
-}
-
-.compare-text {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-    padding: 12px;
-    font-size: 13px;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    word-break: break-all;
-    max-height: 500px;
-    overflow-y: auto;
-    margin: 0;
-}
-
-/* ---- Hub Students Alert ---- */
-
-.plagiarism-hub-alert {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-left: 4px solid var(--danger, #ef4444);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
-    margin-bottom: var(--space-4);
 }
 
 .hub-student-list {
@@ -2147,88 +2061,105 @@ body {
 .hub-student-card {
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: #fff;
-    border: 1px solid #fecaca;
-    border-radius: var(--radius-md);
-    padding: 8px 14px;
+    gap: var(--space-3);
+    background: var(--bg-page);
+    border-radius: var(--radius-card);
+    padding: var(--space-2) var(--space-3);
     min-width: 200px;
 }
 
 .hub-avatar {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: var(--danger, #ef4444);
+    background: var(--text-primary);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    font-size: 15px;
+    font-size: var(--type-meta);
     flex-shrink: 0;
 }
 
 .hub-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
+}
+
+.hub-info strong {
+    font-size: var(--type-body);
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .hub-meta {
-    font-size: 12px;
-    color: var(--text-secondary);
+    font-size: var(--type-badge);
+    color: var(--text-tertiary);
 }
 
 /* ---- Cluster Groups ---- */
-
 .plagiarism-clusters {
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-5);
 }
 
 .cluster-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: var(--space-3) var(--space-4);
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
     margin-bottom: var(--space-2);
+    transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.cluster-card:hover {
+    box-shadow: var(--shadow-sm);
 }
 
 .cluster-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-3);
 }
 
 .cluster-title {
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--type-body);
+    color: var(--text-primary);
+}
+
+.cluster-title .count {
+    font-size: var(--type-badge);
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-left: 4px;
 }
 
 .cluster-score {
-    font-size: 13px;
+    font-size: var(--type-meta);
     color: var(--text-secondary);
 }
 
 .cluster-source {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    background: #fef2f2;
-    border-radius: var(--radius-sm);
-    margin-bottom: 8px;
-    font-size: 13px;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-page);
+    border-radius: var(--radius-card);
+    margin-bottom: var(--space-3);
+    font-size: var(--type-meta);
 }
 
 .cluster-source-badge {
-    background: var(--danger, #ef4444);
+    background: var(--text-primary);
     color: #fff;
-    font-size: 11px;
+    font-size: var(--type-small);
     font-weight: 600;
     padding: 2px 8px;
-    border-radius: 10px;
+    border-radius: var(--radius-full);
     flex-shrink: 0;
 }
 
@@ -2236,23 +2167,25 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
 }
 
 .cluster-member {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: var(--bg, #f3f4f6);
-    border: 1px solid var(--border);
-    border-radius: 14px;
+    background: var(--bg-page);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-full);
     padding: 4px 10px;
-    font-size: 13px;
+    font-size: var(--type-meta);
+    color: var(--text-primary);
 }
 
 .cluster-member.is-source {
-    background: #fef2f2;
-    border-color: #fecaca;
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+    color: #fff;
     font-weight: 600;
 }
 
@@ -2261,8 +2194,8 @@ body {
     color: #fff;
     font-size: 10px;
     font-weight: 600;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
@@ -2270,7 +2203,7 @@ body {
 }
 
 .cluster-member.is-source .cluster-member-deg {
-    background: var(--danger, #ef4444);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .cluster-edges {
@@ -2280,96 +2213,396 @@ body {
 }
 
 .cluster-edge {
-    font-size: 12px;
+    font-size: var(--type-badge);
     color: var(--text-secondary);
-    background: var(--bg, #f9fafb);
+    background: var(--bg-page);
     padding: 3px 8px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-control);
 }
 
-/* ---- 多維度評分 ---- */
+/* ---- Action Bar ---- */
+.plag-action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.plag-action-bar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.plag-action-bar-left h3 {
+    margin: 0;
+    font-size: var(--type-h2);
+    font-weight: 600;
+}
+
+/* ---- Pairs List ---- */
+.plagiarism-pairs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border-default);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+}
+
+.plagiarism-pair-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--bg-card);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.plagiarism-pair-card:hover {
+    background: var(--bg-card-hover);
+}
+
+.plagiarism-pair-card.flagged {
+    background: var(--bg-card);
+}
+
+.pair-card-left {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pair-students {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-body);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.pair-vs {
+    color: var(--text-tertiary);
+    font-size: var(--type-meta);
+    font-weight: 400;
+}
+
+.pair-card-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-shrink: 0;
+}
+
+.pair-score-ring {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.pair-score-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.pair-score-ring .ring-bg {
+    fill: none;
+    stroke: var(--border-default);
+    stroke-width: 3;
+}
+
+.pair-score-ring .ring-fill {
+    fill: none;
+    stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.4s var(--ease-out);
+}
+
+.pair-score-pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.pair-arrow {
+    color: var(--text-tertiary);
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+/* dimension tags inline */
 .pair-dimensions {
     display: flex;
-    gap: 6px;
-    margin-top: 6px;
+    gap: 4px;
     flex-wrap: wrap;
 }
 
 .dim-tag {
-    font-size: 11px;
-    padding: 2px 7px;
-    border-radius: var(--radius-sm);
-    background: var(--bg, #f3f4f6);
-    color: var(--text-secondary);
+    font-size: var(--type-small);
+    padding: 1px 6px;
+    border-radius: var(--radius-control);
+    background: var(--bg-page);
+    color: var(--text-tertiary);
     cursor: default;
+    font-weight: 500;
 }
 
+.pair-ai-hint {
+    font-size: var(--type-badge);
+    color: var(--text-tertiary);
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---- Detail View ---- */
+.plagiarism-detail {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.plag-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-5);
+    gap: var(--space-4);
+}
+
+.plag-detail-title {
+    font-size: var(--type-h1);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.plag-detail-score {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+}
+
+.plag-score-bar-track {
+    width: 200px;
+    height: 6px;
+    background: var(--border-default);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.plag-score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s var(--ease-out);
+}
+
+.plag-score-value {
+    font-size: var(--type-body-lg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Dimension Analysis ---- */
 .plagiarism-dimension-box {
-    background: var(--bg, #f9fafb);
-    border: 1px solid var(--border, #e5e7eb);
-    border-radius: var(--radius);
-    padding: 14px 16px;
-    margin-bottom: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+}
+
+.plagiarism-dimension-box h4 {
+    font-size: var(--type-body);
+    font-weight: 600;
+    margin: 0 0 var(--space-3);
 }
 
 .dim-detail-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+.dim-detail-row:last-of-type {
+    margin-bottom: 0;
 }
 
 .dim-detail-label {
     width: 80px;
-    font-size: 13px;
+    font-size: var(--type-meta);
     color: var(--text-secondary);
     flex-shrink: 0;
 }
 
 .dim-detail-bar-track {
     flex: 1;
-    height: 8px;
-    background: var(--border, #e5e7eb);
-    border-radius: 4px;
+    height: 4px;
+    background: var(--border-default);
+    border-radius: 2px;
     overflow: hidden;
 }
 
 .dim-detail-bar-fill {
     height: 100%;
-    border-radius: 4px;
-    transition: width .3s ease;
+    border-radius: 2px;
+    background: var(--text-primary);
+    transition: width 0.3s var(--ease-out);
 }
 
 .dim-detail-val {
     width: 52px;
     text-align: right;
-    font-size: 13px;
+    font-size: var(--type-meta);
     font-weight: 600;
+    color: var(--text-primary);
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
 }
 
 .dim-code-badge {
     display: inline-block;
-    font-size: 11px;
+    font-size: var(--type-small);
     padding: 2px 8px;
-    margin-top: 6px;
-    background: #eef2ff;
-    color: #6366f1;
-    border-radius: var(--radius-sm);
+    margin-top: var(--space-2);
+    background: var(--bg-page);
+    color: var(--text-secondary);
+    border-radius: var(--radius-control);
 }
 
 .dim-signals {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
-    margin-top: 8px;
+    margin-top: var(--space-2);
 }
 
 .dim-signal-tag {
-    font-size: 11px;
+    font-size: var(--type-small);
     padding: 2px 8px;
-    background: #fef2f2;
-    color: #ef4444;
-    border-radius: var(--radius-sm);
+    background: var(--bg-page);
+    color: var(--text-secondary);
+    border-radius: var(--radius-control);
     font-weight: 500;
+}
+
+/* ---- AI Analysis Box ---- */
+.plagiarism-ai-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+    font-size: var(--type-body);
+    line-height: 1.7;
+}
+
+.plagiarism-ai-box h4 {
+    font-size: var(--type-body);
+    font-weight: 600;
+    margin: 0 0 var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* ---- Matched Fragments ---- */
+.plagiarism-fragments {
+    margin-bottom: var(--space-4);
+}
+
+.fragment-item {
+    margin-bottom: var(--space-2);
+}
+
+.fragment-label {
+    display: block;
+    font-size: var(--type-badge);
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+}
+
+.fragment-text {
+    background: var(--bg-page);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--type-meta);
+    font-family: var(--font-mono);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 140px;
+    overflow-y: auto;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+/* ---- Side-by-side Compare ---- */
+.plagiarism-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+}
+
+.compare-col {
+    min-width: 0;
+}
+
+.compare-header {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-page);
+    border: 1px solid var(--border-default);
+    border-bottom: none;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    font-size: var(--type-meta);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.compare-text {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: 0 0 var(--radius-card) var(--radius-card);
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--type-meta);
+    font-family: var(--font-mono);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 500px;
+    overflow-y: auto;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .plag-metrics { grid-template-columns: repeat(2, 1fr); }
+    .plagiarism-compare { grid-template-columns: 1fr; }
+    .plagiarism-pair-card { grid-template-columns: 1fr; gap: var(--space-2); }
+    .pair-card-right { justify-content: flex-end; }
+    .plag-detail-header { flex-direction: column; }
+    .plag-score-bar-track { width: 160px; }
+    .cluster-card { padding: var(--space-3) var(--space-4); }
+    .plag-hub-section { padding: var(--space-3) var(--space-4); }
 }
