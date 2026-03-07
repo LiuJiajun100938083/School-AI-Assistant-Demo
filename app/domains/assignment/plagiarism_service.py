@@ -23,11 +23,11 @@
 import json
 import logging
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 from itertools import combinations
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from app.core.exceptions import ValidationError
 from app.domains.assignment.constants import DOCUMENT_EXTENSIONS, TEXT_READABLE_EXTENSIONS
@@ -270,6 +270,151 @@ class PlagiarismService:
                 pair[f"student_{side}_username"] = ""
 
         return pair
+
+    def get_clusters(self, report_id: int) -> Dict[str, Any]:
+        """
+        對檢測報告做圖聚類分析，識別抄襲群組和「源頭」學生。
+
+        算法（純 Python，無需 networkx）:
+        1. 將可疑配對構建為無向圖（鄰接表）
+        2. BFS 找出所有連通分量（= 抄襲群組）
+        3. 計算每個節點的度數 + 加權度數
+        4. 高度數節點 = 疑似「源頭」（一人抄給多人）
+
+        Returns:
+            {
+                "clusters": [
+                    {
+                        "id": 1,
+                        "members": [{"name": "...", "sub_id": ..., "degree": ..., "role": "source|member"}],
+                        "edges": [{"a": ..., "b": ..., "score": ...}],
+                        "max_score": 95.2,
+                        "source_student": "張三"
+                    },
+                    ...
+                ],
+                "hub_students": [
+                    {"name": "...", "sub_id": ..., "degree": 5, "avg_score": 82.3}
+                ]
+            }
+        """
+        flagged_pairs = self._pair_repo.find_by_report(report_id, flagged_only=True)
+        if not flagged_pairs:
+            return {"clusters": [], "hub_students": []}
+
+        # ---- 1) 構建鄰接表 ----
+        adjacency: Dict[int, List[Tuple[int, float]]] = defaultdict(list)
+        sub_names: Dict[int, str] = {}
+
+        for p in flagged_pairs:
+            a_id = p["submission_a_id"]
+            b_id = p["submission_b_id"]
+            score = float(p.get("similarity_score", 0))
+            adjacency[a_id].append((b_id, score))
+            adjacency[b_id].append((a_id, score))
+            sub_names[a_id] = p.get("student_a_name", str(a_id))
+            sub_names[b_id] = p.get("student_b_name", str(b_id))
+
+        # ---- 2) BFS 找連通分量 ----
+        visited: Set[int] = set()
+        clusters: List[Dict[str, Any]] = []
+
+        for start_node in adjacency:
+            if start_node in visited:
+                continue
+            # BFS
+            component: List[int] = []
+            queue = [start_node]
+            while queue:
+                node = queue.pop(0)
+                if node in visited:
+                    continue
+                visited.add(node)
+                component.append(node)
+                for neighbor, _ in adjacency[node]:
+                    if neighbor not in visited:
+                        queue.append(neighbor)
+
+            if len(component) < 2:
+                continue
+
+            # ---- 3) 計算度數 ----
+            degree: Dict[int, int] = defaultdict(int)
+            weighted_degree: Dict[int, float] = defaultdict(float)
+            edges: List[Dict[str, Any]] = []
+
+            component_set = set(component)
+            max_score = 0.0
+
+            for p in flagged_pairs:
+                a_id = p["submission_a_id"]
+                b_id = p["submission_b_id"]
+                if a_id in component_set and b_id in component_set:
+                    score = float(p.get("similarity_score", 0))
+                    degree[a_id] += 1
+                    degree[b_id] += 1
+                    weighted_degree[a_id] += score
+                    weighted_degree[b_id] += score
+                    edges.append({
+                        "a_id": a_id, "b_id": b_id,
+                        "a_name": sub_names.get(a_id, ""),
+                        "b_name": sub_names.get(b_id, ""),
+                        "score": score,
+                    })
+                    max_score = max(max_score, score)
+
+            # ---- 4) 識別源頭: 度數最高的學生 ----
+            source_id = max(component, key=lambda n: (degree[n], weighted_degree[n]))
+
+            members = []
+            for sid in sorted(component, key=lambda n: degree[n], reverse=True):
+                is_source = (sid == source_id and degree[sid] >= 2)
+                members.append({
+                    "name": sub_names.get(sid, str(sid)),
+                    "sub_id": sid,
+                    "degree": degree[sid],
+                    "avg_score": round(
+                        weighted_degree[sid] / degree[sid], 1
+                    ) if degree[sid] > 0 else 0,
+                    "role": "source" if is_source else "member",
+                })
+
+            clusters.append({
+                "id": len(clusters) + 1,
+                "size": len(component),
+                "members": members,
+                "edges": edges,
+                "max_score": round(max_score, 1),
+                "source_student": sub_names.get(source_id, "")
+                    if degree[source_id] >= 2 else None,
+            })
+
+        # 按群組大小倒序
+        clusters.sort(key=lambda c: c["size"], reverse=True)
+
+        # ---- Hub 學生（全局度數 >= 3 的節點）----
+        global_degree: Dict[int, int] = defaultdict(int)
+        global_score_sum: Dict[int, float] = defaultdict(float)
+        for p in flagged_pairs:
+            a_id = p["submission_a_id"]
+            b_id = p["submission_b_id"]
+            score = float(p.get("similarity_score", 0))
+            global_degree[a_id] += 1
+            global_degree[b_id] += 1
+            global_score_sum[a_id] += score
+            global_score_sum[b_id] += score
+
+        hub_students = []
+        for sid, deg in sorted(global_degree.items(), key=lambda x: x[1], reverse=True):
+            if deg >= 3:
+                hub_students.append({
+                    "name": sub_names.get(sid, str(sid)),
+                    "sub_id": sid,
+                    "degree": deg,
+                    "avg_score": round(global_score_sum[sid] / deg, 1),
+                })
+
+        return {"clusters": clusters, "hub_students": hub_students}
 
     # ================================================================
     # N-gram 相似度核心算法

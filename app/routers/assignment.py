@@ -1083,6 +1083,12 @@ async def get_plagiarism_report(
         lambda: services.plagiarism.get_pairs(report_id, flagged_only=flagged_only),
     )
 
+    # 聚類分析
+    clusters_data = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.get_clusters(report_id),
+    )
+
     return success_response(data={
         "report": {
             "id": report["id"],
@@ -1095,6 +1101,8 @@ async def get_plagiarism_report(
             "completed_at": str(report.get("completed_at", "")) if report.get("completed_at") else None,
         },
         "pairs": pairs,
+        "clusters": clusters_data.get("clusters", []),
+        "hub_students": clusters_data.get("hub_students", []),
     })
 
 

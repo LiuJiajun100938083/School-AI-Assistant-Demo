@@ -749,9 +749,11 @@ const AssignmentUI = {
 
     // ---- Plagiarism Detection UI ----
 
-    renderPlagiarismReport(report, pairs) {
+    renderPlagiarismReport(report, pairs, clusters, hubStudents) {
         if (!report) return '<div class="empty-state"><div class="empty-state-text">尚未執行過抄袭檢測</div></div>';
 
+        clusters = clusters || [];
+        hubStudents = hubStudents || [];
         const statusMap = { completed: '已完成', running: '檢測中', failed: '失敗', pending: '等待中' };
         const statusClass = { completed: 'badge-graded', running: 'badge-submitted', failed: 'badge-late', pending: 'badge-not_submitted' };
 
@@ -759,7 +761,7 @@ const AssignmentUI = {
             <div class="plagiarism-header">
                 <div>
                     <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-                        ${this.ICON.shield || '🔍'} 抄袭檢測報告
+                        🔍 抄袭檢測報告
                         <span class="badge ${statusClass[report.status] || ''}">${statusMap[report.status] || report.status}</span>
                     </h3>
                     <p style="color:var(--text-tertiary);font-size:13px;margin-top:4px;">
@@ -774,14 +776,67 @@ const AssignmentUI = {
             <div class="plagiarism-stats">
                 <div class="stat-card"><div class="stat-value">${report.total_pairs}</div><div class="stat-label">對比總數</div></div>
                 <div class="stat-card"><div class="stat-value" style="color:${report.flagged_pairs > 0 ? 'var(--danger)' : 'var(--success)'}">${report.flagged_pairs}</div><div class="stat-label">可疑配對</div></div>
+                <div class="stat-card"><div class="stat-value" style="color:${clusters.length > 0 ? '#f59e0b' : 'var(--success)'}">${clusters.length}</div><div class="stat-label">抄襲群組</div></div>
+                <div class="stat-card"><div class="stat-value" style="color:${hubStudents.length > 0 ? 'var(--danger)' : 'var(--success)'}">${hubStudents.length}</div><div class="stat-label">疑似源頭</div></div>
             </div>`;
 
+        // ---- Hub Students Alert ----
+        if (hubStudents.length > 0) {
+            html += `<div class="plagiarism-hub-alert">
+                <h4 style="margin:0 0 8px;color:var(--danger);">⚠ 疑似抄襲源頭學生</h4>
+                <p style="margin:0 0 10px;font-size:13px;color:var(--text-secondary);">以下學生與 3 人以上高度相似，可能是抄襲的源頭</p>
+                <div class="hub-student-list">
+                    ${hubStudents.map(h => `<div class="hub-student-card">
+                        <div class="hub-avatar">${(h.name || '?')[0].toUpperCase()}</div>
+                        <div class="hub-info">
+                            <strong>${h.name}</strong>
+                            <span class="hub-meta">與 <b>${h.degree}</b> 人相似 · 平均 ${h.avg_score}%</span>
+                        </div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        // ---- Cluster Groups ----
+        if (clusters.length > 0) {
+            html += `<div class="plagiarism-clusters">
+                <h4 style="margin:0 0 12px;">抄襲群組分析</h4>
+                ${clusters.map(c => {
+                    const source = c.members.find(m => m.role === 'source');
+                    return `<div class="cluster-card">
+                        <div class="cluster-header">
+                            <span class="cluster-title">群組 ${c.id} <span class="count">${c.size} 人</span></span>
+                            <span class="cluster-score">最高相似度 <b style="color:var(--danger);">${c.max_score}%</b></span>
+                        </div>
+                        ${source ? `<div class="cluster-source">
+                            <span class="cluster-source-badge">疑似源頭</span>
+                            <strong>${source.name}</strong>
+                            <span style="color:var(--text-tertiary);font-size:12px;">(與 ${source.degree} 人匹配, 平均 ${source.avg_score}%)</span>
+                        </div>` : ''}
+                        <div class="cluster-members">
+                            ${c.members.map(m => `<span class="cluster-member ${m.role === 'source' ? 'is-source' : ''}">
+                                ${m.name}
+                                <span class="cluster-member-deg">${m.degree}</span>
+                            </span>`).join('')}
+                        </div>
+                        <div class="cluster-edges">
+                            ${c.edges.slice(0, 6).map(e => `<div class="cluster-edge">
+                                ${e.a_name} ↔ ${e.b_name}: <b>${e.score.toFixed(1)}%</b>
+                            </div>`).join('')}
+                            ${c.edges.length > 6 ? `<div class="cluster-edge" style="color:var(--text-tertiary);">...共 ${c.edges.length} 條關聯</div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }
+
+        // ---- Pair List ----
         if (!pairs || !pairs.length) {
             html += '<div class="empty-state"><div class="empty-state-text">無對比數據</div></div>';
         } else {
-            // Filter tabs
             const flaggedPairs = pairs.filter(p => p.is_flagged);
             html += `<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px;flex-wrap:wrap;gap:8px;">
+                <h4 style="margin:0;">配對明細</h4>
                 <div class="filter-tabs" style="margin:0;">
                     <button class="filter-tab active" onclick="AssignmentApp._filterPlagPairs('flagged', this)">可疑 <span class="count">${flaggedPairs.length}</span></button>
                     <button class="filter-tab" onclick="AssignmentApp._filterPlagPairs('all', this)">全部 <span class="count">${pairs.length}</span></button>
@@ -1754,7 +1809,11 @@ const AssignmentApp = {
 
         this._currentPlagReport = resp.data.report;
         this._currentPlagPairs = resp.data.pairs;
-        main.innerHTML = AssignmentUI.renderPlagiarismReport(resp.data.report, resp.data.pairs);
+        this._currentPlagClusters = resp.data.clusters || [];
+        this._currentPlagHubs = resp.data.hub_students || [];
+        main.innerHTML = AssignmentUI.renderPlagiarismReport(
+            resp.data.report, resp.data.pairs, resp.data.clusters, resp.data.hub_students
+        );
     },
 
     _filterPlagPairs(mode, btn) {
