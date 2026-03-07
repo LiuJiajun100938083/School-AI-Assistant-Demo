@@ -858,12 +858,17 @@ class PlagiarismService:
             scores["verbatim_score"],
             scores.get("indent_score", 0),
             scores["comment_score"],
+            scores.get("winnow_score", 0),
+            scores.get("data_flow_score", 0),
+            scores.get("typo_score", 0),
+            scores.get("dead_code_score", 0),
         ]
+        total_dims = len(dimension_scores)
         evidence_hits = sum(1 for s in dimension_scores if s >= EVIDENCE_HIT_THRESHOLD)
         if evidence_hits >= MIN_EVIDENCE_DIMENSIONS:
-            evidence_score = min(evidence_hits / 5.0 * 100, 100)
+            evidence_score = min(evidence_hits / total_dims * 100, 100)
             scores["signals"].append(
-                f"多重證據: {evidence_hits}/5 個維度同時命中（>{EVIDENCE_HIT_THRESHOLD:.0f}分）"
+                f"多重證據: {evidence_hits}/{total_dims} 個維度同時命中（>{EVIDENCE_HIT_THRESHOLD:.0f}分）"
             )
         else:
             evidence_score = 0.0
@@ -954,7 +959,11 @@ class PlagiarismService:
                     f"逐字={scores['verbatim_score']:.0f} "
                     f"縮排={scores.get('indent_score', 0):.0f} "
                     f"注釋={scores['comment_score']:.0f} "
-                    f"證據={evidence_score:.0f}({evidence_hits}/5維)"
+                    f"Winnow={scores.get('winnow_score', 0):.0f} "
+                    f"數據流={scores.get('data_flow_score', 0):.0f} "
+                    f"拼錯={scores.get('typo_score', 0):.0f} "
+                    f"死代碼={scores.get('dead_code_score', 0):.0f} "
+                    f"證據={evidence_score:.0f}({evidence_hits}/{total_dims}維)"
                     f" 邏輯={scores.get('logic_score', 0):.0f}"
                     f" 風格={scores.get('style_score', 0):.0f}",
             "type": "dimension_breakdown",
@@ -965,6 +974,7 @@ class PlagiarismService:
             "comment_score": round(scores["comment_score"], 1),
             "evidence_score": round(evidence_score, 1),
             "evidence_hits": evidence_hits,
+            "total_dims": total_dims,
             "logic_score": scores.get("logic_score", 0),
             "style_score": scores.get("style_score", 0),
             "winnow_score": round(scores.get("winnow_score", 0), 1),

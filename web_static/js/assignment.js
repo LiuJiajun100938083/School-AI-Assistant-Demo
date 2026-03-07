@@ -1152,15 +1152,18 @@ const AssignmentUI = {
         return `<div class="plagiarism-pairs-list">${pairs.map(p => {
             const pct = parseFloat(p.similarity_score) || 0;
             const dims = this._extractDimensions(p.matched_fragments);
+            const td = dims.totalDims || 9;
             const dimHtml = dims ? `<div class="pair-dimensions">
                 ${dims.logicScore ? `<span class="dim-tag">邏輯 ${Math.round(dims.logicScore)}%</span>` : ''}
                 ${dims.styleScore ? `<span class="dim-tag">風格 ${Math.round(dims.styleScore)}%</span>` : ''}
-                <span class="dim-tag">命名 ${dims.identifier}%</span>
-                <span class="dim-tag">逐字 ${dims.verbatim}%</span>
-                ${dims.typo > 0 ? `<span class="dim-tag evidence-hit">拼錯匹配</span>` : ''}
-                ${dims.deadCode > 0 ? `<span class="dim-tag evidence-hit">死代碼匹配</span>` : ''}
-                ${dims.aiSuspicion >= 40 ? `<span class="dim-tag" style="color:var(--text-tertiary)">AI嫌疑</span>` : ''}
-                ${dims.evidenceHits >= 2 ? `<span class="dim-tag evidence-hit">證據 ${dims.evidenceHits}/5</span>` : ''}
+                ${dims.winnow ? `<span class="dim-tag">指紋 ${Math.round(dims.winnow)}%</span>` : ''}
+                ${dims.dataFlow ? `<span class="dim-tag">數據流 ${Math.round(dims.dataFlow)}%</span>` : ''}
+                <span class="dim-tag">命名 ${Math.round(dims.identifier)}%</span>
+                <span class="dim-tag">逐字 ${Math.round(dims.verbatim)}%</span>
+                ${dims.typo > 0 ? `<span class="dim-tag evidence-hit">拼錯 ${Math.round(dims.typo)}%</span>` : ''}
+                ${dims.deadCode > 0 ? `<span class="dim-tag evidence-hit">死代碼 ${Math.round(dims.deadCode)}%</span>` : ''}
+                ${dims.aiSuspicion >= 20 ? `<span class="dim-tag" style="color:var(--text-tertiary)">AI嫌疑 ${Math.round(dims.aiSuspicion)}%</span>` : ''}
+                ${dims.evidenceHits >= 2 ? `<span class="dim-tag evidence-hit">證據 ${dims.evidenceHits}/${td}</span>` : ''}
             </div>` : '';
             return `<div class="plagiarism-pair-card${p.is_flagged ? ' flagged' : ''}" onclick="AssignmentApp.viewPlagiarismPair(${p.id})">
                 <div class="pair-card-left">
@@ -1215,36 +1218,41 @@ const AssignmentUI = {
             // 雙分數卡片
             const logicPct = Math.round(dims.logicScore || 0);
             const stylePct = Math.round(dims.styleScore || 0);
+            const td = dims.totalDims || 9;
             html += `<div class="plagiarism-dimension-box">
                 <h4>雙分數判定</h4>
                 <div class="plag-dual-scores">
                     <div class="plag-dual-card">
                         <div class="plag-dual-label">邏輯相似度</div>
                         <div class="plag-dual-value">${logicPct}%</div>
-                        <div class="plag-dual-hint">Token結構 · 數據流 · 逐字</div>
+                        <div class="plag-dual-hint">Token結構 · Winnowing · 數據流 · 逐字</div>
                     </div>
                     <div class="plag-dual-card">
                         <div class="plag-dual-label">風格一致性</div>
                         <div class="plag-dual-value">${stylePct}%</div>
-                        <div class="plag-dual-hint">命名 · 縮排 · 拼錯 · 死代碼</div>
+                        <div class="plag-dual-hint">命名 · 縮排 · 注釋 · 拼錯 · 死代碼</div>
                     </div>
                 </div>
                 ${logicPct > 70 && stylePct < 40 ? '<div class="dim-code-badge">邏輯高但風格不同 → 簡單作業巧合的可能性較高</div>' : ''}
                 ${logicPct > 70 && stylePct > 60 ? '<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">邏輯+風格同時高 → 高度可疑</div>' : ''}
 
-                <h4 style="margin-top:var(--space-4)">維度明細</h4>
+                <h4 style="margin-top:var(--space-4)">邏輯維度</h4>
                 ${dims.winnow ? mkBar('Winnowing 指紋', dims.winnow) : ''}
                 ${mkBar('結構相似 (骨架)', dims.structure)}
                 ${dims.dataFlow ? mkBar('數據流模式', dims.dataFlow) : ''}
-                ${mkBar('變量命名', dims.identifier)}
                 ${mkBar('逐字複製', dims.verbatim)}
+
+                <h4 style="margin-top:var(--space-4)">風格維度</h4>
+                ${mkBar('變量命名', dims.identifier)}
                 ${mkBar('縮排指紋', dims.indent)}
                 ${mkBar('注釋/字串', dims.comment)}
                 ${dims.typo > 0 ? mkBar('共享拼錯 (強證據)', dims.typo) : ''}
                 ${dims.deadCode > 0 ? mkBar('死代碼匹配 (強證據)', dims.deadCode) : ''}
-                ${dims.evidenceHits !== undefined ? mkBar('多重證據', dims.evidence) : ''}
+
+                <h4 style="margin-top:var(--space-4)">綜合指標</h4>
+                ${mkBar('多重證據命中', dims.evidence)}
                 ${dims.aiSuspicion >= 20 ? mkBar('AI 生成嫌疑', dims.aiSuspicion) : ''}
-                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元 · 證據命中 ${dims.evidenceHits || 0}/5 維</div>` : ''}
+                ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元 · 證據命中 ${dims.evidenceHits || 0}/${td} 維</div>` : ''}
                 ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
             </div>`;
         }
@@ -1297,6 +1305,7 @@ const AssignmentUI = {
             comment: dim.comment_score || 0,
             evidence: dim.evidence_score || 0,
             evidenceHits: dim.evidence_hits || 0,
+            totalDims: dim.total_dims || 9,
             logicScore: dim.logic_score || 0,
             styleScore: dim.style_score || 0,
             winnow: dim.winnow_score || 0,
