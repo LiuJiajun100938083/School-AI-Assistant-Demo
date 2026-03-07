@@ -1300,7 +1300,7 @@ const AssignmentUI = {
         if (pair.ai_analysis) {
             html += `<div class="plagiarism-ai-box">
                 <h4>AI 分析</h4>
-                <p style="margin:0;white-space:pre-wrap;">${pair.ai_analysis}</p>
+                <div class="ai-analysis-content">${this._renderMd(pair.ai_analysis)}</div>
             </div>`;
         }
 
@@ -1361,6 +1361,35 @@ const AssignmentUI = {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    },
+
+    /** 輕量 Markdown → HTML（不依賴外部庫） */
+    _renderMd(text) {
+        if (!text) return '';
+        let html = this._escapeHtml(text);
+        // 粗體 **text** 或 __text__
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+        // 斜體 *text* 或 _text_（但不匹配已處理的 ** 裡的）
+        html = html.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+        // 行內代碼 `code`
+        html = html.replace(/`([^`]+)`/g, '<code style="background:var(--bg-main);padding:1px 4px;border-radius:3px;font-size:0.9em;">$1</code>');
+        // 標題 ## / ###
+        html = html.replace(/^### (.+)$/gm, '<strong style="display:block;margin-top:0.5em;">$1</strong>');
+        html = html.replace(/^## (.+)$/gm, '<strong style="display:block;font-size:1.05em;margin-top:0.6em;">$1</strong>');
+        // 無序列表 - item / * item
+        html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul style="margin:0.3em 0;padding-left:1.2em;">$&</ul>');
+        // 有序列表 1. item
+        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+        // 換行
+        html = html.replace(/\n/g, '<br>');
+        // 清理多餘 <br> (在 </li><br><li> 之間)
+        html = html.replace(/<\/li><br>/g, '</li>');
+        html = html.replace(/<br><li>/g, '<li>');
+        html = html.replace(/<br><\/ul>/g, '</ul>');
+        html = html.replace(/<br><ul/g, '<ul');
+        return html;
     }
 };
 

@@ -2850,6 +2850,20 @@ body {
     align-items: center;
     gap: var(--space-2);
 }
+.ai-analysis-content {
+    line-height: 1.8;
+    color: var(--text-primary);
+}
+.ai-analysis-content strong {
+    font-weight: 600;
+}
+.ai-analysis-content ul {
+    margin: 0.3em 0;
+    padding-left: 1.2em;
+}
+.ai-analysis-content li {
+    margin-bottom: 0.2em;
+}
 
 /* ---- Matched Fragments ---- */
 .plagiarism-fragments {
