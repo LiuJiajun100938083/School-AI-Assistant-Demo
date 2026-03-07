@@ -217,7 +217,6 @@ class PlagiarismService:
 
             # 3) AI 深度分析 — 僅對 top N 可疑配對（按相似度倒序）
             if self._ask_ai_func and flagged_indices:
-                # 按相似度倒序排列可疑配對索引
                 flagged_indices.sort(
                     key=lambda i: all_pairs[i]["similarity_score"], reverse=True
                 )
@@ -297,6 +296,48 @@ class PlagiarismService:
                 pair[f"student_{side}_username"] = ""
 
         return pair
+
+    def ai_analyze_single_pair(self, pair_id: int) -> str:
+        """
+        按需對單個配對進行 AI 分析（教師手動觸發）。
+
+        Returns:
+            AI 分析結果文本
+        """
+        pair = self._pair_repo.find_pair_detail(pair_id)
+        if not pair:
+            return "配對不存在"
+
+        if not self._ask_ai_func:
+            return "AI 功能未啟用"
+
+        # 取得兩份提交的原始文本
+        texts = {}
+        for side, sub_id_key in [("a", "submission_a_id"), ("b", "submission_b_id")]:
+            sub = self._submission_repo.find_by_id(pair[sub_id_key])
+            if sub:
+                files = self._file_repo.find_by_submission(sub["id"])
+                texts[side] = self._extract_submission_text(sub, files)
+            else:
+                texts[side] = ""
+
+        if not texts["a"].strip() or not texts["b"].strip():
+            return "提交內容為空，無法分析"
+
+        result = self._ai_analyze_pair(
+            texts["a"], texts["b"],
+            float(pair.get("similarity_score", 0)),
+        )
+
+        # 將結果寫回資料庫
+        import json
+        self._pair_repo.update(
+            {"ai_analysis": result},
+            where="id = %s",
+            params=(pair_id,),
+        )
+
+        return result
 
     def get_clusters(self, report_id: int) -> Dict[str, Any]:
         """

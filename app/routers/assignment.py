@@ -1125,6 +1125,23 @@ async def get_plagiarism_pair_detail(
     return success_response(data=pair)
 
 
+@router.post("/api/assignments/teacher/plagiarism-pairs/{pair_id}/ai-analyze")
+async def ai_analyze_pair(
+    pair_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """按需對單個配對進行 AI 深度分析（教師手動觸發）"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+
+    result = await loop.run_in_executor(
+        None,
+        lambda: services.plagiarism.ai_analyze_single_pair(pair_id),
+    )
+
+    return success_response(data={"ai_analysis": result})
+
+
 @router.get("/api/assignments/teacher/{assignment_id}/plagiarism-report/export-excel")
 async def export_plagiarism_excel(
     assignment_id: int,
