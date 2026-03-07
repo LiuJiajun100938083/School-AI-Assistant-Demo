@@ -25,10 +25,13 @@ class PlagiarismReportRepository(BaseRepository):
 
     def find_latest_by_assignment(self, assignment_id: int) -> Optional[Dict[str, Any]]:
         """取得某作業最新的檢測報告"""
-        return self.find_one(
+        rows = self.find_all(
             where="assignment_id = %s",
             params=(assignment_id,),
+            order_by="id DESC",
+            limit=1,
         )
+        return rows[0] if rows else None
 
     def find_all_by_assignment(self, assignment_id: int) -> List[Dict[str, Any]]:
         """取得某作業的所有檢測報告（按時間倒序）"""

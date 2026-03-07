@@ -52,6 +52,7 @@ DEFAULT_NGRAM_SIZE = 5
 DEFAULT_THRESHOLD = 60.0
 MAX_TEXT_LENGTH = 15000
 MAX_FRAGMENTS_PER_PAIR = 10
+MAX_AI_ANALYSIS_PAIRS = 20  # AI 分析上限，避免大班級耗時過長
 
 
 class PlagiarismService:
@@ -156,21 +157,19 @@ class PlagiarismService:
                 )
                 return
 
-            # 2) 兩兩對比
+            # 2) 兩兩對比 — 先全部算 N-gram（快速），再對 top 可疑配對做 AI 分析
             sub_ids = list(sub_texts.keys())
             all_pairs: List[Dict[str, Any]] = []
-            flagged_count = 0
+            flagged_indices: List[int] = []
 
             for id_a, id_b in combinations(sub_ids, 2):
                 text_a = sub_texts[id_a]["text"]
                 text_b = sub_texts[id_b]["text"]
 
-                # 跳過空內容
                 if not text_a.strip() or not text_b.strip():
                     continue
 
                 score, fragments = self._compute_similarity(text_a, text_b)
-
                 is_flagged = score >= threshold
 
                 pair_data: Dict[str, Any] = {
@@ -183,19 +182,40 @@ class PlagiarismService:
                     "matched_fragments": fragments[:MAX_FRAGMENTS_PER_PAIR],
                     "is_flagged": is_flagged,
                 }
+                if is_flagged:
+                    flagged_indices.append(len(all_pairs))
+                all_pairs.append(pair_data)
 
-                # 3) AI 深度分析（僅對可疑配對）
-                if is_flagged and self._ask_ai_func:
+            flagged_count = len(flagged_indices)
+
+            # 3) AI 深度分析 — 僅對 top N 可疑配對（按相似度倒序）
+            if self._ask_ai_func and flagged_indices:
+                # 按相似度倒序排列可疑配對索引
+                flagged_indices.sort(
+                    key=lambda i: all_pairs[i]["similarity_score"], reverse=True
+                )
+                ai_count = 0
+                for idx in flagged_indices[:MAX_AI_ANALYSIS_PAIRS]:
+                    pair = all_pairs[idx]
+                    id_a = pair["submission_a_id"]
+                    id_b = pair["submission_b_id"]
                     try:
-                        ai_result = self._ai_analyze_pair(text_a, text_b, score)
-                        pair_data["ai_analysis"] = ai_result
+                        ai_result = self._ai_analyze_pair(
+                            sub_texts[id_a]["text"],
+                            sub_texts[id_b]["text"],
+                            pair["similarity_score"],
+                        )
+                        pair["ai_analysis"] = ai_result
+                        ai_count += 1
                     except Exception as e:
                         logger.warning("AI 分析配對失敗: %s", e)
-                        pair_data["ai_analysis"] = f"AI 分析失敗: {e}"
+                        pair["ai_analysis"] = f"AI 分析失敗: {e}"
 
-                if is_flagged:
-                    flagged_count += 1
-                all_pairs.append(pair_data)
+                if len(flagged_indices) > MAX_AI_ANALYSIS_PAIRS:
+                    logger.info(
+                        "可疑配對 %d 對，AI 僅分析前 %d 對",
+                        len(flagged_indices), MAX_AI_ANALYSIS_PAIRS,
+                    )
 
             # 4) 寫入資料庫
             self._pair_repo.batch_insert(all_pairs)
