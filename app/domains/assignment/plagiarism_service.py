@@ -21,6 +21,7 @@
 """
 
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -1017,6 +1018,9 @@ class PlagiarismService:
 
         return result
 
+    # 提交元數據正則：匹配「（由 XXX 代為提交）」，不參與抄襲比對
+    _META_RE = re.compile(r'^[（(]由.{1,20}代為提交[)）]$', re.MULTILINE)
+
     def _extract_submission_text(
         self,
         submission: Dict[str, Any],
@@ -1025,10 +1029,12 @@ class PlagiarismService:
         """提取單份提交的所有文本（備註 + 文件內容）"""
         parts: List[str] = []
 
-        # 學生備註
+        # 學生備註（過濾掉教師代提交元數據）
         content = submission.get("content", "")
         if content and content.strip():
-            parts.append(content.strip())
+            filtered = self._META_RE.sub('', content).strip()
+            if filtered:
+                parts.append(filtered)
 
         # 文件內容
         for f in files:

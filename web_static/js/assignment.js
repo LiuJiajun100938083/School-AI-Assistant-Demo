@@ -1286,7 +1286,7 @@ const AssignmentUI = {
                         <div class="evidence-snippet"><span class="snippet-label">A:</span> ${this._escapeHtml(b.snippet_a)}</div>
                         <div class="evidence-snippet"><span class="snippet-label">B:</span> ${this._escapeHtml(b.snippet_b || '')}</div>
                     </div>` : ''}
-                    <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i}, '${this._escapeHtml((b.snippet_a || '').substring(0, 30))}')">查看原文對照 ↓</button>
+                    <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i})">查看原文對照 ↓</button>
                 </div>`).join('')}
             </div>`;
         }
@@ -1430,7 +1430,7 @@ const AssignmentUI = {
                             <span>${strengthDot5(b.strength)} <strong>#${b.rank || (i+1)}</strong> ${this._escapeHtml(b.description || '')}</span>
                             <div class="evidence-list-actions">
                                 <button class="btn-copy-evidence" onclick="AssignmentApp._copyEvidence(${i})" title="複製摘要">複製</button>
-                                <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i}, '${this._escapeHtml((b.snippet_a || '').substring(0, 30))}')">定位 ↓</button>
+                                <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i})">定位 ↓</button>
                             </div>
                         </div>
                         ${b.snippet_a ? `<div class="evidence-snippets-full">
@@ -2917,22 +2917,30 @@ const AssignmentApp = {
     },
 
     /** 點擊證據 → 滾動到全文對照區的對應位置 */
-    _scrollToEvidence(idx, snippet) {
+    _scrollToEvidence(idx) {
         const compareSection = document.getElementById('syncCompare');
         if (!compareSection) return;
         compareSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-        // 嘗試在文本中高亮對應 snippet
+        // 從存儲的配對數據中取 snippet
+        let snippet = '';
+        if (this._lastPairDetail) {
+            const dims = AssignmentUI._extractDimensions(this._lastPairDetail.matched_fragments);
+            const blocks = (dims && dims.evidenceBlocks) || [];
+            if (blocks[idx] && blocks[idx].snippet_a) {
+                snippet = blocks[idx].snippet_a.substring(0, 40);
+            }
+        }
+
+        // 嘗試在文本中定位對應 snippet
         if (snippet && snippet.length > 4) {
             setTimeout(() => {
                 const textEls = [document.getElementById('compareTextA'), document.getElementById('compareTextB')];
                 textEls.forEach(el => {
                     if (!el) return;
-                    // 搜尋文本位置
                     const text = el.textContent || '';
                     const pos = text.indexOf(snippet);
                     if (pos >= 0) {
-                        // 估算滾動位置（按字符比例）
                         const ratio = pos / Math.max(text.length, 1);
                         el.scrollTop = ratio * el.scrollHeight;
                     }
