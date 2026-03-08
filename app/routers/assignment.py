@@ -570,6 +570,96 @@ async def preview_file(
 
 
 # ================================================================
+# 作業 AI 問答（學生用，已批改作業）
+# ================================================================
+
+@router.post("/api/assignments/{assignment_id}/ai-chat-stream")
+async def assignment_ai_chat_stream(
+    assignment_id: int,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    學生作業 AI 問答 — SSE 流式回答。
+    首次對話自動構建作業上下文，後續對話驗證 conversation 歸屬。
+    """
+    body = await request.json()
+    question = (body.get("question") or "").strip()
+    subject = body.get("subject", "")
+    conversation_id = body.get("conversation_id")
+
+    if not question:
+        return error_response("VALIDATION_ERROR", "問題不能為空", status_code=400)
+
+    services = get_services()
+    username = current_user["username"]
+    user = services.user.get_user(username)
+    if not user:
+        return error_response("NOT_FOUND", "用戶不存在", status_code=404)
+    user_id = user["id"]
+
+    try:
+        if conversation_id:
+            # 後續對話：驗證 conversation 屬於該學生 + 該作業
+            if not services.assignment.validate_ai_conversation(
+                conversation_id, assignment_id, username
+            ):
+                return error_response(
+                    "FORBIDDEN", "此對話不屬於當前作業", status_code=403
+                )
+            augmented_question = question
+        else:
+            # 首次對話：構建作業上下文
+            context = services.assignment.build_assignment_context(
+                assignment_id, user_id
+            )
+            augmented_question = context + "\n" + question
+
+        async def event_generator():
+            import json as _json
+            async for raw_event in services.chat.chat_stream(
+                username=username,
+                question=augmented_question,
+                conversation_id=conversation_id,
+                subject=subject,
+                assignment_id=assignment_id,
+            ):
+                # ChatService 回傳 "event: <type>\ndata: <json>\n\n" 格式
+                # 前端期望 SLC 風格：   "data: {type: ..., ...}\n\n"
+                # 在此轉譯為前端可直接解析的格式
+                event_type = None
+                data_str = None
+                for part in raw_event.strip().split("\n"):
+                    if part.startswith("event: "):
+                        event_type = part[7:].strip()
+                    elif part.startswith("data: "):
+                        data_str = part[6:]
+                if event_type and data_str:
+                    try:
+                        payload = _json.loads(data_str)
+                    except _json.JSONDecodeError:
+                        payload = {}
+                    payload["type"] = event_type
+                    yield f"data: {_json.dumps(payload, ensure_ascii=False)}\n\n"
+                elif data_str:
+                    yield f"data: {data_str}\n\n"
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    except Exception as e:
+        logger.error("作業 AI 問答失敗: %s", e)
+        return error_response(str(e), status_code=400)
+
+
+# ================================================================
 # 學生端點
 # ================================================================
 

@@ -652,7 +652,7 @@ const AssignmentUI = {
                         <label>${item.title}</label>
                         <span class="check-toggle ${passed ? 'passed' : 'failed'}" data-id="${item.id}"
                             onclick="AssignmentApp._toggleCheck(this)">
-                            ${passed ? '✅ 通過' : '❌ 不通過'}
+                            ${passed ? '● 通過' : '✗ 不通過'}
                         </span>
                     </div>
                     <div class="ai-reason" id="aiReason_${item.id}">${reason}</div>
@@ -1758,6 +1758,11 @@ const AssignmentApp = {
         pendingAttachments: [],    // new File objects to upload
         existingAttachments: [],   // already uploaded (from server)
         deletedAttachmentIds: [],  // IDs to delete on save
+        // AI 問答助教
+        asgAiSubject: null,
+        asgAiConversationId: null,
+        asgAiWindowVisible: false,
+        asgAiSending: false,
     },
 
     async init() {
@@ -2197,7 +2202,7 @@ const AssignmentApp = {
         const isPassed = el.classList.contains('passed');
         el.classList.toggle('passed', !isPassed);
         el.classList.toggle('failed', isPassed);
-        el.innerHTML = !isPassed ? '✅ 通過' : '❌ 不通過';
+        el.innerHTML = !isPassed ? '● 通過' : '✗ 不通過';
         this.updateGradeTotal();
     },
 
@@ -2347,7 +2352,7 @@ const AssignmentApp = {
                         const passed = item.passed || (item.points > 0);
                         toggle.classList.toggle('passed', passed);
                         toggle.classList.toggle('failed', !passed);
-                        toggle.innerHTML = passed ? '✅ 通過' : '❌ 不通過';
+                        toggle.innerHTML = passed ? '● 通過' : '✗ 不通過';
                     }
                 } else if (rubricType === 'competency') {
                     const btn = document.querySelector(`.level-btn[data-id="${item.rubric_item_id}"][data-level="${item.selected_level}"]`);
@@ -4184,8 +4189,11 @@ const AssignmentApp = {
                     html += '<div style="margin-top:12px;">';
                     rubricItems.forEach(item => {
                         const passed = (scoreMap[item.id] || 0) > 0;
+                        const icon = passed
+                            ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4" fill="var(--color-success)" opacity="0.12"/><polyline points="9 12 11.5 14.5 16 9.5"/></svg>'
+                            : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-error)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4" fill="var(--color-error)" opacity="0.12"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>';
                         html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border-light);">
-                            <span>${passed ? '✅' : '❌'}</span>
+                            ${icon}
                             <span style="flex:1;font-size:14px;">${item.title}</span>
                         </div>`;
                     });
@@ -4220,6 +4228,20 @@ const AssignmentApp = {
                     </div>`;
                 }
                 html += '</div>';
+
+                // AI 問答助教入口（只在已批改時顯示）
+                html += `<div class="form-section fade-in asg-ai-entry">
+                    <div class="asg-ai-entry__header">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 3-2 5.5-4 7l-3 3-3-3c-2-1.5-4-4-4-7a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2"/><path d="M8 21h8"/></svg>
+                        <h3 style="margin:0;">AI 問答助教</h3>
+                    </div>
+                    <p style="color:var(--text-secondary);font-size:14px;margin:8px 0 16px;">
+                        對這份作業有疑問？AI 助教可以幫你分析得分、解釋知識點
+                    </p>
+                    <button class="btn btn-primary" onclick="AssignmentApp.openAsgAiChat()">
+                        開始提問
+                    </button>
+                </div>`;
             }
         }
 
@@ -4463,6 +4485,493 @@ const AssignmentApp = {
         } catch (e) {
             el.innerHTML = `<div class="file-preview-error"><p>預覽載入失敗: ${AssignmentUI._escapeHtml(e.message || '未知錯誤')}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
         }
+    },
+
+    // ================================================================
+    // AI 問答助教（學生已批改作業）
+    // ================================================================
+
+    openAsgAiChat() {
+        // 如果窗口已存在，直接顯示
+        if (document.getElementById('asgAiWindow')) {
+            document.getElementById('asgAiWindow').classList.add('--visible');
+            this.state.asgAiWindowVisible = true;
+            return;
+        }
+        this._renderAsgAiWindow();
+        this.state.asgAiWindowVisible = true;
+
+        // 如果已選過科目，直接進入聊天模式
+        if (this.state.asgAiSubject) {
+            this._asgAiShowChat();
+        } else {
+            this._asgAiShowSubjectPicker();
+        }
+    },
+
+    _renderAsgAiWindow() {
+        const win = document.createElement('div');
+        win.id = 'asgAiWindow';
+        win.className = 'asg-ai-window --visible';
+        win.innerHTML = `
+            <div class="asg-ai-window__header" id="asgAiHeader">
+                <span class="asg-ai-window__title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 3-2 5.5-4 7l-3 3-3-3c-2-1.5-4-4-4-7a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2"/></svg>
+                    AI 問答助教
+                </span>
+                <div class="asg-ai-window__actions">
+                    <button class="asg-ai-window__action-btn" id="asgAiExpandBtn" title="放大">&#9634;</button>
+                    <button class="asg-ai-window__action-btn" id="asgAiCloseBtn" title="關閉">&#10005;</button>
+                </div>
+            </div>
+            <div class="asg-ai-window__body" id="asgAiBody"></div>
+            <div class="asg-ai-window__input-area" id="asgAiInputArea" style="display:none;">
+                <textarea class="asg-ai-window__textarea" id="asgAiInput" placeholder="輸入你的問題..." rows="1"></textarea>
+                <button class="asg-ai-window__send-btn" id="asgAiSendBtn">&#10148;</button>
+            </div>
+        `;
+        document.body.appendChild(win);
+
+        // 事件綁定
+        document.getElementById('asgAiExpandBtn').addEventListener('click', () => this._asgAiToggleExpand());
+        document.getElementById('asgAiCloseBtn').addEventListener('click', () => this._asgAiClose());
+        document.getElementById('asgAiSendBtn').addEventListener('click', () => this._asgAiSend());
+        document.getElementById('asgAiInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this._asgAiSend();
+            }
+        });
+
+        // 拖拽
+        this._asgAiSetupDrag();
+    },
+
+    _asgAiSetupDrag() {
+        const win = document.getElementById('asgAiWindow');
+        const header = document.getElementById('asgAiHeader');
+        if (!win || !header) return;
+
+        let dragState = null;
+        let lastX = 0, lastY = 0, rafPending = false;
+
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button')) return;
+            e.preventDefault();
+            const rect = win.getBoundingClientRect();
+            win.style.left = rect.left + 'px';
+            win.style.top = rect.top + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
+            dragState = { offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+            win.style.transition = 'none';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState) return;
+            lastX = e.clientX; lastY = e.clientY;
+            if (rafPending) return;
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                if (dragState) {
+                    win.style.left = Math.max(0, Math.min(lastX - dragState.offsetX, window.innerWidth - win.offsetWidth)) + 'px';
+                    win.style.top = Math.max(0, Math.min(lastY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
+                }
+            });
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragState) return;
+            dragState = null;
+            win.style.transition = '';
+            document.body.style.userSelect = '';
+        });
+    },
+
+    _asgAiToggleExpand() {
+        const win = document.getElementById('asgAiWindow');
+        if (!win) return;
+        const expanded = win.classList.toggle('--expanded');
+        const btn = document.getElementById('asgAiExpandBtn');
+        if (btn) {
+            btn.innerHTML = expanded ? '&#9635;' : '&#9634;';
+            btn.title = expanded ? '縮小' : '放大';
+        }
+    },
+
+    _asgAiClose() {
+        const win = document.getElementById('asgAiWindow');
+        if (win) win.classList.remove('--visible');
+        this.state.asgAiWindowVisible = false;
+
+        // 顯示 FAB 按鈕
+        let fab = document.getElementById('asgAiFab');
+        if (!fab) {
+            fab = document.createElement('button');
+            fab.id = 'asgAiFab';
+            fab.className = 'asg-ai-fab';
+            fab.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 3-2 5.5-4 7l-3 3-3-3c-2-1.5-4-4-4-7a7 7 0 0 1 7-7z"/><circle cx="12" cy="9" r="2"/></svg>';
+            fab.onclick = () => this.openAsgAiChat();
+            document.body.appendChild(fab);
+        }
+        fab.style.display = 'flex';
+    },
+
+    async _asgAiShowSubjectPicker() {
+        const body = document.getElementById('asgAiBody');
+        if (!body) return;
+        const inputArea = document.getElementById('asgAiInputArea');
+        if (inputArea) inputArea.style.display = 'none';
+
+        body.innerHTML = '<div class="asg-ai-loading"><div class="loading-spinner"></div> 載入科目...</div>';
+
+        try {
+            const resp = await fetch('/api/subjects', {
+                headers: AssignmentAPI._authHeaders()
+            });
+            const data = await resp.json();
+            const subjects = data.subjects || data.data?.subjects || {};
+
+            let cards = '';
+            for (const [code, info] of Object.entries(subjects)) {
+                const name = info.name || code;
+                const icon = info.icon || '📚';
+                cards += `<button class="asg-ai-subject-card" onclick="AssignmentApp._asgAiSelectSubject('${code}')">
+                    <span class="asg-ai-subject-icon">${icon}</span>
+                    <span class="asg-ai-subject-name">${AssignmentUI._escapeHtml(name)}</span>
+                </button>`;
+            }
+
+            if (!cards) {
+                cards = '<p style="color:var(--text-tertiary);text-align:center;">暫無可用科目</p>';
+            }
+
+            body.innerHTML = `
+                <div class="asg-ai-subject-picker">
+                    <p class="asg-ai-subject-prompt">請選擇這份作業所屬的科目：</p>
+                    <div class="asg-ai-subject-grid">${cards}</div>
+                </div>
+            `;
+        } catch (e) {
+            body.innerHTML = '<div class="asg-ai-loading" style="color:var(--color-error);">載入科目失敗</div>';
+        }
+    },
+
+    _asgAiSelectSubject(code) {
+        this.state.asgAiSubject = code;
+        this._asgAiShowChat();
+    },
+
+    _asgAiShowChat() {
+        const body = document.getElementById('asgAiBody');
+        const inputArea = document.getElementById('asgAiInputArea');
+        if (!body) return;
+
+        body.innerHTML = '<div class="asg-ai-messages" id="asgAiMessages"></div>';
+        if (inputArea) inputArea.style.display = 'flex';
+
+        // 隱藏 FAB
+        const fab = document.getElementById('asgAiFab');
+        if (fab) fab.style.display = 'none';
+
+        // 歡迎消息
+        this._asgAiRenderMsg('assistant', '你好！我已了解你的作業情況。有什麼想問的嗎？你可以問我關於分數、評語或相關知識點的問題。');
+
+        // 建議問題
+        const msgs = document.getElementById('asgAiMessages');
+        if (msgs) {
+            const suggestions = document.createElement('div');
+            suggestions.className = 'asg-ai-suggestions';
+            suggestions.innerHTML = `
+                <button class="asg-ai-suggested-btn" onclick="AssignmentApp._asgAiAskSuggestion('我哪裡失分最多？為什麼？')">我哪裡失分最多？</button>
+                <button class="asg-ai-suggested-btn" onclick="AssignmentApp._asgAiAskSuggestion('請幫我分析這份作業的優點和不足')">分析優缺點</button>
+                <button class="asg-ai-suggested-btn" onclick="AssignmentApp._asgAiAskSuggestion('相關知識點我應該怎麼理解？')">解釋知識點</button>
+            `;
+            msgs.appendChild(suggestions);
+        }
+
+        // 聚焦輸入框
+        setTimeout(() => document.getElementById('asgAiInput')?.focus(), 200);
+    },
+
+    _asgAiAskSuggestion(question) {
+        const input = document.getElementById('asgAiInput');
+        if (input) input.value = question;
+        // 移除建議按鈕
+        const suggestions = document.querySelector('.asg-ai-suggestions');
+        if (suggestions) suggestions.remove();
+        this._asgAiSend();
+    },
+
+    _asgAiRenderMsg(role, content) {
+        const msgs = document.getElementById('asgAiMessages');
+        if (!msgs) return null;
+
+        const isUser = role === 'user';
+        const msgEl = document.createElement('div');
+        msgEl.className = isUser ? 'asg-ai-msg --user' : 'asg-ai-msg --assistant';
+
+        const avatarEl = document.createElement('div');
+        avatarEl.className = 'asg-ai-msg__avatar';
+        avatarEl.textContent = isUser ? '🧑' : '🤖';
+
+        const bubbleEl = document.createElement('div');
+        bubbleEl.className = 'asg-ai-msg__bubble';
+
+        if (!isUser) {
+            bubbleEl.innerHTML = this._asgAiMarkdownWithMath(content);
+        } else {
+            bubbleEl.innerHTML = `<p>${AssignmentUI._escapeHtml(content).replace(/\n/g, '<br>')}</p>`;
+        }
+
+        msgEl.appendChild(avatarEl);
+        msgEl.appendChild(bubbleEl);
+        msgs.appendChild(msgEl);
+        msgs.scrollTop = msgs.scrollHeight;
+
+        return bubbleEl;
+    },
+
+    async _asgAiSend() {
+        if (this.state.asgAiSending) return;
+        const input = document.getElementById('asgAiInput');
+        const question = input?.value?.trim();
+        if (!question) return;
+
+        // 移除建議按鈕
+        const suggestions = document.querySelector('.asg-ai-suggestions');
+        if (suggestions) suggestions.remove();
+
+        this.state.asgAiSending = true;
+        input.value = '';
+        input.focus();
+
+        // 渲染用戶消息
+        this._asgAiRenderMsg('user', question);
+
+        // 創建 AI 消息氣泡（帶打字動畫）
+        const msgs = document.getElementById('asgAiMessages');
+        const aiMsgEl = document.createElement('div');
+        aiMsgEl.className = 'asg-ai-msg --assistant';
+        const avatarEl = document.createElement('div');
+        avatarEl.className = 'asg-ai-msg__avatar';
+        avatarEl.textContent = '🤖';
+        const bubbleEl = document.createElement('div');
+        bubbleEl.className = 'asg-ai-msg__bubble';
+        bubbleEl.innerHTML = '<div class="asg-ai-typing"><span></span><span></span><span></span></div>';
+        aiMsgEl.appendChild(avatarEl);
+        aiMsgEl.appendChild(bubbleEl);
+        msgs.appendChild(aiMsgEl);
+        msgs.scrollTop = msgs.scrollHeight;
+
+        const assignmentId = this.state.currentAssignment;
+        const requestBody = {
+            question,
+            subject: this.state.asgAiSubject || '',
+            conversation_id: this.state.asgAiConversationId || null,
+        };
+
+        try {
+            const response = await fetch(`/api/assignments/${assignmentId}/ai-chat-stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...AssignmentAPI._authHeaders(),
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error?.message || errData.message || '請求失敗');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullAnswer = '';
+            let sseBuffer = '';
+
+            // 移除打字動畫，開始流式顯示
+            bubbleEl.innerHTML = '<span class="asg-ai-streaming-text"></span><span class="asg-ai-streaming-cursor">▍</span>';
+            const streamText = bubbleEl.querySelector('.asg-ai-streaming-text');
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                sseBuffer += decoder.decode(value, { stream: true });
+                const lines = sseBuffer.split('\n');
+                sseBuffer = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const dataStr = line.slice(6).trim();
+                    if (!dataStr) continue;
+
+                    try {
+                        const event = JSON.parse(dataStr);
+                        if (event.type === 'meta') {
+                            // 保存 conversation_id
+                            if (event.conversation_id) {
+                                this.state.asgAiConversationId = event.conversation_id;
+                            }
+                        } else if (event.type === 'token' || event.type === 'answer') {
+                            fullAnswer += event.content || '';
+                            streamText.textContent = fullAnswer;
+                            msgs.scrollTop = msgs.scrollHeight;
+                        } else if (event.type === 'done') {
+                            if (event.conversation_id) {
+                                this.state.asgAiConversationId = event.conversation_id;
+                            }
+                        }
+                    } catch (_) { /* skip parse errors */ }
+                }
+            }
+
+            // 流式完成：Markdown 渲染
+            const cursor = bubbleEl.querySelector('.asg-ai-streaming-cursor');
+            if (cursor) cursor.remove();
+
+            if (fullAnswer) {
+                bubbleEl.innerHTML = this._asgAiMarkdownWithMath(fullAnswer);
+            } else {
+                bubbleEl.innerHTML = '<p>暫無回答</p>';
+            }
+
+        } catch (error) {
+            bubbleEl.innerHTML = `<p style="color:var(--color-error);">發送失敗：${AssignmentUI._escapeHtml(error.message || '未知錯誤')}</p>`;
+            console.error('AI 問答失敗:', error);
+        }
+
+        this.state.asgAiSending = false;
+        msgs.scrollTop = msgs.scrollHeight;
+    },
+
+    /**
+     * Markdown + 數學公式一體化渲染
+     * 先保護 LaTeX 表達式，再跑 marked + DOMPurify，最後用 KaTeX 渲染數學
+     */
+    _asgAiMarkdownWithMath(text) {
+        if (!text) return '<p>暫無回答</p>';
+
+        // 1) 提取數學表達式，用佔位符保護，避免 marked 破壞 LaTeX
+        const mathStore = [];
+        const placeholder = (latex, display) => {
+            const idx = mathStore.length;
+            mathStore.push({ latex, display });
+            return `%%MATH_${idx}%%`;
+        };
+
+        let safe = text;
+        // \begin{env}...\end{env}
+        safe = safe.replace(/\\begin\{([^}]+)\}([\s\S]*?)\\end\{\1\}/g, m => placeholder(m, true));
+        // $$...$$
+        safe = safe.replace(/\$\$([\s\S]*?)\$\$/g, (_, l) => placeholder(l, true));
+        // \[...\]
+        safe = safe.replace(/\\\[([\s\S]*?)\\\]/g, (_, l) => placeholder(l, true));
+        // \(...\)
+        safe = safe.replace(/\\\(([\s\S]*?)\\\)/g, (_, l) => placeholder(l, false));
+        // $...$ (inline, no newlines, no nested $)
+        safe = safe.replace(/\$([^$\n]+?)\$/g, (_, l) => placeholder(l, false));
+
+        // 2) Markdown → HTML → sanitize
+        let html;
+        if (typeof marked !== 'undefined') {
+            html = DOMPurify ? DOMPurify.sanitize(marked.parse(safe)) : marked.parse(safe);
+        } else {
+            html = `<p>${AssignmentUI._escapeHtml(safe).replace(/\n/g, '<br>')}</p>`;
+        }
+
+        // 3) 把佔位符替換成 KaTeX 渲染結果
+        if (typeof katex !== 'undefined') {
+            html = html.replace(/%%MATH_(\d+)%%/g, (_, idx) => {
+                const m = mathStore[parseInt(idx)];
+                try {
+                    return katex.renderToString(m.latex.trim(), {
+                        throwOnError: false,
+                        displayMode: m.display,
+                        trust: true,
+                    });
+                } catch (_e) {
+                    return AssignmentUI._escapeHtml(m.latex);
+                }
+            });
+        }
+        return html;
+    },
+
+    /**
+     * 渲染 KaTeX 數學公式（DOM 後處理版，備用）
+     * 支持 $$...$$ (display) 和 $...$ (inline)、\begin{}\end{} 環境
+     */
+    _asgAiRenderMath(el) {
+        if (!el || typeof katex === 'undefined') return;
+
+        const renderK = (latex, displayMode) => {
+            try {
+                return katex.renderToString(latex.trim(), {
+                    throwOnError: false,
+                    displayMode,
+                    trust: true,
+                });
+            } catch (_) {
+                return null;
+            }
+        };
+
+        // 對 el 內所有文字節點做替換
+        const walk = (node) => {
+            if (node.nodeType === 3) {          // Text node
+                let text = node.textContent;
+                if (!text || (!text.includes('$') && !text.includes('\\begin'))) return;
+
+                // 按順序替換：\begin{env}...\end{env}  →  $$...$$  →  $...$
+                let changed = false;
+                const parts = [];
+                let rest = text;
+
+                // 1) \begin{env}...\end{env}
+                rest = rest.replace(/\\begin\{([^}]+)\}([\s\S]*?)\\end\{\1\}/g, (m) => {
+                    const r = renderK(m, true);
+                    if (r) { changed = true; return '\x00D' + parts.push(r) + '\x00'; }
+                    return m;
+                });
+                // 2) $$...$$
+                rest = rest.replace(/\$\$([\s\S]*?)\$\$/g, (_, latex) => {
+                    const r = renderK(latex, true);
+                    if (r) { changed = true; return '\x00D' + parts.push(r) + '\x00'; }
+                    return _;
+                });
+                // 3) $...$  (inline, single line, no nested $)
+                rest = rest.replace(/\$([^$\n]+?)\$/g, (_, latex) => {
+                    const r = renderK(latex, false);
+                    if (r) { changed = true; return '\x00I' + parts.push(r) + '\x00'; }
+                    return _;
+                });
+
+                if (!changed) return;
+
+                // 用佔位符拆分後構建 fragment
+                const frag = document.createDocumentFragment();
+                const segs = rest.split(/\x00[DI](\d+)\x00/);
+                for (let i = 0; i < segs.length; i++) {
+                    if (i % 2 === 0) {
+                        if (segs[i]) frag.appendChild(document.createTextNode(segs[i]));
+                    } else {
+                        const span = document.createElement('span');
+                        span.innerHTML = parts[parseInt(segs[i]) - 1];
+                        frag.appendChild(span);
+                    }
+                }
+                node.parentNode.replaceChild(frag, node);
+            } else if (node.nodeType === 1 && !/^(SCRIPT|STYLE|CODE|PRE|TEXTAREA)$/i.test(node.tagName)) {
+                // 遍歷子元素 (snapshot，因為會改動 DOM)
+                Array.from(node.childNodes).forEach(walk);
+            }
+        };
+        walk(el);
     },
 
     _showImageLightbox(url) {

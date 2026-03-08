@@ -123,6 +123,7 @@ class ChatService:
         title: str = "",
         subject: str = "",
         conversation_id: str = None,
+        assignment_id: int = None,
     ) -> Dict[str, Any]:
         """
         创建新对话
@@ -132,6 +133,7 @@ class ChatService:
             title: 对话标题（空则自动生成）
             subject: 学科代码
             conversation_id: 可选自定义 ID
+            assignment_id: 可选作业 ID（作业 AI 问答时绑定）
 
         Returns:
             dict: 新对话信息
@@ -148,6 +150,7 @@ class ChatService:
             conversation_id=conversation_id,
             title=title,
             subject=subject,
+            assignment_id=assignment_id,
         )
 
         return {
@@ -306,6 +309,7 @@ class ChatService:
         model: str = None,
         use_api: bool = False,
         enable_thinking: bool = True,
+        assignment_id: int = None,
     ) -> AsyncGenerator[str, None]:
         """
         流式 AI 对话 - 返回 SSE 事件流
@@ -324,7 +328,9 @@ class ChatService:
 
         # 1) 自动创建对话
         if not conversation_id:
-            conv = self.create_conversation(username, subject=subject)
+            conv = self.create_conversation(
+                username, subject=subject, assignment_id=assignment_id
+            )
             conversation_id = conv["conversation_id"]
         else:
             # 对话已存在，仅更新 updated_at（不覆盖用户设定的标题）

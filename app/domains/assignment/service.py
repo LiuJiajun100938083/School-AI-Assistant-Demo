@@ -73,6 +73,7 @@ class AssignmentService:
         score_repo: RubricScoreRepository,
         user_repo: UserRepository,
         attachment_repo: Optional["AssignmentAttachmentRepository"] = None,
+        conversation_repo=None,
         settings=None,
     ):
         self._assignment_repo = assignment_repo
@@ -82,6 +83,7 @@ class AssignmentService:
         self._score_repo = score_repo
         self._user_repo = user_repo
         self._attachment_repo = attachment_repo
+        self._conversation_repo = conversation_repo
         self._settings = settings
         self._ask_ai_func: Optional[Callable] = None
 
@@ -1604,6 +1606,135 @@ class AssignmentService:
                     p = exe_path.replace(".exe", ext)
                     if os.path.exists(p):
                         os.unlink(p)
+
+    # ================================================================
+    # 作業 AI 問答
+    # ================================================================
+
+    def build_assignment_context(self, assignment_id: int, user_id: int) -> str:
+        """
+        構建作業 AI 問答的上下文字符串。
+        驗證學生擁有此提交且已批改，然後組裝作業信息、提交內容、批改結果。
+
+        Returns:
+            str: 結構化上下文字符串（含系統指令）
+        """
+        assignment = self._get_assignment_or_raise(assignment_id)
+        self._deserialize_json_fields(assignment)
+
+        # 查詢學生的提交
+        submission = self._submission_repo.find_one(
+            where="assignment_id = %s AND student_id = %s",
+            params=(assignment_id, user_id),
+        )
+        if not submission:
+            raise ValidationError("你尚未提交此作業")
+        if submission.get("status") != "graded":
+            raise ValidationError("此作業尚未批改完成")
+
+        # 評分標準
+        rubric_items = self._rubric_repo.find_by_assignment(assignment_id)
+        for item in rubric_items:
+            self._deserialize_json_fields(item)
+
+        # 逐項得分
+        rubric_scores = self._score_repo.find_by_submission(submission["id"])
+        score_map = {}
+        level_map = {}
+        for s in rubric_scores:
+            score_map[s.get("rubric_item_id")] = s.get("points")
+            if s.get("selected_level"):
+                level_map[s.get("rubric_item_id")] = s["selected_level"]
+
+        # 提交文件名
+        files = self._file_repo.find_by_submission(submission["id"])
+        file_names = ", ".join(f.get("original_name", "") for f in files) if files else "（無文件）"
+
+        # 評分方式顯示名
+        rubric_type = assignment.get("rubric_type", "points")
+        type_display = {
+            "points": "計分制",
+            "analytic_levels": "分級量規",
+            "weighted_pct": "權重百分比制",
+            "checklist": "通過/不通過清單",
+            "competency": "能力等級制",
+            "dse_criterion": "DSE 標準量規",
+            "holistic": "整體評分",
+        }.get(rubric_type, rubric_type)
+
+        # 組裝評分項信息
+        rubric_lines = []
+        for item in rubric_items:
+            max_pts = item.get("max_points", 0)
+            rubric_lines.append(f"  - {item.get('title', '')}（滿分 {max_pts}）")
+        rubric_str = "\n".join(rubric_lines) if rubric_lines else "  （無評分項）"
+
+        # 組裝各項得分
+        score_lines = []
+        for item in rubric_items:
+            item_id = item.get("id")
+            pts = score_map.get(item_id, "—")
+            max_pts = item.get("max_points", 0)
+            level = level_map.get(item_id, "")
+            level_str = f" ({level})" if level else ""
+            score_lines.append(f"  - {item.get('title', '')}：{pts}/{max_pts}{level_str}")
+        scores_str = "\n".join(score_lines) if score_lines else "  （無逐項得分）"
+
+        feedback = submission.get("feedback") or "（教師未留下評語）"
+        total_score = submission.get("score", "—")
+        max_score = assignment.get("max_score", "—")
+
+        context = f"""【你的身份】
+你是一位耐心的 AI 學習助教。學生正在查看一份已批改的作業，想要了解自己的表現和相關知識。
+
+【重要規則】
+1. 只能依據下方【批改結果】中已有的資訊來回答關於得分的問題
+2. 如果教師沒有針對某項給出具體扣分原因，你必須明確告知學生「現有批改資料中未說明具體扣分原因，建議向老師確認」
+3. 你可以根據作業要求和學生提交內容，給出「可能的改進方向」，但必須標明這是你的建議而非教師的評價
+4. 絕對不能把推測說成事實
+5. 回答要基於知識庫中的學科知識，幫助學生理解相關概念
+
+【作業信息】
+標題：{assignment.get('title', '')}
+要求：{assignment.get('description', '（無描述）')}
+評分方式：{type_display}
+評分項：
+{rubric_str}
+
+【學生提交】
+提交內容：{submission.get('content', '（無備註）')}
+提交文件：{file_names}
+
+【批改結果】
+總分：{total_score} / {max_score}
+各項得分：
+{scores_str}
+教師評語：{feedback}
+
+【學生提問】"""
+        return context
+
+    def validate_ai_conversation(
+        self, conversation_id: str, assignment_id: int, username: str
+    ) -> bool:
+        """
+        驗證 conversation 屬於該學生且對應同一份作業。
+        防止學生手動修改 conversation_id 來跨作業串話。
+        """
+        if not self._conversation_repo:
+            logger.error("validate_ai_conversation: conversation_repo 未注入")
+            return False
+
+        conv = self._conversation_repo.find_one(
+            "conversation_id = %s AND (is_deleted = 0 OR is_deleted IS NULL)",
+            (conversation_id,),
+        )
+        if not conv:
+            return False
+        return (
+            conv.get("username") == username
+            and conv.get("assignment_id") == assignment_id
+        )
 
     # ================================================================
     # 輔助方法

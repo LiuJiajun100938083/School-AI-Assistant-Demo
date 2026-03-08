@@ -110,6 +110,7 @@ class ConversationRepository(BaseRepository):
         conversation_id: str,
         title: str,
         subject: str,
+        assignment_id: int = None,
     ) -> int:
         """创建新对话"""
         now = datetime.now()
@@ -124,16 +125,20 @@ class ConversationRepository(BaseRepository):
             logger.error("创建对话失败: 用户 %s 不存在于 users 表", username)
             raise ValueError(f"用户 {username} 不存在")
 
+        data = {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "username": username,
+            "title": title,
+            "subject": subject,
+            "created_at": now,
+            "updated_at": now,
+        }
+        if assignment_id is not None:
+            data["assignment_id"] = assignment_id
+
         return self.upsert(
-            {
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-                "username": username,
-                "title": title,
-                "subject": subject,
-                "created_at": now,
-                "updated_at": now,
-            },
+            data,
             update_fields=["subject", "updated_at"],
         )
 

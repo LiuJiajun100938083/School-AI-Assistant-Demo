@@ -360,6 +360,7 @@ class ServiceContainer:
                 score_repo=self._get_repo(RubricScoreRepository),
                 user_repo=self._get_repo(UserRepository),
                 attachment_repo=self._get_repo(AssignmentAttachmentRepository),
+                conversation_repo=self._get_repo(ConversationRepository),
                 settings=self._settings,
             )
         return self._assignment
