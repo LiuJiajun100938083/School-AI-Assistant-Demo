@@ -511,6 +511,96 @@ class LoginAttemptTracker:
             # 注意：不再清除 _ip_attempts 和 _blocked_ips
             # 因为一个用户登录成功不应该重置整个 IP 的失败计数
 
+    def get_all_blocked(self) -> Dict[str, list]:
+        """
+        获取所有当前被封锁的条目（管理员查看用）
+
+        同时清理已过期的条目，保持内存干净。
+
+        Returns:
+            {
+                "blocked_users":    [{"username", "blocked_until", "remaining_seconds"}],
+                "blocked_ips":      [{"ip", "blocked_until", "remaining_seconds"}],
+                "blocked_ip_users": [{"key", "ip", "username", "blocked_until", "remaining_seconds"}]
+            }
+        """
+        now = datetime.now(timezone.utc).timestamp()
+        result: Dict[str, list] = {
+            "blocked_users": [],
+            "blocked_ips": [],
+            "blocked_ip_users": [],
+        }
+
+        with self._lock:
+            # --- blocked_users ---
+            expired = [k for k, until in self._blocked_users.items() if until <= now]
+            for k in expired:
+                del self._blocked_users[k]
+                self._user_attempts.pop(k, None)
+            for username, until in self._blocked_users.items():
+                result["blocked_users"].append({
+                    "username": username,
+                    "blocked_until": until,
+                    "remaining_seconds": int(until - now),
+                })
+
+            # --- blocked_ips ---
+            expired = [k for k, until in self._blocked_ips.items() if until <= now]
+            for k in expired:
+                del self._blocked_ips[k]
+                self._ip_attempts.pop(k, None)
+            for ip, until in self._blocked_ips.items():
+                result["blocked_ips"].append({
+                    "ip": ip,
+                    "blocked_until": until,
+                    "remaining_seconds": int(until - now),
+                })
+
+            # --- blocked_ip_users ---
+            expired = [k for k, until in self._blocked_ip_users.items() if until <= now]
+            for k in expired:
+                del self._blocked_ip_users[k]
+                self._ip_user_attempts.pop(k, None)
+            for key, until in self._blocked_ip_users.items():
+                parts = key.rsplit(":", 1)
+                result["blocked_ip_users"].append({
+                    "key": key,
+                    "ip": parts[0] if len(parts) == 2 else key,
+                    "username": parts[1] if len(parts) == 2 else "",
+                    "blocked_until": until,
+                    "remaining_seconds": int(until - now),
+                })
+
+        return result
+
+    def unblock(self, block_type: str, key: str) -> bool:
+        """
+        手动解除封锁（管理员操作）
+
+        同时清除对应的失败计数器，防止解锁后一次失败就立刻被重新封锁。
+
+        Args:
+            block_type: "user" / "ip" / "ip_user"
+            key: 用户名、IP 地址、或 "ip:username" 组合键
+
+        Returns:
+            True 表示成功移除，False 表示未找到（可能已过期）
+        """
+        with self._lock:
+            if block_type == "user":
+                removed = self._blocked_users.pop(key, None) is not None
+                self._user_attempts.pop(key, None)
+                return removed
+            elif block_type == "ip":
+                removed = self._blocked_ips.pop(key, None) is not None
+                self._ip_attempts.pop(key, None)
+                return removed
+            elif block_type == "ip_user":
+                removed = self._blocked_ip_users.pop(key, None) is not None
+                self._ip_user_attempts.pop(key, None)
+                return removed
+        return False
+
 
 # ============================================================
 # 安全审计

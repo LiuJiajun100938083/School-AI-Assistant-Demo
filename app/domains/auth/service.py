@@ -514,3 +514,15 @@ class AuthService:
             return True
 
         return False
+
+    # ------------------------------------------------------------------ #
+    #                   封锁管理（管理员用）                                  #
+    # ------------------------------------------------------------------ #
+
+    def get_blocked_entries(self) -> dict:
+        """获取所有被临时封锁的条目（管理员查看）"""
+        return self._login_tracker.get_all_blocked()
+
+    def admin_unblock(self, block_type: str, key: str) -> bool:
+        """管理员手动解除临时封锁"""
+        return self._login_tracker.unblock(block_type, key)

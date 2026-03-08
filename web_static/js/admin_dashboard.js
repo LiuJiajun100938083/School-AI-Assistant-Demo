@@ -141,6 +141,28 @@ const AdminAPI = {
         return resp.json();
     },
 
+    /* ---------- 封禁管理 ---------- */
+    async fetchBlockedAccounts() {
+        const resp = await fetch('/api/admin/blocked-accounts', {
+            headers: AuthModule.getAuthHeaders()
+        });
+        if (!resp.ok) throw new Error('載入封鎖列表失敗');
+        return resp.json();
+    },
+
+    async unblockAccount(blockType, key) {
+        const resp = await fetch('/api/admin/unblock', {
+            method: 'POST',
+            headers: { ...AuthModule.getAuthHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ block_type: blockType, key: key })
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.message || '解除封鎖失敗');
+        }
+        return resp.json();
+    },
+
     /* ---------- 用戶 ---------- */
     async fetchUsers() {
         const resp = await fetch('/api/admin/users', {
@@ -584,6 +606,100 @@ const AdminUI = {
         });
     },
 
+    /* ---------- 封禁列表渲染 ---------- */
+    renderBlockedAccounts(data) {
+        const container = document.getElementById('blockedAccountsContainer');
+        if (!container) return;
+
+        const blocked = data.data || data;
+        const allEntries = [];
+
+        (blocked.blocked_users || []).forEach(entry => {
+            allEntries.push({
+                type: 'user', typeLabel: '用戶', key: entry.username,
+                display: entry.username, remaining: entry.remaining_seconds,
+                blockedUntil: entry.blocked_until,
+            });
+        });
+        (blocked.blocked_ips || []).forEach(entry => {
+            allEntries.push({
+                type: 'ip', typeLabel: 'IP', key: entry.ip,
+                display: entry.ip, remaining: entry.remaining_seconds,
+                blockedUntil: entry.blocked_until,
+            });
+        });
+        (blocked.blocked_ip_users || []).forEach(entry => {
+            allEntries.push({
+                type: 'ip_user', typeLabel: 'IP+用戶', key: entry.key,
+                display: `${entry.ip} + ${entry.username}`, remaining: entry.remaining_seconds,
+                blockedUntil: entry.blocked_until,
+            });
+        });
+
+        if (allEntries.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:3rem;color:var(--text-secondary);background:white;border-radius:10px;">
+                    <div style="font-size:3rem;margin-bottom:1rem;">🟢</div>
+                    <p style="font-size:1.05rem;margin-bottom:0.5rem;">目前沒有活躍的臨時封鎖</p>
+                    <p style="font-size:0.9rem;">此處僅顯示因登錄失敗觸發的臨時限制，已過期的封鎖不會顯示。</p>
+                </div>`;
+            return;
+        }
+
+        const badgeColors = {
+            'user': 'var(--color-warning, #f0ad4e)',
+            'ip': 'var(--color-error, #d9534f)',
+            'ip_user': 'var(--color-info, #5bc0de)',
+        };
+
+        const rows = allEntries.map(entry => {
+            const minutes = Math.floor(entry.remaining / 60);
+            const seconds = entry.remaining % 60;
+            const timeStr = minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
+            const expiryDate = new Date(entry.blockedUntil * 1000).toLocaleString('zh-TW');
+
+            return `<tr>
+                <td style="padding:12px;">
+                    <span style="background:${badgeColors[entry.type]};color:white;padding:2px 10px;border-radius:12px;font-size:0.85em;white-space:nowrap;">${entry.typeLabel}</span>
+                </td>
+                <td style="padding:12px;font-family:monospace;word-break:break-all;">${entry.display}</td>
+                <td style="padding:12px;white-space:nowrap;">${timeStr}</td>
+                <td style="padding:12px;font-size:0.9em;color:var(--text-secondary);white-space:nowrap;">${expiryDate}</td>
+                <td style="padding:12px;">
+                    <button data-action="unblock" data-type="${entry.type}" data-key="${entry.key}" data-label="${entry.typeLabel}" data-display="${entry.display}"
+                        style="padding:4px 14px;background:var(--color-success, #5cb85c);color:white;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">
+                        解鎖
+                    </button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="overflow-x:auto;">
+            <table style="width:100%;background:white;border-radius:10px;border-collapse:collapse;">
+                <thead style="background:var(--light, #f8f9fa);">
+                    <tr>
+                        <th style="padding:12px;text-align:left;">類型</th>
+                        <th style="padding:12px;text-align:left;">封鎖對象</th>
+                        <th style="padding:12px;text-align:left;">剩餘時間</th>
+                        <th style="padding:12px;text-align:left;">到期時間</th>
+                        <th style="padding:12px;text-align:left;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+            </div>
+            <p style="margin-top:12px;font-size:0.85em;color:var(--text-secondary);">
+                共 ${allEntries.length} 條活躍封鎖
+            </p>`;
+
+        container.querySelectorAll('[data-action="unblock"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                AdminApp.unblockAccount(btn.dataset.type, btn.dataset.key, btn.dataset.label, btn.dataset.display);
+            });
+        });
+    },
+
     /* ---------- 學生列表渲染 ---------- */
     renderStudentList(students) {
         const studentList = document.getElementById('studentList');
@@ -1010,7 +1126,9 @@ const AdminApp = {
         currentBatchTab: 'excel',
         selectedExcelFile: null,
         // 應用管理
-        appsConfig: []
+        appsConfig: [],
+        // 封禁管理
+        blockedRefreshTimer: null
     },
 
     /* ---------- 初始化 ---------- */
@@ -1111,6 +1229,11 @@ const AdminApp = {
         });
         document.querySelectorAll('[data-action="loadStudentsSummary"]').forEach(btn => {
             btn.addEventListener('click', () => this.loadStudentsSummary());
+        });
+
+        // Blocked accounts
+        document.querySelectorAll('[data-action="refreshBlocked"]').forEach(btn => {
+            btn.addEventListener('click', () => this.loadBlockedAccounts());
         });
 
         // Filters
@@ -1259,7 +1382,7 @@ const AdminApp = {
                 btn.style.display = 'none';
             });
             // 同時隱藏對應的 tab-pane
-            ['users', 'settings', 'notice', 'appmgr', 'classdiary'].forEach(tab => {
+            ['users', 'settings', 'notice', 'appmgr', 'classdiary', 'blocked'].forEach(tab => {
                 const pane = document.getElementById(tab + '-tab');
                 if (pane) pane.style.display = 'none';
             });
@@ -1268,6 +1391,12 @@ const AdminApp = {
 
     /* ---------- 切換標籤頁 ---------- */
     switchTab(tabName, ev) {
+        // 離開封禁管理 tab 時停止自動刷新
+        if (this.state.blockedRefreshTimer) {
+            clearInterval(this.state.blockedRefreshTimer);
+            this.state.blockedRefreshTimer = null;
+        }
+
         document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
         if (ev && ev.currentTarget) {
             ev.currentTarget.classList.add('active');
@@ -1299,12 +1428,53 @@ const AdminApp = {
             this.loadAppsConfig();
         } else if (tabName === 'classdiary') {
             this.loadClassDiaryTab();
+        } else if (tabName === 'blocked') {
+            this.loadBlockedAccounts();
         }
     },
 
     /* ---------- 返回主系統 ---------- */
     backToMain() {
         window.location.href = '/';
+    },
+
+    /* ---------- 封禁管理 ---------- */
+    async loadBlockedAccounts() {
+        try {
+            const data = await AdminAPI.fetchBlockedAccounts();
+            AdminUI.renderBlockedAccounts(data);
+
+            // 啟動 10 秒自動刷新（先清除舊的，避免重複）
+            if (this.state.blockedRefreshTimer) {
+                clearInterval(this.state.blockedRefreshTimer);
+            }
+            this.state.blockedRefreshTimer = setInterval(async () => {
+                try {
+                    const refreshData = await AdminAPI.fetchBlockedAccounts();
+                    AdminUI.renderBlockedAccounts(refreshData);
+                } catch (e) {
+                    console.error('自動刷新封鎖列表失敗:', e);
+                }
+            }, 10000);
+        } catch (error) {
+            console.error('載入封鎖列表失敗:', error);
+            const container = document.getElementById('blockedAccountsContainer');
+            if (container) {
+                container.innerHTML = `<p style="color:var(--color-error);">載入封鎖列表失敗: ${error.message}</p>`;
+            }
+        }
+    },
+
+    async unblockAccount(blockType, key, typeLabel, display) {
+        const msg = `確定要解除封鎖嗎？\n\n類型：${typeLabel || blockType}\n對象：${display || key}\n\n注意：如果該對象同時存在多條封鎖，解除此條不代表完全恢復登錄。`;
+        if (!confirm(msg)) return;
+        try {
+            await AdminAPI.unblockAccount(blockType, key);
+            alert('已解除該條封鎖');
+            this.loadBlockedAccounts();
+        } catch (error) {
+            alert('解除封鎖失敗: ' + error.message);
+        }
     },
 
     /* ---------- 載入學科 ---------- */

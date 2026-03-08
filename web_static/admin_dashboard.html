@@ -81,6 +81,9 @@
                 <button class="tab-button admin-only" data-action="switchTab" data-tab="classdiary">
                     <span>📋 課室日誌</span>
                 </button>
+                <button class="tab-button admin-only" data-action="switchTab" data-tab="blocked">
+                    <span>🔒 封禁管理</span>
+                </button>
             </div>
 
             <div class="tab-content">
@@ -520,6 +523,21 @@
                     </div>
                     <p style="color:var(--text-secondary);margin-bottom:20px;">管理首頁顯示的應用卡片。可切換啟用/停用狀態、調整排序和角色可見性。</p>
                     <div id="appmgrList" style="display:flex;flex-direction:column;gap:12px;"></div>
+                </div>
+
+                <!-- 封禁管理標籤 -->
+                <div class="tab-pane" id="blocked-tab">
+                    <div class="d-flex justify-between align-center mb-3">
+                        <h3>🔒 封禁管理</h3>
+                        <button class="btn btn-primary" data-action="refreshBlocked" style="border-radius:8px;padding:8px 16px;">
+                            🔄 刷新
+                        </button>
+                    </div>
+                    <p style="color:var(--text-secondary);margin-bottom:1.5rem;">
+                        查看因登錄失敗次數過多而被<strong>臨時封鎖</strong>的帳戶和 IP 地址。封鎖會自動到期，也可手動解除。
+                        <span style="font-size:0.9em;">（每 10 秒自動刷新）</span>
+                    </p>
+                    <div id="blockedAccountsContainer"></div>
                 </div>
             </div>
         </div>

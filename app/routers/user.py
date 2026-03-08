@@ -386,6 +386,58 @@ async def delete_user(username: str, request: Request):
 
 
 # ====================================================================== #
+#  管理员 - 封禁管理                                                       #
+# ====================================================================== #
+
+@router.get("/api/admin/blocked-accounts")
+async def get_blocked_accounts(request: Request):
+    """获取所有临时封锁的账户/IP（管理员）"""
+    try:
+        _verify_admin(request)
+        blocked = get_services().auth.get_blocked_entries()
+        return success_response(blocked)
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("获取封锁列表失败: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.post("/api/admin/unblock")
+async def unblock_account(request: Request):
+    """手动解除临时封锁（管理员）"""
+    try:
+        admin_user, _ = _verify_admin(request)
+        body = await request.json()
+        block_type = body.get("block_type", "")
+        key = body.get("key", "")
+
+        if block_type not in ("user", "ip", "ip_user") or not key:
+            return error_response("VALIDATION_ERROR", "无效的参数", status_code=400)
+
+        removed = get_services().auth.admin_unblock(block_type, key)
+
+        # 获取管理员来源 IP
+        client_ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() \
+            or request.client.host if request.client else "unknown"
+
+        if removed:
+            logger.info(
+                "管理员 %s 解除封锁: type=%s, key=%s, ip=%s",
+                admin_user, block_type, key, client_ip,
+            )
+            return success_response(None, "已解除该条封锁")
+        else:
+            return error_response("NOT_FOUND", "该封锁已过期或不存在", status_code=404)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("解除封锁失败: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
 #  辅助函数                                                               #
 # ====================================================================== #
 
