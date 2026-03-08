@@ -11,6 +11,50 @@
 
 ---
 
+## [v3.0.45] [2026-03-09] 學生端作業 AI 問答助教
+
+### 新增
+
+- **作業 AI 問答入口** — 學生查看已批改作業時，頁面底部顯示「🤖 AI 問答助教」卡片，點擊「開始提問」進入 AI 問答（僅 `status === 'graded'` 時顯示）
+- **科目選擇器** — 浮動窗口首次打開時展示科目 Grid 卡片（icon + name），從 `GET /api/subjects` 獲取，選擇後進入聊天模式
+- **浮動聊天窗口** — 380×520px 固定定位，綠色標題欄，可拖拽（mousedown/move/up）、可放大（680×75vh）、可關閉（FAB 圓形按鈕重開），入場 translateY(16px) scale(0.96) 動畫
+- **SSE 流式問答** — `POST /api/assignments/{id}/ai-chat-stream`，打字動畫（3 個跳動圓點）→ 流式文字 + 閃爍游標 ▍ → 完成後 Markdown + KaTeX 渲染
+- **Markdown + KaTeX 數學公式渲染** — `_asgAiMarkdownWithMath()` 先用佔位符保護 LaTeX（`$...$`、`$$...$$`、`\(...\)`、`\[...\]`、`\begin{}\end{}`），再跑 marked + DOMPurify，最後用 KaTeX 渲染數學公式
+- **作業上下文構建** — `AssignmentService.build_assignment_context()` 讀取作業信息、評分項、學生提交、各項得分、教師評語，組裝結構化上下文字符串
+- **Conversation 綁定 assignment_id** — `conversations` 表新增 `assignment_id INT NULL` 欄位 + 索引，首次對話寫入，後續對話驗證歸屬（`validate_ai_conversation()`），防止跨作業串話
+- **建議問題** — 歡迎消息下方 3 個快捷按鈕：「我哪裡失分最多？」「分析優缺點」「解釋知識點」
+- **DB 遷移腳本** — `database_migration/add_assignment_id_to_conversations.sql`
+
+### 修改
+
+- **成績區 Emoji 替換** — 通過清單的 ✅❌ 替換為 SVG 圖標（綠色圓角打勾 / 紅色圓角叉號），涵蓋學生視圖、教師批改面板、toggle 切換
+- **Router SSE 格式轉譯** — ChatService 輸出 `event: type\ndata: {...}` 格式，Router 層轉譯為前端可直接解析的 `data: {"type": ..., ...}` 格式（與 SLC 一致）
+- **ChatService 透傳 assignment_id** — `create_conversation()` 和 `chat_stream()` 增加可選 `assignment_id` 參數
+- **ServiceContainer 注入 ConversationRepository** — `AssignmentService` 新增 `conversation_repo` 依賴，用於 `validate_ai_conversation()`
+
+### AI 安全規則
+
+- AI 只能依據批改結果中已有的資訊回答關於得分的問題
+- 教師未說明的扣分原因，必須告知「現有批改資料中未說明具體扣分原因，建議向老師確認」
+- 可以給「可能的改進方向」，但必須標明是建議而非教師評價
+- 絕對不能把推測說成事實
+
+### 涉及文件 (9 個)
+
+| 文件 | 變更 |
+|------|------|
+| `database_migration/add_assignment_id_to_conversations.sql` | 新增：ALTER TABLE + 索引 |
+| `app/domains/chat/repository.py` | 修改：`create_conversation()` 支持 assignment_id |
+| `app/domains/chat/service.py` | 修改：`create_conversation()` + `chat_stream()` 透傳 assignment_id |
+| `app/domains/assignment/service.py` | +131 行：`build_assignment_context()` + `validate_ai_conversation()` |
+| `app/routers/assignment.py` | +90 行：SSE 端點 + 格式轉譯 |
+| `app/services/container.py` | 修改：注入 ConversationRepository |
+| `web_static/assignment.html` | +6 行：marked + DOMPurify + KaTeX 腳本 |
+| `web_static/css/assignment.css` | +416 行：浮動窗口 + 消息氣泡 + 科目選擇 + KaTeX 樣式 |
+| `web_static/js/assignment.js` | +517 行：AI 問答全部前端邏輯 |
+
+---
+
 ## [v3.0.44] [2026-03-08] 算法原理彈窗 + 提交文件全類型內嵌預覽
 
 ### 新增
