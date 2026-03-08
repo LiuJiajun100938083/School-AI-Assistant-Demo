@@ -2916,7 +2916,7 @@ const AssignmentApp = {
         });
     },
 
-    /** 點擊證據 → 滾動到全文對照區的對應位置 */
+    /** 點擊證據 → 滾動到全文對照區的對應位置 + 高亮閃爍 */
     _scrollToEvidence(idx) {
         const compareSection = document.getElementById('syncCompare');
         if (!compareSection) return;
@@ -2932,7 +2932,7 @@ const AssignmentApp = {
             }
         }
 
-        // 嘗試在文本中定位對應 snippet
+        // 嘗試在文本中定位對應 snippet 並高亮閃爍
         if (snippet && snippet.length > 4) {
             setTimeout(() => {
                 const textEls = [document.getElementById('compareTextA'), document.getElementById('compareTextB')];
@@ -2941,11 +2941,33 @@ const AssignmentApp = {
                     const text = el.textContent || '';
                     const pos = text.indexOf(snippet);
                     if (pos >= 0) {
+                        // 滾動到對應位置
                         const ratio = pos / Math.max(text.length, 1);
                         el.scrollTop = ratio * el.scrollHeight;
+
+                        // 在對應位置找到最近的 <span> 高亮元素並閃爍
+                        const spans = el.querySelectorAll('span[class^="hl-"]');
+                        let bestSpan = null, bestDist = Infinity;
+                        for (const sp of spans) {
+                            if (sp.textContent.includes(snippet.substring(0, 8))) {
+                                bestSpan = sp;
+                                break;
+                            }
+                            // 嘗試按文本位置找最近的
+                            const spText = sp.textContent.substring(0, 10);
+                            const spPos = text.indexOf(spText);
+                            if (spPos >= 0 && Math.abs(spPos - pos) < bestDist) {
+                                bestDist = Math.abs(spPos - pos);
+                                bestSpan = sp;
+                            }
+                        }
+                        if (bestSpan) {
+                            bestSpan.classList.add('hl-flash');
+                            setTimeout(() => bestSpan.classList.remove('hl-flash'), 2000);
+                        }
                     }
                 });
-            }, 400);
+            }, 500);
         }
     },
 

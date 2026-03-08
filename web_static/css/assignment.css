@@ -2956,6 +2956,14 @@ body {
     .hl-similar { background: rgba(96, 165, 250, 0.25); }
     .hl-unique { background: rgba(248, 113, 113, 0.25); }
 }
+/* 定位閃爍效果 */
+.hl-flash {
+    animation: evidence-flash 0.4s ease-in-out 3;
+}
+@keyframes evidence-flash {
+    0%, 100% { outline: none; }
+    50% { outline: 2.5px solid #9b2c2c; outline-offset: 1px; background: #fed7d7; }
+}
 
 /* ---- Compare Legend ---- */
 .compare-legend {
