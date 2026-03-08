@@ -33,6 +33,7 @@ from app.domains.assignment.constants import (
     DOCUMENT_EXTENSIONS,
     EXTENSION_TYPE_MAP,
     MAX_FILE_SIZE,
+    PREVIEWABLE_OFFICE_EXTENSIONS,
     TEXT_READABLE_EXTENSIONS,
 )
 from app.domains.assignment.exceptions import (
@@ -1128,6 +1129,331 @@ class AssignmentService:
         self._attachment_repo.soft_delete_attachment(attachment_id)
         logger.info("刪除附件 #%d (作業 #%d)", attachment_id, attachment["assignment_id"])
         return True
+
+    # ================================================================
+    # 文件預覽（Office → HTML）
+    # ================================================================
+
+    _preview_cache: Dict[str, Dict[str, Any]] = {}  # class-level 簡易緩存
+
+    def preview_file(self, file_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        將 docx/xlsx/pptx 轉為 HTML 預覽。
+        帶緩存：file_id + file_size 不變即命中。
+        """
+        import html as html_mod
+
+        file_rec = self._file_repo.find_by_id(file_id)
+        if not file_rec:
+            raise NotFoundError("文件不存在")
+
+        # ---- 權限校驗 ----
+        submission = self._submission_repo.find_by_id(file_rec["submission_id"])
+        if not submission:
+            raise NotFoundError("提交不存在")
+        assignment = self._assignment_repo.find_by_id(submission["assignment_id"])
+        if not assignment:
+            raise NotFoundError("作業不存在")
+        # 老師（作業創建者）或學生本人可預覽
+        is_owner = submission.get("student_id") == user_id
+        is_teacher = assignment.get("created_by") == user_id
+        if not is_owner and not is_teacher:
+            from app.core.exceptions import AuthorizationError
+            raise AuthorizationError("無權預覽此文件")
+
+        # ---- 類型白名單 ----
+        original_name = file_rec.get("original_name", "")
+        ext = Path(original_name).suffix.lower()
+        if ext not in PREVIEWABLE_OFFICE_EXTENSIONS:
+            raise ValidationError(f"不支持預覽此文件類型: {ext}")
+
+        # ---- 緩存 ----
+        cache_key = f"preview:{file_id}:{file_rec.get('file_size', 0)}"
+        if cache_key in self._preview_cache:
+            return self._preview_cache[cache_key]
+
+        # ---- 讀取文件 ----
+        stored_name = file_rec.get("stored_name", "")
+        file_path = UPLOAD_DIR / stored_name
+        if not file_path.exists():
+            raise NotFoundError("文件不存在於磁盤")
+
+        # ---- 轉換 ----
+        try:
+            if ext == ".docx":
+                result = self._preview_docx(file_path, file_id, html_mod)
+            elif ext == ".xlsx":
+                result = self._preview_xlsx(file_path, html_mod)
+            elif ext == ".pptx":
+                result = self._preview_pptx(file_path, file_id, html_mod)
+            else:
+                raise ValidationError(f"不支持預覽: {ext}")
+        except (ValidationError, NotFoundError):
+            raise
+        except Exception as e:
+            logger.error("預覽文件 #%d 失敗: %s", file_id, e)
+            raise ValidationError(f"文件預覽失敗: {str(e)[:200]}")
+
+        result["success"] = True
+        result["file_type"] = ext.lstrip(".")
+
+        # 寫入緩存（最多保留 200 條）
+        if len(self._preview_cache) > 200:
+            # 簡單 FIFO：刪除最早的 50 條
+            keys = list(self._preview_cache.keys())[:50]
+            for k in keys:
+                del self._preview_cache[k]
+        self._preview_cache[cache_key] = result
+        return result
+
+    # ---- docx → HTML ----
+    def _preview_docx(self, file_path: Path, file_id: int, html_mod) -> Dict[str, Any]:
+        from docx import Document
+        from docx.oxml.ns import qn
+
+        doc = Document(str(file_path))
+        parts = []
+        preview_dir = UPLOAD_DIR / "previews"
+        preview_dir.mkdir(exist_ok=True)
+        img_count = 0
+
+        for element in doc.element.body:
+            tag = element.tag.split("}")[-1] if "}" in element.tag else element.tag
+
+            if tag == "p":
+                # 段落
+                para_html = self._docx_para_to_html(element, doc, file_id, preview_dir, html_mod)
+                if para_html:
+                    parts.append(para_html)
+                    # 統計圖片
+                    img_count += para_html.count("<img ")
+
+            elif tag == "tbl":
+                # 表格
+                tbl_html = self._docx_table_to_html(element, html_mod)
+                parts.append(tbl_html)
+
+        return {
+            "html": f'<div class="doc-preview">{"".join(parts)}</div>',
+            "truncated": False,
+            "meta": {"paragraphs": len(parts), "images": img_count},
+        }
+
+    def _docx_para_to_html(self, para_el, doc, file_id, preview_dir, html_mod) -> str:
+        from docx.oxml.ns import qn
+
+        runs_html = []
+        for run_el in para_el.iter(qn("w:r")):
+            # 檢查是否有圖片
+            drawings = run_el.findall(f".//{qn('a:blip')}")
+            for blip in drawings:
+                r_id = blip.get(qn("r:embed"))
+                if r_id:
+                    img_url = self._extract_docx_image(doc, r_id, file_id, preview_dir)
+                    if img_url:
+                        runs_html.append(f'<img src="{html_mod.escape(img_url)}" style="max-width:100%;height:auto;">')
+
+            # 文字
+            for t_el in run_el.findall(qn("w:t")):
+                text = t_el.text or ""
+                if not text:
+                    continue
+                # 檢查粗體/斜體
+                rPr = run_el.find(qn("w:rPr"))
+                bold = rPr is not None and rPr.find(qn("w:b")) is not None
+                italic = rPr is not None and rPr.find(qn("w:i")) is not None
+                escaped = html_mod.escape(text)
+                if bold:
+                    escaped = f"<strong>{escaped}</strong>"
+                if italic:
+                    escaped = f"<em>{escaped}</em>"
+                runs_html.append(escaped)
+
+        if not runs_html:
+            return ""
+
+        # 檢查對齊
+        pPr = para_el.find(qn("w:pPr"))
+        align = ""
+        if pPr is not None:
+            jc = pPr.find(qn("w:jc"))
+            if jc is not None:
+                val = jc.get(qn("w:val"), "")
+                if val in ("center", "right", "both"):
+                    align_map = {"center": "center", "right": "right", "both": "justify"}
+                    align = f' style="text-align:{align_map.get(val, "left")}"'
+
+        # 檢查是否標題
+        style_el = pPr.find(qn("w:pStyle")) if pPr is not None else None
+        style_val = style_el.get(qn("w:val"), "") if style_el is not None else ""
+        heading_map = {"Heading1": "h1", "Heading2": "h2", "Heading3": "h3",
+                       "Heading4": "h4", "1": "h1", "2": "h2", "3": "h3", "4": "h4"}
+        tag = heading_map.get(style_val, "p")
+
+        return f'<{tag}{align}>{"".join(runs_html)}</{tag}>'
+
+    def _extract_docx_image(self, doc, r_id, file_id, preview_dir) -> str:
+        """從 docx 提取圖片到 previews/ 目錄，返回 URL"""
+        try:
+            part = doc.part.related_parts.get(r_id)
+            if not part:
+                return ""
+            img_data = part.blob
+            # 判斷格式
+            ct = part.content_type or ""
+            ext_map = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif",
+                       "image/bmp": ".bmp", "image/svg+xml": ".svg", "image/webp": ".webp"}
+            img_ext = ext_map.get(ct, ".png")
+            img_name = f"docx_{file_id}_{r_id}{img_ext}"
+            img_path = preview_dir / img_name
+            if not img_path.exists():
+                with open(img_path, "wb") as f:
+                    f.write(img_data)
+            return f"/uploads/assignments/previews/{img_name}"
+        except Exception as e:
+            logger.warning("提取 docx 圖片失敗: %s", e)
+            return ""
+
+    def _docx_table_to_html(self, tbl_el, html_mod) -> str:
+        from docx.oxml.ns import qn
+        rows_html = []
+        for tr in tbl_el.findall(qn("w:tr")):
+            cells = []
+            for tc in tr.findall(qn("w:tc")):
+                cell_text = ""
+                for p in tc.findall(qn("w:p")):
+                    for t in p.iter(qn("w:t")):
+                        cell_text += t.text or ""
+                cells.append(f"<td>{html_mod.escape(cell_text)}</td>")
+            rows_html.append(f"<tr>{''.join(cells)}</tr>")
+        return f'<table class="doc-table">{"".join(rows_html)}</table>'
+
+    # ---- xlsx → HTML ----
+    def _preview_xlsx(self, file_path: Path, html_mod) -> Dict[str, Any]:
+        from openpyxl import load_workbook
+
+        wb = load_workbook(str(file_path), read_only=True, data_only=True)
+        sheets_html = []
+        truncated = False
+        total_rows = 0
+        total_cols = 0
+        max_rows = 200
+        max_cols = 50
+
+        for sheet_name in wb.sheetnames[:10]:  # 最多 10 個 sheet
+            ws = wb[sheet_name]
+            rows_html = []
+            row_count = 0
+            col_count = 0
+
+            for row in ws.iter_rows(max_row=max_rows + 1, max_col=max_cols + 1, values_only=False):
+                row_count += 1
+                if row_count > max_rows:
+                    truncated = True
+                    break
+                cells = []
+                col_idx = 0
+                for cell in row:
+                    col_idx += 1
+                    if col_idx > max_cols:
+                        truncated = True
+                        break
+                    val = cell.value
+                    text = html_mod.escape(str(val)) if val is not None else ""
+                    tag = "th" if row_count == 1 else "td"
+                    cells.append(f"<{tag}>{text}</{tag}>")
+                col_count = max(col_count, col_idx)
+                rows_html.append(f"<tr>{''.join(cells)}</tr>")
+
+            total_rows = max(total_rows, row_count)
+            total_cols = max(total_cols, col_count)
+            sheet_title = html_mod.escape(sheet_name)
+            sheets_html.append(
+                f'<div class="sheet-section">'
+                f'<h4 class="sheet-title">{sheet_title}</h4>'
+                f'<div class="sheet-table-wrapper"><table class="doc-table">{"".join(rows_html)}</table></div>'
+                f'</div>'
+            )
+
+        wb.close()
+
+        return {
+            "html": f'<div class="doc-preview xlsx-preview">{"".join(sheets_html)}</div>',
+            "truncated": truncated,
+            "meta": {
+                "sheets": len(sheets_html),
+                "rendered_rows": min(total_rows, max_rows),
+                "rendered_cols": min(total_cols, max_cols),
+            },
+        }
+
+    # ---- pptx → HTML ----
+    def _preview_pptx(self, file_path: Path, file_id: int, html_mod) -> Dict[str, Any]:
+        from pptx import Presentation
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        prs = Presentation(str(file_path))
+        preview_dir = UPLOAD_DIR / "previews"
+        preview_dir.mkdir(exist_ok=True)
+        slides_html = []
+        max_slides = 50
+        img_idx = 0
+
+        for i, slide in enumerate(prs.slides):
+            if i >= max_slides:
+                break
+            parts = []
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for para in shape.text_frame.paragraphs:
+                        text = para.text.strip()
+                        if text:
+                            # 標題形狀用 h3，其他用 p
+                            tag = "h3" if shape.shape_id == slide.shapes.title.shape_id else "p" if slide.shapes.title and hasattr(slide.shapes, 'title') else "p"
+                            try:
+                                tag = "h3" if shape == slide.shapes.title else "p"
+                            except Exception:
+                                tag = "p"
+                            parts.append(f"<{tag}>{html_mod.escape(text)}</{tag}>")
+
+                if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                    try:
+                        image = shape.image
+                        img_ext = {"image/png": ".png", "image/jpeg": ".jpg",
+                                   "image/gif": ".gif"}.get(image.content_type, ".png")
+                        img_name = f"pptx_{file_id}_{i}_{img_idx}{img_ext}"
+                        img_path = preview_dir / img_name
+                        if not img_path.exists():
+                            with open(img_path, "wb") as f:
+                                f.write(image.blob)
+                        img_url = f"/uploads/assignments/previews/{img_name}"
+                        parts.append(f'<img src="{html_mod.escape(img_url)}" style="max-width:100%;height:auto;">')
+                        img_idx += 1
+                    except Exception as e:
+                        logger.warning("提取 pptx 圖片失敗: %s", e)
+
+                if shape.has_table:
+                    tbl = shape.table
+                    rows_html = []
+                    for row in tbl.rows:
+                        cells = [f"<td>{html_mod.escape(cell.text)}</td>" for cell in row.cells]
+                        rows_html.append(f"<tr>{''.join(cells)}</tr>")
+                    parts.append(f'<table class="doc-table">{"".join(rows_html)}</table>')
+
+            slide_num = i + 1
+            slide_content = "".join(parts) if parts else f'<p style="color:var(--text-tertiary);">（第 {slide_num} 頁無文字內容）</p>'
+            slides_html.append(
+                f'<div class="slide-card">'
+                f'<div class="slide-num">第 {slide_num} 頁</div>'
+                f'{slide_content}'
+                f'</div>'
+            )
+
+        return {
+            "html": f'<div class="doc-preview pptx-preview">{"".join(slides_html)}</div>',
+            "truncated": len(prs.slides) > max_slides,
+            "meta": {"pages": len(prs.slides), "rendered_pages": min(len(prs.slides), max_slides)},
+        }
 
     # ================================================================
     # Swift 運行

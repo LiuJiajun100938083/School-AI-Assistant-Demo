@@ -11,6 +11,47 @@
 
 ---
 
+## [v3.0.44] [2026-03-08] 算法原理彈窗 + 提交文件全類型內嵌預覽
+
+### 新增
+
+- **算法原理彈窗** — 抄襲檢測報告頁新增「算法原理」按鈕（書本圖標），點擊彈出 Modal 展示 4 個區塊：檢測流程、評分維度（根據 detect_mode 自適應中文作文/英文作文/代碼）、防誤判機制、風險等級說明，幫助教師理解算法運作原理
+- **提交文件內嵌預覽系統** — 教師查看學生提交時，所有文件類型均可直接在頁面內預覽，無需切換視窗或下載：
+  - **圖片**（jpg/png/gif/webp/svg/bmp）：內嵌顯示 + 點擊 Lightbox 放大查看
+  - **PDF**：iframe 內嵌預覽 + 載入失敗兜底（新分頁打開 / 下載）
+  - **視頻**（mp4/mov/avi/mkv/webm）：HTML5 播放器
+  - **代碼**（swift/py/js/ts 等 20+ 種）：語法高亮 + 超過 50KB 或 500 行自動截斷提示
+  - **Office 文檔**（docx/xlsx/pptx）：後端轉換為安全 HTML 內嵌顯示
+- **Office 文檔預覽端點** — `GET /api/assignments/files/{file_id}/preview`，支持 docx（段落+表格+圖片）、xlsx（多 sheet 表格，限 200 行×50 列）、pptx（幻燈片卡片，限 50 頁），帶權限校驗 + 類型白名單
+- **預覽緩存機制** — 內存 dict 緩存（key = file_id:mtime，FIFO 淘汰，上限 200 條），避免重複轉換
+- **IntersectionObserver 懶加載** — 前 2 個文件立即加載，其餘進入可視區（rootMargin 200px）時按需加載
+- **圖片 Lightbox** — 點擊圖片彈出全屏半透明遮罩 + 居中放大，點擊遮罩或 ✕ 關閉
+
+### 修改
+
+- **文件類型映射統一** — `constants.py` 中 `.doc/.docx/.ppt/.pptx/.xls/.xlsx` 統一映射為 `"document"`（原為混用 `"doc"`/`"ppt"`）
+- **前端向後兼容** — `_loadPreview()` 同時檢查 `fileType === 'document' || 'doc' || 'ppt'`，兼容舊數據庫記錄
+- **`renderFiles()` 重構** — 新增 `inlinePreview` 模式，生成可折疊的文件預覽塊結構（header + 懶加載 content），原列表模式保留向後兼容
+- **`previewImage()` 改為 Lightbox** — 圖片預覽從 `window.open()` 改為頁面內 Lightbox 彈窗
+
+### 安全措施
+
+- Office 預覽 HTML 所有文本內容均使用 `html.escape()` 轉義
+- 只允許白名單 HTML 標籤（div/p/span/table/tr/td/th/img/h1-h6/strong/em/br/ul/ol/li）
+- docx/pptx 中的圖片提取為獨立文件（URL 引用），不使用 base64 內嵌
+
+### 涉及文件 (5 個)
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/assignment/constants.py` | 類型映射修正 + 新增 `PREVIEWABLE_OFFICE_EXTENSIONS` 常量 |
+| `app/domains/assignment/service.py` | +326 行：`preview_file()` + docx/xlsx/pptx 轉換 + 緩存 |
+| `app/routers/assignment.py` | +25 行：文件預覽 API 端點 |
+| `web_static/css/assignment.css` | +367 行：算法原理彈窗 + 文件預覽系統全部樣式 |
+| `web_static/js/assignment.js` | +315 行：算法原理彈窗 + 文件預覽系統全部邏輯 |
+
+---
+
 ## [v3.0.43] [2026-03-08] 中文作文抄襲檢測引擎 — 8 項核心優化（Cohort 抑制 + 功能段落 + Sigmoid 證據 + 深層風格指紋）
 
 ### 新增

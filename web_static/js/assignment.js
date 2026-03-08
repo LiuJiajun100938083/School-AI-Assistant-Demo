@@ -221,6 +221,7 @@ const AssignmentUI = {
 
     FILE_ICONS: {
         pdf: '<span style="color:#e74c3c;font-weight:600">PDF</span>',
+        document: '<span style="color:#2980b9;font-weight:600">DOC</span>',
         doc: '<span style="color:#2980b9;font-weight:600">DOC</span>',
         ppt: '<span style="color:#e67e22;font-weight:600">PPT</span>',
         image: '<span style="color:#27ae60;font-weight:600">IMG</span>',
@@ -550,6 +551,30 @@ const AssignmentUI = {
     // ---- File List ----
     renderFiles(files, opts = {}) {
         if (!files || !files.length) return '<p style="color:var(--text-tertiary);font-size:14px;">無文件</p>';
+        // 如果是 inline 預覽模式（老師查看提交詳情），用文件預覽塊
+        if (opts.inlinePreview) {
+            return `<div class="file-preview-list">${files.map((f, idx) => {
+                const icon = this.FILE_ICONS[f.file_type] || this.ICON.clip;
+                const ext = (f.original_name || '').split('.').pop().toLowerCase();
+                const isSwift = ext === 'swift';
+                const isHtml = ext === 'html' || ext === 'htm';
+                return `<div class="file-preview-block" data-file-id="${f.id}" data-file-type="${f.file_type}" data-file-ext="${ext}" data-file-path="/${f.file_path}" data-idx="${idx}">
+                    <div class="file-preview-header">
+                        <span class="file-item-icon">${icon}</span>
+                        <span class="file-preview-name">${this._escapeHtml ? this._escapeHtml(f.original_name) : f.original_name}</span>
+                        <span class="file-preview-size">${this.formatFileSize(f.file_size)}</span>
+                        ${isSwift ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.runSwiftFile('${f.file_path}')">▶ 運行</button>` : ''}
+                        ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${f.file_path}','${AssignmentUI._escapeHtml(f.original_name)}')">▶ 運行預覽</button>` : ''}
+                        <button class="btn btn-sm btn-outline" onclick="this.closest('.file-preview-block').classList.toggle('collapsed')">收起</button>
+                        <a class="btn btn-sm btn-outline" href="/${f.file_path}" download="${AssignmentUI._escapeHtml(f.original_name)}">下載</a>
+                    </div>
+                    <div class="file-preview-content" data-loaded="false">
+                        <div class="file-preview-loading"><div class="loading-spinner"></div> 載入預覽中...</div>
+                    </div>
+                </div>`;
+            }).join('')}</div>`;
+        }
+        // 原始列表模式（其他場景）
         return `<div class="file-list">${files.map(f => {
             const icon = this.FILE_ICONS[f.file_type] || this.ICON.clip;
             const isCode = f.file_type === 'code';
@@ -790,6 +815,10 @@ const AssignmentUI = {
                         返回作業
                     </button>
                     <div class="plag-dashboard-actions">
+                        <button class="btn btn-sm btn-outline" onclick="AssignmentApp.showAlgorithmModal()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                            算法原理
+                        </button>
                         <button class="btn btn-sm btn-outline" onclick="AssignmentApp.exportPlagiarismExcel()" id="plagExportBtn">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                             匯出 Excel
@@ -2118,9 +2147,8 @@ const AssignmentApp = {
                     </div>
                     <div class="form-section">
                         <h3>${AssignmentUI.ICON.folder} 提交文件</h3>
-                        ${AssignmentUI.renderFiles(sub.files)}
+                        ${AssignmentUI.renderFiles(sub.files, { inlinePreview: true })}
                     </div>
-                    <div id="codePreviewArea"></div>
                     <div id="swiftOutputArea"></div>
                     <div id="htmlPreviewArea"></div>
                 </div>
@@ -2134,6 +2162,9 @@ const AssignmentApp = {
                 </div>
             </div>
         `;
+
+        // 觸發文件懶加載預覽
+        this._initPreviewObserver(sub.files);
 
         // Update total
         this.updateGradeTotal();
@@ -2703,6 +2734,144 @@ const AssignmentApp = {
     async startPlagiarismCheck() {
         // 從報告頁「重新檢測」按鈕觸發 → 彈出配置窗口
         this.showPlagiarismConfigModal();
+    },
+
+    // ---- 算法原理 Modal ----
+    showAlgorithmModal() {
+        const old = document.getElementById('algorithmModal');
+        if (old) old.remove();
+
+        const mode = (this._currentPlagReport || {}).detect_mode || 'mixed';
+
+        // ---- 維度說明（按 detect_mode 切換）----
+        const dimSections = {
+            chinese_essay: `
+                <h4 class="algo-section-title">評分維度（中文作文模式）</h4>
+                <table class="algo-dim-table">
+                    <thead><tr><th>維度</th><th>權重</th><th>說明</th></tr></thead>
+                    <tbody>
+                        <tr><td>直接文字重合</td><td>30%</td><td>逐字比對兩篇文章的重疊率，並對班級中罕見的共有短語加權</td></tr>
+                        <tr><td>句子順序相似</td><td>25%</td><td>用最優配對算法比對句子，檢查是否存在連續多句相同的情況</td></tr>
+                        <tr><td>語義內容接近</td><td>15%</td><td>用 AI 理解文章含義，即使換了說法也能發現內容雷同</td></tr>
+                        <tr><td>寫作風格接近</td><td>10%</td><td>從標點習慣、高頻用字、關聯詞、句式等 54 個特徵判斷寫作風格是否異常相似</td></tr>
+                        <tr><td>篇章結構相似</td><td>10%</td><td>比對文章的段落功能布局（開頭、論述、舉例、結尾）和段落長度分布</td></tr>
+                        <tr><td>多維證據一致</td><td>10%</td><td>當多個維度同時命中時額外加權，避免單一維度誤判</td></tr>
+                    </tbody>
+                </table>`,
+            english_essay: `
+                <h4 class="algo-section-title">Scoring Dimensions (English Essay)</h4>
+                <table class="algo-dim-table">
+                    <thead><tr><th>Dimension</th><th>Weight</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td>Lexical Overlap</td><td>18%</td><td>Word-level and character n-gram overlap between submissions</td></tr>
+                        <tr><td>Sentence Alignment</td><td>28%</td><td>Optimal sentence-level matching and alignment coverage</td></tr>
+                        <tr><td>Semantic Similarity</td><td>22%</td><td>AI-powered meaning comparison — detects paraphrasing</td></tr>
+                        <tr><td>Stylometry</td><td>10%</td><td>Writing style fingerprint: punctuation, sentence length, discourse markers</td></tr>
+                        <tr><td>Discourse Structure</td><td>12%</td><td>Compares essay organization: intro, body, conclusion patterns</td></tr>
+                        <tr><td>Evidence Consensus</td><td>10%</td><td>Bonus when multiple dimensions flag the same pair</td></tr>
+                    </tbody>
+                </table>`,
+            code: `
+                <h4 class="algo-section-title">評分維度（代碼模式）</h4>
+                <table class="algo-dim-table">
+                    <thead><tr><th>維度</th><th>說明</th></tr></thead>
+                    <tbody>
+                        <tr><td>程序指紋 (Winnowing)</td><td>將代碼轉為 token 序列，用 MOSS 風格指紋比對結構</td></tr>
+                        <tr><td>代碼骨架</td><td>忽略變量名，只看程序邏輯結構是否相似</td></tr>
+                        <tr><td>逐字複製</td><td>字符級直接比對</td></tr>
+                        <tr><td>變量命名</td><td>自定義變量/函數名是否異常相似</td></tr>
+                        <tr><td>縮排風格</td><td>Tab/空格偏好、縮排寬度、大括號位置等習慣</td></tr>
+                        <tr><td>注釋/字串</td><td>注釋文本與字串常量是否雷同</td></tr>
+                        <tr><td>共享拼錯</td><td>兩份代碼出現相同的拼寫錯誤（強物證）</td></tr>
+                        <tr><td>死代碼</td><td>共同存在的未使用代碼或調試代碼（強物證）</td></tr>
+                        <tr><td>多維證據</td><td>多維度同時命中時的交叉驗證加權</td></tr>
+                    </tbody>
+                </table>`
+        };
+
+        const dimHtml = dimSections[mode] || dimSections.code || `
+            <h4 class="algo-section-title">評分維度</h4>
+            <p class="algo-text">系統從多個維度（文字重合、語義相似、結構對比等）綜合評分，各維度加權合計得到最終相似度。</p>`;
+
+        const modeLabel = ({chinese_essay:'中文作文',english_essay:'English Essay',code:'代碼',text:'文字',mixed:'混合'})[mode] || mode;
+
+        const html = `
+        <div class="modal-overlay active" id="algorithmModal" onclick="if(event.target===this)this.remove()">
+            <div class="algorithm-modal">
+                <div class="algorithm-modal-header">
+                    <h3>算法原理</h3>
+                    <button class="btn btn-sm btn-outline" onclick="document.getElementById('algorithmModal').remove()">✕</button>
+                </div>
+                <div class="algorithm-modal-body">
+
+                    <div class="algo-section">
+                        <h4 class="algo-section-title">檢測流程</h4>
+                        <div class="algo-flow">
+                            <div class="algo-flow-step">
+                                <div class="algo-flow-num">1</div>
+                                <div class="algo-flow-label">文本提取</div>
+                                <div class="algo-flow-desc">從每位學生的提交中提取文本內容</div>
+                            </div>
+                            <div class="algo-flow-arrow">&rarr;</div>
+                            <div class="algo-flow-step">
+                                <div class="algo-flow-num">2</div>
+                                <div class="algo-flow-label">兩兩比對</div>
+                                <div class="algo-flow-desc">每對作品從多個維度計算相似度</div>
+                            </div>
+                            <div class="algo-flow-arrow">&rarr;</div>
+                            <div class="algo-flow-step">
+                                <div class="algo-flow-num">3</div>
+                                <div class="algo-flow-label">AI 複核</div>
+                                <div class="algo-flow-desc">對高相似度的配對進行語義分析</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="algo-section">
+                        <div class="algo-mode-badge">當前模式：${modeLabel}</div>
+                        ${dimHtml}
+                    </div>
+
+                    <div class="algo-section">
+                        <h4 class="algo-section-title">防誤判機制</h4>
+                        <ul class="algo-list">
+                            <li><strong>同批次模板降權</strong>：如果某段文字在全班多份作品中出現（如題目要求、範文片段），系統會自動降低該段的權重</li>
+                            <li><strong>多維度交叉驗證</strong>：只有多個維度同時超過閾值才會判定為高風險，避免單一維度的偶然高分造成誤判</li>
+                            ${mode === 'code' ? '<li><strong>短作業閾值自適應</strong>：代碼量少的作業自然相似度較高，系統會自動提高判定閾值</li>' : ''}
+                            ${mode === 'chinese_essay' || mode === 'english_essay' ? '<li><strong>開頭/結尾降權</strong>：如果全班多篇作文開頭或結尾相似（可能是老師給了範例），系統會降低這部分的影響</li>' : ''}
+                        </ul>
+                    </div>
+
+                    <div class="algo-section">
+                        <h4 class="algo-section-title">風險等級說明</h4>
+                        <table class="algo-dim-table algo-risk-table">
+                            <tbody>
+                                <tr>
+                                    <td><span class="verdict-badge" style="background:#9b2c2c;color:#fff;">高風險</span></td>
+                                    <td>總分 &ge; 60%，或 AI 判定為抄襲且總分 &ge; 40%，或 4 個以上維度同時命中</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="verdict-badge" style="background:#b7791f;color:#fff;">需複核</span></td>
+                                    <td>總分 &ge; 40%，或 2 個以上維度命中，或有 AI 分析結果</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="verdict-badge" style="background:#4a7c59;color:#fff;">低風險</span></td>
+                                    <td>不符合以上條件</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+                <div class="algorithm-modal-footer">
+                    <button class="btn btn-outline" onclick="document.getElementById('algorithmModal').remove()">關閉</button>
+                </div>
+            </div>
+        </div>`;
+
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        document.body.appendChild(div.firstElementChild);
     },
 
     _plagPollTimer: null,
@@ -4166,7 +4335,147 @@ const AssignmentApp = {
     },
 
     previewImage(url) {
-        window.open(url, '_blank');
+        // 向下兼容：非 inline 模式仍打開新窗口
+        this._showImageLightbox(url);
+    },
+
+    // ================================================================
+    // 文件內嵌預覽系統
+    // ================================================================
+
+    _previewObserver: null,
+
+    _initPreviewObserver(files) {
+        const blocks = document.querySelectorAll('.file-preview-content[data-loaded="false"]');
+        if (!blocks.length) return;
+
+        // 前 2 個文件立即加載
+        blocks.forEach((el, i) => {
+            if (i < 2) this._loadPreview(el);
+        });
+
+        // 其餘用 IntersectionObserver 懶加載
+        if (this._previewObserver) this._previewObserver.disconnect();
+        this._previewObserver = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting && e.target.dataset.loaded === 'false') {
+                    this._loadPreview(e.target);
+                    this._previewObserver.unobserve(e.target);
+                }
+            });
+        }, { rootMargin: '200px' });
+
+        blocks.forEach((el, i) => {
+            if (i >= 2) this._previewObserver.observe(el);
+        });
+    },
+
+    async _loadPreview(el) {
+        if (el.dataset.loaded === 'true') return;
+        el.dataset.loaded = 'true';
+
+        const block = el.closest('.file-preview-block');
+        const fileType = block.dataset.fileType;
+        const filePath = block.dataset.filePath;
+        const fileId = block.dataset.fileId;
+        const ext = block.dataset.fileExt;
+        const fileName = block.querySelector('.file-preview-name')?.textContent || '';
+
+        try {
+            if (fileType === 'image') {
+                el.innerHTML = `<img src="${filePath}" class="file-preview-img" alt="${AssignmentUI._escapeHtml(fileName)}" onclick="AssignmentApp._showImageLightbox('${filePath}')" loading="lazy">`;
+            } else if (fileType === 'pdf') {
+                el.innerHTML = `<div class="file-preview-pdf-wrapper">
+                    <iframe src="${filePath}" class="file-preview-pdf" title="PDF Preview"></iframe>
+                    <div class="pdf-fallback">
+                        <p>PDF 預覽載入失敗</p>
+                        <a class="btn btn-sm btn-outline" href="${filePath}" target="_blank">在新分頁中打開</a>
+                        <a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a>
+                    </div>
+                </div>`;
+                // 監聽 iframe 加載錯誤
+                const iframe = el.querySelector('iframe');
+                const fallback = el.querySelector('.pdf-fallback');
+                if (iframe) {
+                    iframe.addEventListener('error', () => { fallback.style.display = 'block'; iframe.style.display = 'none'; });
+                    // 某些瀏覽器 iframe 加載 PDF 不會觸發 error，設超時兜底
+                    setTimeout(() => {
+                        try { if (!iframe.contentDocument && !iframe.contentWindow) { fallback.style.display = 'block'; } } catch(e) { /* cross-origin ok */ }
+                    }, 5000);
+                }
+            } else if (fileType === 'video') {
+                el.innerHTML = `<div class="video-preview-container">
+                    <video controls preload="metadata" class="video-preview-player">
+                        <source src="${filePath}">您的瀏覽器不支持視頻播放。
+                    </video>
+                </div>`;
+            } else if (fileType === 'code') {
+                if (ext === 'html' || ext === 'htm') {
+                    el.innerHTML = `<div class="html-preview-container" id="htmlPrev_${fileId}">
+                        <iframe src="${filePath}" sandbox="allow-scripts allow-forms" class="html-preview-iframe" title="HTML Preview"></iframe>
+                    </div>`;
+                } else {
+                    // 代碼文件：fetch 文本 + 語法高亮
+                    el.innerHTML = '<div class="file-preview-loading"><div class="loading-spinner"></div> 載入代碼中...</div>';
+                    const resp = await fetch(filePath, { headers: AssignmentAPI._authHeaders() });
+                    const text = await resp.text();
+                    const MAX_CODE_SIZE = 50 * 1024; // 50KB
+                    const MAX_CODE_LINES = 500;
+                    let displayText = text;
+                    let truncated = false;
+                    if (text.length > MAX_CODE_SIZE) {
+                        displayText = text.substring(0, MAX_CODE_SIZE);
+                        truncated = true;
+                    }
+                    const lines = displayText.split('\n');
+                    if (lines.length > MAX_CODE_LINES) {
+                        displayText = lines.slice(0, MAX_CODE_LINES).join('\n');
+                        truncated = true;
+                    }
+                    el.innerHTML = `<div class="code-preview">${AssignmentUI._escapeHtml(displayText)}</div>
+                        ${truncated ? `<div class="file-preview-truncated">已截斷預覽（前 ${MAX_CODE_LINES} 行），完整內容請下載查看</div>` : ''}`;
+                }
+            } else if (fileType === 'document' || fileType === 'doc' || fileType === 'ppt') {
+                // Office 文件：docx/xlsx/pptx 調用後端 API
+                const previewableExts = ['docx', 'xlsx', 'pptx'];
+                if (previewableExts.includes(ext)) {
+                    el.innerHTML = '<div class="file-preview-loading"><div class="loading-spinner"></div> 轉換文件中...</div>';
+                    const resp = await fetch(`/api/assignments/files/${fileId}/preview`, {
+                        headers: AssignmentAPI._authHeaders()
+                    });
+                    const json = await resp.json();
+                    if (json.success && json.data && json.data.html) {
+                        const d = json.data;
+                        el.innerHTML = `<div class="file-preview-doc">${d.html}</div>
+                            ${d.truncated ? `<div class="file-preview-truncated">已為預覽效能限制顯示部分內容${d.meta && d.meta.rendered_rows ? `（前 ${d.meta.rendered_rows} 行 × ${d.meta.rendered_cols} 列）` : ''}，完整內容請下載查看</div>` : ''}`;
+                    } else {
+                        const msg = (json.data && json.data.message) || json.message || '預覽失敗';
+                        el.innerHTML = `<div class="file-preview-error"><p>${AssignmentUI._escapeHtml(msg)}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+                    }
+                } else {
+                    // .doc / .ppt 等舊格式
+                    el.innerHTML = `<div class="file-preview-error"><p>此格式暫不支持內嵌預覽（.${ext}）</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+                }
+            } else {
+                // archive 等
+                el.innerHTML = `<div class="file-preview-error"><p>此文件類型不支持預覽</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+            }
+        } catch (e) {
+            el.innerHTML = `<div class="file-preview-error"><p>預覽載入失敗: ${AssignmentUI._escapeHtml(e.message || '未知錯誤')}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+        }
+    },
+
+    _showImageLightbox(url) {
+        const old = document.getElementById('imageLightbox');
+        if (old) old.remove();
+        const div = document.createElement('div');
+        div.innerHTML = `<div class="modal-overlay active image-lightbox" id="imageLightbox" onclick="if(event.target===this)this.remove()">
+            <div class="lightbox-content">
+                <img src="${url}" alt="Preview">
+                <button class="btn btn-sm btn-outline lightbox-close" onclick="document.getElementById('imageLightbox').remove()">✕</button>
+            </div>
+        </div>`;
+        document.body.appendChild(div.firstElementChild);
     },
 
     async runSwiftFile(filePath) {

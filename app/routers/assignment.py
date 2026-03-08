@@ -545,6 +545,31 @@ async def delete_attachment(
 
 
 # ================================================================
+# 文件預覽
+# ================================================================
+
+@router.get("/api/assignments/files/{file_id}/preview")
+async def preview_file(
+    file_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """將 Office 文件轉為 HTML 預覽（docx/xlsx/pptx）"""
+    services = get_services()
+    user = services.user.get_user(current_user["username"])
+    user_id = user["id"] if user else 0
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: services.assignment.preview_file(file_id, user_id),
+        )
+        return success_response(data=result)
+    except Exception as e:
+        return error_response(str(e), status_code=400)
+
+
+# ================================================================
 # 學生端點
 # ================================================================
 

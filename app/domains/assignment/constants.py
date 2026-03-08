@@ -14,12 +14,12 @@ MAX_FILES_PER_SUBMISSION = 5
 EXTENSION_TYPE_MAP = {
     # 文檔
     ".pdf": "pdf",
-    ".doc": "doc",
-    ".docx": "doc",
-    ".ppt": "ppt",
-    ".pptx": "ppt",
-    ".xls": "doc",
-    ".xlsx": "doc",
+    ".doc": "document",
+    ".docx": "document",
+    ".ppt": "document",
+    ".pptx": "document",
+    ".xls": "document",
+    ".xlsx": "document",
     ".txt": "code",
     ".md": "code",
     # 圖片
@@ -74,6 +74,9 @@ TEXT_READABLE_EXTENSIONS = {
 
 # 可通過 FileProcessor 提取文本的擴展名
 DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".pptx", ".doc", ".ppt"}
+
+# 可轉 HTML 預覽的 Office 擴展名（用於 preview_file 白名單）
+PREVIEWABLE_OFFICE_EXTENSIONS = {".docx", ".xlsx", ".pptx"}
 
 # 評分類型
 RUBRIC_TYPES = (
