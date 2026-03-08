@@ -2988,6 +2988,359 @@ body {
     background: #fecaca;
 }
 
+/* ================================================================
+   V2 Dashboard — 「先結論，後證據」教師友好界面
+   ================================================================ */
+
+/* ---- 第 1 塊：結論頭部 ---- */
+.verdict-header {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+}
+/* verdict-high/review/low: 狀態通過 badge 表達，不用左側色條 */
+.verdict-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-3);
+}
+.verdict-title {
+    font-size: var(--type-h1);
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+}
+.verdict-vs {
+    color: var(--text-tertiary);
+    font-weight: 400;
+    margin: 0 4px;
+}
+.verdict-badge-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+.verdict-badge {
+    display: inline-block;
+    color: #fff;
+    font-size: var(--type-meta);
+    font-weight: 600;
+    padding: 3px 14px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+}
+.verdict-type {
+    font-size: var(--type-body);
+    font-weight: 600;
+    color: var(--text-primary);
+    padding: 4px 12px;
+    background: var(--bg-page);
+    border-radius: var(--radius-control);
+}
+.verdict-score {
+    font-size: var(--type-meta);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+.verdict-summary {
+    font-size: var(--type-meta);
+    color: var(--text-secondary);
+    margin: var(--space-2) 0 0;
+    line-height: 1.6;
+}
+.verdict-cohort {
+    font-size: var(--type-small);
+    color: var(--text-tertiary);
+    margin: var(--space-2) 0 0;
+}
+
+/* ---- 第 2 塊：關鍵證據摘要 ---- */
+.evidence-summary {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+}
+.evidence-summary-title {
+    font-size: var(--type-body);
+    font-weight: 600;
+    margin: 0 0 var(--space-3);
+}
+.evidence-card {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-control);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    background: var(--bg-page);
+}
+/* evidence 狀態通過小圓點表達，不用左側色條 */
+.evidence-card-header {
+    display: flex;
+    gap: var(--space-2);
+    font-size: var(--type-meta);
+    font-weight: 500;
+    margin-bottom: var(--space-2);
+}
+.evidence-rank {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.status-dot.dot-strong { background: #9b2c2c; }
+.status-dot.dot-medium { background: #b7791f; }
+.status-dot.dot-weak { background: #a0aec0; }
+.evidence-desc {
+    color: var(--text-primary);
+}
+.evidence-snippets, .evidence-snippets-full {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+.evidence-snippet {
+    font-size: var(--type-small);
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding: var(--space-2);
+    background: var(--bg-card);
+    border-radius: var(--radius-control);
+    overflow: hidden;
+    max-height: 80px;
+}
+.snippet-label {
+    font-weight: 600;
+    color: var(--text-tertiary);
+    margin-right: 4px;
+}
+.btn-evidence-jump {
+    font-size: var(--type-small);
+    color: var(--text-link, var(--brand, #006633));
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 0;
+    text-decoration: underline;
+}
+.btn-evidence-jump:hover {
+    opacity: 0.7;
+}
+
+/* ---- 第 3 塊：AI 分析（可折疊）---- */
+.ai-analysis-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+}
+.ai-card-title {
+    font-size: var(--type-body);
+    font-weight: 600;
+    margin: 0 0 var(--space-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    user-select: none;
+}
+.ai-toggle-icon {
+    font-size: var(--type-small);
+    color: var(--text-tertiary);
+    transition: transform 0.2s;
+}
+.ai-analysis-card .ai-full-content {
+    display: none;
+    line-height: 1.8;
+    color: var(--text-primary);
+}
+.ai-analysis-card .ai-preview {
+    line-height: 1.8;
+    color: var(--text-primary);
+}
+.ai-analysis-card.ai-expanded .ai-full-content {
+    display: block;
+}
+.ai-analysis-card.ai-expanded .ai-preview {
+    display: none;
+}
+.ai-analysis-card.ai-expanded .ai-toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* ---- 第 4 塊：維度面板（教師友好）---- */
+.dimension-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+}
+.dim-group-title {
+    font-size: var(--type-meta);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: var(--space-3) 0 var(--space-2);
+}
+.dim-group-title:first-child {
+    margin-top: 0;
+}
+.dim-teacher-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+    cursor: default;
+}
+.dim-teacher-label {
+    width: 120px;
+    font-size: var(--type-meta);
+    color: var(--text-primary);
+    flex-shrink: 0;
+    font-weight: 500;
+}
+.dim-info-icon {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    cursor: help;
+}
+.dim-cohort-note {
+    font-size: var(--type-small);
+    color: var(--text-tertiary);
+    margin-top: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    background: var(--bg-page);
+    border-radius: var(--radius-control);
+}
+.dim-rare-phrases {
+    font-size: var(--type-small);
+    color: var(--text-secondary);
+    margin-top: var(--space-2);
+}
+.rare-phrase-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    margin: 2px;
+    background: #fef3c7;
+    border-radius: 3px;
+    font-size: var(--type-small);
+}
+.dim-warning-tag {
+    color: #d69e2e !important;
+}
+
+/* ---- 第 5 塊：證據列表 ---- */
+.evidence-list-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-card);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-4);
+}
+.evidence-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+}
+.evidence-list-header h4 {
+    font-size: var(--type-body);
+    font-weight: 600;
+    margin: 0;
+}
+.evidence-list-header .count {
+    font-size: var(--type-small);
+    color: var(--text-tertiary);
+    font-weight: 400;
+}
+.evidence-filters {
+    display: flex;
+    gap: 4px;
+}
+.btn-filter {
+    font-size: var(--type-small);
+    padding: 3px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-control);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.btn-filter.active {
+    background: var(--text-primary);
+    color: var(--bg-card);
+    border-color: var(--text-primary);
+}
+.evidence-list-card {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-control);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    background: var(--bg-page);
+}
+.evidence-list-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: var(--type-meta);
+    margin-bottom: var(--space-2);
+}
+.evidence-list-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.btn-copy-evidence {
+    font-size: var(--type-small);
+    padding: 2px 6px;
+    background: none;
+    border: 1px solid var(--border-default);
+    border-radius: 3px;
+    cursor: pointer;
+}
+.btn-copy-evidence:hover {
+    background: var(--bg-page);
+}
+
+/* ---- 提交元數據（灰色小字，不參與比對）---- */
+.submission-meta {
+    color: var(--text-tertiary);
+    font-size: 0.85em;
+    font-style: italic;
+    opacity: 0.6;
+}
+
+/* ---- 第 6 塊：同步對照區 ---- */
+.sync-compare-section {
+    margin-top: var(--space-4);
+}
+.sync-compare-title {
+    font-size: var(--type-body);
+    font-weight: 600;
+    margin: 0 0 var(--space-3);
+}
+.sync-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .plag-dashboard-summary { flex-direction: column; }
@@ -2995,17 +3348,20 @@ body {
     .plag-metrics { grid-template-columns: repeat(3, 1fr); }
     .plag-dashboard-top { flex-direction: column; gap: var(--space-2); align-items: stretch; }
     .plag-dashboard-actions { justify-content: flex-end; }
-    .plagiarism-compare { grid-template-columns: 1fr; }
+    .plagiarism-compare, .sync-compare { grid-template-columns: 1fr; }
+    .evidence-snippets, .evidence-snippets-full { grid-template-columns: 1fr; }
     .plagiarism-pair-card { grid-template-columns: 1fr; gap: var(--space-2); }
     .pair-card-right { justify-content: flex-end; }
-    .plag-detail-header { flex-direction: column; }
+    .plag-detail-header, .verdict-top-row { flex-direction: column; }
     .plag-score-bar-track { width: 160px; }
     .cluster-card { padding: var(--space-3) var(--space-4); }
     .plag-hub-section { padding: var(--space-3) var(--space-4); }
     .plag-network-card, .plag-tree-card { padding: var(--space-3) var(--space-4); }
+    .dim-teacher-label { width: 90px; }
 }
 @media (max-width: 480px) {
     .plag-metrics { grid-template-columns: repeat(2, 1fr); }
+    .verdict-badge-row { flex-direction: column; align-items: flex-start; }
 }
 
 /* ---- Plagiarism Config Modal ---- */

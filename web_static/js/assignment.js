@@ -1149,7 +1149,7 @@ const AssignmentUI = {
             </div>`;
         };
 
-        const listDetectMode = (this._currentPlagReport || {}).detect_mode || '';
+        const listDetectMode = (AssignmentApp._currentPlagReport || {}).detect_mode || '';
         const isEngList = listDetectMode === 'english_essay';
 
         return `<div class="plagiarism-pairs-list">${pairs.map(p => {
@@ -1205,223 +1205,302 @@ const AssignmentUI = {
         }).join('')}</div>`;
     },
 
+    /**
+     * 判定風險等級（前端推斷）
+     * @returns {{ level: string, color: string, label: string, type: string, summary: string }}
+     */
+    _determineRiskLevel(pct, dims, aiAnalysis) {
+        const ai = (aiAnalysis || '').toLowerCase();
+        const aiHigh = /直接抄[襲袭]|直接複製|直接复制|大面積抄|highly suspicious|direct copy/.test(ai);
+        const hits = dims ? (dims.softEvidenceHits || dims.evidenceHits || 0) : 0;
+
+        // 風險等級（克制色系：暗磚紅/暖橙/灰綠）
+        let level = 'low', color = '#4a7c59', label = '低風險';
+        if (pct >= 60 || (aiHigh && pct >= 40) || hits >= 4) {
+            level = 'high'; color = '#9b2c2c'; label = '高風險';
+        } else if (pct >= 40 || hits >= 2 || aiAnalysis) {
+            level = 'review'; color = '#b7791f'; label = '需複核';
+        }
+
+        // 主要類型
+        let type = '正常';
+        if (dims) {
+            if (dims.verbatim > 60) type = '直接複製';
+            else if (dims.comment > 60 && dims.verbatim < 40 && dims.identifier > 50) type = '改寫抄襲';
+            else if (dims.structure > 60 && dims.verbatim < 30) type = '結構仿寫';
+            else if ((dims.cohortSuppressedCount || 0) > 5) type = '模板化相似';
+            else if (pct >= 40) type = '疑似抄襲';
+        }
+
+        // 一句話摘要：取最重要的 2-3 條 signals
+        let summary = '';
+        if (dims && dims.signals && dims.signals.length) {
+            summary = dims.signals.slice(0, 3).join('；');
+        }
+
+        return { level, color, label, type, summary };
+    },
+
     renderPlagiarismPairDetail(pair) {
         const pct = parseFloat(pair.similarity_score) || 0;
         const dims = this._extractDimensions(pair.matched_fragments);
+        const detectMode = (AssignmentApp._currentPlagReport || {}).detect_mode || '';
+        const risk = this._determineRiskLevel(pct, dims, pair.ai_analysis);
 
-        let html = `<div class="plagiarism-detail fade-in">
-            <div class="plag-detail-header">
-                <div>
-                    <h3 class="plag-detail-title">
-                        ${pair.student_a_name || '學生A'} <span style="color:var(--text-tertiary);font-weight:400;">vs</span> ${pair.student_b_name || '學生B'}
-                    </h3>
-                    <div class="plag-detail-score">
-                        <div class="plag-score-bar-track">
-                            <div class="plag-score-bar-fill" style="width:${pct}%;background:var(--text-primary);"></div>
-                        </div>
-                        <span class="plag-score-value">${pct.toFixed(1)}%</span>
-                    </div>
+        let html = `<div class="plagiarism-detail fade-in">`;
+
+        // ====== 第 1 塊：結論頭部 ======
+        html += `<div class="verdict-header verdict-${risk.level}">
+            <div class="verdict-top-row">
+                <h3 class="verdict-title">
+                    ${this._escapeHtml(pair.student_a_name || '學生A')}
+                    <span class="verdict-vs">vs</span>
+                    ${this._escapeHtml(pair.student_b_name || '學生B')}
+                </h3>
+                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismPairDetail()">← 返回報告</button>
+            </div>
+            <div class="verdict-body">
+                <div class="verdict-badge-row">
+                    <span class="verdict-badge" style="background:${risk.color};">${risk.label}</span>
+                    ${risk.type !== '正常' ? `<span class="verdict-type">${risk.type}</span>` : ''}
+                    <span class="verdict-score">算法總分 ${pct.toFixed(1)}%</span>
                 </div>
-                <button class="btn btn-sm btn-outline" onclick="AssignmentApp.closePlagiarismPairDetail()">返回報告</button>
-            </div>`;
+                ${risk.summary ? `<p class="verdict-summary">${this._escapeHtml(risk.summary)}</p>` : ''}
+                ${dims && dims.cohortSize > 0 ? `<p class="verdict-cohort">已在 ${dims.cohortSize} 份同批次作品中降權模板句${dims.cohortSuppressedCount > 0 ? `（${dims.cohortSuppressedCount} 個短語被降權）` : ''}</p>` : ''}
+            </div>
+        </div>`;
 
-        // Dimension Analysis
-        if (dims) {
-            const mkBar = (label, val) => {
-                const v = parseFloat(val) || 0;
-                return `<div class="dim-detail-row">
-                    <span class="dim-detail-label">${label}</span>
-                    <div class="dim-detail-bar-track">
-                        <div class="dim-detail-bar-fill" style="width:${v}%;"></div>
+        // ====== 第 2 塊：關鍵證據摘要 ======
+        const blocks = (dims && dims.evidenceBlocks) ? dims.evidenceBlocks.filter(b => b && b.rank) : [];
+        if (blocks.length) {
+            const topBlocks = blocks.slice(0, 3);
+            const strengthDot = s => `<span class="status-dot dot-${s}"></span>`;
+            html += `<div class="evidence-summary">
+                <h4 class="evidence-summary-title">關鍵證據</h4>
+                ${topBlocks.map((b, i) => `<div class="evidence-card evidence-${b.strength}">
+                    <div class="evidence-card-header">
+                        <span class="evidence-rank">${strengthDot(b.strength)} ${i + 1}.</span>
+                        <span class="evidence-desc">${this._escapeHtml(b.description || '')}</span>
                     </div>
-                    <span class="dim-detail-val">${v.toFixed(1)}%</span>
+                    ${b.snippet_a ? `<div class="evidence-snippets">
+                        <div class="evidence-snippet"><span class="snippet-label">A:</span> ${this._escapeHtml(b.snippet_a)}</div>
+                        <div class="evidence-snippet"><span class="snippet-label">B:</span> ${this._escapeHtml(b.snippet_b || '')}</div>
+                    </div>` : ''}
+                    <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i}, '${this._escapeHtml((b.snippet_a || '').substring(0, 30))}')">查看原文對照 ↓</button>
+                </div>`).join('')}
+            </div>`;
+        }
+
+        // ====== 第 3 塊：AI 分析（可折疊）======
+        if (pair.ai_analysis) {
+            const fullHtml = this._renderMd(pair.ai_analysis);
+            // 取第一段作為摘要
+            const firstPara = (pair.ai_analysis || '').split('\n').filter(l => l.trim()).slice(0, 2).join('\n');
+            const previewHtml = this._renderMd(firstPara);
+            html += `<div class="ai-analysis-card">
+                <h4 class="ai-card-title" onclick="this.parentElement.classList.toggle('ai-expanded')">
+                    系統判讀
+                    <span class="ai-toggle-icon">▼</span>
+                </h4>
+                <div class="ai-preview">${previewHtml}</div>
+                <div class="ai-full-content">${fullHtml}</div>
+            </div>`;
+        }
+
+        // ====== 第 4 塊：維度面板（教師友好標籤 + tooltip）======
+        if (dims) {
+            const mkBarT = (label, val, tooltip) => {
+                const v = parseFloat(val) || 0;
+                const barColor = v > 70 ? '#9b2c2c' : v > 40 ? '#b7791f' : '#718096';
+                return `<div class="dim-teacher-row" ${tooltip ? `title="${tooltip}"` : ''}>
+                    <span class="dim-teacher-label">${label}${tooltip ? ' <span class="dim-info-icon">ⓘ</span>' : ''}</span>
+                    <div class="dim-detail-bar-track">
+                        <div class="dim-detail-bar-fill" style="width:${v}%;background:${barColor};"></div>
+                    </div>
+                    <span class="dim-detail-val">${v.toFixed(0)}%</span>
                 </div>`;
             };
-            const detectMode = (this._currentPlagReport || {}).detect_mode || '';
-            const isEnglishEssay = detectMode === 'english_essay';
 
-            if (isEnglishEssay) {
-                // ---- English Essay dimension display ----
-                const logicPct = Math.round(dims.logicScore || 0);
-                const stylePct = Math.round(dims.styleScore || 0);
-                const risk = dims.riskType || {};
-                const primaryRisk = risk.primary_risk || 'normal';
+            html += `<div class="dimension-panel">`;
+
+            if (detectMode === 'chinese_essay') {
+                // ---- 中文作文：教師友好 ----
+                html += `<h4 class="dim-group-title">主要證據</h4>
+                    ${mkBarT('直接文字重合', dims.verbatim, 'verbatim_score: 逐字重疊率 + 低頻短語加權覆蓋')}
+                    ${mkBarT('句子順序相似', dims.comment, 'comment_score: 匈牙利匹配 × 0.75 + 句子鏈連續度 × 0.25')}
+                    ${mkBarT('語義內容接近', dims.identifier, 'identifier_score: text2vec 語義嵌入余弦相似度')}
+                    ${mkBarT('寫作風格接近', dims.indent, 'indent_score: 54 維風格指紋（標點/高頻字/關聯詞/情感動詞/成語/句式）')}
+                    <h4 class="dim-group-title">輔助信號</h4>
+                    ${mkBarT('篇章結構相似', dims.structure, 'structure_score: 功能段落結構 × 0.7 + 段落長度比 × 0.3')}
+                    ${mkBarT('開頭/結尾相似', Math.max(dims.openingSim || 0, dims.endingSim || 0), 'boundary: max(opening_sim, ending_sim)')}
+                    ${mkBarT('多維證據一致', dims.softEvidenceScore || dims.evidence, `soft_evidence: sigmoid 平滑加權，${dims.softEvidenceHits || dims.evidenceHits || 0}/${dims.softEvidenceDims || dims.totalDims} 維命中`)}`;
+
+                // Cohort 抑制提示
+                if (dims.cohortSuppressedCount > 0) {
+                    html += `<div class="dim-cohort-note">${dims.cohortSuppressedCount} 個常見短語被降權（平均權重 ${(dims.cohortAvgWeight || 1).toFixed(2)}）</div>`;
+                }
+
+                // 罕見短語列表
+                if (dims.rarePhrases && dims.rarePhrases.length) {
+                    html += `<div class="dim-rare-phrases">共享罕見短語: ${dims.rarePhrases.slice(0, 5).map(p => `<span class="rare-phrase-tag">${this._escapeHtml(p)}</span>`).join(' ')}</div>`;
+                }
+
+            } else if (detectMode === 'english_essay') {
+                // ---- 英文作文：保留原有結構但用教師標籤 ----
+                const risk2 = dims.riskType || {};
+                const primaryRisk = risk2.primary_risk || 'normal';
                 const riskLabels = { direct_copy: 'Direct Copy', paraphrase: 'Paraphrase', imitation: 'Imitation', normal: 'Normal' };
-                const riskConf = Math.round(risk.risk_confidence_score || 0);
                 const finalStatus = pair.final_status || '';
-                const statusLabels = { high_risk: '高風險', review_needed: '需人工複核', low_risk: '低風險' };
-                const statusColors = { high_risk: 'var(--error-color, #e53e3e)', review_needed: 'var(--warning-color, #d69e2e)', low_risk: 'var(--success-color, #38a169)' };
-
-                html += `<div class="plagiarism-dimension-box">`;
-
-                // Final status badge
                 if (finalStatus) {
+                    const statusLabels = { high_risk: '高風險', review_needed: '需人工複核', low_risk: '低風險' };
+                    const statusColors = { high_risk: '#9b2c2c', review_needed: '#b7791f', low_risk: '#4a7c59' };
                     html += `<div style="margin-bottom:var(--space-3)">
-                        <span class="badge" style="background:${statusColors[finalStatus] || '#888'};color:#fff;padding:4px 12px;font-size:0.85rem;">
-                            ${statusLabels[finalStatus] || finalStatus}
-                        </span>
-                        ${finalStatus === 'review_needed' ? `<div style="margin-top:var(--space-2);font-size:0.82rem;color:var(--text-secondary);">
-                            主要風險類型: ${riskLabels[primaryRisk] || primaryRisk}
-                            ${riskConf > 0 ? `· 算法信心: ${riskConf}/100` : ''}
-                            ${riskConf <= 40 ? '<br>⚠️ 風險類型接近，需教師判斷' : ''}
-                        </div>` : ''}
+                        <span class="verdict-badge" style="background:${statusColors[finalStatus] || '#888'};">${statusLabels[finalStatus] || finalStatus}</span>
+                        ${primaryRisk !== 'normal' ? `<span class="verdict-type">${riskLabels[primaryRisk]}</span>` : ''}
                     </div>`;
                 }
-
-                // Dual scores
-                html += `<h4>雙分數判定</h4>
-                <div class="plag-dual-scores">
-                    <div class="plag-dual-card">
-                        <div class="plag-dual-label">邏輯相似度</div>
-                        <div class="plag-dual-value">${logicPct}%</div>
-                        <div class="plag-dual-hint">Sentence Alignment · Semantic · Discourse</div>
-                    </div>
-                    <div class="plag-dual-card">
-                        <div class="plag-dual-label">風格一致性</div>
-                        <div class="plag-dual-value">${stylePct}%</div>
-                        <div class="plag-dual-hint">Lexical · Stylometry · Alignment</div>
-                    </div>
-                </div>`;
-
-                // Core dimensions
-                html += `<h4 style="margin-top:var(--space-4)">核心維度</h4>
-                ${mkBar('Lexical Overlap 逐字重疊', dims.verbatim)}
-                ${mkBar('Sentence Alignment 句子對齊', dims.comment)}
-                ${mkBar('Semantic Paraphrase 語義改寫', dims.identifier)}
-                ${mkBar('Discourse Structure 論述結構', dims.structure)}
-                ${mkBar('Stylometry 文體特徵', dims.indent)}`;
-
-                // Opening / Ending
-                html += `<h4 style="margin-top:var(--space-4)">開頭/結尾相似度</h4>
-                ${mkBar('Opening 開頭', dims.openingSim)}
-                ${mkBar('Ending 結尾', dims.endingSim)}`;
-
-                // Rare phrases
-                if (dims.rarePhraseScore > 0) {
-                    html += `<h4 style="margin-top:var(--space-4)">罕見短語</h4>
-                    ${mkBar('Rare Phrase Score', dims.rarePhraseScore)}`;
-                    if (dims.rarePhrases && dims.rarePhrases.length) {
-                        html += `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:4px;">
-                            共享短語: ${dims.rarePhrases.slice(0, 8).join(', ')}
-                        </div>`;
-                    }
+                html += `<h4 class="dim-group-title">主要證據</h4>
+                    ${mkBarT('逐字重疊', dims.verbatim, 'Lexical Overlap: 詞級重合率')}
+                    ${mkBarT('句子對齊', dims.comment, 'Sentence Alignment: 匈牙利匹配')}
+                    ${mkBarT('語義改寫', dims.identifier, 'Semantic Paraphrase: 嵌入向量相似度')}
+                    ${mkBarT('論述結構', dims.structure, 'Discourse Structure: 段落功能序列比較')}
+                    ${mkBarT('文體特徵', dims.indent, 'Stylometry: 風格計量特徵向量')}
+                    <h4 class="dim-group-title">輔助信號</h4>
+                    ${mkBarT('開頭相似', dims.openingSim, 'Opening: 前 120 字 SequenceMatcher')}
+                    ${mkBarT('結尾相似', dims.endingSim, 'Ending: 後 120 字 SequenceMatcher')}
+                    ${dims.rarePhraseScore > 0 ? mkBarT('罕見短語', dims.rarePhraseScore, 'Rare Phrase: 低頻 n-gram 加權覆蓋') : ''}
+                    ${mkBarT('多維證據', dims.evidence, `Evidence: ${dims.evidenceHits}/${dims.totalDims} 維命中`)}`;
+                if (risk2 && primaryRisk !== 'normal') {
+                    html += `<h4 class="dim-group-title">風險評估</h4>
+                        ${mkBarT('Direct Copy', risk2.risk_direct_copy || 0, '')}
+                        ${mkBarT('Paraphrase', risk2.risk_paraphrase || 0, '')}
+                        ${mkBarT('Imitation', risk2.risk_imitation || 0, '')}`;
                 }
-
-                // Risk assessment
-                if (risk && primaryRisk !== 'normal') {
-                    html += `<h4 style="margin-top:var(--space-4)">Risk Assessment 風險評估</h4>
-                    ${mkBar('Direct Copy 風險', risk.risk_direct_copy || 0)}
-                    ${mkBar('Paraphrase 風險', risk.risk_paraphrase || 0)}
-                    ${mkBar('Imitation 風險', risk.risk_imitation || 0)}
-                    <div style="font-size:0.82rem;margin-top:4px;">
-                        <span class="dim-signal-tag">主要類型: ${riskLabels[primaryRisk] || primaryRisk}</span>
-                        <span class="dim-signal-tag">信心: ${riskConf}/100</span>
-                    </div>`;
-                }
-
-                // Evidence & signals
-                html += `<h4 style="margin-top:var(--space-4)">綜合指標</h4>
-                ${mkBar('多重證據命中', dims.evidence)}`;
-
-                // Warnings
-                if (dims.warnings && dims.warnings.length) {
-                    html += `<div class="dim-signals" style="margin-top:var(--space-2)">
-                        ${dims.warnings.map(w => `<span class="dim-signal-tag" style="color:var(--warning-color,#d69e2e);">⚠️ ${w}</span>`).join('')}
-                    </div>`;
-                }
-
-                if (dims.signals && dims.signals.length) {
-                    html += `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>`;
-                }
-
-                html += `</div>`;
             } else {
-                // ---- Original code/text/chinese_essay dimension display ----
-                // 雙分數卡片
+                // ---- 代碼/文本模式：保留原結構但用教師標籤 ----
                 const logicPct = Math.round(dims.logicScore || 0);
                 const stylePct = Math.round(dims.styleScore || 0);
-                const td = dims.totalDims || 9;
-                html += `<div class="plagiarism-dimension-box">
-                    <h4>雙分數判定</h4>
-                    <div class="plag-dual-scores">
-                        <div class="plag-dual-card">
-                            <div class="plag-dual-label">邏輯相似度</div>
-                            <div class="plag-dual-value">${logicPct}%</div>
-                            <div class="plag-dual-hint">Token結構 · Winnowing · 數據流 · 逐字</div>
-                        </div>
-                        <div class="plag-dual-card">
-                            <div class="plag-dual-label">風格一致性</div>
-                            <div class="plag-dual-value">${stylePct}%</div>
-                            <div class="plag-dual-hint">命名 · 縮排 · 注釋 · 拼錯 · 死代碼</div>
-                        </div>
-                    </div>
-                    ${logicPct > 70 && stylePct < 40 ? '<div class="dim-code-badge">邏輯高但風格不同 → 簡單作業巧合的可能性較高</div>' : ''}
-                    ${logicPct > 70 && stylePct > 60 ? '<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">邏輯+風格同時高 → 高度可疑</div>' : ''}
-
-                    <h4 style="margin-top:var(--space-4)">邏輯維度</h4>
-                    ${dims.winnow ? mkBar('Winnowing 指紋', dims.winnow) : ''}
-                    ${mkBar('結構相似 (骨架)', dims.structure)}
-                    ${dims.dataFlow ? mkBar('數據流模式', dims.dataFlow) : ''}
-                    ${mkBar('逐字複製', dims.verbatim)}
-
-                    <h4 style="margin-top:var(--space-4)">風格維度</h4>
-                    ${mkBar('變量命名', dims.identifier)}
-                    ${mkBar('縮排指紋', dims.indent)}
-                    ${mkBar('注釋/字串', dims.comment)}
-                    ${dims.typo > 0 ? mkBar('共享拼錯 (強證據)', dims.typo) : ''}
-                    ${dims.deadCode > 0 ? mkBar('死代碼匹配 (強證據)', dims.deadCode) : ''}
-
-                    <h4 style="margin-top:var(--space-4)">綜合指標</h4>
-                    ${mkBar('多重證據命中', dims.evidence)}
-                    ${dims.aiSuspicion >= 20 ? mkBar('AI 生成嫌疑', dims.aiSuspicion) : ''}
-                    ${dims.isCode ? `<div class="dim-code-badge">代碼文件 · ${dims.codeLength} 字元 · 證據命中 ${dims.evidenceHits || 0}/${td} 維</div>` : ''}
-                    ${dims.signals && dims.signals.length ? `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${s}</span>`).join('')}</div>` : ''}
-                </div>`;
+                html += `<div class="plag-dual-scores">
+                    <div class="plag-dual-card"><div class="plag-dual-label">邏輯相似度</div><div class="plag-dual-value">${logicPct}%</div></div>
+                    <div class="plag-dual-card"><div class="plag-dual-label">風格一致性</div><div class="plag-dual-value">${stylePct}%</div></div>
+                </div>
+                ${logicPct > 70 && stylePct < 40 ? '<div class="dim-code-badge">邏輯高但風格不同 → 簡單作業巧合的可能性較高</div>' : ''}
+                ${logicPct > 70 && stylePct > 60 ? '<div class="dim-code-badge" style="color:var(--text-primary);font-weight:600;">邏輯+風格同時高 → 高度可疑</div>' : ''}
+                <h4 class="dim-group-title">邏輯維度</h4>
+                ${dims.winnow ? mkBarT('程序指紋', dims.winnow, 'Winnowing: MOSS 風格指紋比對') : ''}
+                ${mkBarT('代碼骨架', dims.structure, 'Token 結構相似度')}
+                ${dims.dataFlow ? mkBarT('數據流', dims.dataFlow, '數據流圖相似度') : ''}
+                ${mkBarT('逐字複製', dims.verbatim, '字符級重疊率')}
+                <h4 class="dim-group-title">風格維度</h4>
+                ${mkBarT('變量命名', dims.identifier, '標識符指紋相似度')}
+                ${mkBarT('縮排風格', dims.indent, '縮排/空白模式指紋')}
+                ${mkBarT('注釋/字串', dims.comment, '注釋文本與字串常量')}
+                ${dims.typo > 0 ? mkBarT('共享拼錯', dims.typo, '共同拼寫錯誤（強物證）') : ''}
+                ${dims.deadCode > 0 ? mkBarT('死代碼', dims.deadCode, '共同未使用代碼（強物證）') : ''}
+                <h4 class="dim-group-title">綜合</h4>
+                ${mkBarT('多維證據', dims.evidence, `${dims.evidenceHits || 0}/${dims.totalDims} 維命中`)}
+                ${dims.aiSuspicion >= 20 ? mkBarT('AI 生成嫌疑', dims.aiSuspicion, '') : ''}`;
             }
+
+            // 分析信號（所有模式共用）
+            if (dims.signals && dims.signals.length) {
+                html += `<div class="dim-signals">${dims.signals.map(s => `<span class="dim-signal-tag">${this._escapeHtml(s)}</span>`).join('')}</div>`;
+            }
+            if (dims.warnings && dims.warnings.length) {
+                html += `<div class="dim-signals">${dims.warnings.map(w => `<span class="dim-signal-tag dim-warning-tag">${this._escapeHtml(w)}</span>`).join('')}</div>`;
+            }
+
+            html += `</div>`;  // end .dimension-panel
         }
 
-        // AI Analysis
-        if (pair.ai_analysis) {
-            html += `<div class="plagiarism-ai-box">
-                <h4>AI 分析</h4>
-                <div class="ai-analysis-content">${this._renderMd(pair.ai_analysis)}</div>
+        // ====== 第 5 塊：證據列表（可篩選）======
+        if (blocks.length) {
+            const strengthDot5 = s => `<span class="status-dot dot-${s}"></span>`;
+            html += `<div class="evidence-list-section">
+                <div class="evidence-list-header">
+                    <h4>全部證據 <span class="count">${blocks.length}</span></h4>
+                    <div class="evidence-filters">
+                        <button class="btn-filter active" onclick="AssignmentApp._filterEvidence('all', this)">全部</button>
+                        <button class="btn-filter" onclick="AssignmentApp._filterEvidence('strong', this)">只看強證據</button>
+                    </div>
+                </div>
+                <div class="evidence-list" id="evidenceList">
+                    ${blocks.map((b, i) => `<div class="evidence-list-card" data-strength="${b.strength || 'weak'}">
+                        <div class="evidence-list-card-header">
+                            <span>${strengthDot5(b.strength)} <strong>#${b.rank || (i+1)}</strong> ${this._escapeHtml(b.description || '')}</span>
+                            <div class="evidence-list-actions">
+                                <button class="btn-copy-evidence" onclick="AssignmentApp._copyEvidence(${i})" title="複製摘要">複製</button>
+                                <button class="btn-evidence-jump" onclick="AssignmentApp._scrollToEvidence(${i}, '${this._escapeHtml((b.snippet_a || '').substring(0, 30))}')">定位 ↓</button>
+                            </div>
+                        </div>
+                        ${b.snippet_a ? `<div class="evidence-snippets-full">
+                            <div class="evidence-snippet"><span class="snippet-label">A:</span> ${this._escapeHtml(b.snippet_a)}</div>
+                            <div class="evidence-snippet"><span class="snippet-label">B:</span> ${this._escapeHtml(b.snippet_b || '')}</div>
+                        </div>` : ''}
+                    </div>`).join('')}
+                </div>
             </div>`;
         }
 
-        // Matched Fragments
+        // Matched Fragments（舊格式 fallback，中文作文通常走 evidence_blocks）
         const fragments = (pair.matched_fragments || []).filter(f => f.type !== 'dimension_breakdown');
-        if (fragments.length) {
+        if (fragments.length && !blocks.length) {
             html += `<div class="plagiarism-fragments">
                 <div class="plag-section-title">匹配片段 <span class="count">${fragments.length}</span></div>
                 ${fragments.map((f, i) => `<div class="fragment-item">
-                    <span class="fragment-label">片段 ${i + 1} · ${f.length} 字元</span>
+                    <span class="fragment-label">片段 ${i + 1} · ${f.length || 0} 字元</span>
                     <pre class="fragment-text">${this._escapeHtml(f.text || '')}</pre>
                 </div>`).join('')}
             </div>`;
         }
 
-        // Side-by-side comparison with diff highlighting
+        // ====== 第 6 塊：全文同步對照區 ======
         const textA = pair.text_a || '（無內容）';
         const textB = pair.text_b || '（無內容）';
         const diff = this._diffTexts(textA, textB);
 
-        html += `<div class="plagiarism-compare">
-            <div class="compare-col">
-                <h4 class="compare-header">${pair.student_a_name || '學生A'}</h4>
-                <pre class="compare-text">${diff.htmlA}</pre>
+        html += `<div class="sync-compare-section">
+            <h4 class="sync-compare-title">全文對照</h4>
+            <div class="sync-compare" id="syncCompare">
+                <div class="compare-col">
+                    <div class="compare-header">${this._escapeHtml(pair.student_a_name || '學生A')}</div>
+                    <pre class="compare-text" id="compareTextA">${diff.htmlA}</pre>
+                </div>
+                <div class="compare-col">
+                    <div class="compare-header">${this._escapeHtml(pair.student_b_name || '學生B')}</div>
+                    <pre class="compare-text" id="compareTextB">${diff.htmlB}</pre>
+                </div>
             </div>
-            <div class="compare-col">
-                <h4 class="compare-header">${pair.student_b_name || '學生B'}</h4>
-                <pre class="compare-text">${diff.htmlB}</pre>
+            <div class="compare-legend">
+                <span class="legend-item"><span class="legend-swatch hl-identical"></span>完全相同</span>
+                <span class="legend-item"><span class="legend-swatch hl-similar"></span>高度相似</span>
+                <span class="legend-item"><span class="legend-swatch hl-unique"></span>僅此份有</span>
             </div>
-        </div>
-        <div class="compare-legend">
-            <span class="legend-item"><span class="legend-swatch hl-identical"></span>完全相同</span>
-            <span class="legend-item"><span class="legend-swatch hl-similar"></span>高度相似</span>
-            <span class="legend-item"><span class="legend-swatch hl-unique"></span>僅此份有</span>
         </div>`;
 
         html += '</div>';
+
+        // 延遲綁定滾動同步
+        setTimeout(() => {
+            const colA = document.getElementById('compareTextA');
+            const colB = document.getElementById('compareTextB');
+            if (colA && colB) {
+                let syncing = false;
+                colA.addEventListener('scroll', () => {
+                    if (syncing) return;
+                    syncing = true;
+                    colB.scrollTop = colA.scrollTop;
+                    requestAnimationFrame(() => syncing = false);
+                });
+                colB.addEventListener('scroll', () => {
+                    if (syncing) return;
+                    syncing = true;
+                    colA.scrollTop = colB.scrollTop;
+                    requestAnimationFrame(() => syncing = false);
+                });
+            }
+        }, 100);
+
         return html;
     },
 
@@ -1432,6 +1511,10 @@ const AssignmentUI = {
     _diffTexts(textA, textB) {
         const linesA = textA.split('\n');
         const linesB = textB.split('\n');
+
+        // 提交元數據模式：不參與相似度比對
+        const metaRe = /^[（(]由.{1,20}代為提交[)）]$/;
+        const isMeta = l => metaRe.test(l);
 
         // 正規化行（去除前後空白）用於比對
         const normA = linesA.map(l => l.trim());
@@ -1449,10 +1532,10 @@ const AssignmentUI = {
         const statusB = new Array(linesB.length).fill('unique');
         const matchedB = new Set();
 
-        // Pass 1: 完全相同行（正規化後）
+        // Pass 1: 完全相同行（正規化後），跳過元數據行
         const usedBIndices = new Set();
         for (let i = 0; i < normA.length; i++) {
-            if (!normA[i]) continue;  // 跳過空行
+            if (!normA[i] || isMeta(normA[i])) continue;  // 跳過空行和元數據
             const candidates = bMap[normA[i]] || [];
             for (const j of candidates) {
                 if (!usedBIndices.has(j)) {
@@ -1465,12 +1548,12 @@ const AssignmentUI = {
             }
         }
 
-        // Pass 2: 相似行（編輯距離比 < 40% 行長）
+        // Pass 2: 相似行（編輯距離比 < 40% 行長），跳過元數據行
         for (let i = 0; i < normA.length; i++) {
-            if (statusA[i] !== 'unique' || !normA[i]) continue;
+            if (statusA[i] !== 'unique' || !normA[i] || isMeta(normA[i])) continue;
             let bestJ = -1, bestRatio = 0;
             for (let j = 0; j < normB.length; j++) {
-                if (statusB[j] !== 'unique' || !normB[j]) continue;
+                if (statusB[j] !== 'unique' || !normB[j] || isMeta(normB[j])) continue;
                 const ratio = this._similarityRatio(normA[i], normB[j]);
                 if (ratio > 0.6 && ratio > bestRatio) {
                     bestRatio = ratio;
@@ -1492,10 +1575,19 @@ const AssignmentUI = {
             if (!normB[j].trim()) statusB[j] = '';
         }
 
+        // 元數據行標記為灰色小字
+        for (let i = 0; i < normA.length; i++) {
+            if (isMeta(normA[i])) statusA[i] = 'meta';
+        }
+        for (let j = 0; j < normB.length; j++) {
+            if (isMeta(normB[j])) statusB[j] = 'meta';
+        }
+
         // 生成帶 <span> 的 HTML
         const wrapLine = (line, status) => {
             const escaped = this._escapeHtml(line);
             if (!status) return escaped;
+            if (status === 'meta') return `<span class="submission-meta">${escaped}</span>`;
             return `<span class="hl-${status}">${escaped}</span>`;
         };
 
@@ -1560,6 +1652,24 @@ const AssignmentUI = {
             rarePhrases: dim._rare_phrases || [],
             riskType: dim._risk_type || null,
             warnings: dim._warnings || [],
+            // Chinese essay evidence blocks + new fields
+            evidenceBlocks: dim._evidence_blocks || [],
+            funcStructureScore: dim._func_structure_score || 0,
+            essayTypeA: dim._essay_type_a || '',
+            essayTypeB: dim._essay_type_b || '',
+            funcSeqA: dim._func_seq_a || [],
+            funcSeqB: dim._func_seq_b || [],
+            chainScore: dim._sentence_chain_score || 0,
+            chainCount: dim._chain_count || 0,
+            maxChainLen: dim._max_chain_len || 0,
+            softEvidenceScore: dim._soft_evidence_score || 0,
+            softEvidenceHits: dim._soft_evidence_hits || 0,
+            softEvidenceDims: dim._soft_evidence_total_dims || 7,
+            softEvidenceDetail: dim._soft_evidence_detail || {},
+            rarePhraseScoreRaw: dim._rare_phrase_score_raw || 0,
+            cohortSize: dim._cohort_size || 0,
+            cohortSuppressedCount: dim._cohort_rare_phrase_suppressed_count || 0,
+            cohortAvgWeight: dim._cohort_rare_phrase_avg_weight || 1.0,
         };
     },
 
@@ -2769,6 +2879,7 @@ const AssignmentApp = {
             return;
         }
 
+        this._lastPairDetail = resp.data;
         main.innerHTML = AssignmentUI.renderPlagiarismPairDetail(resp.data);
     },
 
@@ -2779,6 +2890,55 @@ const AssignmentApp = {
 
     closePlagiarismPairDetail() {
         this.showPlagiarismReport();
+    },
+
+    /** 證據列表篩選 */
+    _filterEvidence(mode, btn) {
+        document.querySelectorAll('.evidence-filters .btn-filter').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const cards = document.querySelectorAll('#evidenceList .evidence-list-card');
+        cards.forEach(c => {
+            if (mode === 'all') { c.style.display = ''; }
+            else { c.style.display = c.dataset.strength === mode ? '' : 'none'; }
+        });
+    },
+
+    /** 複製證據摘要到剪貼板 */
+    _copyEvidence(idx) {
+        const dims = this._extractDimensions(this._lastPairDetail?.matched_fragments);
+        if (!dims || !dims.evidenceBlocks || !dims.evidenceBlocks[idx]) return;
+        const b = dims.evidenceBlocks[idx];
+        const text = `#${b.rank || idx+1} [${b.strength}] ${b.description}\nA: ${b.snippet_a || ''}\nB: ${b.snippet_b || ''}`;
+        navigator.clipboard.writeText(text).then(() => {
+            UIModule.toast('已複製證據摘要', 'success');
+        }).catch(() => {
+            UIModule.toast('複製失敗', 'error');
+        });
+    },
+
+    /** 點擊證據 → 滾動到全文對照區的對應位置 */
+    _scrollToEvidence(idx, snippet) {
+        const compareSection = document.getElementById('syncCompare');
+        if (!compareSection) return;
+        compareSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // 嘗試在文本中高亮對應 snippet
+        if (snippet && snippet.length > 4) {
+            setTimeout(() => {
+                const textEls = [document.getElementById('compareTextA'), document.getElementById('compareTextB')];
+                textEls.forEach(el => {
+                    if (!el) return;
+                    // 搜尋文本位置
+                    const text = el.textContent || '';
+                    const pos = text.indexOf(snippet);
+                    if (pos >= 0) {
+                        // 估算滾動位置（按字符比例）
+                        const ratio = pos / Math.max(text.length, 1);
+                        el.scrollTop = ratio * el.scrollHeight;
+                    }
+                });
+            }, 400);
+        }
     },
 
     async exportPlagiarismExcel() {

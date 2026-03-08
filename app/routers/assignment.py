@@ -1150,6 +1150,7 @@ async def get_plagiarism_report(
             "threshold": float(report.get("threshold", 60)),
             "total_pairs": report.get("total_pairs", 0),
             "flagged_pairs": report.get("flagged_pairs", 0),
+            "detect_mode": report.get("detect_mode", "mixed"),
             "created_at": str(report.get("created_at", "")),
             "completed_at": str(report.get("completed_at", "")) if report.get("completed_at") else None,
         },
