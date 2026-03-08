@@ -7,6 +7,12 @@
       "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
       "env": {"LLM_LOCAL_MODEL": "qwen3:30b"},
       "port": 8000
+    },
+    {
+      "name": "china-economy-game",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "china_economy_game.backend.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"],
+      "port": 8001
     }
   ]
 }
