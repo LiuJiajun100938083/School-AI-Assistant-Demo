@@ -607,101 +607,104 @@ def _inject_lucide_polyfills(html_content: str) -> str:
     """
     在已上传游戏的 Babel script 中注入 lucide-react 图标 polyfill。
 
-    扫描 <script type="text/babel"> 块，检测所有大写开头的未定义标识符
-    （可能是 lucide-react 图标引用），自动注入 emoji 替代组件。
+    关键设计：polyfill 以 const 声明注入到 Babel script **内部**，
+    作用域局限于 Babel 编译后的代码块，**绝不污染全局作用域**。
+    这避免了 window.Map / window.Set 等被覆盖导致 Tailwind 等库崩溃的问题。
+
     仅对使用 Babel 的页面生效，不影响普通 HTML 游戏。
     """
     # 只处理含有 Babel script 的页面
     if 'type="text/babel"' not in html_content and "type='text/babel'" not in html_content:
         return html_content
 
-    # 收集所有可能需要 polyfill 的 lucide 图标名称
-    # 策略：在 Babel 脚本中查找形如 <IconName 或 {IconName} 的引用
-    # 这些是 JSX 中使用组件的典型模式
-    icon_refs = set()
+    # 找到 Babel script 块
     babel_match = re.search(
-        r'<script[^>]*type=["\']text/babel["\'][^>]*>(.*?)</script>',
+        r'(<script[^>]*type=["\']text/babel["\'][^>]*>)(.*?)(</script>)',
         html_content,
         re.DOTALL | re.IGNORECASE,
     )
-    if babel_match:
-        babel_code = babel_match.group(1)
-        # 查找 JSX 标签形式: <AlertCircle  或 <AlertCircle/> 或 <AlertCircle ...>
-        jsx_icons = re.findall(r'<([A-Z][a-zA-Z0-9]+)[\s/>]', babel_code)
-        icon_refs.update(jsx_icons)
-        # 查找变量引用: {AlertCircle} 或 AlertCircle(
-        var_icons = re.findall(r'\b([A-Z][a-zA-Z0-9]+)\s*(?:[,}\)]|&&|\|\|)', babel_code)
-        icon_refs.update(var_icons)
+    if not babel_match:
+        return html_content
+
+    babel_open_tag = babel_match.group(1)
+    babel_code = babel_match.group(2)
+    babel_close_tag = babel_match.group(3)
+
+    # 收集所有可能需要 polyfill 的 lucide 图标名称
+    icon_refs = set()
+    # 查找 JSX 标签形式: <AlertCircle  或 <AlertCircle/> 或 <AlertCircle ...>
+    jsx_icons = re.findall(r'<([A-Z][a-zA-Z0-9]+)[\s/>]', babel_code)
+    icon_refs.update(jsx_icons)
+    # 查找变量引用: {AlertCircle} 或 AlertCircle(
+    var_icons = re.findall(r'\b([A-Z][a-zA-Z0-9]+)\s*(?:[,}\)]|&&|\|\|)', babel_code)
+    icon_refs.update(var_icons)
 
     # 过滤：只处理已知的 lucide 图标 + 在代码中找不到定义的
+    # 不需要维护 JS 内置全局跳过列表 — 因为 polyfill 用 const（局部作用域），
+    # 即使叫 Map 也不会覆盖 window.Map
+    _SKIP_NAMES = frozenset({
+        'React', 'ReactDOM', 'Fragment', 'Component',
+        'Suspense', 'StrictMode', 'Profiler',
+        'Div', 'Span', 'Input', 'Button', 'Form',
+        'Table', 'Select', 'Option', 'Label',
+        'Head', 'Html', 'Body', 'Script', 'Style',
+        'Symbol', 'Path', 'Svg', 'Circle', 'Rect',
+        'Line', 'Polyline', 'Polygon', 'Image',
+        'Text', 'View',
+    })
+
     icons_to_inject = set()
     for icon_name in icon_refs:
-        # 跳过 React 内置组件和 HTML 标签
-        # 跳过 JS 内置全局对象（Map/Set/Promise 等）— 覆盖它们会破坏 Tailwind 等库
-        if icon_name in ('React', 'ReactDOM', 'Fragment', 'Component',
-                         'Suspense', 'StrictMode', 'Profiler',
-                         'Div', 'Span', 'Input', 'Button', 'Form',
-                         'Table', 'Select', 'Option', 'Label',
-                         'Head', 'Html', 'Body', 'Script', 'Style',
-                         'Symbol', 'Path', 'Svg', 'Circle', 'Rect',
-                         'Line', 'Polyline', 'Polygon', 'Image',
-                         'Text', 'View',
-                         # JS 内置全局对象 — 绝对不能覆盖
-                         'Map', 'Set', 'WeakMap', 'WeakSet',
-                         'Promise', 'Proxy', 'Reflect',
-                         'Array', 'Object', 'Number', 'String',
-                         'Boolean', 'Date', 'RegExp', 'Function',
-                         'Error', 'TypeError', 'RangeError',
-                         'Math', 'JSON', 'Intl',
-                         'Iterator', 'Generator',
-                         ):
+        if icon_name in _SKIP_NAMES:
             continue
         # 检查是否在代码中已经有定义（const/function/class）
-        if babel_match:
-            babel_code = babel_match.group(1)
-            defined_pattern = (
-                rf'(?:const|let|var|function|class)\s+{re.escape(icon_name)}\b'
-            )
-            if re.search(defined_pattern, babel_code):
-                continue
-        # 是已知的 lucide 图标，或代码中使用了但未定义的组件
+        defined_pattern = (
+            rf'(?:const|let|var|function|class)\s+{re.escape(icon_name)}\b'
+        )
+        if re.search(defined_pattern, babel_code):
+            continue
+        # 也检查整个 HTML（可能在其他 script 块中定义）
+        if re.search(defined_pattern, html_content):
+            continue
+        # 是已知的 lucide 图标
         if icon_name in _LUCIDE_EMOJI_MAP:
             icons_to_inject.add(icon_name)
+        # 或者代码中使用了但全局也没定义 → 用默认 emoji 防止 ReferenceError
         elif not re.search(
-            rf'(?:const|let|var|function|class)\s+{re.escape(icon_name)}\b',
-            html_content,
+            rf'\b{re.escape(icon_name)}\b',
+            html_content[:babel_match.start()],  # 只检查 Babel script 前面的内容
         ):
-            # 未知图标但代码中未定义 → 用默认 emoji
             icons_to_inject.add(icon_name)
 
     if not icons_to_inject:
         return html_content
 
-    # 生成 polyfill script（普通 JS，不需要 Babel）
-    polyfill_lines = [
-        '<script>',
-        '// Auto-injected lucide-react icon polyfills',
-    ]
+    # 生成 const 声明（注入到 Babel script 内部顶端，局部作用域）
+    polyfill_lines = ['// Auto-injected lucide-react icon polyfills']
     for icon_name in sorted(icons_to_inject):
-        emoji = _LUCIDE_EMOJI_MAP.get(icon_name, '⚡')
+        emoji = _LUCIDE_EMOJI_MAP.get(icon_name, '\u26A1')
         polyfill_lines.append(
-            f'window.{icon_name} = function(props) {{'
-            f' return React.createElement("span", '
-            f'{{ className: props && props.className || "", '
-            f'style: {{ fontSize: (props && props.size || 16) + "px" }} }}, '
-            f'"{emoji}"); }};'
+            f'const {icon_name} = (props) => React.createElement("span", '
+            f'{{"className": (props && props.className) || "", '
+            f'"style": {{"fontSize": ((props && props.size) || 16) + "px", '
+            f'"display": "inline-flex", "alignItems": "center"}}}}, '
+            f'"{emoji}");'
         )
-    polyfill_lines.append('</script>')
-    polyfill_snippet = '\n'.join(polyfill_lines)
+    polyfill_code = '\n'.join(polyfill_lines)
 
-    # 在 Babel script 之前注入（确保组件在 Babel 编译后的代码中可用）
-    html_content = re.sub(
-        r'(<script[^>]*type=["\']text/babel["\'])',
-        polyfill_snippet + r'\n\1',
-        html_content,
-        count=1,
-        flags=re.IGNORECASE,
+    # 替换 Babel script 块：在代码开头插入 polyfill
+    new_babel_block = (
+        babel_open_tag + '\n'
+        + polyfill_code + '\n'
+        + babel_code
+        + babel_close_tag
+    )
+    html_content = (
+        html_content[:babel_match.start()]
+        + new_babel_block
+        + html_content[babel_match.end():]
     )
 
-    logger.debug("注入了 %d 个 lucide 图标 polyfill: %s", len(icons_to_inject), icons_to_inject)
+    logger.debug("注入了 %d 个 lucide 图标 polyfill (局部作用域): %s",
+                 len(icons_to_inject), icons_to_inject)
     return html_content
