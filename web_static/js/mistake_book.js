@@ -750,28 +750,25 @@ const UI = {
      */
     summarizeStudentApproach(m) {
         const bullets = [];
-        // Bullet 1: 學生答案
+        // Bullet 1: 學生答案（完整顯示）
         if (m.answer_text && m.answer_text.trim()) {
-            const ans = m.answer_text.trim();
-            bullets.push(ans.length > 80 ? ans.substring(0, 77) + '…' : ans);
+            bullets.push(m.answer_text.trim());
         }
-        // Bullet 2-3: 從分析中提取學生行為描述
+        // Bullet 2+: 從分析中提取學生行為描述
         const raw = this.extractRawAnalysis(m);
         if (raw) {
             const patterns = [
-                /學生[^。！\n]{2,60}[。！]/g,
-                /(?:誤|忽略了|混淆了|未能|沒有|遺漏了)[^。！\n]{2,60}[。！]/g,
+                /學生[^。！\n]{2,}[。！]/g,
+                /(?:誤|忽略了|混淆了|未能|沒有|遺漏了)[^。！\n]{2,}[。！]/g,
             ];
             for (const pat of patterns) {
                 const matches = raw.match(pat) || [];
                 for (const match of matches) {
-                    if (bullets.length >= 3) break;
                     const clean = match.replace(/[。！]$/, '').trim();
                     if (clean && !bullets.some(b => b.includes(clean.substring(0, 10)))) {
-                        bullets.push(clean.length > 80 ? clean.substring(0, 77) + '…' : clean);
+                        bullets.push(clean);
                     }
                 }
-                if (bullets.length >= 3) break;
             }
         }
         return bullets;
@@ -784,18 +781,17 @@ const UI = {
         const ca = m.correct_answer;
         if (!ca || !ca.trim()) return [];
 
-        // 按步驟標記或換行拆分
+        // 按步驟標記或換行拆分（完整顯示每步）
         const lines = ca.split(/(?:Step\s*\d+[:：]|步驟\s*\d+[:：]|\(\d+\)\s*|^\d+[.、]\s*|\n{2,})/im)
             .map(s => s.trim())
             .filter(s => s.length > 5);
 
         if (lines.length <= 1) {
-            // 嘗試按單換行拆
             const byLine = ca.split(/\n/).map(s => s.trim()).filter(s => s.length > 5);
-            return byLine.slice(0, 4).map(l => l.length > 80 ? l.substring(0, 77) + '…' : l);
+            return byLine;
         }
 
-        return lines.slice(0, 4).map(l => l.length > 80 ? l.substring(0, 77) + '…' : l);
+        return lines;
     },
 };
 
