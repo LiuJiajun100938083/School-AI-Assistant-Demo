@@ -87,8 +87,8 @@ const App = {
         this.navigate('home');
     },
 
-    // 科目顯示優先順序：中英數公民物理排前面，其餘按原順序
-    _SUBJECT_ORDER: ['chinese', 'english', 'math', 'ces', 'physics'],
+    // 科目顯示優先順序：中英ICT數公民物理排前面，其餘按原順序
+    _SUBJECT_ORDER: ['chinese', 'english', 'ICT', 'math', 'ces', 'physics'],
 
     async _loadSubjects() {
         try {
