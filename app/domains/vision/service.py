@@ -982,6 +982,18 @@ Output the following JSON:
       {"symbol": "R", "value": "10", "unit": "Ω"}
     ],
 
+    "graph_features": {
+      "x_axis": {"quantity": "Length of mercury thread", "unit": "cm", "ticks": [0,2,4,6,8,10,12]},
+      "y_axis": {"quantity": "Temperature", "unit": "°C", "ticks": [-25,0,25,50,75,100]},
+      "grid_present": true,
+      "major_grid_interval_x": 2,
+      "major_grid_interval_y": 25,
+      "line_anchor_points": [
+        {"x": 3.0, "y": 0, "confidence": 0.93},
+        {"x": 12.0, "y": 100, "confidence": 0.91}
+      ]
+    },
+
     "overall_description": "A concise 1-2 sentence human-readable summary of the figure.",
     "needs_review": false,
     "review_warnings": []
@@ -1007,7 +1019,7 @@ Choose EXACTLY ONE from:
 
 MECHANICS (3):
 - force_diagram: Free-body or force diagrams. Extract: objects, forces (W/R/F/T), directions, angles, surfaces/ropes.
-- kinematics_graph: v-t, s-t, a-t graphs. Extract: axis quantities/units, key points, line types, slope/area meaning.
+- kinematics_graph: v-t, s-t, a-t graphs. Extract: axis quantities/units, ALL tick values, anchor points where line crosses grid intersections, line types, slope/area meaning. MUST populate graph_features.
 - projectile_motion_diagram: Projectile trajectories. Extract: launch angle, initial velocity, trajectory shape, key positions.
 
 WAVES (3):
@@ -1035,12 +1047,38 @@ APPARATUS/EXPERIMENT (3):
 - experiment_setup_photo: REAL PHOTOGRAPHS of lab equipment (has textures, shadows, real backgrounds). Extract: equipment list, labels, purpose.
 - labelled_apparatus_diagram: PRINTED LINE-DRAWINGS of apparatus (black-and-white, no shadows, annotation lines). Extract: apparatus list, labels, connections. Distinguish from photo by: clean lines, no texture, annotation arrows.
 
-GENERAL (2):
+GENERAL (3):
 - data_table_problem: Data tables. Extract: rows, columns, units, values.
 - mixed_option_figure: Options A/B/C/D are themselves figures. Parse each option sub-figure independently.
+- xy_line_graph: Any X-Y line/curve graph NOT covered by kinematics_graph (e.g., calibration curves, temperature-vs-length, resistance-vs-temperature, I-V characteristics). Extract: axis labels/units/ticks, grid intervals, line anchor points from grid intersections. MUST populate graph_features.
 
 FALLBACK:
 - other: Does not fit any above category.
+
+=== GRAPH / LINE-GRAPH READING RULES ===
+(Apply to kinematics_graph, xy_line_graph, or ANY figure containing an X-Y graph)
+
+**Step 1 — Axis identification:**
+- Read axis labels, units, and ALL numeric tick mark values on both axes.
+- Record ticks in graph_features.x_axis.ticks and graph_features.y_axis.ticks.
+
+**Step 2 — Grid analysis:**
+- Determine if a grid is present. If yes, count the number of grid lines between consecutive tick marks to find the major_grid_interval.
+- Example: if x-axis ticks are 0, 2, 4, 6 and there are 2 grid squares between each, each grid square = 1 unit.
+
+**Step 3 — Anchor point extraction (MOST CRITICAL):**
+- For each line/curve, find at least 2 points where the line CLEARLY crosses a grid intersection.
+- Read coordinates by COUNTING GRID LINES from the nearest labeled tick, NOT by visual approximation.
+- NEVER round a value to the nearest labeled tick — use the grid to get precise values.
+  ✗ WRONG: "The line starts near x=2, so x≈2.5" (guessing)
+  ✓ CORRECT: "The line crosses y=0 at exactly the 3rd grid line after x=2 → x=3.0" (counting)
+- Record anchor points in graph_features.line_anchor_points with confidence scores.
+- If a point falls between grid lines, interpolate using grid spacing but flag lower confidence.
+
+**Step 4 — Validation:**
+- Verify that anchor points are consistent with the visible line slope and direction.
+- If anchor points cannot be determined confidently, set needs_review = true and add "graph_anchor_unclear" to review_warnings.
+- NEVER skip graph_features for any graph-type figure.
 
 === CRITICAL RULES ===
 
@@ -1083,7 +1121,7 @@ FALLBACK:
 **Degradation warnings** (add to review_warnings when applicable):
 "options_not_separated", "unit_ambiguous", "arrow_direction_unclear",
 "value_unclear", "handwriting_heavy_interference", "figure_type_uncertain",
-"component_label_unclear", "scale_missing"
+"component_label_unclear", "scale_missing", "graph_anchor_unclear"
 
 ⚠️ FINAL REMINDER: If no handwritten answer is visible → "answer": "". Do NOT solve the problem.
 Output JSON only, no extra text.
@@ -1133,6 +1171,18 @@ Output the following JSON:
       {"symbol": "...", "value": "...", "unit": "..."}
     ],
 
+    "graph_features": {
+      "x_axis": {"quantity": "...", "unit": "...", "ticks": [0,2,4,6,8,10,12]},
+      "y_axis": {"quantity": "...", "unit": "...", "ticks": [-25,0,25,50,75,100]},
+      "grid_present": true,
+      "major_grid_interval_x": 2,
+      "major_grid_interval_y": 25,
+      "line_anchor_points": [
+        {"x": 3.0, "y": 0, "confidence": 0.93},
+        {"x": 12.0, "y": 100, "confidence": 0.91}
+      ]
+    },
+
     "overall_description": "...",
     "needs_review": false,
     "review_warnings": []
@@ -1153,7 +1203,7 @@ Output the following JSON:
   "notes": ""
 }
 
-=== figure_type options (same 21 types as QUESTION_AND_ANSWER) ===
+=== figure_type options (same as QUESTION_AND_ANSWER prompt) ===
 force_diagram, kinematics_graph, projectile_motion_diagram,
 wave_snapshot, standing_wave_diagram, pulse_reflection_grid,
 ray_optics_diagram, diffraction_grating_diagram,
@@ -1161,7 +1211,16 @@ circuit_schematic, motor_magnetic_diagram, magnetic_field_pattern,
 electrostatic_interaction, electric_field_map,
 sound_interference_setup, frequency_scale_diagram,
 appliance_safety_circuit, experiment_setup_photo, labelled_apparatus_diagram,
-data_table_problem, mixed_option_figure, other
+data_table_problem, mixed_option_figure, xy_line_graph, other
+
+=== GRAPH / LINE-GRAPH READING RULES ===
+(Apply to kinematics_graph, xy_line_graph, or ANY figure containing an X-Y graph)
+- Read ALL tick values on both axes → graph_features.x_axis.ticks / y_axis.ticks.
+- Count grid lines between ticks to find major_grid_interval.
+- Find at least 2 anchor points where line crosses grid intersections by COUNTING GRID LINES, not visual approximation.
+- NEVER round to the nearest labeled tick. Use grid to get precise values.
+- If anchor points are unclear → needs_review = true, add "graph_anchor_unclear".
+- Always populate graph_features for graph-type figures.
 
 === CRITICAL RULES ===
 

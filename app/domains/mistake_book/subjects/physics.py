@@ -91,6 +91,11 @@ class PhysicsHandler(BaseSubjectHandler):
 **quantities：** 已知物理量（含符號、數值、單位）。
 **優先使用 quantities 中的數值做計算。**
 
+**graph_features：** 若題目包含 X-Y 圖（如 v-t 圖、溫度-長度圖），此字段包含：
+- x_axis / y_axis：軸名稱、單位、刻度值
+- line_anchor_points：直線/曲線經過的精確坐標點（從網格交點讀取）
+**圖表計算題必須使用 line_anchor_points 中的錨點作為計算基準，不要自行估計端點。**
+
 **option_figures：** 若選項本身是圖（如受力分析圖選擇題），每個選項的摘要。
 
 **needs_review / review_warnings：** 若為 true，表示部分信息可能不準確，請謹慎使用。
@@ -123,7 +128,7 @@ class PhysicsHandler(BaseSubjectHandler):
 3. 代入數值與單位換算（cm→m、°C→K、kW→W、mA→A）
 4. 物理量方向/正負號約定（向量 vs 標量、力的方向、電流方向）
 5. 計算過程與有效數字
-6. 圖像/電路/波形解讀（結合 figure_description 中的具體元素）
+6. 圖像/電路/波形解讀（結合 figure_description 中的具體元素。**圖表題：必須使用 graph_features.line_anchor_points 的錨點座標，不要自行讀圖估值**）
 7. 解釋是否符合物理因果（答案是否合理）
 
 請以 JSON 格式回覆：
