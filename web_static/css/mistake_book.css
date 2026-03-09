@@ -69,12 +69,17 @@
 /* ---- 全局 ---- */
 .mb-page {
     min-height: 100vh;
+    min-height: 100dvh;          /* iPad/iOS: 動態視口高度，排除地址欄 */
     background: var(--mb-bg);
     font-family: var(--mb-font);
     color: var(--mb-text);
     padding-bottom: 80px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));  /* iPad safe area */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    display: flex;
+    flex-direction: column;
+    overscroll-behavior-y: none; /* 防止 iPad 過度滾動露出白底 */
 }
 
 .mb-page *, .mb-page *::before, .mb-page *::after {
@@ -92,12 +97,14 @@
     border-bottom: 0.5px solid var(--mb-border);
     padding: 0 20px;
     height: 48px;
+    position: -webkit-sticky;   /* Safari/iPad fallback */
     position: sticky;
     top: 0;
     z-index: 100;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-shrink: 0;              /* 不被 flex 壓縮 */
 }
 
 .mb-header__title {
@@ -176,6 +183,7 @@
     max-width: 100%;
     margin: 0 auto;
     padding: 0;
+    flex: 1;                     /* 填滿 header 和 tab-bar 之間的空間 */
 }
 
 /* ============================================================
