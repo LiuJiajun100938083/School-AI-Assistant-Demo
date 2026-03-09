@@ -1963,30 +1963,50 @@ class MistakeBookService:
         if start != -1 and end != -1:
             text = text[start:end + 1]
 
-        # 多級容錯解析（處理 LaTeX 反斜槓如 \frac \sqrt 等）
-        # 第一次：直接解析
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
+        # 多級容錯解析（處理 LaTeX 反斜槓如 \frac \sqrt \binom 等）
+        #
+        # 核心問題：JSON 標準轉義 \b \f \n \r \t 與 LaTeX 命令衝突
+        #   \frac → \f 被 json.loads 解讀為 form-feed，結果變成 rac
+        #   \binom → \b 被解讀為 backspace
+        #   \ne → \n 被解讀為 newline
+        # 因此必須在 json.loads 前預處理，將 LaTeX 反斜槓雙重轉義。
 
-        # 第二次：修復不合法的轉義（\f \s 等 → \\f \\s）
-        fixed = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', text)
+        def _fix_latex_escapes(s: str) -> str:
+            """將非 JSON 標準轉義的反斜槓雙重轉義，同時保護 LaTeX 命令中
+            碰巧以 JSON 轉義字符開頭的序列（如 \\frac, \\binom, \\nabla, \\right, \\text）。
+            """
+            # 匹配 \ 後跟一個字母序列。如果字母序列長度 > 1 且以 b/f/n/r/t 開頭，
+            # 那幾乎一定是 LaTeX 命令而非 JSON 轉義（JSON 轉義後面是非字母字符）。
+            def _replace(m: re.Match) -> str:
+                seq = m.group(1)  # 反斜槓後面的內容
+                # 真正的 JSON 轉義只有：\" \\ \/ \b \f \n \r \t \uXXXX
+                # 其中 \b \f \n \r \t 後面不會緊跟字母（在 JSON 值中它們是單字符轉義）
+                # 如果後面跟了字母（如 \frac, \binom），那是 LaTeX → 需雙重轉義
+                if len(seq) > 1:
+                    return '\\\\' + seq  # LaTeX 命令：雙重轉義
+                # 單字符：保留原樣讓 json.loads 處理（真正的 \n \t 等）
+                return m.group(0)
+
+            # 匹配 \ 後跟至少一個字母，但排除已經雙重轉義的 \\
+            return re.sub(r'(?<!\\)\\([a-zA-Z]+)', _replace, s)
+
+        # 第一次：修復 LaTeX 轉義後解析
+        fixed = _fix_latex_escapes(text)
         try:
             return json.loads(fixed)
         except json.JSONDecodeError:
             pass
 
-        # 第三次：全部反斜槓雙重轉義
+        # 第二次：全部反斜槓雙重轉義（更激進）
         try:
             return json.loads(text.replace('\\', '\\\\'))
         except json.JSONDecodeError:
             pass
 
-        # 第四次：嘗試用正則找到最大的 JSON 對象
+        # 第三次：嘗試用正則找到最大的 JSON 對象
         json_blocks = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL)
         for block in sorted(json_blocks, key=len, reverse=True):
-            for attempt in [block, re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', block)]:
+            for attempt in [_fix_latex_escapes(block), block.replace('\\', '\\\\')]:
                 try:
                     parsed = json.loads(attempt)
                     if isinstance(parsed, dict) and len(parsed) >= 2:
