@@ -375,6 +375,153 @@ const UI = {
 
         return result;
     },
+
+    /**
+     * 處理題目文字中的圖形描述 JSON
+     * 將 [圖形描述：{...JSON...}] 轉為可讀的文字描述
+     */
+    formatQuestion(text) {
+        if (!text) return '';
+
+        // 匹配 [圖形描述：{...}] 前綴
+        const figMatch = text.match(/^\[圖形描述[：:]\s*([\s\S]*?)\]\s*([\s\S]*)$/);
+        if (!figMatch) return this.renderMath(text);
+
+        const figRaw = figMatch[1].trim();
+        const questionBody = figMatch[2].trim();
+
+        // 嘗試解析 JSON 圖形描述
+        let figHtml = '';
+        try {
+            // 可能是部分 JSON（被截斷），嘗試修補
+            let jsonStr = figRaw;
+            if (!jsonStr.endsWith('}')) jsonStr += '"}]}';
+            const fig = JSON.parse(jsonStr);
+
+            if (fig && fig.elements) {
+                const points = fig.elements.filter(e => e.type === 'point');
+                const lines = fig.elements.filter(e => e.type === 'line_segment');
+
+                let desc = `<div class="mb-figure-desc">`;
+                desc += `<div class="mb-figure-desc__title">${Icons.image(14)} 幾何圖形</div>`;
+                if (points.length) {
+                    desc += `<div class="mb-figure-desc__item">點：${points.map(p => p.label).join('、')}</div>`;
+                }
+                if (lines.length) {
+                    desc += `<div class="mb-figure-desc__item">直線：${lines.map(l => l.label || (l.from + l.to)).join('、')}</div>`;
+                }
+                desc += `</div>`;
+                figHtml = desc;
+            }
+        } catch {
+            // JSON 解析失敗，顯示簡潔摘要
+            figHtml = `<div class="mb-figure-desc">
+                <div class="mb-figure-desc__title">${Icons.image(14)} 含幾何圖形</div>
+            </div>`;
+        }
+
+        return figHtml + this.renderMath(questionBody);
+    },
+
+    /**
+     * 處理 AI 分析文字
+     * 如果是 JSON 格式（後端解析失敗時），嘗試前端解析提取
+     * 同時截斷重複性文字
+     */
+    formatAnalysis(text) {
+        if (!text) return '';
+
+        // 檢測是否為 JSON 格式（後端 _extract_analysis_from_prose 失敗的情況）
+        const trimmed = text.trim();
+        if (trimmed.startsWith('{')) {
+            try {
+                // 嘗試直接解析
+                const obj = JSON.parse(trimmed);
+                return this._renderAnalysisObj(obj);
+            } catch {
+                // 嘗試修復常見的 LaTeX 轉義問題
+                try {
+                    const fixed = trimmed.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+                    const obj = JSON.parse(fixed);
+                    return this._renderAnalysisObj(obj);
+                } catch {
+                    // 用正則提取字段
+                    return this._extractAndRenderAnalysis(trimmed);
+                }
+            }
+        }
+
+        // 截斷重複文字
+        const cleaned = this._truncateRepetitive(text);
+        return this.renderMath(cleaned);
+    },
+
+    _renderAnalysisObj(obj) {
+        let html = '';
+        if (obj.error_analysis) {
+            html += this.renderMath(this._truncateRepetitive(obj.error_analysis));
+        }
+        if (obj.correct_answer && !html.includes(obj.correct_answer.substring(0, 20))) {
+            html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--mb-border)">
+                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">正確答案</div>
+                ${this.renderMath(this._truncateRepetitive(obj.correct_answer))}
+            </div>`;
+        }
+        if (obj.improvement_tips && obj.improvement_tips.length) {
+            html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--mb-border)">
+                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">改進建議</div>
+                <ul style="margin:0;padding-left:16px;font-size:13px">${obj.improvement_tips.map(t => `<li>${this.escapeHtml(t)}</li>`).join('')}</ul>
+            </div>`;
+        }
+        return html || this.renderMath(JSON.stringify(obj, null, 2).substring(0, 2000));
+    },
+
+    _extractAndRenderAnalysis(text) {
+        // 從 JSON-like 文本中正則提取字段
+        let html = '';
+
+        const eaMatch = text.match(/"error_analysis"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/s);
+        if (eaMatch) {
+            const analysis = eaMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            html += this.renderMath(this._truncateRepetitive(analysis));
+        }
+
+        const caMatch = text.match(/"correct_answer"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/s);
+        if (caMatch) {
+            const answer = caMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--mb-border)">
+                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">正確答案</div>
+                ${this.renderMath(this._truncateRepetitive(answer))}
+            </div>`;
+        }
+
+        if (html) return html;
+
+        // 什麼都沒提取到，清理後直接顯示
+        return this.renderMath(this._truncateRepetitive(text));
+    },
+
+    /**
+     * 截斷重複性文字（AI 模型循環生成）
+     */
+    _truncateRepetitive(text, maxLen = 3000) {
+        if (!text || text.length <= maxLen) return text;
+
+        // 檢測重複片段
+        for (const winSize of [200, 100, 50]) {
+            if (text.length < winSize * 4) continue;
+            const mid = Math.floor(text.length / 3);
+            const sample = text.substring(mid, mid + winSize);
+            const rest = text.substring(mid + winSize);
+            const count = (rest.match(new RegExp(sample.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+            if (count >= 2) {
+                const firstEnd = text.indexOf(sample, mid) + winSize;
+                return text.substring(0, firstEnd).trimEnd() + '\n\n（分析內容過長，已截斷）';
+            }
+        }
+
+        return text.substring(0, maxLen);
+    },
 };
 
 
@@ -506,7 +653,7 @@ const Views = {
 
             <div class="mb-detail-section">
                 <div class="mb-detail-section__title">${Icons.bookOpen(16)} 題目</div>
-                <div class="mb-detail-section__body">${UI.renderMath(m.question_text || '')}</div>
+                <div class="mb-detail-section__body">${UI.formatQuestion(m.question_text || '')}</div>
             </div>
 
             <div class="mb-detail-section">
@@ -523,7 +670,7 @@ const Views = {
             ${m.ai_analysis ? `
             <div class="mb-detail-section">
                 <div class="mb-detail-section__title">${Icons.zap(16)} AI 分析</div>
-                <div class="mb-detail-section__body">${UI.renderMath(m.ai_analysis)}</div>
+                <div class="mb-detail-section__body">${UI.formatAnalysis(m.ai_analysis)}</div>
                 ${m.error_type ? `<div style="margin-top:10px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
             </div>` : ''}
 

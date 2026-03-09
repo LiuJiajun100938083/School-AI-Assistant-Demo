@@ -46,22 +46,46 @@ logger = logging.getLogger(__name__)
 UPLOAD_DIR = "uploads/mistakes"
 
 
+def _truncate_repetitive(text: str, max_len: int = 3000) -> str:
+    """
+    檢測並截斷 AI 生成的重複文字（模型陷入循環時產生）。
+    策略：將文本分段，若某段重複出現 3+ 次則截斷到第一次出現處。
+    """
+    if len(text) <= max_len:
+        return text
+
+    # 快速檢測：取 50-200 字長度的窗口，檢查是否在後半段大量重複
+    for window_size in (200, 100, 50):
+        if len(text) < window_size * 4:
+            continue
+        # 取前半段的一個窗口
+        mid = len(text) // 3
+        sample = text[mid:mid + window_size]
+        # 統計在後半段出現的次數
+        count = text[mid + window_size:].count(sample)
+        if count >= 2:
+            # 找到第二次重複位置並截斷
+            first_end = text.find(sample, mid) + window_size
+            return text[:first_end].rstrip() + "\n\n（分析內容過長，已截斷）"
+
+    return text[:max_len]
+
+
 def _extract_analysis_from_prose(text: str) -> Dict:
     """
     當 AI 返回散文而非 JSON 時，嘗試從文本中提取有用的分析信息。
     這是最後的回退方案，確保用戶至少能看到分析內容。
+
+    增強：如果文本像 JSON（以 { 開頭），嘗試用正則提取各字段值。
     """
     import re
 
     # 移除 thinking 標籤
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
-    # 截取前 3000 字作為分析
-    analysis_text = text[:3000] if len(text) > 3000 else text
-
     result = {
         "is_correct": False,
-        "error_analysis": analysis_text,
+        "error_analysis": "",
         "correct_answer": "",
         "error_type": "method_error",
         "improvement_tips": [],
@@ -70,8 +94,71 @@ def _extract_analysis_from_prose(text: str) -> Dict:
         "confidence": 0.5,
     }
 
+    # ---- 增強：如果文本看起來像 JSON，逐字段正則提取 ----
+    if text.lstrip().startswith("{"):
+        # 提取 correct_answer 字段
+        ca_match = re.search(
+            r'"correct_answer"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)', text, re.DOTALL
+        )
+        if ca_match:
+            result["correct_answer"] = (
+                ca_match.group(1)
+                .replace("\\n", "\n")
+                .replace('\\"', '"')
+                .replace("\\\\", "\\")
+            )
+
+        # 提取 error_analysis 字段
+        ea_match = re.search(
+            r'"error_analysis"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)', text, re.DOTALL
+        )
+        if ea_match:
+            analysis_raw = (
+                ea_match.group(1)
+                .replace("\\n", "\n")
+                .replace('\\"', '"')
+                .replace("\\\\", "\\")
+            )
+            result["error_analysis"] = _truncate_repetitive(analysis_raw)
+
+        # 提取 error_type 字段
+        et_match = re.search(r'"error_type"\s*:\s*"([^"]*)"', text)
+        if et_match:
+            result["error_type"] = et_match.group(1)
+
+        # 提取 is_correct 字段
+        ic_match = re.search(r'"is_correct"\s*:\s*(true|false)', text, re.I)
+        if ic_match:
+            result["is_correct"] = ic_match.group(1).lower() == "true"
+
+        # 提取 knowledge_points 字段
+        kp_match = re.search(r'"knowledge_points"\s*:\s*\[(.*?)\]', text)
+        if kp_match:
+            codes = re.findall(r'"([^"]+)"', kp_match.group(1))
+            result["knowledge_points"] = codes
+
+        # 提取 improvement_tips 字段
+        tips_match = re.search(r'"improvement_tips"\s*:\s*\[(.*?)\]', text, re.DOTALL)
+        if tips_match:
+            tips = re.findall(r'"((?:[^"\\]|\\.)*)"', tips_match.group(1))
+            result["improvement_tips"] = [
+                t.replace("\\n", "\n").replace('\\"', '"') for t in tips
+            ]
+
+        # 如果沒提取到 error_analysis 但有 correct_answer，用後者作補充
+        if not result["error_analysis"] and result["correct_answer"]:
+            result["error_analysis"] = "請參考正確答案。"
+
+        # 如果至少提取到了 correct_answer 或 error_analysis，返回結果
+        if result["correct_answer"] or result["error_analysis"]:
+            return result
+
+    # ---- 原始回退：純散文處理 ----
+    analysis_text = _truncate_repetitive(text)
+    result["error_analysis"] = analysis_text
+
     # 嘗試判斷是否正確
-    if any(kw in text for kw in ["完全正確", "答案正確", "解題正確", "is_correct.*true"]):
+    if any(kw in text for kw in ["完全正確", "答案正確", "解題正確"]):
         result["is_correct"] = True
 
     # 嘗試提取錯誤類型
