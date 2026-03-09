@@ -1,0 +1,40 @@
+{
+  "case_id": "001",
+  "image": "case_001.jpg",
+  "subject": "math",
+  "description": "直角三角形，∠ACB=90°，O 是 AB 中點，求 ∠AOC",
+  "ground_truth": {
+    "question_text": "如圖，在直角三角形 ABC 中，∠ACB = 90°，O 是斜邊 AB 的中點。求 ∠AOC 的大小。",
+    "answer_text": "",
+    "has_figure": true,
+    "objects": [
+      {"id": "P_A", "type": "point", "label": "A"},
+      {"id": "P_B", "type": "point", "label": "B"},
+      {"id": "P_C", "type": "point", "label": "C"},
+      {"id": "P_O", "type": "point", "label": "O"},
+      {"id": "S_AB", "type": "segment", "endpoints": ["P_A", "P_B"]},
+      {"id": "S_AC", "type": "segment", "endpoints": ["P_A", "P_C"]},
+      {"id": "S_BC", "type": "segment", "endpoints": ["P_B", "P_C"]},
+      {"id": "S_OC", "type": "segment", "endpoints": ["P_O", "P_C"]},
+      {"id": "Ang_ACB", "type": "angle", "vertex": "P_C", "rays": ["P_A", "P_B"]},
+      {"id": "Tri_ABC", "type": "triangle", "vertices": ["P_A", "P_B", "P_C"]}
+    ],
+    "measurements": [
+      {"target": "Ang_ACB", "property": "degrees", "value": 90, "source": "question_text"}
+    ],
+    "relationships": [
+      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"}
+    ],
+    "task": {
+      "known_conditions": ["∠ACB = 90°", "O 是 AB 中點"],
+      "goals": ["求 ∠AOC 的大小"],
+      "auxiliary_lines": ["連接 OC"],
+      "figure_annotations": ["90°"]
+    }
+  },
+  "expected_analysis": {
+    "is_correct": false,
+    "error_type": "concept_error",
+    "correct_answer_contains": ["OC = OA = OB", "等腰三角形"]
+  }
+}

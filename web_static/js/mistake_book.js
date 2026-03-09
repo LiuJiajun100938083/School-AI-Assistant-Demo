@@ -1658,11 +1658,7 @@ const Upload = {
                     ${data.has_handwriting ? ' · 檢測到手寫' : ''}
                     ${figDesc ? ' · 已識別圖形' : ''}
                 </div>
-                ${figReadable ? `
-                <div class="mb-figure-desc">
-                    <div class="mb-figure-desc__title">📐 幾何圖形描述 ${fWarn}</div>
-                    <div class="mb-figure-desc__item">${UI.escapeHtml(figReadable)}</div>
-                </div>` : ''}
+                <div id="figureEditorSlot"></div>
                 <div class="mb-ocr-confirm__label">題目（可修正） ${qWarn}</div>
                 <textarea class="mb-ocr-confirm__textarea" id="ocrQuestion">${UI.escapeHtml(questionText)}</textarea>
                 <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正） ${aWarn}</div>
@@ -1672,6 +1668,12 @@ const Upload = {
                     確認並分析
                 </button>
             `;
+
+            // 渲染結構化幾何編輯器（僅數學題且有 figure_description 時顯示）
+            const editorSlot = document.getElementById('figureEditorSlot');
+            if (editorSlot && figDesc) {
+                this._renderFigureEditor(editorSlot, figDesc, fWarn);
+            }
         } else {
             const errMsg = (res && res.detail) || '識別失敗，請重試';
             btn.style.display = 'none';
@@ -1718,7 +1720,7 @@ const Upload = {
                 body: JSON.stringify({
                     confirmed_question: question,
                     confirmed_answer: answer,
-                    confirmed_figure_description: this._figureDescriptionRaw || null,
+                    confirmed_figure_description: this._collectFigureEdits() || this._figureDescriptionRaw || null,
                 }),
                 signal: controller.signal,
             });
@@ -1833,6 +1835,230 @@ const Upload = {
         }
     },
 
+    /**
+     * Phase 4: 結構化幾何編輯器
+     * MVP — 3 類操作：刪除關係/量測、修改量測值、新增簡單關係
+     */
+    _renderFigureEditor(container, figJsonStr, fWarn) {
+        let fig;
+        try {
+            fig = typeof figJsonStr === 'string' ? JSON.parse(figJsonStr) : figJsonStr;
+        } catch (e) {
+            // JSON 解析失敗，降級為只讀純文字顯示
+            container.innerHTML = `<div class="mb-figure-desc">
+                <div class="mb-figure-desc__title">📐 幾何圖形描述 ${fWarn || ''}</div>
+                <div class="mb-figure-desc__item">${UI.escapeHtml(figJsonStr)}</div>
+            </div>`;
+            return;
+        }
+
+        if (!fig || !fig.has_figure) {
+            container.innerHTML = '';
+            return;
+        }
+
+        // 保存原始結構供 _collectFigureEdits 使用
+        this._figureEditData = JSON.parse(JSON.stringify(fig));
+
+        // ---- objects（只讀標籤列表）----
+        const objects = fig.objects || fig.elements || [];
+        const objTags = objects.map(o => {
+            const label = o.label || o.id || '';
+            const typeMap = { point: '點', segment: '線段', line: '直線', ray: '射線',
+                angle: '角', circle: '圓', triangle: '△', polygon: '多邊形',
+                line_segment: '線段' };
+            const typeName = typeMap[o.type] || o.type || '';
+            return `<span class="mb-figure-editor__tag" title="${o.id || ''}">${typeName} ${UI.escapeHtml(label)}</span>`;
+        }).join('');
+
+        // ---- measurements（可編輯值）----
+        const measurements = fig.measurements || [];
+        const measRows = measurements.map((m, i) => {
+            const target = m.target || m.what || '';
+            const prop = m.property || '';
+            const value = m.value != null ? String(m.value) : '';
+            const source = m.source || '';
+            return `<div class="mb-figure-editor__kv" data-meas-idx="${i}">
+                <span class="mb-figure-editor__kv-label">${UI.escapeHtml(target)}${prop && prop !== 'length' ? ' ' + prop : ''}</span>
+                <span class="mb-figure-editor__kv-eq">=</span>
+                <input class="mb-figure-editor__kv-input" type="text" value="${UI.escapeHtml(value)}" data-field="value">
+                ${source ? `<span class="mb-figure-editor__source">${source}</span>` : ''}
+                <button class="mb-figure-editor__del" onclick="Upload._removeMeasurement(${i})" title="刪除">×</button>
+            </div>`;
+        }).join('');
+
+        // ---- relationships（可刪除）----
+        const rels = fig.relationships || [];
+        const relRows = rels.map((r, i) => {
+            const desc = this._describeRelationship(r);
+            const source = r.source || '';
+            const inferClass = source === 'inferred' ? ' mb-figure-editor__rel--inferred' : '';
+            return `<div class="mb-figure-editor__rel${inferClass}" data-rel-idx="${i}">
+                <span class="mb-figure-editor__rel-text">${UI.escapeHtml(desc)}</span>
+                ${source ? `<span class="mb-figure-editor__source">${source}</span>` : ''}
+                <button class="mb-figure-editor__del" onclick="Upload._removeRelationship(${i})" title="刪除">×</button>
+            </div>`;
+        }).join('');
+
+        // ---- task（只讀展示）----
+        const task = fig.task || {};
+        const goals = (task.goals || []).map(g => `<span class="mb-figure-desc__goal">${UI.escapeHtml(g)}</span>`).join('');
+        const known = (task.known_conditions || []).map(k => UI.escapeHtml(k)).join('、');
+
+        container.innerHTML = `
+            <div class="mb-figure-editor">
+                <div class="mb-figure-editor__header">📐 幾何信息（可編輯） ${fWarn || ''}</div>
+
+                ${objTags ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">幾何對象</div>
+                    <div class="mb-figure-editor__tags">${objTags}</div>
+                </div>` : ''}
+
+                ${measRows ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">量測</div>
+                    <div id="figMeasurements">${measRows}</div>
+                </div>` : ''}
+
+                ${relRows ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">關係</div>
+                    <div id="figRelationships">${relRows}</div>
+                </div>` : ''}
+
+                <div class="mb-figure-editor__section">
+                    <button class="mb-figure-editor__add" onclick="Upload._showAddRelation()">+ 新增關係</button>
+                    <div id="figAddRelPanel" style="display:none">
+                        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+                            <select id="figNewRelType" class="mb-figure-editor__select">
+                                <option value="parallel">平行 //</option>
+                                <option value="perpendicular">垂直 ⊥</option>
+                                <option value="midpoint">中點</option>
+                                <option value="congruent">全等 ≅</option>
+                                <option value="similar">相似 ∼</option>
+                                <option value="collinear">共線</option>
+                                <option value="on_segment">在…上</option>
+                                <option value="bisector">平分</option>
+                            </select>
+                            <input id="figNewRelA" class="mb-figure-editor__input" placeholder="對象1 (如 S_AB)" style="width:80px">
+                            <input id="figNewRelB" class="mb-figure-editor__input" placeholder="對象2 (如 S_CD)" style="width:80px">
+                            <button class="mb-btn mb-btn--sm mb-btn--primary" onclick="Upload._addRelation()">添加</button>
+                        </div>
+                    </div>
+                </div>
+
+                ${known || goals ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">任務</div>
+                    ${known ? `<div style="font-size:12px;color:var(--mb-text-secondary)">已知：${known}</div>` : ''}
+                    ${goals ? `<div style="font-size:12px;margin-top:4px">求：${goals}</div>` : ''}
+                </div>` : ''}
+            </div>
+        `;
+    },
+
+    /** 將 relationship 對象轉為可讀文字 */
+    _describeRelationship(rel) {
+        const t = rel.type || '';
+        const e = rel.entities || [];
+        switch (t) {
+            case 'parallel':      return e.length >= 2 ? `${e[0]} // ${e[1]}` : t;
+            case 'perpendicular': return e.length >= 2 ? `${e[0]} ⊥ ${e[1]}` : t;
+            case 'midpoint':      return `${rel.subject || '?'} 是 ${rel.of || '?'} 中點`;
+            case 'collinear':     return `${(rel.points || []).join('、')} 共線`;
+            case 'congruent':     return e.length >= 2 ? `${e[0]} ≅ ${e[1]}` : t;
+            case 'similar':       return e.length >= 2 ? `${e[0]} ∼ ${e[1]}` : t;
+            case 'tangent':       return e.length >= 2 ? `${e[0]} 切 ${e[1]}${rel.at ? '，切點 ' + rel.at : ''}` : t;
+            case 'on_segment':    return `${rel.subject || '?'} 在 ${rel.target || '?'} 上`;
+            case 'bisector':      return `${rel.subject || '?'} 平分 ${rel.target || '?'}`;
+            case 'equal': {
+                const items = rel.items || [];
+                if (items.length >= 2) return `${items[0].ref}(${items[0].prop}) = ${items[1].ref}(${items[1].prop})`;
+                return t;
+            }
+            default: return e.length ? `${t}: ${e.join(', ')}` : t;
+        }
+    },
+
+    /** 刪除量測 */
+    _removeMeasurement(idx) {
+        if (!this._figureEditData || !this._figureEditData.measurements) return;
+        this._figureEditData.measurements.splice(idx, 1);
+        const slot = document.getElementById('figureEditorSlot');
+        if (slot) this._renderFigureEditor(slot, this._figureEditData, '');
+    },
+
+    /** 刪除關係 */
+    _removeRelationship(idx) {
+        if (!this._figureEditData || !this._figureEditData.relationships) return;
+        this._figureEditData.relationships.splice(idx, 1);
+        const slot = document.getElementById('figureEditorSlot');
+        if (slot) this._renderFigureEditor(slot, this._figureEditData, '');
+    },
+
+    /** 顯示新增關係面板 */
+    _showAddRelation() {
+        const panel = document.getElementById('figAddRelPanel');
+        if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    },
+
+    /** 新增關係 */
+    _addRelation() {
+        if (!this._figureEditData) return;
+        if (!this._figureEditData.relationships) this._figureEditData.relationships = [];
+
+        const type = document.getElementById('figNewRelType').value;
+        const a = document.getElementById('figNewRelA').value.trim();
+        const b = document.getElementById('figNewRelB').value.trim();
+
+        if (!a) { UI.toast('請填寫對象1', 'error'); return; }
+
+        const directedTypes = ['midpoint', 'on_segment', 'bisector'];
+        let newRel;
+
+        if (type === 'collinear') {
+            newRel = { type, points: [a, b].filter(Boolean), source: 'question_text' };
+        } else if (directedTypes.includes(type)) {
+            newRel = { type, subject: a, [type === 'midpoint' ? 'of' : 'target']: b, source: 'question_text' };
+        } else {
+            if (!b) { UI.toast('請填寫對象2', 'error'); return; }
+            newRel = { type, entities: [a, b], source: 'question_text' };
+        }
+
+        this._figureEditData.relationships.push(newRel);
+        const slot = document.getElementById('figureEditorSlot');
+        if (slot) this._renderFigureEditor(slot, this._figureEditData, '');
+    },
+
+    /**
+     * 從編輯器中收集完整的 figure_description JSON
+     * ⚠️ 必須返回完整 JSON，不是 patch
+     */
+    _collectFigureEdits() {
+        if (!this._figureEditData) return null;
+
+        const fig = JSON.parse(JSON.stringify(this._figureEditData));
+
+        // 從 input 同步修改後的量測值
+        const measEls = document.querySelectorAll('.mb-figure-editor__kv');
+        measEls.forEach(el => {
+            const idx = parseInt(el.dataset.measIdx, 10);
+            if (fig.measurements && fig.measurements[idx]) {
+                const input = el.querySelector('.mb-figure-editor__kv-input');
+                if (input) {
+                    const newVal = input.value.trim();
+                    // 嘗試轉數字
+                    const num = Number(newVal);
+                    fig.measurements[idx].value = isNaN(num) ? newVal : num;
+                }
+            }
+        });
+
+        try {
+            return JSON.stringify(fig);
+        } catch (e) {
+            return null;
+        }
+    },
+
+    _figureEditData: null,
     _selectedFile: null,
 };
 
