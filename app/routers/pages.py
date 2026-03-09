@@ -284,7 +284,8 @@ _UPLOADED_GAME_CSP = (
     "https://fonts.googleapis.com 'unsafe-inline'; "
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
     "img-src 'self' data: blob:; "
-    "connect-src 'self'; "
+    "connect-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
+    "https://cdn.jsdelivr.net https://unpkg.com; "
     "frame-src 'none'; "
     "object-src 'none'; "
     "base-uri 'self'"
@@ -329,11 +330,21 @@ def _wrap_raw_jsx(jsx_code: str) -> str:
     clean_lines = []
     component_name = None
     extracted_css = []
+    lucide_icons = []  # 从 lucide-react 导入的图标名
 
     for line in lines:
         stripped = line.strip()
 
-        # 跳过 import 语句
+        # 检测 lucide-react 导入并捕获图标名
+        lucide_m = re.match(
+            r"""^import\s+\{([^}]+)\}\s+from\s+['"]lucide-react['"]""", stripped
+        )
+        if lucide_m:
+            icons = [name.strip() for name in lucide_m.group(1).split(',') if name.strip()]
+            lucide_icons.extend(icons)
+            continue
+
+        # 跳过其他 import 语句
         if re.match(r"""^import\s+.*\s+from\s+['"]""", stripped):
             continue
         if re.match(r"""^import\s+['"]""", stripped):
@@ -404,6 +415,19 @@ def _wrap_raw_jsx(jsx_code: str) -> str:
         "const { createPortal } = ReactDOM;"
     )
 
+    # 生成 lucide 图标的 LOCAL 定义（const 在 Babel script 内部，不污染全局）
+    icon_defs_lines = []
+    for icon_name in lucide_icons:
+        emoji = _LUCIDE_EMOJI_MAP.get(icon_name, '\u26A1')
+        icon_defs_lines.append(
+            f'const {icon_name} = (props) => React.createElement("span", '
+            f'{{"className": (props && props.className) || "", '
+            f'"style": {{"fontSize": ((props && props.size) || 24) + "px", '
+            f'"display": "inline-flex", "alignItems": "center"}}}}, '
+            f'"{emoji}");'
+        )
+    icon_defs_code = '\n'.join(icon_defs_lines)
+
     html = (
         '<!DOCTYPE html>\n'
         '<html lang="zh-TW">\n'
@@ -423,7 +447,8 @@ def _wrap_raw_jsx(jsx_code: str) -> str:
         '<body>\n'
         '<div id="root"></div>\n'
         '<script type="text/babel">\n'
-        f'{hooks_destructure}\n\n'
+        f'{hooks_destructure}\n'
+        f'{icon_defs_code}\n\n'
         f'{cleaned_code}\n\n'
         f'ReactDOM.createRoot(document.getElementById("root")).render(<{component_name} />);\n'
         f'{end_script}\n'
@@ -612,6 +637,7 @@ def _inject_lucide_polyfills(html_content: str) -> str:
     icons_to_inject = set()
     for icon_name in icon_refs:
         # 跳过 React 内置组件和 HTML 标签
+        # 跳过 JS 内置全局对象（Map/Set/Promise 等）— 覆盖它们会破坏 Tailwind 等库
         if icon_name in ('React', 'ReactDOM', 'Fragment', 'Component',
                          'Suspense', 'StrictMode', 'Profiler',
                          'Div', 'Span', 'Input', 'Button', 'Form',
@@ -619,7 +645,16 @@ def _inject_lucide_polyfills(html_content: str) -> str:
                          'Head', 'Html', 'Body', 'Script', 'Style',
                          'Symbol', 'Path', 'Svg', 'Circle', 'Rect',
                          'Line', 'Polyline', 'Polygon', 'Image',
-                         'Text', 'View'):
+                         'Text', 'View',
+                         # JS 内置全局对象 — 绝对不能覆盖
+                         'Map', 'Set', 'WeakMap', 'WeakSet',
+                         'Promise', 'Proxy', 'Reflect',
+                         'Array', 'Object', 'Number', 'String',
+                         'Boolean', 'Date', 'RegExp', 'Function',
+                         'Error', 'TypeError', 'RangeError',
+                         'Math', 'JSON', 'Intl',
+                         'Iterator', 'Generator',
+                         ):
             continue
         # 检查是否在代码中已经有定义（const/function/class）
         if babel_match:
