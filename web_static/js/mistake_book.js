@@ -54,6 +54,7 @@ const App = {
         user: null,
         currentTab: 'home',
         currentSubject: 'all',
+        subjects: [],  // 動態從 API 加載
         mistakes: { items: [], total: 0, page: 1 },
         dashboard: null,
         currentMistake: null,
@@ -73,8 +74,25 @@ const App = {
             return;
         }
 
+        await this._loadSubjects();
         this._bindEvents();
         this.navigate('home');
+    },
+
+    async _loadSubjects() {
+        try {
+            const res = await API.getSubjects();
+            if (res && res.data) {
+                this.state.subjects = res.data;
+            }
+        } catch (e) {
+            // 降級到默認三科
+            this.state.subjects = [
+                { subject_code: 'chinese', display_name: '中文', ui_features: {} },
+                { subject_code: 'math', display_name: '數學', ui_features: { katex: true } },
+                { subject_code: 'english', display_name: '英文', ui_features: {} },
+            ];
+        }
     },
 
     navigate(tab) {
@@ -172,6 +190,7 @@ const API = {
         return false;
     },
 
+    async getSubjects() { return this._fetch('/api/mistakes/subjects'); },
     async getDashboard() { return this._fetch('/api/mistakes/dashboard'); },
     async getMistakes(subject, status, page = 1) {
         const params = new URLSearchParams({ page, page_size: 20 });
@@ -257,11 +276,12 @@ const UI = {
 
     subjectChips() {
         const current = App.state.currentSubject;
+        const subjects = App.state.subjects || [];
         return `<div class="mb-subject-bar">
-            ${['all','chinese','math','english'].map(s => {
-                const label = {all:'全部',chinese:'中文',math:'數學',english:'英文'}[s];
-                return `<button class="mb-subject-chip${current===s?' mb-subject-chip--active':''}" data-subject="${s}">${label}</button>`;
-            }).join('')}
+            <button class="mb-subject-chip${current==='all'?' mb-subject-chip--active':''}" data-subject="all">全部</button>
+            ${subjects.map(s =>
+                `<button class="mb-subject-chip${current===s.subject_code?' mb-subject-chip--active':''}" data-subject="${s.subject_code}">${s.display_name}</button>`
+            ).join('')}
         </div>`;
     },
 
@@ -274,8 +294,8 @@ const UI = {
     },
 
     subjectLabel(subject) {
-        const map = { chinese: '中文', math: '數學', english: '英文' };
-        return map[subject] || subject;
+        const s = (App.state.subjects || []).find(s => s.subject_code === subject);
+        return s ? s.display_name : subject;
     },
 
     statusLabel(status) {
@@ -870,8 +890,8 @@ const Views = {
                 </div>
             `;
             const subjectsDiv = container.querySelector('.mb-practice-subjects');
-            subjectsDiv.innerHTML = ['chinese', 'math', 'english'].map(s =>
-                `<button class="mb-btn mb-btn--secondary" data-practice-subject="${s}">${UI.subjectLabel(s)}</button>`
+            subjectsDiv.innerHTML = (App.state.subjects || []).map(s =>
+                `<button class="mb-btn mb-btn--secondary" data-practice-subject="${s.subject_code}">${s.display_name}</button>`
             ).join('');
             subjectsDiv.addEventListener('click', e => {
                 const btn = e.target.closest('[data-practice-subject]');
@@ -1534,24 +1554,15 @@ const Upload = {
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">科目</label>
                 <select class="mb-select" id="uploadSubject">
-                    <option value="chinese">中文</option>
-                    <option value="math">數學</option>
-                    <option value="english">英文</option>
+                    ${(App.state.subjects || []).map(s =>
+                        `<option value="${s.subject_code}">${s.display_name}</option>`
+                    ).join('')}
                 </select>
             </div>
 
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">題目類型</label>
-                <select class="mb-select" id="uploadCategory">
-                    <option value="閱讀理解">閱讀理解</option>
-                    <option value="寫作">寫作</option>
-                    <option value="語文基礎">語文基礎</option>
-                    <option value="代數">代數</option>
-                    <option value="幾何">幾何</option>
-                    <option value="Grammar">Grammar</option>
-                    <option value="Dictation">Dictation 默書</option>
-                    <option value="Reading">Reading</option>
-                </select>
+                <select class="mb-select" id="uploadCategory"></select>
             </div>
 
             <div class="mb-upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
@@ -1576,6 +1587,19 @@ const Upload = {
                 上傳並識別
             </button>
         `;
+
+        // 科目切換時更新題目類型
+        const uploadSubjectEl = document.getElementById('uploadSubject');
+        const uploadCategoryEl = document.getElementById('uploadCategory');
+        const _updateUploadCategories = () => {
+            const subj = (App.state.subjects || []).find(s => s.subject_code === uploadSubjectEl.value);
+            const cats = (subj && subj.categories) || [{value:'其他', label:'其他'}];
+            uploadCategoryEl.innerHTML = cats.map(c =>
+                `<option value="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</option>`
+            ).join('');
+        };
+        uploadSubjectEl.addEventListener('change', _updateUploadCategories);
+        _updateUploadCategories(); // 初始化
 
         document.getElementById('fileInput').addEventListener('change', e => {
             const file = e.target.files[0];
@@ -1784,16 +1808,15 @@ const Upload = {
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">科目</label>
                 <select class="mb-select" id="manualSubject">
-                    <option value="chinese">中文</option>
-                    <option value="math">數學</option>
-                    <option value="english">英文</option>
+                    ${(App.state.subjects || []).map(s =>
+                        `<option value="${s.subject_code}">${s.display_name}</option>`
+                    ).join('')}
                 </select>
             </div>
 
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">題目類型</label>
-                <input type="text" class="mb-ocr-confirm__textarea" id="manualCategory"
-                       style="min-height:auto;height:36px" placeholder="例如：閱讀理解、代數、Grammar">
+                <select class="mb-select" id="manualCategory"></select>
             </div>
 
             <div style="margin-bottom:12px">
@@ -1810,6 +1833,19 @@ const Upload = {
                 添加並分析
             </button>
         `;
+
+        // 科目切換時更新題目類型
+        const manualSubjectEl = document.getElementById('manualSubject');
+        const manualCategoryEl = document.getElementById('manualCategory');
+        const _updateManualCategories = () => {
+            const subj = (App.state.subjects || []).find(s => s.subject_code === manualSubjectEl.value);
+            const cats = (subj && subj.categories) || [{value:'其他', label:'其他'}];
+            manualCategoryEl.innerHTML = cats.map(c =>
+                `<option value="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</option>`
+            ).join('');
+        };
+        manualSubjectEl.addEventListener('change', _updateManualCategories);
+        _updateManualCategories(); // 初始化
     },
 
     async _submitManual() {

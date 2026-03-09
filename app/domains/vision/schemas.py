@@ -11,6 +11,15 @@ class RecognitionSubject(str, Enum):
     CHINESE = "chinese"
     MATH = "math"
     ENGLISH = "english"
+    PHYSICS = "physics"
+
+    @classmethod
+    def _missing_(cls, value):
+        """未知科目不報錯，作為通用科目處理。"""
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj._name_ = value.upper()
+        return obj
 
 
 class RecognitionTask(str, Enum):

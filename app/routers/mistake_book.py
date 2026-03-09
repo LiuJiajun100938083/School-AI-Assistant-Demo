@@ -6,7 +6,8 @@
 
 import asyncio
 import logging
-from typing import Optional, Tuple
+import time
+from typing import Optional, Set, Tuple
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
@@ -18,18 +19,77 @@ from app.domains.mistake_book.schemas import (
     GeneratePracticeRequest,
     ManualMistakeRequest,
     RecordReviewRequest,
-    SubjectEnum,
     SubmitPracticeRequest,
 )
 from app.domains.mistake_book.exceptions import (
     MistakeBookError,
     MistakeNotFoundError,
 )
+from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["mistake-book"])
 
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+
+# ---- 動態科目驗證（60秒緩存） ----
+_subject_cache: Set[str] = set()
+_subject_cache_ts: float = 0
+
+
+def _validate_subject(subject: str) -> str:
+    """驗證科目代碼是否存在於 subjects 表中。"""
+    global _subject_cache, _subject_cache_ts
+    now = time.time()
+    if now - _subject_cache_ts > 60:
+        try:
+            subject_service = get_services().subject
+            subjects = subject_service.list_subjects()
+            _subject_cache = {s["subject_code"] for s in subjects}
+        except Exception:
+            # 服務不可用時降級到已註冊的 handler
+            _subject_cache = set(SubjectHandlerRegistry.get_all().keys())
+        _subject_cache_ts = now
+    if subject not in _subject_cache:
+        raise HTTPException(400, f"不支持的科目: {subject}")
+    return subject
+
+
+# ============================================================
+# 學生端：科目列表
+# ============================================================
+
+@router.get("/api/mistakes/subjects")
+async def get_mistake_book_subjects(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    獲取錯題本支持的科目列表（動態從數據庫加載）。
+    前端用此端點動態渲染科目切換芯片。
+    """
+    try:
+        subject_service = get_services().subject
+        subjects = subject_service.list_subjects()
+    except Exception:
+        subjects = []
+
+    result = []
+    for s in subjects:
+        code = s.get("subject_code", "")
+        db_name = s.get("subject_name", code)
+        handler = SubjectHandlerRegistry.get(code)
+        # 自定義 Handler 用 handler.display_name；DefaultHandler 用數據庫的 subject_name
+        display = handler.display_name if handler.display_name != code else db_name
+        result.append({
+            "subject_code": code,
+            "subject_name": db_name,
+            "icon": s.get("icon", ""),
+            "display_name": display,
+            "categories": handler.categories,
+            "ui_features": handler.ui_features,
+            "error_types": handler.error_types,
+        })
+    return {"success": True, "data": result}
 
 
 # ============================================================
@@ -50,8 +110,7 @@ async def upload_mistake_photo(
     - **subject**: 科目 (chinese/math/english)
     - **category**: 題目類型（如 閱讀理解、代數、Grammar）
     """
-    if subject not in ("chinese", "math", "english"):
-        raise HTTPException(400, "科目只支持 chinese/math/english")
+    _validate_subject(subject)
 
     content = await image.read()
     if len(content) > MAX_IMAGE_SIZE:
@@ -116,11 +175,12 @@ async def add_manual_mistake(
     try:
         service = get_services().mistake_book
         loop = asyncio.get_event_loop()
+        _validate_subject(req.subject)
         result = await loop.run_in_executor(
             None,
             lambda: service.add_manual_mistake(
                 student_username=current_user["username"],
-                subject=req.subject.value,
+                subject=req.subject,
                 category=req.category,
                 question_text=req.question_text,
                 answer_text=req.answer_text,
@@ -187,8 +247,7 @@ async def get_weakness_report(
     current_user: dict = Depends(get_current_user),
 ):
     """獲取薄弱知識點報告"""
-    if subject not in ("chinese", "math", "english"):
-        raise HTTPException(400, "科目只支持 chinese/math/english")
+    _validate_subject(subject)
 
     service = get_services().mistake_book
     result = await service.get_weakness_report(current_user["username"], subject)
@@ -218,8 +277,7 @@ async def get_knowledge_graph(
     """
     獲取知識圖譜全量數據（雷達圖 + 趨勢 + 樹狀圖 + 薄弱點摘要）
     """
-    if subject not in ("chinese", "math", "english"):
-        raise HTTPException(400, "科目只支持 chinese/math/english")
+    _validate_subject(subject)
 
     service = get_services().mistake_book
     loop = asyncio.get_event_loop()
@@ -339,9 +397,10 @@ async def generate_practice(
     """AI 根據薄弱知識點生成練習題"""
     try:
         service = get_services().mistake_book
+        _validate_subject(req.subject)
         result = await service.generate_practice(
             username=current_user["username"],
-            subject=req.subject.value,
+            subject=req.subject,
             session_type=req.session_type.value,
             question_count=req.question_count,
             target_points=req.target_points,

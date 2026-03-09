@@ -37,6 +37,7 @@ from app.domains.mistake_book.prompts import (
     build_practice_prompt,
     build_weakness_report_prompt,
 )
+from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
 from app.domains.adaptive.engine import AdaptiveLearningEngine
 from app.domains.vision.service import VisionService
 from app.domains.vision.schemas import RecognitionSubject, RecognitionTask
@@ -425,7 +426,8 @@ class MistakeBookService:
         ocr_result = None
         if self._vision:
             recognition_subject = RecognitionSubject(subject)
-            task = self._pick_recognition_task(subject, category)
+            handler = SubjectHandlerRegistry.get(subject)
+            task = handler.pick_recognition_task(category)
             ocr_result = await self._vision.recognize(
                 saved_path, recognition_subject, task
             )
@@ -448,9 +450,9 @@ class MistakeBookService:
         if figure_desc:
             logger.info("圖形描述已提取: %s", figure_desc[:100])
 
-        # 構建分項置信度（數學科才拆分，非數學科為 null）
+        # 構建分項置信度（支持分項置信度的科目才拆分，其他科目為 null）
         confidence_breakdown = None
-        if ocr_result and ocr_result.success and subject == "math":
+        if ocr_result and ocr_result.success and handler.supports_confidence_breakdown:
             q_conf = ocr_result.question_confidence
             a_conf = ocr_result.answer_confidence
             f_conf = ocr_result.figure_confidence
@@ -1613,8 +1615,7 @@ class MistakeBookService:
                 lines.append(f"- 題目: {q[:120]}  錯誤類型: {err}")
             mistakes_context = "\n".join(lines)
 
-        subject_names = {"chinese": "中文", "math": "數學", "english": "英文"}
-        subj_label = subject_names.get(subject, subject)
+        subj_label = SubjectHandlerRegistry.get(subject).display_name
 
         prompt = f"""你是一位耐心親切的香港中學{subj_label}老師。一位學生想問關於「{point_name}」（分類：{category}）的問題。
 
@@ -1798,20 +1799,6 @@ class MistakeBookService:
                 return f"{cn} {suffix}".strip() if suffix else cn
 
         return code
-
-    @staticmethod
-    def _pick_recognition_task(subject: str, category: str) -> RecognitionTask:
-        """根據科目和類型選擇 OCR 任務"""
-        category_lower = category.lower()
-
-        if subject == "math":
-            return RecognitionTask.MATH_SOLUTION
-        if subject == "chinese" and "寫作" in category:
-            return RecognitionTask.ESSAY
-        if subject == "english" and ("dictation" in category_lower or "默書" in category):
-            return RecognitionTask.DICTATION
-
-        return RecognitionTask.QUESTION_AND_ANSWER
 
     @staticmethod
     def _simple_check(student_answer: str, correct_answer: str) -> bool:

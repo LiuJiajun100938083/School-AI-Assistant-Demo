@@ -586,6 +586,67 @@
       "parent_code": "eng_dictation",
       "difficulty_level": 2,
       "display_order": 3
-    }
+    },
+
+    {"subject":"physics","category":"熱與氣體","point_code":"phys_heat_gases","point_name":"熱與氣體","description":"[compulsory:core] 熱與氣體總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":1},
+    {"subject":"physics","category":"熱與氣體","point_code":"phys_temp_heat_internal","point_name":"溫度、熱和內能","description":"[compulsory:core] 溫度概念、熱容量、比熱容、內能與分子運動","grade_levels":["S4","S5"],"parent_code":"phys_heat_gases","difficulty_level":2,"display_order":1},
+    {"subject":"physics","category":"熱與氣體","point_code":"phys_heat_transfer","point_name":"熱的傳遞","description":"[compulsory:core] 傳導、對流、輻射的機制與應用","grade_levels":["S4","S5"],"parent_code":"phys_heat_gases","difficulty_level":2,"display_order":2},
+    {"subject":"physics","category":"熱與氣體","point_code":"phys_change_of_state","point_name":"物態變化","description":"[compulsory:core] 熔化、凝固、蒸發、沸騰、凝結；比潛熱","grade_levels":["S4","S5"],"parent_code":"phys_heat_gases","difficulty_level":2,"display_order":3},
+    {"subject":"physics","category":"熱與氣體","point_code":"phys_gases","point_name":"氣體定律","description":"[compulsory:core] 波義耳定律、查理定律、理想氣體方程 pV=nRT","grade_levels":["S4","S5","S6"],"parent_code":"phys_heat_gases","difficulty_level":3,"display_order":4},
+
+    {"subject":"physics","category":"力和運動","point_code":"phys_force_motion","point_name":"力和運動","description":"[compulsory:core] 力和運動總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":2},
+    {"subject":"physics","category":"力和運動","point_code":"phys_position_movement","point_name":"位置和移動","description":"[compulsory:core] 距離、位移、速率、速度、加速度；v-t 圖和 s-t 圖","grade_levels":["S4","S5"],"parent_code":"phys_force_motion","difficulty_level":2,"display_order":1},
+    {"subject":"physics","category":"力和運動","point_code":"phys_force_motion_laws","point_name":"力和運動定律","description":"[compulsory:core] 牛頓三大運動定律、自由落體、摩擦力","grade_levels":["S4","S5"],"parent_code":"phys_force_motion","difficulty_level":3,"display_order":2},
+    {"subject":"physics","category":"力和運動","point_code":"phys_projectile","point_name":"拋體運動","description":"[compulsory:extension] 水平拋射與斜拋運動的分析","grade_levels":["S5","S6"],"parent_code":"phys_force_motion","difficulty_level":4,"display_order":3},
+    {"subject":"physics","category":"力和運動","point_code":"phys_work_energy_power","point_name":"功、能量和功率","description":"[compulsory:core] 功的定義、動能、勢能、機械能守恆、功率","grade_levels":["S4","S5"],"parent_code":"phys_force_motion","difficulty_level":3,"display_order":4},
+    {"subject":"physics","category":"力和運動","point_code":"phys_momentum","point_name":"動量","description":"[compulsory:core] 動量定義、動量守恆、衝量、碰撞","grade_levels":["S4","S5","S6"],"parent_code":"phys_force_motion","difficulty_level":3,"display_order":5},
+    {"subject":"physics","category":"力和運動","point_code":"phys_circular_motion","point_name":"圓周運動","description":"[compulsory:extension] 向心力、向心加速度、角速度、圓周運動應用","grade_levels":["S5","S6"],"parent_code":"phys_force_motion","difficulty_level":4,"display_order":6},
+    {"subject":"physics","category":"力和運動","point_code":"phys_gravitation","point_name":"萬有引力","description":"[compulsory:extension] 萬有引力定律、重力場、衛星運動","grade_levels":["S5","S6"],"parent_code":"phys_force_motion","difficulty_level":4,"display_order":7},
+
+    {"subject":"physics","category":"波動","point_code":"phys_wave_motion","point_name":"波動","description":"[compulsory:core] 波動總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":3},
+    {"subject":"physics","category":"波動","point_code":"phys_wave_nature","point_name":"波的性質","description":"[compulsory:core] 波的基本概念、橫波與縱波、波速公式 v=fλ、反射、折射、繞射、干涉","grade_levels":["S4","S5"],"parent_code":"phys_wave_motion","difficulty_level":3,"display_order":1},
+    {"subject":"physics","category":"波動","point_code":"phys_light","point_name":"光","description":"[compulsory:core] 光的性質總覽","grade_levels":["S4","S5"],"parent_code":"phys_wave_motion","difficulty_level":2,"display_order":2},
+    {"subject":"physics","category":"波動","point_code":"phys_reflection_refraction","point_name":"反射和折射","description":"[compulsory:core] 反射定律、折射定律（Snell's law）、全內反射、臨界角","grade_levels":["S4","S5"],"parent_code":"phys_light","difficulty_level":3,"display_order":1},
+    {"subject":"physics","category":"波動","point_code":"phys_lenses","point_name":"透鏡","description":"[compulsory:core] 凸透鏡與凹透鏡、成像規律、透鏡方程 1/f=1/u+1/v","grade_levels":["S4","S5"],"parent_code":"phys_light","difficulty_level":3,"display_order":2},
+    {"subject":"physics","category":"波動","point_code":"phys_light_wave","point_name":"光的波動性","description":"[compulsory:extension] 光的干涉、繞射、光柵、雙縫實驗","grade_levels":["S5","S6"],"parent_code":"phys_wave_motion","difficulty_level":4,"display_order":3},
+    {"subject":"physics","category":"波動","point_code":"phys_sound","point_name":"聲音","description":"[compulsory:core] 聲波的傳播、回聲、共鳴、樂器中的駐波","grade_levels":["S4","S5"],"parent_code":"phys_wave_motion","difficulty_level":2,"display_order":4},
+
+    {"subject":"physics","category":"電和磁","point_code":"phys_electricity_magnetism","point_name":"電和磁","description":"[compulsory:core] 電和磁總覽","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":4},
+    {"subject":"physics","category":"電和磁","point_code":"phys_electrostatics","point_name":"靜電學","description":"[compulsory:core] 電荷守恆、庫侖定律、電場、電位","grade_levels":["S4","S5"],"parent_code":"phys_electricity_magnetism","difficulty_level":3,"display_order":1},
+    {"subject":"physics","category":"電和磁","point_code":"phys_circuits","point_name":"電路","description":"[compulsory:core] 串聯並聯電路分析","grade_levels":["S4","S5"],"parent_code":"phys_electricity_magnetism","difficulty_level":2,"display_order":2},
+    {"subject":"physics","category":"電和磁","point_code":"phys_ohm_law","point_name":"歐姆定律","description":"[compulsory:core] V=IR、電阻與溫度、伏安特性曲線","grade_levels":["S4","S5"],"parent_code":"phys_circuits","difficulty_level":2,"display_order":1},
+    {"subject":"physics","category":"電和磁","point_code":"phys_electrical_power","point_name":"電功率和電能","description":"[compulsory:core] P=IV、E=Pt、家居電路安全、保險絲、接地","grade_levels":["S4","S5"],"parent_code":"phys_circuits","difficulty_level":2,"display_order":2},
+    {"subject":"physics","category":"電和磁","point_code":"phys_electromagnetism","point_name":"電磁學","description":"[compulsory:core] 磁場、電流的磁效應、電磁感應總覽","grade_levels":["S4","S5","S6"],"parent_code":"phys_electricity_magnetism","difficulty_level":3,"display_order":3},
+    {"subject":"physics","category":"電和磁","point_code":"phys_magnetic_field","point_name":"磁場","description":"[compulsory:core] 磁場線、載流導線的磁場、安培力、電動機原理","grade_levels":["S4","S5"],"parent_code":"phys_electromagnetism","difficulty_level":3,"display_order":1},
+    {"subject":"physics","category":"電和磁","point_code":"phys_em_induction","point_name":"電磁感應","description":"[compulsory:extension] 法拉第定律、楞次定律、感應電動勢","grade_levels":["S5","S6"],"parent_code":"phys_electromagnetism","difficulty_level":4,"display_order":2},
+    {"subject":"physics","category":"電和磁","point_code":"phys_ac","point_name":"交流電","description":"[compulsory:extension] 交流電的產生、rms 值、變壓器","grade_levels":["S5","S6"],"parent_code":"phys_electromagnetism","difficulty_level":4,"display_order":3},
+
+    {"subject":"physics","category":"放射現象與核能","point_code":"phys_radioactivity_nuclear","point_name":"放射現象與核能","description":"[compulsory:core] 放射現象與核能總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":5},
+    {"subject":"physics","category":"放射現象與核能","point_code":"phys_radiation","point_name":"放射性","description":"[compulsory:core] α/β/γ 射線、半衰期、放射性衰變","grade_levels":["S5","S6"],"parent_code":"phys_radioactivity_nuclear","difficulty_level":3,"display_order":1},
+    {"subject":"physics","category":"放射現象與核能","point_code":"phys_rn_atomic_model","point_name":"原子模型（放射現象）","description":"[compulsory:core] Rutherford 散射實驗、原子核結構、核子","grade_levels":["S5","S6"],"parent_code":"phys_radioactivity_nuclear","difficulty_level":3,"display_order":2},
+    {"subject":"physics","category":"放射現象與核能","point_code":"phys_nuclear_energy","point_name":"核能","description":"[compulsory:core] 核裂變、核聚變、質能關係 E=mc²、核電站","grade_levels":["S5","S6"],"parent_code":"phys_radioactivity_nuclear","difficulty_level":3,"display_order":3},
+
+    {"subject":"physics","category":"天文與航天科學","point_code":"phys_astronomy","point_name":"天文與航天科學","description":"[elective] 天文與航天科學選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":6},
+    {"subject":"physics","category":"天文與航天科學","point_code":"phys_celestial_motion","point_name":"天體運動","description":"[elective] 克卜勒定律、行星運動、人造衛星軌道","grade_levels":["S5","S6"],"parent_code":"phys_astronomy","difficulty_level":4,"display_order":1},
+    {"subject":"physics","category":"天文與航天科學","point_code":"phys_stellar_evolution","point_name":"恆星演化","description":"[elective] 恆星的生命週期、赫羅圖、白矮星/中子星/黑洞","grade_levels":["S5","S6"],"parent_code":"phys_astronomy","difficulty_level":4,"display_order":2},
+
+    {"subject":"physics","category":"原子世界","point_code":"phys_atomic_world","point_name":"原子世界","description":"[elective] 原子世界選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":7},
+    {"subject":"physics","category":"原子世界","point_code":"phys_photoelectric","point_name":"光電效應","description":"[elective] 光電效應實驗、愛因斯坦方程 E=hf-φ、功函數","grade_levels":["S5","S6"],"parent_code":"phys_atomic_world","difficulty_level":4,"display_order":1},
+    {"subject":"physics","category":"原子世界","point_code":"phys_aw_bohr_model","point_name":"玻爾原子模型","description":"[elective] Bohr 模型、能級跳遷、光譜線","grade_levels":["S5","S6"],"parent_code":"phys_atomic_world","difficulty_level":4,"display_order":2},
+    {"subject":"physics","category":"原子世界","point_code":"phys_aw_wave_particle","point_name":"波粒二象性","description":"[elective] de Broglie 波長、物質波、不確定性原理","grade_levels":["S5","S6"],"parent_code":"phys_atomic_world","difficulty_level":5,"display_order":3},
+
+    {"subject":"physics","category":"能源和能源的使用","point_code":"phys_energy_use","point_name":"能源和能源的使用","description":"[elective] 能源選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":8},
+    {"subject":"physics","category":"能源和能源的使用","point_code":"phys_energy_types","point_name":"能源類型","description":"[elective] 可再生與不可再生能源、化石燃料、太陽能、風能、核能","grade_levels":["S5","S6"],"parent_code":"phys_energy_use","difficulty_level":2,"display_order":1},
+    {"subject":"physics","category":"能源和能源的使用","point_code":"phys_energy_efficiency","point_name":"能源效率","description":"[elective] 能量轉換效率、熱機效率、能量審計","grade_levels":["S5","S6"],"parent_code":"phys_energy_use","difficulty_level":3,"display_order":2},
+
+    {"subject":"physics","category":"醫學物理","point_code":"phys_medical","point_name":"醫學物理","description":"[elective] 醫學物理選修總覽","grade_levels":["S5","S6"],"parent_code":null,"difficulty_level":1,"display_order":9},
+    {"subject":"physics","category":"醫學物理","point_code":"phys_medical_imaging","point_name":"醫學影像","description":"[elective] X 射線、超聲波、MRI、CT 掃描原理與應用","grade_levels":["S5","S6"],"parent_code":"phys_medical","difficulty_level":4,"display_order":1},
+    {"subject":"physics","category":"醫學物理","point_code":"phys_radiotherapy","point_name":"放射治療","description":"[elective] 放射治療原理、劑量計算、防護措施","grade_levels":["S5","S6"],"parent_code":"phys_medical","difficulty_level":4,"display_order":2},
+
+    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_graph","point_name":"圖表繪製與分析","description":"[sba] 繪製實驗數據圖表、最佳擬合線、讀取斜率和截距","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":2,"display_order":10},
+    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_dimensional","point_name":"量綱分析","description":"[sba] 物理量的量綱、單位換算、量綱一致性檢驗","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":3,"display_order":11},
+    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_variables","point_name":"變數控制","description":"[sba] 自變量、因變量、控制變量的識別與實驗設計","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":2,"display_order":12},
+    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_data","point_name":"數據處理","description":"[sba] 實驗數據記錄、有效數字、數據表格設計","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":2,"display_order":13},
+    {"subject":"physics","category":"探究實驗","point_code":"phys_skill_uncertainty","point_name":"誤差與不確定度","description":"[sba] 系統誤差、隨機誤差、不確定度估計","grade_levels":["S4","S5","S6"],"parent_code":null,"difficulty_level":3,"display_order":14}
   ]
 }

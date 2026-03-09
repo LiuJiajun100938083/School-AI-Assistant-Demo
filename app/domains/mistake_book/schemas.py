@@ -12,6 +12,7 @@ from enum import Enum
 # ============================================================
 
 class SubjectEnum(str, Enum):
+    """DEPRECATED: 保留向後兼容，新代碼請直接使用 str 並通過 SubjectHandlerRegistry 驗證。"""
     CHINESE = "chinese"
     MATH = "math"
     ENGLISH = "english"
@@ -64,7 +65,7 @@ class ConfirmOCRRequest(BaseModel):
 
 class ManualMistakeRequest(BaseModel):
     """手動添加錯題"""
-    subject: SubjectEnum
+    subject: str = Field(..., min_length=1, max_length=50, description="科目代碼")
     category: str = Field(..., min_length=1, description="題目類型")
     question_text: str = Field(..., min_length=1, description="題目內容")
     answer_text: str = Field(..., min_length=1, description="學生答案")
@@ -74,7 +75,7 @@ class ManualMistakeRequest(BaseModel):
 
 class GeneratePracticeRequest(BaseModel):
     """生成練習題"""
-    subject: SubjectEnum
+    subject: str = Field(..., min_length=1, max_length=50, description="科目代碼")
     session_type: SessionType = SessionType.TARGETED
     question_count: int = Field(default=5, ge=1, le=20, description="題目數量")
     target_points: Optional[List[str]] = Field(None, description="指定知識點（不填則自動選擇薄弱點）")
