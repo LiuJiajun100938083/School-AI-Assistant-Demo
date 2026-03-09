@@ -122,12 +122,19 @@ const App = {
             headerActions.innerHTML = '';
         }
 
-        switch (tab) {
-            case 'home':    Views.renderHome(main);    break;
-            case 'learn':   Views.renderLearn(main);   break;
-            case 'profile': Views.renderProfile(main); break;
-            default:        Views.renderHome(main);
-        }
+        const renderFn = {
+            home: Views.renderHome,
+            learn: Views.renderLearn,
+            profile: Views.renderProfile,
+        }[tab] || Views.renderHome;
+
+        renderFn.call(Views, main).catch(err => {
+            console.error('Render error:', err);
+            main.innerHTML = `<div class="mb-empty">
+                <div class="mb-empty__text">載入失敗，請重試</div>
+                <button class="mb-btn mb-btn--primary" onclick="App.navigate('${tab}')" style="margin-top:12px">重新載入</button>
+            </div>`;
+        });
     },
 
     setSubject(subject) {
