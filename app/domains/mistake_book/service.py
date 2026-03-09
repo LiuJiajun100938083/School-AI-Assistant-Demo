@@ -71,6 +71,92 @@ def _truncate_repetitive(text: str, max_len: int = 3000) -> str:
     return text[:max_len]
 
 
+def _strip_thinking_from_field(text: str) -> str:
+    """
+    清理 AI 字段中的思考過程殘留。
+
+    Qwen3 等模型有時會在 JSON 字段值中混入推理過程，
+    如「等等，讓我重新檢查」「驚人的發現」等。
+    此函數檢測並移除這些內容，只保留最終結論。
+    """
+    if not text or len(text) < 200:
+        return text
+
+    import re
+
+    # 常見的思考轉折標記（中文）
+    thinking_markers = [
+        r'等等，讓我',
+        r'讓我重新檢查',
+        r'讓我再次',
+        r'讓我再看',
+        r'讓我再確認',
+        r'修正分析[：:]',
+        r'重新評估[：:]',
+        r'重新審視[：:]',
+        r'驚人的發現[：:]',
+        r'再確認[：:]',
+        r'再檢查一遍',
+        r'或者，我是否',
+        r'但是，題目要求',
+        r'不過，如果必須',
+        r'決定[：:]',
+        r'結論[：:]',
+    ]
+
+    # 如果存在思考標記，嘗試只保留最後的結論部分
+    has_thinking = False
+    for marker in thinking_markers:
+        if re.search(marker, text):
+            has_thinking = True
+            break
+
+    if not has_thinking:
+        return text
+
+    # 策略：找最後一個「結論」/「決定」/「修正後」後的內容
+    conclusion_markers = [
+        r'結論[：:]',
+        r'決定[：:]',
+        r'修正後的',
+        r'最終[：:]',
+        r'因此[，,]',
+    ]
+
+    best_pos = -1
+    for marker in conclusion_markers:
+        for m in re.finditer(marker, text):
+            if m.start() > best_pos:
+                best_pos = m.start()
+
+    if best_pos > 0 and best_pos < len(text) - 50:
+        # 取結論部分，但如果太短就保留更多
+        conclusion = text[best_pos:].strip()
+        if len(conclusion) >= 50:
+            return conclusion
+
+    # 回退策略：截取前 800 字符（第一段分析通常是合理的，後面是反復推敲）
+    # 找到第一個思考標記的位置
+    first_think_pos = len(text)
+    for marker in thinking_markers:
+        m = re.search(marker, text)
+        if m and m.start() < first_think_pos:
+            first_think_pos = m.start()
+
+    if first_think_pos > 50:
+        return text[:first_think_pos].rstrip()
+
+    return text[:800].rstrip() if len(text) > 800 else text
+
+
+def _clean_analysis_fields(analysis: Dict) -> Dict:
+    """對 AI 返回的分析結果進行思考過程清理"""
+    for field in ("error_analysis", "correct_answer"):
+        if field in analysis and isinstance(analysis[field], str):
+            analysis[field] = _strip_thinking_from_field(analysis[field])
+    return analysis
+
+
 def _extract_analysis_from_prose(text: str) -> Dict:
     """
     當 AI 返回散文而非 JSON 時，嘗試從文本中提取有用的分析信息。
@@ -1327,7 +1413,8 @@ class MistakeBookService:
 
         try:
             raw = await self._ask_ai(prompt, subject)
-            return self._parse_json_response(raw)
+            result = self._parse_json_response(raw)
+            return _clean_analysis_fields(result)
         except Exception as e:
             logger.error("AI 分析失敗: %s", e)
             raise AnalysisFailedError(str(e))
