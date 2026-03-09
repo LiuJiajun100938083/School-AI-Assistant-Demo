@@ -471,9 +471,12 @@ LAYER 2 — measurements:
 - "target" references an object id from layer 1.
 - "source" indicates WHERE this measurement comes from: "figure" (read from diagram), "question_text" (stated in problem text), or "inferred" (you deduced it).
 - ⚠️ ONLY include measurements that are DIRECTLY stated in the problem or figure.
+- "property" MUST be one of: "length", "degrees", "radius", "area", "perimeter". Do NOT use "ratio" as a property.
 - Do NOT create synthetic measurements derived from ratios. Example:
+  WRONG: DI:IJ = 3:2 → creating measurements {"target":"S_DI","property":"ratio","value":{"left":3,"right":2}}
   WRONG: DI:IJ = 3:2 → creating measurements DI = 3k, IJ = 2k
-  RIGHT: DI:IJ = 3:2 → only use a "ratio" relationship, NO separate measurements for DI or IJ (unless DI or IJ also has an independent known value).
+  RIGHT: DI:IJ = 3:2 → only use a "ratio" RELATIONSHIP: {"type":"ratio","items":[{"ref":"S_DI","prop":"length"},{"ref":"S_IJ","prop":"length"}],"value":{"left":3,"right":2},"source":"question_text"}
+  Ratios belong in RELATIONSHIPS, never in MEASUREMENTS.
 
 LAYER 3 — relationships:
 - Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent). Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
@@ -612,7 +615,7 @@ Output in the following JSON format:
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
 - Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
-- Do NOT create synthetic measurements from ratios (e.g. DI=3k from DI:IJ=3:2). Only use a ratio relationship.
+- Do NOT create synthetic measurements from ratios (e.g. DI=3k from DI:IJ=3:2). Do NOT use "ratio" as a measurement property. Ratios belong in RELATIONSHIPS only.
 - If there is NO figure, set: "figure_description": {"has_figure": false}
 
 ⚠️ OBJECT RETENTION — only include objects that are referenced:

@@ -194,6 +194,11 @@ class GeometryDescriptor:
             value = m.get("value", "")
             source = m.get("source", "")
 
+            # ratio 屬性不該出現在 measurements 裡，
+            # 但 VLM 偶爾會這樣做 — 跳過，依賴 relationships 裡的 ratio
+            if prop == "ratio":
+                continue
+
             if prop == "degrees":
                 val_str = str(value)
                 if not val_str.endswith("°"):

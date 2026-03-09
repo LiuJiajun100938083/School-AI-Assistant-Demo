@@ -729,3 +729,29 @@ class TestTaskLatexCleaning:
         assert desc.known_conditions[0] == "BC ∥ DE ∥ FG"
         assert "\\text" not in desc.known_conditions[1]
         assert "$" not in desc.goals[0]
+
+
+class TestRatioInMeasurementSkip:
+    """VLM 偶爾把 ratio 放在 measurements 裡 — 應被跳過"""
+
+    def test_ratio_measurement_skipped(self):
+        fig = {
+            "has_figure": True,
+            "objects": [
+                {"id": "S_FH", "type": "segment"},
+                {"id": "S_DI", "type": "segment"},
+                {"id": "S_IJ", "type": "segment"},
+            ],
+            "measurements": [
+                {"target": "S_FH", "property": "length", "value": "12 cm", "source": "question_text"},
+                {"target": "S_DI", "property": "ratio", "value": {"left": 3, "right": 2}, "source": "question_text"},
+                {"target": "S_IJ", "property": "ratio", "value": {"left": 3, "right": 2}, "source": "question_text"},
+            ],
+            "relationships": [],
+        }
+        desc = GeometryDescriptor(fig)
+        # ratio measurements 被跳過，只保留 length
+        assert len(desc.measurements) == 1
+        assert desc.measurements[0]["property"] == "length"
+        assert "FH = 12 cm" in desc.to_readable_text()
+        assert "ratio" not in desc.to_readable_text()

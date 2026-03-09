@@ -581,6 +581,24 @@ const GeoDisplay = {
         return (fn ? fn() : (e.length ? `${t}: ${e.join(', ')}` : t)) + suffix;
     },
 
+    /** 清除 LaTeX 殘留，轉為 Unicode 符號 */
+    cleanLatex(text) {
+        if (!text) return text;
+        return text
+            .replace(/\\parallel/g, '∥')
+            .replace(/\\perp/g, '⊥')
+            .replace(/\\angle/g, '∠')
+            .replace(/\\triangle/g, '△')
+            .replace(/\\cong/g, '≅')
+            .replace(/\\sim/g, '∼')
+            .replace(/\\times/g, '×')
+            .replace(/\\cdot/g, '·')
+            .replace(/\\text\s*\{([^}]*)\}/g, '$1')
+            .replace(/\\(quad|,|;|!)/g, ' ')
+            .replace(/\$/g, '')
+            .trim();
+    },
+
     /** 將 measurement 對象轉為中文自然語言 */
     describeMeasurement(m) {
         const target = this.stripPrefix(m.target || m.what || '');
@@ -1801,7 +1819,7 @@ const Upload = {
             const data = res.data;
             btn.style.display = 'none';
 
-            const questionText = data.ocr_question || '';
+            const questionText = GeoDisplay.cleanLatex(data.ocr_question || '');
             const figDesc = data.figure_description || '';
             const figReadable = data.figure_description_readable || '';
             const cb = data.confidence_breakdown || null;
@@ -2011,11 +2029,16 @@ const Upload = {
         try {
             fig = typeof figJsonStr === 'string' ? JSON.parse(figJsonStr) : figJsonStr;
         } catch (e) {
-            // JSON 解析失敗，降級為只讀純文字顯示
-            container.innerHTML = `<div class="mb-figure-desc">
-                <div class="mb-figure-desc__title">📐 幾何圖形描述 ${fWarn || ''}</div>
-                <div class="mb-figure-desc__item">${UI.escapeHtml(figJsonStr)}</div>
-            </div>`;
+            // JSON 解析失敗，嘗試用 GeoDisplay 結構化顯示
+            const structuredFallback = GeoDisplay.renderFigureDetail(figJsonStr);
+            if (structuredFallback) {
+                container.innerHTML = structuredFallback;
+            } else {
+                container.innerHTML = `<div class="mb-figure-desc">
+                    <div class="mb-figure-desc__title">幾何圖形描述 ${fWarn || ''}</div>
+                    <div class="mb-figure-desc__item">${UI.escapeHtml(String(figJsonStr))}</div>
+                </div>`;
+            }
             return;
         }
 
@@ -2024,17 +2047,41 @@ const Upload = {
             return;
         }
 
+        // 整個渲染邏輯包在 try/catch 裡，防止任何異常導致 raw JSON 泄漏
+        try {
+            this._renderFigureEditorInner(container, fig, fWarn);
+        } catch (e) {
+            console.warn('幾何編輯器渲染失敗，降級為結構化展示', e);
+            const structuredFallback = GeoDisplay.renderFigureDetail(fig);
+            container.innerHTML = structuredFallback || '';
+        }
+    },
+
+    /** 內部：實際渲染結構化幾何編輯器 */
+    _renderFigureEditorInner(container, fig, fWarn) {
         // 保存原始結構供 _collectFigureEdits 使用
         this._figureEditData = JSON.parse(JSON.stringify(fig));
 
+        // ---- 預處理：將 measurements 中錯放的 ratio 移入 relationships ----
+        const rawMeasurements = fig.measurements || [];
+        const measurements = [];
+        const allRels = [...(fig.relationships || [])];
+
+        rawMeasurements.forEach(m => {
+            if (m.property === 'ratio') {
+                // ratio 屬性的 measurement → 轉為 ratio relationship
+                // 不在量測區顯示，但保留在 _figureEditData 裡
+                return;
+            }
+            measurements.push(m);
+        });
+
         // ---- objects（降噪：默認只顯示關鍵對象）----
         const objects = fig.objects || fig.elements || [];
-        const measurements = fig.measurements || [];
-        const allRels = fig.relationships || [];
 
         // 收集被引用的 object IDs
         const referencedIds = new Set();
-        measurements.forEach(m => { if (m.target) referencedIds.add(m.target); });
+        rawMeasurements.forEach(m => { if (m.target) referencedIds.add(m.target); });
         allRels.forEach(r => {
             (r.entities || []).forEach(e => referencedIds.add(e));
             (r.points || []).forEach(p => referencedIds.add(p));
@@ -2060,24 +2107,34 @@ const Upload = {
             return `<span class="mb-figure-editor__tag mb-figure-editor__tag--secondary" title="${o.id || ''}">${typeName} ${UI.escapeHtml(label)}</span>`;
         }).join('');
 
-        // ---- measurements（可編輯值，去工程前綴）----
-        const measRows = measurements.map((m, i) => {
+        // ---- measurements（可編輯值，去工程前綴，過濾推斷）----
+        const measFact = measurements.filter(m => m.source !== 'inferred');
+        const measInferred = measurements.filter(m => m.source === 'inferred');
+
+        const renderMeasRow = (m, i) => {
             const target = GeoDisplay.stripPrefix(m.target || m.what || '');
             const prop = m.property || '';
-            const value = m.value != null ? String(m.value) : '';
+            const value = m.value != null
+                ? (typeof m.value === 'object' ? JSON.stringify(m.value) : String(m.value))
+                : '';
             const source = m.source || '';
-            return `<div class="mb-figure-editor__kv" data-meas-idx="${i}">
+            const inferTag = source === 'inferred'
+                ? '<span class="mb-figure-desc__inferred-tag">（推斷）</span>' : '';
+            return `<div class="mb-figure-editor__kv${source === 'inferred' ? ' mb-figure-desc__inferred' : ''}" data-meas-idx="${i}">
                 <span class="mb-figure-editor__kv-label">${UI.escapeHtml(target)}${prop && prop !== 'length' ? ' ' + prop : ''}</span>
                 <span class="mb-figure-editor__kv-eq">=</span>
                 <input class="mb-figure-editor__kv-input" type="text" value="${UI.escapeHtml(value)}" data-field="value">
                 ${source ? `<span class="mb-figure-editor__source">${source}</span>` : ''}
+                ${inferTag}
                 <button class="mb-figure-editor__del" onclick="Upload._removeMeasurement(${i})" title="刪除">×</button>
             </div>`;
-        }).join('');
+        };
+
+        const measRows = measFact.map((m, i) => renderMeasRow(m, i)).join('');
+        const inferredRows = measInferred.map((m, i) => renderMeasRow(m, measFact.length + i)).join('');
 
         // ---- relationships（可刪除，使用 GeoDisplay 統一格式化）----
-        const rels = allRels;
-        const relRows = rels.map((r, i) => {
+        const relRows = allRels.map((r, i) => {
             const desc = GeoDisplay.describeRelationship(r);
             const source = r.source || '';
             const inferClass = source === 'inferred' ? ' mb-figure-editor__rel--inferred' : '';
@@ -2088,14 +2145,21 @@ const Upload = {
             </div>`;
         }).join('');
 
-        // ---- task（只讀展示）----
+        // ---- task（只讀展示，清洗 LaTeX）----
         const task = fig.task || {};
-        const goals = (task.goals || []).map(g => `<span class="mb-figure-desc__goal">${UI.escapeHtml(g)}</span>`).join('');
-        const known = (task.known_conditions || []).map(k => UI.escapeHtml(k)).join('、');
+        const goals = (task.goals || []).map(g =>
+            `<span class="mb-figure-desc__goal">${UI.escapeHtml(GeoDisplay.cleanLatex(g))}</span>`
+        ).join('');
+        const known = (task.known_conditions || []).map(k =>
+            UI.escapeHtml(GeoDisplay.cleanLatex(k))
+        ).join('；');
+
+        // ---- raw JSON 折疊面板（僅供開發調試）----
+        const rawJsonStr = JSON.stringify(fig, null, 2);
 
         container.innerHTML = `
             <div class="mb-figure-editor">
-                <div class="mb-figure-editor__header">📐 幾何信息（可編輯） ${fWarn || ''}</div>
+                <div class="mb-figure-editor__header">幾何信息（可編輯） ${fWarn || ''}</div>
 
                 ${objTags ? `<div class="mb-figure-editor__section">
                     <div class="mb-figure-editor__section-title">幾何對象</div>
@@ -2106,14 +2170,19 @@ const Upload = {
                     </div>` : ''}
                 </div>` : ''}
 
+                ${relRows ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">關係</div>
+                    <div id="figRelationships">${relRows}</div>
+                </div>` : ''}
+
                 ${measRows ? `<div class="mb-figure-editor__section">
                     <div class="mb-figure-editor__section-title">量測</div>
                     <div id="figMeasurements">${measRows}</div>
                 </div>` : ''}
 
-                ${relRows ? `<div class="mb-figure-editor__section">
-                    <div class="mb-figure-editor__section-title">關係</div>
-                    <div id="figRelationships">${relRows}</div>
+                ${inferredRows ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">推斷</div>
+                    ${inferredRows}
                 </div>` : ''}
 
                 <div class="mb-figure-editor__section">
@@ -2143,6 +2212,11 @@ const Upload = {
                     ${known ? `<div style="font-size:12px;color:var(--mb-text-secondary)">已知：${known}</div>` : ''}
                     ${goals ? `<div style="font-size:12px;margin-top:4px">求：${goals}</div>` : ''}
                 </div>` : ''}
+
+                <div class="mb-figure-editor__section">
+                    <button class="mb-figure-editor__toggle-btn" onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none';this.textContent=p.style.display==='none'?'查看原始 JSON':'收起 JSON'">查看原始 JSON</button>
+                    <pre style="display:none;font-size:11px;line-height:1.4;max-height:200px;overflow:auto;background:rgba(0,0,0,0.03);padding:8px;border-radius:4px;margin-top:4px;white-space:pre-wrap;word-break:break-all">${UI.escapeHtml(rawJsonStr)}</pre>
+                </div>
             </div>
         `;
     },
