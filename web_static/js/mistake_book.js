@@ -331,7 +331,7 @@ const UI = {
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
 
         if (typeof katex === 'undefined') {
-            return UI.escapeHtml(text).replace(/\n/g, '<br>');
+            return UI._renderMarkdown(text);
         }
 
         const renderKatex = (latex, displayMode) => {
@@ -368,16 +368,38 @@ const UI = {
             if (m.start >= lastEnd) { filtered.push(m); lastEnd = m.end; }
         }
 
-        let result = '';
+        // 用占位符替換 LaTeX 區段，渲染 Markdown 後再還原
+        const placeholders = [];
+        let mdText = '';
         let pos = 0;
         for (const m of filtered) {
-            if (m.start > pos) result += UI.escapeHtml(text.substring(pos, m.start)).replace(/\n/g, '<br>');
-            result += renderKatex(m.latex, m.display);
+            if (m.start > pos) mdText += text.substring(pos, m.start);
+            const ph = `KATEXPH${placeholders.length}ENDPH`;
+            placeholders.push(renderKatex(m.latex, m.display));
+            mdText += ph;
             pos = m.end;
         }
-        if (pos < text.length) result += UI.escapeHtml(text.substring(pos)).replace(/\n/g, '<br>');
+        if (pos < text.length) mdText += text.substring(pos);
+
+        // 渲染 Markdown（含 XSS 防護），然後還原 KaTeX 占位符
+        let result = UI._renderMarkdown(mdText);
+        placeholders.forEach((html, i) => {
+            result = result.replace(`KATEXPH${i}ENDPH`, html);
+        });
 
         return result;
+    },
+
+    /**
+     * 渲染 Markdown 文字（支持 **粗體**、### 標題 等）
+     * 若 marked 不可用則退回 escapeHtml + <br>
+     */
+    _renderMarkdown(text) {
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            const html = marked.parse(text, { breaks: true });
+            return DOMPurify.sanitize(html);
+        }
+        return UI.escapeHtml(text).replace(/\n/g, '<br>');
     },
 
     /**
