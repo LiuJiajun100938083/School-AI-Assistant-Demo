@@ -228,23 +228,41 @@ class VisionService:
             # Qwen3-VL 即使啟用思考模式，有時會在推理中輸出 JSON
             if content and "{" in content:
                 import re
-                json_candidate = self._extract_json_from_reasoning(content)
-                if json_candidate:
-                    logger.info("從推理文本中提取到嵌入 JSON (len=%d)", len(json_candidate))
-                    content = json_candidate
-                else:
-                    # 推理文本中沒有可辨識的 JSON — 嘗試快速驗證
-                    try:
-                        self._safe_json_loads(content)
-                    except (json.JSONDecodeError, ValueError):
-                        # content 不是有效 JSON，可能是純推理文本
-                        # 嘗試用 _extract_json_from_thinking 做更激進的提取
+                # 第一步：先嘗試直接解析 — 如果 content 本身就是合法 JSON，直接使用
+                is_valid_json = False
+                try:
+                    self._safe_json_loads(content)
+                    is_valid_json = True
+                    logger.debug("content 直接解析為合法 JSON (len=%d)", len(content))
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+                if not is_valid_json:
+                    # 第二步：嘗試從推理文本中提取包含 "question" 的 JSON
+                    json_candidate = self._extract_json_from_reasoning(content)
+                    if json_candidate:
+                        logger.info("從推理文本中提取到嵌入 JSON (len=%d)", len(json_candidate))
+                        content = json_candidate
+                    else:
+                        # 第三步：更激進的提取（_extract_json_from_thinking）
                         extracted = self._extract_json_from_thinking(content)
                         if extracted != content:
                             try:
                                 self._safe_json_loads(extracted)
-                                logger.info("thinking 提取成功 (len=%d)", len(extracted))
-                                content = extracted
+                                # 安全檢查：提取結果不能比原始 content 小太多
+                                # OCR 回應通常至少 200 字，若提取結果遠小於原始內容，
+                                # 可能只是抓到了嵌套的子對象（如 {"left":3,"right":2}）
+                                size_ratio = len(extracted) / max(len(content), 1)
+                                if len(extracted) < 200 and size_ratio < 0.3:
+                                    logger.warning(
+                                        "thinking 提取結果過小 (len=%d, 原始=%d, 比例=%.1f%%)，"
+                                        "可能為子對象，跳過替換。前100字: %s",
+                                        len(extracted), len(content),
+                                        size_ratio * 100, extracted[:100]
+                                    )
+                                else:
+                                    logger.info("thinking 提取成功 (len=%d)", len(extracted))
+                                    content = extracted
                             except (json.JSONDecodeError, ValueError):
                                 logger.warning(
                                     "thinking 提取的 JSON 仍無法解析 (len=%d), 前200字: %s",
@@ -854,7 +872,7 @@ Output JSON only.
                         depth -= 1
                         if depth == 0:
                             candidate = text[i:j + 1]
-                            if len(candidate) > 50:  # 忽略太短的片段
+                            if len(candidate) > 100:  # 忽略太短的片段（OCR 結果至少要 100 字）
                                 all_candidates.append(candidate)
                             break
             i += 1
