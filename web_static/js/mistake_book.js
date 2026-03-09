@@ -54,10 +54,18 @@ const App = {
         user: null,
         currentTab: 'home',
         currentSubject: 'all',
+        currentCategory: 'all',
+        currentPage: 1,
         subjects: [],  // 動態從 API 加載
         mistakes: { items: [], total: 0, page: 1 },
         dashboard: null,
         currentMistake: null,
+    },
+
+    /** 獲取當前科目的分類列表 */
+    getCurrentCategories() {
+        const subj = (this.state.subjects || []).find(s => s.subject_code === this.state.currentSubject);
+        return (subj?.categories) || [];
     },
 
     async init() {
@@ -79,11 +87,22 @@ const App = {
         this.navigate('home');
     },
 
+    // 科目顯示優先順序：中英數公民物理排前面，其餘按原順序
+    _SUBJECT_ORDER: ['chinese', 'english', 'math', 'ces', 'physics'],
+
     async _loadSubjects() {
         try {
             const res = await API.getSubjects();
             if (res && res.data) {
-                this.state.subjects = res.data;
+                const order = this._SUBJECT_ORDER;
+                this.state.subjects = res.data.slice().sort((a, b) => {
+                    const ai = order.indexOf(a.subject_code);
+                    const bi = order.indexOf(b.subject_code);
+                    if (ai !== -1 && bi !== -1) return ai - bi;
+                    if (ai !== -1) return -1;
+                    if (bi !== -1) return 1;
+                    return 0;
+                });
             }
         } catch (e) {
             // 降級到默認三科
@@ -139,12 +158,28 @@ const App = {
 
     setSubject(subject) {
         this.state.currentSubject = subject;
+        this.state.currentCategory = 'all';
+        this.state.currentPage = 1;
 
         document.querySelectorAll('.mb-subject-chip').forEach(el => {
             el.classList.toggle('mb-subject-chip--active', el.dataset.subject === subject);
         });
 
         this.navigate(this.state.currentTab);
+    },
+
+    setCategory(category) {
+        const validCats = this.getCurrentCategories().map(c => c.value);
+        if (category !== 'all' && !validCats.includes(category)) category = 'all';
+
+        this.state.currentCategory = category;
+        this.state.currentPage = 1;
+
+        document.querySelectorAll('.mb-category-chip').forEach(el => {
+            el.classList.toggle('mb-category-chip--active', el.dataset.category === category);
+        });
+
+        Views.refreshMistakeList();
     },
 
     _bindEvents() {
@@ -199,10 +234,11 @@ const API = {
 
     async getSubjects() { return this._fetch('/api/mistakes/subjects'); },
     async getDashboard() { return this._fetch('/api/mistakes/dashboard'); },
-    async getMistakes(subject, status, page = 1) {
+    async getMistakes(subject, status, page = 1, category) {
         const params = new URLSearchParams({ page, page_size: 20 });
         if (subject && subject !== 'all') params.set('subject', subject);
         if (status) params.set('status', status);
+        if (category && category !== 'all') params.set('category', category);
         return this._fetch(`/api/mistakes?${params}`);
     },
     async getMistakeDetail(id) { return this._fetch(`/api/mistakes/${id}`); },
@@ -356,6 +392,10 @@ const UI = {
         if (!text) return '';
 
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
+
+        // OCR 模型常輸出字面 \n 而非真正換行符，轉換之
+        // 排除 LaTeX 命令如 \nabla, \nu, \neg 等（後接小寫字母）
+        text = text.replace(/\\n(?![a-z])/g, '\n');
 
         // 修復 AI 生成的無效 LaTeX：\text{^\circ C} → °C
         text = text.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
@@ -799,10 +839,11 @@ const Views = {
     /* ---- 錯題本 Tab ---- */
     async renderHome(container) {
         const subject = App.state.currentSubject;
+        const category = App.state.currentCategory;
 
         const [dashRes, listRes, reviewRes] = await Promise.all([
             API.getDashboard(),
-            API.getMistakes(subject),
+            API.getMistakes(subject, null, 1, category),
             API.getReviewQueue(subject, 50),
         ]);
 
@@ -820,6 +861,15 @@ const Views = {
             if (reviewDue > 0) { badge.textContent = reviewDue; badge.style.display = ''; }
             else { badge.style.display = 'none'; }
         }
+
+        // Category chips（只在選了具體科目且有 ≥2 分類時顯示）
+        const cats = App.getCurrentCategories();
+        const showCategoryBar = subject !== 'all' && cats.length >= 2;
+        const categoryBarHtml = showCategoryBar ? `
+                <div class="mb-category-bar" id="categoryBar">
+                    <button class="mb-category-chip${category === 'all' ? ' mb-category-chip--active' : ''}" data-category="all">全部</button>
+                    ${cats.map(c => `<button class="mb-category-chip${category === c.value ? ' mb-category-chip--active' : ''}" data-category="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</button>`).join('')}
+                </div>` : '';
 
         container.innerHTML = `
             ${reviewDue > 0 ? `
@@ -850,17 +900,46 @@ const Views = {
                     <span class="mb-list-section__title">最近錯題</span>
                     <span class="mb-list-section__count">${list.total} 題</span>
                 </div>
+                ${categoryBarHtml}
                 <div id="mistakeList"></div>
             </div>
         `;
 
+        // Category chips 事件
+        const catBar = document.getElementById('categoryBar');
+        if (catBar) {
+            catBar.addEventListener('click', e => {
+                const chip = e.target.closest('.mb-category-chip');
+                if (chip) App.setCategory(chip.dataset.category);
+            });
+        }
+
         this._renderMistakeList(list.items);
+    },
+
+    /** 統一列表刷新（帶全部篩選條件） */
+    async refreshMistakeList() {
+        const { currentSubject, currentCategory, currentStatus, currentPage } = App.state;
+        try {
+            const res = await API.getMistakes(currentSubject, currentStatus, currentPage, currentCategory);
+            if (res?.data?.items) {
+                this._renderMistakeList(res.data.items);
+                const countEl = document.querySelector('.mb-list-section__count');
+                if (countEl) countEl.textContent = `${res.data.total} 題`;
+            }
+        } catch (e) {
+            console.error('refreshMistakeList error:', e);
+        }
     },
 
     _renderMistakeList(items) {
         const listEl = document.getElementById('mistakeList');
         if (!items.length) {
-            listEl.innerHTML = UI.empty('', '還沒有錯題，點擊上方「拍照上傳」開始吧');
+            const cat = App.state.currentCategory;
+            const msg = cat !== 'all'
+                ? `目前沒有「${cat}」分類的錯題`
+                : '還沒有錯題，點擊上方「拍照上傳」開始吧';
+            listEl.innerHTML = UI.empty('', msg);
             this._stopProcessingPoll();
             return;
         }
@@ -918,14 +997,7 @@ const Views = {
             }
             // Only refresh if we're on the home tab
             if (App.state.currentTab !== 'home') return;
-            try {
-                const res = await API.getMistakes(App.state.currentSubject);
-                if (res && res.data && res.data.items) {
-                    this._renderMistakeList(res.data.items);
-                }
-            } catch (e) {
-                // Silently ignore polling errors
-            }
+            await Views.refreshMistakeList();
         }, 5000);
     },
 

@@ -342,6 +342,40 @@
     font-weight: 500;
 }
 
+/* 分類篩選 chips */
+.mb-category-bar {
+    display: flex;
+    gap: 6px;
+    padding: 0 0 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+}
+.mb-category-bar::-webkit-scrollbar { display: none; }
+
+.mb-category-chip {
+    flex-shrink: 0;
+    padding: 5px 14px;
+    border-radius: 16px;
+    border: 1px solid var(--mb-border);
+    background: transparent;
+    font-size: 12px;
+    color: var(--mb-text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+}
+.mb-category-chip:active { transform: scale(0.96); }
+
+.mb-category-chip--active {
+    background: var(--mb-primary);
+    color: #fff;
+    border-color: var(--mb-primary);
+    font-weight: 600;
+}
+
 /* 列表容器 */
 .mb-list-container {
     background: var(--mb-card);
