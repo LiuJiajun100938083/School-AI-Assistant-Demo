@@ -395,7 +395,7 @@ CREATE TABLE IF NOT EXISTS student_mistakes (
     error_type VARCHAR(100),
     difficulty_level INT DEFAULT 1,
     confidence_score FLOAT,
-    status ENUM('pending_ocr', 'pending_review', 'analyzed', 'practicing', 'mastered') DEFAULT 'pending_ocr',
+    status ENUM('pending_ocr', 'pending_review', 'analyzed', 'practicing', 'mastered', 'processing', 'ocr_failed', 'needs_review', 'analysis_failed') DEFAULT 'pending_ocr',
     review_count INT DEFAULT 0,
     last_review_at DATETIME,
     next_review_at DATETIME,
