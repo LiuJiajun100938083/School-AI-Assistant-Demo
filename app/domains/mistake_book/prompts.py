@@ -41,13 +41,26 @@ def _build_chinese_analysis(
 ) -> str:
     figure_section = f"\n## 題目附圖描述\n{figure_desc}\n" if figure_desc else ""
     history_section = f"\n## 學生歷史學習情況（請結合歷史薄弱點給出更有針對性的建議）\n{history}\n" if history else ""
-    return f"""你是一位經驗豐富的香港中文科教師。請仔細分析以下學生的答題情況。
+
+    answer_display = answer.strip() if answer else ""
+    if answer_display:
+        answer_section = f"## 學生答案\n{answer_display}"
+        task_instruction = "請仔細分析以下學生的答題情況。"
+        empty_answer_note = ""
+    else:
+        answer_section = "## 學生答案\n（學生未作答）"
+        task_instruction = "以下學生未提供答案。請你給出完整的參考答案和解題思路。"
+        empty_answer_note = """
+- ⚠️ 學生未作答。你仍然必須在 correct_answer 中給出完整參考答案。
+- error_analysis 中分析此題的考查方向和學生可能的困難點。
+- error_type 設為 "method_error"。"""
+
+    return f"""你是一位經驗豐富的香港中文科教師。{task_instruction}
 
 ## 題目
 {question}
 {figure_section}
-## 學生答案
-{answer}
+{answer_section}
 
 ## 可用的知識點列表
 {kp_context}
@@ -76,6 +89,7 @@ def _build_chinese_analysis(
 - error_type 只能選：concept_error / comprehension_gap / expression_weak / careless / memory_error / logic_error / method_error
 - knowledge_points 從上方列表中選 point_code（1-3 個最相關的）
 - difficulty_level 範圍 1-5
+- correct_answer 必須是完整的參考答案，不能只寫概要{empty_answer_note}
 - 只輸出 JSON"""
 
 
@@ -121,13 +135,28 @@ def _build_math_analysis(
 請在分析中引用具體的幾何元素和關係，例如「根據已知 AB ∥ CD（source: question_text），可知……」
 """
     history_section = f"\n## 學生歷史學習情況（請結合歷史薄弱點給出更有針對性的建議）\n{history}\n" if history else ""
-    return f"""你是一位經驗豐富的香港數學科教師。請逐步檢查以下學生的解題過程。
+
+    # 根據學生答案是否為空，調整 prompt 策略
+    answer_display = answer.strip() if answer else ""
+    if answer_display:
+        answer_section = f"""## 學生解答
+{answer_display}"""
+        task_instruction = "請逐步檢查以下學生的解題過程。"
+        empty_answer_note = ""
+    else:
+        answer_section = "## 學生解答\n（學生未作答）"
+        task_instruction = "以下學生未提供解答。請你完整解出此題，並提供正確答案和解題思路。"
+        empty_answer_note = """
+- ⚠️ 學生未作答。你仍然必須完整解題，在 correct_answer 中給出逐步解法。
+- error_analysis 中分析此題的考查方向和學生可能的困難點。
+- error_type 設為 "method_error"（未能選擇正確方法作答）。"""
+
+    return f"""你是一位經驗豐富的香港數學科教師。{task_instruction}
 
 ## 題目
 {question}
 {figure_section}
-## 學生解答
-{answer}
+{answer_section}
 
 ## 可用的知識點列表
 {kp_context}
@@ -157,6 +186,7 @@ def _build_math_analysis(
 - 如果題目包含幾何圖形描述，你必須在分析中引用圖中的具體元素（如點、線、角、圓的名稱和性質），讓學生能對照原圖理解
 - error_type 只能選：concept_error / calculation_error / careless / memory_error / logic_error / method_error
 - knowledge_points 從上方列表中選 point_code
+- correct_answer 必須是完整的逐步解法，不能只寫結論{empty_answer_note}
 - 只輸出 JSON"""
 
 
@@ -165,13 +195,26 @@ def _build_english_analysis(
 ) -> str:
     figure_section = f"\n## Figure Description\n{figure_desc}\n" if figure_desc else ""
     history_section = f"\n## Student Learning History (use this to give more targeted advice)\n{history}\n" if history else ""
-    return f"""You are an experienced Hong Kong English teacher. Analyze the student's answer below.
+
+    answer_display = answer.strip() if answer else ""
+    if answer_display:
+        answer_section = f"## Student's Answer\n{answer_display}"
+        task_instruction = "Analyze the student's answer below."
+        empty_answer_note = ""
+    else:
+        answer_section = "## Student's Answer\n(No answer provided)"
+        task_instruction = "The student did not provide an answer. Provide the complete model answer and analysis."
+        empty_answer_note = """
+- The student did not answer. You MUST still provide a complete model answer in correct_answer.
+- In error_analysis, explain what this question tests and potential difficulties (in Traditional Chinese).
+- Set error_type to "method_error"."""
+
+    return f"""You are an experienced Hong Kong English teacher. {task_instruction}
 
 ## Question
 {question}
 {figure_section}
-## Student's Answer
-{answer}
+{answer_section}
 
 ## Available Knowledge Points
 {kp_context}
@@ -200,6 +243,7 @@ Notes:
 - error_analysis and improvement_tips in Traditional Chinese (繁體中文)
 - error_type: concept_error / calculation_error / comprehension_gap / expression_weak / careless / memory_error / logic_error
 - knowledge_points from the list above
+- correct_answer must be a complete model answer, not just a summary{empty_answer_note}
 - JSON output only"""
 
 
@@ -208,16 +252,18 @@ def _build_generic_analysis(
 ) -> str:
     figure_note = f"\n圖形描述：{figure_desc}" if figure_desc else ""
     history_note = f"\n學生歷史：{history}" if history else ""
+    answer_display = answer.strip() if answer else "（學生未作答）"
+    empty_note = "\n注意：學生未作答，你必須仍然給出完整正確答案。error_type 設為 method_error。" if not answer.strip() else ""
     return f"""請分析以下學生的答題情況。
 
 題目：{question}{figure_note}
-學生答案：{answer}
-知識點列表：{kp_context}{history_note}
+學生答案：{answer_display}
+知識點列表：{kp_context}{history_note}{empty_note}
 
 請以 JSON 格式回覆：
 {{
   "is_correct": false,
-  "correct_answer": "正確答案",
+  "correct_answer": "完整的正確答案（逐步解法）",
   "error_type": "錯誤類型",
   "error_analysis": "錯誤分析",
   "improvement_tips": ["建議"],
