@@ -280,6 +280,10 @@ const UI = {
 
     statusLabel(status) {
         const map = {
+            processing: 'AI 識別中...',
+            ocr_failed: '識別失敗',
+            analysis_failed: '分析失敗',
+            needs_review: '待確認',
             pending_ocr: '待識別',
             pending_review: '待確認',
             analyzed: '已分析',
@@ -790,21 +794,27 @@ const Views = {
         const listEl = document.getElementById('mistakeList');
         if (!items.length) {
             listEl.innerHTML = UI.empty('', '還沒有錯題，點擊上方「拍照上傳」開始吧');
+            this._stopProcessingPoll();
             return;
         }
 
         let html = '<div class="mb-list-container">';
         items.forEach(m => {
-            const question = m.manual_question_text || m.ocr_question_text || '（未識別）';
+            const isProcessing = m.status === 'processing';
+            const question = isProcessing
+                ? '<span class="mb-processing-pulse">AI 正在識別分析中...</span>'
+                : (m.manual_question_text || m.ocr_question_text || '（未識別）');
+            const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
+            const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
             html += `
-                <div class="mb-mistake-item" onclick="Views.openDetail('${m.mistake_id}')">
+                <div class="mb-mistake-item" ${onclick} ${cursorStyle}>
                     <div class="mb-mistake-item__bar mb-mistake-item__bar--${m.status}"></div>
                     <div class="mb-mistake-item__content">
                         <div class="mb-mistake-item__top">
                             <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
                             <span class="mb-mistake-item__date">${UI.formatDate(m.created_at)}</span>
                         </div>
-                        <div class="mb-mistake-item__question">${UI.renderMath(question)}</div>
+                        <div class="mb-mistake-item__question">${isProcessing ? question : UI.renderMath(question)}</div>
                         <div class="mb-mistake-item__footer">
                             ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
                             ${m.mastery_level > 0 ? `<span>掌握 ${m.mastery_level}%</span>` : ''}
@@ -817,6 +827,46 @@ const Views = {
         });
         html += '</div>';
         listEl.innerHTML = html;
+
+        // List-level polling: auto-refresh when processing items exist
+        const hasProcessing = items.some(m => m.status === 'processing');
+        if (hasProcessing) {
+            this._startProcessingPoll();
+        } else {
+            this._stopProcessingPoll();
+        }
+    },
+
+    _processingPollTimer: null,
+    _processingPollStart: 0,
+
+    _startProcessingPoll() {
+        if (this._processingPollTimer) return; // already polling
+        this._processingPollStart = Date.now();
+        this._processingPollTimer = setInterval(async () => {
+            // Stop after 5 minutes max
+            if (Date.now() - this._processingPollStart > 5 * 60 * 1000) {
+                this._stopProcessingPoll();
+                return;
+            }
+            // Only refresh if we're on the home tab
+            if (App.state.currentTab !== 'home') return;
+            try {
+                const res = await API.getMistakes(App.state.currentSubject);
+                if (res && res.data && res.data.items) {
+                    this._renderMistakeList(res.data.items);
+                }
+            } catch (e) {
+                // Silently ignore polling errors
+            }
+        }, 5000);
+    },
+
+    _stopProcessingPoll() {
+        if (this._processingPollTimer) {
+            clearInterval(this._processingPollTimer);
+            this._processingPollTimer = null;
+        }
     },
 
     /* ---- 錯題詳情 ---- */
@@ -833,6 +883,32 @@ const Views = {
 
         const m = res.data;
         const kps = m.knowledge_points || [];
+
+        // needs_review: show OCR confirm flow
+        if (m.status === 'needs_review') {
+            panel.innerHTML = `
+                <header class="mb-header">
+                    <div class="mb-header__title">
+                        <a href="javascript:void(0)" onclick="Views.closeDetail()">${Icons.chevronL(18)}</a>
+                        <span>確認識別結果</span>
+                    </div>
+                </header>
+                <div class="mb-detail-section" style="padding:16px">
+                    <div style="font-size:13px;color:var(--mb-warning);margin-bottom:12px">
+                        OCR 識別信心度較低，請確認或修正以下內容
+                    </div>
+                    <div class="mb-ocr-confirm__label">題目（可修正）</div>
+                    <textarea class="mb-ocr-confirm__textarea" id="reviewQuestion">${UI.escapeHtml(m.ocr_question_text || '')}</textarea>
+                    <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正）</div>
+                    <textarea class="mb-ocr-confirm__textarea" id="reviewAnswer">${UI.escapeHtml(m.ocr_answer_text || '')}</textarea>
+                    <button class="mb-btn mb-btn--primary mb-btn--full" style="margin-top:12px"
+                            onclick="Views._confirmReview('${m.mistake_id}')">
+                        確認並分析
+                    </button>
+                </div>
+            `;
+            return;
+        }
 
         panel.innerHTML = `
             <header class="mb-header">
@@ -922,6 +998,35 @@ const Views = {
 
     closeDetail() {
         document.getElementById('detailPanel').classList.remove('mb-detail-panel--active');
+    },
+
+    async _confirmReview(mistakeId) {
+        const q = document.getElementById('reviewQuestion')?.value?.trim();
+        const a = document.getElementById('reviewAnswer')?.value?.trim();
+        if (!q || !a) { UI.toast('請填寫題目和答案', 'error'); return; }
+
+        const panel = document.getElementById('detailPanel');
+        panel.innerHTML = UI.loading('AI 分析中，預計需要 30-60 秒...');
+
+        try {
+            const res = await fetch(`/api/mistakes/${mistakeId}/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.state.token}` },
+                body: JSON.stringify({ confirmed_question: q, confirmed_answer: a }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                UI.toast('分析完成！', 'success');
+                this.closeDetail();
+                App.navigate('home');
+            } else {
+                UI.toast(`分析失敗: ${data.detail || '未知錯誤'}`, 'error');
+                this.openDetail(mistakeId); // reload
+            }
+        } catch (err) {
+            UI.toast(`網絡錯誤: ${err.message}`, 'error');
+            this.openDetail(mistakeId);
+        }
     },
 
     /* ---- 學習 Tab（合併複習 + 練習） ---- */
@@ -1819,7 +1924,7 @@ const Upload = {
 
         const btn = document.getElementById('uploadBtn');
         btn.disabled = true;
-        btn.textContent = 'AI 識別中...';
+        btn.textContent = '上傳中...';
 
         const formData = new FormData();
         formData.append('image', this._selectedFile);
@@ -1829,63 +1934,15 @@ const Upload = {
         const res = await API.uploadPhoto(formData);
 
         if (res && res.success) {
-            const data = res.data;
-            btn.style.display = 'none';
-
-            const questionText = GeoDisplay.cleanLatex(data.ocr_question || '');
-            const figDesc = data.figure_description || '';
-            const figReadable = data.figure_description_readable || '';
-            const cb = data.confidence_breakdown || null;
-
-            // 保存原始 figure_description JSON，供確認時回傳
-            this._figureDescriptionRaw = figDesc;
-
-            // 分項置信度警告（僅數學題有 confidence_breakdown）
-            const qWarn = cb && cb.question < 0.6
-                ? '<span class="mb-confidence-warn">⚠ 題目文字可能有誤</span>' : '';
-            const aWarn = cb && cb.answer < 0.6
-                ? '<span class="mb-confidence-warn">⚠ 手寫答案辨識度較低，請仔細核對</span>' : '';
-            const fWarn = cb && cb.figure > 0 && cb.figure < 0.6
-                ? '<span class="mb-confidence-warn">⚠ 圖形識別不確定，請檢查</span>' : '';
-
-            const ocrDiv = document.getElementById('ocrResult');
-            ocrDiv.style.display = 'block';
-            ocrDiv.innerHTML = `
-                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-bottom:8px">
-                    識別信心度：${Math.round((data.confidence || 0) * 100)}%
-                    ${data.has_handwriting ? ' · 檢測到手寫' : ''}
-                    ${figDesc ? ' · 已識別圖形' : ''}
-                </div>
-                <div id="figureEditorSlot"></div>
-                <div class="mb-ocr-confirm__label">題目（可修正） ${qWarn}</div>
-                <textarea class="mb-ocr-confirm__textarea" id="ocrQuestion">${UI.escapeHtml(questionText)}</textarea>
-                <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正） ${aWarn}</div>
-                <textarea class="mb-ocr-confirm__textarea" id="ocrAnswer">${UI.escapeHtml(data.ocr_answer || '')}</textarea>
-                <button class="mb-btn mb-btn--primary mb-btn--full" style="margin-top:12px"
-                        onclick="Upload._confirmOCR('${data.mistake_id}')">
-                    確認並分析
-                </button>
-            `;
-
-            // 渲染結構化幾何編輯器（僅數學題且有 figure_description 時顯示）
-            const editorSlot = document.getElementById('figureEditorSlot');
-            if (editorSlot && figDesc) {
-                this._renderFigureEditor(editorSlot, figDesc, fWarn);
-            }
+            // Background processing — return immediately
+            UI.toast('已上傳，AI 正在背景識別分析...', 'info');
+            this.close();
+            App.navigate('home');
         } else {
-            const errMsg = (res && res.detail) || '識別失敗，請重試';
-            btn.style.display = 'none';
-            const ocrDiv = document.getElementById('ocrResult');
-            ocrDiv.style.display = 'block';
-            ocrDiv.innerHTML = `
-                <div class="mb-ocr-fail">
-                    <div class="mb-ocr-fail__icon">${Icons.alertCircle(32)}</div>
-                    <div class="mb-ocr-fail__msg">${UI.escapeHtml(errMsg)}</div>
-                    <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Upload._retryUpload()">
-                        ${Icons.repeat(14)} 重新識別
-                    </button>
-                </div>
-            `;
+            const errMsg = (res && res.detail) || '上傳失敗，請重試';
+            btn.disabled = false;
+            btn.textContent = '上傳並識別';
+            UI.toast(errMsg, 'error');
         }
     },
 

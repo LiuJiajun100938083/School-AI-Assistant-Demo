@@ -387,6 +387,23 @@
 .mb-mistake-item__bar--mastered { background: var(--mb-success); }
 .mb-mistake-item__bar--pending_review { background: var(--mb-text-tertiary); }
 .mb-mistake-item__bar--pending_ocr { background: var(--mb-text-tertiary); }
+.mb-mistake-item__bar--processing {
+    background: linear-gradient(180deg, #007aff 0%, #5ac8fa 100%);
+    animation: mb-pulse 1.5s ease-in-out infinite;
+}
+.mb-mistake-item__bar--needs_review { background: var(--mb-warning); }
+.mb-mistake-item__bar--ocr_failed,
+.mb-mistake-item__bar--analysis_failed { background: var(--mb-danger); }
+
+@keyframes mb-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+.mb-processing-pulse {
+    color: var(--mb-text-tertiary);
+    font-style: italic;
+    animation: mb-pulse 1.5s ease-in-out infinite;
+}
 
 .mb-mistake-item__content {
     flex: 1;

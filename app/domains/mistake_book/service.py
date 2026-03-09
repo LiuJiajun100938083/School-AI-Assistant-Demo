@@ -387,7 +387,14 @@ class MistakeBookService:
     # 錯題上傳與識別
     # ================================================================
 
-    async def upload_mistake_photo(
+    # ================================================================
+    # 上傳：拆分為 create + background process
+    # ================================================================
+
+    # 自動確認置信度門檻（低於此值不自動分析，進入 needs_review）
+    AUTO_CONFIRM_THRESHOLD = 0.5
+
+    async def create_mistake_record(
         self,
         student_username: str,
         subject: str,
@@ -396,12 +403,12 @@ class MistakeBookService:
         filename: str,
     ) -> Dict:
         """
-        上傳錯題照片並執行 OCR
+        快速創建錯題記錄（只保存圖片 + 建 DB 記錄，不做 OCR）。
 
-        流程: 保存圖片 → OCR 識別 → 創建 pending_review 記錄
+        後台由 process_mistake_background() 執行 OCR + 分析。
 
         Returns:
-            {mistake_id, ocr_question, ocr_answer, confidence, status}
+            {mistake_id, status: "processing"}
         """
         mistake_id = str(uuid.uuid4())[:12]
 
@@ -421,82 +428,164 @@ class MistakeBookService:
         if ext.lower() in (".heic", ".heif"):
             web_image_path = self._convert_to_jpeg_for_web(saved_path, save_dir, mistake_id)
 
-        # OCR 識別
-        ocr_result = None
-        if self._vision:
-            recognition_subject = RecognitionSubject(subject)
-            task = self._pick_recognition_task(subject, category)
-            ocr_result = await self._vision.recognize(
-                saved_path, recognition_subject, task
-            )
-
-        if ocr_result and ocr_result.success:
-            status = "pending_review"
-            ocr_question = ocr_result.question_text
-            ocr_answer = ocr_result.answer_text
-            confidence = ocr_result.confidence
-            figure_desc = ocr_result.figure_description
-        else:
-            status = "pending_ocr"
-            ocr_question = ""
-            ocr_answer = ""
-            confidence = 0.0
-            figure_desc = ""
-            if ocr_result:
-                logger.warning("OCR 識別失敗: %s", ocr_result.error)
-
-        if figure_desc:
-            logger.info("圖形描述已提取: %s", figure_desc[:100])
-
-        # 構建分項置信度（數學科才拆分，非數學科為 null）
-        confidence_breakdown = None
-        if ocr_result and ocr_result.success and subject == "math":
-            q_conf = ocr_result.question_confidence
-            a_conf = ocr_result.answer_confidence
-            f_conf = ocr_result.figure_confidence
-            # 只有在模型返回了有效值時才存儲
-            if q_conf > 0 or a_conf > 0 or f_conf > 0:
-                confidence_breakdown = {
-                    "question": round(q_conf, 2),
-                    "answer": round(a_conf, 2),
-                    "figure": round(f_conf, 2),
-                }
-
-        # 創建錯題記錄（存儲瀏覽器可顯示的 JPEG 路徑）
-        insert_data = {
+        # 創建記錄（status=processing，表示後台正在處理）
+        self._mistakes.insert({
             "mistake_id": mistake_id,
             "student_username": student_username,
             "subject": subject,
             "category": category,
             "original_image_path": web_image_path,
-            "ocr_question_text": ocr_question,
-            "ocr_answer_text": ocr_answer,
-            "confidence_score": confidence,
-            "status": status,
+            "ocr_question_text": "",
+            "ocr_answer_text": "",
+            "confidence_score": 0.0,
+            "status": "processing",
             "source": "photo",
-        }
-        if confidence_breakdown is not None:
-            insert_data["confidence_breakdown"] = json.dumps(confidence_breakdown)
-        self._mistakes.insert(insert_data)
-
-        # 通過收口方法寫入 figure_description 獨立列（新上傳使用 v2 schema）
-        figure_readable = ""
-        if figure_desc:
-            figure_readable = self._apply_figure_description(
-                mistake_id, figure_desc, schema_version=2
-            )
+        })
 
         return {
             "mistake_id": mistake_id,
-            "ocr_question": ocr_question,
-            "ocr_answer": ocr_answer,
-            "confidence": confidence,
-            "confidence_breakdown": confidence_breakdown,
-            "has_handwriting": ocr_result.has_handwriting if ocr_result else False,
-            "figure_description": figure_desc,
-            "figure_description_readable": figure_readable,
-            "status": status,
-            "message": "識別完成，請確認或修正結果" if status == "pending_review" else "識別失敗，請手動輸入",
+            "status": "processing",
+            "message": "已上傳，AI 正在背景識別分析...",
+        }
+
+    async def process_mistake_background(self, mistake_id: str):
+        """
+        後台處理：OCR → 置信度閘門 → 自動確認 + AI 分析。
+
+        設計為冪等：只有 status="processing" 時才執行，
+        避免重複提交或任務重跑導致重複處理。
+        """
+        mistake = self._mistakes.find_by_mistake_id(mistake_id)
+        if not mistake:
+            logger.error("後台處理：找不到錯題 %s", mistake_id)
+            return
+
+        # 冪等保護：只處理 processing 狀態
+        if mistake["status"] != "processing":
+            logger.info(
+                "後台處理：錯題 %s 狀態已為 %s，跳過",
+                mistake_id, mistake["status"],
+            )
+            return
+
+        subject = mistake["subject"]
+        image_path = mistake["original_image_path"]
+        category = mistake.get("category", "")
+
+        # ---- Step 1: OCR ----
+        ocr_result = None
+        if self._vision:
+            recognition_subject = RecognitionSubject(subject)
+            task = self._pick_recognition_task(subject, category)
+            try:
+                ocr_result = await self._vision.recognize(
+                    image_path, recognition_subject, task
+                )
+            except Exception as e:
+                logger.error("後台 OCR 異常 (mistake=%s): %s", mistake_id, e)
+
+        if not ocr_result or not ocr_result.success or not ocr_result.question_text:
+            self._mistakes.update(
+                {"status": "ocr_failed"},
+                "mistake_id = %s", (mistake_id,),
+            )
+            logger.warning("後台 OCR 失敗 (mistake=%s)", mistake_id)
+            return
+
+        # 保存 OCR 結果
+        figure_desc = ocr_result.figure_description or ""
+        update_data = {
+            "ocr_question_text": ocr_result.question_text,
+            "ocr_answer_text": ocr_result.answer_text,
+            "confidence_score": ocr_result.confidence,
+        }
+
+        # 構建分項置信度
+        if subject == "math":
+            q_conf = ocr_result.question_confidence
+            a_conf = ocr_result.answer_confidence
+            f_conf = ocr_result.figure_confidence
+            if q_conf > 0 or a_conf > 0 or f_conf > 0:
+                update_data["confidence_breakdown"] = json.dumps({
+                    "question": round(q_conf, 2),
+                    "answer": round(a_conf, 2),
+                    "figure": round(f_conf, 2),
+                })
+
+        self._mistakes.update(update_data, "mistake_id = %s", (mistake_id,))
+
+        # 保存圖形描述
+        if figure_desc:
+            logger.info("圖形描述已提取: %s", figure_desc[:100])
+            self._apply_figure_description(mistake_id, figure_desc, schema_version=2)
+
+        # ---- Step 2: 置信度閘門 ----
+        if ocr_result.confidence < self.AUTO_CONFIRM_THRESHOLD:
+            self._mistakes.update(
+                {"status": "needs_review"},
+                "mistake_id = %s", (mistake_id,),
+            )
+            logger.info(
+                "後台 OCR 置信度不足 (mistake=%s, conf=%.2f < %.2f)，需人工確認",
+                mistake_id, ocr_result.confidence, self.AUTO_CONFIRM_THRESHOLD,
+            )
+            return
+
+        # ---- Step 3: 自動確認 + AI 分析 ----
+        try:
+            await self.confirm_and_analyze(
+                mistake_id=mistake_id,
+                confirmed_question=ocr_result.question_text,
+                confirmed_answer=ocr_result.answer_text,
+                confirmed_figure_description=figure_desc or None,
+            )
+            logger.info("後台處理完成 (mistake=%s) → analyzed", mistake_id)
+        except Exception as e:
+            logger.error("後台分析失敗 (mistake=%s): %s", mistake_id, e)
+            self._mistakes.update(
+                {"status": "analysis_failed"},
+                "mistake_id = %s", (mistake_id,),
+            )
+
+    async def upload_mistake_photo(
+        self,
+        student_username: str,
+        subject: str,
+        category: str,
+        image_data: bytes,
+        filename: str,
+    ) -> Dict:
+        """
+        上傳錯題照片並執行 OCR（同步版，向後兼容）。
+
+        新流程推薦使用 create_mistake_record() + process_mistake_background()。
+        """
+        # 使用新方法創建記錄
+        result = await self.create_mistake_record(
+            student_username, subject, category, image_data, filename,
+        )
+        mistake_id = result["mistake_id"]
+
+        # 同步執行 OCR + 分析（兼容舊調用方式）
+        await self.process_mistake_background(mistake_id)
+
+        # 重新讀取最新狀態返回
+        mistake = self._mistakes.find_by_mistake_id(mistake_id)
+        fig_desc = mistake.get("figure_description", "")
+        fig_readable = mistake.get("figure_description_readable", "")
+
+        return {
+            "mistake_id": mistake_id,
+            "ocr_question": mistake.get("ocr_question_text", ""),
+            "ocr_answer": mistake.get("ocr_answer_text", ""),
+            "confidence": mistake.get("confidence_score", 0.0),
+            "confidence_breakdown": json.loads(mistake["confidence_breakdown"])
+                if mistake.get("confidence_breakdown") else None,
+            "has_handwriting": False,
+            "figure_description": fig_desc,
+            "figure_description_readable": fig_readable,
+            "status": mistake.get("status", "processing"),
+            "message": "處理完成",
         }
 
     async def confirm_and_analyze(

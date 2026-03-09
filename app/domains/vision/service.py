@@ -111,14 +111,17 @@ class VisionService:
 
             result = self._parse_ocr_response(raw_response, subject, task)
 
-            # 如果解析完全失敗（question 為空），且原始回應有內容，嘗試重試
-            if not result.question_text and len(raw_response) > 100:
+            # 如果解析完全失敗（question 為空），嘗試重試
+            # raw_response 可能為空（純推理被跳過）或有內容但解析失敗
+            if not result.question_text:
                 logger.warning(
                     "首次 OCR 解析失敗（question 為空），嘗試重試..."
                 )
                 retry_prompt = (
-                    "IMPORTANT: Output ONLY valid JSON. No explanations, no reasoning, "
-                    "no markdown. Start your response with { and end with }.\n\n"
+                    "/no_think\n"
+                    "CRITICAL: Output ONLY a valid JSON object. "
+                    "Do NOT include reasoning, explanations, markdown, or <think> tags. "
+                    "Start with { and end with }.\n\n"
                     + prompt
                 )
                 retry_response = await self._call_vision_model(
@@ -251,6 +254,15 @@ class VisionService:
                     think_match = re.search(r"<think>(.*?)</think>", raw_content, re.DOTALL)
                     if think_match:
                         content = think_match.group(1).strip()
+
+            # ---- 純推理快速失敗 ----
+            # 當 thinking 內容全是自然語言推理（沒有有效 JSON），跳過昂貴提取
+            if content and self._looks_like_pure_reasoning(content):
+                logger.info(
+                    "thinking 內容為純推理文本 (len=%d)，跳過 JSON 提取",
+                    len(content),
+                )
+                content = ""  # 觸發上層 retry
 
             # ---- 從推理文本中嘗試提取嵌入的 JSON ----
             # Qwen3-VL 即使啟用思考模式，有時會在推理中輸出 JSON
@@ -1571,6 +1583,43 @@ Output JSON only.
         """移除 <think>...</think> 標籤"""
         import re
         return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
+    @staticmethod
+    def _looks_like_pure_reasoning(text: str) -> bool:
+        """
+        判斷文本是否為純推理（非 JSON）。
+
+        當 content_len=0 且 thinking 全是自然語言推理時，
+        跳過昂貴的 JSON 提取，直接進入 retry。
+        """
+        stripped = text.strip()
+        if not stripped:
+            return True
+        # 完全沒有 JSON 標記
+        if '{' not in stripped:
+            return True
+        # 以自然語言模式開頭
+        reasoning_starts = (
+            "got it", "let me", "okay", "ok,", "first", "the ",
+            "i ", "looking", "starting", "alright", "now,", "so,",
+            "let's",
+        )
+        # 去掉可能的 <think> 標籤
+        lower = stripped.lower()
+        for prefix in ("<think>", "<think>\n"):
+            if lower.startswith(prefix):
+                lower = lower[len(prefix):].lstrip()
+                break
+        if any(lower.startswith(p) for p in reasoning_starts):
+            # { 出現在文本很後面（>70%）→ 純推理加尾部片段
+            first_brace = stripped.find('{')
+            if first_brace > len(stripped) * 0.7:
+                return True
+            # 即使 { 出現較早，但沒有 "question" / "answer" 鍵 → 不像 OCR JSON
+            remaining = stripped[first_brace:first_brace + 500]
+            if '"question"' not in remaining and '"answer"' not in remaining:
+                return True
+        return False
 
     def _extract_json_from_reasoning(self, text: str) -> str:
         """
