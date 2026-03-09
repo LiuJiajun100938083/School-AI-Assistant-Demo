@@ -585,6 +585,18 @@ const GeoDisplay = {
     cleanLatex(text) {
         if (!text) return text;
         return text
+            // 雙重轉義（JSON 回退路徑可能殘留 \\parallel 等）
+            .replace(/\\\\parallel/g, '∥')
+            .replace(/\\\\perp/g, '⊥')
+            .replace(/\\\\angle/g, '∠')
+            .replace(/\\\\triangle/g, '△')
+            .replace(/\\\\cong/g, '≅')
+            .replace(/\\\\sim/g, '∼')
+            .replace(/\\\\times/g, '×')
+            .replace(/\\\\cdot/g, '·')
+            .replace(/\\\\text\s*\{([^}]*)\}/g, '$1')
+            .replace(/\\\\[()]/g, '')
+            // 單重轉義（正常路徑）
             .replace(/\\parallel/g, '∥')
             .replace(/\\perp/g, '⊥')
             .replace(/\\angle/g, '∠')
@@ -594,6 +606,7 @@ const GeoDisplay = {
             .replace(/\\times/g, '×')
             .replace(/\\cdot/g, '·')
             .replace(/\\text\s*\{([^}]*)\}/g, '$1')
+            .replace(/\\[()]/g, '')
             .replace(/\\(quad|,|;|!)/g, ' ')
             .replace(/\$/g, '')
             .trim();
@@ -2036,7 +2049,13 @@ const Upload = {
             } else {
                 container.innerHTML = `<div class="mb-figure-desc">
                     <div class="mb-figure-desc__title">幾何圖形描述 ${fWarn || ''}</div>
-                    <div class="mb-figure-desc__item">${UI.escapeHtml(String(figJsonStr))}</div>
+                    <div class="mb-figure-desc__item" style="color:#888;">
+                        已檢測到幾何圖形，結構化解析失敗。您仍可手動編輯題目文字。
+                    </div>
+                    <details style="margin-top:4px;font-size:12px;color:#aaa;">
+                        <summary>開發者：查看原始資料</summary>
+                        <pre style="white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;background:#f5f5f5;padding:8px;border-radius:4px;font-size:11px;">${UI.escapeHtml(String(figJsonStr))}</pre>
+                    </details>
                 </div>`;
             }
             return;

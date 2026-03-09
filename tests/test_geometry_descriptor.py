@@ -755,3 +755,114 @@ class TestRatioInMeasurementSkip:
         assert desc.measurements[0]["property"] == "length"
         assert "FH = 12 cm" in desc.to_readable_text()
         assert "ratio" not in desc.to_readable_text()
+
+
+# ================================================================
+# 截斷 JSON 修復測試
+# ================================================================
+
+
+class TestRepairTruncatedJson:
+    """測試 _repair_truncated_json 對被截斷的 JSON 的修復能力"""
+
+    def test_truncated_string_value(self):
+        """字符串值在中間被截斷"""
+        from app.domains.vision.service import VisionService
+        broken = '{"question": "some text", "answer": "trunca'
+        result = VisionService._repair_truncated_json(broken)
+        assert result is not None
+        assert result["question"] == "some text"
+
+    def test_truncated_nested_object(self):
+        """嵌套對象被截斷"""
+        from app.domains.vision.service import VisionService
+        broken = '{"question": "text", "figure_description": {"has_figure": true, "objects": [{"id": "P_A"'
+        result = VisionService._repair_truncated_json(broken)
+        assert result is not None
+        assert result["question"] == "text"
+        assert "figure_description" in result
+
+    def test_missing_comma_at_end(self):
+        """末尾缺少逗號導致的語法錯誤"""
+        from app.domains.vision.service import VisionService
+        broken = '{"question": "text", "answer": ""  "extra": "val"}'
+        result = VisionService._repair_truncated_json(broken)
+        # 可能無法修復這種錯誤（缺逗號在中間），但不應崩潰
+        # 返回 None 也可接受
+        assert result is None or isinstance(result, dict)
+
+    def test_unclosed_braces(self):
+        """大括號未閉合"""
+        from app.domains.vision.service import VisionService
+        broken = '{"question": "text", "nested": {"a": 1}'
+        result = VisionService._repair_truncated_json(broken)
+        assert result is not None
+        assert result["question"] == "text"
+
+    def test_already_valid_json(self):
+        """已經是合法 JSON 不需要修復"""
+        from app.domains.vision.service import VisionService
+        valid = '{"question": "text"}'
+        result = VisionService._repair_truncated_json(valid)
+        assert result is None  # 不需要修復
+
+    def test_realistic_truncation(self):
+        """模擬真實場景：geometry figure_description 在末尾被截斷"""
+        from app.domains.vision.service import VisionService
+        import json
+        full = {
+            "question": "在圖中，BC ∥ DE ∥ FG",
+            "answer": "",
+            "figure_description": {
+                "has_figure": True,
+                "figure_type": "geometry",
+                "objects": [
+                    {"id": "P_A", "type": "point", "label": "A"},
+                    {"id": "P_B", "type": "point", "label": "B"},
+                ],
+                "measurements": [
+                    {"target": "S_FH", "property": "length", "value": "12 cm"}
+                ],
+                "relationships": [
+                    {"type": "parallel", "entities": ["S_BC", "S_DE"]}
+                ]
+            }
+        }
+        full_str = json.dumps(full, ensure_ascii=False)
+        # 截斷最後 60 個字符
+        broken = full_str[:-60]
+        result = VisionService._repair_truncated_json(broken)
+        assert result is not None
+        assert result["question"] == "在圖中，BC ∥ DE ∥ FG"
+
+
+# ================================================================
+# 雙重轉義 LaTeX 清洗測試
+# ================================================================
+
+
+class TestDoubleEscapeCleanLatex:
+    """測試 clean_latex 對雙重轉義 LaTeX 的處理"""
+
+    def test_double_escaped_parallel(self):
+        result = GeometryDescriptor.clean_latex("BC \\\\parallel DE")
+        assert result == "BC ∥ DE"
+
+    def test_double_escaped_text_cm(self):
+        result = GeometryDescriptor.clean_latex("FH = 12 \\\\text{ cm}")
+        assert result == "FH = 12  cm"
+
+    def test_double_escaped_angle(self):
+        result = GeometryDescriptor.clean_latex("\\\\angle ABC = 90°")
+        assert result == "∠ ABC = 90°"
+
+    def test_mixed_single_and_double(self):
+        """混合單重和雙重轉義"""
+        result = GeometryDescriptor.clean_latex("\\\\parallel and \\perp")
+        assert "∥" in result
+        assert "⊥" in result
+
+    def test_math_delimiters_removed(self):
+        """\\( \\) 數學分隔符應被移除"""
+        result = GeometryDescriptor.clean_latex("\\(a\\) 求 DI")
+        assert result == "a 求 DI"

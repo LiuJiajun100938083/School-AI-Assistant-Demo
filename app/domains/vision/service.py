@@ -26,6 +26,34 @@ logger = logging.getLogger(__name__)
 DEFAULT_VISION_MODEL = "qwen3-vl:8b"
 
 
+def _compute_closers(s: str) -> str:
+    """掃描 JSON 片段，返回需要的閉合符號（}] 等）。"""
+    in_str = False
+    esc = False
+    stack = []
+    for ch in s:
+        if esc:
+            esc = False
+            continue
+        if ch == '\\' and in_str:
+            esc = True
+            continue
+        if ch == '"' and not esc:
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == '{':
+            stack.append('}')
+        elif ch == '[':
+            stack.append(']')
+        elif ch in ('}', ']'):
+            if stack and stack[-1] == ch:
+                stack.pop()
+    stack.reverse()
+    return ''.join(stack)
+
+
 class VisionService:
     """
     視覺識別服務
@@ -953,7 +981,7 @@ Output JSON only.
         fig_desc = self._regex_extract_field(text, "figure_description")
 
         # 反轉義常見的 JSON 轉義序列
-        for old, new in [("\\n", "\n"), ("\\t", "\t"), ('\\"', '"')]:
+        for old, new in [("\\\\", "\\"), ("\\n", "\n"), ("\\t", "\t"), ('\\"', '"')]:
             question = question.replace(old, new)
             answer = answer.replace(old, new)
             fig_desc = fig_desc.replace(old, new)
@@ -964,7 +992,8 @@ Output JSON only.
         confidence = 0.7 if (question and answer) else 0.3
 
         if question or answer:
-            logger.info("正則回退提取成功: question=%d字, answer=%d字", len(question), len(answer))
+            logger.info("正則回退提取成功: question=%d字, answer=%d字, figure_description=%d字",
+                        len(question), len(answer), len(fig_desc))
         else:
             logger.warning("正則回退也無法提取內容, raw前200字: %s", text[:200])
 
@@ -1112,7 +1141,12 @@ Output JSON only.
                         return ""
                     return raw.strip()
                 except (json.JSONDecodeError, ValueError):
-                    pass
+                    # JSON 解析失敗，嘗試截斷修復
+                    repaired = VisionService._repair_truncated_json(raw)
+                    if repaired is not None:
+                        if isinstance(repaired, dict) and not repaired.get("has_figure", True):
+                            return ""
+                        return json.dumps(repaired, ensure_ascii=False)
             return raw.strip()
 
         return str(raw) if raw else ""
@@ -1449,8 +1483,88 @@ Output JSON only.
         except json.JSONDecodeError:
             pass
 
+        # 第五次嘗試：截斷修復（模型輸出被截斷導致 JSON 不完整）
+        repaired = VisionService._repair_truncated_json(cleaned)
+        if repaired is not None:
+            return repaired
+
         # 最終回退：拋出原始錯誤讓上層處理
         return json.loads(json_str)
+
+    @staticmethod
+    def _repair_truncated_json(s: str):
+        """
+        嘗試修復被截斷的 JSON 字符串。
+
+        模型輸出經常在末尾被截斷，導致 JSON 不完整（如缺逗號、字符串
+        未閉合、大括號/方括號未閉合）。此方法嘗試兩種策略修復。
+        """
+        if not s or not s.strip().startswith("{"):
+            return None
+
+        s = s.strip()
+
+        # 掃描字符串，追蹤狀態
+        in_str = False
+        esc = False
+        open_stack = []  # '{' or '['
+        last_comma_pos = -1  # 最後一個在字符串外部的逗號位置
+
+        for i, ch in enumerate(s):
+            if esc:
+                esc = False
+                continue
+            if ch == '\\' and in_str:
+                esc = True
+                continue
+            if ch == '"' and not esc:
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if ch == '{':
+                open_stack.append('{')
+            elif ch == '[':
+                open_stack.append('[')
+            elif ch == '}':
+                if open_stack and open_stack[-1] == '{':
+                    open_stack.pop()
+            elif ch == ']':
+                if open_stack and open_stack[-1] == '[':
+                    open_stack.pop()
+            elif ch == ',':
+                last_comma_pos = i
+
+        # 如果已經平衡，不需要修復
+        if not open_stack and not in_str:
+            return None
+
+        candidates = []
+
+        # 策略 1：如果在字符串內部，先閉合引號，然後回退到最後一個逗號，
+        # 截斷不完整的鍵值對，再閉合所有括號
+        if in_str or open_stack:
+            # 閉合引號後截斷到最後一個逗號
+            if last_comma_pos > 0:
+                truncated = s[:last_comma_pos]
+                # 重新掃描截斷後的字符串，計算需要的閉合符
+                closers = _compute_closers(truncated)
+                candidates.append(truncated + closers)
+
+        # 策略 2：直接閉合 — 先閉合引號，再閉合所有開放的括號
+        attempt = s
+        if in_str:
+            attempt += '"'
+        closers = _compute_closers(attempt)
+        candidates.append(attempt + closers)
+
+        for candidate in candidates:
+            try:
+                return json.loads(candidate)
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+        return None
 
     @staticmethod
     def _strip_thinking_tags(content: str) -> str:

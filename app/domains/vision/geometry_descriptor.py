@@ -73,6 +73,16 @@ class GeometryDescriptor:
         if not text:
             return text
         replacements = [
+            # 雙重轉義（JSON 回退路徑可能殘留 \\parallel 等）
+            ("\\\\parallel", "∥"),
+            ("\\\\perp", "⊥"),
+            ("\\\\angle", "∠"),
+            ("\\\\triangle", "△"),
+            ("\\\\cong", "≅"),
+            ("\\\\sim", "∼"),
+            ("\\\\times", "×"),
+            ("\\\\cdot", "·"),
+            # 單重轉義（正常路徑）
             ("\\parallel", "∥"),
             ("\\perp", "⊥"),
             ("\\angle", "∠"),
@@ -84,8 +94,12 @@ class GeometryDescriptor:
         ]
         for pattern, repl in replacements:
             text = text.replace(pattern, repl)
-        # \text{ cm} → cm, \text{cm} → cm
+        # \text{ cm} → cm, \text{cm} → cm（雙重+單重轉義）
+        text = re.sub(r"\\\\text\s*\{([^}]*)\}", r"\1", text)
         text = re.sub(r"\\text\s*\{([^}]*)\}", r"\1", text)
+        # \\( \\) 和 \( \) 數學分隔符
+        text = text.replace("\\\\(", "").replace("\\\\)", "")
+        text = text.replace("\\(", "").replace("\\)", "")
         # Remove stray backslashes before known words
         text = re.sub(r"\\(quad|,|;|!)", " ", text)
         # Remove $ delimiters
