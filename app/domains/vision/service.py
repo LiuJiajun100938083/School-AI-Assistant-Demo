@@ -82,6 +82,28 @@ class VisionService:
                 return OCRResult(success=False, error="視覺模型調用失敗")
 
             result = self._parse_ocr_response(raw_response, subject, task)
+
+            # 如果解析完全失敗（question 為空），且原始回應有內容，嘗試重試
+            if not result.question_text and len(raw_response) > 100:
+                logger.warning(
+                    "首次 OCR 解析失敗（question 為空），嘗試重試..."
+                )
+                retry_prompt = (
+                    "IMPORTANT: Output ONLY valid JSON. No explanations, no reasoning, "
+                    "no markdown. Start your response with { and end with }.\n\n"
+                    + prompt
+                )
+                retry_response = await self._call_vision_model(
+                    processed_path, retry_prompt
+                )
+                if retry_response:
+                    retry_result = self._parse_ocr_response(
+                        retry_response, subject, task
+                    )
+                    if retry_result.question_text:
+                        logger.info("重試 OCR 成功")
+                        return retry_result
+
             return result
 
         except Exception as e:
@@ -183,6 +205,10 @@ class VisionService:
                         "content 為空但 thinking 字段有內容 (len=%d)，使用 thinking 作為回應",
                         len(thinking_content),
                     )
+                    # 記錄 thinking 開頭 500 字方便調試
+                    logger.debug(
+                        "thinking 前500字: %s", thinking_content[:500]
+                    )
                     content = self._strip_thinking_tags(thinking_content)
                     if not content:
                         # thinking 本身就是純文本（沒有 <think> 標籤）
@@ -206,6 +232,24 @@ class VisionService:
                 if json_candidate:
                     logger.info("從推理文本中提取到嵌入 JSON (len=%d)", len(json_candidate))
                     content = json_candidate
+                else:
+                    # 推理文本中沒有可辨識的 JSON — 嘗試快速驗證
+                    try:
+                        self._safe_json_loads(content)
+                    except (json.JSONDecodeError, ValueError):
+                        # content 不是有效 JSON，可能是純推理文本
+                        # 嘗試用 _extract_json_from_thinking 做更激進的提取
+                        extracted = self._extract_json_from_thinking(content)
+                        if extracted != content:
+                            try:
+                                self._safe_json_loads(extracted)
+                                logger.info("thinking 提取成功 (len=%d)", len(extracted))
+                                content = extracted
+                            except (json.JSONDecodeError, ValueError):
+                                logger.warning(
+                                    "thinking 提取的 JSON 仍無法解析 (len=%d), 前200字: %s",
+                                    len(extracted), extracted[:200]
+                                )
 
             logger.info(
                 "Vision 模型調用成功: model=%s, raw_len=%d, thinking_len=%d, final_len=%d",
@@ -782,7 +826,45 @@ Output JSON only.
             candidates.sort(key=len, reverse=True)
             return candidates[0]
 
-        # 回退：傳統的 find/rfind 方法
+        # 回退：嘗試找到任何足夠大的 {...} 塊（不要求含 question/answer 鍵）
+        all_candidates = []
+        i = 0
+        while i < len(text):
+            if text[i] == '{':
+                depth = 0
+                in_str = False
+                esc = False
+                for j in range(i, len(text)):
+                    ch = text[j]
+                    if esc:
+                        esc = False
+                        j_next = j + 1
+                        continue
+                    if ch == '\\' and in_str:
+                        esc = True
+                        continue
+                    if ch == '"' and not esc:
+                        in_str = not in_str
+                        continue
+                    if in_str:
+                        continue
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            candidate = text[i:j + 1]
+                            if len(candidate) > 50:  # 忽略太短的片段
+                                all_candidates.append(candidate)
+                            break
+            i += 1
+
+        if all_candidates:
+            # 優先選最大的候選
+            all_candidates.sort(key=len, reverse=True)
+            return all_candidates[0]
+
+        # 最終回退：傳統的 find/rfind 方法
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end != -1 and end > start:
@@ -866,7 +948,7 @@ Output JSON only.
         if question or answer:
             logger.info("正則回退提取成功: question=%d字, answer=%d字", len(question), len(answer))
         else:
-            logger.warning("正則回退也無法提取內容")
+            logger.warning("正則回退也無法提取內容, raw前200字: %s", text[:200])
 
         return OCRResult(
             question_text=question,
