@@ -14,3 +14,8 @@ ALTER TABLE student_mistakes
         'needs_review',
         'analysis_failed'
     ) DEFAULT 'pending_ocr' COMMENT '錯題狀態';
+
+-- 新增 AI 分析詳情欄位：改進建議 + 核心考點
+ALTER TABLE student_mistakes
+    ADD COLUMN improvement_tips JSON COMMENT '改進建議 JSON 陣列' AFTER ai_analysis,
+    ADD COLUMN key_insight TEXT COMMENT '核心考點/知識點總結' AFTER improvement_tips;

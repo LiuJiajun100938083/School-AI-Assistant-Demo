@@ -650,9 +650,12 @@ class MistakeBookService:
         )
 
         # 更新分析結果
+        tips = analysis.get("improvement_tips", [])
         update_data = {
             "correct_answer": analysis.get("correct_answer", ""),
             "ai_analysis": analysis.get("error_analysis", ""),
+            "improvement_tips": json.dumps(tips, ensure_ascii=False) if tips else None,
+            "key_insight": analysis.get("key_insight", ""),
             "error_type": analysis.get("error_type", ""),
             "difficulty_level": analysis.get("difficulty_level", 3),
             "confidence_score": analysis.get("confidence", 0.8),
@@ -783,6 +786,16 @@ class MistakeBookService:
 
         result["figure_description"] = fig_desc or None
         result["figure_description_readable"] = fig_readable or None
+
+        # 解析 improvement_tips JSON
+        tips_raw = mistake.get("improvement_tips")
+        if tips_raw:
+            try:
+                result["improvement_tips"] = json.loads(tips_raw) if isinstance(tips_raw, str) else tips_raw
+            except (json.JSONDecodeError, TypeError):
+                result["improvement_tips"] = []
+        else:
+            result["improvement_tips"] = []
 
         return result
 

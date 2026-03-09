@@ -121,6 +121,8 @@ class MistakeDetail(BaseModel):
     answer_text: str
     correct_answer: Optional[str]
     ai_analysis: Optional[str]
+    improvement_tips: List[str] = []
+    key_insight: Optional[str] = None
     error_type: Optional[str]
     difficulty_level: int
     status: str

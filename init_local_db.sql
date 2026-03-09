@@ -392,6 +392,8 @@ CREATE TABLE IF NOT EXISTS student_mistakes (
     manual_answer_text TEXT,
     correct_answer TEXT,
     ai_analysis TEXT,
+    improvement_tips JSON,
+    key_insight TEXT,
     error_type VARCHAR(100),
     difficulty_level INT DEFAULT 1,
     confidence_score FLOAT,
