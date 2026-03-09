@@ -101,13 +101,16 @@ class PhysicsHandler(BaseSubjectHandler):
             f"\n## 學生歷史學習情況（請結合歷史薄弱點給出更有針對性的建議）\n{student_history_context}\n"
             if student_history_context else ""
         )
-        return f"""你是一位經驗豐富的香港 DSE 物理科教師。請逐步檢查以下學生的解題過程。
+        empty_answer = not student_answer or student_answer.strip() == ""
+        answer_section = "（學生未作答）" if empty_answer else student_answer
+
+        return f"""你是一位經驗豐富的香港 DSE 物理科教師。{'學生未作答此題，請直接提供完整正確解法和此題的核心考點分析。' if empty_answer else '請逐步檢查以下學生的解題過程。'}
 
 ## 題目
 {question_text}
 {figure_section}
 ## 學生解答
-{student_answer}
+{answer_section}
 
 ## 可用的知識點列表
 {knowledge_points_context}
@@ -153,7 +156,8 @@ class PhysicsHandler(BaseSubjectHandler):
 - **所有物理公式和數學表達式必須用 $ 符號包裹**，例如 $F = ma$、$Q = mc\\Delta T$、$v = 14 \\text{{ m s}}^{{-1}}$。不要出現未包裹的 LaTeX 命令（如裸露的 \\text{{}}、\\frac{{}}{{}} 等）
 - 單位寫法：在 LaTeX 內用 $\\text{{ J kg}}^{{-1}} \\text{{ °C}}^{{-1}}$ 或直接寫 J kg⁻¹ °C⁻¹，不要用 \\circ
 - 所有數值必須帶單位
-- 定位到第一個出錯的步驟
+- 如果學生未作答（答案為空），error_type 設為 "method_error"，error_analysis 寫明「學生未作答此題」，然後重點放在 correct_answer（完整正確解法）和 key_insight（考點分析），不要分析「學生忽略了什麼」
+- 如果學生有作答，定位到第一個出錯的步驟
 - 如果題目包含圖形描述，你必須在分析中引用圖中的具體元素（如元件、力、波形），讓學生能對照原圖理解
 - error_type 只能選：concept_error / calculation_error / careless / memory_error / logic_error / method_error
 - error_stage 只能選：concept / formula / substitution / calculation / unit / graph / experiment

@@ -2008,7 +2008,44 @@ const Upload = {
             // Background processing — return immediately
             UI.toast('已上傳，AI 正在背景識別分析...', 'info');
             this.close();
-            App.navigate('home');
+
+            // 直接在現有列表中插入「處理中」卡片，不重新加載整個頁面
+            // （避免後台 OCR 佔用資源導致 API 回應慢）
+            const listEl = document.getElementById('mistakeList');
+            if (listEl && App.state.currentTab === 'home') {
+                const emptyMsg = listEl.querySelector('.mb-empty');
+                if (emptyMsg) emptyMsg.remove();
+
+                const subject = document.getElementById('uploadSubject')?.value || '';
+                const tempCard = document.createElement('div');
+                tempCard.className = 'mb-list-container';
+                tempCard.innerHTML = `
+                    <div class="mb-mistake-item" style="cursor:default;opacity:0.7">
+                        <div class="mb-mistake-item__bar mb-mistake-item__bar--processing"></div>
+                        <div class="mb-mistake-item__content">
+                            <div class="mb-mistake-item__top">
+                                <span class="mb-mistake-item__subject">${UI.subjectLabel(subject)}</span>
+                                <span class="mb-mistake-item__date">剛剛</span>
+                            </div>
+                            <div class="mb-mistake-item__question"><span class="mb-processing-pulse">AI 正在識別分析中...</span></div>
+                        </div>
+                    </div>
+                `;
+                listEl.insertBefore(tempCard, listEl.firstChild);
+
+                // 更新計數
+                const countEl = listEl.closest('.mb-list-section')?.querySelector('.mb-list-section__count');
+                if (countEl) {
+                    const oldCount = parseInt(countEl.textContent) || 0;
+                    countEl.textContent = `${oldCount + 1} 題`;
+                }
+
+                // 啟動輪詢，等待後台處理完成後自動刷新
+                Views._startProcessingPoll();
+            } else {
+                // 不在首頁，直接導航
+                App.navigate('home');
+            }
         } else {
             const errMsg = (res && res.detail) || '上傳失敗，請重試';
             btn.disabled = false;
