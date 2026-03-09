@@ -237,10 +237,38 @@ async def my_games():
     return _serve_page("my_games.html")
 
 
+# 分享游戏播放页 CSP — 需要 frame-src 'self' 以允许 iframe 嵌入同源上传游戏
+_PLAY_SHARED_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "connect-src 'self'; "
+    "frame-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'"
+)
+
+
 @router.get("/play/{token}")
 async def play_shared_game(token: str):
     """通过分享 token 访问游戏（无需登入）"""
-    return _serve_page("game_play_shared.html")
+    file_path = os.path.join(STATIC_DIR, "game_play_shared.html")
+    if os.path.exists(file_path):
+        return FileResponse(
+            file_path,
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "Content-Security-Policy": _PLAY_SHARED_CSP,
+            },
+        )
+    return HTMLResponse(
+        content="<h1>页面未找到</h1>",
+        status_code=404,
+    )
 
 
 # 上传游戏专用 CSP — 比全局 CSP 更严格
@@ -269,6 +297,7 @@ _UPLOADED_GAME_HEADERS = {
     "Expires": "0",
     "Content-Security-Policy": _UPLOADED_GAME_CSP,
     "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",  # 允许 game_play_shared.html 通过 iframe 嵌入
 }
 
 

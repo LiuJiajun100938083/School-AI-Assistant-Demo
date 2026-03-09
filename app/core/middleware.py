@@ -161,7 +161,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # ---- 通用安全头（所有响应） ----
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
+        # 上传游戏需要在 iframe 中显示（game_play_shared.html 通过 iframe 嵌入）
+        if path.startswith("/uploaded_games/"):
+            response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        else:
+            response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["X-XSS-Protection"] = "0"
         response.headers["Permissions-Policy"] = (
