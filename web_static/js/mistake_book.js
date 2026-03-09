@@ -1256,7 +1256,7 @@ const Views = {
             </div>` : ''}
 
             ${hasCompare ? `
-            <div class="mb-collapse">
+            <div class="mb-collapse mb-collapse--open">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
                     <span class="mb-collapse__title">思路對比</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
@@ -1278,7 +1278,7 @@ const Views = {
             </div>` : ''}
 
             ${m.correct_answer ? `
-            <div class="mb-collapse">
+            <div class="mb-collapse mb-collapse--open">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
                     <span class="mb-collapse__title">參考解法</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
@@ -1290,7 +1290,7 @@ const Views = {
             </div>` : ''}
 
             ${rawAnalysis ? `
-            <div class="mb-collapse">
+            <div class="mb-collapse mb-collapse--open">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
                     <span class="mb-collapse__title">詳細分析</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
