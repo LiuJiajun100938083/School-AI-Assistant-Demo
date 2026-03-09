@@ -447,10 +447,12 @@ def _wrap_raw_jsx(jsx_code: str) -> str:
         '<body>\n'
         '<div id="root"></div>\n'
         '<script type="text/babel">\n'
+        '(function() {\n'
         f'{hooks_destructure}\n'
         f'{icon_defs_code}\n\n'
         f'{cleaned_code}\n\n'
         f'ReactDOM.createRoot(document.getElementById("root")).render(<{component_name} />);\n'
+        '})();\n'
         f'{end_script}\n'
         '</body>\n'
         '</html>'
@@ -692,11 +694,15 @@ def _inject_lucide_polyfills(html_content: str) -> str:
         )
     polyfill_code = '\n'.join(polyfill_lines)
 
-    # 替换 Babel script 块：在代码开头插入 polyfill
+    # 替换 Babel script 块：用 IIFE 包裹全部代码（polyfill + 原始代码）
+    # 关键：const 在脚本顶层会创建全局词法绑定，即使不是 window.xxx
+    # 也会遮蔽原生 Map/Set 等。IIFE 确保 const 在函数作用域内。
     new_babel_block = (
         babel_open_tag + '\n'
+        + '(function() {\n'
         + polyfill_code + '\n'
-        + babel_code
+        + babel_code + '\n'
+        + '})();\n'
         + babel_close_tag
     )
     html_content = (
