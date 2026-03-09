@@ -115,7 +115,7 @@ class VisionService:
             # raw_response 可能為空（純推理被跳過）或有內容但解析失敗
             if not result.question_text:
                 logger.warning(
-                    "首次 OCR 解析失敗（question 為空），嘗試重試..."
+                    "首次 OCR 解析失敗（question 為空），嘗試重試（強制 JSON 模式）..."
                 )
                 retry_prompt = (
                     "/no_think\n"
@@ -124,7 +124,7 @@ class VisionService:
                     "Start with { and end with }.\n\n"
                     + prompt
                 )
-                retry_response = await self._call_vision_model(
+                retry_response = await self._call_vision_model_json(
                     processed_path, retry_prompt
                 )
                 if retry_response:
@@ -280,9 +280,15 @@ class VisionService:
                 if not is_valid_json:
                     # 第二步：嘗試從推理文本中提取包含 "question" 的 JSON
                     json_candidate = self._extract_json_from_reasoning(content)
-                    if json_candidate:
+                    if json_candidate and len(json_candidate) >= 50:
                         logger.info("從推理文本中提取到嵌入 JSON (len=%d)", len(json_candidate))
                         content = json_candidate
+                    elif json_candidate:
+                        logger.warning(
+                            "從推理文本提取到的 JSON 過小 (len=%d)，跳過: %s",
+                            len(json_candidate), json_candidate[:100]
+                        )
+                        # 不設置 content，讓後續流程處理
                     else:
                         # 第三步：更激進的提取（_extract_json_from_thinking）
                         extracted = self._extract_json_from_thinking(content)
@@ -320,6 +326,82 @@ class VisionService:
 
         except Exception as e:
             logger.error("Vision 模型調用失敗: %s", e, exc_info=True)
+            return None
+
+    async def _call_vision_model_json(
+        self, image_path: str, prompt: str
+    ) -> Optional[str]:
+        """
+        調用 Ollama qwen3-vl 模型（強制 JSON 輸出模式）
+
+        重試時使用 format:"json" 強制模型輸出 JSON，
+        減少思考內容干擾。同時使用 system message 強調 no-think。
+        """
+        try:
+            import httpx
+
+            image_b64 = self._encode_image_base64(image_path)
+            if not image_b64:
+                return None
+
+            payload = {
+                "model": self._vision_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "/no_think\n"
+                            "You are an OCR assistant. You MUST output ONLY valid JSON. "
+                            "No reasoning, no explanations, no markdown."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                        "images": [image_b64],
+                    },
+                ],
+                "stream": False,
+                "think": False,
+                "format": "json",
+                "options": {
+                    "temperature": 0.1,
+                    "num_predict": 4096,
+                },
+            }
+
+            url = f"{self._base_url}/api/chat"
+
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                data = response.json()
+
+            msg = data.get("message", {})
+            content = msg.get("content", "")
+            thinking = msg.get("thinking", "")
+
+            logger.info(
+                "Vision JSON 模式回應: content_len=%d, thinking_len=%d",
+                len(content), len(thinking),
+            )
+
+            # 清理 thinking 標籤
+            content = self._strip_thinking_tags(content)
+
+            # 如果 content 為空，嘗試從 thinking 提取
+            if not content and thinking:
+                logger.info("JSON 模式 content 為空，嘗試從 thinking 提取")
+                extracted = self._extract_json_from_reasoning(
+                    self._strip_thinking_tags(thinking) or thinking
+                )
+                if extracted and len(extracted) >= 50:
+                    content = extracted
+
+            return content if content else None
+
+        except Exception as e:
+            logger.error("Vision JSON 模式調用失敗: %s", e)
             return None
 
     # ================================================================
