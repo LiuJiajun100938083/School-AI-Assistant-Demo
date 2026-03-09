@@ -601,6 +601,8 @@ class VisionService:
             (RecognitionSubject.MATH, RecognitionTask.QUESTION_AND_ANSWER): """
 Please recognize the math content in this image. The image contains a math problem and MAY contain the student's handwritten solution.
 
+⚠️ FIRST: Check if there is ANY handwriting in the answer area. If blank → "answer" MUST be "". NEVER solve the problem yourself.
+
 You have TWO jobs:
 1. **OCR (text extraction)** — transcribe the question and student's answer EXACTLY as shown.
 2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
@@ -758,6 +760,8 @@ Important:
             (RecognitionSubject.MATH, RecognitionTask.MATH_SOLUTION): """
 Please carefully recognize this math solution image. It MAY contain a student's step-by-step work.
 
+⚠️ FIRST: Check if there is ANY handwriting in the answer area. If blank → "answer" = "", "steps" = [], "final_answer" = "". NEVER solve the problem yourself.
+
 You have TWO jobs:
 1. **OCR (text extraction)** — transcribe the question and student's solution EXACTLY as shown.
 2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
@@ -905,14 +909,21 @@ Important:
 
             # ---- 物理 ---- #
             (RecognitionSubject.PHYSICS, RecognitionTask.QUESTION_AND_ANSWER): """
-You are a physics exam paper OCR specialist. Recognize the physics content in this image.
+You are a physics exam paper OCR specialist. Your job is PURE OCR — extract only what is PHYSICALLY VISIBLE.
+
+⚠️⚠️⚠️ MANDATORY FIRST STEP — BLANK ANSWER DETECTION ⚠️⚠️⚠️
+Before doing ANYTHING else, check: is there ANY handwriting in the answer area?
+- If the answer area is BLANK (no handwriting, no marks): "answer" MUST be "". Do NOT fabricate.
+- If there IS handwriting: transcribe it faithfully.
+**You are an OCR tool, NOT a physics tutor. You must NEVER generate, calculate, or solve anything.**
+
 The image is a HKDSE-style physics question, possibly with:
 - A printed question (Traditional Chinese + LaTeX formulas)
-- A student's handwritten answer
+- A student's handwritten answer (MAY be absent — answer area could be blank)
 - One or more physics diagrams/figures
 
 You have THREE jobs:
-1. **OCR** — transcribe the printed question into "question" and student's handwritten answer into "answer". These are the CANONICAL fields used downstream.
+1. **OCR** — transcribe the printed question into "question" and student's handwritten answer into "answer". These are the CANONICAL fields used downstream. If no handwriting, "answer" = "".
 2. **Diagram-aware description** — classify and describe any physics figure using the structured schema below.
 3. **Handwriting separation** — report the level of handwriting interference in "handwriting_overlay".
 
@@ -1033,6 +1044,13 @@ FALLBACK:
 
 === CRITICAL RULES ===
 
+**⚠️ MOST IMPORTANT RULE — NO FABRICATION:**
+- You are an OCR tool. You extract text from images. You do NOT solve physics problems.
+- If the student's answer area is BLANK or EMPTY: "answer" MUST be "".
+- NEVER write formulas like Q=mcΔT, F=ma, v=u+at etc. unless the STUDENT physically wrote them.
+- NEVER calculate numerical results. NEVER show working steps you generated.
+- If you are unsure whether marks are student handwriting or printed text, err on the side of LESS content.
+
 **OCR Rules (question & answer):**
 - ONLY transcribe text PHYSICALLY VISIBLE in the image.
 - "question" = printed question text (CANONICAL source for downstream analysis).
@@ -1067,24 +1085,32 @@ FALLBACK:
 "value_unclear", "handwriting_heavy_interference", "figure_type_uncertain",
 "component_label_unclear", "scale_missing"
 
+⚠️ FINAL REMINDER: If no handwritten answer is visible → "answer": "". Do NOT solve the problem.
 Output JSON only, no extra text.
 """,
 
             (RecognitionSubject.PHYSICS, RecognitionTask.MATH_SOLUTION): """
-You are a physics exam paper OCR specialist. Recognize this physics solution image.
-The image contains a HKDSE-style physics calculation problem with the student's step-by-step solution.
+You are a physics exam paper OCR specialist. Your job is PURE OCR — extract only what is PHYSICALLY VISIBLE.
+
+⚠️⚠️⚠️ MANDATORY FIRST STEP — BLANK ANSWER DETECTION ⚠️⚠️⚠️
+Before doing ANYTHING else, check: is there ANY handwriting in the answer/solution area?
+- If the answer area is BLANK (no handwriting, no calculations, no marks): "answer" = "", "steps" = [], "final_answer" = "". Do NOT proceed to solve or fabricate.
+- If there IS handwriting: transcribe it faithfully.
+**You are an OCR tool, NOT a physics tutor. You must NEVER generate, calculate, or solve anything.**
+
+The image is a HKDSE-style physics calculation problem that MAY or MAY NOT contain the student's handwritten solution.
 
 You have THREE jobs:
-1. **OCR** — transcribe the printed question into "question" and student's handwritten solution into "answer", "steps", and "final_answer". These are the CANONICAL fields.
+1. **OCR** — transcribe the printed question into "question" and student's handwritten solution (IF ANY) into "answer", "steps", and "final_answer". These are the CANONICAL fields.
 2. **Diagram-aware description** — classify and describe any physics figure using the structured schema below.
 3. **Handwriting separation** — report interference level in "handwriting_overlay".
 
 Output the following JSON:
 {
   "question": "Complete printed question text (Traditional Chinese, LaTeX for formulas)",
-  "answer": "Full student solution as continuous text (LaTeX for math). Separate steps with \\n.",
-  "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."],
-  "final_answer": "Student's final numerical answer with units",
+  "answer": "Student's handwritten solution ONLY if visible. MUST be '' if no handwriting in answer area.",
+  "steps": ["Step 1 from student handwriting", "Step 2 from student handwriting"],
+  "final_answer": "Student's final answer from handwriting. MUST be '' if no handwriting.",
   "figure_description": {
     "has_figure": true,
     "figure_type": "<one of 21 types — same list as QUESTION_AND_ANSWER prompt>",
@@ -1139,15 +1165,22 @@ data_table_problem, mixed_option_figure, other
 
 === CRITICAL RULES ===
 
+**⚠️ MOST IMPORTANT RULE — NO FABRICATION:**
+- You are an OCR tool. You extract text from images. You do NOT solve physics problems.
+- If the student's answer area is BLANK or EMPTY: "answer" = "", "steps" = [], "final_answer" = "".
+- NEVER write formulas like Q=mcΔT, F=ma, v=u+at etc. unless the STUDENT physically wrote them.
+- NEVER calculate numerical results. NEVER show working steps you generated.
+- If you are unsure whether marks are student handwriting or printed text, err on the side of LESS content.
+
 **OCR Rules:**
 - ONLY transcribe PHYSICALLY VISIBLE text. "answer"/"steps"/"final_answer" come from student's handwriting.
 - If student has NOT written any solution: "answer" = "", "steps" = [], "final_answer" = "".
-- NEVER solve the problem yourself. NEVER fabricate solution steps.
 
-**Steps extraction:**
+**Steps extraction (ONLY from student handwriting):**
 - Each step should be one logical unit (formula selection, substitution, calculation).
 - Include units in every step where applicable.
 - "final_answer" = the last boxed/circled/underlined answer the student wrote.
+- If the student wrote nothing, steps = [] and final_answer = "".
 
 **Handwriting rules:**
 - Student marks are NOT diagram entities unless the question asks to draw.
@@ -1161,6 +1194,7 @@ data_table_problem, mixed_option_figure, other
 - Preserve unit spacing: m s⁻¹, kg m s⁻², etc.
 - Preserve ⊙/⊗ markers, arrow directions, solid/dashed distinction
 
+⚠️ FINAL REMINDER: If no handwritten answer is visible → "answer": "", "steps": [], "final_answer": "". Do NOT solve the problem.
 Output JSON only.
 """,
         }

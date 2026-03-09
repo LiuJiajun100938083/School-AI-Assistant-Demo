@@ -588,8 +588,8 @@ class MistakeBookService:
             "confidence_score": ocr_result.confidence,
         }
 
-        # 構建分項置信度
-        if subject == "math":
+        # 構建分項置信度（支持所有啟用 confidence_breakdown 的科目）
+        if getattr(handler, "supports_confidence_breakdown", False):
             q_conf = ocr_result.question_confidence
             a_conf = ocr_result.answer_confidence
             f_conf = ocr_result.figure_confidence
