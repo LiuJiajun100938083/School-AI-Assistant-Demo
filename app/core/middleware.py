@@ -5,6 +5,7 @@
 
 注册到 FastAPI 应用的中间件:
 - 全局异常处理器 (将 AppException 转为标准 JSON)
+- 安全响应头中间件 (CSP / HSTS / nosniff / X-Frame-Options 等)
 - 请求日志中间件
 - 缓存控制中间件
 """
@@ -121,5 +122,66 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+
+        return response
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    安全响应头中间件
+
+    为所有 HTTP 响应添加安全相关头部，防御常见 Web 攻击:
+    - X-Content-Type-Options: nosniff          (防止 MIME 类型嗅探)
+    - X-Frame-Options: DENY                    (防止点击劫持)
+    - Referrer-Policy                          (控制 Referer 泄露)
+    - X-XSS-Protection: 0                      (禁用旧版 XSS 过滤器，依赖 CSP)
+    - Permissions-Policy                        (禁用不需要的浏览器 API)
+    - Content-Security-Policy                   (限制资源加载来源)
+    - Strict-Transport-Security                 (强制 HTTPS，仅在 HTTPS 下生效)
+    """
+
+    # 默认 CSP：允许自身 + 常用 CDN + 内联样式/脚本（现有 UI 需要）
+    DEFAULT_CSP = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
+        "https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+        "style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net "
+        "https://fonts.googleapis.com 'unsafe-inline'; "
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+        "img-src 'self' data: blob:; "
+        "connect-src 'self' ws: wss:; "
+        "frame-src 'none'; "
+        "object-src 'none'; "
+        "base-uri 'self'"
+    )
+
+    async def dispatch(self, request: Request, call_next: Callable):
+        response = await call_next(request)
+        path = request.url.path
+
+        # ---- 通用安全头（所有响应） ----
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-XSS-Protection"] = "0"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=()"
+        )
+
+        # ---- CSP ----
+        # 跳过 Swagger UI 路径（需要 eval/inline）
+        # 如果路由已设置 CSP（如上传游戏的更严格策略），则不覆盖
+        if not path.startswith(("/docs", "/redoc", "/openapi.json")):
+            if "content-security-policy" not in {
+                k.lower() for k in response.headers.keys()
+            }:
+                response.headers["Content-Security-Policy"] = self.DEFAULT_CSP
+
+        # ---- HSTS（仅当通过 HTTPS 访问时） ----
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if scheme == "https":
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
 
         return response

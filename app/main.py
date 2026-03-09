@@ -36,6 +36,7 @@ from app.core.logging_config import setup_logging
 from app.core.middleware import (
     CacheControlMiddleware,
     RequestLoggingMiddleware,
+    SecurityHeadersMiddleware,
     register_exception_handlers,
 )
 from app.core.dependencies import init_jwt_manager
@@ -85,6 +86,8 @@ def create_app() -> FastAPI:
     )
     # 缓存控制
     app.add_middleware(CacheControlMiddleware)
+    # 安全响应头 (CSP / HSTS / nosniff / X-Frame-Options 等)
+    app.add_middleware(SecurityHeadersMiddleware)
     # 请求日志 (仅非生产环境)
     if not settings.is_production():
         app.add_middleware(RequestLoggingMiddleware)

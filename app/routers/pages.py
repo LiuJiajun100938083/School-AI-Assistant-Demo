@@ -243,17 +243,60 @@ async def play_shared_game(token: str):
     return _serve_page("game_play_shared.html")
 
 
+# 上传游戏专用 CSP — 比全局 CSP 更严格
+# - 允许 CDN（React/Babel/Tailwind 运行时需要）
+# - 保留 unsafe-eval（Babel standalone 转译 JSX 需要）
+# - connect-src 仅允许 self（阻止向外部 API 泄露数据）
+# - frame-src none（禁止 iframe 嵌套）
+_UPLOADED_GAME_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
+    "https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net "
+    "https://fonts.googleapis.com 'unsafe-inline'; "
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+    "img-src 'self' data: blob:; "
+    "connect-src 'self'; "
+    "frame-src 'none'; "
+    "object-src 'none'; "
+    "base-uri 'self'"
+)
+
+# 上传游戏通用安全头
+_UPLOADED_GAME_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "Content-Security-Policy": _UPLOADED_GAME_CSP,
+    "X-Content-Type-Options": "nosniff",
+}
+
+
 @router.get("/uploaded_games/{game_uuid}")
 async def serve_uploaded_game(game_uuid: str, raw: str = None):
     """提供用户上传的游戏（沙盒运行），自动注入返回按钮 + lucide 图标 polyfill。raw=1 返回原始内容（编辑用）"""
-    # 安全检查：防止路径遍历
-    safe_uuid = game_uuid.replace("/", "").replace("\\", "").replace("..", "")
-    file_path = os.path.join(STATIC_DIR, "uploaded_games", f"{safe_uuid}.html")
 
-    if os.path.exists(file_path):
-        # raw 模式：返回原始文件（编辑器加载用）
+    # ---- 路径安全：白名单 + pathlib resolve + 父目录校验 ----
+    if not re.match(r'^[a-zA-Z0-9\-]+$', game_uuid):
+        logger.warning(f"上传游戏路径非法字符: {game_uuid}")
+        return HTMLResponse(content="<h1>无效的游戏ID</h1>", status_code=400)
+
+    upload_base = Path(STATIC_DIR) / "uploaded_games"
+    file_path = (upload_base / f"{game_uuid}.html").resolve()
+
+    # 确保解析后的路径仍在上传目录内（防止路径遍历）
+    if not str(file_path).startswith(str(upload_base.resolve())):
+        logger.warning(f"路径遍历攻击尝试: {game_uuid}")
+        return HTMLResponse(content="<h1>禁止访问</h1>", status_code=403)
+
+    if file_path.exists():
+        # raw 模式：返回原始文件（编辑器加载用），同样添加安全头
         if raw:
-            return FileResponse(file_path, media_type="text/html")
+            return FileResponse(
+                file_path,
+                media_type="text/html",
+                headers=_UPLOADED_GAME_HEADERS,
+            )
 
         with open(file_path, "r", encoding="utf-8") as f:
             html_content = f.read()
@@ -297,11 +340,7 @@ async def serve_uploaded_game(game_uuid: str, raw: str = None):
         return HTMLResponse(
             content=html_content,
             media_type="text/html",
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0",
-            },
+            headers=_UPLOADED_GAME_HEADERS,
         )
 
     logger.warning(f"上传游戏文件不存在: {file_path}")

@@ -129,6 +129,10 @@ const AuthModule = {
             const data = await resp.json();
             if (data.success && data.data?.access_token) {
                 this.setToken(data.data.access_token);
+                // Refresh Token Rotation: 服务端每次签发新的 refresh_token
+                if (data.data.refresh_token) {
+                    this.setRefreshToken(data.data.refresh_token);
+                }
                 return true;
             }
             return false;

@@ -256,29 +256,100 @@ class AuthService:
             "exp": payload.get("exp"),
         }
 
-    def refresh_token(self, refresh_token: str) -> Dict[str, str]:
+    def refresh_token(self, refresh_token_str: str) -> Dict[str, str]:
         """
-        使用 refresh_token 获取新的 access_token
+        使用 refresh_token 获取新的 access_token + 新 refresh_token (Token Rotation)
+
+        流程:
+        1. 验证旧 refresh token
+        2. 检查 token 家族是否已撤销 (replay detection)
+        3. 撤销旧 refresh token
+        4. 签发新 access + refresh token (保持同一 family)
+        5. 返回两个新 token
+
+        Refresh Token Replay Detection:
+        如果一个已撤销的 refresh token 被重新使用，说明可能发生了凭据泄露。
+        此时撤销整个 token 家族，强制用户重新登录。
 
         Returns:
-            dict: {"access_token": str, "token_type": "bearer"}
+            dict: {"access_token": str, "refresh_token": str, "token_type": "bearer"}
 
         Raises:
-            AuthenticationError: refresh_token 无效
+            AuthenticationError: refresh_token 无效或被撤销
         """
-        payload = self.verify_token(refresh_token)
-        username = payload["username"]
-        role = payload["role"]
+        import jwt as _jwt
 
-        # 确认用户仍存在且活跃
+        jwt_mgr = self._get_jwt_manager()
+
+        # 1. 解码并验证旧 refresh token
+        try:
+            payload = jwt_mgr.decode_token(refresh_token_str)
+        except TokenRevokedError:
+            # ---- Replay Detection ----
+            # 已撤销的 refresh token 被重用 → 凭据可能泄露
+            # 尝试解码以获取 family 信息，然后撤销整个家族
+            try:
+                raw_payload = _jwt.decode(
+                    refresh_token_str,
+                    jwt_mgr._secret,
+                    algorithms=[jwt_mgr._algorithm],
+                )
+                family_id = raw_payload.get("family", "")
+                username = raw_payload.get("username", "")
+                if family_id:
+                    jwt_mgr.revoke_token_family(family_id, username)
+                    self._auditor.log(
+                        "TOKEN_REFRESH_REPLAY", username, "",
+                        {"family": family_id[:8], "action": "all_tokens_revoked"},
+                    )
+                    logger.warning(
+                        "Refresh token replay detected: user=%s family=%s",
+                        username, family_id[:8],
+                    )
+            except Exception:
+                pass
+            raise AuthenticationError("刷新令牌已失效，请重新登录")
+        except TokenExpiredError:
+            raise
+        except Exception as e:
+            raise AuthenticationError(f"无效的令牌: {e}") from e
+
+        username = payload.get("username") or payload.get("sub", "")
+        role = payload.get("role", "student")
+        family_id = payload.get("family", "")
+        old_jti = payload.get("jti", "")
+
+        # 2. 检查 token 家族是否已被撤销
+        if family_id and jwt_mgr.is_family_revoked(family_id):
+            raise AuthenticationError("登录会话已失效，请重新登录")
+
+        # 3. 确认用户仍存在且活跃
         user = self._user_repo.find_by_username_active(username)
         if not user:
             raise AuthenticationError("用户不存在或已被禁用")
 
-        jwt_mgr = self._get_jwt_manager()
-        new_access = jwt_mgr.create_access_token(username, role)
+        # 4. 撤销旧 refresh token
+        if old_jti:
+            from datetime import datetime as _dt
+            expires_at = _dt.utcfromtimestamp(payload.get("exp", 0))
+            jwt_mgr.revoke_token(old_jti, username, expires_at)
 
-        return {"access_token": new_access, "token_type": "bearer"}
+        # 5. 签发新 token 对（保持同一 family）
+        new_access = jwt_mgr.create_access_token(username, role)
+        new_refresh = jwt_mgr.create_refresh_token(
+            username, role, family_id=family_id
+        )
+
+        self._auditor.log(
+            "TOKEN_REFRESH", username, "",
+            {"family": family_id[:8] if family_id else ""},
+        )
+
+        return {
+            "access_token": new_access,
+            "refresh_token": new_refresh,
+            "token_type": "bearer",
+        }
 
     def logout(
         self,

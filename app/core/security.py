@@ -128,14 +128,26 @@ class JWTManager:
 
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
-    def create_refresh_token(self, username: str, role: str) -> str:
-        """创建刷新令牌"""
+    def create_refresh_token(
+        self, username: str, role: str, family_id: str = None
+    ) -> str:
+        """
+        创建刷新令牌
+
+        Args:
+            username: 用户名
+            role: 用户角色
+            family_id: Token 家族 ID (用于 Refresh Token Rotation)。
+                       首次登录时为 None（自动生成新家族），
+                       轮换时传入旧家族 ID 以保持关联。
+        """
         now = datetime.now(timezone.utc)
         payload = {
             "username": username,
             "role": role,
             "type": "refresh",
             "jti": str(uuid.uuid4()),
+            "family": family_id or str(uuid.uuid4()),
             "iat": now,
             "exp": now + timedelta(days=self._refresh_expire_days),
         }
@@ -235,6 +247,38 @@ class JWTManager:
         并在 decode_token 验证时检查用户级别的撤销。
         """
         logger.info(f"已标记用户 {username} 的所有 Token 需要重新验证")
+
+    # ---- Refresh Token Rotation: 家族级撤销 ----
+
+    def revoke_token_family(self, family_id: str, username: str = "") -> None:
+        """
+        撤销整个 Token 家族 (Refresh Token Replay Detection)
+
+        当检测到已撤销的 refresh token 被重新使用时，
+        撤销该家族的所有 token，强制用户重新登录。
+        """
+        family_jti = f"family:{family_id}"
+        try:
+            pool = self._get_pool()
+            pool.execute_write(
+                "INSERT IGNORE INTO token_blacklist (jti, username, expires_at) "
+                "VALUES (%s, %s, %s)",
+                (family_jti, username,
+                 datetime.now(timezone.utc) + timedelta(days=self._refresh_expire_days)),
+            )
+            with self._cache_lock:
+                self._cache.add(family_jti)
+        except Exception as e:
+            logger.warning(f"撤销 token 家族失败: {e}")
+
+        logger.warning(
+            "Token 家族已撤销 (replay detected): family=%s user=%s",
+            family_id[:8], username,
+        )
+
+    def is_family_revoked(self, family_id: str) -> bool:
+        """检查 Token 家族是否已被撤销"""
+        return self.is_revoked(f"family:{family_id}")
 
     def cleanup_expired_tokens(self) -> int:
         """清理已过期的黑名单条目"""
@@ -376,6 +420,47 @@ class LoginAttemptTracker:
     - 按用户名限制尝试次数
     - 按 IP 限制尝试次数（阈值较高，仅防止真正的暴力攻击）
     - 超过阈值后锁定
+
+    ⚠️ 架构限制说明 (Architecture Note):
+    ------------------------------------
+    当前实现使用 **进程内内存** (Python dict) 存储所有限流状态。
+    这意味着:
+
+    1. **多进程/多实例部署时无法共享状态**:
+       如果使用 workers > 1 (gunicorn/uvicorn) 或多机部署，
+       每个进程有独立的限流计数器，攻击者可以将请求分散到不同进程绕过限流。
+
+    2. **进程重启后状态丢失**:
+       应用重启后所有封锁记录和失败计数都会清空。
+
+    3. **内存增长**:
+       大量不同 IP/用户名组合会持续增长内存（虽然有时间窗口清理）。
+
+    ✅ 当前 workers=1 单实例配置下，内存方案完全够用。
+
+    未来 Redis 迁移路径 (Future Redis Migration):
+    -------------------------------------------
+    建议使用 Redis 替代内存存储:
+
+    方案 A: Redis String + TTL (简单方案)
+        SETEX  "block:user:{username}"  {block_duration}  1
+        SETEX  "block:ip:{ip}"          {block_duration}  1
+
+        key = f"attempts:ip_user:{ip}:{username}"
+        count = redis.incr(key)
+        if count == 1: redis.expire(key, time_window)
+        if count >= max: redis.setex(f"block:ip_user:{ip}:{username}", block_dur, 1)
+
+    方案 B: Redis Sorted Set (精确滑动窗口)
+        ZADD "attempts:user:{username}" {timestamp} {uuid}
+        ZREMRANGEBYSCORE "attempts:user:{username}" 0 {cutoff_ts}
+        count = ZCARD "attempts:user:{username}"
+
+    迁移步骤:
+    1. 添加 redis 依赖 (redis[hiredis])
+    2. 在 Settings 中添加 REDIS_URL 配置
+    3. 创建 RedisLoginAttemptTracker 实现相同接口
+    4. 在 AuthService 中根据配置选择 tracker 实现
     """
 
     def __init__(
@@ -607,7 +692,23 @@ class LoginAttemptTracker:
 # ============================================================
 
 class SecurityAuditor:
-    """安全事件审计日志"""
+    """
+    安全事件审计日志 — JSON Lines 格式
+
+    标准化事件类型:
+    - LOGIN_SUCCESS          用户登录成功
+    - LOGIN_FAILURE          用户登录失败
+    - LOGOUT                 用户登出
+    - LOGOUT_ALL             撤销所有会话
+    - TOKEN_REFRESH          Token 刷新成功
+    - TOKEN_REFRESH_REPLAY   Token 刷新重放攻击（可能的凭据泄露）
+    - PASSWORD_CHANGED       密码修改成功
+    - PASSWORD_CHANGE_FAILURE 密码修改失败
+    - PASSWORD_RESET         管理员重置密码
+    - ACCOUNT_LOCKED         账户被自动锁定
+    - ACCOUNT_UNLOCKED       管理员手动解锁账户
+    - RATE_LIMIT_TRIGGERED   触发速率限制
+    """
 
     def __init__(self, log_file: str = "logs/security_audit.log"):
         self._logger = logging.getLogger("security_audit")
@@ -617,9 +718,8 @@ class SecurityAuditor:
             import os
             os.makedirs(os.path.dirname(log_file), exist_ok=True)
             handler = logging.FileHandler(log_file, encoding="utf-8")
-            handler.setFormatter(logging.Formatter(
-                "%(asctime)s | %(levelname)s | %(message)s"
-            ))
+            # JSON lines 格式 — 每行一条完整 JSON，便于机器解析和日志聚合
+            handler.setFormatter(logging.Formatter("%(message)s"))
             self._logger.addHandler(handler)
             self._logger.setLevel(logging.INFO)
 
@@ -628,20 +728,48 @@ class SecurityAuditor:
         event_type: str,
         username: str = "",
         ip: str = "",
-        details: str = "",
+        details=None,
     ) -> None:
         """
-        记录安全事件
+        记录安全事件（结构化 JSON 格式）
 
         Args:
             event_type: 事件类型 (LOGIN_SUCCESS, LOGIN_FAILURE, etc.)
             username: 相关用户名
             ip: 客户端 IP
-            details: 附加详情
+            details: 附加详情 (str 或 dict)
         """
-        self._logger.info(
-            f"{event_type} | user={username} | ip={ip} | {details}"
-        )
+        import json as _json
+        from datetime import datetime as _dt, timezone as _tz
+
+        # 兼容旧调用：str → {"message": str}
+        if isinstance(details, str):
+            extra = {"message": details} if details else {}
+        elif isinstance(details, dict):
+            extra = details
+        else:
+            extra = {}
+
+        event = {
+            "timestamp": _dt.now(_tz.utc).isoformat(),
+            "event": event_type,
+            "username": username,
+            "ip": ip,
+            **extra,
+        }
+
+        self._logger.info(_json.dumps(event, ensure_ascii=False))
+
+        # 高危事件同时写入主应用日志（便于运维监控告警）
+        _HIGH_SEVERITY = {
+            "TOKEN_REFRESH_REPLAY", "ACCOUNT_LOCKED",
+            "RATE_LIMIT_TRIGGERED", "LOGIN_FAILURE",
+        }
+        if event_type in _HIGH_SEVERITY:
+            logger.warning(
+                "SECURITY_ALERT: %s | user=%s | ip=%s | %s",
+                event_type, username, ip, extra,
+            )
 
 
 # ============================================================
