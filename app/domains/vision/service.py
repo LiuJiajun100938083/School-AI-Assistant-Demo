@@ -470,6 +470,10 @@ LAYER 1 — objects:
 LAYER 2 — measurements:
 - "target" references an object id from layer 1.
 - "source" indicates WHERE this measurement comes from: "figure" (read from diagram), "question_text" (stated in problem text), or "inferred" (you deduced it).
+- ⚠️ ONLY include measurements that are DIRECTLY stated in the problem or figure.
+- Do NOT create synthetic measurements derived from ratios. Example:
+  WRONG: DI:IJ = 3:2 → creating measurements DI = 3k, IJ = 2k
+  RIGHT: DI:IJ = 3:2 → only use a "ratio" relationship, NO separate measurements for DI or IJ (unless DI or IJ also has an independent known value).
 
 LAYER 3 — relationships:
 - Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent). Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
@@ -477,6 +481,10 @@ LAYER 3 — relationships:
 - Use "points" for point-set relations (collinear).
 - Use "items" for equality comparisons (equal) and ratio comparisons (ratio). Ratio value should be structured: {"left": 3, "right": 2}.
 - EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred".
+- ⚠️ SOURCE ATTRIBUTION RULE — use the STRONGEST evidence source:
+  - If the problem text explicitly states a fact (e.g. "ABDF is a straight line"), source MUST be "question_text", even if the figure also shows it.
+  - Only use "figure" when a fact is SOLELY observable from the diagram and NOT stated in the text.
+  - "inferred" is for facts you deduced that are neither stated in text nor clearly shown in the figure.
 
 LAYER 4 — task:
 - "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
@@ -485,6 +493,10 @@ LAYER 4 — task:
 - "goals": each goal as a clear target. Example: ["求 DI", "求 BC", "求 HG"]
 - "auxiliary_lines": any construction lines mentioned.
 - "figure_annotations": text labels visible on the figure.
+- ⚠️ known_conditions and goals MUST use plain Unicode text, NOT LaTeX:
+  WRONG: ["BC \\parallel DE \\parallel FG", "FH = 12 \\text{ cm}"]
+  RIGHT: ["BC ∥ DE ∥ FG", "FH = 12 cm"]
+  Use ∥ for parallel, ⊥ for perpendicular, ∠ for angle, △ for triangle. No backslashes.
 
 ⚠️ OBJECT RETENTION RULES — which objects to include:
 INCLUDE:
@@ -596,9 +608,11 @@ Output in the following JSON format:
 - Every object gets a unique "id" (P_ for points, S_ for segments, etc.).
 - ALL references in measurements/relationships MUST use object ids, NOT labels.
 - Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred".
+- SOURCE RULE: if the problem text explicitly states a fact, source = "question_text", even if the figure also shows it. Only use "figure" for facts solely observable from the diagram.
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
 - Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
+- Do NOT create synthetic measurements from ratios (e.g. DI=3k from DI:IJ=3:2). Only use a ratio relationship.
 - If there is NO figure, set: "figure_description": {"has_figure": false}
 
 ⚠️ OBJECT RETENTION — only include objects that are referenced:
@@ -615,6 +629,7 @@ Output in the following JSON format:
 ⚠️ TASK LAYER — structured atomic conditions:
 - Each known_condition = one citable fact (e.g. "A、B、D、F 共線", "BC ∥ DE ∥ FG", "FH = 12 cm")
 - Do NOT copy entire problem text as one condition
+- Use plain Unicode symbols (∥ ⊥ ∠ △), NOT LaTeX (\\parallel \\perp \\text{})
 
 ⚠️ RULES FOR "confidence_breakdown":
 - Rate your confidence for each component from 0.0 to 1.0.

@@ -617,24 +617,32 @@ const GeoDisplay = {
         const ratios = rels.filter(r => r.type === 'ratio');
         const others = rels.filter(r => !['collinear','parallel','perpendicular','ratio'].includes(r.type));
 
+        // 量測分離：事實 vs 推斷
+        const measFact = meas.filter(m => m.source !== 'inferred');
+        const measInferred = meas.filter(m => m.source === 'inferred');
+
         const sections = [];
 
         const makeItems = (items, fn) => items.map(item => {
             const src = item.source || '';
-            const cls = src === 'inferred' ? ' class="mb-figure-desc__inferred"' : '';
-            return `<div${cls}>${UI.escapeHtml(fn(item))}</div>`;
+            const isInferred = src === 'inferred';
+            const cls = isInferred ? ' class="mb-figure-desc__inferred"' : '';
+            const tag = isInferred ? '<span class="mb-figure-desc__inferred-tag">（推斷）</span>' : '';
+            return `<div${cls}>${UI.escapeHtml(fn(item))}${tag}</div>`;
         }).join('');
 
-        if (collinear.length) {
-            sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">共線</div>
-                ${makeItems(collinear, r => this.describeRelationship(r))}
-            </div>`);
-        }
+        // 解題優先順序：平行 → 比例 → 量測 → 垂直 → 共線 → 其他
         if (parallel.length) {
             sections.push(`<div class="mb-figure-desc__layer">
                 <div class="mb-figure-desc__layer-title">平行</div>
                 ${makeItems(parallel, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (ratios.length || measFact.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">量測</div>
+                ${makeItems(ratios, r => this.describeRelationship(r))}
+                ${makeItems(measFact, m => this.describeMeasurement(m))}
             </div>`);
         }
         if (perp.length) {
@@ -643,17 +651,22 @@ const GeoDisplay = {
                 ${makeItems(perp, r => this.describeRelationship(r))}
             </div>`);
         }
-        if (meas.length || ratios.length) {
+        if (collinear.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">量測</div>
-                ${makeItems(meas, m => this.describeMeasurement(m))}
-                ${makeItems(ratios, r => this.describeRelationship(r))}
+                <div class="mb-figure-desc__layer-title">共線</div>
+                ${makeItems(collinear, r => this.describeRelationship(r))}
             </div>`);
         }
         if (others.length) {
             sections.push(`<div class="mb-figure-desc__layer">
                 <div class="mb-figure-desc__layer-title">其他關係</div>
                 ${makeItems(others, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (measInferred.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">推斷</div>
+                ${makeItems(measInferred, m => this.describeMeasurement(m))}
             </div>`);
         }
 
@@ -669,7 +682,7 @@ const GeoDisplay = {
 
         if (!sections.length) return null;
         return `<div class="mb-figure-desc">
-            <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
+            <div class="mb-figure-desc__title">幾何圖形描述</div>
             ${sections.join('')}
         </div>`;
     }

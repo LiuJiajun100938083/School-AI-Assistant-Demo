@@ -271,11 +271,11 @@ class TestReadableOutput:
     def test_known_conditions_present(self, readable):
         assert "已知：" in readable
 
-    def test_collinear_before_parallel(self, readable):
-        """共線應出現在平行之前"""
-        col_pos = readable.find("共線")
+    def test_parallel_before_collinear(self, readable):
+        """解題優先：平行應出現在共線之前"""
         par_pos = readable.find("∥")
-        assert col_pos < par_pos
+        col_pos = readable.find("共線")
+        assert par_pos < col_pos
 
     def test_no_points_section_when_collinear_exists(self, readable):
         """有共線組時不應單獨列出「點：」區"""
@@ -641,3 +641,91 @@ class TestEdgeCases:
         readable = desc.to_readable_text()
         assert "AB ⊥ CD" in readable
         assert "交於 E" in readable
+
+
+class TestCleanLatex:
+    """LaTeX 清洗測試"""
+
+    def test_parallel_symbol(self):
+        assert GeometryDescriptor.clean_latex("BC \\parallel DE") == "BC ∥ DE"
+
+    def test_perp_symbol(self):
+        assert GeometryDescriptor.clean_latex("AB \\perp CD") == "AB ⊥ CD"
+
+    def test_text_command(self):
+        assert GeometryDescriptor.clean_latex("FH = 12 \\text{ cm}") == "FH = 12  cm"
+
+    def test_angle_symbol(self):
+        assert GeometryDescriptor.clean_latex("\\angle ABC = 90°") == "∠ ABC = 90°"
+
+    def test_dollar_signs(self):
+        assert GeometryDescriptor.clean_latex("$x + y$") == "x + y"
+
+    def test_empty(self):
+        assert GeometryDescriptor.clean_latex("") == ""
+
+    def test_no_latex(self):
+        assert GeometryDescriptor.clean_latex("AB = 5 cm") == "AB = 5 cm"
+
+
+class TestInferredMeasurementSeparation:
+    """推斷量測分離測試"""
+
+    def test_inferred_measurements_after_facts(self):
+        """推斷量測應出現在非推斷量測之後，且標記（推斷）"""
+        fig = {
+            "has_figure": True,
+            "objects": [
+                {"id": "S_FH", "type": "segment"},
+                {"id": "S_DI", "type": "segment"},
+            ],
+            "measurements": [
+                {"target": "S_FH", "property": "length", "value": "12 cm", "source": "question_text"},
+                {"target": "S_DI", "property": "length", "value": "3k", "source": "inferred"},
+            ],
+            "relationships": [],
+        }
+        desc = GeometryDescriptor(fig)
+        readable = desc.to_readable_text()
+        # 非推斷量測不帶（推斷）
+        assert "FH = 12 cm" in readable
+        # 推斷量測帶（推斷）
+        assert "DI = 3k（推斷）" in readable
+        # 非推斷在前，推斷在後
+        fact_pos = readable.find("FH = 12 cm")
+        inferred_pos = readable.find("DI = 3k（推斷）")
+        assert fact_pos < inferred_pos
+
+    def test_display_dict_inferred_flag(self):
+        """to_display_dict 應包含 inferred 標記"""
+        fig = {
+            "has_figure": True,
+            "objects": [{"id": "S_AB", "type": "segment"}],
+            "measurements": [
+                {"target": "S_AB", "property": "length", "value": "5cm", "source": "inferred"},
+            ],
+            "relationships": [],
+        }
+        desc = GeometryDescriptor(fig)
+        d = desc.to_display_dict()
+        assert d["measurements"][0]["inferred"] is True
+
+
+class TestTaskLatexCleaning:
+    """Task 層 LaTeX 清洗測試"""
+
+    def test_known_conditions_cleaned(self):
+        fig = {
+            "has_figure": True,
+            "objects": [],
+            "measurements": [],
+            "relationships": [],
+            "task": {
+                "known_conditions": ["BC \\parallel DE \\parallel FG", "FH = 12 \\text{ cm}"],
+                "goals": ["求 $DI$"],
+            },
+        }
+        desc = GeometryDescriptor(fig)
+        assert desc.known_conditions[0] == "BC ∥ DE ∥ FG"
+        assert "\\text" not in desc.known_conditions[1]
+        assert "$" not in desc.goals[0]

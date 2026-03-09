@@ -62,6 +62,36 @@ class GeometryDescriptor:
                 return replacement + token[len(prefix):]
         return token
 
+    @staticmethod
+    def clean_latex(text: str) -> str:
+        """
+        清除 LaTeX 殘留 token，轉為 Unicode 符號。
+        \\parallel → ∥, \\perp → ⊥, \\angle → ∠, \\triangle → △,
+        \\text{ cm} → cm, etc.
+        """
+        import re
+        if not text:
+            return text
+        replacements = [
+            ("\\parallel", "∥"),
+            ("\\perp", "⊥"),
+            ("\\angle", "∠"),
+            ("\\triangle", "△"),
+            ("\\cong", "≅"),
+            ("\\sim", "∼"),
+            ("\\times", "×"),
+            ("\\cdot", "·"),
+        ]
+        for pattern, repl in replacements:
+            text = text.replace(pattern, repl)
+        # \text{ cm} → cm, \text{cm} → cm
+        text = re.sub(r"\\text\s*\{([^}]*)\}", r"\1", text)
+        # Remove stray backslashes before known words
+        text = re.sub(r"\\(quad|,|;|!)", " ", text)
+        # Remove $ delimiters
+        text = text.replace("$", "")
+        return text.strip()
+
     # ------------------------------------------------------------------
     # 內部：收集引用
     # ------------------------------------------------------------------
@@ -186,9 +216,13 @@ class GeometryDescriptor:
             if source == "inferred":
                 self.inferred_items.append(entry)
 
-        # --- Task ---
-        self.known_conditions = self.task.get("known_conditions", [])
-        self.goals = self.task.get("goals", [])
+        # --- Task (清洗 LaTeX) ---
+        self.known_conditions = [
+            self.clean_latex(c) for c in self.task.get("known_conditions", [])
+        ]
+        self.goals = [
+            self.clean_latex(g) for g in self.task.get("goals", [])
+        ]
 
     # ------------------------------------------------------------------
     # 統一關係格式化
@@ -290,42 +324,47 @@ class GeometryDescriptor:
         """
         生成約束優先的可讀文字（取代 _readable_v2）。
 
-        輸出順序：
-        1. 共線 → 2. 平行 → 3. 垂直 → 4. 其他關係
-        → 5. 量測 → 6. 比例 → 7. 已知 → 8. 待求
-        → 9. 點（僅在無共線時顯示）
+        輸出順序（解題優先）：
+        1. 平行 → 2. 比例 → 3. 量測(非推斷) → 4. 垂直
+        → 5. 共線 → 6. 其他關係 → 7. 推斷量測
+        → 8. 已知 → 9. 待求 → 10. 點
         """
         sections: List[str] = []
 
-        # 1. 共線
-        for g in self.collinear_groups:
-            suffix = "（推斷）" if g["source"] == "inferred" else ""
-            sections.append(f"{'、'.join(g['points'])} 共線{suffix}")
-
-        # 2. 平行（多實體鏈）
+        # 1. 平行（解題核心約束）
         for g in self.parallel_groups:
             suffix = "（推斷）" if g["source"] == "inferred" else ""
             sections.append(f"{' ∥ '.join(g['entities'])}{suffix}")
 
-        # 3. 垂直
+        # 2. 比例（解題核心約束）
+        for r in self.ratios:
+            suffix = "（推斷）" if r["source"] == "inferred" else ""
+            sections.append(f"{r['display']}{suffix}")
+
+        # 3. 量測（非推斷 — 題目已知量）
+        for m in self.measurements:
+            if m["source"] != "inferred":
+                sections.append(m['display'])
+
+        # 4. 垂直
         for g in self.perpendicular_pairs:
             suffix = "（推斷）" if g["source"] == "inferred" else ""
             at_str = f"，交於 {g['at']}" if g.get("at") else ""
             sections.append(f"{' ⊥ '.join(g['entities'])}{at_str}{suffix}")
 
-        # 4. 其他關係（midpoint, bisector, equal, similar, congruent 等）
+        # 5. 共線（基礎結構，稍後置）
+        for g in self.collinear_groups:
+            suffix = "（推斷）" if g["source"] == "inferred" else ""
+            sections.append(f"{'、'.join(g['points'])} 共線{suffix}")
+
+        # 6. 其他關係（midpoint, bisector, equal, similar, congruent 等）
         for g in self.other_relationships:
             sections.append(self.describe_relationship(g["raw"]))
 
-        # 5. 量測
+        # 7. 推斷量測（明確標記，不與已知混淆）
         for m in self.measurements:
-            suffix = "（推斷）" if m["source"] == "inferred" else ""
-            sections.append(f"{m['display']}{suffix}")
-
-        # 6. 比例
-        for r in self.ratios:
-            suffix = "（推斷）" if r["source"] == "inferred" else ""
-            sections.append(f"{r['display']}{suffix}")
+            if m["source"] == "inferred":
+                sections.append(f"{m['display']}（推斷）")
 
         # 7. 已知條件
         if self.known_conditions:
@@ -354,36 +393,54 @@ class GeometryDescriptor:
     def to_display_dict(self) -> dict:
         """生成結構化字典，供前端渲染。"""
         return {
-            "collinear": [
-                {"points": g["points"], "source": g["source"]}
-                for g in self.collinear_groups
-            ],
             "parallel": [
-                {"entities": g["entities"], "source": g["source"]}
+                {
+                    "entities": g["entities"],
+                    "source": g["source"],
+                    "inferred": g["source"] == "inferred",
+                }
                 for g in self.parallel_groups
+            ],
+            "ratios": [
+                {
+                    "display": r["display"],
+                    "source": r["source"],
+                    "inferred": r["source"] == "inferred",
+                }
+                for r in self.ratios
+            ],
+            "measurements": [
+                {
+                    "display": m["display"],
+                    "source": m["source"],
+                    "inferred": m["source"] == "inferred",
+                }
+                for m in self.measurements
             ],
             "perpendicular": [
                 {
                     "entities": g["entities"],
                     "at": g.get("at", ""),
                     "source": g["source"],
+                    "inferred": g["source"] == "inferred",
                 }
                 for g in self.perpendicular_pairs
+            ],
+            "collinear": [
+                {
+                    "points": g["points"],
+                    "source": g["source"],
+                    "inferred": g["source"] == "inferred",
+                }
+                for g in self.collinear_groups
             ],
             "other_relationships": [
                 {
                     "display": self.describe_relationship(g["raw"]),
                     "source": g["source"],
+                    "inferred": g["source"] == "inferred",
                 }
                 for g in self.other_relationships
-            ],
-            "measurements": [
-                {"display": m["display"], "source": m["source"]}
-                for m in self.measurements
-            ],
-            "ratios": [
-                {"display": r["display"], "source": r["source"]}
-                for r in self.ratios
             ],
             "known_conditions": self.known_conditions,
             "goals": self.goals,
