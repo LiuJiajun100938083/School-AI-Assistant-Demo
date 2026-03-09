@@ -41,6 +41,8 @@ const Icons = {
     alertCircle: (s) => Icons._svg('<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>', s),
     bookOpen:  (s) => Icons._svg('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>', s),
     zap:       (s) => Icons._svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>', s),
+    listView:  (s) => Icons._svg('<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>', s),
+    gridView:  (s) => Icons._svg('<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect>', s),
 };
 
 
@@ -60,6 +62,14 @@ const App = {
         mistakes: { items: [], total: 0, page: 1 },
         dashboard: null,
         currentMistake: null,
+        viewMode: localStorage.getItem('mb_viewMode') || 'list',
+    },
+
+    /** 切換列表/網格視圖 */
+    setViewMode(mode) {
+        this.state.viewMode = mode;
+        localStorage.setItem('mb_viewMode', mode);
+        Views._renderCurrentMistakes();
     },
 
     /** 獲取當前科目的分類列表 */
@@ -1041,7 +1051,13 @@ const Views = {
             <div class="mb-list-section">
                 <div class="mb-list-section__header">
                     <span class="mb-list-section__title">最近錯題</span>
-                    <span class="mb-list-section__count">${list.total} 題</span>
+                    <div class="mb-view-toggle">
+                        <button class="mb-view-toggle__btn${App.state.viewMode === 'list' ? ' mb-view-toggle__btn--active' : ''}"
+                                data-view="list" title="列表視圖">${Icons.listView(16)}</button>
+                        <button class="mb-view-toggle__btn${App.state.viewMode === 'grid' ? ' mb-view-toggle__btn--active' : ''}"
+                                data-view="grid" title="網格視圖">${Icons.gridView(16)}</button>
+                        <span class="mb-list-section__count">${list.total} 題</span>
+                    </div>
                 </div>
                 ${categoryBarHtml}
                 <div id="mistakeList"></div>
@@ -1054,6 +1070,17 @@ const Views = {
             catBar.addEventListener('click', e => {
                 const chip = e.target.closest('.mb-category-chip');
                 if (chip) App.setCategory(chip.dataset.category);
+            });
+        }
+
+        // 視圖切換事件
+        const viewToggle = container.querySelector('.mb-view-toggle');
+        if (viewToggle) {
+            viewToggle.addEventListener('click', e => {
+                const btn = e.target.closest('.mb-view-toggle__btn');
+                if (btn && btn.dataset.view !== App.state.viewMode) {
+                    App.setViewMode(btn.dataset.view);
+                }
             });
         }
 
@@ -1077,6 +1104,8 @@ const Views = {
 
     _renderMistakeList(items) {
         const listEl = document.getElementById('mistakeList');
+        if (!listEl) return;
+
         if (!items.length) {
             const cat = App.state.currentCategory;
             const msg = cat !== 'all'
@@ -1087,6 +1116,22 @@ const Views = {
             return;
         }
 
+        if (App.state.viewMode === 'grid') {
+            this._renderGridView(items, listEl);
+        } else {
+            this._renderListView(items, listEl);
+        }
+
+        // List-level polling: auto-refresh when processing items exist
+        const hasProcessing = items.some(m => m.status === 'processing');
+        if (hasProcessing) {
+            this._startProcessingPoll();
+        } else {
+            this._stopProcessingPoll();
+        }
+    },
+
+    _renderListView(items, listEl) {
         let html = '<div class="mb-list-container">';
         items.forEach(m => {
             const isProcessing = m.status === 'processing';
@@ -1116,14 +1161,54 @@ const Views = {
         });
         html += '</div>';
         listEl.innerHTML = html;
+    },
 
-        // List-level polling: auto-refresh when processing items exist
-        const hasProcessing = items.some(m => m.status === 'processing');
-        if (hasProcessing) {
-            this._startProcessingPoll();
-        } else {
-            this._stopProcessingPoll();
-        }
+    _renderGridView(items, listEl) {
+        let html = '<div class="mb-grid-container">';
+        items.forEach(m => {
+            const isProcessing = m.status === 'processing';
+            const question = m.manual_question_text || m.ocr_question_text || '（未識別）';
+            const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
+            const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
+            const imgSrc = m.original_image_path
+                ? `/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}`
+                : '';
+
+            html += `
+                <div class="mb-grid-card" ${onclick} ${cursorStyle}>
+                    <div class="mb-grid-card__status mb-grid-card__status--${m.status}"></div>
+                    <div class="mb-grid-card__thumb">
+                        ${imgSrc
+                            ? `<img src="${imgSrc}" alt="" loading="lazy"
+                                   onerror="this.style.display='none';this.parentElement.classList.add('mb-grid-card__thumb--fallback')">`
+                            : ''
+                        }
+                        ${!imgSrc ? `<div class="mb-grid-card__thumb--fallback">${Icons.bookOpen(24)}</div>` : ''}
+                        ${isProcessing ? '<div class="mb-grid-card__processing"><span class="mb-processing-pulse">識別中</span></div>' : ''}
+                    </div>
+                    <div class="mb-grid-card__body">
+                        <div class="mb-grid-card__meta">
+                            <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
+                            <span class="mb-grid-card__date">${UI.formatDate(m.created_at)}</span>
+                        </div>
+                        <div class="mb-grid-card__question">${isProcessing ? 'AI 正在識別分析中...' : UI.escapeHtml(question)}</div>
+                        ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        listEl.innerHTML = html;
+    },
+
+    /** 不重新拉取數據，僅切換視圖渲染 */
+    _renderCurrentMistakes() {
+        const items = App.state.mistakes?.items || [];
+        this._renderMistakeList(items);
+        // 更新切換按鈕狀態
+        document.querySelectorAll('.mb-view-toggle__btn').forEach(btn => {
+            btn.classList.toggle('mb-view-toggle__btn--active', btn.dataset.view === App.state.viewMode);
+        });
     },
 
     _processingPollTimer: null,

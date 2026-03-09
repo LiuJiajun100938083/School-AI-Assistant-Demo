@@ -2332,6 +2332,134 @@
 }
 
 /* ============================================================
+   視圖切換 + 網格視圖
+   ============================================================ */
+
+/* 切換按鈕 */
+.mb-view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.mb-view-toggle__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: none;
+    border-radius: var(--mb-radius-sm);
+    color: var(--mb-text-tertiary);
+    cursor: pointer;
+    transition: color var(--mb-duration), background var(--mb-duration);
+}
+.mb-view-toggle__btn:hover {
+    background: var(--mb-fill);
+}
+.mb-view-toggle__btn--active {
+    color: var(--mb-brand);
+}
+
+/* 網格容器 */
+.mb-grid-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+@media (min-width: 768px) {
+    .mb-grid-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* 網格卡片 */
+.mb-grid-card {
+    background: var(--mb-card);
+    border: 1px solid var(--mb-border);
+    border-radius: var(--mb-radius-lg);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform var(--mb-duration), box-shadow var(--mb-duration);
+    position: relative;
+}
+.mb-grid-card:active {
+    transform: scale(0.98);
+}
+
+/* 頂部狀態條 */
+.mb-grid-card__status { height: 3px; }
+.mb-grid-card__status--analyzed { background: var(--mb-success); }
+.mb-grid-card__status--practicing { background: var(--mb-brand); }
+.mb-grid-card__status--mastered { background: var(--mb-success); }
+.mb-grid-card__status--processing { background: var(--mb-warning); }
+.mb-grid-card__status--needs_review,
+.mb-grid-card__status--pending_review,
+.mb-grid-card__status--pending_ocr { background: var(--mb-warning); }
+.mb-grid-card__status--ocr_failed,
+.mb-grid-card__status--analysis_failed { background: var(--mb-danger); }
+
+/* 縮略圖 */
+.mb-grid-card__thumb {
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--mb-bg);
+    position: relative;
+}
+.mb-grid-card__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.mb-grid-card__thumb--fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--mb-text-tertiary);
+}
+
+/* 處理中遮罩 */
+.mb-grid-card__processing {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+}
+
+/* 卡片正文 */
+.mb-grid-card__body {
+    padding: 10px 12px 12px;
+}
+.mb-grid-card__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+.mb-grid-card__date {
+    font-size: 11px;
+    color: var(--mb-text-tertiary);
+}
+.mb-grid-card__question {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--mb-text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+
+/* ============================================================
    詳情頁：分層佈局 — 錯因摘要 / 思路對比 / 解法 / 分析
    ============================================================ */
 
