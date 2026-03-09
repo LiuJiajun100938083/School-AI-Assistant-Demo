@@ -421,16 +421,17 @@ Output in the following JSON format:
     ],
 
     "relationships": [
-      {"type": "parallel", "entities": ["S_AB", "S_CD"], "source": "question_text"},
+      {"type": "parallel", "entities": ["S_BC", "S_DE", "S_FG"], "source": "question_text"},
       {"type": "perpendicular", "entities": ["S_AB", "S_CE"], "at": "P_E", "source": "figure"},
       {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"},
-      {"type": "collinear", "points": ["P_A", "P_B", "P_D"], "source": "figure"},
+      {"type": "collinear", "points": ["P_A", "P_B", "P_D", "P_F"], "source": "figure"},
       {"type": "congruent", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
       {"type": "similar", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
       {"type": "tangent", "entities": ["L_1", "Cir_O"], "at": "P_T", "source": "figure"},
       {"type": "on_segment", "subject": "P_D", "target": "S_BC", "source": "question_text"},
       {"type": "bisector", "subject": "Ray_1", "target": "Ang_ACB", "source": "inferred"},
-      {"type": "equal", "items": [{"ref": "S_AB", "prop": "length"}, {"ref": "S_AC", "prop": "length"}], "source": "question_text"}
+      {"type": "equal", "items": [{"ref": "S_AB", "prop": "length"}, {"ref": "S_AC", "prop": "length"}], "source": "question_text"},
+      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
     ],
 
     "task": {
@@ -465,24 +466,54 @@ Output in the following JSON format:
 LAYER 1 — objects:
 - Every geometric entity gets a unique "id" using naming convention: P_ for points, S_ for segments, L_ for lines, Ray_ for rays, Ang_ for angles, Cir_ for circles, Tri_ for triangles, Poly_ for polygons.
 - ALL references in other layers MUST use object ids, NOT labels.
-- Only include objects that actually appear in the figure.
 
 LAYER 2 — measurements:
 - "target" references an object id from layer 1.
 - "source" indicates WHERE this measurement comes from: "figure" (read from diagram), "question_text" (stated in problem text), or "inferred" (you deduced it).
 
 LAYER 3 — relationships:
-- Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent).
+- Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent). Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "subject"+"target"/"of" for directed relations (midpoint, on_segment, bisector).
 - Use "points" for point-set relations (collinear).
-- Use "items" for equality comparisons (equal).
+- Use "items" for equality comparisons (equal) and ratio comparisons (ratio). Ratio value should be structured: {"left": 3, "right": 2}.
 - EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred".
 
 LAYER 4 — task:
-- "known_conditions": list of given conditions in human-readable form.
-- "goals": what the problem asks to find/prove.
+- "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
+  WRONG: ["In the figure, ABDF and ACEG are straight lines, BC // DE // FG, FH = 12cm, DI:IJ = 3:2"]
+  RIGHT: ["A、B、D、F 共線", "A、C、E、G 共線", "BC ∥ DE ∥ FG", "FH = 12 cm", "DI : IJ = 3 : 2"]
+- "goals": each goal as a clear target. Example: ["求 DI", "求 BC", "求 HG"]
 - "auxiliary_lines": any construction lines mentioned.
 - "figure_annotations": text labels visible on the figure.
+
+⚠️ OBJECT RETENTION RULES — which objects to include:
+INCLUDE:
+- All labeled points visible in the figure
+- Segments/angles/circles that have a measurement in the problem
+- Segments/angles referenced in a relationship (parallel, perpendicular, ratio, etc.)
+- Objects explicitly mentioned in the goals ("find DI" → include S_DI)
+DO NOT INCLUDE:
+- Sub-segments merely decomposable from collinear points (if A,B,D,F are collinear, do NOT create S_AB, S_BD, S_DF, S_AD, S_AF, S_BF unless they carry a measurement or are a goal)
+- Triangles merely inferrable from the figure unless the problem explicitly names them or they are needed for a relationship
+- Any object not referenced by measurements, relationships, or goals
+
+WRONG EXAMPLE (too many objects):
+Points A,B,D,F are collinear → creating S_AB, S_BD, S_DF, S_AD, S_AF, S_BF as objects
+RIGHT EXAMPLE (constraint-first):
+Points A,B,D,F are collinear → create points P_A, P_B, P_D, P_F + relationship {"type":"collinear","points":["P_A","P_B","P_D","P_F"]}
+Only create S_FH if FH=12cm is given, S_DI if DI appears in a ratio or goal.
+
+⚠️ EXTRACTION PRIORITIES (most important first):
+1. Collinear point groups — which points lie on the same straight line
+2. Parallel/perpendicular chains — include ALL parallel lines (BC ∥ DE ∥ FG, not just BC ∥ DE)
+3. Measurements — lengths, angles with exact values
+4. Ratios — DI : IJ = 3 : 2 → use {"type":"ratio"} relationship
+5. Goals — what the problem asks to find/prove
+6. Only create segment/triangle objects if they carry a measurement or are explicitly referenced
+
+⚠️ COLLINEAR POINTS — use relationship, NOT object names:
+WRONG: creating an object like {"id": "S_ABDF", "type": "line"} or {"id": "straight_line_ABDF"}
+RIGHT: creating individual points + {"type": "collinear", "points": ["P_A","P_B","P_D","P_F"], "source": "figure"}
 
 - If there is NO figure at all, set: "figure_description": {"has_figure": false}
 
@@ -526,13 +557,15 @@ Output in the following JSON format:
     ],
 
     "relationships": [
-      {"type": "parallel", "entities": ["S_AB", "S_CD"], "source": "question_text"},
-      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"}
+      {"type": "parallel", "entities": ["S_BC", "S_DE", "S_FG"], "source": "question_text"},
+      {"type": "collinear", "points": ["P_A", "P_B", "P_D", "P_F"], "source": "figure"},
+      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"},
+      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
     ],
 
     "task": {
-      "known_conditions": ["AB = 5cm", "∠ACB = 90°"],
-      "goals": ["Find ∠AOC"],
+      "known_conditions": ["A、B、D、F 共線", "BC ∥ DE ∥ FG", "FH = 12 cm", "DI : IJ = 3 : 2"],
+      "goals": ["求 DI", "求 BC"],
       "auxiliary_lines": [],
       "figure_annotations": ["5cm", "90°"]
     },
@@ -564,7 +597,24 @@ Output in the following JSON format:
 - ALL references in measurements/relationships MUST use object ids, NOT labels.
 - Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred".
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
+- Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
+- Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
 - If there is NO figure, set: "figure_description": {"has_figure": false}
+
+⚠️ OBJECT RETENTION — only include objects that are referenced:
+- All labeled points visible in the figure
+- Segments/angles/circles that have a measurement or are in a relationship
+- Objects mentioned in goals
+- Do NOT exhaustively list every sub-segment from collinear points
+- Do NOT list triangles unless explicitly needed
+
+⚠️ EXTRACTION PRIORITIES:
+1. Collinear groups  2. Parallel/perpendicular chains (complete, not partial)
+3. Measurements  4. Ratios  5. Goals  6. Only then additional objects
+
+⚠️ TASK LAYER — structured atomic conditions:
+- Each known_condition = one citable fact (e.g. "A、B、D、F 共線", "BC ∥ DE ∥ FG", "FH = 12 cm")
+- Do NOT copy entire problem text as one condition
 
 ⚠️ RULES FOR "confidence_breakdown":
 - Rate your confidence for each component from 0.0 to 1.0.
@@ -1044,128 +1094,25 @@ Output JSON only.
 
     @staticmethod
     def _readable_v2(fig: dict) -> str:
-        """v2 schema (新 4 層約束版) 的可讀描述"""
-        parts = []
+        """v2 schema (新 4 層約束版) 的可讀描述 — 約束優先排序，無工程 token"""
+        from app.domains.vision.geometry_descriptor import GeometryDescriptor
+        desc = GeometryDescriptor(fig)
+        return desc.to_readable_text()
 
-        # objects 層
-        objects = fig.get("objects", [])
-        if objects:
-            by_type: dict = {}
-            for obj in objects:
-                t = obj.get("type", "unknown")
-                label = obj.get("label", obj.get("id", ""))
-                by_type.setdefault(t, []).append(label)
-            type_labels = {
-                "point": "點", "segment": "線段", "line": "直線",
-                "ray": "射線", "angle": "角", "circle": "圓",
-                "triangle": "三角形", "polygon": "多邊形",
-            }
-            for t, labels in by_type.items():
-                name = type_labels.get(t, t)
-                parts.append(f"{name}：{'、'.join(labels)}")
-
-        # measurements 層
-        measurements = fig.get("measurements", [])
-        if measurements:
-            m_parts = []
-            for m in measurements:
-                target = m.get("target", "")
-                prop = m.get("property", "")
-                value = m.get("value", "")
-                if target and value:
-                    if prop == "degrees":
-                        val_str = str(value)
-                        m_parts.append(
-                            f"∠{target} = {value}°"
-                            if not val_str.endswith("°")
-                            else f"∠{target} = {value}"
-                        )
-                    elif prop == "length":
-                        m_parts.append(f"{target} = {value}")
-                    else:
-                        m_parts.append(f"{target} {prop} = {value}")
-            if m_parts:
-                parts.append("；".join(m_parts))
-
-        # relationships 層
-        rels = fig.get("relationships", [])
-        if rels:
-            rel_parts = []
-            for rel in rels:
-                rel_type = rel.get("type", "")
-                source = rel.get("source", "")
-                inferred_mark = "?" if source == "inferred" else ""
-
-                if rel_type == "parallel":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} // {entities[1]}{inferred_mark}")
-                elif rel_type == "perpendicular":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} ⊥ {entities[1]}{inferred_mark}")
-                elif rel_type == "midpoint":
-                    subj = rel.get("subject", "")
-                    of = rel.get("of", "")
-                    rel_parts.append(f"{subj} 是 {of} 中點{inferred_mark}")
-                elif rel_type == "collinear":
-                    pts = rel.get("points", [])
-                    rel_parts.append(f"{'、'.join(pts)} 共線{inferred_mark}")
-                elif rel_type == "congruent":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} ≅ {entities[1]}{inferred_mark}")
-                elif rel_type == "similar":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} ∼ {entities[1]}{inferred_mark}")
-                elif rel_type == "tangent":
-                    entities = rel.get("entities", [])
-                    at = rel.get("at", "")
-                    if len(entities) == 2:
-                        t = f"，切點 {at}" if at else ""
-                        rel_parts.append(f"{entities[0]} 切 {entities[1]}{t}{inferred_mark}")
-                elif rel_type == "on_segment":
-                    subj = rel.get("subject", "")
-                    target = rel.get("target", "")
-                    rel_parts.append(f"{subj} 在 {target} 上{inferred_mark}")
-                elif rel_type == "bisector":
-                    subj = rel.get("subject", "")
-                    target = rel.get("target", "")
-                    rel_parts.append(f"{subj} 平分 {target}{inferred_mark}")
-                elif rel_type == "equal":
-                    items = rel.get("items", [])
-                    if len(items) == 2:
-                        a = f"{items[0].get('ref', '')}({items[0].get('prop', '')})"
-                        b = f"{items[1].get('ref', '')}({items[1].get('prop', '')})"
-                        rel_parts.append(f"{a} = {b}{inferred_mark}")
-                else:
-                    entities = rel.get("entities", [])
-                    if entities:
-                        rel_parts.append(
-                            f"{rel_type}: {', '.join(str(e) for e in entities)}{inferred_mark}"
-                        )
-
-            if rel_parts:
-                parts.append("；".join(rel_parts))
-
-        # task 層
-        task = fig.get("task", {})
-        if task:
-            goals = task.get("goals", [])
-            known = task.get("known_conditions", [])
-            if known:
-                parts.append(f"已知：{'、'.join(known)}")
-            if goals:
-                parts.append(f"求：{'、'.join(goals)}")
-
-        if not parts:
-            overall = fig.get("overall_description", "")
-            if overall:
-                return overall
-            return "含幾何圖形"
-
-        return "；".join(parts)
+    @staticmethod
+    def generate_display_descriptor(fig_json_str: str) -> "dict | None":
+        """生成結構化展示字典，供前端渲染。"""
+        from app.domains.vision.geometry_descriptor import GeometryDescriptor
+        if not fig_json_str:
+            return None
+        try:
+            fig = json.loads(fig_json_str) if isinstance(fig_json_str, str) else fig_json_str
+        except (json.JSONDecodeError, TypeError):
+            return None
+        if not isinstance(fig, dict) or not fig.get("has_figure", True):
+            return None
+        desc = GeometryDescriptor(fig)
+        return desc.to_display_dict()
 
     @staticmethod
     def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
@@ -1217,10 +1164,48 @@ Output JSON only.
                 warnings.append(f"measurement source '{source}' 不在允許值中")
 
         # 校驗 relationships
+        allowed_rel_types = {
+            "parallel", "perpendicular", "midpoint", "collinear",
+            "congruent", "similar", "tangent", "on_segment",
+            "bisector", "equal", "ratio",
+        }
+
         for rel in fig_json.get("relationships", []):
             source = rel.get("source", "")
             if source and source not in allowed_sources:
                 warnings.append(f"relationship source '{source}' 不在允許值中")
+
+            # 校驗 relationship type
+            rel_type = rel.get("type", "")
+            if rel_type and rel_type not in allowed_rel_types:
+                warnings.append(f"relationship type '{rel_type}' 不在已知類型中")
+
+            # 校驗 ratio items 結構
+            if rel_type == "ratio":
+                items = rel.get("items", [])
+                if len(items) < 2:
+                    warnings.append("ratio relationship 需要至少 2 個 items")
+                for item in items:
+                    if not item.get("ref"):
+                        warnings.append(f"ratio item 缺少 ref: {item}")
+                    if item.get("ref") and item["ref"] not in known_ids:
+                        warnings.append(
+                            f"ratio item ref '{item['ref']}' 不在 objects 中"
+                        )
+
+            # 類型相容性檢查（警告，不阻塞）
+            if rel_type in ("parallel", "perpendicular"):
+                for entity in rel.get("entities", []):
+                    if entity and entity.startswith("P_"):
+                        warnings.append(
+                            f"{rel_type} 引用了點 '{entity}'，應引用線段/直線"
+                        )
+            if rel_type == "collinear":
+                for pt in rel.get("points", []):
+                    if pt and not pt.startswith("P_"):
+                        warnings.append(
+                            f"collinear 引用 '{pt}'，應為點（P_ 前綴）"
+                        )
 
             # 檢查引用的 entity ids
             for entity in rel.get("entities", []):

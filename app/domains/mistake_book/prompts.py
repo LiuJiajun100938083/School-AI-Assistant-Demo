@@ -106,7 +106,10 @@ def _build_math_analysis(
 - `"inferred"`：模型推斷出的（可靠性較低，需謹慎使用）
 
 **Layer 3 — relationships（幾何關係）：**
-平行、垂直、全等、相似、中點、共線等。每條關係同樣有 `source` 字段。
+平行、垂直、全等、相似、中點、共線、比例等。每條關係同樣有 `source` 字段。
+- 共線 (collinear)：哪些點在同一直線上
+- 平行 (parallel)：可含多實體鏈，如 BC ∥ DE ∥ FG
+- 比例 (ratio)：如 DI : IJ = 3 : 2
 **優先引用 source="figure" 和 source="question_text" 的關係做推理。**
 **對 source="inferred" 的關係保持謹慎，不要當作已知條件直接使用。**
 
@@ -115,7 +118,7 @@ def _build_math_analysis(
 
 ⚠️ `overall_description` 僅為人讀摘要，非權威字段——請以 objects/measurements/relationships 為準。
 
-請在分析中引用具體的幾何元素和關係，例如「根據已知 S_AB // S_CD（source: question_text），可知……」
+請在分析中引用具體的幾何元素和關係，例如「根據已知 AB ∥ CD（source: question_text），可知……」
 """
     history_section = f"\n## 學生歷史學習情況（請結合歷史薄弱點給出更有針對性的建議）\n{history}\n" if history else ""
     return f"""你是一位經驗豐富的香港數學科教師。請逐步檢查以下學生的解題過程。

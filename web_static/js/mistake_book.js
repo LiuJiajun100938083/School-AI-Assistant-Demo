@@ -526,6 +526,156 @@ const UI = {
 
 
 /* ============================================================
+   GeoDisplay — 統一幾何展示格式化（schema → 教學化中文）
+   ============================================================ */
+const GeoDisplay = {
+    /** 去除工程前綴：S_AB→AB, P_A→A, Tri_ABC→△ABC, Ang_ABC→∠ABC, Cir_O→⊙O */
+    stripPrefix(token) {
+        if (!token) return token;
+        const map = [
+            ['S_', ''], ['P_', ''], ['Tri_', '△'],
+            ['Ang_', '∠'], ['Cir_', '⊙'], ['Poly_', ''],
+            ['L_', ''], ['Ray_', '']
+        ];
+        for (const [prefix, replacement] of map) {
+            if (token.startsWith(prefix)) return replacement + token.slice(prefix.length);
+        }
+        return token;
+    },
+
+    /** 將 relationship 對象轉為中文自然語言 */
+    describeRelationship(rel) {
+        const t = rel.type || '';
+        const e = (rel.entities || []).map(x => this.stripPrefix(x));
+        const source = rel.source || '';
+        const suffix = source === 'inferred' ? '（推斷）' : '';
+
+        const formatters = {
+            parallel:      () => e.join(' ∥ '),
+            perpendicular: () => e.join(' ⊥ ') + (rel.at ? `，交於 ${this.stripPrefix(rel.at)}` : ''),
+            collinear:     () => (rel.points || []).map(p => this.stripPrefix(p)).join('、') + ' 共線',
+            midpoint:      () => `${this.stripPrefix(rel.subject || '?')} 是 ${this.stripPrefix(rel.of || '?')} 中點`,
+            on_segment:    () => `${this.stripPrefix(rel.subject || '?')} 在 ${this.stripPrefix(rel.target || '?')} 上`,
+            bisector:      () => `${this.stripPrefix(rel.subject || '?')} 平分 ${this.stripPrefix(rel.target || '?')}`,
+            congruent:     () => e.join(' ≅ '),
+            similar:       () => e.join(' ∼ '),
+            tangent:       () => `${e[0] || '?'} 切 ${e[1] || '?'}` + (rel.at ? `，切點 ${this.stripPrefix(rel.at)}` : ''),
+            equal:         () => {
+                const items = rel.items || [];
+                if (items.length >= 2) return `${this.stripPrefix(items[0].ref)} = ${this.stripPrefix(items[1].ref)}`;
+                return 'equal';
+            },
+            ratio:         () => {
+                const items = rel.items || [];
+                const value = rel.value;
+                const valStr = typeof value === 'object' && value !== null
+                    ? `${value.left} : ${value.right}`
+                    : String(value || '');
+                if (items.length >= 2)
+                    return `${this.stripPrefix(items[0].ref)} : ${this.stripPrefix(items[1].ref)} = ${valStr}`;
+                return `ratio = ${valStr}`;
+            },
+        };
+
+        const fn = formatters[t];
+        return (fn ? fn() : (e.length ? `${t}: ${e.join(', ')}` : t)) + suffix;
+    },
+
+    /** 將 measurement 對象轉為中文自然語言 */
+    describeMeasurement(m) {
+        const target = this.stripPrefix(m.target || m.what || '');
+        const prop = m.property || '';
+        const value = m.value != null ? String(m.value) : '';
+        const source = m.source || '';
+        const suffix = source === 'inferred' ? '（推斷）' : '';
+        if (prop === 'degrees') {
+            return `∠${target} = ${value}${String(value).endsWith('°') ? '' : '°'}${suffix}`;
+        } else if (prop === 'length') {
+            return `${target} = ${value}${suffix}`;
+        }
+        return `${target} ${prop} = ${value}${suffix}`;
+    },
+
+    /** 從原始 schema JSON 生成結構化幾何詳情 HTML */
+    renderFigureDetail(figJsonStr) {
+        let fig;
+        try {
+            fig = typeof figJsonStr === 'string' ? JSON.parse(figJsonStr) : figJsonStr;
+        } catch {
+            return null;
+        }
+        if (!fig || !fig.has_figure) return null;
+
+        const rels = fig.relationships || [];
+        const meas = fig.measurements || [];
+        const task = fig.task || {};
+
+        // 按類型分類關係
+        const collinear = rels.filter(r => r.type === 'collinear');
+        const parallel = rels.filter(r => r.type === 'parallel');
+        const perp = rels.filter(r => r.type === 'perpendicular');
+        const ratios = rels.filter(r => r.type === 'ratio');
+        const others = rels.filter(r => !['collinear','parallel','perpendicular','ratio'].includes(r.type));
+
+        const sections = [];
+
+        const makeItems = (items, fn) => items.map(item => {
+            const src = item.source || '';
+            const cls = src === 'inferred' ? ' class="mb-figure-desc__inferred"' : '';
+            return `<div${cls}>${UI.escapeHtml(fn(item))}</div>`;
+        }).join('');
+
+        if (collinear.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">共線</div>
+                ${makeItems(collinear, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (parallel.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">平行</div>
+                ${makeItems(parallel, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (perp.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">垂直</div>
+                ${makeItems(perp, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (meas.length || ratios.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">量測</div>
+                ${makeItems(meas, m => this.describeMeasurement(m))}
+                ${makeItems(ratios, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (others.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">其他關係</div>
+                ${makeItems(others, r => this.describeRelationship(r))}
+            </div>`);
+        }
+
+        const known = task.known_conditions || [];
+        const goals = task.goals || [];
+        if (known.length || goals.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">題目條件</div>
+                ${known.length ? `<div><strong>已知：</strong>${known.map(k => UI.escapeHtml(k)).join('；')}</div>` : ''}
+                ${goals.length ? `<div><strong>求：</strong>${goals.map(g => `<span class="mb-figure-desc__goal">${UI.escapeHtml(g)}</span>`).join('、')}</div>` : ''}
+            </div>`);
+        }
+
+        if (!sections.length) return null;
+        return `<div class="mb-figure-desc">
+            <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
+            ${sections.join('')}
+        </div>`;
+    }
+};
+
+/* ============================================================
    VIEWS — 頁面渲染
    ============================================================ */
 
@@ -651,13 +801,17 @@ const Views = {
                 </div>
             </header>
 
-            ${m.figure_description_readable ? `
-            <div class="mb-detail-section">
-                <div class="mb-figure-desc">
-                    <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
-                    <div class="mb-figure-desc__item">${UI.escapeHtml(m.figure_description_readable)}</div>
-                </div>
-            </div>` : ''}
+            ${(() => {
+                const structuredHtml = m.figure_description ? GeoDisplay.renderFigureDetail(m.figure_description) : null;
+                if (structuredHtml) return `<div class="mb-detail-section">${structuredHtml}</div>`;
+                if (m.figure_description_readable) return `<div class="mb-detail-section">
+                    <div class="mb-figure-desc">
+                        <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
+                        <div class="mb-figure-desc__item">${UI.escapeHtml(m.figure_description_readable)}</div>
+                    </div>
+                </div>`;
+                return '';
+            })()}
 
             <div class="mb-detail-section">
                 <div class="mb-detail-section__title">${Icons.bookOpen(16)} 題目</div>
@@ -1860,21 +2014,42 @@ const Upload = {
         // 保存原始結構供 _collectFigureEdits 使用
         this._figureEditData = JSON.parse(JSON.stringify(fig));
 
-        // ---- objects（只讀標籤列表）----
+        // ---- objects（降噪：默認只顯示關鍵對象）----
         const objects = fig.objects || fig.elements || [];
-        const objTags = objects.map(o => {
-            const label = o.label || o.id || '';
-            const typeMap = { point: '點', segment: '線段', line: '直線', ray: '射線',
-                angle: '角', circle: '圓', triangle: '△', polygon: '多邊形',
-                line_segment: '線段' };
+        const measurements = fig.measurements || [];
+        const allRels = fig.relationships || [];
+
+        // 收集被引用的 object IDs
+        const referencedIds = new Set();
+        measurements.forEach(m => { if (m.target) referencedIds.add(m.target); });
+        allRels.forEach(r => {
+            (r.entities || []).forEach(e => referencedIds.add(e));
+            (r.points || []).forEach(p => referencedIds.add(p));
+            ['subject', 'of', 'target', 'at'].forEach(k => { if (r[k]) referencedIds.add(r[k]); });
+            (r.items || []).forEach(it => { if (it.ref) referencedIds.add(it.ref); });
+        });
+
+        const primaryObjs = objects.filter(o => o.type === 'point' || o.type === 'circle' || referencedIds.has(o.id));
+        const secondaryObjs = objects.filter(o => o.type !== 'point' && o.type !== 'circle' && !referencedIds.has(o.id));
+
+        const typeMap = { point: '點', segment: '線段', line: '直線', ray: '射線',
+            angle: '角', circle: '圓', triangle: '△', polygon: '多邊形', line_segment: '線段' };
+
+        const objTags = primaryObjs.map(o => {
+            const label = GeoDisplay.stripPrefix(o.label || o.id || '');
             const typeName = typeMap[o.type] || o.type || '';
             return `<span class="mb-figure-editor__tag" title="${o.id || ''}">${typeName} ${UI.escapeHtml(label)}</span>`;
         }).join('');
 
-        // ---- measurements（可編輯值）----
-        const measurements = fig.measurements || [];
+        const secondaryTags = secondaryObjs.map(o => {
+            const label = GeoDisplay.stripPrefix(o.label || o.id || '');
+            const typeName = typeMap[o.type] || o.type || '';
+            return `<span class="mb-figure-editor__tag mb-figure-editor__tag--secondary" title="${o.id || ''}">${typeName} ${UI.escapeHtml(label)}</span>`;
+        }).join('');
+
+        // ---- measurements（可編輯值，去工程前綴）----
         const measRows = measurements.map((m, i) => {
-            const target = m.target || m.what || '';
+            const target = GeoDisplay.stripPrefix(m.target || m.what || '');
             const prop = m.property || '';
             const value = m.value != null ? String(m.value) : '';
             const source = m.source || '';
@@ -1887,10 +2062,10 @@ const Upload = {
             </div>`;
         }).join('');
 
-        // ---- relationships（可刪除）----
-        const rels = fig.relationships || [];
+        // ---- relationships（可刪除，使用 GeoDisplay 統一格式化）----
+        const rels = allRels;
         const relRows = rels.map((r, i) => {
-            const desc = this._describeRelationship(r);
+            const desc = GeoDisplay.describeRelationship(r);
             const source = r.source || '';
             const inferClass = source === 'inferred' ? ' mb-figure-editor__rel--inferred' : '';
             return `<div class="mb-figure-editor__rel${inferClass}" data-rel-idx="${i}">
@@ -1912,6 +2087,10 @@ const Upload = {
                 ${objTags ? `<div class="mb-figure-editor__section">
                     <div class="mb-figure-editor__section-title">幾何對象</div>
                     <div class="mb-figure-editor__tags">${objTags}</div>
+                    ${secondaryTags ? `<div class="mb-figure-editor__tags-toggle">
+                        <button class="mb-figure-editor__toggle-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'; this.textContent=this.textContent==='顯示全部對象'?'收起':'顯示全部對象'">顯示全部對象</button>
+                        <div class="mb-figure-editor__tags" style="display:none">${secondaryTags}</div>
+                    </div>` : ''}
                 </div>` : ''}
 
                 ${measRows ? `<div class="mb-figure-editor__section">
@@ -1935,6 +2114,7 @@ const Upload = {
                                 <option value="congruent">全等 ≅</option>
                                 <option value="similar">相似 ∼</option>
                                 <option value="collinear">共線</option>
+                                <option value="ratio">比例</option>
                                 <option value="on_segment">在…上</option>
                                 <option value="bisector">平分</option>
                             </select>
@@ -1954,27 +2134,9 @@ const Upload = {
         `;
     },
 
-    /** 將 relationship 對象轉為可讀文字 */
+    /** 將 relationship 對象轉為可讀文字（委託 GeoDisplay 統一格式化） */
     _describeRelationship(rel) {
-        const t = rel.type || '';
-        const e = rel.entities || [];
-        switch (t) {
-            case 'parallel':      return e.length >= 2 ? `${e[0]} // ${e[1]}` : t;
-            case 'perpendicular': return e.length >= 2 ? `${e[0]} ⊥ ${e[1]}` : t;
-            case 'midpoint':      return `${rel.subject || '?'} 是 ${rel.of || '?'} 中點`;
-            case 'collinear':     return `${(rel.points || []).join('、')} 共線`;
-            case 'congruent':     return e.length >= 2 ? `${e[0]} ≅ ${e[1]}` : t;
-            case 'similar':       return e.length >= 2 ? `${e[0]} ∼ ${e[1]}` : t;
-            case 'tangent':       return e.length >= 2 ? `${e[0]} 切 ${e[1]}${rel.at ? '，切點 ' + rel.at : ''}` : t;
-            case 'on_segment':    return `${rel.subject || '?'} 在 ${rel.target || '?'} 上`;
-            case 'bisector':      return `${rel.subject || '?'} 平分 ${rel.target || '?'}`;
-            case 'equal': {
-                const items = rel.items || [];
-                if (items.length >= 2) return `${items[0].ref}(${items[0].prop}) = ${items[1].ref}(${items[1].prop})`;
-                return t;
-            }
-            default: return e.length ? `${t}: ${e.join(', ')}` : t;
-        }
+        return GeoDisplay.describeRelationship(rel);
     },
 
     /** 刪除量測 */
@@ -2015,6 +2177,13 @@ const Upload = {
 
         if (type === 'collinear') {
             newRel = { type, points: [a, b].filter(Boolean), source: 'question_text' };
+        } else if (type === 'ratio') {
+            // 對象1 填 ref (如 S_DI)，對象2 填比例值 (如 3:2)
+            if (!b) { UI.toast('請填寫比例值 (如 3:2)', 'error'); return; }
+            const parts = b.split(':').map(s => parseInt(s.trim()));
+            const value = parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])
+                ? { left: parts[0], right: parts[1] } : b;
+            newRel = { type, items: [{ ref: a, prop: 'length' }], value, source: 'question_text' };
         } else if (directedTypes.includes(type)) {
             newRel = { type, subject: a, [type === 'midpoint' ? 'of' : 'target']: b, source: 'question_text' };
         } else {
