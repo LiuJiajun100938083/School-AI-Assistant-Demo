@@ -763,6 +763,30 @@
     box-shadow: var(--mb-shadow-focus);
 }
 
+/* OCR / 分析失敗狀態 */
+.mb-ocr-fail {
+    text-align: center;
+    padding: 24px 16px;
+}
+
+.mb-ocr-fail__icon {
+    color: var(--mb-danger, #ef4444);
+    margin-bottom: 12px;
+    opacity: 0.8;
+}
+
+.mb-ocr-fail__msg {
+    font-size: 14px;
+    color: var(--mb-text-secondary);
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.mb-ocr-fail .mb-btn svg {
+    vertical-align: -2px;
+    margin-right: 4px;
+}
+
 /* ============================================================
    Detail Panel — 全螢幕詳情
    ============================================================ */

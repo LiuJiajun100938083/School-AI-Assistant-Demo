@@ -1504,19 +1504,37 @@ const Upload = {
                 </button>
             `;
         } else {
-            btn.disabled = false;
-            btn.textContent = '上傳並識別';
+            const errMsg = (res && res.detail) || '識別失敗，請重試';
+            btn.style.display = 'none';
+            const ocrDiv = document.getElementById('ocrResult');
+            ocrDiv.style.display = 'block';
+            ocrDiv.innerHTML = `
+                <div class="mb-ocr-fail">
+                    <div class="mb-ocr-fail__icon">${Icons.alertCircle(32)}</div>
+                    <div class="mb-ocr-fail__msg">${UI.escapeHtml(errMsg)}</div>
+                    <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Upload._retryUpload()">
+                        ${Icons.repeat(14)} 重新識別
+                    </button>
+                </div>
+            `;
         }
     },
 
     async _confirmOCR(mistakeId) {
-        const question = document.getElementById('ocrQuestion').value.trim();
-        const answer = document.getElementById('ocrAnswer').value.trim();
+        // 重試時 textarea 可能已被替換，使用快取值
+        const qEl = document.getElementById('ocrQuestion');
+        const aEl = document.getElementById('ocrAnswer');
+        const question = qEl ? qEl.value.trim() : (this._lastQuestion || '');
+        const answer   = aEl ? aEl.value.trim() : (this._lastAnswer || '');
 
         if (!question || !answer) {
             UI.toast('請填寫題目和答案', 'error');
             return;
         }
+
+        // 快取題目和答案，以便重試時使用
+        this._lastQuestion = question;
+        this._lastAnswer = answer;
 
         const ocrDiv = document.getElementById('ocrResult');
         ocrDiv.innerHTML = '<div class="mb-loading"><div class="mb-loading__spinner"></div>AI 分析中，預計需要 30-60 秒...</div>';
@@ -1540,15 +1558,48 @@ const Upload = {
                 this.close();
                 App.navigate('home');
             } else {
-                ocrDiv.innerHTML = `<div style="color:var(--mb-danger);text-align:center;font-size:13px">分析失敗: ${data.detail || '請重試'}</div>`;
+                this._renderConfirmError(ocrDiv, mistakeId, `分析失敗: ${data.detail || '未知錯誤'}`);
             }
         } catch (err) {
-            if (err.name === 'AbortError') {
-                ocrDiv.innerHTML = '<div style="color:var(--mb-danger);text-align:center;font-size:13px">分析超時（3分鐘），請重試</div>';
-            } else {
-                ocrDiv.innerHTML = `<div style="color:var(--mb-danger);text-align:center;font-size:13px">網絡錯誤: ${err.message}</div>`;
-            }
+            const msg = err.name === 'AbortError'
+                ? '分析超時（3分鐘）'
+                : `網絡錯誤: ${err.message}`;
+            this._renderConfirmError(ocrDiv, mistakeId, msg);
         }
+    },
+
+    /**
+     * 重新識別：重置上傳狀態，用已選的照片再次識別
+     */
+    _retryUpload() {
+        const ocrDiv = document.getElementById('ocrResult');
+        ocrDiv.style.display = 'none';
+        ocrDiv.innerHTML = '';
+
+        const btn = document.getElementById('uploadBtn');
+        btn.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '上傳並識別';
+    },
+
+    /**
+     * 渲染確認/分析失敗的錯誤狀態（帶重試按鈕）
+     */
+    _renderConfirmError(container, mistakeId, message) {
+        container.innerHTML = `
+            <div class="mb-ocr-fail">
+                <div class="mb-ocr-fail__icon">${Icons.alertCircle(32)}</div>
+                <div class="mb-ocr-fail__msg">${UI.escapeHtml(message)}</div>
+                <button class="mb-btn mb-btn--primary mb-btn--full"
+                        onclick="Upload._confirmOCR('${mistakeId}')">
+                    ${Icons.repeat(14)} 重新分析
+                </button>
+                <button class="mb-btn mb-btn--full" style="margin-top:8px"
+                        onclick="Upload._retryUpload()">
+                    重新上傳照片
+                </button>
+            </div>
+        `;
     },
 
     _renderManualInput(container) {
