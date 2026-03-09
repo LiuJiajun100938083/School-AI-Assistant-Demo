@@ -26,6 +26,34 @@ logger = logging.getLogger(__name__)
 DEFAULT_VISION_MODEL = os.getenv("VISION_MODEL", "qwen3-vl:30b")
 
 
+def _compute_closers(s: str) -> str:
+    """掃描 JSON 片段，返回需要的閉合符號（}] 等）。"""
+    in_str = False
+    esc = False
+    stack = []
+    for ch in s:
+        if esc:
+            esc = False
+            continue
+        if ch == '\\' and in_str:
+            esc = True
+            continue
+        if ch == '"' and not esc:
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == '{':
+            stack.append('}')
+        elif ch == '[':
+            stack.append(']')
+        elif ch in ('}', ']'):
+            if stack and stack[-1] == ch:
+                stack.pop()
+    stack.reverse()
+    return ''.join(stack)
+
+
 class VisionService:
     """
     視覺識別服務
@@ -42,7 +70,7 @@ class VisionService:
         vision_model: str = DEFAULT_VISION_MODEL,
         ollama_base_url: str = "http://localhost:11434",
         max_image_size: int = 4 * 1024 * 1024,  # 4MB
-        timeout: int = 120,
+        timeout: int = 300,  # 30B 模型推理較慢，默認 5 分鐘
     ):
         self._vision_model = vision_model
         self._base_url = ollama_base_url
@@ -76,12 +104,46 @@ class VisionService:
 
             processed_path = await self._preprocess_image(image_path)
             prompt = self._build_ocr_prompt(subject, task)
-            raw_response = await self._call_vision_model(processed_path, prompt)
+
+            # 首次調用：直接使用 JSON 強制模式
+            # Qwen3-VL 的 think:false 在 Ollama 中不生效（已知 bug），
+            # 所以首次就用 format:"json" 來最大化成功率
+            raw_response = await self._call_vision_model_json(processed_path, prompt)
+
+            # 回退：如果 JSON 模式失敗，用普通模式（能處理 thinking 字段）
+            if raw_response is None:
+                logger.warning("JSON 模式調用失敗，回退到普通模式...")
+                raw_response = await self._call_vision_model(processed_path, prompt)
 
             if raw_response is None:
                 return OCRResult(success=False, error="視覺模型調用失敗")
 
             result = self._parse_ocr_response(raw_response, subject, task)
+
+            # 如果解析完全失敗（question 為空），再次重試
+            if not result.question_text:
+                logger.warning(
+                    "首次 OCR 解析失敗（question 為空），嘗試重試..."
+                )
+                retry_prompt = (
+                    "/no_think\n"
+                    "CRITICAL: Output ONLY a valid JSON object. "
+                    "Do NOT include reasoning, explanations, markdown, or <think> tags. "
+                    "Start with { and end with }.\n\n"
+                    + prompt
+                )
+                # 重試用普通模式（與首次互補策略），因為 JSON 模式已嘗試過
+                retry_response = await self._call_vision_model(
+                    processed_path, retry_prompt
+                )
+                if retry_response:
+                    retry_result = self._parse_ocr_response(
+                        retry_response, subject, task
+                    )
+                    if retry_result.question_text:
+                        logger.info("重試 OCR 成功")
+                        return retry_result
+
             return result
 
         except Exception as e:
@@ -149,13 +211,14 @@ class VisionService:
                 "think": False,
                 "options": {
                     "temperature": 0.1,
-                    "num_predict": 4096,
+                    "num_predict": 8192,
                 },
             }
 
             url = f"{self._base_url}/api/chat"
+            timeout = httpx.Timeout(float(self._timeout), connect=10.0)
 
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()
@@ -183,6 +246,10 @@ class VisionService:
                         "content 為空但 thinking 字段有內容 (len=%d)，使用 thinking 作為回應",
                         len(thinking_content),
                     )
+                    # 記錄 thinking 開頭 500 字方便調試
+                    logger.debug(
+                        "thinking 前500字: %s", thinking_content[:500]
+                    )
                     content = self._strip_thinking_tags(thinking_content)
                     if not content:
                         # thinking 本身就是純文本（沒有 <think> 標籤）
@@ -198,14 +265,65 @@ class VisionService:
                     if think_match:
                         content = think_match.group(1).strip()
 
+            # ---- 純推理快速失敗 ----
+            # 當 thinking 內容全是自然語言推理（沒有有效 JSON），跳過昂貴提取
+            if content and self._looks_like_pure_reasoning(content):
+                logger.info(
+                    "thinking 內容為純推理文本 (len=%d)，跳過 JSON 提取",
+                    len(content),
+                )
+                content = ""  # 觸發上層 retry
+
             # ---- 從推理文本中嘗試提取嵌入的 JSON ----
             # Qwen3-VL 即使啟用思考模式，有時會在推理中輸出 JSON
             if content and "{" in content:
                 import re
-                json_candidate = self._extract_json_from_reasoning(content)
-                if json_candidate:
-                    logger.info("從推理文本中提取到嵌入 JSON (len=%d)", len(json_candidate))
-                    content = json_candidate
+                # 第一步：先嘗試直接解析 — 如果 content 本身就是合法 JSON，直接使用
+                is_valid_json = False
+                try:
+                    self._safe_json_loads(content)
+                    is_valid_json = True
+                    logger.debug("content 直接解析為合法 JSON (len=%d)", len(content))
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+                if not is_valid_json:
+                    # 第二步：嘗試從推理文本中提取包含 "question" 的 JSON
+                    json_candidate = self._extract_json_from_reasoning(content)
+                    if json_candidate and len(json_candidate) >= 50:
+                        logger.info("從推理文本中提取到嵌入 JSON (len=%d)", len(json_candidate))
+                        content = json_candidate
+                    elif json_candidate:
+                        logger.warning(
+                            "從推理文本提取到的 JSON 過小 (len=%d)，跳過: %s",
+                            len(json_candidate), json_candidate[:100]
+                        )
+                        # 不設置 content，讓後續流程處理
+                    else:
+                        # 第三步：更激進的提取（_extract_json_from_thinking）
+                        extracted = self._extract_json_from_thinking(content)
+                        if extracted != content:
+                            try:
+                                self._safe_json_loads(extracted)
+                                # 安全檢查：提取結果不能比原始 content 小太多
+                                # OCR 回應通常至少 200 字，若提取結果遠小於原始內容，
+                                # 可能只是抓到了嵌套的子對象（如 {"left":3,"right":2}）
+                                size_ratio = len(extracted) / max(len(content), 1)
+                                if len(extracted) < 200 and size_ratio < 0.3:
+                                    logger.warning(
+                                        "thinking 提取結果過小 (len=%d, 原始=%d, 比例=%.1f%%)，"
+                                        "可能為子對象，跳過替換。前100字: %s",
+                                        len(extracted), len(content),
+                                        size_ratio * 100, extracted[:100]
+                                    )
+                                else:
+                                    logger.info("thinking 提取成功 (len=%d)", len(extracted))
+                                    content = extracted
+                            except (json.JSONDecodeError, ValueError):
+                                logger.warning(
+                                    "thinking 提取的 JSON 仍無法解析 (len=%d), 前200字: %s",
+                                    len(extracted), extracted[:200]
+                                )
 
             logger.info(
                 "Vision 模型調用成功: model=%s, raw_len=%d, thinking_len=%d, final_len=%d",
@@ -218,6 +336,99 @@ class VisionService:
 
         except Exception as e:
             logger.error("Vision 模型調用失敗: %s", e, exc_info=True)
+            return None
+
+    async def _call_vision_model_json(
+        self, image_path: str, prompt: str
+    ) -> Optional[str]:
+        """
+        調用 Ollama qwen3-vl 模型（強制 JSON 輸出模式）
+
+        使用 format:"json" 強制 Ollama 約束解碼為合法 JSON，
+        繞過 thinking 模式的干擾。這是 OCR 的首選調用方式。
+
+        特性：
+        - format:"json" — Ollama 在解碼層面強制輸出 JSON
+        - system message + /no_think — 雙重抑制思考
+        - num_predict:8192 — 幾何題 JSON 可能很大
+        - 超時 180 秒 — JSON 模式比普通模式稍慢
+        """
+        try:
+            import httpx
+
+            image_b64 = self._encode_image_base64(image_path)
+            if not image_b64:
+                return None
+
+            payload = {
+                "model": self._vision_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "/no_think\n"
+                            "You are an OCR assistant. You MUST output ONLY valid JSON. "
+                            "No reasoning, no explanations, no markdown."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                        "images": [image_b64],
+                    },
+                ],
+                "stream": False,
+                "think": False,
+                "format": "json",
+                "options": {
+                    "temperature": 0.1,
+                    "num_predict": 8192,
+                },
+            }
+
+            url = f"{self._base_url}/api/chat"
+            # JSON 模式 + 30B 模型較慢（Ollama 約束解碼），給 360 秒
+            timeout = httpx.Timeout(360.0, connect=30.0)
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+                data = response.json()
+
+            msg = data.get("message", {})
+            content = msg.get("content", "")
+            thinking = msg.get("thinking", "")
+
+            logger.info(
+                "Vision JSON 模式回應: content_len=%d, thinking_len=%d",
+                len(content), len(thinking),
+            )
+
+            # 清理 thinking 標籤
+            content = self._strip_thinking_tags(content)
+
+            # 如果 content 為空，嘗試從 thinking 提取
+            if not content and thinking:
+                logger.info("JSON 模式 content 為空，嘗試從 thinking 提取")
+                cleaned_thinking = self._strip_thinking_tags(thinking) or thinking
+                extracted = self._extract_json_from_reasoning(cleaned_thinking)
+                if extracted and len(extracted) >= 50:
+                    content = extracted
+                else:
+                    # 也嘗試 _extract_json_from_thinking（更激進）
+                    extracted2 = self._extract_json_from_thinking(cleaned_thinking)
+                    if extracted2 and len(extracted2) >= 100:
+                        content = extracted2
+
+            if content:
+                logger.info("Vision JSON 模式提取成功 (final_len=%d)", len(content))
+            else:
+                logger.warning("Vision JSON 模式未能提取有效內容")
+
+            return content if content else None
+
+        except Exception as e:
+            logger.error("Vision JSON 模式調用失敗: %s", e)
             return None
 
     # ================================================================
@@ -421,16 +632,17 @@ Output in the following JSON format:
     ],
 
     "relationships": [
-      {"type": "parallel", "entities": ["S_AB", "S_CD"], "source": "question_text"},
+      {"type": "parallel", "entities": ["S_BC", "S_DE", "S_FG"], "source": "question_text"},
       {"type": "perpendicular", "entities": ["S_AB", "S_CE"], "at": "P_E", "source": "figure"},
       {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"},
-      {"type": "collinear", "points": ["P_A", "P_B", "P_D"], "source": "figure"},
+      {"type": "collinear", "points": ["P_A", "P_B", "P_D", "P_F"], "source": "figure"},
       {"type": "congruent", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
       {"type": "similar", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
       {"type": "tangent", "entities": ["L_1", "Cir_O"], "at": "P_T", "source": "figure"},
       {"type": "on_segment", "subject": "P_D", "target": "S_BC", "source": "question_text"},
       {"type": "bisector", "subject": "Ray_1", "target": "Ang_ACB", "source": "inferred"},
-      {"type": "equal", "items": [{"ref": "S_AB", "prop": "length"}, {"ref": "S_AC", "prop": "length"}], "source": "question_text"}
+      {"type": "equal", "items": [{"ref": "S_AB", "prop": "length"}, {"ref": "S_AC", "prop": "length"}], "source": "question_text"},
+      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
     ],
 
     "task": {
@@ -465,24 +677,69 @@ Output in the following JSON format:
 LAYER 1 — objects:
 - Every geometric entity gets a unique "id" using naming convention: P_ for points, S_ for segments, L_ for lines, Ray_ for rays, Ang_ for angles, Cir_ for circles, Tri_ for triangles, Poly_ for polygons.
 - ALL references in other layers MUST use object ids, NOT labels.
-- Only include objects that actually appear in the figure.
 
 LAYER 2 — measurements:
 - "target" references an object id from layer 1.
 - "source" indicates WHERE this measurement comes from: "figure" (read from diagram), "question_text" (stated in problem text), or "inferred" (you deduced it).
+- ⚠️ ONLY include measurements that are DIRECTLY stated in the problem or figure.
+- "property" MUST be one of: "length", "degrees", "radius", "area", "perimeter". Do NOT use "ratio" as a property.
+- Do NOT create synthetic measurements derived from ratios. Example:
+  WRONG: DI:IJ = 3:2 → creating measurements {"target":"S_DI","property":"ratio","value":{"left":3,"right":2}}
+  WRONG: DI:IJ = 3:2 → creating measurements DI = 3k, IJ = 2k
+  RIGHT: DI:IJ = 3:2 → only use a "ratio" RELATIONSHIP: {"type":"ratio","items":[{"ref":"S_DI","prop":"length"},{"ref":"S_IJ","prop":"length"}],"value":{"left":3,"right":2},"source":"question_text"}
+  Ratios belong in RELATIONSHIPS, never in MEASUREMENTS.
 
 LAYER 3 — relationships:
-- Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent).
+- Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent). Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "subject"+"target"/"of" for directed relations (midpoint, on_segment, bisector).
 - Use "points" for point-set relations (collinear).
-- Use "items" for equality comparisons (equal).
+- Use "items" for equality comparisons (equal) and ratio comparisons (ratio). Ratio value should be structured: {"left": 3, "right": 2}.
 - EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred".
+- ⚠️ SOURCE ATTRIBUTION RULE — use the STRONGEST evidence source:
+  - If the problem text explicitly states a fact (e.g. "ABDF is a straight line"), source MUST be "question_text", even if the figure also shows it.
+  - Only use "figure" when a fact is SOLELY observable from the diagram and NOT stated in the text.
+  - "inferred" is for facts you deduced that are neither stated in text nor clearly shown in the figure.
 
 LAYER 4 — task:
-- "known_conditions": list of given conditions in human-readable form.
-- "goals": what the problem asks to find/prove.
+- "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
+  WRONG: ["In the figure, ABDF and ACEG are straight lines, BC // DE // FG, FH = 12cm, DI:IJ = 3:2"]
+  RIGHT: ["A、B、D、F 共線", "A、C、E、G 共線", "BC ∥ DE ∥ FG", "FH = 12 cm", "DI : IJ = 3 : 2"]
+- "goals": each goal as a clear target. Example: ["求 DI", "求 BC", "求 HG"]
 - "auxiliary_lines": any construction lines mentioned.
 - "figure_annotations": text labels visible on the figure.
+- ⚠️ known_conditions and goals MUST use plain Unicode text, NOT LaTeX:
+  WRONG: ["BC \\parallel DE \\parallel FG", "FH = 12 \\text{ cm}"]
+  RIGHT: ["BC ∥ DE ∥ FG", "FH = 12 cm"]
+  Use ∥ for parallel, ⊥ for perpendicular, ∠ for angle, △ for triangle. No backslashes.
+
+⚠️ OBJECT RETENTION RULES — which objects to include:
+INCLUDE:
+- All labeled points visible in the figure
+- Segments/angles/circles that have a measurement in the problem
+- Segments/angles referenced in a relationship (parallel, perpendicular, ratio, etc.)
+- Objects explicitly mentioned in the goals ("find DI" → include S_DI)
+DO NOT INCLUDE:
+- Sub-segments merely decomposable from collinear points (if A,B,D,F are collinear, do NOT create S_AB, S_BD, S_DF, S_AD, S_AF, S_BF unless they carry a measurement or are a goal)
+- Triangles merely inferrable from the figure unless the problem explicitly names them or they are needed for a relationship
+- Any object not referenced by measurements, relationships, or goals
+
+WRONG EXAMPLE (too many objects):
+Points A,B,D,F are collinear → creating S_AB, S_BD, S_DF, S_AD, S_AF, S_BF as objects
+RIGHT EXAMPLE (constraint-first):
+Points A,B,D,F are collinear → create points P_A, P_B, P_D, P_F + relationship {"type":"collinear","points":["P_A","P_B","P_D","P_F"]}
+Only create S_FH if FH=12cm is given, S_DI if DI appears in a ratio or goal.
+
+⚠️ EXTRACTION PRIORITIES (most important first):
+1. Collinear point groups — which points lie on the same straight line
+2. Parallel/perpendicular chains — include ALL parallel lines (BC ∥ DE ∥ FG, not just BC ∥ DE)
+3. Measurements — lengths, angles with exact values
+4. Ratios — DI : IJ = 3 : 2 → use {"type":"ratio"} relationship
+5. Goals — what the problem asks to find/prove
+6. Only create segment/triangle objects if they carry a measurement or are explicitly referenced
+
+⚠️ COLLINEAR POINTS — use relationship, NOT object names:
+WRONG: creating an object like {"id": "S_ABDF", "type": "line"} or {"id": "straight_line_ABDF"}
+RIGHT: creating individual points + {"type": "collinear", "points": ["P_A","P_B","P_D","P_F"], "source": "figure"}
 
 - If there is NO figure at all, set: "figure_description": {"has_figure": false}
 
@@ -526,13 +783,15 @@ Output in the following JSON format:
     ],
 
     "relationships": [
-      {"type": "parallel", "entities": ["S_AB", "S_CD"], "source": "question_text"},
-      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"}
+      {"type": "parallel", "entities": ["S_BC", "S_DE", "S_FG"], "source": "question_text"},
+      {"type": "collinear", "points": ["P_A", "P_B", "P_D", "P_F"], "source": "figure"},
+      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"},
+      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
     ],
 
     "task": {
-      "known_conditions": ["AB = 5cm", "∠ACB = 90°"],
-      "goals": ["Find ∠AOC"],
+      "known_conditions": ["A、B、D、F 共線", "BC ∥ DE ∥ FG", "FH = 12 cm", "DI : IJ = 3 : 2"],
+      "goals": ["求 DI", "求 BC"],
       "auxiliary_lines": [],
       "figure_annotations": ["5cm", "90°"]
     },
@@ -563,8 +822,28 @@ Output in the following JSON format:
 - Every object gets a unique "id" (P_ for points, S_ for segments, etc.).
 - ALL references in measurements/relationships MUST use object ids, NOT labels.
 - Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred".
+- SOURCE RULE: if the problem text explicitly states a fact, source = "question_text", even if the figure also shows it. Only use "figure" for facts solely observable from the diagram.
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
+- Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
+- Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
+- Do NOT create synthetic measurements from ratios (e.g. DI=3k from DI:IJ=3:2). Do NOT use "ratio" as a measurement property. Ratios belong in RELATIONSHIPS only.
 - If there is NO figure, set: "figure_description": {"has_figure": false}
+
+⚠️ OBJECT RETENTION — only include objects that are referenced:
+- All labeled points visible in the figure
+- Segments/angles/circles that have a measurement or are in a relationship
+- Objects mentioned in goals
+- Do NOT exhaustively list every sub-segment from collinear points
+- Do NOT list triangles unless explicitly needed
+
+⚠️ EXTRACTION PRIORITIES:
+1. Collinear groups  2. Parallel/perpendicular chains (complete, not partial)
+3. Measurements  4. Ratios  5. Goals  6. Only then additional objects
+
+⚠️ TASK LAYER — structured atomic conditions:
+- Each known_condition = one citable fact (e.g. "A、B、D、F 共線", "BC ∥ DE ∥ FG", "FH = 12 cm")
+- Do NOT copy entire problem text as one condition
+- Use plain Unicode symbols (∥ ⊥ ∠ △), NOT LaTeX (\\parallel \\perp \\text{})
 
 ⚠️ RULES FOR "confidence_breakdown":
 - Rate your confidence for each component from 0.0 to 1.0.
@@ -975,7 +1254,45 @@ Output JSON only.
             candidates.sort(key=len, reverse=True)
             return candidates[0]
 
-        # 回退：傳統的 find/rfind 方法
+        # 回退：嘗試找到任何足夠大的 {...} 塊（不要求含 question/answer 鍵）
+        all_candidates = []
+        i = 0
+        while i < len(text):
+            if text[i] == '{':
+                depth = 0
+                in_str = False
+                esc = False
+                for j in range(i, len(text)):
+                    ch = text[j]
+                    if esc:
+                        esc = False
+                        j_next = j + 1
+                        continue
+                    if ch == '\\' and in_str:
+                        esc = True
+                        continue
+                    if ch == '"' and not esc:
+                        in_str = not in_str
+                        continue
+                    if in_str:
+                        continue
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            candidate = text[i:j + 1]
+                            if len(candidate) > 100:  # 忽略太短的片段（OCR 結果至少要 100 字）
+                                all_candidates.append(candidate)
+                            break
+            i += 1
+
+        if all_candidates:
+            # 優先選最大的候選
+            all_candidates.sort(key=len, reverse=True)
+            return all_candidates[0]
+
+        # 最終回退：傳統的 find/rfind 方法
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end != -1 and end > start:
@@ -1046,7 +1363,7 @@ Output JSON only.
         fig_desc = self._regex_extract_field(text, "figure_description")
 
         # 反轉義常見的 JSON 轉義序列
-        for old, new in [("\\n", "\n"), ("\\t", "\t"), ('\\"', '"')]:
+        for old, new in [("\\\\", "\\"), ("\\n", "\n"), ("\\t", "\t"), ('\\"', '"')]:
             question = question.replace(old, new)
             answer = answer.replace(old, new)
             fig_desc = fig_desc.replace(old, new)
@@ -1057,9 +1374,10 @@ Output JSON only.
         confidence = 0.7 if (question and answer) else 0.3
 
         if question or answer:
-            logger.info("正則回退提取成功: question=%d字, answer=%d字", len(question), len(answer))
+            logger.info("正則回退提取成功: question=%d字, answer=%d字, figure_description=%d字",
+                        len(question), len(answer), len(fig_desc))
         else:
-            logger.warning("正則回退也無法提取內容")
+            logger.warning("正則回退也無法提取內容, raw前200字: %s", text[:200])
 
         return OCRResult(
             question_text=question,
@@ -1205,7 +1523,12 @@ Output JSON only.
                         return ""
                     return raw.strip()
                 except (json.JSONDecodeError, ValueError):
-                    pass
+                    # JSON 解析失敗，嘗試截斷修復
+                    repaired = VisionService._repair_truncated_json(raw)
+                    if repaired is not None:
+                        if isinstance(repaired, dict) and not repaired.get("has_figure", True):
+                            return ""
+                        return json.dumps(repaired, ensure_ascii=False)
             return raw.strip()
 
         return str(raw) if raw else ""
@@ -1305,128 +1628,25 @@ Output JSON only.
 
     @staticmethod
     def _readable_v2(fig: dict) -> str:
-        """v2 schema (新 4 層約束版) 的可讀描述"""
-        parts = []
+        """v2 schema (新 4 層約束版) 的可讀描述 — 約束優先排序，無工程 token"""
+        from app.domains.vision.geometry_descriptor import GeometryDescriptor
+        desc = GeometryDescriptor(fig)
+        return desc.to_readable_text()
 
-        # objects 層
-        objects = fig.get("objects", [])
-        if objects:
-            by_type: dict = {}
-            for obj in objects:
-                t = obj.get("type", "unknown")
-                label = obj.get("label", obj.get("id", ""))
-                by_type.setdefault(t, []).append(label)
-            type_labels = {
-                "point": "點", "segment": "線段", "line": "直線",
-                "ray": "射線", "angle": "角", "circle": "圓",
-                "triangle": "三角形", "polygon": "多邊形",
-            }
-            for t, labels in by_type.items():
-                name = type_labels.get(t, t)
-                parts.append(f"{name}：{'、'.join(labels)}")
-
-        # measurements 層
-        measurements = fig.get("measurements", [])
-        if measurements:
-            m_parts = []
-            for m in measurements:
-                target = m.get("target", "")
-                prop = m.get("property", "")
-                value = m.get("value", "")
-                if target and value:
-                    if prop == "degrees":
-                        val_str = str(value)
-                        m_parts.append(
-                            f"∠{target} = {value}°"
-                            if not val_str.endswith("°")
-                            else f"∠{target} = {value}"
-                        )
-                    elif prop == "length":
-                        m_parts.append(f"{target} = {value}")
-                    else:
-                        m_parts.append(f"{target} {prop} = {value}")
-            if m_parts:
-                parts.append("；".join(m_parts))
-
-        # relationships 層
-        rels = fig.get("relationships", [])
-        if rels:
-            rel_parts = []
-            for rel in rels:
-                rel_type = rel.get("type", "")
-                source = rel.get("source", "")
-                inferred_mark = "?" if source == "inferred" else ""
-
-                if rel_type == "parallel":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} // {entities[1]}{inferred_mark}")
-                elif rel_type == "perpendicular":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} ⊥ {entities[1]}{inferred_mark}")
-                elif rel_type == "midpoint":
-                    subj = rel.get("subject", "")
-                    of = rel.get("of", "")
-                    rel_parts.append(f"{subj} 是 {of} 中點{inferred_mark}")
-                elif rel_type == "collinear":
-                    pts = rel.get("points", [])
-                    rel_parts.append(f"{'、'.join(pts)} 共線{inferred_mark}")
-                elif rel_type == "congruent":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} ≅ {entities[1]}{inferred_mark}")
-                elif rel_type == "similar":
-                    entities = rel.get("entities", [])
-                    if len(entities) == 2:
-                        rel_parts.append(f"{entities[0]} ∼ {entities[1]}{inferred_mark}")
-                elif rel_type == "tangent":
-                    entities = rel.get("entities", [])
-                    at = rel.get("at", "")
-                    if len(entities) == 2:
-                        t = f"，切點 {at}" if at else ""
-                        rel_parts.append(f"{entities[0]} 切 {entities[1]}{t}{inferred_mark}")
-                elif rel_type == "on_segment":
-                    subj = rel.get("subject", "")
-                    target = rel.get("target", "")
-                    rel_parts.append(f"{subj} 在 {target} 上{inferred_mark}")
-                elif rel_type == "bisector":
-                    subj = rel.get("subject", "")
-                    target = rel.get("target", "")
-                    rel_parts.append(f"{subj} 平分 {target}{inferred_mark}")
-                elif rel_type == "equal":
-                    items = rel.get("items", [])
-                    if len(items) == 2:
-                        a = f"{items[0].get('ref', '')}({items[0].get('prop', '')})"
-                        b = f"{items[1].get('ref', '')}({items[1].get('prop', '')})"
-                        rel_parts.append(f"{a} = {b}{inferred_mark}")
-                else:
-                    entities = rel.get("entities", [])
-                    if entities:
-                        rel_parts.append(
-                            f"{rel_type}: {', '.join(str(e) for e in entities)}{inferred_mark}"
-                        )
-
-            if rel_parts:
-                parts.append("；".join(rel_parts))
-
-        # task 層
-        task = fig.get("task", {})
-        if task:
-            goals = task.get("goals", [])
-            known = task.get("known_conditions", [])
-            if known:
-                parts.append(f"已知：{'、'.join(known)}")
-            if goals:
-                parts.append(f"求：{'、'.join(goals)}")
-
-        if not parts:
-            overall = fig.get("overall_description", "")
-            if overall:
-                return overall
-            return "含幾何圖形"
-
-        return "；".join(parts)
+    @staticmethod
+    def generate_display_descriptor(fig_json_str: str) -> "dict | None":
+        """生成結構化展示字典，供前端渲染。"""
+        from app.domains.vision.geometry_descriptor import GeometryDescriptor
+        if not fig_json_str:
+            return None
+        try:
+            fig = json.loads(fig_json_str) if isinstance(fig_json_str, str) else fig_json_str
+        except (json.JSONDecodeError, TypeError):
+            return None
+        if not isinstance(fig, dict) or not fig.get("has_figure", True):
+            return None
+        desc = GeometryDescriptor(fig)
+        return desc.to_display_dict()
 
     @staticmethod
     def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
@@ -1478,10 +1698,48 @@ Output JSON only.
                 warnings.append(f"measurement source '{source}' 不在允許值中")
 
         # 校驗 relationships
+        allowed_rel_types = {
+            "parallel", "perpendicular", "midpoint", "collinear",
+            "congruent", "similar", "tangent", "on_segment",
+            "bisector", "equal", "ratio",
+        }
+
         for rel in fig_json.get("relationships", []):
             source = rel.get("source", "")
             if source and source not in allowed_sources:
                 warnings.append(f"relationship source '{source}' 不在允許值中")
+
+            # 校驗 relationship type
+            rel_type = rel.get("type", "")
+            if rel_type and rel_type not in allowed_rel_types:
+                warnings.append(f"relationship type '{rel_type}' 不在已知類型中")
+
+            # 校驗 ratio items 結構
+            if rel_type == "ratio":
+                items = rel.get("items", [])
+                if len(items) < 2:
+                    warnings.append("ratio relationship 需要至少 2 個 items")
+                for item in items:
+                    if not item.get("ref"):
+                        warnings.append(f"ratio item 缺少 ref: {item}")
+                    if item.get("ref") and item["ref"] not in known_ids:
+                        warnings.append(
+                            f"ratio item ref '{item['ref']}' 不在 objects 中"
+                        )
+
+            # 類型相容性檢查（警告，不阻塞）
+            if rel_type in ("parallel", "perpendicular"):
+                for entity in rel.get("entities", []):
+                    if entity and entity.startswith("P_"):
+                        warnings.append(
+                            f"{rel_type} 引用了點 '{entity}'，應引用線段/直線"
+                        )
+            if rel_type == "collinear":
+                for pt in rel.get("points", []):
+                    if pt and not pt.startswith("P_"):
+                        warnings.append(
+                            f"collinear 引用 '{pt}'，應為點（P_ 前綴）"
+                        )
 
             # 檢查引用的 entity ids
             for entity in rel.get("entities", []):
@@ -1532,37 +1790,43 @@ Output JSON only.
 
         模型返回的 JSON 經常包含未轉義的反斜槓（LaTeX 公式如
         \\frac、\\sqrt），導致 json.loads 報 Invalid \\escape。
-        此方法逐步嘗試修復後重新解析。
+
+        核心問題：JSON 標準轉義 \\b \\f \\n \\r \\t 與 LaTeX 命令衝突：
+          \\frac → \\f 被解讀為 form-feed，結果變成 rac
+          \\binom → \\b 被解讀為 backspace，結果變成 inom
+          \\therefore → \\t 被解讀為 tab，結果變成 herefore
+
+        解決方案：在 json.loads 前先辨識 LaTeX 命令（反斜槓+多個字母）
+        並雙重轉義，同時保留真正的 JSON 單字符轉義。
         """
         import re
 
+        def _fix_latex_escapes(s: str) -> str:
+            """將 LaTeX 命令的反斜槓雙重轉義，保護不被 json.loads 吞掉。
+
+            辨識方式：\\後跟 >=2 個字母一定是 LaTeX（如 \\frac, \\sqrt, \\vec）。
+            JSON 合法轉義 \\b \\f \\n \\r \\t 後面不會緊跟字母，
+            所以 \\binom \\frac \\nabla \\right \\therefore 都是 LaTeX。
+            """
+            def _replace(m: re.Match) -> str:
+                seq = m.group(1)
+                if len(seq) > 1:
+                    return '\\\\' + seq
+                return m.group(0)
+            return re.sub(r'(?<!\\)\\([a-zA-Z]+)', _replace, s)
+
         # 第 0 步：清理控制字元（thinking 模式經常夾帶 \x00-\x1f）
         cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_str)
-        # 清理字串值內的未轉義換行符（JSON 規範不允許字串內有裸 \n \r \t）
-        # 但保留已轉義的 \\n \\r \\t
-        # 這裡只處理 JSON 字串值內的裸控制字元
         cleaned = cleaned.strip()
 
-        # 第一次嘗試：直接解析（清理後）
-        for attempt_str in [cleaned, json_str]:
-            try:
-                return json.loads(attempt_str)
-            except json.JSONDecodeError:
-                pass
-
-        # 第二次嘗試：修復未轉義的反斜槓
-        # 將不合法的 \x（x 不是 " \ / b f n r t u）替換為 \\x
-        fixed = re.sub(
-            r'\\(?!["\\/bfnrtu])',
-            r'\\\\',
-            cleaned,
-        )
+        # 第一次嘗試：修復 LaTeX 轉義後解析
+        fixed = _fix_latex_escapes(cleaned)
         try:
             return json.loads(fixed)
         except json.JSONDecodeError:
             pass
 
-        # 第三次嘗試：修復字串值內的裸換行符
+        # 第二次嘗試：修復字串值內的裸換行符
         # 在 JSON 字串值中，裸 \n 是非法的，需要替換為 \\n
         def _fix_newlines_in_strings(s: str) -> str:
             """遍歷字元，在字串值內部將裸換行替換為 \\n"""
@@ -1600,21 +1864,141 @@ Output JSON only.
         except json.JSONDecodeError:
             pass
 
-        # 第四次嘗試：把所有反斜槓統一雙重轉義
+        # 第三次嘗試：把所有反斜槓統一雙重轉義（更激進）
         try:
             aggressive = cleaned.replace('\\', '\\\\')
             return json.loads(aggressive)
         except json.JSONDecodeError:
             pass
 
+        # 第五次嘗試：截斷修復（模型輸出被截斷導致 JSON 不完整）
+        repaired = VisionService._repair_truncated_json(cleaned)
+        if repaired is not None:
+            return repaired
+
         # 最終回退：拋出原始錯誤讓上層處理
         return json.loads(json_str)
+
+    @staticmethod
+    def _repair_truncated_json(s: str):
+        """
+        嘗試修復被截斷的 JSON 字符串。
+
+        模型輸出經常在末尾被截斷，導致 JSON 不完整（如缺逗號、字符串
+        未閉合、大括號/方括號未閉合）。此方法嘗試兩種策略修復。
+        """
+        if not s or not s.strip().startswith("{"):
+            return None
+
+        s = s.strip()
+
+        # 掃描字符串，追蹤狀態
+        in_str = False
+        esc = False
+        open_stack = []  # '{' or '['
+        last_comma_pos = -1  # 最後一個在字符串外部的逗號位置
+
+        for i, ch in enumerate(s):
+            if esc:
+                esc = False
+                continue
+            if ch == '\\' and in_str:
+                esc = True
+                continue
+            if ch == '"' and not esc:
+                in_str = not in_str
+                continue
+            if in_str:
+                continue
+            if ch == '{':
+                open_stack.append('{')
+            elif ch == '[':
+                open_stack.append('[')
+            elif ch == '}':
+                if open_stack and open_stack[-1] == '{':
+                    open_stack.pop()
+            elif ch == ']':
+                if open_stack and open_stack[-1] == '[':
+                    open_stack.pop()
+            elif ch == ',':
+                last_comma_pos = i
+
+        # 如果已經平衡，不需要修復
+        if not open_stack and not in_str:
+            return None
+
+        candidates = []
+
+        # 策略 1：如果在字符串內部，先閉合引號，然後回退到最後一個逗號，
+        # 截斷不完整的鍵值對，再閉合所有括號
+        if in_str or open_stack:
+            # 閉合引號後截斷到最後一個逗號
+            if last_comma_pos > 0:
+                truncated = s[:last_comma_pos]
+                # 重新掃描截斷後的字符串，計算需要的閉合符
+                closers = _compute_closers(truncated)
+                candidates.append(truncated + closers)
+
+        # 策略 2：直接閉合 — 先閉合引號，再閉合所有開放的括號
+        attempt = s
+        if in_str:
+            attempt += '"'
+        closers = _compute_closers(attempt)
+        candidates.append(attempt + closers)
+
+        for candidate in candidates:
+            try:
+                return json.loads(candidate)
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+        return None
 
     @staticmethod
     def _strip_thinking_tags(content: str) -> str:
         """移除 <think>...</think> 標籤"""
         import re
         return re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
+    @staticmethod
+    def _looks_like_pure_reasoning(text: str) -> bool:
+        """
+        判斷文本是否為純推理（非 JSON）。
+
+        當 content_len=0 且 thinking 全是自然語言推理時，
+        跳過昂貴的 JSON 提取，直接進入 retry。
+        """
+        stripped = text.strip()
+        if not stripped:
+            return True
+        # 完全沒有 JSON 標記
+        if '{' not in stripped:
+            return True
+        # 以自然語言模式開頭（英文 + 中文）
+        reasoning_starts = (
+            "got it", "let me", "okay", "ok,", "first", "the ",
+            "i ", "looking", "starting", "alright", "now,", "so,",
+            "let's",
+            # 中文推理起手式
+            "好的", "讓我", "我來", "首先", "看看", "這", "根據",
+            "嗯", "先", "需要", "分析", "觀察",
+        )
+        # 去掉可能的 <think> 標籤
+        lower = stripped.lower()
+        for prefix in ("<think>", "<think>\n"):
+            if lower.startswith(prefix):
+                lower = lower[len(prefix):].lstrip()
+                break
+        if any(lower.startswith(p) for p in reasoning_starts):
+            # { 出現在文本很後面（>70%）→ 純推理加尾部片段
+            first_brace = stripped.find('{')
+            if first_brace > len(stripped) * 0.7:
+                return True
+            # 即使 { 出現較早，但沒有 "question" / "answer" 鍵 → 不像 OCR JSON
+            remaining = stripped[first_brace:first_brace + 500]
+            if '"question"' not in remaining and '"answer"' not in remaining:
+                return True
+        return False
 
     def _extract_json_from_reasoning(self, text: str) -> str:
         """

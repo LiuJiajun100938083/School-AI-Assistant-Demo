@@ -424,10 +424,12 @@ CREATE TABLE student_mistakes (
     manual_answer_text  TEXT                             COMMENT '手動輸入的答案',
     correct_answer      TEXT                             COMMENT '正確答案',
     ai_analysis         TEXT                             COMMENT 'AI 分析結果',
+    improvement_tips    JSON                             COMMENT '改進建議 JSON 陣列',
+    key_insight         TEXT                             COMMENT '核心考點/知識點總結',
     error_type          VARCHAR(100)                     COMMENT '錯誤類型',
     difficulty_level    INT DEFAULT 1                    COMMENT '難度 1-5',
     confidence_score    FLOAT                            COMMENT 'AI 信心分數',
-    status              ENUM('pending_ocr','pending_review','analyzed','practicing','mastered')
+    status              ENUM('pending_ocr','pending_review','analyzed','practicing','mastered','processing','ocr_failed','needs_review','analysis_failed')
                             DEFAULT 'pending_ocr'       COMMENT '狀態',
     review_count        INT DEFAULT 0                    COMMENT '已複習次數',
     last_review_at      DATETIME                         COMMENT '上次複習時間',

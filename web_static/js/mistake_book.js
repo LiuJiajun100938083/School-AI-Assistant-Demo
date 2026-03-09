@@ -300,6 +300,10 @@ const UI = {
 
     statusLabel(status) {
         const map = {
+            processing: 'AI 識別中...',
+            ocr_failed: '識別失敗',
+            analysis_failed: '分析失敗',
+            needs_review: '待確認',
             pending_ocr: '待識別',
             pending_review: '待確認',
             analyzed: '已分析',
@@ -347,7 +351,7 @@ const UI = {
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
 
         if (typeof katex === 'undefined') {
-            return UI.escapeHtml(text).replace(/\n/g, '<br>');
+            return UI._renderMarkdown(text);
         }
 
         const renderKatex = (latex, displayMode) => {
@@ -384,16 +388,38 @@ const UI = {
             if (m.start >= lastEnd) { filtered.push(m); lastEnd = m.end; }
         }
 
-        let result = '';
+        // 用占位符替換 LaTeX 區段，渲染 Markdown 後再還原
+        const placeholders = [];
+        let mdText = '';
         let pos = 0;
         for (const m of filtered) {
-            if (m.start > pos) result += UI.escapeHtml(text.substring(pos, m.start)).replace(/\n/g, '<br>');
-            result += renderKatex(m.latex, m.display);
+            if (m.start > pos) mdText += text.substring(pos, m.start);
+            const ph = `KATEXPH${placeholders.length}ENDPH`;
+            placeholders.push(renderKatex(m.latex, m.display));
+            mdText += ph;
             pos = m.end;
         }
-        if (pos < text.length) result += UI.escapeHtml(text.substring(pos)).replace(/\n/g, '<br>');
+        if (pos < text.length) mdText += text.substring(pos);
+
+        // 渲染 Markdown（含 XSS 防護），然後還原 KaTeX 占位符
+        let result = UI._renderMarkdown(mdText);
+        placeholders.forEach((html, i) => {
+            result = result.replace(`KATEXPH${i}ENDPH`, html);
+        });
 
         return result;
+    },
+
+    /**
+     * 渲染 Markdown 文字（支持 **粗體**、### 標題 等）
+     * 若 marked 不可用則退回 escapeHtml + <br>
+     */
+    _renderMarkdown(text) {
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            const html = marked.parse(text, { breaks: true });
+            return DOMPurify.sanitize(html);
+        }
+        return UI.escapeHtml(text).replace(/\n/g, '<br>');
     },
 
     /**
@@ -546,6 +572,200 @@ const UI = {
 
 
 /* ============================================================
+   GeoDisplay — 統一幾何展示格式化（schema → 教學化中文）
+   ============================================================ */
+const GeoDisplay = {
+    /** 去除工程前綴：S_AB→AB, P_A→A, Tri_ABC→△ABC, Ang_ABC→∠ABC, Cir_O→⊙O */
+    stripPrefix(token) {
+        if (!token) return token;
+        const map = [
+            ['S_', ''], ['P_', ''], ['Tri_', '△'],
+            ['Ang_', '∠'], ['Cir_', '⊙'], ['Poly_', ''],
+            ['L_', ''], ['Ray_', '']
+        ];
+        for (const [prefix, replacement] of map) {
+            if (token.startsWith(prefix)) return replacement + token.slice(prefix.length);
+        }
+        return token;
+    },
+
+    /** 將 relationship 對象轉為中文自然語言 */
+    describeRelationship(rel) {
+        const t = rel.type || '';
+        const e = (rel.entities || []).map(x => this.stripPrefix(x));
+        const source = rel.source || '';
+        const suffix = source === 'inferred' ? '（推斷）' : '';
+
+        const formatters = {
+            parallel:      () => e.join(' ∥ '),
+            perpendicular: () => e.join(' ⊥ ') + (rel.at ? `，交於 ${this.stripPrefix(rel.at)}` : ''),
+            collinear:     () => (rel.points || []).map(p => this.stripPrefix(p)).join('、') + ' 共線',
+            midpoint:      () => `${this.stripPrefix(rel.subject || '?')} 是 ${this.stripPrefix(rel.of || '?')} 中點`,
+            on_segment:    () => `${this.stripPrefix(rel.subject || '?')} 在 ${this.stripPrefix(rel.target || '?')} 上`,
+            bisector:      () => `${this.stripPrefix(rel.subject || '?')} 平分 ${this.stripPrefix(rel.target || '?')}`,
+            congruent:     () => e.join(' ≅ '),
+            similar:       () => e.join(' ∼ '),
+            tangent:       () => `${e[0] || '?'} 切 ${e[1] || '?'}` + (rel.at ? `，切點 ${this.stripPrefix(rel.at)}` : ''),
+            equal:         () => {
+                const items = rel.items || [];
+                if (items.length >= 2) return `${this.stripPrefix(items[0].ref)} = ${this.stripPrefix(items[1].ref)}`;
+                return 'equal';
+            },
+            ratio:         () => {
+                const items = rel.items || [];
+                const value = rel.value;
+                const valStr = typeof value === 'object' && value !== null
+                    ? `${value.left} : ${value.right}`
+                    : String(value || '');
+                if (items.length >= 2)
+                    return `${this.stripPrefix(items[0].ref)} : ${this.stripPrefix(items[1].ref)} = ${valStr}`;
+                return `ratio = ${valStr}`;
+            },
+        };
+
+        const fn = formatters[t];
+        return (fn ? fn() : (e.length ? `${t}: ${e.join(', ')}` : t)) + suffix;
+    },
+
+    /** 清除 LaTeX 殘留，轉為 Unicode 符號 */
+    cleanLatex(text) {
+        if (!text) return text;
+        return text
+            // 雙重轉義（JSON 回退路徑可能殘留 \\parallel 等）
+            .replace(/\\\\parallel/g, '∥')
+            .replace(/\\\\perp/g, '⊥')
+            .replace(/\\\\angle/g, '∠')
+            .replace(/\\\\triangle/g, '△')
+            .replace(/\\\\cong/g, '≅')
+            .replace(/\\\\sim/g, '∼')
+            .replace(/\\\\times/g, '×')
+            .replace(/\\\\cdot/g, '·')
+            .replace(/\\\\text\s*\{([^}]*)\}/g, '$1')
+            .replace(/\\\\[()]/g, '')
+            // 單重轉義（正常路徑）
+            .replace(/\\parallel/g, '∥')
+            .replace(/\\perp/g, '⊥')
+            .replace(/\\angle/g, '∠')
+            .replace(/\\triangle/g, '△')
+            .replace(/\\cong/g, '≅')
+            .replace(/\\sim/g, '∼')
+            .replace(/\\times/g, '×')
+            .replace(/\\cdot/g, '·')
+            .replace(/\\text\s*\{([^}]*)\}/g, '$1')
+            .replace(/\\[()]/g, '')
+            .replace(/\\(quad|,|;|!)/g, ' ')
+            .replace(/\$/g, '')
+            .trim();
+    },
+
+    /** 將 measurement 對象轉為中文自然語言 */
+    describeMeasurement(m) {
+        const target = this.stripPrefix(m.target || m.what || '');
+        const prop = m.property || '';
+        const value = m.value != null ? String(m.value) : '';
+        const source = m.source || '';
+        const suffix = source === 'inferred' ? '（推斷）' : '';
+        if (prop === 'degrees') {
+            return `∠${target} = ${value}${String(value).endsWith('°') ? '' : '°'}${suffix}`;
+        } else if (prop === 'length') {
+            return `${target} = ${value}${suffix}`;
+        }
+        return `${target} ${prop} = ${value}${suffix}`;
+    },
+
+    /** 從原始 schema JSON 生成結構化幾何詳情 HTML */
+    renderFigureDetail(figJsonStr) {
+        let fig;
+        try {
+            fig = typeof figJsonStr === 'string' ? JSON.parse(figJsonStr) : figJsonStr;
+        } catch {
+            return null;
+        }
+        if (!fig || !fig.has_figure) return null;
+
+        const rels = fig.relationships || [];
+        const meas = fig.measurements || [];
+        const task = fig.task || {};
+
+        // 按類型分類關係
+        const collinear = rels.filter(r => r.type === 'collinear');
+        const parallel = rels.filter(r => r.type === 'parallel');
+        const perp = rels.filter(r => r.type === 'perpendicular');
+        const ratios = rels.filter(r => r.type === 'ratio');
+        const others = rels.filter(r => !['collinear','parallel','perpendicular','ratio'].includes(r.type));
+
+        // 量測分離：事實 vs 推斷
+        const measFact = meas.filter(m => m.source !== 'inferred');
+        const measInferred = meas.filter(m => m.source === 'inferred');
+
+        const sections = [];
+
+        const makeItems = (items, fn) => items.map(item => {
+            const src = item.source || '';
+            const isInferred = src === 'inferred';
+            const cls = isInferred ? ' class="mb-figure-desc__inferred"' : '';
+            const tag = isInferred ? '<span class="mb-figure-desc__inferred-tag">（推斷）</span>' : '';
+            return `<div${cls}>${UI.escapeHtml(fn(item))}${tag}</div>`;
+        }).join('');
+
+        // 解題優先順序：平行 → 比例 → 量測 → 垂直 → 共線 → 其他
+        if (parallel.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">平行</div>
+                ${makeItems(parallel, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (ratios.length || measFact.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">量測</div>
+                ${makeItems(ratios, r => this.describeRelationship(r))}
+                ${makeItems(measFact, m => this.describeMeasurement(m))}
+            </div>`);
+        }
+        if (perp.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">垂直</div>
+                ${makeItems(perp, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (collinear.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">共線</div>
+                ${makeItems(collinear, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (others.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">其他關係</div>
+                ${makeItems(others, r => this.describeRelationship(r))}
+            </div>`);
+        }
+        if (measInferred.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">推斷</div>
+                ${makeItems(measInferred, m => this.describeMeasurement(m))}
+            </div>`);
+        }
+
+        const known = task.known_conditions || [];
+        const goals = task.goals || [];
+        if (known.length || goals.length) {
+            sections.push(`<div class="mb-figure-desc__layer">
+                <div class="mb-figure-desc__layer-title">題目條件</div>
+                ${known.length ? `<div><strong>已知：</strong>${known.map(k => UI.escapeHtml(k)).join('；')}</div>` : ''}
+                ${goals.length ? `<div><strong>求：</strong>${goals.map(g => `<span class="mb-figure-desc__goal">${UI.escapeHtml(g)}</span>`).join('、')}</div>` : ''}
+            </div>`);
+        }
+
+        if (!sections.length) return null;
+        return `<div class="mb-figure-desc">
+            <div class="mb-figure-desc__title">幾何圖形描述</div>
+            ${sections.join('')}
+        </div>`;
+    }
+};
+
+/* ============================================================
    VIEWS — 頁面渲染
    ============================================================ */
 
@@ -616,21 +836,27 @@ const Views = {
         const listEl = document.getElementById('mistakeList');
         if (!items.length) {
             listEl.innerHTML = UI.empty('', '還沒有錯題，點擊上方「拍照上傳」開始吧');
+            this._stopProcessingPoll();
             return;
         }
 
         let html = '<div class="mb-list-container">';
         items.forEach(m => {
-            const question = m.manual_question_text || m.ocr_question_text || '（未識別）';
+            const isProcessing = m.status === 'processing';
+            const question = isProcessing
+                ? '<span class="mb-processing-pulse">AI 正在識別分析中...</span>'
+                : (m.manual_question_text || m.ocr_question_text || '（未識別）');
+            const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
+            const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
             html += `
-                <div class="mb-mistake-item" onclick="Views.openDetail('${m.mistake_id}')">
+                <div class="mb-mistake-item" ${onclick} ${cursorStyle}>
                     <div class="mb-mistake-item__bar mb-mistake-item__bar--${m.status}"></div>
                     <div class="mb-mistake-item__content">
                         <div class="mb-mistake-item__top">
                             <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
                             <span class="mb-mistake-item__date">${UI.formatDate(m.created_at)}</span>
                         </div>
-                        <div class="mb-mistake-item__question">${UI.renderMath(question)}</div>
+                        <div class="mb-mistake-item__question">${isProcessing ? question : UI.renderMath(question)}</div>
                         <div class="mb-mistake-item__footer">
                             ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
                             ${m.mastery_level > 0 ? `<span>掌握 ${m.mastery_level}%</span>` : ''}
@@ -643,6 +869,46 @@ const Views = {
         });
         html += '</div>';
         listEl.innerHTML = html;
+
+        // List-level polling: auto-refresh when processing items exist
+        const hasProcessing = items.some(m => m.status === 'processing');
+        if (hasProcessing) {
+            this._startProcessingPoll();
+        } else {
+            this._stopProcessingPoll();
+        }
+    },
+
+    _processingPollTimer: null,
+    _processingPollStart: 0,
+
+    _startProcessingPoll() {
+        if (this._processingPollTimer) return; // already polling
+        this._processingPollStart = Date.now();
+        this._processingPollTimer = setInterval(async () => {
+            // Stop after 5 minutes max
+            if (Date.now() - this._processingPollStart > 5 * 60 * 1000) {
+                this._stopProcessingPoll();
+                return;
+            }
+            // Only refresh if we're on the home tab
+            if (App.state.currentTab !== 'home') return;
+            try {
+                const res = await API.getMistakes(App.state.currentSubject);
+                if (res && res.data && res.data.items) {
+                    this._renderMistakeList(res.data.items);
+                }
+            } catch (e) {
+                // Silently ignore polling errors
+            }
+        }, 5000);
+    },
+
+    _stopProcessingPoll() {
+        if (this._processingPollTimer) {
+            clearInterval(this._processingPollTimer);
+            this._processingPollTimer = null;
+        }
     },
 
     /* ---- 錯題詳情 ---- */
@@ -660,6 +926,32 @@ const Views = {
         const m = res.data;
         const kps = m.knowledge_points || [];
 
+        // needs_review: show OCR confirm flow
+        if (m.status === 'needs_review') {
+            panel.innerHTML = `
+                <header class="mb-header">
+                    <div class="mb-header__title">
+                        <a href="javascript:void(0)" onclick="Views.closeDetail()">${Icons.chevronL(18)}</a>
+                        <span>確認識別結果</span>
+                    </div>
+                </header>
+                <div class="mb-detail-section" style="padding:16px">
+                    <div style="font-size:13px;color:var(--mb-warning);margin-bottom:12px">
+                        OCR 識別信心度較低，請確認或修正以下內容
+                    </div>
+                    <div class="mb-ocr-confirm__label">題目（可修正）</div>
+                    <textarea class="mb-ocr-confirm__textarea" id="reviewQuestion">${UI.escapeHtml(m.ocr_question_text || '')}</textarea>
+                    <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正）</div>
+                    <textarea class="mb-ocr-confirm__textarea" id="reviewAnswer">${UI.escapeHtml(m.ocr_answer_text || '')}</textarea>
+                    <button class="mb-btn mb-btn--primary mb-btn--full" style="margin-top:12px"
+                            onclick="Views._confirmReview('${m.mistake_id}')">
+                        確認並分析
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
         panel.innerHTML = `
             <header class="mb-header">
                 <div class="mb-header__title">
@@ -671,13 +963,17 @@ const Views = {
                 </div>
             </header>
 
-            ${m.figure_description_readable ? `
-            <div class="mb-detail-section">
-                <div class="mb-figure-desc">
-                    <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
-                    <div class="mb-figure-desc__item">${UI.escapeHtml(m.figure_description_readable)}</div>
-                </div>
-            </div>` : ''}
+            ${(() => {
+                const structuredHtml = m.figure_description ? GeoDisplay.renderFigureDetail(m.figure_description) : null;
+                if (structuredHtml) return `<div class="mb-detail-section">${structuredHtml}</div>`;
+                if (m.figure_description_readable) return `<div class="mb-detail-section">
+                    <div class="mb-figure-desc">
+                        <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
+                        <div class="mb-figure-desc__item">${UI.escapeHtml(m.figure_description_readable)}</div>
+                    </div>
+                </div>`;
+                return '';
+            })()}
 
             <div class="mb-detail-section">
                 <div class="mb-detail-section__title">${Icons.bookOpen(16)} 題目</div>
@@ -744,6 +1040,35 @@ const Views = {
 
     closeDetail() {
         document.getElementById('detailPanel').classList.remove('mb-detail-panel--active');
+    },
+
+    async _confirmReview(mistakeId) {
+        const q = document.getElementById('reviewQuestion')?.value?.trim();
+        const a = document.getElementById('reviewAnswer')?.value?.trim();
+        if (!q || !a) { UI.toast('請填寫題目和答案', 'error'); return; }
+
+        const panel = document.getElementById('detailPanel');
+        panel.innerHTML = UI.loading('AI 分析中，預計需要 30-60 秒...');
+
+        try {
+            const res = await fetch(`/api/mistakes/${mistakeId}/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.state.token}` },
+                body: JSON.stringify({ confirmed_question: q, confirmed_answer: a }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                UI.toast('分析完成！', 'success');
+                this.closeDetail();
+                App.navigate('home');
+            } else {
+                UI.toast(`分析失敗: ${data.detail || '未知錯誤'}`, 'error');
+                this.openDetail(mistakeId); // reload
+            }
+        } catch (err) {
+            UI.toast(`網絡錯誤: ${err.message}`, 'error');
+            this.openDetail(mistakeId);
+        }
     },
 
     /* ---- 學習 Tab（合併複習 + 練習） ---- */
@@ -1645,7 +1970,7 @@ const Upload = {
 
         const btn = document.getElementById('uploadBtn');
         btn.disabled = true;
-        btn.textContent = 'AI 識別中...';
+        btn.textContent = '上傳中...';
 
         const formData = new FormData();
         formData.append('image', this._selectedFile);
@@ -1655,63 +1980,15 @@ const Upload = {
         const res = await API.uploadPhoto(formData);
 
         if (res && res.success) {
-            const data = res.data;
-            btn.style.display = 'none';
-
-            const questionText = data.ocr_question || '';
-            const figDesc = data.figure_description || '';
-            const figReadable = data.figure_description_readable || '';
-            const cb = data.confidence_breakdown || null;
-
-            // 保存原始 figure_description JSON，供確認時回傳
-            this._figureDescriptionRaw = figDesc;
-
-            // 分項置信度警告（僅數學題有 confidence_breakdown）
-            const qWarn = cb && cb.question < 0.6
-                ? '<span class="mb-confidence-warn">⚠ 題目文字可能有誤</span>' : '';
-            const aWarn = cb && cb.answer < 0.6
-                ? '<span class="mb-confidence-warn">⚠ 手寫答案辨識度較低，請仔細核對</span>' : '';
-            const fWarn = cb && cb.figure > 0 && cb.figure < 0.6
-                ? '<span class="mb-confidence-warn">⚠ 圖形識別不確定，請檢查</span>' : '';
-
-            const ocrDiv = document.getElementById('ocrResult');
-            ocrDiv.style.display = 'block';
-            ocrDiv.innerHTML = `
-                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-bottom:8px">
-                    識別信心度：${Math.round((data.confidence || 0) * 100)}%
-                    ${data.has_handwriting ? ' · 檢測到手寫' : ''}
-                    ${figDesc ? ' · 已識別圖形' : ''}
-                </div>
-                <div id="figureEditorSlot"></div>
-                <div class="mb-ocr-confirm__label">題目（可修正） ${qWarn}</div>
-                <textarea class="mb-ocr-confirm__textarea" id="ocrQuestion">${UI.escapeHtml(questionText)}</textarea>
-                <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正） ${aWarn}</div>
-                <textarea class="mb-ocr-confirm__textarea" id="ocrAnswer">${UI.escapeHtml(data.ocr_answer || '')}</textarea>
-                <button class="mb-btn mb-btn--primary mb-btn--full" style="margin-top:12px"
-                        onclick="Upload._confirmOCR('${data.mistake_id}')">
-                    確認並分析
-                </button>
-            `;
-
-            // 渲染結構化幾何編輯器（僅數學題且有 figure_description 時顯示）
-            const editorSlot = document.getElementById('figureEditorSlot');
-            if (editorSlot && figDesc) {
-                this._renderFigureEditor(editorSlot, figDesc, fWarn);
-            }
+            // Background processing — return immediately
+            UI.toast('已上傳，AI 正在背景識別分析...', 'info');
+            this.close();
+            App.navigate('home');
         } else {
-            const errMsg = (res && res.detail) || '識別失敗，請重試';
-            btn.style.display = 'none';
-            const ocrDiv = document.getElementById('ocrResult');
-            ocrDiv.style.display = 'block';
-            ocrDiv.innerHTML = `
-                <div class="mb-ocr-fail">
-                    <div class="mb-ocr-fail__icon">${Icons.alertCircle(32)}</div>
-                    <div class="mb-ocr-fail__msg">${UI.escapeHtml(errMsg)}</div>
-                    <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Upload._retryUpload()">
-                        ${Icons.repeat(14)} 重新識別
-                    </button>
-                </div>
-            `;
+            const errMsg = (res && res.detail) || '上傳失敗，請重試';
+            btn.disabled = false;
+            btn.textContent = '上傳並識別';
+            UI.toast(errMsg, 'error');
         }
     },
 
@@ -1880,11 +2157,22 @@ const Upload = {
         try {
             fig = typeof figJsonStr === 'string' ? JSON.parse(figJsonStr) : figJsonStr;
         } catch (e) {
-            // JSON 解析失敗，降級為只讀純文字顯示
-            container.innerHTML = `<div class="mb-figure-desc">
-                <div class="mb-figure-desc__title">📐 幾何圖形描述 ${fWarn || ''}</div>
-                <div class="mb-figure-desc__item">${UI.escapeHtml(figJsonStr)}</div>
-            </div>`;
+            // JSON 解析失敗，嘗試用 GeoDisplay 結構化顯示
+            const structuredFallback = GeoDisplay.renderFigureDetail(figJsonStr);
+            if (structuredFallback) {
+                container.innerHTML = structuredFallback;
+            } else {
+                container.innerHTML = `<div class="mb-figure-desc">
+                    <div class="mb-figure-desc__title">幾何圖形描述 ${fWarn || ''}</div>
+                    <div class="mb-figure-desc__item" style="color:#888;">
+                        已檢測到幾何圖形，結構化解析失敗。您仍可手動編輯題目文字。
+                    </div>
+                    <details style="margin-top:4px;font-size:12px;color:#aaa;">
+                        <summary>開發者：查看原始資料</summary>
+                        <pre style="white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;background:#f5f5f5;padding:8px;border-radius:4px;font-size:11px;">${UI.escapeHtml(String(figJsonStr))}</pre>
+                    </details>
+                </div>`;
+            }
             return;
         }
 
@@ -1893,40 +2181,95 @@ const Upload = {
             return;
         }
 
+        // 整個渲染邏輯包在 try/catch 裡，防止任何異常導致 raw JSON 泄漏
+        try {
+            this._renderFigureEditorInner(container, fig, fWarn);
+        } catch (e) {
+            console.warn('幾何編輯器渲染失敗，降級為結構化展示', e);
+            const structuredFallback = GeoDisplay.renderFigureDetail(fig);
+            container.innerHTML = structuredFallback || '';
+        }
+    },
+
+    /** 內部：實際渲染結構化幾何編輯器 */
+    _renderFigureEditorInner(container, fig, fWarn) {
         // 保存原始結構供 _collectFigureEdits 使用
         this._figureEditData = JSON.parse(JSON.stringify(fig));
 
-        // ---- objects（只讀標籤列表）----
+        // ---- 預處理：將 measurements 中錯放的 ratio 移入 relationships ----
+        const rawMeasurements = fig.measurements || [];
+        const measurements = [];
+        const allRels = [...(fig.relationships || [])];
+
+        rawMeasurements.forEach(m => {
+            if (m.property === 'ratio') {
+                // ratio 屬性的 measurement → 轉為 ratio relationship
+                // 不在量測區顯示，但保留在 _figureEditData 裡
+                return;
+            }
+            measurements.push(m);
+        });
+
+        // ---- objects（降噪：默認只顯示關鍵對象）----
         const objects = fig.objects || fig.elements || [];
-        const objTags = objects.map(o => {
-            const label = o.label || o.id || '';
-            const typeMap = { point: '點', segment: '線段', line: '直線', ray: '射線',
-                angle: '角', circle: '圓', triangle: '△', polygon: '多邊形',
-                line_segment: '線段' };
+
+        // 收集被引用的 object IDs
+        const referencedIds = new Set();
+        rawMeasurements.forEach(m => { if (m.target) referencedIds.add(m.target); });
+        allRels.forEach(r => {
+            (r.entities || []).forEach(e => referencedIds.add(e));
+            (r.points || []).forEach(p => referencedIds.add(p));
+            ['subject', 'of', 'target', 'at'].forEach(k => { if (r[k]) referencedIds.add(r[k]); });
+            (r.items || []).forEach(it => { if (it.ref) referencedIds.add(it.ref); });
+        });
+
+        const primaryObjs = objects.filter(o => o.type === 'point' || o.type === 'circle' || referencedIds.has(o.id));
+        const secondaryObjs = objects.filter(o => o.type !== 'point' && o.type !== 'circle' && !referencedIds.has(o.id));
+
+        const typeMap = { point: '點', segment: '線段', line: '直線', ray: '射線',
+            angle: '角', circle: '圓', triangle: '△', polygon: '多邊形', line_segment: '線段' };
+
+        const objTags = primaryObjs.map(o => {
+            const label = GeoDisplay.stripPrefix(o.label || o.id || '');
             const typeName = typeMap[o.type] || o.type || '';
             return `<span class="mb-figure-editor__tag" title="${o.id || ''}">${typeName} ${UI.escapeHtml(label)}</span>`;
         }).join('');
 
-        // ---- measurements（可編輯值）----
-        const measurements = fig.measurements || [];
-        const measRows = measurements.map((m, i) => {
-            const target = m.target || m.what || '';
+        const secondaryTags = secondaryObjs.map(o => {
+            const label = GeoDisplay.stripPrefix(o.label || o.id || '');
+            const typeName = typeMap[o.type] || o.type || '';
+            return `<span class="mb-figure-editor__tag mb-figure-editor__tag--secondary" title="${o.id || ''}">${typeName} ${UI.escapeHtml(label)}</span>`;
+        }).join('');
+
+        // ---- measurements（可編輯值，去工程前綴，過濾推斷）----
+        const measFact = measurements.filter(m => m.source !== 'inferred');
+        const measInferred = measurements.filter(m => m.source === 'inferred');
+
+        const renderMeasRow = (m, i) => {
+            const target = GeoDisplay.stripPrefix(m.target || m.what || '');
             const prop = m.property || '';
-            const value = m.value != null ? String(m.value) : '';
+            const value = m.value != null
+                ? (typeof m.value === 'object' ? JSON.stringify(m.value) : String(m.value))
+                : '';
             const source = m.source || '';
-            return `<div class="mb-figure-editor__kv" data-meas-idx="${i}">
+            const inferTag = source === 'inferred'
+                ? '<span class="mb-figure-desc__inferred-tag">（推斷）</span>' : '';
+            return `<div class="mb-figure-editor__kv${source === 'inferred' ? ' mb-figure-desc__inferred' : ''}" data-meas-idx="${i}">
                 <span class="mb-figure-editor__kv-label">${UI.escapeHtml(target)}${prop && prop !== 'length' ? ' ' + prop : ''}</span>
                 <span class="mb-figure-editor__kv-eq">=</span>
                 <input class="mb-figure-editor__kv-input" type="text" value="${UI.escapeHtml(value)}" data-field="value">
                 ${source ? `<span class="mb-figure-editor__source">${source}</span>` : ''}
+                ${inferTag}
                 <button class="mb-figure-editor__del" onclick="Upload._removeMeasurement(${i})" title="刪除">×</button>
             </div>`;
-        }).join('');
+        };
 
-        // ---- relationships（可刪除）----
-        const rels = fig.relationships || [];
-        const relRows = rels.map((r, i) => {
-            const desc = this._describeRelationship(r);
+        const measRows = measFact.map((m, i) => renderMeasRow(m, i)).join('');
+        const inferredRows = measInferred.map((m, i) => renderMeasRow(m, measFact.length + i)).join('');
+
+        // ---- relationships（可刪除，使用 GeoDisplay 統一格式化）----
+        const relRows = allRels.map((r, i) => {
+            const desc = GeoDisplay.describeRelationship(r);
             const source = r.source || '';
             const inferClass = source === 'inferred' ? ' mb-figure-editor__rel--inferred' : '';
             return `<div class="mb-figure-editor__rel${inferClass}" data-rel-idx="${i}">
@@ -1936,18 +2279,34 @@ const Upload = {
             </div>`;
         }).join('');
 
-        // ---- task（只讀展示）----
+        // ---- task（只讀展示，清洗 LaTeX）----
         const task = fig.task || {};
-        const goals = (task.goals || []).map(g => `<span class="mb-figure-desc__goal">${UI.escapeHtml(g)}</span>`).join('');
-        const known = (task.known_conditions || []).map(k => UI.escapeHtml(k)).join('、');
+        const goals = (task.goals || []).map(g =>
+            `<span class="mb-figure-desc__goal">${UI.escapeHtml(GeoDisplay.cleanLatex(g))}</span>`
+        ).join('');
+        const known = (task.known_conditions || []).map(k =>
+            UI.escapeHtml(GeoDisplay.cleanLatex(k))
+        ).join('；');
+
+        // ---- raw JSON 折疊面板（僅供開發調試）----
+        const rawJsonStr = JSON.stringify(fig, null, 2);
 
         container.innerHTML = `
             <div class="mb-figure-editor">
-                <div class="mb-figure-editor__header">📐 幾何信息（可編輯） ${fWarn || ''}</div>
+                <div class="mb-figure-editor__header">幾何信息（可編輯） ${fWarn || ''}</div>
 
                 ${objTags ? `<div class="mb-figure-editor__section">
                     <div class="mb-figure-editor__section-title">幾何對象</div>
                     <div class="mb-figure-editor__tags">${objTags}</div>
+                    ${secondaryTags ? `<div class="mb-figure-editor__tags-toggle">
+                        <button class="mb-figure-editor__toggle-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'; this.textContent=this.textContent==='顯示全部對象'?'收起':'顯示全部對象'">顯示全部對象</button>
+                        <div class="mb-figure-editor__tags" style="display:none">${secondaryTags}</div>
+                    </div>` : ''}
+                </div>` : ''}
+
+                ${relRows ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">關係</div>
+                    <div id="figRelationships">${relRows}</div>
                 </div>` : ''}
 
                 ${measRows ? `<div class="mb-figure-editor__section">
@@ -1955,9 +2314,9 @@ const Upload = {
                     <div id="figMeasurements">${measRows}</div>
                 </div>` : ''}
 
-                ${relRows ? `<div class="mb-figure-editor__section">
-                    <div class="mb-figure-editor__section-title">關係</div>
-                    <div id="figRelationships">${relRows}</div>
+                ${inferredRows ? `<div class="mb-figure-editor__section">
+                    <div class="mb-figure-editor__section-title">推斷</div>
+                    ${inferredRows}
                 </div>` : ''}
 
                 <div class="mb-figure-editor__section">
@@ -1971,6 +2330,7 @@ const Upload = {
                                 <option value="congruent">全等 ≅</option>
                                 <option value="similar">相似 ∼</option>
                                 <option value="collinear">共線</option>
+                                <option value="ratio">比例</option>
                                 <option value="on_segment">在…上</option>
                                 <option value="bisector">平分</option>
                             </select>
@@ -1986,31 +2346,18 @@ const Upload = {
                     ${known ? `<div style="font-size:12px;color:var(--mb-text-secondary)">已知：${known}</div>` : ''}
                     ${goals ? `<div style="font-size:12px;margin-top:4px">求：${goals}</div>` : ''}
                 </div>` : ''}
+
+                <div class="mb-figure-editor__section">
+                    <button class="mb-figure-editor__toggle-btn" onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none';this.textContent=p.style.display==='none'?'查看原始 JSON':'收起 JSON'">查看原始 JSON</button>
+                    <pre style="display:none;font-size:11px;line-height:1.4;max-height:200px;overflow:auto;background:rgba(0,0,0,0.03);padding:8px;border-radius:4px;margin-top:4px;white-space:pre-wrap;word-break:break-all">${UI.escapeHtml(rawJsonStr)}</pre>
+                </div>
             </div>
         `;
     },
 
-    /** 將 relationship 對象轉為可讀文字 */
+    /** 將 relationship 對象轉為可讀文字（委託 GeoDisplay 統一格式化） */
     _describeRelationship(rel) {
-        const t = rel.type || '';
-        const e = rel.entities || [];
-        switch (t) {
-            case 'parallel':      return e.length >= 2 ? `${e[0]} // ${e[1]}` : t;
-            case 'perpendicular': return e.length >= 2 ? `${e[0]} ⊥ ${e[1]}` : t;
-            case 'midpoint':      return `${rel.subject || '?'} 是 ${rel.of || '?'} 中點`;
-            case 'collinear':     return `${(rel.points || []).join('、')} 共線`;
-            case 'congruent':     return e.length >= 2 ? `${e[0]} ≅ ${e[1]}` : t;
-            case 'similar':       return e.length >= 2 ? `${e[0]} ∼ ${e[1]}` : t;
-            case 'tangent':       return e.length >= 2 ? `${e[0]} 切 ${e[1]}${rel.at ? '，切點 ' + rel.at : ''}` : t;
-            case 'on_segment':    return `${rel.subject || '?'} 在 ${rel.target || '?'} 上`;
-            case 'bisector':      return `${rel.subject || '?'} 平分 ${rel.target || '?'}`;
-            case 'equal': {
-                const items = rel.items || [];
-                if (items.length >= 2) return `${items[0].ref}(${items[0].prop}) = ${items[1].ref}(${items[1].prop})`;
-                return t;
-            }
-            default: return e.length ? `${t}: ${e.join(', ')}` : t;
-        }
+        return GeoDisplay.describeRelationship(rel);
     },
 
     /** 刪除量測 */
@@ -2051,6 +2398,13 @@ const Upload = {
 
         if (type === 'collinear') {
             newRel = { type, points: [a, b].filter(Boolean), source: 'question_text' };
+        } else if (type === 'ratio') {
+            // 對象1 填 ref (如 S_DI)，對象2 填比例值 (如 3:2)
+            if (!b) { UI.toast('請填寫比例值 (如 3:2)', 'error'); return; }
+            const parts = b.split(':').map(s => parseInt(s.trim()));
+            const value = parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])
+                ? { left: parts[0], right: parts[1] } : b;
+            newRel = { type, items: [{ ref: a, prop: 'length' }], value, source: 'question_text' };
         } else if (directedTypes.includes(type)) {
             newRel = { type, subject: a, [type === 'midpoint' ? 'of' : 'target']: b, source: 'question_text' };
         } else {

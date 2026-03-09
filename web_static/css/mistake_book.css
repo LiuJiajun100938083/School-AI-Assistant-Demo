@@ -387,6 +387,23 @@
 .mb-mistake-item__bar--mastered { background: var(--mb-success); }
 .mb-mistake-item__bar--pending_review { background: var(--mb-text-tertiary); }
 .mb-mistake-item__bar--pending_ocr { background: var(--mb-text-tertiary); }
+.mb-mistake-item__bar--processing {
+    background: linear-gradient(180deg, #007aff 0%, #5ac8fa 100%);
+    animation: mb-pulse 1.5s ease-in-out infinite;
+}
+.mb-mistake-item__bar--needs_review { background: var(--mb-warning); }
+.mb-mistake-item__bar--ocr_failed,
+.mb-mistake-item__bar--analysis_failed { background: var(--mb-danger); }
+
+@keyframes mb-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+.mb-processing-pulse {
+    color: var(--mb-text-tertiary);
+    font-style: italic;
+    animation: mb-pulse 1.5s ease-in-out infinite;
+}
 
 .mb-mistake-item__content {
     flex: 1;
@@ -834,8 +851,35 @@
 }
 
 .mb-figure-desc__inferred {
-    opacity: 0.6;
+    opacity: 0.65;
     font-style: italic;
+    border-left: 2px dashed rgba(0, 0, 0, 0.15);
+    padding-left: 8px;
+    margin-left: 2px;
+}
+
+.mb-figure-desc__inferred-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-style: normal;
+    color: var(--mb-warning, #FF9500);
+    background: rgba(255, 149, 0, 0.08);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+    border-radius: 3px;
+    padding: 0 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+    line-height: 16px;
+    font-weight: 500;
+}
+
+/* 結構化展示分層標題 */
+.mb-figure-desc__layer-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mb-text-tertiary, #888);
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
 }
 
 /* 置信度警告 */
@@ -900,6 +944,24 @@
     font-size: 12px;
 }
 
+.mb-figure-editor__tag--secondary {
+    opacity: 0.5;
+    border-style: dashed;
+}
+
+.mb-figure-editor__tags-toggle {
+    margin-top: 4px;
+}
+
+.mb-figure-editor__toggle-btn {
+    font-size: 11px;
+    color: var(--mb-primary, #007aff);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 0;
+}
+
 /* 量測鍵值行 */
 .mb-figure-editor__kv {
     display: flex;
@@ -951,8 +1013,16 @@
 }
 
 .mb-figure-editor__rel--inferred {
-    opacity: 0.65;
-    font-style: italic;
+    opacity: 0.6;
+    border-left: 2px dashed rgba(0, 0, 0, 0.15);
+    padding-left: 8px;
+}
+
+.mb-figure-editor__rel--inferred .mb-figure-editor__rel-text::after {
+    content: '（推斷）';
+    color: var(--mb-text-tertiary, #888);
+    font-size: 11px;
+    margin-left: 4px;
 }
 
 .mb-figure-editor__rel-text {

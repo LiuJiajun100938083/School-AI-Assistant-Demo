@@ -43,12 +43,14 @@ CREATE TABLE IF NOT EXISTS student_mistakes (
     -- AI 分析結果
     correct_answer TEXT COMMENT 'AI 給出的正確答案/參考答案',
     ai_analysis TEXT COMMENT 'AI 分析（錯誤原因、解題思路）',
+    improvement_tips JSON COMMENT '改進建議 JSON 陣列',
+    key_insight TEXT COMMENT '核心考點/知識點總結',
     error_type VARCHAR(100) COMMENT '錯誤類型: concept_error/calculation_error/comprehension_gap/careless/expression_weak',
     difficulty_level INT DEFAULT 1 COMMENT '題目難度 1-5',
     confidence_score FLOAT COMMENT 'AI 批改信心度 0-1',
 
     -- 狀態機
-    status ENUM('pending_ocr', 'pending_review', 'analyzed', 'practicing', 'mastered')
+    status ENUM('pending_ocr', 'pending_review', 'analyzed', 'practicing', 'mastered', 'processing', 'ocr_failed', 'needs_review', 'analysis_failed')
         DEFAULT 'pending_ocr' COMMENT '錯題狀態',
     review_count INT DEFAULT 0 COMMENT '複習次數',
     last_review_at DATETIME COMMENT '最後複習時間',

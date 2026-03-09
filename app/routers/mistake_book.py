@@ -9,7 +9,7 @@ import logging
 import time
 from typing import Optional, Set, Tuple
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from app.core.dependencies import get_current_user, require_admin, require_teacher_or_admin
@@ -98,13 +98,14 @@ async def get_mistake_book_subjects(
 
 @router.post("/api/mistakes/upload")
 async def upload_mistake_photo(
+    background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     subject: str = Form(...),
     category: str = Form(...),
     current_user: dict = Depends(get_current_user),
 ):
     """
-    上傳錯題照片，AI 自動識別題目和答案
+    上傳錯題照片，立即返回，後台 AI 自動識別 + 分析
 
     - **image**: 照片文件（JPG/PNG，最大 10MB）
     - **subject**: 科目 (chinese/math/english)
@@ -118,13 +119,29 @@ async def upload_mistake_photo(
 
     try:
         service = get_services().mistake_book
-        result = await service.upload_mistake_photo(
+
+        # 快速創建記錄（只保存圖片 + 建 DB，不做 OCR）
+        result = await service.create_mistake_record(
             student_username=current_user["username"],
             subject=subject,
             category=category,
             image_data=content,
             filename=image.filename or "photo.jpg",
         )
+
+        # 後台處理：OCR → 自動確認 → AI 分析
+        async def _process_task():
+            try:
+                svc = get_services().mistake_book
+                await svc.process_mistake_background(result["mistake_id"])
+            except Exception as e:
+                logger.error(
+                    "後台處理錯題失敗 (mistake=%s): %s",
+                    result["mistake_id"], e,
+                )
+
+        background_tasks.add_task(_process_task)
+
         return {"success": True, "data": result}
 
     except MistakeBookError as e:

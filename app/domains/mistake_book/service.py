@@ -72,6 +72,92 @@ def _truncate_repetitive(text: str, max_len: int = 3000) -> str:
     return text[:max_len]
 
 
+def _strip_thinking_from_field(text: str) -> str:
+    """
+    清理 AI 字段中的思考過程殘留。
+
+    Qwen3 等模型有時會在 JSON 字段值中混入推理過程，
+    如「等等，讓我重新檢查」「驚人的發現」等。
+    此函數檢測並移除這些內容，只保留最終結論。
+    """
+    if not text or len(text) < 200:
+        return text
+
+    import re
+
+    # 常見的思考轉折標記（中文）
+    thinking_markers = [
+        r'等等，讓我',
+        r'讓我重新檢查',
+        r'讓我再次',
+        r'讓我再看',
+        r'讓我再確認',
+        r'修正分析[：:]',
+        r'重新評估[：:]',
+        r'重新審視[：:]',
+        r'驚人的發現[：:]',
+        r'再確認[：:]',
+        r'再檢查一遍',
+        r'或者，我是否',
+        r'但是，題目要求',
+        r'不過，如果必須',
+        r'決定[：:]',
+        r'結論[：:]',
+    ]
+
+    # 如果存在思考標記，嘗試只保留最後的結論部分
+    has_thinking = False
+    for marker in thinking_markers:
+        if re.search(marker, text):
+            has_thinking = True
+            break
+
+    if not has_thinking:
+        return text
+
+    # 策略：找最後一個「結論」/「決定」/「修正後」後的內容
+    conclusion_markers = [
+        r'結論[：:]',
+        r'決定[：:]',
+        r'修正後的',
+        r'最終[：:]',
+        r'因此[，,]',
+    ]
+
+    best_pos = -1
+    for marker in conclusion_markers:
+        for m in re.finditer(marker, text):
+            if m.start() > best_pos:
+                best_pos = m.start()
+
+    if best_pos > 0 and best_pos < len(text) - 50:
+        # 取結論部分，但如果太短就保留更多
+        conclusion = text[best_pos:].strip()
+        if len(conclusion) >= 50:
+            return conclusion
+
+    # 回退策略：截取前 800 字符（第一段分析通常是合理的，後面是反復推敲）
+    # 找到第一個思考標記的位置
+    first_think_pos = len(text)
+    for marker in thinking_markers:
+        m = re.search(marker, text)
+        if m and m.start() < first_think_pos:
+            first_think_pos = m.start()
+
+    if first_think_pos > 50:
+        return text[:first_think_pos].rstrip()
+
+    return text[:800].rstrip() if len(text) > 800 else text
+
+
+def _clean_analysis_fields(analysis: Dict) -> Dict:
+    """對 AI 返回的分析結果進行思考過程清理"""
+    for field in ("error_analysis", "correct_answer"):
+        if field in analysis and isinstance(analysis[field], str):
+            analysis[field] = _strip_thinking_from_field(analysis[field])
+    return analysis
+
+
 def _extract_analysis_from_prose(text: str) -> Dict:
     """
     當 AI 返回散文而非 JSON 時，嘗試從文本中提取有用的分析信息。
@@ -295,7 +381,7 @@ class MistakeBookService:
             "format": "json",
             "options": {
                 "temperature": 0.3,
-                "num_predict": 4096,
+                "num_predict": 8192,
             },
         }
 
@@ -388,7 +474,14 @@ class MistakeBookService:
     # 錯題上傳與識別
     # ================================================================
 
-    async def upload_mistake_photo(
+    # ================================================================
+    # 上傳：拆分為 create + background process
+    # ================================================================
+
+    # 自動確認置信度門檻（低於此值不自動分析，進入 needs_review）
+    AUTO_CONFIRM_THRESHOLD = 0.5
+
+    async def create_mistake_record(
         self,
         student_username: str,
         subject: str,
@@ -397,12 +490,12 @@ class MistakeBookService:
         filename: str,
     ) -> Dict:
         """
-        上傳錯題照片並執行 OCR
+        快速創建錯題記錄（只保存圖片 + 建 DB 記錄，不做 OCR）。
 
-        流程: 保存圖片 → OCR 識別 → 創建 pending_review 記錄
+        後台由 process_mistake_background() 執行 OCR + 分析。
 
         Returns:
-            {mistake_id, ocr_question, ocr_answer, confidence, status}
+            {mistake_id, status: "processing"}
         """
         mistake_id = str(uuid.uuid4())[:12]
 
@@ -422,83 +515,165 @@ class MistakeBookService:
         if ext.lower() in (".heic", ".heif"):
             web_image_path = self._convert_to_jpeg_for_web(saved_path, save_dir, mistake_id)
 
-        # OCR 識別
-        ocr_result = None
-        if self._vision:
-            recognition_subject = RecognitionSubject(subject)
-            handler = SubjectHandlerRegistry.get(subject)
-            task = handler.pick_recognition_task(category)
-            ocr_result = await self._vision.recognize(
-                saved_path, recognition_subject, task
-            )
-
-        if ocr_result and ocr_result.success:
-            status = "pending_review"
-            ocr_question = ocr_result.question_text
-            ocr_answer = ocr_result.answer_text
-            confidence = ocr_result.confidence
-            figure_desc = ocr_result.figure_description
-        else:
-            status = "pending_ocr"
-            ocr_question = ""
-            ocr_answer = ""
-            confidence = 0.0
-            figure_desc = ""
-            if ocr_result:
-                logger.warning("OCR 識別失敗: %s", ocr_result.error)
-
-        if figure_desc:
-            logger.info("圖形描述已提取: %s", figure_desc[:100])
-
-        # 構建分項置信度（支持分項置信度的科目才拆分，其他科目為 null）
-        confidence_breakdown = None
-        if ocr_result and ocr_result.success and handler.supports_confidence_breakdown:
-            q_conf = ocr_result.question_confidence
-            a_conf = ocr_result.answer_confidence
-            f_conf = ocr_result.figure_confidence
-            # 只有在模型返回了有效值時才存儲
-            if q_conf > 0 or a_conf > 0 or f_conf > 0:
-                confidence_breakdown = {
-                    "question": round(q_conf, 2),
-                    "answer": round(a_conf, 2),
-                    "figure": round(f_conf, 2),
-                }
-
-        # 創建錯題記錄（存儲瀏覽器可顯示的 JPEG 路徑）
-        insert_data = {
+        # 創建記錄（status=processing，表示後台正在處理）
+        self._mistakes.insert({
             "mistake_id": mistake_id,
             "student_username": student_username,
             "subject": subject,
             "category": category,
             "original_image_path": web_image_path,
-            "ocr_question_text": ocr_question,
-            "ocr_answer_text": ocr_answer,
-            "confidence_score": confidence,
-            "status": status,
+            "ocr_question_text": "",
+            "ocr_answer_text": "",
+            "confidence_score": 0.0,
+            "status": "processing",
             "source": "photo",
-        }
-        if confidence_breakdown is not None:
-            insert_data["confidence_breakdown"] = json.dumps(confidence_breakdown)
-        self._mistakes.insert(insert_data)
-
-        # 通過收口方法寫入 figure_description 獨立列（新上傳使用 v2 schema）
-        figure_readable = ""
-        if figure_desc:
-            figure_readable = self._apply_figure_description(
-                mistake_id, figure_desc, schema_version=2
-            )
+        })
 
         return {
             "mistake_id": mistake_id,
-            "ocr_question": ocr_question,
-            "ocr_answer": ocr_answer,
-            "confidence": confidence,
-            "confidence_breakdown": confidence_breakdown,
-            "has_handwriting": ocr_result.has_handwriting if ocr_result else False,
-            "figure_description": figure_desc,
-            "figure_description_readable": figure_readable,
-            "status": status,
-            "message": "識別完成，請確認或修正結果" if status == "pending_review" else "識別失敗，請手動輸入",
+            "status": "processing",
+            "message": "已上傳，AI 正在背景識別分析...",
+        }
+
+    async def process_mistake_background(self, mistake_id: str):
+        """
+        後台處理：OCR → 置信度閘門 → 自動確認 + AI 分析。
+
+        設計為冪等：只有 status="processing" 時才執行，
+        避免重複提交或任務重跑導致重複處理。
+        """
+        mistake = self._mistakes.find_by_mistake_id(mistake_id)
+        if not mistake:
+            logger.error("後台處理：找不到錯題 %s", mistake_id)
+            return
+
+        # 冪等保護：只處理 processing 狀態
+        if mistake["status"] != "processing":
+            logger.info(
+                "後台處理：錯題 %s 狀態已為 %s，跳過",
+                mistake_id, mistake["status"],
+            )
+            return
+
+        subject = mistake["subject"]
+        image_path = mistake["original_image_path"]
+        category = mistake.get("category", "")
+
+        # ---- Step 1: OCR ----
+        ocr_result = None
+        if self._vision:
+            recognition_subject = RecognitionSubject(subject)
+            handler = SubjectHandlerRegistry.get(subject)
+            task = handler.pick_recognition_task(category)
+            try:
+                ocr_result = await self._vision.recognize(
+                    image_path, recognition_subject, task
+                )
+            except Exception as e:
+                logger.error("後台 OCR 異常 (mistake=%s): %s", mistake_id, e)
+
+        if not ocr_result or not ocr_result.success or not ocr_result.question_text:
+            self._mistakes.update(
+                {"status": "ocr_failed"},
+                "mistake_id = %s", (mistake_id,),
+            )
+            logger.warning("後台 OCR 失敗 (mistake=%s)", mistake_id)
+            return
+
+        # 保存 OCR 結果
+        figure_desc = ocr_result.figure_description or ""
+        update_data = {
+            "ocr_question_text": ocr_result.question_text,
+            "ocr_answer_text": ocr_result.answer_text,
+            "confidence_score": ocr_result.confidence,
+        }
+
+        # 構建分項置信度
+        if subject == "math":
+            q_conf = ocr_result.question_confidence
+            a_conf = ocr_result.answer_confidence
+            f_conf = ocr_result.figure_confidence
+            if q_conf > 0 or a_conf > 0 or f_conf > 0:
+                update_data["confidence_breakdown"] = json.dumps({
+                    "question": round(q_conf, 2),
+                    "answer": round(a_conf, 2),
+                    "figure": round(f_conf, 2),
+                })
+
+        self._mistakes.update(update_data, "mistake_id = %s", (mistake_id,))
+
+        # 保存圖形描述
+        if figure_desc:
+            logger.info("圖形描述已提取: %s", figure_desc[:100])
+            self._apply_figure_description(mistake_id, figure_desc, schema_version=2)
+
+        # ---- Step 2: 置信度閘門 ----
+        if ocr_result.confidence < self.AUTO_CONFIRM_THRESHOLD:
+            self._mistakes.update(
+                {"status": "needs_review"},
+                "mistake_id = %s", (mistake_id,),
+            )
+            logger.info(
+                "後台 OCR 置信度不足 (mistake=%s, conf=%.2f < %.2f)，需人工確認",
+                mistake_id, ocr_result.confidence, self.AUTO_CONFIRM_THRESHOLD,
+            )
+            return
+
+        # ---- Step 3: 自動確認 + AI 分析 ----
+        try:
+            await self.confirm_and_analyze(
+                mistake_id=mistake_id,
+                confirmed_question=ocr_result.question_text,
+                confirmed_answer=ocr_result.answer_text,
+                confirmed_figure_description=figure_desc or None,
+            )
+            logger.info("後台處理完成 (mistake=%s) → analyzed", mistake_id)
+        except Exception as e:
+            logger.error("後台分析失敗 (mistake=%s): %s", mistake_id, e)
+            self._mistakes.update(
+                {"status": "analysis_failed"},
+                "mistake_id = %s", (mistake_id,),
+            )
+
+    async def upload_mistake_photo(
+        self,
+        student_username: str,
+        subject: str,
+        category: str,
+        image_data: bytes,
+        filename: str,
+    ) -> Dict:
+        """
+        上傳錯題照片並執行 OCR（同步版，向後兼容）。
+
+        新流程推薦使用 create_mistake_record() + process_mistake_background()。
+        """
+        # 使用新方法創建記錄
+        result = await self.create_mistake_record(
+            student_username, subject, category, image_data, filename,
+        )
+        mistake_id = result["mistake_id"]
+
+        # 同步執行 OCR + 分析（兼容舊調用方式）
+        await self.process_mistake_background(mistake_id)
+
+        # 重新讀取最新狀態返回
+        mistake = self._mistakes.find_by_mistake_id(mistake_id)
+        fig_desc = mistake.get("figure_description", "")
+        fig_readable = mistake.get("figure_description_readable", "")
+
+        return {
+            "mistake_id": mistake_id,
+            "ocr_question": mistake.get("ocr_question_text", ""),
+            "ocr_answer": mistake.get("ocr_answer_text", ""),
+            "confidence": mistake.get("confidence_score", 0.0),
+            "confidence_breakdown": json.loads(mistake["confidence_breakdown"])
+                if mistake.get("confidence_breakdown") else None,
+            "has_handwriting": False,
+            "figure_description": fig_desc,
+            "figure_description_readable": fig_readable,
+            "status": mistake.get("status", "processing"),
+            "message": "處理完成",
         }
 
     async def confirm_and_analyze(
@@ -563,9 +738,12 @@ class MistakeBookService:
         )
 
         # 更新分析結果
+        tips = analysis.get("improvement_tips", [])
         update_data = {
             "correct_answer": analysis.get("correct_answer", ""),
             "ai_analysis": analysis.get("error_analysis", ""),
+            "improvement_tips": json.dumps(tips, ensure_ascii=False) if tips else None,
+            "key_insight": analysis.get("key_insight", ""),
             "error_type": analysis.get("error_type", ""),
             "difficulty_level": analysis.get("difficulty_level", 3),
             "confidence_score": analysis.get("confidence", 0.8),
@@ -696,6 +874,16 @@ class MistakeBookService:
 
         result["figure_description"] = fig_desc or None
         result["figure_description_readable"] = fig_readable or None
+
+        # 解析 improvement_tips JSON
+        tips_raw = mistake.get("improvement_tips")
+        if tips_raw:
+            try:
+                result["improvement_tips"] = json.loads(tips_raw) if isinstance(tips_raw, str) else tips_raw
+            except (json.JSONDecodeError, TypeError):
+                result["improvement_tips"] = []
+        else:
+            result["improvement_tips"] = []
 
         return result
 
@@ -1227,7 +1415,8 @@ class MistakeBookService:
 
         try:
             raw = await self._ask_ai(prompt, subject)
-            return self._parse_json_response(raw)
+            result = self._parse_json_response(raw)
+            return _clean_analysis_fields(result)
         except Exception as e:
             logger.error("AI 分析失敗: %s", e)
             raise AnalysisFailedError(str(e))
@@ -1686,11 +1875,11 @@ class MistakeBookService:
             ],
             "stream": False,
             "think": False,
-            "options": {"temperature": 0.5, "num_predict": 2048},
+            "options": {"temperature": 0.5, "num_predict": 8192},
         }
 
         url = f"{base_url}/api/chat"
-        timeout = httpx.Timeout(120.0, connect=10.0)
+        timeout = httpx.Timeout(300.0, connect=20.0)
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(url, json=payload)
@@ -1848,30 +2037,50 @@ class MistakeBookService:
         if start != -1 and end != -1:
             text = text[start:end + 1]
 
-        # 多級容錯解析（處理 LaTeX 反斜槓如 \frac \sqrt 等）
-        # 第一次：直接解析
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            pass
+        # 多級容錯解析（處理 LaTeX 反斜槓如 \frac \sqrt \binom 等）
+        #
+        # 核心問題：JSON 標準轉義 \b \f \n \r \t 與 LaTeX 命令衝突
+        #   \frac → \f 被 json.loads 解讀為 form-feed，結果變成 rac
+        #   \binom → \b 被解讀為 backspace
+        #   \ne → \n 被解讀為 newline
+        # 因此必須在 json.loads 前預處理，將 LaTeX 反斜槓雙重轉義。
 
-        # 第二次：修復不合法的轉義（\f \s 等 → \\f \\s）
-        fixed = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', text)
+        def _fix_latex_escapes(s: str) -> str:
+            """將非 JSON 標準轉義的反斜槓雙重轉義，同時保護 LaTeX 命令中
+            碰巧以 JSON 轉義字符開頭的序列（如 \\frac, \\binom, \\nabla, \\right, \\text）。
+            """
+            # 匹配 \ 後跟一個字母序列。如果字母序列長度 > 1 且以 b/f/n/r/t 開頭，
+            # 那幾乎一定是 LaTeX 命令而非 JSON 轉義（JSON 轉義後面是非字母字符）。
+            def _replace(m: re.Match) -> str:
+                seq = m.group(1)  # 反斜槓後面的內容
+                # 真正的 JSON 轉義只有：\" \\ \/ \b \f \n \r \t \uXXXX
+                # 其中 \b \f \n \r \t 後面不會緊跟字母（在 JSON 值中它們是單字符轉義）
+                # 如果後面跟了字母（如 \frac, \binom），那是 LaTeX → 需雙重轉義
+                if len(seq) > 1:
+                    return '\\\\' + seq  # LaTeX 命令：雙重轉義
+                # 單字符：保留原樣讓 json.loads 處理（真正的 \n \t 等）
+                return m.group(0)
+
+            # 匹配 \ 後跟至少一個字母，但排除已經雙重轉義的 \\
+            return re.sub(r'(?<!\\)\\([a-zA-Z]+)', _replace, s)
+
+        # 第一次：修復 LaTeX 轉義後解析
+        fixed = _fix_latex_escapes(text)
         try:
             return json.loads(fixed)
         except json.JSONDecodeError:
             pass
 
-        # 第三次：全部反斜槓雙重轉義
+        # 第二次：全部反斜槓雙重轉義（更激進）
         try:
             return json.loads(text.replace('\\', '\\\\'))
         except json.JSONDecodeError:
             pass
 
-        # 第四次：嘗試用正則找到最大的 JSON 對象
+        # 第三次：嘗試用正則找到最大的 JSON 對象
         json_blocks = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL)
         for block in sorted(json_blocks, key=len, reverse=True):
-            for attempt in [block, re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', block)]:
+            for attempt in [_fix_latex_escapes(block), block.replace('\\', '\\\\')]:
                 try:
                     parsed = json.loads(attempt)
                     if isinstance(parsed, dict) and len(parsed) >= 2:
