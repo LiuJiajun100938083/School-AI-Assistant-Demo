@@ -684,7 +684,15 @@ const UI = {
     },
 
     /**
-     * 一句話錯因摘要：errorTypeLabel + 第一句 error_analysis
+     * 判斷錯題是否被 AI 標記為「答案正確」（A/B/C 級）
+     */
+    isAnswerCorrect(m) {
+        return !m.error_type || m.error_type === 'careless' || m.error_type === 'expression_weak';
+    },
+
+    /**
+     * 一句話摘要：errorTypeLabel + 第一句 error_analysis
+     * 答案正確時顯示正向摘要
      */
     extractErrorSummary(m) {
         const typeLabel = this.errorTypeLabel(m.error_type);
@@ -694,6 +702,9 @@ const UI = {
         // 取第一句（到句號/驚嘆號/換行，最多 80 字）
         const sentenceMatch = raw.match(/^(.{1,80}?)[。！\n]/);
         const sentence = sentenceMatch ? sentenceMatch[1] : raw.substring(0, 80);
+
+        // 答案正確（A 級，無 error_type）→ 直接顯示第一句（通常是正向評價）
+        if (!m.error_type) return sentence;
 
         if (typeLabel && typeLabel !== '未分類') {
             return `${typeLabel}：${sentence}`;
@@ -1321,12 +1332,12 @@ const Views = {
             </div>
 
             ${hasSummary ? `
-            <div class="mb-summary-card">
-                <div class="mb-summary-card__header">錯因摘要</div>
+            <div class="mb-summary-card${!m.error_type && errorSummary ? ' mb-summary-card--correct' : ''}">
+                <div class="mb-summary-card__header">${m.error_type ? '錯因摘要' : '分析摘要'}</div>
                 ${errorSummary ? `
                 <div class="mb-summary-card__row">
-                    <div class="mb-summary-card__label">主要錯因</div>
-                    <div class="mb-summary-card__value mb-summary-card__value--error">${UI.renderMath(errorSummary)}</div>
+                    <div class="mb-summary-card__label">${m.error_type ? '主要錯因' : '評估'}</div>
+                    <div class="mb-summary-card__value ${m.error_type ? 'mb-summary-card__value--error' : 'mb-summary-card__value--correct'}">${UI.renderMath(errorSummary)}</div>
                 </div>` : ''}
                 ${keyInsight ? `
                 <div class="mb-summary-card__row">

@@ -208,10 +208,20 @@ def _extract_analysis_from_prose(text: str) -> Dict:
             )
             result["error_analysis"] = _truncate_repetitive(analysis_raw)
 
-        # 提取 error_type 字段
-        et_match = re.search(r'"error_type"\s*:\s*"([^"]*)"', text)
-        if et_match:
-            result["error_type"] = et_match.group(1)
+        # 提取 error_type 字段（可能是 "string" 或 null）
+        et_null_match = re.search(r'"error_type"\s*:\s*null', text)
+        if et_null_match:
+            result["error_type"] = ""
+        else:
+            et_match = re.search(r'"error_type"\s*:\s*"([^"]*)"', text)
+            if et_match:
+                val = et_match.group(1)
+                result["error_type"] = "" if val == "null" else val
+
+        # 提取 correctness_level 字段
+        cl_match = re.search(r'"correctness_level"\s*:\s*"([A-F])"', text)
+        if cl_match:
+            result["correctness_level"] = cl_match.group(1)
 
         # 提取 is_correct 字段
         ic_match = re.search(r'"is_correct"\s*:\s*(true|false)', text, re.I)
@@ -739,12 +749,16 @@ class MistakeBookService:
 
         # 更新分析結果
         tips = analysis.get("improvement_tips", [])
+        # 正規化 error_type：AI 可能返回 null / "null" / None（表示答案完全正確）
+        raw_error_type = analysis.get("error_type", "")
+        if raw_error_type is None or raw_error_type == "null":
+            raw_error_type = ""
         update_data = {
             "correct_answer": analysis.get("correct_answer", ""),
             "ai_analysis": analysis.get("error_analysis", ""),
             "improvement_tips": json.dumps(tips, ensure_ascii=False) if tips else None,
             "key_insight": analysis.get("key_insight", ""),
-            "error_type": analysis.get("error_type", ""),
+            "error_type": raw_error_type,
             "difficulty_level": analysis.get("difficulty_level", 3),
             "confidence_score": analysis.get("confidence", 0.8),
         }
@@ -777,8 +791,9 @@ class MistakeBookService:
         return {
             "mistake_id": mistake_id,
             "is_correct": analysis.get("is_correct", False),
+            "correctness_level": analysis.get("correctness_level", ""),
             "correct_answer": analysis.get("correct_answer", ""),
-            "error_type": analysis.get("error_type", ""),
+            "error_type": raw_error_type,
             "error_analysis": analysis.get("error_analysis", ""),
             "improvement_tips": analysis.get("improvement_tips", []),
             "knowledge_points": self._links.get_points_for_mistake(mistake_id),

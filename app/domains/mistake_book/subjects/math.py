@@ -34,7 +34,7 @@ class MathHandler(BaseSubjectHandler):
     def error_types(self) -> List[str]:
         return [
             "concept_error", "calculation_error", "careless",
-            "memory_error", "logic_error", "method_error",
+            "expression_weak", "memory_error", "logic_error", "method_error",
         ]
 
     @property
@@ -110,15 +110,43 @@ class MathHandler(BaseSubjectHandler):
 {history_section}
 ## 分析要求
 
+### 首要原則：先判斷正確性，再分析問題
+
+**你的第一步永遠是：判斷學生的最終答案是否正確。**
+不要預設學生答錯。許多學生的答案是正確的，只是寫法不標準、過程不夠完整、或使用了非主流但數學上等價的表達方式。
+
+### 正確性分級（correctness_level A–F）
+
+請先判斷學生屬於以下哪個等級，再決定 is_correct 和 error_type：
+
+| 等級 | 含義 | is_correct | error_type |
+|------|------|------------|------------|
+| A | 完全正確，表達清晰 | true | null |
+| B | 答案正確，但寫法非標準或可改進（如未化簡、省略括號、格式不規範） | true | "careless" |
+| C | 核心答案正確，但過程不完整或跳步嚴重 | true | "expression_weak" |
+| D | 接近正確，但有一個關鍵計算錯誤導致最終數值偏差 | false | 按實際錯誤選擇 |
+| E | 方法方向性錯誤（如用了不適用的公式/定理） | false | "method_error" |
+| F | 核心數學概念錯誤（如混淆基本運算法則、定理適用條件） | false | "concept_error" |
+
+### 數學表達等價性規則
+
+以下情況不算錯誤，最多標為 B 級：
+- 答案數值正確但未化簡（如寫 $\\frac{{6}}{{4}}$ 而非 $\\frac{{3}}{{2}}$）
+- 使用等價的不同形式（如 $2\\sqrt{{3}}$ vs $\\sqrt{{12}}$、$x=-1 \\text{{ or }} x=2$ vs $x \\in \\{{-1, 2\\}}$）
+- 省略中間步驟但結果正確
+- 有效數字/小數位數在合理範圍內
+- 用不同但正確的解法（如配方法 vs 公式法、幾何法 vs 代數法）
+
 請以 JSON 格式回覆：
 
 ```json
 {{
-  "is_correct": false,
+  "correctness_level": "A / B / C / D / E / F",
+  "is_correct": true,
   "correct_answer": "完整的正確解法（逐步展示，使用 LaTeX 表示數學公式。如涉及幾何，請引用圖中具體元素）",
-  "error_type": "計算錯誤/概念錯誤/公式記錯/邏輯跳步/粗心大意/方法錯誤",
-  "first_error_step": "第一個出錯的步驟描述",
-  "error_analysis": "詳細分析錯誤原因，指出哪一步出了問題（如涉及幾何圖形，請結合圖中元素和關係解釋）",
+  "error_type": "null / concept_error / calculation_error / careless / expression_weak / memory_error / logic_error / method_error",
+  "first_error_step": "第一個出錯的步驟描述（A/B/C 級填 null）",
+  "error_analysis": "分析內容（繁體中文）。A/B/C 級：先肯定正確之處，再指出可改進的地方。D/E/F 級：指出哪一步出了問題。如涉及幾何圖形，結合圖中元素和關係解釋",
   "key_insight": "這道題考查的核心數學概念",
   "improvement_tips": ["改進建議1", "改進建議2"],
   "knowledge_points": ["從知識點列表中選擇最相關的 point_code"],
@@ -129,9 +157,11 @@ class MathHandler(BaseSubjectHandler):
 
 注意：
 - 用繁體中文分析，數學公式用 LaTeX
-- 定位到第一個出錯的步驟
+- **如果學生的最終答案正確（A/B/C 級），is_correct 必須為 true，error_type 按上表填寫（A 級填 null）**
+- **嚴禁在答案正確的情況下標記 concept_error 或 calculation_error**
+- 如果學生有作答且答案錯誤（D/E/F 級），定位到第一個出錯的步驟
 - 如果題目包含幾何圖形描述，你必須在分析中引用圖中的具體元素（如點、線、角、圓的名稱和性質），讓學生能對照原圖理解
-- error_type 只能選：concept_error / calculation_error / careless / memory_error / logic_error / method_error
+- error_type 只能選：null / concept_error / calculation_error / careless / expression_weak / memory_error / logic_error / method_error
 - knowledge_points 從上方列表中選 point_code
 - 只輸出 JSON"""
 
