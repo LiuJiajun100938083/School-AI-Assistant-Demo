@@ -380,7 +380,7 @@ class MistakeBookService:
             "format": "json",
             "options": {
                 "temperature": 0.3,
-                "num_predict": 4096,
+                "num_predict": 8192,
             },
         }
 
@@ -1874,11 +1874,11 @@ class MistakeBookService:
             ],
             "stream": False,
             "think": False,
-            "options": {"temperature": 0.5, "num_predict": 2048},
+            "options": {"temperature": 0.5, "num_predict": 8192},
         }
 
         url = f"{base_url}/api/chat"
-        timeout = httpx.Timeout(120.0, connect=10.0)
+        timeout = httpx.Timeout(300.0, connect=20.0)
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(url, json=payload)
