@@ -128,7 +128,7 @@ class PhysicsHandler(BaseSubjectHandler):
 ```json
 {{
   "is_correct": false,
-  "correct_answer": "完整正確解法（逐步展示，使用 LaTeX 表示公式，所有數值帶單位。如涉及圖形，引用圖中具體元素）",
+  "correct_answer": "完整正確解法（逐步展示，所有數值帶單位。如涉及圖形，引用圖中具體元素）",
   "error_type": "concept_error / calculation_error / careless / memory_error / logic_error / method_error",
   "error_stage": "concept / formula / substitution / calculation / unit / graph / experiment",
   "first_error_step": "第一個出錯的步驟描述（概念題可填 null）",
@@ -149,7 +149,9 @@ class PhysicsHandler(BaseSubjectHandler):
 ```
 
 注意：
-- 用繁體中文分析，物理公式用 LaTeX
+- 用繁體中文分析
+- **所有物理公式和數學表達式必須用 $ 符號包裹**，例如 $F = ma$、$Q = mc\\Delta T$、$v = 14 \\text{{ m s}}^{{-1}}$。不要出現未包裹的 LaTeX 命令（如裸露的 \\text{{}}、\\frac{{}}{{}} 等）
+- 單位寫法：在 LaTeX 內用 $\\text{{ J kg}}^{{-1}} \\text{{ °C}}^{{-1}}$ 或直接寫 J kg⁻¹ °C⁻¹，不要用 \\circ
 - 所有數值必須帶單位
 - 定位到第一個出錯的步驟
 - 如果題目包含圖形描述，你必須在分析中引用圖中的具體元素（如元件、力、波形），讓學生能對照原圖理解
@@ -184,7 +186,8 @@ class PhysicsHandler(BaseSubjectHandler):
 ## 出題要求
 - 符合香港 DSE 物理科考試格式
 - 題型包括：多項選擇題（MC）、結構題（structured question）、論述題（essay question）
-- 物理公式使用 LaTeX 標記
+- **所有物理公式必須用 $ 符號包裹**，如 $F = ma$、$Q = mc\\Delta T$
+- 單位在 LaTeX 內用 $\\text{{ J kg}}^{{-1}}$ 或直接寫 J kg⁻¹，不要用 \\circ
 - 所有數值必須帶單位
 - 提供不同數值但方法相同的變式題
 - 包含完整的解題步驟

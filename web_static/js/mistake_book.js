@@ -357,6 +357,24 @@ const UI = {
 
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
 
+        // 修復 AI 生成的無效 LaTeX：\text{^\circ C} → °C
+        text = text.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
+        // 獨立的 ^\circ → °
+        text = text.replace(/\^\\circ(?![a-zA-Z])/g, '°');
+
+        // 修復未用 $ 包裹的裸露 LaTeX（AI 有時漏掉 $ 分隔符）
+        // 分割文本為 $...$ 內和外的片段，只對外部片段修復
+        const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/);
+        text = parts.map(part => {
+            // 奇數索引是已有的 $...$ 片段，保留不動
+            if (part.startsWith('$')) return part;
+            // 偶數索引是普通文本，包裹含 \ 命令的片段
+            return part.replace(
+                /([A-Za-z_]\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar)\b[^$\n,，。；]*/g,
+                match => `$${match.trim()}$`
+            );
+        }).join('');
+
         if (typeof katex === 'undefined') {
             return UI._renderMarkdown(text);
         }
