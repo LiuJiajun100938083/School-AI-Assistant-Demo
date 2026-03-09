@@ -651,6 +651,14 @@ const Views = {
                 </div>
             </header>
 
+            ${m.figure_description_readable ? `
+            <div class="mb-detail-section">
+                <div class="mb-figure-desc">
+                    <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
+                    <div class="mb-figure-desc__item">${UI.escapeHtml(m.figure_description_readable)}</div>
+                </div>
+            </div>` : ''}
+
             <div class="mb-detail-section">
                 <div class="mb-detail-section__title">${Icons.bookOpen(16)} 題目</div>
                 <div class="mb-detail-section__body">${UI.formatQuestion(m.question_text || '')}</div>
@@ -1626,12 +1634,21 @@ const Upload = {
             const data = res.data;
             btn.style.display = 'none';
 
-            // 如果有圖形描述，拼接到題目前面（讓用戶和 AI 都能看到幾何語境）
-            let questionText = data.ocr_question || '';
+            const questionText = data.ocr_question || '';
             const figDesc = data.figure_description || '';
-            if (figDesc) {
-                questionText = `[圖形描述：${figDesc}]\n${questionText}`;
-            }
+            const figReadable = data.figure_description_readable || '';
+            const cb = data.confidence_breakdown || null;
+
+            // 保存原始 figure_description JSON，供確認時回傳
+            this._figureDescriptionRaw = figDesc;
+
+            // 分項置信度警告（僅數學題有 confidence_breakdown）
+            const qWarn = cb && cb.question < 0.6
+                ? '<span class="mb-confidence-warn">⚠ 題目文字可能有誤</span>' : '';
+            const aWarn = cb && cb.answer < 0.6
+                ? '<span class="mb-confidence-warn">⚠ 手寫答案辨識度較低，請仔細核對</span>' : '';
+            const fWarn = cb && cb.figure > 0 && cb.figure < 0.6
+                ? '<span class="mb-confidence-warn">⚠ 圖形識別不確定，請檢查</span>' : '';
 
             const ocrDiv = document.getElementById('ocrResult');
             ocrDiv.style.display = 'block';
@@ -1641,9 +1658,14 @@ const Upload = {
                     ${data.has_handwriting ? ' · 檢測到手寫' : ''}
                     ${figDesc ? ' · 已識別圖形' : ''}
                 </div>
-                <div class="mb-ocr-confirm__label">題目（可修正）</div>
+                ${figReadable ? `
+                <div class="mb-figure-desc">
+                    <div class="mb-figure-desc__title">📐 幾何圖形描述 ${fWarn}</div>
+                    <div class="mb-figure-desc__item">${UI.escapeHtml(figReadable)}</div>
+                </div>` : ''}
+                <div class="mb-ocr-confirm__label">題目（可修正） ${qWarn}</div>
                 <textarea class="mb-ocr-confirm__textarea" id="ocrQuestion">${UI.escapeHtml(questionText)}</textarea>
-                <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正）</div>
+                <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正） ${aWarn}</div>
                 <textarea class="mb-ocr-confirm__textarea" id="ocrAnswer">${UI.escapeHtml(data.ocr_answer || '')}</textarea>
                 <button class="mb-btn mb-btn--primary mb-btn--full" style="margin-top:12px"
                         onclick="Upload._confirmOCR('${data.mistake_id}')">
@@ -1693,7 +1715,11 @@ const Upload = {
             const res = await fetch(`/api/mistakes/${mistakeId}/confirm`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.state.token}` },
-                body: JSON.stringify({ confirmed_question: question, confirmed_answer: answer }),
+                body: JSON.stringify({
+                    confirmed_question: question,
+                    confirmed_answer: answer,
+                    confirmed_figure_description: this._figureDescriptionRaw || null,
+                }),
                 signal: controller.signal,
             });
             clearTimeout(timeoutId);

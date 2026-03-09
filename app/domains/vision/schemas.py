@@ -35,6 +35,10 @@ class OCRResult:
     metadata: Dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
     success: bool = True
+    # Phase 2: 分項置信度（數學題拆分為 question/answer/figure）
+    question_confidence: float = 0.0
+    answer_confidence: float = 0.0
+    figure_confidence: float = 0.0
 
 
 @dataclass

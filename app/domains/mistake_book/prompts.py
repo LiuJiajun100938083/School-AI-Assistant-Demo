@@ -85,24 +85,37 @@ def _build_math_analysis(
     figure_section = ""
     if figure_desc:
         figure_section = f"""
-## 題目附圖（結構化幾何描述）
+## 題目附圖（結構化幾何描述 — 4 層約束模型）
 
-以下是由視覺模型從題目圖片中提取的幾何圖形描述。這是一個結構化數據，包含了圖中的所有幾何元素、度量和關係。
+以下是由視覺模型從題目圖片中提取的結構化幾何描述。
 **分析時你必須充分利用這些信息，就像你親眼看到了圖形一樣。**
 
 ```
 {figure_desc}
 ```
 
-### 如何閱讀此描述：
-- **elements**: 圖中的幾何元素（點、線段、角、圓、三角形等），每個元素有類型(type)、標籤(label)、座標(coords)等屬性
-- **measurements**: 圖中標註的度量值（邊長、角度等）
-- **relationships**: 幾何關係（平行、垂直、全等、相似、中點、切線等）
-- **text_on_figure**: 圖上直接標註的文字
-- **coordinate_system**: 座標系信息（如有）
-- **overall_description**: 圖形的整體概述
+### 如何閱讀此 4 層 Schema：
 
-請在分析中引用具體的幾何元素和關係，例如「根據圖中 AB ⊥ CD，可知……」
+**Layer 1 — objects（幾何對象）：**
+圖中的所有幾何實體。每個對象有唯一 id（如 P_A, S_AB, Tri_ABC）。後續所有引用都使用 id。
+
+**Layer 2 — measurements（量測）：**
+已知的邊長、角度等。每條量測有 `source` 字段：
+- `"figure"`：從圖上讀取的標註
+- `"question_text"`：題目文字中明確給出的條件
+- `"inferred"`：模型推斷出的（可靠性較低，需謹慎使用）
+
+**Layer 3 — relationships（幾何關係）：**
+平行、垂直、全等、相似、中點、共線等。每條關係同樣有 `source` 字段。
+**優先引用 source="figure" 和 source="question_text" 的關係做推理。**
+**對 source="inferred" 的關係保持謹慎，不要當作已知條件直接使用。**
+
+**Layer 4 — task（任務信息）：**
+已知條件摘要、求解目標、輔助線、圖上標註文字。
+
+⚠️ `overall_description` 僅為人讀摘要，非權威字段——請以 objects/measurements/relationships 為準。
+
+請在分析中引用具體的幾何元素和關係，例如「根據已知 S_AB // S_CD（source: question_text），可知……」
 """
     history_section = f"\n## 學生歷史學習情況（請結合歷史薄弱點給出更有針對性的建議）\n{history}\n" if history else ""
     return f"""你是一位經驗豐富的香港數學科教師。請逐步檢查以下學生的解題過程。

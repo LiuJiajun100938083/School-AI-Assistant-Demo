@@ -790,6 +790,7 @@
 /* 圖形描述（幾何題） */
 .mb-figure-desc {
     background: var(--mb-bg-secondary, #f5f5f7);
+    border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: var(--mb-radius, 8px);
     padding: 10px 14px;
     margin-bottom: 12px;
@@ -800,15 +801,49 @@
 .mb-figure-desc__title {
     font-weight: 600;
     color: var(--mb-text-secondary);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     display: flex;
     align-items: center;
     gap: 6px;
+    font-size: 13px;
 }
 
 .mb-figure-desc__item {
     color: var(--mb-text-secondary);
-    padding-left: 20px;
+    padding-left: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 圖形描述分層（Phase 3 準備） */
+.mb-figure-desc__layer {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.mb-figure-desc__layer:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.mb-figure-desc__goal {
+    color: var(--mb-primary, #007aff);
+    font-weight: 500;
+}
+
+.mb-figure-desc__inferred {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* 置信度警告 */
+.mb-confidence-warn {
+    color: #e67e22;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 6px;
 }
 
 /* ============================================================

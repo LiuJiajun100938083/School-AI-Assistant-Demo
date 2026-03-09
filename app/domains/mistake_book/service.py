@@ -329,6 +329,61 @@ class MistakeBookService:
         return content
 
     # ================================================================
+    # 圖形描述統一寫入（收口方法）
+    # ================================================================
+
+    def _apply_figure_description(
+        self, mistake_id: str, fig_json: str,
+        schema_version: int = 1,
+    ) -> str:
+        """
+        統一管理 figure_description 的寫入，保證一致性：
+        - 寫入 figure_description（原始 JSON）
+        - 同步生成 figure_description_readable
+        - 同步設置 figure_schema_version
+        - 保證「原始 JSON 變 → readable 必同步變」
+
+        所有需要更新 figure_description 的地方都必須調用此方法。
+
+        Returns:
+            生成的 figure_description_readable
+        """
+        readable = ""
+        if fig_json:
+            try:
+                readable = VisionService.generate_readable_description(
+                    fig_json, schema_version
+                )
+            except Exception as e:
+                logger.warning("生成 readable 描述失敗 (mistake=%s): %s", mistake_id, e)
+                readable = "含幾何圖形"
+
+            # 輕量 schema 校驗（v2+），結果寫日誌不阻塞
+            if schema_version >= 2:
+                try:
+                    fig_obj = json.loads(fig_json) if isinstance(fig_json, str) else fig_json
+                    if isinstance(fig_obj, dict):
+                        warnings = VisionService.validate_figure_schema(fig_obj, schema_version)
+                        if warnings:
+                            logger.info(
+                                "figure schema 校驗警告 (mistake=%s): %s",
+                                mistake_id, "; ".join(warnings[:3]),
+                            )
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        self._mistakes.update(
+            {
+                "figure_description": fig_json if fig_json else None,
+                "figure_description_readable": readable if readable else None,
+                "figure_schema_version": schema_version,
+            },
+            "mistake_id = %s",
+            (mistake_id,),
+        )
+        return readable
+
+    # ================================================================
     # 錯題上傳與識別
     # ================================================================
 
@@ -390,14 +445,25 @@ class MistakeBookService:
             if ocr_result:
                 logger.warning("OCR 識別失敗: %s", ocr_result.error)
 
-        # 構建 tags（含圖形描述，供分析時使用）
-        tags_data = {}
         if figure_desc:
-            tags_data["figure_description"] = figure_desc
             logger.info("圖形描述已提取: %s", figure_desc[:100])
 
+        # 構建分項置信度（數學科才拆分，非數學科為 null）
+        confidence_breakdown = None
+        if ocr_result and ocr_result.success and subject == "math":
+            q_conf = ocr_result.question_confidence
+            a_conf = ocr_result.answer_confidence
+            f_conf = ocr_result.figure_confidence
+            # 只有在模型返回了有效值時才存儲
+            if q_conf > 0 or a_conf > 0 or f_conf > 0:
+                confidence_breakdown = {
+                    "question": round(q_conf, 2),
+                    "answer": round(a_conf, 2),
+                    "figure": round(f_conf, 2),
+                }
+
         # 創建錯題記錄（存儲瀏覽器可顯示的 JPEG 路徑）
-        self._mistakes.insert({
+        insert_data = {
             "mistake_id": mistake_id,
             "student_username": student_username,
             "subject": subject,
@@ -408,16 +474,27 @@ class MistakeBookService:
             "confidence_score": confidence,
             "status": status,
             "source": "photo",
-            "tags": json.dumps(tags_data) if tags_data else None,
-        })
+        }
+        if confidence_breakdown is not None:
+            insert_data["confidence_breakdown"] = json.dumps(confidence_breakdown)
+        self._mistakes.insert(insert_data)
+
+        # 通過收口方法寫入 figure_description 獨立列（新上傳使用 v2 schema）
+        figure_readable = ""
+        if figure_desc:
+            figure_readable = self._apply_figure_description(
+                mistake_id, figure_desc, schema_version=2
+            )
 
         return {
             "mistake_id": mistake_id,
             "ocr_question": ocr_question,
             "ocr_answer": ocr_answer,
             "confidence": confidence,
+            "confidence_breakdown": confidence_breakdown,
             "has_handwriting": ocr_result.has_handwriting if ocr_result else False,
             "figure_description": figure_desc,
+            "figure_description_readable": figure_readable,
             "status": status,
             "message": "識別完成，請確認或修正結果" if status == "pending_review" else "識別失敗，請手動輸入",
         }
@@ -427,6 +504,7 @@ class MistakeBookService:
         mistake_id: str,
         confirmed_question: str,
         confirmed_answer: str,
+        confirmed_figure_description: Optional[str] = None,
     ) -> Dict:
         """
         確認 OCR 結果並觸發 AI 分析
@@ -437,7 +515,7 @@ class MistakeBookService:
         if not mistake:
             raise MistakeNotFoundError(mistake_id)
 
-        # 更新確認後的文字
+        # 更新確認後的文字（純題目，不含圖形描述前綴）
         self._mistakes.update(
             {
                 "manual_question_text": confirmed_question,
@@ -448,18 +526,32 @@ class MistakeBookService:
             (mistake_id,),
         )
 
-        # 從 tags 中提取圖形描述（由 Vision 模型在 OCR 階段識別）
-        # 前端已將圖形描述嵌入題目文字（[圖形描述：...] 前綴），
-        # 若確認的題目中已包含圖形描述，則不再重複傳入，避免 AI 收到兩份
+        # 如果前端傳入了編輯後的 figure_description，通過收口方法更新
+        if confirmed_figure_description is not None:
+            self._apply_figure_description(
+                mistake_id, confirmed_figure_description, schema_version=1
+            )
+
+        # 從 figure_description 獨立列讀取幾何描述
+        # 重新讀取以獲取最新值（可能剛被 _apply_figure_description 更新）
         figure_description = ""
-        if "[圖形描述：" not in confirmed_question:
-            tags_raw = mistake.get("tags")
-            if tags_raw:
-                try:
-                    tags_obj = json.loads(tags_raw) if isinstance(tags_raw, str) else tags_raw
-                    figure_description = tags_obj.get("figure_description", "")
-                except (json.JSONDecodeError, AttributeError):
-                    pass
+        if confirmed_figure_description:
+            figure_description = confirmed_figure_description
+        else:
+            # 從獨立列讀取
+            fig_col = mistake.get("figure_description", "")
+            if fig_col:
+                figure_description = fig_col
+            else:
+                # TODO: 遷移完成後移除舊數據回退邏輯
+                # 回退：從 tags JSON 中讀取（兼容未遷移的舊記錄）
+                tags_raw = mistake.get("tags")
+                if tags_raw:
+                    try:
+                        tags_obj = json.loads(tags_raw) if isinstance(tags_raw, str) else tags_raw
+                        figure_description = tags_obj.get("figure_description", "")
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
 
         # AI 分析（包含圖形描述 + 歷史薄弱點累積分析）
         analysis = await self._run_analysis(
@@ -579,7 +671,83 @@ class MistakeBookService:
             or mistake.get("ocr_answer_text")
             or ""
         )
+
+        # 圖形描述作為獨立字段返回（question_text 保持純淨）
+        fig_desc = mistake.get("figure_description", "")
+        fig_readable = mistake.get("figure_description_readable", "")
+
+        # TODO: 遷移完成後移除舊數據回退邏輯
+        # 回退：若獨立列為空，從 tags JSON 中讀取（兼容未遷移的舊記錄）
+        if not fig_desc:
+            tags_raw = mistake.get("tags")
+            if tags_raw:
+                try:
+                    tags_obj = json.loads(tags_raw) if isinstance(tags_raw, str) else tags_raw
+                    if isinstance(tags_obj, dict):
+                        fig_desc = tags_obj.get("figure_description", "")
+                        if fig_desc and not fig_readable:
+                            fig_readable = VisionService.generate_readable_description(
+                                fig_desc, mistake.get("figure_schema_version", 1)
+                            )
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+
+        result["figure_description"] = fig_desc or None
+        result["figure_description_readable"] = fig_readable or None
+
         return result
+
+    def regenerate_readable_descriptions(self, batch_size: int = 100) -> Dict:
+        """
+        批量重新生成 figure_description_readable。
+
+        用於 schema 升級後批量刷新，或修復 readable 缺失的記錄。
+        """
+        from app.infrastructure.database.pool import get_connection
+
+        stats = {"processed": 0, "updated": 0, "errors": 0}
+
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT mistake_id, figure_description, figure_schema_version
+                FROM student_mistakes
+                WHERE is_deleted = 0
+                  AND figure_description IS NOT NULL
+                  AND figure_description != ''
+                  AND (figure_description_readable IS NULL
+                       OR figure_description_readable = '')
+                LIMIT %s
+            """, (batch_size,))
+            rows = cursor.fetchall()
+
+            for row in rows:
+                stats["processed"] += 1
+                mid = row[0] if isinstance(row, (list, tuple)) else row["mistake_id"]
+                fig = row[1] if isinstance(row, (list, tuple)) else row["figure_description"]
+                ver = row[2] if isinstance(row, (list, tuple)) else row.get("figure_schema_version", 1)
+                try:
+                    readable = VisionService.generate_readable_description(fig, ver)
+                    if readable:
+                        self._mistakes.update(
+                            {"figure_description_readable": readable},
+                            "mistake_id = %s",
+                            (mid,),
+                        )
+                        stats["updated"] += 1
+                except Exception as e:
+                    logger.warning("regenerate readable 失敗 (mistake=%s): %s", mid, e)
+                    stats["errors"] += 1
+        finally:
+            cursor.close()
+            conn.close()
+
+        logger.info(
+            "regenerate_readable_descriptions 完成: processed=%d, updated=%d, errors=%d",
+            stats["processed"], stats["updated"], stats["errors"],
+        )
+        return stats
 
     def delete_mistake(self, mistake_id: str, username: str) -> bool:
         mistake = self._mistakes.find_by_mistake_id(mistake_id)

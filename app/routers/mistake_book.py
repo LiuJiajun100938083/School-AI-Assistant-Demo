@@ -93,6 +93,7 @@ async def confirm_ocr_and_analyze(
             mistake_id=mistake_id,
             confirmed_question=req.confirmed_question,
             confirmed_answer=req.confirmed_answer,
+            confirmed_figure_description=req.confirmed_figure_description,
         )
         return {"success": True, "data": result}
 

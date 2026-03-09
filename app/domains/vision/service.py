@@ -392,7 +392,7 @@ Please recognize the math content in this image. The image contains a math probl
 
 You have TWO jobs:
 1. **OCR (text extraction)** — transcribe the question and student's answer EXACTLY as shown.
-2. **Geometry description** — if any diagram/figure exists, describe it in STRUCTURED detail so a text-only AI can fully understand it.
+2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
 
 Output in the following JSON format:
 {
@@ -401,40 +401,55 @@ Output in the following JSON format:
   "figure_description": {
     "has_figure": true,
     "figure_type": "geometry / coordinate / graph / table / other",
-    "elements": [
-      {"type": "point", "label": "A", "coords": [0, 0], "description": "vertex of triangle"},
-      {"type": "line_segment", "from": "A", "to": "B", "label": "5cm", "style": "solid"},
-      {"type": "angle", "vertex": "C", "rays": ["CA", "CB"], "degrees": 90, "label": "∠ACB"},
-      {"type": "circle", "center": "O", "radius": "r", "passes_through": ["A", "B"]},
-      {"type": "triangle", "vertices": ["A", "B", "C"], "properties": ["right-angled at C"]},
-      {"type": "line", "equation": "y = 2x + 1", "style": "dashed"},
-      {"type": "arc", "center": "O", "from_point": "A", "to_point": "B"},
-      {"type": "parallel_lines", "line1": "AB", "line2": "CD"},
-      {"type": "perpendicular", "line1": "AB", "line2": "CD", "at_point": "E"}
+
+    "objects": [
+      {"id": "P_A", "type": "point", "label": "A", "coords": [0, 0]},
+      {"id": "P_B", "type": "point", "label": "B"},
+      {"id": "S_AB", "type": "segment", "endpoints": ["P_A", "P_B"]},
+      {"id": "L_1", "type": "line", "through": ["P_A", "P_B"]},
+      {"id": "Ray_1", "type": "ray", "origin": "P_A", "through": "P_B"},
+      {"id": "Ang_ACB", "type": "angle", "vertex": "P_C", "rays": ["P_A", "P_B"]},
+      {"id": "Cir_O", "type": "circle", "center": "P_O"},
+      {"id": "Tri_ABC", "type": "triangle", "vertices": ["P_A", "P_B", "P_C"]},
+      {"id": "Poly_ABCD", "type": "polygon", "vertices": ["P_A", "P_B", "P_C", "P_D"]}
     ],
+
     "measurements": [
-      {"what": "AB", "value": "5cm"},
-      {"what": "∠ABC", "value": "60°"},
-      {"what": "area of △ABC", "value": "12 cm²"}
+      {"target": "S_AB", "property": "length", "value": "5cm", "source": "figure"},
+      {"target": "Ang_ACB", "property": "degrees", "value": 90, "source": "question_text"},
+      {"target": "Cir_O", "property": "radius", "value": "r", "source": "figure"}
     ],
+
     "relationships": [
-      "AB // CD",
-      "AB ⊥ CE",
-      "O is the midpoint of AB",
-      "△ABC ∼ △DEF",
-      "∠BAC = ∠BDC (angles in the same segment)"
+      {"type": "parallel", "entities": ["S_AB", "S_CD"], "source": "question_text"},
+      {"type": "perpendicular", "entities": ["S_AB", "S_CE"], "at": "P_E", "source": "figure"},
+      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"},
+      {"type": "collinear", "points": ["P_A", "P_B", "P_D"], "source": "figure"},
+      {"type": "congruent", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
+      {"type": "similar", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
+      {"type": "tangent", "entities": ["L_1", "Cir_O"], "at": "P_T", "source": "figure"},
+      {"type": "on_segment", "subject": "P_D", "target": "S_BC", "source": "question_text"},
+      {"type": "bisector", "subject": "Ray_1", "target": "Ang_ACB", "source": "inferred"},
+      {"type": "equal", "items": [{"ref": "S_AB", "prop": "length"}, {"ref": "S_AC", "prop": "length"}], "source": "question_text"}
     ],
-    "text_on_figure": ["5cm", "30°", "x", "y"],
-    "coordinate_system": {
-      "has_axes": true,
-      "x_range": [-3, 8],
-      "y_range": [-5, 10],
-      "grid": true
+
+    "task": {
+      "known_conditions": ["AB = 5cm", "∠ACB = 90°", "O is midpoint of AB"],
+      "goals": ["Find ∠AOC"],
+      "auxiliary_lines": ["Connect OC"],
+      "figure_annotations": ["5cm", "90°", "x"]
     },
-    "overall_description": "A concise 1-2 sentence summary of the entire figure and what it shows."
+
+    "coordinate_system": {"has_axes": false},
+    "overall_description": "A concise 1-2 sentence summary of the entire figure."
   },
   "has_math_formula": true/false,
   "has_handwriting": true/false,
+  "confidence_breakdown": {
+    "question": 0.9,
+    "answer": 0.7,
+    "figure": 0.8
+  },
   "notes": "Any unclear parts marked with [?]"
 }
 
@@ -443,14 +458,40 @@ Output in the following JSON format:
 - If the student has NOT written any answer, "answer" MUST be "".
 - NEVER solve the problem yourself. NEVER fabricate an answer.
 
-⚠️ RULES FOR "figure_description" (observation + reasoning allowed):
+⚠️ RULES FOR "figure_description" — 4-LAYER STRUCTURED SCHEMA:
 - You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
-- Describe ALL geometric elements: points, lines, segments, rays, angles, circles, arcs, triangles, polygons, coordinate axes, curves, etc.
-- Include ALL labels, coordinates, measurements, and text annotations visible on the figure.
-- State geometric relationships you can observe OR reasonably infer: parallel, perpendicular, congruent, similar, tangent, bisector, midpoint, collinear, concyclic, etc.
-- If a coordinate system is present, specify the axis ranges, scale, and all plotted points/curves.
-- Adapt the "elements" array — only include element types that actually appear. The example above shows all possible types; use only the relevant ones.
+- Use the 4-layer schema: objects → measurements → relationships → task.
+
+LAYER 1 — objects:
+- Every geometric entity gets a unique "id" using naming convention: P_ for points, S_ for segments, L_ for lines, Ray_ for rays, Ang_ for angles, Cir_ for circles, Tri_ for triangles, Poly_ for polygons.
+- ALL references in other layers MUST use object ids, NOT labels.
+- Only include objects that actually appear in the figure.
+
+LAYER 2 — measurements:
+- "target" references an object id from layer 1.
+- "source" indicates WHERE this measurement comes from: "figure" (read from diagram), "question_text" (stated in problem text), or "inferred" (you deduced it).
+
+LAYER 3 — relationships:
+- Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent).
+- Use "subject"+"target"/"of" for directed relations (midpoint, on_segment, bisector).
+- Use "points" for point-set relations (collinear).
+- Use "items" for equality comparisons (equal).
+- EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred".
+
+LAYER 4 — task:
+- "known_conditions": list of given conditions in human-readable form.
+- "goals": what the problem asks to find/prove.
+- "auxiliary_lines": any construction lines mentioned.
+- "figure_annotations": text labels visible on the figure.
+
 - If there is NO figure at all, set: "figure_description": {"has_figure": false}
+
+⚠️ RULES FOR "confidence_breakdown":
+- Rate your confidence for each component from 0.0 to 1.0.
+- "question": how confident you are in the question text recognition (0.0 = completely uncertain, 1.0 = perfectly clear).
+- "answer": how confident you are in the student's answer recognition. Set to 0.0 if answer is empty.
+- "figure": how confident you are in the geometry/figure description. Set to 0.0 if no figure exists.
+- Be honest about blur, occlusion, or ambiguous handwriting.
 
 Important:
 - Use LaTeX notation for all math: fractions as \\frac{a}{b}, square roots as \\sqrt{x}, etc.
@@ -462,7 +503,7 @@ Please carefully recognize this math solution image. It MAY contain a student's 
 
 You have TWO jobs:
 1. **OCR (text extraction)** — transcribe the question and student's solution EXACTLY as shown.
-2. **Geometry description** — if any diagram/figure exists, describe it in STRUCTURED detail so a text-only AI can fully understand it.
+2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
 
 Output in the following JSON format:
 {
@@ -471,38 +512,43 @@ Output in the following JSON format:
   "figure_description": {
     "has_figure": true,
     "figure_type": "geometry / coordinate / graph / table / other",
-    "elements": [
-      {"type": "point", "label": "A", "coords": [0, 0], "description": "vertex of triangle"},
-      {"type": "line_segment", "from": "A", "to": "B", "label": "5cm", "style": "solid"},
-      {"type": "angle", "vertex": "C", "rays": ["CA", "CB"], "degrees": 90, "label": "∠ACB"},
-      {"type": "circle", "center": "O", "radius": "r", "passes_through": ["A", "B"]},
-      {"type": "triangle", "vertices": ["A", "B", "C"], "properties": ["right-angled at C"]},
-      {"type": "line", "equation": "y = 2x + 1", "style": "dashed"},
-      {"type": "arc", "center": "O", "from_point": "A", "to_point": "B"},
-      {"type": "parallel_lines", "line1": "AB", "line2": "CD"},
-      {"type": "perpendicular", "line1": "AB", "line2": "CD", "at_point": "E"}
+
+    "objects": [
+      {"id": "P_A", "type": "point", "label": "A"},
+      {"id": "S_AB", "type": "segment", "endpoints": ["P_A", "P_B"]},
+      {"id": "Ang_ACB", "type": "angle", "vertex": "P_C", "rays": ["P_A", "P_B"]},
+      {"id": "Tri_ABC", "type": "triangle", "vertices": ["P_A", "P_B", "P_C"]}
     ],
+
     "measurements": [
-      {"what": "AB", "value": "5cm"},
-      {"what": "∠ABC", "value": "60°"}
+      {"target": "S_AB", "property": "length", "value": "5cm", "source": "figure"},
+      {"target": "Ang_ACB", "property": "degrees", "value": 90, "source": "question_text"}
     ],
+
     "relationships": [
-      "AB // CD",
-      "O is the midpoint of AB"
+      {"type": "parallel", "entities": ["S_AB", "S_CD"], "source": "question_text"},
+      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"}
     ],
-    "text_on_figure": ["5cm", "30°", "x"],
-    "coordinate_system": {
-      "has_axes": true,
-      "x_range": [-3, 8],
-      "y_range": [-5, 10],
-      "grid": true
+
+    "task": {
+      "known_conditions": ["AB = 5cm", "∠ACB = 90°"],
+      "goals": ["Find ∠AOC"],
+      "auxiliary_lines": [],
+      "figure_annotations": ["5cm", "90°"]
     },
+
+    "coordinate_system": {"has_axes": false},
     "overall_description": "A concise 1-2 sentence summary of the entire figure."
   },
   "steps": ["Step 1: ...", "Step 2: ...", "..."],
   "final_answer": "The student's final answer",
   "has_math_formula": true,
   "has_handwriting": true/false,
+  "confidence_breakdown": {
+    "question": 0.9,
+    "answer": 0.7,
+    "figure": 0.8
+  },
   "notes": "Unclear parts"
 }
 
@@ -511,12 +557,21 @@ Output in the following JSON format:
 - If the student has NOT written any solution, set "answer" = "", "steps" = [], "final_answer" = "".
 - NEVER solve the problem yourself. NEVER fabricate solution steps.
 
-⚠️ RULES FOR "figure_description" (observation + reasoning allowed):
+⚠️ RULES FOR "figure_description" — 4-LAYER STRUCTURED SCHEMA:
 - You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
-- Describe ALL geometric elements with their types, labels, coordinates, and properties.
-- State geometric relationships you observe OR reasonably infer.
-- Adapt the "elements" array — only include types that actually appear.
+- Use the 4-layer schema: objects → measurements → relationships → task.
+- Every object gets a unique "id" (P_ for points, S_ for segments, etc.).
+- ALL references in measurements/relationships MUST use object ids, NOT labels.
+- Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred".
+- Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
 - If there is NO figure, set: "figure_description": {"has_figure": false}
+
+⚠️ RULES FOR "confidence_breakdown":
+- Rate your confidence for each component from 0.0 to 1.0.
+- "question": how confident you are in the question text recognition.
+- "answer": how confident you are in the student's answer recognition. Set to 0.0 if answer is empty.
+- "figure": how confident you are in the geometry/figure description. Set to 0.0 if no figure exists.
+- Be honest about blur, occlusion, or ambiguous handwriting.
 
 Use LaTeX for all mathematical notation. Output JSON only.
 """,
@@ -684,6 +739,16 @@ Output JSON only.
             fig_desc_raw = data.get("figure_description", "")
             fig_desc = self._normalize_figure_description(fig_desc_raw)
 
+            # 提取分項置信度（數學科才有，非數學科為 None）
+            cb = data.get("confidence_breakdown")
+            q_conf = 0.0
+            a_conf = 0.0
+            f_conf = 0.0
+            if isinstance(cb, dict):
+                q_conf = float(cb.get("question", 0.0))
+                a_conf = float(cb.get("answer", 0.0))
+                f_conf = float(cb.get("figure", 0.0))
+
             return OCRResult(
                 question_text=data.get("question", ""),
                 answer_text=data.get("answer", ""),
@@ -695,9 +760,13 @@ Output JSON only.
                 metadata={
                     k: v
                     for k, v in data.items()
-                    if k not in ("question", "answer", "figure_description")
+                    if k not in ("question", "answer", "figure_description",
+                                 "confidence_breakdown")
                 },
                 success=True,
+                question_confidence=q_conf,
+                answer_confidence=a_conf,
+                figure_confidence=f_conf,
             )
 
         except (json.JSONDecodeError, KeyError) as e:
@@ -879,6 +948,307 @@ Output JSON only.
             return raw.strip()
 
         return str(raw) if raw else ""
+
+    @staticmethod
+    def generate_readable_description(fig_json_str: str, schema_version: int = 1) -> str:
+        """
+        純函數：將 figure_description JSON 轉為人類可讀文字。
+
+        - v1（舊 elements 版）：提取 points/line_segments，生成「點：A、B、C；直線：AB、CD」
+        - v2（新 4 層約束版）：按 objects/measurements/relationships/task 分層生成
+
+        JSON 解析失敗時返回「含幾何圖形」。
+        可被批量重生成腳本和 service 方法共用。
+        """
+        if not fig_json_str or not fig_json_str.strip():
+            return ""
+
+        try:
+            fig = json.loads(fig_json_str) if isinstance(fig_json_str, str) else fig_json_str
+        except (json.JSONDecodeError, TypeError):
+            return "含幾何圖形"
+
+        if not isinstance(fig, dict):
+            return "含幾何圖形"
+
+        if not fig.get("has_figure", True):
+            return ""
+
+        if schema_version >= 2:
+            return VisionService._readable_v2(fig)
+        return VisionService._readable_v1(fig)
+
+    @staticmethod
+    def _readable_v1(fig: dict) -> str:
+        """v1 schema (舊 elements 版) 的可讀描述"""
+        parts = []
+
+        # 提取 elements
+        elements = fig.get("elements", [])
+        if elements:
+            points = []
+            segments = []
+            others = []
+            for el in elements:
+                el_type = el.get("type", "")
+                label = el.get("label", el.get("name", ""))
+                if el_type == "point" and label:
+                    points.append(label)
+                elif el_type in ("line_segment", "segment", "line") and label:
+                    segments.append(label)
+                elif label:
+                    others.append(f"{el_type}: {label}")
+
+            if points:
+                parts.append(f"點：{'、'.join(points)}")
+            if segments:
+                parts.append(f"線段：{'、'.join(segments)}")
+            if others:
+                parts.extend(others)
+
+        # 提取 relationships
+        rels = fig.get("relationships", [])
+        if rels:
+            for rel in rels:
+                rel_type = rel.get("type", "")
+                desc = rel.get("description", "")
+                if desc:
+                    parts.append(desc)
+                elif rel_type:
+                    entities = rel.get("entities", [])
+                    parts.append(f"{rel_type}: {', '.join(str(e) for e in entities)}")
+
+        # 提取 measurements
+        measurements = fig.get("measurements", [])
+        if measurements:
+            for m in measurements:
+                target = m.get("target", "")
+                prop = m.get("property", "")
+                value = m.get("value", "")
+                if target and value:
+                    parts.append(f"{target} {prop} = {value}")
+
+        # 提取 figure_type
+        fig_type = fig.get("figure_type", "")
+        if fig_type and not parts:
+            parts.append(f"圖形類型：{fig_type}")
+
+        # 回退：overall_description
+        if not parts:
+            overall = fig.get("overall_description", "")
+            if overall:
+                return overall
+            return "含幾何圖形"
+
+        return "；".join(parts)
+
+    @staticmethod
+    def _readable_v2(fig: dict) -> str:
+        """v2 schema (新 4 層約束版) 的可讀描述"""
+        parts = []
+
+        # objects 層
+        objects = fig.get("objects", [])
+        if objects:
+            by_type: dict = {}
+            for obj in objects:
+                t = obj.get("type", "unknown")
+                label = obj.get("label", obj.get("id", ""))
+                by_type.setdefault(t, []).append(label)
+            type_labels = {
+                "point": "點", "segment": "線段", "line": "直線",
+                "ray": "射線", "angle": "角", "circle": "圓",
+                "triangle": "三角形", "polygon": "多邊形",
+            }
+            for t, labels in by_type.items():
+                name = type_labels.get(t, t)
+                parts.append(f"{name}：{'、'.join(labels)}")
+
+        # measurements 層
+        measurements = fig.get("measurements", [])
+        if measurements:
+            m_parts = []
+            for m in measurements:
+                target = m.get("target", "")
+                prop = m.get("property", "")
+                value = m.get("value", "")
+                if target and value:
+                    if prop == "degrees":
+                        val_str = str(value)
+                        m_parts.append(
+                            f"∠{target} = {value}°"
+                            if not val_str.endswith("°")
+                            else f"∠{target} = {value}"
+                        )
+                    elif prop == "length":
+                        m_parts.append(f"{target} = {value}")
+                    else:
+                        m_parts.append(f"{target} {prop} = {value}")
+            if m_parts:
+                parts.append("；".join(m_parts))
+
+        # relationships 層
+        rels = fig.get("relationships", [])
+        if rels:
+            rel_parts = []
+            for rel in rels:
+                rel_type = rel.get("type", "")
+                source = rel.get("source", "")
+                inferred_mark = "?" if source == "inferred" else ""
+
+                if rel_type == "parallel":
+                    entities = rel.get("entities", [])
+                    if len(entities) == 2:
+                        rel_parts.append(f"{entities[0]} // {entities[1]}{inferred_mark}")
+                elif rel_type == "perpendicular":
+                    entities = rel.get("entities", [])
+                    if len(entities) == 2:
+                        rel_parts.append(f"{entities[0]} ⊥ {entities[1]}{inferred_mark}")
+                elif rel_type == "midpoint":
+                    subj = rel.get("subject", "")
+                    of = rel.get("of", "")
+                    rel_parts.append(f"{subj} 是 {of} 中點{inferred_mark}")
+                elif rel_type == "collinear":
+                    pts = rel.get("points", [])
+                    rel_parts.append(f"{'、'.join(pts)} 共線{inferred_mark}")
+                elif rel_type == "congruent":
+                    entities = rel.get("entities", [])
+                    if len(entities) == 2:
+                        rel_parts.append(f"{entities[0]} ≅ {entities[1]}{inferred_mark}")
+                elif rel_type == "similar":
+                    entities = rel.get("entities", [])
+                    if len(entities) == 2:
+                        rel_parts.append(f"{entities[0]} ∼ {entities[1]}{inferred_mark}")
+                elif rel_type == "tangent":
+                    entities = rel.get("entities", [])
+                    at = rel.get("at", "")
+                    if len(entities) == 2:
+                        t = f"，切點 {at}" if at else ""
+                        rel_parts.append(f"{entities[0]} 切 {entities[1]}{t}{inferred_mark}")
+                elif rel_type == "on_segment":
+                    subj = rel.get("subject", "")
+                    target = rel.get("target", "")
+                    rel_parts.append(f"{subj} 在 {target} 上{inferred_mark}")
+                elif rel_type == "bisector":
+                    subj = rel.get("subject", "")
+                    target = rel.get("target", "")
+                    rel_parts.append(f"{subj} 平分 {target}{inferred_mark}")
+                elif rel_type == "equal":
+                    items = rel.get("items", [])
+                    if len(items) == 2:
+                        a = f"{items[0].get('ref', '')}({items[0].get('prop', '')})"
+                        b = f"{items[1].get('ref', '')}({items[1].get('prop', '')})"
+                        rel_parts.append(f"{a} = {b}{inferred_mark}")
+                else:
+                    entities = rel.get("entities", [])
+                    if entities:
+                        rel_parts.append(
+                            f"{rel_type}: {', '.join(str(e) for e in entities)}{inferred_mark}"
+                        )
+
+            if rel_parts:
+                parts.append("；".join(rel_parts))
+
+        # task 層
+        task = fig.get("task", {})
+        if task:
+            goals = task.get("goals", [])
+            known = task.get("known_conditions", [])
+            if known:
+                parts.append(f"已知：{'、'.join(known)}")
+            if goals:
+                parts.append(f"求：{'、'.join(goals)}")
+
+        if not parts:
+            overall = fig.get("overall_description", "")
+            if overall:
+                return overall
+            return "含幾何圖形"
+
+        return "；".join(parts)
+
+    @staticmethod
+    def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
+        """
+        輕量校驗器，返回警告列表（非阻塞）。
+
+        v2 校驗：
+        - has_figure=true 時關鍵層是否存在
+        - measurements.target 是否引用已存在的 object id
+        - relationships.entities 是否是合法引用
+        - source 是否屬於允許枚舉值
+
+        校驗結果寫入日誌，不阻塞流程。
+        """
+        warnings = []
+
+        if not isinstance(fig_json, dict):
+            warnings.append("figure_description 不是有效的字典")
+            return warnings
+
+        if not fig_json.get("has_figure", True):
+            return []  # 無圖形，無需校驗
+
+        if version < 2:
+            return []  # v1 不做詳細校驗
+
+        # 收集所有已知 object ids
+        objects = fig_json.get("objects", [])
+        if not objects:
+            warnings.append("has_figure=true 但 objects 層為空")
+
+        known_ids = set()
+        for obj in objects:
+            oid = obj.get("id", "")
+            if not oid:
+                warnings.append(f"object 缺少 id: {obj}")
+            else:
+                known_ids.add(oid)
+
+        allowed_sources = {"figure", "question_text", "inferred"}
+
+        # 校驗 measurements
+        for m in fig_json.get("measurements", []):
+            target = m.get("target", "")
+            if target and target not in known_ids:
+                warnings.append(f"measurement target '{target}' 不在 objects 中")
+            source = m.get("source", "")
+            if source and source not in allowed_sources:
+                warnings.append(f"measurement source '{source}' 不在允許值中")
+
+        # 校驗 relationships
+        for rel in fig_json.get("relationships", []):
+            source = rel.get("source", "")
+            if source and source not in allowed_sources:
+                warnings.append(f"relationship source '{source}' 不在允許值中")
+
+            # 檢查引用的 entity ids
+            for entity in rel.get("entities", []):
+                if entity and entity not in known_ids:
+                    warnings.append(
+                        f"relationship entities 引用 '{entity}' 不在 objects 中"
+                    )
+            # 檢查 subject/of/target 引用
+            for ref_key in ("subject", "of", "target", "at"):
+                ref_val = rel.get(ref_key, "")
+                if ref_val and ref_val not in known_ids:
+                    warnings.append(
+                        f"relationship.{ref_key} 引用 '{ref_val}' 不在 objects 中"
+                    )
+            # 檢查 points 列表
+            for pt in rel.get("points", []):
+                if pt and pt not in known_ids:
+                    warnings.append(
+                        f"relationship points 引用 '{pt}' 不在 objects 中"
+                    )
+
+        if warnings:
+            logger.info(
+                "figure schema 校驗發現 %d 個警告: %s",
+                len(warnings), "; ".join(warnings[:5]),
+            )
+
+        return warnings
 
     # ================================================================
     #  工具方法

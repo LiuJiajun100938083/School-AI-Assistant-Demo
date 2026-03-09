@@ -57,6 +57,9 @@ class ConfirmOCRRequest(BaseModel):
     """確認/修正 OCR 結果"""
     confirmed_question: str = Field(..., min_length=1, description="確認後的題目文字")
     confirmed_answer: str = Field(..., min_length=1, description="確認後的答案文字")
+    confirmed_figure_description: Optional[str] = Field(
+        None, description="確認後的幾何描述 JSON（可選，前端編輯後回傳）"
+    )
 
 
 class ManualMistakeRequest(BaseModel):
@@ -103,6 +106,8 @@ class UploadMistakeResponse(BaseModel):
     ocr_answer: str
     confidence: float
     has_handwriting: bool
+    figure_description: Optional[str] = None
+    figure_description_readable: Optional[str] = None
     status: str
     message: str
 
@@ -126,6 +131,8 @@ class MistakeDetail(BaseModel):
     created_at: str
     next_review_at: Optional[str]
     tags: Optional[List[str]]
+    figure_description: Optional[str] = None
+    figure_description_readable: Optional[str] = None
 
 
 class WeaknessReport(BaseModel):
