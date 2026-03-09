@@ -1420,37 +1420,43 @@ Output JSON only.
 
         模型返回的 JSON 經常包含未轉義的反斜槓（LaTeX 公式如
         \\frac、\\sqrt），導致 json.loads 報 Invalid \\escape。
-        此方法逐步嘗試修復後重新解析。
+
+        核心問題：JSON 標準轉義 \\b \\f \\n \\r \\t 與 LaTeX 命令衝突：
+          \\frac → \\f 被解讀為 form-feed，結果變成 rac
+          \\binom → \\b 被解讀為 backspace，結果變成 inom
+          \\therefore → \\t 被解讀為 tab，結果變成 herefore
+
+        解決方案：在 json.loads 前先辨識 LaTeX 命令（反斜槓+多個字母）
+        並雙重轉義，同時保留真正的 JSON 單字符轉義。
         """
         import re
 
+        def _fix_latex_escapes(s: str) -> str:
+            """將 LaTeX 命令的反斜槓雙重轉義，保護不被 json.loads 吞掉。
+
+            辨識方式：\\後跟 >=2 個字母一定是 LaTeX（如 \\frac, \\sqrt, \\vec）。
+            JSON 合法轉義 \\b \\f \\n \\r \\t 後面不會緊跟字母，
+            所以 \\binom \\frac \\nabla \\right \\therefore 都是 LaTeX。
+            """
+            def _replace(m: re.Match) -> str:
+                seq = m.group(1)
+                if len(seq) > 1:
+                    return '\\\\' + seq
+                return m.group(0)
+            return re.sub(r'(?<!\\)\\([a-zA-Z]+)', _replace, s)
+
         # 第 0 步：清理控制字元（thinking 模式經常夾帶 \x00-\x1f）
         cleaned = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_str)
-        # 清理字串值內的未轉義換行符（JSON 規範不允許字串內有裸 \n \r \t）
-        # 但保留已轉義的 \\n \\r \\t
-        # 這裡只處理 JSON 字串值內的裸控制字元
         cleaned = cleaned.strip()
 
-        # 第一次嘗試：直接解析（清理後）
-        for attempt_str in [cleaned, json_str]:
-            try:
-                return json.loads(attempt_str)
-            except json.JSONDecodeError:
-                pass
-
-        # 第二次嘗試：修復未轉義的反斜槓
-        # 將不合法的 \x（x 不是 " \ / b f n r t u）替換為 \\x
-        fixed = re.sub(
-            r'\\(?!["\\/bfnrtu])',
-            r'\\\\',
-            cleaned,
-        )
+        # 第一次嘗試：修復 LaTeX 轉義後解析
+        fixed = _fix_latex_escapes(cleaned)
         try:
             return json.loads(fixed)
         except json.JSONDecodeError:
             pass
 
-        # 第三次嘗試：修復字串值內的裸換行符
+        # 第二次嘗試：修復字串值內的裸換行符
         # 在 JSON 字串值中，裸 \n 是非法的，需要替換為 \\n
         def _fix_newlines_in_strings(s: str) -> str:
             """遍歷字元，在字串值內部將裸換行替換為 \\n"""
@@ -1488,7 +1494,7 @@ Output JSON only.
         except json.JSONDecodeError:
             pass
 
-        # 第四次嘗試：把所有反斜槓統一雙重轉義
+        # 第三次嘗試：把所有反斜槓統一雙重轉義（更激進）
         try:
             aggressive = cleaned.replace('\\', '\\\\')
             return json.loads(aggressive)
