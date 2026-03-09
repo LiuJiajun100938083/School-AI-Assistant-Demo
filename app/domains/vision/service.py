@@ -23,7 +23,7 @@ from app.domains.vision.schemas import (
 logger = logging.getLogger(__name__)
 
 # 默認視覺模型
-DEFAULT_VISION_MODEL = "qwen3-vl:8b"
+DEFAULT_VISION_MODEL = "qwen3-vl:30b"
 
 
 def _compute_closers(s: str) -> str:
@@ -70,7 +70,7 @@ class VisionService:
         vision_model: str = DEFAULT_VISION_MODEL,
         ollama_base_url: str = "http://localhost:11434",
         max_image_size: int = 4 * 1024 * 1024,  # 4MB
-        timeout: int = 120,
+        timeout: int = 300,  # 30B 模型推理較慢，默認 5 分鐘
     ):
         self._vision_model = vision_model
         self._base_url = ollama_base_url
@@ -387,8 +387,8 @@ class VisionService:
             }
 
             url = f"{self._base_url}/api/chat"
-            # JSON 模式稍慢（Ollama 要做約束解碼），給 180 秒
-            timeout = httpx.Timeout(180.0, connect=10.0)
+            # JSON 模式 + 30B 模型較慢（Ollama 約束解碼），給 360 秒
+            timeout = httpx.Timeout(360.0, connect=30.0)
 
             async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.post(url, json=payload)
