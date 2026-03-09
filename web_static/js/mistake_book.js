@@ -633,6 +633,149 @@ const UI = {
 
         return text.substring(0, maxLen);
     },
+
+    /* ---- 詳情頁分層佈局輔助函數 ---- */
+
+    /**
+     * 從 ai_analysis 中提取 JSON 對象（3 層解析策略）
+     * 返回 parsed object 或 null
+     */
+    _parseAnalysisJson(text) {
+        if (!text) return null;
+        const trimmed = text.trim();
+        if (!trimmed.startsWith('{')) return null;
+        try { return JSON.parse(trimmed); } catch {}
+        try {
+            const fixed = trimmed.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+            return JSON.parse(fixed);
+        } catch {}
+        return null;
+    },
+
+    /**
+     * 提取 error_analysis 純文字（處理 JSON 或 prose）
+     */
+    extractRawAnalysis(m) {
+        const text = m.ai_analysis;
+        if (!text) return '';
+        const obj = this._parseAnalysisJson(text);
+        if (obj && obj.error_analysis) {
+            return obj.error_analysis.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+        // 嘗試正則提取
+        const eaMatch = text.match(/"error_analysis"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/s);
+        if (eaMatch) {
+            return eaMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+        // 非 JSON，視為純文字
+        const trimmed = text.trim();
+        if (trimmed.startsWith('{')) return ''; // JSON 但無 error_analysis
+        return trimmed;
+    },
+
+    /**
+     * 一句話錯因摘要：errorTypeLabel + 第一句 error_analysis
+     */
+    extractErrorSummary(m) {
+        const typeLabel = this.errorTypeLabel(m.error_type);
+        const raw = this.extractRawAnalysis(m);
+        if (!raw) return typeLabel !== '未分類' ? typeLabel : '';
+
+        // 取第一句（到句號/驚嘆號/換行，最多 80 字）
+        const sentenceMatch = raw.match(/^(.{1,80}?)[。！\n]/);
+        const sentence = sentenceMatch ? sentenceMatch[1] : raw.substring(0, 80);
+
+        if (typeLabel && typeLabel !== '未分類') {
+            return `${typeLabel}：${sentence}`;
+        }
+        return sentence;
+    },
+
+    /**
+     * 提取核心考點
+     */
+    extractKeyInsight(m) {
+        if (m.key_insight) return m.key_insight;
+        // 從 JSON 中找
+        const obj = this._parseAnalysisJson(m.ai_analysis);
+        if (obj) {
+            if (obj.key_insight) return obj.key_insight;
+            if (obj.knowledge_points?.length) {
+                const first = obj.knowledge_points[0];
+                return typeof first === 'string' ? first : first.point_name || first.name || null;
+            }
+        }
+        // 從已有 knowledge_points 取
+        const kps = m.knowledge_points || [];
+        if (kps.length) return kps[0].point_name || null;
+        return null;
+    },
+
+    /**
+     * 提取第一條改進建議
+     */
+    extractFirstTip(m) {
+        // 直接從 m.improvement_tips 取
+        const tips = m.improvement_tips;
+        if (Array.isArray(tips) && tips.length) return tips[0];
+        // 從 JSON 中找
+        const obj = this._parseAnalysisJson(m.ai_analysis);
+        if (obj?.improvement_tips?.length) return obj.improvement_tips[0];
+        return null;
+    },
+
+    /**
+     * 學生做法摘要（1-3 bullet points）
+     */
+    summarizeStudentApproach(m) {
+        const bullets = [];
+        // Bullet 1: 學生答案
+        if (m.answer_text && m.answer_text.trim()) {
+            const ans = m.answer_text.trim();
+            bullets.push(ans.length > 80 ? ans.substring(0, 77) + '…' : ans);
+        }
+        // Bullet 2-3: 從分析中提取學生行為描述
+        const raw = this.extractRawAnalysis(m);
+        if (raw) {
+            const patterns = [
+                /學生[^。！\n]{2,60}[。！]/g,
+                /(?:誤|忽略了|混淆了|未能|沒有|遺漏了)[^。！\n]{2,60}[。！]/g,
+            ];
+            for (const pat of patterns) {
+                const matches = raw.match(pat) || [];
+                for (const match of matches) {
+                    if (bullets.length >= 3) break;
+                    const clean = match.replace(/[。！]$/, '').trim();
+                    if (clean && !bullets.some(b => b.includes(clean.substring(0, 10)))) {
+                        bullets.push(clean.length > 80 ? clean.substring(0, 77) + '…' : clean);
+                    }
+                }
+                if (bullets.length >= 3) break;
+            }
+        }
+        return bullets;
+    },
+
+    /**
+     * 正確做法摘要（2-4 bullet points，從 correct_answer 拆步驟）
+     */
+    summarizeCorrectAnswer(m) {
+        const ca = m.correct_answer;
+        if (!ca || !ca.trim()) return [];
+
+        // 按步驟標記或換行拆分
+        const lines = ca.split(/(?:Step\s*\d+[:：]|步驟\s*\d+[:：]|\(\d+\)\s*|^\d+[.、]\s*|\n{2,})/im)
+            .map(s => s.trim())
+            .filter(s => s.length > 5);
+
+        if (lines.length <= 1) {
+            // 嘗試按單換行拆
+            const byLine = ca.split(/\n/).map(s => s.trim()).filter(s => s.length > 5);
+            return byLine.slice(0, 4).map(l => l.length > 80 ? l.substring(0, 77) + '…' : l);
+        }
+
+        return lines.slice(0, 4).map(l => l.length > 80 ? l.substring(0, 77) + '…' : l);
+    },
 };
 
 
@@ -1049,6 +1192,21 @@ const Views = {
             return;
         }
 
+        // ---- 分層佈局：預計算提取數據 ----
+        const errorSummary   = UI.extractErrorSummary(m);
+        const keyInsight     = UI.extractKeyInsight(m);
+        const firstTip       = UI.extractFirstTip(m);
+        const studentBullets = UI.summarizeStudentApproach(m);
+        const correctBullets = UI.summarizeCorrectAnswer(m);
+        const rawAnalysis    = UI.extractRawAnalysis(m);
+        const hasCompare     = studentBullets.length > 0 || correctBullets.length > 0;
+        const hasSummary     = errorSummary || keyInsight || firstTip;
+
+        // 分析文字截斷邏輯
+        const analysisId = 'detail_analysis_' + Date.now();
+        const analysisNeedsTruncate = rawAnalysis.length > 500;
+        const analysisTruncated = analysisNeedsTruncate ? rawAnalysis.substring(0, 300) : rawAnalysis;
+
         panel.innerHTML = `
             <header class="mb-header">
                 <div class="mb-header__title">
@@ -1077,22 +1235,82 @@ const Views = {
                 <div class="mb-detail-section__body">${UI.formatQuestion(m.question_text || '')}</div>
             </div>
 
-            <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.x(16)} 我的答案</div>
-                <div class="mb-detail-section__body">${UI.renderMath(m.answer_text || '')}</div>
-            </div>
-
-            ${m.correct_answer ? `
-            <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.check(16)} 正確答案</div>
-                <div class="mb-detail-section__body">${UI.renderMath(m.correct_answer)}</div>
+            ${hasSummary ? `
+            <div class="mb-summary-card">
+                <div class="mb-summary-card__header">錯因摘要</div>
+                ${errorSummary ? `
+                <div class="mb-summary-card__row">
+                    <div class="mb-summary-card__label">主要錯因</div>
+                    <div class="mb-summary-card__value mb-summary-card__value--error">${UI.renderMath(errorSummary)}</div>
+                </div>` : ''}
+                ${keyInsight ? `
+                <div class="mb-summary-card__row">
+                    <div class="mb-summary-card__label">核心考點</div>
+                    <div class="mb-summary-card__value">${UI.renderMath(keyInsight)}</div>
+                </div>` : ''}
+                ${firstTip ? `
+                <div class="mb-summary-card__row">
+                    <div class="mb-summary-card__label">改進要點</div>
+                    <div class="mb-summary-card__value mb-summary-card__value--tip">${UI.escapeHtml(firstTip)}</div>
+                </div>` : ''}
             </div>` : ''}
 
-            ${m.ai_analysis ? `
-            <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.zap(16)} AI 分析</div>
-                <div class="mb-detail-section__body">${UI.formatAnalysis(m.ai_analysis)}</div>
-                ${m.error_type ? `<div style="margin-top:10px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
+            ${hasCompare ? `
+            <div class="mb-collapse">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">思路對比</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div class="mb-compare-grid">
+                        ${studentBullets.length ? `
+                        <div class="mb-compare-section">
+                            <div class="mb-compare-label">我的做法</div>
+                            <ul class="mb-compare-list">${studentBullets.map(b => `<li>${UI.renderMath(b)}</li>`).join('')}</ul>
+                        </div>` : ''}
+                        ${correctBullets.length ? `
+                        <div class="mb-compare-section">
+                            <div class="mb-compare-label mb-compare-label--correct">正確做法</div>
+                            <ul class="mb-compare-list">${correctBullets.map(b => `<li>${UI.renderMath(b)}</li>`).join('')}</ul>
+                        </div>` : ''}
+                    </div>
+                </div>
+            </div>` : ''}
+
+            ${m.correct_answer ? `
+            <div class="mb-collapse">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">參考解法</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div class="mb-step-intro">以下為此題完整解題步驟</div>
+                    <div class="mb-step-layout">${UI.renderMath(m.correct_answer)}</div>
+                </div>
+            </div>` : ''}
+
+            ${rawAnalysis ? `
+            <div class="mb-collapse">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">詳細分析</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div id="${analysisId}">
+                        ${analysisNeedsTruncate
+                            ? `<div class="mb-analysis-truncated">${UI.renderMath(analysisTruncated)}…</div>
+                               <div class="mb-analysis-full" style="display:none">${UI.renderMath(rawAnalysis)}</div>
+                               <span class="mb-analysis-expand" onclick="
+                                   var wrap = this.parentElement;
+                                   wrap.querySelector('.mb-analysis-truncated').style.display='none';
+                                   wrap.querySelector('.mb-analysis-full').style.display='block';
+                                   this.remove();
+                               ">顯示完整分析</span>`
+                            : UI.renderMath(rawAnalysis)
+                        }
+                    </div>
+                    ${m.error_type ? `<div style="margin-top:10px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
+                </div>
             </div>` : ''}
 
             ${kps.length ? `

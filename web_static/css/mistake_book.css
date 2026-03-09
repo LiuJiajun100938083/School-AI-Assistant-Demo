@@ -2332,6 +2332,130 @@
 }
 
 /* ============================================================
+   詳情頁：分層佈局 — 錯因摘要 / 思路對比 / 解法 / 分析
+   ============================================================ */
+
+/* 錯因摘要卡片 */
+.mb-summary-card {
+    background: var(--mb-card);
+    border: 1px solid var(--mb-border);
+    border-radius: var(--mb-radius-lg);
+    margin: 0 20px 12px;
+}
+.mb-summary-card__header {
+    padding: 16px 20px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mb-text-secondary);
+    letter-spacing: 0.01em;
+}
+.mb-summary-card__row {
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--mb-border);
+}
+.mb-summary-card__row:last-child {
+    padding-bottom: 16px;
+    border-bottom: none;
+}
+.mb-summary-card__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mb-text-tertiary);
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+}
+.mb-summary-card__value {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--mb-text);
+}
+.mb-summary-card__value--error {
+    font-weight: 600;
+}
+.mb-summary-card__value--tip {
+    color: var(--mb-brand);
+}
+
+/* 思路對比：手機上下堆疊，iPad(≥768px)左右並排 */
+.mb-compare-grid {
+    display: flex;
+    flex-direction: column;
+}
+.mb-compare-section {
+    padding-bottom: 12px;
+    min-width: 0;
+}
+.mb-compare-section + .mb-compare-section {
+    padding-top: 12px;
+    border-top: 1px solid var(--mb-border);
+}
+@media (min-width: 768px) {
+    .mb-compare-grid {
+        flex-direction: row;
+        gap: 0;
+    }
+    .mb-compare-section {
+        flex: 1;
+        padding-bottom: 0;
+    }
+    .mb-compare-section + .mb-compare-section {
+        padding-top: 0;
+        padding-left: 20px;
+        border-top: none;
+        border-left: 1px solid var(--mb-border);
+    }
+}
+.mb-compare-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--mb-text-secondary);
+    margin-bottom: 6px;
+}
+.mb-compare-label--correct {
+    color: var(--mb-brand);
+}
+.mb-compare-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--mb-text);
+}
+.mb-compare-list li { margin-bottom: 4px; }
+
+/* 參考解法排版 */
+.mb-step-layout {
+    font-size: 14px;
+    line-height: 1.8;
+}
+.mb-step-layout .katex-display {
+    margin: 16px 0;
+    padding: 12px 0;
+    overflow-x: auto;
+}
+.mb-step-intro {
+    font-size: 12px;
+    color: var(--mb-text-tertiary);
+    margin-bottom: 12px;
+}
+
+/* 詳細分析截斷展開 */
+.mb-analysis-truncated { position: relative; }
+.mb-analysis-expand {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--mb-brand);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+/* 詳情面板內折疊統一間距 */
+.mb-detail-panel .mb-collapse {
+    margin: 0 20px 12px;
+}
+
+/* ============================================================
    Responsive
    ============================================================ */
 
