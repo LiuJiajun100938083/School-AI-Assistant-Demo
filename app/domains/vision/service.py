@@ -104,18 +104,26 @@ class VisionService:
 
             processed_path = await self._preprocess_image(image_path)
             prompt = self._build_ocr_prompt(subject, task)
-            raw_response = await self._call_vision_model(processed_path, prompt)
+
+            # 首次調用：直接使用 JSON 強制模式
+            # Qwen3-VL 的 think:false 在 Ollama 中不生效（已知 bug），
+            # 所以首次就用 format:"json" 來最大化成功率
+            raw_response = await self._call_vision_model_json(processed_path, prompt)
+
+            # 回退：如果 JSON 模式失敗，用普通模式（能處理 thinking 字段）
+            if raw_response is None:
+                logger.warning("JSON 模式調用失敗，回退到普通模式...")
+                raw_response = await self._call_vision_model(processed_path, prompt)
 
             if raw_response is None:
                 return OCRResult(success=False, error="視覺模型調用失敗")
 
             result = self._parse_ocr_response(raw_response, subject, task)
 
-            # 如果解析完全失敗（question 為空），嘗試重試
-            # raw_response 可能為空（純推理被跳過）或有內容但解析失敗
+            # 如果解析完全失敗（question 為空），再次重試
             if not result.question_text:
                 logger.warning(
-                    "首次 OCR 解析失敗（question 為空），嘗試重試（強制 JSON 模式）..."
+                    "首次 OCR 解析失敗（question 為空），嘗試重試..."
                 )
                 retry_prompt = (
                     "/no_think\n"
@@ -124,7 +132,8 @@ class VisionService:
                     "Start with { and end with }.\n\n"
                     + prompt
                 )
-                retry_response = await self._call_vision_model_json(
+                # 重試用普通模式（與首次互補策略），因為 JSON 模式已嘗試過
+                retry_response = await self._call_vision_model(
                     processed_path, retry_prompt
                 )
                 if retry_response:
@@ -202,13 +211,14 @@ class VisionService:
                 "think": False,
                 "options": {
                     "temperature": 0.1,
-                    "num_predict": 4096,
+                    "num_predict": 8192,
                 },
             }
 
             url = f"{self._base_url}/api/chat"
+            timeout = httpx.Timeout(float(self._timeout), connect=10.0)
 
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()
@@ -334,8 +344,14 @@ class VisionService:
         """
         調用 Ollama qwen3-vl 模型（強制 JSON 輸出模式）
 
-        重試時使用 format:"json" 強制模型輸出 JSON，
-        減少思考內容干擾。同時使用 system message 強調 no-think。
+        使用 format:"json" 強制 Ollama 約束解碼為合法 JSON，
+        繞過 thinking 模式的干擾。這是 OCR 的首選調用方式。
+
+        特性：
+        - format:"json" — Ollama 在解碼層面強制輸出 JSON
+        - system message + /no_think — 雙重抑制思考
+        - num_predict:8192 — 幾何題 JSON 可能很大
+        - 超時 180 秒 — JSON 模式比普通模式稍慢
         """
         try:
             import httpx
@@ -366,13 +382,15 @@ class VisionService:
                 "format": "json",
                 "options": {
                     "temperature": 0.1,
-                    "num_predict": 4096,
+                    "num_predict": 8192,
                 },
             }
 
             url = f"{self._base_url}/api/chat"
+            # JSON 模式稍慢（Ollama 要做約束解碼），給 180 秒
+            timeout = httpx.Timeout(180.0, connect=10.0)
 
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()
@@ -392,11 +410,20 @@ class VisionService:
             # 如果 content 為空，嘗試從 thinking 提取
             if not content and thinking:
                 logger.info("JSON 模式 content 為空，嘗試從 thinking 提取")
-                extracted = self._extract_json_from_reasoning(
-                    self._strip_thinking_tags(thinking) or thinking
-                )
+                cleaned_thinking = self._strip_thinking_tags(thinking) or thinking
+                extracted = self._extract_json_from_reasoning(cleaned_thinking)
                 if extracted and len(extracted) >= 50:
                     content = extracted
+                else:
+                    # 也嘗試 _extract_json_from_thinking（更激進）
+                    extracted2 = self._extract_json_from_thinking(cleaned_thinking)
+                    if extracted2 and len(extracted2) >= 100:
+                        content = extracted2
+
+            if content:
+                logger.info("Vision JSON 模式提取成功 (final_len=%d)", len(content))
+            else:
+                logger.warning("Vision JSON 模式未能提取有效內容")
 
             return content if content else None
 
@@ -1686,11 +1713,14 @@ Output JSON only.
         # 完全沒有 JSON 標記
         if '{' not in stripped:
             return True
-        # 以自然語言模式開頭
+        # 以自然語言模式開頭（英文 + 中文）
         reasoning_starts = (
             "got it", "let me", "okay", "ok,", "first", "the ",
             "i ", "looking", "starting", "alright", "now,", "so,",
             "let's",
+            # 中文推理起手式
+            "好的", "讓我", "我來", "首先", "看看", "這", "根據",
+            "嗯", "先", "需要", "分析", "觀察",
         )
         # 去掉可能的 <think> 標籤
         lower = stripped.lower()
