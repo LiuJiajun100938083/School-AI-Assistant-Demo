@@ -301,6 +301,138 @@ _UPLOADED_GAME_HEADERS = {
 }
 
 
+def _is_raw_jsx(content: str) -> bool:
+    """检测内容是否为裸 JSX/React 组件代码（而非完整 HTML 页面）"""
+    stripped = content.strip()
+    # 完整 HTML 页面以 <!DOCTYPE 或 <html 开头
+    if stripped[:20].lower().startswith(("<!doctype", "<html")):
+        return False
+    # 包含 import from 'react' 或 export default — 典型 JSX 组件特征
+    has_react_import = bool(re.search(
+        r"""(?:import\s+.*\s+from\s+['"]react['"]|import\s+React)""", content
+    ))
+    has_export = bool(re.search(r'\bexport\s+default\b', content))
+    return has_react_import or has_export
+
+
+def _wrap_raw_jsx(jsx_code: str) -> str:
+    """
+    将裸 JSX/React 组件代码包装为完整可运行的 HTML 页面。
+
+    处理逻辑：
+    1. 移除所有 import 语句
+    2. 移除 export default，识别组件名
+    3. 移除 styled-jsx (<style jsx> 标签) 并提取为普通 CSS
+    4. 包装为完整 HTML（含 React/Babel/Tailwind CDN）
+    """
+    lines = jsx_code.split('\n')
+    clean_lines = []
+    component_name = None
+    extracted_css = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        # 跳过 import 语句
+        if re.match(r"""^import\s+.*\s+from\s+['"]""", stripped):
+            continue
+        if re.match(r"""^import\s+['"]""", stripped):
+            continue
+
+        # 检测并处理 export default
+        # export default function Foo() {
+        m = re.match(r'^export\s+default\s+function\s+(\w+)', stripped)
+        if m:
+            component_name = m.group(1)
+            clean_lines.append(line.replace('export default ', '', 1))
+            continue
+
+        # export default class Foo extends React.Component {
+        m = re.match(r'^export\s+default\s+class\s+(\w+)', stripped)
+        if m:
+            component_name = m.group(1)
+            clean_lines.append(line.replace('export default ', '', 1))
+            continue
+
+        # 单独的 export default Foo; (在文件末尾)
+        m = re.match(r'^export\s+default\s+(\w+)\s*;?\s*$', stripped)
+        if m:
+            if not component_name:
+                component_name = m.group(1)
+            continue  # 跳过此行
+
+        clean_lines.append(line)
+
+    cleaned_code = '\n'.join(clean_lines)
+
+    # 提取 <style jsx global>{`...`}</style> 中的 CSS
+    def extract_styled_jsx(match):
+        css_content = match.group(1)
+        extracted_css.append(css_content)
+        return ''  # 从 JSX 中移除
+
+    cleaned_code = re.sub(
+        r"""<style\s+jsx(?:\s+global)?\s*>\s*\{`(.*?)`\}\s*</style>""",
+        extract_styled_jsx,
+        cleaned_code,
+        flags=re.DOTALL,
+    )
+
+    # 如果没找到组件名，尝试找第一个大写字母开头的 function 声明
+    if not component_name:
+        m = re.search(r'function\s+([A-Z]\w+)\s*\(', cleaned_code)
+        if m:
+            component_name = m.group(1)
+
+    # 如果还是找不到，尝试 const Foo = () =>
+    if not component_name:
+        m = re.search(r'(?:const|let|var)\s+([A-Z]\w+)\s*=\s*(?:\(|function)', cleaned_code)
+        if m:
+            component_name = m.group(1)
+
+    # 兜底
+    if not component_name:
+        component_name = 'App'
+
+    css_block = '\n'.join(extracted_css) if extracted_css else ''
+    css_tag = f'<style>{css_block}</style>' if css_block else ''
+    end_script = '</script>'  # 避免 f-string 中的转义问题
+
+    hooks_destructure = (
+        "const { useState, useEffect, useRef, useCallback, "
+        "useMemo, useReducer, useContext, createContext } = React;\n"
+        "const { createPortal } = ReactDOM;"
+    )
+
+    html = (
+        '<!DOCTYPE html>\n'
+        '<html lang="zh-TW">\n'
+        '<head>\n'
+        '    <meta charset="UTF-8">\n'
+        '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
+        '    <title>Game</title>\n'
+        '    <script src="https://unpkg.com/react@18/umd/react.production.min.js">'
+        f'{end_script}\n'
+        '    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js">'
+        f'{end_script}\n'
+        '    <script src="https://unpkg.com/@babel/standalone/babel.min.js">'
+        f'{end_script}\n'
+        f'    <script src="https://cdn.tailwindcss.com">{end_script}\n'
+        f'    {css_tag}\n'
+        '</head>\n'
+        '<body>\n'
+        '<div id="root"></div>\n'
+        '<script type="text/babel">\n'
+        f'{hooks_destructure}\n\n'
+        f'{cleaned_code}\n\n'
+        f'ReactDOM.createRoot(document.getElementById("root")).render(<{component_name} />);\n'
+        f'{end_script}\n'
+        '</body>\n'
+        '</html>'
+    )
+    return html
+
+
 @router.get("/uploaded_games/{game_uuid}")
 async def serve_uploaded_game(game_uuid: str, raw: str = None):
     """提供用户上传的游戏（沙盒运行），自动注入返回按钮 + lucide 图标 polyfill。raw=1 返回原始内容（编辑用）"""
@@ -329,6 +461,11 @@ async def serve_uploaded_game(game_uuid: str, raw: str = None):
 
         with open(file_path, "r", encoding="utf-8") as f:
             html_content = f.read()
+
+        # ---- 裸 JSX 自动包装 ----
+        if _is_raw_jsx(html_content):
+            logger.info(f"检测到裸 JSX 组件，自动包装: {game_uuid}")
+            html_content = _wrap_raw_jsx(html_content)
 
         # 注入浮动返回按钮（固定在左上角）
         back_button_html = """

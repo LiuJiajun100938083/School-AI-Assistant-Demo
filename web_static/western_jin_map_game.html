@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>西晉時期：五胡分佈圖</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes bounce-in {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        .animate-bounce-in {
+            animation: bounce-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* lucide-react icon replacements */
+function IconMap(props) {
+    const s = props.size || props.className && 32 || 24;
+    return React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg', width: s, height: s,
+        viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        className: props.className || ''
+    },
+        React.createElement('polygon', { points: '1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6' }),
+        React.createElement('line', { x1: 8, y1: 2, x2: 8, y2: 18 }),
+        React.createElement('line', { x1: 16, y1: 6, x2: 16, y2: 22 })
+    );
+}
+function IconRotateCcw(props) {
+    const s = props.size || 24;
+    return React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg', width: s, height: s,
+        viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        className: props.className || ''
+    },
+        React.createElement('polyline', { points: '1 4 1 10 7 10' }),
+        React.createElement('path', { d: 'M3.51 15a9 9 0 1 0 2.13-9.36L1 10' })
+    );
+}
+function IconCheckCircle(props) {
+    const s = props.size || 24;
+    return React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg', width: s, height: s,
+        viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        className: props.className || ''
+    },
+        React.createElement('path', { d: 'M22 11.08V12a10 10 0 1 1-5.93-9.14' }),
+        React.createElement('polyline', { points: '22 4 12 14.01 9 11.01' })
+    );
+}
+function IconXCircle(props) {
+    const s = props.size || 24;
+    return React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg', width: s, height: s,
+        viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        className: props.className || ''
+    },
+        React.createElement('circle', { cx: 12, cy: 12, r: 10 }),
+        React.createElement('line', { x1: 15, y1: 9, x2: 9, y2: 15 }),
+        React.createElement('line', { x1: 9, y1: 9, x2: 15, y2: 15 })
+    );
+}
+function IconBookOpen(props) {
+    const s = props.size || 24;
+    return React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg', width: s, height: s,
+        viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        className: props.className || ''
+    },
+        React.createElement('path', { d: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z' }),
+        React.createElement('path', { d: 'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' })
+    );
+}
+function IconTrophy(props) {
+    const s = props.size || 24;
+    return React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg', width: s, height: s,
+        viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+        strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        className: props.className || ''
+    },
+        React.createElement('path', { d: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6' }),
+        React.createElement('path', { d: 'M18 9h1.5a2.5 2.5 0 0 0 0-5H18' }),
+        React.createElement('path', { d: 'M4 22h16' }),
+        React.createElement('path', { d: 'M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22' }),
+        React.createElement('path', { d: 'M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22' }),
+        React.createElement('path', { d: 'M18 2H6v7a6 6 0 0 0 12 0V2Z' })
+    );
+}
+</script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// Game Data
+const TRIBES = [
+  {
+    id: 'xiongnu',
+    name: '\u5308\u5974',
+    color: 'bg-red-600',
+    correctZone: 'zone-shanxi',
+    description: '\u6f22\u671d\u6642\u5df2\u5167\u9077\u3002\u897f\u664b\u6642\u4e3b\u8981\u5206\u4f48\u5728\u5e76\u5dde\uff08\u4eca\u5c71\u897f\u4e00\u5e36\uff09\u3002',
+    fact: '\u6b63\u78ba\uff01\u5308\u5974\u4eba\u5289\u6df5\u5728\u5de6\u570b\u57ce\u8d77\u5175\uff0c\u5efa\u7acb\u300c\u6f22\u300d\uff08\u5f8c\u7a31\u524d\u8d99\uff09\uff0c\u63ed\u958b\u4e86\u4e94\u80e1\u4e82\u83ef\u7684\u5e8f\u5e55\u3002'
+  },
+  {
+    id: 'xianbei',
+    name: '\u9bae\u5351',
+    color: 'bg-blue-600',
+    correctZone: 'zone-northeast',
+    description: '\u5206\u4f48\u65bc\u585e\u5916\u6771\u5317\u53ca\u5317\u65b9\uff08\u907c\u6771\u3001\u907c\u897f\u3001\u4ee3\u5317\uff09\u3002',
+    fact: '\u6b63\u78ba\uff01\u9bae\u5351\u5206\u4f48\u5ee3\u6cdb\uff0c\u5f8c\u4f86\u62d3\u8dcb\u6c0f\u5efa\u7acb\u4e86\u5f37\u5927\u7684\u5317\u9b4f\uff0c\u7d71\u4e00\u4e86\u5317\u65b9\u3002'
+  },
+  {
+    id: 'jie',
+    name: '\u7faf',
+    color: 'bg-yellow-600',
+    correctZone: 'zone-shangdang',
+    description: '\u6700\u521d\u96a8\u5308\u5974\u5165\u585e\uff0c\u5c45\u65bc\u4e0a\u9ee8\uff08\u5c71\u897f\u6771\u5357\u90e8\uff09\u3002',
+    fact: '\u6b63\u78ba\uff01\u7faf\u65cf\u4ee3\u8868\u4eba\u7269\u77f3\u52d2\u5efa\u7acb\u4e86\u5f8c\u8d99\uff0c\u662f\u4e94\u80e1\u5341\u516d\u570b\u4e2d\u5f37\u76db\u4e00\u6642\u7684\u653f\u6b0a\u3002'
+  },
+  {
+    id: 'di',
+    name: '\u6c10',
+    color: 'bg-purple-600',
+    correctZone: 'zone-southwest',
+    description: '\u5206\u4f48\u65bc\u897f\u90e8\u7565\u504f\u5357\uff08\u7565\u967d\u3001\u95dc\u4e2d\u3001\u56db\u5ddd\u908a\u754c\uff09\u3002',
+    fact: '\u6b63\u78ba\uff01\u6c10\u65cf\u674e\u96c4\u5165\u8700\u5efa\u7acb\u6210\u6f22\uff1b\u5f8c\u4f86\u82fb\u5805\u5efa\u7acb\u7684\u524d\u79e6\u66f4\u4e00\u5ea6\u7d71\u4e00\u5317\u65b9\u3002'
+  },
+  {
+    id: 'qiang',
+    name: '\u7f8c',
+    color: 'bg-green-600',
+    correctZone: 'zone-west',
+    description: '\u5206\u4f48\u65bc\u897f\u65b9\uff08\u6dbc\u5dde\u3001\u7518\u8085\u3001\u9752\u6d77\u4e00\u5e36\uff09\u3002',
+    fact: '\u6b63\u78ba\uff01\u7f8c\u65cf\u4e3b\u8981\u6d3b\u52d5\u65bc\u96b4\u897f\u4e00\u5e36\uff0c\u5f8c\u4f86\u59da\u840c\u5efa\u7acb\u4e86\u5f8c\u79e6\u3002'
+  }
+];
+
+const ZONES = [
+  { id: 'zone-northeast', label: '\u5317\u65b9/\u6771\u5317 (\u907c\u897f/\u4ee3\u5317)', cx: 600, cy: 100, r: 50 },
+  { id: 'zone-shanxi', label: '\u5e76\u5dde (\u5c71\u897f\u5317\u90e8)', cx: 480, cy: 220, r: 40 },
+  { id: 'zone-shangdang', label: '\u4e0a\u9ee8 (\u5c71\u897f\u6771\u5357)', cx: 520, cy: 280, r: 35 },
+  { id: 'zone-west', label: '\u6dbc\u5dde/\u96b4\u897f (\u7518\u8085)', cx: 200, cy: 250, r: 50 },
+  { id: 'zone-southwest', label: '\u95dc\u4e2d/\u5df4\u8700\u908a\u754c', cx: 320, cy: 380, r: 45 },
+];
+
+function WesternJinMapGame() {
+  const [placedTribes, setPlacedTribes] = useState({});
+  const [selectedTribe, setSelectedTribe] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [showStudyGuide, setShowStudyGuide] = useState(false);
+  const [gameWon, setGameWon] = useState(false);
+  const [score, setScore] = useState(0);
+
+  useEffect(() => {
+    if (Object.keys(placedTribes).length === TRIBES.length) {
+      const allCorrect = TRIBES.every(t => placedTribes[t.correctZone] === t.id);
+      if (allCorrect) {
+        setGameWon(true);
+        setFeedback({ type: 'success', message: '\u606d\u559c\uff01\u4f60\u5df2\u6210\u529f\u9084\u539f\u4e94\u80e1\u4e82\u83ef\u521d\u671f\u7684\u90e8\u65cf\u5206\u4f48\uff01' });
+      }
+    }
+  }, [placedTribes]);
+
+  const handleZoneClick = (zoneId) => {
+    if (!selectedTribe) return;
+
+    if (placedTribes[zoneId]) {
+      setFeedback({ type: 'error', message: '\u6b64\u5340\u57df\u5df2\u88ab\u4f54\u64da\uff0c\u8acb\u9078\u64c7\u5176\u4ed6\u5340\u57df\u6216\u91cd\u7f6e\u3002' });
+      return;
+    }
+
+    const tribe = TRIBES.find(t => t.id === selectedTribe);
+
+    if (tribe.correctZone === zoneId) {
+      setPlacedTribes(prev => ({ ...prev, [zoneId]: tribe.id }));
+      setScore(prev => prev + 20);
+      setFeedback({ type: 'success', message: tribe.fact });
+      setSelectedTribe(null);
+    } else {
+      setFeedback({ type: 'error', message: `\u932f\u8aa4\uff01${tribe.name}\u7684\u4e3b\u8981\u6d3b\u52d5\u7bc4\u570d\u4e0d\u5728\u9019\u88e1\u3002\u63d0\u793a\uff1a${tribe.description}` });
+      setScore(prev => Math.max(0, prev - 5));
+    }
+  };
+
+  const resetGame = () => {
+    setPlacedTribes({});
+    setSelectedTribe(null);
+    setFeedback(null);
+    setGameWon(false);
+    setScore(0);
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-100 font-sans text-stone-800 p-4 md:p-8 flex flex-col items-center">
+
+      {/* Header */}
+      <header className="w-full max-w-5xl mb-6 flex justify-between items-center bg-white p-4 rounded-xl shadow-md border-b-4 border-stone-300">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-stone-800 flex items-center gap-2">
+            <IconMap className="w-8 h-8 text-amber-700" />
+            {'\u897f\u6649\u6642\u671f\uff1a\u4e94\u80e1\u5206\u4f48\u5716'}
+          </h1>
+          <p className="text-stone-500 text-sm mt-1">{'\u9ad8\u4e2d\u4e2d\u570b\u6b77\u53f2\u79d1 - \u4e92\u52d5\u6559\u6750'}</p>
+        </div>
+        <div className="flex gap-4 items-center">
+          <div className="bg-amber-100 px-4 py-2 rounded-lg border border-amber-200">
+            <span className="text-sm font-bold text-amber-800">{'\u5206\u6578: '}{score}</span>
+          </div>
+          <button
+            onClick={() => setShowStudyGuide(true)}
+            className="p-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition"
+            title={'\u53f2\u6599\u7b46\u8a18'}
+          >
+            <IconBookOpen size={24} />
+          </button>
+          <button
+            onClick={resetGame}
+            className="p-2 bg-stone-200 text-stone-600 rounded-full hover:bg-stone-300 transition"
+            title={'\u91cd\u65b0\u958b\u59cb'}
+          >
+            <IconRotateCcw size={24} />
+          </button>
+        </div>
+      </header>
+
+      <main className="w-full max-w-5xl flex flex-col lg:flex-row gap-8">
+
+        {/* Map Area */}
+        <div className="flex-1 bg-white rounded-xl shadow-lg border border-stone-200 p-4 relative overflow-hidden">
+          <div className="absolute top-4 left-4 z-10 bg-white/80 p-2 rounded text-xs text-stone-500">
+            {'\u9ede\u9078\u4e0b\u65b9\u90e8\u65cf\uff0c\u518d\u9ede\u64ca\u5730\u5716\u5713\u5708'}
+          </div>
+
+          <svg viewBox="0 0 800 500" className="w-full h-auto bg-blue-50 rounded-lg border border-stone-300 select-none">
+            {/* Background */}
+            <path d="M0,0 H800 V500 H0 Z" fill="#f5f5dc" />
+
+            {/* Yellow River */}
+            <path
+              d="M150,300 C200,280 250,150 400,150 C550,150 500,300 650,280"
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="6"
+              strokeLinecap="round"
+              className="opacity-60"
+            />
+            <text x="380" y="140" className="text-xs fill-blue-500 font-bold opacity-70">{'\u9ec3\u6cb3'}</text>
+
+            {/* Great Wall */}
+            <path
+              d="M180,200 C250,180 350,120 450,140 C550,160 650,80 750,100"
+              fill="none"
+              stroke="#57534e"
+              strokeWidth="4"
+              strokeDasharray="8,4"
+              className="opacity-50"
+            />
+            <text x="680" y="90" className="text-xs fill-stone-600 font-bold opacity-70">{'\u9577\u57ce\u754c\u7dda'}</text>
+
+            {/* Luoyang */}
+            <circle cx="500" cy="350" r="6" fill="#ef4444" stroke="white" strokeWidth="2" />
+            <text x="510" y="355" className="text-sm font-bold fill-red-800">{'\u6d1b\u967d (\u897f\u6649\u9996\u90fd)'}</text>
+
+            {/* Chang'an */}
+            <circle cx="380" cy="360" r="4" fill="#78716c" />
+            <text x="360" y="380" className="text-xs font-bold fill-stone-600">{'\u9577\u5b89'}</text>
+
+            {/* Interactive Zones */}
+            {ZONES.map((zone) => {
+              const occupiedTribeId = placedTribes[zone.id];
+              const occupiedTribe = TRIBES.find(t => t.id === occupiedTribeId);
+
+              return (
+                <g
+                  key={zone.id}
+                  onClick={() => handleZoneClick(zone.id)}
+                  className="cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  <circle
+                    cx={zone.cx}
+                    cy={zone.cy}
+                    r={zone.r}
+                    fill={occupiedTribe ? 'white' : 'rgba(255,255,255,0.4)'}
+                    stroke={occupiedTribe ? 'transparent' : '#a8a29e'}
+                    strokeWidth="2"
+                    strokeDasharray={occupiedTribe ? '0' : '4,2'}
+                    className="transition-all duration-300"
+                  />
+
+                  {occupiedTribe ? (
+                    <foreignObject x={zone.cx - 40} y={zone.cy - 20} width="80" height="40">
+                      <div xmlns="http://www.w3.org/1999/xhtml"
+                           className={`w-full h-full flex items-center justify-center rounded-lg shadow-md text-white font-bold text-sm ${occupiedTribe.color} animate-bounce-in`}>
+                        {occupiedTribe.name}
+                      </div>
+                    </foreignObject>
+                  ) : (
+                    <text
+                      x={zone.cx}
+                      y={zone.cy}
+                      dy="5"
+                      textAnchor="middle"
+                      className="text-xs md:text-sm font-bold fill-stone-500 pointer-events-none"
+                    >
+                      ?
+                    </text>
+                  )}
+
+                  <text
+                    x={zone.cx}
+                    y={zone.cy + zone.r + 15}
+                    textAnchor="middle"
+                    className="text-[10px] md:text-xs fill-stone-400 font-medium"
+                  >
+                    {zone.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Feedback */}
+          {feedback && (
+            <div className={`absolute bottom-4 left-4 right-4 p-3 rounded-lg shadow-lg flex items-start gap-3 ${feedback.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'} animate-fade-in`}>
+              {feedback.type === 'success' ? <IconCheckCircle className="shrink-0 mt-0.5" size={18}/> : <IconXCircle className="shrink-0 mt-0.5" size={18}/>}
+              <span className="text-sm font-medium">{feedback.message}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Right Panel */}
+        <div className="w-full lg:w-72 flex flex-col gap-4">
+
+          <div className="bg-white p-4 rounded-xl shadow-md border border-stone-200">
+            <h2 className="text-lg font-bold text-stone-700 mb-4 flex items-center gap-2">
+              <IconTrophy size={20} className="text-amber-500"/>
+              {'\u4e94\u80e1\u90e8\u65cf'}
+            </h2>
+            <p className="text-xs text-stone-500 mb-4">{'\u9ede\u64ca\u4e0b\u65b9\u90e8\u65cf\uff0c\u7136\u5f8c\u9ede\u64ca\u5730\u5716\u4e0a\u7684\u6b63\u78ba\u4f4d\u7f6e\u3002'}</p>
+
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+              {TRIBES.map((tribe) => {
+                const isPlaced = Object.values(placedTribes).includes(tribe.id);
+                return (
+                  <button
+                    key={tribe.id}
+                    onClick={() => !isPlaced && setSelectedTribe(tribe.id)}
+                    disabled={isPlaced}
+                    className={`
+                      relative p-3 rounded-lg border-2 text-left transition-all flex items-center justify-between
+                      ${isPlaced
+                        ? 'bg-stone-100 border-stone-200 opacity-50 cursor-not-allowed'
+                        : selectedTribe === tribe.id
+                          ? 'bg-amber-50 border-amber-500 shadow-md scale-105'
+                          : 'bg-white border-stone-200 hover:border-amber-300 hover:bg-amber-50'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full ${tribe.color} flex items-center justify-center text-white text-xs font-bold shadow-sm`}>
+                        {tribe.name[0]}
+                      </div>
+                      <span className="font-bold text-stone-700">{tribe.name}</span>
+                    </div>
+                    {isPlaced && <IconCheckCircle size={16} className="text-green-500" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {gameWon && (
+            <div className="bg-gradient-to-br from-amber-100 to-yellow-50 p-6 rounded-xl shadow-lg border border-amber-200 text-center animate-pulse">
+              <h3 className="text-xl font-bold text-amber-800 mb-2">{'\u6311\u6230\u6210\u529f\uff01'}</h3>
+              <p className="text-sm text-amber-700">{'\u4f60\u5df2\u7d93\u638c\u63e1\u4e86\u897f\u6649\u672b\u5e74\u4e94\u80e1\u7684\u5206\u4f48\u5f62\u52e2\u3002'}</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Study Guide Modal */}
+      {showStudyGuide && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center sticky top-0 bg-white">
+              <h2 className="text-2xl font-bold text-stone-800 flex items-center gap-2">
+                <IconBookOpen className="text-blue-600" />
+                {'\u4e94\u80e1\u4e82\u83ef\u53f2\u5730\u7b46\u8a18'}
+              </h2>
+              <button onClick={() => setShowStudyGuide(false)} className="text-stone-400 hover:text-stone-600">
+                <IconXCircle size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 text-sm">
+                <strong>{'\u6b77\u53f2\u80cc\u666f\uff1a'}</strong> {'\u897f\u6649\u671f\u9593\uff0c\u671d\u5ef7\u5be6\u884c\u300c\u5f99\u6208\u300d\u653f\u7b56\uff0c\u5bb9\u8a31\u585e\u5916\u6c11\u65cf\u5167\u9077\u3002\u516b\u738b\u4e4b\u4e82\u5f8c\uff0c\u897f\u6649\u570b\u529b\u8870\u5f31\uff0c\u5c45\u4f4f\u5728\u908a\u5883\u53ca\u5167\u5730\u7684\u5c11\u6578\u6c11\u65cf\u7d1b\u7d1b\u8d77\u5175\u3002'}
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h3 className="font-bold text-red-700 flex items-center gap-2">1. {'\u5308\u5974'} (Xiongnu)</h3>
+                  <p className="text-sm text-stone-600">
+                    <strong>{'\u4f4d\u7f6e\uff1a'}</strong> {'\u5e76\u5dde\uff08\u4eca\u5c71\u897f\uff09\u3002'}<br/>
+                    <strong>{'\u95dc\u9375\uff1a'}</strong> {'\u6771\u6f22\u521d\u5e74\u5df2\u5357\u4e0b\u3002\u5289\u6df5\u5728\u5de6\u570b\u57ce\u8d77\u5175\uff0c\u5efa\u7acb\u300c\u6f22\u300d\uff08\u524d\u8d99\uff09\uff0c\u5f8c\u653b\u9677\u6d1b\u967d\u3001\u9577\u5b89\uff0c\u6ec5\u4ea1\u897f\u6649\u3002'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-bold text-blue-700 flex items-center gap-2">2. {'\u9bae\u5351'} (Xianbei)</h3>
+                  <p className="text-sm text-stone-600">
+                    <strong>{'\u4f4d\u7f6e\uff1a'}</strong> {'\u6771\u5317\u53ca\u5317\u65b9\u585e\u5916\uff08\u907c\u897f\u3001\u4ee3\u5317\uff09\u3002'}<br/>
+                    <strong>{'\u95dc\u9375\uff1a'}</strong> {'\u5206\u4f48\u6700\u5ee3\u3002\u8457\u540d\u7684\u6709\u6155\u5bb9\u6c0f\uff08\u524d\u71d5\uff09\u3001\u62d3\u8dcb\u6c0f\uff08\u4ee3/\u5317\u9b4f\uff09\u3002\u6700\u7d42\u7531\u5317\u9b4f\u7d71\u4e00\u5317\u65b9\u3002'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-bold text-yellow-700 flex items-center gap-2">3. {'\u7faf'} (Jie)</h3>
+                  <p className="text-sm text-stone-600">
+                    <strong>{'\u4f4d\u7f6e\uff1a'}</strong> {'\u4e0a\u9ee8\uff08\u5c71\u897f\u6771\u5357\uff09\u3002'}<br/>
+                    <strong>{'\u95dc\u9375\uff1a'}</strong> {'\u4f9d\u9644\u65bc\u5308\u5974\uff0c\u88ab\u7a31\u70ba\u300c\u5308\u5974\u5225\u90e8\u300d\u3002\u77f3\u52d2\u5f8c\u4f86\u812b\u96e2\u524d\u8d99\uff0c\u5efa\u7acb\u5f8c\u8d99\uff0c\u7d71\u6cbb\u6cb3\u5317\u5730\u5340\u3002'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-bold text-purple-700 flex items-center gap-2">4. {'\u6c10'} (Di)</h3>
+                  <p className="text-sm text-stone-600">
+                    <strong>{'\u4f4d\u7f6e\uff1a'}</strong> {'\u7565\u967d\u3001\u95dc\u4e2d\uff08\u7518\u8085\u5357\u90e8\u3001\u56db\u5ddd\u908a\u5883\uff09\u3002'}<br/>
+                    <strong>{'\u95dc\u9375\uff1a'}</strong> {'\u6f22\u5316\u7a0b\u5ea6\u8f03\u9ad8\u3002\u674e\u96c4\u5165\u8700\u5efa\u300c\u6210\u6f22\u300d\uff1b\u82fb\u5805\u5efa\u300c\u524d\u79e6\u300d\u4e26\u7d71\u4e00\u5317\u65b9\uff0c\u767c\u52d5\u6ddd\u6c34\u4e4b\u6230\u3002'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-bold text-green-700 flex items-center gap-2">5. {'\u7f8c'} (Qiang)</h3>
+                  <p className="text-sm text-stone-600">
+                    <strong>{'\u4f4d\u7f6e\uff1a'}</strong> {'\u6dbc\u5dde\u3001\u96b4\u897f\uff08\u7518\u8085\u897f\u90e8\uff09\u3002'}<br/>
+                    <strong>{'\u95dc\u9375\uff1a'}</strong> {'\u8207\u6f22\u4eba\u96dc\u8655\uff0c\u7d93\u5e38\u53db\u4e82\u3002\u59da\u840c\u5f8c\u4f86\u5efa\u7acb\u300c\u5f8c\u79e6\u300d\u3002'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-stone-50 border-t border-stone-200 text-center">
+              <button
+                onClick={() => setShowStudyGuide(false)}
+                className="bg-stone-800 text-white px-6 py-2 rounded-lg hover:bg-stone-700 transition"
+              >
+                {'\u56de\u5230\u904a\u6232'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<WesternJinMapGame />);
+</script>
+</body>
+</html>
