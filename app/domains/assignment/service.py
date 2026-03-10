@@ -1888,33 +1888,37 @@ class AssignmentService:
         self, assignment_id: int, include_answers: bool = True
     ) -> List[Dict[str, Any]]:
         """獲取 Form 題目列表。include_answers=False 時隱藏正確答案和參考答案（學生端）"""
-        if not self._question_repo or not self._question_option_repo:
+        if not self._question_repo:
             return []
 
         questions = self._question_repo.find_by_assignment(assignment_id)
         if not questions:
             return []
 
-        # 批量獲取選項
-        q_ids = [q["id"] for q in questions]
-        all_options = self._question_option_repo.find_by_questions(q_ids)
+        # 批量獲取選項（若 option repo 可用）
         options_by_q = {}
-        for opt in all_options:
-            options_by_q.setdefault(opt["question_id"], []).append(opt)
+        if self._question_option_repo:
+            q_ids = [q["id"] for q in questions]
+            all_options = self._question_option_repo.find_by_questions(q_ids)
+            for opt in all_options:
+                options_by_q.setdefault(opt["question_id"], []).append(opt)
 
         result = []
         for q in questions:
+            # 兼容 exam-paper 和 form 兩種 schema
+            pts = q.get("max_points") or q.get("points")
             item = {
                 "id": q["id"],
-                "question_order": q["question_order"],
-                "question_type": q["question_type"],
-                "question_text": q["question_text"],
-                "max_points": float(q["max_points"]) if q["max_points"] is not None else 0,
+                "question_order": q.get("question_order", 0),
+                "question_number": q.get("question_number", ""),
+                "question_type": q.get("question_type", "open"),
+                "question_text": q.get("question_text", ""),
+                "max_points": float(pts) if pts is not None else 0,
                 "grading_notes": q.get("grading_notes") or "",
                 "options": options_by_q.get(q["id"], []),
             }
             if include_answers:
-                item["correct_answer"] = q.get("correct_answer") or ""
+                item["correct_answer"] = q.get("correct_answer") or q.get("answer_text") or ""
                 item["reference_answer"] = q.get("reference_answer") or ""
             result.append(item)
 
