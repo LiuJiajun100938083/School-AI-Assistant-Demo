@@ -994,8 +994,8 @@ const GeoDisplay = {
         if (known.length || goals.length) {
             sections.push(`<div class="mb-figure-desc__layer">
                 <div class="mb-figure-desc__layer-title">題目條件</div>
-                ${known.length ? `<div><strong>已知：</strong>${known.map(k => UI.escapeHtml(k)).join('；')}</div>` : ''}
-                ${goals.length ? `<div><strong>求：</strong>${goals.map(g => `<span class="mb-figure-desc__goal">${UI.escapeHtml(g)}</span>`).join('、')}</div>` : ''}
+                ${known.length ? `<div><strong>已知：</strong>${known.map(k => UI.renderMath(k)).join('；')}</div>` : ''}
+                ${goals.length ? `<div><strong>求：</strong>${goals.map(g => `<span class="mb-figure-desc__goal">${UI.renderMath(g)}</span>`).join('、')}</div>` : ''}
             </div>`);
         }
 
@@ -1384,7 +1384,7 @@ const Views = {
                 if (m.figure_description_readable) return `<div class="mb-detail-section">
                     <div class="mb-figure-desc">
                         <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
-                        <div class="mb-figure-desc__item">${UI.escapeHtml(m.figure_description_readable)}</div>
+                        <div class="mb-figure-desc__item">${UI.renderMath(m.figure_description_readable)}</div>
                     </div>
                 </div>`;
                 return '';
