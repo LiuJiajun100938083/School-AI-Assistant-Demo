@@ -9,6 +9,7 @@ import os
 import json
 import logging
 import base64
+import time
 from typing import Optional
 
 from app.domains.vision import json_utils
@@ -49,10 +50,14 @@ class OllamaVisionClient:
             import httpx
             from app.core.ai_gate import ai_gate
 
+            t_start = time.monotonic()
+
             image_b64 = encode_image_base64(image_path)
             if not image_b64:
                 logger.error("圖片 base64 編碼失敗")
                 return None
+
+            t_encode = time.monotonic()
 
             final_prompt = f"/no_think\n{prompt}"
 
@@ -75,10 +80,17 @@ class OllamaVisionClient:
 
             timeout = httpx.Timeout(float(self._timeout), connect=10.0)
 
+            t_before_gate = time.monotonic()
             async with ai_gate("vision_ocr", priority=priority, weight=weight) as client:
+                t_after_gate = time.monotonic()
+                logger.info(
+                    "[PERF] normal_mode gate_wait=%.1fs encode=%.1fs",
+                    t_after_gate - t_before_gate, t_encode - t_start,
+                )
                 response = await client.post("/api/chat", json=payload, timeout=timeout)
                 response.raise_for_status()
                 data = response.json()
+            t_model = time.monotonic()
 
             msg = data.get("message", {})
             raw_content = msg.get("content", "")
@@ -186,10 +198,16 @@ class OllamaVisionClient:
                 json_valid, schema_valid,
             )
 
+            t_end = time.monotonic()
+            logger.info(
+                "[PERF] normal_mode total=%.1fs model=%.1fs extract=%.1fs",
+                t_end - t_start, t_model - t_before_gate, t_end - t_model,
+            )
+
             if schema_valid:
                 return content
             if json_valid:
-                logger.warning("普通模式: JSON 合法但不符合 exam schema，交由 parser 處理")
+                logger.warning("普通模式: JSON 合法但不符合 vision schema，交由 parser 處理")
                 return content
             if content:
                 if is_pure_reasoning:
@@ -227,6 +245,8 @@ class OllamaVisionClient:
             import httpx
             from app.core.ai_gate import ai_gate
 
+            t_start = time.monotonic()
+
             image_b64 = encode_image_base64(image_path)
             if not image_b64:
                 return None
@@ -262,12 +282,19 @@ class OllamaVisionClient:
                 },
             }
 
-            timeout = httpx.Timeout(360.0, connect=30.0)
+            timeout = httpx.Timeout(180.0, connect=30.0)
 
+            t_before_gate = time.monotonic()
             async with ai_gate("vision_ocr_json", priority=priority, weight=weight) as client:
+                t_after_gate = time.monotonic()
+                logger.info(
+                    "[PERF] json_mode gate_wait=%.1fs",
+                    t_after_gate - t_before_gate,
+                )
                 response = await client.post("/api/chat", json=payload, timeout=timeout)
                 response.raise_for_status()
                 data = response.json()
+            t_model = time.monotonic()
 
             msg = data.get("message", {})
             content = msg.get("content", "")
@@ -294,9 +321,11 @@ class OllamaVisionClient:
             if content:
                 valid = json_utils.validate_vision_json(content)
                 if valid:
+                    t_end = time.monotonic()
                     logger.info(
-                        "Vision JSON 模式成功: json_valid=true, schema_valid=true, len=%d",
-                        len(content),
+                        "[PERF] json_mode total=%.1fs model=%.1fs gate_wait=%.1fs result=PASS",
+                        t_end - t_start, t_model - t_after_gate,
+                        t_after_gate - t_before_gate,
                     )
                 else:
                     logger.warning(
@@ -306,6 +335,14 @@ class OllamaVisionClient:
                     content = None
             else:
                 logger.warning("Vision JSON 模式未能提取有效內容")
+
+            if not content:
+                t_end = time.monotonic()
+                logger.info(
+                    "[PERF] json_mode total=%.1fs model=%.1fs gate_wait=%.1fs result=FAIL",
+                    t_end - t_start, t_model - t_after_gate,
+                    t_after_gate - t_before_gate,
+                )
 
             return content if content else None
 

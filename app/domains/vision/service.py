@@ -13,6 +13,7 @@ VisionService — 視覺識別服務 (Facade)
 
 import os
 import logging
+import time
 from typing import Optional
 
 from app.domains.vision.schemas import (
@@ -77,30 +78,46 @@ class VisionService:
     ) -> OCRResult:
         """主入口：識別圖片中的題目和答案"""
         try:
+            t0 = time.monotonic()
+
             if not os.path.exists(image_path):
                 return OCRResult(success=False, error=f"圖片文件不存在: {image_path}")
 
             processed_path = await self._client.preprocess_image(image_path)
+            t_preprocess = time.monotonic()
+
             prompt = build_ocr_prompt(subject, task)
 
             # 首次調用：JSON 強制模式
             raw_response = await self._client.call_vision_model_json(processed_path, prompt)
+            t_json_call = time.monotonic()
 
+            used_fallback = False
             if raw_response is not None:
                 logger.info("OCR JSON 模式成功 (subject=%s, len=%d)", subject.value, len(raw_response))
-
-            # 回退：普通模式
-            if raw_response is None:
+            else:
+                # 回退：普通模式
+                used_fallback = True
                 logger.warning("JSON 模式調用失敗，回退到普通模式...")
                 raw_response = await self._client.call_vision_model(processed_path, prompt)
 
+            t_model_done = time.monotonic()
+
             if raw_response is None:
+                logger.info(
+                    "[PERF] recognize FAILED total=%.1fs preprocess=%.1fs json_call=%.1fs fallback=%s",
+                    t_model_done - t0, t_preprocess - t0,
+                    t_json_call - t_preprocess, used_fallback,
+                )
                 return OCRResult(success=False, error="視覺模型調用失敗")
 
             result = parse_ocr_response(raw_response, subject, task)
+            t_parse = time.monotonic()
 
             # 如果解析完全失敗，重試
+            used_retry = False
             if not result.question_text:
+                used_retry = True
                 logger.warning("首次 OCR 解析失敗（question 為空），嘗試重試...")
                 retry_prompt = (
                     "/no_think\n"
@@ -116,7 +133,16 @@ class VisionService:
                     retry_result = parse_ocr_response(retry_response, subject, task)
                     if retry_result.question_text:
                         logger.info("重試 OCR 成功")
-                        return retry_result
+                        result = retry_result
+
+            t_end = time.monotonic()
+            logger.info(
+                "[PERF] recognize total=%.1fs preprocess=%.1fs model=%.1fs parse=%.1fs "
+                "fallback=%s retry=%s subject=%s question_len=%d",
+                t_end - t0, t_preprocess - t0, t_model_done - t_preprocess,
+                t_parse - t_model_done, used_fallback, used_retry,
+                subject.value, len(result.question_text or ""),
+            )
 
             return result
 
