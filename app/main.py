@@ -169,6 +169,17 @@ def create_app() -> FastAPI:
             dir_path = os.path.join(str(settings.base_dir), dir_name)
             os.makedirs(dir_path, exist_ok=True)
 
+        # 清理卡在 processing 狀態的錯題記錄（服務器重啟後 OCR 任務已中斷）
+        try:
+            from app.services import get_services
+            svc = get_services()
+            if hasattr(svc, 'mistake_book') and svc.mistake_book:
+                cleaned = svc.mistake_book._mistakes.cleanup_stale_processing()
+                if cleaned:
+                    logger.info("已清理 %d 條卡住的 processing 錯題記錄", cleaned)
+        except Exception as e:
+            logger.warning("清理 stale processing 記錄失敗: %s", e)
+
         logger.info("应用启动完成")
 
     @app.on_event("shutdown")

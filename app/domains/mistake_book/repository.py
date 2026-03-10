@@ -88,6 +88,33 @@ class MistakeRepository(BaseRepository):
             "mistake_id = %s AND is_deleted = FALSE", (mistake_id,)
         )
 
+    def cleanup_stale_processing(self, max_age_minutes: int = 30) -> int:
+        """
+        將超時的 processing 記錄標記為 ocr_failed。
+
+        服務器重啟後，之前正在處理的 OCR 任務已經中斷，
+        需要清理以避免前端無限輪詢。
+        """
+        conn = self._get_conn()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE student_mistakes
+                SET status = 'ocr_failed'
+                WHERE status = 'processing'
+                  AND is_deleted = FALSE
+                  AND created_at < NOW() - INTERVAL %s MINUTE
+                """,
+                (max_age_minutes,),
+            )
+            count = cursor.rowcount
+            conn.commit()
+            return count
+        finally:
+            cursor.close()
+            conn.close()
+
     def find_by_student(
         self,
         username: str,
