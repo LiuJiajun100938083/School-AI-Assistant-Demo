@@ -666,6 +666,20 @@ class MistakeBookService:
             self._apply_figure_description(mistake_id, figure_desc, schema_version=2)
 
         # ---- Step 2: 置信度閘門 ----
+        # 沒有答案文字時，轉人工確認（避免 AI 自己生成答案）
+        if not ocr_result.answer_text or not ocr_result.answer_text.strip():
+            if not self._check_still_processing(mistake_id):
+                return
+            self._mistakes.update(
+                {"status": "needs_review"},
+                "mistake_id = %s", (mistake_id,),
+            )
+            logger.info(
+                "後台 OCR 未提取到答案 (mistake=%s)，需人工輸入答案",
+                mistake_id,
+            )
+            return
+
         if ocr_result.confidence < self.AUTO_CONFIRM_THRESHOLD:
             if not self._check_still_processing(mistake_id):
                 return
