@@ -37,6 +37,9 @@ logger = logging.getLogger(__name__)
 
 trade_game_router = APIRouter(prefix="/api/trade-game", tags=["Trade Game"])
 
+# 允許遊玩的班級（僅中三學生）
+ALLOWED_CLASSES = {"3A", "3B", "3C", "3D", "3S"}
+
 
 def _extract_user(current_user: Dict) -> Dict:
     """從 get_current_user 依賴中提取用戶信息"""
@@ -60,6 +63,17 @@ def _require_teacher(user: Dict) -> None:
         raise HTTPException(403, "只有老師和管理員可以執行此操作")
 
 
+def _require_allowed_class(user: Dict) -> None:
+    """檢查學生是否在允許的班級（中三），老師/管理員跳過"""
+    if user["role"] in ("teacher", "admin"):
+        return
+    if user["class_name"] not in ALLOWED_CLASSES:
+        raise HTTPException(
+            403,
+            f"只有中三學生（{', '.join(sorted(ALLOWED_CLASSES))}）可以遊玩此遊戲"
+        )
+
+
 # ==================================================================================
 #                                   學生端點
 # ==================================================================================
@@ -70,11 +84,13 @@ async def submit_score(
     current_user: Dict = Depends(get_current_user),
 ):
     """
-    提交遊戲成績（每位學生僅限一次）
+    提交遊戲成績
 
-    重複提交會返回 409 Conflict。
+    允許多次遊玩，系統記錄每次成績，排行榜取最高分。
+    僅限中三學生（3A/3B/3C/3D/3S），老師不受限制。
     """
     user = _extract_user(current_user)
+    _require_allowed_class(user)
     loop = asyncio.get_event_loop()
 
     # 將 Pydantic 模型展開為扁平字典
@@ -99,19 +115,16 @@ async def submit_score(
         "feedback_tags": data.feedback_tags,
     }
 
-    try:
-        result = await loop.run_in_executor(
-            None,
-            lambda: _get_service().submit_score(
-                student_id=user["id"],
-                student_name=user["display_name"] or user["username"],
-                class_name=user["class_name"],
-                data=score_data,
-            ),
-        )
-        return {"success": True, "message": "成績已記錄", "data": result}
-    except ValueError as e:
-        raise HTTPException(409, str(e))
+    result = await loop.run_in_executor(
+        None,
+        lambda: _get_service().submit_score(
+            student_id=user["id"],
+            student_name=user["display_name"] or user["username"],
+            class_name=user["class_name"],
+            data=score_data,
+        ),
+    )
+    return {"success": True, "message": "成績已記錄", "data": result}
 
 
 @trade_game_router.get("/scores/check")
@@ -121,9 +134,11 @@ async def check_played(
     """
     檢查當前學生是否已遊玩過
 
-    返回已有成績記錄（含分數等），或 null 表示未遊玩。
+    返回最佳成績記錄（含分數等），或 null 表示未遊玩。
+    允許多次遊玩，此端點返回歷史最高分。
     """
     user = _extract_user(current_user)
+    _require_allowed_class(user)
     loop = asyncio.get_event_loop()
 
     score = await loop.run_in_executor(
@@ -136,6 +151,30 @@ async def check_played(
         "data": {
             "played": score is not None,
             "score": score,
+        },
+    }
+
+
+@trade_game_router.get("/access")
+async def check_access(
+    current_user: Dict = Depends(get_current_user),
+):
+    """
+    檢查當前用戶是否有權遊玩
+
+    返回 allowed=true/false 和用戶班級信息。
+    """
+    user = _extract_user(current_user)
+    is_teacher = user["role"] in ("teacher", "admin")
+    allowed = is_teacher or user["class_name"] in ALLOWED_CLASSES
+
+    return {
+        "success": True,
+        "data": {
+            "allowed": allowed,
+            "is_teacher": is_teacher,
+            "class_name": user["class_name"],
+            "allowed_classes": sorted(ALLOWED_CLASSES),
         },
     }
 

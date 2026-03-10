@@ -60,6 +60,79 @@
 
         /* Tooltip */
         .tip-card { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid rgba(250,204,21,0.3); border-radius: 12px; padding: 16px; }
+
+        /* ====== Leaderboard Visual Effects ====== */
+        /* 1st place — Gold gradient + shimmer animation */
+        .leaderboard-rank-1 {
+            background: linear-gradient(135deg, rgba(234,179,8,0.25), rgba(251,191,36,0.15), rgba(234,179,8,0.25));
+            border: 2px solid rgba(234,179,8,0.6);
+            box-shadow: 0 0 20px rgba(234,179,8,0.2), inset 0 0 20px rgba(234,179,8,0.05);
+            animation: shimmerGold 3s ease-in-out infinite, fadeInUp 0.5s ease-out;
+            transform: scale(1.02);
+        }
+
+        /* 2nd place — Silver gradient + subtle glow */
+        .leaderboard-rank-2 {
+            background: linear-gradient(135deg, rgba(192,192,220,0.2), rgba(148,163,184,0.15), rgba(192,192,220,0.2));
+            border: 2px solid rgba(192,192,220,0.5);
+            box-shadow: 0 0 15px rgba(192,192,220,0.15);
+            animation: glowSilver 4s ease-in-out infinite, fadeInUp 0.5s ease-out;
+        }
+
+        /* 3rd place — Bronze/copper gradient */
+        .leaderboard-rank-3 {
+            background: linear-gradient(135deg, rgba(205,127,50,0.2), rgba(180,83,9,0.15), rgba(205,127,50,0.2));
+            border: 2px solid rgba(205,127,50,0.4);
+            box-shadow: 0 0 10px rgba(205,127,50,0.1);
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        /* 4th-10th place — Special border highlight */
+        .leaderboard-rank-top10 {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.12);
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        /* Gold shimmer keyframes */
+        @keyframes shimmerGold {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(234,179,8,0.2), inset 0 0 20px rgba(234,179,8,0.05);
+                border-color: rgba(234,179,8,0.6);
+            }
+            50% {
+                box-shadow: 0 0 35px rgba(234,179,8,0.4), inset 0 0 30px rgba(234,179,8,0.1);
+                border-color: rgba(251,191,36,0.8);
+            }
+        }
+
+        /* Silver glow keyframes */
+        @keyframes glowSilver {
+            0%, 100% {
+                box-shadow: 0 0 15px rgba(192,192,220,0.15);
+                border-color: rgba(192,192,220,0.5);
+            }
+            50% {
+                box-shadow: 0 0 25px rgba(192,192,220,0.3);
+                border-color: rgba(192,192,220,0.7);
+            }
+        }
+
+        /* Crown icon glow for 1st */
+        .leaderboard-icon-glow-gold {
+            text-shadow: 0 0 10px rgba(234,179,8,0.6), 0 0 20px rgba(234,179,8,0.3);
+            animation: iconPulseGold 2s ease-in-out infinite;
+        }
+
+        @keyframes iconPulseGold {
+            0%, 100% { text-shadow: 0 0 10px rgba(234,179,8,0.6), 0 0 20px rgba(234,179,8,0.3); }
+            50% { text-shadow: 0 0 15px rgba(234,179,8,0.8), 0 0 30px rgba(234,179,8,0.5); }
+        }
+
+        /* Silver icon glow for 2nd */
+        .leaderboard-icon-glow-silver {
+            text-shadow: 0 0 8px rgba(192,192,220,0.5), 0 0 15px rgba(192,192,220,0.2);
+        }
     </style>
 
     <script>
@@ -142,6 +215,11 @@
 
         isTeacher() {
             return this.user && ['teacher', 'admin'].includes(this.user.role);
+        },
+
+        async checkAccess() {
+            const resp = await APIClient.get('/api/trade-game/access');
+            return resp?.data || { allowed: false };
         },
 
         async checkPlayed() {
@@ -295,10 +373,16 @@
         restartBtn: '🔄 重新挑戰',
         backToDashboard: '📊 返回管理面板',
         backBtn: '← 返回',
-        // Already Played Screen
-        alreadyPlayedTitle: '你已完成遊戲',
-        alreadyPlayedDesc: '每位同學只能遊玩一次',
-        yourScoreLabel: '你的綜合國力分數',
+        // Access Denied Screen
+        accessDeniedTitle: '暫無權限',
+        accessDeniedDesc: '此遊戲僅限中三學生（3A、3B、3C、3D、3S）遊玩',
+        accessDeniedBack: '← 返回遊戲中心',
+        // Already Played Screen (now shows best score + allows replay)
+        alreadyPlayedTitle: '你的最佳紀錄',
+        alreadyPlayedDesc: '你可以繼續挑戰，系統會記錄你的最高分！',
+        yourScoreLabel: '你的最高綜合國力分數',
+        playAgainBtn: '🚀 再次挑戰',
+        newBestMsg: '🎉 新紀錄！你刷新了個人最高分！',
         difficultyLabel: '難度',
         resultVictory: '🏆 勝利',
         resultBankruptBadge: '💀 破產',
@@ -310,6 +394,7 @@
         teacherSubtitle: '管理學生遊戲成績、查看統計數據',
         exportCsv: '📄 下載 CSV',
         trialPlayShort: '🎮 試玩遊戲',
+        officialPlayShort: '🚀 正式遊玩',
         backShort: '← 返回',
         totalPlays: '👥 總遊玩次數',
         totalWins: '🏆 勝利次數',
@@ -460,10 +545,16 @@
         restartBtn: '🔄 Play Again',
         backToDashboard: '📊 Back to Dashboard',
         backBtn: '← Back',
-        // Already Played Screen
-        alreadyPlayedTitle: 'Game Completed',
-        alreadyPlayedDesc: 'Each student can only play once',
-        yourScoreLabel: 'Your National Power Score',
+        // Access Denied Screen
+        accessDeniedTitle: 'Access Restricted',
+        accessDeniedDesc: 'This game is only available for Form 3 students (3A, 3B, 3C, 3D, 3S)',
+        accessDeniedBack: '← Back to Game Center',
+        // Already Played Screen (now shows best score + allows replay)
+        alreadyPlayedTitle: 'Your Best Record',
+        alreadyPlayedDesc: 'You can keep playing to beat your high score!',
+        yourScoreLabel: 'Your Best National Power Score',
+        playAgainBtn: '🚀 Play Again',
+        newBestMsg: '🎉 New Record! You beat your personal best!',
         difficultyLabel: 'Difficulty',
         resultVictory: '🏆 Victory',
         resultBankruptBadge: '💀 Bankrupt',
@@ -475,6 +566,7 @@
         teacherSubtitle: 'Manage student game scores and view statistics',
         exportCsv: '📄 Export CSV',
         trialPlayShort: '🎮 Trial Play',
+        officialPlayShort: '🚀 Official Play',
         backShort: '← Back',
         totalPlays: '👥 Total Plays',
         totalWins: '🏆 Total Wins',
@@ -739,13 +831,20 @@
     // =====================================================================
     //  SetupScreen Component
     // =====================================================================
-    function SetupScreen({ playerName, onStart, showTrialOption, onTrialStart, t }) {
+    function SetupScreen({ playerName, onStart, showTrialOption, onTrialStart, bestScore, t }) {
         const [difficulty, setDifficulty] = useState('NORMAL');
         const [playerSpec, setPlayerSpec] = useState('AGRI');
         const [aiSpec, setAiSpec] = useState('IND');
         const [showRulesPanel, setShowRulesPanel] = useState(false);
+        const [leaderboard, setLeaderboard] = useState([]);
 
         const gd = useMemo(() => getGameData(t), [t]);
+
+        useEffect(() => {
+            TradeGameBridge.getLeaderboard(null, 20).then(data => {
+                setLeaderboard(data || []);
+            }).catch(() => {});
+        }, []);
 
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
@@ -873,6 +972,19 @@
                                 {t('trialModeBtn')}
                             </button>
                         )}
+
+                        {/* Personal Best Score */}
+                        {bestScore && (
+                            <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-4 text-center">
+                                <div className="text-sm text-amber-400/80 mb-1">{t('yourScoreLabel')}</div>
+                                <div className="text-2xl font-bold text-amber-400">{(bestScore.player_score || 0).toLocaleString()}</div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Leaderboard below setup form */}
+                    <div className="mt-6">
+                        <EnhancedLeaderboard leaderboard={leaderboard} t={t} />
                     </div>
                 </div>
             </div>
@@ -1314,42 +1426,17 @@
                         )}
 
                         {/* Leaderboard */}
-                        {leaderboard.length > 0 && (
-                            <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700">
-                                <h2 className="text-lg font-bold text-white mb-3">{t('leaderboardTitle')}</h2>
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                    {leaderboard.slice(0, 20).map((entry, i) => (
-                                        <div key={i} className="flex items-center justify-between bg-gray-700/30 rounded-lg px-4 py-2">
-                                            <div className="flex items-center gap-3">
-                                                <span className={`text-lg font-bold ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
-                                                    #{i + 1}
-                                                </span>
-                                                <span className="text-white text-sm">{entry.student_name || entry.player_name || '???'}</span>
-                                                {entry.class_name && <span className="text-xs text-gray-500">{entry.class_name}</span>}
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className={`text-xs px-2 py-0.5 rounded ${entry.result === 'win' ? 'bg-green-900/40 text-green-400' : entry.result === 'bankrupt' ? 'bg-red-900/40 text-red-400' : 'bg-gray-700 text-gray-400'}`}>
-                                                    {entry.result === 'win' ? t('resultWin') : entry.result === 'bankrupt' ? t('resultBankrupt') : t('resultLose')}
-                                                </span>
-                                                <span className="text-amber-400 font-bold">{(entry.player_score || 0).toLocaleString()}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        <EnhancedLeaderboard leaderboard={leaderboard} t={t} />
 
                         {/* Action Buttons */}
                         <div className="flex gap-3 justify-center">
+                            <button
+                                onClick={() => onGameEnd('restart')}
+                                className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors"
+                            >
+                                {t('restartBtn')}
+                            </button>
                             {(isTrialMode || TradeGameBridge.isTeacher()) && (
-                                <button
-                                    onClick={() => onGameEnd('restart')}
-                                    className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors"
-                                >
-                                    {t('restartBtn')}
-                                </button>
-                            )}
-                            {isTrialMode && (
                                 <button
                                     onClick={() => onGameEnd('back')}
                                     className="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-xl font-medium transition-colors"
@@ -1609,21 +1696,105 @@
     // =====================================================================
     //  AlreadyPlayedScreen
     // =====================================================================
-    function AlreadyPlayedScreen({ scoreData, onTrialPlay, t }) {
+    // =====================================================================
+    //  AccessDeniedScreen — shown when student is not in allowed class
+    // =====================================================================
+    function AccessDeniedScreen({ t }) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="max-w-md w-full animate-fade-in-up text-center space-y-6">
+                    <div className="text-6xl mb-4">🔒</div>
+                    <h1 className="text-2xl font-bold text-white">{t('accessDeniedTitle')}</h1>
+                    <p className="text-gray-400">{t('accessDeniedDesc')}</p>
+                    <a href="/static/game_center.html" className="inline-block px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-colors">
+                        {t('accessDeniedBack')}
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
+    // =====================================================================
+    //  Enhanced Leaderboard Component with visual effects
+    // =====================================================================
+    function EnhancedLeaderboard({ leaderboard, t }) {
+        if (!leaderboard || leaderboard.length === 0) return null;
+
+        const getRankStyle = (i) => {
+            if (i === 0) return 'leaderboard-rank-1';
+            if (i === 1) return 'leaderboard-rank-2';
+            if (i === 2) return 'leaderboard-rank-3';
+            if (i < 10) return 'leaderboard-rank-top10';
+            return '';
+        };
+
+        const getRankIcon = (i) => {
+            if (i === 0) return '👑';
+            if (i === 1) return '⭐';
+            if (i === 2) return '🥉';
+            return `#${i + 1}`;
+        };
+
+        return (
+            <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700">
+                <h2 className="text-xl font-bold text-white mb-4 text-center">{t('leaderboardTitle')}</h2>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                    {leaderboard.slice(0, 20).map((entry, i) => (
+                        <div key={i} className={`flex items-center justify-between rounded-xl px-4 py-3 transition-all ${getRankStyle(i)}`}
+                            style={{ animationDelay: `${i * 0.05}s` }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className={`text-xl font-bold min-w-[40px] text-center ${
+                                    i === 0 ? 'text-yellow-400 text-2xl leaderboard-icon-glow-gold'
+                                    : i === 1 ? 'text-gray-200 text-xl leaderboard-icon-glow-silver'
+                                    : i === 2 ? 'text-amber-600 text-xl'
+                                    : 'text-gray-500'
+                                }`}>
+                                    {getRankIcon(i)}
+                                </span>
+                                <div>
+                                    <span className={`font-semibold ${i < 3 ? 'text-white text-base' : 'text-gray-200 text-sm'}`}>
+                                        {entry.student_name || '???'}
+                                    </span>
+                                    {entry.class_name && (
+                                        <span className="text-xs text-gray-500 ml-2">{entry.class_name}</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                    entry.result === 'win' ? 'bg-green-900/40 text-green-400'
+                                    : entry.result === 'bankrupt' ? 'bg-red-900/40 text-red-400'
+                                    : 'bg-gray-700 text-gray-400'
+                                }`}>
+                                    {entry.result === 'win' ? t('resultWin') : entry.result === 'bankrupt' ? t('resultBankrupt') : t('resultLose')}
+                                </span>
+                                <span className={`font-bold ${i === 0 ? 'text-yellow-400 text-lg' : i < 3 ? 'text-amber-400 text-base' : 'text-amber-400/80 text-sm'}`}>
+                                    {(entry.player_score || 0).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    function AlreadyPlayedScreen({ scoreData, onPlayAgain, onTrialPlay, t }) {
         const [leaderboard, setLeaderboard] = useState([]);
         const gd = useMemo(() => getGameData(t), [t]);
 
         useEffect(() => {
-            TradeGameBridge.getLeaderboard(scoreData?.difficulty).then(data => {
+            TradeGameBridge.getLeaderboard(null, 20).then(data => {
                 setLeaderboard(data || []);
             }).catch(() => {});
-        }, [scoreData]);
+        }, []);
 
         return (
             <div className="min-h-screen flex items-center justify-center p-4">
-                <div className="max-w-lg w-full animate-fade-in-up space-y-6">
+                <div className="max-w-2xl w-full animate-fade-in-up space-y-6">
                     <div className="text-center">
-                        <div className="text-5xl mb-4">✅</div>
+                        <div className="text-5xl mb-4">🏆</div>
                         <h1 className="text-2xl font-bold text-white">{t('alreadyPlayedTitle')}</h1>
                         <p className="text-gray-400 mt-2">{t('alreadyPlayedDesc')}</p>
                     </div>
@@ -1647,29 +1818,18 @@
                         </div>
                     )}
 
-                    {leaderboard.length > 0 && (
-                        <div className="bg-gray-800/60 rounded-2xl p-6 border border-gray-700">
-                            <h2 className="text-lg font-bold text-white mb-3">{t('leaderboardTitle')}</h2>
-                            <div className="space-y-2 max-h-72 overflow-y-auto">
-                                {leaderboard.slice(0, 20).map((entry, i) => (
-                                    <div key={i} className="flex items-center justify-between bg-gray-700/30 rounded-lg px-4 py-2">
-                                        <div className="flex items-center gap-3">
-                                            <span className={`text-lg font-bold ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
-                                                #{i + 1}
-                                            </span>
-                                            <span className="text-white text-sm">{entry.student_name || '???'}</span>
-                                        </div>
-                                        <span className="text-amber-400 font-bold">{(entry.player_score || 0).toLocaleString()}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <EnhancedLeaderboard leaderboard={leaderboard} t={t} />
 
                     <div className="flex flex-col items-center gap-3">
                         <button
+                            onClick={onPlayAgain}
+                            className="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-amber-500/20"
+                        >
+                            {t('playAgainBtn')}
+                        </button>
+                        <button
                             onClick={onTrialPlay}
-                            className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-medium transition-colors flex items-center gap-2"
+                            className="px-6 py-2 bg-gray-700/60 hover:bg-gray-600/60 text-gray-300 hover:text-white rounded-xl font-medium transition-colors border border-gray-600"
                         >
                             {t('trialPlayBtn')}
                         </button>
@@ -1685,7 +1845,7 @@
     // =====================================================================
     //  TeacherDashboard Component
     // =====================================================================
-    function TeacherDashboard({ onTrialPlay, t }) {
+    function TeacherDashboard({ onTrialPlay, onOfficialPlay, t }) {
         const [scores, setScores] = useState([]);
         const [loading, setLoading] = useState(true);
         const [classFilter, setClassFilter] = useState('');
@@ -1756,8 +1916,14 @@
                             {t('exportCsv')}
                         </button>
                         <button
+                            onClick={onOfficialPlay}
+                            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1 shadow-lg shadow-amber-500/20"
+                        >
+                            {t('officialPlayShort')}
+                        </button>
+                        <button
                             onClick={onTrialPlay}
-                            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
                         >
                             {t('trialPlayShort')}
                         </button>
@@ -1948,6 +2114,7 @@
         const [trialMode, setTrialMode] = useState(false);
         const [existingScore, setExistingScore] = useState(null);
         const [gameConfig, setGameConfig] = useState(null);
+        const [accessDenied, setAccessDenied] = useState(false);
 
         useEffect(() => {
             (async () => {
@@ -1955,11 +2122,33 @@
                     const ok = await TradeGameBridge.init();
                     if (!ok) return;
 
+                    // Check class access (teachers bypass)
+                    if (!TradeGameBridge.isTeacher()) {
+                        try {
+                            const accessResult = await TradeGameBridge.checkAccess();
+                            if (!accessResult.allowed) {
+                                setAccessDenied(true);
+                                setReady(true);
+                                setLoading(false);
+                                return;
+                            }
+                        } catch (e) {
+                            // If access check fails with 403, deny access
+                            if (e.message && e.message.includes('中三')) {
+                                setAccessDenied(true);
+                                setReady(true);
+                                setLoading(false);
+                                return;
+                            }
+                        }
+                    }
+
                     if (!TradeGameBridge.isTeacher()) {
                         const checkResult = await TradeGameBridge.checkPlayed();
                         if (checkResult.played) {
                             setExistingScore(checkResult.score);
-                            setGamePhase('already_played');
+                            // Still show best score but allow replaying
+                            setGamePhase('has_record');
                             setReady(true);
                             setLoading(false);
                             return;
@@ -1990,9 +2179,15 @@
                 if (TradeGameBridge.isTeacher()) {
                     setGamePhase('dashboard');
                 } else {
-                    setGamePhase(existingScore ? 'already_played' : 'setup');
+                    setGamePhase(existingScore ? 'has_record' : 'setup');
                 }
             }
+        };
+
+        const handlePlayAgain = () => {
+            setTrialMode(false);
+            setGameConfig(null);
+            setGamePhase('setup');
         };
 
         const handleTrialPlay = () => {
@@ -2041,11 +2236,20 @@
             );
         }
 
-        if (gamePhase === 'already_played') {
+        if (accessDenied) {
             return (
                 <div>
                     {langToggle}
-                    <AlreadyPlayedScreen scoreData={existingScore} onTrialPlay={handleTrialPlay} t={t} />
+                    <AccessDeniedScreen t={t} />
+                </div>
+            );
+        }
+
+        if (gamePhase === 'has_record') {
+            return (
+                <div>
+                    {langToggle}
+                    <AlreadyPlayedScreen scoreData={existingScore} onPlayAgain={handlePlayAgain} onTrialPlay={handleTrialPlay} t={t} />
                 </div>
             );
         }
@@ -2054,7 +2258,7 @@
             return (
                 <div>
                     {langToggle}
-                    <TeacherDashboard onTrialPlay={handleTrialPlay} t={t} />
+                    <TeacherDashboard onTrialPlay={handleTrialPlay} onOfficialPlay={handlePlayAgain} t={t} />
                 </div>
             );
         }
@@ -2071,7 +2275,7 @@
                                 if (TradeGameBridge.isTeacher()) {
                                     setGamePhase('dashboard');
                                 } else {
-                                    setGamePhase(existingScore ? 'already_played' : 'setup');
+                                    setGamePhase(existingScore ? 'has_record' : 'setup');
                                 }
                             }} className="underline hover:no-underline ml-2">
                                 {TradeGameBridge.isTeacher() ? t('returnDashboard') : t('exitTrial')}
@@ -2084,6 +2288,7 @@
                             onStart={handleStartGame}
                             showTrialOption={!trialMode && !TradeGameBridge.isTeacher()}
                             onTrialStart={handleTrialStart}
+                            bestScore={existingScore}
                             t={t}
                         />
                     </div>

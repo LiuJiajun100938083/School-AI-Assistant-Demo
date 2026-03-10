@@ -86,9 +86,9 @@ class TradeGameService:
         data: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
-        提交遊戲成績
+        提交遊戲成績（允許多次遊玩）
 
-        包含防重複校驗（數據庫層 SELECT ... FOR UPDATE）。
+        每次遊玩都會記錄成績，排行榜取最高分。
 
         Args:
             student_id: 用戶 ID
@@ -97,11 +97,12 @@ class TradeGameService:
             data: 遊戲成績數據
 
         Returns:
-            {"id": int, "message": str}
-
-        Raises:
-            ValueError: 學生已有成績記錄
+            {"id": int, "message": str, "is_new_best": bool}
         """
+        # 先查詢歷史最高分
+        previous_best = self._repo.get_student_best_score(student_id)
+        previous_best_score = previous_best["player_score"] if previous_best else None
+
         record = {
             "student_id": student_id,
             "student_name": student_name,
@@ -127,14 +128,22 @@ class TradeGameService:
         }
 
         new_id = self._repo.create_score(record)
-        if new_id is None:
-            raise ValueError("你已經完成過此遊戲，無法重複提交")
+
+        is_new_best = (
+            previous_best_score is None
+            or data["player_score"] > previous_best_score
+        )
 
         logger.info(
-            "成績已記錄: student_id=%d, score=%d, result=%s",
-            student_id, data["player_score"], data["result"],
+            "成績已記錄: student_id=%d, score=%d, result=%s, is_new_best=%s",
+            student_id, data["player_score"], data["result"], is_new_best,
         )
-        return {"id": new_id, "message": "成績已記錄"}
+        return {
+            "id": new_id,
+            "message": "新紀錄！" if is_new_best else "成績已記錄",
+            "is_new_best": is_new_best,
+            "previous_best": previous_best_score,
+        }
 
     # ============================================================
     # 公開查詢

@@ -39,8 +39,20 @@ async def create_reply(
     特性：
     - 教师回复会自动标记为 is_instructor_response
     - 支持@提及其他用户，会自动发送通知
+    - 学生回复内容需通过 AI 审核（必须与 AI 相关）
     """
     username, role = user_info
+
+    # AI 内容审核：学生回复需要审核，教师/管理员跳过
+    if role not in ("teacher", "admin"):
+        from ..service.content_moderator import check_content_ai_related
+        approved, reason = await check_content_ai_related(
+            title="",
+            content=request.content,
+        )
+        if not approved:
+            raise HTTPException(status_code=403, detail=reason)
+
     return reply_service.create_reply(post_id, username, role, request)
 
 

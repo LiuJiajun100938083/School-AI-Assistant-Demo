@@ -5,6 +5,8 @@
 
 封裝 trade_game_scores 表的所有數據庫操作。
 遵循 BaseRepository 模式，全部使用參數化查詢防止 SQL 注入。
+
+支持多次遊玩，排行榜取每位學生最高分。
 """
 
 import json
@@ -26,7 +28,7 @@ class TradeGameRepository(BaseRepository):
     # ============================================================
 
     def init_table(self) -> None:
-        """初始化 trade_game_scores 表（冪等）"""
+        """初始化 trade_game_scores 表（冪等）- 允許多次遊玩，無唯一約束"""
         create_sql = """
         CREATE TABLE IF NOT EXISTS trade_game_scores (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -55,41 +57,44 @@ class TradeGameRepository(BaseRepository):
             INDEX idx_student (student_id),
             INDEX idx_class (class_name),
             INDEX idx_played (played_at),
-            INDEX idx_difficulty (difficulty),
-            UNIQUE INDEX uk_student (student_id)
+            INDEX idx_difficulty (difficulty)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         COMMENT='全球貿易大亨遊戲成績'
         """
         with self.transaction() as conn:
             cursor = conn.cursor()
             cursor.execute(create_sql)
+
+            # 嘗試刪除舊的唯一約束（如果存在）
+            try:
+                cursor.execute(
+                    "SELECT COUNT(*) AS cnt FROM information_schema.STATISTICS "
+                    "WHERE TABLE_SCHEMA = DATABASE() "
+                    "AND TABLE_NAME = 'trade_game_scores' "
+                    "AND INDEX_NAME = 'uk_student'"
+                )
+                row = cursor.fetchone()
+                if row and row.get("cnt", 0) > 0:
+                    cursor.execute("ALTER TABLE trade_game_scores DROP INDEX uk_student")
+                    logger.info("已刪除 uk_student 唯一約束，允許多次遊玩")
+            except Exception as e:
+                logger.debug("檢查/刪除 uk_student 約束: %s", e)
+
         logger.info("trade_game_scores 表初始化成功")
 
     # ============================================================
     # 成績寫入
     # ============================================================
 
-    def create_score(self, data: Dict[str, Any]) -> Optional[int]:
+    def create_score(self, data: Dict[str, Any]) -> int:
         """
-        插入成績記錄（帶防重複保護）
-
-        使用 SELECT ... FOR UPDATE 在事務中檢查是否已存在記錄，
-        避免並發場景下的重複提交。
+        插入成績記錄（允許多次遊玩）
 
         Returns:
-            新記錄 ID，若已存在返回 None
+            新記錄 ID
         """
         with self.transaction() as conn:
             cursor = conn.cursor()
-
-            # 加鎖檢查是否已有記錄
-            cursor.execute(
-                "SELECT id FROM trade_game_scores WHERE student_id = %s FOR UPDATE",
-                (data["student_id"],),
-            )
-            existing = cursor.fetchone()
-            if existing:
-                return None  # 已有記錄，拒絕重複提交
 
             # 序列化 JSON 字段
             insert_data = dict(data)
@@ -105,15 +110,26 @@ class TradeGameRepository(BaseRepository):
 
             cursor.execute("SELECT LAST_INSERT_ID() as id")
             result = cursor.fetchone()
-            return result["id"] if result else None
+            return result["id"] if result else 0
 
     # ============================================================
     # 查詢
     # ============================================================
 
     def get_student_score(self, student_id: int) -> Optional[Dict[str, Any]]:
-        """查詢學生是否已有成績記錄"""
-        return self.find_one("student_id = %s", (student_id,))
+        """查詢學生是否已有成績記錄（返回最高分記錄）"""
+        return self.get_student_best_score(student_id)
+
+    def get_student_best_score(self, student_id: int) -> Optional[Dict[str, Any]]:
+        """查詢學生的最高分記錄"""
+        rows = self.raw_query(
+            "SELECT * FROM trade_game_scores "
+            "WHERE student_id = %s "
+            "ORDER BY player_score DESC "
+            "LIMIT 1",
+            (student_id,),
+        )
+        return rows[0] if rows else None
 
     def get_leaderboard(
         self,
@@ -121,28 +137,45 @@ class TradeGameRepository(BaseRepository):
         limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """
-        獲取排行榜（按 player_score 降序）
+        獲取排行榜（每位學生取最高分，按 player_score 降序）
+
+        使用子查詢找出每位學生的最高分記錄 ID，再取完整記錄。
 
         Args:
             difficulty: 可選，按難度篩選
             limit: 返回條數，默認 50
         """
-        conditions = []
+        # 子查詢：每位學生取 player_score 最高的那條記錄的 id
+        difficulty_filter = ""
         params: list = []
 
         if difficulty:
-            conditions.append("difficulty = %s")
+            difficulty_filter = "WHERE difficulty = %s"
             params.append(difficulty)
 
-        where = " AND ".join(conditions) if conditions else ""
-        return self.find_all(
-            where=where,
-            params=tuple(params) if params else None,
-            order_by="player_score DESC",
-            limit=limit,
-            columns="id, student_name, class_name, difficulty, player_spec, "
-                    "result, player_score, turns_played, played_at",
-        )
+        sql = f"""
+            SELECT t.id, t.student_name, t.class_name, t.difficulty,
+                   t.player_spec, t.result, t.player_score, t.turns_played, t.played_at
+            FROM trade_game_scores t
+            INNER JOIN (
+                SELECT student_id, MAX(player_score) AS max_score
+                FROM trade_game_scores
+                {difficulty_filter}
+                GROUP BY student_id
+            ) best ON t.student_id = best.student_id AND t.player_score = best.max_score
+            {difficulty_filter.replace('WHERE', 'WHERE t.') if difficulty_filter else ''}
+            ORDER BY t.player_score DESC
+            LIMIT %s
+        """
+        params.append(limit)
+
+        # 如果有 difficulty filter，需要在两处都加上参数
+        if difficulty:
+            params_final = [params[0], params[0], params[1]]
+        else:
+            params_final = params
+
+        return self.raw_query(sql, tuple(params_final))
 
     def get_all_scores(
         self,
@@ -190,7 +223,7 @@ class TradeGameRepository(BaseRepository):
 
     def delete_score(self, score_id: int) -> int:
         """
-        老師刪除記錄（允許學生重新遊玩）
+        老師刪除記錄
 
         Args:
             score_id: 成績記錄 ID

@@ -45,8 +45,20 @@ async def create_post(
     权限：
     - 学生不能创建announcement
     - 学生不能创建private可见性的主题
+    - 学生发布内容需通过 AI 审核（必须与 AI 相关）
     """
     username, role = user_info
+
+    # AI 内容审核：学生发布需要审核，教师/管理员跳过
+    if role not in ("teacher", "admin"):
+        from ..service.content_moderator import check_content_ai_related
+        approved, reason = await check_content_ai_related(
+            title=request.title,
+            content=request.content,
+        )
+        if not approved:
+            raise HTTPException(status_code=403, detail=reason)
+
     return post_service.create_post(username, role, request)
 
 
