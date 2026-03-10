@@ -86,7 +86,7 @@ class ScoreSubmitRequest(BaseModel):
     @classmethod
     def validate_score_range(cls, v: int) -> int:
         """分數合理性校驗：防止客戶端篡改"""
-        if v < -50000 or v > 100000:
+        if v < -50000:
             raise ValueError("分數超出合理範圍")
         return v
 
@@ -100,6 +100,6 @@ class ScoreUpdateRequest(BaseModel):
     @field_validator("player_score")
     @classmethod
     def validate_update_score(cls, v: Optional[int]) -> Optional[int]:
-        if v is not None and (v < -50000 or v > 100000):
+        if v is not None and v < -50000:
             raise ValueError("分數超出合理範圍")
         return v
