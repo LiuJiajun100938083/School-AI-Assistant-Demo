@@ -148,6 +148,7 @@ class AssignmentService:
         rubric_config: Optional[Dict] = None,
         rubric_items: Optional[List[Dict]] = None,
         questions: Optional[List[Dict]] = None,
+        exam_batch_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """創建作業 (草稿狀態)"""
         if not title or not title.strip():
@@ -198,6 +199,8 @@ class AssignmentService:
         }
         if rubric_config is not None:
             insert_data["rubric_config"] = json.dumps(rubric_config, ensure_ascii=False)
+        if exam_batch_id:
+            insert_data["exam_batch_id"] = exam_batch_id
 
         assignment_id = self._assignment_repo.insert_get_id(insert_data)
 
@@ -230,7 +233,7 @@ class AssignmentService:
         questions = fields.pop("questions", None)
 
         allowed = {"title", "description", "target_type", "target_value",
-                    "deadline", "max_files", "allow_late"}
+                    "deadline", "max_files", "allow_late", "exam_batch_id"}
         update_data = {}
         for key, value in fields.items():
             if key in allowed and value is not None:
@@ -243,6 +246,14 @@ class AssignmentService:
                     update_data[key] = value
 
         is_form = (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM
+        is_exam = (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.EXAM
+
+        # Exam 類型：更新題目
+        if is_exam and questions is not None and self._question_repo:
+            self._question_repo.delete_by_assignment(assignment_id)
+            if questions:
+                self._question_repo.batch_insert(assignment_id, questions)
+                update_data["max_score"] = sum(q.get("points", 0) or 0 for q in questions)
 
         # Form 類型：題目冻結檢查
         if is_form and questions is not None:
@@ -355,8 +366,28 @@ class AssignmentService:
             item["graded_count"] = stats["graded_count"] if stats else 0
             rubric = self._rubric_repo.find_by_assignment(item["id"])
             item["rubric_items"] = rubric
+            # OCR 狀態
+            self._enrich_ocr_status(item)
 
         return result
+
+    def _enrich_ocr_status(self, assignment: Dict) -> None:
+        """若作業有 exam_batch_id，附加 OCR 狀態資訊"""
+        batch_id = assignment.get("exam_batch_id")
+        if not batch_id or not self._batch_repo:
+            return
+        batch = self._batch_repo.find_by_batch_id(batch_id)
+        if batch:
+            assignment["ocr_status"] = batch.get("status", "unknown")
+            # 已完成時附加題目數量
+            if batch.get("status") == "completed" and self._question_repo:
+                qs = self._question_repo.find_by_assignment(assignment["id"])
+                assignment["ocr_question_count"] = len(qs)
+            else:
+                assignment["ocr_question_count"] = 0
+        else:
+            assignment["ocr_status"] = "unknown"
+            assignment["ocr_question_count"] = 0
 
     @staticmethod
     def _deserialize_json_fields(data: Dict) -> Dict:
@@ -405,6 +436,9 @@ class AssignmentService:
         assignment["submission_count"] = stats["total_submissions"] if stats else 0
         assignment["graded_count"] = stats["graded_count"] if stats else 0
         assignment["avg_score"] = float(stats["avg_score"]) if stats and stats["avg_score"] else None
+
+        # OCR 狀態
+        self._enrich_ocr_status(assignment)
 
         return assignment
 

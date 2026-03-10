@@ -179,6 +179,7 @@ def create_app() -> FastAPI:
                 if cleaned:
                     logger.info("已清理 %d 條卡住的 processing/analyzing 錯題記錄", cleaned)
             if hasattr(svc, 'assignment') and svc.assignment:
+                svc.assignment._assignment_repo.ensure_schema()
                 svc.assignment._question_repo.ensure_schema()
         except Exception as e:
             logger.warning("啟動遷移失敗: %s", e)

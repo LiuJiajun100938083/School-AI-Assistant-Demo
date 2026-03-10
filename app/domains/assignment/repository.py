@@ -27,6 +27,23 @@ class AssignmentRepository(BaseRepository):
 
     TABLE = "assignments"
 
+    def ensure_schema(self):
+        """確保 assignments 表包含所有必要欄位（自動遷移）"""
+        import logging
+        logger = logging.getLogger(__name__)
+        migrations = [
+            ("exam_batch_id", "ALTER TABLE assignments ADD COLUMN exam_batch_id VARCHAR(64) DEFAULT NULL COMMENT 'OCR批次ID'"),
+        ]
+        for col, sql in migrations:
+            try:
+                self.raw_query(f"SELECT {col} FROM {self.TABLE} LIMIT 0", ())
+            except Exception:
+                try:
+                    self.pool.execute_write(sql, ())
+                    logger.info("自動遷移：已新增 %s.%s 欄位", self.TABLE, col)
+                except Exception as e:
+                    logger.warning("自動遷移 %s.%s 失敗: %s", self.TABLE, col, e)
+
     def find_active(
         self,
         status: str = "",

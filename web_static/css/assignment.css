@@ -5281,3 +5281,34 @@ textarea[data-autogrow] {
     background: #fff;
     flex-shrink: 0;
 }
+
+/* ---- OCR Status Indicators ---- */
+.ocr-status {
+    display: inline-block;
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+.ocr-processing {
+    background: #FFF7ED;
+    color: #C2410C;
+    animation: ocr-pulse 1.5s ease-in-out infinite;
+}
+.ocr-done {
+    background: var(--brand-light, #E8F5EC);
+    color: var(--brand, #006633);
+}
+.ocr-failed {
+    background: #FEF2F2;
+    color: #DC2626;
+}
+@keyframes ocr-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+.grid-card-ocr {
+    margin-top: 4px;
+}

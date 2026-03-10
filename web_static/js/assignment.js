@@ -422,6 +422,18 @@ const AssignmentUI = {
     },
 
     // ---- Teacher List View ----
+    ocrStatusLabel(a) {
+        if (!a.exam_batch_id) return '';
+        const st = a.ocr_status;
+        if (st === 'processing' || st === 'uploading')
+            return `<span class="ocr-status ocr-processing">AI 識別中...</span>`;
+        if (st === 'completed')
+            return `<span class="ocr-status ocr-done">已識別 ${a.ocr_question_count||0} 題</span>`;
+        if (st === 'failed')
+            return `<span class="ocr-status ocr-failed">識別失敗</span>`;
+        return '';
+    },
+
     renderTeacherListView(assignments) {
         if (!assignments.length) return `<div class="empty-state">
             <div class="empty-state-icon">${this.ICON.inbox}</div>
@@ -433,7 +445,7 @@ const AssignmentUI = {
                 const target = a.target_type === 'all' ? '所有人' :
                     a.target_type === 'class' ? a.target_value : '指定學生';
                 return `<tr onclick="AssignmentApp.viewAssignment(${a.id})">
-                    <td class="title-cell">${a.title}</td>
+                    <td class="title-cell">${a.title} ${this.ocrStatusLabel(a)}</td>
                     <td>${a.created_by_name || ''}</td>
                     <td>${target}</td>
                     <td>${this.formatDate(a.deadline)}</td>
@@ -459,6 +471,7 @@ const AssignmentUI = {
                     ${this.badge(a.status)}
                 </div>
                 ${desc ? `<div class="grid-card-desc">${desc}</div>` : ''}
+                ${this.ocrStatusLabel(a) ? `<div class="grid-card-ocr">${this.ocrStatusLabel(a)}</div>` : ''}
                 <div class="grid-card-meta">
                     <span>截止：${this.formatDate(a.deadline)}</span>
                     <span class="meta-dot">·</span>
@@ -1885,6 +1898,7 @@ const AssignmentApp = {
         this._teacherAssignments = resp.data || [];
         this.renderSidebar();
         this._sidebarFilter('all');
+        this._startOcrPolling();
     },
 
     // ---- Sidebar ----
@@ -1964,6 +1978,30 @@ const AssignmentApp = {
         }
 
         statsEl.innerHTML = AssignmentUI.renderSidebarStats(stats);
+    },
+
+    _startOcrPolling() {
+        this._stopOcrPolling();
+        const hasProcessing = (this._teacherAssignments || []).some(
+            a => a.exam_batch_id && (a.ocr_status === 'processing' || a.ocr_status === 'uploading')
+        );
+        if (!hasProcessing) return;
+        this._ocrPollTimer = setInterval(async () => {
+            if (this.state.phase !== 'list') { this._stopOcrPolling(); return; }
+            const resp = await AssignmentAPI.listTeacherAssignments();
+            if (!resp?.success) return;
+            this._teacherAssignments = resp.data || [];
+            this._sidebarFilter(this.state.sidebarFilter || 'all');
+            // Stop polling if no more processing
+            const still = this._teacherAssignments.some(
+                a => a.exam_batch_id && (a.ocr_status === 'processing' || a.ocr_status === 'uploading')
+            );
+            if (!still) this._stopOcrPolling();
+        }, 5000);
+    },
+
+    _stopOcrPolling() {
+        if (this._ocrPollTimer) { clearInterval(this._ocrPollTimer); this._ocrPollTimer = null; }
     },
 
     _sidebarFilter(key) {
@@ -3471,6 +3509,21 @@ const AssignmentApp = {
                 if (aType === 'form' && a.questions) {
                     FormBuilder.loadQuestions(a.questions);
                 }
+                // Exam type: load recognized questions and batch ID
+                if (aType === 'exam') {
+                    this.state.examBatchId = a.exam_batch_id || null;
+                    if (a.questions?.length > 0) {
+                        this.state.recognizedQuestions = a.questions;
+                    } else if (a.exam_batch_id) {
+                        // Questions not yet loaded — try fetching from batch
+                        try {
+                            const batchResp = await AssignmentAPI.getExamPaperStatus(a.exam_batch_id);
+                            if (batchResp?.success && batchResp.data?.questions?.length > 0) {
+                                this.state.recognizedQuestions = batchResp.data.questions;
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                }
             }
         }
 
@@ -3478,8 +3531,10 @@ const AssignmentApp = {
         this._renderAttachmentLists();
         this._setupAttachmentZone();
 
-        // Reset assignment type selector UI
-        this.selectAssignmentType(editId ? (/* TODO: load from server */ 'file') : 'file');
+        // Set assignment type selector UI (use loaded type when editing)
+        if (!editId) {
+            this.selectAssignmentType('file_upload');
+        }
 
         // Reset exam upload panel in step 2
         const uploadPanel = document.getElementById('examUploadPanel');
@@ -3536,7 +3591,13 @@ const AssignmentApp = {
         const circle1 = document.querySelector('#stepItem1 .step-circle');
         if (circle1) circle1.textContent = n >= 2 ? '✓' : '1';
         // Setup exam upload zone when entering step 2 exam
-        if (n === 2 && isExam) this._setupExamUploadZone();
+        if (n === 2 && isExam) {
+            this._setupExamUploadZone();
+            // If we already have recognized questions (e.g. editing), render them
+            if (this.state.recognizedQuestions?.length > 0) {
+                this._renderQuestionEditor();
+            }
+        }
     },
 
     selectAssignmentType(type) {
@@ -3971,6 +4032,9 @@ const AssignmentApp = {
         if (isExam) {
             if (this.state.recognizedQuestions?.length > 0) {
                 base.questions = this._collectQuestions();
+            }
+            if (this.state.examBatchId) {
+                base.exam_batch_id = this.state.examBatchId;
             }
             return base;
         }

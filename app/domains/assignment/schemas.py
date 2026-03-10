@@ -72,6 +72,7 @@ class CreateAssignmentRequest(BaseModel):
     rubric_config: Optional[Dict[str, Any]] = Field(default=None, description="類型配置")
     rubric_items: List[RubricItemInput] = Field(default=[], description="評分標準項目")
     questions: Optional[List["ExamQuestionInput"]] = Field(default=None, description="試卷識別題目")
+    exam_batch_id: Optional[str] = Field(default=None, description="OCR 批次 ID（試卷類型）")
 
     @validator("assignment_type")
     def validate_assignment_type(cls, v):
@@ -93,6 +94,7 @@ class UpdateAssignmentRequest(BaseModel):
     rubric_config: Optional[Dict[str, Any]] = None
     rubric_items: Optional[List[RubricItemInput]] = None
     questions: Optional[List["ExamQuestionInput"]] = Field(default=None, description="試卷識別題目")
+    exam_batch_id: Optional[str] = Field(default=None, description="OCR 批次 ID（試卷類型）")
 
 
 # ================================================================

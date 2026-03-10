@@ -84,6 +84,7 @@ async def create_assignment(
             rubric_config=request.rubric_config,
             rubric_items=[item.dict() for item in request.rubric_items],
             questions=questions_data,
+            exam_batch_id=request.exam_batch_id,
         ),
     )
     return success_response(data=result, message="作業創建成功")
