@@ -311,6 +311,7 @@ const API = {
         });
     },
     async deleteMistake(id) { return this._fetch(`/api/mistakes/${id}`, { method: 'DELETE' }); },
+    async cancelRecognition(id) { return this._fetch(`/api/mistakes/${id}/cancel`, { method: 'POST' }); },
 };
 
 
@@ -1105,6 +1106,19 @@ const Views = {
         this._renderMistakeList(list.items);
     },
 
+    /** 取消正在識別的錯題 */
+    async cancelRecognition(mistakeId) {
+        if (!confirm('確定取消識別？')) return;
+        try {
+            await API.cancelRecognition(mistakeId);
+            UI.toast('已取消識別');
+            this._stopProcessingPoll();
+            await this.refreshMistakeList();
+        } catch (e) {
+            UI.toast('取消失敗', 'error');
+        }
+    },
+
     /** 統一列表刷新（帶全部篩選條件） */
     async refreshMistakeList() {
         const { currentSubject, currentCategory, currentStatus, currentPage } = App.state;
@@ -1154,7 +1168,9 @@ const Views = {
         items.forEach(m => {
             const isProcessing = m.status === 'processing';
             const question = isProcessing
-                ? '<span class="mb-processing-pulse">AI 正在識別分析中...</span>'
+                ? `<span class="mb-processing-pulse">AI 正在識別分析中...</span>
+                   <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
+                           onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button>`
                 : (m.manual_question_text || m.ocr_question_text || '（未識別）');
             const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
             const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
@@ -1202,7 +1218,9 @@ const Views = {
                             : ''
                         }
                         ${!imgSrc ? `<div class="mb-grid-card__thumb--fallback">${Icons.bookOpen(24)}</div>` : ''}
-                        ${isProcessing ? '<div class="mb-grid-card__processing"><span class="mb-processing-pulse">識別中</span></div>' : ''}
+                        ${isProcessing ? `<div class="mb-grid-card__processing"><span class="mb-processing-pulse">識別中</span>
+                            <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
+                                    onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button></div>` : ''}
                     </div>
                     <div class="mb-grid-card__body">
                         <div class="mb-grid-card__meta">

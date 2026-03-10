@@ -395,6 +395,22 @@ async def get_mistake_detail(
         raise HTTPException(404, "錯題不存在")
 
 
+@router.post("/api/mistakes/{mistake_id}/cancel")
+async def cancel_mistake_recognition(
+    mistake_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """取消正在處理的錯題識別"""
+    try:
+        service = get_services().mistake_book
+        service.cancel_processing(mistake_id, current_user["username"])
+        return {"success": True, "message": "已取消識別"}
+    except MistakeNotFoundError:
+        raise HTTPException(404, "錯題不存在或無權限")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
 @router.delete("/api/mistakes/{mistake_id}")
 async def delete_mistake(
     mistake_id: str,

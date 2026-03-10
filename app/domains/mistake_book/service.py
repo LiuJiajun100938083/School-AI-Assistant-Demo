@@ -655,6 +655,9 @@ class MistakeBookService:
                     "figure": round(f_conf, 2),
                 })
 
+        # 競態保護：寫入 OCR 結果前確認仍在 processing
+        if not self._check_still_processing(mistake_id):
+            return
         self._mistakes.update(update_data, "mistake_id = %s", (mistake_id,))
 
         # 保存圖形描述
@@ -664,6 +667,8 @@ class MistakeBookService:
 
         # ---- Step 2: 置信度閘門 ----
         if ocr_result.confidence < self.AUTO_CONFIRM_THRESHOLD:
+            if not self._check_still_processing(mistake_id):
+                return
             self._mistakes.update(
                 {"status": "needs_review"},
                 "mistake_id = %s", (mistake_id,),
@@ -675,6 +680,8 @@ class MistakeBookService:
             return
 
         # ---- Step 3: 自動確認 + AI 分析 ----
+        if not self._check_still_processing(mistake_id):
+            return
         try:
             await self.confirm_and_analyze(
                 mistake_id=mistake_id,
@@ -685,10 +692,11 @@ class MistakeBookService:
             logger.info("後台處理完成 (mistake=%s) → analyzed", mistake_id)
         except Exception as e:
             logger.error("後台分析失敗 (mistake=%s): %s", mistake_id, e)
-            self._mistakes.update(
-                {"status": "analysis_failed"},
-                "mistake_id = %s", (mistake_id,),
-            )
+            if self._check_still_processing(mistake_id):
+                self._mistakes.update(
+                    {"status": "analysis_failed"},
+                    "mistake_id = %s", (mistake_id,),
+                )
 
     async def upload_mistake_photo(
         self,
@@ -1004,6 +1012,33 @@ class MistakeBookService:
         if not mistake or mistake["student_username"] != username:
             raise MistakeNotFoundError(mistake_id)
         self._mistakes.soft_delete("mistake_id = %s", (mistake_id,))
+        return True
+
+    def cancel_processing(self, mistake_id: str, username: str) -> bool:
+        """取消正在處理的錯題（將 processing → cancelled）"""
+        mistake = self._mistakes.find_by_mistake_id(mistake_id)
+        if not mistake or mistake["student_username"] != username:
+            raise MistakeNotFoundError(mistake_id)
+
+        status = mistake["status"]
+        if status == "cancelled":
+            return True  # 冪等：已取消 → 成功
+        if status != "processing":
+            raise ValueError(f"只能取消 processing 狀態的錯題，當前狀態: {status}")
+
+        self._mistakes.update(
+            {"status": "cancelled"},
+            "mistake_id = %s", (mistake_id,),
+        )
+        return True
+
+    def _check_still_processing(self, mistake_id: str) -> bool:
+        """重新讀取狀態，確認仍為 processing（競態保護）"""
+        mistake = self._mistakes.find_by_mistake_id(mistake_id)
+        if not mistake or mistake["status"] != "processing":
+            logger.info("競態保護：錯題 %s 狀態已變為 %s，中止後續寫入",
+                        mistake_id, mistake["status"] if mistake else "deleted")
+            return False
         return True
 
     # ================================================================
