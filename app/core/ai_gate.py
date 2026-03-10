@@ -99,6 +99,8 @@ class WeightedPriorityScheduler:
             "failed": 0,
             "rejected": 0,
         }
+        # 滑動窗口：最近 N 次完成任務的耗時（秒）
+        self._recent_durations: deque[float] = deque(maxlen=20)
 
     @asynccontextmanager
     async def acquire(self, task_name: str, priority: int, weight: int):
@@ -184,6 +186,13 @@ class WeightedPriorityScheduler:
                 self._used_capacity -= weight
                 self._stats["running"] -= 1
                 if registered:
+                    # 記錄完成耗時
+                    for t in self._running_tasks:
+                        if t["id"] == run_id:
+                            self._recent_durations.append(
+                                time.monotonic() - t["started_at"]
+                            )
+                            break
                     self._running_tasks = [
                         t for t in self._running_tasks if t["id"] != run_id
                     ]
@@ -242,9 +251,13 @@ class WeightedPriorityScheduler:
     @property
     def stats(self) -> dict:
         """返回調度器統計信息（用於 /health 端點）"""
+        avg = (sum(self._recent_durations) / len(self._recent_durations)
+               if self._recent_durations else 90.0)  # 默認 90 秒
         return {
             **self._stats,
             "capacity": f"{self._used_capacity}/{self._total_capacity}",
+            "avg_duration": round(avg, 1),
+            "concurrency": self._total_capacity,
         }
 
     async def get_detailed_stats(self) -> dict:

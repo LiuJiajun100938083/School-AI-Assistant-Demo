@@ -1192,6 +1192,7 @@ const Views = {
             const progressMsg = m.status === 'analyzing' ? 'AI 正在解題分析中...' : 'AI 正在識別中...';
             const question = isProcessing
                 ? `<span class="mb-processing-pulse">${progressMsg}</span>
+                   <span class="mb-processing-wait"></span>
                    <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
                            onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button>`
                 : (m.manual_question_text || m.ocr_question_text || '（未識別）');
@@ -1244,6 +1245,7 @@ const Views = {
                         }
                         ${!imgSrc ? `<div class="mb-grid-card__thumb--fallback">${Icons.bookOpen(24)}</div>` : ''}
                         ${isProcessing ? `<div class="mb-grid-card__processing"><span class="mb-processing-pulse">${progressMsg}</span>
+                            <span class="mb-processing-wait"></span>
                             <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
                                     onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button></div>` : ''}
                     </div>
@@ -1311,9 +1313,16 @@ const Views = {
             const data = await res.json();
             const queued = data.queued || 0;
             const running = data.running || 0;
+            const estWait = data.est_wait_seconds || 0;
+            const avgDur = data.avg_duration || 0;
             let hint = document.getElementById('mbQueueHint');
-            if (queued > 0) {
-                const msg = `AI 隊列：${running} 個任務執行中，${queued} 個排隊等待`;
+            if (queued > 0 || running > 0) {
+                const _fmt = (s) => s >= 60 ? `${Math.floor(s/60)}分${s%60?Math.round(s%60)+'秒':''}` : `${Math.round(s)}秒`;
+                let msg = `AI 隊列：${running} 個任務執行中`;
+                if (queued > 0) {
+                    msg += `，${queued} 個排隊等待`;
+                    if (estWait > 0) msg += `（預計 ${_fmt(estWait)}）`;
+                }
                 if (!hint) {
                     hint = document.createElement('div');
                     hint.id = 'mbQueueHint';
@@ -1321,10 +1330,17 @@ const Views = {
                     const listEl = document.getElementById('mistakeList');
                     if (listEl) listEl.parentNode.insertBefore(hint, listEl);
                 }
-                hint.textContent = msg;
+                hint.innerHTML = `<span class="mb-queue-hint__icon">&#9203;</span> ${msg}`;
             } else if (hint) {
                 hint.remove();
             }
+
+            // 更新每張處理中卡片的等待提示
+            document.querySelectorAll('.mb-processing-wait').forEach(el => {
+                if (avgDur > 0) {
+                    el.textContent = `平均耗時 ${Math.round(avgDur)}秒`;
+                }
+            });
         } catch (e) { /* ignore */ }
     },
 

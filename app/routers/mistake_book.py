@@ -270,9 +270,17 @@ async def get_queue_status(current_user: dict = Depends(get_current_user)):
     """AI 任務隊列狀態（供前端顯示排隊提示）"""
     from app.core.ai_gate import get_ai_gate_stats
     stats = get_ai_gate_stats()
+    queued = stats.get("queued", 0)
+    running = stats.get("running", 0)
+    avg_dur = stats.get("avg_duration", 90.0)
+    concurrency = max(stats.get("concurrency", 1), 1)
+    # 預估等待 = (排隊數 / 並發數) * 平均耗時
+    est_wait = round((queued / concurrency) * avg_dur) if queued > 0 else 0
     return {
-        "queued": stats.get("queued", 0),
-        "running": stats.get("running", 0),
+        "queued": queued,
+        "running": running,
+        "avg_duration": avg_dur,
+        "est_wait_seconds": est_wait,
     }
 
 

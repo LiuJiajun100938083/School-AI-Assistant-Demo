@@ -451,15 +451,26 @@
     animation: mb-pulse 1.5s ease-in-out infinite;
 }
 .mb-queue-hint {
-    padding: 8px 16px;
-    margin: 0 0 8px 0;
-    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    margin: 0 0 10px 0;
+    font-size: 13px;
     color: var(--mb-text-secondary);
-    background: var(--mb-card);
-    border-radius: 8px;
-    border: 1px solid var(--mb-border);
-    text-align: center;
-    animation: mb-pulse 2s ease-in-out infinite;
+    background: linear-gradient(135deg, #f0f7ff 0%, #f5f0ff 100%);
+    border-radius: 10px;
+    border: 1px solid #e0e8f5;
+}
+.mb-queue-hint__icon {
+    font-size: 15px;
+}
+.mb-processing-wait {
+    display: block;
+    font-size: 11px;
+    color: var(--mb-text-tertiary);
+    margin-top: 2px;
 }
 
 .mb-mistake-item__content {
