@@ -1787,8 +1787,8 @@ const AssignmentUI = {
         html = html.replace(/((?:^|\n)\|.+\|(?:\n\|.+\|)+)/g, (block) => {
             const lines = block.trim().split('\n').filter(l => l.trim());
             if (lines.length < 2) return block;
-            // 過濾掉分隔線 |---|---|
-            const dataLines = lines.filter(l => !/^\|[\s\-:]+\|$/.test(l.trim()));
+            // 過濾掉分隔線 |---|---|（只含 -、:、空格、| 的行）
+            const dataLines = lines.filter(l => !/^\|[\s\-:|]+$/.test(l.trim()));
             if (dataLines.length < 1) return block;
             let table = '<table class="md-table"><thead><tr>';
             // 第一行作為表頭
