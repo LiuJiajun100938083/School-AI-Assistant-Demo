@@ -7,6 +7,7 @@ Pydantic 請求/響應模型。
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -49,6 +50,7 @@ class CreateAssignmentRequest(BaseModel):
     rubric_type: str = Field(default="points", description="評分類型")
     rubric_config: Optional[Dict[str, Any]] = Field(default=None, description="類型配置")
     rubric_items: List[RubricItemInput] = Field(default=[], description="評分標準項目")
+    questions: Optional[List["QuestionInput"]] = Field(default=None, description="試卷識別題目")
 
 
 class UpdateAssignmentRequest(BaseModel):
@@ -63,6 +65,45 @@ class UpdateAssignmentRequest(BaseModel):
     rubric_type: Optional[str] = None
     rubric_config: Optional[Dict[str, Any]] = None
     rubric_items: Optional[List[RubricItemInput]] = None
+    questions: Optional[List["QuestionInput"]] = Field(default=None, description="試卷識別題目")
+
+
+# ================================================================
+# 題目
+# ================================================================
+
+class QuestionTypeEnum(str, Enum):
+    OPEN = "open"
+    MULTIPLE_CHOICE = "multiple_choice"
+    FILL_BLANK = "fill_blank"
+    TRUE_FALSE = "true_false"
+
+
+class AnswerSourceEnum(str, Enum):
+    EXTRACTED = "extracted"
+    INFERRED = "inferred"
+    MISSING = "missing"
+    MANUAL = "manual"
+
+
+class QuestionInput(BaseModel):
+    """單道題目輸入 (OCR 識別或手動添加)"""
+    question_number: str = Field(default="", max_length=20)
+    question_text: str = Field(..., min_length=1)
+    answer_text: str = ""
+    answer_source: AnswerSourceEnum = AnswerSourceEnum.MISSING
+    points: Optional[float] = Field(default=None, ge=0)
+    question_type: QuestionTypeEnum = QuestionTypeEnum.OPEN
+    is_ai_extracted: bool = True
+    source_batch_id: Optional[str] = None
+    source_page: Optional[int] = None
+    ocr_confidence: Optional[float] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+# 更新前向引用
+CreateAssignmentRequest.model_rebuild()
+UpdateAssignmentRequest.model_rebuild()
 
 
 # ================================================================

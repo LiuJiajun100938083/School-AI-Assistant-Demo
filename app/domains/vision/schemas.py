@@ -3,7 +3,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from enum import Enum
 
 
@@ -29,6 +29,7 @@ class RecognitionTask(str, Enum):
     DICTATION = "dictation"
     MATH_SOLUTION = "math_solution"
     ESSAY = "essay"
+    EXAM_PAPER = "exam_paper"
 
 
 @dataclass
@@ -48,6 +49,19 @@ class OCRResult:
     question_confidence: float = 0.0
     answer_confidence: float = 0.0
     figure_confidence: float = 0.0
+
+
+@dataclass
+class ExamPaperResult:
+    """試卷多題 OCR 識別結果"""
+    questions: List[Dict[str, Any]] = field(default_factory=list)
+    paper_title: str = ""
+    total_score: Optional[float] = None
+    confidence: float = 0.0
+    warnings: List[str] = field(default_factory=list)
+    raw_text: str = ""
+    success: bool = True
+    error: Optional[str] = None
 
 
 @dataclass

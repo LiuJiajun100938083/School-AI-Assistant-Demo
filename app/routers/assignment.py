@@ -31,6 +31,7 @@ from app.core.responses import error_response, paginated_response, success_respo
 from app.domains.assignment.schemas import (
     CreateAssignmentRequest,
     GradeSubmissionRequest,
+    QuestionInput,
     RunSwiftRequest,
     UpdateAssignmentRequest,
 )
@@ -58,6 +59,10 @@ async def create_assignment(
     teacher_id = user["id"] if user else 0
     teacher_name = user.get("display_name", username) if user else username
 
+    questions_data = None
+    if request.questions:
+        questions_data = [q.dict() for q in request.questions]
+
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
@@ -74,6 +79,7 @@ async def create_assignment(
             rubric_type=request.rubric_type,
             rubric_config=request.rubric_config,
             rubric_items=[item.dict() for item in request.rubric_items],
+            questions=questions_data,
         ),
     )
     return success_response(data=result, message="作業創建成功")
@@ -1521,3 +1527,277 @@ def _build_plagiarism_export_excel(
 
     filename = f"{assignment_title}_抄袭檢測報告.xlsx"
     return wb, filename
+
+
+# ================================================================
+# 試卷上傳 OCR 識別
+# ================================================================
+
+import json
+import os
+import uuid
+from datetime import datetime
+from pathlib import Path
+
+# 上傳目錄
+EXAM_UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "exam_papers"
+
+ALLOWED_EXAM_EXTENSIONS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".pdf"}
+MAX_EXAM_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+@router.post("/api/assignments/teacher/upload-exam-paper")
+async def upload_exam_paper(
+    files: List[UploadFile] = File(...),
+    subject: str = Form("chinese"),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """上傳試卷圖片/PDF，啟動 OCR 識別"""
+    from fastapi import BackgroundTasks
+    username, role = teacher_info
+    services = get_services()
+
+    user = services.user.get_user(username)
+    teacher_id = user["id"] if user else 0
+
+    if not files:
+        return error_response("請至少上傳一個文件", status_code=400)
+
+    # 校驗文件
+    for f in files:
+        ext = os.path.splitext(f.filename or "")[1].lower()
+        if ext not in ALLOWED_EXAM_EXTENSIONS:
+            return error_response(
+                f"不支持的文件類型: {ext}，支持 JPG/PNG/HEIC/PDF",
+                status_code=400,
+            )
+
+    batch_id = str(uuid.uuid4())
+    batch_dir = EXAM_UPLOAD_DIR / batch_id
+    batch_dir.mkdir(parents=True, exist_ok=True)
+
+    # 創建批次記錄
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(
+        None,
+        lambda: services.assignment.create_upload_batch(
+            batch_id=batch_id,
+            subject=subject,
+            created_by=teacher_id,
+            total_files=len(files),
+        ),
+    )
+
+    # 存儲文件 + 創建文件記錄
+    for f in files:
+        ext = os.path.splitext(f.filename or "")[1].lower()
+        stored_name = f"{uuid.uuid4()}{ext}"
+        file_path = batch_dir / stored_name
+
+        content = await f.read()
+        if len(content) > MAX_EXAM_FILE_SIZE:
+            return error_response(
+                f"文件 {f.filename} 超過 10MB 限制",
+                status_code=400,
+            )
+
+        with open(file_path, "wb") as out:
+            out.write(content)
+
+        file_type = "pdf" if ext == ".pdf" else "image"
+
+        # 計算 PDF 頁數
+        total_pages = 1
+        if file_type == "pdf":
+            try:
+                import fitz
+                doc = fitz.open(str(file_path))
+                total_pages = len(doc)
+                doc.close()
+            except Exception:
+                total_pages = 1
+
+        await loop.run_in_executor(
+            None,
+            lambda fn=f.filename, sn=stored_name, ft=file_type, fs=len(content), tp=total_pages: (
+                services.assignment.create_upload_file({
+                    "batch_id": batch_id,
+                    "original_filename": fn or "unknown",
+                    "stored_filename": sn,
+                    "file_type": ft,
+                    "file_size": fs,
+                    "total_pages": tp,
+                })
+            ),
+        )
+
+    # 更新批次為 processing
+    await loop.run_in_executor(
+        None,
+        lambda: services.assignment.update_batch_status(batch_id, "processing"),
+    )
+
+    # 啟動後台 OCR 任務
+    asyncio.create_task(_process_exam_paper_ocr(batch_id, subject))
+
+    return success_response(
+        data={"batch_id": batch_id, "total_files": len(files)},
+        message="文件上傳成功，正在識別中",
+    )
+
+
+@router.get("/api/assignments/teacher/upload-exam-paper/{batch_id}/status")
+async def get_exam_paper_status(
+    batch_id: str,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """查詢試卷 OCR 識別狀態"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: services.assignment.get_batch_status(batch_id),
+    )
+    if not result:
+        return error_response("批次不存在", status_code=404)
+    return success_response(data=result)
+
+
+@router.get("/api/assignments/teacher/{assignment_id}/questions")
+async def get_assignment_questions(
+    assignment_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """獲取作業題目列表"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+    try:
+        questions = await loop.run_in_executor(
+            None,
+            lambda: services.assignment.get_assignment_questions(assignment_id),
+        )
+        return success_response(data=questions)
+    except Exception as e:
+        return error_response(str(e), status_code=404)
+
+
+@router.put("/api/assignments/teacher/{assignment_id}/questions")
+async def save_assignment_questions(
+    assignment_id: int,
+    questions: List[QuestionInput],
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """保存/更新作業題目 (事務化)"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+    try:
+        questions_data = [q.dict() for q in questions]
+        result = await loop.run_in_executor(
+            None,
+            lambda: services.assignment.save_assignment_questions(
+                assignment_id, questions_data
+            ),
+        )
+        return success_response(data=result, message=f"已保存 {len(result)} 道題目")
+    except Exception as e:
+        logger.error("保存題目失敗: %s", e)
+        return error_response(str(e), status_code=400)
+
+
+async def _process_exam_paper_ocr(batch_id: str, subject: str):
+    """後台任務：處理試卷 OCR 識別"""
+    from app.domains.vision.schemas import RecognitionSubject
+
+    services = get_services()
+    loop = asyncio.get_event_loop()
+
+    batch = await loop.run_in_executor(
+        None, lambda: services.assignment.get_batch(batch_id)
+    )
+    if not batch:
+        logger.error("OCR 批次不存在: %s", batch_id)
+        return
+
+    # 幂等檢查
+    if batch["status"] in ("completed", "partial_failed", "failed"):
+        logger.info("OCR 批次已完成，跳過: %s", batch_id)
+        return
+
+    files = await loop.run_in_executor(
+        None, lambda: services.assignment.get_batch_files(batch_id)
+    )
+
+    vision = services.vision
+
+    for file_rec in files:
+        # 幂等: 跳過已完成
+        if file_rec["ocr_status"] == "completed":
+            continue
+
+        # Stale processing 防護
+        if file_rec["ocr_status"] == "processing":
+            processed_at = file_rec.get("processed_at")
+            if processed_at and (datetime.now() - processed_at).total_seconds() < 600:
+                continue
+            # 超過 10 分鐘，視為 stale，重新處理
+
+        try:
+            await loop.run_in_executor(
+                None,
+                lambda fid=file_rec["id"]: services.assignment.update_file_ocr(fid, "processing"),
+            )
+
+            file_path = EXAM_UPLOAD_DIR / batch_id / file_rec["stored_filename"]
+
+            if file_rec["file_type"] == "pdf":
+                image_paths = await loop.run_in_executor(
+                    None,
+                    lambda: vision.pdf_to_images(str(file_path)),
+                )
+            else:
+                image_paths = [str(file_path)]
+
+            # 逐頁 OCR，保守合併
+            all_questions = []
+            for page_idx, img_path in enumerate(image_paths):
+                result = await vision.recognize_exam_paper(
+                    img_path, RecognitionSubject(subject)
+                )
+                if result.success:
+                    for q in result.questions:
+                        q["source_page"] = page_idx + 1
+                        q["source_file"] = file_rec["original_filename"]
+                    all_questions.extend(result.questions)
+                else:
+                    logger.warning(
+                        "頁 %d OCR 失敗: %s", page_idx + 1, result.error
+                    )
+
+            await loop.run_in_executor(
+                None,
+                lambda fid=file_rec["id"], qs=all_questions: (
+                    services.assignment.update_file_ocr(
+                        fid, "completed",
+                        result=json.dumps(qs, ensure_ascii=False),
+                    )
+                ),
+            )
+            logger.info(
+                "文件 %s OCR 完成: %d 題",
+                file_rec["original_filename"], len(all_questions),
+            )
+
+        except Exception as e:
+            logger.error("文件 OCR 失敗: %s - %s", file_rec["original_filename"], e)
+            await loop.run_in_executor(
+                None,
+                lambda fid=file_rec["id"], err=str(e): (
+                    services.assignment.update_file_ocr(fid, "failed", error=err)
+                ),
+            )
+
+    # 刷新批次聚合狀態
+    await loop.run_in_executor(
+        None, lambda: services.assignment.refresh_batch_status(batch_id)
+    )
+    logger.info("批次 %s OCR 處理完畢", batch_id)

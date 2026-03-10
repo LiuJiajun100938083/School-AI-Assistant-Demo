@@ -93,7 +93,7 @@
             </div>
 
             <!-- Step Indicator -->
-            <div class="step-indicator">
+            <div class="step-indicator" id="stepIndicator">
                 <div class="step-item active" id="stepItem1" onclick="AssignmentApp.goToStep(1)">
                     <div class="step-circle">1</div>
                     <span>基本信息</span>
@@ -114,6 +114,25 @@
                 <div class="form-group">
                     <label>作業描述</label>
                     <textarea id="asgDesc" rows="4" placeholder="描述作業要求..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>作業類型</label>
+                    <div class="assignment-type-selector" id="asgTypeSelector">
+                        <div class="asg-type-option selected" data-type="file" onclick="AssignmentApp.selectAssignmentType('file')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <div>
+                                <div class="asg-type-title">普通作業</div>
+                                <div class="asg-type-desc">學生上傳文件提交</div>
+                            </div>
+                        </div>
+                        <div class="asg-type-option" data-type="exam" onclick="AssignmentApp.selectAssignmentType('exam')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            <div>
+                                <div class="asg-type-title">問卷 / 試卷</div>
+                                <div class="asg-type-desc">設定題目、答案與分數</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <!-- 附件上傳 -->
                 <div class="form-group">
@@ -160,13 +179,67 @@
                 </div>
             </div>
 
-            <!-- Step 2: Rubric Configuration -->
-            <div class="step-content" id="step2" style="display:none;">
+            <!-- Step 2A: Rubric (普通作業) -->
+            <div class="step-content" id="step2Rubric" style="display:none;">
                 <div class="form-group">
                     <label>選擇評分方式</label>
                     <div class="rubric-type-grid" id="rubricTypeGrid"></div>
                 </div>
                 <div id="rubricEditorArea"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" onclick="AssignmentApp.goToStep(1)">上一步</button>
+                    <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()">保存草稿</button>
+                    <button class="btn btn-primary" onclick="AssignmentApp.saveAndPublish()">發布</button>
+                </div>
+            </div>
+
+            <!-- Step 2B: Exam Questions (問卷/試卷) -->
+            <div class="step-content" id="step2Exam" style="display:none;">
+                <div class="questions-section-header">
+                    <label style="font-size:var(--type-body-lg);font-weight:600;">題目管理</label>
+                    <div class="questions-section-actions">
+                        <button class="btn btn-outline btn-sm" onclick="AssignmentApp._addQuestion()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            手動添加
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="AssignmentApp.toggleExamUpload()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            上傳試卷 AI 識別
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 上傳區 (預設隱藏) -->
+                <div id="examUploadPanel" style="display:none;">
+                    <div class="form-row" style="margin-bottom:12px;">
+                        <div class="form-group" style="flex:1;">
+                            <label>選擇科目</label>
+                            <select id="examSubject">
+                                <option value="chinese">中文</option>
+                                <option value="math">數學</option>
+                                <option value="english">英文</option>
+                                <option value="physics">物理</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="exam-upload-zone" id="examUploadZone">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <p>拖拽或點擊上傳試卷照片/PDF</p>
+                        <span class="exam-upload-zone__hint">支持 JPG、PNG、HEIC、PDF，可多文件，單文件最大 10MB</span>
+                    </div>
+                    <input type="file" id="examFileInput" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.pdf" style="display:none">
+                    <div id="examFilePreview"></div>
+                    <div style="text-align:right;margin-top:8px;">
+                        <button class="btn btn-primary btn-sm" id="startOcrBtn" onclick="AssignmentApp.startExamOcr()" disabled>開始識別</button>
+                    </div>
+                </div>
+
+                <!-- OCR 狀態 -->
+                <div id="examOcrStatus" style="display:none;"></div>
+
+                <!-- 題目編輯器 -->
+                <div id="examQuestionEditor"></div>
+
                 <div class="modal-footer">
                     <button class="btn btn-outline" onclick="AssignmentApp.goToStep(1)">上一步</button>
                     <button class="btn btn-outline" onclick="AssignmentApp.saveAsDraft()">保存草稿</button>

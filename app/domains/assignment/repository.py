@@ -273,3 +273,110 @@ class AssignmentAttachmentRepository(BaseRepository):
     def soft_delete_attachment(self, attachment_id: int) -> int:
         """軟刪除附件"""
         return self.soft_delete(attachment_id)
+
+
+class ExamUploadBatchRepository(BaseRepository):
+    """試卷上傳批次 Repository"""
+
+    TABLE = "exam_upload_batches"
+
+    def find_by_batch_id(self, batch_id: str) -> Optional[Dict[str, Any]]:
+        return self.find_one(where="batch_id = %s", params=(batch_id,))
+
+    def create_batch(
+        self,
+        batch_id: str,
+        subject: str,
+        created_by: int,
+        total_files: int,
+    ) -> int:
+        return self.insert({
+            "batch_id": batch_id,
+            "subject": subject,
+            "status": "uploading",
+            "total_files": total_files,
+            "created_by": created_by,
+        })
+
+    def update_status(self, batch_id: str, status: str, **kwargs) -> int:
+        data = {"status": status}
+        data.update(kwargs)
+        return self.update(data, where="batch_id = %s", params=(batch_id,))
+
+
+class ExamUploadFileRepository(BaseRepository):
+    """試卷上傳文件 Repository"""
+
+    TABLE = "exam_upload_files"
+
+    def find_by_batch(self, batch_id: str) -> List[Dict[str, Any]]:
+        return self.find_all(
+            where="batch_id = %s",
+            params=(batch_id,),
+            order_by="id ASC",
+        )
+
+    def create_file(self, data: Dict[str, Any]) -> int:
+        return self.insert(data)
+
+    def update_ocr_status(
+        self,
+        file_id: int,
+        status: str,
+        result: Optional[str] = None,
+        error: Optional[str] = None,
+    ) -> int:
+        data: Dict[str, Any] = {"ocr_status": status}
+        if status in ("completed", "failed"):
+            data["processed_at"] = datetime.now()
+        if result is not None:
+            data["ocr_result"] = result
+        if error is not None:
+            data["error_message"] = error
+        return self.update(data, where="id = %s", params=(file_id,))
+
+
+class AssignmentQuestionRepository(BaseRepository):
+    """正式作業題目 Repository"""
+
+    TABLE = "assignment_questions"
+
+    def find_by_assignment(self, assignment_id: int) -> List[Dict[str, Any]]:
+        return self.find_all(
+            where="assignment_id = %s",
+            params=(assignment_id,),
+            order_by="question_order ASC, id ASC",
+        )
+
+    def batch_insert(self, assignment_id: int, questions: List[Dict[str, Any]]) -> int:
+        if not questions:
+            return 0
+        inserted = 0
+        for i, q in enumerate(questions):
+            data = {
+                "assignment_id": assignment_id,
+                "question_order": i,
+                "question_number": q.get("question_number", ""),
+                "question_text": q.get("question_text", ""),
+                "answer_text": q.get("answer_text", ""),
+                "answer_source": q.get("answer_source", "missing"),
+                "points": q.get("points"),
+                "question_type": q.get("question_type", "open"),
+                "question_type_confidence": q.get("question_type_confidence"),
+                "is_ai_extracted": q.get("is_ai_extracted", True),
+                "source_batch_id": q.get("source_batch_id"),
+                "source_page": q.get("source_page"),
+                "ocr_confidence": q.get("ocr_confidence"),
+            }
+            md = q.get("metadata")
+            if md is not None:
+                data["metadata"] = json.dumps(md, ensure_ascii=False) if isinstance(md, (dict, list)) else md
+            self.insert(data)
+            inserted += 1
+        return inserted
+
+    def delete_by_assignment(self, assignment_id: int) -> int:
+        return self.delete(
+            where="assignment_id = %s",
+            params=(assignment_id,),
+        )

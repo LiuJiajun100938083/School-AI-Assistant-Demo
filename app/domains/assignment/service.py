@@ -47,7 +47,10 @@ from app.domains.assignment.exceptions import (
 )
 from app.domains.assignment.repository import (
     AssignmentAttachmentRepository,
+    AssignmentQuestionRepository,
     AssignmentRepository,
+    ExamUploadBatchRepository,
+    ExamUploadFileRepository,
     RubricItemRepository,
     RubricScoreRepository,
     SubmissionFileRepository,
@@ -75,6 +78,9 @@ class AssignmentService:
         attachment_repo: Optional["AssignmentAttachmentRepository"] = None,
         conversation_repo=None,
         settings=None,
+        question_repo: Optional["AssignmentQuestionRepository"] = None,
+        batch_repo: Optional["ExamUploadBatchRepository"] = None,
+        upload_file_repo: Optional["ExamUploadFileRepository"] = None,
     ):
         self._assignment_repo = assignment_repo
         self._submission_repo = submission_repo
@@ -85,6 +91,9 @@ class AssignmentService:
         self._attachment_repo = attachment_repo
         self._conversation_repo = conversation_repo
         self._settings = settings
+        self._question_repo = question_repo
+        self._batch_repo = batch_repo
+        self._upload_file_repo = upload_file_repo
         self._ask_ai_func: Optional[Callable] = None
 
         # 確保上傳目錄存在
@@ -130,6 +139,7 @@ class AssignmentService:
         rubric_type: str = "points",
         rubric_config: Optional[Dict] = None,
         rubric_items: Optional[List[Dict]] = None,
+        questions: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:
         """創建作業 (草稿狀態)"""
         if not title or not title.strip():
@@ -171,6 +181,10 @@ class AssignmentService:
         # 插入評分標準
         if rubric_items:
             self._rubric_repo.batch_insert(assignment_id, rubric_items)
+
+        # 插入題目 (試卷識別)
+        if questions and self._question_repo:
+            self._question_repo.batch_insert(assignment_id, questions)
 
         logger.info("教師 %s 創建了作業 #%d: %s (類型=%s)", teacher_name, assignment_id, title, rubric_type)
         return self.get_assignment_detail(assignment_id)
@@ -330,6 +344,15 @@ class AssignmentService:
             assignment["attachments"] = self._attachment_repo.find_by_assignment(assignment_id)
         else:
             assignment["attachments"] = []
+
+        # 題目
+        if self._question_repo:
+            questions = self._question_repo.find_by_assignment(assignment_id)
+            for q in questions:
+                self._deserialize_json_fields(q)
+            assignment["questions"] = questions
+        else:
+            assignment["questions"] = []
 
         stats = self._submission_repo.get_submission_stats(assignment_id)
         assignment["submission_count"] = stats["total_submissions"] if stats else 0
@@ -1749,3 +1772,249 @@ class AssignmentService:
         if not assignment:
             raise AssignmentNotFoundError(assignment_id)
         return assignment
+
+    # ================================================================
+    # 試卷上傳 + OCR 識別
+    # ================================================================
+
+    def create_upload_batch(
+        self,
+        batch_id: str,
+        subject: str,
+        created_by: int,
+        total_files: int,
+    ) -> None:
+        """創建上傳批次記錄"""
+        self._batch_repo.create_batch(batch_id, subject, created_by, total_files)
+
+    def create_upload_file(self, data: Dict[str, Any]) -> None:
+        """創建上傳文件記錄"""
+        self._upload_file_repo.create_file(data)
+
+    def get_batch(self, batch_id: str) -> Optional[Dict[str, Any]]:
+        """獲取批次記錄"""
+        return self._batch_repo.find_by_batch_id(batch_id)
+
+    def get_batch_files(self, batch_id: str) -> List[Dict[str, Any]]:
+        """獲取批次的所有文件"""
+        return self._upload_file_repo.find_by_batch(batch_id)
+
+    def update_file_ocr(
+        self,
+        file_id: int,
+        status: str,
+        result: Optional[str] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        """更新文件 OCR 狀態"""
+        self._upload_file_repo.update_ocr_status(file_id, status, result, error)
+
+    def update_batch_status(self, batch_id: str, status: str, **kwargs) -> None:
+        """更新批次聚合狀態"""
+        self._batch_repo.update_status(batch_id, status, **kwargs)
+
+    def refresh_batch_status(self, batch_id: str) -> Dict[str, Any]:
+        """根據文件狀態刷新批次聚合狀態"""
+        files = self._upload_file_repo.find_by_batch(batch_id)
+        total = len(files)
+        completed = sum(1 for f in files if f["ocr_status"] == "completed")
+        failed = sum(1 for f in files if f["ocr_status"] == "failed")
+
+        # 計算題目數和低置信度數
+        total_questions = 0
+        low_confidence_count = 0
+        for f in files:
+            if f["ocr_status"] == "completed" and f.get("ocr_result"):
+                try:
+                    questions = json.loads(f["ocr_result"]) if isinstance(f["ocr_result"], str) else f["ocr_result"]
+                    if isinstance(questions, list):
+                        total_questions += len(questions)
+                        low_confidence_count += sum(
+                            1 for q in questions
+                            if isinstance(q, dict) and q.get("confidence", 1.0) < 0.6
+                        )
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        if completed == total:
+            status = "completed"
+        elif failed == total:
+            status = "failed"
+        elif completed + failed == total and failed > 0:
+            status = "partial_failed"
+        else:
+            status = "processing"
+
+        self._batch_repo.update_status(
+            batch_id, status,
+            completed_files=completed,
+            failed_files=failed,
+            total_questions=total_questions,
+            low_confidence_count=low_confidence_count,
+        )
+        return {
+            "status": status,
+            "completed_files": completed,
+            "failed_files": failed,
+            "total_questions": total_questions,
+            "low_confidence_count": low_confidence_count,
+        }
+
+    def get_batch_status(self, batch_id: str) -> Optional[Dict[str, Any]]:
+        """獲取批次聚合狀態 + 文件詳情 + 合併題目"""
+        batch = self._batch_repo.find_by_batch_id(batch_id)
+        if not batch:
+            return None
+
+        files = self._upload_file_repo.find_by_batch(batch_id)
+        file_details = []
+        merged_questions = []
+
+        for f in files:
+            detail = {
+                "id": f["id"],
+                "filename": f["original_filename"],
+                "file_type": f["file_type"],
+                "status": f["ocr_status"],
+                "total_pages": f.get("total_pages", 1),
+                "error": f.get("error_message"),
+                "question_count": 0,
+            }
+            if f["ocr_status"] == "completed" and f.get("ocr_result"):
+                try:
+                    questions = json.loads(f["ocr_result"]) if isinstance(f["ocr_result"], str) else f["ocr_result"]
+                    if isinstance(questions, list):
+                        detail["question_count"] = len(questions)
+                        merged_questions.extend(questions)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            file_details.append(detail)
+
+        result = {
+            "batch_id": batch["batch_id"],
+            "subject": batch["subject"],
+            "status": batch["status"],
+            "total_files": batch["total_files"],
+            "completed_files": batch.get("completed_files", 0),
+            "failed_files": batch.get("failed_files", 0),
+            "total_questions": batch.get("total_questions", 0),
+            "low_confidence_count": batch.get("low_confidence_count", 0),
+            "files": file_details,
+        }
+
+        # completed 或 partial_failed 都返回已完成文件的題目
+        if batch["status"] in ("completed", "partial_failed"):
+            result["questions"] = merged_questions
+            if batch["status"] == "partial_failed":
+                result["warning"] = f"部分文件識別失敗 ({batch.get('failed_files', 0)} 個)"
+        else:
+            result["questions"] = []
+
+        return result
+
+    # ================================================================
+    # 作業題目 CRUD
+    # ================================================================
+
+    def get_assignment_questions(self, assignment_id: int) -> List[Dict[str, Any]]:
+        """獲取作業題目列表"""
+        self._get_assignment_or_raise(assignment_id)
+        questions = self._question_repo.find_by_assignment(assignment_id)
+        for q in questions:
+            self._deserialize_json_fields(q)
+        return questions
+
+    def save_assignment_questions(
+        self,
+        assignment_id: int,
+        questions: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """
+        保存/替換作業題目 (事務化)。
+
+        規則:
+        - 先校驗再刪除
+        - draft / 無 submission → 允許
+        - 已有 submission → 禁止
+        """
+        assignment = self._get_assignment_or_raise(assignment_id)
+
+        # 校驗: 如果已有 submission，禁止修改
+        submission_count = self._submission_repo.count(
+            where="assignment_id = %s", params=(assignment_id,)
+        )
+        if submission_count > 0:
+            raise ValidationError(
+                "作業已有學生提交，無法修改題目",
+                field="questions",
+            )
+
+        # 校驗 payload
+        if not questions:
+            raise ValidationError("題目列表不能為空", field="questions")
+
+        for i, q in enumerate(questions):
+            if not q.get("question_text", "").strip():
+                raise ValidationError(
+                    f"第 {i + 1} 題的題目文字不能為空",
+                    field="questions",
+                )
+
+        # 事務化: delete + insert
+        with self._question_repo.transaction() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM assignment_questions WHERE assignment_id = %s",
+                (assignment_id,),
+            )
+            for i, q in enumerate(questions):
+                md = q.get("metadata")
+                metadata_str = None
+                if md is not None:
+                    metadata_str = json.dumps(md, ensure_ascii=False) if isinstance(md, (dict, list)) else md
+
+                cursor.execute(
+                    """INSERT INTO assignment_questions
+                    (assignment_id, question_order, question_number, question_text,
+                     answer_text, answer_source, points, question_type,
+                     question_type_confidence, is_ai_extracted, source_batch_id,
+                     source_page, ocr_confidence, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                        assignment_id, i,
+                        q.get("question_number", ""),
+                        q.get("question_text", ""),
+                        q.get("answer_text", ""),
+                        q.get("answer_source", "missing"),
+                        q.get("points"),
+                        q.get("question_type", "open"),
+                        q.get("question_type_confidence"),
+                        q.get("is_ai_extracted", True),
+                        q.get("source_batch_id"),
+                        q.get("source_page"),
+                        q.get("ocr_confidence"),
+                        metadata_str,
+                    ),
+                )
+            # 更新 assignment 的 updated_at
+            cursor.execute(
+                "UPDATE assignments SET updated_at = %s WHERE id = %s",
+                (datetime.now(), assignment_id),
+            )
+
+        logger.info("作業 #%d 保存了 %d 道題目", assignment_id, len(questions))
+        return self._question_repo.find_by_assignment(assignment_id)
+
+    def get_assignment_questions_for_student(
+        self, assignment_id: int
+    ) -> List[Dict[str, Any]]:
+        """獲取學生視角的題目 (過濾答案和內部字段)"""
+        questions = self.get_assignment_questions(assignment_id)
+        student_fields = [
+            "id", "question_order", "question_number", "question_text",
+            "points", "question_type",
+        ]
+        return [
+            {k: q.get(k) for k in student_fields if k in q}
+            for q in questions
+        ]

@@ -112,6 +112,31 @@ const AssignmentAPI = {
         return this._call('/api/assignments/teacher/targets');
     },
 
+    // Exam Paper OCR APIs
+    async uploadExamPaper(files, subject) {
+        const formData = new FormData();
+        formData.append('subject', subject);
+        for (const f of files) formData.append('files', f);
+        const resp = await fetch('/api/assignments/teacher/upload-exam-paper', {
+            method: 'POST',
+            headers: this._authHeaders(),
+            body: formData
+        });
+        if (resp.status === 401) { window.location.href = '/'; return null; }
+        return resp.json();
+    },
+    async getExamPaperStatus(batchId) {
+        return this._call(`/api/assignments/teacher/upload-exam-paper/${batchId}/status`);
+    },
+    async getAssignmentQuestions(assignmentId) {
+        return this._call(`/api/assignments/teacher/${assignmentId}/questions`);
+    },
+    async saveAssignmentQuestions(assignmentId, questions) {
+        return this._call(`/api/assignments/teacher/${assignmentId}/questions`, {
+            method: 'PUT', body: JSON.stringify({ questions })
+        });
+    },
+
     // Student APIs
     async listMyAssignments(status = '') {
         let url = '/api/assignments';
@@ -1758,6 +1783,13 @@ const AssignmentApp = {
         pendingAttachments: [],    // new File objects to upload
         existingAttachments: [],   // already uploaded (from server)
         deletedAttachmentIds: [],  // IDs to delete on save
+        // Assignment type: 'file' (normal) or 'exam' (questionnaire/exam)
+        assignmentType: 'file',
+        // Exam upload (OCR) state
+        examBatchId: null,
+        examFiles: [],
+        recognizedQuestions: [],
+        ocrPollingTimer: null,
         // AI 問答助教
         asgAiSubject: null,
         asgAiConversationId: null,
@@ -3312,9 +3344,16 @@ const AssignmentApp = {
         this.state.editingId = editId;
         this.state.currentStep = 1;
         this.state.selectedRubricType = 'points';
+        this.state.assignmentType = 'file';
         this.state.pendingAttachments = [];
         this.state.existingAttachments = [];
         this.state.deletedAttachmentIds = [];
+        // Reset exam state
+        this.state.examBatchId = null;
+        this.state.examFiles = [];
+        this.state.recognizedQuestions = [];
+        if (this.state.ocrPollingTimer) { clearInterval(this.state.ocrPollingTimer); this.state.ocrPollingTimer = null; }
+
         document.getElementById('createModalTitle').textContent = editId ? '編輯作業' : '創建作業';
 
         // Load targets
@@ -3368,30 +3407,55 @@ const AssignmentApp = {
         this._renderAttachmentLists();
         this._setupAttachmentZone();
 
+        // Reset assignment type selector UI
+        this.selectAssignmentType(editId ? (/* TODO: load from server */ 'file') : 'file');
+
+        // Reset exam upload panel in step 2
+        const uploadPanel = document.getElementById('examUploadPanel');
+        if (uploadPanel) uploadPanel.style.display = 'none';
+        const ocrStatus = document.getElementById('examOcrStatus');
+        if (ocrStatus) ocrStatus.style.display = 'none';
+        const qEditor = document.getElementById('examQuestionEditor');
+        if (qEditor) qEditor.innerHTML = '';
+
         this.goToStep(1);
         document.getElementById('createModal').classList.add('active');
         document.body.style.overflow = 'hidden';
-        // Focus first input after animation
         setTimeout(() => document.getElementById('asgTitle')?.focus(), 300);
     },
 
     closeCreateModal() {
+        if (this.state.ocrPollingTimer) { clearInterval(this.state.ocrPollingTimer); this.state.ocrPollingTimer = null; }
         document.getElementById('createModal').classList.remove('active');
         document.body.style.overflow = '';
     },
 
     goToStep(n) {
         this.state.currentStep = n;
+        const isExam = this.state.assignmentType === 'exam';
         document.getElementById('step1').style.display = n === 1 ? '' : 'none';
-        document.getElementById('step2').style.display = n === 2 ? '' : 'none';
+        document.getElementById('step2Rubric').style.display = (n === 2 && !isExam) ? '' : 'none';
+        document.getElementById('step2Exam').style.display = (n === 2 && isExam) ? '' : 'none';
         document.getElementById('stepItem1').className = `step-item ${n === 1 ? 'active' : 'completed'}`;
         document.getElementById('stepItem2').className = `step-item ${n === 2 ? 'active' : ''}`;
+        // Update step 2 label based on assignment type
+        const step2Label = document.querySelector('#stepItem2 span');
+        if (step2Label) step2Label.textContent = isExam ? '題目管理' : '評分標準';
         // Animated progress line
         const line = document.querySelector('.step-line');
         if (line) line.classList.toggle('filled', n >= 2);
         // Checkmark for completed step
         const circle1 = document.querySelector('#stepItem1 .step-circle');
         if (circle1) circle1.textContent = n >= 2 ? '✓' : '1';
+        // Setup exam upload zone when entering step 2 exam
+        if (n === 2 && isExam) this._setupExamUploadZone();
+    },
+
+    selectAssignmentType(type) {
+        this.state.assignmentType = type;
+        document.querySelectorAll('.asg-type-option').forEach(el => {
+            el.classList.toggle('selected', el.dataset.type === type);
+        });
     },
 
     _renderRubricTypeGrid() {
@@ -3797,19 +3861,29 @@ const AssignmentApp = {
         const targetType = document.getElementById('asgTargetType').value;
         let targetValue = null;
         if (targetType !== 'all') targetValue = document.getElementById('asgTargetValue').value;
+        const isExam = this.state.assignmentType === 'exam';
 
         const base = {
             title: document.getElementById('asgTitle').value.trim(),
             description: document.getElementById('asgDesc').value.trim(),
+            assignment_type: this.state.assignmentType,
             target_type: targetType,
             target_value: targetValue,
             deadline: document.getElementById('asgDeadline').value || null,
             max_files: parseInt(document.getElementById('asgMaxFiles').value) || 5,
             allow_late: document.getElementById('asgAllowLate').checked,
-            rubric_type: rubricType,
+            rubric_type: isExam ? 'points' : rubricType,
             rubric_config: null,
             rubric_items: [],
         };
+
+        // For exam type, collect questions and skip rubric
+        if (isExam) {
+            if (this.state.recognizedQuestions?.length > 0) {
+                base.questions = this._collectQuestions();
+            }
+            return base;
+        }
 
         switch (rubricType) {
             case 'points': {
@@ -3898,6 +3972,317 @@ const AssignmentApp = {
             }
         }
         return base;
+    },
+
+    // ---- Exam Upload / OCR Methods ----
+
+    toggleExamUpload() {
+        const panel = document.getElementById('examUploadPanel');
+        if (!panel) return;
+        const isVisible = panel.style.display !== 'none';
+        if (isVisible) {
+            panel.style.display = 'none';
+        } else {
+            panel.style.display = '';
+            // Reset upload state
+            this.state.examFiles = [];
+            document.getElementById('examFilePreview').innerHTML = '';
+            document.getElementById('startOcrBtn').disabled = true;
+            document.getElementById('startOcrBtn').textContent = '開始識別';
+            document.getElementById('examUploadZone').style.display = '';
+            this._setupExamUploadZone();
+        }
+    },
+
+    _setupExamUploadZone() {
+        const zone = document.getElementById('examUploadZone');
+        const input = document.getElementById('examFileInput');
+        if (!zone || !input) return;
+        zone.onclick = () => input.click();
+        input.onchange = (e) => { this._addExamFiles(e.target.files); input.value = ''; };
+        zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+        zone.ondragleave = () => zone.classList.remove('dragover');
+        zone.ondrop = (e) => {
+            e.preventDefault(); zone.classList.remove('dragover');
+            this._addExamFiles(e.dataTransfer.files);
+        };
+    },
+
+    _addExamFiles(fileList) {
+        const allowed = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'application/pdf'];
+        for (const f of fileList) {
+            if (!allowed.includes(f.type) && !f.name.match(/\.(jpg|jpeg|png|heic|heif|pdf)$/i)) {
+                UIModule.toast(`不支持的文件類型: ${f.name}`, 'warning');
+                continue;
+            }
+            if (f.size > 10 * 1024 * 1024) {
+                UIModule.toast(`文件過大 (>10MB): ${f.name}`, 'warning');
+                continue;
+            }
+            this.state.examFiles.push(f);
+        }
+        this._renderExamFilePreview();
+        document.getElementById('startOcrBtn').disabled = this.state.examFiles.length === 0;
+    },
+
+    _renderExamFilePreview() {
+        const container = document.getElementById('examFilePreview');
+        if (!container) return;
+        if (this.state.examFiles.length === 0) { container.innerHTML = ''; return; }
+        container.innerHTML = this.state.examFiles.map((f, i) => {
+            const sizeStr = f.size < 1024 * 1024
+                ? (f.size / 1024).toFixed(1) + ' KB'
+                : (f.size / 1024 / 1024).toFixed(1) + ' MB';
+            const icon = f.type === 'application/pdf' || f.name.endsWith('.pdf')
+                ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+                : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+            return `<div class="exam-file-item">
+                <span class="exam-file-icon">${icon}</span>
+                <span class="exam-file-name">${this._escapeHtml(f.name)}</span>
+                <span class="exam-file-size">${sizeStr}</span>
+                <button class="exam-file-remove" onclick="AssignmentApp._removeExamFile(${i})">&times;</button>
+            </div>`;
+        }).join('');
+    },
+
+    _removeExamFile(index) {
+        this.state.examFiles.splice(index, 1);
+        this._renderExamFilePreview();
+        document.getElementById('startOcrBtn').disabled = this.state.examFiles.length === 0;
+    },
+
+    async startExamOcr() {
+        if (this.state.examFiles.length === 0) return;
+        const subject = document.getElementById('examSubject').value;
+        const btn = document.getElementById('startOcrBtn');
+        btn.disabled = true;
+        btn.textContent = '上傳中...';
+
+        const resp = await AssignmentAPI.uploadExamPaper(this.state.examFiles, subject);
+        if (!resp?.success) {
+            UIModule.toast('上傳失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            btn.disabled = false;
+            btn.textContent = '開始識別';
+            return;
+        }
+
+        this.state.examBatchId = resp.data.batch_id;
+        // Show OCR status, hide upload panel
+        document.getElementById('examOcrStatus').style.display = '';
+        document.getElementById('examUploadPanel').style.display = 'none';
+
+        this._renderOcrStatus({ status: 'processing', total_files: resp.data.total_files, completed_files: 0, failed_files: 0 });
+
+        // Start polling
+        this.state.ocrPollingTimer = setInterval(() => this._pollOcrStatus(), 3000);
+    },
+
+    async _pollOcrStatus() {
+        if (!this.state.examBatchId) return;
+        const resp = await AssignmentAPI.getExamPaperStatus(this.state.examBatchId);
+        if (!resp?.success) return;
+
+        const data = resp.data;
+        this._renderOcrStatus(data);
+
+        if (data.status === 'completed' || data.status === 'partial_failed' || data.status === 'failed') {
+            clearInterval(this.state.ocrPollingTimer);
+            this.state.ocrPollingTimer = null;
+
+            if (data.status === 'failed') {
+                UIModule.toast('識別失敗，請重新上傳', 'error');
+                return;
+            }
+
+            if (data.questions && data.questions.length > 0) {
+                this.state.recognizedQuestions = data.questions;
+                this._renderQuestionEditor();
+            } else {
+                UIModule.toast('未識別到任何題目', 'warning');
+            }
+        }
+    },
+
+    _renderOcrStatus(data) {
+        const container = document.getElementById('examOcrStatus');
+        if (!container) return;
+        container.style.display = '';
+        const statusMap = {
+            uploading: '上傳中...',
+            processing: '識別中...',
+            completed: '識別完成',
+            partial_failed: '部分完成',
+            failed: '識別失敗',
+        };
+        const statusClass = data.status === 'completed' ? 'success'
+            : data.status === 'partial_failed' ? 'warning'
+            : data.status === 'failed' ? 'error' : 'processing';
+
+        let html = `<div class="ocr-status-bar ocr-status--${statusClass}">
+            <div class="ocr-status-summary">
+                <span class="ocr-status-label">${statusMap[data.status] || data.status}</span>
+                <span class="ocr-status-counts">共 ${data.total_files} 個文件，已完成 ${data.completed_files || 0} 個${data.failed_files ? '，失敗 ' + data.failed_files + ' 個' : ''}</span>
+                ${data.total_questions ? `<span class="ocr-status-questions">| 共識別 ${data.total_questions} 題${data.low_confidence_count ? '，' + data.low_confidence_count + ' 題低置信度' : ''}</span>` : ''}
+            </div>`;
+        if (data.status === 'processing') {
+            html += `<div class="ocr-progress-bar"><div class="ocr-progress-fill" style="width:${data.total_files ? ((data.completed_files||0) / data.total_files * 100) : 0}%"></div></div>`;
+        }
+        html += `</div>`;
+
+        // File status rows
+        if (data.files && data.files.length > 0) {
+            html += `<div class="ocr-file-list">`;
+            for (const f of data.files) {
+                const fStatus = f.status || f.ocr_status || 'pending';
+                const fIcon = fStatus === 'completed' ? '✓' : fStatus === 'failed' ? '✗' : fStatus === 'processing' ? '⟳' : '○';
+                const fClass = fStatus === 'completed' ? 'success' : fStatus === 'failed' ? 'error' : fStatus === 'processing' ? 'processing' : 'pending';
+                html += `<div class="ocr-file-status ocr-file--${fClass}">
+                    <span class="ocr-file-icon">${fIcon}</span>
+                    <span class="ocr-file-name">${this._escapeHtml(f.original_filename || f.filename || '')}</span>
+                    ${f.question_count != null ? `<span class="ocr-file-count">${f.question_count} 題</span>` : ''}
+                    ${f.error ? `<span class="ocr-file-error">${this._escapeHtml(f.error)}</span>` : ''}
+                </div>`;
+            }
+            html += `</div>`;
+        }
+
+        container.innerHTML = html;
+    },
+
+    _renderQuestionEditor() {
+        const container = document.getElementById('examQuestionEditor');
+        if (!container) return;
+
+        const questions = this.state.recognizedQuestions;
+        const totalPoints = questions.reduce((sum, q) => sum + (parseFloat(q.points) || 0), 0);
+
+        let html = `<div class="question-editor-toolbar">
+            <span class="question-editor-count">共 ${questions.length} 題，總分 ${totalPoints} 分</span>
+            <label class="question-filter-toggle">
+                <input type="checkbox" id="showLowConfidence" onchange="AssignmentApp._filterQuestions()"> 只看低置信度
+            </label>
+            <button class="btn btn-outline btn-sm" onclick="AssignmentApp._addQuestion()">+ 添加題目</button>
+        </div>`;
+
+        // Group by source_page
+        const groups = {};
+        questions.forEach((q, i) => {
+            const key = q.source_page ? `第 ${q.source_page} 頁` : '未分頁';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push({ ...q, _index: i });
+        });
+
+        for (const [groupName, items] of Object.entries(groups)) {
+            html += `<div class="question-group">
+                <div class="question-group-title">${groupName}</div>`;
+            for (const q of items) {
+                const i = q._index;
+                const confClass = q.ocr_confidence != null && q.ocr_confidence < 0.7 ? 'low-confidence' : '';
+                const sourceHints = [];
+                if (q.source_page) sourceHints.push(`第 ${q.source_page} 頁`);
+                if (q.ocr_confidence != null) sourceHints.push(`置信度 ${(q.ocr_confidence * 100).toFixed(0)}%`);
+                if (q.metadata?.has_math_formula) sourceHints.push('含公式');
+
+                html += `<div class="question-card ${confClass}" data-index="${i}" id="qcard_${i}">
+                    <div class="question-card-header">
+                        <div class="question-card-row1">
+                            <input type="text" class="q-number" value="${this._escapeAttr(q.question_number || '')}" placeholder="題號" title="題號">
+                            <input type="number" class="q-points" value="${q.points != null ? q.points : ''}" placeholder="分值" min="0" step="0.5" title="分值">
+                            <select class="q-type" title="題型">
+                                <option value="open" ${q.question_type === 'open' ? 'selected' : ''}>開放題</option>
+                                <option value="multiple_choice" ${q.question_type === 'multiple_choice' ? 'selected' : ''}>選擇題</option>
+                                <option value="fill_blank" ${q.question_type === 'fill_blank' ? 'selected' : ''}>填空題</option>
+                                <option value="true_false" ${q.question_type === 'true_false' ? 'selected' : ''}>判斷題</option>
+                            </select>
+                            <button class="question-delete-btn" onclick="AssignmentApp._removeQuestion(${i})" title="刪除">&times;</button>
+                        </div>
+                        ${sourceHints.length > 0 ? `<div class="question-source-hints">${sourceHints.join(' | ')}</div>` : ''}
+                    </div>
+                    <div class="question-card-body">
+                        <label>題目</label>
+                        <textarea class="q-text" rows="3" placeholder="題目內容">${this._escapeHtml(q.question_text || '')}</textarea>
+                        <div class="question-answer-row">
+                            <div class="question-answer-field">
+                                <label>答案</label>
+                                <textarea class="q-answer" rows="2" placeholder="參考答案">${this._escapeHtml(q.answer_text || '')}</textarea>
+                            </div>
+                            <div class="question-answer-source">
+                                <span class="answer-source-badge source-${q.answer_source || 'missing'}">${
+                                    { extracted: '已識別', inferred: '推斷', missing: '無答案', manual: '手動' }[q.answer_source || 'missing'] || '未知'
+                                }</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            html += `</div>`;
+        }
+
+        container.innerHTML = html;
+    },
+
+    _filterQuestions() {
+        const showLow = document.getElementById('showLowConfidence')?.checked;
+        document.querySelectorAll('.question-card').forEach(card => {
+            if (showLow) {
+                card.style.display = card.classList.contains('low-confidence') ? '' : 'none';
+            } else {
+                card.style.display = '';
+            }
+        });
+    },
+
+    _addQuestion() {
+        this.state.recognizedQuestions.push({
+            question_number: '',
+            question_text: '',
+            answer_text: '',
+            answer_source: 'manual',
+            points: null,
+            question_type: 'open',
+            is_ai_extracted: false,
+            ocr_confidence: null,
+            metadata: null,
+        });
+        this._renderQuestionEditor();
+        // Scroll to bottom
+        const container = document.getElementById('examQuestionEditor');
+        if (container) container.scrollTop = container.scrollHeight;
+    },
+
+    _removeQuestion(index) {
+        this.state.recognizedQuestions.splice(index, 1);
+        this._renderQuestionEditor();
+    },
+
+    _collectQuestions() {
+        const cards = document.querySelectorAll('.question-card');
+        const questions = [];
+        cards.forEach(card => {
+            const i = parseInt(card.dataset.index);
+            const orig = this.state.recognizedQuestions[i] || {};
+            const text = card.querySelector('.q-text')?.value?.trim();
+            if (!text) return; // skip empty
+            questions.push({
+                question_number: card.querySelector('.q-number')?.value?.trim() || '',
+                question_text: text,
+                answer_text: card.querySelector('.q-answer')?.value?.trim() || '',
+                answer_source: orig.answer_source || 'missing',
+                points: card.querySelector('.q-points')?.value ? parseFloat(card.querySelector('.q-points').value) : null,
+                question_type: card.querySelector('.q-type')?.value || 'open',
+                is_ai_extracted: orig.is_ai_extracted ?? true,
+                source_batch_id: orig.source_batch_id || this.state.examBatchId || null,
+                source_page: orig.source_page || null,
+                ocr_confidence: orig.ocr_confidence || null,
+                metadata: orig.metadata || null,
+            });
+        });
+        return questions;
+    },
+
+    _escapeAttr(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     },
 
     // ---- Attachment Helpers ----

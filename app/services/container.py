@@ -67,7 +67,10 @@ from app.domains.mistake_book.repository import (
 )
 from app.domains.assignment.repository import (
     AssignmentAttachmentRepository,
+    AssignmentQuestionRepository,
     AssignmentRepository,
+    ExamUploadBatchRepository,
+    ExamUploadFileRepository,
     RubricItemRepository,
     RubricScoreRepository,
     SubmissionFileRepository,
@@ -362,6 +365,9 @@ class ServiceContainer:
                 attachment_repo=self._get_repo(AssignmentAttachmentRepository),
                 conversation_repo=self._get_repo(ConversationRepository),
                 settings=self._settings,
+                question_repo=self._get_repo(AssignmentQuestionRepository),
+                batch_repo=self._get_repo(ExamUploadBatchRepository),
+                upload_file_repo=self._get_repo(ExamUploadFileRepository),
             )
         return self._assignment
 

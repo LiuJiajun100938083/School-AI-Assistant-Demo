@@ -14,6 +14,7 @@ from typing import Optional
 from pathlib import Path
 
 from app.domains.vision.schemas import (
+    ExamPaperResult,
     OCRResult,
     ImageInfo,
     RecognitionSubject,
@@ -2155,6 +2156,258 @@ Output JSON only.
                             break  # 這個起始位置失敗，嘗試下一個
 
         return ""
+
+    # ================================================================
+    #  試卷多題識別
+    # ================================================================
+
+    async def recognize_exam_paper(
+        self,
+        image_path: str,
+        subject: RecognitionSubject = RecognitionSubject.CHINESE,
+    ) -> ExamPaperResult:
+        """
+        識別試卷圖片中的所有題目、答案和分數。
+
+        Args:
+            image_path: 圖片文件路徑
+            subject: 科目
+
+        Returns:
+            ExamPaperResult（標準化結果，不透傳原始輸出）
+        """
+        try:
+            if not os.path.exists(image_path):
+                return ExamPaperResult(
+                    success=False, error=f"圖片文件不存在: {image_path}"
+                )
+
+            processed_path = await self._preprocess_image(image_path)
+            prompt = self._build_exam_paper_prompt(subject)
+
+            # 首選 JSON 強制模式
+            raw_response = await self._call_vision_model_json(processed_path, prompt)
+
+            # 回退到普通模式
+            if raw_response is None:
+                logger.warning("試卷識別 JSON 模式失敗，回退到普通模式...")
+                raw_response = await self._call_vision_model(processed_path, prompt)
+
+            if raw_response is None:
+                return ExamPaperResult(success=False, error="視覺模型調用失敗")
+
+            result = self._parse_exam_paper_response(raw_response)
+            return result
+
+        except Exception as e:
+            logger.error("試卷識別異常: %s", e, exc_info=True)
+            return ExamPaperResult(success=False, error=str(e))
+
+    def _build_exam_paper_prompt(self, subject: RecognitionSubject) -> str:
+        """構建試卷多題識別專用 prompt"""
+        subject_hint = {
+            RecognitionSubject.CHINESE: "這是一份中文科試卷。",
+            RecognitionSubject.MATH: "這是一份數學科試卷。數學公式請用 LaTeX 格式（如 $x^2 + y^2 = r^2$）。",
+            RecognitionSubject.ENGLISH: "This is an English exam paper.",
+            RecognitionSubject.PHYSICS: "這是一份物理科試卷。公式請用 LaTeX 格式。",
+        }.get(subject, "這是一份試卷。")
+
+        return f"""/no_think
+{subject_hint}
+
+請仔細識別圖片中的**所有題目**。
+
+要求:
+1. 識別每一道題的題號、題目文字、參考答案（如果可見）和分值（如果標註）
+2. 如果圖片中沒有顯示答案，answer_text 填空字串，answer_source 填 "missing"
+3. 如果答案是你推斷的（非圖片中可見），answer_source 填 "inferred"
+4. 如果答案是圖片中明確可見的，answer_source 填 "extracted"
+5. 分值（points）如果圖片中沒有標註，設為 null
+6. 題型（question_type）不確定時設為 "open"
+7. 子題也要獨立列出（如 1a, 1b 分開）
+8. 數學公式用 LaTeX 格式
+
+只輸出 JSON，不要 markdown code fence，不要額外說明。
+
+輸出格式:
+{{
+  "questions": [
+    {{
+      "question_number": "1",
+      "question_text": "題目完整文字",
+      "answer_text": "標準答案或空字串",
+      "answer_source": "extracted 或 inferred 或 missing",
+      "points": 5,
+      "question_type": "open",
+      "has_math_formula": false,
+      "confidence": 0.9
+    }}
+  ],
+  "paper_title": "試卷標題或空字串",
+  "total_score": null
+}}"""
+
+    def _parse_exam_paper_response(self, raw: str) -> ExamPaperResult:
+        """
+        鲁棒解析試卷多題 OCR 回應。
+
+        修復順序（最小侵入）:
+        1. 直接 json.loads
+        2. 提取 JSON block
+        3. 去除 code fence
+        4. 有限度修復
+        """
+        warnings = []
+
+        # Step 1: 直接解析
+        parsed = self._try_parse_exam_json(raw)
+
+        # Step 2: 提取 JSON block
+        if parsed is None:
+            import re
+            # 嘗試提取最大的 JSON 對象
+            match = re.search(r'\{[\s\S]*\}', raw)
+            if match:
+                parsed = self._try_parse_exam_json(match.group())
+
+        # Step 3: 去除 code fence
+        if parsed is None:
+            import re
+            cleaned = re.sub(r'```(?:json)?\s*', '', raw)
+            cleaned = re.sub(r'```\s*$', '', cleaned).strip()
+            parsed = self._try_parse_exam_json(cleaned)
+
+        # Step 4: 有限度修復 (trailing comma)
+        if parsed is None:
+            import re
+            fixed = re.sub(r',\s*([}\]])', r'\1', raw)
+            match = re.search(r'\{[\s\S]*\}', fixed)
+            if match:
+                parsed = self._try_parse_exam_json(match.group())
+
+        if parsed is None:
+            logger.error("試卷 OCR 回應解析完全失敗，raw=%s", raw[:500])
+            return ExamPaperResult(
+                success=False,
+                error="無法解析模型輸出為 JSON",
+                raw_text=raw[:2000],
+            )
+
+        # 提取 questions 列表
+        questions_raw = parsed.get("questions", [])
+        if not isinstance(questions_raw, list):
+            questions_raw = [questions_raw] if isinstance(questions_raw, dict) else []
+            warnings.append("questions 字段不是列表，已自動包裝")
+
+        # 標準化每道題
+        LOW_CONFIDENCE_THRESHOLD = 0.6
+        low_count = 0
+        questions = []
+        for i, q in enumerate(questions_raw):
+            if not isinstance(q, dict):
+                continue
+
+            q_text = str(q.get("question_text", "")).strip()
+            if not q_text:
+                continue  # 過濾空白垃圾題
+
+            # 解析 points（容錯: "5分" → 5.0）
+            points_raw = q.get("points")
+            points = self._parse_points_value(points_raw)
+
+            confidence = float(q.get("confidence", 0.0))
+            if confidence < LOW_CONFIDENCE_THRESHOLD:
+                low_count += 1
+
+            questions.append({
+                "question_number": str(q.get("question_number", str(i + 1))).strip(),
+                "question_text": q_text,
+                "answer_text": str(q.get("answer_text", "")).strip(),
+                "answer_source": str(q.get("answer_source", "missing")).strip(),
+                "points": points,
+                "question_type": str(q.get("question_type", "open")).strip(),
+                "has_math_formula": bool(q.get("has_math_formula", False)),
+                "confidence": confidence,
+            })
+
+        # 提取試卷信息
+        paper_title = str(parsed.get("paper_title", "")).strip()
+        total_score_raw = parsed.get("total_score")
+        total_score = self._parse_points_value(total_score_raw)
+
+        overall_confidence = (
+            sum(q.get("confidence", 0) for q in questions) / len(questions)
+            if questions else 0.0
+        )
+
+        if not questions:
+            warnings.append("未識別到任何有效題目")
+
+        return ExamPaperResult(
+            questions=questions,
+            paper_title=paper_title,
+            total_score=total_score,
+            confidence=overall_confidence,
+            warnings=warnings,
+            raw_text=raw[:2000],
+            success=True,
+        )
+
+    @staticmethod
+    def _try_parse_exam_json(text: str) -> Optional[dict]:
+        """嘗試解析 JSON，失敗返回 None"""
+        try:
+            result = json.loads(text)
+            return result if isinstance(result, dict) else None
+        except (json.JSONDecodeError, ValueError):
+            return None
+
+    @staticmethod
+    def _parse_points_value(raw) -> Optional[float]:
+        """容錯解析分值: 5 / 5.0 / "5分" / "5 marks" → float"""
+        if raw is None:
+            return None
+        if isinstance(raw, (int, float)):
+            return float(raw) if raw > 0 else None
+        if isinstance(raw, str):
+            import re
+            match = re.search(r'(\d+(?:\.\d+)?)', raw)
+            if match:
+                val = float(match.group(1))
+                return val if val > 0 else None
+        return None
+
+    @staticmethod
+    def pdf_to_images(pdf_path: str, dpi: int = 200) -> list:
+        """
+        將 PDF 每頁轉為 JPEG 圖片。
+
+        Args:
+            pdf_path: PDF 文件路徑
+            dpi: 解析度
+
+        Returns:
+            圖片文件路徑列表
+        """
+        import fitz  # PyMuPDF
+
+        doc = fitz.open(pdf_path)
+        output_dir = os.path.join(os.path.dirname(pdf_path), ".pdf_pages")
+        os.makedirs(output_dir, exist_ok=True)
+
+        image_paths = []
+        for page_num in range(len(doc)):
+            page = doc.load_page(page_num)
+            mat = fitz.Matrix(dpi / 72, dpi / 72)
+            pix = page.get_pixmap(matrix=mat)
+            img_path = os.path.join(output_dir, f"page_{page_num + 1}.jpg")
+            pix.save(img_path)
+            image_paths.append(img_path)
+            logger.debug("PDF 第 %d 頁已轉為圖片: %s", page_num + 1, img_path)
+
+        doc.close()
+        logger.info("PDF 轉圖完成: %s → %d 頁", pdf_path, len(image_paths))
+        return image_paths
 
     def get_image_info(self, image_path: str) -> ImageInfo:
         """獲取圖片元數據"""
