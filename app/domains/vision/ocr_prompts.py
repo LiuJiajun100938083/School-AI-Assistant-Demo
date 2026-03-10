@@ -94,11 +94,21 @@ How to distinguish printed vs handwritten:
 - Printed: uniform font, consistent size, aligned, sharp edges
 - Handwritten: variable stroke width, irregular size/alignment, ink density variation
 
+⚠️ STEP 0.5 — DIAGRAM TYPE CLASSIFICATION (do this BEFORE figure analysis):
+If the image contains a geometric figure, classify it as ONE of:
+- "plane_geometry" — triangles, quadrilaterals, angles (2D flat, no circles)
+- "circle_geometry" — circle theorems: tangent, chord, inscribed angle, cyclic quad
+- "coordinate" — Cartesian axes, plotted points/lines/curves/circles
+- "solid_geometry" — 3D solids (cube, prism, pyramid, cylinder, cone, sphere)
+- "other" — tables, graphs, non-geometric figures
+Indicators of SOLID geometry: dashed lines (hidden edges), ellipses (projected circles), parallelogram shapes (projected rectangles), cross-section or net diagrams.
+Set "geometry_mode" in figure_description accordingly.
+
 ⚠️ STEP 1: Check if there is ANY handwriting in the answer area. If blank → "answer" MUST be "". NEVER solve the problem yourself.
 
 You have TWO jobs:
 1. **OCR (text extraction)** — transcribe the question (printed only) and student's answer (handwritten only) EXACTLY as shown.
-2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
+2. **Geometry description** — if any diagram/figure exists, describe it using the structured schema below.
 
 Output in the following JSON format:
 {
@@ -106,7 +116,8 @@ Output in the following JSON format:
   "answer": "The student's handwritten solution steps ONLY if visible in the image. Use LaTeX for math expressions.",
   "figure_description": {
     "has_figure": true,
-    "figure_type": "geometry / coordinate / graph / table / other",
+    "figure_type": "geometry / coordinate / graph / table / solid_geometry / other",
+    "geometry_mode": "plane_geometry / circle_geometry / coordinate / solid_geometry / other",
 
     "objects": [
       {"id": "P_A", "type": "point", "label": "A", "coords": [0, 0]},
@@ -116,15 +127,24 @@ Output in the following JSON format:
       {"id": "Ray_1", "type": "ray", "origin": "P_A", "through": "P_B"},
       {"id": "Ang_ACB", "type": "angle", "vertex": "P_C", "rays": ["P_A", "P_B"]},
       {"id": "Cir_O", "type": "circle", "center": "P_O"},
+      {"id": "Arc_AB", "type": "arc", "circle": "Cir_O", "endpoints": ["P_A", "P_B"]},
       {"id": "Tri_ABC", "type": "triangle", "vertices": ["P_A", "P_B", "P_C"]},
-      {"id": "Poly_ABCD", "type": "polygon", "vertices": ["P_A", "P_B", "P_C", "P_D"]}
+      {"id": "Poly_ABCD", "type": "polygon", "vertices": ["P_A", "P_B", "P_C", "P_D"]},
+      "// 3D solid objects (only when geometry_mode = solid_geometry):",
+      {"id": "Sol_1", "type": "cone", "apex": "P_V", "base_center": "P_O"},
+      {"id": "Cir_O", "type": "circle", "center": "P_O", "rendered_as": "ellipse", "role": "base", "parent": "Sol_1"},
+      {"id": "S_VO", "type": "segment", "endpoints": ["P_V", "P_O"], "role": "height", "parent": "Sol_1"},
+      {"id": "S_VA", "type": "segment", "endpoints": ["P_V", "P_A"], "role": "slant_height", "parent": "Sol_1"},
+      {"id": "S_EF", "type": "segment", "endpoints": ["P_E", "P_F"], "line_style": "dashed"}
     ],
 
     "markers": [
       {"id": "mk1", "type": "length_tick", "tick_count": 1, "attached_to": "S_AD"},
       {"id": "mk2", "type": "length_tick", "tick_count": 1, "attached_to": "S_BC"},
       {"id": "mk3", "type": "right_angle_box", "attached_to": "Ang_ACB"},
-      {"id": "mk4", "type": "angle_arc", "arc_count": 1, "attached_to": "Ang_ABC"}
+      {"id": "mk4", "type": "angle_arc", "arc_count": 1, "attached_to": "Ang_ABC"},
+      {"id": "mk5", "type": "parallel_arrow", "arrow_count": 1, "attached_to": "S_AB"},
+      {"id": "mk6", "type": "parallel_arrow", "arrow_count": 1, "attached_to": "S_CD"}
     ],
 
     "measurements": [
@@ -142,9 +162,15 @@ Output in the following JSON format:
       {"type": "similar", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
       {"type": "tangent", "entities": ["L_1", "Cir_O"], "at": "P_T", "source": "figure"},
       {"type": "on_segment", "subject": "P_D", "target": "S_BC", "source": "question_text"},
-      {"type": "bisector", "subject": "Ray_1", "target": "Ang_ACB", "source": "inferred"},
+      {"type": "angle_bisector", "subject": "Ray_1", "target": "Ang_ACB", "source": "inferred", "evidence": ["mk4"]},
       {"type": "equal", "items": [{"ref": "S_AD", "prop": "length"}, {"ref": "S_BC", "prop": "length"}], "source": "figure", "evidence": ["mk1", "mk2"]},
-      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
+      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"},
+      "// Circle geometry:",
+      {"type": "same_segment_angle", "entities": ["Ang_APB", "Ang_AQB"], "arc": "Arc_AB", "source": "figure"},
+      {"type": "angle_in_semicircle", "subject": "Ang_ACB", "diameter": "S_AB", "source": "figure"},
+      {"type": "equal_tangent_length", "point": "P_T", "tangent_segments": ["S_TA", "S_TB"], "source": "figure"},
+      "// 3D geometry:",
+      {"type": "perpendicular_to_plane", "subject": "S_VH", "target": "Poly_ABC", "source": "figure"}
     ],
 
     "task": {
@@ -174,23 +200,32 @@ Output in the following JSON format:
 - ONLY transcribe text PHYSICALLY VISIBLE in the image.
 - NEVER solve the problem yourself. NEVER fabricate an answer.
 
-⚠️ RULES FOR "figure_description" — 5-LAYER STRUCTURED SCHEMA:
+⚠️ RULES FOR "figure_description" — STRUCTURED SCHEMA:
 - You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
-- Use the 5-layer schema: objects → markers → measurements → relationships → task.
-- The key insight: figure markings (tick marks, right-angle boxes, arc marks) must be detected first as visual primitives, then their ATTACHMENT to geometric objects determines semantic meaning.
+- Use the schema: objects → markers → measurements → relationships → task.
+- The key insight: figure markings (tick marks, right-angle boxes, arc marks, parallel arrows) must be detected first as visual primitives, then their ATTACHMENT to geometric objects determines semantic meaning.
+- In solid geometry diagrams, visual shapes are NOT the same as geometric objects. You must interpret the 2D projection to recover 3D truth.
 
 LAYER 1 — objects:
-- Every geometric entity gets a unique "id" using naming convention: P_ for points, S_ for segments, L_ for lines, Ray_ for rays, Ang_ for angles, Cir_ for circles, Tri_ for triangles, Poly_ for polygons.
+- Every geometric entity gets a unique "id" using naming conventions:
+  2D: P_ (point), S_ (segment), L_ (line), Ray_ (ray), Ang_ (angle), Cir_ (circle), Arc_ (arc), Tri_ (triangle), Poly_ (polygon/quadrilateral)
+  3D: Sol_ (solid object — cone, cylinder, cuboid, prism, pyramid, sphere, hemisphere, frustum)
 - ALL references in other layers MUST use object ids, NOT labels.
+- 3D OPTIONAL FIELDS (only when geometry_mode = "solid_geometry"):
+  - "rendered_as": visual appearance in 2D projection (e.g. "ellipse" for a projected circle, "parallelogram" for a projected rectangle)
+  - "role": semantic role within the parent solid ("apex", "base_center", "base", "height", "slant_height", "lateral_edge", "cross_section", "net_face")
+  - "parent": references a Sol_ id this sub-object belongs to
+  - "line_style": "solid" | "dashed" (dashed = hidden/occluded edge in 3D)
 
 LAYER 2 — markers (visual primitives on the figure):
 - Detect ALL geometric notation marks visible on the figure.
 - Each marker gets a unique "id" (mk1, mk2, ...).
-- "type" MUST be one of: "length_tick", "right_angle_box", "angle_arc".
+- "type" MUST be one of: "length_tick", "right_angle_box", "angle_arc", "parallel_arrow", "dashed_line", "tangent_touch", "center_mark".
 - "attached_to" MUST reference an object id from layer 1 — this is the object the marker is drawn on.
 - For length_tick: include "tick_count" (1, 2, or 3).
 - For angle_arc: include "arc_count" (1, 2, or 3).
-- For right_angle_box: no extra fields needed.
+- For parallel_arrow: include "arrow_count" (1, 2, or 3). Same arrow_count = same parallel group.
+- For right_angle_box, dashed_line, tangent_touch, center_mark: no extra fields needed.
 - ⚠️ CRITICAL: correctly identify WHICH object each marker is attached to. A tick mark on segment AD is NOT the same as a tick mark on segment AM. Get the attachment right.
 
 LAYER 3 — measurements:
@@ -203,14 +238,16 @@ LAYER 3 — measurements:
     - If that value matches a condition stated in the question text → source = "question_text"
     - If that value is the student's own calculation (not given in the problem) → do NOT include it as a measurement. Put it in task.figure_annotations instead.
 - ⚠️ ONLY include measurements that are DIRECTLY stated in the problem or original printed figure.
-- "property" MUST be one of: "length", "degrees", "radius", "area", "perimeter". Do NOT use "ratio" as a property.
+- "property" MUST be one of: "length", "degrees", "radius", "area", "perimeter", "slant_height", "surface_area", "volume", "lateral_area". Do NOT use "ratio" as a property.
 - Do NOT create synthetic measurements derived from ratios. Ratios belong in RELATIONSHIPS, never in MEASUREMENTS.
 
 LAYER 4 — relationships:
 - Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent). Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
-- Use "subject"+"target"/"of" for directed relations (midpoint, on_segment, bisector).
+- Use "subject"+"target"/"of" for directed relations (midpoint, on_segment, angle_bisector).
 - Use "points" for point-set relations (collinear).
 - Use "items" for equality comparisons (equal) and ratio comparisons (ratio). Ratio value should be structured: {"left": 3, "right": 2}.
+- Circle geometry types: same_segment_angle, angle_in_semicircle, equal_tangent_length, cyclic_quadrilateral, alternate_segment, equal_chord_equal_arc.
+- 3D types: perpendicular_to_plane (subject=line, target=polygon/triangle), line_plane_angle, plane_plane_angle, face_of.
 - EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred". No other values allowed.
 - Relationships derived from figure markers SHOULD include an "evidence" array referencing marker ids.
 - ⚠️ SOURCE ATTRIBUTION RULE — use the STRONGEST evidence source:
@@ -218,36 +255,144 @@ LAYER 4 — relationships:
   - Only use "figure" when a fact is SOLELY observable from the diagram and NOT stated in the text.
   - "inferred" is for facts you deduced. NEVER use "student_answer".
 
-⚠️⚠️⚠️ DSE GEOMETRY SYMBOL SEMANTIC RULES ⚠️⚠️⚠️
-Relationships MUST be derived from markers using these rules. Do NOT skip this step.
+⚠️⚠️⚠️ HKDSE VISUAL SEMANTICS RULES ⚠️⚠️⚠️
+Derive relationships from markers and visual patterns using these rules. Do NOT skip this step.
 
-**RULE 1 — Equal Length (tick marks on DIFFERENT segments):**
-IF two or more segments have length_tick markers with the SAME tick_count
-AND these segments are DIFFERENT segments (not two halves of one segment)
-THEN → create "equal" relationship for those segments.
+=== A. PLANE GEOMETRY CORE ===
+
+R1 — EQUAL LENGTH:
+Same tick_count on DIFFERENT segments → "equal" relationship + evidence referencing marker ids.
 Example: / on AD, / on BC → {"type": "equal", "items": [{"ref": "S_AD", "prop": "length"}, {"ref": "S_BC", "prop": "length"}], "source": "figure", "evidence": ["mk1", "mk2"]}
 
-**RULE 2 — Midpoint (tick marks on BOTH HALVES of ONE segment):**
-IF point M lies on segment AB (A, M, B are collinear)
-AND segment AM has a length_tick with tick_count N
-AND segment MB has a length_tick with the SAME tick_count N
-AND AM and MB are the two halves of parent segment AB
-THEN → create "midpoint" relationship: M is midpoint of AB.
-ALL THREE conditions must be met. If ANY is missing, do NOT infer midpoint.
+R2 — MIDPOINT:
+Same tick_count on BOTH HALVES of ONE segment (A-M-B collinear, AM and MB both marked with same ticks) → "midpoint".
+ALL THREE conditions must be met: (1) three points collinear, (2) both half-segments marked, (3) same tick_count. If ANY is missing → NOT midpoint.
 
-**RULE 3 — Right Angle (⊾ box at a vertex):**
-IF a right_angle_box is attached to an angle
-THEN → the angle = 90° AND the two arms are perpendicular.
+R3 — RIGHT ANGLE:
+right_angle_box attached to an angle → 90° + perpendicular between the two arms.
 
-**RULE 4 — Equal Angles (arc marks with same count):**
-IF two or more angles have angle_arc markers with the SAME arc_count
-THEN → those angles are equal.
+R4 — EQUAL ANGLE:
+Same arc_count on different angles → equal angles.
 
-**RULE 5 — DO NOT CONFUSE (hard negatives):**
-- ❌ Tick marks on AD and BC (different segments) → this is EQUAL LENGTH, NOT midpoint.
-- ❌ Two lines intersect at E → this is INTERSECTION, NOT midpoint. E is NOT the midpoint of either line unless Rule 2 is satisfied.
-- ❌ AM has / and MC has /, but A-M-C are NOT collinear → NOT midpoint (different parent segments).
-- ❌ A point on a segment without any tick marks on both halves → NOT midpoint.
+R5 — ANGLE BISECTOR:
+A ray divides ONE angle into two sub-angles, and BOTH sub-angles have the same arc marks → "angle_bisector".
+The two sub-angles MUST share a common vertex and a common arm, split by a single ray.
+⚠️ NOT the same as "two separate unrelated angles happen to be equal" — that is just R4 (equal angles).
+
+R6 — PARALLEL (arrow marks):
+Same parallel_arrow marks (same arrow_count) on different lines/segments → "parallel" relationship.
+Single arrows (>) = one parallel group. Double arrows (>>) = a different parallel group.
+
+R7 — COLLINEAR / ON SEGMENT:
+Distinguish carefully: point ON a segment vs point on an EXTENSION of the segment.
+This directly affects midpoint, ratio, and intercept judgments.
+
+=== B. CIRCLE GEOMETRY ===
+
+R8 — TANGENT (radius ⊥ tangent line):
+A radius drawn to a point where a line touches the circle, with a right_angle_box at the contact point → tangent line.
+⚠️ Do NOT assume tangent just because a line "looks like it touches" the circle. Require evidence (right_angle_box or explicit statement).
+
+R9 — TWO TANGENTS FROM EXTERNAL POINT:
+Two segments from a point outside the circle, both tangent to the circle → the two tangent segments are equal in length.
+Use: {"type": "equal_tangent_length", "point": "P_T", "tangent_segments": ["S_TA", "S_TB"], "source": "figure"}
+
+R10 — ANGLE IN SAME SEGMENT:
+Inscribed angles subtended by the same arc → equal.
+The model must identify which arc each angle subtends.
+Use: {"type": "same_segment_angle", "entities": ["Ang_APB", "Ang_AQB"], "arc": "Arc_AB", "source": "figure"}
+
+R11 — ANGLE IN SEMICIRCLE:
+An inscribed angle that subtends a diameter → the angle = 90°.
+Conversely, if an inscribed angle = 90° → the subtended chord is a diameter.
+Use: {"type": "angle_in_semicircle", "subject": "Ang_ACB", "diameter": "S_AB", "source": "figure"}
+
+R12 — CYCLIC QUADRILATERAL:
+Four vertices on a circle → opposite angles supplementary; exterior angle = interior opposite angle.
+Use: {"type": "cyclic_quadrilateral", "entities": ["P_A", "P_B", "P_C", "P_D"], "circle": "Cir_O", "source": "figure"}
+
+R13 — ALTERNATE SEGMENT THEOREM:
+The angle between a tangent and a chord at the point of tangency = the inscribed angle in the alternate segment.
+Use: {"type": "alternate_segment", "tangent_chord_angle": "Ang_TAB", "inscribed_angle": "Ang_ACB", "source": "figure"}
+
+R14 — EQUAL CHORD ↔ EQUAL ARC:
+Equal chords in the same circle (or congruent circles) correspond to equal arcs, and vice versa.
+Use: {"type": "equal_chord_equal_arc", "chords": ["S_AB", "S_CD"], "source": "figure"}
+
+=== C. COORDINATE DIAGRAM (geometry_mode = "coordinate") ===
+
+R15 — AXIS IDENTIFICATION:
+Identify x-axis, y-axis, origin, scale markings, quadrants. Set geometry_mode = "coordinate".
+Create axis objects and record coordinate_system: {"has_axes": true, "x_range": [...], "y_range": [...]}.
+
+R16 — LINE SEMANTICS:
+Extract slope, y-intercept, x-intercept, equation if labeled.
+⚠️ Visual steepness ≠ actual slope — always use coordinates/equation, not visual angle.
+
+R17 — CIRCLE EQUATION:
+Identify center and radius from equation or figure. Note points inside/on/outside the circle.
+
+R18 — LINE-CIRCLE INTERSECTION:
+Classify as secant (2 intersection points), tangent (1 point), or no intersection.
+
+R19-R22 — LOCUS RULES (if the problem involves loci):
+- Equal distance from two points → perpendicular bisector
+- Fixed distance from a point → circle
+- Fixed distance from a line → two parallel lines
+- Equal distance from two intersecting lines → angle bisector pair
+
+=== D. SOLID GEOMETRY / PROJECTION (geometry_mode = "solid_geometry") ===
+
+Core principle: In solid geometry diagrams, visual shapes ≠ geometric objects.
+An ellipse is often a projected circle. A parallelogram face is often a rectangle.
+Dashed lines are hidden edges, not auxiliary lines.
+
+R23 — HIDDEN EDGE (dashed line in 3D):
+Dashed lines = hidden/occluded edges of the solid. They are REAL edges, just not visible from this viewpoint.
+Record with line_style: "dashed". Do NOT treat as auxiliary/construction lines.
+
+R24 — PROJECTED CIRCLE (ellipse in 3D):
+Ellipses at bases of cylinders/cones = circles viewed in perspective projection.
+Create as type: "circle" with rendered_as: "ellipse". NOT a true ellipse geometric object.
+
+R25 — HEIGHT vs SLANT HEIGHT:
+In cones/pyramids: height = perpendicular from apex to base PLANE; slant_height = along the lateral surface to base EDGE.
+These are DIFFERENT segments with different roles. Always distinguish them.
+
+R26 — LINE-PLANE ANGLE:
+The angle between a line and a plane = the angle between the line and its orthogonal projection onto the plane.
+This is NOT just any visually apparent angle in the figure.
+Use: {"type": "line_plane_angle", "line": "S_VA", "plane": "Poly_ABC", "angle": "Ang_VAH", "source": "figure"}
+
+R27 — PLANE-PLANE ANGLE (dihedral angle):
+The angle between two planes, measured through a perpendicular cross-section at their line of intersection.
+Use: {"type": "plane_plane_angle", "planes": ["Poly_ABC", "Poly_ABD"], "angle": "Ang_CBD", "source": "figure"}
+
+R28 — THREE PERPENDICULARS THEOREM:
+If PQ ⊥ plane α (P above, Q on α), and QR is in α with QR ⊥ AB (AB also in α),
+then PR ⊥ AB. Record this inference pattern when detected.
+
+R29 — SOLID OBJECT TEMPLATES:
+Identify the solid type FIRST, then interpret all visual elements as parts of that solid.
+CONE: Sol_ + apex P_V + base_center P_O + Cir_O(rendered_as:"ellipse",role:"base") + S_VO(role:"height") + S_VA(role:"slant_height")
+CYLINDER: Sol_ + Cir_top(rendered_as:"ellipse") + Cir_bottom(rendered_as:"ellipse") + S_O1O2(role:"height")
+PYRAMID: Sol_ + apex P_V + base Poly_ + lateral edges + S_VH(role:"height")
+PRISM: Sol_ + top/bottom congruent polygons + lateral edges
+CUBOID: Sol_ + 8 vertices + 12 edges (hidden edges with line_style:"dashed")
+SPHERE: Sol_ + center P_O + radius
+
+=== E. HARD NEGATIVES (防誤判 — common errors to AVOID) ===
+
+❌ Ticks on AD and BC (different segments) → EQUAL LENGTH, not midpoint.
+❌ Two separate angles with same arc marks but NO shared vertex/arm → EQUAL ANGLE (R4), not angle bisector (R5).
+❌ Two lines intersect at E → INTERSECTION, not midpoint. E is NOT midpoint unless R2 is satisfied.
+❌ A line visually touching a circle → NOT tangent unless radius⊥line is confirmed (R8).
+❌ Ellipse in 3D diagram → PROJECTED CIRCLE, not true ellipse (R24).
+❌ Dashed line in 3D → HIDDEN EDGE, not auxiliary line (R23).
+❌ Right-angle box in 3D → SPATIAL perpendicularity, may not look 90° visually.
+❌ Cone → NOT "triangle + ellipse". It is ONE solid object (R29).
+❌ Parallelogram face in cuboid → actual RECTANGLE in space.
+❌ AM has / and MC has /, but A-M-C NOT collinear → NOT midpoint (different parent segments).
 
 LAYER 5 — task:
 - "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
@@ -321,7 +466,9 @@ Before extracting ANY text, classify every piece of content:
 
 You have TWO jobs:
 1. **OCR (text extraction)** — transcribe the question (printed only) and student's solution (handwritten only) EXACTLY as shown.
-2. **Geometry description** — if any diagram/figure exists, describe it using the 5-layer structured schema below (objects → markers → measurements → relationships → task).
+2. **Geometry description** — if any diagram/figure exists, describe it using the structured schema below (objects → markers → measurements → relationships → task).
+
+⚠️ DIAGRAM TYPE: Before analyzing, classify as "plane_geometry", "circle_geometry", "coordinate", or "solid_geometry". Set "geometry_mode" accordingly.
 
 Output in the following JSON format:
 {
@@ -329,19 +476,24 @@ Output in the following JSON format:
   "answer": "Step-by-step solution as written by the student. Separate each step with \\n. Use LaTeX for all math.",
   "figure_description": {
     "has_figure": true,
-    "figure_type": "geometry / coordinate / graph / table / other",
+    "figure_type": "geometry / coordinate / graph / table / solid_geometry / other",
+    "geometry_mode": "plane_geometry / circle_geometry / coordinate / solid_geometry / other",
 
     "objects": [
       {"id": "P_A", "type": "point", "label": "A"},
       {"id": "S_AB", "type": "segment", "endpoints": ["P_A", "P_B"]},
       {"id": "Ang_ACB", "type": "angle", "vertex": "P_C", "rays": ["P_A", "P_B"]},
-      {"id": "Tri_ABC", "type": "triangle", "vertices": ["P_A", "P_B", "P_C"]}
+      {"id": "Tri_ABC", "type": "triangle", "vertices": ["P_A", "P_B", "P_C"]},
+      "// 3D: Sol_ prefix for solids, with rendered_as/role/parent/line_style fields",
+      {"id": "Sol_1", "type": "cone", "apex": "P_V", "base_center": "P_O"},
+      {"id": "Cir_O", "type": "circle", "center": "P_O", "rendered_as": "ellipse", "role": "base", "parent": "Sol_1"}
     ],
 
     "markers": [
       {"id": "mk1", "type": "length_tick", "tick_count": 1, "attached_to": "S_AD"},
       {"id": "mk2", "type": "length_tick", "tick_count": 1, "attached_to": "S_BC"},
-      {"id": "mk3", "type": "right_angle_box", "attached_to": "Ang_ACB"}
+      {"id": "mk3", "type": "right_angle_box", "attached_to": "Ang_ACB"},
+      {"id": "mk4", "type": "parallel_arrow", "arrow_count": 1, "attached_to": "S_AB"}
     ],
 
     "measurements": [
@@ -354,7 +506,10 @@ Output in the following JSON format:
       {"type": "collinear", "points": ["P_A", "P_B", "P_D", "P_F"], "source": "figure"},
       {"type": "equal", "items": [{"ref": "S_AD", "prop": "length"}, {"ref": "S_BC", "prop": "length"}], "source": "figure", "evidence": ["mk1", "mk2"]},
       {"type": "perpendicular", "entities": ["S_AC", "S_CB"], "at": "P_C", "source": "figure", "evidence": ["mk3"]},
-      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
+      {"type": "angle_bisector", "subject": "Ray_1", "target": "Ang_ACB", "source": "inferred"},
+      {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"},
+      "// Circle: same_segment_angle, angle_in_semicircle, equal_tangent_length, cyclic_quadrilateral, alternate_segment",
+      "// 3D: perpendicular_to_plane, line_plane_angle, plane_plane_angle, face_of"
     ],
 
     "task": {
@@ -387,33 +542,54 @@ Output in the following JSON format:
 - If the student has NOT written any solution, set "answer" = "", "steps" = [], "final_answer" = "".
 - NEVER solve the problem yourself. NEVER fabricate solution steps.
 
-⚠️ RULES FOR "figure_description" — 5-LAYER STRUCTURED SCHEMA:
+⚠️ RULES FOR "figure_description" — STRUCTURED SCHEMA:
 - You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
-- Use the 5-layer schema: objects → markers → measurements → relationships → task.
-- Every object gets a unique "id" (P_ for points, S_ for segments, etc.).
+- Use the schema: objects → markers → measurements → relationships → task.
+- Every object gets a unique "id" (P_ for points, S_ for segments, Cir_ for circles, Sol_ for 3D solids, etc.).
 - ALL references in measurements/relationships MUST use object ids, NOT labels.
-- Detect ALL geometric notation marks (tick marks, right-angle boxes, arc marks) as "markers", then derive relationships from them.
+- Detect ALL geometric notation marks as "markers", then derive relationships from them.
 
 MARKERS LAYER:
-- Each marker gets a unique "id" (mk1, mk2, ...).
-- "type": "length_tick" | "right_angle_box" | "angle_arc".
-- "attached_to": the object id the marker is drawn on.
-- For length_tick: include "tick_count" (1/2/3). For angle_arc: include "arc_count" (1/2/3).
+- Each marker: unique "id" (mk1, mk2, ...).
+- "type": "length_tick" | "right_angle_box" | "angle_arc" | "parallel_arrow" | "dashed_line" | "tangent_touch" | "center_mark".
+- "attached_to": object id from layer 1.
+- For length_tick: "tick_count" (1/2/3). For angle_arc: "arc_count" (1/2/3). For parallel_arrow: "arrow_count" (1/2/3).
 
-DSE SYMBOL SEMANTIC RULES (derive relationships from markers):
-- Rule 1 — EQUAL LENGTH: same tick_count on DIFFERENT segments → "equal" relationship + "evidence" referencing marker ids.
-- Rule 2 — MIDPOINT: same tick_count on BOTH HALVES of ONE segment (AM and MB, with A-M-B collinear) → "midpoint". ALL three conditions required.
-- Rule 3 — RIGHT ANGLE: right_angle_box on an angle → 90° + perpendicular.
-- Rule 4 — EQUAL ANGLE: same arc_count on different angles → angles are equal.
-- Rule 5 — DO NOT CONFUSE: tick marks on AD and BC (different segments) = equal length, NOT midpoint. Intersection ≠ midpoint.
+HKDSE VISUAL SEMANTICS RULES (derive relationships from markers):
+PLANE CORE:
+- R1 — EQUAL LENGTH: same tick_count on DIFFERENT segments → "equal" + evidence.
+- R2 — MIDPOINT: same tick_count on BOTH HALVES of ONE segment (A-M-B collinear) → "midpoint". ALL three conditions required.
+- R3 — RIGHT ANGLE: right_angle_box → 90° + perpendicular.
+- R4 — EQUAL ANGLE: same arc_count on different angles → equal.
+- R5 — ANGLE BISECTOR: ray splits ONE angle into two sub-angles with same arc marks → "angle_bisector". NOT same as two separate equal angles.
+- R6 — PARALLEL: same arrow_count on different lines → "parallel".
+CIRCLE GEOMETRY:
+- R8 — TANGENT: radius ⊥ tangent line at contact point (need right_angle_box evidence). Do NOT assume tangent from visual proximity alone.
+- R9 — TWO TANGENTS: external point → two equal tangent segments. Use "equal_tangent_length".
+- R10 — SAME SEGMENT ANGLE: inscribed angles on same arc → equal. Use "same_segment_angle".
+- R11 — SEMICIRCLE ANGLE: inscribed angle subtending diameter → 90°. Use "angle_in_semicircle".
+- R12 — CYCLIC QUAD: 4 points on circle → opposite angles supplementary. Use "cyclic_quadrilateral".
+- R13 — ALTERNATE SEGMENT: tangent-chord angle = inscribed angle in alternate segment. Use "alternate_segment".
+SOLID GEOMETRY (geometry_mode = "solid_geometry"):
+- R23 — Dashed lines = hidden edges (NOT auxiliary lines). Use line_style: "dashed".
+- R24 — Ellipses in 3D = projected circles. Use type: "circle" + rendered_as: "ellipse".
+- R25 — Height ≠ slant height. Use role: "height" vs "slant_height".
+- R29 — TEMPLATES: cone(Sol_+apex+base_center), cylinder(Sol_+top/bottom circles), pyramid(Sol_+apex+base), cuboid(Sol_+8 vertices), sphere(Sol_+center).
+- 3D objects: use rendered_as, role, parent, line_style fields.
+- 3D relationships: perpendicular_to_plane, line_plane_angle, plane_plane_angle, face_of.
+HARD NEGATIVES:
+- ❌ Ticks on different segments = equal length, NOT midpoint.
+- ❌ Separate equal angles ≠ angle bisector. ❌ Visual touching ≠ tangent.
+- ❌ Ellipse in 3D = projected circle. ❌ Dashed line in 3D = hidden edge.
+- ❌ Cone ≠ "triangle + ellipse". ❌ Parallelogram face in cuboid = rectangle.
 
 - Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred". NEVER use "student_answer".
 - SOURCE RULE: if the problem text explicitly states a fact, source = "question_text". Only use "figure" for facts solely from the printed diagram.
+- "property" MUST be one of: "length", "degrees", "radius", "area", "perimeter", "slant_height", "surface_area", "volume", "lateral_area".
 - If a student handwrote calculated values on the figure, put them in task.figure_annotations, NOT measurements.
-- Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
+- Only include objects/relationships that actually exist. Use only relevant types from the examples.
 - Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
-- Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
-- Do NOT create synthetic measurements from ratios (e.g. DI=3k from DI:IJ=3:2). Do NOT use "ratio" as a measurement property. Ratios belong in RELATIONSHIPS only.
+- Use "ratio" type for proportional relationships. Do NOT create synthetic measurements from ratios.
 - If there is NO figure, set: "figure_description": {"has_figure": false}
 
 ⚠️ OBJECT RETENTION — only include objects that are referenced:

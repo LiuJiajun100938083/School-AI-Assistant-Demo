@@ -189,8 +189,52 @@ def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
         else:
             known_ids.add(oid)
 
+    # ── 3D 對象欄位校驗 ──
+    allowed_rendered_as = {"ellipse", "parallelogram", "trapezoid"}
+    allowed_roles = {
+        "apex", "base_center", "base_edge", "lateral_edge",
+        "height", "slant_height", "base_vertex", "top_vertex",
+        "base", "cross_section", "net_face",
+    }
+    allowed_line_styles = {"solid", "dashed"}
+
+    for obj in objects:
+        oid = obj.get("id", "")
+        otype = obj.get("type", "")
+
+        # Sol_ 對象需要特定欄位
+        if oid.startswith("Sol_"):
+            if otype == "cone" and not obj.get("apex"):
+                warnings.append(f"cone '{oid}' 缺少 'apex' 欄位")
+            if otype == "cylinder" and not obj.get("top_center"):
+                warnings.append(f"cylinder '{oid}' 缺少 'top_center' 欄位")
+            if otype == "pyramid" and not obj.get("apex"):
+                warnings.append(f"pyramid '{oid}' 缺少 'apex' 欄位")
+            if otype == "prism" and not obj.get("top_vertices"):
+                warnings.append(f"prism '{oid}' 缺少 'top_vertices' 欄位")
+
+        # 可選欄位值校驗
+        parent = obj.get("parent", "")
+        if parent and parent not in known_ids:
+            warnings.append(f"object '{oid}' parent '{parent}' 不在 objects 中")
+
+        rendered_as = obj.get("rendered_as", "")
+        if rendered_as and rendered_as not in allowed_rendered_as:
+            warnings.append(f"object '{oid}' rendered_as '{rendered_as}' 不在允許值中")
+
+        role = obj.get("role", "")
+        if role and role not in allowed_roles:
+            warnings.append(f"object '{oid}' role '{role}' 不在允許值中")
+
+        line_style = obj.get("line_style", "")
+        if line_style and line_style not in allowed_line_styles:
+            warnings.append(f"object '{oid}' line_style '{line_style}' 不在允許值中")
+
     # ── markers 層校驗 ──
-    allowed_marker_types = {"length_tick", "right_angle_box", "angle_arc"}
+    allowed_marker_types = {
+        "length_tick", "right_angle_box", "angle_arc",
+        "parallel_arrow", "dashed_line", "tangent_touch", "center_mark",
+    }
     marker_ids = set()
     for mk in fig_json.get("markers", []):
         mk_id = mk.get("id", "")
@@ -205,6 +249,11 @@ def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
 
     allowed_sources = {"figure", "question_text", "inferred"}
 
+    # ── measurements 層校驗 ──
+    allowed_properties = {
+        "length", "degrees", "radius", "area", "perimeter",
+        "slant_height", "surface_area", "volume", "lateral_area",
+    }
     for m in fig_json.get("measurements", []):
         target = m.get("target", "")
         if target and target not in known_ids:
@@ -212,11 +261,23 @@ def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
         source = m.get("source", "")
         if source and source not in allowed_sources:
             warnings.append(f"measurement source '{source}' 不在允許值中")
+        prop = m.get("property", "")
+        if prop and prop not in allowed_properties:
+            warnings.append(f"measurement property '{prop}' 不在允許值中")
 
     allowed_rel_types = {
+        # 平面幾何
         "parallel", "perpendicular", "midpoint", "collinear",
         "congruent", "similar", "tangent", "on_segment",
         "bisector", "equal", "ratio", "intersection",
+        "angle_bisector",
+        # 圓幾何
+        "equal_tangent_length", "same_segment_angle",
+        "angle_in_semicircle", "cyclic_quadrilateral",
+        "alternate_segment", "equal_chord_equal_arc",
+        # 3D 立體幾何
+        "perpendicular_to_plane", "line_plane_angle",
+        "plane_plane_angle", "face_of",
     }
 
     for rel in fig_json.get("relationships", []):
@@ -252,6 +313,17 @@ def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
                     warnings.append(
                         f"collinear 引用 '{pt}'，應為點（P_ 前綴）"
                     )
+        if rel_type == "perpendicular_to_plane":
+            subj = rel.get("subject", "")
+            tgt = rel.get("target", "")
+            if subj and not (subj.startswith("S_") or subj.startswith("L_")):
+                warnings.append(
+                    f"perpendicular_to_plane subject '{subj}' 應為線段/直線"
+                )
+            if tgt and not (tgt.startswith("Poly_") or tgt.startswith("Tri_")):
+                warnings.append(
+                    f"perpendicular_to_plane target '{tgt}' 應為多邊形/三角形（面）"
+                )
 
         for entity in rel.get("entities", []):
             if entity and entity not in known_ids:

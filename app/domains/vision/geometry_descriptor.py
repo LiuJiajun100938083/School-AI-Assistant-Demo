@@ -54,9 +54,9 @@ class GeometryDescriptor:
         if not token:
             return token
         for prefix, replacement in [
-            ("S_", ""), ("P_", ""), ("Tri_", "△"),
+            ("Sol_", ""), ("S_", ""), ("P_", ""), ("Tri_", "△"),
             ("Ang_", "∠"), ("Cir_", "⊙"), ("Poly_", ""),
-            ("L_", ""), ("Ray_", ""),
+            ("Arc_", "⌒"), ("L_", ""), ("Ray_", ""),
         ]:
             if token.startswith(prefix):
                 return replacement + token[len(prefix):]
@@ -140,6 +140,8 @@ class GeometryDescriptor:
             oid = obj.get("id", "")
             otype = obj.get("type", "")
             if otype == "point" or otype == "circle":
+                self.primary_objects.append(obj)
+            elif oid.startswith("Sol_"):
                 self.primary_objects.append(obj)
             elif oid in self._referenced_ids:
                 self.primary_objects.append(obj)
@@ -287,6 +289,52 @@ class GeometryDescriptor:
             "tangent": lambda r: self._format_tangent(r),
             "equal": lambda r: self._format_equal(r),
             "ratio": lambda r: self._format_ratio(r),
+            # 圓幾何
+            "angle_bisector": lambda r: (
+                f"{self.strip_prefix(r.get('subject', '?'))} 平分 "
+                f"{self.strip_prefix(r.get('target', '?'))}"
+            ),
+            "equal_tangent_length": lambda r: (
+                f"{self.strip_prefix(r.get('tangent_segments', ['?', '?'])[0])} = "
+                f"{self.strip_prefix(r.get('tangent_segments', ['?', '?'])[1] if len(r.get('tangent_segments', [])) > 1 else '?')}"
+                f"（外點切線等長）"
+            ),
+            "same_segment_angle": lambda r: " = ".join(
+                self.strip_prefix(e) for e in r.get("entities", [])
+            ) + "（同弧圓周角）",
+            "angle_in_semicircle": lambda r: (
+                f"{self.strip_prefix(r.get('subject', '?'))} = 90°（半圓所對角）"
+            ),
+            "cyclic_quadrilateral": lambda r: (
+                "、".join(self.strip_prefix(e) for e in r.get("entities", []))
+                + " 圓內接四邊形"
+            ),
+            "alternate_segment": lambda r: (
+                f"{self.strip_prefix(r.get('tangent_chord_angle', '?'))} = "
+                f"{self.strip_prefix(r.get('inscribed_angle', '?'))}（交錯弓形角）"
+            ),
+            "equal_chord_equal_arc": lambda r: (
+                " = ".join(self.strip_prefix(c) for c in r.get("chords", []))
+                + "（等弦等弧）"
+            ),
+            # 3D 立體幾何
+            "perpendicular_to_plane": lambda r: (
+                f"{self.strip_prefix(r.get('subject', '?'))} ⊥ "
+                f"{self.strip_prefix(r.get('target', '?'))}（面）"
+            ),
+            "line_plane_angle": lambda r: (
+                f"{self.strip_prefix(r.get('line', '?'))} 與 "
+                f"{self.strip_prefix(r.get('plane', '?'))} 的夾角"
+            ),
+            "plane_plane_angle": lambda r: (
+                f"{self.strip_prefix(r.get('planes', ['?', '?'])[0])} 與 "
+                f"{self.strip_prefix(r.get('planes', ['?', '?'])[1] if len(r.get('planes', [])) > 1 else '?')}"
+                f" 的二面角"
+            ),
+            "face_of": lambda r: (
+                f"{self.strip_prefix(r.get('subject', '?'))} 是 "
+                f"{self.strip_prefix(r.get('target', '?'))} 的面"
+            ),
         }
 
         formatter = formatters.get(rtype)
@@ -403,6 +451,20 @@ class GeometryDescriptor:
             if points:
                 sections.append(f"點：{'、'.join(points)}")
 
+        # 10. 立體對象（3D solids）
+        solid_types_zh = {
+            "cone": "圓錐", "cylinder": "圓柱", "cuboid": "長方體",
+            "cube": "正方體", "prism": "棱柱", "pyramid": "棱錐",
+            "sphere": "球", "hemisphere": "半球", "frustum": "圓台",
+        }
+        solids = [
+            o for o in self.objects if o.get("id", "").startswith("Sol_")
+        ]
+        for sol in solids:
+            sol_type = sol.get("type", "")
+            zh = solid_types_zh.get(sol_type, sol_type)
+            sections.append(f"立體：{zh}")
+
         if not sections:
             overall = self.raw.get("overall_description", "")
             return overall if overall else "含幾何圖形"
@@ -478,5 +540,15 @@ class GeometryDescriptor:
                     "label": self.strip_prefix(o.get("label", o.get("id", ""))),
                 }
                 for o in self.secondary_objects
+            ],
+            "geometry_mode": self.raw.get("geometry_mode", "plane_geometry"),
+            "solids": [
+                {
+                    "id": o.get("id", ""),
+                    "type": o.get("type", ""),
+                    "label": self.strip_prefix(o.get("id", "")),
+                }
+                for o in self.objects
+                if o.get("id", "").startswith("Sol_")
             ],
         }
