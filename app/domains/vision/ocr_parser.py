@@ -25,6 +25,13 @@ def parse_ocr_response(
         json_str = json_utils.extract_json_from_thinking(raw_response)
         data = json_utils.safe_json_loads(json_str)
 
+        # 清理 LLM 常見的雙重轉義（\\n → \n, \\" → "）
+        for key in ("question", "answer", "figure_description"):
+            val = data.get(key, "")
+            if isinstance(val, str) and "\\" in val:
+                val = val.replace("\\n", "\n").replace("\\t", "\t").replace('\\"', '"')
+                data[key] = val
+
         fig_desc_raw = data.get("figure_description", "")
         fig_desc = normalize_figure_description(fig_desc_raw)
 
