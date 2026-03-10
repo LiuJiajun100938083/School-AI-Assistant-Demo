@@ -79,6 +79,9 @@ class WeightedPriorityScheduler:
     使用分層 deque（priority → deque[_QueueEntry]），而非 heapq。
     """
 
+    # 優先級名稱映射（用於監控面板）
+    _PRI_NAMES = {1: "URGENT", 2: "INTERACTIVE", 3: "BATCH"}
+
     def __init__(self, total_capacity: int):
         if total_capacity <= 0:
             raise ValueError(f"total_capacity must be > 0, got {total_capacity}")
@@ -87,6 +90,8 @@ class WeightedPriorityScheduler:
         self._lock = asyncio.Lock()
         self._layers: dict[int, deque[_QueueEntry]] = {}
         self._seq = 0
+        self._created_at = time.monotonic()
+        self._running_tasks: list[dict] = []  # 受 _lock 保護
         self._stats = {
             "queued": 0,
             "running": 0,
@@ -143,6 +148,20 @@ class WeightedPriorityScheduler:
 
         # ---- 等待被調度 ----
         await entry.event.wait()
+
+        # ---- 註冊為運行中任務（受鎖保護） ----
+        registered = False
+        run_id = entry.sequence
+        async with self._lock:
+            self._running_tasks.append({
+                "id": run_id,
+                "task_name": task_name,
+                "weight": weight,
+                "priority": priority,
+                "started_at": time.monotonic(),
+            })
+            registered = True
+
         logger.info(
             "AI gate dispatch: %s (pri=%d w=%d) running=%d capacity=%d/%d",
             task_name, priority, weight,
@@ -164,6 +183,10 @@ class WeightedPriorityScheduler:
             async with self._lock:
                 self._used_capacity -= weight
                 self._stats["running"] -= 1
+                if registered:
+                    self._running_tasks = [
+                        t for t in self._running_tasks if t["id"] != run_id
+                    ]
                 logger.info(
                     "AI gate release: %s (w=%d) capacity=%d/%d",
                     task_name, weight,
@@ -224,6 +247,71 @@ class WeightedPriorityScheduler:
             "capacity": f"{self._used_capacity}/{self._total_capacity}",
         }
 
+    async def get_detailed_stats(self) -> dict:
+        """
+        返回詳細調度器統計（用於 AI 監控面板）。
+
+        在鎖內原子快照所有狀態，出鎖後計算派生值。
+        """
+        now = time.monotonic()
+
+        # ---- 鎖內：原子快照 ----
+        async with self._lock:
+            stats_snap = dict(self._stats)
+            used = self._used_capacity
+            total = self._total_capacity
+            created_at = self._created_at
+            running_snap = [dict(t) for t in self._running_tasks]
+            layer_snap: dict[int, list[dict]] = {}
+            for pri, layer in self._layers.items():
+                layer_snap[pri] = [
+                    {
+                        "task_name": e.task_name,
+                        "weight": e.weight,
+                        "created_at": e.created_at,
+                    }
+                    for e in layer
+                ]
+
+        # ---- 鎖外：計算派生值 ----
+        queue_details = {}
+        for pri in sorted(layer_snap.keys()):
+            entries = layer_snap[pri]
+            items = []
+            for e in entries:
+                items.append({
+                    "task_name": e["task_name"],
+                    "weight": e["weight"],
+                    "wait_seconds": round(now - e["created_at"], 1),
+                })
+            # 按最長等待優先排序
+            items.sort(key=lambda x: x["wait_seconds"], reverse=True)
+            pri_name = self._PRI_NAMES.get(pri, str(pri))
+            queue_details[pri_name] = {
+                "depth": len(items),
+                "entries": items,
+            }
+
+        running_details = []
+        for t in running_snap:
+            running_details.append({
+                "id": t["id"],
+                "task_name": t["task_name"],
+                "weight": t["weight"],
+                "priority": self._PRI_NAMES.get(t["priority"], str(t["priority"])),
+                "running_seconds": round(now - t["started_at"], 1),
+            })
+
+        return {
+            **stats_snap,
+            "capacity_used": used,
+            "capacity_total": total,
+            "capacity": f"{used}/{total}",
+            "uptime_seconds": round(now - created_at, 1),
+            "queue_details": queue_details,
+            "running_details": running_details,
+        }
+
 
 # ================================================================
 #  全局單例：調度器
@@ -247,6 +335,11 @@ def get_scheduler() -> WeightedPriorityScheduler:
 def get_ai_gate_stats() -> dict:
     """獲取 AI 調度器統計（用於健康檢查）"""
     return get_scheduler().stats
+
+
+async def get_ai_gate_detailed_stats() -> dict:
+    """獲取 AI 調度器詳細統計（用於監控面板）"""
+    return await get_scheduler().get_detailed_stats()
 
 
 # ================================================================

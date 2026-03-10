@@ -1128,7 +1128,12 @@ const AdminApp = {
         // 應用管理
         appsConfig: [],
         // 封禁管理
-        blockedRefreshTimer: null
+        blockedRefreshTimer: null,
+        // AI 監控
+        aiMonitorTimer: null,
+        aiMonitorReqSeq: 0,
+        aiMonitorLastData: null,
+        aiMonitorFetching: false
     },
 
     /* ---------- 初始化 ---------- */
@@ -1382,7 +1387,7 @@ const AdminApp = {
                 btn.style.display = 'none';
             });
             // 同時隱藏對應的 tab-pane
-            ['users', 'settings', 'notice', 'appmgr', 'classdiary', 'blocked'].forEach(tab => {
+            ['users', 'settings', 'notice', 'appmgr', 'classdiary', 'blocked', 'aimonitor'].forEach(tab => {
                 const pane = document.getElementById(tab + '-tab');
                 if (pane) pane.style.display = 'none';
             });
@@ -1395,6 +1400,11 @@ const AdminApp = {
         if (this.state.blockedRefreshTimer) {
             clearInterval(this.state.blockedRefreshTimer);
             this.state.blockedRefreshTimer = null;
+        }
+        // 離開 AI 監控 tab 時停止輪詢
+        if (this.state.aiMonitorTimer) {
+            clearInterval(this.state.aiMonitorTimer);
+            this.state.aiMonitorTimer = null;
         }
 
         document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
@@ -1430,6 +1440,8 @@ const AdminApp = {
             this.loadClassDiaryTab();
         } else if (tabName === 'blocked') {
             this.loadBlockedAccounts();
+        } else if (tabName === 'aimonitor') {
+            this.startAiMonitor();
         }
     },
 
@@ -2937,6 +2949,205 @@ ${report.teacher_attention_points || '暫無'}
         } catch (error) {
             alert('移除失敗: ' + error.message);
         }
+    },
+
+    /* ============================================================
+       AI 調度監控
+       ============================================================ */
+
+    startAiMonitor() {
+        if (this.state.aiMonitorTimer) clearInterval(this.state.aiMonitorTimer);
+        this.refreshAiMonitor();
+        this.state.aiMonitorTimer = setInterval(() => this.refreshAiMonitor(), 3000);
+    },
+
+    async refreshAiMonitor() {
+        if (this.state.aiMonitorFetching) return;
+        this.state.aiMonitorFetching = true;
+        const seq = ++this.state.aiMonitorReqSeq;
+
+        try {
+            const resp = await AdminAPI.fetchWithAuth('/api/admin/ai-monitor');
+            if (seq !== this.state.aiMonitorReqSeq) return;
+            const d = resp.data || resp;
+            this.state.aiMonitorLastData = d;
+            this.renderAiMonitor(d, false);
+        } catch (e) {
+            if (seq !== this.state.aiMonitorReqSeq) return;
+            this.renderAiMonitor(this.state.aiMonitorLastData, true, e.message);
+        } finally {
+            this.state.aiMonitorFetching = false;
+        }
+    },
+
+    renderAiMonitor(data, apiError, errorMsg) {
+        // Timestamp
+        const ts = document.getElementById('aiMonitorTimestamp');
+        if (ts) ts.textContent = '更新: ' + new Date().toLocaleTimeString();
+
+        // If no data at all
+        if (!data && apiError) {
+            this._setAiCongestion('DEGRADED', 'API 無法連線', errorMsg);
+            return;
+        }
+        if (!data) return;
+
+        const gate = data.ai_gate || {};
+        const ollama = data.ollama || {};
+        const server = data.server || {};
+        const config = data.config || {};
+
+        // --- Congestion level ---
+        if (apiError) {
+            this._setAiCongestion('DEGRADED', 'API 無法連線', errorMsg);
+        } else if (!ollama.connected) {
+            this._setAiCongestion('DEGRADED', 'Ollama 無法連線', ollama.last_error || '');
+        } else {
+            const queued = gate.queued || 0;
+            const used = gate.capacity_used || 0;
+            const total = gate.capacity_total || 1;
+            const pct = used / total * 100;
+
+            if (queued >= 10 || pct >= 90) {
+                this._setAiCongestion('CONGESTED', `容量 ${Math.round(pct)}%, 排隊 ${queued}`);
+            } else if (queued >= 5 || pct >= 60) {
+                this._setAiCongestion('BUSY', `容量 ${Math.round(pct)}%, 排隊 ${queued}`);
+            } else if ((gate.running || 0) > 0) {
+                this._setAiCongestion('NORMAL', `容量 ${Math.round(pct)}%, 排隊 ${queued}`);
+            } else {
+                this._setAiCongestion('IDLE', '系統空閒');
+            }
+        }
+
+        // --- Ollama status ---
+        const connEl = document.getElementById('aiOllamaConn');
+        const rtEl = document.getElementById('aiOllamaRuntime');
+        if (connEl) {
+            if (ollama.connected) {
+                connEl.innerHTML = '<span style="color:var(--success);">已連線</span>';
+            } else {
+                connEl.innerHTML = '<span style="color:var(--danger);">斷線</span>';
+            }
+        }
+        if (rtEl) {
+            if (ollama.runtime_available) {
+                const models = (ollama.running_models || []).map(m => m.name).join(', ') || '無';
+                rtEl.innerHTML = `<span style="color:var(--success);">${models}</span>`;
+            } else {
+                rtEl.innerHTML = '<span style="color:var(--text-secondary);">不可用</span>';
+            }
+        }
+
+        // --- Capacity ---
+        const used = gate.capacity_used || 0;
+        const total = gate.capacity_total || 1;
+        const pct = Math.round(used / total * 100);
+        const capText = document.getElementById('aiCapacityText');
+        const capBar = document.getElementById('aiCapacityBar');
+        if (capText) capText.textContent = `${used} / ${total}`;
+        if (capBar) {
+            capBar.style.width = pct + '%';
+            capBar.style.background = pct >= 90 ? 'var(--danger)' : pct >= 60 ? 'var(--warning)' : 'var(--success)';
+        }
+
+        // --- Queued ---
+        const qEl = document.getElementById('aiQueuedCount');
+        if (qEl) {
+            const q = gate.queued || 0;
+            qEl.textContent = q;
+            qEl.style.color = q >= 10 ? 'var(--danger)' : q >= 5 ? 'var(--warning)' : 'var(--text)';
+        }
+
+        // --- Completed ---
+        const cEl = document.getElementById('aiCompletedCount');
+        if (cEl) cEl.textContent = gate.completed || 0;
+
+        // --- Queue details ---
+        const qdEl = document.getElementById('aiQueueDetails');
+        if (qdEl) {
+            const qd = gate.queue_details || {};
+            const keys = Object.keys(qd);
+            if (keys.length === 0 || keys.every(k => (qd[k].depth || 0) === 0)) {
+                qdEl.textContent = '無排隊任務';
+            } else {
+                let html = '';
+                keys.forEach(pri => {
+                    const layer = qd[pri];
+                    if (layer.depth > 0) {
+                        html += `<div style="margin-bottom:8px;"><strong>${pri}</strong> (${layer.depth})</div>`;
+                        (layer.entries || []).forEach(e => {
+                            html += `<div style="padding:2px 0 2px 12px;">${e.task_name} <span style="color:var(--text-secondary);">w=${e.weight}, 等待 ${e.wait_seconds}s</span></div>`;
+                        });
+                    }
+                });
+                qdEl.innerHTML = html;
+            }
+        }
+
+        // --- Running details ---
+        const rdEl = document.getElementById('aiRunningDetails');
+        if (rdEl) {
+            const rd = gate.running_details || [];
+            if (rd.length === 0) {
+                rdEl.textContent = '無運行中任務';
+            } else {
+                let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 0;font-weight:600;">任務</th><th style="text-align:center;padding:4px;font-weight:600;">優先級</th><th style="text-align:center;padding:4px;font-weight:600;">權重</th><th style="text-align:right;padding:4px 0;font-weight:600;">時長</th></tr></thead><tbody>';
+                rd.forEach(t => {
+                    const dur = t.running_seconds || 0;
+                    const durColor = dur > 30 ? 'var(--danger)' : dur > 10 ? 'var(--warning)' : 'inherit';
+                    html += `<tr><td style="padding:4px 0;">${t.task_name}</td><td style="text-align:center;padding:4px;">${t.priority}</td><td style="text-align:center;padding:4px;">${t.weight}</td><td style="text-align:right;padding:4px 0;color:${durColor};font-weight:600;">${dur}s</td></tr>`;
+                });
+                html += '</tbody></table>';
+                rdEl.innerHTML = html;
+            }
+        }
+
+        // --- Server resources ---
+        if (server && !server.error) {
+            const cpuBar = document.getElementById('aiCpuBar');
+            const cpuText = document.getElementById('aiCpuText');
+            const memBar = document.getElementById('aiMemBar');
+            const memText = document.getElementById('aiMemText');
+            if (cpuBar) cpuBar.style.width = (server.cpu_percent || 0) + '%';
+            if (cpuText) cpuText.textContent = (server.cpu_percent || 0).toFixed(1) + '%';
+            if (memBar) memBar.style.width = (server.memory_percent || 0) + '%';
+            if (memText) memText.textContent = `${server.memory_used_gb || 0}/${server.memory_total_gb || 0} GB (${(server.memory_percent || 0).toFixed(0)}%)`;
+        }
+        const modelEl = document.getElementById('aiModelName');
+        const urlEl = document.getElementById('aiBaseUrl');
+        const latEl = document.getElementById('aiOllamaLatency');
+        if (modelEl) modelEl.textContent = config.llm_local_model || '--';
+        if (urlEl) urlEl.textContent = config.llm_local_base_url || '--';
+        if (latEl) latEl.textContent = ollama.latency_ms != null ? ollama.latency_ms + ' ms' : '--';
+
+        // --- History stats ---
+        const el = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+        el('aiStatCompleted', gate.completed || 0);
+        el('aiStatFailed', gate.failed || 0);
+        el('aiStatRejected', gate.rejected || 0);
+        const up = gate.uptime_seconds || 0;
+        const h = Math.floor(up / 3600);
+        const m = Math.floor((up % 3600) / 60);
+        el('aiStatUptime', h > 0 ? `${h}h ${m}m` : `${m}m`);
+    },
+
+    _setAiCongestion(level, text, sub) {
+        const banner = document.getElementById('aiCongestionBanner');
+        if (!banner) return;
+        const styles = {
+            IDLE:      { bg: '#E8F5EC', color: '#006633', label: '空閒' },
+            NORMAL:    { bg: '#E3F2FD', color: '#1565C0', label: '正常' },
+            BUSY:      { bg: '#FFF3E0', color: '#E65100', label: '繁忙' },
+            CONGESTED: { bg: '#FFEBEE', color: '#C62828', label: '擁堵' },
+            DEGRADED:  { bg: '#F5F5F5', color: '#616161', label: '異常' },
+        };
+        const s = styles[level] || styles.DEGRADED;
+        banner.style.background = s.bg;
+        banner.style.color = s.color;
+        let html = `${s.label}`;
+        if (text) html += ` — ${text}`;
+        if (sub) html += `<div style="font-size:0.8em;font-weight:400;margin-top:4px;">${sub}</div>`;
+        banner.innerHTML = html;
     }
 };
 
@@ -2944,3 +3155,23 @@ ${report.teacher_attention_points || '暫無'}
    BOOTSTRAP
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => AdminApp.init());
+
+// AI 監控：頁面可見性管理
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        if (AdminApp.state.aiMonitorTimer) {
+            clearInterval(AdminApp.state.aiMonitorTimer);
+            AdminApp.state.aiMonitorTimer = null;
+        }
+    } else {
+        // 可見時：若仍在 aimonitor tab，立即刷新 + 恢復輪詢
+        const pane = document.getElementById('aimonitor-tab');
+        if (pane && pane.classList.contains('active')) {
+            AdminApp.refreshAiMonitor();
+            AdminApp.state.aiMonitorTimer = setInterval(() => AdminApp.refreshAiMonitor(), 3000);
+        }
+    }
+});
+window.addEventListener('beforeunload', () => {
+    if (AdminApp.state.aiMonitorTimer) clearInterval(AdminApp.state.aiMonitorTimer);
+});

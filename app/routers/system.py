@@ -101,6 +101,114 @@ async def get_system_monitor(request: Request):
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
+@router.get("/api/admin/ai-monitor")
+async def get_ai_monitor(request: Request):
+    """AI 調度監控面板數據"""
+    try:
+        _verify_request(request)
+
+        result = {}
+
+        # 1. AI gate 詳細統計
+        try:
+            from app.core.ai_gate import get_ai_gate_detailed_stats
+            result["ai_gate"] = await get_ai_gate_detailed_stats()
+        except Exception as e:
+            result["ai_gate"] = {"error": str(e)}
+
+        # 2. 伺服器資源
+        try:
+            import psutil
+            mem = psutil.virtual_memory()
+            result["server"] = {
+                "cpu_percent": psutil.cpu_percent(interval=0.1),
+                "memory_percent": mem.percent,
+                "memory_used_gb": round(mem.used / (1024 ** 3), 1),
+                "memory_total_gb": round(mem.total / (1024 ** 3), 1),
+                "memory_available_gb": round(mem.available / (1024 ** 3), 1),
+            }
+        except ImportError:
+            result["server"] = {"error": "psutil not installed"}
+
+        # 3. Ollama 連通性 + 運行態
+        ollama_result = {
+            "connected": False,
+            "runtime_available": False,
+            "latency_ms": None,
+            "installed_models": [],
+            "running_models": [],
+            "last_error": None,
+        }
+        try:
+            from app.core.ai_gate import get_shared_ollama_client
+            from app.config.settings import get_settings
+            import time as _time
+
+            client = get_shared_ollama_client()
+            t0 = _time.monotonic()
+
+            # /api/tags — 已安裝模型
+            try:
+                resp_tags = await client.get("/api/tags", timeout=2.0)
+                if resp_tags.status_code == 200:
+                    tags_data = resp_tags.json()
+                    ollama_result["installed_models"] = [
+                        m.get("name", "") for m in tags_data.get("models", [])
+                    ]
+                    ollama_result["connected"] = True
+            except Exception as e:
+                ollama_result["last_error"] = f"tags: {e}"
+
+            # /api/ps — 運行中模型
+            try:
+                resp_ps = await client.get("/api/ps", timeout=2.0)
+                if resp_ps.status_code == 200:
+                    ps_data = resp_ps.json()
+                    ollama_result["running_models"] = [
+                        {
+                            "name": m.get("name", ""),
+                            "size_vram": m.get("size_vram", 0),
+                            "size": m.get("size", 0),
+                        }
+                        for m in ps_data.get("models", [])
+                    ]
+                    ollama_result["runtime_available"] = True
+                    ollama_result["connected"] = True
+            except Exception as e:
+                err = f"ps: {e}"
+                ollama_result["last_error"] = (
+                    f"{ollama_result['last_error']}; {err}"
+                    if ollama_result["last_error"] else err
+                )
+
+            latency = round((_time.monotonic() - t0) * 1000)
+            ollama_result["latency_ms"] = latency
+
+        except Exception as e:
+            ollama_result["last_error"] = str(e)
+
+        result["ollama"] = ollama_result
+
+        # 4. 配置信息
+        try:
+            from app.config.settings import get_settings
+            s = get_settings()
+            result["config"] = {
+                "ai_concurrent_limit": s.ai_concurrent_limit,
+                "llm_local_model": s.llm_local_model,
+                "llm_local_base_url": s.llm_local_base_url,
+            }
+        except Exception:
+            pass
+
+        return success_response(result)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
 @router.post("/api/process-temp-file")
 async def process_temp_file(request: Request, file: UploadFile = File(...)):
     """

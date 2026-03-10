@@ -84,6 +84,9 @@
                 <button class="tab-button admin-only" data-action="switchTab" data-tab="blocked">
                     <span>🔒 封禁管理</span>
                 </button>
+                <button class="tab-button admin-only" data-action="switchTab" data-tab="aimonitor">
+                    <span>🤖 AI 監控</span>
+                </button>
             </div>
 
             <div class="tab-content">
@@ -538,6 +541,106 @@
                         <span style="font-size:0.9em;">（每 10 秒自動刷新）</span>
                     </p>
                     <div id="blockedAccountsContainer"></div>
+                </div>
+
+                <!-- AI 調度監控標籤 -->
+                <div class="tab-pane" id="aimonitor-tab">
+                    <div class="d-flex justify-between align-center mb-3">
+                        <h3>🤖 AI 調度監控</h3>
+                        <span id="aiMonitorTimestamp" style="color:var(--text-secondary);font-size:0.85em;"></span>
+                    </div>
+
+                    <!-- 擁堵狀態橫幅 -->
+                    <div id="aiCongestionBanner" style="padding:16px 20px;border-radius:10px;margin-bottom:1.5rem;font-size:1.1em;font-weight:600;text-align:center;background:#E8F5EC;color:#006633;">
+                        載入中...
+                    </div>
+
+                    <!-- 4 張狀態卡片 -->
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;" id="aiStatusCards">
+                        <!-- Ollama 連線 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">Ollama 狀態</div>
+                            <div id="aiOllamaStatus" style="font-size:0.95em;line-height:1.6;">
+                                <div>連線: <span id="aiOllamaConn">--</span></div>
+                                <div>運行: <span id="aiOllamaRuntime">--</span></div>
+                            </div>
+                        </div>
+                        <!-- AI 容量 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">AI 容量</div>
+                            <div id="aiCapacityText" style="font-size:1.3em;font-weight:700;margin-bottom:6px;">--</div>
+                            <div style="background:#eee;border-radius:4px;height:8px;overflow:hidden;">
+                                <div id="aiCapacityBar" style="height:100%;border-radius:4px;width:0%;transition:width .3s;background:var(--success);"></div>
+                            </div>
+                        </div>
+                        <!-- 排隊數 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">排隊中</div>
+                            <div id="aiQueuedCount" style="font-size:1.8em;font-weight:700;">--</div>
+                        </div>
+                        <!-- 已完成 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:6px;">已完成</div>
+                            <div id="aiCompletedCount" style="font-size:1.8em;font-weight:700;color:var(--success);">--</div>
+                        </div>
+                    </div>
+
+                    <!-- 雙欄：排隊詳情 + 運行中任務 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <h4 style="margin-bottom:12px;font-size:0.95em;">📋 排隊詳情</h4>
+                            <div id="aiQueueDetails" style="font-size:0.9em;color:var(--text-secondary);">無排隊任務</div>
+                        </div>
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <h4 style="margin-bottom:12px;font-size:0.95em;">⚡ 運行中任務</h4>
+                            <div id="aiRunningDetails" style="font-size:0.9em;color:var(--text-secondary);">無運行中任務</div>
+                        </div>
+                    </div>
+
+                    <!-- 雙欄：伺服器資源 + 歷史統計 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <h4 style="margin-bottom:12px;font-size:0.95em;">🖥️ 伺服器資源</h4>
+                            <div id="aiServerResources" style="font-size:0.9em;">
+                                <div style="margin-bottom:8px;">
+                                    <span>CPU</span>
+                                    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                                        <div style="flex:1;background:#eee;border-radius:4px;height:8px;overflow:hidden;">
+                                            <div id="aiCpuBar" style="height:100%;border-radius:4px;width:0%;transition:width .3s;background:var(--color-info);"></div>
+                                        </div>
+                                        <span id="aiCpuText" style="font-size:0.85em;min-width:40px;text-align:right;">--%</span>
+                                    </div>
+                                </div>
+                                <div style="margin-bottom:8px;">
+                                    <span>記憶體</span>
+                                    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                                        <div style="flex:1;background:#eee;border-radius:4px;height:8px;overflow:hidden;">
+                                            <div id="aiMemBar" style="height:100%;border-radius:4px;width:0%;transition:width .3s;background:var(--color-info);"></div>
+                                        </div>
+                                        <span id="aiMemText" style="font-size:0.85em;min-width:80px;text-align:right;">--</span>
+                                    </div>
+                                </div>
+                                <div style="margin-top:10px;color:var(--text-secondary);font-size:0.85em;">
+                                    <div>模型: <span id="aiModelName">--</span></div>
+                                    <div>地址: <span id="aiBaseUrl">--</span></div>
+                                    <div>延遲: <span id="aiOllamaLatency">--</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                            <h4 style="margin-bottom:12px;font-size:0.95em;">📊 歷史統計</h4>
+                            <div id="aiHistoryStats" style="font-size:0.9em;">
+                                <table style="width:100%;border-collapse:collapse;">
+                                    <tbody>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">已完成</td><td id="aiStatCompleted" style="padding:4px 0;text-align:right;font-weight:600;">--</td></tr>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">失敗</td><td id="aiStatFailed" style="padding:4px 0;text-align:right;font-weight:600;color:var(--danger);">--</td></tr>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">已拒絕</td><td id="aiStatRejected" style="padding:4px 0;text-align:right;font-weight:600;color:var(--warning);">--</td></tr>
+                                        <tr><td style="padding:4px 0;color:var(--text-secondary);">運行時間</td><td id="aiStatUptime" style="padding:4px 0;text-align:right;font-weight:600;">--</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
