@@ -153,6 +153,12 @@ class AssignmentService:
         if not title or not title.strip():
             raise ValidationError("作業標題不能為空", field="title")
 
+        if assignment_type not in AssignmentType.ALL:
+            raise ValidationError(
+                f"無效的作業類型: '{assignment_type}'，必須是 {AssignmentType.ALL} 之一",
+                field="assignment_type",
+            )
+
         # 解析截止日期
         deadline_dt = None
         if deadline:

@@ -62,7 +62,7 @@ class CreateAssignmentRequest(BaseModel):
     """創建作業請求"""
     title: str = Field(..., min_length=1, max_length=255)
     description: str = ""
-    assignment_type: str = Field(default="file_upload", description="作業類型: file_upload / form")
+    assignment_type: str = Field(default="file_upload", description="作業類型: file_upload / form / exam")
     target_type: str = Field(default="all", description="目標類型: all, class, student")
     target_value: Optional[str] = Field(default=None, description="班級名或逗號分隔的 username")
     deadline: Optional[str] = Field(default=None, description="截止日期 ISO 格式")
@@ -72,6 +72,12 @@ class CreateAssignmentRequest(BaseModel):
     rubric_config: Optional[Dict[str, Any]] = Field(default=None, description="類型配置")
     rubric_items: List[RubricItemInput] = Field(default=[], description="評分標準項目")
     questions: Optional[List["ExamQuestionInput"]] = Field(default=None, description="試卷識別題目")
+
+    @validator("assignment_type")
+    def validate_assignment_type(cls, v):
+        if v not in AssignmentType.ALL:
+            raise ValueError(f"作業類型必須是 {AssignmentType.ALL} 之一，收到: '{v}'")
+        return v
 
 
 class UpdateAssignmentRequest(BaseModel):

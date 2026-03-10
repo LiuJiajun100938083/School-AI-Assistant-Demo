@@ -215,6 +215,16 @@ def _run_schema_migrations() -> None:
                 "COMMENT '作業類型: file_upload/form/exam' AFTER description"
             )
             logger.info("数据库迁移: assignments 表添加 assignment_type")
+        else:
+            # 確保 assignment_type 是 VARCHAR(20) 而非 ENUM，以支持所有類型 (file_upload/form/exam)
+            col_type = cols[0].get("Type", "") if isinstance(cols[0], dict) else ""
+            if col_type and "enum" in str(col_type).lower():
+                pool.execute(
+                    "ALTER TABLE assignments "
+                    "MODIFY COLUMN assignment_type VARCHAR(20) DEFAULT 'file_upload' "
+                    "COMMENT '作業類型: file_upload/form/exam'"
+                )
+                logger.info("数据库迁移: assignments.assignment_type 從 ENUM 轉為 VARCHAR(20)")
 
         # assignment_rubric_items 表: level_definitions, weight
         cols = pool.execute("SHOW COLUMNS FROM assignment_rubric_items LIKE 'level_definitions'")
