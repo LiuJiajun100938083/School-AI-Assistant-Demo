@@ -1780,6 +1780,8 @@ const AssignmentUI = {
     /** 輕量 Markdown → HTML（不依賴外部庫） */
     _renderMd(text) {
         if (!text) return '';
+        // Normalise literal \n (from OCR / API) into real newlines before processing
+        text = text.replace(/\\n/g, '\n');
         let html = this._escapeHtml(text);
 
         // ---- Markdown 表格 ----
@@ -2271,22 +2273,9 @@ const AssignmentApp = {
         ]);
         this.setHeaderActions('');
 
-        // ---- Form / Exam type: teacher grading view ----
+        // ---- Form / Exam type: 3-column grading workstation ----
         if (asg.assignment_type === 'form' || asg.assignment_type === 'exam') {
-            const questions = sub.questions || [];
-            const answers = sub.answers || [];
-            const answerFiles = sub.answer_files || [];
-            main.innerHTML = `
-                <div class="form-section">
-                    <h3>${sub.student_name || sub.username} 的作答</h3>
-                    <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">
-                        提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
-                        ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
-                    </div>
-                </div>
-                <div class="form-section">
-                    ${FormGradingView.renderGradingPanel(questions, answers, answerFiles, subId)}
-                </div>`;
+            FormGradingView.render(sub);
             return;
         }
 
@@ -6958,217 +6947,451 @@ const ExamStudentView = {
 };
 
 /* ============================================================
-   FormGradingView — 老師批改模組
+   FormGradingView v2 — 三欄批改工作台
    ============================================================ */
 const FormGradingView = {
-    renderGradingPanel(questions, answers, answerFiles, submissionId) {
-        const answerMap = {};
-        (answers || []).forEach(a => { answerMap[a.question_id] = a; });
-        const fileMap = {};
-        (answerFiles || []).forEach(f => {
-            if (!fileMap[f.answer_id]) fileMap[f.answer_id] = [];
-            fileMap[f.answer_id].push(f);
+    // ---- State ----
+    _state: {
+        questions: [], answers: [], answerFiles: [],
+        submissionId: null, submission: null,
+        answerMap: {}, fileMap: {},
+        currentIndex: 0, filter: 'all', navOpen: false,
+    },
+    _keyHandler: null,
+
+    // ---- Helpers ----
+    _isMc(q) {
+        return q.question_type === 'mc' || q.question_type === 'multiple_choice' || q.question_type === 'true_false';
+    },
+    _getQuestionDisplayNumber(index) {
+        let num = 0;
+        for (let i = 0; i <= index; i++) {
+            if (this._state.questions[i].question_type !== 'passage') num++;
+        }
+        return num;
+    },
+    _getGradingStats() {
+        const s = this._state;
+        let total = 0, graded = 0, scored = 0, maxPoints = 0;
+        s.questions.forEach(q => {
+            if (q.question_type === 'passage') return;
+            total++;
+            maxPoints += q.max_points || 0;
+            const a = s.answerMap[q.id] || {};
+            if (a.points != null) scored += a.points;
+            if (this._isMc(q) || a.reviewed_at || a.score_source === 'teacher') graded++;
         });
+        return { total, graded, scored, maxPoints };
+    },
+    _isVisibleByFilter(q, a) {
+        const f = this._state.filter;
+        if (f === 'all') return true;
+        if (q.question_type === 'passage') return false;
+        if (f === 'text') return !this._isMc(q);
+        if (f === 'ungraded') return !this._isMc(q) && !(a.reviewed_at || a.score_source === 'teacher');
+        return true;
+    },
 
-        let html = `<div class="fgv-toolbar">
-            <button class="btn btn-outline btn-sm" onclick="FormGradingView._toggleAll(true)">全部展開</button>
-            <button class="btn btn-outline btn-sm" onclick="FormGradingView._toggleAll(false)">全部收起</button>
-            <button class="btn btn-outline btn-sm" onclick="FormGradingView._filterTextOnly()">只顯示文字題</button>
-            <button class="btn btn-outline btn-sm" onclick="FormGradingView._filterUnreviewed()">只顯示未覆核</button>
-            <button class="btn btn-primary btn-sm" onclick="FormGradingView._aiGradeAll(${submissionId})">AI 批改全部文字題</button>
-        </div>
-        <div class="fgv-total" id="fgvTotal"></div>`;
+    // ---- Entry Point ----
+    render(submission) {
+        const s = this._state;
+        s.submission = submission;
+        s.questions = submission.questions || [];
+        s.answers = submission.answers || [];
+        s.answerFiles = submission.answer_files || [];
+        s.submissionId = submission.id;
+        s.filter = 'all';
+        s.answerMap = {};
+        s.answers.forEach(a => { s.answerMap[a.question_id] = a; });
+        s.fileMap = {};
+        s.answerFiles.forEach(f => {
+            if (!s.fileMap[f.answer_id]) s.fileMap[f.answer_id] = [];
+            s.fileMap[f.answer_id].push(f);
+        });
+        s.currentIndex = s.questions.findIndex(q => q.question_type !== 'passage');
+        if (s.currentIndex < 0) s.currentIndex = 0;
 
-        questions.forEach((q, i) => {
-            // --- Passage: 只顯示閱讀材料，不需要批改 ---
-            if (q.question_type === 'passage') {
-                html += `<div class="fgv-question fgv-passage">
-                    <div class="fgv-q-header" onclick="FormGradingView._toggleQuestion(this)">
-                        <span class="fgv-q-number">${i + 1}</span>
-                        <span class="fgv-q-type">閱讀材料</span>
-                        <span class="fgv-toggle-icon">▼</span>
-                    </div>
-                    <div class="fgv-q-body">
-                        <div class="fgv-q-text">${AssignmentUI._renderMd(q.question_text)}</div>
-                    </div>
-                </div>`;
-                return; // skip grading controls
-            }
+        const main = document.getElementById('mainContent');
+        main.innerHTML = `<div class="fgv-root">
+            ${this._renderSummary()}
+            <div class="fgv-body">
+                <div class="fgv-nav" id="fgvNav">${this._renderNav()}</div>
+                <div class="fgv-content" id="fgvContent">${this._renderContent()}</div>
+                <div class="fgv-panel" id="fgvPanel">${this._renderPanel()}</div>
+            </div>
+        </div>`;
+        this._setupKeyboard();
+    },
 
-            const a = answerMap[q.id] || {};
-            const files = fileMap[a.id] || [];
-            const typeLabelMap = { mc: '選擇題', multiple_choice: '選擇題', true_false: '判斷題', short_answer: '短答題', fill_blank: '填空題', open: '問答題' };
-            const typeLabel = typeLabelMap[q.question_type] || '長答題';
-            const isMc = q.question_type === 'mc' || q.question_type === 'multiple_choice' || q.question_type === 'true_false';
-            const reviewed = !!a.reviewed_at;
-            const srcLabel = a.score_source === 'auto' ? '自動' : a.score_source === 'ai' ? 'AI' : a.score_source === 'teacher' ? '老師' : '—';
-
-            let answerHtml = '';
-            if (isMc) {
-                const correct = a.is_correct;
-                answerHtml = `<div class="fgv-mc-answer">
-                    學生答案: <strong>${a.answer_text || '—'}</strong>
-                    ${correct ? '<span class="fgv-correct">✓ 正確</span>' : '<span class="fgv-incorrect">✗ 錯誤</span>'}
-                    （正確答案: ${q.correct_answer}）
-                </div>`;
-            } else {
-                // fill_blank: 解析 JSON 答案為可讀格式
-                let displayAnswer = a.answer_text || '(未作答)';
-                if (q.question_type === 'fill_blank' && a.answer_text) {
-                    try {
-                        const parsed = JSON.parse(a.answer_text);
-                        if (typeof parsed === 'object' && parsed !== null) {
-                            displayAnswer = Object.entries(parsed)
-                                .map(([k, v]) => `<span class="fgv-blank-item">空格${k.replace(/\D/g,'')||k}: <strong>${AssignmentApp._escapeHtml(String(v || ''))}</strong></span>`)
-                                .join('　');
-                        }
-                    } catch(e) { /* 非 JSON，原樣顯示 */ }
-                }
-                answerHtml = `<div class="fgv-text-answer">
-                    <div class="fgv-label">學生答案:</div>
-                    <div class="fgv-answer-content">${q.question_type === 'fill_blank' ? displayAnswer : AssignmentApp._escapeHtml(displayAnswer)}</div>
-                </div>`;
-                if (files.length) {
-                    answerHtml += '<div class="fgv-answer-files">' + files.map(f => {
-                        const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.original_name);
-                        return isImg
-                            ? `<div class="fgv-file-preview"><img src="${f.file_path}" alt="${AssignmentApp._escapeHtml(f.original_name)}" style="max-width:300px;max-height:200px;border-radius:8px;"></div>`
-                            : `<div class="fgv-file-item"><a href="${f.file_path}" target="_blank">${AssignmentApp._escapeHtml(f.original_name)}</a></div>`;
-                    }).join('') + '</div>';
-                }
-                if (q.reference_answer) {
-                    answerHtml += `<div class="fgv-reference"><div class="fgv-label">參考答案:</div><div>${AssignmentApp._escapeHtml(q.reference_answer)}</div></div>`;
-                }
-                if (q.grading_notes) {
-                    answerHtml += `<div class="fgv-notes"><div class="fgv-label">批改注意事項:</div><div>${AssignmentApp._escapeHtml(q.grading_notes)}</div></div>`;
-                }
-            }
-
-            // Grading controls (for text questions)
-            let gradingHtml = '';
-            if (isMc) {
-                gradingHtml = `<div class="fgv-auto-score">得分: ${a.points != null ? a.points : '—'} / ${q.max_points} <span class="fgv-source-tag auto">自動</span></div>`;
-            } else {
-                gradingHtml = `<div class="fgv-grading-area" data-answer-id="${a.id}" data-submission-id="${submissionId}">
-                    ${a.ai_points != null ? `<div class="fgv-ai-result">
-                        <span class="fgv-source-tag ai">AI 建議</span> ${a.ai_points} / ${q.max_points}
-                        ${a.ai_feedback ? `<div class="fgv-ai-feedback">${AssignmentApp._escapeHtml(a.ai_feedback)}</div>` : ''}
-                    </div>` : ''}
-                    <div class="fgv-manual-grade">
-                        <label>給分:</label>
-                        <input type="number" class="fgv-points-input" id="fgv_pts_${a.id}" value="${a.points != null ? a.points : ''}"
-                            min="0" max="${q.max_points}" step="0.5" placeholder="0 - ${q.max_points}">
-                        <span>/ ${q.max_points}</span>
-                    </div>
-                    <div class="fgv-manual-grade">
-                        <label>反饋:</label>
-                        <textarea class="fgv-feedback-input" id="fgv_fb_${a.id}" rows="2" placeholder="輸入反饋...">${AssignmentApp._escapeHtml(a.teacher_feedback || '')}</textarea>
-                    </div>
-                    <div class="fgv-grade-actions">
-                        <button class="btn btn-sm btn-primary" onclick="FormGradingView._saveGrade(${submissionId}, ${a.id}, ${q.max_points})">確認評分</button>
-                        ${a.ai_points != null && !reviewed ? `<button class="btn btn-sm btn-outline" onclick="FormGradingView._acceptAiScore(${submissionId}, ${a.id}, ${a.ai_points})">接受 AI 建議分</button>` : ''}
-                        <span class="fgv-source-tag ${a.score_source || ''}">${srcLabel}</span>
-                        ${reviewed ? '<span class="fgv-reviewed">✓ 已覆核</span>' : ''}
-                    </div>
-                </div>`;
-            }
-
-            html += `<div class="fgv-question ${isMc ? 'fgv-mc' : 'fgv-text'}" data-type="${q.question_type}" data-reviewed="${reviewed ? '1' : '0'}">
-                <div class="fgv-q-header" onclick="FormGradingView._toggleQuestion(this)">
-                    <span class="fgv-q-number">${i + 1}</span>
-                    <span class="fgv-q-type">${typeLabel}</span>
-                    <span class="fgv-q-points">${q.max_points} 分</span>
-                    <span class="fgv-q-status">${isMc ? (a.is_correct ? '✓' : '✗') : (a.score_source ? `${a.points}/${q.max_points}` : '待批改')}</span>
-                    <span class="fgv-toggle-icon">▼</span>
+    // ---- Summary Bar ----
+    _renderSummary() {
+        const s = this._state;
+        const sub = s.submission;
+        const stats = this._getGradingStats();
+        return `<div class="fgv-summary" id="fgvSummary">
+            <div class="fgv-summary-left">
+                <span class="fgv-summary-student">${AssignmentApp._escapeHtml(sub.student_name || sub.username)}</span>
+                <span class="fgv-summary-meta">${AssignmentUI.formatDate(sub.submitted_at)}${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}</span>
+                <div class="fgv-summary-progress">
+                    <span id="fgvProgressText">${stats.graded}/${stats.total} 已批改</span>
+                    <div class="fgv-progress-bar"><div class="fgv-progress-fill" id="fgvProgressFill" style="width:${stats.total ? (stats.graded/stats.total*100) : 0}%"></div></div>
                 </div>
-                <div class="fgv-q-body">
-                    <div class="fgv-q-text">${AssignmentUI._renderMd(q.question_text)}</div>
-                    ${answerHtml}
-                    ${gradingHtml}
-                </div>
+                <span class="fgv-summary-score" id="fgvTotalScore">${stats.scored} / ${stats.maxPoints}</span>
+            </div>
+            <div class="fgv-summary-right">
+                <button class="fgv-filter-pill ${s.filter==='all'?'active':''}" onclick="FormGradingView._setFilter('all')">全部</button>
+                <button class="fgv-filter-pill ${s.filter==='text'?'active':''}" onclick="FormGradingView._setFilter('text')">文字題</button>
+                <button class="fgv-filter-pill ${s.filter==='ungraded'?'active':''}" onclick="FormGradingView._setFilter('ungraded')">未批改</button>
+                <button class="btn btn-sm btn-ai" onclick="FormGradingView._aiGradeAll()">AI 批改</button>
+                <button class="fgv-nav-toggle btn btn-sm btn-outline" onclick="FormGradingView._toggleMobileNav()">題目</button>
+            </div>
+        </div>`;
+    },
+
+    // ---- Left Nav ----
+    _renderNav() {
+        const s = this._state;
+        let html = '';
+        s.questions.forEach((q, i) => {
+            const isPassage = q.question_type === 'passage';
+            const a = s.answerMap[q.id] || {};
+            const isActive = i === s.currentIndex;
+            let statusClass = '';
+            if (isPassage) { statusClass = ''; }
+            else if (this._isMc(q)) { statusClass = 'auto'; }
+            else if (a.reviewed_at || a.score_source === 'teacher') { statusClass = 'graded'; }
+            else if (a.ai_points != null) { statusClass = 'ai-pending'; }
+            else { statusClass = 'ungraded'; }
+            const typeLabelMap = { passage:'材料', mc:'選擇', multiple_choice:'選擇', true_false:'判斷', short_answer:'短答', fill_blank:'填空', open:'問答' };
+            const typeLabel = typeLabelMap[q.question_type] || '題';
+            const visible = this._isVisibleByFilter(q, a);
+            html += `<div class="fgv-nav-item ${isActive?'active':''} ${isPassage?'passage':''}" data-index="${i}" onclick="FormGradingView.goToQuestion(${i})" ${!visible?'style="display:none"':''}>
+                <span class="fgv-nav-num">${isPassage ? '—' : this._getQuestionDisplayNumber(i)}</span>
+                <span class="fgv-nav-label">${typeLabel}</span>
+                ${statusClass ? `<span class="fgv-nav-status ${statusClass}"></span>` : ''}
             </div>`;
         });
-
-        this._updateTotal(questions, answers);
         return html;
     },
 
-    _toggleQuestion(header) {
-        const q = header.closest('.fgv-question');
-        if (q) q.classList.toggle('collapsed');
+    // ---- Center Content ----
+    _renderContent() {
+        const s = this._state;
+        const q = s.questions[s.currentIndex];
+        if (!q) return '<div class="fgv-panel-empty">沒有題目</div>';
+        let html = '';
+        if (q.question_type === 'passage') {
+            html += `<div class="fgv-passage-card">
+                <div class="fgv-passage-label">閱讀材料</div>
+                <div class="fgv-passage-text">${AssignmentUI._renderMd(q.question_text)}</div>
+            </div>`;
+            return html;
+        }
+        // Show preceding passage above question
+        for (let i = s.currentIndex - 1; i >= 0; i--) {
+            if (s.questions[i].question_type === 'passage') {
+                html += `<div class="fgv-passage-card">
+                    <div class="fgv-passage-label">閱讀材料</div>
+                    <div class="fgv-passage-text">${AssignmentUI._renderMd(s.questions[i].question_text)}</div>
+                </div>`;
+                break;
+            } else { break; }
+        }
+        const typeLabelMap = { mc:'選擇題', multiple_choice:'選擇題', true_false:'判斷題', short_answer:'短答題', fill_blank:'填空題', open:'問答題' };
+        const typeLabel = typeLabelMap[q.question_type] || '題目';
+        html += `<div class="fgv-question-card">
+            <div class="fgv-question-head">
+                <span class="fgv-question-number">Q${this._getQuestionDisplayNumber(s.currentIndex)}</span>
+                <span class="fgv-type-badge">${typeLabel}</span>
+                <span class="fgv-max-points">${q.max_points} 分</span>
+            </div>
+            <div class="fgv-question-text">${AssignmentUI._renderMd(q.question_text)}</div>`;
+        if (this._isMc(q) && q.options && q.options.length) {
+            const correctIdx = (q.metadata || {}).correct_index;
+            html += '<div class="fgv-mc-options">';
+            q.options.forEach((o, oi) => {
+                const isCorrect = o.option_key === q.correct_answer || oi === correctIdx;
+                html += `<div class="fgv-mc-option ${isCorrect?'correct':''}">
+                    <span class="fgv-mc-option-key">${AssignmentApp._escapeHtml(o.option_key)}</span>
+                    <span>${AssignmentApp._escapeHtml(o.option_text)}</span>
+                </div>`;
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+        return html;
     },
 
-    _toggleAll(expand) {
-        document.querySelectorAll('.fgv-question').forEach(q => {
-            q.classList.toggle('collapsed', !expand);
-        });
-    },
+    // ---- Right Grading Panel ----
+    _renderPanel() {
+        const s = this._state;
+        const q = s.questions[s.currentIndex];
+        if (!q) return '';
+        if (q.question_type === 'passage') return '<div class="fgv-panel-empty">閱讀材料無需批改</div>';
+        const a = s.answerMap[q.id] || {};
+        const files = s.fileMap[a.id] || [];
+        const isMc = this._isMc(q);
+        let html = '';
 
-    _filterTextOnly() {
-        document.querySelectorAll('.fgv-question').forEach(q => {
-            if (q.dataset.type === 'mc') q.style.display = q.style.display === 'none' ? '' : 'none';
-        });
-    },
-
-    _filterUnreviewed() {
-        document.querySelectorAll('.fgv-question').forEach(q => {
-            if (q.dataset.type === 'mc') { q.style.display = 'none'; return; }
-            if (q.dataset.reviewed === '1') q.style.display = q.style.display === 'none' ? '' : 'none';
-        });
-    },
-
-    async _saveGrade(submissionId, answerId, maxPoints) {
-        const pts = parseFloat(document.getElementById(`fgv_pts_${answerId}`)?.value);
-        const fb = document.getElementById(`fgv_fb_${answerId}`)?.value || '';
-        if (isNaN(pts) || pts < 0) { UIModule.toast('請輸入有效分數', 'warning'); return; }
-        if (pts > maxPoints) { UIModule.toast(`分數不能超過 ${maxPoints}`, 'warning'); return; }
-
-        const resp = await AssignmentAPI.gradeFormAnswer(submissionId, answerId, { points: pts, feedback: fb });
-        if (resp?.success) {
-            UIModule.toast('評分已保存', 'success');
-            // Refresh the submission view
-            AssignmentApp.viewSubmission(submissionId);
+        // Student Answer
+        html += '<div class="fgv-student-answer"><div class="fgv-student-answer-label">學生答案</div>';
+        if (isMc) {
+            let correct = a.is_correct;
+            if (correct == null && a.answer_text && q.correct_answer) {
+                correct = a.answer_text.trim().toUpperCase() === q.correct_answer.trim().toUpperCase();
+            }
+            html += `<div class="fgv-mc-result ${correct?'correct':'incorrect'}">
+                <div class="fgv-mc-result-icon">${correct?'✓':'✗'}</div>
+                <div>
+                    <div style="font-weight:600;">${AssignmentApp._escapeHtml(a.answer_text||'—')}</div>
+                    <div style="font-size:var(--type-meta);color:var(--text-secondary);">正確答案: ${AssignmentApp._escapeHtml(q.correct_answer||'')}</div>
+                </div>
+            </div>`;
+        } else if (q.question_type === 'fill_blank' && a.answer_text) {
+            try {
+                const parsed = JSON.parse(a.answer_text);
+                if (typeof parsed === 'object' && parsed !== null) {
+                    html += '<div class="fgv-blank-fields">';
+                    // Handle {blanks: [{value, label?}]} or flat {key: value}
+                    const blanks = Array.isArray(parsed.blanks) ? parsed.blanks
+                                 : Array.isArray(parsed) ? parsed : null;
+                    if (blanks) {
+                        blanks.forEach((b, bi) => {
+                            const val = typeof b === 'object' ? (b.value || b.answer || '') : String(b);
+                            const label = typeof b === 'object' ? (b.label || `空格${bi+1}`) : `空格${bi+1}`;
+                            html += `<div class="fgv-blank-field">
+                                <span class="fgv-blank-field-label">${AssignmentApp._escapeHtml(label)}:</span>
+                                <span class="fgv-blank-field-value">${AssignmentApp._escapeHtml(String(val))}</span>
+                            </div>`;
+                        });
+                    } else {
+                        Object.entries(parsed).forEach(([k, v]) => {
+                            html += `<div class="fgv-blank-field">
+                                <span class="fgv-blank-field-label">${AssignmentApp._escapeHtml(k)}:</span>
+                                <span class="fgv-blank-field-value">${AssignmentApp._escapeHtml(String(v||''))}</span>
+                            </div>`;
+                        });
+                    }
+                    html += '</div>';
+                } else {
+                    html += `<div class="fgv-student-answer-text">${AssignmentApp._escapeHtml(a.answer_text)}</div>`;
+                }
+            } catch(e) {
+                html += `<div class="fgv-student-answer-text">${AssignmentApp._escapeHtml(a.answer_text||'(未作答)')}</div>`;
+            }
         } else {
+            html += `<div class="fgv-student-answer-text">${AssignmentApp._escapeHtml(a.answer_text||'(未作答)')}</div>`;
+        }
+        if (files.length) {
+            html += '<div class="fgv-panel-files" style="margin-top:var(--space-3);">';
+            files.forEach(f => {
+                const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.original_name);
+                html += isImg
+                    ? `<img class="fgv-panel-file-img" src="${f.file_path}" alt="${AssignmentApp._escapeHtml(f.original_name)}">`
+                    : `<a href="${f.file_path}" target="_blank" class="btn btn-sm btn-outline">${AssignmentApp._escapeHtml(f.original_name)}</a>`;
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // MC: auto score + nav only
+        if (isMc) {
+            html += `<div style="text-align:center;padding:var(--space-2);font-size:var(--type-body);color:var(--text-secondary);">
+                得分: <strong>${a.points!=null?a.points:'—'}</strong> / ${q.max_points}
+                <span class="badge" style="margin-left:var(--space-2);background:rgba(0,122,255,0.1);color:#007AFF;">自動</span>
+            </div>
+            <div class="fgv-actions">
+                <button class="btn btn-outline" onclick="FormGradingView._goToPrev()">上一題</button>
+                <button class="btn btn-primary" onclick="FormGradingView._goToNextUngraded()">下一題</button>
+            </div>`;
+            return html;
+        }
+
+        // Reference answer
+        if (q.reference_answer) {
+            html += `<div class="fgv-reference-section">
+                <button class="fgv-reference-toggle" onclick="FormGradingView._toggleReference()">參考答案 <span id="fgvRefIcon">▶</span></button>
+                <div class="fgv-reference-body" id="fgvRefBody">${AssignmentApp._escapeHtml(q.reference_answer)}</div>
+            </div>`;
+        }
+        if (q.grading_notes) {
+            html += `<div class="fgv-grading-notes"><strong>批改注意:</strong> ${AssignmentApp._escapeHtml(q.grading_notes)}</div>`;
+        }
+        // AI suggestion
+        if (a.ai_points != null) {
+            html += `<div class="fgv-ai-suggestion">
+                <div class="fgv-ai-suggestion-header">
+                    <span class="fgv-ai-tag">AI</span>
+                    <span class="fgv-ai-score">${a.ai_points} / ${q.max_points}</span>
+                    ${!a.reviewed_at ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;" onclick="FormGradingView._acceptAiScore()">接受</button>` : ''}
+                </div>
+                ${a.ai_feedback ? `<div class="fgv-ai-feedback-text">${AssignmentApp._escapeHtml(a.ai_feedback)}</div>` : ''}
+            </div>`;
+        }
+        // Score input
+        html += `<div class="fgv-score-section"><div class="fgv-score-row">
+            <span class="fgv-score-label">給分</span>
+            <input type="number" class="fgv-score-input" id="fgvScoreInput" value="${a.points!=null?a.points:''}" min="0" max="${q.max_points}" step="0.5" placeholder="0">
+            <span class="fgv-score-max">/ ${q.max_points}</span>
+        </div></div>`;
+        // Feedback
+        html += `<div class="fgv-feedback-section"><label>反饋</label>
+            <textarea id="fgvFeedback" rows="3" placeholder="輸入反饋...">${AssignmentApp._escapeHtml(a.teacher_feedback||'')}</textarea>
+        </div>`;
+        // Actions
+        html += `<div class="fgv-actions">
+            <button class="btn btn-primary" onclick="FormGradingView._saveGrade()">確認評分</button>
+            <button class="btn btn-outline" onclick="FormGradingView._saveAndNext()">保存並下一題</button>
+        </div>
+        <div class="fgv-save-status" id="fgvSaveStatus"></div>`;
+        return html;
+    },
+
+    // ---- Navigation ----
+    goToQuestion(index) {
+        const s = this._state;
+        if (index < 0 || index >= s.questions.length) return;
+        document.querySelectorAll('.fgv-nav-item').forEach(el => el.classList.remove('active'));
+        const target = document.querySelector(`.fgv-nav-item[data-index="${index}"]`);
+        if (target) target.classList.add('active');
+        s.currentIndex = index;
+        const content = document.getElementById('fgvContent');
+        const panel = document.getElementById('fgvPanel');
+        if (content) { content.innerHTML = this._renderContent(); content.scrollTop = 0; }
+        if (panel) { panel.innerHTML = this._renderPanel(); panel.scrollTop = 0; }
+        if (s.navOpen) this._toggleMobileNav();
+    },
+    _goToNextUngraded() {
+        const s = this._state;
+        const check = (i) => {
+            const q = s.questions[i];
+            if (q.question_type === 'passage' || this._isMc(q)) return false;
+            const a = s.answerMap[q.id] || {};
+            return !(a.reviewed_at || a.score_source === 'teacher');
+        };
+        for (let i = s.currentIndex + 1; i < s.questions.length; i++) { if (check(i)) { this.goToQuestion(i); return; } }
+        for (let i = 0; i < s.currentIndex; i++) { if (check(i)) { this.goToQuestion(i); return; } }
+        const next = Math.min(s.currentIndex + 1, s.questions.length - 1);
+        this.goToQuestion(next);
+        UIModule.toast('所有題目已批改完畢', 'success');
+    },
+    _goToPrev() {
+        if (this._state.currentIndex > 0) this.goToQuestion(this._state.currentIndex - 1);
+    },
+
+    // ---- Grading Actions ----
+    async _saveGrade() {
+        const s = this._state;
+        const q = s.questions[s.currentIndex];
+        const a = s.answerMap[q.id] || {};
+        const pts = parseFloat(document.getElementById('fgvScoreInput')?.value);
+        const fb = document.getElementById('fgvFeedback')?.value || '';
+        if (isNaN(pts) || pts < 0) { UIModule.toast('請輸入有效分數', 'warning'); return; }
+        if (pts > q.max_points) { UIModule.toast(`分數不能超過 ${q.max_points}`, 'warning'); return; }
+        const statusEl = document.getElementById('fgvSaveStatus');
+        if (statusEl) statusEl.textContent = '保存中...';
+        const resp = await AssignmentAPI.gradeFormAnswer(s.submissionId, a.id, { points: pts, feedback: fb });
+        if (resp?.success) {
+            a.points = pts; a.teacher_feedback = fb;
+            a.reviewed_at = new Date().toISOString(); a.score_source = 'teacher';
+            if (statusEl) { statusEl.textContent = '✓ 已保存'; setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 2000); }
+            this._updateSummary(); this._updateNavStatus();
+            UIModule.toast('評分已保存', 'success');
+        } else {
+            if (statusEl) statusEl.textContent = '';
             UIModule.toast('評分失敗: ' + (resp?.message || resp?.detail || ''), 'error');
         }
     },
-
-    async _acceptAiScore(submissionId, answerId, aiPoints) {
-        const resp = await AssignmentAPI.gradeFormAnswer(submissionId, answerId, { points: aiPoints, feedback: '' });
-        if (resp?.success) {
-            UIModule.toast('已接受 AI 建議分', 'success');
-            AssignmentApp.viewSubmission(submissionId);
-        } else {
-            UIModule.toast('操作失敗', 'error');
-        }
+    async _saveAndNext() {
+        await this._saveGrade();
+        const a = this._state.answerMap[this._state.questions[this._state.currentIndex]?.id] || {};
+        if (a.score_source === 'teacher') this._goToNextUngraded();
     },
-
-    async _aiGradeAll(submissionId) {
+    async _acceptAiScore() {
+        const s = this._state;
+        const q = s.questions[s.currentIndex];
+        const a = s.answerMap[q.id] || {};
+        if (a.ai_points == null) return;
+        const resp = await AssignmentAPI.gradeFormAnswer(s.submissionId, a.id, { points: a.ai_points, feedback: a.ai_feedback || '' });
+        if (resp?.success) {
+            a.points = a.ai_points; a.teacher_feedback = a.ai_feedback || '';
+            a.reviewed_at = new Date().toISOString(); a.score_source = 'teacher';
+            const panel = document.getElementById('fgvPanel');
+            if (panel) panel.innerHTML = this._renderPanel();
+            this._updateSummary(); this._updateNavStatus();
+            UIModule.toast('已接受 AI 建議分', 'success');
+        } else { UIModule.toast('操作失敗', 'error'); }
+    },
+    async _aiGradeAll() {
         if (!confirm('確定要對所有文字題進行 AI 批改？')) return;
         UIModule.toast('AI 批改中...', 'info');
-        const resp = await AssignmentAPI.aiGradeForm(submissionId);
+        const resp = await AssignmentAPI.aiGradeForm(this._state.submissionId);
         if (resp?.success) {
-            UIModule.toast('AI 批改完成', 'success');
-            AssignmentApp.viewSubmission(submissionId);
-        } else {
-            UIModule.toast('AI 批改失敗: ' + (resp?.message || resp?.detail || ''), 'error');
-        }
+            UIModule.toast('AI 批改完成，重新載入...', 'success');
+            AssignmentApp.viewSubmission(this._state.submissionId);
+        } else { UIModule.toast('AI 批改失敗: ' + (resp?.message || resp?.detail || ''), 'error'); }
     },
 
-    _updateTotal(questions, answers) {
-        const answerMap = {};
-        (answers || []).forEach(a => { answerMap[a.question_id] = a; });
-        let scored = 0, maxTotal = 0;
-        questions.forEach(q => {
-            maxTotal += q.max_points || 0;
-            const a = answerMap[q.id];
-            if (a && a.points != null) scored += a.points;
+    // ---- UI Updates ----
+    _updateSummary() {
+        const stats = this._getGradingStats();
+        const txt = document.getElementById('fgvProgressText');
+        const fill = document.getElementById('fgvProgressFill');
+        const score = document.getElementById('fgvTotalScore');
+        if (txt) txt.textContent = `${stats.graded}/${stats.total} 已批改`;
+        if (fill) fill.style.width = `${stats.total ? (stats.graded/stats.total*100) : 0}%`;
+        if (score) score.textContent = `${stats.scored} / ${stats.maxPoints}`;
+    },
+    _updateNavStatus() {
+        const s = this._state;
+        s.questions.forEach((q, i) => {
+            const dot = document.querySelector(`.fgv-nav-item[data-index="${i}"] .fgv-nav-status`);
+            if (!dot) return;
+            const a = s.answerMap[q.id] || {};
+            dot.className = 'fgv-nav-status';
+            if (this._isMc(q)) dot.classList.add('auto');
+            else if (a.reviewed_at || a.score_source === 'teacher') dot.classList.add('graded');
+            else if (a.ai_points != null) dot.classList.add('ai-pending');
+            else dot.classList.add('ungraded');
         });
-        setTimeout(() => {
-            const el = document.getElementById('fgvTotal');
-            if (el) el.innerHTML = `<strong>總分: ${scored} / ${maxTotal}</strong>`;
-        }, 0);
-    }
+    },
+    _setFilter(filter) {
+        this._state.filter = filter;
+        const nav = document.getElementById('fgvNav');
+        if (nav) nav.innerHTML = this._renderNav();
+        document.querySelectorAll('.fgv-filter-pill').forEach(p => {
+            p.classList.toggle('active',
+                (filter === 'all' && p.textContent === '全部') ||
+                (filter === 'text' && p.textContent === '文字題') ||
+                (filter === 'ungraded' && p.textContent === '未批改'));
+        });
+    },
+    _toggleReference() {
+        const body = document.getElementById('fgvRefBody');
+        const icon = document.getElementById('fgvRefIcon');
+        if (body) { body.classList.toggle('open'); if (icon) icon.textContent = body.classList.contains('open') ? '▼' : '▶'; }
+    },
+    _toggleMobileNav() {
+        const nav = document.getElementById('fgvNav');
+        this._state.navOpen = !this._state.navOpen;
+        if (nav) nav.classList.toggle('open', this._state.navOpen);
+    },
+    _setupKeyboard() {
+        if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
+        this._keyHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); this.goToQuestion(Math.min(this._state.currentIndex + 1, this._state.questions.length - 1)); }
+            else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); this.goToQuestion(Math.max(this._state.currentIndex - 1, 0)); }
+            else if (e.key >= '1' && e.key <= '9') {
+                const targetNum = parseInt(e.key); let count = 0;
+                for (let i = 0; i < this._state.questions.length; i++) {
+                    if (this._state.questions[i].question_type !== 'passage') count++;
+                    if (count === targetNum) { this.goToQuestion(i); break; }
+                }
+            }
+        };
+        document.addEventListener('keydown', this._keyHandler);
+    },
 };
 
 /* ============================================================

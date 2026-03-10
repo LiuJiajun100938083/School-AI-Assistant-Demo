@@ -1943,6 +1943,29 @@ class AssignmentService:
         for q in questions:
             # 兼容 exam-paper 和 form 兩種 schema
             pts = q.get("max_points") or q.get("points")
+            # 解析 metadata
+            raw_md = q.get("metadata")
+            md = {}
+            if isinstance(raw_md, str):
+                try:
+                    md = json.loads(raw_md)
+                except (json.JSONDecodeError, TypeError):
+                    md = {}
+            elif isinstance(raw_md, dict):
+                md = raw_md
+
+            # 選項: 優先 option_repo，否則 metadata.options
+            opts = options_by_q.get(q["id"], [])
+            if not opts and md.get("options"):
+                raw_opts = md["options"]
+                if isinstance(raw_opts, list) and raw_opts:
+                    if isinstance(raw_opts[0], str):
+                        keys = "ABCDEFGHIJKLMNOP"
+                        opts = [{"option_key": keys[j] if j < len(keys) else str(j+1),
+                                 "option_text": o} for j, o in enumerate(raw_opts)]
+                    elif isinstance(raw_opts[0], dict):
+                        opts = raw_opts
+
             item = {
                 "id": q["id"],
                 "question_order": q.get("question_order", 0),
@@ -1951,7 +1974,8 @@ class AssignmentService:
                 "question_text": q.get("question_text", ""),
                 "max_points": float(pts) if pts is not None else 0,
                 "grading_notes": q.get("grading_notes") or "",
-                "options": options_by_q.get(q["id"], []),
+                "options": opts,
+                "metadata": md,
             }
             if include_answers:
                 item["correct_answer"] = q.get("correct_answer") or q.get("answer_text") or ""
@@ -2342,8 +2366,9 @@ class AssignmentService:
 
         if self._question_repo:
             question = self._question_repo.find_by_id(answer["question_id"])
-            if question and points > float(question["max_points"]):
-                raise ValidationError(f"分數不能超過滿分 {question['max_points']}")
+            max_pts = question.get("max_points") or question.get("points") if question else None
+            if max_pts is not None and points > float(max_pts):
+                raise ValidationError(f"分數不能超過滿分 {max_pts}")
 
         self._answer_repo.update_score(answer_id, {
             "points": points,
