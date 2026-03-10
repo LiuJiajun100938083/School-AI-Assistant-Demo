@@ -433,7 +433,11 @@ const UI = {
 
         const renderKatex = (latex, displayMode) => {
             try {
-                return katex.renderToString(latex.trim(), {
+                // KaTeX 不支援 tabular，轉為 array
+                let fixed = latex.trim()
+                    .replace(/\\begin\{tabular\}/g, '\\begin{array}')
+                    .replace(/\\end\{tabular\}/g, '\\end{array}');
+                return katex.renderToString(fixed, {
                     throwOnError: false,
                     displayMode,
                     trust: true,
@@ -447,7 +451,7 @@ const UI = {
         const patterns = [
             { re: /\\begin\{([^}]+)\}([\s\S]*?)\\end\{\1\}/g, display: true,  extract: m => m[0] },
             { re: /\$\$([\s\S]*?)\$\$/g,                      display: true,  extract: m => m[1] },
-            { re: /\$([^$\n]+?)\$/g,                           display: false, extract: m => m[1] },
+            { re: /\$([^$]+?)\$/g,                             display: false, extract: m => m[1] },
         ];
 
         for (const p of patterns) {
