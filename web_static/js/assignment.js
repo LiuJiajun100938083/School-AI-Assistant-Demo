@@ -6673,7 +6673,7 @@ const ExamStudentView = {
                 // Passage: read-only reference material (支持 markdown 表格)
                 html += `<div class="esv-passage">
                     <div class="esv-passage-badge">資料</div>
-                    <div class="esv-passage-text">${AssignmentApp._renderMd(q.question_text)}</div>
+                    <div class="esv-passage-text">${AssignmentUI._renderMd(q.question_text)}</div>
                 </div>`;
                 return;
             }
@@ -6762,7 +6762,7 @@ const ExamStudentView = {
                     <span class="fsv-q-type">${typeLabel}</span>
                     <span class="fsv-q-points">${q.points || 0} 分</span>
                 </div>
-                <div class="fsv-q-text">${AssignmentApp._renderMd(q.question_text)}</div>
+                <div class="fsv-q-text">${AssignmentUI._renderMd(q.question_text)}</div>
                 ${inputHtml}
             </div>`;
         });
@@ -6863,7 +6863,7 @@ const ExamStudentView = {
             if (q.question_type === 'passage') {
                 html += `<div class="esv-passage esv-passage-submitted">
                     <div class="esv-passage-badge">資料</div>
-                    <div class="esv-passage-text">${AssignmentApp._renderMd(q.question_text)}</div>
+                    <div class="esv-passage-text">${AssignmentUI._renderMd(q.question_text)}</div>
                 </div>`;
                 return;
             }
@@ -6948,7 +6948,7 @@ const ExamStudentView = {
                     <span class="fsv-q-type">${typeLabel}</span>
                     <span class="fsv-q-points">${q.points || 0} 分</span>
                 </div>
-                <div class="fsv-q-text">${AssignmentApp._renderMd(q.question_text)}</div>
+                <div class="fsv-q-text">${AssignmentUI._renderMd(q.question_text)}</div>
                 ${answerHtml}
                 ${scoreHtml}
             </div>`;
