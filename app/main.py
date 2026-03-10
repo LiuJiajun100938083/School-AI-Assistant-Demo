@@ -169,7 +169,7 @@ def create_app() -> FastAPI:
             dir_path = os.path.join(str(settings.base_dir), dir_name)
             os.makedirs(dir_path, exist_ok=True)
 
-        # ENUM 遷移 + 清理卡住的錯題記錄
+        # 自動遷移 + 清理卡住記錄
         try:
             from app.services import get_services
             svc = get_services()
@@ -178,8 +178,10 @@ def create_app() -> FastAPI:
                 cleaned = svc.mistake_book._mistakes.cleanup_stale_processing()
                 if cleaned:
                     logger.info("已清理 %d 條卡住的 processing/analyzing 錯題記錄", cleaned)
+            if hasattr(svc, 'assignment') and svc.assignment:
+                svc.assignment._question_repo.ensure_schema()
         except Exception as e:
-            logger.warning("清理 stale processing 記錄失敗: %s", e)
+            logger.warning("啟動遷移失敗: %s", e)
 
         logger.info("应用启动完成")
 
