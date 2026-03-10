@@ -370,6 +370,8 @@ class ServiceContainer:
                 question_repo=self._get_repo(AssignmentQuestionRepository),
                 batch_repo=self._get_repo(ExamUploadBatchRepository),
                 upload_file_repo=self._get_repo(ExamUploadFileRepository),
+                answer_repo=self._get_repo(SubmissionAnswerRepository),
+                answer_file_repo=self._get_repo(SubmissionAnswerFileRepository),
             )
         return self._assignment
 

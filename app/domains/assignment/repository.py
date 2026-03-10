@@ -380,3 +380,88 @@ class AssignmentQuestionRepository(BaseRepository):
             where="assignment_id = %s",
             params=(assignment_id,),
         )
+
+
+class SubmissionAnswerRepository(BaseRepository):
+    """學生作答 Repository"""
+
+    TABLE = "submission_answers"
+
+    def find_by_submission(self, submission_id: int) -> List[Dict[str, Any]]:
+        return self.find_all(
+            where="submission_id = %s",
+            params=(submission_id,),
+            order_by="question_id ASC",
+        )
+
+    def batch_insert(self, submission_id: int, answers: List[Dict[str, Any]]) -> List[int]:
+        ids = []
+        for ans in answers:
+            data = {
+                "submission_id": submission_id,
+                "question_id": ans["question_id"],
+                "answer_text": ans.get("answer_text") or "",
+                "is_correct": ans.get("is_correct"),
+                "points": ans.get("points"),
+                "score_source": ans.get("score_source"),
+            }
+            aid = self.insert_get_id(data)
+            ids.append(aid)
+        return ids
+
+    def update_score(self, answer_id: int, data: Dict[str, Any]) -> int:
+        return self.update(
+            data=data,
+            where="id = %s",
+            params=(answer_id,),
+        )
+
+    def find_ungraded_text(self, submission_id: int) -> List[Dict[str, Any]]:
+        return self.find_all(
+            where=(
+                "submission_id = %s "
+                "AND question_id IN ("
+                "  SELECT id FROM assignment_questions WHERE question_type != 'mc'"
+                ") "
+                "AND (score_source IS NULL OR (score_source = 'ai' AND reviewed_at IS NULL))"
+            ),
+            params=(submission_id,),
+        )
+
+
+class SubmissionAnswerFileRepository(BaseRepository):
+    """作答附件 Repository"""
+
+    TABLE = "submission_answer_files"
+
+    def find_by_answer(self, answer_id: int) -> List[Dict[str, Any]]:
+        return self.find_all(
+            where="answer_id = %s",
+            params=(answer_id,),
+            order_by="id ASC",
+        )
+
+    def find_by_answers(self, answer_ids: List[int]) -> List[Dict[str, Any]]:
+        if not answer_ids:
+            return []
+        placeholders = ",".join(["%s"] * len(answer_ids))
+        return self.find_all(
+            where=f"answer_id IN ({placeholders})",
+            params=tuple(answer_ids),
+            order_by="answer_id ASC, id ASC",
+        )
+
+    def batch_insert(self, answer_id: int, files_data: List[Dict[str, Any]]) -> int:
+        count = 0
+        for f in files_data:
+            self.insert({
+                "answer_id": answer_id,
+                "original_name": f["original_name"],
+                "stored_name": f["stored_name"],
+                "file_path": f["file_path"],
+                "file_size": f.get("file_size", 0),
+                "file_type": f.get("file_type", ""),
+                "mime_type": f.get("mime_type", ""),
+            })
+            count += 1
+        return count
