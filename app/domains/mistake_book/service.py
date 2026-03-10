@@ -158,6 +158,37 @@ def _clean_analysis_fields(analysis: Dict) -> Dict:
     return analysis
 
 
+def _repair_latex_json_corruption(text: str) -> str:
+    """
+    修復外層 JSON 解析對 LaTeX 命令的損壞。
+
+    問題：Ollama API 返回的 JSON 中，LaTeX 反斜線序列被 response.json() 解析為控制字符：
+      \\times → \\t(TAB) + "imes"
+      \\text  → \\t(TAB) + "ext"
+      \\frac  → \\f(FF)  + "rac"
+      \\bar   → \\b(BS)  + "ar"
+      \\right → \\r(CR)  + "ight"
+      \\n...  → \\n(LF)  + "abla" 等（但換行符本身也合法，需謹慎處理）
+    """
+    import re
+
+    # 控制字符 → 原始反斜線字母的映射
+    # 只修復後面跟著 2+ 字母的情況（避免誤修真正的控制字符）
+    repairs = [
+        ('\t', 't'),    # \times, \text, \theta, \tan, \tau, \triangle, \top
+        ('\x08', 'b'),  # \bar, \binom, \begin, \beta, \boldsymbol, \bmod
+        ('\f', 'f'),    # \frac, \forall, \flat
+        ('\r', 'r'),    # \right, \rangle, \rho, \rightarrow, \rm
+    ]
+    for ctrl, letter in repairs:
+        text = re.sub(
+            re.escape(ctrl) + r'([a-zA-Z]{2,})',
+            '\\\\' + letter + r'\1',
+            text
+        )
+    return text
+
+
 def _extract_analysis_from_prose(text: str) -> Dict:
     """
     當 AI 返回散文而非 JSON 時，嘗試從文本中提取有用的分析信息。
@@ -409,6 +440,10 @@ class MistakeBookService:
         thinking = msg.get("thinking", "")
 
         import re
+
+        # 修復 JSON 解析對 LaTeX 命令的損壞
+        # 外層 JSON 將 \times → \t(tab)+"imes", \frac → \f(FF)+"rac" 等
+        content = _repair_latex_json_corruption(content)
 
         # 移除 thinking 標籤（如果在 content 裡）
         content = re.sub(r"<think>[\s\S]*?</think>", "", content, flags=re.DOTALL).strip()
