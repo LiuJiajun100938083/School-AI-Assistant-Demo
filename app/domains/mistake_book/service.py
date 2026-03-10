@@ -395,11 +395,12 @@ class MistakeBookService:
             },
         }
 
-        url = f"{base_url}/api/chat"
+        from app.core.ai_gate import ai_gate, Priority, Weight
+
         timeout = httpx.Timeout(300.0, connect=10.0)
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, json=payload)
+        async with ai_gate("mistake_analysis", Priority.INTERACTIVE, Weight.ANALYSIS) as client:
+            response = await client.post("/api/chat", json=payload, timeout=timeout)
             response.raise_for_status()
             data = response.json()
 
@@ -1937,11 +1938,12 @@ class MistakeBookService:
             "options": {"temperature": 0.5, "num_predict": 8192},
         }
 
-        url = f"{base_url}/api/chat"
+        from app.core.ai_gate import ai_gate, Priority, Weight
+
         timeout = httpx.Timeout(300.0, connect=20.0)
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, json=payload)
+        async with ai_gate("mistake_qa", Priority.INTERACTIVE, Weight.CHAT) as client:
+            response = await client.post("/api/chat", json=payload, timeout=timeout)
             response.raise_for_status()
             data = response.json()
 

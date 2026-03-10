@@ -36,14 +36,18 @@ class OllamaVisionClient:
     # ================================================================
 
     async def call_vision_model(
-        self, image_path: str, prompt: str
+        self, image_path: str, prompt: str,
+        priority: int = 2,   # Priority.INTERACTIVE
+        weight: int = 2,     # Weight.VISION_SINGLE
     ) -> Optional[str]:
         """
         調用 Ollama qwen3-vl 模型（普通模式）。
         使用 /api/chat 端點，通過 images 參數傳遞圖片。
+        經過 AI 調度器排隊，避免高並發雪崩。
         """
         try:
             import httpx
+            from app.core.ai_gate import ai_gate
 
             image_b64 = encode_image_base64(image_path)
             if not image_b64:
@@ -69,11 +73,10 @@ class OllamaVisionClient:
                 },
             }
 
-            url = f"{self._base_url}/api/chat"
             timeout = httpx.Timeout(float(self._timeout), connect=10.0)
 
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(url, json=payload)
+            async with ai_gate("vision_ocr", priority=priority, weight=weight) as client:
+                response = await client.post("/api/chat", json=payload, timeout=timeout)
                 response.raise_for_status()
                 data = response.json()
 
@@ -204,14 +207,18 @@ class OllamaVisionClient:
     # ================================================================
 
     async def call_vision_model_json(
-        self, image_path: str, prompt: str
+        self, image_path: str, prompt: str,
+        priority: int = 2,   # Priority.INTERACTIVE
+        weight: int = 2,     # Weight.VISION_SINGLE
     ) -> Optional[str]:
         """
         調用 Ollama qwen3-vl 模型（強制 JSON 輸出模式）。
         使用 format:"json" 強制 Ollama 約束解碼為合法 JSON。
+        經過 AI 調度器排隊，避免高並發雪崩。
         """
         try:
             import httpx
+            from app.core.ai_gate import ai_gate
 
             image_b64 = encode_image_base64(image_path)
             if not image_b64:
@@ -248,11 +255,10 @@ class OllamaVisionClient:
                 },
             }
 
-            url = f"{self._base_url}/api/chat"
             timeout = httpx.Timeout(360.0, connect=30.0)
 
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(url, json=payload)
+            async with ai_gate("vision_ocr_json", priority=priority, weight=weight) as client:
+                response = await client.post("/api/chat", json=payload, timeout=timeout)
                 response.raise_for_status()
                 data = response.json()
 

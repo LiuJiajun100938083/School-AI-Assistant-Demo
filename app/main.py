@@ -145,6 +145,18 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("预加载 Embedding/向量数据库失败（首次对话时会自动加载）: %s", e)
 
+        # 初始化 AI 調度器 + 共享 Ollama 連接池
+        try:
+            from app.core.ai_gate import get_scheduler, get_shared_ollama_client
+            get_scheduler()
+            get_shared_ollama_client()
+            logger.info(
+                "AI 調度器初始化完成 (capacity=%d)",
+                settings.ai_concurrent_limit,
+            )
+        except Exception as e:
+            logger.warning("AI 調度器初始化失敗（AI 功能可能不受保護）: %s", e)
+
         # 创建必要目录
         for dir_name in [
             settings.log_dir,
@@ -163,6 +175,12 @@ def create_app() -> FastAPI:
     async def shutdown():
         """应用关闭时清理"""
         logger.info("正在关闭应用...")
+        # 關閉共享 Ollama 連接池
+        try:
+            from app.core.ai_gate import close_shared_client
+            await close_shared_client()
+        except Exception as e:
+            logger.warning("關閉共享 Ollama 連接失敗: %s", e)
         close_database_pool()
         logger.info("应用已关闭")
 
@@ -172,10 +190,17 @@ def create_app() -> FastAPI:
         """健康检查"""
         pool = get_database_pool()
         db_ok = pool.test_connection()
+        # AI 調度器狀態
+        try:
+            from app.core.ai_gate import get_ai_gate_stats
+            ai_gate_stats = get_ai_gate_stats()
+        except Exception:
+            ai_gate_stats = {"error": "not initialized"}
         return {
             "status": "healthy" if db_ok else "degraded",
             "version": settings.app_version,
             "database": "connected" if db_ok else "disconnected",
+            "ai_gate": ai_gate_stats,
         }
 
     @app.get("/api/pool-status")

@@ -52,8 +52,11 @@ class OllamaProvider(BaseLLMProvider):
         """
         同步調用 Ollama（使用 httpx + 動態 num_ctx）
 
-        不再依賴 langchain OllamaLLM，確保與 async_stream 一致的動態上下文窗口。
+        ⚠️ DEPRECATED: 此方法為同步調用，不受 AI 調度器 (WeightedPriorityScheduler) 保護。
+        所有新代碼必須走 async_stream()。此方法僅供舊版兼容使用。
         """
+        # WARNING: sync method — NOT protected by WeightedPriorityScheduler
+        # Do not use in new code. Use async_stream() instead.
         dynamic_num_ctx = self._calc_dynamic_num_ctx(prompt)
 
         url = f"{self.base_url}/api/chat"
@@ -109,7 +112,12 @@ class OllamaProvider(BaseLLMProvider):
         prompt: str,
         on_chunk: Optional[Callable[[str], None]] = None
     ) -> str:
-        """流式調用（已棄用，請使用 async_stream）"""
+        """
+        流式調用（已棄用，請使用 async_stream）
+
+        ⚠️ DEPRECATED: 內部調用 invoke()，不受 AI 調度器保護。
+        """
+        # WARNING: deprecated — calls sync invoke(), not scheduler-protected
         result = self.invoke(prompt)
         if on_chunk:
             on_chunk(result)
@@ -157,8 +165,10 @@ class OllamaProvider(BaseLLMProvider):
 
         gpu_info = f", num_gpu={self.num_gpu}" if self.num_gpu is not None else ""
         logger.info(f"🔗 Ollama 請求: model={self.model}, num_ctx={dynamic_num_ctx}(prompt≈{estimated_tokens}tok), num_predict={self.max_tokens}{gpu_info}")
-        async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout, connect=10.0)) as client:
-            async with client.stream("POST", url, json=payload) as response:
+        from app.core.ai_gate import ai_gate, Priority, Weight
+        async with ai_gate("llm_stream", Priority.INTERACTIVE, Weight.CHAT) as client:
+            async with client.stream("POST", "/api/chat", json=payload,
+                                     timeout=httpx.Timeout(self.timeout, connect=10.0)) as response:
                 if response.status_code != 200:
                     # 讀取 Ollama 錯誤詳情
                     error_body = await response.aread()

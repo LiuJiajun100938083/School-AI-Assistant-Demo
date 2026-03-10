@@ -158,7 +158,7 @@ class ServerSettings(BaseSettings):
 
     # 并发控制
     concurrent_limit: int = Field(default=50, description="最大并发请求数")
-    ai_concurrent_limit: int = Field(default=8, description="AI 推理并发数")
+    ai_concurrent_limit: int = Field(default=4, description="AI 推理并发容量（WeightedPriorityScheduler 總容量）")
     websocket_max_connections: int = Field(default=100)
 
     # CORS
