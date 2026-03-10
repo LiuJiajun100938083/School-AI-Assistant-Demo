@@ -479,9 +479,9 @@ class AssignmentService:
                 self._deserialize_json_fields(item)
             submission["rubric_items"] = rubric_items
 
-            # Form 類型：附帶題目和作答
-            is_form = (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM
-            if is_form:
+            # Form / Exam 類型：附帶題目和作答
+            atype = assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD
+            if atype in (AssignmentType.FORM, AssignmentType.EXAM):
                 submission["questions"] = self.get_form_questions(
                     submission["assignment_id"], include_answers=True
                 )

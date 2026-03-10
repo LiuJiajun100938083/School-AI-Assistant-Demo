@@ -2271,8 +2271,8 @@ const AssignmentApp = {
         ]);
         this.setHeaderActions('');
 
-        // ---- Form type: teacher grading view ----
-        if (asg.assignment_type === 'form') {
+        // ---- Form / Exam type: teacher grading view ----
+        if (asg.assignment_type === 'form' || asg.assignment_type === 'exam') {
             const questions = sub.questions || [];
             const answers = sub.answers || [];
             const answerFiles = sub.answer_files || [];
