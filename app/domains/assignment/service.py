@@ -48,11 +48,16 @@ from app.domains.assignment.exceptions import (
 from app.domains.assignment.repository import (
     AssignmentAttachmentRepository,
     AssignmentRepository,
+    QuestionOptionRepository,
+    QuestionRepository,
     RubricItemRepository,
     RubricScoreRepository,
+    SubmissionAnswerFileRepository,
+    SubmissionAnswerRepository,
     SubmissionFileRepository,
     SubmissionRepository,
 )
+from app.domains.assignment.schemas import AssignmentType, ScoreSource
 from app.domains.user.repository import UserRepository
 
 logger = logging.getLogger(__name__)
@@ -75,6 +80,10 @@ class AssignmentService:
         attachment_repo: Optional["AssignmentAttachmentRepository"] = None,
         conversation_repo=None,
         settings=None,
+        question_repo: Optional[QuestionRepository] = None,
+        question_option_repo: Optional[QuestionOptionRepository] = None,
+        answer_repo: Optional[SubmissionAnswerRepository] = None,
+        answer_file_repo: Optional[SubmissionAnswerFileRepository] = None,
     ):
         self._assignment_repo = assignment_repo
         self._submission_repo = submission_repo
@@ -85,6 +94,10 @@ class AssignmentService:
         self._attachment_repo = attachment_repo
         self._conversation_repo = conversation_repo
         self._settings = settings
+        self._question_repo = question_repo
+        self._question_option_repo = question_option_repo
+        self._answer_repo = answer_repo
+        self._answer_file_repo = answer_file_repo
         self._ask_ai_func: Optional[Callable] = None
 
         # 確保上傳目錄存在
@@ -122,6 +135,7 @@ class AssignmentService:
         teacher_name: str,
         title: str,
         description: str = "",
+        assignment_type: str = AssignmentType.FILE_UPLOAD,
         target_type: str = "all",
         target_value: Optional[str] = None,
         deadline: Optional[str] = None,
@@ -130,6 +144,7 @@ class AssignmentService:
         rubric_type: str = "points",
         rubric_config: Optional[Dict] = None,
         rubric_items: Optional[List[Dict]] = None,
+        questions: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:
         """創建作業 (草稿狀態)"""
         if not title or not title.strip():
@@ -143,8 +158,13 @@ class AssignmentService:
             except ValueError:
                 raise ValidationError("截止日期格式無效", field="deadline")
 
-        # 計算滿分
-        max_score = self._calc_max_score(rubric_type, rubric_items, rubric_config)
+        # Form 類型：滿分 = 題目分數之和
+        if assignment_type == AssignmentType.FORM:
+            if not questions:
+                raise ValidationError("Form 類型作業至少需要 1 道題目", field="questions")
+            max_score = sum(q.get("max_points", 0) for q in questions)
+        else:
+            max_score = self._calc_max_score(rubric_type, rubric_items, rubric_config)
 
         # 插入作業
         insert_data = {
@@ -152,6 +172,7 @@ class AssignmentService:
             "description": description.strip() if description else "",
             "created_by": teacher_id,
             "created_by_name": teacher_name,
+            "assignment_type": assignment_type,
             "target_type": target_type,
             "target_value": target_value,
             "max_score": max_score,
@@ -168,11 +189,15 @@ class AssignmentService:
 
         assignment_id = self._assignment_repo.insert_get_id(insert_data)
 
-        # 插入評分標準
-        if rubric_items:
+        # 插入評分標準 (file_upload 類型)
+        if assignment_type == AssignmentType.FILE_UPLOAD and rubric_items:
             self._rubric_repo.batch_insert(assignment_id, rubric_items)
 
-        logger.info("教師 %s 創建了作業 #%d: %s (類型=%s)", teacher_name, assignment_id, title, rubric_type)
+        # 插入題目 (form 類型)
+        if assignment_type == AssignmentType.FORM and questions:
+            self._create_form_questions(assignment_id, questions)
+
+        logger.info("教師 %s 創建了作業 #%d: %s (assignment_type=%s)", teacher_name, assignment_id, title, assignment_type)
         return self.get_assignment_detail(assignment_id)
 
     def update_assignment(
@@ -190,6 +215,7 @@ class AssignmentService:
         rubric_items = fields.pop("rubric_items", None)
         rubric_type = fields.pop("rubric_type", None)
         rubric_config = fields.pop("rubric_config", None)
+        questions = fields.pop("questions", None)
 
         allowed = {"title", "description", "target_type", "target_value",
                     "deadline", "max_files", "allow_late"}
@@ -204,13 +230,30 @@ class AssignmentService:
                 else:
                     update_data[key] = value
 
+        is_form = (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM
+
+        # Form 類型：題目冻結檢查
+        if is_form and questions is not None:
+            has_subs = self._submission_repo.count(
+                where="assignment_id = %s", params=(assignment_id,)
+            ) > 0
+            if has_subs:
+                raise ValidationError("已有學生提交，無法修改題目結構")
+            # 刪除舊題目（CASCADE 清理選項）
+            if self._question_repo:
+                self._question_repo.delete_by_assignment(assignment_id)
+            if questions:
+                self._create_form_questions(assignment_id, questions)
+            # 重新計算滿分
+            update_data["max_score"] = sum(q.get("max_points", 0) for q in questions)
+
         if rubric_type is not None:
             update_data["rubric_type"] = rubric_type
         if rubric_config is not None:
             update_data["rubric_config"] = json.dumps(rubric_config, ensure_ascii=False)
 
-        # 更新評分標準
-        if rubric_items is not None:
+        # 更新評分標準 (file_upload 類型)
+        if not is_form and rubric_items is not None:
             self._rubric_repo.delete_by_assignment(assignment_id)
             if rubric_items:
                 self._rubric_repo.batch_insert(assignment_id, rubric_items)
@@ -315,8 +358,8 @@ class AssignmentService:
                     pass
         return data
 
-    def get_assignment_detail(self, assignment_id: int) -> Dict[str, Any]:
-        """獲取作業完整詳情"""
+    def get_assignment_detail(self, assignment_id: int, include_answers: bool = True) -> Dict[str, Any]:
+        """獲取作業完整詳情（教師端，含正確答案）"""
         assignment = self._get_assignment_or_raise(assignment_id)
         self._deserialize_json_fields(assignment)
 
@@ -324,6 +367,12 @@ class AssignmentService:
         for item in rubric_items:
             self._deserialize_json_fields(item)
         assignment["rubric_items"] = rubric_items
+
+        # Form 類型：附帶題目（含正確答案）
+        if (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM:
+            assignment["questions"] = self.get_form_questions(
+                assignment_id, include_answers=include_answers
+            )
 
         # 附件
         if self._attachment_repo:
@@ -374,6 +423,24 @@ class AssignmentService:
             for item in rubric_items:
                 self._deserialize_json_fields(item)
             submission["rubric_items"] = rubric_items
+
+            # Form 類型：附帶題目和作答
+            is_form = (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM
+            if is_form:
+                submission["questions"] = self.get_form_questions(
+                    submission["assignment_id"], include_answers=True
+                )
+                if self._answer_repo:
+                    answers = self._answer_repo.find_by_submission(submission_id)
+                    if answers and self._answer_file_repo:
+                        answer_ids = [a["id"] for a in answers]
+                        all_files = self._answer_file_repo.find_by_answers(answer_ids)
+                        files_by_answer = {}
+                        for f in all_files:
+                            files_by_answer.setdefault(f["answer_id"], []).append(f)
+                        for a in answers:
+                            a["files"] = files_by_answer.get(a["id"], [])
+                    submission["answers"] = answers
 
         return submission
 
@@ -901,6 +968,13 @@ class AssignmentService:
 
         assignment["rubric_items"] = self._rubric_repo.find_by_assignment(assignment_id)
 
+        # Form 類型：附帶題目（不含正確答案和參考答案）
+        is_form = (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM
+        if is_form:
+            assignment["questions"] = self.get_form_questions(
+                assignment_id, include_answers=False
+            )
+
         # 附件
         if self._attachment_repo:
             assignment["attachments"] = self._attachment_repo.find_by_assignment(assignment_id)
@@ -921,6 +995,28 @@ class AssignmentService:
         if submission:
             submission["files"] = self._file_repo.find_by_submission(submission["id"])
             submission["rubric_scores"] = self._score_repo.find_by_submission(submission["id"])
+            # Form 類型：附帶作答詳情
+            if is_form and self._answer_repo:
+                answers = self._answer_repo.find_by_submission(submission["id"])
+                # 附帶作答文件
+                if answers and self._answer_file_repo:
+                    answer_ids = [a["id"] for a in answers]
+                    all_files = self._answer_file_repo.find_by_answers(answer_ids)
+                    files_by_answer = {}
+                    for f in all_files:
+                        files_by_answer.setdefault(f["answer_id"], []).append(f)
+                    for a in answers:
+                        a["files"] = files_by_answer.get(a["id"], [])
+                submission["answers"] = answers
+                # 已提交後，學生可以看到 MC 的正確答案
+                if assignment.get("questions"):
+                    for q in assignment["questions"]:
+                        if q["question_type"] == "mc":
+                            # 從完整題目中取回正確答案
+                            full_questions = self._question_repo.find_by_assignment(assignment_id) if self._question_repo else []
+                            fq_map = {fq["id"]: fq for fq in full_questions}
+                            if q["id"] in fq_map:
+                                q["correct_answer"] = fq_map[q["id"]].get("correct_answer")
 
         assignment["my_submission"] = submission
         return assignment
@@ -1734,6 +1830,382 @@ class AssignmentService:
         return (
             conv.get("username") == username
             and conv.get("assignment_id") == assignment_id
+        )
+
+    # ================================================================
+    # Form 作業
+    # ================================================================
+
+    def _create_form_questions(self, assignment_id: int, questions: List[Dict]) -> List[int]:
+        """批量創建 Form 題目 + MC 選項"""
+        if not self._question_repo or not self._question_option_repo:
+            raise ValidationError("Form 功能未初始化")
+
+        question_ids = self._question_repo.batch_insert(assignment_id, questions)
+        for qid, q in zip(question_ids, questions):
+            if q.get("question_type") == "mc" and q.get("options"):
+                opts = q["options"]
+                if isinstance(opts, list) and opts and isinstance(opts[0], dict):
+                    self._question_option_repo.batch_insert(qid, opts)
+                elif isinstance(opts, list) and opts and hasattr(opts[0], "dict"):
+                    self._question_option_repo.batch_insert(
+                        qid, [o.dict() for o in opts]
+                    )
+        return question_ids
+
+    def get_form_questions(
+        self, assignment_id: int, include_answers: bool = True
+    ) -> List[Dict[str, Any]]:
+        """獲取 Form 題目列表。include_answers=False 時隱藏正確答案和參考答案（學生端）"""
+        if not self._question_repo or not self._question_option_repo:
+            return []
+
+        questions = self._question_repo.find_by_assignment(assignment_id)
+        if not questions:
+            return []
+
+        # 批量獲取選項
+        q_ids = [q["id"] for q in questions]
+        all_options = self._question_option_repo.find_by_questions(q_ids)
+        options_by_q = {}
+        for opt in all_options:
+            options_by_q.setdefault(opt["question_id"], []).append(opt)
+
+        result = []
+        for q in questions:
+            item = {
+                "id": q["id"],
+                "question_order": q["question_order"],
+                "question_type": q["question_type"],
+                "question_text": q["question_text"],
+                "max_points": float(q["max_points"]) if q["max_points"] is not None else 0,
+                "grading_notes": q.get("grading_notes") or "",
+                "options": options_by_q.get(q["id"], []),
+            }
+            if include_answers:
+                item["correct_answer"] = q.get("correct_answer") or ""
+                item["reference_answer"] = q.get("reference_answer") or ""
+            result.append(item)
+
+        return result
+
+    async def submit_form_answers(
+        self,
+        assignment_id: int,
+        student: Dict,
+        answers: List[Dict],
+        files_by_question: Optional[Dict[int, List[UploadFile]]] = None,
+    ) -> Dict[str, Any]:
+        """學生提交 Form 作業（事務性）"""
+        assignment = self._get_assignment_or_raise(assignment_id)
+
+        # 校驗
+        if (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) != AssignmentType.FORM:
+            raise ValidationError("此作業不是 Form 類型")
+        if assignment["status"] != "published":
+            raise AssignmentNotPublishedError()
+
+        # 截止時間 server-side 強制
+        if assignment.get("deadline"):
+            deadline = assignment["deadline"]
+            if isinstance(deadline, str):
+                deadline = datetime.fromisoformat(deadline)
+            if datetime.now() > deadline and not assignment.get("allow_late"):
+                raise DeadlinePassedError()
+
+        is_late = False
+        if assignment.get("deadline"):
+            deadline = assignment["deadline"]
+            if isinstance(deadline, str):
+                deadline = datetime.fromisoformat(deadline)
+            is_late = datetime.now() > deadline
+
+        # 重複提交檢查
+        student_id = student.get("id") or student.get("user_id")
+        existing = self._submission_repo.find_by_assignment_student(assignment_id, student_id)
+        if existing:
+            raise ValidationError("已提交過此作業，不可重複提交")
+
+        # 獲取題目
+        if not self._question_repo:
+            raise ValidationError("Form 功能未初始化")
+        questions = self._question_repo.find_by_assignment(assignment_id)
+        if not questions:
+            raise ValidationError("此作業沒有題目")
+
+        q_map = {q["id"]: q for q in questions}
+        q_ids_set = set(q_map.keys())
+
+        # 驗證 answers 覆蓋所有題目
+        submitted_q_ids = set(a["question_id"] for a in answers)
+        if submitted_q_ids != q_ids_set:
+            missing = q_ids_set - submitted_q_ids
+            extra = submitted_q_ids - q_ids_set
+            msg = []
+            if missing:
+                msg.append(f"缺少題目: {missing}")
+            if extra:
+                msg.append(f"多餘題目: {extra}")
+            raise ValidationError("; ".join(msg))
+
+        # 創建 submission
+        submission_id = self._submission_repo.insert_get_id({
+            "assignment_id": assignment_id,
+            "student_id": student_id,
+            "student_name": student.get("display_name") or student.get("username", ""),
+            "username": student.get("username", ""),
+            "class_name": student.get("class_name", ""),
+            "content": "",
+            "status": "submitted",
+            "is_late": is_late,
+            "submitted_at": datetime.now(),
+        })
+
+        # 寫入作答 + MC 自動評分
+        mc_total = 0.0
+        answer_records = []
+        for ans in answers:
+            q = q_map[ans["question_id"]]
+            record = {
+                "question_id": ans["question_id"],
+                "answer_text": ans.get("answer_text", ""),
+            }
+
+            if q["question_type"] == "mc":
+                correct = (q.get("correct_answer") or "").strip().upper()
+                student_ans = (ans.get("answer_text") or "").strip().upper()
+                is_correct = student_ans == correct if correct else False
+                pts = float(q["max_points"]) if is_correct else 0.0
+                record["is_correct"] = is_correct
+                record["points"] = pts
+                record["score_source"] = ScoreSource.AUTO
+                mc_total += pts
+            # 文字題：points=NULL, score_source=NULL
+
+            answer_records.append(record)
+
+        if not self._answer_repo:
+            raise ValidationError("Form 功能未初始化")
+        answer_ids = self._answer_repo.batch_insert(submission_id, answer_records)
+
+        # 保存文字題上傳文件
+        if files_by_question and self._answer_file_repo:
+            # 建立 question_id → answer_id 映射
+            q_to_answer = {}
+            for aid, ans in zip(answer_ids, answers):
+                q_to_answer[ans["question_id"]] = aid
+
+            for q_id, file_list in files_by_question.items():
+                if q_id not in q_to_answer:
+                    continue
+                answer_id = q_to_answer[q_id]
+                for f in file_list:
+                    await self._save_answer_file(answer_id, f)
+
+        # 回寫 submission 總分（目前只有 MC 部分）
+        self._submission_repo.update(
+            data={"score": mc_total},
+            where="id = %s",
+            params=(submission_id,),
+        )
+
+        logger.info("學生 %s 提交了 Form 作業 #%d (submission_id=%d)",
+                     student.get("username"), assignment_id, submission_id)
+        return self.get_submission_detail(submission_id)
+
+    async def _save_answer_file(self, answer_id: int, file: UploadFile) -> Dict[str, Any]:
+        """保存作答附件"""
+        original_name = file.filename or "unnamed"
+        ext = Path(original_name).suffix.lower()
+
+        file_type = EXTENSION_TYPE_MAP.get(ext, "")
+        content = await file.read()
+        file_size = len(content)
+
+        if file_size > MAX_FILE_SIZE:
+            raise FileTooLargeError(MAX_FILE_SIZE // 1024 // 1024)
+
+        stored_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = UPLOAD_DIR / stored_name
+
+        with open(file_path, "wb") as fh:
+            fh.write(content)
+
+        self._answer_file_repo.insert({
+            "answer_id": answer_id,
+            "original_name": original_name,
+            "stored_name": stored_name,
+            "file_path": f"uploads/assignments/{stored_name}",
+            "file_size": file_size,
+            "file_type": file_type,
+            "mime_type": file.content_type or "",
+        })
+
+        return {"original_name": original_name, "stored_name": stored_name}
+
+    async def ai_grade_form_submission(self, submission_id: int) -> Dict[str, Any]:
+        """AI 批改 Form 提交中的文字題"""
+        if not self._ask_ai_func:
+            raise ValidationError("AI 功能未初始化")
+        if not self._answer_repo:
+            raise ValidationError("Form 功能未初始化")
+
+        submission = self._submission_repo.find_by_id(submission_id)
+        if not submission:
+            raise SubmissionNotFoundError(submission_id)
+
+        assignment = self._get_assignment_or_raise(submission["assignment_id"])
+        questions = self._question_repo.find_by_assignment(assignment["id"]) if self._question_repo else []
+        q_map = {q["id"]: q for q in questions}
+
+        # 找出需要 AI 批改的答案
+        ungraded = self._answer_repo.find_ungraded_text(submission_id)
+        if not ungraded:
+            return {"graded_count": 0, "message": "沒有需要批改的文字題"}
+
+        graded_count = 0
+        for ans in ungraded:
+            q = q_map.get(ans["question_id"])
+            if not q or q["question_type"] == "mc":
+                continue
+
+            max_pts = float(q["max_points"])
+            reference = (q.get("reference_answer") or "").strip()
+            grading_notes = (q.get("grading_notes") or "").strip()
+
+            if reference:
+                prompt = (
+                    f"你是一位嚴謹的教師，正在根據參考答案批改學生的答案。\n\n"
+                    f"題目：{q['question_text']}\n"
+                    f"題型：{'短答' if q['question_type'] == 'short_answer' else '長答'}\n"
+                    f"滿分：{max_pts}\n"
+                    f"老師參考答案：{reference}\n"
+                )
+                if grading_notes:
+                    prompt += f"批改注意事項：{grading_notes}\n"
+                prompt += (
+                    f"\n學生答案：{ans.get('answer_text') or '（空白）'}\n\n"
+                    f"請嚴格按照參考答案的要點來評分。\n"
+                    f'請用 JSON 格式回覆：{{"points": <0到{max_pts}的數字>, "feedback": "<評語>"}}'
+                )
+            else:
+                prompt = (
+                    f"你是一位專業教師，正在批改學生的答案。\n\n"
+                    f"題目：{q['question_text']}\n"
+                    f"題型：{'短答' if q['question_type'] == 'short_answer' else '長答'}\n"
+                    f"滿分：{max_pts}\n"
+                )
+                if grading_notes:
+                    prompt += f"批改注意事項：{grading_notes}\n"
+                prompt += (
+                    f"\n學生答案：{ans.get('answer_text') or '（空白）'}\n\n"
+                    f"請根據答案的正確性和完整性來評分。\n"
+                    f'請用 JSON 格式回覆：{{"points": <0到{max_pts}的數字>, "feedback": "<評語>"}}'
+                )
+
+            try:
+                ai_response = self._ask_ai_func(prompt)
+                if hasattr(ai_response, '__await__'):
+                    import asyncio
+                    ai_response = await ai_response
+
+                ai_result = self._parse_ai_form_response(str(ai_response), max_pts)
+                ai_pts = ai_result.get("points", 0)
+                ai_feedback = ai_result.get("feedback", "")
+
+                update_data = {
+                    "ai_points": ai_pts,
+                    "ai_feedback": ai_feedback,
+                    "graded_at": datetime.now(),
+                }
+                if not ans.get("reviewed_at"):
+                    update_data["points"] = ai_pts
+                    update_data["score_source"] = ScoreSource.AI
+
+                self._answer_repo.update_score(ans["id"], update_data)
+                graded_count += 1
+
+            except Exception as e:
+                logger.error("AI 批改 answer #%d 失敗: %s", ans["id"], e)
+
+        # 回寫總分
+        self._recalculate_form_score(submission_id)
+
+        return {"graded_count": graded_count, "message": f"已批改 {graded_count} 道文字題"}
+
+    def _parse_ai_form_response(self, response: str, max_points: float) -> Dict[str, Any]:
+        """解析 AI 批改回覆為 {points, feedback}"""
+        if not response:
+            return {"points": 0, "feedback": "AI 未返回結果"}
+
+        try:
+            result = json.loads(response)
+            if isinstance(result, dict) and "points" in result:
+                pts = min(max(float(result["points"]), 0), max_points)
+                return {"points": pts, "feedback": result.get("feedback", "")}
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        json_match = re.search(r'\{[^{}]*"points"[^{}]*\}', response, re.DOTALL)
+        if json_match:
+            try:
+                result = json.loads(json_match.group())
+                pts = min(max(float(result.get("points", 0)), 0), max_points)
+                return {"points": pts, "feedback": result.get("feedback", "")}
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        return {"points": 0, "feedback": response[:500]}
+
+    def teacher_grade_form_answer(
+        self,
+        answer_id: int,
+        teacher_id: int,
+        points: float,
+        feedback: str = "",
+    ) -> Dict[str, Any]:
+        """教師手動批改 Form 單題"""
+        if not self._answer_repo:
+            raise ValidationError("Form 功能未初始化")
+
+        answer = self._answer_repo.find_by_id(answer_id)
+        if not answer:
+            raise NotFoundError("找不到作答記錄")
+
+        if self._question_repo:
+            question = self._question_repo.find_by_id(answer["question_id"])
+            if question and points > float(question["max_points"]):
+                raise ValidationError(f"分數不能超過滿分 {question['max_points']}")
+
+        self._answer_repo.update_score(answer_id, {
+            "points": points,
+            "teacher_feedback": feedback,
+            "score_source": ScoreSource.TEACHER,
+            "reviewed_at": datetime.now(),
+            "graded_at": datetime.now(),
+        })
+
+        self._recalculate_form_score(answer["submission_id"])
+
+        logger.info("教師手動批改 answer #%d: %.1f 分", answer_id, points)
+        return self.get_submission_detail(answer["submission_id"])
+
+    def _recalculate_form_score(self, submission_id: int) -> None:
+        """重新計算 Form 提交總分"""
+        if not self._answer_repo:
+            return
+
+        answers = self._answer_repo.find_by_submission(submission_id)
+        total = sum(
+            float(a["points"])
+            for a in answers
+            if a.get("points") is not None
+        )
+
+        self._submission_repo.update(
+            data={"score": total},
+            where="id = %s",
+            params=(submission_id,),
         )
 
     # ================================================================

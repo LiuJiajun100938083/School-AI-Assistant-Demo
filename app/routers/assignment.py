@@ -30,8 +30,10 @@ from app.core.dependencies import get_current_user, require_teacher
 from app.core.responses import error_response, paginated_response, success_response
 from app.domains.assignment.schemas import (
     CreateAssignmentRequest,
+    GradeFormAnswerRequest,
     GradeSubmissionRequest,
     RunSwiftRequest,
+    SubmitFormRequest,
     UpdateAssignmentRequest,
 )
 from app.services.container import get_services
@@ -58,6 +60,8 @@ async def create_assignment(
     teacher_id = user["id"] if user else 0
     teacher_name = user.get("display_name", username) if user else username
 
+    questions_data = [q.dict() for q in request.questions] if request.questions else None
+
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
@@ -66,6 +70,7 @@ async def create_assignment(
             teacher_name=teacher_name,
             title=request.title,
             description=request.description,
+            assignment_type=request.assignment_type,
             target_type=request.target_type,
             target_value=request.target_value,
             deadline=request.deadline,
@@ -74,6 +79,7 @@ async def create_assignment(
             rubric_type=request.rubric_type,
             rubric_config=request.rubric_config,
             rubric_items=[item.dict() for item in request.rubric_items],
+            questions=questions_data,
         ),
     )
     return success_response(data=result, message="作業創建成功")
@@ -170,6 +176,8 @@ async def update_assignment(
     fields = request.dict(exclude_unset=True)
     if "rubric_items" in fields and fields["rubric_items"] is not None:
         fields["rubric_items"] = [item.dict() for item in request.rubric_items]
+    if "questions" in fields and fields["questions"] is not None:
+        fields["questions"] = [q.dict() for q in request.questions]
     if "rubric_scores" in fields:
         # rubric_scores belongs to grading, not update
         fields.pop("rubric_scores", None)
@@ -716,6 +724,85 @@ async def submit_assignment(
         files=files if files else None,
     )
     return success_response(data=result, message="提交成功")
+
+
+# ================================================================
+# Form 作業端點
+# ================================================================
+
+@router.post("/api/assignments/{assignment_id}/submit-form")
+async def submit_form(
+    assignment_id: int,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """學生提交 Form 作業（multipart: JSON answers + 文件）"""
+    import json as _json
+
+    services = get_services()
+
+    # 解析 multipart form data
+    form = await request.form()
+    answers_json = form.get("answers", "[]")
+    try:
+        answers_data = _json.loads(answers_json)
+    except _json.JSONDecodeError:
+        return error_response("answers 格式無效", status_code=400)
+
+    # 收集每題的上傳文件
+    files_by_question: Dict[int, List[UploadFile]] = {}
+    for key, value in form.multi_items():
+        if key.startswith("files_") and isinstance(value, UploadFile):
+            try:
+                q_id = int(key.split("_", 1)[1])
+                files_by_question.setdefault(q_id, []).append(value)
+            except (ValueError, IndexError):
+                pass
+
+    result = await services.assignment.submit_form_answers(
+        assignment_id=assignment_id,
+        student=current_user,
+        answers=answers_data,
+        files_by_question=files_by_question if files_by_question else None,
+    )
+    return success_response(data=result, message="提交成功")
+
+
+@router.post("/api/assignments/teacher/submissions/{submission_id}/ai-grade-form")
+async def ai_grade_form(
+    submission_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """AI 批改 Form 文字題"""
+    services = get_services()
+    result = await services.assignment.ai_grade_form_submission(submission_id)
+    return success_response(data=result)
+
+
+@router.put("/api/assignments/teacher/submissions/{submission_id}/answers/{answer_id}/grade")
+async def grade_form_answer(
+    submission_id: int,
+    answer_id: int,
+    request: GradeFormAnswerRequest,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """教師手動批改 Form 單題"""
+    username, _ = teacher_info
+    services = get_services()
+    user = services.user.get_user(username)
+    teacher_id = user["id"] if user else 0
+
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: services.assignment.teacher_grade_form_answer(
+            answer_id=answer_id,
+            teacher_id=teacher_id,
+            points=request.points,
+            feedback=request.feedback,
+        ),
+    )
+    return success_response(data=result, message="批改成功")
 
 
 @router.post("/api/assignments/teacher/{assignment_id}/submit-for-student")

@@ -273,3 +273,173 @@ class AssignmentAttachmentRepository(BaseRepository):
     def soft_delete_attachment(self, attachment_id: int) -> int:
         """軟刪除附件"""
         return self.soft_delete(attachment_id)
+
+
+class QuestionRepository(BaseRepository):
+    """Form 作業題目 Repository"""
+
+    TABLE = "assignment_questions"
+
+    def find_by_assignment(self, assignment_id: int) -> List[Dict[str, Any]]:
+        """獲取某作業的所有題目（按順序）"""
+        return self.find_all(
+            where="assignment_id = %s",
+            params=(assignment_id,),
+            order_by="question_order ASC, id ASC",
+        )
+
+    def batch_insert(self, assignment_id: int, questions: List[Dict[str, Any]]) -> List[int]:
+        """批量插入題目，返回新 ID 列表"""
+        ids = []
+        for i, q in enumerate(questions):
+            data = {
+                "assignment_id": assignment_id,
+                "question_order": i,
+                "question_type": q["question_type"],
+                "question_text": q["question_text"],
+                "max_points": q["max_points"],
+                "grading_notes": q.get("grading_notes") or None,
+                "correct_answer": q.get("correct_answer") or None,
+                "reference_answer": q.get("reference_answer") or None,
+            }
+            qid = self.insert_get_id(data)
+            ids.append(qid)
+        return ids
+
+    def delete_by_assignment(self, assignment_id: int) -> int:
+        """刪除某作業的所有題目（CASCADE 會清理選項和答案）"""
+        return self.delete(
+            where="assignment_id = %s",
+            params=(assignment_id,),
+        )
+
+
+class QuestionOptionRepository(BaseRepository):
+    """MC 選項 Repository"""
+
+    TABLE = "assignment_question_options"
+
+    def find_by_questions(self, question_ids: List[int]) -> List[Dict[str, Any]]:
+        """批量獲取多個題目的選項"""
+        if not question_ids:
+            return []
+        placeholders = ",".join(["%s"] * len(question_ids))
+        return self.find_all(
+            where=f"question_id IN ({placeholders})",
+            params=tuple(question_ids),
+            order_by="question_id ASC, option_key ASC",
+        )
+
+    def batch_insert(self, question_id: int, options: List[Dict[str, Any]]) -> int:
+        """批量插入選項"""
+        count = 0
+        for opt in options:
+            self.insert({
+                "question_id": question_id,
+                "option_key": opt["option_key"],
+                "option_text": opt["option_text"],
+            })
+            count += 1
+        return count
+
+    def delete_by_questions(self, question_ids: List[int]) -> int:
+        """刪除多個題目的所有選項"""
+        if not question_ids:
+            return 0
+        placeholders = ",".join(["%s"] * len(question_ids))
+        return self.delete(
+            where=f"question_id IN ({placeholders})",
+            params=tuple(question_ids),
+        )
+
+
+class SubmissionAnswerRepository(BaseRepository):
+    """學生作答 Repository"""
+
+    TABLE = "submission_answers"
+
+    def find_by_submission(self, submission_id: int) -> List[Dict[str, Any]]:
+        """獲取某提交的所有作答"""
+        return self.find_all(
+            where="submission_id = %s",
+            params=(submission_id,),
+            order_by="question_id ASC",
+        )
+
+    def batch_insert(self, submission_id: int, answers: List[Dict[str, Any]]) -> List[int]:
+        """批量插入作答記錄，返回新 ID 列表"""
+        ids = []
+        for ans in answers:
+            data = {
+                "submission_id": submission_id,
+                "question_id": ans["question_id"],
+                "answer_text": ans.get("answer_text") or "",
+                "is_correct": ans.get("is_correct"),
+                "points": ans.get("points"),
+                "score_source": ans.get("score_source"),
+            }
+            aid = self.insert_get_id(data)
+            ids.append(aid)
+        return ids
+
+    def update_score(self, answer_id: int, data: Dict[str, Any]) -> int:
+        """更新單題評分"""
+        return self.update(
+            data=data,
+            where="id = %s",
+            params=(answer_id,),
+        )
+
+    def find_ungraded_text(self, submission_id: int) -> List[Dict[str, Any]]:
+        """找出未評分或 AI 未覆核的文字題答案"""
+        return self.find_all(
+            where=(
+                "submission_id = %s "
+                "AND question_id IN ("
+                "  SELECT id FROM assignment_questions WHERE question_type != 'mc'"
+                ") "
+                "AND (score_source IS NULL OR (score_source = 'ai' AND reviewed_at IS NULL))"
+            ),
+            params=(submission_id,),
+        )
+
+
+class SubmissionAnswerFileRepository(BaseRepository):
+    """作答附件 Repository"""
+
+    TABLE = "submission_answer_files"
+
+    def find_by_answer(self, answer_id: int) -> List[Dict[str, Any]]:
+        """獲取某作答的所有文件"""
+        return self.find_all(
+            where="answer_id = %s",
+            params=(answer_id,),
+            order_by="id ASC",
+        )
+
+    def find_by_answers(self, answer_ids: List[int]) -> List[Dict[str, Any]]:
+        """批量獲取多個作答的文件"""
+        if not answer_ids:
+            return []
+        placeholders = ",".join(["%s"] * len(answer_ids))
+        return self.find_all(
+            where=f"answer_id IN ({placeholders})",
+            params=tuple(answer_ids),
+            order_by="answer_id ASC, id ASC",
+        )
+
+    def batch_insert(self, answer_id: int, files_data: List[Dict[str, Any]]) -> int:
+        """批量插入作答文件"""
+        count = 0
+        for f in files_data:
+            self.insert({
+                "answer_id": answer_id,
+                "original_name": f["original_name"],
+                "stored_name": f["stored_name"],
+                "file_path": f["file_path"],
+                "file_size": f.get("file_size", 0),
+                "file_type": f.get("file_type", ""),
+                "mime_type": f.get("mime_type", ""),
+            })
+            count += 1
+        return count

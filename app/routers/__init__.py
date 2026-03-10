@@ -296,6 +296,94 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- Form 作業類型擴展 ---
+        # assignments 表: assignment_type
+        cols = pool.execute("SHOW COLUMNS FROM assignments LIKE 'assignment_type'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE assignments "
+                "ADD COLUMN assignment_type ENUM('file_upload','form') DEFAULT 'file_upload' "
+                "COMMENT '作業類型' AFTER status"
+            )
+            logger.info("数据库迁移: assignments 表添加 assignment_type")
+
+        # --- Form 題目表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS assignment_questions (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                assignment_id   INT NOT NULL,
+                question_order  INT DEFAULT 0           COMMENT '題目排序',
+                question_type   ENUM('mc','short_answer','long_answer') NOT NULL,
+                question_text   TEXT NOT NULL,
+                max_points      DECIMAL(5,1) NOT NULL,
+                grading_notes   TEXT                     COMMENT '批改注意事項',
+                correct_answer  VARCHAR(10) DEFAULT NULL COMMENT 'MC 正確選項 key',
+                reference_answer TEXT DEFAULT NULL       COMMENT '短答/長答參考答案',
+                created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_question_assignment
+                    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,
+                INDEX idx_aq_assignment (assignment_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # --- MC 選項表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS assignment_question_options (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                question_id     INT NOT NULL,
+                option_key      VARCHAR(5) NOT NULL      COMMENT 'A/B/C/D/E',
+                option_text     TEXT NOT NULL,
+                CONSTRAINT fk_option_question
+                    FOREIGN KEY (question_id) REFERENCES assignment_questions(id) ON DELETE CASCADE,
+                UNIQUE KEY uk_question_option (question_id, option_key),
+                INDEX idx_aqo_question (question_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # --- 學生作答表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS submission_answers (
+                id                  INT AUTO_INCREMENT PRIMARY KEY,
+                submission_id       INT NOT NULL,
+                question_id         INT NOT NULL,
+                answer_text         TEXT                     COMMENT '學生作答',
+                is_correct          TINYINT(1) DEFAULT NULL  COMMENT 'MC 自動判定',
+                points              DECIMAL(5,1) DEFAULT NULL COMMENT '最終得分',
+                ai_points           DECIMAL(5,1) DEFAULT NULL COMMENT 'AI 建議分',
+                ai_feedback         TEXT                     COMMENT 'AI 批改反饋',
+                teacher_feedback    TEXT                     COMMENT '老師批改反饋',
+                score_source        ENUM('auto','ai','teacher') DEFAULT NULL COMMENT '分數來源',
+                graded_at           DATETIME DEFAULT NULL,
+                reviewed_at         DATETIME DEFAULT NULL    COMMENT '老師覆核時間',
+                created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                CONSTRAINT fk_answer_submission
+                    FOREIGN KEY (submission_id) REFERENCES assignment_submissions(id) ON DELETE CASCADE,
+                CONSTRAINT fk_answer_question
+                    FOREIGN KEY (question_id) REFERENCES assignment_questions(id) ON DELETE CASCADE,
+                UNIQUE KEY uk_sub_question (submission_id, question_id),
+                INDEX idx_sa_submission (submission_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # --- 作答附件表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS submission_answer_files (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                answer_id       INT NOT NULL              COMMENT 'submission_answers.id',
+                original_name   VARCHAR(500) NOT NULL,
+                stored_name     VARCHAR(500) NOT NULL,
+                file_path       VARCHAR(1000) NOT NULL,
+                file_size       BIGINT DEFAULT 0,
+                file_type       VARCHAR(50) DEFAULT '',
+                mime_type       VARCHAR(200) DEFAULT '',
+                uploaded_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_answer_file_answer
+                    FOREIGN KEY (answer_id) REFERENCES submission_answers(id) ON DELETE CASCADE,
+                INDEX idx_saf_answer (answer_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
         logger.info("数据库 schema 迁移完成 (含作業管理表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
