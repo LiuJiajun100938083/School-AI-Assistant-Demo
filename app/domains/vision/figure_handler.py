@@ -189,6 +189,20 @@ def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
         else:
             known_ids.add(oid)
 
+    # ── markers 層校驗 ──
+    allowed_marker_types = {"length_tick", "right_angle_box", "angle_arc"}
+    marker_ids = set()
+    for mk in fig_json.get("markers", []):
+        mk_id = mk.get("id", "")
+        if mk_id:
+            marker_ids.add(mk_id)
+        mk_type = mk.get("type", "")
+        if mk_type and mk_type not in allowed_marker_types:
+            warnings.append(f"marker type '{mk_type}' 不在允許值中")
+        attached = mk.get("attached_to", "")
+        if attached and attached not in known_ids:
+            warnings.append(f"marker attached_to '{attached}' 不在 objects 中")
+
     allowed_sources = {"figure", "question_text", "inferred"}
 
     for m in fig_json.get("measurements", []):

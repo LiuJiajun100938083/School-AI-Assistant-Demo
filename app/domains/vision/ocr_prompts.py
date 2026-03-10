@@ -120,6 +120,13 @@ Output in the following JSON format:
       {"id": "Poly_ABCD", "type": "polygon", "vertices": ["P_A", "P_B", "P_C", "P_D"]}
     ],
 
+    "markers": [
+      {"id": "mk1", "type": "length_tick", "tick_count": 1, "attached_to": "S_AD"},
+      {"id": "mk2", "type": "length_tick", "tick_count": 1, "attached_to": "S_BC"},
+      {"id": "mk3", "type": "right_angle_box", "attached_to": "Ang_ACB"},
+      {"id": "mk4", "type": "angle_arc", "arc_count": 1, "attached_to": "Ang_ABC"}
+    ],
+
     "measurements": [
       {"target": "S_AB", "property": "length", "value": "5cm", "source": "figure"},
       {"target": "Ang_ACB", "property": "degrees", "value": 90, "source": "question_text"},
@@ -128,7 +135,7 @@ Output in the following JSON format:
 
     "relationships": [
       {"type": "parallel", "entities": ["S_BC", "S_DE", "S_FG"], "source": "question_text"},
-      {"type": "perpendicular", "entities": ["S_AB", "S_CE"], "at": "P_E", "source": "figure"},
+      {"type": "perpendicular", "entities": ["S_AB", "S_CE"], "at": "P_E", "source": "figure", "evidence": ["mk3"]},
       {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"},
       {"type": "collinear", "points": ["P_A", "P_B", "P_D", "P_F"], "source": "figure"},
       {"type": "congruent", "entities": ["Tri_ABC", "Tri_DEF"], "source": "inferred"},
@@ -136,7 +143,7 @@ Output in the following JSON format:
       {"type": "tangent", "entities": ["L_1", "Cir_O"], "at": "P_T", "source": "figure"},
       {"type": "on_segment", "subject": "P_D", "target": "S_BC", "source": "question_text"},
       {"type": "bisector", "subject": "Ray_1", "target": "Ang_ACB", "source": "inferred"},
-      {"type": "equal", "items": [{"ref": "S_AB", "prop": "length"}, {"ref": "S_AC", "prop": "length"}], "source": "question_text"},
+      {"type": "equal", "items": [{"ref": "S_AD", "prop": "length"}, {"ref": "S_BC", "prop": "length"}], "source": "figure", "evidence": ["mk1", "mk2"]},
       {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
     ],
 
@@ -167,17 +174,28 @@ Output in the following JSON format:
 - ONLY transcribe text PHYSICALLY VISIBLE in the image.
 - NEVER solve the problem yourself. NEVER fabricate an answer.
 
-⚠️ RULES FOR "figure_description" — 4-LAYER STRUCTURED SCHEMA:
+⚠️ RULES FOR "figure_description" — 5-LAYER STRUCTURED SCHEMA:
 - You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
-- Use the 4-layer schema: objects → measurements → relationships → task.
+- Use the 5-layer schema: objects → markers → measurements → relationships → task.
+- The key insight: figure markings (tick marks, right-angle boxes, arc marks) must be detected first as visual primitives, then their ATTACHMENT to geometric objects determines semantic meaning.
 
 LAYER 1 — objects:
 - Every geometric entity gets a unique "id" using naming convention: P_ for points, S_ for segments, L_ for lines, Ray_ for rays, Ang_ for angles, Cir_ for circles, Tri_ for triangles, Poly_ for polygons.
 - ALL references in other layers MUST use object ids, NOT labels.
 
-LAYER 2 — measurements:
+LAYER 2 — markers (visual primitives on the figure):
+- Detect ALL geometric notation marks visible on the figure.
+- Each marker gets a unique "id" (mk1, mk2, ...).
+- "type" MUST be one of: "length_tick", "right_angle_box", "angle_arc".
+- "attached_to" MUST reference an object id from layer 1 — this is the object the marker is drawn on.
+- For length_tick: include "tick_count" (1, 2, or 3).
+- For angle_arc: include "arc_count" (1, 2, or 3).
+- For right_angle_box: no extra fields needed.
+- ⚠️ CRITICAL: correctly identify WHICH object each marker is attached to. A tick mark on segment AD is NOT the same as a tick mark on segment AM. Get the attachment right.
+
+LAYER 3 — measurements:
 - "target" references an object id from layer 1.
-- "source" indicates WHERE this measurement comes from. MUST be one of these THREE values ONLY:
+- "source" MUST be one of these THREE values ONLY:
   - "figure" — value is printed/typeset on the original diagram (NOT handwritten by student)
   - "question_text" — value is stated in the printed problem text
   - "inferred" — you deduced it from other information
@@ -186,37 +204,52 @@ LAYER 2 — measurements:
     - If that value is the student's own calculation (not given in the problem) → do NOT include it as a measurement. Put it in task.figure_annotations instead.
 - ⚠️ ONLY include measurements that are DIRECTLY stated in the problem or original printed figure.
 - "property" MUST be one of: "length", "degrees", "radius", "area", "perimeter". Do NOT use "ratio" as a property.
-- Do NOT create synthetic measurements derived from ratios. Example:
-  WRONG: DI:IJ = 3:2 → creating measurements {"target":"S_DI","property":"ratio","value":{"left":3,"right":2}}
-  WRONG: DI:IJ = 3:2 → creating measurements DI = 3k, IJ = 2k
-  RIGHT: DI:IJ = 3:2 → only use a "ratio" RELATIONSHIP: {"type":"ratio","items":[{"ref":"S_DI","prop":"length"},{"ref":"S_IJ","prop":"length"}],"value":{"left":3,"right":2},"source":"question_text"}
-  Ratios belong in RELATIONSHIPS, never in MEASUREMENTS.
+- Do NOT create synthetic measurements derived from ratios. Ratios belong in RELATIONSHIPS, never in MEASUREMENTS.
 
-LAYER 3 — relationships:
+LAYER 4 — relationships:
 - Use "entities" for symmetric relations (parallel, perpendicular, congruent, similar, tangent). Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "subject"+"target"/"of" for directed relations (midpoint, on_segment, bisector).
 - Use "points" for point-set relations (collinear).
 - Use "items" for equality comparisons (equal) and ratio comparisons (ratio). Ratio value should be structured: {"left": 3, "right": 2}.
 - EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred". No other values allowed.
+- Relationships derived from figure markers SHOULD include an "evidence" array referencing marker ids.
 - ⚠️ SOURCE ATTRIBUTION RULE — use the STRONGEST evidence source:
-  - If the problem text explicitly states a fact (e.g. "ABDF is a straight line"), source MUST be "question_text", even if the figure also shows it.
-  - Only use "figure" when a fact is SOLELY observable from the original printed diagram and NOT stated in the text.
-  - "inferred" is for facts you deduced that are neither stated in text nor clearly shown in the figure.
-  - NEVER use "student_answer" or any other value as source.
-- ⚠️ INFERENCE RESTRICTION — do NOT over-infer geometric relationships:
-  - Intersection ≠ midpoint. Two lines crossing at a point does NOT mean that point is the midpoint of either line.
-  - Only create "midpoint", "bisector", "equal", or "congruent" relationships with source "inferred" if they are LOGICALLY CERTAIN from the given conditions — not just because they "look like" it in the figure.
-  - If a relationship is not explicitly stated in the problem text and not clearly marked on the figure, do NOT infer it.
-  - When in doubt, do NOT add the relationship. Missing a relationship is ALWAYS better than adding a wrong one.
+  - If the problem text explicitly states a fact, source MUST be "question_text", even if the figure also shows it.
+  - Only use "figure" when a fact is SOLELY observable from the diagram and NOT stated in the text.
+  - "inferred" is for facts you deduced. NEVER use "student_answer".
 
-  ⚠️ GEOMETRIC NOTATION GUIDE — how to read figure markings correctly:
-  - **Equal-length tick marks** (single /, double //, triple ///): placed on TWO OR MORE segments means those segments are EQUAL in length. E.g. single tick on AD and single tick on BC → AD = BC (use "equal" relationship), NOT midpoint.
-  - **Midpoint**: indicated ONLY when the SAME tick marks appear on BOTH HALVES of a single segment. E.g. tick on AM and tick on MB on segment AB → M is midpoint of AB. If tick marks appear on two DIFFERENT segments (like AD and BC), it means AD = BC, NOT midpoint.
-  - **Right angle square** (⊾ or small square at a vertex): indicates 90° angle.
-  - **Arc marks** at angles: equal arc marks on two angles means those angles are equal.
-  - Do NOT confuse equal-length marks across different segments with midpoint marks on one segment.
+⚠️⚠️⚠️ DSE GEOMETRY SYMBOL SEMANTIC RULES ⚠️⚠️⚠️
+Relationships MUST be derived from markers using these rules. Do NOT skip this step.
 
-LAYER 4 — task:
+**RULE 1 — Equal Length (tick marks on DIFFERENT segments):**
+IF two or more segments have length_tick markers with the SAME tick_count
+AND these segments are DIFFERENT segments (not two halves of one segment)
+THEN → create "equal" relationship for those segments.
+Example: / on AD, / on BC → {"type": "equal", "items": [{"ref": "S_AD", "prop": "length"}, {"ref": "S_BC", "prop": "length"}], "source": "figure", "evidence": ["mk1", "mk2"]}
+
+**RULE 2 — Midpoint (tick marks on BOTH HALVES of ONE segment):**
+IF point M lies on segment AB (A, M, B are collinear)
+AND segment AM has a length_tick with tick_count N
+AND segment MB has a length_tick with the SAME tick_count N
+AND AM and MB are the two halves of parent segment AB
+THEN → create "midpoint" relationship: M is midpoint of AB.
+ALL THREE conditions must be met. If ANY is missing, do NOT infer midpoint.
+
+**RULE 3 — Right Angle (⊾ box at a vertex):**
+IF a right_angle_box is attached to an angle
+THEN → the angle = 90° AND the two arms are perpendicular.
+
+**RULE 4 — Equal Angles (arc marks with same count):**
+IF two or more angles have angle_arc markers with the SAME arc_count
+THEN → those angles are equal.
+
+**RULE 5 — DO NOT CONFUSE (hard negatives):**
+- ❌ Tick marks on AD and BC (different segments) → this is EQUAL LENGTH, NOT midpoint.
+- ❌ Two lines intersect at E → this is INTERSECTION, NOT midpoint. E is NOT the midpoint of either line unless Rule 2 is satisfied.
+- ❌ AM has / and MC has /, but A-M-C are NOT collinear → NOT midpoint (different parent segments).
+- ❌ A point on a segment without any tick marks on both halves → NOT midpoint.
+
+LAYER 5 — task:
 - "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
   WRONG: ["In the figure, ABDF and ACEG are straight lines, BC // DE // FG, FH = 12cm, DI:IJ = 3:2"]
   RIGHT: ["A、B、D、F 共線", "A、C、E、G 共線", "BC ∥ DE ∥ FG", "FH = 12 cm", "DI : IJ = 3 : 2"]
@@ -288,7 +321,7 @@ Before extracting ANY text, classify every piece of content:
 
 You have TWO jobs:
 1. **OCR (text extraction)** — transcribe the question (printed only) and student's solution (handwritten only) EXACTLY as shown.
-2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
+2. **Geometry description** — if any diagram/figure exists, describe it using the 5-layer structured schema below (objects → markers → measurements → relationships → task).
 
 Output in the following JSON format:
 {
@@ -305,6 +338,12 @@ Output in the following JSON format:
       {"id": "Tri_ABC", "type": "triangle", "vertices": ["P_A", "P_B", "P_C"]}
     ],
 
+    "markers": [
+      {"id": "mk1", "type": "length_tick", "tick_count": 1, "attached_to": "S_AD"},
+      {"id": "mk2", "type": "length_tick", "tick_count": 1, "attached_to": "S_BC"},
+      {"id": "mk3", "type": "right_angle_box", "attached_to": "Ang_ACB"}
+    ],
+
     "measurements": [
       {"target": "S_AB", "property": "length", "value": "5cm", "source": "figure"},
       {"target": "Ang_ACB", "property": "degrees", "value": 90, "source": "question_text"}
@@ -313,7 +352,8 @@ Output in the following JSON format:
     "relationships": [
       {"type": "parallel", "entities": ["S_BC", "S_DE", "S_FG"], "source": "question_text"},
       {"type": "collinear", "points": ["P_A", "P_B", "P_D", "P_F"], "source": "figure"},
-      {"type": "midpoint", "subject": "P_O", "of": "S_AB", "source": "question_text"},
+      {"type": "equal", "items": [{"ref": "S_AD", "prop": "length"}, {"ref": "S_BC", "prop": "length"}], "source": "figure", "evidence": ["mk1", "mk2"]},
+      {"type": "perpendicular", "entities": ["S_AC", "S_CB"], "at": "P_C", "source": "figure", "evidence": ["mk3"]},
       {"type": "ratio", "items": [{"ref": "S_DI", "prop": "length"}, {"ref": "S_IJ", "prop": "length"}], "value": {"left": 3, "right": 2}, "source": "question_text"}
     ],
 
@@ -347,16 +387,29 @@ Output in the following JSON format:
 - If the student has NOT written any solution, set "answer" = "", "steps" = [], "final_answer" = "".
 - NEVER solve the problem yourself. NEVER fabricate solution steps.
 
-⚠️ RULES FOR "figure_description" — 4-LAYER STRUCTURED SCHEMA:
+⚠️ RULES FOR "figure_description" — 5-LAYER STRUCTURED SCHEMA:
 - You ARE allowed to analyze and interpret the figure — this is NOT pure OCR.
-- Use the 4-layer schema: objects → measurements → relationships → task.
+- Use the 5-layer schema: objects → markers → measurements → relationships → task.
 - Every object gets a unique "id" (P_ for points, S_ for segments, etc.).
 - ALL references in measurements/relationships MUST use object ids, NOT labels.
-- Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred". No other values allowed (NEVER use "student_answer").
-- SOURCE RULE: if the problem text explicitly states a fact, source = "question_text", even if the figure also shows it. Only use "figure" for facts solely observable from the original printed diagram.
-- If a student handwrote calculated values on the figure (not given in the problem), do NOT create measurements for them — put them in task.figure_annotations instead.
-- ⚠️ INFERENCE RESTRICTION: do NOT over-infer relationships. Intersection ≠ midpoint. Only infer "midpoint"/"bisector"/"equal"/"congruent" if logically certain from given conditions, not from visual appearance. When in doubt, do NOT add it.
-- ⚠️ GEOMETRIC NOTATION: Equal tick marks on two DIFFERENT segments (e.g. AD and BC) means AD = BC (equal), NOT midpoint. Midpoint is only when both HALVES of ONE segment have the same tick marks. Do NOT confuse these.
+- Detect ALL geometric notation marks (tick marks, right-angle boxes, arc marks) as "markers", then derive relationships from them.
+
+MARKERS LAYER:
+- Each marker gets a unique "id" (mk1, mk2, ...).
+- "type": "length_tick" | "right_angle_box" | "angle_arc".
+- "attached_to": the object id the marker is drawn on.
+- For length_tick: include "tick_count" (1/2/3). For angle_arc: include "arc_count" (1/2/3).
+
+DSE SYMBOL SEMANTIC RULES (derive relationships from markers):
+- Rule 1 — EQUAL LENGTH: same tick_count on DIFFERENT segments → "equal" relationship + "evidence" referencing marker ids.
+- Rule 2 — MIDPOINT: same tick_count on BOTH HALVES of ONE segment (AM and MB, with A-M-B collinear) → "midpoint". ALL three conditions required.
+- Rule 3 — RIGHT ANGLE: right_angle_box on an angle → 90° + perpendicular.
+- Rule 4 — EQUAL ANGLE: same arc_count on different angles → angles are equal.
+- Rule 5 — DO NOT CONFUSE: tick marks on AD and BC (different segments) = equal length, NOT midpoint. Intersection ≠ midpoint.
+
+- Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred". NEVER use "student_answer".
+- SOURCE RULE: if the problem text explicitly states a fact, source = "question_text". Only use "figure" for facts solely from the printed diagram.
+- If a student handwrote calculated values on the figure, put them in task.figure_annotations, NOT measurements.
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
 - Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
