@@ -189,6 +189,12 @@ const AssignmentAPI = {
         if (resp.status === 401) { window.location.href = '/'; return null; }
         return resp.json();
     },
+    async submitExam(assignmentId, answers) {
+        return this._call(`/api/assignments/${assignmentId}/submit-exam`, {
+            method: 'POST',
+            body: JSON.stringify({ answers }),
+        });
+    },
     async aiGradeForm(submissionId) {
         return this._call(`/api/assignments/teacher/submissions/${submissionId}/ai-grade-form`, { method: 'POST' });
     },
@@ -1837,6 +1843,12 @@ const AssignmentApp = {
         this.state.role = role;
         this.state.view = localStorage.getItem('asg_view') || 'list';
 
+        // Restore sidebar collapsed state
+        if (localStorage.getItem('asg_sidebar_collapsed') === '1') {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) sidebar.classList.add('collapsed');
+        }
+
         if (role === 'teacher' || role === 'admin') {
             this.showTeacherList();
         } else {
@@ -2005,9 +2017,15 @@ const AssignmentApp = {
     toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
-        const isOpen = sidebar.classList.contains('open');
-        sidebar.classList.toggle('open', !isOpen);
-        overlay.classList.toggle('active', !isOpen);
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            const isOpen = sidebar.classList.contains('open');
+            sidebar.classList.toggle('open', !isOpen);
+            overlay.classList.toggle('active', !isOpen);
+        } else {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('asg_sidebar_collapsed', sidebar.classList.contains('collapsed') ? '1' : '');
+        }
     },
 
     setView(v) {
@@ -4734,14 +4752,16 @@ const AssignmentApp = {
         const sub = asg.my_submission;
 
         const isForm = asg.assignment_type === 'form';
+        const isExam = asg.assignment_type === 'exam';
+        const hasQuestions = isForm || isExam;
 
         this.setBreadcrumb([
             { label: '我的作業', action: 'AssignmentApp.showStudentList()' },
             { label: asg.title }
         ]);
 
-        // For form type, only show submit button for file_upload type
-        if (isForm) {
+        // For form/exam type, hide file upload button
+        if (hasQuestions) {
             this.setHeaderActions('');
         } else {
             this.setHeaderActions(
@@ -4751,6 +4771,7 @@ const AssignmentApp = {
         }
 
         const deadlineWarn = !sub ? AssignmentUI.deadlineWarning(asg.deadline) : '';
+        const questionsForCount = (asg.questions || []).filter(q => q.question_type !== 'passage');
         let html = `<div class="detail-hero fade-in">
             <h3 style="margin:0;">${asg.title}</h3>
             ${asg.description ? `<p style="color:var(--text-secondary);margin-top:6px;font-size:14px;">${asg.description}</p>` : ''}
@@ -4767,12 +4788,12 @@ const AssignmentApp = {
                     <div class="stat-icon">${AssignmentUI.ICON.clock}</div>
                     <div><div class="stat-value">${AssignmentUI.formatDate(asg.deadline)} ${deadlineWarn}</div><div class="stat-label">截止日</div></div>
                 </div>
-                ${!isForm ? `<div class="stat-card">
+                ${!hasQuestions ? `<div class="stat-card">
                     <div class="stat-icon">${AssignmentUI.ICON.clip}</div>
                     <div><div class="stat-value">最多 ${asg.max_files || 5} 個</div><div class="stat-label">文件限制</div></div>
                 </div>` : `<div class="stat-card">
                     <div class="stat-icon">📝</div>
-                    <div><div class="stat-value">${(asg.questions || []).length} 題</div><div class="stat-label">題目數</div></div>
+                    <div><div class="stat-value">${questionsForCount.length} 題</div><div class="stat-label">題目數</div></div>
                 </div>`}
             </div>
         </div>`;
@@ -4800,6 +4821,43 @@ const AssignmentApp = {
             }
             main.innerHTML = html;
             if (!sub) FormStudentView._updateProgress();
+            return;
+        }
+
+        // ---- Exam type: student exam view ----
+        if (isExam) {
+            const questions = asg.questions || [];
+            const deadlineDt = asg.deadline ? new Date(asg.deadline) : null;
+            const canEdit = !deadlineDt || deadlineDt > new Date() || asg.allow_late;
+            const isGraded = sub && (sub.status === 'graded' || sub.score != null);
+
+            if (sub && !(canEdit && !isGraded && ExamStudentView._editMode)) {
+                // Show submitted view
+                html += `<div class="form-section">
+                    <h3>我的作答 ${AssignmentUI.badge(sub.status)}</h3>
+                    <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">
+                        提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
+                        ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
+                    </div>
+                    ${sub.score != null ? `<div class="student-score-hero"><div class="score-big">${sub.score}</div><div class="score-max">/ ${asg.max_score || '—'}</div></div>` : ''}
+                    ${canEdit && !isGraded ? `<button class="btn btn-outline" style="margin-top:8px;" onclick="ExamStudentView._editMode=true;AssignmentApp.viewStudentAssignment(${id})">修改作答</button>` : ''}
+                </div>
+                <div class="form-section">
+                    ${ExamStudentView.renderSubmittedView(questions, sub.answers || [])}
+                </div>`;
+                main.innerHTML = html;
+            } else {
+                // Render editable form (new or editing existing)
+                if (sub && ExamStudentView._editMode) {
+                    // Pre-fill drafts from existing answers
+                    ExamStudentView._prefillFromAnswers(id, questions, sub.answers || []);
+                }
+                ExamStudentView._currentQuestions = questions;
+                html += `<div class="form-section">${ExamStudentView.renderForm(id, questions)}</div>`;
+                main.innerHTML = html;
+                ExamStudentView._updateProgress();
+                _initAutoGrow(main);
+            }
             return;
         }
 
@@ -6392,6 +6450,296 @@ const FormStudentView = {
             </div>`;
         });
 
+        return html;
+    }
+};
+
+/* ============================================================
+   ExamStudentView — 學生試卷作答視圖
+   ============================================================ */
+function _autoGrowTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+}
+function _initAutoGrow(container) {
+    (container || document).querySelectorAll('textarea[data-autogrow]').forEach(el => {
+        _autoGrowTextarea(el);
+        el._agBound || (el.addEventListener('input', () => _autoGrowTextarea(el)), el._agBound = true);
+    });
+}
+
+const ExamStudentView = {
+    _currentQuestions: [],
+    _draftTimer: null,
+    _editMode: false,
+
+    _draftKey(assignmentId) {
+        const user = window.AuthModule?.getUser?.()?.username || '';
+        return `exam_draft_${assignmentId}_${user}`;
+    },
+    _saveDraft(assignmentId) {
+        try {
+            const questions = this._currentQuestions || [];
+            const data = {};
+            questions.forEach(q => {
+                if (q.question_type === 'passage') return;
+                if (q.question_type === 'fill_blank') {
+                    const blanks = q.metadata?.blanks || [];
+                    const vals = {};
+                    blanks.forEach(b => {
+                        const el = document.getElementById(`esv_blank_${q.id}_${b.id}`);
+                        if (el) vals[b.id] = el.value || '';
+                    });
+                    data[q.id] = JSON.stringify(vals);
+                } else {
+                    const el = document.getElementById(`esv_answer_${q.id}`);
+                    data[q.id] = el ? el.value : '';
+                }
+            });
+            localStorage.setItem(this._draftKey(assignmentId), JSON.stringify(data));
+        } catch (e) { /* ignore */ }
+    },
+    _loadDraft(assignmentId) {
+        try {
+            const raw = localStorage.getItem(this._draftKey(assignmentId));
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) { return null; }
+    },
+    _clearDraft(assignmentId) {
+        try { localStorage.removeItem(this._draftKey(assignmentId)); } catch (e) {}
+    },
+    _prefillFromAnswers(assignmentId, questions, answers) {
+        // Convert existing answers into draft format so the form pre-fills
+        const answerMap = {};
+        (answers || []).forEach(a => { answerMap[a.question_id] = a; });
+        const data = {};
+        questions.forEach(q => {
+            if (q.question_type === 'passage') return;
+            const a = answerMap[q.id];
+            data[q.id] = a ? (a.answer_text || '') : '';
+        });
+        localStorage.setItem(this._draftKey(assignmentId), JSON.stringify(data));
+    },
+
+    renderForm(assignmentId, questions) {
+        const drafts = this._loadDraft(assignmentId) || {};
+        const answerable = questions.filter(q => q.question_type !== 'passage');
+        let questionIdx = 0;
+
+        let html = `<div class="fsv-progress-bar">
+            <div class="fsv-progress-fill" id="esvProgressFill" style="width:0%"></div>
+        </div>
+        <div class="fsv-progress-text" id="esvProgressText">已填 0 / ${answerable.length} 題</div>`;
+
+        questions.forEach((q) => {
+            if (q.question_type === 'passage') {
+                // Passage: read-only reference material
+                html += `<div class="esv-passage">
+                    <div class="esv-passage-badge">資料</div>
+                    <div class="esv-passage-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                </div>`;
+                return;
+            }
+
+            questionIdx++;
+            const typeLabels = {
+                'open': '問答題', 'fill_blank': '填空題',
+                'multiple_choice': '選擇題', 'true_false': '是非題'
+            };
+            const typeLabel = typeLabels[q.question_type] || '題目';
+
+            let inputHtml = '';
+            if (q.question_type === 'fill_blank') {
+                const blanks = q.metadata?.blanks || [];
+                const mode = q.metadata?.blank_mode || 'inline';
+                let draftVals = {};
+                try { draftVals = JSON.parse(drafts[q.id] || '{}'); } catch (e) {}
+
+                inputHtml = `<div class="esv-blanks ${mode === 'section' ? 'esv-blanks-section' : ''}">`;
+                blanks.forEach(b => {
+                    inputHtml += `<div class="esv-blank-item">
+                        <label class="esv-blank-label">${AssignmentApp._escapeHtml(b.label)}</label>
+                        <span class="esv-blank-pts">${b.points} 分</span>
+                        ${mode === 'section'
+                            ? `<textarea id="esv_blank_${q.id}_${b.id}" class="esv-blank-input esv-blank-textarea"
+                                rows="2" data-autogrow placeholder="作答..."
+                                oninput="ExamStudentView._onInput(${assignmentId}, event)">${draftVals[b.id] || ''}</textarea>`
+                            : `<input type="text" id="esv_blank_${q.id}_${b.id}" class="esv-blank-input"
+                                placeholder="填寫答案" value="${AssignmentApp._escapeHtml(draftVals[b.id] || '')}"
+                                oninput="ExamStudentView._onInput(${assignmentId}, event)">`
+                        }
+                    </div>`;
+                });
+                inputHtml += '</div>';
+            } else {
+                // open / other types
+                const draft = drafts[q.id] || '';
+                inputHtml = `<textarea id="esv_answer_${q.id}" class="fsv-text-input" rows="3" data-autogrow
+                    placeholder="詳細作答..."
+                    oninput="ExamStudentView._onInput(${assignmentId}, event)">${draft}</textarea>`;
+            }
+
+            html += `<div class="fsv-question" id="esvQ_${q.id}">
+                <div class="fsv-q-header">
+                    <span class="fsv-q-number">${questionIdx}</span>
+                    <span class="fsv-q-type">${typeLabel}</span>
+                    <span class="fsv-q-points">${q.points || 0} 分</span>
+                </div>
+                <div class="fsv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                ${inputHtml}
+            </div>`;
+        });
+
+        html += `<div class="fsv-submit-area">
+            <button class="btn btn-primary btn-lg" id="esvSubmitBtn" onclick="ExamStudentView._submit(${assignmentId})">
+                提交作業
+            </button>
+        </div>`;
+        return html;
+    },
+
+    _onInput(assignmentId, evt) {
+        if (evt?.target?.hasAttribute('data-autogrow')) _autoGrowTextarea(evt.target);
+        this._updateProgress();
+        clearTimeout(this._draftTimer);
+        this._draftTimer = setTimeout(() => this._saveDraft(assignmentId), 500);
+    },
+
+    _updateProgress() {
+        const questions = this._currentQuestions || [];
+        const answerable = questions.filter(q => q.question_type !== 'passage');
+        let filled = 0;
+        answerable.forEach(q => {
+            if (q.question_type === 'fill_blank') {
+                const blanks = q.metadata?.blanks || [];
+                const anyFilled = blanks.some(b => {
+                    const el = document.getElementById(`esv_blank_${q.id}_${b.id}`);
+                    return el && el.value.trim();
+                });
+                if (anyFilled) filled++;
+            } else {
+                const el = document.getElementById(`esv_answer_${q.id}`);
+                if (el && el.value.trim()) filled++;
+            }
+        });
+        const pct = answerable.length > 0 ? Math.round(filled / answerable.length * 100) : 0;
+        const fill = document.getElementById('esvProgressFill');
+        const text = document.getElementById('esvProgressText');
+        if (fill) fill.style.width = pct + '%';
+        if (text) text.textContent = `已填 ${filled} / ${answerable.length} 題`;
+    },
+
+    async _submit(assignmentId) {
+        const questions = this._currentQuestions || [];
+        const answerable = questions.filter(q => q.question_type !== 'passage');
+        const unanswered = [];
+        const answers = [];
+
+        answerable.forEach((q, i) => {
+            let answerText = '';
+            if (q.question_type === 'fill_blank') {
+                const blanks = q.metadata?.blanks || [];
+                const vals = {};
+                blanks.forEach(b => {
+                    const el = document.getElementById(`esv_blank_${q.id}_${b.id}`);
+                    vals[b.id] = el ? el.value.trim() : '';
+                });
+                answerText = JSON.stringify(vals);
+                const anyFilled = Object.values(vals).some(v => v);
+                if (!anyFilled) unanswered.push(i + 1);
+            } else {
+                const el = document.getElementById(`esv_answer_${q.id}`);
+                answerText = el ? el.value.trim() : '';
+                if (!answerText) unanswered.push(i + 1);
+            }
+            answers.push({ question_id: q.id, answer_text: answerText });
+        });
+
+        if (unanswered.length > 0) {
+            if (!confirm(`有 ${unanswered.length} 題未作答（題 ${unanswered.join(', ')}），確定提交嗎？\n\n截止前可重新修改。`)) return;
+        } else {
+            if (!confirm('確定提交？截止前可重新修改。')) return;
+        }
+
+        const btn = document.getElementById('esvSubmitBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 提交中...'; }
+
+        const resp = await AssignmentAPI.submitExam(assignmentId, answers);
+        if (resp?.success) {
+            this._clearDraft(assignmentId);
+            this._editMode = false;
+            UIModule.toast('提交成功', 'success');
+            AssignmentApp.viewStudentAssignment(assignmentId);
+        } else {
+            UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            if (btn) { btn.disabled = false; btn.textContent = '提交作業'; }
+        }
+    },
+
+    renderSubmittedView(questions, answers) {
+        const answerMap = {};
+        (answers || []).forEach(a => { answerMap[a.question_id] = a; });
+
+        let html = '';
+        let questionIdx = 0;
+        questions.forEach((q) => {
+            if (q.question_type === 'passage') {
+                html += `<div class="esv-passage esv-passage-submitted">
+                    <div class="esv-passage-badge">資料</div>
+                    <div class="esv-passage-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                </div>`;
+                return;
+            }
+
+            questionIdx++;
+            const a = answerMap[q.id] || {};
+            const typeLabels = {
+                'open': '問答題', 'fill_blank': '填空題',
+                'multiple_choice': '選擇題', 'true_false': '是非題'
+            };
+            const typeLabel = typeLabels[q.question_type] || '題目';
+
+            let answerHtml = '';
+            if (q.question_type === 'fill_blank') {
+                const blanks = q.metadata?.blanks || [];
+                let vals = {};
+                try { vals = JSON.parse(a.answer_text || '{}'); } catch (e) {}
+                answerHtml = '<div class="esv-blanks-submitted">';
+                blanks.forEach(b => {
+                    const v = vals[b.id] || '(未作答)';
+                    answerHtml += `<div class="esv-blank-submitted-item">
+                        <span class="esv-blank-label">${AssignmentApp._escapeHtml(b.label)}</span>
+                        <span class="esv-blank-pts">${b.points} 分</span>
+                        <div class="fsv-submitted-answer">${AssignmentApp._escapeHtml(v)}</div>
+                    </div>`;
+                });
+                answerHtml += '</div>';
+            } else {
+                answerHtml = `<div class="fsv-submitted-answer">${AssignmentApp._escapeHtml(a.answer_text || '(未作答)')}</div>`;
+            }
+
+            let scoreHtml = '';
+            if (a.score_source) {
+                const srcLabel = a.score_source === 'auto' ? '自動' : a.score_source === 'ai' ? 'AI' : '老師';
+                scoreHtml = `<div class="fsv-q-score">${a.points != null ? a.points : '—'} / ${q.points || 0} <span class="fsv-score-source">${srcLabel}</span></div>`;
+                if (a.ai_feedback || a.teacher_feedback) {
+                    scoreHtml += `<div class="fsv-feedback">${AssignmentApp._escapeHtml(a.teacher_feedback || a.ai_feedback || '')}</div>`;
+                }
+            } else {
+                scoreHtml = '<div class="fsv-q-score pending">待批改</div>';
+            }
+
+            html += `<div class="fsv-question fsv-submitted">
+                <div class="fsv-q-header">
+                    <span class="fsv-q-number">${questionIdx}</span>
+                    <span class="fsv-q-type">${typeLabel}</span>
+                    <span class="fsv-q-points">${q.points || 0} 分</span>
+                </div>
+                <div class="fsv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                ${answerHtml}
+                ${scoreHtml}
+            </div>`;
+        });
         return html;
     }
 };

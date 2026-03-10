@@ -409,6 +409,13 @@ class SubmissionAnswerRepository(BaseRepository):
             ids.append(aid)
         return ids
 
+    def delete_by_submission(self, submission_id: int) -> int:
+        """刪除某提交的所有作答"""
+        return self.delete(
+            where="submission_id = %s",
+            params=(submission_id,),
+        )
+
     def update_score(self, answer_id: int, data: Dict[str, Any]) -> int:
         return self.update(
             data=data,

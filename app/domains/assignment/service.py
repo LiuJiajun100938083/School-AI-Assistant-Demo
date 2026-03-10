@@ -166,6 +166,9 @@ class AssignmentService:
             if not questions:
                 raise ValidationError("Form 類型作業至少需要 1 道題目", field="questions")
             max_score = sum(q.get("max_points", 0) for q in questions)
+        elif assignment_type == AssignmentType.EXAM:
+            # Exam 類型：max_score 在保存題目時由 save_assignment_questions 計算
+            max_score = 0
         else:
             max_score = self._calc_max_score(rubric_type, rubric_items, rubric_config)
 
@@ -981,10 +984,16 @@ class AssignmentService:
         assignment["rubric_items"] = self._rubric_repo.find_by_assignment(assignment_id)
 
         # Form 類型：附帶題目（不含正確答案和參考答案）
-        is_form = (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM
+        asg_type = assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD
+        is_form = asg_type == AssignmentType.FORM
+        is_exam = asg_type == AssignmentType.EXAM
         if is_form:
             assignment["questions"] = self.get_form_questions(
                 assignment_id, include_answers=False
+            )
+        elif is_exam:
+            assignment["questions"] = self.get_assignment_questions_for_student(
+                assignment_id
             )
 
         # 附件
@@ -1007,6 +1016,10 @@ class AssignmentService:
         if submission:
             submission["files"] = self._file_repo.find_by_submission(submission["id"])
             submission["rubric_scores"] = self._score_repo.find_by_submission(submission["id"])
+            # Exam 類型：附帶作答詳情
+            if is_exam and self._answer_repo:
+                answers = self._answer_repo.find_by_submission(submission["id"])
+                submission["answers"] = answers or []
             # Form 類型：附帶作答詳情
             if is_form and self._answer_repo:
                 answers = self._answer_repo.find_by_submission(submission["id"])
@@ -2025,6 +2038,103 @@ class AssignmentService:
                      student.get("username"), assignment_id, submission_id)
         return self.get_submission_detail(submission_id)
 
+    async def submit_exam_answers(
+        self,
+        assignment_id: int,
+        student: Dict,
+        answers: List[Dict],
+    ) -> Dict[str, Any]:
+        """學生提交 Exam 類型作業 (試卷題目作答)"""
+        assignment = self._get_assignment_or_raise(assignment_id)
+
+        if (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) != AssignmentType.EXAM:
+            raise ValidationError("此作業不是 Exam 類型")
+        if assignment["status"] != "published":
+            raise AssignmentNotPublishedError()
+
+        # 截止時間
+        if assignment.get("deadline"):
+            deadline = assignment["deadline"]
+            if isinstance(deadline, str):
+                deadline = datetime.fromisoformat(deadline)
+            if datetime.now() > deadline and not assignment.get("allow_late"):
+                raise DeadlinePassedError()
+
+        is_late = False
+        if assignment.get("deadline"):
+            deadline = assignment["deadline"]
+            if isinstance(deadline, str):
+                deadline = datetime.fromisoformat(deadline)
+            is_late = datetime.now() > deadline
+
+        student_id = student.get("id") or student.get("user_id")
+        existing = self._submission_repo.find_by_assignment_student(assignment_id, student_id)
+
+        # 獲取試卷題目
+        questions = self.get_assignment_questions(assignment_id)
+        if not questions:
+            raise ValidationError("此作業沒有題目")
+
+        q_map = {q["id"]: q for q in questions}
+        # 排除 passage 類型 (不需作答)
+        answerable_ids = {
+            q["id"] for q in questions
+            if q.get("question_type") != "passage"
+        }
+
+        if existing:
+            # 更新現有提交 (截止前可重複提交)
+            submission_id = existing["id"]
+            self._submission_repo.update(
+                data={
+                    "status": "submitted",
+                    "is_late": is_late,
+                    "score": None,
+                    "feedback": None,
+                    "graded_by": None,
+                    "graded_at": None,
+                    "submitted_at": datetime.now(),
+                    "updated_at": datetime.now(),
+                },
+                where="id = %s",
+                params=(submission_id,),
+            )
+            # 刪除舊作答
+            if self._answer_repo:
+                self._answer_repo.delete_by_submission(submission_id)
+        else:
+            # 創建新提交
+            submission_id = self._submission_repo.insert_get_id({
+                "assignment_id": assignment_id,
+                "student_id": student_id,
+                "student_name": student.get("display_name") or student.get("username", ""),
+                "username": student.get("username", ""),
+                "class_name": student.get("class_name", ""),
+                "content": "",
+                "status": "submitted",
+                "is_late": is_late,
+                "submitted_at": datetime.now(),
+            })
+
+        # 寫入作答記錄
+        answer_records = []
+        for ans in answers:
+            q_id = ans.get("question_id")
+            if q_id not in answerable_ids:
+                continue
+            record = {
+                "question_id": q_id,
+                "answer_text": ans.get("answer_text", ""),
+            }
+            answer_records.append(record)
+
+        if self._answer_repo and answer_records:
+            self._answer_repo.batch_insert(submission_id, answer_records)
+
+        logger.info("學生 %s 提交了 Exam 作業 #%d (submission_id=%d)",
+                     student.get("username"), assignment_id, submission_id)
+        return self.get_submission_detail(submission_id)
+
     async def _save_answer_file(self, answer_id: int, file: UploadFile) -> Dict[str, Any]:
         """保存作答附件"""
         original_name = file.filename or "unnamed"
@@ -2508,10 +2618,15 @@ class AssignmentService:
                         metadata_str,
                     ),
                 )
-            # 更新 assignment 的 updated_at
+            # Exam 類型：更新 max_score = 非 passage 題目 points 之和
+            total_points = sum(
+                float(q.get("points") or 0)
+                for q in questions
+                if q.get("question_type") != "passage"
+            )
             cursor.execute(
-                "UPDATE assignments SET updated_at = %s WHERE id = %s",
-                (datetime.now(), assignment_id),
+                "UPDATE assignments SET updated_at = %s, max_score = %s WHERE id = %s",
+                (datetime.now(), total_points, assignment_id),
             )
 
         logger.info("作業 #%d 保存了 %d 道題目", assignment_id, len(questions))

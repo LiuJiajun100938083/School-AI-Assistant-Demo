@@ -20,7 +20,8 @@ from pydantic import BaseModel, Field, validator
 class AssignmentType:
     FILE_UPLOAD = "file_upload"
     FORM = "form"
-    ALL = {FILE_UPLOAD, FORM}
+    EXAM = "exam"
+    ALL = {FILE_UPLOAD, FORM, EXAM}
 
 
 class ScoreSource:
@@ -70,7 +71,7 @@ class CreateAssignmentRequest(BaseModel):
     rubric_type: str = Field(default="points", description="評分類型")
     rubric_config: Optional[Dict[str, Any]] = Field(default=None, description="類型配置")
     rubric_items: List[RubricItemInput] = Field(default=[], description="評分標準項目")
-    questions: Optional[List["QuestionInput"]] = Field(default=None, description="試卷識別題目")
+    questions: Optional[List["ExamQuestionInput"]] = Field(default=None, description="試卷識別題目")
 
 
 class UpdateAssignmentRequest(BaseModel):
@@ -85,7 +86,7 @@ class UpdateAssignmentRequest(BaseModel):
     rubric_type: Optional[str] = None
     rubric_config: Optional[Dict[str, Any]] = None
     rubric_items: Optional[List[RubricItemInput]] = None
-    questions: Optional[List["QuestionInput"]] = Field(default=None, description="試卷識別題目")
+    questions: Optional[List["ExamQuestionInput"]] = Field(default=None, description="試卷識別題目")
 
 
 # ================================================================
@@ -120,7 +121,7 @@ class BlankItem(BaseModel):
     answer: str = Field(default="", description="預期答案")
 
 
-class QuestionInput(BaseModel):
+class ExamQuestionInput(BaseModel):
     """單道題目輸入 (OCR 識別或手動添加)"""
     question_number: str = Field(default="", max_length=20)
     question_text: str = Field(..., min_length=1)

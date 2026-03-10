@@ -30,6 +30,7 @@ from app.core.dependencies import get_current_user, require_teacher
 from app.core.responses import error_response, paginated_response, success_response
 from app.domains.assignment.schemas import (
     CreateAssignmentRequest,
+    ExamQuestionInput,
     GradeFormAnswerRequest,
     GradeSubmissionRequest,
     QuestionInput,
@@ -767,6 +768,27 @@ async def submit_form(
         student=current_user,
         answers=answers_data,
         files_by_question=files_by_question if files_by_question else None,
+    )
+    return success_response(data=result, message="提交成功")
+
+
+@router.post("/api/assignments/{assignment_id}/submit-exam")
+async def submit_exam(
+    assignment_id: int,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """學生提交 Exam 作業（JSON body: {answers: [{question_id, answer_text}]}）"""
+    import json as _json
+
+    services = get_services()
+    body = await request.json()
+    answers_data = body.get("answers", [])
+
+    result = await services.assignment.submit_exam_answers(
+        assignment_id=assignment_id,
+        student=current_user,
+        answers=answers_data,
     )
     return success_response(data=result, message="提交成功")
 
@@ -1768,7 +1790,7 @@ async def get_assignment_questions(
 @router.put("/api/assignments/teacher/{assignment_id}/questions")
 async def save_assignment_questions(
     assignment_id: int,
-    questions: List[QuestionInput],
+    questions: List[ExamQuestionInput],
     teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     """保存/更新作業題目 (事務化)"""

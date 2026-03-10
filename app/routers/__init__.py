@@ -206,6 +206,16 @@ def _run_schema_migrations() -> None:
             )
             logger.info("数据库迁移: assignments 表添加 rubric_type, rubric_config")
 
+        # assignments 表: assignment_type
+        cols = pool.execute("SHOW COLUMNS FROM assignments LIKE 'assignment_type'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE assignments "
+                "ADD COLUMN assignment_type VARCHAR(20) DEFAULT 'file_upload' "
+                "COMMENT '作業類型: file_upload/form/exam' AFTER description"
+            )
+            logger.info("数据库迁移: assignments 表添加 assignment_type")
+
         # assignment_rubric_items 表: level_definitions, weight
         cols = pool.execute("SHOW COLUMNS FROM assignment_rubric_items LIKE 'level_definitions'")
         if not cols:
@@ -346,7 +356,7 @@ def _run_schema_migrations() -> None:
                 question_order           INT DEFAULT 0                  COMMENT '排序',
                 question_number          VARCHAR(20) DEFAULT ''         COMMENT '原始題號',
                 question_text            TEXT NOT NULL                  COMMENT '題目內容',
-                answer_text              TEXT DEFAULT ''                COMMENT '參考答案',
+                answer_text              TEXT                           COMMENT '參考答案',
                 answer_source            VARCHAR(20) DEFAULT 'missing'  COMMENT 'extracted/inferred/missing/manual',
                 points                   DECIMAL(5,1) DEFAULT NULL      COMMENT '分值',
                 question_type            VARCHAR(50) DEFAULT 'open'     COMMENT '題型',
