@@ -1781,6 +1781,30 @@ const AssignmentUI = {
     _renderMd(text) {
         if (!text) return '';
         let html = this._escapeHtml(text);
+
+        // ---- Markdown 表格 ----
+        // 匹配連續的 | ... | 行（至少 2 行：表頭 + 分隔線 + 數據行）
+        html = html.replace(/((?:^|\n)\|.+\|(?:\n\|.+\|)+)/g, (block) => {
+            const lines = block.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) return block;
+            // 過濾掉分隔線 |---|---|
+            const dataLines = lines.filter(l => !/^\|[\s\-:]+\|$/.test(l.trim()));
+            if (dataLines.length < 1) return block;
+            let table = '<table class="md-table"><thead><tr>';
+            // 第一行作為表頭
+            const headerCells = dataLines[0].split('|').filter(c => c.trim() !== '');
+            headerCells.forEach(c => { table += `<th>${c.trim()}</th>`; });
+            table += '</tr></thead><tbody>';
+            for (let i = 1; i < dataLines.length; i++) {
+                const cells = dataLines[i].split('|').filter(c => c.trim() !== '');
+                table += '<tr>';
+                cells.forEach(c => { table += `<td>${c.trim()}</td>`; });
+                table += '</tr>';
+            }
+            table += '</tbody></table>';
+            return table;
+        });
+
         // 粗體 **text** 或 __text__
         html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
@@ -1803,6 +1827,9 @@ const AssignmentUI = {
         html = html.replace(/<br><li>/g, '<li>');
         html = html.replace(/<br><\/ul>/g, '</ul>');
         html = html.replace(/<br><ul/g, '<ul');
+        // 清理表格周圍的 <br>
+        html = html.replace(/<br><table/g, '<table');
+        html = html.replace(/<\/table><br>/g, '</table>');
         return html;
     }
 };
@@ -6643,10 +6670,10 @@ const ExamStudentView = {
 
         questions.forEach((q) => {
             if (q.question_type === 'passage') {
-                // Passage: read-only reference material
+                // Passage: read-only reference material (支持 markdown 表格)
                 html += `<div class="esv-passage">
                     <div class="esv-passage-badge">資料</div>
-                    <div class="esv-passage-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                    <div class="esv-passage-text">${AssignmentApp._renderMd(q.question_text)}</div>
                 </div>`;
                 return;
             }
@@ -6735,7 +6762,7 @@ const ExamStudentView = {
                     <span class="fsv-q-type">${typeLabel}</span>
                     <span class="fsv-q-points">${q.points || 0} 分</span>
                 </div>
-                <div class="fsv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                <div class="fsv-q-text">${AssignmentApp._renderMd(q.question_text)}</div>
                 ${inputHtml}
             </div>`;
         });
@@ -6836,7 +6863,7 @@ const ExamStudentView = {
             if (q.question_type === 'passage') {
                 html += `<div class="esv-passage esv-passage-submitted">
                     <div class="esv-passage-badge">資料</div>
-                    <div class="esv-passage-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                    <div class="esv-passage-text">${AssignmentApp._renderMd(q.question_text)}</div>
                 </div>`;
                 return;
             }
@@ -6921,7 +6948,7 @@ const ExamStudentView = {
                     <span class="fsv-q-type">${typeLabel}</span>
                     <span class="fsv-q-points">${q.points || 0} 分</span>
                 </div>
-                <div class="fsv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                <div class="fsv-q-text">${AssignmentApp._renderMd(q.question_text)}</div>
                 ${answerHtml}
                 ${scoreHtml}
             </div>`;

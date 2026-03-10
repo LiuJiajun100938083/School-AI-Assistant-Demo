@@ -5066,8 +5066,27 @@ body {
 .esv-passage-text {
     font-size: 14px;
     line-height: 1.7;
-    white-space: pre-wrap;
     color: var(--text-primary, #111);
+}
+
+/* Markdown 表格樣式 */
+.md-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 14px;
+}
+.md-table th, .md-table td {
+    border: 1px solid var(--border-color, #ddd);
+    padding: 8px 12px;
+    text-align: left;
+}
+.md-table th {
+    background: var(--bg-main, #f5f5f5);
+    font-weight: 600;
+}
+.md-table tr:nth-child(even) {
+    background: var(--bg-hover, #fafafa);
 }
 .esv-blanks {
     display: flex;
