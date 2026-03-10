@@ -343,6 +343,8 @@ class AssignmentQuestionRepository(BaseRepository):
 
     def ensure_schema(self):
         """確保 assignment_questions 表包含所有必要欄位（自動遷移）"""
+        import logging
+        logger = logging.getLogger(__name__)
         migrations = [
             ("question_number", "ALTER TABLE assignment_questions ADD COLUMN question_number VARCHAR(20) DEFAULT '' COMMENT '原始題號' AFTER question_order"),
         ]
@@ -351,9 +353,10 @@ class AssignmentQuestionRepository(BaseRepository):
                 self.raw_query(f"SELECT {col} FROM {self.TABLE} LIMIT 0", ())
             except Exception:
                 try:
-                    self.raw_query(sql, ())
-                except Exception:
-                    pass
+                    self.pool.execute_write(sql, ())
+                    logger.info("自動遷移：已新增 %s.%s 欄位", self.TABLE, col)
+                except Exception as e:
+                    logger.warning("自動遷移 %s.%s 失敗: %s", self.TABLE, col, e)
 
     def find_by_assignment(self, assignment_id: int) -> List[Dict[str, Any]]:
         return self.find_all(
