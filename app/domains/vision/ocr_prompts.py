@@ -177,8 +177,14 @@ LAYER 1 — objects:
 
 LAYER 2 — measurements:
 - "target" references an object id from layer 1.
-- "source" indicates WHERE this measurement comes from: "figure" (read from diagram), "question_text" (stated in problem text), or "inferred" (you deduced it).
-- ⚠️ ONLY include measurements that are DIRECTLY stated in the problem or figure.
+- "source" indicates WHERE this measurement comes from. MUST be one of these THREE values ONLY:
+  - "figure" — value is printed/typeset on the original diagram (NOT handwritten by student)
+  - "question_text" — value is stated in the printed problem text
+  - "inferred" — you deduced it from other information
+  ⚠️ NEVER use "student_answer" or any other value as source. If a student handwrote a value on the figure:
+    - If that value matches a condition stated in the question text → source = "question_text"
+    - If that value is the student's own calculation (not given in the problem) → do NOT include it as a measurement. Put it in task.figure_annotations instead.
+- ⚠️ ONLY include measurements that are DIRECTLY stated in the problem or original printed figure.
 - "property" MUST be one of: "length", "degrees", "radius", "area", "perimeter". Do NOT use "ratio" as a property.
 - Do NOT create synthetic measurements derived from ratios. Example:
   WRONG: DI:IJ = 3:2 → creating measurements {"target":"S_DI","property":"ratio","value":{"left":3,"right":2}}
@@ -191,11 +197,12 @@ LAYER 3 — relationships:
 - Use "subject"+"target"/"of" for directed relations (midpoint, on_segment, bisector).
 - Use "points" for point-set relations (collinear).
 - Use "items" for equality comparisons (equal) and ratio comparisons (ratio). Ratio value should be structured: {"left": 3, "right": 2}.
-- EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred".
+- EVERY relationship MUST have a "source" field: "figure", "question_text", or "inferred". No other values allowed.
 - ⚠️ SOURCE ATTRIBUTION RULE — use the STRONGEST evidence source:
   - If the problem text explicitly states a fact (e.g. "ABDF is a straight line"), source MUST be "question_text", even if the figure also shows it.
-  - Only use "figure" when a fact is SOLELY observable from the diagram and NOT stated in the text.
+  - Only use "figure" when a fact is SOLELY observable from the original printed diagram and NOT stated in the text.
   - "inferred" is for facts you deduced that are neither stated in text nor clearly shown in the figure.
+  - NEVER use "student_answer" or any other value as source.
 
 LAYER 4 — task:
 - "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
@@ -203,7 +210,8 @@ LAYER 4 — task:
   RIGHT: ["A、B、D、F 共線", "A、C、E、G 共線", "BC ∥ DE ∥ FG", "FH = 12 cm", "DI : IJ = 3 : 2"]
 - "goals": each goal as a clear target. Example: ["求 DI", "求 BC", "求 HG"]
 - "auxiliary_lines": any construction lines mentioned.
-- "figure_annotations": text labels visible on the figure.
+- "figure_annotations": text labels visible on the figure (both printed and student-handwritten annotations).
+  ⚠️ If students wrote calculated values on the figure (e.g. computed lengths like "15", "√720"), include them here but do NOT create measurements for them.
 - ⚠️ known_conditions and goals MUST use plain Unicode text, NOT LaTeX:
   WRONG: ["BC \\parallel DE \\parallel FG", "FH = 12 \\text{ cm}"]
   RIGHT: ["BC ∥ DE ∥ FG", "FH = 12 cm"]
@@ -332,8 +340,9 @@ Output in the following JSON format:
 - Use the 4-layer schema: objects → measurements → relationships → task.
 - Every object gets a unique "id" (P_ for points, S_ for segments, etc.).
 - ALL references in measurements/relationships MUST use object ids, NOT labels.
-- Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred".
-- SOURCE RULE: if the problem text explicitly states a fact, source = "question_text", even if the figure also shows it. Only use "figure" for facts solely observable from the diagram.
+- Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred". No other values allowed (NEVER use "student_answer").
+- SOURCE RULE: if the problem text explicitly states a fact, source = "question_text", even if the figure also shows it. Only use "figure" for facts solely observable from the original printed diagram.
+- If a student handwrote calculated values on the figure (not given in the problem), do NOT create measurements for them — put them in task.figure_annotations instead.
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
 - Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.

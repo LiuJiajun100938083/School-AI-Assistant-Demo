@@ -202,7 +202,7 @@ def validate_figure_schema(fig_json: dict, version: int = 2) -> list:
     allowed_rel_types = {
         "parallel", "perpendicular", "midpoint", "collinear",
         "congruent", "similar", "tangent", "on_segment",
-        "bisector", "equal", "ratio",
+        "bisector", "equal", "ratio", "intersection",
     }
 
     for rel in fig_json.get("relationships", []):
