@@ -15,7 +15,7 @@ import os
 import uuid
 import logging
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Any
+from typing import Callable, Dict, List, Optional, Any, Tuple
 
 from app.domains.mistake_book.repository import (
     KnowledgePointRepository,
@@ -487,11 +487,16 @@ class MistakeBookService:
         category: str,
         image_data: bytes,
         filename: str,
+        extra_images: Optional[List[Tuple[bytes, str]]] = None,
     ) -> Dict:
         """
-        快速創建錯題記錄（只保存圖片 + 建 DB 記錄，不做 OCR）。
+        快速創建錯題記錄（保存圖片 + 建 DB 記錄，不做 OCR）。
 
+        支持多張照片：第一張存 original_image_path，其餘存 extra_image_paths (JSON)。
         後台由 process_mistake_background() 執行 OCR + 分析。
+
+        Args:
+            extra_images: 額外圖片列表 [(bytes, filename), ...]
 
         Returns:
             {mistake_id, status: "processing"}
@@ -514,8 +519,22 @@ class MistakeBookService:
         if ext.lower() in (".heic", ".heif"):
             web_image_path = self._convert_to_jpeg_for_web(saved_path, save_dir, mistake_id)
 
+        # 保存額外圖片
+        extra_paths = []
+        if extra_images:
+            for idx, (img_bytes, img_name) in enumerate(extra_images, start=2):
+                e_ext = os.path.splitext(img_name)[1] or ".jpg"
+                e_filename = f"{mistake_id}_p{idx}{e_ext}"
+                e_path = os.path.join(save_dir, e_filename)
+                with open(e_path, "wb") as f:
+                    f.write(img_bytes)
+                # HEIC 轉換
+                if e_ext.lower() in (".heic", ".heif"):
+                    e_path = self._convert_to_jpeg_for_web(e_path, save_dir, f"{mistake_id}_p{idx}")
+                extra_paths.append(e_path)
+
         # 創建記錄（status=processing，表示後台正在處理）
-        self._mistakes.insert({
+        record = {
             "mistake_id": mistake_id,
             "student_username": student_username,
             "subject": subject,
@@ -526,7 +545,11 @@ class MistakeBookService:
             "confidence_score": 0.0,
             "status": "processing",
             "source": "photo",
-        })
+        }
+        if extra_paths:
+            record["extra_image_paths"] = json.dumps(extra_paths)
+
+        self._mistakes.insert(record)
 
         return {
             "mistake_id": mistake_id,
@@ -558,17 +581,38 @@ class MistakeBookService:
         image_path = mistake["original_image_path"]
         category = mistake.get("category", "")
 
-        # ---- Step 1: OCR ----
+        # 收集所有圖片路徑
+        all_image_paths = [image_path]
+        extra_raw = mistake.get("extra_image_paths")
+        if extra_raw:
+            try:
+                extra_list = json.loads(extra_raw) if isinstance(extra_raw, str) else extra_raw
+                all_image_paths.extend(extra_list)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("無法解析 extra_image_paths: %s", extra_raw)
+
+        # ---- Step 1: OCR（支持多張圖片） ----
         ocr_result = None
         if self._vision:
             recognition_subject = RecognitionSubject(subject)
             task = self._pick_recognition_task(subject, category)
-            try:
-                ocr_result = await self._vision.recognize(
-                    image_path, recognition_subject, task
-                )
-            except Exception as e:
-                logger.error("後台 OCR 異常 (mistake=%s): %s", mistake_id, e)
+
+            if len(all_image_paths) == 1:
+                # 單張圖片：原有邏輯
+                try:
+                    ocr_result = await self._vision.recognize(
+                        image_path, recognition_subject, task
+                    )
+                except Exception as e:
+                    logger.error("後台 OCR 異常 (mistake=%s): %s", mistake_id, e)
+            else:
+                # 多張圖片：逐張 OCR，合併結果
+                try:
+                    ocr_result = await self._ocr_multiple_images(
+                        all_image_paths, recognition_subject, task, mistake_id
+                    )
+                except Exception as e:
+                    logger.error("後台多圖 OCR 異常 (mistake=%s): %s", mistake_id, e)
 
         if not ocr_result or not ocr_result.success or not ocr_result.question_text:
             self._mistakes.update(
@@ -1987,6 +2031,64 @@ class MistakeBookService:
                 return f"{cn} {suffix}".strip() if suffix else cn
 
         return code
+
+    async def _ocr_multiple_images(
+        self,
+        image_paths: List[str],
+        subject: "RecognitionSubject",
+        task: "RecognitionTask",
+        mistake_id: str,
+    ) -> Optional["OCRResult"]:
+        """
+        逐張 OCR 多張圖片，合併為單一 OCRResult。
+
+        策略：
+        - 按順序 OCR 每張圖片
+        - question_text / answer_text / figure_description 分別拼接
+        - confidence 取平均值
+        - 任意一張成功即視為整體成功
+        """
+        from app.domains.vision.schemas import OCRResult
+
+        results = []
+        for idx, path in enumerate(image_paths):
+            try:
+                r = await self._vision.recognize(path, subject, task)
+                results.append(r)
+                logger.info(
+                    "多圖 OCR 第 %d/%d 張完成 (mistake=%s, conf=%.2f)",
+                    idx + 1, len(image_paths), mistake_id, r.confidence,
+                )
+            except Exception as e:
+                logger.warning(
+                    "多圖 OCR 第 %d/%d 張失敗 (mistake=%s): %s",
+                    idx + 1, len(image_paths), mistake_id, e,
+                )
+
+        if not results:
+            return None
+
+        # 合併結果
+        ok_results = [r for r in results if r.success and r.question_text]
+        if not ok_results:
+            # 全部失敗，返回第一個結果（保留錯誤信息）
+            return results[0]
+
+        sep = "\n\n---\n\n"  # 多張圖片分隔符
+        merged = OCRResult(
+            question_text=sep.join(r.question_text for r in ok_results if r.question_text),
+            answer_text=sep.join(r.answer_text for r in ok_results if r.answer_text),
+            figure_description=sep.join(r.figure_description for r in ok_results if r.figure_description),
+            confidence=sum(r.confidence for r in ok_results) / len(ok_results),
+            has_math_formula=any(r.has_math_formula for r in ok_results),
+            has_handwriting=any(r.has_handwriting for r in ok_results),
+            success=True,
+            question_confidence=sum(r.question_confidence for r in ok_results) / len(ok_results),
+            answer_confidence=sum(r.answer_confidence for r in ok_results) / len(ok_results),
+            figure_confidence=sum(r.figure_confidence for r in ok_results) / len(ok_results),
+            metadata={"multi_image": True, "image_count": len(image_paths), "success_count": len(ok_results)},
+        )
+        return merged
 
     @staticmethod
     def _pick_recognition_task(subject: str, category: str) -> RecognitionTask:

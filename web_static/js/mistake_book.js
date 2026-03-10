@@ -1003,10 +1003,25 @@ const Views = {
 
             ${m.original_image_path ? `
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.image(16)} 原始照片</div>
-                <img src="/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}"
-                     style="max-width:100%;border-radius:8px" alt="原始照片"
-                     onerror="this.style.display='none'">
+                <div class="mb-detail-section__title">${Icons.image(16)} 原始照片${m.extra_image_paths ? ' (' + (JSON.parse(m.extra_image_paths).length + 1) + ' 張)' : ''}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    <img src="/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}"
+                         style="max-width:100%;border-radius:8px;cursor:pointer" alt="照片 1"
+                         onclick="window.open(this.src,'_blank')"
+                         onerror="this.style.display='none'">
+                    ${(() => {
+                        if (!m.extra_image_paths) return '';
+                        try {
+                            const extras = JSON.parse(m.extra_image_paths);
+                            return extras.map((p, i) =>
+                                '<img src="/uploads/mistakes/' + (p.split('uploads/mistakes/')[1] || '') + '"'
+                                + ' style="max-width:100%;border-radius:8px;cursor:pointer" alt="照片 ' + (i + 2) + '"'
+                                + ' onclick="window.open(this.src,\'_blank\')"'
+                                + ' onerror="this.style.display=\'none\'">'
+                            ).join('');
+                        } catch(e) { return ''; }
+                    })()}
+                </div>
             </div>` : ''}
 
             <div style="padding:20px;text-align:center">
@@ -1882,15 +1897,14 @@ const Upload = {
             <div class="mb-upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                 <div class="mb-upload-zone__icon">${Icons.camera(40)}</div>
                 <div class="mb-upload-zone__text">點擊選擇照片或拖拽到此處</div>
-                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:4px">支持 JPG、PNG、HEIC，最大 10MB</div>
+                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:4px">支持多張照片，JPG、PNG、HEIC，每張最大 10MB</div>
             </div>
-            <input type="file" id="fileInput" accept="image/*,.heic,.heif" style="display:none">
+            <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple style="display:none">
 
-            <div id="uploadPreview" style="display:none;margin-top:12px;text-align:center">
-                <img id="previewImg" style="max-width:100%;max-height:200px;border-radius:8px"
-                     onerror="this.style.display='none';document.getElementById('previewFallback').style.display='block'">
-                <div id="previewFallback" style="display:none;padding:16px;background:var(--mb-brand-lighter);border-radius:8px;color:var(--mb-brand);font-size:13px">
-                    已選擇照片（HEIC 格式無法預覽，上傳後會自動轉換）
+            <div id="uploadPreview" style="display:none;margin-top:12px">
+                <div id="previewGrid" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
+                <div id="previewFallback" style="display:none;padding:16px;background:var(--mb-brand-lighter);border-radius:8px;color:var(--mb-brand);font-size:13px;text-align:center;margin-top:8px">
+                    部分照片為 HEIC 格式無法預覽，上傳後會自動轉換
                 </div>
             </div>
 
@@ -1903,22 +1917,10 @@ const Upload = {
         `;
 
         document.getElementById('fileInput').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (!file) return;
-            Upload._selectedFile = file;
-
-            const previewImg = document.getElementById('previewImg');
-            const previewFallback = document.getElementById('previewFallback');
-            previewImg.style.display = '';
-            previewFallback.style.display = 'none';
-
-            const reader = new FileReader();
-            reader.onload = ev => {
-                previewImg.src = ev.target.result;
-                document.getElementById('uploadPreview').style.display = 'block';
-                document.getElementById('uploadBtn').style.display = 'block';
-            };
-            reader.readAsDataURL(file);
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+            Upload._selectedFiles = files;
+            Upload._renderPreviews(files);
         });
 
         const zone = document.getElementById('dropZone');
@@ -1927,29 +1929,76 @@ const Upload = {
         zone.addEventListener('drop', e => {
             e.preventDefault();
             zone.classList.remove('mb-upload-zone--dragover');
-            const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                Upload._selectedFile = file;
-                const reader = new FileReader();
-                reader.onload = ev => {
-                    document.getElementById('previewImg').src = ev.target.result;
-                    document.getElementById('uploadPreview').style.display = 'block';
-                    document.getElementById('uploadBtn').style.display = 'block';
-                };
-                reader.readAsDataURL(file);
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
+            if (files.length) {
+                Upload._selectedFiles = files;
+                Upload._renderPreviews(files);
             }
         });
     },
 
+    _renderPreviews(files) {
+        const grid = document.getElementById('previewGrid');
+        const fallback = document.getElementById('previewFallback');
+        grid.innerHTML = '';
+        fallback.style.display = 'none';
+        let hasHeic = false;
+
+        files.forEach((file, idx) => {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:1px solid var(--mb-border)';
+
+            if (/\.(heic|heif)$/i.test(file.name)) {
+                hasHeic = true;
+                wrap.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--mb-brand-lighter);font-size:12px;color:var(--mb-brand)">HEIC #${idx + 1}</div>`;
+            } else {
+                const img = document.createElement('img');
+                img.style.cssText = 'width:100%;height:100%;object-fit:cover';
+                const reader = new FileReader();
+                reader.onload = ev => { img.src = ev.target.result; };
+                reader.readAsDataURL(file);
+                wrap.appendChild(img);
+            }
+
+            // 序號標記
+            const badge = document.createElement('div');
+            badge.style.cssText = 'position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.6);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px';
+            badge.textContent = idx + 1;
+            wrap.appendChild(badge);
+
+            // 刪除按鈕
+            const del = document.createElement('div');
+            del.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(220,53,69,0.85);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer';
+            del.textContent = '×';
+            del.onclick = (ev) => {
+                ev.stopPropagation();
+                Upload._selectedFiles.splice(idx, 1);
+                if (Upload._selectedFiles.length === 0) {
+                    document.getElementById('uploadPreview').style.display = 'none';
+                    document.getElementById('uploadBtn').style.display = 'none';
+                } else {
+                    Upload._renderPreviews(Upload._selectedFiles);
+                }
+            };
+            wrap.appendChild(del);
+
+            grid.appendChild(wrap);
+        });
+
+        if (hasHeic) fallback.style.display = 'block';
+        document.getElementById('uploadPreview').style.display = 'block';
+        document.getElementById('uploadBtn').style.display = 'block';
+    },
+
     async _doUpload() {
-        if (!this._selectedFile) return;
+        if (!this._selectedFiles || !this._selectedFiles.length) return;
 
         const btn = document.getElementById('uploadBtn');
         btn.disabled = true;
         btn.textContent = '上傳中...';
 
         const formData = new FormData();
-        formData.append('image', this._selectedFile);
+        this._selectedFiles.forEach(f => formData.append('images', f));
         formData.append('subject', document.getElementById('uploadSubject').value);
         formData.append('category', document.getElementById('uploadCategory').value);
 
