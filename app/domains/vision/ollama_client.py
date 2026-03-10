@@ -128,13 +128,28 @@ class OllamaVisionClient:
                     if think_match:
                         content = think_match.group(1).strip()
 
-            # ---- 純推理檢測（不丟棄！標記後跳過 JSON 提取，保留給 recovery） ----
+            # ---- 純推理檢測：先嘗試從中提取嵌入 JSON ----
             is_pure_reasoning = bool(content and json_utils.looks_like_pure_reasoning(content))
             if is_pure_reasoning:
-                logger.info(
-                    "thinking 內容為純推理文本 (len=%d)，跳過 JSON 提取，保留給 recovery",
-                    len(content),
-                )
+                # 即使是純推理，也嘗試提取嵌入的 JSON
+                if "{" in content:
+                    embedded = json_utils.extract_json_from_reasoning(content)
+                    if embedded and len(embedded) >= 50:
+                        try:
+                            json.loads(embedded)
+                            logger.info(
+                                "從純推理文本中成功提取嵌入 JSON (len=%d)",
+                                len(embedded),
+                            )
+                            content = embedded
+                            is_pure_reasoning = False
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                if is_pure_reasoning:
+                    logger.info(
+                        "thinking 內容為純推理文本 (len=%d)，保留給 recovery",
+                        len(content),
+                    )
 
             # ---- 從推理文本中嘗試提取嵌入的 JSON（純推理跳過） ----
             if content and "{" in content and not is_pure_reasoning:

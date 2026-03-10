@@ -90,20 +90,21 @@ Do NOT describe what you see. Do NOT start with "首先" or "Let me". Directly o
 請識別圖片中的**所有內容**，包括資料段落和題目。
 
 要求:
-1. 識別每一道題的題號、題目文字、參考答案（如果可見）和分值（如果標註）
-2. 如果圖片中沒有顯示答案，answer_text 填空字串，answer_source 填 "missing"
-3. 如果答案是你推斷的（非圖片中可見），answer_source 填 "inferred"
-4. 如果答案是圖片中明確可見的，answer_source 填 "extracted"
-5. 分值（points）如果圖片中沒有標註，設為 null
-6. 題型（question_type）不確定時設為 "open"
-7. 子題也要獨立列出（如 1a, 1b 分開）
-8. 數學公式用 LaTeX 格式
-9. 資料段落 (passage) 識別:
+1. 只識別圖片中**實際可見**的題目，絕對不要推測、編造或補充不存在的題目
+2. 識別每一道題的題號、題目文字、參考答案（如果可見）和分值（如果標註）
+3. 如果圖片中沒有顯示答案，answer_text 填空字串，answer_source 填 "missing"
+4. 如果答案是你推斷的（非圖片中可見），answer_source 填 "inferred"
+5. 如果答案是圖片中明確可見的，answer_source 填 "extracted"
+6. 分值（points）如果圖片中沒有標註，設為 null
+7. 題型（question_type）不確定時設為 "open"
+8. 子題也要獨立列出（如 1a, 1b 分開）
+9. 數學公式用 LaTeX 格式
+10. 資料段落 (passage) 識別:
    - 試卷中的資料表格、文字段落、圖表說明等非題目內容 → question_type = "passage"
    - passage 的 question_text 放完整的資料文字內容（表格用 markdown 格式）
    - passage 的 points = null, answer_text = "", answer_source = "missing"
    - passage 應該排在引用它的題目之前
-10. 填空題 (fill_blank) 識別 — 保守判定:
+11. 填空題 (fill_blank) 識別 — 保守判定:
    - 題目中出現 ____（底線空格）或分項答題表格（如 論點/論據/論述） → question_type = "fill_blank"
    - 如果不確定是否為填空，寧可設為 "open"
    - fill_blank 必須額外輸出 metadata:
