@@ -73,6 +73,8 @@ from app.domains.assignment.repository import (
     ExamUploadFileRepository,
     RubricItemRepository,
     RubricScoreRepository,
+    SubmissionAnswerFileRepository,
+    SubmissionAnswerRepository,
     SubmissionFileRepository,
     SubmissionRepository,
 )

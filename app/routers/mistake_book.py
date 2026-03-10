@@ -7,7 +7,7 @@
 import asyncio
 import logging
 import time
-from typing import Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
@@ -99,34 +99,45 @@ async def get_mistake_book_subjects(
 @router.post("/api/mistakes/upload")
 async def upload_mistake_photo(
     background_tasks: BackgroundTasks,
-    image: UploadFile = File(...),
+    images: List[UploadFile] = File(...),
     subject: str = Form(...),
     category: str = Form(...),
     current_user: dict = Depends(get_current_user),
 ):
     """
-    上傳錯題照片，立即返回，後台 AI 自動識別 + 分析
+    上傳錯題照片（支持多張），立即返回，後台 AI 自動識別 + 分析
 
-    - **image**: 照片文件（JPG/PNG，最大 10MB）
+    - **images**: 照片文件列表（JPG/PNG/HEIC，每張最大 10MB，最多 5 張）
     - **subject**: 科目 (chinese/math/english)
     - **category**: 題目類型（如 閱讀理解、代數、Grammar）
     """
     _validate_subject(subject)
 
-    content = await image.read()
-    if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(400, f"圖片太大，最大允許 {MAX_IMAGE_SIZE // 1024 // 1024}MB")
+    if len(images) > 5:
+        raise HTTPException(400, "最多支持 5 張照片")
+
+    # 讀取並驗證所有圖片
+    image_items = []  # [(bytes, filename), ...]
+    for img in images:
+        content = await img.read()
+        if len(content) > MAX_IMAGE_SIZE:
+            raise HTTPException(
+                400,
+                f"圖片 {img.filename} 太大，最大允許 {MAX_IMAGE_SIZE // 1024 // 1024}MB",
+            )
+        image_items.append((content, img.filename or "photo.jpg"))
 
     try:
         service = get_services().mistake_book
 
-        # 快速創建記錄（只保存圖片 + 建 DB，不做 OCR）
+        # 快速創建記錄（保存所有圖片 + 建 DB，不做 OCR）
         result = await service.create_mistake_record(
             student_username=current_user["username"],
             subject=subject,
             category=category,
-            image_data=content,
-            filename=image.filename or "photo.jpg",
+            image_data=image_items[0][0],
+            filename=image_items[0][1],
+            extra_images=image_items[1:] if len(image_items) > 1 else None,
         )
 
         # 後台處理：OCR → 自動確認 → AI 分析

@@ -172,6 +172,32 @@ const AssignmentAPI = {
         return resp.json();
     },
 
+    // Form APIs
+    async submitForm(assignmentId, answersJson, filesByQuestion) {
+        const formData = new FormData();
+        formData.append('answers', answersJson);
+        if (filesByQuestion) {
+            for (const [qId, files] of Object.entries(filesByQuestion)) {
+                for (const f of files) formData.append(`files_${qId}`, f);
+            }
+        }
+        const resp = await fetch(`/api/assignments/${assignmentId}/submit-form`, {
+            method: 'POST',
+            headers: this._authHeaders(),
+            body: formData
+        });
+        if (resp.status === 401) { window.location.href = '/'; return null; }
+        return resp.json();
+    },
+    async aiGradeForm(submissionId) {
+        return this._call(`/api/assignments/teacher/submissions/${submissionId}/ai-grade-form`, { method: 'POST' });
+    },
+    async gradeFormAnswer(submissionId, answerId, data) {
+        return this._call(`/api/assignments/teacher/submissions/${submissionId}/answers/${answerId}/grade`, {
+            method: 'PUT', body: JSON.stringify(data)
+        });
+    },
+
     // Attachments
     async uploadAttachments(assignmentId, files) {
         const formData = new FormData();
@@ -2163,6 +2189,26 @@ const AssignmentApp = {
         ]);
         this.setHeaderActions('');
 
+        // ---- Form type: teacher grading view ----
+        if (asg.assignment_type === 'form') {
+            const questions = sub.questions || [];
+            const answers = sub.answers || [];
+            const answerFiles = sub.answer_files || [];
+            main.innerHTML = `
+                <div class="form-section">
+                    <h3>${sub.student_name || sub.username} 的作答</h3>
+                    <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">
+                        提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
+                        ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
+                    </div>
+                </div>
+                <div class="form-section">
+                    ${FormGradingView.renderGradingPanel(questions, answers, answerFiles, subId)}
+                </div>`;
+            return;
+        }
+
+        // ---- File upload type (original flow) ----
         // Build existing scores with AI reasons
         const existingScores = (sub.rubric_scores || []).map(s => ({
             ...s,
@@ -3376,6 +3422,8 @@ const AssignmentApp = {
             this.state.selectedRubricType = 'points';
             this._selectRubricType('points');
             this.onTargetTypeChange();
+            this.selectAssignmentType('file_upload');
+            FormBuilder.reset();
         } else {
             const resp = await AssignmentAPI.getTeacherAssignment(editId);
             if (resp?.success) {
@@ -3400,6 +3448,12 @@ const AssignmentApp = {
                 this._hydrateRubricEditor(rType, a.rubric_items || [], a.rubric_config);
                 // Load existing attachments
                 this.state.existingAttachments = a.attachments || [];
+                // Set assignment type and load questions
+                const aType = a.assignment_type || 'file_upload';
+                this.selectAssignmentType(aType);
+                if (aType === 'form' && a.questions) {
+                    FormBuilder.loadQuestions(a.questions);
+                }
             }
         }
 
@@ -3428,6 +3482,23 @@ const AssignmentApp = {
         if (this.state.ocrPollingTimer) { clearInterval(this.state.ocrPollingTimer); this.state.ocrPollingTimer = null; }
         document.getElementById('createModal').classList.remove('active');
         document.body.style.overflow = '';
+    },
+
+    selectAssignmentType(type) {
+        this.state.selectedAssignmentType = type;
+        // Update card selection
+        document.querySelectorAll('#assignmentTypeCards .asg-type-card').forEach(c => {
+            c.classList.toggle('selected', c.dataset.type === type);
+        });
+        const isForm = type === 'form';
+        // Toggle visibility of file_upload-specific fields
+        const maxFilesGroup = document.getElementById('maxFilesGroup');
+        if (maxFilesGroup) maxFilesGroup.style.display = isForm ? 'none' : '';
+        // Toggle step 2 sections
+        const rubricSection = document.getElementById('rubricSection');
+        const formBuilderSection = document.getElementById('formBuilderSection');
+        if (rubricSection) rubricSection.style.display = isForm ? 'none' : '';
+        if (formBuilderSection) formBuilderSection.style.display = isForm ? '' : 'none';
     },
 
     goToStep(n) {
@@ -3857,6 +3928,7 @@ const AssignmentApp = {
     },
 
     _getFormData() {
+        const assignmentType = this.state.selectedAssignmentType || 'file_upload';
         const rubricType = this.state.selectedRubricType || 'points';
         const targetType = document.getElementById('asgTargetType').value;
         let targetValue = null;
@@ -3875,6 +3947,7 @@ const AssignmentApp = {
             rubric_type: isExam ? 'points' : rubricType,
             rubric_config: null,
             rubric_items: [],
+            questions: [],
         };
 
         // For exam type, collect questions and skip rubric
@@ -4389,6 +4462,12 @@ const AssignmentApp = {
     async saveAndPublish() {
         const data = this._getFormData();
         if (!data.title) { UIModule.toast('請輸入標題', 'warning'); return; }
+        // Validate form questions before publishing
+        if (data.assignment_type === 'form') {
+            if (!data.questions || data.questions.length === 0) { UIModule.toast('表單作業至少需要 1 道題目', 'warning'); return; }
+            const err = FormBuilder.validate();
+            if (err) { UIModule.toast(err, 'warning'); return; }
+        }
 
         let resp;
         if (this.state.editingId) {
@@ -4490,14 +4569,22 @@ const AssignmentApp = {
         const asg = resp.data;
         const sub = asg.my_submission;
 
+        const isForm = asg.assignment_type === 'form';
+
         this.setBreadcrumb([
             { label: '我的作業', action: 'AssignmentApp.showStudentList()' },
             { label: asg.title }
         ]);
-        this.setHeaderActions(
-            !sub ? `<button class="btn btn-primary" onclick="AssignmentApp.openSubmitModal(${id})">${AssignmentUI.ICON.upload} 提交作業</button>` :
-            sub.status === 'submitted' ? `<button class="btn btn-warning" onclick="AssignmentApp.openSubmitModal(${id})">重新提交</button>` : ''
-        );
+
+        // For form type, only show submit button for file_upload type
+        if (isForm) {
+            this.setHeaderActions('');
+        } else {
+            this.setHeaderActions(
+                !sub ? `<button class="btn btn-primary" onclick="AssignmentApp.openSubmitModal(${id})">${AssignmentUI.ICON.upload} 提交作業</button>` :
+                sub.status === 'submitted' ? `<button class="btn btn-warning" onclick="AssignmentApp.openSubmitModal(${id})">重新提交</button>` : ''
+            );
+        }
 
         const deadlineWarn = !sub ? AssignmentUI.deadlineWarning(asg.deadline) : '';
         let html = `<div class="detail-hero fade-in">
@@ -4516,13 +4603,43 @@ const AssignmentApp = {
                     <div class="stat-icon">${AssignmentUI.ICON.clock}</div>
                     <div><div class="stat-value">${AssignmentUI.formatDate(asg.deadline)} ${deadlineWarn}</div><div class="stat-label">截止日</div></div>
                 </div>
-                <div class="stat-card">
+                ${!isForm ? `<div class="stat-card">
                     <div class="stat-icon">${AssignmentUI.ICON.clip}</div>
                     <div><div class="stat-value">最多 ${asg.max_files || 5} 個</div><div class="stat-label">文件限制</div></div>
-                </div>
+                </div>` : `<div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div><div class="stat-value">${(asg.questions || []).length} 題</div><div class="stat-label">題目數</div></div>
+                </div>`}
             </div>
         </div>`;
 
+        // ---- Form type: student form view ----
+        if (isForm) {
+            const questions = asg.questions || [];
+            if (sub) {
+                // Already submitted — show read-only results
+                html += `<div class="form-section">
+                    <h3>我的作答 ${AssignmentUI.badge(sub.status)}</h3>
+                    <div style="font-size:13px;color:var(--text-tertiary);margin-bottom:12px;">
+                        提交時間: ${AssignmentUI.formatDate(sub.submitted_at)}
+                        ${sub.is_late ? ' <span class="badge badge-late">逾期</span>' : ''}
+                    </div>
+                    ${sub.score != null ? `<div class="student-score-hero"><div class="score-big">${sub.score}</div><div class="score-max">/ ${asg.max_score || '—'}</div></div>` : ''}
+                </div>
+                <div class="form-section">
+                    ${FormStudentView.renderSubmittedView(questions, sub.answers || [], sub.answer_files || [])}
+                </div>`;
+            } else {
+                // Not submitted — render form for answering
+                FormStudentView._currentQuestions = questions;
+                html += `<div class="form-section">${FormStudentView.renderForm(id, questions)}</div>`;
+            }
+            main.innerHTML = html;
+            if (!sub) FormStudentView._updateProgress();
+            return;
+        }
+
+        // ---- File upload type (original flow) ----
         if (sub) {
             html += `<div class="form-section">
                 <h3>我的提交 ${AssignmentUI.badge(sub.status)}</h3>
@@ -5596,6 +5713,708 @@ const AssignmentApp = {
 
     _escapeHtml(str) {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+};
+
+/* ============================================================
+   FormBuilder — 老師建題模組
+   ============================================================ */
+const FormBuilder = {
+    questions: [], // [{question_type, question_text, max_points, grading_notes, correct_answer, reference_answer, options:[{option_key, option_text}]}]
+
+    reset() {
+        this.questions = [];
+        this._render();
+    },
+
+    loadQuestions(questionsData) {
+        this.questions = questionsData.map(q => ({
+            question_type: q.question_type || 'mc',
+            question_text: q.question_text || '',
+            max_points: q.max_points || 0,
+            grading_notes: q.grading_notes || '',
+            correct_answer: q.correct_answer || '',
+            reference_answer: q.reference_answer || '',
+            options: (q.options || []).map(o => ({ option_key: o.option_key, option_text: o.option_text }))
+        }));
+        this._render();
+    },
+
+    addQuestion() {
+        this.questions.push({
+            question_type: 'mc',
+            question_text: '',
+            max_points: 10,
+            grading_notes: '',
+            correct_answer: '',
+            reference_answer: '',
+            options: [{ option_key: 'A', option_text: '' }, { option_key: 'B', option_text: '' }]
+        });
+        this._render();
+        // Scroll to new question
+        const container = document.getElementById('formQuestionsContainer');
+        if (container) setTimeout(() => container.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    },
+
+    removeQuestion(index) {
+        this.questions.splice(index, 1);
+        this._render();
+    },
+
+    duplicateQuestion(index) {
+        const copy = JSON.parse(JSON.stringify(this.questions[index]));
+        this.questions.splice(index + 1, 0, copy);
+        this._render();
+    },
+
+    moveQuestion(index, direction) {
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= this.questions.length) return;
+        const temp = this.questions[index];
+        this.questions[index] = this.questions[newIndex];
+        this.questions[newIndex] = temp;
+        this._render();
+    },
+
+    changeQuestionType(index, newType) {
+        const q = this.questions[index];
+        if (q.question_type === newType) return;
+        const oldType = q.question_type;
+        // Warn if switching from MC (will lose options)
+        if (oldType === 'mc' && newType !== 'mc' && q.options.length > 0) {
+            if (!confirm('切換題型將清空選項，確定嗎？')) return;
+            q.options = [];
+            q.correct_answer = '';
+        }
+        // If switching to MC, add default options
+        if (newType === 'mc' && oldType !== 'mc') {
+            q.options = [{ option_key: 'A', option_text: '' }, { option_key: 'B', option_text: '' }];
+            q.reference_answer = '';
+        }
+        q.question_type = newType;
+        this._render();
+    },
+
+    addOption(qIndex) {
+        const q = this.questions[qIndex];
+        if (q.options.length >= 6) { UIModule.toast('最多 6 個選項', 'warning'); return; }
+        const nextKey = String.fromCharCode(65 + q.options.length); // A=65
+        q.options.push({ option_key: nextKey, option_text: '' });
+        this._render();
+    },
+
+    removeOption(qIndex, optIndex) {
+        const q = this.questions[qIndex];
+        if (q.options.length <= 2) { UIModule.toast('MC 至少需要 2 個選項', 'warning'); return; }
+        const removed = q.options.splice(optIndex, 1)[0];
+        if (q.correct_answer === removed.option_key) q.correct_answer = '';
+        // Re-key options A, B, C...
+        q.options.forEach((o, i) => { o.option_key = String.fromCharCode(65 + i); });
+        this._render();
+    },
+
+    setCorrectAnswer(qIndex, key) {
+        this.questions[qIndex].correct_answer = key;
+        // Update radio UI
+        document.querySelectorAll(`.fb-q[data-index="${qIndex}"] .fb-option-correct`).forEach(r => {
+            r.classList.toggle('active', r.dataset.key === key);
+        });
+    },
+
+    _syncFromDOM() {
+        document.querySelectorAll('.fb-q').forEach(card => {
+            const idx = parseInt(card.dataset.index);
+            const q = this.questions[idx];
+            if (!q) return;
+            q.question_text = card.querySelector('.fb-question-text')?.value || '';
+            q.max_points = parseFloat(card.querySelector('.fb-max-points')?.value) || 0;
+            q.grading_notes = card.querySelector('.fb-grading-notes')?.value || '';
+            if (q.question_type === 'mc') {
+                card.querySelectorAll('.fb-option-row').forEach((row, oi) => {
+                    if (q.options[oi]) q.options[oi].option_text = row.querySelector('.fb-option-text')?.value || '';
+                });
+            } else {
+                q.reference_answer = card.querySelector('.fb-reference-answer')?.value || '';
+            }
+        });
+    },
+
+    collectQuestions() {
+        this._syncFromDOM();
+        return this.questions.map((q, i) => {
+            const out = {
+                question_type: q.question_type,
+                question_text: q.question_text,
+                max_points: q.max_points,
+                grading_notes: q.grading_notes,
+                correct_answer: q.question_type === 'mc' ? q.correct_answer : '',
+                reference_answer: q.question_type !== 'mc' ? q.reference_answer : '',
+                options: q.question_type === 'mc' ? q.options.map(o => ({ option_key: o.option_key, option_text: o.option_text })) : []
+            };
+            return out;
+        });
+    },
+
+    validate() {
+        this._syncFromDOM();
+        for (let i = 0; i < this.questions.length; i++) {
+            const q = this.questions[i];
+            if (!q.question_text.trim()) return `第 ${i + 1} 題題目內容不能為空`;
+            if (!q.max_points || q.max_points <= 0) return `第 ${i + 1} 題分數必須大於 0`;
+            if (q.question_type === 'mc') {
+                if (q.options.length < 2) return `第 ${i + 1} 題至少需要 2 個選項`;
+                for (let j = 0; j < q.options.length; j++) {
+                    if (!q.options[j].option_text.trim()) return `第 ${i + 1} 題選項 ${q.options[j].option_key} 內容不能為空`;
+                }
+                if (!q.correct_answer) return `第 ${i + 1} 題必須選擇正確答案`;
+            }
+        }
+        return null;
+    },
+
+    _updateTotalScore() {
+        this._syncFromDOM();
+        const total = this.questions.reduce((s, q) => s + (parseFloat(q.max_points) || 0), 0);
+        const el = document.getElementById('formTotalScore');
+        if (el) el.textContent = `總分: ${total}`;
+    },
+
+    _render() {
+        const container = document.getElementById('formQuestionsContainer');
+        if (!container) return;
+        // Sync before re-render to preserve edits
+        if (container.children.length > 0) this._syncFromDOM();
+
+        const typeLabels = { mc: '選擇題', short_answer: '短答題', long_answer: '長答題' };
+
+        container.innerHTML = this.questions.map((q, i) => {
+            const typeSelect = `<select class="fb-type-select" onchange="FormBuilder.changeQuestionType(${i}, this.value)">
+                <option value="mc" ${q.question_type === 'mc' ? 'selected' : ''}>選擇題</option>
+                <option value="short_answer" ${q.question_type === 'short_answer' ? 'selected' : ''}>短答題</option>
+                <option value="long_answer" ${q.question_type === 'long_answer' ? 'selected' : ''}>長答題</option>
+            </select>`;
+
+            let body = '';
+            if (q.question_type === 'mc') {
+                body = q.options.map((o, oi) => `
+                    <div class="fb-option-row">
+                        <span class="fb-option-correct ${q.correct_answer === o.option_key ? 'active' : ''}"
+                              data-key="${o.option_key}"
+                              onclick="FormBuilder.setCorrectAnswer(${i}, '${o.option_key}')"
+                              title="設為正確答案">
+                            ${q.correct_answer === o.option_key ? '●' : '○'}
+                        </span>
+                        <span class="fb-option-key">${o.option_key}</span>
+                        <input type="text" class="fb-option-text" value="${AssignmentApp._escapeHtml(o.option_text)}" placeholder="選項內容">
+                        <button class="fb-option-remove" onclick="FormBuilder.removeOption(${i}, ${oi})" title="刪除選項">✕</button>
+                    </div>`).join('');
+                body += `<button class="btn btn-sm btn-outline fb-add-option" onclick="FormBuilder.addOption(${i})">+ 新增選項</button>`;
+            } else {
+                body = `<div class="form-group" style="margin-top:8px;">
+                    <label style="font-size:13px;color:var(--text-secondary);">參考答案 <span style="font-weight:400;color:var(--text-tertiary);">(可選，設定後 AI 批改會參照此答案)</span></label>
+                    <textarea class="fb-reference-answer" rows="${q.question_type === 'long_answer' ? 4 : 2}" placeholder="輸入參考答案...">${AssignmentApp._escapeHtml(q.reference_answer)}</textarea>
+                </div>`;
+            }
+
+            return `<div class="fb-q" data-index="${i}">
+                <div class="fb-q-header">
+                    <span class="fb-q-number">第 ${i + 1} 題</span>
+                    ${typeSelect}
+                    <div class="fb-q-points">
+                        <input type="number" class="fb-max-points" value="${q.max_points}" min="0.5" step="0.5" placeholder="分數" oninput="FormBuilder._updateTotalScore()">
+                        <span>分</span>
+                    </div>
+                    <div class="fb-q-actions">
+                        <button onclick="FormBuilder.moveQuestion(${i}, -1)" title="上移" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button onclick="FormBuilder.moveQuestion(${i}, 1)" title="下移" ${i === this.questions.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button onclick="FormBuilder.duplicateQuestion(${i})" title="複製">⧉</button>
+                        <button onclick="FormBuilder.removeQuestion(${i})" title="刪除">✕</button>
+                    </div>
+                </div>
+                <textarea class="fb-question-text" rows="2" placeholder="輸入題目內容...">${AssignmentApp._escapeHtml(q.question_text)}</textarea>
+                <div class="fb-q-body">${body}</div>
+                <div class="form-group" style="margin-top:8px;">
+                    <label style="font-size:13px;color:var(--text-secondary);">批改注意事項 <span style="font-weight:400;color:var(--text-tertiary);">(可選)</span></label>
+                    <input type="text" class="fb-grading-notes" value="${AssignmentApp._escapeHtml(q.grading_notes)}" placeholder="AI/教師批改時的注意要點">
+                </div>
+            </div>`;
+        }).join('');
+
+        this._updateTotalScore();
+    }
+};
+
+/* ============================================================
+   FormStudentView — 學生答題模組
+   ============================================================ */
+const FormStudentView = {
+    _draftKey(assignmentId) {
+        const user = window.AuthModule?.getUser?.()?.username || '';
+        return `form_draft_${assignmentId}_${user}`;
+    },
+
+    _saveDraft(assignmentId, questions) {
+        try {
+            const data = { questionCount: questions.length, answers: {} };
+            questions.forEach(q => {
+                const el = document.getElementById(`fq_answer_${q.id}`);
+                if (el) data.answers[q.id] = el.value || '';
+            });
+            localStorage.setItem(this._draftKey(assignmentId), JSON.stringify(data));
+        } catch (e) { /* ignore */ }
+    },
+
+    _loadDraft(assignmentId, questionCount) {
+        try {
+            const raw = localStorage.getItem(this._draftKey(assignmentId));
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (data.questionCount !== questionCount) {
+                localStorage.removeItem(this._draftKey(assignmentId));
+                return null;
+            }
+            return data.answers || {};
+        } catch (e) { return null; }
+    },
+
+    _clearDraft(assignmentId) {
+        try { localStorage.removeItem(this._draftKey(assignmentId)); } catch (e) { /* ignore */ }
+    },
+
+    // Files pending upload keyed by question_id
+    _pendingFiles: {},
+
+    renderForm(assignmentId, questions) {
+        this._pendingFiles = {};
+        const drafts = this._loadDraft(assignmentId, questions.length) || {};
+        const totalQuestions = questions.length;
+
+        let html = `<div class="fsv-progress-bar">
+            <div class="fsv-progress-fill" id="fsvProgressFill" style="width:0%"></div>
+        </div>
+        <div class="fsv-progress-text" id="fsvProgressText">已填 0 / ${totalQuestions} 題</div>`;
+
+        questions.forEach((q, i) => {
+            const typeLabel = q.question_type === 'mc' ? '選擇題' : q.question_type === 'short_answer' ? '短答題' : '長答題';
+            let inputHtml = '';
+
+            if (q.question_type === 'mc') {
+                inputHtml = '<div class="fsv-mc-options">' + (q.options || []).map(o =>
+                    `<label class="fsv-mc-option" onclick="FormStudentView._onMcSelect(${q.id}, '${o.option_key}')">
+                        <span class="fsv-mc-radio" id="fq_radio_${q.id}_${o.option_key}">○</span>
+                        <span class="fsv-mc-key">${o.option_key}</span>
+                        <span class="fsv-mc-text">${AssignmentApp._escapeHtml(o.option_text)}</span>
+                    </label>`
+                ).join('') + `<input type="hidden" id="fq_answer_${q.id}" value="${drafts[q.id] || ''}"></div>`;
+                // Restore draft selection
+                if (drafts[q.id]) {
+                    setTimeout(() => this._onMcSelect(q.id, drafts[q.id], true), 50);
+                }
+            } else {
+                const rows = q.question_type === 'long_answer' ? 6 : 2;
+                inputHtml = `<textarea id="fq_answer_${q.id}" class="fsv-text-input" rows="${rows}"
+                    placeholder="${q.question_type === 'short_answer' ? '輸入你的答案...' : '詳細作答...'}"
+                    oninput="FormStudentView._onInputChange(${assignmentId})">${drafts[q.id] || ''}</textarea>
+                    <div class="fsv-file-upload">
+                        <button class="btn btn-sm btn-outline" onclick="FormStudentView._triggerFileUpload(${q.id})">
+                            📎 上傳文件
+                        </button>
+                        <input type="file" id="fq_file_${q.id}" multiple style="display:none" onchange="FormStudentView._onFileSelected(${q.id})">
+                        <div class="fsv-file-list" id="fq_files_${q.id}"></div>
+                    </div>`;
+            }
+
+            html += `<div class="fsv-question ${q.question_type === 'mc' ? 'fsv-mc' : ''}" id="fsvQ_${q.id}">
+                <div class="fsv-q-header">
+                    <span class="fsv-q-number">${i + 1}</span>
+                    <span class="fsv-q-type">${typeLabel}</span>
+                    <span class="fsv-q-points">${q.max_points} 分</span>
+                </div>
+                <div class="fsv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                ${inputHtml}
+            </div>`;
+        });
+
+        html += `<div class="fsv-submit-area">
+            <button class="btn btn-primary btn-lg" id="fsvSubmitBtn" onclick="FormStudentView._submitForm(${assignmentId})">
+                提交作業
+            </button>
+        </div>`;
+
+        return html;
+    },
+
+    _onMcSelect(questionId, key, silent) {
+        // Update hidden input
+        const hidden = document.getElementById(`fq_answer_${questionId}`);
+        if (hidden) hidden.value = key;
+        // Update radio UI
+        document.querySelectorAll(`#fsvQ_${questionId} .fsv-mc-radio`).forEach(r => {
+            r.textContent = '○';
+            r.classList.remove('active');
+        });
+        const selected = document.getElementById(`fq_radio_${questionId}_${key}`);
+        if (selected) { selected.textContent = '●'; selected.classList.add('active'); }
+        document.querySelectorAll(`#fsvQ_${questionId} .fsv-mc-option`).forEach(o => o.classList.remove('selected'));
+        const option = selected?.closest('.fsv-mc-option');
+        if (option) option.classList.add('selected');
+        if (!silent) this._updateProgress();
+    },
+
+    _onInputChange(assignmentId) {
+        this._updateProgress();
+        // Debounce draft saving
+        clearTimeout(this._draftTimer);
+        this._draftTimer = setTimeout(() => {
+            const questions = this._currentQuestions || [];
+            this._saveDraft(assignmentId, questions);
+        }, 500);
+    },
+
+    _updateProgress() {
+        const questions = this._currentQuestions || [];
+        let filled = 0;
+        questions.forEach(q => {
+            const el = document.getElementById(`fq_answer_${q.id}`);
+            if (el && el.value.trim()) filled++;
+        });
+        const pct = questions.length > 0 ? Math.round(filled / questions.length * 100) : 0;
+        const fill = document.getElementById('fsvProgressFill');
+        const text = document.getElementById('fsvProgressText');
+        if (fill) fill.style.width = pct + '%';
+        if (text) text.textContent = `已填 ${filled} / ${questions.length} 題`;
+    },
+
+    _triggerFileUpload(questionId) {
+        document.getElementById(`fq_file_${questionId}`)?.click();
+    },
+
+    _onFileSelected(questionId) {
+        const input = document.getElementById(`fq_file_${questionId}`);
+        if (!input || !input.files.length) return;
+        if (!this._pendingFiles[questionId]) this._pendingFiles[questionId] = [];
+        for (const f of input.files) {
+            if (this._pendingFiles[questionId].length >= 5) { UIModule.toast('每題最多 5 個文件', 'warning'); break; }
+            this._pendingFiles[questionId].push(f);
+        }
+        input.value = '';
+        this._renderFileList(questionId);
+    },
+
+    _removeFile(questionId, fileIndex) {
+        if (this._pendingFiles[questionId]) {
+            this._pendingFiles[questionId].splice(fileIndex, 1);
+            this._renderFileList(questionId);
+        }
+    },
+
+    _renderFileList(questionId) {
+        const container = document.getElementById(`fq_files_${questionId}`);
+        if (!container) return;
+        const files = this._pendingFiles[questionId] || [];
+        container.innerHTML = files.map((f, i) =>
+            `<div class="fsv-file-item">
+                <span>${AssignmentApp._escapeHtml(f.name)}</span>
+                <span style="color:var(--text-tertiary);font-size:12px;">${AssignmentUI.formatFileSize(f.size)}</span>
+                <button class="btn btn-sm" onclick="FormStudentView._removeFile(${questionId}, ${i})">✕</button>
+            </div>`
+        ).join('');
+    },
+
+    async _submitForm(assignmentId) {
+        const questions = this._currentQuestions || [];
+        // Check for unanswered questions
+        const unanswered = [];
+        const answers = [];
+        questions.forEach((q, i) => {
+            const el = document.getElementById(`fq_answer_${q.id}`);
+            const val = el ? el.value.trim() : '';
+            if (!val) unanswered.push(i + 1);
+            answers.push({ question_id: q.id, answer_text: val });
+        });
+
+        if (unanswered.length > 0) {
+            // Highlight unanswered
+            unanswered.forEach(n => {
+                const qEl = document.querySelector(`.fsv-question:nth-child(${n + 1})`); // +1 for progress bar
+                if (qEl) qEl.classList.add('fsv-unanswered');
+            });
+            const first = document.getElementById(`fsvQ_${questions[unanswered[0] - 1]?.id}`);
+            if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            if (!confirm(`有 ${unanswered.length} 題未作答（題 ${unanswered.join(', ')}），確定提交嗎？\n\n提交後不可修改。`)) return;
+        } else {
+            if (!confirm('確定提交？提交後不可修改。')) return;
+        }
+
+        const btn = document.getElementById('fsvSubmitBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 提交中...'; }
+
+        const resp = await AssignmentAPI.submitForm(assignmentId, JSON.stringify(answers), this._pendingFiles);
+
+        if (resp?.success) {
+            this._clearDraft(assignmentId);
+            UIModule.toast('提交成功', 'success');
+            AssignmentApp.viewStudentAssignment(assignmentId);
+        } else {
+            UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            if (btn) { btn.disabled = false; btn.textContent = '提交作業'; }
+        }
+    },
+
+    renderSubmittedView(questions, answers, files) {
+        const answerMap = {};
+        (answers || []).forEach(a => { answerMap[a.question_id] = a; });
+        const fileMap = {};
+        (files || []).forEach(f => {
+            if (!fileMap[f.answer_id]) fileMap[f.answer_id] = [];
+            fileMap[f.answer_id].push(f);
+        });
+
+        let html = '';
+        questions.forEach((q, i) => {
+            const a = answerMap[q.id] || {};
+            const answerFiles = fileMap[a.id] || [];
+            const typeLabel = q.question_type === 'mc' ? '選擇題' : q.question_type === 'short_answer' ? '短答題' : '長答題';
+
+            let answerHtml = '';
+            if (q.question_type === 'mc') {
+                answerHtml = '<div class="fsv-mc-results">' + (q.options || []).map(o => {
+                    const isSelected = a.answer_text === o.option_key;
+                    const isCorrect = q.correct_answer === o.option_key;
+                    let cls = 'fsv-mc-result';
+                    if (isSelected && isCorrect) cls += ' correct';
+                    else if (isSelected && !isCorrect) cls += ' incorrect';
+                    else if (isCorrect) cls += ' correct-answer';
+                    return `<div class="${cls}">
+                        <span class="fsv-mc-key">${o.option_key}</span>
+                        <span>${AssignmentApp._escapeHtml(o.option_text)}</span>
+                        ${isSelected ? '<span class="fsv-mc-mark">' + (isCorrect ? '✓' : '✗') + '</span>' : ''}
+                        ${isCorrect && !isSelected ? '<span class="fsv-mc-mark correct-mark">✓</span>' : ''}
+                    </div>`;
+                }).join('') + '</div>';
+            } else {
+                answerHtml = `<div class="fsv-submitted-answer">${AssignmentApp._escapeHtml(a.answer_text || '(未作答)')}</div>`;
+                if (answerFiles.length) {
+                    answerHtml += '<div class="fsv-answer-files">' + answerFiles.map(f =>
+                        `<div class="fsv-file-item"><a href="${f.file_path}" target="_blank">${AssignmentApp._escapeHtml(f.original_name)}</a></div>`
+                    ).join('') + '</div>';
+                }
+            }
+
+            // Score display
+            let scoreHtml = '';
+            if (q.question_type === 'mc') {
+                scoreHtml = `<div class="fsv-q-score ${a.is_correct ? 'correct' : 'incorrect'}">${a.points != null ? a.points : '—'} / ${q.max_points}</div>`;
+            } else if (a.score_source) {
+                const srcLabel = a.score_source === 'auto' ? '自動' : a.score_source === 'ai' ? 'AI' : '老師';
+                scoreHtml = `<div class="fsv-q-score">${a.points != null ? a.points : '—'} / ${q.max_points} <span class="fsv-score-source">${srcLabel}</span></div>`;
+                if (a.ai_feedback || a.teacher_feedback) {
+                    scoreHtml += `<div class="fsv-feedback">${AssignmentApp._escapeHtml(a.teacher_feedback || a.ai_feedback || '')}</div>`;
+                }
+            } else {
+                scoreHtml = '<div class="fsv-q-score pending">待批改</div>';
+            }
+
+            html += `<div class="fsv-question fsv-submitted">
+                <div class="fsv-q-header">
+                    <span class="fsv-q-number">${i + 1}</span>
+                    <span class="fsv-q-type">${typeLabel}</span>
+                    <span class="fsv-q-points">${q.max_points} 分</span>
+                </div>
+                <div class="fsv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                ${answerHtml}
+                ${scoreHtml}
+            </div>`;
+        });
+
+        return html;
+    }
+};
+
+/* ============================================================
+   FormGradingView — 老師批改模組
+   ============================================================ */
+const FormGradingView = {
+    renderGradingPanel(questions, answers, answerFiles, submissionId) {
+        const answerMap = {};
+        (answers || []).forEach(a => { answerMap[a.question_id] = a; });
+        const fileMap = {};
+        (answerFiles || []).forEach(f => {
+            if (!fileMap[f.answer_id]) fileMap[f.answer_id] = [];
+            fileMap[f.answer_id].push(f);
+        });
+
+        let html = `<div class="fgv-toolbar">
+            <button class="btn btn-outline btn-sm" onclick="FormGradingView._toggleAll(true)">全部展開</button>
+            <button class="btn btn-outline btn-sm" onclick="FormGradingView._toggleAll(false)">全部收起</button>
+            <button class="btn btn-outline btn-sm" onclick="FormGradingView._filterTextOnly()">只顯示文字題</button>
+            <button class="btn btn-outline btn-sm" onclick="FormGradingView._filterUnreviewed()">只顯示未覆核</button>
+            <button class="btn btn-primary btn-sm" onclick="FormGradingView._aiGradeAll(${submissionId})">AI 批改全部文字題</button>
+        </div>
+        <div class="fgv-total" id="fgvTotal"></div>`;
+
+        questions.forEach((q, i) => {
+            const a = answerMap[q.id] || {};
+            const files = fileMap[a.id] || [];
+            const typeLabel = q.question_type === 'mc' ? '選擇題' : q.question_type === 'short_answer' ? '短答題' : '長答題';
+            const isMc = q.question_type === 'mc';
+            const reviewed = !!a.reviewed_at;
+            const srcLabel = a.score_source === 'auto' ? '自動' : a.score_source === 'ai' ? 'AI' : a.score_source === 'teacher' ? '老師' : '—';
+
+            let answerHtml = '';
+            if (isMc) {
+                const correct = a.is_correct;
+                answerHtml = `<div class="fgv-mc-answer">
+                    學生答案: <strong>${a.answer_text || '—'}</strong>
+                    ${correct ? '<span class="fgv-correct">✓ 正確</span>' : '<span class="fgv-incorrect">✗ 錯誤</span>'}
+                    （正確答案: ${q.correct_answer}）
+                </div>`;
+            } else {
+                answerHtml = `<div class="fgv-text-answer">
+                    <div class="fgv-label">學生答案:</div>
+                    <div class="fgv-answer-content">${AssignmentApp._escapeHtml(a.answer_text || '(未作答)')}</div>
+                </div>`;
+                if (files.length) {
+                    answerHtml += '<div class="fgv-answer-files">' + files.map(f => {
+                        const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.original_name);
+                        return isImg
+                            ? `<div class="fgv-file-preview"><img src="${f.file_path}" alt="${AssignmentApp._escapeHtml(f.original_name)}" style="max-width:300px;max-height:200px;border-radius:8px;"></div>`
+                            : `<div class="fgv-file-item"><a href="${f.file_path}" target="_blank">${AssignmentApp._escapeHtml(f.original_name)}</a></div>`;
+                    }).join('') + '</div>';
+                }
+                if (q.reference_answer) {
+                    answerHtml += `<div class="fgv-reference"><div class="fgv-label">參考答案:</div><div>${AssignmentApp._escapeHtml(q.reference_answer)}</div></div>`;
+                }
+                if (q.grading_notes) {
+                    answerHtml += `<div class="fgv-notes"><div class="fgv-label">批改注意事項:</div><div>${AssignmentApp._escapeHtml(q.grading_notes)}</div></div>`;
+                }
+            }
+
+            // Grading controls (for text questions)
+            let gradingHtml = '';
+            if (isMc) {
+                gradingHtml = `<div class="fgv-auto-score">得分: ${a.points != null ? a.points : '—'} / ${q.max_points} <span class="fgv-source-tag auto">自動</span></div>`;
+            } else {
+                gradingHtml = `<div class="fgv-grading-area" data-answer-id="${a.id}" data-submission-id="${submissionId}">
+                    ${a.ai_points != null ? `<div class="fgv-ai-result">
+                        <span class="fgv-source-tag ai">AI 建議</span> ${a.ai_points} / ${q.max_points}
+                        ${a.ai_feedback ? `<div class="fgv-ai-feedback">${AssignmentApp._escapeHtml(a.ai_feedback)}</div>` : ''}
+                    </div>` : ''}
+                    <div class="fgv-manual-grade">
+                        <label>給分:</label>
+                        <input type="number" class="fgv-points-input" id="fgv_pts_${a.id}" value="${a.points != null ? a.points : ''}"
+                            min="0" max="${q.max_points}" step="0.5" placeholder="0 - ${q.max_points}">
+                        <span>/ ${q.max_points}</span>
+                    </div>
+                    <div class="fgv-manual-grade">
+                        <label>反饋:</label>
+                        <textarea class="fgv-feedback-input" id="fgv_fb_${a.id}" rows="2" placeholder="輸入反饋...">${AssignmentApp._escapeHtml(a.teacher_feedback || '')}</textarea>
+                    </div>
+                    <div class="fgv-grade-actions">
+                        <button class="btn btn-sm btn-primary" onclick="FormGradingView._saveGrade(${submissionId}, ${a.id}, ${q.max_points})">確認評分</button>
+                        ${a.ai_points != null && !reviewed ? `<button class="btn btn-sm btn-outline" onclick="FormGradingView._acceptAiScore(${submissionId}, ${a.id}, ${a.ai_points})">接受 AI 建議分</button>` : ''}
+                        <span class="fgv-source-tag ${a.score_source || ''}">${srcLabel}</span>
+                        ${reviewed ? '<span class="fgv-reviewed">✓ 已覆核</span>' : ''}
+                    </div>
+                </div>`;
+            }
+
+            html += `<div class="fgv-question ${isMc ? 'fgv-mc' : 'fgv-text'}" data-type="${q.question_type}" data-reviewed="${reviewed ? '1' : '0'}">
+                <div class="fgv-q-header" onclick="FormGradingView._toggleQuestion(this)">
+                    <span class="fgv-q-number">${i + 1}</span>
+                    <span class="fgv-q-type">${typeLabel}</span>
+                    <span class="fgv-q-points">${q.max_points} 分</span>
+                    <span class="fgv-q-status">${isMc ? (a.is_correct ? '✓' : '✗') : (a.score_source ? `${a.points}/${q.max_points}` : '待批改')}</span>
+                    <span class="fgv-toggle-icon">▼</span>
+                </div>
+                <div class="fgv-q-body">
+                    <div class="fgv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                    ${answerHtml}
+                    ${gradingHtml}
+                </div>
+            </div>`;
+        });
+
+        this._updateTotal(questions, answers);
+        return html;
+    },
+
+    _toggleQuestion(header) {
+        const q = header.closest('.fgv-question');
+        if (q) q.classList.toggle('collapsed');
+    },
+
+    _toggleAll(expand) {
+        document.querySelectorAll('.fgv-question').forEach(q => {
+            q.classList.toggle('collapsed', !expand);
+        });
+    },
+
+    _filterTextOnly() {
+        document.querySelectorAll('.fgv-question').forEach(q => {
+            if (q.dataset.type === 'mc') q.style.display = q.style.display === 'none' ? '' : 'none';
+        });
+    },
+
+    _filterUnreviewed() {
+        document.querySelectorAll('.fgv-question').forEach(q => {
+            if (q.dataset.type === 'mc') { q.style.display = 'none'; return; }
+            if (q.dataset.reviewed === '1') q.style.display = q.style.display === 'none' ? '' : 'none';
+        });
+    },
+
+    async _saveGrade(submissionId, answerId, maxPoints) {
+        const pts = parseFloat(document.getElementById(`fgv_pts_${answerId}`)?.value);
+        const fb = document.getElementById(`fgv_fb_${answerId}`)?.value || '';
+        if (isNaN(pts) || pts < 0) { UIModule.toast('請輸入有效分數', 'warning'); return; }
+        if (pts > maxPoints) { UIModule.toast(`分數不能超過 ${maxPoints}`, 'warning'); return; }
+
+        const resp = await AssignmentAPI.gradeFormAnswer(submissionId, answerId, { points: pts, feedback: fb });
+        if (resp?.success) {
+            UIModule.toast('評分已保存', 'success');
+            // Refresh the submission view
+            AssignmentApp.viewSubmission(submissionId);
+        } else {
+            UIModule.toast('評分失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+        }
+    },
+
+    async _acceptAiScore(submissionId, answerId, aiPoints) {
+        const resp = await AssignmentAPI.gradeFormAnswer(submissionId, answerId, { points: aiPoints, feedback: '' });
+        if (resp?.success) {
+            UIModule.toast('已接受 AI 建議分', 'success');
+            AssignmentApp.viewSubmission(submissionId);
+        } else {
+            UIModule.toast('操作失敗', 'error');
+        }
+    },
+
+    async _aiGradeAll(submissionId) {
+        if (!confirm('確定要對所有文字題進行 AI 批改？')) return;
+        UIModule.toast('AI 批改中...', 'info');
+        const resp = await AssignmentAPI.aiGradeForm(submissionId);
+        if (resp?.success) {
+            UIModule.toast('AI 批改完成', 'success');
+            AssignmentApp.viewSubmission(submissionId);
+        } else {
+            UIModule.toast('AI 批改失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+        }
+    },
+
+    _updateTotal(questions, answers) {
+        const answerMap = {};
+        (answers || []).forEach(a => { answerMap[a.question_id] = a; });
+        let scored = 0, maxTotal = 0;
+        questions.forEach(q => {
+            maxTotal += q.max_points || 0;
+            const a = answerMap[q.id];
+            if (a && a.points != null) scored += a.points;
+        });
+        setTimeout(() => {
+            const el = document.getElementById('fgvTotal');
+            if (el) el.innerHTML = `<strong>總分: ${scored} / ${maxTotal}</strong>`;
+        }, 0);
     }
 };
 

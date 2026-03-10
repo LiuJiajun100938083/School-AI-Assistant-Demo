@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS student_mistakes (
 
     -- 原始內容
     original_image_path VARCHAR(500) COMMENT '上傳的原始照片路徑',
+    extra_image_paths TEXT DEFAULT NULL COMMENT '額外圖片路徑（JSON 陣列）',
     ocr_question_text TEXT COMMENT 'AI 識別出的題目文字',
     ocr_answer_text TEXT COMMENT 'AI 識別出的學生答案',
     manual_question_text TEXT COMMENT '學生手動輸入/修正的題目',
