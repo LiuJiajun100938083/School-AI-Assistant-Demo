@@ -323,7 +323,7 @@ class GameUploadPage {
     }
 
     generateClassCheckboxes() {
-        const forms = ['A', 'B', 'C', 'D'];
+        const forms = ['A', 'B', 'C', 'D', 'S'];
         const grades = [1, 2, 3, 4, 5, 6];
         let html = '';
         for (const grade of grades) {
