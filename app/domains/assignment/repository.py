@@ -378,7 +378,7 @@ class AssignmentQuestionRepository(BaseRepository):
                     question_order INT DEFAULT 0,
                     question_number VARCHAR(20) DEFAULT '',
                     question_text TEXT NOT NULL,
-                    answer_text TEXT DEFAULT '',
+                    answer_text TEXT,
                     answer_source VARCHAR(20) DEFAULT 'missing',
                     points DECIMAL(5,1) DEFAULT NULL,
                     question_type VARCHAR(50) DEFAULT 'open',

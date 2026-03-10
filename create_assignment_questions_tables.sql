@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS assignment_questions (
     question_order           INT DEFAULT 0                  COMMENT '排序',
     question_number          VARCHAR(20) DEFAULT ''         COMMENT '原始題號',
     question_text            TEXT NOT NULL                  COMMENT '題目內容 (支持 LaTeX)',
-    answer_text              TEXT DEFAULT ''                COMMENT '參考答案',
+    answer_text              TEXT                           COMMENT '參考答案',
     answer_source            VARCHAR(20) DEFAULT 'missing'  COMMENT 'extracted/inferred/missing/manual',
     points                   DECIMAL(5,1) DEFAULT NULL      COMMENT '分值 (NULL=未標註)',
     question_type            VARCHAR(50) DEFAULT 'open'     COMMENT '題型: open/multiple_choice/fill_blank/true_false',
