@@ -804,14 +804,25 @@ const UI = {
         const ca = m.correct_answer;
         if (!ca || !ca.trim()) return [];
 
+        // 拆行時保護 $...$ 和 $$...$$ 不被拆散
+        const _safeSplit = (text, sep) => {
+            // 先把 $...$ / $$...$$ 替換為占位符
+            const holders = [];
+            let safe = text.replace(/\$\$[\s\S]*?\$\$/g, m => {
+                holders.push(m); return `\x00MATH${holders.length - 1}\x00`;
+            }).replace(/\$[^$]*?\$/g, m => {
+                holders.push(m); return `\x00MATH${holders.length - 1}\x00`;
+            });
+            const parts = safe.split(sep).map(s => s.trim()).filter(s => s.length > 5);
+            // 還原占位符
+            return parts.map(p => p.replace(/\x00MATH(\d+)\x00/g, (_, i) => holders[+i]));
+        };
+
         // 按步驟標記或換行拆分（完整顯示每步）
-        const lines = ca.split(/(?:Step\s*\d+[:：]|步驟\s*\d+[:：]|\(\d+\)\s*|^\d+[.、]\s*|\n{2,})/im)
-            .map(s => s.trim())
-            .filter(s => s.length > 5);
+        const lines = _safeSplit(ca, /(?:Step\s*\d+[:：]|步驟\s*\d+[:：]|\(\d+\)\s*|^\d+[.、]\s*|\n{2,})/im);
 
         if (lines.length <= 1) {
-            const byLine = ca.split(/\n/).map(s => s.trim()).filter(s => s.length > 5);
-            return byLine;
+            return _safeSplit(ca, /\n/);
         }
 
         return lines;
