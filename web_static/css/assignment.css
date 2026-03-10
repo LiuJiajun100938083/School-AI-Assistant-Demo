@@ -5150,3 +5150,134 @@ textarea[data-autogrow] {
     .esv-blank-item { flex-direction: column; align-items: stretch; }
     .esv-blank-input { min-width: auto; }
 }
+
+/* ── Template-driven fill_blank (student) ── */
+.esv-template-fill {
+    white-space: pre-wrap;
+    line-height: 2.2;
+    font-size: 0.97rem;
+    padding: 12px 0;
+}
+.esv-tpl-inline-input {
+    display: inline;
+    border: none;
+    border-bottom: 2px solid var(--color-primary, #6366f1);
+    background: transparent;
+    min-width: 80px;
+    max-width: 200px;
+    font-size: 0.95rem;
+    padding: 2px 4px;
+    margin: 0 2px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.esv-tpl-inline-input:focus {
+    border-bottom-color: var(--color-primary-dark, #4f46e5);
+}
+.esv-tpl-inline-input::placeholder {
+    color: #ccc;
+    font-size: 0.85rem;
+}
+.esv-tpl-longtext-wrap {
+    display: block;
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--color-primary, #6366f1);
+    background: var(--color-bg-subtle, #f8f9fa);
+    border-radius: 0 6px 6px 0;
+}
+.esv-tpl-lt-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary, #666);
+    margin-bottom: 4px;
+}
+.esv-tpl-textarea {
+    width: 100%;
+    min-height: 60px;
+    border: 1px solid var(--color-border, #e0e0e0);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 0.95rem;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.esv-tpl-textarea:focus {
+    border-color: var(--color-primary, #6366f1);
+}
+.esv-tpl-inline-pts {
+    font-size: 0.75rem;
+    color: #999;
+    margin-left: 2px;
+    vertical-align: super;
+}
+/* submitted template view */
+.esv-tpl-inline-answer {
+    display: inline;
+    border-bottom: 2px solid var(--color-primary, #6366f1);
+    padding: 1px 6px;
+    font-weight: 600;
+    color: var(--color-primary-dark, #4f46e5);
+    margin: 0 2px;
+}
+.esv-tpl-submitted .esv-tpl-longtext-wrap {
+    background: var(--color-bg-subtle, #f8f9fa);
+}
+
+/* ── Template editor (teacher) ── */
+.template-text-editor {
+    margin: 8px 0 12px;
+    padding: 10px;
+    background: #f0f4ff;
+    border-radius: 8px;
+    border: 1px solid #d4deff;
+}
+.template-text-editor > label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #444;
+}
+.template-text-editor code {
+    background: #e0e8ff;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.82rem;
+}
+.template-text-input {
+    width: 100%;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.9rem;
+    border: 1px solid #c4d0f0;
+    border-radius: 6px;
+    padding: 8px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.template-text-input:focus {
+    border-color: var(--color-primary, #6366f1);
+}
+.blank-id-badge {
+    display: inline-block;
+    background: #7c3aed;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    min-width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.blank-input-type {
+    padding: 4px 6px;
+    border: 1px solid var(--color-border, #d0d5dd);
+    border-radius: 6px;
+    font-size: 0.82rem;
+    background: #fff;
+    flex-shrink: 0;
+}

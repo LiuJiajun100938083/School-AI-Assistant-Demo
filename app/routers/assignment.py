@@ -1655,7 +1655,7 @@ MAX_EXAM_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 @router.post("/api/assignments/teacher/upload-exam-paper")
 async def upload_exam_paper(
     files: List[UploadFile] = File(...),
-    subject: str = Form("chinese"),
+    subject: str = Form("general"),
     teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     """上傳試卷圖片/PDF，啟動 OCR 識別"""

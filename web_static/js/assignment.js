@@ -113,9 +113,8 @@ const AssignmentAPI = {
     },
 
     // Exam Paper OCR APIs
-    async uploadExamPaper(files, subject) {
+    async uploadExamPaper(files) {
         const formData = new FormData();
-        formData.append('subject', subject);
         for (const f of files) formData.append('files', f);
         const resp = await fetch('/api/assignments/teacher/upload-exam-paper', {
             method: 'POST',
@@ -4144,12 +4143,11 @@ const AssignmentApp = {
 
     async startExamOcr() {
         if (this.state.examFiles.length === 0) return;
-        const subject = document.getElementById('examSubject').value;
         const btn = document.getElementById('startOcrBtn');
         btn.disabled = true;
         btn.textContent = '上傳中...';
 
-        const resp = await AssignmentAPI.uploadExamPaper(this.state.examFiles, subject);
+        const resp = await AssignmentAPI.uploadExamPaper(this.state.examFiles);
         if (!resp?.success) {
             UIModule.toast('上傳失敗: ' + (resp?.message || resp?.detail || ''), 'error');
             btn.disabled = false;
@@ -4383,6 +4381,7 @@ const AssignmentApp = {
     _renderBlanksEditor(q, qi) {
         const blanks = q.metadata?.blanks || [];
         const blankMode = q.metadata?.blank_mode || 'inline';
+        const templateText = q.metadata?.template_text || '';
         const totalPts = blanks.reduce((s, b) => s + (parseFloat(b.points) || 0), 0);
 
         let html = `<div class="blanks-editor" data-qi="${qi}">
@@ -4393,13 +4392,28 @@ const AssignmentApp = {
             <select class="blank-mode-select" onchange="AssignmentApp._onBlankModeChange(${qi}, this.value)">
                 <option value="inline" ${blankMode === 'inline' ? 'selected' : ''}>行內填空</option>
                 <option value="section" ${blankMode === 'section' ? 'selected' : ''}>分項答題</option>
+                <option value="mixed" ${blankMode === 'mixed' ? 'selected' : ''}>混合模式</option>
             </select>`;
 
+        // 模板文字編輯區
+        html += `<div class="template-text-editor">
+            <label>模板文字 <span style="font-weight:normal;color:#888;">（用 <code>{{b1}}</code> 標記空格位置，學生將在原文中作答）</span></label>
+            <textarea class="template-text-input" rows="4" placeholder="例：製造業的平均工時為 {{b1}} 小時，建造業為 {{b2}} 小時。"
+                oninput="AssignmentApp._onTemplateTextChange(${qi}, this.value)">${this._escapeHtml(templateText)}</textarea>
+            <button class="btn btn-outline btn-xs" style="margin-top:4px;" onclick="AssignmentApp._syncBlanksFromTemplate(${qi})">同步空格</button>
+        </div>`;
+
         blanks.forEach((b, bi) => {
+            const inputType = b.input_type || 'short_text';
             html += `<div class="blank-item" data-bi="${bi}">
+                <span class="blank-id-badge">${b.id || `b${bi+1}`}</span>
                 <input type="text" class="blank-label" value="${this._escapeAttr(b.label || '')}"
-                    placeholder="${blankMode === 'section' ? '段落名 (如 論點)' : '空格標籤'}"
+                    placeholder="標籤（可選）"
                     oninput="AssignmentApp._onBlankInput(${qi}, ${bi}, 'label', this.value)">
+                <select class="blank-input-type" onchange="AssignmentApp._onBlankInput(${qi}, ${bi}, 'input_type', this.value)">
+                    <option value="short_text" ${inputType === 'short_text' ? 'selected' : ''}>短文字</option>
+                    <option value="long_text" ${inputType === 'long_text' ? 'selected' : ''}>長文字</option>
+                </select>
                 <input type="number" class="blank-points" value="${b.points != null ? b.points : ''}"
                     placeholder="分值" min="0" step="0.5"
                     oninput="AssignmentApp._onBlankInput(${qi}, ${bi}, 'points', this.value)">
@@ -4429,6 +4443,8 @@ const AssignmentApp = {
             // Update blanks header count
             const headerLabel = document.querySelector(`#qcard_${qi} .blanks-editor-header label`);
             if (headerLabel) headerLabel.textContent = `填空項目 (共 ${q.metadata.blanks.length} 項，合計 ${totalPts} 分)`;
+        } else if (field === 'input_type') {
+            q.metadata.blanks[bi].input_type = value || 'short_text';
         } else {
             q.metadata.blanks[bi][field] = value?.trim() || '';
         }
@@ -4440,6 +4456,36 @@ const AssignmentApp = {
         q.metadata.blank_mode = mode;
     },
 
+    _onTemplateTextChange(qi, value) {
+        const q = this.state.recognizedQuestions[qi];
+        if (!q) return;
+        if (!q.metadata) q.metadata = { blank_mode: 'mixed' };
+        q.metadata.template_text = value || '';
+    },
+
+    _syncBlanksFromTemplate(qi) {
+        this._syncQuestionFromDOM(qi);
+        const q = this.state.recognizedQuestions[qi];
+        if (!q?.metadata) return;
+        const tpl = q.metadata.template_text || '';
+        // 從模板中提取所有 {{bN}} 佔位符
+        const matches = [...tpl.matchAll(/\{\{(b\d+)\}\}/g)];
+        const tplIds = [...new Set(matches.map(m => m[1]))];
+        // 按數字排序
+        tplIds.sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+        // 建立現有 blanks 的 map
+        const existingMap = {};
+        (q.metadata.blanks || []).forEach(b => { existingMap[b.id] = b; });
+        // 同步：保留已存在的 blank，新增缺失的
+        const synced = tplIds.map(id => existingMap[id] || { id, label: '', input_type: 'short_text', points: 0, answer: '' });
+        q.metadata.blanks = synced;
+        // 自動設為 mixed 模式
+        if (tpl && q.metadata.blank_mode === 'inline') q.metadata.blank_mode = 'mixed';
+        q.points = synced.reduce((s, b) => s + (parseFloat(b.points) || 0), 0);
+        this._renderQuestionEditor();
+        UIModule.toast(`已從模板同步 ${synced.length} 個空格`, 'success');
+    },
+
     _addBlank(qi) {
         this._syncQuestionFromDOM(qi);
         const q = this.state.recognizedQuestions[qi];
@@ -4447,7 +4493,7 @@ const AssignmentApp = {
         if (!q.metadata) q.metadata = { blank_mode: 'inline' };
         if (!q.metadata.blanks) q.metadata.blanks = [];
         const nextId = `b${q.metadata.blanks.length + 1}`;
-        q.metadata.blanks.push({ id: nextId, label: '', points: null, answer: '' });
+        q.metadata.blanks.push({ id: nextId, label: '', input_type: 'short_text', points: null, answer: '' });
         this._renderQuestionEditor();
     },
 
@@ -6552,25 +6598,65 @@ const ExamStudentView = {
             if (q.question_type === 'fill_blank') {
                 const blanks = q.metadata?.blanks || [];
                 const mode = q.metadata?.blank_mode || 'inline';
+                const templateText = q.metadata?.template_text || '';
                 let draftVals = {};
                 try { draftVals = JSON.parse(drafts[q.id] || '{}'); } catch (e) {}
 
-                inputHtml = `<div class="esv-blanks ${mode === 'section' ? 'esv-blanks-section' : ''}">`;
-                blanks.forEach(b => {
-                    inputHtml += `<div class="esv-blank-item">
-                        <label class="esv-blank-label">${AssignmentApp._escapeHtml(b.label)}</label>
-                        <span class="esv-blank-pts">${b.points} 分</span>
-                        ${mode === 'section'
-                            ? `<textarea id="esv_blank_${q.id}_${b.id}" class="esv-blank-input esv-blank-textarea"
-                                rows="2" data-autogrow placeholder="作答..."
-                                oninput="ExamStudentView._onInput(${assignmentId}, event)">${draftVals[b.id] || ''}</textarea>`
-                            : `<input type="text" id="esv_blank_${q.id}_${b.id}" class="esv-blank-input"
-                                placeholder="填寫答案" value="${AssignmentApp._escapeHtml(draftVals[b.id] || '')}"
-                                oninput="ExamStudentView._onInput(${assignmentId}, event)">`
+                if (templateText) {
+                    // 模板驅動渲染：在原題文字中嵌入輸入框
+                    const blanksMap = {};
+                    blanks.forEach(b => { blanksMap[b.id] = b; });
+                    const parts = templateText.split(/(\{\{b\d+\}\})/g);
+                    let tplHtml = '';
+                    parts.forEach(part => {
+                        const m = part.match(/^\{\{(b\d+)\}\}$/);
+                        if (m) {
+                            const bid = m[1];
+                            const b = blanksMap[bid];
+                            if (b) {
+                                const dv = AssignmentApp._escapeHtml(draftVals[bid] || '');
+                                if (b.input_type === 'long_text') {
+                                    tplHtml += `<div class="esv-tpl-longtext-wrap">
+                                        ${b.label ? `<span class="esv-tpl-lt-label">${AssignmentApp._escapeHtml(b.label)}</span>` : ''}
+                                        <textarea id="esv_blank_${q.id}_${bid}" class="esv-tpl-textarea"
+                                            rows="3" data-autogrow placeholder="作答..."
+                                            oninput="ExamStudentView._onInput(${assignmentId}, event)">${dv}</textarea>
+                                        <span class="esv-tpl-inline-pts">${b.points}分</span>
+                                    </div>`;
+                                } else {
+                                    tplHtml += `<input type="text" id="esv_blank_${q.id}_${bid}"
+                                        class="esv-tpl-inline-input" placeholder="______"
+                                        value="${dv}"
+                                        oninput="ExamStudentView._onInput(${assignmentId}, event)">`;
+                                    tplHtml += `<span class="esv-tpl-inline-pts">${b.points}分</span>`;
+                                }
+                            } else {
+                                tplHtml += AssignmentApp._escapeHtml(part);
+                            }
+                        } else {
+                            tplHtml += AssignmentApp._escapeHtml(part);
                         }
-                    </div>`;
-                });
-                inputHtml += '</div>';
+                    });
+                    inputHtml = `<div class="esv-template-fill">${tplHtml}</div>`;
+                } else {
+                    // Fallback: 傳統 label+input 列表
+                    inputHtml = `<div class="esv-blanks ${mode === 'section' ? 'esv-blanks-section' : ''}">`;
+                    blanks.forEach(b => {
+                        inputHtml += `<div class="esv-blank-item">
+                            <label class="esv-blank-label">${AssignmentApp._escapeHtml(b.label)}</label>
+                            <span class="esv-blank-pts">${b.points} 分</span>
+                            ${mode === 'section' || b.input_type === 'long_text'
+                                ? `<textarea id="esv_blank_${q.id}_${b.id}" class="esv-blank-input esv-blank-textarea"
+                                    rows="2" data-autogrow placeholder="作答..."
+                                    oninput="ExamStudentView._onInput(${assignmentId}, event)">${draftVals[b.id] || ''}</textarea>`
+                                : `<input type="text" id="esv_blank_${q.id}_${b.id}" class="esv-blank-input"
+                                    placeholder="填寫答案" value="${AssignmentApp._escapeHtml(draftVals[b.id] || '')}"
+                                    oninput="ExamStudentView._onInput(${assignmentId}, event)">`
+                            }
+                        </div>`;
+                    });
+                    inputHtml += '</div>';
+                }
             } else {
                 // open / other types
                 const draft = drafts[q.id] || '';
@@ -6702,18 +6788,54 @@ const ExamStudentView = {
             let answerHtml = '';
             if (q.question_type === 'fill_blank') {
                 const blanks = q.metadata?.blanks || [];
+                const templateText = q.metadata?.template_text || '';
                 let vals = {};
                 try { vals = JSON.parse(a.answer_text || '{}'); } catch (e) {}
-                answerHtml = '<div class="esv-blanks-submitted">';
-                blanks.forEach(b => {
-                    const v = vals[b.id] || '(未作答)';
-                    answerHtml += `<div class="esv-blank-submitted-item">
-                        <span class="esv-blank-label">${AssignmentApp._escapeHtml(b.label)}</span>
-                        <span class="esv-blank-pts">${b.points} 分</span>
-                        <div class="fsv-submitted-answer">${AssignmentApp._escapeHtml(v)}</div>
-                    </div>`;
-                });
-                answerHtml += '</div>';
+
+                if (templateText) {
+                    // 模板驅動顯示：在原題文字中嵌入答案
+                    const blanksMap = {};
+                    blanks.forEach(b => { blanksMap[b.id] = b; });
+                    const parts = templateText.split(/(\{\{b\d+\}\})/g);
+                    let tplHtml = '';
+                    parts.forEach(part => {
+                        const m = part.match(/^\{\{(b\d+)\}\}$/);
+                        if (m) {
+                            const bid = m[1];
+                            const b = blanksMap[bid];
+                            const v = vals[bid] || '(未作答)';
+                            if (b) {
+                                if (b.input_type === 'long_text') {
+                                    tplHtml += `<div class="esv-tpl-longtext-wrap esv-tpl-submitted">
+                                        ${b.label ? `<span class="esv-tpl-lt-label">${AssignmentApp._escapeHtml(b.label)}</span>` : ''}
+                                        <div class="fsv-submitted-answer">${AssignmentApp._escapeHtml(v)}</div>
+                                        <span class="esv-tpl-inline-pts">${b.points}分</span>
+                                    </div>`;
+                                } else {
+                                    tplHtml += `<span class="esv-tpl-inline-answer">${AssignmentApp._escapeHtml(v)}</span>`;
+                                    tplHtml += `<span class="esv-tpl-inline-pts">${b.points}分</span>`;
+                                }
+                            } else {
+                                tplHtml += AssignmentApp._escapeHtml(v);
+                            }
+                        } else {
+                            tplHtml += AssignmentApp._escapeHtml(part);
+                        }
+                    });
+                    answerHtml = `<div class="esv-template-fill esv-template-submitted">${tplHtml}</div>`;
+                } else {
+                    // Fallback: 傳統列表顯示
+                    answerHtml = '<div class="esv-blanks-submitted">';
+                    blanks.forEach(b => {
+                        const v = vals[b.id] || '(未作答)';
+                        answerHtml += `<div class="esv-blank-submitted-item">
+                            <span class="esv-blank-label">${AssignmentApp._escapeHtml(b.label)}</span>
+                            <span class="esv-blank-pts">${b.points} 分</span>
+                            <div class="fsv-submitted-answer">${AssignmentApp._escapeHtml(v)}</div>
+                        </div>`;
+                    });
+                    answerHtml += '</div>';
+                }
             } else {
                 answerHtml = `<div class="fsv-submitted-answer">${AssignmentApp._escapeHtml(a.answer_text || '(未作答)')}</div>`;
             }

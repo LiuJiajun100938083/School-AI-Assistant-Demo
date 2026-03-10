@@ -79,7 +79,7 @@ class ExamRecognizer:
             RecognitionSubject.MATH: "這是一份數學科試卷。數學公式請用 LaTeX 格式（如 $x^2 + y^2 = r^2$）。",
             RecognitionSubject.ENGLISH: "This is an English exam paper.",
             RecognitionSubject.PHYSICS: "這是一份物理科試卷。公式請用 LaTeX 格式。",
-        }.get(subject, "這是一份試卷。")
+        }.get(subject, "這是一份試卷。如果包含數學或物理公式，請用 LaTeX 格式（如 $x^2 + y^2 = r^2$）。")
 
         return f"""/no_think
 IMPORTANT: Return EXACTLY one JSON object. Do NOT output any analysis or reasoning.
@@ -107,8 +107,11 @@ Do NOT describe what you see. Do NOT start with "首先" or "Let me". Directly o
    - 題目中出現 ____（底線空格）或分項答題表格（如 論點/論據/論述） → question_type = "fill_blank"
    - 如果不確定是否為填空，寧可設為 "open"
    - fill_blank 必須額外輸出 metadata:
-     {{"blank_mode": "inline 或 section", "blanks": [{{"id":"b1","label":"標籤","points":分值,"answer":""}}]}}
-   - 行內空格用 blank_mode = "inline"，分項答題表格用 blank_mode = "section"
+     {{"blank_mode": "inline / section / mixed", "template_text": "原題文字，空格位置用 {{{{bN}}}} 標記", "blanks": [{{"id":"b1","label":"","input_type":"short_text","points":分值,"answer":""}}]}}
+   - template_text: 保留原題的完整文字，在空格處插入 {{{{b1}}}}, {{{{b2}}}} 等佔位符。換行用 \n
+   - input_type: 短填空（一兩個詞/數字）用 "short_text"，長答（一段話）用 "long_text"
+   - blank_mode: 純行內空格用 "inline"，純分項答題用 "section"，混合（既有短填又有長答）用 "mixed"
+   - label: 如果分項有標題（如「製造業」「建造業」），填入 label；否則 label 填空字串
    - 題目 points = blanks 的 points 總和
 
 你的回答必須是且僅是一個 JSON 對象。禁止任何推理文字、分析說明、markdown code fence。
@@ -137,10 +140,13 @@ Do NOT describe what you see. Do NOT start with "首先" or "Let me". Directly o
       "has_math_formula": false,
       "confidence": 0.85,
       "metadata": {{
-        "blank_mode": "section",
+        "blank_mode": "mixed",
+        "template_text": "製造業而言，平均每周工時由2012年的 {{{{b1}}}} 小時下降至2022年的 {{{{b2}}}} 小時。\\n建造業而言，{{{{b3}}}}\\n小結：{{{{b4}}}}",
         "blanks": [
-          {{"id": "b1", "label": "製造業", "points": 4, "answer": ""}},
-          {{"id": "b2", "label": "建造業", "points": 4, "answer": ""}}
+          {{"id": "b1", "label": "", "input_type": "short_text", "points": 2, "answer": ""}},
+          {{"id": "b2", "label": "", "input_type": "short_text", "points": 2, "answer": ""}},
+          {{"id": "b3", "label": "建造業", "input_type": "long_text", "points": 6, "answer": ""}},
+          {{"id": "b4", "label": "小結", "input_type": "long_text", "points": 8, "answer": ""}}
         ]
       }}
     }},
@@ -230,8 +236,11 @@ Do NOT describe what you see. Do NOT start with "首先" or "Let me". Directly o
             metadata["has_math_formula"] = bool(q.get("has_math_formula", False))
             if "blanks" in metadata and isinstance(metadata["blanks"], list):
                 for bi, blank in enumerate(metadata["blanks"]):
-                    if isinstance(blank, dict) and not blank.get("id"):
-                        blank["id"] = f"b{bi + 1}"
+                    if isinstance(blank, dict):
+                        if not blank.get("id"):
+                            blank["id"] = f"b{bi + 1}"
+                        if blank.get("input_type") not in ("short_text", "long_text"):
+                            blank["input_type"] = "short_text"
 
             questions.append({
                 "question_number": str(q.get("question_number", str(i + 1))).strip(),

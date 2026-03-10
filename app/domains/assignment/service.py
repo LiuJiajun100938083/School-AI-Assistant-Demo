@@ -2549,6 +2549,7 @@ class AssignmentService:
                         f"第 {i + 1} 題 (填空題) 至少需要一個填空項",
                         field="questions",
                     )
+                has_template = bool(md.get("template_text", "").strip())
                 validated_blanks = []
                 seen_ids = set()
                 for bi, b in enumerate(blanks_raw):
@@ -2556,7 +2557,8 @@ class AssignmentService:
                         continue
                     blank_id = str(b.get("id") or f"b{bi + 1}").strip()
                     label = str(b.get("label", "")).strip()
-                    if not label:
+                    # 模板模式下 label 可為空；非模板模式下仍需 label
+                    if not label and not has_template:
                         raise ValidationError(
                             f"第 {i + 1} 題的第 {bi + 1} 個填空項缺少標籤",
                             field="questions",
@@ -2569,16 +2571,25 @@ class AssignmentService:
                     if blank_id in seen_ids:
                         blank_id = f"b{bi + 1}"
                     seen_ids.add(blank_id)
+                    # input_type 校驗
+                    input_type = str(b.get("input_type", "short_text")).strip()
+                    if input_type not in ("short_text", "long_text"):
+                        input_type = "short_text"
                     validated_blanks.append({
                         "id": blank_id,
                         "label": label,
                         "points": round(pts, 1),
                         "answer": str(b.get("answer", "")).strip(),
+                        "input_type": input_type,
                     })
                 # auto-sum points (後端覆蓋，不信任前端)
                 q["points"] = sum(b["points"] for b in validated_blanks)
                 md["blanks"] = validated_blanks
-                md.setdefault("blank_mode", "inline")
+                # blank_mode 校驗
+                blank_mode = md.get("blank_mode", "inline")
+                if blank_mode not in ("inline", "section", "mixed"):
+                    blank_mode = "inline"
+                md["blank_mode"] = blank_mode
                 q["metadata"] = md
             else:
                 # 非 fill_blank: 清除殘留 blanks 防髒數據

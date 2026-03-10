@@ -117,14 +117,16 @@ class AnswerSourceEnum(str, Enum):
 class BlankModeEnum(str, Enum):
     INLINE = "inline"      # 行內填空 (____空格)
     SECTION = "section"    # 分項答題 (論點/論據/論述)
+    MIXED = "mixed"        # 混合模式 (模板驅動，短填+長答)
 
 
 class BlankItem(BaseModel):
     """填空題的單個空格/分項"""
     id: str = Field(default="", max_length=20, description="空格 ID, e.g. b1")
-    label: str = Field(..., min_length=1, max_length=255, description="空格標籤")
+    label: str = Field(default="", max_length=255, description="空格標籤（模板模式下可為空）")
     points: float = Field(..., ge=0, description="此空格分值")
     answer: str = Field(default="", description="預期答案")
+    input_type: str = Field(default="short_text", description="輸入類型: short_text / long_text")
 
 
 class ExamQuestionInput(BaseModel):
