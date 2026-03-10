@@ -206,8 +206,15 @@ LAYER 3 — relationships:
 - ⚠️ INFERENCE RESTRICTION — do NOT over-infer geometric relationships:
   - Intersection ≠ midpoint. Two lines crossing at a point does NOT mean that point is the midpoint of either line.
   - Only create "midpoint", "bisector", "equal", or "congruent" relationships with source "inferred" if they are LOGICALLY CERTAIN from the given conditions — not just because they "look like" it in the figure.
-  - If a relationship is not explicitly stated in the problem text and not clearly marked on the figure (e.g. with tick marks for equal lengths), do NOT infer it.
+  - If a relationship is not explicitly stated in the problem text and not clearly marked on the figure, do NOT infer it.
   - When in doubt, do NOT add the relationship. Missing a relationship is ALWAYS better than adding a wrong one.
+
+  ⚠️ GEOMETRIC NOTATION GUIDE — how to read figure markings correctly:
+  - **Equal-length tick marks** (single /, double //, triple ///): placed on TWO OR MORE segments means those segments are EQUAL in length. E.g. single tick on AD and single tick on BC → AD = BC (use "equal" relationship), NOT midpoint.
+  - **Midpoint**: indicated ONLY when the SAME tick marks appear on BOTH HALVES of a single segment. E.g. tick on AM and tick on MB on segment AB → M is midpoint of AB. If tick marks appear on two DIFFERENT segments (like AD and BC), it means AD = BC, NOT midpoint.
+  - **Right angle square** (⊾ or small square at a vertex): indicates 90° angle.
+  - **Arc marks** at angles: equal arc marks on two angles means those angles are equal.
+  - Do NOT confuse equal-length marks across different segments with midpoint marks on one segment.
 
 LAYER 4 — task:
 - "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
@@ -349,6 +356,7 @@ Output in the following JSON format:
 - SOURCE RULE: if the problem text explicitly states a fact, source = "question_text", even if the figure also shows it. Only use "figure" for facts solely observable from the original printed diagram.
 - If a student handwrote calculated values on the figure (not given in the problem), do NOT create measurements for them — put them in task.figure_annotations instead.
 - ⚠️ INFERENCE RESTRICTION: do NOT over-infer relationships. Intersection ≠ midpoint. Only infer "midpoint"/"bisector"/"equal"/"congruent" if logically certain from given conditions, not from visual appearance. When in doubt, do NOT add it.
+- ⚠️ GEOMETRIC NOTATION: Equal tick marks on two DIFFERENT segments (e.g. AD and BC) means AD = BC (equal), NOT midpoint. Midpoint is only when both HALVES of ONE segment have the same tick marks. Do NOT confuse these.
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
 - Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
