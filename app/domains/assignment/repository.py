@@ -369,6 +369,7 @@ class AssignmentQuestionRepository(BaseRepository):
             # 舊表存在 → 刪除依賴表後重建
             logger.warning("偵測到舊版 assignment_questions 表（form schema），正在重建...")
             rebuild_sql = [
+                "SET FOREIGN_KEY_CHECKS = 0",
                 "DROP TABLE IF EXISTS assignment_question_options",
                 "DROP TABLE IF EXISTS assignment_questions",
                 """CREATE TABLE assignment_questions (
@@ -393,6 +394,7 @@ class AssignmentQuestionRepository(BaseRepository):
                     INDEX idx_order (assignment_id, question_order),
                     FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+                "SET FOREIGN_KEY_CHECKS = 1",
             ]
             for sql in rebuild_sql:
                 self.pool.execute_write(sql, ())
