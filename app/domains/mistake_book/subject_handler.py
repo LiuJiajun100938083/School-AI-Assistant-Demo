@@ -159,6 +159,28 @@ class BaseSubjectHandler(ABC):
         """
         return RecognitionTask.QUESTION_AND_ANSWER
 
+    # ---- 語言偵測 ----
+
+    @staticmethod
+    def _is_english_text(text: str) -> bool:
+        """
+        判斷文本是否主要為英文。
+        用於英文班學生上傳的數學/物理題目——若題目是英文，回覆也用英文。
+        """
+        if not text:
+            return False
+        # 計算 CJK 字符數（中日韓統一表意文字）
+        cjk_count = sum(
+            1 for ch in text
+            if '\u4e00' <= ch <= '\u9fff'      # CJK Unified
+            or '\u3400' <= ch <= '\u4dbf'       # CJK Extension A
+            or '\uf900' <= ch <= '\ufaff'       # CJK Compatibility
+        )
+        non_space = sum(1 for ch in text if not ch.isspace())
+        if non_space == 0:
+            return False
+        return (cjk_count / non_space) < 0.1
+
     # ---- 前端 UI 特性 ----
 
     @property

@@ -194,7 +194,7 @@ class PhysicsHandler(BaseSubjectHandler):
 ```
 
 注意：
-- 用繁體中文分析
+- {'ALL text fields (error_analysis, correct_answer, key_insight, improvement_tips, first_error_step, physics_checks) MUST be in English. Use English for all explanations.' if self._is_english_text(question_text) else '用繁體中文分析'}
 - **所有物理公式和數學表達式必須用 $ 符號包裹**，例如 $F = ma$、$Q = mc\\Delta T$、$v = 14 \\text{{ m s}}^{{-1}}$。不要出現未包裹的 LaTeX 命令（如裸露的 \\text{{}}、\\frac{{}}{{}} 等）
 - 單位寫法：在 LaTeX 內用 $\\text{{ J kg}}^{{-1}} \\text{{ °C}}^{{-1}}$ 或直接寫 J kg⁻¹ °C⁻¹，不要用 \\circ
 - 所有數值必須帶單位
@@ -250,7 +250,7 @@ class PhysicsHandler(BaseSubjectHandler):
       "question_type": "multiple_choice / structured / essay",
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "correct_answer": "完整解題步驟和最終答案（帶單位）",
-      "explanation": "解析（繁體中文，公式用 LaTeX）",
+      "explanation": "解析（公式用 LaTeX）",
       "scoring_points": ["得分點1", "得分點2"],
       "common_mistakes": ["常見錯誤1"],
       "why_wrong_option": {{"A": "為何 A 是錯的", "B": "為何 B 是錯的"}},
@@ -263,6 +263,7 @@ class PhysicsHandler(BaseSubjectHandler):
 注意：
 - multiple_choice 必須有 options 和 why_wrong_option
 - structured 和 essay 題的 options 填 null，why_wrong_option 填 null
+- {'IMPORTANT: The student studies in an English-medium class. ALL text fields (question, correct_answer, explanation, scoring_points, common_mistakes, why_wrong_option) MUST be written in English.' if self._is_english_text(student_mistakes_context) else '用繁體中文出題和解析。'}
 - 只輸出 JSON。"""
 
 

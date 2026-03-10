@@ -77,11 +77,11 @@ Reply in JSON format:
   "is_correct": false,
   "correct_answer": "Model answer or corrected version",
   "error_type": "grammar error / spelling error / comprehension gap / expression weak / careless / vocabulary error",
-  "error_analysis": "用繁體中文詳細解釋學生的錯誤，幫助學生理解（Explain in Traditional Chinese to help the student understand）",
+  "error_analysis": "Explain the student's mistake in detail in English, helping the student understand what went wrong",
   "grammar_errors": ["List specific grammar errors if any"],
   "spelling_errors": ["List misspelled words with corrections: wrong → right"],
-  "key_insight": "What this question tests (in Traditional Chinese)",
-  "improvement_tips": ["Improvement tip 1 (繁體中文)", "Tip 2"],
+  "key_insight": "What this question tests (in English)",
+  "improvement_tips": ["Improvement tip 1 in English", "Tip 2"],
   "knowledge_points": ["Select relevant point_codes from the list above"],
   "difficulty_level": 3,
   "confidence": 0.85
@@ -89,7 +89,7 @@ Reply in JSON format:
 ```
 
 Notes:
-- error_analysis and improvement_tips in Traditional Chinese (繁體中文)
+- error_analysis, key_insight, and improvement_tips ALL in English
 - error_type: concept_error / calculation_error / comprehension_gap / expression_weak / careless / memory_error / logic_error
 - knowledge_points from the list above
 - JSON output only"""
@@ -122,7 +122,7 @@ Notes:
 - For grammar: error correction, fill-in-the-blank, sentence rewriting
 - For dictation/spelling: word lists, sentence completion
 - For reading: short passages with comprehension questions
-- Provide explanations in Traditional Chinese (繁體中文)
+- Provide ALL explanations in English
 
 ## Output Format (JSON)
 ```json
@@ -134,7 +134,7 @@ Notes:
       "question_type": "multiple_choice / fill_blank / error_correction / short_answer",
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "correct_answer": "Correct answer",
-      "explanation": "解析（用繁體中文解釋，幫助學生理解）",
+      "explanation": "Explain why this is the correct answer, help the student understand",
       "point_code": "knowledge point code",
       "difficulty": 3
     }}
