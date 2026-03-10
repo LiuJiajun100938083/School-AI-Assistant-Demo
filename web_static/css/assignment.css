@@ -5331,3 +5331,22 @@ textarea[data-autogrow] {
 .grid-card-ocr {
     margin-top: 4px;
 }
+
+/* ---- FormGradingView: passage & fill-blank ---- */
+.fgv-passage {
+    background: var(--bg-card-hover, #FAFAFA);
+    border-left: 3px solid var(--brand-border, #B8D4C0);
+}
+.fgv-passage .fgv-q-type {
+    color: var(--text-secondary, #6E6E73);
+    font-style: italic;
+}
+.fgv-blank-item {
+    display: inline-block;
+    background: var(--brand-lighter, #F0F9F3);
+    border: 1px solid var(--border, #E5E5EA);
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin: 2px 4px 2px 0;
+    font-size: 0.92em;
+}

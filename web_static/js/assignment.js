@@ -6980,10 +6980,26 @@ const FormGradingView = {
         <div class="fgv-total" id="fgvTotal"></div>`;
 
         questions.forEach((q, i) => {
+            // --- Passage: 只顯示閱讀材料，不需要批改 ---
+            if (q.question_type === 'passage') {
+                html += `<div class="fgv-question fgv-passage">
+                    <div class="fgv-q-header" onclick="FormGradingView._toggleQuestion(this)">
+                        <span class="fgv-q-number">${i + 1}</span>
+                        <span class="fgv-q-type">閱讀材料</span>
+                        <span class="fgv-toggle-icon">▼</span>
+                    </div>
+                    <div class="fgv-q-body">
+                        <div class="fgv-q-text">${AssignmentUI._renderMd(q.question_text)}</div>
+                    </div>
+                </div>`;
+                return; // skip grading controls
+            }
+
             const a = answerMap[q.id] || {};
             const files = fileMap[a.id] || [];
-            const typeLabel = q.question_type === 'mc' ? '選擇題' : q.question_type === 'short_answer' ? '短答題' : '長答題';
-            const isMc = q.question_type === 'mc';
+            const typeLabelMap = { mc: '選擇題', multiple_choice: '選擇題', true_false: '判斷題', short_answer: '短答題', fill_blank: '填空題', open: '問答題' };
+            const typeLabel = typeLabelMap[q.question_type] || '長答題';
+            const isMc = q.question_type === 'mc' || q.question_type === 'multiple_choice' || q.question_type === 'true_false';
             const reviewed = !!a.reviewed_at;
             const srcLabel = a.score_source === 'auto' ? '自動' : a.score_source === 'ai' ? 'AI' : a.score_source === 'teacher' ? '老師' : '—';
 
@@ -6996,9 +7012,21 @@ const FormGradingView = {
                     （正確答案: ${q.correct_answer}）
                 </div>`;
             } else {
+                // fill_blank: 解析 JSON 答案為可讀格式
+                let displayAnswer = a.answer_text || '(未作答)';
+                if (q.question_type === 'fill_blank' && a.answer_text) {
+                    try {
+                        const parsed = JSON.parse(a.answer_text);
+                        if (typeof parsed === 'object' && parsed !== null) {
+                            displayAnswer = Object.entries(parsed)
+                                .map(([k, v]) => `<span class="fgv-blank-item">空格${k.replace(/\D/g,'')||k}: <strong>${AssignmentApp._escapeHtml(String(v || ''))}</strong></span>`)
+                                .join('　');
+                        }
+                    } catch(e) { /* 非 JSON，原樣顯示 */ }
+                }
                 answerHtml = `<div class="fgv-text-answer">
                     <div class="fgv-label">學生答案:</div>
-                    <div class="fgv-answer-content">${AssignmentApp._escapeHtml(a.answer_text || '(未作答)')}</div>
+                    <div class="fgv-answer-content">${q.question_type === 'fill_blank' ? displayAnswer : AssignmentApp._escapeHtml(displayAnswer)}</div>
                 </div>`;
                 if (files.length) {
                     answerHtml += '<div class="fgv-answer-files">' + files.map(f => {
@@ -7054,7 +7082,7 @@ const FormGradingView = {
                     <span class="fgv-toggle-icon">▼</span>
                 </div>
                 <div class="fgv-q-body">
-                    <div class="fgv-q-text">${AssignmentApp._escapeHtml(q.question_text)}</div>
+                    <div class="fgv-q-text">${AssignmentUI._renderMd(q.question_text)}</div>
                     ${answerHtml}
                     ${gradingHtml}
                 </div>
