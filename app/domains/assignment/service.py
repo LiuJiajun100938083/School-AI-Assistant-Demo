@@ -352,7 +352,7 @@ class AssignmentService:
     @staticmethod
     def _deserialize_json_fields(data: Dict) -> Dict:
         """反序列化 JSON 字段"""
-        for key in ("rubric_config", "level_definitions"):
+        for key in ("rubric_config", "level_definitions", "metadata"):
             val = data.get(key)
             if isinstance(val, str):
                 try:
@@ -2415,11 +2415,62 @@ class AssignmentService:
             raise ValidationError("題目列表不能為空", field="questions")
 
         for i, q in enumerate(questions):
+            q_type = q.get("question_type", "open")
+
+            # passage 類型不需要作答，但仍需 question_text
             if not q.get("question_text", "").strip():
                 raise ValidationError(
                     f"第 {i + 1} 題的題目文字不能為空",
                     field="questions",
                 )
+
+            # fill_blank: 校驗 + 規範化 blanks
+            if q_type == "fill_blank":
+                md = q.get("metadata") or {}
+                blanks_raw = md.get("blanks", [])
+                if not isinstance(blanks_raw, list) or not blanks_raw:
+                    raise ValidationError(
+                        f"第 {i + 1} 題 (填空題) 至少需要一個填空項",
+                        field="questions",
+                    )
+                validated_blanks = []
+                seen_ids = set()
+                for bi, b in enumerate(blanks_raw):
+                    if not isinstance(b, dict):
+                        continue
+                    blank_id = str(b.get("id") or f"b{bi + 1}").strip()
+                    label = str(b.get("label", "")).strip()
+                    if not label:
+                        raise ValidationError(
+                            f"第 {i + 1} 題的第 {bi + 1} 個填空項缺少標籤",
+                            field="questions",
+                        )
+                    pts_raw = b.get("points")
+                    try:
+                        pts = float(pts_raw) if pts_raw is not None else 0.0
+                    except (ValueError, TypeError):
+                        pts = 0.0
+                    if blank_id in seen_ids:
+                        blank_id = f"b{bi + 1}"
+                    seen_ids.add(blank_id)
+                    validated_blanks.append({
+                        "id": blank_id,
+                        "label": label,
+                        "points": round(pts, 1),
+                        "answer": str(b.get("answer", "")).strip(),
+                    })
+                # auto-sum points (後端覆蓋，不信任前端)
+                q["points"] = sum(b["points"] for b in validated_blanks)
+                md["blanks"] = validated_blanks
+                md.setdefault("blank_mode", "inline")
+                q["metadata"] = md
+            else:
+                # 非 fill_blank: 清除殘留 blanks 防髒數據
+                md = q.get("metadata") or {}
+                if isinstance(md, dict):
+                    md.pop("blanks", None)
+                    md.pop("blank_mode", None)
+                    q["metadata"] = md if md else None
 
         # 事務化: delete + insert
         with self._question_repo.transaction() as conn:
@@ -2469,13 +2520,24 @@ class AssignmentService:
     def get_assignment_questions_for_student(
         self, assignment_id: int
     ) -> List[Dict[str, Any]]:
-        """獲取學生視角的題目 (過濾答案和內部字段)"""
+        """獲取學生視角的題目 (過濾答案和內部字段, 保留 metadata 但去除答案)"""
         questions = self.get_assignment_questions(assignment_id)
         student_fields = [
             "id", "question_order", "question_number", "question_text",
-            "points", "question_type",
+            "points", "question_type", "metadata",
         ]
-        return [
-            {k: q.get(k) for k in student_fields if k in q}
-            for q in questions
-        ]
+        result = []
+        for q in questions:
+            sq = {k: q.get(k) for k in student_fields if k in q}
+            # fill_blank: 保留 blanks 結構但去除答案
+            md = sq.get("metadata")
+            if isinstance(md, dict) and md.get("blanks"):
+                sq["metadata"] = {
+                    **md,
+                    "blanks": [
+                        {k: v for k, v in b.items() if k != "answer"}
+                        for b in md["blanks"]
+                    ],
+                }
+            result.append(sq)
+        return result

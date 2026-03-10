@@ -4227,10 +4227,12 @@ const AssignmentApp = {
         if (!container) return;
 
         const questions = this.state.recognizedQuestions;
-        const totalPoints = questions.reduce((sum, q) => sum + (parseFloat(q.points) || 0), 0);
+        const totalPoints = questions.reduce((sum, q) => q.question_type !== 'passage' ? sum + (parseFloat(q.points) || 0) : sum, 0);
 
+        const passageCount = questions.filter(q => q.question_type === 'passage').length;
+        const questionCount = questions.length - passageCount;
         let html = `<div class="question-editor-toolbar">
-            <span class="question-editor-count">共 ${questions.length} 題，總分 ${totalPoints} 分</span>
+            <span class="question-editor-count">${passageCount > 0 ? `${passageCount} 段資料 + ` : ''}共 ${questionCount} 題，總分 ${totalPoints} 分</span>
             <label class="question-filter-toggle">
                 <input type="checkbox" id="showLowConfidence" onchange="AssignmentApp._filterQuestions()"> 只看低置信度
             </label>
@@ -4250,18 +4252,24 @@ const AssignmentApp = {
                 <div class="question-group-title">${groupName}</div>`;
             for (const q of items) {
                 const i = q._index;
+                const isPassage = q.question_type === 'passage';
+                const isFillBlank = q.question_type === 'fill_blank';
                 const confClass = q.ocr_confidence != null && q.ocr_confidence < 0.7 ? 'low-confidence' : '';
+                const passageClass = isPassage ? 'passage-card' : '';
                 const sourceHints = [];
                 if (q.source_page) sourceHints.push(`第 ${q.source_page} 頁`);
                 if (q.ocr_confidence != null) sourceHints.push(`置信度 ${(q.ocr_confidence * 100).toFixed(0)}%`);
-                if (q.metadata?.has_math_formula) sourceHints.push('含公式');
+                if (q.metadata?.has_math_formula || q.has_math_formula) sourceHints.push('含公式');
 
-                html += `<div class="question-card ${confClass}" data-index="${i}" id="qcard_${i}">
+                const pointsReadonly = isFillBlank ? 'readonly class="q-points q-points-readonly" title="總分由填空項自動匯總"' : 'class="q-points" title="分值"';
+
+                html += `<div class="question-card ${confClass} ${passageClass}" data-index="${i}" id="qcard_${i}">
                     <div class="question-card-header">
                         <div class="question-card-row1">
-                            <input type="text" class="q-number" value="${this._escapeAttr(q.question_number || '')}" placeholder="題號" title="題號">
-                            <input type="number" class="q-points" value="${q.points != null ? q.points : ''}" placeholder="分值" min="0" step="0.5" title="分值">
-                            <select class="q-type" title="題型">
+                            <input type="text" class="q-number" value="${this._escapeAttr(q.question_number || '')}" placeholder="${isPassage ? '資料編號' : '題號'}" title="${isPassage ? '資料編號' : '題號'}">
+                            ${isPassage ? '<span class="passage-badge">資料</span>' : `<input type="number" ${pointsReadonly} value="${q.points != null ? q.points : ''}" placeholder="分值" min="0" step="0.5">`}
+                            <select class="q-type" title="題型" onchange="AssignmentApp._onQuestionTypeChange(${i}, this.value)">
+                                <option value="passage" ${q.question_type === 'passage' ? 'selected' : ''}>資料段落</option>
                                 <option value="open" ${q.question_type === 'open' ? 'selected' : ''}>開放題</option>
                                 <option value="multiple_choice" ${q.question_type === 'multiple_choice' ? 'selected' : ''}>選擇題</option>
                                 <option value="fill_blank" ${q.question_type === 'fill_blank' ? 'selected' : ''}>填空題</option>
@@ -4272,9 +4280,9 @@ const AssignmentApp = {
                         ${sourceHints.length > 0 ? `<div class="question-source-hints">${sourceHints.join(' | ')}</div>` : ''}
                     </div>
                     <div class="question-card-body">
-                        <label>題目</label>
-                        <textarea class="q-text" rows="3" placeholder="題目內容">${this._escapeHtml(q.question_text || '')}</textarea>
-                        <div class="question-answer-row">
+                        <label>${isPassage ? '資料內容' : '題目'}</label>
+                        <textarea class="q-text" rows="${isPassage ? 5 : 3}" placeholder="${isPassage ? '資料/段落內容 (表格、文字等)' : '題目內容'}">${this._escapeHtml(q.question_text || '')}</textarea>
+                        ${isPassage ? '' : `<div class="question-answer-row">
                             <div class="question-answer-field">
                                 <label>答案</label>
                                 <textarea class="q-answer" rows="2" placeholder="參考答案">${this._escapeHtml(q.answer_text || '')}</textarea>
@@ -4284,7 +4292,8 @@ const AssignmentApp = {
                                     { extracted: '已識別', inferred: '推斷', missing: '無答案', manual: '手動' }[q.answer_source || 'missing'] || '未知'
                                 }</span>
                             </div>
-                        </div>
+                        </div>`}
+                        ${isFillBlank ? this._renderBlanksEditor(q, i) : ''}
                     </div>
                 </div>`;
             }
@@ -4305,26 +4314,168 @@ const AssignmentApp = {
         });
     },
 
-    _addQuestion() {
-        this.state.recognizedQuestions.push({
+    _addQuestion(type = 'open') {
+        const newQ = {
             question_number: '',
             question_text: '',
             answer_text: '',
             answer_source: 'manual',
             points: null,
-            question_type: 'open',
+            question_type: type,
             is_ai_extracted: false,
             ocr_confidence: null,
             metadata: null,
-        });
+        };
+        if (type === 'fill_blank') {
+            newQ.metadata = { blank_mode: 'inline', blanks: [] };
+        }
+        this.state.recognizedQuestions.push(newQ);
         this._renderQuestionEditor();
-        // Scroll to bottom
         const container = document.getElementById('examQuestionEditor');
         if (container) container.scrollTop = container.scrollHeight;
     },
 
+    _addPassage() {
+        this._addQuestion('passage');
+    },
+
     _removeQuestion(index) {
         this.state.recognizedQuestions.splice(index, 1);
+        this._renderQuestionEditor();
+    },
+
+    // ── State sync: DOM → state before mutations ──
+    _syncQuestionFromDOM(qi) {
+        const card = document.getElementById(`qcard_${qi}`);
+        if (!card) return;
+        const q = this.state.recognizedQuestions[qi];
+        if (!q) return;
+        q.question_number = card.querySelector('.q-number')?.value?.trim() || '';
+        q.question_text = card.querySelector('.q-text')?.value?.trim() || '';
+        const answerEl = card.querySelector('.q-answer');
+        if (answerEl) q.answer_text = answerEl.value?.trim() || '';
+        // points: only sync if NOT fill_blank (fill_blank auto-sums)
+        if (q.question_type !== 'fill_blank') {
+            const ptsEl = card.querySelector('.q-points');
+            if (ptsEl && ptsEl.value) q.points = parseFloat(ptsEl.value);
+        }
+    },
+
+    // ── Blanks editor ──
+    _renderBlanksEditor(q, qi) {
+        const blanks = q.metadata?.blanks || [];
+        const blankMode = q.metadata?.blank_mode || 'inline';
+        const totalPts = blanks.reduce((s, b) => s + (parseFloat(b.points) || 0), 0);
+
+        let html = `<div class="blanks-editor" data-qi="${qi}">
+            <div class="blanks-editor-header">
+                <label>填空項目 (共 ${blanks.length} 項，合計 ${totalPts} 分)</label>
+                <button class="btn btn-outline btn-xs" onclick="AssignmentApp._addBlank(${qi})">+ 添加空格</button>
+            </div>
+            <select class="blank-mode-select" onchange="AssignmentApp._onBlankModeChange(${qi}, this.value)">
+                <option value="inline" ${blankMode === 'inline' ? 'selected' : ''}>行內填空</option>
+                <option value="section" ${blankMode === 'section' ? 'selected' : ''}>分項答題</option>
+            </select>`;
+
+        blanks.forEach((b, bi) => {
+            html += `<div class="blank-item" data-bi="${bi}">
+                <input type="text" class="blank-label" value="${this._escapeAttr(b.label || '')}"
+                    placeholder="${blankMode === 'section' ? '段落名 (如 論點)' : '空格標籤'}"
+                    oninput="AssignmentApp._onBlankInput(${qi}, ${bi}, 'label', this.value)">
+                <input type="number" class="blank-points" value="${b.points != null ? b.points : ''}"
+                    placeholder="分值" min="0" step="0.5"
+                    oninput="AssignmentApp._onBlankInput(${qi}, ${bi}, 'points', this.value)">
+                <input type="text" class="blank-answer" value="${this._escapeAttr(b.answer || '')}"
+                    placeholder="預期答案"
+                    oninput="AssignmentApp._onBlankInput(${qi}, ${bi}, 'answer', this.value)">
+                <button class="blank-delete-btn" onclick="AssignmentApp._removeBlank(${qi}, ${bi})" title="刪除">&times;</button>
+            </div>`;
+        });
+
+        html += `<div class="blanks-editor-hint">題目總分將自動等於所有子項分值之和</div>
+        </div>`;
+        return html;
+    },
+
+    _onBlankInput(qi, bi, field, value) {
+        const q = this.state.recognizedQuestions[qi];
+        if (!q?.metadata?.blanks?.[bi]) return;
+        if (field === 'points') {
+            q.metadata.blanks[bi].points = value ? parseFloat(value) : null;
+            // Auto-sum and update display
+            const totalPts = q.metadata.blanks.reduce((s, b) => s + (parseFloat(b.points) || 0), 0);
+            q.points = totalPts;
+            // Update points display in header
+            const ptsEl = document.querySelector(`#qcard_${qi} .q-points`);
+            if (ptsEl) ptsEl.value = totalPts;
+            // Update blanks header count
+            const headerLabel = document.querySelector(`#qcard_${qi} .blanks-editor-header label`);
+            if (headerLabel) headerLabel.textContent = `填空項目 (共 ${q.metadata.blanks.length} 項，合計 ${totalPts} 分)`;
+        } else {
+            q.metadata.blanks[bi][field] = value?.trim() || '';
+        }
+    },
+
+    _onBlankModeChange(qi, mode) {
+        const q = this.state.recognizedQuestions[qi];
+        if (!q?.metadata) return;
+        q.metadata.blank_mode = mode;
+    },
+
+    _addBlank(qi) {
+        this._syncQuestionFromDOM(qi);
+        const q = this.state.recognizedQuestions[qi];
+        if (!q) return;
+        if (!q.metadata) q.metadata = { blank_mode: 'inline' };
+        if (!q.metadata.blanks) q.metadata.blanks = [];
+        const nextId = `b${q.metadata.blanks.length + 1}`;
+        q.metadata.blanks.push({ id: nextId, label: '', points: null, answer: '' });
+        this._renderQuestionEditor();
+    },
+
+    _removeBlank(qi, bi) {
+        this._syncQuestionFromDOM(qi);
+        const q = this.state.recognizedQuestions[qi];
+        if (!q?.metadata?.blanks) return;
+        q.metadata.blanks.splice(bi, 1);
+        // Recalc points
+        q.points = q.metadata.blanks.reduce((s, b) => s + (parseFloat(b.points) || 0), 0);
+        this._renderQuestionEditor();
+    },
+
+    // ── Question type change ──
+    _onQuestionTypeChange(qi, newType) {
+        this._syncQuestionFromDOM(qi);
+        const q = this.state.recognizedQuestions[qi];
+        if (!q) return;
+        const oldType = q.question_type;
+
+        // Switching away from fill_blank: confirm and clear blanks
+        if (oldType === 'fill_blank' && newType !== 'fill_blank') {
+            if (q.metadata?.blanks?.length > 0) {
+                if (!confirm('切換題型將清除所有填空項，確定？')) {
+                    // Revert select
+                    const sel = document.querySelector(`#qcard_${qi} .q-type`);
+                    if (sel) sel.value = 'fill_blank';
+                    return;
+                }
+            }
+            if (q.metadata) {
+                delete q.metadata.blanks;
+                delete q.metadata.blank_mode;
+                if (Object.keys(q.metadata).length === 0) q.metadata = null;
+            }
+        }
+
+        q.question_type = newType;
+
+        // Switching to fill_blank: init blanks
+        if (newType === 'fill_blank') {
+            if (!q.metadata) q.metadata = {};
+            if (!q.metadata.blanks) q.metadata.blanks = [];
+            q.metadata.blank_mode = q.metadata.blank_mode || 'inline';
+        }
+
         this._renderQuestionEditor();
     },
 
@@ -4336,19 +4487,32 @@ const AssignmentApp = {
             const orig = this.state.recognizedQuestions[i] || {};
             const text = card.querySelector('.q-text')?.value?.trim();
             if (!text) return; // skip empty
-            questions.push({
+            const qType = card.querySelector('.q-type')?.value || 'open';
+            const isFillBlank = qType === 'fill_blank';
+
+            // For fill_blank, metadata is state-driven (already updated via oninput)
+            const metadata = isFillBlank ? (orig.metadata || null) : (orig.metadata || null);
+
+            const question = {
                 question_number: card.querySelector('.q-number')?.value?.trim() || '',
                 question_text: text,
                 answer_text: card.querySelector('.q-answer')?.value?.trim() || '',
                 answer_source: orig.answer_source || 'missing',
                 points: card.querySelector('.q-points')?.value ? parseFloat(card.querySelector('.q-points').value) : null,
-                question_type: card.querySelector('.q-type')?.value || 'open',
+                question_type: qType,
                 is_ai_extracted: orig.is_ai_extracted ?? true,
                 source_batch_id: orig.source_batch_id || this.state.examBatchId || null,
                 source_page: orig.source_page || null,
                 ocr_confidence: orig.ocr_confidence || null,
-                metadata: orig.metadata || null,
-            });
+                metadata: metadata,
+            };
+
+            // fill_blank: auto-sum from blanks
+            if (isFillBlank && question.metadata?.blanks?.length) {
+                question.points = question.metadata.blanks.reduce((s, b) => s + (parseFloat(b.points) || 0), 0);
+            }
+
+            questions.push(question);
         });
         return questions;
     },

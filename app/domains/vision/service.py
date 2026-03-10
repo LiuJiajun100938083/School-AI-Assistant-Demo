@@ -2215,7 +2215,7 @@ Output JSON only.
         return f"""/no_think
 {subject_hint}
 
-請仔細識別圖片中的**所有題目**。
+請仔細識別圖片中的**所有內容**，包括資料段落和題目。
 
 要求:
 1. 識別每一道題的題號、題目文字、參考答案（如果可見）和分值（如果標註）
@@ -2226,6 +2226,18 @@ Output JSON only.
 6. 題型（question_type）不確定時設為 "open"
 7. 子題也要獨立列出（如 1a, 1b 分開）
 8. 數學公式用 LaTeX 格式
+9. 資料段落 (passage) 識別:
+   - 試卷中的資料表格、文字段落、圖表說明等非題目內容 → question_type = "passage"
+   - passage 的 question_text 放完整的資料文字內容（表格用 markdown 格式）
+   - passage 的 points = null, answer_text = "", answer_source = "missing"
+   - passage 應該排在引用它的題目之前
+10. 填空題 (fill_blank) 識別 — 保守判定:
+   - 題目中出現 ____（底線空格）或分項答題表格（如 論點/論據/論述） → question_type = "fill_blank"
+   - 如果不確定是否為填空，寧可設為 "open"
+   - fill_blank 必須額外輸出 metadata:
+     {{"blank_mode": "inline 或 section", "blanks": [{{"id":"b1","label":"標籤","points":分值,"answer":""}}]}}
+   - 行內空格用 blank_mode = "inline"，分項答題表格用 blank_mode = "section"
+   - 題目 points = blanks 的 points 總和
 
 只輸出 JSON，不要 markdown code fence，不要額外說明。
 
@@ -2233,10 +2245,37 @@ Output JSON only.
 {{
   "questions": [
     {{
+      "question_number": "",
+      "question_text": "資料A：2012至2022年各行業每周工時表...",
+      "answer_text": "",
+      "answer_source": "missing",
+      "points": null,
+      "question_type": "passage",
+      "has_math_formula": false,
+      "confidence": 0.9
+    }},
+    {{
       "question_number": "1",
-      "question_text": "題目完整文字",
-      "answer_text": "標準答案或空字串",
-      "answer_source": "extracted 或 inferred 或 missing",
+      "question_text": "根據資料A，描述各行業每周工時的趨勢...",
+      "answer_text": "",
+      "answer_source": "missing",
+      "points": 18,
+      "question_type": "fill_blank",
+      "has_math_formula": false,
+      "confidence": 0.85,
+      "metadata": {{
+        "blank_mode": "section",
+        "blanks": [
+          {{"id": "b1", "label": "製造業", "points": 4, "answer": ""}},
+          {{"id": "b2", "label": "建造業", "points": 4, "answer": ""}}
+        ]
+      }}
+    }},
+    {{
+      "question_number": "2",
+      "question_text": "一般題目...",
+      "answer_text": "",
+      "answer_source": "missing",
       "points": 5,
       "question_type": "open",
       "has_math_formula": false,
@@ -2319,6 +2358,16 @@ Output JSON only.
             if confidence < LOW_CONFIDENCE_THRESHOLD:
                 low_count += 1
 
+            # 構建 metadata (統一存放位置)
+            metadata_raw = q.get("metadata")
+            metadata = metadata_raw if isinstance(metadata_raw, dict) else {}
+            metadata["has_math_formula"] = bool(q.get("has_math_formula", False))
+            # 確保 blanks 每項有 id
+            if "blanks" in metadata and isinstance(metadata["blanks"], list):
+                for bi, blank in enumerate(metadata["blanks"]):
+                    if isinstance(blank, dict) and not blank.get("id"):
+                        blank["id"] = f"b{bi + 1}"
+
             questions.append({
                 "question_number": str(q.get("question_number", str(i + 1))).strip(),
                 "question_text": q_text,
@@ -2326,8 +2375,9 @@ Output JSON only.
                 "answer_source": str(q.get("answer_source", "missing")).strip(),
                 "points": points,
                 "question_type": str(q.get("question_type", "open")).strip(),
-                "has_math_formula": bool(q.get("has_math_formula", False)),
+                "has_math_formula": metadata.get("has_math_formula", False),
                 "confidence": confidence,
+                "metadata": metadata if metadata else None,
             })
 
         # 提取試卷信息

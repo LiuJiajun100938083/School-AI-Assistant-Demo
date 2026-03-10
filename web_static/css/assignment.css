@@ -4647,6 +4647,117 @@ body {
     padding-right: 4px;
 }
 
+/* ── Fill-in-the-blank Blanks Editor ── */
+.blanks-editor {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--bg-subtle, #f8f9fa);
+    border-radius: var(--radius-control, 6px);
+    border: 1px dashed var(--border-default, #d0d5dd);
+}
+.blanks-editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+.blanks-editor-header label {
+    font-size: var(--type-small, 12px);
+    font-weight: 600;
+    color: var(--text-secondary, #475467);
+    margin: 0;
+}
+.blanks-editor-hint {
+    font-size: 11px;
+    color: var(--text-tertiary, #98a2b3);
+    margin-top: 6px;
+    font-style: italic;
+}
+.blank-mode-select {
+    padding: 2px 6px;
+    border: 1px solid var(--border-default, #d0d5dd);
+    border-radius: var(--radius-control, 6px);
+    font-size: var(--type-meta, 11px);
+    background: var(--bg-surface, #fff);
+    margin-bottom: 8px;
+}
+.blank-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.blank-item .blank-label {
+    flex: 2;
+    min-width: 60px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-default, #d0d5dd);
+    border-radius: var(--radius-control, 6px);
+    font-size: var(--type-meta, 11px);
+}
+.blank-item .blank-points {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-default, #d0d5dd);
+    border-radius: var(--radius-control, 6px);
+    font-size: var(--type-meta, 11px);
+    text-align: center;
+}
+.blank-item .blank-answer {
+    flex: 3;
+    min-width: 80px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-default, #d0d5dd);
+    border-radius: var(--radius-control, 6px);
+    font-size: var(--type-meta, 11px);
+}
+.blank-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-tertiary, #98a2b3);
+    font-size: 18px;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.15s;
+}
+.blank-delete-btn:hover { color: var(--color-error, #f04438); }
+
+.btn-xs {
+    padding: 2px 8px;
+    font-size: var(--type-small, 12px);
+    border-radius: var(--radius-control, 6px);
+}
+
+/* ── Passage Card (資料段落) ── */
+.question-card.passage-card {
+    border-left: 3px solid var(--color-primary, #2e7d32);
+    background: var(--bg-subtle, #f8f9fa);
+}
+.question-card.passage-card .question-card-header {
+    opacity: 0.8;
+}
+.passage-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-primary, #2e7d32);
+    background: var(--color-primary-light, #e8f5e9);
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── points readonly hint ── */
+.q-points-readonly {
+    background: var(--bg-subtle, #f8f9fa) !important;
+    cursor: not-allowed;
+    color: var(--text-secondary, #475467);
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
     .questions-section-header {
@@ -4660,4 +4771,7 @@ body {
     .question-card-row1 .q-points { width: 60px; }
     .question-answer-row { flex-direction: column; gap: 4px; }
     .question-answer-source { padding-top: 0; }
+    .blank-item { flex-wrap: wrap; }
+    .blank-item .blank-label { flex: 1 1 100%; }
+    .blank-item .blank-answer { flex: 1 1 100%; }
 }

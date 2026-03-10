@@ -97,6 +97,7 @@ class QuestionTypeEnum(str, Enum):
     MULTIPLE_CHOICE = "multiple_choice"
     FILL_BLANK = "fill_blank"
     TRUE_FALSE = "true_false"
+    PASSAGE = "passage"  # 資料/段落 (display-only, 不需作答)
 
 
 class AnswerSourceEnum(str, Enum):
@@ -104,6 +105,19 @@ class AnswerSourceEnum(str, Enum):
     INFERRED = "inferred"
     MISSING = "missing"
     MANUAL = "manual"
+
+
+class BlankModeEnum(str, Enum):
+    INLINE = "inline"      # 行內填空 (____空格)
+    SECTION = "section"    # 分項答題 (論點/論據/論述)
+
+
+class BlankItem(BaseModel):
+    """填空題的單個空格/分項"""
+    id: str = Field(default="", max_length=20, description="空格 ID, e.g. b1")
+    label: str = Field(..., min_length=1, max_length=255, description="空格標籤")
+    points: float = Field(..., ge=0, description="此空格分值")
+    answer: str = Field(default="", description="預期答案")
 
 
 class QuestionInput(BaseModel):
