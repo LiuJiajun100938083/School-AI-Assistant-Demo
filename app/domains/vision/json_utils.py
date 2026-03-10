@@ -375,7 +375,8 @@ def extract_json_from_reasoning(text: str) -> str:
     """
     從模型的推理文本中提取嵌入的 JSON 對象。
 
-    嘗試找到包含 "question" 字段的最大合法 JSON 對象。
+    嘗試找到包含 "questions" 字段的最大合法 JSON 對象。
+    策略：優先從後往前搜索（推理文本通常先分析再輸出 JSON）。
     """
     # 優先提取 ```json ... ``` 包裹的 JSON
     m = re.search(r"```json\s*(.*?)```", text, re.DOTALL)
@@ -387,7 +388,34 @@ def extract_json_from_reasoning(text: str) -> str:
         except (json.JSONDecodeError, ValueError):
             pass
 
-    # 收集所有包含 "question" 的 { 起始位置
+    # 策略 1：找包含 "questions": [ 的 JSON 對象（最可靠的 exam schema 標誌）
+    #   從後往前搜索，因為推理文本中 JSON 通常在末尾
+    questions_array_positions = []
+    for m in re.finditer(r'"questions"\s*:\s*\[', text):
+        questions_array_positions.append(m.start())
+
+    for qpos in reversed(questions_array_positions):
+        # 往前找最近的 { 作為 JSON 起始
+        brace_pos = text.rfind('{', 0, qpos)
+        if brace_pos < 0:
+            continue
+        # 驗證 { 和 "questions" 之間只有合理的 JSON 結構
+        between = text[brace_pos:qpos].strip()
+        # 允許 { 和 "questions" 之間有其他鍵值對
+        if between.count('\n') > 20:
+            continue  # 太多行，可能不是同一個 JSON 對象
+
+        # 括號匹配
+        candidate = _bracket_match_from(text, brace_pos)
+        if candidate:
+            try:
+                parsed = safe_json_loads(candidate)
+                if isinstance(parsed, dict) and ("questions" in parsed or "items" in parsed):
+                    return candidate
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+    # 策略 2：收集所有包含 "question" 的 { 起始位置（從後往前）
     candidates_start = []
     for i, ch in enumerate(text):
         if ch == '{':
@@ -395,37 +423,43 @@ def extract_json_from_reasoning(text: str) -> str:
             if '"question"' in rest[:500]:
                 candidates_start.append(i)
 
-    # 逐個嘗試括號匹配 + 解析
-    for start in candidates_start:
-        depth = 0
-        in_string = False
-        escape_next = False
-        for i in range(start, len(text)):
-            ch = text[i]
-            if escape_next:
-                escape_next = False
-                continue
-            if ch == '\\' and in_string:
-                escape_next = True
-                continue
-            if ch == '"' and not escape_next:
-                in_string = not in_string
-                continue
-            if in_string:
-                continue
-            if ch == '{':
-                depth += 1
-            elif ch == '}':
-                depth -= 1
-                if depth == 0:
-                    candidate = text[start:i + 1]
-                    try:
-                        safe_json_loads(candidate)
-                        return candidate
-                    except (json.JSONDecodeError, ValueError):
-                        break
+    for start in reversed(candidates_start):
+        candidate = _bracket_match_from(text, start)
+        if candidate:
+            try:
+                safe_json_loads(candidate)
+                return candidate
+            except (json.JSONDecodeError, ValueError):
+                pass
 
     return ""
+
+
+def _bracket_match_from(text: str, start: int) -> Optional[str]:
+    """從 start 位置開始括號匹配，返回匹配的 JSON 字符串或 None。"""
+    depth = 0
+    in_string = False
+    escape_next = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"' and not escape_next:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
 
 
 # ================================================================

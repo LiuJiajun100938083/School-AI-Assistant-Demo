@@ -51,9 +51,19 @@ class ExamRecognizer:
                 logger.warning("試卷識別: JSON 模式失敗，回退到普通模式")
                 raw_response = await self._client.call_vision_model(processed_path, prompt)
 
+            # 第三次嘗試：用更強的 anti-thinking prompt 重試一次
+            if raw_response is None:
+                fallback_mode = "retry"
+                logger.warning("試卷識別: 兩種模式均失敗（可能 thinking 模式），嘗試 anti-thinking 重試")
+                retry_prompt = self._build_anti_thinking_prompt(subject)
+                raw_response = await self._client.call_vision_model_json(processed_path, retry_prompt)
+
             if raw_response is None:
                 logger.error("試卷識別: 所有模式均失敗, fallback_mode=%s", fallback_mode)
-                return ExamPaperResult(success=False, error="視覺模型調用失敗")
+                return ExamPaperResult(
+                    success=False,
+                    error="視覺模型調用失敗。模型可能處於 thinking 模式，無法產出結構化 JSON。建議嘗試切換到 qwen2.5-vl 模型。"
+                )
 
             result = self._parse_exam_paper_response(raw_response)
 
@@ -165,6 +175,18 @@ Do NOT describe what you see. Do NOT start with "首先" or "Let me". Directly o
   "paper_title": "試卷標題或空字串",
   "total_score": null
 }}"""
+
+    def _build_anti_thinking_prompt(self, subject: RecognitionSubject) -> str:
+        """
+        構建極簡 anti-thinking prompt。
+        當模型進入 thinking 模式無法輸出 JSON 時使用。
+        用最短的指令減少推理傾向。
+        """
+        return """/no_think
+OUTPUT ONLY JSON. NO THINKING. NO ANALYSIS. NO WORDS.
+
+Extract all questions from this exam paper image as JSON:
+{"questions": [{"question_number": "1", "question_text": "...", "answer_text": "", "answer_source": "missing", "points": null, "question_type": "open", "has_math_formula": false, "confidence": 0.8}], "paper_title": "", "total_score": null}"""
 
     def _parse_exam_paper_response(self, raw: str) -> ExamPaperResult:
         """鲁棒解析試卷多題 OCR 回應。"""

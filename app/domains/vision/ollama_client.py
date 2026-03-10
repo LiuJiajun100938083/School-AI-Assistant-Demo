@@ -9,6 +9,7 @@ import os
 import json
 import logging
 import base64
+import re
 import time
 from typing import Optional
 
@@ -123,7 +124,6 @@ class OllamaVisionClient:
                         "strip_thinking_tags 後內容為空，嘗試提取 think 內容, raw_len=%d",
                         len(raw_content),
                     )
-                    import re
                     think_match = re.search(r"<think>(.*?)</think>", raw_content, re.DOTALL)
                     if think_match:
                         content = think_match.group(1).strip()
@@ -153,7 +153,6 @@ class OllamaVisionClient:
 
             # ---- 從推理文本中嘗試提取嵌入的 JSON（純推理跳過） ----
             if content and "{" in content and not is_pure_reasoning:
-                import re
                 is_valid_json = False
                 try:
                     json_utils.safe_json_loads(content)
@@ -226,10 +225,13 @@ class OllamaVisionClient:
                 return content
             if content:
                 if is_pure_reasoning:
-                    logger.info(
-                        "普通模式: 純推理文本 (len=%d)，保留給 recovery parser",
+                    # 純推理文本不應交給 recovery parser（會產生垃圾題目）
+                    logger.warning(
+                        "普通模式: 純推理文本 (len=%d)，無法提取有效 JSON，丟棄。"
+                        "qwen3-vl 可能處於 thinking 模式，建議切換到 qwen2.5-vl",
                         len(content),
                     )
+                    return None
                 else:
                     logger.warning(
                         "普通模式: 非 JSON 非純推理 (len=%d)，交由 recovery parser",
@@ -323,15 +325,31 @@ class OllamaVisionClient:
             content = json_utils.strip_thinking_tags(content)
 
             if not content and thinking:
-                logger.info("JSON 模式 content 為空，嘗試從 thinking 提取")
+                logger.info("JSON 模式 content 為空，嘗試從 thinking 提取 (thinking_len=%d)", len(thinking))
                 cleaned_thinking = json_utils.strip_thinking_tags(thinking) or thinking
+                # 策略 1: extract_json_from_reasoning（改進版，從後往前搜索 "questions"）
                 extracted = json_utils.extract_json_from_reasoning(cleaned_thinking)
                 if extracted and len(extracted) >= 50:
+                    logger.info("JSON 模式: 從 thinking 用 reasoning 提取成功 (len=%d)", len(extracted))
                     content = extracted
                 else:
+                    # 策略 2: extract_json_from_thinking（通用括號匹配）
                     extracted2 = json_utils.extract_json_from_thinking(cleaned_thinking)
                     if extracted2 and len(extracted2) >= 100:
+                        logger.info("JSON 模式: 從 thinking 用 thinking 提取成功 (len=%d)", len(extracted2))
                         content = extracted2
+                    else:
+                        # 策略 3: 嘗試截斷修復（thinking 可能在 JSON 中間被截斷）
+                        if '{' in cleaned_thinking and '"question' in cleaned_thinking:
+                            last_brace = cleaned_thinking.rfind('{')
+                            # 找包含 "questions" 的最後一個 {
+                            for m in re.finditer(r'\{[^{]*?"questions"\s*:', cleaned_thinking):
+                                last_brace = m.start()
+                            fragment = cleaned_thinking[last_brace:]
+                            repaired = json_utils.repair_truncated_json(fragment)
+                            if repaired and isinstance(repaired, dict) and ("questions" in repaired or "question" in repaired):
+                                content = json.dumps(repaired, ensure_ascii=False)
+                                logger.info("JSON 模式: 從 thinking 截斷修復成功 (len=%d)", len(content))
 
             if content:
                 valid = json_utils.validate_vision_json(content)
