@@ -136,10 +136,94 @@ body {
     border-color: rgba(0, 122, 255, 0.20);
 }
 
-/* ========== 主容器 ========== */
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
+/* ========== 主佈局：側邊欄 + 內容 ========== */
+.admin-body {
+    display: flex;
+    height: calc(100vh - 65px);
+}
+
+.admin-sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: #F5F5F7;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 16px 0;
+}
+
+.admin-sidebar__nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 12px;
+}
+
+.admin-sidebar__group-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 16px 12px 4px;
+    user-select: none;
+}
+
+.admin-sidebar__group-label:first-child {
+    padding-top: 0;
+}
+
+.admin-sidebar__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+}
+
+.admin-sidebar__item:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-primary);
+}
+
+.admin-sidebar__item--active {
+    background: var(--brand-light);
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.admin-sidebar__item--active:hover {
+    background: var(--brand-light);
+    color: var(--brand);
+}
+
+.admin-sidebar__icon {
+    width: 16px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.admin-sidebar__footer {
+    padding: 16px;
+    border-top: 1px solid #eee;
+    margin-top: auto;
+    font-size: 11px;
+    color: #999;
+}
+
+.admin-main {
+    flex: 1;
+    overflow-y: auto;
     padding: 32px;
 }
 
@@ -186,57 +270,7 @@ body {
     display: none;
 }
 
-/* ========== 標籤頁 - 簡潔下劃線 ========== */
-.tabs {
-    background: transparent;
-    border-radius: 0;
-    border: none;
-    box-shadow: none;
-}
-
-.tab-header {
-    display: flex;
-    gap: 0;
-    background: transparent;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 24px;
-}
-
-.tab-button {
-    padding: 12px 20px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    transition: color 0.15s;
-    position: relative;
-    flex: none;
-    min-width: auto;
-}
-
-.tab-button:hover {
-    color: var(--text-primary);
-    background: transparent;
-}
-
-.tab-button.active {
-    color: var(--brand);
-    background: transparent;
-    font-weight: 600;
-}
-
-.tab-button.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--brand);
-}
-
+/* ========== 標籤頁內容 ========== */
 .tab-content {
     padding: 0;
     min-height: auto;
@@ -809,7 +843,11 @@ body {
 
 /* ========== 響應式 ========== */
 @media (max-width: 768px) {
-    .container {
+    .admin-sidebar {
+        display: none;
+    }
+
+    .admin-main {
         padding: 16px;
     }
 

@@ -26,67 +26,76 @@
     </nav>
 
     <!-- 主容器 -->
-    <div class="container">
-        <!-- 統計卡片 -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-title"><span>📚</span> 學科總數</div>
-                <div class="stat-value" id="totalSubjects">-</div>
-                <div class="stat-subtitle">已配置的學科</div>
-            </div>
-            <div class="stat-card success">
-                <div class="stat-title"><span>📄</span> 文檔總數</div>
-                <div class="stat-value" id="totalDocuments">-</div>
-                <div class="stat-subtitle">知識庫文檔</div>
-            </div>
-            <div class="stat-card warning">
-                <div class="stat-title"><span>👥</span> 學生總數</div>
-                <div class="stat-value" id="totalStudents">-</div>
-                <div class="stat-subtitle">活躍用戶</div>
-            </div>
-            <div class="stat-card info">
-                <div class="stat-title"><span>💬</span> 對話總數</div>
-                <div class="stat-value" id="totalConversations">-</div>
-                <div class="stat-subtitle">累計對話</div>
-            </div>
-        </div>
+    <div class="admin-body">
+        <!-- 側邊欄導航 -->
+        <aside class="admin-sidebar" id="adminSidebar">
+            <nav class="admin-sidebar__nav">
+                <!-- 教學管理 -->
+                <div class="admin-sidebar__group-label">教學管理</div>
+                <div class="admin-sidebar__item admin-sidebar__item--active" data-tab="subjects">
+                    <span class="admin-sidebar__icon">📖</span><span>學科管理</span>
+                </div>
+                <div class="admin-sidebar__item" data-tab="knowledge">
+                    <span class="admin-sidebar__icon">🗂️</span><span>知識庫管理</span>
+                </div>
+                <div class="admin-sidebar__item" data-tab="prompts">
+                    <span class="admin-sidebar__icon">💭</span><span>提示詞配置</span>
+                </div>
+                <div class="admin-sidebar__item" data-tab="analysis">
+                    <span class="admin-sidebar__icon">📊</span><span>學生分析</span>
+                </div>
 
-        <!-- 標籤頁 -->
-        <div class="tabs">
-            <div class="tab-header">
-                <button class="tab-button active" data-action="switchTab" data-tab="subjects">
-                    <span>📖 學科管理</span>
-                </button>
-                <button class="tab-button" data-action="switchTab" data-tab="knowledge">
-                    <span>🗂️ 知識庫管理</span>
-                </button>
-                <button class="tab-button" data-action="switchTab" data-tab="prompts">
-                    <span>💭 提示詞配置</span>
-                </button>
-                <button class="tab-button" data-action="switchTab" data-tab="analysis">
-                    <span>📊 學生分析</span>
-                </button>
-                <button class="tab-button admin-only" data-action="switchTab" data-tab="users">
-                    <span>👥 用戶管理</span>
-                </button>
-                <button class="tab-button admin-only" data-action="switchTab" data-tab="settings">
-                    <span>⚙️ 系統設定</span>
-                </button>
-                <button class="tab-button admin-only" data-action="switchTab" data-tab="notice">
-                    <span>📝 通告管理</span>
-                </button>
-                <button class="tab-button admin-only" data-action="switchTab" data-tab="appmgr">
-                    <span>📱 應用管理</span>
-                </button>
-                <button class="tab-button admin-only" data-action="switchTab" data-tab="classdiary">
-                    <span>📋 課室日誌</span>
-                </button>
-                <button class="tab-button admin-only" data-action="switchTab" data-tab="blocked">
-                    <span>🔒 封禁管理</span>
-                </button>
-                <button class="tab-button admin-only" data-action="switchTab" data-tab="aimonitor">
-                    <span>🤖 AI 監控</span>
-                </button>
+                <!-- 系統管理 (admin only) -->
+                <div class="admin-sidebar__group-label admin-only">系統管理</div>
+                <div class="admin-sidebar__item admin-only" data-tab="users">
+                    <span class="admin-sidebar__icon">👥</span><span>用戶管理</span>
+                </div>
+                <div class="admin-sidebar__item admin-only" data-tab="settings">
+                    <span class="admin-sidebar__icon">⚙️</span><span>系統設定</span>
+                </div>
+                <div class="admin-sidebar__item admin-only" data-tab="notice">
+                    <span class="admin-sidebar__icon">📝</span><span>通告管理</span>
+                </div>
+                <div class="admin-sidebar__item admin-only" data-tab="appmgr">
+                    <span class="admin-sidebar__icon">📱</span><span>應用管理</span>
+                </div>
+                <div class="admin-sidebar__item admin-only" data-tab="classdiary">
+                    <span class="admin-sidebar__icon">📋</span><span>課室日誌</span>
+                </div>
+                <div class="admin-sidebar__item admin-only" data-tab="blocked">
+                    <span class="admin-sidebar__icon">🔒</span><span>封禁管理</span>
+                </div>
+                <div class="admin-sidebar__item admin-only" data-tab="aimonitor">
+                    <span class="admin-sidebar__icon">🤖</span><span>AI 監控</span>
+                </div>
+            </nav>
+            <div class="admin-sidebar__footer">v3.0</div>
+        </aside>
+
+        <!-- 主內容區 -->
+        <main class="admin-main">
+            <!-- 統計卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-title"><span>📚</span> 學科總數</div>
+                    <div class="stat-value" id="totalSubjects">-</div>
+                    <div class="stat-subtitle">已配置的學科</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-title"><span>📄</span> 文檔總數</div>
+                    <div class="stat-value" id="totalDocuments">-</div>
+                    <div class="stat-subtitle">知識庫文檔</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-title"><span>👥</span> 學生總數</div>
+                    <div class="stat-value" id="totalStudents">-</div>
+                    <div class="stat-subtitle">活躍用戶</div>
+                </div>
+                <div class="stat-card info">
+                    <div class="stat-title"><span>💬</span> 對話總數</div>
+                    <div class="stat-value" id="totalConversations">-</div>
+                    <div class="stat-subtitle">累計對話</div>
+                </div>
             </div>
 
             <div class="tab-content">
@@ -643,7 +652,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <!-- 添加學科模态框 -->

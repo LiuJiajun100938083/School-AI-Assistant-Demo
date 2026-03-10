@@ -1152,12 +1152,15 @@ const AdminApp = {
 
     /* ---------- 事件綁定 ---------- */
     _bindEvents() {
-        // Tab buttons
-        document.querySelectorAll('[data-action="switchTab"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.switchTab(btn.dataset.tab, e);
+        // Sidebar navigation
+        const sidebarNav = document.querySelector('.admin-sidebar__nav');
+        if (sidebarNav) {
+            sidebarNav.addEventListener('click', (e) => {
+                const item = e.target.closest('.admin-sidebar__item');
+                if (!item) return;
+                this.switchTab(item.dataset.tab, e);
             });
-        });
+        }
 
         // Back to main
         document.querySelectorAll('[data-action="backToMain"]').forEach(btn => {
@@ -1350,14 +1353,7 @@ const AdminApp = {
             btn.addEventListener('click', () => this.addReviewer());
         });
 
-        // Tab button click listener for knowledge tab auto-load
-        document.querySelectorAll('[data-action="switchTab"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if ((btn.textContent || '').includes('知識庫管理')) {
-                    setTimeout(() => this.loadNoticeTemplates(), 100);
-                }
-            });
-        });
+        // (knowledge tab auto-load is handled in switchTab)
     },
 
     /* ---------- 管理員/教師信息 ---------- */
@@ -1383,8 +1379,8 @@ const AdminApp = {
 
         // 教師：隱藏管理員專屬標籤
         if (role !== 'admin') {
-            document.querySelectorAll('.tab-button.admin-only').forEach(btn => {
-                btn.style.display = 'none';
+            document.querySelectorAll('.admin-sidebar .admin-only').forEach(el => {
+                el.style.display = 'none';
             });
             // 同時隱藏對應的 tab-pane
             ['users', 'settings', 'notice', 'appmgr', 'classdiary', 'blocked', 'aimonitor'].forEach(tab => {
@@ -1407,13 +1403,15 @@ const AdminApp = {
             this.state.aiMonitorTimer = null;
         }
 
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        if (ev && ev.currentTarget) {
-            ev.currentTarget.classList.add('active');
+        document.querySelectorAll('.admin-sidebar__item').forEach(
+            el => el.classList.remove('admin-sidebar__item--active')
+        );
+        const clickedItem = ev?.target?.closest('.admin-sidebar__item');
+        if (clickedItem) {
+            clickedItem.classList.add('admin-sidebar__item--active');
         } else {
-            const btns = Array.from(document.querySelectorAll('.tab-button'));
-            const match = btns.find(b => b.dataset.tab === tabName);
-            if (match) match.classList.add('active');
+            const match = document.querySelector(`.admin-sidebar__item[data-tab="${tabName}"]`);
+            if (match) match.classList.add('admin-sidebar__item--active');
         }
 
         document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
