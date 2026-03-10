@@ -403,6 +403,8 @@
         classFilterLabel: '班級篩選：',
         allClasses: '全部班級',
         refreshBtn: '🔄 刷新',
+        tabScores: '📋 成績記錄',
+        tabLeaderboard: '🏆 排行榜',
         noRecords: '目前沒有遊戲記錄',
         thIndex: '#',
         thStudentName: '學生姓名',
@@ -575,6 +577,8 @@
         classFilterLabel: 'Filter by Class:',
         allClasses: 'All Classes',
         refreshBtn: '🔄 Refresh',
+        tabScores: '📋 Score Records',
+        tabLeaderboard: '🏆 Leaderboard',
         noRecords: 'No game records yet',
         thIndex: '#',
         thStudentName: 'Student',
@@ -1853,6 +1857,8 @@
         const [editModal, setEditModal] = useState(null);
         const [editValue, setEditValue] = useState('');
         const [deleteConfirm, setDeleteConfirm] = useState(null);
+        const [activeTab, setActiveTab] = useState('scores');
+        const [leaderboard, setLeaderboard] = useState([]);
 
         const gd = useMemo(() => getGameData(t), [t]);
 
@@ -1868,9 +1874,19 @@
             setLoading(false);
         }, [classFilter]);
 
+        const loadLeaderboard = useCallback(async () => {
+            try {
+                const data = await TradeGameBridge.getLeaderboard(null, 50);
+                setLeaderboard(data || []);
+            } catch (err) {
+                console.error('Failed to load leaderboard:', err);
+            }
+        }, []);
+
         useEffect(() => {
             loadScores();
-        }, [loadScores]);
+            loadLeaderboard();
+        }, [loadScores, loadLeaderboard]);
 
         const totalPlays = scores.length;
         const wins = scores.filter(s => s.result === 'win').length;
@@ -1955,23 +1971,50 @@
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 mb-4">
-                    <label className="text-sm text-gray-400">{t('classFilterLabel')}</label>
-                    <select
-                        value={classFilter}
-                        onChange={e => setClassFilter(e.target.value)}
-                        className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
-                    >
-                        <option value="">{t('allClasses')}</option>
-                        {classes.map(c => (
-                            <option key={c} value={c}>{c}</option>
-                        ))}
-                    </select>
-                    <button onClick={loadScores} className="px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm transition-colors">
-                        {t('refreshBtn')}
-                    </button>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <label className="text-sm text-gray-400">{t('classFilterLabel')}</label>
+                        <select
+                            value={classFilter}
+                            onChange={e => setClassFilter(e.target.value)}
+                            className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                        >
+                            <option value="">{t('allClasses')}</option>
+                            {classes.map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
+                        </select>
+                        <button onClick={() => { loadScores(); loadLeaderboard(); }} className="px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg text-sm transition-colors">
+                            {t('refreshBtn')}
+                        </button>
+                    </div>
+                    <div className="flex bg-gray-800 rounded-lg border border-gray-700 p-0.5">
+                        <button
+                            onClick={() => setActiveTab('scores')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                activeTab === 'scores'
+                                    ? 'bg-gray-600 text-white'
+                                    : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            {t('tabScores')}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('leaderboard')}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                activeTab === 'leaderboard'
+                                    ? 'bg-gray-600 text-white'
+                                    : 'text-gray-400 hover:text-white'
+                            }`}
+                        >
+                            {t('tabLeaderboard')}
+                        </button>
+                    </div>
                 </div>
 
+                {activeTab === 'leaderboard' ? (
+                    <EnhancedLeaderboard leaderboard={leaderboard} t={t} />
+                ) : (
                 <div className="bg-gray-800/60 rounded-xl border border-gray-700 overflow-hidden">
                     {loading ? (
                         <div className="flex items-center justify-center py-12">
@@ -2052,6 +2095,7 @@
                         </div>
                     )}
                 </div>
+                )}
 
                 {editModal && (
                     <div className="modal-overlay" onClick={() => setEditModal(null)}>
