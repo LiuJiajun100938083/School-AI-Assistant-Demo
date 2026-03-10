@@ -14,17 +14,32 @@ def build_ocr_prompt(subject: RecognitionSubject, task: RecognitionTask) -> str:
     prompts = {
         # ---- 中文 ---- #
         (RecognitionSubject.CHINESE, RecognitionTask.QUESTION_AND_ANSWER): """
-請仔細識別這張圖片中的中文內容。圖片可能包含一道題目和學生的手寫答案。
+請仔細識別這張圖片中的中文內容。圖片包含一道印刷題目，可能包含學生的手寫答案。
+
+⚠️⚠️⚠️ 第一步 — 版面角色分類（Layout Role Classification）⚠️⚠️⚠️
+在提取任何文字之前，先將圖片中的所有內容歸類為以下四種角色之一：
+
+1. **printed_question**（印刷題目）：機器印刷/排版的文字 → 放入 "question"
+2. **student_answer**（學生作答）：學生手寫的答案/解答 → 放入 "answer"
+3. **student_annotation**（學生批註）：學生在題目旁的筆記、圈記、劃線、補充 → 不要混入 "question"，在 "notes" 中說明
+4. **noise**（雜訊）：無關的墨跡、污漬、無意義的標記 → 完全忽略
+
+**❌ 絕對不要把手寫內容混進 "question" 欄位！"question" 只能包含印刷/排版文字。**
+**❌ 如果手寫文字出現在題目附近（如學生的圈記、修改），它屬於 "notes"，不屬於 "question"。**
+
+如何區分印刷體與手寫體：
+- 印刷體：字體均勻、大小一致、排列整齊、線條銳利
+- 手寫體：筆劃粗細不一、大小不一、排列不規則、有墨水濃淡變化
 
 如果圖片中有任何插圖、圖表或參考圖片，請在 figure_description 中詳細描述。
 
 請按以下 JSON 格式輸出（使用繁體中文）：
 {
-  "question": "題目的完整文字（包括題號、要求等）",
+  "question": "題目的完整文字 — 只包含印刷/排版文字，不含任何手寫內容",
   "answer": "學生手寫答案的完整文字",
   "figure_description": "圖片中的插圖或圖表描述。若無則填 'none'",
   "has_handwriting": true/false,
-  "notes": "任何補充說明，如字跡模糊處的猜測"
+  "notes": "任何補充說明：字跡模糊處的猜測、學生批註的描述等"
 }
 
 注意事項：
@@ -41,14 +56,19 @@ def build_ocr_prompt(subject: RecognitionSubject, task: RecognitionTask) -> str:
         (RecognitionSubject.CHINESE, RecognitionTask.ESSAY): """
 請識別這張圖片中的中文手寫作文或長篇答案。
 
+⚠️ 版面角色分類：
+- "question" = 只包含**印刷/排版**的作文題目或寫作要求，不包含任何手寫內容
+- "answer" = 只包含**學生手寫**的作文內容
+- 學生在題目旁的批註、圈記不要混入 "question"
+
 請按以下 JSON 格式輸出（使用繁體中文）：
 {
-  "question": "作文題目或寫作要求（如果圖片中有的話）",
+  "question": "作文題目或寫作要求 — 只包含印刷文字",
   "answer": "學生手寫的完整作文內容",
   "has_handwriting": true,
   "paragraph_count": 段落數,
   "estimated_word_count": 估計字數,
-  "notes": "字跡辨識困難的部分說明"
+  "notes": "字跡辨識困難的部分說明，以及學生批註的描述"
 }
 
 注意：保留段落分隔，用 [?] 標記不確定的字。只輸出 JSON。
@@ -59,10 +79,25 @@ def build_ocr_prompt(subject: RecognitionSubject, task: RecognitionTask) -> str:
         (RecognitionSubject.MATH, RecognitionTask.QUESTION_AND_ANSWER): """
 Please recognize the math content in this image. The image contains a math problem and MAY contain the student's handwritten solution.
 
-⚠️ FIRST: Check if there is ANY handwriting in the answer area. If blank → "answer" MUST be "". NEVER solve the problem yourself.
+⚠️⚠️⚠️ STEP 0 — LAYOUT ROLE CLASSIFICATION ⚠️⚠️⚠️
+Before extracting ANY text, mentally classify every piece of content in the image:
+
+1. **printed_question** (印刷題目): Machine-printed/typeset text → goes into "question"
+2. **student_answer** (學生作答): Student's handwritten answer/solution → goes into "answer"
+3. **student_annotation** (學生批註): Student's notes, circled words, underlines near the question → do NOT mix into "question". Mention in "notes".
+4. **noise** (雜訊): Stray marks, smudges → ignore completely.
+
+**❌ NEVER put handwritten content into the "question" field. "question" is EXCLUSIVELY for printed/typeset text.**
+**❌ If handwritten text appears near the printed question (student corrections, margin notes), it belongs in "notes", NOT "question".**
+
+How to distinguish printed vs handwritten:
+- Printed: uniform font, consistent size, aligned, sharp edges
+- Handwritten: variable stroke width, irregular size/alignment, ink density variation
+
+⚠️ STEP 1: Check if there is ANY handwriting in the answer area. If blank → "answer" MUST be "". NEVER solve the problem yourself.
 
 You have TWO jobs:
-1. **OCR (text extraction)** — transcribe the question and student's answer EXACTLY as shown.
+1. **OCR (text extraction)** — transcribe the question (printed only) and student's answer (handwritten only) EXACTLY as shown.
 2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
 
 Output in the following JSON format:
@@ -125,9 +160,11 @@ Output in the following JSON format:
   "notes": "Any unclear parts marked with [?]"
 }
 
-⚠️ RULES FOR "question" AND "answer" FIELDS (strict OCR):
+⚠️ RULES FOR "question" AND "answer" FIELDS (strict OCR + layout separation):
+- "question" = ONLY printed/typeset text. NEVER include handwritten content.
+- "answer" = ONLY student's handwritten solution. If blank → "answer" = "".
+- If student wrote notes/annotations near the question, put them in "notes", NOT "question".
 - ONLY transcribe text PHYSICALLY VISIBLE in the image.
-- If the student has NOT written any answer, "answer" MUST be "".
 - NEVER solve the problem yourself. NEVER fabricate an answer.
 
 ⚠️ RULES FOR "figure_description" — 4-LAYER STRUCTURED SCHEMA:
@@ -218,10 +255,19 @@ Important:
         (RecognitionSubject.MATH, RecognitionTask.MATH_SOLUTION): """
 Please carefully recognize this math solution image. It MAY contain a student's step-by-step work.
 
-⚠️ FIRST: Check if there is ANY handwriting in the answer area. If blank → "answer" = "", "steps" = [], "final_answer" = "". NEVER solve the problem yourself.
+⚠️⚠️⚠️ STEP 0 — LAYOUT ROLE CLASSIFICATION ⚠️⚠️⚠️
+Before extracting ANY text, classify every piece of content:
+1. **printed_question**: Machine-printed/typeset text → "question"
+2. **student_answer**: Student's handwritten solution → "answer"/"steps"/"final_answer"
+3. **student_annotation**: Student's margin notes, circled words → "notes" (NOT "question")
+4. **noise**: Stray marks → ignore
+
+**❌ NEVER put handwritten content into "question". "question" = printed text ONLY.**
+
+⚠️ STEP 1: Check if there is ANY handwriting in the answer area. If blank → "answer" = "", "steps" = [], "final_answer" = "". NEVER solve the problem yourself.
 
 You have TWO jobs:
-1. **OCR (text extraction)** — transcribe the question and student's solution EXACTLY as shown.
+1. **OCR (text extraction)** — transcribe the question (printed only) and student's solution (handwritten only) EXACTLY as shown.
 2. **Geometry description** — if any diagram/figure exists, describe it using the 4-layer structured schema below.
 
 Output in the following JSON format:
@@ -273,7 +319,10 @@ Output in the following JSON format:
   "notes": "Unclear parts"
 }
 
-⚠️ RULES FOR "question", "answer", "steps", "final_answer" (strict OCR):
+⚠️ RULES FOR "question", "answer", "steps", "final_answer" (strict OCR + layout separation):
+- "question" = ONLY printed/typeset text. NEVER include handwritten content.
+- "answer"/"steps"/"final_answer" = ONLY student's handwritten work.
+- Student annotations near the question → "notes", NOT "question".
 - ONLY transcribe text PHYSICALLY VISIBLE in the image.
 - If the student has NOT written any solution, set "answer" = "", "steps" = [], "final_answer" = "".
 - NEVER solve the problem yourself. NEVER fabricate solution steps.
@@ -319,18 +368,28 @@ Use LaTeX for all mathematical notation. Output JSON only.
 
         # ---- 英文 ---- #
         (RecognitionSubject.ENGLISH, RecognitionTask.QUESTION_AND_ANSWER): """
-Please recognize the English content in this image. It contains a question and MAY contain the student's handwritten answer.
+Please recognize the English content in this image. It contains a printed question and MAY contain the student's handwritten answer.
+
+⚠️⚠️⚠️ LAYOUT ROLE CLASSIFICATION — DO THIS FIRST ⚠️⚠️⚠️
+Before extracting ANY text, classify every piece of content in the image:
+
+1. **printed_question**: Machine-printed/typeset text → goes into "question"
+2. **student_answer**: Student's handwritten answer → goes into "answer"
+3. **student_annotation**: Student's notes, circled words, underlines near the question → "notes" (NOT "question")
+4. **noise**: Stray marks, smudges → ignore
+
+**❌ NEVER put handwritten content into "question". "question" = printed/typeset text ONLY.**
 
 If there are any diagrams, illustrations, or reference images, describe them in the "figure_description" field.
 
 Output in the following JSON format:
 {
-  "question": "The complete question text",
+  "question": "The complete question text — printed/typeset text ONLY, no handwriting",
   "answer": "The student's handwritten answer",
   "figure_description": "Description of any diagram or illustration in the image. Write 'none' if no figure.",
   "has_handwriting": true/false,
   "spelling_issues": ["list any words that appear misspelled in the student's writing"],
-  "notes": "Any unclear parts marked with [?]"
+  "notes": "Any unclear parts marked with [?], student annotations near the question"
 }
 
 Important:
@@ -340,7 +399,9 @@ Important:
 
 ⚠️ CRITICAL — READ THIS CAREFULLY:
 - Your job is PURE OCR (text extraction). ONLY transcribe text that is PHYSICALLY VISIBLE in the image.
-- If the student has NOT written any answer, "answer" MUST be an empty string "".
+- "question" = ONLY printed/typeset text. Do NOT include any handwritten content.
+- "answer" = ONLY student's handwritten work. If blank → "answer" = "".
+- If student wrote annotations near the question, put them in "notes", NOT "question".
 - NEVER write an answer yourself. NEVER generate, infer, or fabricate content.
 - If you only see the printed question with no handwritten work, "answer" = "" and "has_handwriting" = false.
 """,
@@ -348,14 +409,19 @@ Important:
         (RecognitionSubject.ENGLISH, RecognitionTask.DICTATION): """
 Please recognize this English dictation/spelling test image. The student MAY have written words or sentences.
 
+⚠️ LAYOUT ROLE CLASSIFICATION:
+- "question" = ONLY printed/typeset instructions or word list. Do NOT include handwritten content.
+- "answer" = ONLY student's handwritten words/sentences.
+- Student annotations near the question → "notes", NOT "question".
+
 Output in the following JSON format:
 {
-  "question": "The dictation instructions or word list (if visible)",
+  "question": "The dictation instructions or word list — printed text ONLY",
   "answer": "All words/sentences the student wrote, separated by commas or newlines",
   "word_list": ["word1", "word2", "word3"],
   "has_handwriting": true/false,
   "potential_misspellings": ["words that look misspelled with their likely intended word"],
-  "notes": "Unclear handwriting notes"
+  "notes": "Unclear handwriting notes, student annotations"
 }
 
 Important:
@@ -369,8 +435,24 @@ Important:
         (RecognitionSubject.PHYSICS, RecognitionTask.QUESTION_AND_ANSWER): """
 You are a physics exam paper OCR specialist. Your job is PURE OCR — extract only what is PHYSICALLY VISIBLE.
 
-⚠️⚠️⚠️ MANDATORY FIRST STEP — BLANK ANSWER DETECTION ⚠️⚠️⚠️
-Before doing ANYTHING else, check: is there ANY handwriting in the answer area?
+⚠️⚠️⚠️ STEP 0 — LAYOUT ROLE CLASSIFICATION ⚠️⚠️⚠️
+Before extracting ANY text, classify every piece of content in the image:
+
+1. **printed_question** (印刷題目): Machine-printed/typeset text → goes into "question"
+2. **student_answer** (學生作答): Student's handwritten answer → goes into "answer"
+3. **student_annotation** (學生批註): Student's handwritten notes, circled words, margin notes near the question → do NOT mix into "question". Report in "handwriting_overlay.notes".
+4. **noise** (雜訊): Stray marks, smudges → ignore completely.
+
+**❌ CRITICAL: NEVER put handwritten content into the "question" field!**
+**❌ "question" is EXCLUSIVELY for printed/typeset text.**
+**❌ Student annotations (circling, underlining, margin notes) near the question → "handwriting_overlay.notes", NOT "question".**
+
+How to distinguish printed vs handwritten:
+- Printed: uniform font, consistent size, aligned, sharp edges
+- Handwritten: variable stroke width, irregular size/alignment, ink density variation
+
+⚠️⚠️⚠️ STEP 1 — BLANK ANSWER DETECTION ⚠️⚠️⚠️
+Check: is there ANY handwriting in the answer area?
 - If the answer area is BLANK (no handwriting, no marks): "answer" MUST be "". Do NOT fabricate.
 - If there IS handwriting: transcribe it faithfully.
 **You are an OCR tool, NOT a physics tutor. You must NEVER generate, calculate, or solve anything.**
@@ -381,7 +463,7 @@ The image is a HKDSE-style physics question, possibly with:
 - One or more physics diagrams/figures
 
 You have THREE jobs:
-1. **OCR** — transcribe the printed question into "question" and student's handwritten answer into "answer". These are the CANONICAL fields used downstream. If no handwriting, "answer" = "".
+1. **OCR** — transcribe the printed question (printed text ONLY) into "question" and student's handwritten answer into "answer". These are the CANONICAL fields used downstream. If no handwriting, "answer" = "".
 2. **Diagram-aware description** — classify and describe any physics figure using the structured schema below.
 3. **Handwriting separation** — report the level of handwriting interference in "handwriting_overlay".
 
@@ -547,16 +629,17 @@ FALLBACK:
 - NEVER calculate numerical results. NEVER show working steps you generated.
 - If you are unsure whether marks are student handwriting or printed text, err on the side of LESS content.
 
-**OCR Rules (question & answer):**
+**OCR Rules (question & answer — strict layout separation):**
 - ONLY transcribe text PHYSICALLY VISIBLE in the image.
-- "question" = printed question text (CANONICAL source for downstream analysis).
-- "answer" = student's handwritten answer (CANONICAL source for downstream analysis).
-- If student has NOT written any answer, "answer" MUST be "".
+- "question" = ONLY printed/typeset question text. NEVER include handwritten content.
+- "answer" = ONLY student's handwritten answer. If blank → "answer" = "".
+- Student annotations near the question (circling, underlining, margin notes) → "handwriting_overlay.notes", NOT "question".
 - NEVER solve the problem yourself. NEVER fabricate answers.
 
 **Handwriting Separation Rules:**
 - Student handwriting marks are NOT diagram entities, unless the question explicitly asks the student to draw on the figure.
 - Do NOT treat student annotation arrows as part of the original diagram.
+- Do NOT mix any student handwriting into the "question" field, even if the handwriting appears within or adjacent to the printed question.
 - If handwriting covers key values/arrows/units in the diagram, set needs_review = true.
 
 **Hard Rule — Do NOT guess unclear content:**
@@ -588,8 +671,17 @@ Output JSON only, no extra text.
         (RecognitionSubject.PHYSICS, RecognitionTask.MATH_SOLUTION): """
 You are a physics exam paper OCR specialist. Your job is PURE OCR — extract only what is PHYSICALLY VISIBLE.
 
-⚠️⚠️⚠️ MANDATORY FIRST STEP — BLANK ANSWER DETECTION ⚠️⚠️⚠️
-Before doing ANYTHING else, check: is there ANY handwriting in the answer/solution area?
+⚠️⚠️⚠️ STEP 0 — LAYOUT ROLE CLASSIFICATION ⚠️⚠️⚠️
+Before extracting ANY text, classify every piece of content:
+1. **printed_question**: Machine-printed/typeset text → "question"
+2. **student_answer**: Student's handwritten solution → "answer"/"steps"/"final_answer"
+3. **student_annotation**: Student's margin notes, circled words → "handwriting_overlay.notes" (NOT "question")
+4. **noise**: Stray marks → ignore
+
+**❌ NEVER put handwritten content into "question". "question" = printed text ONLY.**
+
+⚠️⚠️⚠️ STEP 1 — BLANK ANSWER DETECTION ⚠️⚠️⚠️
+Check: is there ANY handwriting in the answer/solution area?
 - If the answer area is BLANK (no handwriting, no calculations, no marks): "answer" = "", "steps" = [], "final_answer" = "". Do NOT proceed to solve or fabricate.
 - If there IS handwriting: transcribe it faithfully.
 **You are an OCR tool, NOT a physics tutor. You must NEVER generate, calculate, or solve anything.**
@@ -597,7 +689,7 @@ Before doing ANYTHING else, check: is there ANY handwriting in the answer/soluti
 The image is a HKDSE-style physics calculation problem that MAY or MAY NOT contain the student's handwritten solution.
 
 You have THREE jobs:
-1. **OCR** — transcribe the printed question into "question" and student's handwritten solution (IF ANY) into "answer", "steps", and "final_answer". These are the CANONICAL fields.
+1. **OCR** — transcribe the printed question (printed text ONLY) into "question" and student's handwritten solution (IF ANY) into "answer", "steps", and "final_answer". These are the CANONICAL fields.
 2. **Diagram-aware description** — classify and describe any physics figure using the structured schema below.
 3. **Handwriting separation** — report interference level in "handwriting_overlay".
 
@@ -689,8 +781,11 @@ data_table_problem, mixed_option_figure, xy_line_graph, other
 - NEVER calculate numerical results. NEVER show working steps you generated.
 - If you are unsure whether marks are student handwriting or printed text, err on the side of LESS content.
 
-**OCR Rules:**
-- ONLY transcribe PHYSICALLY VISIBLE text. "answer"/"steps"/"final_answer" come from student's handwriting.
+**OCR Rules (strict layout separation):**
+- "question" = ONLY printed/typeset text. NEVER include handwritten content.
+- "answer"/"steps"/"final_answer" = ONLY student's handwritten work.
+- Student annotations near the question → "handwriting_overlay.notes", NOT "question".
+- ONLY transcribe PHYSICALLY VISIBLE text.
 - If student has NOT written any solution: "answer" = "", "steps" = [], "final_answer" = "".
 
 **Steps extraction (ONLY from student handwriting):**
@@ -701,6 +796,7 @@ data_table_problem, mixed_option_figure, xy_line_graph, other
 
 **Handwriting rules:**
 - Student marks are NOT diagram entities unless the question asks to draw.
+- Do NOT mix any student handwriting into the "question" field.
 - If handwriting covers diagram content, set needs_review = true.
 
 **Hard Rule — Do NOT guess:**
@@ -730,12 +826,15 @@ Output JSON only.
     return """
 Please recognize all text in this image. Output as JSON:
 {
-  "question": "any question/prompt text found",
-  "answer": "any handwritten answer/response text found",
+  "question": "printed/typeset question text ONLY — no handwriting",
+  "answer": "student's handwritten answer/response ONLY — empty string if none",
   "raw_text": "all text in the image",
   "has_handwriting": true/false,
-  "notes": ""
+  "notes": "student annotations near the question, unclear parts"
 }
 Output JSON only.
-⚠️ CRITICAL: Your job is PURE OCR. ONLY extract text PHYSICALLY VISIBLE in the image. If there is no handwritten answer, "answer" MUST be "". NEVER generate or fabricate content.
+⚠️ CRITICAL: Your job is PURE OCR. ONLY extract text PHYSICALLY VISIBLE in the image.
+- "question" = ONLY printed/typeset text. NEVER include handwritten content.
+- "answer" = ONLY student's handwritten work. If none → "answer" = "".
+- NEVER generate or fabricate content.
 """
