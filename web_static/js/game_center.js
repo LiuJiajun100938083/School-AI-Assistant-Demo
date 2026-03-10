@@ -250,11 +250,11 @@ const GameCenterUI = {
      * 生成學科標籤 HTML
      */
     createSubjectTabHTML(key, config) {
-        const isActive = key === 'all' ? 'active' : '';
+        const isActive = key === 'all' ? 'gc-sidebar__item--active' : '';
         return `
-            <button class="subject-tab ${isActive}" data-subject="${key}">
-                <span class="tab-icon">${config.icon}</span>
-                <span class="tab-name">${config.name}</span>
+            <button class="gc-sidebar__item ${isActive}" data-subject="${key}">
+                <span class="gc-sidebar__icon">${config.icon}</span>
+                <span>${config.name}</span>
             </button>
         `;
     },
@@ -574,7 +574,7 @@ const GameCenterApp = {
 
         // 學科篩選（事件委託）
         this.elements.subjectTabs.addEventListener('click', (e) => {
-            const tab = e.target.closest('.subject-tab');
+            const tab = e.target.closest('.gc-sidebar__item');
             if (!tab) return;
             this._handleSubjectChange(tab);
         });
@@ -621,9 +621,9 @@ const GameCenterApp = {
     /* ---------- 事件處理 ---------- */
 
     _handleSubjectChange(tab) {
-        this.elements.subjectTabs.querySelectorAll('.subject-tab')
-            .forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+        this.elements.subjectTabs.querySelectorAll('.gc-sidebar__item')
+            .forEach(t => t.classList.remove('gc-sidebar__item--active'));
+        tab.classList.add('gc-sidebar__item--active');
 
         this.state.currentSubject = tab.dataset.subject;
         this._filterGames();

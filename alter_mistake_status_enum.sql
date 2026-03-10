@@ -12,7 +12,8 @@ ALTER TABLE student_mistakes
         'processing',
         'ocr_failed',
         'needs_review',
-        'analysis_failed'
+        'analysis_failed',
+        'cancelled'
     ) DEFAULT 'pending_ocr' COMMENT '錯題狀態';
 
 -- 新增 AI 分析詳情欄位：改進建議 + 核心考點

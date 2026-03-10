@@ -57,26 +57,30 @@
             </div>
         </header>
 
-        <!-- 科目筛选栏 -->
-        <nav class="gc-subject-nav">
-            <div class="subject-tabs" id="subjectTabs">
-                <!-- 动态生成科目标签 -->
-            </div>
-        </nav>
+        <!-- 側邊欄 + 內容區 -->
+        <div class="gc-body">
+            <!-- 側邊欄 -->
+            <aside class="gc-sidebar" id="gcSidebar">
+                <nav class="gc-sidebar__nav" id="subjectTabs">
+                    <!-- JS 動態生成科目項 -->
+                </nav>
+                <div class="gc-sidebar__footer">遊戲中心 v2.0</div>
+            </aside>
 
-        <!-- 游戏内容区 -->
-        <main class="gc-main">
-            <div class="gc-games-container" id="gamesContainer">
-                <!-- 动态生成各科目游戏区块 -->
-            </div>
+            <!-- 游戏内容区 -->
+            <main class="gc-main">
+                <div class="gc-games-container" id="gamesContainer">
+                    <!-- 动态生成各科目游戏区块 -->
+                </div>
 
-            <!-- 空状态 -->
-            <div class="gc-empty-state" id="emptyState" style="display: none;">
-                <div class="empty-icon">🎯</div>
-                <div class="empty-title">未找到遊戲</div>
-                <div class="empty-desc">嘗試其他搜尋關鍵字或選擇不同科目</div>
-            </div>
-        </main>
+                <!-- 空状态 -->
+                <div class="gc-empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-icon">🎯</div>
+                    <div class="empty-title">未找到遊戲</div>
+                    <div class="empty-desc">嘗試其他搜尋關鍵字或選擇不同科目</div>
+                </div>
+            </main>
+        </div>
 
         <!-- 底部信息 -->
         <footer class="gc-footer">

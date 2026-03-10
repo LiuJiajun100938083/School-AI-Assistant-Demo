@@ -429,7 +429,7 @@ CREATE TABLE student_mistakes (
     error_type          VARCHAR(100)                     COMMENT '錯誤類型',
     difficulty_level    INT DEFAULT 1                    COMMENT '難度 1-5',
     confidence_score    FLOAT                            COMMENT 'AI 信心分數',
-    status              ENUM('pending_ocr','pending_review','analyzed','practicing','mastered','processing','ocr_failed','needs_review','analysis_failed')
+    status              ENUM('pending_ocr','pending_review','analyzed','practicing','mastered','processing','ocr_failed','needs_review','analysis_failed','cancelled')
                             DEFAULT 'pending_ocr'       COMMENT '狀態',
     review_count        INT DEFAULT 0                    COMMENT '已複習次數',
     last_review_at      DATETIME                         COMMENT '上次複習時間',
