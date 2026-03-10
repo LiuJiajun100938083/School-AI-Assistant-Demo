@@ -86,6 +86,7 @@ class AssignmentService:
         upload_file_repo: Optional["ExamUploadFileRepository"] = None,
         answer_repo: Optional["SubmissionAnswerRepository"] = None,
         answer_file_repo: Optional["SubmissionAnswerFileRepository"] = None,
+        question_option_repo=None,
     ):
         self._assignment_repo = assignment_repo
         self._submission_repo = submission_repo
@@ -101,6 +102,7 @@ class AssignmentService:
         self._upload_file_repo = upload_file_repo
         self._answer_repo = answer_repo
         self._answer_file_repo = answer_file_repo
+        self._question_option_repo = question_option_repo
         self._ask_ai_func: Optional[Callable] = None
 
         # 確保上傳目錄存在
