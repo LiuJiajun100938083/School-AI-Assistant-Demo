@@ -366,10 +366,11 @@ class AssignmentQuestionRepository(BaseRepository):
         # 檢測舊 form schema：有 correct_answer 列 → 舊版表，需要重建
         try:
             self.raw_query("SELECT correct_answer FROM assignment_questions LIMIT 0", ())
-            # 舊表存在 → 備份並重建
+            # 舊表存在 → 刪除依賴表後重建
             logger.warning("偵測到舊版 assignment_questions 表（form schema），正在重建...")
             rebuild_sql = [
-                "RENAME TABLE assignment_questions TO _assignment_questions_old",
+                "DROP TABLE IF EXISTS assignment_question_options",
+                "DROP TABLE IF EXISTS assignment_questions",
                 """CREATE TABLE assignment_questions (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     assignment_id INT NOT NULL,
@@ -395,7 +396,7 @@ class AssignmentQuestionRepository(BaseRepository):
             ]
             for sql in rebuild_sql:
                 self.pool.execute_write(sql, ())
-            logger.info("assignment_questions 表已重建（舊表備份為 _assignment_questions_old）")
+            logger.info("assignment_questions 表已重建（新 exam schema）")
             return
         except Exception:
             pass  # 沒有 correct_answer → 不是舊表，繼續正常遷移
