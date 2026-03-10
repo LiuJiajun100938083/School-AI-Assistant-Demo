@@ -116,16 +116,16 @@ class OllamaVisionClient:
                     if think_match:
                         content = think_match.group(1).strip()
 
-            # ---- 純推理快速失敗 ----
-            if content and json_utils.looks_like_pure_reasoning(content):
+            # ---- 純推理檢測（不丟棄！標記後跳過 JSON 提取，保留給 recovery） ----
+            is_pure_reasoning = bool(content and json_utils.looks_like_pure_reasoning(content))
+            if is_pure_reasoning:
                 logger.info(
-                    "thinking 內容為純推理文本 (len=%d)，跳過 JSON 提取",
+                    "thinking 內容為純推理文本 (len=%d)，跳過 JSON 提取，保留給 recovery",
                     len(content),
                 )
-                content = ""
 
-            # ---- 從推理文本中嘗試提取嵌入的 JSON ----
-            if content and "{" in content:
+            # ---- 從推理文本中嘗試提取嵌入的 JSON（純推理跳過） ----
+            if content and "{" in content and not is_pure_reasoning:
                 import re
                 is_valid_json = False
                 try:
@@ -191,12 +191,19 @@ class OllamaVisionClient:
             if json_valid:
                 logger.warning("普通模式: JSON 合法但不符合 exam schema，交由 parser 處理")
                 return content
-            if content and not json_utils.looks_like_pure_reasoning(content):
-                logger.warning("普通模式: 非 JSON 且非純推理 (len=%d)，交由 recovery parser", len(content))
-                return content
             if content:
-                logger.warning("普通模式: 純推理文本 (len=%d)，丟棄", len(content))
-            return content if content else None
+                if is_pure_reasoning:
+                    logger.info(
+                        "普通模式: 純推理文本 (len=%d)，保留給 recovery parser",
+                        len(content),
+                    )
+                else:
+                    logger.warning(
+                        "普通模式: 非 JSON 非純推理 (len=%d)，交由 recovery parser",
+                        len(content),
+                    )
+                return content
+            return None
 
         except Exception as e:
             logger.error("Vision 模型調用失敗: %s", e, exc_info=True)
