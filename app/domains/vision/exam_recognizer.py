@@ -322,16 +322,20 @@ def recover_questions_from_text(raw: str) -> Optional[dict]:
                 "confidence": 0.3,
             })
 
-    # 提取題目
+    # 提取題目 — 只匹配行首的題號格式，避免把正文中的數字誤判
     q_pattern = re.compile(
-        r'(?:第?\s*(\d+[a-z]?)\s*[.、題题：:]|(?:問題|题目|question)\s*(\d+[a-z]?)[：:]?)\s*(.+?)(?=(?:第?\s*\d+[a-z]?\s*[.、題题：:]|(?:問題|题目|question)\s*\d+)|\Z)',
+        r'(?:^|\n)\s*(?:'
+        r'(?:第\s*(\d+[a-z]?)\s*[題题])'           # "第1題" / "第2a題"
+        r'|(?:(\d{1,3}[a-z]?)\s*[.、)\）]\s)'       # "1." / "2a、" / "3)"（需要後跟空格）
+        r'|(?:(?:問題|题目|question)\s*(\d+[a-z]?))'  # "問題1" / "question 2"
+        r')\s*[：:]?\s*(.+?)(?=\n\s*(?:第\s*\d+[a-z]?\s*[題题]|\d{1,3}[a-z]?\s*[.、)\）]\s|(?:問題|题目|question)\s*\d+)|\Z)',
         re.DOTALL | re.IGNORECASE
     )
     for m in q_pattern.finditer(text):
-        q_num = (m.group(1) or m.group(2) or "").strip()
-        q_text = m.group(3).strip()
+        q_num = (m.group(1) or m.group(2) or m.group(3) or "").strip()
+        q_text = m.group(4).strip()
         q_text = q_text[:500].strip()
-        if len(q_text) > 5:
+        if len(q_text) > 10:  # 至少 10 字才算有效題目
             questions.append({
                 "question_number": q_num,
                 "question_text": q_text,
@@ -342,6 +346,11 @@ def recover_questions_from_text(raw: str) -> Optional[dict]:
                 "has_math_formula": False,
                 "confidence": 0.3,
             })
+
+    # 防止降級恢復產生過多碎片（超過 50 題大概率是誤識別）
+    if len(questions) > 50:
+        logger.warning("降級恢復產生 %d 題，超出合理範圍，丟棄結果", len(questions))
+        return None
 
     if not questions:
         return None
