@@ -28,10 +28,11 @@ const TeacherApp = {
         user: null,
         currentTab: 'class-report',
         selectedClass: '',
-        selectedSubject: 'chinese',
+        selectedSubject: '',
         classReport: null,
         studentDetail: null,
         classes: [],
+        subjects: [],  // 動態從 API 加載
     },
 
     async init() {
@@ -58,7 +59,7 @@ const TeacherApp = {
         }
 
         this._bindEvents();
-        await this._loadClasses();
+        await Promise.all([this._loadClasses(), this._loadSubjects()]);
         this.switchTab('class-report');
     },
 
@@ -140,6 +141,32 @@ const TeacherApp = {
         }
     },
 
+    async _loadSubjects() {
+        const res = await TeacherAPI.getSubjects();
+        const select = document.getElementById('subjectSelect');
+        select.innerHTML = '';
+
+        if (res && res.data && res.data.length > 0) {
+            this.state.subjects = res.data;
+            res.data.forEach((s, i) => {
+                const opt = document.createElement('option');
+                opt.value = s.subject_code;
+                opt.textContent = s.display_name;
+                select.appendChild(opt);
+            });
+            this.state.selectedSubject = res.data[0].subject_code;
+        } else {
+            // 降級
+            [{ code: 'chinese', name: '中文' }, { code: 'math', name: '數學' }, { code: 'english', name: '英文' }].forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.code;
+                opt.textContent = s.name;
+                select.appendChild(opt);
+            });
+            this.state.selectedSubject = 'chinese';
+        }
+    },
+
     _bindEvents() {
         // 標籤切換
         document.getElementById('tabsBar').addEventListener('click', e => {
@@ -187,6 +214,10 @@ const TeacherAPI = {
         return false;
     },
 
+    async getSubjects() {
+        return this._fetch('/api/mistakes/subjects');
+    },
+
     async getClasses() {
         return this._fetch('/api/users/classes');
     },
@@ -225,8 +256,8 @@ const TeacherUI = {
     },
 
     subjectLabel(subject) {
-        const map = { chinese: '中文', math: '數學', english: '英文' };
-        return map[subject] || subject;
+        const s = (TeacherApp.state.subjects || []).find(s => s.subject_code === subject);
+        return s ? s.display_name : subject;
     },
 
     masteryClass(level) {

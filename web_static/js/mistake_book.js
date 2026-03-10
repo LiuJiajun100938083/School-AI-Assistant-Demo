@@ -41,6 +41,8 @@ const Icons = {
     alertCircle: (s) => Icons._svg('<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line>', s),
     bookOpen:  (s) => Icons._svg('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>', s),
     zap:       (s) => Icons._svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>', s),
+    listView:  (s) => Icons._svg('<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>', s),
+    gridView:  (s) => Icons._svg('<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect>', s),
 };
 
 
@@ -54,9 +56,26 @@ const App = {
         user: null,
         currentTab: 'home',
         currentSubject: 'all',
+        currentCategory: 'all',
+        currentPage: 1,
+        subjects: [],  // 動態從 API 加載
         mistakes: { items: [], total: 0, page: 1 },
         dashboard: null,
         currentMistake: null,
+        viewMode: localStorage.getItem('mb_viewMode') || 'list',
+    },
+
+    /** 切換列表/網格視圖 */
+    setViewMode(mode) {
+        this.state.viewMode = mode;
+        localStorage.setItem('mb_viewMode', mode);
+        Views._renderCurrentMistakes();
+    },
+
+    /** 獲取當前科目的分類列表 */
+    getCurrentCategories() {
+        const subj = (this.state.subjects || []).find(s => s.subject_code === this.state.currentSubject);
+        return (subj?.categories) || [];
     },
 
     async init() {
@@ -73,8 +92,36 @@ const App = {
             return;
         }
 
+        await this._loadSubjects();
         this._bindEvents();
         this.navigate('home');
+    },
+
+    // 科目顯示優先順序：中英ICT數公民物理排前面，其餘按原順序
+    _SUBJECT_ORDER: ['chinese', 'english', 'ICT', 'math', 'ces', 'physics'],
+
+    async _loadSubjects() {
+        try {
+            const res = await API.getSubjects();
+            if (res && res.data) {
+                const order = this._SUBJECT_ORDER;
+                this.state.subjects = res.data.slice().sort((a, b) => {
+                    const ai = order.indexOf(a.subject_code);
+                    const bi = order.indexOf(b.subject_code);
+                    if (ai !== -1 && bi !== -1) return ai - bi;
+                    if (ai !== -1) return -1;
+                    if (bi !== -1) return 1;
+                    return 0;
+                });
+            }
+        } catch (e) {
+            // 降級到默認三科
+            this.state.subjects = [
+                { subject_code: 'chinese', display_name: '中文', ui_features: {} },
+                { subject_code: 'math', display_name: '數學', ui_features: { katex: true } },
+                { subject_code: 'english', display_name: '英文', ui_features: {} },
+            ];
+        }
     },
 
     navigate(tab) {
@@ -104,22 +151,45 @@ const App = {
             headerActions.innerHTML = '';
         }
 
-        switch (tab) {
-            case 'home':    Views.renderHome(main);    break;
-            case 'learn':   Views.renderLearn(main);   break;
-            case 'profile': Views.renderProfile(main); break;
-            default:        Views.renderHome(main);
-        }
+        const renderFn = {
+            home: Views.renderHome,
+            learn: Views.renderLearn,
+            profile: Views.renderProfile,
+        }[tab] || Views.renderHome;
+
+        renderFn.call(Views, main).catch(err => {
+            console.error('Render error:', err);
+            main.innerHTML = `<div class="mb-empty">
+                <div class="mb-empty__text">載入失敗，請重試</div>
+                <button class="mb-btn mb-btn--primary" onclick="App.navigate('${tab}')" style="margin-top:12px">重新載入</button>
+            </div>`;
+        });
     },
 
     setSubject(subject) {
         this.state.currentSubject = subject;
+        this.state.currentCategory = 'all';
+        this.state.currentPage = 1;
 
         document.querySelectorAll('.mb-subject-chip').forEach(el => {
             el.classList.toggle('mb-subject-chip--active', el.dataset.subject === subject);
         });
 
         this.navigate(this.state.currentTab);
+    },
+
+    setCategory(category) {
+        const validCats = this.getCurrentCategories().map(c => c.value);
+        if (category !== 'all' && !validCats.includes(category)) category = 'all';
+
+        this.state.currentCategory = category;
+        this.state.currentPage = 1;
+
+        document.querySelectorAll('.mb-category-chip').forEach(el => {
+            el.classList.toggle('mb-category-chip--active', el.dataset.category === category);
+        });
+
+        Views.refreshMistakeList();
     },
 
     _bindEvents() {
@@ -172,11 +242,13 @@ const API = {
         return false;
     },
 
+    async getSubjects() { return this._fetch('/api/mistakes/subjects'); },
     async getDashboard() { return this._fetch('/api/mistakes/dashboard'); },
-    async getMistakes(subject, status, page = 1) {
+    async getMistakes(subject, status, page = 1, category) {
         const params = new URLSearchParams({ page, page_size: 20 });
         if (subject && subject !== 'all') params.set('subject', subject);
         if (status) params.set('status', status);
+        if (category && category !== 'all') params.set('category', category);
         return this._fetch(`/api/mistakes?${params}`);
     },
     async getMistakeDetail(id) { return this._fetch(`/api/mistakes/${id}`); },
@@ -257,11 +329,12 @@ const UI = {
 
     subjectChips() {
         const current = App.state.currentSubject;
+        const subjects = App.state.subjects || [];
         return `<div class="mb-subject-bar">
-            ${['all','chinese','math','english'].map(s => {
-                const label = {all:'全部',chinese:'中文',math:'數學',english:'英文'}[s];
-                return `<button class="mb-subject-chip${current===s?' mb-subject-chip--active':''}" data-subject="${s}">${label}</button>`;
-            }).join('')}
+            <button class="mb-subject-chip${current==='all'?' mb-subject-chip--active':''}" data-subject="all">全部</button>
+            ${subjects.map(s =>
+                `<button class="mb-subject-chip${current===s.subject_code?' mb-subject-chip--active':''}" data-subject="${s.subject_code}">${s.display_name}</button>`
+            ).join('')}
         </div>`;
     },
 
@@ -274,8 +347,8 @@ const UI = {
     },
 
     subjectLabel(subject) {
-        const map = { chinese: '中文', math: '數學', english: '英文' };
-        return map[subject] || subject;
+        const s = (App.state.subjects || []).find(s => s.subject_code === subject);
+        return s ? s.display_name : subject;
     },
 
     statusLabel(status) {
@@ -329,6 +402,28 @@ const UI = {
         if (!text) return '';
 
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
+
+        // OCR 模型常輸出字面 \n 而非真正換行符，轉換之
+        // 排除 LaTeX 命令如 \nabla, \nu, \neg 等（後接小寫字母）
+        text = text.replace(/\\n(?![a-z])/g, '\n');
+
+        // 修復 AI 生成的無效 LaTeX：\text{^\circ C} → °C
+        text = text.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
+        // 獨立的 ^\circ → °
+        text = text.replace(/\^\\circ(?![a-zA-Z])/g, '°');
+
+        // 修復未用 $ 包裹的裸露 LaTeX（AI 有時漏掉 $ 分隔符）
+        // 分割文本為 $...$ 內和外的片段，只對外部片段修復
+        const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/);
+        text = parts.map(part => {
+            // 奇數索引是已有的 $...$ 片段，保留不動
+            if (part.startsWith('$')) return part;
+            // 偶數索引是普通文本，包裹含 \ 命令的片段
+            return part.replace(
+                /([A-Za-z_]\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar)\b[^$\n,，。；]*/g,
+                match => `$${match.trim()}$`
+            );
+        }).join('');
 
         if (typeof katex === 'undefined') {
             return UI._renderMarkdown(text);
@@ -548,6 +643,156 @@ const UI = {
 
         return text.substring(0, maxLen);
     },
+
+    /* ---- 詳情頁分層佈局輔助函數 ---- */
+
+    /**
+     * 從 ai_analysis 中提取 JSON 對象（3 層解析策略）
+     * 返回 parsed object 或 null
+     */
+    _parseAnalysisJson(text) {
+        if (!text) return null;
+        const trimmed = text.trim();
+        if (!trimmed.startsWith('{')) return null;
+        try { return JSON.parse(trimmed); } catch {}
+        try {
+            const fixed = trimmed.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+            return JSON.parse(fixed);
+        } catch {}
+        return null;
+    },
+
+    /**
+     * 提取 error_analysis 純文字（處理 JSON 或 prose）
+     */
+    extractRawAnalysis(m) {
+        const text = m.ai_analysis;
+        if (!text) return '';
+        const obj = this._parseAnalysisJson(text);
+        if (obj && obj.error_analysis) {
+            return obj.error_analysis.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+        // 嘗試正則提取
+        const eaMatch = text.match(/"error_analysis"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/s);
+        if (eaMatch) {
+            return eaMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+        // 非 JSON，視為純文字
+        const trimmed = text.trim();
+        if (trimmed.startsWith('{')) return ''; // JSON 但無 error_analysis
+        return trimmed;
+    },
+
+    /**
+     * 判斷錯題是否被 AI 標記為「答案正確」（A/B/C 級）
+     */
+    isAnswerCorrect(m) {
+        return !m.error_type || m.error_type === 'careless' || m.error_type === 'expression_weak';
+    },
+
+    /**
+     * 一句話摘要：errorTypeLabel + 第一句 error_analysis
+     * 答案正確時顯示正向摘要
+     */
+    extractErrorSummary(m) {
+        const typeLabel = this.errorTypeLabel(m.error_type);
+        const raw = this.extractRawAnalysis(m);
+        if (!raw) return typeLabel !== '未分類' ? typeLabel : '';
+
+        // 取第一句（到句號/驚嘆號/換行，最多 80 字）
+        const sentenceMatch = raw.match(/^(.{1,80}?)[。！\n]/);
+        const sentence = sentenceMatch ? sentenceMatch[1] : raw.substring(0, 80);
+
+        // 答案正確（A 級，無 error_type）→ 直接顯示第一句（通常是正向評價）
+        if (!m.error_type) return sentence;
+
+        if (typeLabel && typeLabel !== '未分類') {
+            return `${typeLabel}：${sentence}`;
+        }
+        return sentence;
+    },
+
+    /**
+     * 提取核心考點
+     */
+    extractKeyInsight(m) {
+        if (m.key_insight) return m.key_insight;
+        // 從 JSON 中找
+        const obj = this._parseAnalysisJson(m.ai_analysis);
+        if (obj) {
+            if (obj.key_insight) return obj.key_insight;
+            if (obj.knowledge_points?.length) {
+                const first = obj.knowledge_points[0];
+                return typeof first === 'string' ? first : first.point_name || first.name || null;
+            }
+        }
+        // 從已有 knowledge_points 取
+        const kps = m.knowledge_points || [];
+        if (kps.length) return kps[0].point_name || null;
+        return null;
+    },
+
+    /**
+     * 提取第一條改進建議
+     */
+    extractFirstTip(m) {
+        // 直接從 m.improvement_tips 取
+        const tips = m.improvement_tips;
+        if (Array.isArray(tips) && tips.length) return tips[0];
+        // 從 JSON 中找
+        const obj = this._parseAnalysisJson(m.ai_analysis);
+        if (obj?.improvement_tips?.length) return obj.improvement_tips[0];
+        return null;
+    },
+
+    /**
+     * 學生做法摘要（1-3 bullet points）
+     */
+    summarizeStudentApproach(m) {
+        const bullets = [];
+        // Bullet 1: 學生答案（完整顯示）
+        if (m.answer_text && m.answer_text.trim()) {
+            bullets.push(m.answer_text.trim());
+        }
+        // Bullet 2+: 從分析中提取學生行為描述
+        const raw = this.extractRawAnalysis(m);
+        if (raw) {
+            const patterns = [
+                /學生[^。！\n]{2,}[。！]/g,
+                /(?:誤|忽略了|混淆了|未能|沒有|遺漏了)[^。！\n]{2,}[。！]/g,
+            ];
+            for (const pat of patterns) {
+                const matches = raw.match(pat) || [];
+                for (const match of matches) {
+                    const clean = match.replace(/[。！]$/, '').trim();
+                    if (clean && !bullets.some(b => b.includes(clean.substring(0, 10)))) {
+                        bullets.push(clean);
+                    }
+                }
+            }
+        }
+        return bullets;
+    },
+
+    /**
+     * 正確做法摘要（2-4 bullet points，從 correct_answer 拆步驟）
+     */
+    summarizeCorrectAnswer(m) {
+        const ca = m.correct_answer;
+        if (!ca || !ca.trim()) return [];
+
+        // 按步驟標記或換行拆分（完整顯示每步）
+        const lines = ca.split(/(?:Step\s*\d+[:：]|步驟\s*\d+[:：]|\(\d+\)\s*|^\d+[.、]\s*|\n{2,})/im)
+            .map(s => s.trim())
+            .filter(s => s.length > 5);
+
+        if (lines.length <= 1) {
+            const byLine = ca.split(/\n/).map(s => s.trim()).filter(s => s.length > 5);
+            return byLine;
+        }
+
+        return lines;
+    },
 };
 
 
@@ -754,10 +999,11 @@ const Views = {
     /* ---- 錯題本 Tab ---- */
     async renderHome(container) {
         const subject = App.state.currentSubject;
+        const category = App.state.currentCategory;
 
         const [dashRes, listRes, reviewRes] = await Promise.all([
             API.getDashboard(),
-            API.getMistakes(subject),
+            API.getMistakes(subject, null, 1, category),
             API.getReviewQueue(subject, 50),
         ]);
 
@@ -775,6 +1021,15 @@ const Views = {
             if (reviewDue > 0) { badge.textContent = reviewDue; badge.style.display = ''; }
             else { badge.style.display = 'none'; }
         }
+
+        // Category chips（只在選了具體科目且有 ≥2 分類時顯示）
+        const cats = App.getCurrentCategories();
+        const showCategoryBar = subject !== 'all' && cats.length >= 2;
+        const categoryBarHtml = showCategoryBar ? `
+                <div class="mb-category-bar" id="categoryBar">
+                    <button class="mb-category-chip${category === 'all' ? ' mb-category-chip--active' : ''}" data-category="all">全部</button>
+                    ${cats.map(c => `<button class="mb-category-chip${category === c.value ? ' mb-category-chip--active' : ''}" data-category="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</button>`).join('')}
+                </div>` : '';
 
         container.innerHTML = `
             ${reviewDue > 0 ? `
@@ -803,23 +1058,87 @@ const Views = {
             <div class="mb-list-section">
                 <div class="mb-list-section__header">
                     <span class="mb-list-section__title">最近錯題</span>
-                    <span class="mb-list-section__count">${list.total} 題</span>
+                    <div class="mb-view-toggle">
+                        <button class="mb-view-toggle__btn${App.state.viewMode === 'list' ? ' mb-view-toggle__btn--active' : ''}"
+                                data-view="list" title="列表視圖">${Icons.listView(16)}</button>
+                        <button class="mb-view-toggle__btn${App.state.viewMode === 'grid' ? ' mb-view-toggle__btn--active' : ''}"
+                                data-view="grid" title="網格視圖">${Icons.gridView(16)}</button>
+                        <span class="mb-list-section__count">${list.total} 題</span>
+                    </div>
                 </div>
+                ${categoryBarHtml}
                 <div id="mistakeList"></div>
             </div>
         `;
 
+        // Category chips 事件
+        const catBar = document.getElementById('categoryBar');
+        if (catBar) {
+            catBar.addEventListener('click', e => {
+                const chip = e.target.closest('.mb-category-chip');
+                if (chip) App.setCategory(chip.dataset.category);
+            });
+        }
+
+        // 視圖切換事件
+        const viewToggle = container.querySelector('.mb-view-toggle');
+        if (viewToggle) {
+            viewToggle.addEventListener('click', e => {
+                const btn = e.target.closest('.mb-view-toggle__btn');
+                if (btn && btn.dataset.view !== App.state.viewMode) {
+                    App.setViewMode(btn.dataset.view);
+                }
+            });
+        }
+
         this._renderMistakeList(list.items);
+    },
+
+    /** 統一列表刷新（帶全部篩選條件） */
+    async refreshMistakeList() {
+        const { currentSubject, currentCategory, currentStatus, currentPage } = App.state;
+        try {
+            const res = await API.getMistakes(currentSubject, currentStatus, currentPage, currentCategory);
+            if (res?.data?.items) {
+                this._renderMistakeList(res.data.items);
+                const countEl = document.querySelector('.mb-list-section__count');
+                if (countEl) countEl.textContent = `${res.data.total} 題`;
+            }
+        } catch (e) {
+            console.error('refreshMistakeList error:', e);
+        }
     },
 
     _renderMistakeList(items) {
         const listEl = document.getElementById('mistakeList');
+        if (!listEl) return;
+
         if (!items.length) {
-            listEl.innerHTML = UI.empty('', '還沒有錯題，點擊上方「拍照上傳」開始吧');
+            const cat = App.state.currentCategory;
+            const msg = cat !== 'all'
+                ? `目前沒有「${cat}」分類的錯題`
+                : '還沒有錯題，點擊上方「拍照上傳」開始吧';
+            listEl.innerHTML = UI.empty('', msg);
             this._stopProcessingPoll();
             return;
         }
 
+        if (App.state.viewMode === 'grid') {
+            this._renderGridView(items, listEl);
+        } else {
+            this._renderListView(items, listEl);
+        }
+
+        // List-level polling: auto-refresh when processing items exist
+        const hasProcessing = items.some(m => m.status === 'processing');
+        if (hasProcessing) {
+            this._startProcessingPoll();
+        } else {
+            this._stopProcessingPoll();
+        }
+    },
+
+    _renderListView(items, listEl) {
         let html = '<div class="mb-list-container">';
         items.forEach(m => {
             const isProcessing = m.status === 'processing';
@@ -849,14 +1168,54 @@ const Views = {
         });
         html += '</div>';
         listEl.innerHTML = html;
+    },
 
-        // List-level polling: auto-refresh when processing items exist
-        const hasProcessing = items.some(m => m.status === 'processing');
-        if (hasProcessing) {
-            this._startProcessingPoll();
-        } else {
-            this._stopProcessingPoll();
-        }
+    _renderGridView(items, listEl) {
+        let html = '<div class="mb-grid-container">';
+        items.forEach(m => {
+            const isProcessing = m.status === 'processing';
+            const question = m.manual_question_text || m.ocr_question_text || '（未識別）';
+            const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
+            const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
+            const imgSrc = m.original_image_path
+                ? `/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}`
+                : '';
+
+            html += `
+                <div class="mb-grid-card" ${onclick} ${cursorStyle}>
+                    <div class="mb-grid-card__status mb-grid-card__status--${m.status}"></div>
+                    <div class="mb-grid-card__thumb">
+                        ${imgSrc
+                            ? `<img src="${imgSrc}" alt="" loading="lazy"
+                                   onerror="this.style.display='none';this.parentElement.classList.add('mb-grid-card__thumb--fallback')">`
+                            : ''
+                        }
+                        ${!imgSrc ? `<div class="mb-grid-card__thumb--fallback">${Icons.bookOpen(24)}</div>` : ''}
+                        ${isProcessing ? '<div class="mb-grid-card__processing"><span class="mb-processing-pulse">識別中</span></div>' : ''}
+                    </div>
+                    <div class="mb-grid-card__body">
+                        <div class="mb-grid-card__meta">
+                            <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
+                            <span class="mb-grid-card__date">${UI.formatDate(m.created_at)}</span>
+                        </div>
+                        <div class="mb-grid-card__question">${isProcessing ? 'AI 正在識別分析中...' : UI.escapeHtml(question)}</div>
+                        ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        listEl.innerHTML = html;
+    },
+
+    /** 不重新拉取數據，僅切換視圖渲染 */
+    _renderCurrentMistakes() {
+        const items = App.state.mistakes?.items || [];
+        this._renderMistakeList(items);
+        // 更新切換按鈕狀態
+        document.querySelectorAll('.mb-view-toggle__btn').forEach(btn => {
+            btn.classList.toggle('mb-view-toggle__btn--active', btn.dataset.view === App.state.viewMode);
+        });
     },
 
     _processingPollTimer: null,
@@ -873,14 +1232,7 @@ const Views = {
             }
             // Only refresh if we're on the home tab
             if (App.state.currentTab !== 'home') return;
-            try {
-                const res = await API.getMistakes(App.state.currentSubject);
-                if (res && res.data && res.data.items) {
-                    this._renderMistakeList(res.data.items);
-                }
-            } catch (e) {
-                // Silently ignore polling errors
-            }
+            await Views.refreshMistakeList();
         }, 5000);
     },
 
@@ -932,6 +1284,21 @@ const Views = {
             return;
         }
 
+        // ---- 分層佈局：預計算提取數據 ----
+        const errorSummary   = UI.extractErrorSummary(m);
+        const keyInsight     = UI.extractKeyInsight(m);
+        const firstTip       = UI.extractFirstTip(m);
+        const studentBullets = UI.summarizeStudentApproach(m);
+        const correctBullets = UI.summarizeCorrectAnswer(m);
+        const rawAnalysis    = UI.extractRawAnalysis(m);
+        const hasCompare     = studentBullets.length > 0 || correctBullets.length > 0;
+        const hasSummary     = errorSummary || keyInsight || firstTip;
+
+        // 分析文字截斷邏輯
+        const analysisId = 'detail_analysis_' + Date.now();
+        const analysisNeedsTruncate = rawAnalysis.length > 500;
+        const analysisTruncated = analysisNeedsTruncate ? rawAnalysis.substring(0, 300) : rawAnalysis;
+
         panel.innerHTML = `
             <header class="mb-header">
                 <div class="mb-header__title">
@@ -960,22 +1327,82 @@ const Views = {
                 <div class="mb-detail-section__body">${UI.formatQuestion(m.question_text || '')}</div>
             </div>
 
-            <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.x(16)} 我的答案</div>
-                <div class="mb-detail-section__body">${UI.renderMath(m.answer_text || '')}</div>
-            </div>
-
-            ${m.correct_answer ? `
-            <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.check(16)} 正確答案</div>
-                <div class="mb-detail-section__body">${UI.renderMath(m.correct_answer)}</div>
+            ${hasSummary ? `
+            <div class="mb-summary-card${!m.error_type && errorSummary ? ' mb-summary-card--correct' : ''}">
+                <div class="mb-summary-card__header">${m.error_type ? '錯因摘要' : '分析摘要'}</div>
+                ${errorSummary ? `
+                <div class="mb-summary-card__row">
+                    <div class="mb-summary-card__label">${m.error_type ? '主要錯因' : '評估'}</div>
+                    <div class="mb-summary-card__value ${m.error_type ? 'mb-summary-card__value--error' : 'mb-summary-card__value--correct'}">${UI.renderMath(errorSummary)}</div>
+                </div>` : ''}
+                ${keyInsight ? `
+                <div class="mb-summary-card__row">
+                    <div class="mb-summary-card__label">核心考點</div>
+                    <div class="mb-summary-card__value">${UI.renderMath(keyInsight)}</div>
+                </div>` : ''}
+                ${firstTip ? `
+                <div class="mb-summary-card__row">
+                    <div class="mb-summary-card__label">改進要點</div>
+                    <div class="mb-summary-card__value mb-summary-card__value--tip">${UI.escapeHtml(firstTip)}</div>
+                </div>` : ''}
             </div>` : ''}
 
-            ${m.ai_analysis ? `
-            <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.zap(16)} AI 分析</div>
-                <div class="mb-detail-section__body">${UI.formatAnalysis(m.ai_analysis)}</div>
-                ${m.error_type ? `<div style="margin-top:10px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
+            ${hasCompare ? `
+            <div class="mb-collapse mb-collapse--open">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">思路對比</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div class="mb-compare-grid">
+                        ${studentBullets.length ? `
+                        <div class="mb-compare-section">
+                            <div class="mb-compare-label">我的做法</div>
+                            <ul class="mb-compare-list">${studentBullets.map(b => `<li>${UI.renderMath(b)}</li>`).join('')}</ul>
+                        </div>` : ''}
+                        ${correctBullets.length ? `
+                        <div class="mb-compare-section">
+                            <div class="mb-compare-label mb-compare-label--correct">正確做法</div>
+                            <ul class="mb-compare-list">${correctBullets.map(b => `<li>${UI.renderMath(b)}</li>`).join('')}</ul>
+                        </div>` : ''}
+                    </div>
+                </div>
+            </div>` : ''}
+
+            ${m.correct_answer ? `
+            <div class="mb-collapse mb-collapse--open">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">參考解法</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div class="mb-step-intro">以下為此題完整解題步驟</div>
+                    <div class="mb-step-layout">${UI.renderMath(m.correct_answer)}</div>
+                </div>
+            </div>` : ''}
+
+            ${rawAnalysis ? `
+            <div class="mb-collapse mb-collapse--open">
+                <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
+                    <span class="mb-collapse__title">詳細分析</span>
+                    <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
+                </div>
+                <div class="mb-collapse__body">
+                    <div id="${analysisId}">
+                        ${analysisNeedsTruncate
+                            ? `<div class="mb-analysis-truncated">${UI.renderMath(analysisTruncated)}…</div>
+                               <div class="mb-analysis-full" style="display:none">${UI.renderMath(rawAnalysis)}</div>
+                               <span class="mb-analysis-expand" onclick="
+                                   var wrap = this.parentElement;
+                                   wrap.querySelector('.mb-analysis-truncated').style.display='none';
+                                   wrap.querySelector('.mb-analysis-full').style.display='block';
+                                   this.remove();
+                               ">顯示完整分析</span>`
+                            : UI.renderMath(rawAnalysis)
+                        }
+                    </div>
+                    ${m.error_type ? `<div style="margin-top:10px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
+                </div>
             </div>` : ''}
 
             ${kps.length ? `
@@ -1210,8 +1637,8 @@ const Views = {
                 </div>
             `;
             const subjectsDiv = container.querySelector('.mb-practice-subjects');
-            subjectsDiv.innerHTML = ['chinese', 'math', 'english'].map(s =>
-                `<button class="mb-btn mb-btn--secondary" data-practice-subject="${s}">${UI.subjectLabel(s)}</button>`
+            subjectsDiv.innerHTML = (App.state.subjects || []).map(s =>
+                `<button class="mb-btn mb-btn--secondary" data-practice-subject="${s.subject_code}">${s.display_name}</button>`
             ).join('');
             subjectsDiv.addEventListener('click', e => {
                 const btn = e.target.closest('[data-practice-subject]');
@@ -1874,24 +2301,15 @@ const Upload = {
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">科目</label>
                 <select class="mb-select" id="uploadSubject">
-                    <option value="chinese">中文</option>
-                    <option value="math">數學</option>
-                    <option value="english">英文</option>
+                    ${(App.state.subjects || []).map(s =>
+                        `<option value="${s.subject_code}">${s.display_name}</option>`
+                    ).join('')}
                 </select>
             </div>
 
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">題目類型</label>
-                <select class="mb-select" id="uploadCategory">
-                    <option value="閱讀理解">閱讀理解</option>
-                    <option value="寫作">寫作</option>
-                    <option value="語文基礎">語文基礎</option>
-                    <option value="代數">代數</option>
-                    <option value="幾何">幾何</option>
-                    <option value="Grammar">Grammar</option>
-                    <option value="Dictation">Dictation 默書</option>
-                    <option value="Reading">Reading</option>
-                </select>
+                <select class="mb-select" id="uploadCategory"></select>
             </div>
 
             <div class="mb-upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
@@ -1915,6 +2333,19 @@ const Upload = {
                 上傳並識別
             </button>
         `;
+
+        // 科目切換時更新題目類型
+        const uploadSubjectEl = document.getElementById('uploadSubject');
+        const uploadCategoryEl = document.getElementById('uploadCategory');
+        const _updateUploadCategories = () => {
+            const subj = (App.state.subjects || []).find(s => s.subject_code === uploadSubjectEl.value);
+            const cats = (subj && subj.categories) || [{value:'其他', label:'其他'}];
+            uploadCategoryEl.innerHTML = cats.map(c =>
+                `<option value="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</option>`
+            ).join('');
+        };
+        uploadSubjectEl.addEventListener('change', _updateUploadCategories);
+        _updateUploadCategories(); // 初始化
 
         document.getElementById('fileInput').addEventListener('change', e => {
             const files = Array.from(e.target.files);
@@ -2008,7 +2439,44 @@ const Upload = {
             // Background processing — return immediately
             UI.toast('已上傳，AI 正在背景識別分析...', 'info');
             this.close();
-            App.navigate('home');
+
+            // 直接在現有列表中插入「處理中」卡片，不重新加載整個頁面
+            // （避免後台 OCR 佔用資源導致 API 回應慢）
+            const listEl = document.getElementById('mistakeList');
+            if (listEl && App.state.currentTab === 'home') {
+                const emptyMsg = listEl.querySelector('.mb-empty');
+                if (emptyMsg) emptyMsg.remove();
+
+                const subject = document.getElementById('uploadSubject')?.value || '';
+                const tempCard = document.createElement('div');
+                tempCard.className = 'mb-list-container';
+                tempCard.innerHTML = `
+                    <div class="mb-mistake-item" style="cursor:default;opacity:0.7">
+                        <div class="mb-mistake-item__bar mb-mistake-item__bar--processing"></div>
+                        <div class="mb-mistake-item__content">
+                            <div class="mb-mistake-item__top">
+                                <span class="mb-mistake-item__subject">${UI.subjectLabel(subject)}</span>
+                                <span class="mb-mistake-item__date">剛剛</span>
+                            </div>
+                            <div class="mb-mistake-item__question"><span class="mb-processing-pulse">AI 正在識別分析中...</span></div>
+                        </div>
+                    </div>
+                `;
+                listEl.insertBefore(tempCard, listEl.firstChild);
+
+                // 更新計數
+                const countEl = listEl.closest('.mb-list-section')?.querySelector('.mb-list-section__count');
+                if (countEl) {
+                    const oldCount = parseInt(countEl.textContent) || 0;
+                    countEl.textContent = `${oldCount + 1} 題`;
+                }
+
+                // 啟動輪詢，等待後台處理完成後自動刷新
+                Views._startProcessingPoll();
+            } else {
+                // 不在首頁，直接導航
+                App.navigate('home');
+            }
         } else {
             const errMsg = (res && res.detail) || '上傳失敗，請重試';
             btn.disabled = false;
@@ -2110,16 +2578,15 @@ const Upload = {
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">科目</label>
                 <select class="mb-select" id="manualSubject">
-                    <option value="chinese">中文</option>
-                    <option value="math">數學</option>
-                    <option value="english">英文</option>
+                    ${(App.state.subjects || []).map(s =>
+                        `<option value="${s.subject_code}">${s.display_name}</option>`
+                    ).join('')}
                 </select>
             </div>
 
             <div style="margin-bottom:12px">
                 <label class="mb-ocr-confirm__label">題目類型</label>
-                <input type="text" class="mb-ocr-confirm__textarea" id="manualCategory"
-                       style="min-height:auto;height:36px" placeholder="例如：閱讀理解、代數、Grammar">
+                <select class="mb-select" id="manualCategory"></select>
             </div>
 
             <div style="margin-bottom:12px">
@@ -2136,6 +2603,19 @@ const Upload = {
                 添加並分析
             </button>
         `;
+
+        // 科目切換時更新題目類型
+        const manualSubjectEl = document.getElementById('manualSubject');
+        const manualCategoryEl = document.getElementById('manualCategory');
+        const _updateManualCategories = () => {
+            const subj = (App.state.subjects || []).find(s => s.subject_code === manualSubjectEl.value);
+            const cats = (subj && subj.categories) || [{value:'其他', label:'其他'}];
+            manualCategoryEl.innerHTML = cats.map(c =>
+                `<option value="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</option>`
+            ).join('');
+        };
+        manualSubjectEl.addEventListener('change', _updateManualCategories);
+        _updateManualCategories(); // 初始化
     },
 
     async _submitManual() {

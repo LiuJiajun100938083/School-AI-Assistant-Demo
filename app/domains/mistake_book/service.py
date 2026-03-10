@@ -37,6 +37,7 @@ from app.domains.mistake_book.prompts import (
     build_practice_prompt,
     build_weakness_report_prompt,
 )
+from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
 from app.domains.adaptive.engine import AdaptiveLearningEngine
 from app.domains.vision.service import VisionService
 from app.domains.vision.schemas import RecognitionSubject, RecognitionTask
@@ -207,10 +208,20 @@ def _extract_analysis_from_prose(text: str) -> Dict:
             )
             result["error_analysis"] = _truncate_repetitive(analysis_raw)
 
-        # 提取 error_type 字段
-        et_match = re.search(r'"error_type"\s*:\s*"([^"]*)"', text)
-        if et_match:
-            result["error_type"] = et_match.group(1)
+        # 提取 error_type 字段（可能是 "string" 或 null）
+        et_null_match = re.search(r'"error_type"\s*:\s*null', text)
+        if et_null_match:
+            result["error_type"] = ""
+        else:
+            et_match = re.search(r'"error_type"\s*:\s*"([^"]*)"', text)
+            if et_match:
+                val = et_match.group(1)
+                result["error_type"] = "" if val == "null" else val
+
+        # 提取 correctness_level 字段
+        cl_match = re.search(r'"correctness_level"\s*:\s*"([A-F])"', text)
+        if cl_match:
+            result["correctness_level"] = cl_match.group(1)
 
         # 提取 is_correct 字段
         ic_match = re.search(r'"is_correct"\s*:\s*(true|false)', text, re.I)
@@ -595,7 +606,8 @@ class MistakeBookService:
         ocr_result = None
         if self._vision:
             recognition_subject = RecognitionSubject(subject)
-            task = self._pick_recognition_task(subject, category)
+            handler = SubjectHandlerRegistry.get(subject)
+            task = handler.pick_recognition_task(category)
 
             if len(all_image_paths) == 1:
                 # 單張圖片：原有邏輯
@@ -630,8 +642,8 @@ class MistakeBookService:
             "confidence_score": ocr_result.confidence,
         }
 
-        # 構建分項置信度
-        if subject == "math":
+        # 構建分項置信度（支持所有啟用 confidence_breakdown 的科目）
+        if getattr(handler, "supports_confidence_breakdown", False):
             q_conf = ocr_result.question_confidence
             a_conf = ocr_result.answer_confidence
             f_conf = ocr_result.figure_confidence
@@ -781,12 +793,16 @@ class MistakeBookService:
 
         # 更新分析結果
         tips = analysis.get("improvement_tips", [])
+        # 正規化 error_type：AI 可能返回 null / "null" / None（表示答案完全正確）
+        raw_error_type = analysis.get("error_type", "")
+        if raw_error_type is None or raw_error_type == "null":
+            raw_error_type = ""
         update_data = {
             "correct_answer": analysis.get("correct_answer", ""),
             "ai_analysis": analysis.get("error_analysis", ""),
             "improvement_tips": json.dumps(tips, ensure_ascii=False) if tips else None,
             "key_insight": analysis.get("key_insight", ""),
-            "error_type": analysis.get("error_type", ""),
+            "error_type": raw_error_type,
             "difficulty_level": analysis.get("difficulty_level", 3),
             "confidence_score": analysis.get("confidence", 0.8),
         }
@@ -819,8 +835,9 @@ class MistakeBookService:
         return {
             "mistake_id": mistake_id,
             "is_correct": analysis.get("is_correct", False),
+            "correctness_level": analysis.get("correctness_level", ""),
             "correct_answer": analysis.get("correct_answer", ""),
-            "error_type": analysis.get("error_type", ""),
+            "error_type": raw_error_type,
             "error_analysis": analysis.get("error_analysis", ""),
             "improvement_tips": analysis.get("improvement_tips", []),
             "knowledge_points": self._links.get_points_for_mistake(mistake_id),
@@ -1846,8 +1863,7 @@ class MistakeBookService:
                 lines.append(f"- 題目: {q[:120]}  錯誤類型: {err}")
             mistakes_context = "\n".join(lines)
 
-        subject_names = {"chinese": "中文", "math": "數學", "english": "英文"}
-        subj_label = subject_names.get(subject, subject)
+        subj_label = SubjectHandlerRegistry.get(subject).display_name
 
         prompt = f"""你是一位耐心親切的香港中學{subj_label}老師。一位學生想問關於「{point_name}」（分類：{category}）的問題。
 
@@ -2089,20 +2105,6 @@ class MistakeBookService:
             metadata={"multi_image": True, "image_count": len(image_paths), "success_count": len(ok_results)},
         )
         return merged
-
-    @staticmethod
-    def _pick_recognition_task(subject: str, category: str) -> RecognitionTask:
-        """根據科目和類型選擇 OCR 任務"""
-        category_lower = category.lower()
-
-        if subject == "math":
-            return RecognitionTask.MATH_SOLUTION
-        if subject == "chinese" and "寫作" in category:
-            return RecognitionTask.ESSAY
-        if subject == "english" and ("dictation" in category_lower or "默書" in category):
-            return RecognitionTask.DICTATION
-
-        return RecognitionTask.QUESTION_AND_ANSWER
 
     @staticmethod
     def _simple_check(student_answer: str, correct_answer: str) -> bool:
