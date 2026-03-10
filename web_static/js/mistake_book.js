@@ -403,6 +403,12 @@ const UI = {
     renderMath(text) {
         if (!text) return '';
 
+        // 修復已存 DB 中被 JSON 解析損壞的 LaTeX（\times→TAB+"imes" 等）
+        text = text.replace(/\t([a-zA-Z]{2,})/g, '\\t$1');   // \times, \text, \theta, \tan
+        text = text.replace(/\x08([a-zA-Z]{2,})/g, '\\b$1'); // \bar, \binom, \begin, \beta
+        text = text.replace(/\f([a-zA-Z]{2,})/g, '\\f$1');   // \frac, \forall
+        text = text.replace(/\r([a-zA-Z]{2,})/g, '\\r$1');   // \right, \rangle, \rho
+
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
 
         // OCR 模型常輸出字面 \n 而非真正換行符，轉換之
@@ -605,7 +611,7 @@ const UI = {
         if (obj.improvement_tips && obj.improvement_tips.length) {
             html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--mb-border)">
                 <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">改進建議</div>
-                <ul style="margin:0;padding-left:16px;font-size:13px">${obj.improvement_tips.map(t => `<li>${this.escapeHtml(t)}</li>`).join('')}</ul>
+                <ul style="margin:0;padding-left:16px;font-size:13px">${obj.improvement_tips.map(t => `<li>${this.renderMath(t)}</li>`).join('')}</ul>
             </div>`;
         }
         if (html) return html;
@@ -1411,7 +1417,7 @@ const Views = {
                 ${firstTip ? `
                 <div class="mb-summary-card__row">
                     <div class="mb-summary-card__label">改進要點</div>
-                    <div class="mb-summary-card__value mb-summary-card__value--tip">${UI.escapeHtml(firstTip)}</div>
+                    <div class="mb-summary-card__value mb-summary-card__value--tip">${UI.renderMath(firstTip)}</div>
                 </div>` : ''}
             </div>` : ''}
 
