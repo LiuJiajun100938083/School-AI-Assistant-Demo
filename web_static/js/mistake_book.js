@@ -549,11 +549,19 @@ const UI = {
      * 如果是 JSON 格式（後端解析失敗時），嘗試前端解析提取
      * 同時截斷重複性文字
      */
+    /**
+     * 去除 markdown code fence 包裹 (```json ... ``` 或 ``` ... ```)
+     */
+    _stripCodeFence(text) {
+        if (!text) return text;
+        return text.replace(/^```(?:json|JSON)?\s*\n?/gm, '').replace(/\n?```\s*$/gm, '').trim();
+    },
+
     formatAnalysis(text) {
         if (!text) return '';
 
-        // 檢測是否為 JSON 格式（後端 _extract_analysis_from_prose 失敗的情況）
-        const trimmed = text.trim();
+        // 去除 markdown code fence 包裹
+        let trimmed = this._stripCodeFence(text.trim());
         if (trimmed.startsWith('{')) {
             try {
                 // 嘗試直接解析
@@ -573,7 +581,7 @@ const UI = {
         }
 
         // 截斷重複文字
-        const cleaned = this._truncateRepetitive(text);
+        const cleaned = this._truncateRepetitive(trimmed);
         return this.renderMath(cleaned);
     },
 
@@ -594,7 +602,10 @@ const UI = {
                 <ul style="margin:0;padding-left:16px;font-size:13px">${obj.improvement_tips.map(t => `<li>${this.escapeHtml(t)}</li>`).join('')}</ul>
             </div>`;
         }
-        return html || this.renderMath(JSON.stringify(obj, null, 2).substring(0, 2000));
+        if (html) return html;
+        // Fallback: render JSON in scrollable pre block
+        const jsonStr = this.escapeHtml(JSON.stringify(obj, null, 2).substring(0, 2000));
+        return `<pre style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;max-width:100%;overflow-x:auto;font-size:13px;line-height:1.5;margin:0">${jsonStr}</pre>`;
     },
 
     _extractAndRenderAnalysis(text) {
@@ -652,7 +663,7 @@ const UI = {
      */
     _parseAnalysisJson(text) {
         if (!text) return null;
-        const trimmed = text.trim();
+        const trimmed = this._stripCodeFence(text.trim());
         if (!trimmed.startsWith('{')) return null;
         try { return JSON.parse(trimmed); } catch {}
         try {
@@ -668,19 +679,19 @@ const UI = {
     extractRawAnalysis(m) {
         const text = m.ai_analysis;
         if (!text) return '';
-        const obj = this._parseAnalysisJson(text);
+        const cleaned = this._stripCodeFence(text);
+        const obj = this._parseAnalysisJson(cleaned);
         if (obj && obj.error_analysis) {
             return obj.error_analysis.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
         }
         // 嘗試正則提取
-        const eaMatch = text.match(/"error_analysis"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/s);
+        const eaMatch = cleaned.match(/"error_analysis"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)/s);
         if (eaMatch) {
             return eaMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
         }
         // 非 JSON，視為純文字
-        const trimmed = text.trim();
-        if (trimmed.startsWith('{')) return ''; // JSON 但無 error_analysis
-        return trimmed;
+        if (cleaned.startsWith('{')) return ''; // JSON 但無 error_analysis
+        return cleaned;
     },
 
     /**

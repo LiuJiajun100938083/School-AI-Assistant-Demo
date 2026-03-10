@@ -1132,6 +1132,7 @@
     background: var(--mb-bg);
     z-index: 200;
     overflow-y: auto;
+    overflow-x: hidden;       /* prevent horizontal scroll on the whole panel */
     animation: mbFadeIn 0.2s ease;
 }
 
@@ -1143,6 +1144,9 @@
     padding: 20px;
     margin: 12px 20px;
     border: 1px solid var(--mb-border);
+    min-width: 0;          /* Safari flex child shrink */
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .mb-detail-section__title {
@@ -1168,7 +1172,10 @@
     line-height: 1.7;
     color: var(--mb-text);
     word-wrap: break-word;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* KaTeX */
@@ -1570,6 +1577,9 @@
     border: 1px solid var(--mb-border);
     margin-bottom: 8px;
     overflow: hidden;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .mb-collapse__trigger {
@@ -1616,6 +1626,9 @@
     display: none;
     padding: 0 20px 20px;
     animation: mbFadeIn 0.15s ease;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .mb-collapse--open .mb-collapse__body {
@@ -2517,6 +2530,8 @@
     font-size: 14px;
     line-height: 1.5;
     color: var(--mb-text);
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .mb-summary-card__value--error {
     font-weight: 600;
@@ -2604,6 +2619,36 @@
     color: var(--mb-brand);
     cursor: pointer;
     font-weight: 500;
+}
+
+/* 分析內容中 pre/code 塊溢出防護 (iPad Safari) */
+.mb-collapse__body pre,
+.mb-detail-section__body pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.mb-collapse__body code,
+.mb-detail-section__body code {
+    word-break: break-all;
+}
+/* 長公式行溢出水平滾動 */
+.mb-collapse__body .katex-display,
+.mb-detail-section__body .katex-display {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+/* 分析內容容器 */
+.mb-analysis-truncated,
+.mb-analysis-full {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* 詳情面板內折疊統一間距 */
