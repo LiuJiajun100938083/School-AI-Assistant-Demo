@@ -359,9 +359,48 @@ class AssignmentQuestionRepository(BaseRepository):
     TABLE = "assignment_questions"
 
     def ensure_schema(self):
-        """確保 assignment_questions 表包含所有必要欄位（自動遷移）"""
+        """確保 assignment_questions 表是新版 exam schema（自動遷移）"""
         import logging
         logger = logging.getLogger(__name__)
+
+        # 檢測舊 form schema：有 correct_answer 列 → 舊版表，需要重建
+        try:
+            self.raw_query("SELECT correct_answer FROM assignment_questions LIMIT 0", ())
+            # 舊表存在 → 備份並重建
+            logger.warning("偵測到舊版 assignment_questions 表（form schema），正在重建...")
+            rebuild_sql = [
+                "RENAME TABLE assignment_questions TO _assignment_questions_old",
+                """CREATE TABLE assignment_questions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    assignment_id INT NOT NULL,
+                    question_order INT DEFAULT 0,
+                    question_number VARCHAR(20) DEFAULT '',
+                    question_text TEXT NOT NULL,
+                    answer_text TEXT DEFAULT '',
+                    answer_source VARCHAR(20) DEFAULT 'missing',
+                    points DECIMAL(5,1) DEFAULT NULL,
+                    question_type VARCHAR(50) DEFAULT 'open',
+                    question_type_confidence FLOAT DEFAULT NULL,
+                    is_ai_extracted BOOLEAN DEFAULT TRUE,
+                    source_batch_id VARCHAR(64) DEFAULT NULL,
+                    source_page INT DEFAULT NULL,
+                    ocr_confidence FLOAT DEFAULT NULL,
+                    metadata JSON DEFAULT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX idx_assignment (assignment_id),
+                    INDEX idx_order (assignment_id, question_order),
+                    FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci""",
+            ]
+            for sql in rebuild_sql:
+                self.pool.execute_write(sql, ())
+            logger.info("assignment_questions 表已重建（舊表備份為 _assignment_questions_old）")
+            return
+        except Exception:
+            pass  # 沒有 correct_answer → 不是舊表，繼續正常遷移
+
+        # 正常增量遷移
         migrations = [
             ("question_number", "ALTER TABLE assignment_questions ADD COLUMN question_number VARCHAR(20) DEFAULT '' COMMENT '原始題號' AFTER question_order"),
         ]
@@ -382,22 +421,25 @@ class AssignmentQuestionRepository(BaseRepository):
             order_by="question_order ASC, id ASC",
         )
 
-    def batch_insert(self, assignment_id: int, questions: List[Dict[str, Any]]) -> int:
+    def batch_insert(self, assignment_id: int, questions: List[Dict[str, Any]]) -> List[int]:
+        """批量插入題目，兼容 exam 和 form 兩種 schema，返回 ID 列表"""
         if not questions:
-            return 0
-        inserted = 0
+            return []
+        ids = []
         for i, q in enumerate(questions):
+            # 兼容 form 的 max_points 和 exam 的 points
+            pts = q.get("points") if q.get("points") is not None else q.get("max_points")
             data = {
                 "assignment_id": assignment_id,
                 "question_order": i,
                 "question_number": q.get("question_number", ""),
                 "question_text": q.get("question_text", ""),
-                "answer_text": q.get("answer_text", ""),
-                "answer_source": q.get("answer_source", "missing"),
-                "points": q.get("points"),
+                "answer_text": q.get("answer_text") or q.get("correct_answer") or q.get("reference_answer") or "",
+                "answer_source": q.get("answer_source", "manual" if not q.get("is_ai_extracted") else "missing"),
+                "points": pts,
                 "question_type": q.get("question_type", "open"),
                 "question_type_confidence": q.get("question_type_confidence"),
-                "is_ai_extracted": q.get("is_ai_extracted", True),
+                "is_ai_extracted": q.get("is_ai_extracted", False),
                 "source_batch_id": q.get("source_batch_id"),
                 "source_page": q.get("source_page"),
                 "ocr_confidence": q.get("ocr_confidence"),
@@ -405,9 +447,9 @@ class AssignmentQuestionRepository(BaseRepository):
             md = q.get("metadata")
             if md is not None:
                 data["metadata"] = json.dumps(md, ensure_ascii=False) if isinstance(md, (dict, list)) else md
-            self.insert(data)
-            inserted += 1
-        return inserted
+            qid = self.insert_get_id(data)
+            ids.append(qid)
+        return ids
 
     def delete_by_assignment(self, assignment_id: int) -> int:
         return self.delete(
