@@ -774,7 +774,7 @@ class MistakeBookService:
             {
                 "manual_question_text": confirmed_question,
                 "manual_answer_text": confirmed_answer,
-                "status": "analyzed",
+                "status": "analyzing",
             },
             "mistake_id = %s",
             (mistake_id,),
@@ -828,6 +828,7 @@ class MistakeBookService:
             "error_type": raw_error_type,
             "difficulty_level": analysis.get("difficulty_level", 3),
             "confidence_score": analysis.get("confidence", 0.8),
+            "status": "analyzed",
         }
         self._mistakes.update(update_data, "mistake_id = %s", (mistake_id,))
 
@@ -1047,9 +1048,9 @@ class MistakeBookService:
         return True
 
     def _check_still_processing(self, mistake_id: str) -> bool:
-        """重新讀取狀態，確認仍為 processing（競態保護）"""
+        """重新讀取狀態，確認仍為 processing 或 analyzing（競態保護）"""
         mistake = self._mistakes.find_by_mistake_id(mistake_id)
-        if not mistake or mistake["status"] != "processing":
+        if not mistake or mistake["status"] not in ("processing", "analyzing"):
             logger.info("競態保護：錯題 %s 狀態已變為 %s，中止後續寫入",
                         mistake_id, mistake["status"] if mistake else "deleted")
             return False

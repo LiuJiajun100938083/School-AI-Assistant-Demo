@@ -354,7 +354,8 @@ const UI = {
 
     statusLabel(status) {
         const map = {
-            processing: 'AI 識別中...',
+            processing: 'Step 1/2: 識別中...',
+            analyzing: 'Step 2/2: 分析中...',
             ocr_failed: '識別失敗',
             analysis_failed: '分析失敗',
             needs_review: '待確認',
@@ -1154,8 +1155,8 @@ const Views = {
             this._renderListView(items, listEl);
         }
 
-        // List-level polling: auto-refresh when processing items exist
-        const hasProcessing = items.some(m => m.status === 'processing');
+        // List-level polling: auto-refresh when processing/analyzing items exist
+        const hasProcessing = items.some(m => m.status === 'processing' || m.status === 'analyzing');
         if (hasProcessing) {
             this._startProcessingPoll();
         } else {
@@ -1166,9 +1167,10 @@ const Views = {
     _renderListView(items, listEl) {
         let html = '<div class="mb-list-container">';
         items.forEach(m => {
-            const isProcessing = m.status === 'processing';
+            const isProcessing = m.status === 'processing' || m.status === 'analyzing';
+            const progressMsg = m.status === 'analyzing' ? 'AI 正在解題分析中...' : 'AI 正在識別中...';
             const question = isProcessing
-                ? `<span class="mb-processing-pulse">AI 正在識別分析中...</span>
+                ? `<span class="mb-processing-pulse">${progressMsg}</span>
                    <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
                            onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button>`
                 : (m.manual_question_text || m.ocr_question_text || '（未識別）');
@@ -1200,7 +1202,9 @@ const Views = {
     _renderGridView(items, listEl) {
         let html = '<div class="mb-grid-container">';
         items.forEach(m => {
-            const isProcessing = m.status === 'processing';
+            const isProcessing = m.status === 'processing' || m.status === 'analyzing';
+            const progressMsg = m.status === 'analyzing' ? '分析中' : '識別中';
+            const progressMsgLong = m.status === 'analyzing' ? 'AI 正在解題分析中...' : 'AI 正在識別中...';
             const question = m.manual_question_text || m.ocr_question_text || '（未識別）';
             const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
             const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
@@ -1218,7 +1222,7 @@ const Views = {
                             : ''
                         }
                         ${!imgSrc ? `<div class="mb-grid-card__thumb--fallback">${Icons.bookOpen(24)}</div>` : ''}
-                        ${isProcessing ? `<div class="mb-grid-card__processing"><span class="mb-processing-pulse">識別中</span>
+                        ${isProcessing ? `<div class="mb-grid-card__processing"><span class="mb-processing-pulse">${progressMsg}</span>
                             <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
                                     onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button></div>` : ''}
                     </div>
@@ -1227,7 +1231,7 @@ const Views = {
                             <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
                             <span class="mb-grid-card__date">${UI.formatDate(m.created_at)}</span>
                         </div>
-                        <div class="mb-grid-card__question">${isProcessing ? 'AI 正在識別分析中...' : UI.escapeHtml(question)}</div>
+                        <div class="mb-grid-card__question">${isProcessing ? progressMsgLong : UI.escapeHtml(question)}</div>
                         ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
                     </div>
                 </div>
@@ -1253,6 +1257,7 @@ const Views = {
     _startProcessingPoll() {
         if (this._processingPollTimer) return; // already polling
         this._processingPollStart = Date.now();
+        this._fetchQueueStatus();
         this._processingPollTimer = setInterval(async () => {
             // Stop after 5 minutes max
             if (Date.now() - this._processingPollStart > 5 * 60 * 1000) {
@@ -1262,6 +1267,7 @@ const Views = {
             // Only refresh if we're on the home tab
             if (App.state.currentTab !== 'home') return;
             await Views.refreshMistakeList();
+            this._fetchQueueStatus();
         }, 5000);
     },
 
@@ -1270,6 +1276,35 @@ const Views = {
             clearInterval(this._processingPollTimer);
             this._processingPollTimer = null;
         }
+        // Remove queue hint
+        const hint = document.getElementById('mbQueueHint');
+        if (hint) hint.remove();
+    },
+
+    async _fetchQueueStatus() {
+        try {
+            const res = await fetch('/api/mistakes/queue-status', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const queued = data.queued || 0;
+            const running = data.running || 0;
+            let hint = document.getElementById('mbQueueHint');
+            if (queued > 0) {
+                const msg = `AI 隊列：${running} 個任務執行中，${queued} 個排隊等待`;
+                if (!hint) {
+                    hint = document.createElement('div');
+                    hint.id = 'mbQueueHint';
+                    hint.className = 'mb-queue-hint';
+                    const listEl = document.getElementById('mistakeList');
+                    if (listEl) listEl.parentNode.insertBefore(hint, listEl);
+                }
+                hint.textContent = msg;
+            } else if (hint) {
+                hint.remove();
+            }
+        } catch (e) { /* ignore */ }
     },
 
     /* ---- 錯題詳情 ---- */

@@ -433,6 +433,10 @@
     background: linear-gradient(180deg, #007aff 0%, #5ac8fa 100%);
     animation: mb-pulse 1.5s ease-in-out infinite;
 }
+.mb-mistake-item__bar--analyzing {
+    background: linear-gradient(180deg, #5856d6 0%, #af52de 100%);
+    animation: mb-pulse 1.5s ease-in-out infinite;
+}
 .mb-mistake-item__bar--needs_review { background: var(--mb-warning); }
 .mb-mistake-item__bar--ocr_failed,
 .mb-mistake-item__bar--analysis_failed { background: var(--mb-danger); }
@@ -445,6 +449,17 @@
     color: var(--mb-text-tertiary);
     font-style: italic;
     animation: mb-pulse 1.5s ease-in-out infinite;
+}
+.mb-queue-hint {
+    padding: 8px 16px;
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: var(--mb-text-secondary);
+    background: var(--mb-card);
+    border-radius: 8px;
+    border: 1px solid var(--mb-border);
+    text-align: center;
+    animation: mb-pulse 2s ease-in-out infinite;
 }
 
 .mb-mistake-item__content {
@@ -2425,6 +2440,7 @@
 .mb-grid-card__status--practicing { background: var(--mb-brand); }
 .mb-grid-card__status--mastered { background: var(--mb-success); }
 .mb-grid-card__status--processing { background: var(--mb-warning); }
+.mb-grid-card__status--analyzing { background: var(--mb-brand); animation: mb-pulse 1.5s ease-in-out infinite; }
 .mb-grid-card__status--needs_review,
 .mb-grid-card__status--pending_review,
 .mb-grid-card__status--pending_ocr { background: var(--mb-warning); }

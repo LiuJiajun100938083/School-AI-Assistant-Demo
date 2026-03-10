@@ -88,11 +88,25 @@ class MistakeRepository(BaseRepository):
             "mistake_id = %s AND is_deleted = FALSE", (mistake_id,)
         )
 
+    def ensure_analyzing_status(self):
+        """確保 status ENUM 包含 'analyzing' 值（v2.1 遷移）"""
+        try:
+            self.raw_query(
+                "ALTER TABLE student_mistakes MODIFY COLUMN status "
+                "ENUM('pending_ocr','pending_review','analyzed','practicing',"
+                "'mastered','processing','ocr_failed','needs_review',"
+                "'analysis_failed','cancelled','analyzing') "
+                "DEFAULT 'pending_ocr'",
+                (),
+            )
+        except Exception:
+            pass  # already applied
+
     def cleanup_stale_processing(self, max_age_minutes: int = 30) -> int:
         """
-        將超時的 processing 記錄標記為 ocr_failed。
+        將超時的 processing / analyzing 記錄標記為失敗。
 
-        服務器重啟後，之前正在處理的 OCR 任務已經中斷，
+        服務器重啟後，之前正在處理的任務已經中斷，
         需要清理以避免前端無限輪詢。
         """
         conn = self._get_conn()
@@ -101,8 +115,11 @@ class MistakeRepository(BaseRepository):
             cursor.execute(
                 """
                 UPDATE student_mistakes
-                SET status = 'ocr_failed'
-                WHERE status = 'processing'
+                SET status = CASE
+                    WHEN status = 'processing' THEN 'ocr_failed'
+                    WHEN status = 'analyzing' THEN 'analysis_failed'
+                END
+                WHERE status IN ('processing', 'analyzing')
                   AND is_deleted = FALSE
                   AND created_at < NOW() - INTERVAL %s MINUTE
                 """,

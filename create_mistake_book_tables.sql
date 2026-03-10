@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS student_mistakes (
     confidence_score FLOAT COMMENT 'AI 批改信心度 0-1',
 
     -- 狀態機
-    status ENUM('pending_ocr', 'pending_review', 'analyzed', 'practicing', 'mastered', 'processing', 'ocr_failed', 'needs_review', 'analysis_failed', 'cancelled')
+    status ENUM('pending_ocr', 'pending_review', 'analyzed', 'practicing', 'mastered', 'processing', 'ocr_failed', 'needs_review', 'analysis_failed', 'cancelled', 'analyzing')
         DEFAULT 'pending_ocr' COMMENT '錯題狀態',
     review_count INT DEFAULT 0 COMMENT '複習次數',
     last_review_at DATETIME COMMENT '最後複習時間',

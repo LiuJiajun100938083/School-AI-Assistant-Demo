@@ -265,6 +265,17 @@ async def get_dashboard(
     return {"success": True, "data": result}
 
 
+@router.get("/api/mistakes/queue-status")
+async def get_queue_status(current_user: dict = Depends(get_current_user)):
+    """AI 任務隊列狀態（供前端顯示排隊提示）"""
+    from app.core.ai_gate import get_ai_gate_stats
+    stats = get_ai_gate_stats()
+    return {
+        "queued": stats.get("queued", 0),
+        "running": stats.get("running", 0),
+    }
+
+
 # ============================================================
 # 學生端：知識點分析（必須在 {mistake_id} 路由之前）
 # ============================================================
