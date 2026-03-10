@@ -156,7 +156,7 @@ class MathHandler(BaseSubjectHandler):
 ```
 
 注意：
-- {'ALL text fields (error_analysis, correct_answer, key_insight, improvement_tips, first_error_step) MUST be in English. Use English for all explanations.' if self._is_english_text(question_text) else '用繁體中文分析'}，數學公式用 LaTeX
+- 用繁體中文分析，數學公式用 LaTeX
 - **如果學生的最終答案正確（A/B/C 級），is_correct 必須為 true，error_type 按上表填寫（A 級填 null）**
 - **嚴禁在答案正確的情況下標記 concept_error 或 calculation_error**
 - 如果學生有作答且答案錯誤（D/E/F 級），定位到第一個出錯的步驟
@@ -211,7 +211,6 @@ class MathHandler(BaseSubjectHandler):
   ]
 }}
 ```
-{'IMPORTANT: The student studies in an English-medium class. ALL text fields (question, correct_answer, explanation) MUST be written in English.' if self._is_english_text(student_mistakes_context) else '用繁體中文出題和解析。'}
 只輸出 JSON。"""
 
 

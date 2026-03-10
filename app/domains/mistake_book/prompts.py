@@ -7,7 +7,25 @@
 
 from typing import List, Dict, Optional
 
-from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
+from app.domains.mistake_book.subject_handler import (
+    BaseSubjectHandler,
+    SubjectHandlerRegistry,
+)
+
+# 英文班回覆語言指令（偵測到英文題目時統一追加，不分科目）
+_ENGLISH_ANALYSIS_NOTE = (
+    "\n\nIMPORTANT — Language requirement: "
+    "The question is in English. ALL text fields in your JSON response "
+    "(error_analysis, correct_answer, key_insight, improvement_tips, "
+    "first_error_step, and any other descriptive fields) "
+    "MUST be written in English. Use English for all explanations and analysis."
+)
+_ENGLISH_PRACTICE_NOTE = (
+    "\n\nIMPORTANT — Language requirement: "
+    "The student studies in an English-medium class. ALL text fields "
+    "(question, correct_answer, explanation, and any other descriptive fields) "
+    "MUST be written in English."
+)
 
 
 def build_analysis_prompt(
@@ -30,10 +48,13 @@ def build_analysis_prompt(
         student_history_context: 學生歷史薄弱點上下文（累積分析）
     """
     handler = SubjectHandlerRegistry.get(subject)
-    return handler.build_analysis_prompt(
+    prompt = handler.build_analysis_prompt(
         question_text, student_answer, knowledge_points_context,
         figure_description, student_history_context,
     )
+    if BaseSubjectHandler._is_english_text(question_text):
+        prompt += _ENGLISH_ANALYSIS_NOTE
+    return prompt
 
 
 def build_practice_prompt(
@@ -54,9 +75,12 @@ def build_practice_prompt(
         student_mistakes_context: 學生此前的典型錯題（供參考）
     """
     handler = SubjectHandlerRegistry.get(subject)
-    return handler.build_practice_prompt(
+    prompt = handler.build_practice_prompt(
         target_points, question_count, difficulty, student_mistakes_context,
     )
+    if BaseSubjectHandler._is_english_text(student_mistakes_context):
+        prompt += _ENGLISH_PRACTICE_NOTE
+    return prompt
 
 
 def build_weakness_report_prompt(
