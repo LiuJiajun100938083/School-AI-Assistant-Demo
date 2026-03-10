@@ -176,7 +176,7 @@ class OllamaVisionClient:
                     json_valid = True
                 except (json.JSONDecodeError, ValueError):
                     pass
-                schema_valid = json_utils.validate_exam_json(content) if json_valid else False
+                schema_valid = json_utils.validate_vision_json(content) if json_valid else False
 
             logger.info(
                 "Vision 普通模式: model=%s, raw_len=%d, thinking_len=%d, final_len=%d, "
@@ -292,7 +292,7 @@ class OllamaVisionClient:
                         content = extracted2
 
             if content:
-                valid = json_utils.validate_exam_json(content)
+                valid = json_utils.validate_vision_json(content)
                 if valid:
                     logger.info(
                         "Vision JSON 模式成功: json_valid=true, schema_valid=true, len=%d",
@@ -300,7 +300,7 @@ class OllamaVisionClient:
                     )
                 else:
                     logger.warning(
-                        "Vision JSON 模式提取到文本但不符合 exam schema (len=%d)，丟棄。前200字: %s",
+                        "Vision JSON 模式提取到文本但不符合 vision schema (len=%d)，丟棄。前200字: %s",
                         len(content), content[:200],
                     )
                     content = None

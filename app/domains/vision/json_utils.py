@@ -464,3 +464,27 @@ def validate_exam_json(text: str) -> bool:
     if data.get("paper_title"):
         return True
     return False
+
+
+def validate_ocr_json(text: str) -> bool:
+    """
+    驗證文本是否為合法的 OCR JSON（普通題目識別格式）。
+
+    最低 schema:
+    - 是 dict
+    - 包含 question 欄位（非空）
+    """
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    if data.get("question"):
+        return True
+    return False
+
+
+def validate_vision_json(text: str) -> bool:
+    """通用驗證：試卷 JSON 或 OCR JSON 任一格式合法即通過。"""
+    return validate_exam_json(text) or validate_ocr_json(text)

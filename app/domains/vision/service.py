@@ -86,6 +86,9 @@ class VisionService:
             # 首次調用：JSON 強制模式
             raw_response = await self._client.call_vision_model_json(processed_path, prompt)
 
+            if raw_response is not None:
+                logger.info("OCR JSON 模式成功 (subject=%s, len=%d)", subject.value, len(raw_response))
+
             # 回退：普通模式
             if raw_response is None:
                 logger.warning("JSON 模式調用失敗，回退到普通模式...")
