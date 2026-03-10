@@ -405,8 +405,8 @@ const UI = {
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
 
         // OCR 模型常輸出字面 \n 而非真正換行符，轉換之
-        // 排除 LaTeX 命令如 \nabla, \nu, \neg 等（後接小寫字母）
-        text = text.replace(/\\n(?![a-z])/g, '\n');
+        // 保護已知 LaTeX \n* 命令（\nabla \neg \neq \newline \ni \not \notin \nu）
+        text = text.replace(/\\n(?!abla|e[gq]|ew|ot|otin|u(?![a-z])|i(?![a-z]))/g, '\n');
 
         // 修復 AI 生成的無效 LaTeX：\text{^\circ C} → °C
         text = text.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
