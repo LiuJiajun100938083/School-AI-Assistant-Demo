@@ -326,14 +326,38 @@ class VisionService:
                                     len(extracted), extracted[:200]
                                 )
 
+            # 分流判定: JSON / reasoning / mixed
+            json_valid = False
+            schema_valid = False
+            if content:
+                try:
+                    json.loads(content)
+                    json_valid = True
+                except (json.JSONDecodeError, ValueError):
+                    pass
+                schema_valid = self._validate_exam_json(content) if json_valid else False
+
             logger.info(
-                "Vision 模型調用成功: model=%s, raw_len=%d, thinking_len=%d, final_len=%d",
+                "Vision 普通模式: model=%s, raw_len=%d, thinking_len=%d, final_len=%d, "
+                "json_valid=%s, schema_valid=%s",
                 self._vision_model,
-                len(raw_content),
-                len(thinking_content),
-                len(content),
+                len(raw_content), len(thinking_content), len(content),
+                json_valid, schema_valid,
             )
-            return content
+
+            if schema_valid:
+                return content
+            if json_valid:
+                # 合法 JSON 但不符合 exam schema，仍返回讓 parser 嘗試
+                logger.warning("普通模式: JSON 合法但不符合 exam schema，交由 parser 處理")
+                return content
+            if content and not self._looks_like_pure_reasoning(content):
+                # 非純推理的混合文本，交給 recovery parser
+                logger.warning("普通模式: 非 JSON 且非純推理 (len=%d)，交由 recovery parser", len(content))
+                return content
+            if content:
+                logger.warning("普通模式: 純推理文本 (len=%d)，丟棄", len(content))
+            return content if content else None
 
         except Exception as e:
             logger.error("Vision 模型調用失敗: %s", e, exc_info=True)
@@ -368,8 +392,13 @@ class VisionService:
                         "role": "system",
                         "content": (
                             "/no_think\n"
-                            "You are an OCR assistant. You MUST output ONLY valid JSON. "
-                            "No reasoning, no explanations, no markdown."
+                            "You are a JSON-only OCR assistant. "
+                            "Output EXACTLY one JSON object. "
+                            "NEVER output reasoning, analysis, or natural language. "
+                            "NEVER start with words like 'First', '首先', 'Let me', '我需要'. "
+                            "NEVER describe what you see — directly output the structured JSON. "
+                            "If uncertain about a field, use null or empty string, "
+                            "but you MUST still output valid JSON."
                         ),
                     },
                     {
@@ -422,7 +451,19 @@ class VisionService:
                         content = extracted2
 
             if content:
-                logger.info("Vision JSON 模式提取成功 (final_len=%d)", len(content))
+                # 嚴格驗證：不只是合法 JSON，還要滿足 exam schema 最低要求
+                valid = self._validate_exam_json(content)
+                if valid:
+                    logger.info(
+                        "Vision JSON 模式成功: json_valid=true, schema_valid=true, len=%d",
+                        len(content),
+                    )
+                else:
+                    logger.warning(
+                        "Vision JSON 模式提取到文本但不符合 exam schema (len=%d)，丟棄。前200字: %s",
+                        len(content), content[:200],
+                    )
+                    content = None
             else:
                 logger.warning("Vision JSON 模式未能提取有效內容")
 
@@ -2057,41 +2098,72 @@ Output JSON only.
     @staticmethod
     def _looks_like_pure_reasoning(text: str) -> bool:
         """
-        判斷文本是否為純推理（非 JSON）。
+        多特徵判斷文本是否為純推理（非 JSON / 非結構化輸出）。
 
-        當 content_len=0 且 thinking 全是自然語言推理時，
-        跳過昂貴的 JSON 提取，直接進入 retry。
+        特徵：
+        1. 無 { 字符
+        2. 以推理起手式開頭（中英文）
+        3. { 出現位置很晚 (>50%)
+        4. 無 exam-relevant JSON 鍵名
+        5. 包含冒號列表敘述風格
         """
         stripped = text.strip()
         if not stripped:
             return True
-        # 完全沒有 JSON 標記
+
+        # Feature 1: 完全沒有 JSON 標記
         if '{' not in stripped:
             return True
-        # 以自然語言模式開頭（英文 + 中文）
+
+        # 去掉 <think> 標籤
+        clean = stripped
+        import re as _re
+        clean = _re.sub(r'^<think>\s*', '', clean, flags=_re.IGNORECASE).strip()
+
+        lower = clean.lower()
+
+        # Feature 2: 以推理起手式開頭
         reasoning_starts = (
+            # 英文
             "got it", "let me", "okay", "ok,", "first", "the ",
             "i ", "looking", "starting", "alright", "now,", "so,",
-            "let's",
-            # 中文推理起手式
+            "let's", "sure", "here",
+            # 中文
             "好的", "讓我", "我來", "首先", "看看", "這", "根據",
             "嗯", "先", "需要", "分析", "觀察",
+            "我需要", "圖片內容", "圖片中", "這是一份",
+            "試卷", "接下來",
         )
-        # 去掉可能的 <think> 標籤
-        lower = stripped.lower()
-        for prefix in ("<think>", "<think>\n"):
-            if lower.startswith(prefix):
-                lower = lower[len(prefix):].lstrip()
-                break
-        if any(lower.startswith(p) for p in reasoning_starts):
-            # { 出現在文本很後面（>70%）→ 純推理加尾部片段
-            first_brace = stripped.find('{')
-            if first_brace > len(stripped) * 0.7:
-                return True
-            # 即使 { 出現較早，但沒有 "question" / "answer" 鍵 → 不像 OCR JSON
-            remaining = stripped[first_brace:first_brace + 500]
-            if '"question"' not in remaining and '"answer"' not in remaining:
-                return True
+        starts_with_reasoning = any(lower.startswith(p) for p in reasoning_starts)
+
+        # Feature 3: { 出現位置
+        first_brace = clean.find('{')
+        brace_late = first_brace > len(clean) * 0.5
+
+        # Feature 4: 有無 exam-relevant JSON 鍵
+        scan_window = clean[first_brace:first_brace + 800] if first_brace >= 0 else ""
+        has_exam_keys = any(
+            k in scan_window
+            for k in ('"questions"', '"question"', '"items"', '"paper_title"', '"answer"')
+        )
+
+        # Feature 5: 冒號列表敘述風格 (如 "- 標題：...\n- 資料A：...")
+        narrative_indicators = sum(1 for p in ("：", ":\n", "- ", "* ", "。\n") if p in clean[:500])
+        is_narrative = narrative_indicators >= 3
+
+        # 多特徵組合判定
+        if starts_with_reasoning:
+            if brace_late:
+                return True  # 推理開頭 + { 很晚
+            if not has_exam_keys:
+                return True  # 推理開頭 + 無 exam key
+            if is_narrative and not has_exam_keys:
+                return True  # 推理開頭 + 敘述風格 + 無 key
+
+        # 非推理開頭，但明顯是敘述而非 JSON
+        if is_narrative and not has_exam_keys and brace_late:
+            return True
+
         return False
 
     def _extract_json_from_reasoning(self, text: str) -> str:
@@ -2186,17 +2258,31 @@ Output JSON only.
             prompt = self._build_exam_paper_prompt(subject)
 
             # 首選 JSON 強制模式
+            fallback_mode = "json"
             raw_response = await self._call_vision_model_json(processed_path, prompt)
 
             # 回退到普通模式
             if raw_response is None:
-                logger.warning("試卷識別 JSON 模式失敗，回退到普通模式...")
+                fallback_mode = "normal"
+                logger.warning("試卷識別: JSON 模式失敗，回退到普通模式")
                 raw_response = await self._call_vision_model(processed_path, prompt)
 
             if raw_response is None:
+                logger.error("試卷識別: 所有模式均失敗, fallback_mode=%s", fallback_mode)
                 return ExamPaperResult(success=False, error="視覺模型調用失敗")
 
             result = self._parse_exam_paper_response(raw_response)
+
+            # 結構化日誌摘要
+            logger.info(
+                "試卷識別完成: fallback_mode=%s, success=%s, question_count=%d, "
+                "confidence=%.2f, warnings=%s",
+                fallback_mode,
+                result.success,
+                len(result.questions) if result.questions else 0,
+                result.confidence if result.confidence else 0,
+                result.warnings or [],
+            )
             return result
 
         except Exception as e:
@@ -2213,9 +2299,12 @@ Output JSON only.
         }.get(subject, "這是一份試卷。")
 
         return f"""/no_think
+IMPORTANT: Return EXACTLY one JSON object. Do NOT output any analysis or reasoning.
+Do NOT describe what you see. Do NOT start with "首先" or "Let me". Directly output JSON.
+
 {subject_hint}
 
-請仔細識別圖片中的**所有內容**，包括資料段落和題目。
+請識別圖片中的**所有內容**，包括資料段落和題目。
 
 要求:
 1. 識別每一道題的題號、題目文字、參考答案（如果可見）和分值（如果標註）
@@ -2239,7 +2328,8 @@ Output JSON only.
    - 行內空格用 blank_mode = "inline"，分項答題表格用 blank_mode = "section"
    - 題目 points = blanks 的 points 總和
 
-只輸出 JSON，不要 markdown code fence，不要額外說明。
+你的回答必須是且僅是一個 JSON 對象。禁止任何推理文字、分析說明、markdown code fence。
+如果無法確定某字段，用空字串或 null，但仍必須輸出合法 JSON。
 
 輸出格式:
 {{
@@ -2323,6 +2413,13 @@ Output JSON only.
             match = re.search(r'\{[\s\S]*\}', fixed)
             if match:
                 parsed = self._try_parse_exam_json(match.group())
+
+        # Step 5: 自然語言降級恢復（最後手段）
+        if parsed is None:
+            recovered = self._recover_questions_from_text(raw)
+            if recovered:
+                parsed = recovered
+                warnings.append("JSON 解析失敗，從文本內容降級恢復 (low confidence)")
 
         if parsed is None:
             logger.error("試卷 OCR 回應解析完全失敗，raw=%s", raw[:500])
@@ -2411,6 +2508,121 @@ Output JSON only.
             return result if isinstance(result, dict) else None
         except (json.JSONDecodeError, ValueError):
             return None
+
+    def _validate_exam_json(self, text: str) -> bool:
+        """
+        驗證文本是否為合法的 exam OCR JSON（schema 層級檢查）。
+
+        不只是 json.loads 成功，還要滿足最低 schema:
+        - 是 dict
+        - 包含 questions / items / paper_title 之一
+        """
+        try:
+            data = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            return False
+        if not isinstance(data, dict):
+            return False
+        # 至少有一個 exam-relevant 鍵
+        exam_keys = {"questions", "items", "paper_title", "total_score"}
+        if not exam_keys.intersection(data.keys()):
+            return False
+        # questions/items 如果存在，至少有 1 個元素
+        qs = data.get("questions") or data.get("items")
+        if isinstance(qs, list) and len(qs) > 0:
+            return True
+        # 即使 questions 為空，有 paper_title 也算有效（空卷面）
+        if data.get("paper_title"):
+            return True
+        return False
+
+    @staticmethod
+    def _recover_questions_from_text(raw: str) -> Optional[dict]:
+        """
+        從自然語言文本降級恢復試卷結構。
+
+        當 JSON 完全解析失敗時，嘗試從模型的自然語言分析中提取：
+        - 資料/passage 段落 (資料A, 資料B)
+        - 題目 (第1題, 1., 問題1)
+        - 試卷標題
+
+        原則：寧可保守少提，不要編造。所有恢復結果標記 low confidence。
+        """
+        import re
+
+        text = raw.strip()
+        # 去除 <think> 標籤
+        text = re.sub(r'</?think>', '', text, flags=re.IGNORECASE).strip()
+
+        if len(text) < 50:
+            return None
+
+        questions = []
+
+        # 提取試卷標題 (常見格式: "標題：XXX" 或 "試卷標題：XXX")
+        paper_title = ""
+        title_match = re.search(
+            r'(?:標題|試卷|paper_title)[：:]\s*(.+?)(?:\n|$)', text
+        )
+        if title_match:
+            paper_title = title_match.group(1).strip()
+
+        # 提取 passage (資料A, 資料B, 資料一 等)
+        passage_pattern = re.compile(
+            r'(?:資料|资料)\s*([A-Za-z\d一二三四五])[：:]?\s*(.+?)(?=(?:資料|资料)\s*[A-Za-z\d一二三四五]|(?:第?\s*\d+|問題|题目|question)\s*[.、：:]|\Z)',
+            re.DOTALL
+        )
+        for m in passage_pattern.finditer(text):
+            label = m.group(1).strip()
+            content = m.group(2).strip()
+            if len(content) > 10:
+                questions.append({
+                    "question_number": "",
+                    "question_text": f"資料{label}：{content}",
+                    "answer_text": "",
+                    "answer_source": "missing",
+                    "points": None,
+                    "question_type": "passage",
+                    "has_math_formula": False,
+                    "confidence": 0.3,
+                })
+
+        # 提取題目 (第1題, 1., 問題1, 1a 等)
+        q_pattern = re.compile(
+            r'(?:第?\s*(\d+[a-z]?)\s*[.、題题：:]|(?:問題|题目|question)\s*(\d+[a-z]?)[：:]?)\s*(.+?)(?=(?:第?\s*\d+[a-z]?\s*[.、題题：:]|(?:問題|题目|question)\s*\d+)|\Z)',
+            re.DOTALL | re.IGNORECASE
+        )
+        for m in q_pattern.finditer(text):
+            q_num = (m.group(1) or m.group(2) or "").strip()
+            q_text = m.group(3).strip()
+            # 截取合理長度，去除末尾雜訊
+            q_text = q_text[:500].strip()
+            if len(q_text) > 5:
+                questions.append({
+                    "question_number": q_num,
+                    "question_text": q_text,
+                    "answer_text": "",
+                    "answer_source": "missing",
+                    "points": None,
+                    "question_type": "open",
+                    "has_math_formula": False,
+                    "confidence": 0.3,
+                })
+
+        if not questions:
+            return None
+
+        logger.info(
+            "文本降級恢復成功: passages=%d, questions=%d, title=%s",
+            sum(1 for q in questions if q["question_type"] == "passage"),
+            sum(1 for q in questions if q["question_type"] != "passage"),
+            repr(paper_title[:50]),
+        )
+        return {
+            "questions": questions,
+            "paper_title": paper_title,
+            "total_score": None,
+        }
 
     @staticmethod
     def _parse_points_value(raw) -> Optional[float]:
