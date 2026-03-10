@@ -203,6 +203,11 @@ LAYER 3 — relationships:
   - Only use "figure" when a fact is SOLELY observable from the original printed diagram and NOT stated in the text.
   - "inferred" is for facts you deduced that are neither stated in text nor clearly shown in the figure.
   - NEVER use "student_answer" or any other value as source.
+- ⚠️ INFERENCE RESTRICTION — do NOT over-infer geometric relationships:
+  - Intersection ≠ midpoint. Two lines crossing at a point does NOT mean that point is the midpoint of either line.
+  - Only create "midpoint", "bisector", "equal", or "congruent" relationships with source "inferred" if they are LOGICALLY CERTAIN from the given conditions — not just because they "look like" it in the figure.
+  - If a relationship is not explicitly stated in the problem text and not clearly marked on the figure (e.g. with tick marks for equal lengths), do NOT infer it.
+  - When in doubt, do NOT add the relationship. Missing a relationship is ALWAYS better than adding a wrong one.
 
 LAYER 4 — task:
 - "known_conditions": list each condition as ONE atomic, citable fact in human-readable form.
@@ -343,6 +348,7 @@ Output in the following JSON format:
 - Every measurement and relationship MUST have a "source" field: "figure", "question_text", or "inferred". No other values allowed (NEVER use "student_answer").
 - SOURCE RULE: if the problem text explicitly states a fact, source = "question_text", even if the figure also shows it. Only use "figure" for facts solely observable from the original printed diagram.
 - If a student handwrote calculated values on the figure (not given in the problem), do NOT create measurements for them — put them in task.figure_annotations instead.
+- ⚠️ INFERENCE RESTRICTION: do NOT over-infer relationships. Intersection ≠ midpoint. Only infer "midpoint"/"bisector"/"equal"/"congruent" if logically certain from given conditions, not from visual appearance. When in doubt, do NOT add it.
 - Only include objects/relationships that actually exist. The examples show ALL possible types; use only relevant ones.
 - Parallel can have 3+ entities for chain parallels (e.g. BC ∥ DE ∥ FG).
 - Use "ratio" type for proportional relationships: {"type":"ratio","items":[...],"value":{"left":3,"right":2}}.
