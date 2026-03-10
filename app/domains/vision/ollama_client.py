@@ -24,7 +24,7 @@ class OllamaVisionClient:
         vision_model: str,
         base_url: str = "http://localhost:11434",
         max_image_size: int = 4 * 1024 * 1024,
-        timeout: int = 300,
+        timeout: int = 1200,
     ):
         self._vision_model = vision_model
         self._base_url = base_url
