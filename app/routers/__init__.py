@@ -108,6 +108,20 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- 确保 classes 表有 class_code 欄位 ---
+        cols = pool.execute("SHOW COLUMNS FROM classes LIKE 'class_code'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE classes ADD COLUMN class_code VARCHAR(20) "
+                "DEFAULT NULL COMMENT '班級代碼' AFTER class_id"
+            )
+            pool.execute("UPDATE classes SET class_code = class_name WHERE class_code IS NULL")
+            try:
+                pool.execute("ALTER TABLE classes ADD UNIQUE INDEX idx_class_code (class_code)")
+            except Exception:
+                pass
+            logger.info("数据库迁移: 已为 classes 表添加 class_code 列")
+
         # --- 确保 classes 表有班主任/副班欄位 ---
         cols = pool.execute("SHOW COLUMNS FROM classes LIKE 'teacher_username'")
         if not cols:
