@@ -113,7 +113,7 @@ def _run_schema_migrations() -> None:
         if not cols:
             pool.execute(
                 "ALTER TABLE classes ADD COLUMN class_code VARCHAR(20) "
-                "DEFAULT NULL COMMENT '班級代碼' AFTER class_id"
+                "DEFAULT NULL COMMENT '班級代碼'"
             )
             pool.execute("UPDATE classes SET class_code = class_name WHERE class_code IS NULL")
             try:
