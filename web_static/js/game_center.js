@@ -739,19 +739,15 @@ const GameCenterApp = {
     },
 
     async _loadLeaderboards() {
-        const [farmData, tradeData] = await Promise.all([
-            GameCenterAPI.loadFarmLeaderboard(10),
-            GameCenterAPI.loadTradeLeaderboard(null, 10)
-        ]);
+        const farmData = await GameCenterAPI.loadFarmLeaderboard(10);
 
         // 找到公民（ces）區塊
         const cesSection = this.elements.gamesContainer.querySelector('.game-section[data-subject="ces"]');
         if (!cesSection) return;
 
         const farmHtml = GameCenterUI.createLeaderboardHTML('神州菜園經營家 排行榜', '🥬', farmData, '/farm-game');
-        const tradeHtml = GameCenterUI.createLeaderboardHTML('全球貿易大亨 排行榜', '🌐', tradeData, '/trade-game');
 
-        if (!farmHtml && !tradeHtml) return;
+        if (!farmHtml) return;
 
         let container = cesSection.querySelector('.gc-leaderboards');
         if (!container) {
@@ -759,7 +755,7 @@ const GameCenterApp = {
             container.className = 'gc-leaderboards';
             cesSection.appendChild(container);
         }
-        container.innerHTML = farmHtml + tradeHtml;
+        container.innerHTML = farmHtml;
     },
 
     _filterGames() {
