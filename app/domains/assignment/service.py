@@ -934,6 +934,8 @@ class AssignmentService:
                                 continue
 
                         if text:
+                            # 清除 Xcode/Swift Playgrounds 內部佔位標記
+                            text = re.sub(r'/\*@[A-Z_]+@\*/', '', text)
                             # 限制每個文件的文本長度
                             if len(text) > 10000:
                                 text = text[:10000] + "\n... (文件過長，已截斷)"

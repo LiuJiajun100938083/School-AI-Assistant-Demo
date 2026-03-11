@@ -1777,6 +1777,11 @@ const AssignmentUI = {
         return div.innerHTML;
     },
 
+    /** 清除 Xcode / Swift Playgrounds 內部佔位標記 */
+    _cleanSwiftTokens(code) {
+        return code.replace(/\/\*@[A-Z_]+@\*\//g, '');
+    },
+
     /** 輕量 Markdown → HTML（不依賴外部庫） */
     _renderMd(text) {
         if (!text) return '';
@@ -5208,7 +5213,7 @@ const AssignmentApp = {
                         ${isHtml ? `<button class="btn btn-sm btn-success" onclick="AssignmentApp.previewHtml('/${filePath}','${this._escapeHtml(fileName)}')">▶ 運行預覽</button>` : ''}
                     </div>
                 </div>
-                <div class="code-preview">${this._escapeHtml(text)}</div>
+                <div class="code-preview">${this._escapeHtml(this._cleanSwiftTokens(text))}</div>
             </div>`;
         } catch (e) {
             area.innerHTML = '<p style="color:var(--color-error);">無法載入文件</p>';
@@ -5302,10 +5307,10 @@ const AssignmentApp = {
                     const text = await resp.text();
                     const MAX_CODE_SIZE = 50 * 1024; // 50KB
                     const MAX_CODE_LINES = 500;
-                    let displayText = text;
+                    let displayText = AssignmentUI._cleanSwiftTokens(text);
                     let truncated = false;
-                    if (text.length > MAX_CODE_SIZE) {
-                        displayText = text.substring(0, MAX_CODE_SIZE);
+                    if (displayText.length > MAX_CODE_SIZE) {
+                        displayText = displayText.substring(0, MAX_CODE_SIZE);
                         truncated = true;
                     }
                     const lines = displayText.split('\n');
