@@ -1123,11 +1123,11 @@ function updateBehaviorHint() {
 
     if (behaviorState.selectedReason) {
         hint.classList.add('active-' + category);
-        hint.querySelector('.hint-icon').textContent = '✏️';
+        hint.querySelector('.hint-icon').textContent = '→';
         hint.querySelector('.hint-text').textContent =
             `已選原因「${behaviorState.selectedReason}」，請點選相關學生`;
     } else {
-        hint.querySelector('.hint-icon').textContent = '👆';
+        hint.querySelector('.hint-icon').textContent = '→';
         hint.querySelector('.hint-text').textContent = '請先選擇原因，再點選學生姓名';
     }
 }

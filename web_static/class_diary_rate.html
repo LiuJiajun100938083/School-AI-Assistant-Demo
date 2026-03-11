@@ -18,7 +18,7 @@
 <!-- 無權限遮罩（學生角色） -->
 <div class="no-permission" id="noPermission" style="display:none;">
     <div>
-        <div class="block-icon">🔒</div>
+        <div class="block-icon">X</div>
         <h2>僅限教師使用</h2>
         <p>課堂評級表單僅供教師及管理員填寫。<br>如有疑問，請聯繫管理員。</p>
     </div>
@@ -26,7 +26,7 @@
 
 <!-- Page Header -->
 <div class="page-header">
-    <h1>📝 課堂評級</h1>
+    <h1>課堂評級</h1>
     <div class="subtitle" id="headerInfo">載入中...</div>
 </div>
 
@@ -41,7 +41,7 @@
 
     <!-- Period & Subject Card -->
     <div class="card">
-        <div class="card-title"><span class="icon">🕐</span> 課堂信息</div>
+        <div class="card-title">課堂信息</div>
 
         <div class="form-group">
             <label class="form-label">班級 <span class="required">*</span></label>
@@ -105,7 +105,7 @@
 
     <!-- Rating Card -->
     <div class="card">
-        <div class="card-title"><span class="icon">⭐</span> 課堂評級</div>
+        <div class="card-title">課堂評級</div>
 
         <div class="star-rating-group">
             <div class="star-rating">
@@ -137,7 +137,7 @@
     <!-- Attendance Card (collapsible) -->
     <div class="card">
         <div class="card-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleCardSection('attendanceBody')">
-            <span><span class="icon">📋</span> 考勤記錄</span>
+            <span>考勤記錄</span>
             <span class="card-toggle-arrow" id="attendanceArrow" style="font-size:0.9rem; transition:transform 0.2s;">▶</span>
         </div>
         <div id="attendanceBody" style="display:none;">
@@ -181,7 +181,7 @@
     <!-- Commendation & Violations Card (collapsible) — Reason-First Flow -->
     <div class="card">
         <div class="card-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleCardSection('commendBody')">
-            <span><span class="icon">📝</span> 嘉許與違規</span>
+            <span>嘉許與違規</span>
             <span class="card-toggle-arrow" id="commendArrow" style="font-size:0.9rem; transition:transform 0.2s;">▶</span>
         </div>
         <div id="commendBody" style="display:none;">
@@ -204,7 +204,7 @@
 
         <!-- Hint Banner -->
         <div class="behavior-hint" id="behaviorHint">
-            <span class="hint-icon">👆</span>
+            <span class="hint-icon">→</span>
             <span class="hint-text">請先選擇原因，再點選學生姓名</span>
         </div>
 
@@ -240,7 +240,7 @@
 
     <!-- Signature Card -->
     <div class="card">
-        <div class="card-title"><span class="icon">✍️</span> 教師簽名 <span class="required">*</span></div>
+        <div class="card-title">教師簽名 <span class="required">*</span></div>
         <div class="signature-area">
             <div class="signature-canvas-wrap" id="signatureWrap">
                 <canvas id="signatureCanvas"></canvas>
@@ -254,7 +254,7 @@
 
     <!-- Existing Records -->
     <div class="existing-records" id="existingRecords" style="display:none;">
-        <div class="section-title">📄 今日已提交記錄</div>
+        <div class="section-title">今日已提交記錄</div>
         <div id="recordsList"></div>
     </div>
 
@@ -267,7 +267,7 @@
 
 <!-- Success Toast -->
 <div class="toast" id="successToast">
-    <div class="toast-icon">✅</div>
+    <div class="toast-icon toast-icon-success"></div>
     <div class="toast-msg">提交成功！</div>
     <div class="toast-sub">評級記錄已保存</div>
     <div class="toast-actions">

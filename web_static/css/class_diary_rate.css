@@ -583,6 +583,10 @@ body {
     font-size: 2.5rem;
     margin-bottom: 12px;
 }
+.toast .toast-icon-success::after {
+    content: '\2713';
+    color: #22c55e;
+}
 
 .toast .toast-msg {
     font-size: 16px;
