@@ -11,6 +11,244 @@
 
 ---
 
+## [v3.0.50] [2026-03-11] 神州菜園遊戲 + 留堂「功課+晨讀」+ 作業代碼貼上
+
+### 新增
+
+- **「神州菜園經營家」遊戲** — 完整新遊戲（前端 + 後端 + 數據庫），含排行榜、教師管理、CSV 匯出；遊戲中心公民課區塊新增入口；主界面始終顯示排行榜
+- **學生貼上代碼提交作業** — 提交 Modal 新增可折疊「貼上代碼」區域（深色代碼編輯器 + 檔案名），貼上的代碼自動轉為檔案提交
+- **留堂新增「功課+晨讀」原因** — 第三類留堂原因（預設 2 節），按鈕佈局：前兩個一行，第三個獨佔一行；紫色標籤色
+- **遊戲中心公民區排行榜** — 神州菜園及貿易大亨 Top 10 排行榜卡片，含獎牌圖標、班級、成績
+- **遊戲中心卡片年級前綴** — 卡片名稱加上「中三」「中二」前綴
+- **教師後台排行榜分頁** — 貿易大亨排行榜顯示於教師管理後台
+
+### 修改
+
+- **貿易大亨排行榜改為三難度並列** — 從 Tab 切換改為 3 欄並排顯示（新手/標準/貿易大鱷），LeaderboardList 提取為可複用子組件
+- **留堂 16:55 後離開視為完成** — 不論原定時長，16:55 後離開一律計為完成留堂
+
+### 修復
+
+- **Swift Playgrounds 佔位標記過濾** — 過濾 `/*@START_MENU_TOKEN@*/` 等內部標記，代碼顯示與 IDE 一致（前端預覽 + 後端 AI 批改同步處理）
+- **作業類型選擇器修復** — 移除重複選擇器、修正 `data-type='file'` → `'file_upload'`、修復初始 state 殘留值
+- **思路對比只顯示學生答案** — 「我的做法」區塊移除 AI 分析內容，僅顯示學生實際作答
+- **學生端作業列表納入已關閉作業** — 確保代提交作業仍可見
+- **遊戲上傳班級新增 S 班** — 可見性新增 1S–6S
+- **神州菜園開放對象改為中二** — 從中三改為中二學生
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/farm_game/` | 新增：完整 domain（`__init__`, `repository`, `schemas`, `service`） |
+| `app/routers/farm_game.py` | 新增：神州菜園 API（分數提交、排行榜、教師管理、CSV 匯出） |
+| `database_migration/create_farm_game_scores.sql` | 新增：farm_game_scores 表 |
+| `web_static/farm_game.html` | 新增：神州菜園前端頁面 |
+| `web_static/js/game_center.js` | 修改：排行榜卡片、年級前綴、並排排行榜 |
+| `web_static/css/game_center.css` | 修改：排行榜卡片樣式 |
+| `web_static/trade_game.html` | 修改：三難度並列排行榜 |
+| `app/domains/attendance/constants.py` | 修改：新增「功課+晨讀」原因 |
+| `app/domains/attendance/service.py` | 修改：16:55 離開邏輯 + 雙原因處理 |
+| `web_static/attendance.html` | 修改：留堂原因按鈕 + 紫色標籤 |
+| `web_static/js/attendance.js` | 修改：原因選擇 UI + 匯出邏輯 |
+| `web_static/assignment.html` | 修改：代碼貼上區域 + 類型選擇器修復 |
+| `web_static/js/assignment.js` | 修改：代碼貼上邏輯 + Swift 過濾 + 類型修復 |
+| `app/domains/assignment/service.py` | 修改：Swift 標記過濾 |
+| `app/domains/assignment/repository.py` | 修改：列表含已關閉作業 |
+
+---
+
+## [v3.0.49] [2026-03-11] 課室日誌全面增強 — 行為重設計 + 安全修復 + 編輯刪除 + 儀表板 + AI 報告
+
+### 新增
+
+- **嘉許與違規重設計（原因優先流程）** — 從「輸入姓名」改為「先選原因 → 再點學生」：四色分類 Tab（表揚/課堂違規/儀表/醫務室），每類預設原因標籤，選中後展開學生選擇器，結構化 JSON 存儲（向下兼容舊純文字格式）
+- **醫務室追蹤** — 新增 `medical_room_students` 數據庫欄位 + 前端分類 Tab + 預設原因（頭痛/肚痛/受傷/身體不適/發燒）+ 審閱頁匯出
+- **記錄編輯與刪除** — 教師選擇已提交節數時自動回填表單（進入編輯模式），PUT 更新；評級頁和審閱頁均支持刪除（admin 可刪任何，教師只能刪自己的），刪除前記錄審計日誌
+- **審閱頁統計儀表板** — 6 張概覽卡（記錄/班級數、平均紀律、平均整潔、缺席/遲到、違規事件、醫務室），CSS-only 班級紀律/整潔排名條形圖，Top 5 違規/嘉許/醫務室原因
+- **審閱頁文字展開/收起** — 短文字直接顯示，長文字截斷 + ▸ 展開，行為欄位 JSON 格式展開為結構化列表
+- **每日 AI 總結報告** — 16:00 自動生成（asyncio 背景任務），新增 `class_diary_daily_reports` + `class_diary_report_recipients` 資料表；異常偵測（紀律/整潔 ≤2、缺席 >3、違規記錄）
+- **三層權限介面** — 報告接收人看 AI 摘要、班主任看本班、組長看全部 + 匯出
+- **班主任/副班主任設定** — `classes` 表新增 `teacher_username` + `vice_teacher_username`，自動獲得課室日誌查看權限；管理後台班級卡片新增班主任下拉選擇
+- **CSV 匯出** — UTF-8 BOM 編碼（Excel 兼容），僅組長可用
+- **防止節數重複提交（三層保護）** — DB UNIQUE 約束 `(class_code, entry_date, period_start, period_end)` + Service 層區間重疊檢查 + 前端自動攔截
+- **`submitted_by` 欄位** — 追蹤提交者，教師只能編輯/刪除自己的記錄，舊記錄（NULL）僅 admin 可操作
+- **`PeriodOverlapError`** — 新異常類（409），含已有記錄的科目和節數信息
+
+### 修改
+
+- **PUT 端點安全修復** — 原 PUT `/api/class-diary/entries/{entry_id}` 完全無認證，現加入 `_verify_request()` + 角色/所有權檢查
+- **手機提交修復** — 新增 `touchcancel` 事件監聽，簽名安全補救（`hasSignature && !signatureData` 時重新擷取），提交超時保護（15 秒），9 個 `alert()` 全部替換為 `showValidationError()` 內聯錯誤提示
+- **課堂評級表單優化** — 科目改為下拉選單、節數根據時間自動填寫、學生選擇器含同級班級切換、考勤和嘉許/違規預設收起
+- **移除課堂評級頁所有 emoji** — 純文字標籤 + 箭頭（→）替代方向指示
+- **classes 表遷移兼容** — 自動補上 `class_code`、`grade` 欄位；查詢 `class_id` → `id` 兼容生產表結構
+
+### 涉及文件 (20+)
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/class_diary/exceptions.py` | 新增：`PeriodOverlapError` |
+| `app/domains/class_diary/repository.py` | 新增：`find_overlapping_entries()` |
+| `app/domains/class_diary/schemas.py` | 修改：新增 medical_room_students 欄位 |
+| `app/domains/class_diary/service.py` | 修改：submitted_by、重疊檢查、AI 報告生成、班主任查詢 |
+| `app/routers/class_diary.py` | 修改：PUT auth 修復、新增教師 DELETE、submitted_by + UNIQUE 約束遷移、報告端點、班主任端點 |
+| `app/main.py` | 修改：16:00 背景任務排程 |
+| `app/routers/__init__.py` | 修改：classes 表自動遷移 |
+| `database_migration/add_medical_room_students.sql` | 新增 |
+| `web_static/class_diary_rate.html` | 修改：行為 Tab + 原因標籤 + 編輯模式條 + emoji 移除 |
+| `web_static/js/class_diary_rate.js` | 修改：原因優先流程 + touchcancel + 內聯驗證 + 編輯/刪除 + 節數自動偵測 |
+| `web_static/css/class_diary_rate.css` | 修改：行為 Tab 樣式 + 驗證錯誤樣式 + 編輯模式樣式 |
+| `web_static/class_diary_review.html` | 修改：儀表板 HTML + AI 報告區塊 |
+| `web_static/js/class_diary_review.js` | 修改：儀表板渲染 + 文字展開 + admin 刪除 + 報告顯示 |
+| `web_static/css/class_diary_review.css` | 修改：儀表板樣式 + 展開文字 + 報告卡片 |
+| `web_static/admin_dashboard.html` | 修改：報告接收人管理 + 班主任選擇 |
+| `web_static/js/admin_dashboard.js` | 修改：報告接收人 UI + 手動生成按鈕 + 班主任下拉 |
+
+---
+
+## [v3.0.48] [2026-03-10] 遊戲中心側欄導航 + 論壇 AI 審核 + 貿易大亨增強
+
+### 新增
+
+- **遊戲中心側欄導航** — 水平標籤改為左側垂直側欄，分類展示各遊戲入口
+- **論壇 AI 內容審核** — 學生發帖/回覆前由 Ollama LLM 檢查是否 AI 相關內容，不合規則拒絕發布並返回原因；教師/管理員免審
+- **貿易大亨多次遊玩** — 學生可重複遊玩（按難度限次），`database_migration/allow_multiple_plays.sql` 遷移腳本
+- **貿易大亨難度排行榜** — Repository `get_leaderboard()` 支持按難度（EASY/NORMAL/HARD）篩選
+- **貿易大亨班級限制** — 部分難度按年級限制
+
+### 修改
+
+- **管理後台側欄導航** — 11 個水平標籤改為左側分組側欄（教學管理 4 項 + 系統管理 7 項），admin-only 條目條件隱藏
+
+### 修復
+
+- **移除貿易大亨分數上限驗證** — 分數不再限制 100000 上限
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `web_static/js/game_center.js` | 修改：側欄導航 |
+| `web_static/css/game_center.css` | 修改：側欄樣式 |
+| `forum_system/service/content_moderator.py` | 新增：`check_content_ai_related()` |
+| `forum_system/api/post_routes.py` | 修改：發帖前審核 |
+| `forum_system/api/reply_routes.py` | 修改：回覆前審核 |
+| `app/domains/trade_game/repository.py` | 修改：難度篩選排行榜 |
+| `app/domains/trade_game/service.py` | 修改：多次遊玩 + 班級限制 |
+| `database_migration/allow_multiple_plays.sql` | 新增 |
+| `web_static/admin_dashboard.html` | 修改：側欄導航結構 |
+| `web_static/css/admin_dashboard.css` | 修改：側欄樣式 |
+| `web_static/js/admin_dashboard.js` | 修改：側欄點擊 + admin-only 隱藏 |
+
+---
+
+## [v3.0.47] [2026-03-10] 試卷/問答作業系統 — OCR 識別 + 填空題 + 3 欄批改工作站 + AI 並發調度
+
+### 新增
+
+- **Form/Quiz 作業類型** — 新增作業類型，支持選擇題（MC 自動批改）、填空題（inline/section/mixed 模式）、是非題、開放題、資料段落（display-only）；AI 文字批改長答題
+- **試卷 OCR 自動識別** — 教師上傳試卷圖片後自動識別題目、答案、分數，前端編輯器可修正結果；背景 OCR + 狀態輪詢 + 編輯時載入題目
+- **3 欄批改工作站（FormGradingView v2）** — 左欄題目導航（含狀態指示：已批/未批/自動/AI）、中欄題目卡片（含資料段落 + 問題）、右欄學生作答 + 評分 + 回饋；「儲存並下一題」自動跳轉未批題目；鍵盤快捷鍵 ↑↓/jk 導航
+- **填空題 + 資料段落（教師端）** — 資料段落 passage 類型支持長篇閱讀材料，填空題支持三種模式
+- **學生試卷作答 UI** — 學生端作答介面 + 重複提交保護
+- **AI 並發保護（WeightedPriorityScheduler）** — 三級優先級（URGENT/INTERACTIVE/BATCH）+ 四種權重（CHAT=1/VISION_SINGLE=2/ANALYSIS=2/VISION_MULTI=3），容量上限 3600 單位，分層 FIFO 排隊，防止 Ollama GPU 過載
+- **AI 調度監控面板** — 管理後台即時查看 AI 容量使用率、各優先級排隊深度、Ollama 伺服器狀態
+- **AI 排隊等候時間顯示** — 前端展示預計等待時間
+- **英文班自動偵測** — 數學/物理/英文科自動偵測題目語言，回覆語言跟隨題目（英文班用英文回覆）；英文偵測統一到 `prompts.py` 代理層
+
+### 修改
+
+- **VisionService 重構** — 2691 行單體拆分為 7 個職責模組：`exam_recognizer`、`ocr_parser`、`ocr_prompts`、`figure_handler`、`json_utils`、`ollama_client`、`schemas`
+- **移除科目選擇** — 填空題改為模板驅動渲染，無需手動選科
+- **Vision OCR 超時延長至 20 分鐘** — 避免慢速推理 timeout
+
+### 修復
+
+- **OCR 試卷識別 JSON 鏈路** — 防止 thinking 自然語言誤判為結構化結果；純推理文本保留給 recovery parser
+- **OCR JSON 模式驗證** — `validate_exam_json` 不再誤殺普通 OCR 結果
+- **Recovery parser 收緊** — 防止 200+ 假題目匹配；不再從 thinking 文本創建垃圾題目
+- **OCR 準確度改善** — 減少幻覺；無答案時轉人工確認，避免 AI 自動生成
+- **assignment_type Data Truncated** — 修復 DB ENUM 截斷錯誤
+- **SubmissionAnswer Repository 補全** — 合併遺漏的相關 Repository 和資料表
+- **新增作業按鈕不生效** — 修復 + 錯題詳情 iPad 溢出
+- **assignment_questions 表遷移** — 自動補上 `question_number` 欄位；FK 約束處理；嚴格 MySQL 相容（TEXT 欄位移除 DEFAULT）
+- **Markdown 表格渲染** — 修復分隔線正則 + 學生試卷視圖表格渲染
+- **FormGradingView 修復** — passage 渲染、填空題 JSON 格式化、缺少 `_question_option_repo` 注入
+- **教師查看試卷型提交** — 修復無法查看的問題
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/assignment/schemas.py` | 修改：QuestionTypeEnum（5 種）+ BlankModeEnum（3 種） |
+| `app/domains/assignment/service.py` | 修改：Form 批改邏輯 + 模板渲染 |
+| `app/domains/assignment/repository.py` | 修改：SubmissionAnswer 查詢 |
+| `app/routers/assignment.py` | 修改：Form 端點 |
+| `web_static/js/assignment.js` | 修改：FormGradingView 3 欄 + 學生作答 UI |
+| `web_static/css/assignment.css` | 修改：批改工作站樣式 |
+| `web_static/assignment.html` | 修改：Form 創建 UI |
+| `app/domains/vision/` | 重構：7 個模組拆分 |
+| `app/core/ai_gate.py` | 新增：WeightedPriorityScheduler |
+| `app/domains/mistake_book/prompts.py` | 修改：英文偵測代理層 |
+| `web_static/admin_dashboard.html` | 修改：AI 監控面板 |
+| `web_static/js/admin_dashboard.js` | 修改：即時狀態渲染 |
+
+---
+
+## [v3.0.46] [2026-03-10] 錯題本 v2 — Subject Handler 插件架構 + HKDSE 物理科 + 視覺語義分類法
+
+### 新增
+
+- **Subject Handler 插件架構** — `BaseSubjectHandler` 抽象類 + `SubjectHandlerRegistry` 自動發現和緩存機制，每個科目可獨立定義 OCR 任務選擇、UI 特性開關、分析 prompt 模板
+- **HKDSE 物理科完整優化** — `subjects/physics.py` 實現：DSE 分類（必修 5 單元 + 選修 + SBA）、物理公式 LaTeX 渲染、圖表錨點提取、力學/波動/電磁專用分析模板
+- **HKDSE Visual Semantics Taxonomy v0.1** — 全量 32 條規則，涵蓋幾何符號語義識別（角度弧標記、平行標記、垂直標記、等長標記等）
+- **OCR 版面角色分類** — 嚴格分離印刷體與手寫體，markers 層 + DSE 幾何符號語義規則
+- **多圖上傳** — 每條錯題支持多張照片（首張存 `original_image_path`，額外照片存 `extra_image_paths` JSON）
+- **Grid/縮圖視圖** — 列表/Grid 切換，neumorphic 風格卡片
+- **詳情頁分層佈局** — Summary-first 設計，可折疊區塊（預設展開）
+- **物理 OCR 圖表讀取增強** — 錨點提取（anchor point extraction）支持圖表數據讀取
+- **科目分類篩選標籤** — Category filter chips + 科目排序優化（ICT 排在英文之後、數學之前）
+- **錯題識別取消功能** — 前端取消按鈕 + 後端競態保護（防止取消時 AI 仍在寫入）
+- **兩階段進度顯示** — 錯題分析進度從「載入中」改為「正在識別 → 正在分析」兩階段
+
+### 修改
+
+- **Physics OCR Prompt** — 幾何標記符號識別指南；禁止過度推斷幾何關係（交點≠中點）；禁止 `source=student_answer`，允許 `intersection` 關係類型
+
+### 修復
+
+- **LaTeX 渲染全面修復** — tabular 表格 + 多行 inline math；物理公式渲染；幾何已知條件/目標渲染；改進提示渲染；修復外層 JSON 解析破壞 LaTeX 命令
+- **`$...$` LaTeX 保護** — 防止 LaTeX 區塊被 bullet 分割
+- **renderMath `\n` 轉換** — `\nb)`、`\nc)` 不再顯示為字面文本
+- **OCR 雙重轉義清理** — LLM 輸出的 `\\n` → `\n`，避免顯示 `\nb` 亂碼
+- **OCR 無答案處理** — 無答案時轉人工確認，避免 AI 自動生成答案
+- **OCR 答案幻覺防止** — 學生留白時不再生成虛假答案
+- **OCR 性能回歸修復** — JSON 模式 timeout 降至 180s + `[PERF]` 計時埋點
+- **啟動清理卡住記錄** — 清理 `processing` 狀態的錯題記錄，停止前端無限輪詢
+- **錯題本「已分析但無內容」** — 修復分析完成但前端顯示為空的 bug
+- **AI 過度扣分抑制** — 防止 AI 批改過於嚴苛
+- **iPad 佈局修復** — sticky header、dynamic viewport、overscroll
+- **對比區完整顯示** — 移除截斷，展示完整內容
+- **上傳即時 UI 回饋** — 上傳後立即更新界面 + 處理空答案場景
+- **詳情頁折疊修復** — 預設展開而非收起
+- **Vision 模型切換** — 默認切至 `qwen2.5vl:32b`
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/mistake_book/subject_handler.py` | 新增：BaseSubjectHandler + SubjectHandlerRegistry |
+| `app/domains/mistake_book/subjects/physics.py` | 新增：HKDSE 物理科 Handler |
+| `app/domains/mistake_book/subjects/math.py` | 新增：數學 Handler |
+| `app/domains/mistake_book/subjects/english.py` | 新增：英文 Handler |
+| `app/domains/mistake_book/service.py` | 修改：多圖支持 + Handler 整合 |
+| `app/domains/mistake_book/prompts.py` | 修改：物理 prompt + 視覺語義規則 + 版面分類 |
+| `app/domains/vision/ocr_prompts.py` | 修改：markers 層 + DSE 幾何語義 |
+| `web_static/js/mistake_book.js` | 修改：Grid 視圖 + 取消功能 + 進度顯示 + LaTeX 修復 |
+| `web_static/css/mistake_book.css` | 修改：Grid 卡片 + 分層佈局樣式 |
+
+---
+
 ## [v3.0.45] [2026-03-09] 學生端作業 AI 問答助教
 
 ### 新增

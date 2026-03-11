@@ -732,36 +732,25 @@ body {
     background: #B0B0B0;
 }
 
-/* ========== 每日 AI 報告 ========== */
-.daily-report-card {
-    background: #FFFFFF;
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--info);
-    border-radius: 6px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
+/* ========== AI 報告（嵌入今日概覽） ========== */
+#aiReportBlock {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
 }
 
-.daily-report-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.daily-report-header h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.report-date {
+.ai-report-status {
     font-size: 13px;
     color: var(--text-secondary);
-    background: var(--light);
-    padding: 2px 10px;
-    border-radius: 4px;
-    border: 1px solid var(--border-light);
+    padding: 8px 0;
+}
+
+.ai-report-status.generating {
+    color: var(--info);
+}
+
+.ai-report-status.failed {
+    color: var(--danger);
 }
 
 .report-text {
@@ -891,4 +880,154 @@ body {
     .dash-behavior-section {
         grid-template-columns: 1fr;
     }
+
+    .detail-modal {
+        max-width: 90vw;
+    }
 }
+
+/* ============================================================
+   學生明細彈窗
+   ============================================================ */
+
+.detail-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.detail-modal-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.detail-modal {
+    background: #fff;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,.15);
+}
+
+.detail-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.detail-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.detail-modal-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.detail-modal-close:hover {
+    color: var(--text-primary);
+}
+
+.detail-modal-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.detail-section {
+    margin-bottom: 16px;
+}
+
+.detail-section:last-child {
+    margin-bottom: 0;
+}
+
+.detail-section-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.detail-class-row {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+}
+
+.detail-class-row:last-child {
+    border-bottom: none;
+}
+
+.detail-class-group {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-class-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.detail-class-label {
+    font-weight: 600;
+    color: var(--primary);
+    min-width: 36px;
+    font-size: 13px;
+}
+
+.detail-reason-row {
+    padding: 3px 0 3px 12px;
+    font-size: 13px;
+}
+
+.detail-reason {
+    color: var(--text-secondary);
+}
+
+.detail-student-names {
+    color: var(--text-primary);
+}
+
+.detail-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    padding: 24px 0;
+}
+
+/* ============================================================
+   可點擊卡片
+   ============================================================ */
+
+.dash-card.clickable {
+    cursor: pointer;
+    transition: box-shadow 0.15s, background-color 0.15s;
+}
+
+.dash-card.clickable:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    background-color: #fafafa;
+}
+

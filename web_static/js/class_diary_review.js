@@ -17,6 +17,9 @@ const reviewState = {
     username: '',
 };
 
+/** 儀表板全量 entries（供彈窗使用） */
+let dashboardEntries = [];
+
 /* ============================================================
    初始化
    ============================================================ */
@@ -60,11 +63,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterDate').addEventListener('change', onFilterChange);
     document.getElementById('filterClass').addEventListener('change', onFilterChange);
 
-    // 載入每日報告 + 數據
-    await Promise.all([
-        loadDailyReport(),
-        loadSummary(),
-    ]);
+    // 先載入報告（設定 isRecipient），再載入數據（儀表板需知道是否渲染到報告區）
+    await loadDailyReport();
+    await loadSummary();
 });
 
 
@@ -315,46 +316,46 @@ async function loadDailyReport() {
             exportBtn.style.display = '';
         }
 
-        // 報告接收人 或 reviewer/admin 都能看到報告區
-        const section = document.getElementById('dailyReportSection');
+        // AI 報告區塊（在儀表板內）
+        const block = document.getElementById('aiReportBlock');
+        if (!block) return;
+
+        // 非接收人/reviewer → 隱藏報告區塊
         if (!is_recipient && !is_reviewer) {
-            section.style.display = 'none';
+            block.style.display = 'none';
             return;
         }
-
-        const reportDateEl = document.getElementById('reportDate');
-        reportDateEl.textContent = dateVal;
 
         const statusEl = document.getElementById('dailyReportStatus');
         const contentEl = document.getElementById('dailyReportContent');
         const anomaliesEl = document.getElementById('dailyAnomalies');
 
         if (status === 'none') {
-            section.style.display = '';
-            statusEl.innerHTML = '<p style="color:var(--text-secondary);font-style:italic;">該日期尚未生成報告。</p>';
+            block.style.display = '';
+            statusEl.innerHTML = '<p class="ai-report-status muted">該日期尚未生成 AI 報告。</p>';
             contentEl.innerHTML = '';
             anomaliesEl.innerHTML = '';
             return;
         }
 
         if (status === 'generating') {
-            section.style.display = '';
-            statusEl.innerHTML = '<p style="color:var(--primary);">⏳ 報告生成中，請稍候刷新...</p>';
+            block.style.display = '';
+            statusEl.innerHTML = '<p class="ai-report-status generating">報告生成中，請稍候刷新...</p>';
             contentEl.innerHTML = '';
             anomaliesEl.innerHTML = '';
             return;
         }
 
         if (status === 'failed') {
-            section.style.display = '';
-            statusEl.innerHTML = '<p style="color:#EF4444;">❌ 報告生成失敗</p>';
+            block.style.display = '';
+            statusEl.innerHTML = '<p class="ai-report-status failed">報告生成失敗</p>';
             contentEl.innerHTML = report_text ? `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(report_text)}</p>` : '';
             anomaliesEl.innerHTML = '';
             return;
         }
 
         // status === 'done'
-        section.style.display = '';
+        block.style.display = '';
         statusEl.innerHTML = '';
 
         // 渲染 AI 報告文本（保留換行）
@@ -365,7 +366,7 @@ async function loadDailyReport() {
             const periodLabels = ['早會', '第一節', '第二節', '第三節', '第四節', '第五節', '第六節', '第七節', '第八節', '第九節'];
             anomaliesEl.innerHTML = `
                 <div class="anomalies-section">
-                    <h4 class="anomalies-title">⚠️ 異常記錄 (${anomalies.length} 條)</h4>
+                    <h4 class="anomalies-title">異常記錄 (${anomalies.length} 條)</h4>
                     ${anomalies.map(a => {
                         const ps = a.period_start != null ? (periodLabels[a.period_start] || a.period_start) : '?';
                         return `
@@ -572,11 +573,20 @@ async function loadDashboard() {
         // 載入全量數據（不帶 class_code 篩選）
         const data = await APIClient.get(`/api/class-diary/review?entry_date=${dateVal}`);
         if (!data.success || !data.data || data.data.length === 0) {
-            document.getElementById('dashboardSection').style.display = 'none';
+            // 即使沒有記錄，報告接收人/reviewer 仍需看到概覽（含 AI 報告）
+            if (reviewState.isRecipient || reviewState.isReviewer) {
+                document.getElementById('dashboardSection').style.display = '';
+                document.getElementById('dashCards').innerHTML = '';
+                document.getElementById('dashClassChart').innerHTML = '';
+                document.getElementById('dashBehavior').innerHTML = '';
+            } else {
+                document.getElementById('dashboardSection').style.display = 'none';
+            }
             return;
         }
 
         const entries = data.data;
+        dashboardEntries = entries;
         document.getElementById('dashboardSection').style.display = '';
         renderDashCards(entries);
         renderClassComparison(entries);
@@ -628,15 +638,15 @@ function renderDashCards(entries) {
             <div class="dash-card-value" style="color:${ratingColor(avgClean)}">${avgClean}</div>
             <div class="dash-card-label">平均整潔</div>
         </div>
-        <div class="dash-card">
+        <div class="dash-card clickable" onclick="showStudentDetail('attendance')">
             <div class="dash-card-value">${absentCount} / ${lateCount}</div>
             <div class="dash-card-label">缺席 / 遲到</div>
         </div>
-        <div class="dash-card">
+        <div class="dash-card clickable" onclick="showStudentDetail('violation')">
             <div class="dash-card-value" style="color:${violationCount > 0 ? 'var(--warning)' : ''}">${violationCount}</div>
             <div class="dash-card-label">違規事件</div>
         </div>
-        <div class="dash-card">
+        <div class="dash-card clickable" onclick="showStudentDetail('medical')">
             <div class="dash-card-value" style="color:${medicalCount > 0 ? 'var(--info)' : ''}">${medicalCount}</div>
             <div class="dash-card-label">醫務室</div>
         </div>
@@ -816,4 +826,129 @@ function ratingColor(rating) {
     if (r >= 4) return 'var(--brand)';
     if (r >= 3) return 'var(--warning)';
     return 'var(--danger)';
+}
+
+
+/* ============================================================
+   儀表板卡片點擊 — 學生明細彈窗
+   ============================================================ */
+
+/** 分割姓名字串 */
+function parseStudentNames(value) {
+    if (!value || !value.trim()) return [];
+    return value.split(/[、，,；;／/\n]+/).map(s => s.trim()).filter(Boolean);
+}
+
+/** 按班級分組提取考勤學生 {classCode: [name]} */
+function groupAttendanceByClass(entries, field) {
+    const map = {};
+    entries.forEach(e => {
+        const names = parseStudentNames(e[field]);
+        if (names.length === 0) return;
+        if (!map[e.class_code]) map[e.class_code] = [];
+        names.forEach(n => {
+            if (!map[e.class_code].includes(n)) map[e.class_code].push(n);
+        });
+    });
+    return map;
+}
+
+/** 按班級+原因分組行為學生 {classCode: [{reason, students:[]}]} */
+function groupBehaviorByClass(entries, fields) {
+    const map = {}; // classCode → {reason → Set(students)}
+    entries.forEach(e => {
+        (Array.isArray(fields) ? fields : [fields]).forEach(field => {
+            const val = e[field];
+            if (!val || !val.trim()) return;
+            const code = e.class_code;
+            if (!map[code]) map[code] = {};
+            try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) {
+                    parsed.forEach(item => {
+                        if (!item.reason || !item.students || item.students.length === 0) return;
+                        if (!map[code][item.reason]) map[code][item.reason] = new Set();
+                        item.students.forEach(s => map[code][item.reason].add(s));
+                    });
+                    return;
+                }
+            } catch (_) { /* not JSON */ }
+            // 舊格式純文字
+            if (!map[code]['其他']) map[code]['其他'] = new Set();
+            map[code]['其他'].add(val.trim());
+        });
+    });
+    return map;
+}
+
+function showStudentDetail(type) {
+    if (dashboardEntries.length === 0) return;
+
+    const modal = document.getElementById('detailModal');
+    const titleEl = document.getElementById('detailModalTitle');
+    const bodyEl = document.getElementById('detailModalBody');
+    let html = '';
+
+    if (type === 'attendance') {
+        titleEl.textContent = '缺席 / 遲到學生';
+        const absentMap = groupAttendanceByClass(dashboardEntries, 'absent_students');
+        const lateMap = groupAttendanceByClass(dashboardEntries, 'late_students');
+        html += renderAttendanceSection('缺席學生', absentMap);
+        html += renderAttendanceSection('遲到學生', lateMap);
+    } else if (type === 'violation') {
+        titleEl.textContent = '違規事件';
+        const map = groupBehaviorByClass(dashboardEntries, ['rule_violations', 'appearance_issues']);
+        html = renderBehaviorDetail(map);
+    } else if (type === 'medical') {
+        titleEl.textContent = '醫務室';
+        const map = groupBehaviorByClass(dashboardEntries, 'medical_room_students');
+        html = renderBehaviorDetail(map);
+    }
+
+    if (!html.trim()) {
+        html = '<p class="detail-empty">無記錄</p>';
+    }
+
+    bodyEl.innerHTML = html;
+    modal.classList.add('show');
+}
+
+function renderAttendanceSection(title, map) {
+    const classes = Object.keys(map).sort();
+    if (classes.length === 0) return '';
+    const total = classes.reduce((s, c) => s + map[c].length, 0);
+    let html = `<div class="detail-section">
+        <div class="detail-section-title">${escapeHtml(title)} (${total}人)</div>`;
+    classes.forEach(code => {
+        html += `<div class="detail-class-row">
+            <span class="detail-class-label">${escapeHtml(code)}</span>
+            <span class="detail-student-names">${map[code].map(n => escapeHtml(n)).join('、')}</span>
+        </div>`;
+    });
+    html += '</div>';
+    return html;
+}
+
+function renderBehaviorDetail(map) {
+    const classes = Object.keys(map).sort();
+    if (classes.length === 0) return '';
+    let html = '';
+    classes.forEach(code => {
+        const reasons = map[code];
+        html += `<div class="detail-class-group">
+            <div class="detail-class-label">${escapeHtml(code)}</div>`;
+        Object.entries(reasons).forEach(([reason, studentsSet]) => {
+            const students = [...studentsSet];
+            html += `<div class="detail-reason-row">
+                <span class="detail-reason">${escapeHtml(reason)}：</span>
+                <span class="detail-student-names">${students.map(s => escapeHtml(s)).join('、')}</span>
+            </div>`;
+        });
+        html += '</div>';
+    });
+    return html;
+}
+
+function closeDetailModal() {
+    document.getElementById('detailModal').classList.remove('show');
 }

@@ -30,19 +30,6 @@
 <!-- 主容器 -->
 <div class="container" id="mainContainer" style="display:none;">
 
-    <!-- 每日 AI 報告區 (僅報告接收人可見) -->
-    <div id="dailyReportSection" style="display:none;">
-        <div class="daily-report-card">
-            <div class="daily-report-header">
-                <h3>📊 今日課室日誌報告</h3>
-                <span class="report-date" id="reportDate"></span>
-            </div>
-            <div id="dailyReportStatus"></div>
-            <div id="dailyReportContent"></div>
-            <div id="dailyAnomalies"></div>
-        </div>
-    </div>
-
     <!-- 篩選欄 -->
     <div class="filter-bar">
         <label>📅 日期</label>
@@ -54,7 +41,7 @@
         <button id="exportBtn" class="btn-export" style="display:none;" onclick="exportCSV()">📥 匯出 CSV</button>
     </div>
 
-    <!-- 儀表板 -->
+    <!-- 今日概覽（數據 + AI 報告合併） -->
     <div class="dashboard-section" id="dashboardSection" style="display:none;">
         <div class="dashboard-header" onclick="toggleDashboard()">
             <span class="dashboard-title">今日概覽</span>
@@ -64,6 +51,12 @@
             <div class="dash-cards" id="dashCards"></div>
             <div class="dash-chart-section" id="dashClassChart"></div>
             <div class="dash-behavior-section" id="dashBehavior"></div>
+            <!-- AI 報告（報告接收人/reviewer 可見） -->
+            <div id="aiReportBlock" style="display:none;">
+                <div id="dailyReportStatus"></div>
+                <div id="dailyReportContent"></div>
+                <div id="dailyAnomalies"></div>
+            </div>
         </div>
     </div>
 
@@ -110,6 +103,17 @@
         <img id="sigModalImg" src="" alt="簽名">
         <br>
         <button onclick="closeSigModal()">關閉</button>
+    </div>
+</div>
+
+<!-- 學生明細彈窗 -->
+<div class="detail-modal-overlay" id="detailModal">
+    <div class="detail-modal">
+        <div class="detail-modal-header">
+            <h3 id="detailModalTitle"></h3>
+            <button class="detail-modal-close" onclick="closeDetailModal()">&times;</button>
+        </div>
+        <div class="detail-modal-body" id="detailModalBody"></div>
     </div>
 </div>
 
