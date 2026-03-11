@@ -86,7 +86,7 @@ class AssignmentRepository(BaseRepository):
         - student: 用戶名匹配 (target_value 包含 username)
         """
         conditions = [
-            "status = 'published'",
+            "status IN ('published', 'closed')",
             "is_deleted = 0",
         ]
         params = []
