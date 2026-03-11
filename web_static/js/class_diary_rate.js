@@ -4,6 +4,19 @@
  */
 
 /* ============================================================
+   可折疊卡片
+   ============================================================ */
+function toggleCardSection(bodyId) {
+    const body = document.getElementById(bodyId);
+    const arrowId = bodyId.replace('Body', 'Arrow');
+    const arrow = document.getElementById(arrowId);
+    if (!body) return;
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? '' : 'none';
+    if (arrow) arrow.textContent = isHidden ? '▼' : '▶';
+}
+
+/* ============================================================
    全局狀態
    ============================================================ */
 const state = {
@@ -75,10 +88,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         clearAllPickers();
         loadStudents();
         loadExistingRecords();
+        // 更新各欄位班級下拉選單
+        populateAllClassSelects();
+        Object.values(FIELD_CLASS_SELECTS).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+    });
+
+    // 各欄位班級切換事件
+    Object.entries(FIELD_CLASS_SELECTS).forEach(([fieldId, selectId]) => {
+        const el = document.getElementById(selectId);
+        if (el) {
+            el.addEventListener('change', function () {
+                loadFieldStudents(fieldId, this.value || state.classCode);
+            });
+        }
     });
 
     // 初始化星級選擇
     initStarRatings();
+
+    // 根據當前時間自動填寫節數
+    autoFillPeriod();
 
     // 初始化簽名板
     initSignaturePad();
@@ -94,6 +126,7 @@ async function loadClasses(urlClass, dateStr) {
         const resp = await fetch('/api/class-diary/classes');
         const data = await resp.json();
         if (data.success && data.data) {
+            allClasses = data.data;
             data.data.forEach(c => {
                 const opt = document.createElement('option');
                 opt.value = c.class_code;
@@ -120,11 +153,84 @@ async function loadClasses(urlClass, dateStr) {
     state.classCode = select.value;
     updateHeaderInfo(dateStr);
 
+    // 初始化各欄位班級選擇器（需要 allClasses + state.classCode 已設定）
+    populateAllClassSelects();
+
     // 載入學生和已有記錄
     if (state.classCode) {
         loadStudents();
         loadExistingRecords();
     }
+}
+
+/**
+ * 各欄位班級切換 — 支持換班選擇不同班學生
+ */
+let allClasses = [];  // 所有班級列表（loadClasses 時緩存）
+
+// 各欄位對應的班級選擇器 ID 和獨立學生列表
+const FIELD_CLASS_SELECTS = {
+    absentStudents:   'absentClassSelect',
+    lateStudents:     'lateClassSelect',
+    commendedStudents:'commendedClassSelect',
+    appearanceIssues: 'appearanceClassSelect',
+    ruleViolations:   'ruleViolationsClassSelect',
+};
+const fieldStudents = {}; // { fieldId: [student, ...] }
+
+function populateAllClassSelects() {
+    if (!state.classCode) return;
+    const grade = state.classCode.replace(/[A-Za-z]/g, '');
+    const sameGrade = allClasses.filter(c => {
+        const g = (c.class_code || '').replace(/[A-Za-z]/g, '');
+        return g === grade && c.class_code !== state.classCode;
+    });
+
+    Object.values(FIELD_CLASS_SELECTS).forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.innerHTML = '<option value="">本班</option>';
+        sameGrade.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.class_code;
+            opt.textContent = c.class_name || c.class_code;
+            select.appendChild(opt);
+        });
+    });
+}
+
+async function loadFieldStudents(fieldId, classCode) {
+    const targetClass = classCode || state.classCode;
+    try {
+        const resp = await fetch(`/api/class-diary/students/${encodeURIComponent(targetClass)}`);
+        const data = await resp.json();
+        if (data.success && data.data) {
+            fieldStudents[fieldId] = data.data;
+            renderFieldPicker(fieldId);
+        }
+    } catch (err) {
+        console.warn(`載入 ${fieldId} 班級學生失敗:`, err);
+    }
+}
+
+function renderFieldPicker(fieldId) {
+    const picker = document.getElementById('picker-' + fieldId);
+    if (!picker) return;
+
+    const students = fieldStudents[fieldId] || [];
+    const textarea = document.getElementById(fieldId);
+    const selectedNames = parseNames(textarea.value);
+
+    picker.innerHTML = '';
+    students.forEach(s => {
+        const name = s.display_name;
+        const chip = document.createElement('span');
+        chip.className = 'student-chip' + (selectedNames.includes(name) ? ' selected' : '');
+        chip.textContent = name;
+        chip.addEventListener('click', () => toggleStudent(fieldId, name));
+        picker.appendChild(chip);
+    });
+    updateToggleText(fieldId);
 }
 
 function updateHeaderInfo(dateStr) {
@@ -152,6 +258,65 @@ function clearAllPickers() {
 
 
 /* ============================================================
+   節數自動偵測（根據當前時間）
+   ============================================================ */
+const PERIOD_SCHEDULE = [
+    // period 0-9, end time (HH:MM), grace minutes
+    { period: 0, end: '08:40', grace: 5  },  // 早會 → 直接接第一節
+    { period: 1, end: '09:15', grace: 5  },  // 第一節 → 直接接第二節
+    { period: 2, end: '09:50', grace: 10 },  // 第二節 → 小息
+    { period: 3, end: '10:40', grace: 5  },  // 第三節 → 直接接第四節
+    { period: 4, end: '11:15', grace: 10 },  // 第四節 → 小息
+    { period: 5, end: '12:05', grace: 5  },  // 第五節 → 直接接第六節
+    { period: 6, end: '12:40', grace: 10 },  // 第六節 → 午飯
+    { period: 7, end: '14:15', grace: 5  },  // 第七節 → 直接接第八節
+    { period: 8, end: '14:50', grace: 10 },  // 第八節 → 小息
+    { period: 9, end: '15:40', grace: 10 },  // 第九節 → 放學
+];
+
+/**
+ * 根據當前時間偵測剛結束的節數
+ * @returns {number|null} 節數 index (0-9) 或 null
+ */
+function detectCurrentPeriod() {
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+
+    let detected = null;
+    for (const s of PERIOD_SCHEDULE) {
+        const [h, m] = s.end.split(':').map(Number);
+        const endMin = h * 60 + m;
+        // 在該節結束後 ~ 結束後+grace 分鐘內，視為該節
+        if (nowMin >= endMin && nowMin <= endMin + s.grace) {
+            detected = s.period;
+        }
+        // 已經過了 grace 時段，也記錄（取最後一個已結束的）
+        else if (nowMin > endMin + s.grace) {
+            detected = s.period;
+        }
+    }
+    return detected;
+}
+
+/** 自動填寫節數（不鎖定，教師可手動更改） */
+function autoFillPeriod() {
+    const period = detectCurrentPeriod();
+    if (period === null) return;
+
+    const startSelect = document.getElementById('periodStart');
+
+    if (state.periodCount === 1) {
+        startSelect.value = period;
+    } else {
+        // 兩節課：start = period-1, end = period
+        const start = Math.max(0, period - 1);
+        startSelect.value = start;
+        updateEndOptions();
+        document.getElementById('periodEnd').value = period;
+    }
+}
+
+/* ============================================================
    節數選擇
    ============================================================ */
 function setPeriodCount(count) {
@@ -172,6 +337,9 @@ function setPeriodCount(count) {
         sep.style.display = 'none';
         endSelect.style.display = 'none';
     }
+
+    // 切換節數類型時重新自動填寫
+    autoFillPeriod();
 }
 
 // 當 periodStart 改變時更新 periodEnd 的選項
@@ -354,6 +522,8 @@ async function loadStudents() {
         const data = await resp.json();
         if (data.success && data.data) {
             classStudents = data.data;
+            // 所有欄位默認使用本班學生
+            PICKER_FIELDS.forEach(f => { fieldStudents[f] = data.data; });
             renderAllPickers();
         }
     } catch (err) {
@@ -366,8 +536,7 @@ async function loadStudents() {
  */
 function renderAllPickers() {
     PICKER_FIELDS.forEach(fieldId => {
-        renderPicker('picker-' + fieldId, fieldId);
-        updateToggleText(fieldId);
+        renderFieldPicker(fieldId);
     });
 }
 
