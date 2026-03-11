@@ -172,6 +172,18 @@ const GameConfig = {
                 url: '/trade-game',
                 difficulty: ['中一', '中二', '中三'],
                 tags: ['貿易', '經濟', '國際', '策略', '公民'],
+                badge: null,
+                roles: ['student', 'teacher', 'admin']
+            },
+            {
+                id: 'farm_game',
+                name: '神州菜園經營家',
+                nameEn: 'Farm Security Tycoon',
+                icon: '🥬',
+                description: '經營菜園守護糧食安全：戰爭貿易戰、種子主權與耕地紅線',
+                url: '/farm-game',
+                difficulty: ['中一', '中二', '中三'],
+                tags: ['糧食安全', '農業', '國安', '策略', '公民'],
                 badge: '新',
                 roles: ['student', 'teacher', 'admin']
             }

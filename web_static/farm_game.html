@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神州菜園經營家 - 守護糧食安全遊戲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Shared Auth & API modules -->
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+
+    <style>
+        :root {
+            --farm-green: #A8E063;
+            --farm-dark: #56AB2F;
+            --clay: #D4A373;
+        }
+
+        body {
+            font-family: '新細明體', 'PMingLiU', serif;
+            background: linear-gradient(180deg, #e3f2fd 0%, #bbdefb 100%);
+            color: #333;
+            margin: 0;
+            min-height: 100vh;
+            font-size: 18px;
+        }
+
+        .game-font {
+            font-family: '新細明體', 'PMingLiU', serif;
+            font-weight: bold;
+        }
+
+        .btn-cute {
+            background: white;
+            border: 3px solid #333;
+            box-shadow: 4px 4px 0px #333;
+            transition: all 0.1s;
+            font-family: '新細明體', 'PMingLiU', serif;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .btn-cute:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #333;
+        }
+        .btn-selected {
+            background: #FFEB3B !important;
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #333;
+        }
+
+        .farm-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .plot {
+            aspect-ratio: 1;
+            background-color: var(--clay);
+            border: 4px solid #8B5E3C;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            background-image: radial-gradient(#bc8a5f 20%, transparent 20%);
+            background-size: 10px 10px;
+        }
+
+        .plot.growing { background-color: #C5E1A5; }
+        .plot.ready { background-color: #FFF59D; animation: bounce 1s infinite; }
+        .plot.locked { background-color: #cfd8dc; opacity: 0.7; cursor: help; }
+        .plot.pest { background-color: #ff8a80; animation: shake 2s infinite; }
+        .plot.disaster { background-color: #90caf9; animation: shake 2s infinite; }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+            20%, 40%, 60%, 80% { transform: translateX(2px); }
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card-pop {
+            background: white;
+            border: 6px solid #56AB2F;
+            border-radius: 30px;
+            max-width: 650px;
+            width: 100%;
+            padding: 35px;
+            text-align: center;
+            box-shadow: 0 20px 0 rgba(0,0,0,0.1);
+        }
+
+        .news-ticker {
+            background: #333;
+            color: #FFEB3B;
+            padding: 12px;
+            overflow: hidden;
+            white-space: nowrap;
+            font-size: 1.1rem;
+        }
+
+        .news-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: ticker 25s linear infinite;
+        }
+
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+
+        .floating-text {
+            position: absolute;
+            animation: floatUp 0.8s ease-out forwards;
+            font-weight: bold;
+            font-size: 1.5rem;
+            z-index: 10;
+            pointer-events: none;
+        }
+        @keyframes floatUp {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-40px); }
+        }
+
+        /* Leaderboard styles */
+        .leaderboard-table { width: 100%; border-collapse: collapse; }
+        .leaderboard-table th { background: #56AB2F; color: white; padding: 10px 8px; font-size: 0.9rem; }
+        .leaderboard-table td { padding: 8px; text-align: center; border-bottom: 1px solid #e0e0e0; font-size: 0.9rem; }
+        .leaderboard-table tr:nth-child(even) { background: #f5f5f5; }
+        .leaderboard-table tr.rank-1 { background: #fff9c4; font-weight: bold; }
+        .leaderboard-table tr.rank-2 { background: #f5f5f5; font-weight: bold; }
+        .leaderboard-table tr.rank-3 { background: #ffe0b2; font-weight: bold; }
+
+        /* Teacher dashboard */
+        .teacher-tab { cursor: pointer; padding: 8px 16px; border-radius: 8px 8px 0 0; border: 2px solid #ccc; border-bottom: none; background: #f0f0f0; font-weight: bold; }
+        .teacher-tab.active { background: white; border-color: #56AB2F; color: #56AB2F; }
+        .score-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .score-table th { background: #f0f0f0; padding: 8px; text-align: left; border-bottom: 2px solid #ddd; }
+        .score-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+
+    <!-- 0. Loading / Auth screen -->
+    <div id="auth-screen" class="overlay">
+        <div class="card-pop">
+            <h1 class="text-4xl text-green-600 game-font mb-4">🥬 神州菜園經營家</h1>
+            <p id="auth-message" class="text-xl text-gray-600">正在驗證身份...</p>
+            <div id="auth-spinner" class="mx-auto mt-4" style="width:48px;height:48px;border:4px solid #e0e0e0;border-top-color:#56AB2F;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        </div>
+    </div>
+
+    <!-- 0.5 Access Denied screen -->
+    <div id="access-denied-screen" class="overlay hidden">
+        <div class="card-pop" style="border-color: #ef4444;">
+            <h1 class="text-4xl text-red-500 game-font mb-4">🔒 無法進入</h1>
+            <p id="access-denied-msg" class="text-xl text-gray-600 mb-6">你目前沒有權限遊玩此遊戲。</p>
+            <button onclick="window.location.href='/games'" class="btn-cute w-full py-3 bg-gray-200 text-gray-700 text-xl">返回遊戲中心</button>
+        </div>
+    </div>
+
+    <!-- 1. 啟動頁面 -->
+    <div id="start-screen" class="overlay hidden">
+        <div class="card-pop max-h-[90vh] overflow-y-auto">
+            <h1 class="text-5xl text-green-600 game-font mb-6">🥬 神州菜園經營家</h1>
+            <div class="text-left text-base space-y-3 mb-6 bg-green-50 p-5 rounded-2xl border-2 border-green-200">
+                <p><b>🌟 遊戲目的：</b>透過 30 回合經營，理解國家如何應對<b>戰爭與貿易戰</b>，守護糧食安全。</p>
+                <p><b>📜 經營規則：</b></p>
+                <ul class="list-disc pl-6 space-y-1 text-sm md:text-base">
+                    <li><b>🌍 戰爭與貿易局勢</b>：
+                        <br>- <b>全球化貿易</b>：進出口順暢，市價平穩。
+                        <br>- <b>國際貿易戰</b>：關稅壁壘與貿易制裁，農產品出口受阻，市價易低迷。
+                        <br>- <b>區域地緣戰爭</b>：戰爭導致全球供應鏈斷裂，糧食價格極端波動（暴漲或暴跌）！
+                    </li>
+                    <li><b>⚠️ 蟲害與天災</b>：生長中的作物可能導致收成歸零。外購種子較易染蟲，本土種子具抗蟲性；天災無差別侵襲。</li>
+                    <li><b>🛡️ 國安風險</b>：過度依賴「外購種子」極易在貿易戰爆發時遭遇<b>技術與種子禁運</b>；賣出耕地會觸發國安紅線警告。</li>
+                    <li><b>💸 經營成本</b>：每塊地每回合需繳納 <b>$6</b> 維護費，破產即敗局！</li>
+                </ul>
+            </div>
+
+            <!-- Leaderboard in start screen -->
+            <div id="start-leaderboard" class="mb-6 hidden">
+                <h3 class="game-font text-xl text-green-700 mb-3">🏆 排行榜</h3>
+                <div id="start-leaderboard-body" class="max-h-60 overflow-y-auto rounded-xl border-2 border-green-200"></div>
+            </div>
+
+            <div id="player-name-display" class="w-full p-4 border-4 border-green-200 rounded-2xl mb-4 text-center text-2xl game-font bg-green-50 text-green-700"></div>
+            <button onclick="startGame()" class="btn-cute w-full py-4 text-3xl text-green-700 bg-yellow-300">進入菜園！</button>
+        </div>
+    </div>
+
+    <!-- 2. 結算頁面 -->
+    <div id="end-screen" class="overlay hidden">
+        <div class="card-pop max-h-[90vh] overflow-y-auto">
+            <h1 class="text-5xl text-blue-600 game-font mb-6">📈 經營成果報告</h1>
+            <div class="bg-blue-50 p-6 rounded-2xl mb-6 text-left border-2 border-blue-200">
+                <p id="final-stats" class="text-2xl font-bold mb-6 text-blue-800"></p>
+                <hr class="my-6 border-blue-200">
+                <h3 class="font-bold text-xl text-blue-900 mb-4">💡 學習重點回饋：</h3>
+                <div class="space-y-4 text-base md:text-lg text-gray-700">
+                    <p><b>1. 戰爭與糧食霸權：</b>區域戰爭與貿易戰會瞬間摧毀脆弱的全球供應鏈。農產品價格並非單純由國內決定，國家收儲計畫是抵禦國際資本收割的盾牌。</p>
+                    <p><b>2. 種子主權的底氣：</b>在面臨貿易戰制裁時，過度依賴外購種子會成為他國實施「技術勒索」的破口，只有農業科技自強才能不受制於人。</p>
+                    <p><b>3. 土地是抗災基石：</b>無論國際局勢如何動盪、天災如何發生，保住耕地紅線就是保證了國家恢復生產的基本盤。</p>
+                </div>
+            </div>
+
+            <!-- Feedback tags -->
+            <div id="feedback-section" class="mb-6">
+                <h3 class="game-font text-lg text-green-700 mb-3">📝 學習反饋（可選）</h3>
+                <div id="feedback-tags" class="flex flex-wrap gap-2 mb-4">
+                    <button onclick="toggleFeedback(this)" data-tag="理解了糧食安全" class="px-3 py-1 rounded-full border-2 border-green-300 bg-white text-sm font-bold hover:bg-green-100">理解了糧食安全</button>
+                    <button onclick="toggleFeedback(this)" data-tag="學到了種子主權" class="px-3 py-1 rounded-full border-2 border-green-300 bg-white text-sm font-bold hover:bg-green-100">學到了種子主權</button>
+                    <button onclick="toggleFeedback(this)" data-tag="認識了耕地紅線" class="px-3 py-1 rounded-full border-2 border-green-300 bg-white text-sm font-bold hover:bg-green-100">認識了耕地紅線</button>
+                    <button onclick="toggleFeedback(this)" data-tag="了解了貿易戰影響" class="px-3 py-1 rounded-full border-2 border-green-300 bg-white text-sm font-bold hover:bg-green-100">了解了貿易戰影響</button>
+                    <button onclick="toggleFeedback(this)" data-tag="學會了分散風險" class="px-3 py-1 rounded-full border-2 border-green-300 bg-white text-sm font-bold hover:bg-green-100">學會了分散風險</button>
+                    <button onclick="toggleFeedback(this)" data-tag="很有趣想再玩" class="px-3 py-1 rounded-full border-2 border-green-300 bg-white text-sm font-bold hover:bg-green-100">很有趣想再玩</button>
+                </div>
+                <button id="submit-score-btn" onclick="submitScore()" class="btn-cute w-full py-3 bg-green-500 text-white text-xl">提交成績</button>
+                <p id="submit-status" class="text-center mt-2 text-sm text-gray-500 hidden"></p>
+            </div>
+
+            <!-- Leaderboard in end screen -->
+            <div id="end-leaderboard" class="mb-6 hidden">
+                <h3 class="game-font text-xl text-green-700 mb-3">🏆 排行榜</h3>
+                <div id="end-leaderboard-body" class="max-h-60 overflow-y-auto rounded-xl border-2 border-green-200"></div>
+            </div>
+
+            <button onclick="location.reload()" class="btn-cute w-full py-4 bg-green-400 text-white text-2xl">重新經營</button>
+        </div>
+    </div>
+
+    <!-- 遊戲主介面 -->
+    <div id="main-game" class="hidden">
+        <div class="sticky top-0 z-40 bg-white/95 p-4 shadow-md border-b-4 border-green-500">
+            <div class="max-w-4xl mx-auto flex justify-between items-center">
+                <div>
+                    <h2 class="game-font text-2xl text-green-700"><span id="display-name">農夫</span> 的菜園</h2>
+                    <div class="flex space-x-6 text-base font-bold mt-2">
+                        <span id="turn-display" class="bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">回合: 1/30</span>
+                        <span id="money-display" class="bg-orange-100 text-orange-700 px-3 py-1 rounded-lg border border-orange-200 flex flex-col items-center leading-tight"><span>資金: $600</span><span id="maintenance-display" class="text-xs text-red-600 font-normal">維護費: -$36/回合</span></span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="flex flex-col items-end">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-xs font-bold text-gray-500">🌍 國際局勢</span>
+                            <span id="intl-status-display" class="text-sm px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-700 border border-green-300">全球化貿易</span>
+                        </div>
+                        <span id="market-price-display" class="text-3xl font-bold text-red-500 game-font">市價指數: 1.0x</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="news-ticker">
+            <div class="news-content game-font" id="news-text">正在分析國家農業經濟數據與物價走勢...</div>
+        </div>
+
+        <main class="max-w-4xl mx-auto p-4 pb-40">
+
+            <!-- 菜園網格 -->
+            <div class="farm-grid mt-4" id="farm-grid"></div>
+
+            <!-- 作物面板 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+                <div class="bg-white p-6 rounded-3xl border-4 border-green-200 shadow-sm flex flex-col">
+                    <h2 class="game-font text-xl mb-4 text-green-700">🌱 播種選種 (不同成本)</h2>
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <button onclick="selectCrop('cabbage')" id="btn-cabbage" class="btn-cute py-3 flex flex-col items-center btn-selected">
+                            <span class="text-4xl">🥬</span>
+                            <span class="text-sm font-bold mt-1">白菜</span>
+                            <span class="text-xs text-red-500">種子 $20</span>
+                        </button>
+                        <button onclick="selectCrop('carrot')" id="btn-carrot" class="btn-cute py-3 flex flex-col items-center">
+                            <span class="text-4xl">🥕</span>
+                            <span class="text-sm font-bold mt-1">胡蘿蔔</span>
+                            <span class="text-xs text-red-500">種子 $50</span>
+                        </button>
+                        <button onclick="selectCrop('potato')" id="btn-potato" class="btn-cute py-3 flex flex-col items-center">
+                            <span class="text-4xl">🍠</span>
+                            <span class="text-sm font-bold mt-1">番薯</span>
+                            <span class="text-xs text-red-500">種子 $120</span>
+                        </button>
+                    </div>
+                    <div class="mt-auto flex space-x-3">
+                        <button onclick="setSeed('foreign')" id="seed-f" class="flex-1 py-3 text-sm btn-cute leading-tight">外購種子<br>(高產但易染蟲)</button>
+                        <button onclick="setSeed('local')" id="seed-l" class="flex-1 py-3 text-sm btn-cute bg-green-100 border-green-600 leading-tight">本土研發<br>(便宜且抗蟲)</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl border-4 border-blue-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h2 class="game-font text-xl mb-3 text-blue-700">📦 農產品倉庫 (待售)</h2>
+
+                        <div class="grid grid-cols-3 gap-2 text-center mb-4">
+                            <div class="bg-blue-50 p-2 rounded-xl flex flex-col items-center border border-blue-100">
+                                <span class="text-3xl mb-1">🥬</span>
+                                <span class="font-bold text-lg"><span id="inv-cabbage">0</span> 箱</span>
+                                <span id="price-cabbage" class="text-sm text-red-500 font-bold my-1 bg-white px-2 rounded-full border border-red-200">$0/箱</span>
+                                <button onclick="sellCrop('cabbage')" class="w-full mt-2 py-2 bg-yellow-400 border-2 border-yellow-600 rounded-lg text-base font-bold shadow-sm active:translate-y-1 hover:bg-yellow-300">賣出</button>
+                            </div>
+                            <div class="bg-blue-50 p-2 rounded-xl flex flex-col items-center border border-blue-100">
+                                <span class="text-3xl mb-1">🥕</span>
+                                <span class="font-bold text-lg"><span id="inv-carrot">0</span> 箱</span>
+                                <span id="price-carrot" class="text-sm text-red-500 font-bold my-1 bg-white px-2 rounded-full border border-red-200">$0/箱</span>
+                                <button onclick="sellCrop('carrot')" class="w-full mt-2 py-2 bg-yellow-400 border-2 border-yellow-600 rounded-lg text-base font-bold shadow-sm active:translate-y-1 hover:bg-yellow-300">賣出</button>
+                            </div>
+                            <div class="bg-blue-50 p-2 rounded-xl flex flex-col items-center border border-blue-100">
+                                <span class="text-3xl mb-1">🍠</span>
+                                <span class="font-bold text-lg"><span id="inv-potato">0</span> 箱</span>
+                                <span id="price-potato" class="text-sm text-red-500 font-bold my-1 bg-white px-2 rounded-full border border-red-200">$0/箱</span>
+                                <button onclick="sellCrop('potato')" class="w-full mt-2 py-2 bg-yellow-400 border-2 border-yellow-600 rounded-lg text-base font-bold shadow-sm active:translate-y-1 hover:bg-yellow-300">賣出</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 pt-4 border-t-2 border-blue-100">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-lg font-bold">農業科技: <span id="tech-display" class="text-blue-600">0</span></span>
+                            <button onclick="investTech()" class="text-sm bg-blue-500 text-white px-4 py-2 rounded-xl border-2 border-blue-700 shadow-sm active:translate-y-1 font-bold">研發 $500</button>
+                        </div>
+                        <div class="w-full bg-gray-200 h-4 rounded-full overflow-hidden">
+                            <div id="tech-bar" class="bg-blue-500 h-full transition-all" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 政策 -->
+            <div class="mt-8 bg-purple-50 p-6 rounded-3xl border-4 border-purple-200">
+                <h2 class="game-font text-xl text-purple-700 mb-4">🛡️ 國家安全與農業政策</h2>
+                <div class="flex space-x-6 overflow-x-auto pb-4">
+                    <div class="min-w-[220px] bg-white p-4 rounded-2xl border-2 border-purple-300">
+                        <p class="font-bold text-base mb-2">🌾 國家糧食收儲計畫</p>
+                        <p class="text-sm text-gray-500 mb-4">保障經濟安全。簽署後，當市場崩盤時，國家以最低 0.8x 指數保底收購。</p>
+                        <button onclick="buyPolicy('reserve')" id="policy-reserve" class="w-full py-2 text-base btn-cute bg-purple-500 text-white">支付 $600 啟動</button>
+                    </div>
+                    <div class="min-w-[220px] bg-white p-4 rounded-2xl border-2 border-red-300">
+                        <p id="redline-display" class="font-bold text-base mb-2 text-red-600">耕地紅線: 100%</p>
+                        <p class="text-sm text-gray-500 mb-4">開發商想買地建樓。每賣一塊地得 $1500，但危及糧食安全，容易遭執法查處。</p>
+                        <button onclick="handleSellLand()" class="w-full py-2 text-base btn-cute bg-red-500 text-white">同意出讓耕地</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="fixed bottom-8 left-0 right-0 flex justify-center px-4 pointer-events-none">
+            <button onclick="nextTurn()" class="btn-cute px-16 py-5 bg-green-500 text-white text-4xl w-full max-w-md pointer-events-auto shadow-2xl hover:bg-green-400">
+                下一回合 ➔
+            </button>
+        </div>
+    </div>
+
+    <div id="game-modal" class="overlay hidden">
+        <div class="card-pop mx-4">
+            <div id="modal-icon" class="text-7xl mb-6">📢</div>
+            <h2 id="modal-title" class="text-3xl game-font mb-4">通知</h2>
+            <p id="modal-body" class="text-xl text-gray-700 mb-8 leading-relaxed font-bold"></p>
+            <button onclick="closeModal()" class="btn-cute w-full py-5 bg-green-500 text-white text-2xl">收到了！</button>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="overlay hidden z-[110]">
+        <div class="card-pop mx-4 border-red-500">
+            <div class="text-7xl mb-6">⚠️</div>
+            <h2 class="text-3xl game-font mb-4 text-red-600">嚴重警告</h2>
+            <p id="confirm-body" class="text-xl text-gray-700 mb-8 leading-relaxed font-bold"></p>
+            <div class="flex space-x-4">
+                <button onclick="closeConfirmModal()" class="btn-cute flex-1 py-4 bg-gray-200 text-gray-800 text-xl">取消</button>
+                <button id="confirm-yes-btn" class="btn-cute flex-1 py-4 bg-red-500 text-white text-xl">確定出讓</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Dashboard -->
+    <div id="teacher-dashboard" class="overlay hidden z-[120]">
+        <div class="card-pop mx-4" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl game-font text-green-700">🏫 教師後台 - 神州菜園經營家</h2>
+                <button onclick="closeTeacherDashboard()" class="text-3xl text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex space-x-2 mb-4">
+                <div class="teacher-tab active" onclick="switchTeacherTab('scores')" id="tab-scores">成績記錄</div>
+                <div class="teacher-tab" onclick="switchTeacherTab('leaderboard')" id="tab-leaderboard">排行榜</div>
+            </div>
+
+            <!-- Summary -->
+            <div id="teacher-summary" class="grid grid-cols-4 gap-3 mb-4 text-center">
+                <div class="bg-blue-50 p-3 rounded-xl"><div class="text-2xl font-bold text-blue-600" id="sum-total">0</div><div class="text-xs text-gray-500">總遊玩次數</div></div>
+                <div class="bg-green-50 p-3 rounded-xl"><div class="text-2xl font-bold text-green-600" id="sum-completed">0</div><div class="text-xs text-gray-500">完成次數</div></div>
+                <div class="bg-yellow-50 p-3 rounded-xl"><div class="text-2xl font-bold text-yellow-600" id="sum-rate">0%</div><div class="text-xs text-gray-500">完成率</div></div>
+                <div class="bg-purple-50 p-3 rounded-xl"><div class="text-2xl font-bold text-purple-600" id="sum-avg">0</div><div class="text-xs text-gray-500">平均分</div></div>
+            </div>
+
+            <!-- Class filter -->
+            <div class="flex items-center space-x-3 mb-4">
+                <label class="font-bold text-sm">班級篩選:</label>
+                <select id="class-filter" onchange="loadTeacherData()" class="border-2 border-gray-300 rounded-lg px-3 py-1">
+                    <option value="">全部</option>
+                </select>
+                <button onclick="exportCSV()" class="ml-auto text-sm bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600">📥 下載 CSV</button>
+            </div>
+
+            <!-- Content -->
+            <div id="teacher-content" class="text-left"></div>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================================
+        //  FarmGameBridge — Auth + API integration
+        // =====================================================================
+        const FarmGameBridge = {
+            user: null,
+            _ready: false,
+
+            async init() {
+                const userData = await AuthModule.requireAuth('/login');
+                if (!userData) return false;
+
+                let userInfo = null;
+                try {
+                    userInfo = await AuthModule.getUserInfo();
+                } catch(e) {
+                    console.warn('getUserInfo failed, using verify data', e);
+                }
+
+                this.user = {
+                    id: userData.id || userData.user_id,
+                    username: userData.username || userData.sub,
+                    name: userInfo?.display_name || userInfo?.real_name || userInfo?.nickname || userData.display_name || userData.username || userData.sub || '農夫',
+                    role: userData.role || 'student',
+                    class_name: userInfo?.class_name || userData.class_name || '',
+                };
+                this._ready = true;
+                return true;
+            },
+
+            isTeacher() {
+                return this.user && ['teacher', 'admin'].includes(this.user.role);
+            },
+
+            async checkAccess() {
+                const resp = await APIClient.get('/api/farm-game/access');
+                return resp?.data || { allowed: false };
+            },
+
+            async checkPlayed() {
+                const resp = await APIClient.get('/api/farm-game/scores/check');
+                return resp?.data || { played: false, score: null };
+            },
+
+            async submitScore(scoreData) {
+                return APIClient.post('/api/farm-game/scores', scoreData);
+            },
+
+            async getLeaderboard(limit = 50) {
+                const params = { limit };
+                const resp = await APIClient.get('/api/farm-game/scores/leaderboard', params);
+                return resp?.data || [];
+            },
+
+            async getAllScores(className) {
+                const params = {};
+                if (className) params.class_name = className;
+                const resp = await APIClient.get('/api/farm-game/scores/all', params);
+                return resp?.data || [];
+            },
+
+            async deleteScore(scoreId) {
+                return APIClient.delete(`/api/farm-game/scores/${scoreId}`);
+            },
+
+            getExportUrl(className) {
+                const token = AuthModule.getToken();
+                let url = `/api/farm-game/scores/export?token=${encodeURIComponent(token)}`;
+                if (className) url += `&class_name=${encodeURIComponent(className)}`;
+                return url;
+            }
+        };
+
+        // =====================================================================
+        //  Leaderboard rendering
+        // =====================================================================
+        function renderLeaderboard(data, containerId) {
+            const container = document.getElementById(containerId);
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-400 py-4">暫無排行記錄</p>';
+                return;
+            }
+
+            const resultNames = { completed: '任期屆滿', bankrupt: '破產', redline: '國安紅線' };
+            const rankIcons = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+            let html = '<table class="leaderboard-table"><thead><tr><th>名次</th><th>農夫</th><th>班級</th><th>總分</th><th>結果</th></tr></thead><tbody>';
+            data.forEach(row => {
+                const rankClass = row.rank <= 3 ? `rank-${row.rank}` : '';
+                const icon = rankIcons[row.rank] || row.rank;
+                html += `<tr class="${rankClass}"><td>${icon}</td><td>${row.student_name}</td><td>${row.class_name || '-'}</td><td>${row.score}</td><td>${resultNames[row.result] || row.result}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // =====================================================================
+        //  App initialization
+        // =====================================================================
+        let selectedFeedback = [];
+
+        function toggleFeedback(btn) {
+            const tag = btn.dataset.tag;
+            if (selectedFeedback.includes(tag)) {
+                selectedFeedback = selectedFeedback.filter(t => t !== tag);
+                btn.classList.remove('bg-green-400', 'text-white', 'border-green-600');
+                btn.classList.add('bg-white', 'border-green-300');
+            } else {
+                selectedFeedback.push(tag);
+                btn.classList.add('bg-green-400', 'text-white', 'border-green-600');
+                btn.classList.remove('bg-white', 'border-green-300');
+            }
+        }
+
+        async function submitScore() {
+            const btn = document.getElementById('submit-score-btn');
+            const statusEl = document.getElementById('submit-status');
+            btn.disabled = true;
+            btn.innerText = '提交中...';
+            btn.classList.add('opacity-50');
+
+            try {
+                let resultType = 'completed';
+                if (state.money < 0) resultType = 'bankrupt';
+                else if ((state.landCount / state.maxLand) <= 0.5) resultType = 'redline';
+
+                const score = state.money + (state.tech * 25) + (state.landCount * 100);
+
+                await FarmGameBridge.submitScore({
+                    result: resultType,
+                    score: score,
+                    final_money: state.money,
+                    final_tech: state.tech,
+                    final_land: state.landCount,
+                    turns_played: Math.min(state.turn, state.maxTurns),
+                    reserve_policy: state.reservePolicy,
+                    feedback_tags: selectedFeedback,
+                });
+
+                btn.innerText = '已提交 ✓';
+                btn.classList.remove('bg-green-500');
+                btn.classList.add('bg-gray-400');
+                statusEl.innerText = '成績提交成功！';
+                statusEl.classList.remove('hidden', 'text-red-500');
+                statusEl.classList.add('text-green-600');
+
+                // Reload leaderboard
+                loadEndLeaderboard();
+            } catch (e) {
+                console.error('Submit failed:', e);
+                btn.disabled = false;
+                btn.innerText = '重新提交';
+                btn.classList.remove('opacity-50');
+                statusEl.innerText = '提交失敗，請重試';
+                statusEl.classList.remove('hidden', 'text-green-600');
+                statusEl.classList.add('text-red-500');
+            }
+        }
+
+        async function loadStartLeaderboard() {
+            try {
+                const data = await FarmGameBridge.getLeaderboard(20);
+                if (data && data.length > 0) {
+                    document.getElementById('start-leaderboard').classList.remove('hidden');
+                    renderLeaderboard(data, 'start-leaderboard-body');
+                }
+            } catch (e) {
+                console.error('Failed to load leaderboard:', e);
+            }
+        }
+
+        async function loadEndLeaderboard() {
+            try {
+                const data = await FarmGameBridge.getLeaderboard(20);
+                if (data && data.length > 0) {
+                    document.getElementById('end-leaderboard').classList.remove('hidden');
+                    renderLeaderboard(data, 'end-leaderboard-body');
+                }
+            } catch (e) {
+                console.error('Failed to load leaderboard:', e);
+            }
+        }
+
+        // =====================================================================
+        //  Teacher Dashboard
+        // =====================================================================
+        let teacherTab = 'scores';
+
+        function openTeacherDashboard() {
+            document.getElementById('teacher-dashboard').classList.remove('hidden');
+            loadTeacherData();
+        }
+
+        function closeTeacherDashboard() {
+            document.getElementById('teacher-dashboard').classList.add('hidden');
+        }
+
+        function switchTeacherTab(tab) {
+            teacherTab = tab;
+            document.querySelectorAll('.teacher-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            loadTeacherData();
+        }
+
+        async function loadTeacherData() {
+            const className = document.getElementById('class-filter').value;
+            try {
+                const result = await FarmGameBridge.getAllScores(className);
+                const { scores, classes, summary } = result;
+
+                // Update class filter
+                const select = document.getElementById('class-filter');
+                const currentVal = select.value;
+                select.innerHTML = '<option value="">全部</option>';
+                (classes || []).forEach(c => {
+                    select.innerHTML += `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`;
+                });
+
+                // Update summary
+                document.getElementById('sum-total').innerText = summary.total_plays;
+                document.getElementById('sum-completed').innerText = summary.completed;
+                document.getElementById('sum-rate').innerText = Math.round(summary.completion_rate * 100) + '%';
+                document.getElementById('sum-avg').innerText = summary.avg_score;
+
+                const contentEl = document.getElementById('teacher-content');
+
+                if (teacherTab === 'scores') {
+                    renderScoresTable(scores, contentEl);
+                } else {
+                    const lb = await FarmGameBridge.getLeaderboard(50);
+                    renderLeaderboard(lb, 'teacher-content');
+                }
+            } catch (e) {
+                console.error('Failed to load teacher data:', e);
+            }
+        }
+
+        function renderScoresTable(scores, container) {
+            if (!scores || scores.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-400 py-8">暫無成績記錄</p>';
+                return;
+            }
+
+            const resultNames = { completed: '任期屆滿', bankrupt: '破產', redline: '國安紅線' };
+
+            let html = '<table class="score-table"><thead><tr><th>學生</th><th>班級</th><th>總分</th><th>結果</th><th>資金</th><th>科技</th><th>耕地</th><th>回合</th><th>時間</th><th>操作</th></tr></thead><tbody>';
+            scores.forEach(s => {
+                const playedAt = s.played_at ? new Date(s.played_at).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '-';
+                html += `<tr>
+                    <td>${s.student_name}</td>
+                    <td>${s.class_name || '-'}</td>
+                    <td class="font-bold">${s.score}</td>
+                    <td>${resultNames[s.result] || s.result}</td>
+                    <td>$${s.final_money}</td>
+                    <td>${s.final_tech}</td>
+                    <td>${s.final_land}</td>
+                    <td>${s.turns_played}</td>
+                    <td>${playedAt}</td>
+                    <td><button onclick="deleteScoreRecord(${s.id})" class="text-red-500 hover:text-red-700 text-xs font-bold">刪除</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function deleteScoreRecord(scoreId) {
+            if (!confirm('確定要刪除此記錄嗎？')) return;
+            try {
+                await FarmGameBridge.deleteScore(scoreId);
+                loadTeacherData();
+            } catch (e) {
+                alert('刪除失敗');
+            }
+        }
+
+        function exportCSV() {
+            const className = document.getElementById('class-filter').value;
+            window.open(FarmGameBridge.getExportUrl(className), '_blank');
+        }
+
+        // =====================================================================
+        //  Game Logic (preserved from original)
+        // =====================================================================
+        const cropsConfig = {
+            cabbage: { name: '白菜', icon: '🥬', time: 1, baseYield: 10, seedCost: 20, baseSellPrice: 4 },
+            carrot: { name: '胡蘿蔔', icon: '🥕', time: 2, baseYield: 15, seedCost: 50, baseSellPrice: 7 },
+            potato: { name: '番薯', icon: '🍠', time: 3, baseYield: 22, seedCost: 120, baseSellPrice: 12 }
+        };
+
+        const intlConfigs = [
+            { level: 0, text: '全球化貿易', bg: 'bg-green-100', textc: 'text-green-700', border: 'border-green-300' },
+            { level: 1, text: '國際貿易戰', bg: 'bg-orange-100', textc: 'text-orange-700', border: 'border-orange-300' },
+            { level: 2, text: '區域地緣戰爭', bg: 'bg-red-100', textc: 'text-red-700', border: 'border-red-300' }
+        ];
+
+        const newsPool = [
+            "【國安】強調把飯碗牢牢端在自己手上，確保糧食安全！",
+            "【科技】打好種業翻身仗，本土種子是農業的晶片！",
+            "【氣候】極端氣候頻發，考驗國家農業抗災能力。",
+            "【國際】區域衝突導致黑海糧食走廊中斷，全球糧價震盪！",
+            "【經濟】多國祭出農產品出口禁令，國際貿易戰越演越烈。",
+            "【土地】嚴格保護耕地，堅決遏制耕地「非農化」。"
+        ];
+
+        let state = {
+            name: "",
+            turn: 1,
+            maxTurns: 30,
+            money: 600,
+            tech: 0,
+            inventory: { cabbage: 0, carrot: 0, potato: 0 },
+            marketPriceIdx: 1.0,
+            intlStatus: 0,
+            landCount: 6,
+            maxLand: 9,
+            activeCrop: 'cabbage',
+            seedType: 'local',
+            reservePolicy: false,
+            energyCrisis: false,
+            foreignDependence: 0,
+            embargoTurns: 0,
+            isGameOver: false,
+            plots: Array(9).fill(null).map((_, i) => ({
+                id: i,
+                status: i < 6 ? 'empty' : 'locked',
+                growth: 0,
+                type: null,
+                target: 0,
+                seed: 'local'
+            }))
+        };
+
+        // App init
+        (async function() {
+            try {
+                const ok = await FarmGameBridge.init();
+                if (!ok) return;
+
+                // Check access
+                const access = await FarmGameBridge.checkAccess();
+                if (!access.allowed) {
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('access-denied-screen').classList.remove('hidden');
+                    document.getElementById('access-denied-msg').innerText = `此遊戲僅供中三學生（${(access.allowed_classes || []).join(', ')}）遊玩。你的班級：${access.class_name || '未知'}`;
+                    return;
+                }
+
+                // Show start screen
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('start-screen').classList.remove('hidden');
+
+                // Set player name
+                state.name = FarmGameBridge.user.name;
+                document.getElementById('player-name-display').innerText = `👨‍🌾 ${state.name}`;
+
+                // Load leaderboard
+                loadStartLeaderboard();
+
+                // If teacher, add dashboard button
+                if (FarmGameBridge.isTeacher()) {
+                    const dashBtn = document.createElement('button');
+                    dashBtn.onclick = openTeacherDashboard;
+                    dashBtn.className = 'btn-cute w-full py-3 bg-blue-500 text-white text-xl mt-3';
+                    dashBtn.innerText = '🏫 教師後台';
+                    document.getElementById('player-name-display').after(dashBtn);
+                }
+            } catch (e) {
+                console.error('Init failed:', e);
+                document.getElementById('auth-message').innerText = '初始化失敗，請重新整理頁面';
+                document.getElementById('auth-spinner').style.display = 'none';
+            }
+        })();
+
+        function startGame() {
+            document.getElementById('display-name').innerText = state.name;
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('main-game').classList.remove('hidden');
+            renderFarm();
+            updateUI();
+        }
+
+        function renderFarm() {
+            const grid = document.getElementById('farm-grid');
+            grid.innerHTML = '';
+            state.plots.forEach((p, idx) => {
+                const el = document.createElement('div');
+                el.className = `plot ${p.status}`;
+
+                let content = '';
+                if (p.status === 'locked') {
+                    content = '<span class="text-4xl text-gray-400 opacity-50">🔒</span><span class="text-xs font-bold mt-2">需$800</span>';
+                } else if (p.status === 'empty') {
+                    content = '<span class="text-5xl opacity-20">🕳️</span>';
+                } else if (p.status === 'growing') {
+                    content = `<span class="text-4xl">🌱</span><div class="w-full px-4 mt-2"><div class="bg-white/50 h-2 rounded-full"><div class="bg-green-600 h-full rounded-full transition-all" style="width:${(p.growth/p.target)*100}%"></div></div></div>`;
+                } else if (p.status === 'ready') {
+                    content = `<span class="text-6xl">${cropsConfig[p.type].icon}</span><span class="text-xs font-black text-green-700 mt-2">採收</span>`;
+                } else if (p.status === 'pest') {
+                    content = `<span class="text-6xl">🐛</span><span class="text-xs font-black text-red-800 mt-2 bg-white/70 px-2 py-0.5 rounded shadow">蟲害毀收</span>`;
+                } else if (p.status === 'disaster') {
+                    content = `<span class="text-6xl">🌪️</span><span class="text-xs font-black text-blue-800 mt-2 bg-white/70 px-2 py-0.5 rounded shadow">天災毀收</span>`;
+                }
+
+                el.innerHTML = content;
+                el.onclick = (e) => handlePlotClick(idx, e);
+                grid.appendChild(el);
+            });
+        }
+
+        function getPricePerUnit(type) {
+            return Math.floor(cropsConfig[type].baseSellPrice * state.marketPriceIdx);
+        }
+
+        function updateUI() {
+            document.getElementById('turn-display').innerText = `回合: ${state.turn} / ${state.maxTurns}`;
+
+            const maintenance = state.landCount * 6;
+            document.getElementById('money-display').innerHTML = `<span>資金: $${state.money}</span><span class="text-xs text-red-600 font-normal">維護費: -$${maintenance}/回合</span>`;
+
+            document.getElementById('tech-display').innerText = state.tech;
+            document.getElementById('tech-bar').style.width = `${Math.min(state.tech, 100)}%`;
+
+            const intlCfg = intlConfigs[state.intlStatus];
+            const intlDisplay = document.getElementById('intl-status-display');
+            intlDisplay.innerText = intlCfg.text;
+            intlDisplay.className = `text-sm px-2 py-0.5 rounded-full font-bold ${intlCfg.bg} ${intlCfg.textc} border ${intlCfg.border}`;
+
+            const marketDisplay = document.getElementById('market-price-display');
+            let displayIdx = state.marketPriceIdx;
+            if (state.reservePolicy && displayIdx < 0.8) displayIdx = 0.8;
+
+            marketDisplay.innerText = `市價指數: ${displayIdx.toFixed(1)}x`;
+            if (displayIdx > 1.2) marketDisplay.className = "text-3xl font-bold text-red-500 game-font";
+            else if (displayIdx < 0.9) marketDisplay.className = "text-3xl font-bold text-blue-500 game-font";
+            else marketDisplay.className = "text-3xl font-bold text-green-600 game-font";
+
+            ['cabbage', 'carrot', 'potato'].forEach(type => {
+                document.getElementById(`inv-${type}`).innerText = state.inventory[type];
+                document.getElementById(`price-${type}`).innerText = `$${getPricePerUnit(type)}/箱`;
+            });
+
+            const redline = (state.landCount / state.maxLand) * 100;
+            const rd = document.getElementById('redline-display');
+            rd.innerText = `耕地紅線: ${Math.round(redline)}% ${redline < 60 ? '⚠️' : ''}`;
+            rd.style.color = redline < 60 ? '#ef4444' : '#dc2626';
+
+            if (state.turn > state.maxTurns) endGame("任期屆滿，經營總結");
+        }
+
+        function handlePlotClick(idx, e) {
+            const p = state.plots[idx];
+            if (p.status === 'locked') {
+                if (state.money >= 800) {
+                    state.money -= 800;
+                    p.status = 'empty';
+                    state.landCount++;
+                    renderFarm();
+                    updateUI();
+                }
+                return;
+            }
+
+            if (p.status === 'empty') {
+                const config = cropsConfig[state.activeCrop];
+                let cost = config.seedCost;
+
+                if (state.seedType === 'foreign') {
+                    cost = Math.floor(cost * 1.8);
+                    if (state.embargoTurns > 0) cost = Math.floor(cost * 4.0);
+                }
+                if (state.energyCrisis) cost += 25;
+
+                if (state.money >= cost) {
+                    state.money -= cost;
+
+                    if (state.seedType === 'foreign') state.foreignDependence += 1;
+                    else state.foreignDependence = Math.max(0, state.foreignDependence - 0.5);
+
+                    p.status = 'growing';
+                    p.type = state.activeCrop;
+                    p.growth = 0;
+                    p.target = config.time;
+                    p.seed = state.seedType;
+                    showFloatingText(e.clientX, e.clientY, `-$${cost}`, 'red');
+                    renderFarm();
+                    updateUI();
+                } else showMessage("💰 資金不足", `種植 ${config.name} 需要 $${cost}。`);
+            } else if (p.status === 'ready') {
+                const config = cropsConfig[p.type];
+                let yieldAmount = config.baseYield;
+
+                if (p.seed === 'foreign') yieldAmount = Math.floor(yieldAmount * 1.6);
+                if (state.tech >= 50) yieldAmount = Math.floor(yieldAmount * 1.2);
+
+                state.inventory[p.type] += yieldAmount;
+                p.status = 'empty';
+                showFloatingText(e.clientX, e.clientY, `+${yieldAmount} 箱`, 'green');
+                renderFarm();
+                updateUI();
+            } else if (p.status === 'pest' || p.status === 'disaster') {
+                p.status = 'empty';
+                showFloatingText(e.clientX, e.clientY, `收成 0`, 'red');
+                renderFarm();
+                updateUI();
+            }
+        }
+
+        function nextTurn() {
+            if (state.isGameOver) return;
+            state.turn++;
+
+            const maintenance = state.landCount * 6;
+            state.money -= maintenance;
+
+            if (state.money < 0) {
+                endGame("國家經濟安全破產：無力支付農地維護費，農場被銀行強制拍賣。");
+                return;
+            }
+
+            if (state.embargoTurns > 0) state.embargoTurns--;
+
+            if (Math.random() < 0.2) {
+                const roll = Math.random();
+                if (roll < 0.5) state.intlStatus = 0;
+                else if (roll < 0.8) state.intlStatus = 1;
+                else state.intlStatus = 2;
+            }
+
+            if (state.intlStatus === 0) {
+                state.marketPriceIdx = 0.8 + Math.random() * 0.4;
+            } else if (state.intlStatus === 1) {
+                state.marketPriceIdx = 0.5 + Math.random() * 0.6;
+            } else {
+                state.marketPriceIdx = 0.3 + Math.random() * 1.5;
+            }
+
+            if (state.reservePolicy && state.marketPriceIdx < 0.8) {
+                state.marketPriceIdx = 0.8;
+            }
+
+            state.plots.forEach(p => {
+                if (p.status === 'growing') {
+                    let pestChance = p.seed === 'local' ? 0.01 : 0.03;
+                    let disasterChance = 0.02;
+
+                    let roll = Math.random();
+                    if (roll < pestChance) {
+                        p.status = 'pest';
+                    } else if (roll < pestChance + disasterChance) {
+                        p.status = 'disaster';
+                    } else {
+                        p.growth++;
+                        if (p.growth >= p.target) p.status = 'ready';
+                    }
+                }
+            });
+
+            const currentEvent = triggerEvent();
+            showMessage(`【第 ${state.turn} 回合】\n${currentEvent.title}`, currentEvent.body, currentEvent.icon);
+
+            document.getElementById('news-text').innerText = newsPool[Math.floor(Math.random() * newsPool.length)];
+            renderFarm();
+            updateUI();
+        }
+
+        function triggerEvent() {
+            let eventData = { title: "風調雨順", body: "本回合沒有特殊的突發狀況，市場與氣候皆穩定，請安心務農。", icon: "🌤️" };
+            const roll = Math.random();
+            state.energyCrisis = false;
+
+            if (state.foreignDependence > 3 && roll < 0.4 && state.embargoTurns === 0 && state.intlStatus > 0) {
+                state.embargoTurns = 3;
+                return { title: "貿易制裁警報", body: "國際局勢惡化，外國對我國實施種子禁運！外購種子成本暴增 4 倍，持續 3 回合！", icon: "🚫" };
+            }
+            if (state.intlStatus === 2 && roll < 0.3) {
+                state.energyCrisis = true;
+                return { title: "戰爭能源危機", body: "區域戰爭導致全球油價與物流成本失控，下回合所有種植成本上升 $25！", icon: "🛢️" };
+            }
+            if (roll < 0.1 && state.intlStatus === 0) {
+                state.marketPriceIdx = 1.4;
+                return { title: "貿易繁榮大滿單", body: "全球化紅利顯現，海外訂單爆滿，本回合所有作物賣價大幅上漲！", icon: "📈" };
+            }
+
+            const rand = Math.random();
+            if (rand < 0.15) {
+                state.money += 200;
+                return { title: "國家農業補貼", body: "為鼓勵農業生產，國家發放了 $200 的專項農業補貼至你的帳戶！", icon: "🏛️" };
+            } else if (rand < 0.30) {
+                let growingPlots = state.plots.filter(p => p.status === 'growing');
+                if (growingPlots.length > 0) {
+                    let target = growingPlots[Math.floor(Math.random() * growingPlots.length)];
+                    target.status = 'disaster';
+                    return { title: "突發極端氣候", body: "狂風暴雨無情襲擊了菜園，部分正在生長的作物不幸被摧毀了！", icon: "🌪️" };
+                }
+            } else if (rand < 0.45) {
+                let growingPlots = state.plots.filter(p => p.status === 'growing');
+                if (growingPlots.length > 0) {
+                    let target = growingPlots[Math.floor(Math.random() * growingPlots.length)];
+                    target.status = 'pest';
+                    return { title: "蟲害無預警蔓延", body: "不知名的害蟲突然在菜園中大量繁殖，造成部分作物受損！", icon: "🐛" };
+                }
+            } else if (rand < 0.60) {
+                state.tech += 5;
+                return { title: "農業科研突破", body: "本地農研所與你分享了最新的育種技術，你的農業科技值免費提升了 5 點！", icon: "🔬" };
+            } else if (rand < 0.75) {
+                let growingPlots = state.plots.filter(p => p.status === 'growing');
+                if (growingPlots.length > 0) {
+                    growingPlots.forEach(p => {
+                        p.growth++;
+                        if (p.growth >= p.target) p.status = 'ready';
+                    });
+                    return { title: "氣候適宜大豐收", body: "近期的陽光與雨水非常完美，田裡所有的作物生長速度都加快了！", icon: "✨" };
+                }
+            }
+
+            return eventData;
+        }
+
+        function selectCrop(type) {
+            state.activeCrop = type;
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => btn.classList.remove('btn-selected'));
+            document.getElementById(`btn-${type}`).classList.add('btn-selected');
+        }
+
+        function setSeed(type) {
+            state.seedType = type;
+            document.getElementById('seed-f').classList.toggle('bg-orange-100', type === 'foreign');
+            document.getElementById('seed-l').classList.toggle('bg-green-100', type === 'local');
+            document.getElementById('seed-f').classList.toggle('border-orange-600', type === 'foreign');
+            document.getElementById('seed-l').classList.toggle('border-green-600', type === 'local');
+        }
+
+        function sellCrop(type) {
+            const count = state.inventory[type];
+            const config = cropsConfig[type];
+
+            if (count > 0) {
+                const pricePerUnit = getPricePerUnit(type);
+                const totalGain = count * pricePerUnit;
+
+                state.money += totalGain;
+                state.inventory[type] = 0;
+
+                updateUI();
+                showMessage("💰 交易成功", `以單價 $${pricePerUnit} 成功賣出 ${count} 箱【${config.name}】，共獲利 $${totalGain}！\n(請記得預留每回合的農田維護費)`);
+            } else {
+                showMessage("📦 庫存空空", `倉庫裡沒有【${config.name}】可以賣出，請先去菜園採收！`, "🤔");
+            }
+        }
+
+        function investTech() {
+            if (state.money >= 500) {
+                state.money -= 500;
+                state.tech += 10;
+                if (state.tech === 50) showMessage("科技安全達成", "你研發了高效育種與抗災技術，徹底打破外國技術壁壘，所有產量永久提升 20%！", "🔬");
+                updateUI();
+            } else showMessage("💰 資金不足", "推動農業科技自強需要 $500。");
+        }
+
+        function handleSellLand() {
+            showConfirm("賣地建樓可得 $1500。但這將永久減少你的生產規模，並觸碰國家糧食安全紅線！確定嗎？", () => {
+                state.money += 1500;
+                state.landCount--;
+                const activePlots = state.plots.filter(p => p.status !== 'locked');
+                if (activePlots.length > 0) {
+                    activePlots[activePlots.length-1].status = 'locked';
+                    activePlots[activePlots.length-1].growth = 0;
+                }
+
+                if ((state.landCount / state.maxLand) <= 0.5) {
+                    endGame("觸碰國安紅線：你非法倒賣過多耕地，嚴重威脅國家糧食安全，已被執法部門查處沒收農場！");
+                } else if (Math.random() < 0.5) {
+                    const fine = 800;
+                    state.money -= fine;
+                    showMessage("⚖️ 違規用地處罰", `因未經審批改變耕地用途，遭國土部門重罰 $${fine}！請守住耕地紅線！`, "🚨");
+                }
+                renderFarm();
+                updateUI();
+            });
+        }
+
+        function buyPolicy(type) {
+            if (type === 'reserve' && state.money >= 600) {
+                state.money -= 600;
+                state.reservePolicy = true;
+                const btn = document.getElementById('policy-reserve');
+                btn.innerText = "計畫已啟動 (保底0.8x)";
+                btn.disabled = true;
+                btn.className = "w-full py-2 text-sm bg-gray-300 text-gray-600 rounded-xl cursor-not-allowed border-2";
+                updateUI();
+            } else if (type === 'reserve') {
+                showMessage("💰 資金不足", "啟動國家糧食收儲計畫需要 $600。");
+            }
+        }
+
+        function showMessage(title, body, icon = '📢') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerText = body;
+            document.getElementById('modal-icon').innerText = icon;
+            document.getElementById('game-modal').classList.remove('hidden');
+            document.getElementById('game-modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('game-modal').classList.add('hidden');
+            document.getElementById('game-modal').style.display = 'none';
+            if (state.isGameOver) {
+                // Don't reload - show end screen with submit option
+            }
+        }
+
+        function showConfirm(message, onConfirm) {
+            document.getElementById('confirm-body').innerText = message;
+            const yesBtn = document.getElementById('confirm-yes-btn');
+            yesBtn.onclick = () => {
+                closeConfirmModal();
+                onConfirm();
+            };
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+        }
+
+        function showFloatingText(x, y, text, color) {
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            el.style.color = color === 'red' ? '#ef4444' : '#22c55e';
+            el.innerText = text;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function endGame(reason) {
+            state.isGameOver = true;
+            document.getElementById('main-game').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            const score = state.money + (state.tech * 25) + (state.landCount * 100);
+            document.getElementById('final-stats').innerHTML = `
+                👨‍🌾 農夫姓名：${state.name}<br>
+                📉 結束原因：${reason}<br>
+                💰 最終資金：$${state.money}<br>
+                🔬 科技等級：${state.tech}<br>
+                🌳 剩餘耕地：${state.landCount} 塊<br>
+                <div class="text-4xl mt-6 text-green-600 font-bold">總分：${score}</div>
+            `;
+
+            // Load leaderboard on end screen
+            loadEndLeaderboard();
+        }
+    </script>
+</body>
+</html>

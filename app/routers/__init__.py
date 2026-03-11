@@ -47,6 +47,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.attendance import router as attendance_router
     from app.routers.school_learning_center import router as school_learning_center_router
     from app.routers.trade_game import trade_game_router
+    from app.routers.farm_game import farm_game_router
     from app.routers.assignment import router as assignment_router
     from app.routers.class_diary import router as class_diary_router
 
@@ -71,6 +72,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(attendance_router)
     app.include_router(school_learning_center_router)
     app.include_router(trade_game_router)
+    app.include_router(farm_game_router)
     app.include_router(assignment_router)
     app.include_router(class_diary_router)
 
@@ -454,6 +456,13 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_trade_game_system()
     except Exception as e:
         logger.warning("全球貿易大亨系統初始化失敗: %s", e)
+
+    # 初始化神州菜園經營家系統
+    try:
+        from app.routers.farm_game import init_farm_game_system
+        init_farm_game_system()
+    except Exception as e:
+        logger.warning("神州菜園經營家系統初始化失敗: %s", e)
 
     # 初始化課室日誌系統
     try:

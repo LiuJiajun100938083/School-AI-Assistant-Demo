@@ -84,6 +84,7 @@ from app.domains.assignment.plagiarism_repository import (
 )
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
+from app.domains.farm_game.repository import FarmGameRepository
 from app.domains.class_diary.repository import (
     ClassDiaryEntryRepository,
     ClassDiaryReviewerRepository,
@@ -123,6 +124,7 @@ from app.domains.ai_learning_center.service import LearningCenterService
 from app.domains.school_learning_center.service import SchoolLearningCenterService
 from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
+from app.domains.farm_game.service import FarmGameService
 from app.domains.assignment.service import AssignmentService
 from app.domains.assignment.plagiarism_service import PlagiarismService
 from app.domains.class_diary.service import ClassDiaryService
@@ -173,6 +175,7 @@ class ServiceContainer:
         self._school_learning_center: Optional[SchoolLearningCenterService] = None
         self._game_upload: Optional[GameUploadService] = None
         self._trade_game: Optional[TradeGameService] = None
+        self._farm_game: Optional[FarmGameService] = None
         self._assignment: Optional[AssignmentService] = None
         self._plagiarism: Optional[PlagiarismService] = None
         self._class_diary: Optional[ClassDiaryService] = None
@@ -352,6 +355,15 @@ class ServiceContainer:
                 score_repo=self._get_repo(TradeGameRepository),
             )
         return self._trade_game
+
+    @property
+    def farm_game(self) -> FarmGameService:
+        """神州菜園經營家遊戲服務"""
+        if self._farm_game is None:
+            self._farm_game = FarmGameService(
+                score_repo=self._get_repo(FarmGameRepository),
+            )
+        return self._farm_game
 
     @property
     def assignment(self) -> AssignmentService:
