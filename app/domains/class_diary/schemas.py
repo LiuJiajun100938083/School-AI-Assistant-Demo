@@ -20,9 +20,10 @@ class CreateEntryRequest(BaseModel):
     # 可選字段
     absent_students: Optional[str] = Field(default="", max_length=2000, description="缺席學生")
     late_students: Optional[str] = Field(default="", max_length=2000, description="遲到學生")
-    commended_students: Optional[str] = Field(default="", max_length=2000, description="值得嘉許的學生")
-    appearance_issues: Optional[str] = Field(default="", max_length=2000, description="儀表違規")
-    rule_violations: Optional[str] = Field(default="", max_length=2000, description="課堂違規")
+    commended_students: Optional[str] = Field(default="", max_length=5000, description="值得嘉許的學生 (JSON or plain text)")
+    appearance_issues: Optional[str] = Field(default="", max_length=5000, description="儀表違規 (JSON or plain text)")
+    rule_violations: Optional[str] = Field(default="", max_length=5000, description="課堂違規 (JSON or plain text)")
+    medical_room_students: Optional[str] = Field(default="", max_length=5000, description="醫務室 (JSON or plain text)")
 
     # 必填字段
     discipline_rating: int = Field(..., ge=1, le=5, description="紀律評級 1-5")
@@ -38,9 +39,10 @@ class UpdateEntryRequest(BaseModel):
     late_students: Optional[str] = Field(default=None, max_length=2000)
     discipline_rating: Optional[int] = Field(default=None, ge=1, le=5)
     cleanliness_rating: Optional[int] = Field(default=None, ge=1, le=5)
-    commended_students: Optional[str] = Field(default=None, max_length=2000)
-    appearance_issues: Optional[str] = Field(default=None, max_length=2000)
-    rule_violations: Optional[str] = Field(default=None, max_length=2000)
+    commended_students: Optional[str] = Field(default=None, max_length=5000)
+    appearance_issues: Optional[str] = Field(default=None, max_length=5000)
+    rule_violations: Optional[str] = Field(default=None, max_length=5000)
+    medical_room_students: Optional[str] = Field(default=None, max_length=5000)
     signature: Optional[str] = Field(default=None, min_length=10)
     period_start: Optional[int] = Field(default=None, ge=0, le=9)
     period_end: Optional[int] = Field(default=None, ge=0, le=9)
@@ -62,6 +64,7 @@ class EntryResponse(BaseModel):
     commended_students: Optional[str] = ""
     appearance_issues: Optional[str] = ""
     rule_violations: Optional[str] = ""
+    medical_room_students: Optional[str] = ""
     signature: Optional[str] = ""
     submitted_from: Optional[str] = ""
     created_at: Optional[datetime] = None

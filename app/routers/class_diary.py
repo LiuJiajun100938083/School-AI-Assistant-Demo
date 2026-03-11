@@ -55,6 +55,30 @@ def _get_service():
     return get_services().class_diary
 
 
+def _format_behavior_field(value: str) -> str:
+    """Format JSON behavior field for display, with backward compatibility.
+
+    New JSON format: [{"reason": "聊天", "students": ["張三", "李四"]}, ...]
+    Legacy format: plain text (comma/separator separated student names)
+    """
+    if not value or not value.strip():
+        return ""
+    try:
+        data = json.loads(value)
+        if isinstance(data, list):
+            parts = []
+            for item in data:
+                reason = item.get("reason", "")
+                students = item.get("students", [])
+                if students:
+                    joined = "、".join(students)
+                    parts.append(f"{reason}: {joined}" if reason else joined)
+            return "；".join(parts)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        pass
+    return value
+
+
 def _verify_request(request: Request):
     """從 JWT 提取 (username, role)"""
     from app.services.container import get_services
@@ -698,10 +722,15 @@ def _detect_anomalies(entries: list) -> list:
             if count > 3:
                 reasons.append(f"缺席人數多 ({count}人)")
 
-        if (e.get("rule_violations") or "").strip():
-            reasons.append(f"課堂違規: {e['rule_violations'][:60]}")
-        if (e.get("appearance_issues") or "").strip():
-            reasons.append(f"儀表問題: {e['appearance_issues'][:60]}")
+        violations_raw = (e.get("rule_violations") or "").strip()
+        if violations_raw:
+            reasons.append(f"課堂違規: {_format_behavior_field(violations_raw)[:80]}")
+        appearance_raw = (e.get("appearance_issues") or "").strip()
+        if appearance_raw:
+            reasons.append(f"儀表問題: {_format_behavior_field(appearance_raw)[:80]}")
+        medical_raw = (e.get("medical_room_students") or "").strip()
+        if medical_raw:
+            reasons.append(f"醫務室: {_format_behavior_field(medical_raw)[:80]}")
 
         if reasons:
             anomalies.append({
@@ -736,9 +765,10 @@ def _build_report_prompt(entries: list, anomalies: list, report_date: str) -> st
         for e in class_entries:
             absent = (e.get("absent_students") or "").strip()
             late = (e.get("late_students") or "").strip()
-            violations = (e.get("rule_violations") or "").strip()
-            appearance = (e.get("appearance_issues") or "").strip()
-            commended = (e.get("commended_students") or "").strip()
+            violations = _format_behavior_field((e.get("rule_violations") or "").strip())
+            appearance = _format_behavior_field((e.get("appearance_issues") or "").strip())
+            commended = _format_behavior_field((e.get("commended_students") or "").strip())
+            medical = _format_behavior_field((e.get("medical_room_students") or "").strip())
 
             detail = f"  節{e.get('period_start', '?')}-{e.get('period_end', '?')} {e.get('subject', '')} 紀律{e.get('discipline_rating', '?')} 整潔{e.get('cleanliness_rating', '?')}"
             if absent:
@@ -751,6 +781,8 @@ def _build_report_prompt(entries: list, anomalies: list, report_date: str) -> st
                 detail += f" 儀表:{appearance}"
             if commended:
                 detail += f" 嘉許:{commended}"
+            if medical:
+                detail += f" 醫務室:{medical}"
             lines.append(detail)
         lines.append("")
 
@@ -921,7 +953,7 @@ async def export_entries_csv(
         writer.writerow([
             "班級", "日期", "節數", "科目",
             "紀律", "整潔", "缺席學生", "遲到學生",
-            "嘉許學生", "儀表問題", "課堂違規",
+            "嘉許學生", "儀表問題", "課堂違規", "醫務室",
         ])
 
         for e in entries:
@@ -937,9 +969,10 @@ async def export_entries_csv(
                 e.get("cleanliness_rating", ""),
                 e.get("absent_students", ""),
                 e.get("late_students", ""),
-                e.get("commended_students", ""),
-                e.get("appearance_issues", ""),
-                e.get("rule_violations", ""),
+                _format_behavior_field(e.get("commended_students", "")),
+                _format_behavior_field(e.get("appearance_issues", "")),
+                _format_behavior_field(e.get("rule_violations", "")),
+                _format_behavior_field(e.get("medical_room_students", "")),
             ])
 
         csv_bytes = output.getvalue().encode("utf-8-sig")

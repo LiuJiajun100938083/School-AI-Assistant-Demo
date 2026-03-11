@@ -70,6 +70,7 @@ class ClassDiaryService:
             "commended_students": data.get("commended_students", ""),
             "appearance_issues": data.get("appearance_issues", ""),
             "rule_violations": data.get("rule_violations", ""),
+            "medical_room_students": data.get("medical_room_students", ""),
             "signature": data["signature"],
             "submitted_from": self._summarize_ua(user_agent),
         }

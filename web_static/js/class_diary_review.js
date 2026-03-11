@@ -228,8 +228,9 @@ function renderEntries(entries, classCode) {
                 <td><span class="mini-stars">${cleanStars}</span></td>
                 <td class="cell-text" title="${escapeHtml(e.absent_students || '')}">${escapeHtml(e.absent_students || '') || '—'}</td>
                 <td class="cell-text" title="${escapeHtml(e.late_students || '')}">${escapeHtml(e.late_students || '') || '—'}</td>
-                <td class="cell-text" title="${escapeHtml(e.commended_students || '')}">${escapeHtml(e.commended_students || '') || '—'}</td>
-                <td class="cell-text" title="${escapeHtml((e.appearance_issues || '') + ' ' + (e.rule_violations || ''))}">${escapeHtml(e.appearance_issues || e.rule_violations || '') || '—'}</td>
+                <td class="cell-text">${formatBehaviorField(e.commended_students) || '—'}</td>
+                <td class="cell-text">${[formatBehaviorField(e.rule_violations), formatBehaviorField(e.appearance_issues)].filter(Boolean).join('；') || '—'}</td>
+                <td class="cell-text">${formatBehaviorField(e.medical_room_students) || '—'}</td>
                 <td>${sigHtml}</td>
             </tr>
         `;
@@ -407,4 +408,30 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+
+/**
+ * Format a behavior field (commended/violations/medical) for display.
+ * Handles both new JSON format and legacy plain-text format.
+ */
+function formatBehaviorField(value) {
+    if (!value || !value.trim()) return '';
+    try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+            return parsed
+                .filter(item => item.students && item.students.length > 0)
+                .map(item => {
+                    const studentsStr = item.students.map(s => escapeHtml(s)).join('、');
+                    return item.reason
+                        ? `${escapeHtml(item.reason)}: ${studentsStr}`
+                        : studentsStr;
+                })
+                .join('；');
+        }
+    } catch (e) {
+        // Not JSON — legacy format
+    }
+    return escapeHtml(value);
 }

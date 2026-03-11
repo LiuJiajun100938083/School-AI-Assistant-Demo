@@ -172,7 +172,7 @@
         </div><!-- /attendanceBody -->
     </div>
 
-    <!-- Commendation & Violations Card (collapsible) -->
+    <!-- Commendation & Violations Card (collapsible) — Reason-First Flow -->
     <div class="card">
         <div class="card-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleCardSection('commendBody')">
             <span><span class="icon">📝</span> 嘉許與違規</span>
@@ -180,56 +180,55 @@
         </div>
         <div id="commendBody" style="display:none;">
 
-        <div class="form-group">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">值得嘉許的學生</label>
-                <select class="form-select" id="commendedClassSelect" style="width:auto; min-width:80px; padding:4px 8px; font-size:0.85rem;">
-                    <option value="">本班</option>
-                </select>
-            </div>
-            <div class="picker-wrap" id="wrap-commendedStudents">
-                <button type="button" class="picker-toggle" onclick="togglePicker('commendedStudents')">
-                    <span class="picker-toggle-text">點擊選擇學生</span>
-                    <span class="picker-toggle-arrow">▾</span>
-                </button>
-                <div class="student-picker collapsed" id="picker-commendedStudents"></div>
-            </div>
-            <textarea class="form-textarea" id="commendedStudents" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+        <!-- Tab Bar -->
+        <div class="behavior-tabs">
+            <button type="button" class="behavior-tab active" data-category="praise" onclick="switchBehaviorTab('praise')">
+                表揚 <span class="tab-badge" id="badge-praise" style="display:none;">0</span>
+            </button>
+            <button type="button" class="behavior-tab" data-category="classroom" onclick="switchBehaviorTab('classroom')">
+                課堂違規 <span class="tab-badge" id="badge-classroom" style="display:none;">0</span>
+            </button>
+            <button type="button" class="behavior-tab" data-category="appearance" onclick="switchBehaviorTab('appearance')">
+                儀表 <span class="tab-badge" id="badge-appearance" style="display:none;">0</span>
+            </button>
+            <button type="button" class="behavior-tab" data-category="medical" onclick="switchBehaviorTab('medical')">
+                醫務室 <span class="tab-badge" id="badge-medical" style="display:none;">0</span>
+            </button>
         </div>
 
-        <div class="form-group">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">儀表違規</label>
-                <select class="form-select" id="appearanceClassSelect" style="width:auto; min-width:80px; padding:4px 8px; font-size:0.85rem;">
-                    <option value="">本班</option>
-                </select>
-            </div>
-            <div class="picker-wrap" id="wrap-appearanceIssues">
-                <button type="button" class="picker-toggle" onclick="togglePicker('appearanceIssues')">
-                    <span class="picker-toggle-text">點擊選擇學生</span>
-                    <span class="picker-toggle-arrow">▾</span>
-                </button>
-                <div class="student-picker collapsed" id="picker-appearanceIssues"></div>
-            </div>
-            <textarea class="form-textarea" id="appearanceIssues" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+        <!-- Hint Banner -->
+        <div class="behavior-hint" id="behaviorHint">
+            <span class="hint-icon">👆</span>
+            <span class="hint-text">請先選擇原因，再點選學生姓名</span>
         </div>
 
-        <div class="form-group">
+        <!-- Reason Chips -->
+        <div class="reason-chips" id="reasonChips"></div>
+
+        <!-- Student Picker (hidden until reason selected) -->
+        <div class="behavior-student-section collapsed" id="behaviorStudentSection">
+            <div class="selected-reason-bar" id="selectedReasonBar">
+                <span>已選原因：<strong id="selectedReasonText"></strong></span>
+                <button type="button" class="btn-cancel-reason" onclick="cancelReasonSelection()">取消</button>
+            </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">課堂違規</label>
-                <select class="form-select" id="ruleViolationsClassSelect" style="width:auto; min-width:80px; padding:4px 8px; font-size:0.85rem;">
+                <label class="form-label" style="margin-bottom:0;">選擇學生</label>
+                <select class="form-select" id="behaviorClassSelect" style="width:auto; min-width:80px; padding:4px 8px; font-size:0.85rem;">
                     <option value="">本班</option>
                 </select>
             </div>
-            <div class="picker-wrap" id="wrap-ruleViolations">
-                <button type="button" class="picker-toggle" onclick="togglePicker('ruleViolations')">
-                    <span class="picker-toggle-text">點擊選擇學生</span>
-                    <span class="picker-toggle-arrow">▾</span>
-                </button>
-                <div class="student-picker collapsed" id="picker-ruleViolations"></div>
-            </div>
-            <textarea class="form-textarea" id="ruleViolations" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+            <div class="student-picker" id="behaviorStudentPicker"></div>
         </div>
+
+        <!-- Summary -->
+        <div class="behavior-summary" id="behaviorSummary" style="display:none;"></div>
+
+        <!-- Hidden textareas for form submission -->
+        <textarea id="commendedStudents" style="display:none;"></textarea>
+        <textarea id="appearanceIssues" style="display:none;"></textarea>
+        <textarea id="ruleViolations" style="display:none;"></textarea>
+        <textarea id="medicalRoomStudents" style="display:none;"></textarea>
+
         </div><!-- /commendBody -->
     </div>
 

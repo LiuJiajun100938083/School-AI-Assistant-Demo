@@ -31,13 +31,10 @@ const state = {
 // 學生列表（從 API 載入）
 let classStudents = [];
 
-// 需要學生選擇器的 textarea 列表
+// 需要學生選擇器的 textarea 列表（僅考勤用舊模式）
 const PICKER_FIELDS = [
     'absentStudents',
     'lateStudents',
-    'commendedStudents',
-    'appearanceIssues',
-    'ruleViolations',
 ];
 
 /* ============================================================
@@ -94,6 +91,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
+        // 重置行為記錄的班級選擇和狀態
+        const behaviorClassEl = document.getElementById('behaviorClassSelect');
+        if (behaviorClassEl) behaviorClassEl.value = '';
+        resetBehaviorState();
     });
 
     // 各欄位班級切換事件
@@ -114,6 +115,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 初始化簽名板
     initSignaturePad();
+
+    // 初始化行為記錄
+    renderReasonChips();
+    document.getElementById('behaviorClassSelect')?.addEventListener('change', function () {
+        loadBehaviorStudents(this.value || state.classCode);
+    });
 });
 
 
@@ -168,13 +175,10 @@ async function loadClasses(urlClass, dateStr) {
  */
 let allClasses = [];  // 所有班級列表（loadClasses 時緩存）
 
-// 各欄位對應的班級選擇器 ID 和獨立學生列表
+// 各欄位對應的班級選擇器 ID 和獨立學生列表（僅考勤用舊模式）
 const FIELD_CLASS_SELECTS = {
     absentStudents:   'absentClassSelect',
     lateStudents:     'lateClassSelect',
-    commendedStudents:'commendedClassSelect',
-    appearanceIssues: 'appearanceClassSelect',
-    ruleViolations:   'ruleViolationsClassSelect',
 };
 const fieldStudents = {}; // { fieldId: [student, ...] }
 
@@ -197,6 +201,17 @@ function populateAllClassSelects() {
             select.appendChild(opt);
         });
     });
+    // 行為記錄班級選擇器
+    const behaviorSelect = document.getElementById('behaviorClassSelect');
+    if (behaviorSelect) {
+        behaviorSelect.innerHTML = '<option value="">本班</option>';
+        sameGrade.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.class_code;
+            opt.textContent = c.class_name || c.class_code;
+            behaviorSelect.appendChild(opt);
+        });
+    }
 }
 
 async function loadFieldStudents(fieldId, classCode) {
@@ -525,6 +540,9 @@ async function loadStudents() {
             // 所有欄位默認使用本班學生
             PICKER_FIELDS.forEach(f => { fieldStudents[f] = data.data; });
             renderAllPickers();
+            // 行為記錄學生列表
+            behaviorState.behaviorStudents = data.data;
+            if (behaviorState.selectedReason) renderBehaviorStudents();
         }
     } catch (err) {
         console.warn('載入學生列表失敗:', err);
@@ -704,6 +722,7 @@ async function submitForm() {
         commended_students: document.getElementById('commendedStudents').value.trim(),
         appearance_issues: document.getElementById('appearanceIssues').value.trim(),
         rule_violations: document.getElementById('ruleViolations').value.trim(),
+        medical_room_students: document.getElementById('medicalRoomStudents').value.trim(),
         signature: state.signatureData,
     };
 
@@ -816,6 +835,10 @@ function continueRating() {
     document.getElementById('commendedStudents').value = '';
     document.getElementById('appearanceIssues').value = '';
     document.getElementById('ruleViolations').value = '';
+    document.getElementById('medicalRoomStudents').value = '';
+
+    // 重置行為記錄
+    resetBehaviorState();
 
     // 重置評分
     setStarRating('discipline', 0);
@@ -838,4 +861,340 @@ function continueRating() {
 
     // 滾動到頂部
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+
+/* ============================================================
+   行為記錄 — Reason-First Flow
+   ============================================================ */
+
+const BEHAVIOR_REASONS = {
+    praise: ['上課積極', '勇於回答問題', '認真聽講', '樂於助人', '表現出色', '主動學習'],
+    classroom: ['聊天', '不認真', '嬉戲打鬧', '擾亂課堂秩序', '睡覺', '使用手機', '違規使用iPad'],
+    appearance: ['領帶不整', '未將恤衫塞入西褲', '未穿校鞋', '校褸不整', '頭髮過長/染髮', '未穿整齊校服'],
+    medical: ['頭痛', '肚痛', '受傷', '身體不適', '發燒'],
+};
+
+const CATEGORY_FIELD_MAP = {
+    praise: 'commendedStudents',
+    classroom: 'ruleViolations',
+    appearance: 'appearanceIssues',
+    medical: 'medicalRoomStudents',
+};
+
+const CATEGORY_LABELS = {
+    praise: '表揚',
+    classroom: '課堂違規',
+    appearance: '儀表違規',
+    medical: '醫務室',
+};
+
+const behaviorState = {
+    activeTab: 'praise',
+    selectedReason: null,
+    assignments: { praise: [], classroom: [], appearance: [], medical: [] },
+    behaviorStudents: [],
+};
+
+/* ---------- Tab 切換 ---------- */
+function switchBehaviorTab(category) {
+    behaviorState.activeTab = category;
+    behaviorState.selectedReason = null;
+
+    document.querySelectorAll('.behavior-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.category === category);
+    });
+
+    renderReasonChips();
+    hideBehaviorStudentPicker();
+    updateBehaviorHint();
+}
+
+/* ---------- 原因標籤 ---------- */
+function renderReasonChips() {
+    const container = document.getElementById('reasonChips');
+    if (!container) return;
+    const category = behaviorState.activeTab;
+    const reasons = BEHAVIOR_REASONS[category];
+
+    container.innerHTML = '';
+    reasons.forEach(reason => {
+        const chip = document.createElement('span');
+        chip.className = 'reason-chip';
+        chip.dataset.category = category;
+        chip.textContent = reason;
+
+        const assignment = behaviorState.assignments[category].find(a => a.reason === reason);
+        if (assignment && assignment.students.length > 0) {
+            chip.classList.add('has-students');
+        }
+        if (behaviorState.selectedReason === reason) {
+            chip.classList.add('selected-' + category);
+        }
+
+        chip.addEventListener('click', () => selectReason(reason));
+        container.appendChild(chip);
+    });
+}
+
+/* ---------- 選擇/取消原因 ---------- */
+function selectReason(reason) {
+    if (behaviorState.selectedReason === reason) {
+        cancelReasonSelection();
+        return;
+    }
+    behaviorState.selectedReason = reason;
+    renderReasonChips();
+    showBehaviorStudentPicker();
+    updateBehaviorHint();
+}
+
+function cancelReasonSelection() {
+    behaviorState.selectedReason = null;
+    renderReasonChips();
+    hideBehaviorStudentPicker();
+    updateBehaviorHint();
+}
+
+/* ---------- 學生選擇器 ---------- */
+function showBehaviorStudentPicker() {
+    const section = document.getElementById('behaviorStudentSection');
+    section.classList.remove('collapsed');
+
+    document.getElementById('selectedReasonText').textContent = behaviorState.selectedReason;
+
+    // 設置 bar 顏色
+    const bar = document.getElementById('selectedReasonBar');
+    bar.className = 'selected-reason-bar bar-' + behaviorState.activeTab;
+
+    renderBehaviorStudents();
+}
+
+function hideBehaviorStudentPicker() {
+    const section = document.getElementById('behaviorStudentSection');
+    section.classList.add('collapsed');
+}
+
+function renderBehaviorStudents() {
+    const picker = document.getElementById('behaviorStudentPicker');
+    if (!picker) return;
+    const category = behaviorState.activeTab;
+    const reason = behaviorState.selectedReason;
+    if (!reason) return;
+
+    const students = behaviorState.behaviorStudents.length > 0
+        ? behaviorState.behaviorStudents
+        : classStudents;
+
+    const assignment = behaviorState.assignments[category].find(a => a.reason === reason);
+    const selectedNames = assignment ? assignment.students : [];
+
+    picker.innerHTML = '';
+    students.forEach(s => {
+        const name = s.display_name;
+        const chip = document.createElement('span');
+        chip.className = 'student-chip' + (selectedNames.includes(name) ? ' selected-' + category : '');
+        chip.textContent = name;
+        chip.addEventListener('click', () => toggleBehaviorStudent(category, reason, name));
+        picker.appendChild(chip);
+    });
+}
+
+/* ---------- 切換學生 ---------- */
+function toggleBehaviorStudent(category, reason, studentName) {
+    let assignment = behaviorState.assignments[category].find(a => a.reason === reason);
+
+    if (!assignment) {
+        assignment = { reason, students: [] };
+        behaviorState.assignments[category].push(assignment);
+    }
+
+    const idx = assignment.students.indexOf(studentName);
+    if (idx >= 0) {
+        assignment.students.splice(idx, 1);
+    } else {
+        // 防重複
+        if (!assignment.students.includes(studentName)) {
+            assignment.students.push(studentName);
+        }
+    }
+
+    // 移除空記錄
+    if (assignment.students.length === 0) {
+        const aIdx = behaviorState.assignments[category].indexOf(assignment);
+        behaviorState.assignments[category].splice(aIdx, 1);
+    }
+
+    renderBehaviorStudents();
+    renderReasonChips();
+    updateBehaviorSummary();
+    updateBehaviorBadges();
+    serializeBehaviorToTextareas();
+}
+
+/* ---------- 引導提示 ---------- */
+function updateBehaviorHint() {
+    const hint = document.getElementById('behaviorHint');
+    if (!hint) return;
+    const category = behaviorState.activeTab;
+
+    hint.classList.remove('active-praise', 'active-classroom', 'active-appearance', 'active-medical');
+
+    if (behaviorState.selectedReason) {
+        hint.classList.add('active-' + category);
+        hint.querySelector('.hint-icon').textContent = '✏️';
+        hint.querySelector('.hint-text').textContent =
+            `已選原因「${behaviorState.selectedReason}」，請點選相關學生`;
+    } else {
+        hint.querySelector('.hint-icon').textContent = '👆';
+        hint.querySelector('.hint-text').textContent = '請先選擇原因，再點選學生姓名';
+    }
+}
+
+/* ---------- Tab 徽章 ---------- */
+function updateBehaviorBadges() {
+    ['praise', 'classroom', 'appearance', 'medical'].forEach(cat => {
+        const total = behaviorState.assignments[cat].reduce((sum, a) => sum + a.students.length, 0);
+        const badge = document.getElementById('badge-' + cat);
+        if (!badge) return;
+        if (total > 0) {
+            badge.textContent = total;
+            badge.style.display = '';
+        } else {
+            badge.style.display = 'none';
+        }
+    });
+}
+
+/* ---------- 摘要區 ---------- */
+function updateBehaviorSummary() {
+    const container = document.getElementById('behaviorSummary');
+    if (!container) return;
+
+    const allEmpty = ['praise', 'classroom', 'appearance', 'medical']
+        .every(cat => behaviorState.assignments[cat].length === 0);
+
+    if (allEmpty) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = '';
+    let html = '';
+
+    ['praise', 'classroom', 'appearance', 'medical'].forEach(cat => {
+        const assignments = behaviorState.assignments[cat];
+        if (assignments.length === 0) return;
+
+        html += `<div class="summary-category-label ${cat}">${CATEGORY_LABELS[cat]}:</div>`;
+        assignments.forEach(a => {
+            const studentTags = a.students.map(s =>
+                `<span class="summary-student-tag">${escapeHtmlBehavior(s)}<span class="summary-remove" onclick="removeBehaviorStudent('${cat}','${escapeAttr(a.reason)}','${escapeAttr(s)}')">&times;</span></span>`
+            ).join('');
+
+            html += `<div class="summary-item">
+                <span class="summary-reason" onclick="jumpToReason('${cat}','${escapeAttr(a.reason)}')">${escapeHtmlBehavior(a.reason)}:</span>
+                <span class="summary-students">${studentTags}</span>
+                <span class="summary-delete-reason" onclick="removeBehaviorReason('${cat}','${escapeAttr(a.reason)}')">[刪除]</span>
+            </div>`;
+        });
+    });
+
+    container.innerHTML = html;
+}
+
+/* ---------- 摘要操作 ---------- */
+function removeBehaviorStudent(cat, reason, student) {
+    const assignment = behaviorState.assignments[cat].find(a => a.reason === reason);
+    if (!assignment) return;
+
+    const idx = assignment.students.indexOf(student);
+    if (idx >= 0) assignment.students.splice(idx, 1);
+
+    if (assignment.students.length === 0) {
+        const aIdx = behaviorState.assignments[cat].indexOf(assignment);
+        behaviorState.assignments[cat].splice(aIdx, 1);
+    }
+
+    renderReasonChips();
+    if (behaviorState.selectedReason === reason && behaviorState.activeTab === cat) {
+        renderBehaviorStudents();
+    }
+    updateBehaviorSummary();
+    updateBehaviorBadges();
+    serializeBehaviorToTextareas();
+}
+
+function removeBehaviorReason(cat, reason) {
+    behaviorState.assignments[cat] = behaviorState.assignments[cat].filter(a => a.reason !== reason);
+
+    renderReasonChips();
+    if (behaviorState.selectedReason === reason && behaviorState.activeTab === cat) {
+        cancelReasonSelection();
+    }
+    updateBehaviorSummary();
+    updateBehaviorBadges();
+    serializeBehaviorToTextareas();
+}
+
+function jumpToReason(cat, reason) {
+    switchBehaviorTab(cat);
+    selectReason(reason);
+}
+
+/* ---------- 序列化 ---------- */
+function serializeBehaviorToTextareas() {
+    ['praise', 'classroom', 'appearance', 'medical'].forEach(cat => {
+        const fieldId = CATEGORY_FIELD_MAP[cat];
+        const textarea = document.getElementById(fieldId);
+        if (!textarea) return;
+
+        const data = behaviorState.assignments[cat].filter(a => a.students.length > 0);
+        textarea.value = data.length === 0 ? '' : JSON.stringify(data);
+    });
+}
+
+/* ---------- 跨班學生載入 ---------- */
+async function loadBehaviorStudents(classCode) {
+    try {
+        const resp = await fetch(`/api/class-diary/students/${encodeURIComponent(classCode)}`);
+        const data = await resp.json();
+        if (data.success && data.data) {
+            behaviorState.behaviorStudents = data.data;
+            if (behaviorState.selectedReason) renderBehaviorStudents();
+        }
+    } catch (err) {
+        console.warn('載入行為學生列表失敗:', err);
+    }
+}
+
+/* ---------- 重置 ---------- */
+function resetBehaviorState() {
+    behaviorState.selectedReason = null;
+    behaviorState.assignments = { praise: [], classroom: [], appearance: [], medical: [] };
+    behaviorState.activeTab = 'praise';
+
+    document.querySelectorAll('.behavior-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.category === 'praise');
+    });
+
+    renderReasonChips();
+    hideBehaviorStudentPicker();
+    updateBehaviorHint();
+    updateBehaviorSummary();
+    updateBehaviorBadges();
+    serializeBehaviorToTextareas();
+}
+
+/* ---------- 工具函數 ---------- */
+function escapeHtmlBehavior(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function escapeAttr(str) {
+    if (!str) return '';
+    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }

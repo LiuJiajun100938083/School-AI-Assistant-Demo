@@ -663,6 +663,262 @@ body {
     to { transform: rotate(360deg); }
 }
 
+/* ============================================================
+   行為記錄 — Tab + Reason-First Flow
+   ============================================================ */
+
+/* ===== Tabs ===== */
+.behavior-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.behavior-tab {
+    flex: 1;
+    padding: 7px 2px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary, #6E6E73);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color .15s, background .15s, color .15s;
+    white-space: nowrap;
+}
+
+.behavior-tab.active[data-category="praise"] {
+    border-color: var(--brand);
+    background: var(--brand-light, #E8F5EC);
+    color: var(--brand);
+}
+.behavior-tab.active[data-category="classroom"] {
+    border-color: #FF9500;
+    background: #FFF8F0;
+    color: #CC7700;
+}
+.behavior-tab.active[data-category="appearance"] {
+    border-color: #FF3B30;
+    background: #FFF0F0;
+    color: #CC2E26;
+}
+.behavior-tab.active[data-category="medical"] {
+    border-color: #007AFF;
+    background: #F0F6FF;
+    color: #0055CC;
+}
+
+/* ===== Tab badge ===== */
+.tab-badge {
+    display: inline-block;
+    margin-left: 2px;
+    padding: 0 5px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+    min-width: 16px;
+    text-align: center;
+    color: #fff;
+}
+.behavior-tab[data-category="praise"] .tab-badge { background: var(--brand); }
+.behavior-tab[data-category="classroom"] .tab-badge { background: #FF9500; }
+.behavior-tab[data-category="appearance"] .tab-badge { background: #FF3B30; }
+.behavior-tab[data-category="medical"] .tab-badge { background: #007AFF; }
+
+/* ===== Hint banner ===== */
+.behavior-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    background: #F5F5F7;
+    border-left: 3px solid var(--border, #E5E5E5);
+    font-size: 12px;
+    color: var(--text-secondary, #6E6E73);
+    transition: border-color .2s, background .2s;
+}
+.behavior-hint.active-praise     { border-left-color: var(--brand); background: #F0F9F2; }
+.behavior-hint.active-classroom  { border-left-color: #FF9500; background: #FFFBF5; }
+.behavior-hint.active-appearance { border-left-color: #FF3B30; background: #FFF8F8; }
+.behavior-hint.active-medical    { border-left-color: #007AFF; background: #F5F9FF; }
+
+.hint-icon { font-size: 14px; flex-shrink: 0; }
+
+/* ===== Reason chips ===== */
+.reason-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.reason-chip {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    border: 1px solid var(--border, #E5E5E5);
+    color: var(--text-secondary, #6E6E73);
+    background: #fff;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: border-color .15s, background .15s, color .15s;
+}
+.reason-chip:active { transform: scale(0.95); }
+
+.reason-chip.selected-praise     { background: var(--brand); color: #fff; border-color: var(--brand); }
+.reason-chip.selected-classroom  { background: #FF9500; color: #fff; border-color: #FF9500; }
+.reason-chip.selected-appearance { background: #FF3B30; color: #fff; border-color: #FF3B30; }
+.reason-chip.selected-medical    { background: #007AFF; color: #fff; border-color: #007AFF; }
+
+/* Dot indicator for reasons that have students */
+.reason-chip.has-students::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+.reason-chip.has-students[data-category="praise"]::after     { background: var(--brand); }
+.reason-chip.has-students[data-category="classroom"]::after  { background: #FF9500; }
+.reason-chip.has-students[data-category="appearance"]::after { background: #FF3B30; }
+.reason-chip.has-students[data-category="medical"]::after    { background: #007AFF; }
+/* White dot when chip is selected */
+.reason-chip.has-students.selected-praise::after,
+.reason-chip.has-students.selected-classroom::after,
+.reason-chip.has-students.selected-appearance::after,
+.reason-chip.has-students.selected-medical::after {
+    background: rgba(255,255,255,.7);
+}
+
+/* ===== Selected reason bar ===== */
+.selected-reason-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-primary, #1D1D1F);
+    background: #F5F5F7;
+    border: 1px solid var(--border, #E5E5E5);
+}
+.selected-reason-bar.bar-praise     { border-color: var(--brand); background: #F0F9F2; }
+.selected-reason-bar.bar-classroom  { border-color: #FF9500; background: #FFFBF5; }
+.selected-reason-bar.bar-appearance { border-color: #FF3B30; background: #FFF8F8; }
+.selected-reason-bar.bar-medical    { border-color: #007AFF; background: #F5F9FF; }
+
+.btn-cancel-reason {
+    padding: 2px 10px;
+    border: 1px solid var(--border, #E5E5E5);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--text-secondary, #6E6E73);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* ===== Student section (hidden until reason selected) ===== */
+.behavior-student-section {
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: max-height .25s ease, opacity .2s ease;
+}
+.behavior-student-section.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+}
+
+/* Category-colored selected chips in behavior picker */
+.behavior-student-section .student-chip.selected-praise     { background: var(--brand); color: #fff; border-color: var(--brand); }
+.behavior-student-section .student-chip.selected-classroom  { background: #FF9500; color: #fff; border-color: #FF9500; }
+.behavior-student-section .student-chip.selected-appearance { background: #FF3B30; color: #fff; border-color: #FF3B30; }
+.behavior-student-section .student-chip.selected-medical    { background: #007AFF; color: #fff; border-color: #007AFF; }
+
+/* ===== Behavior summary ===== */
+.behavior-summary {
+    padding: 10px 12px;
+    border: 1px solid var(--border, #E5E5E5);
+    border-radius: 4px;
+    background: #FAFAFA;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.summary-category-label {
+    font-weight: 600;
+    font-size: 12px;
+    margin-bottom: 2px;
+    margin-top: 8px;
+}
+.summary-category-label:first-child { margin-top: 0; }
+.summary-category-label.praise     { color: var(--brand); }
+.summary-category-label.classroom  { color: #CC7700; }
+.summary-category-label.appearance { color: #CC2E26; }
+.summary-category-label.medical    { color: #0055CC; }
+
+.summary-item {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    padding: 2px 0 2px 8px;
+    color: var(--text-primary, #1D1D1F);
+}
+
+.summary-reason {
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.summary-reason:hover { text-decoration: underline; }
+
+.summary-students {
+    color: var(--text-secondary, #6E6E73);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    align-items: center;
+}
+
+.summary-student-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 4px;
+    border-radius: 3px;
+    background: #F0F0F0;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.summary-remove {
+    cursor: pointer;
+    color: #999;
+    font-size: 10px;
+    line-height: 1;
+}
+.summary-remove:hover { color: #FF3B30; }
+
+.summary-delete-reason {
+    margin-left: auto;
+    padding: 0 4px;
+    font-size: 11px;
+    color: #999;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.summary-delete-reason:hover { color: #FF3B30; }
+
 /* ========== Responsive ========== */
 @media (min-width: 480px) {
     .main-content {
