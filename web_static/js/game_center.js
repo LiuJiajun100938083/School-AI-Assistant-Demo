@@ -267,12 +267,15 @@ const GameCenterAPI = {
 
     /**
      * 加載全球貿易大亨排行榜
+     * @param {string|null} difficulty - EASY/NORMAL/HARD
      * @param {number} limit
      * @returns {Promise<Array|null>}
      */
-    async loadTradeLeaderboard(limit = 10) {
+    async loadTradeLeaderboard(difficulty = null, limit = 10) {
         try {
-            const data = await APIClient.get('/api/trade-game/scores/leaderboard', { limit });
+            const params = { limit };
+            if (difficulty) params.difficulty = difficulty;
+            const data = await APIClient.get('/api/trade-game/scores/leaderboard', params);
             return (data?.success && data.data) ? data.data : null;
         } catch {
             return null;
@@ -738,7 +741,7 @@ const GameCenterApp = {
     async _loadLeaderboards() {
         const [farmData, tradeData] = await Promise.all([
             GameCenterAPI.loadFarmLeaderboard(10),
-            GameCenterAPI.loadTradeLeaderboard(10)
+            GameCenterAPI.loadTradeLeaderboard(null, 10)
         ]);
 
         // 找到公民（ces）區塊
