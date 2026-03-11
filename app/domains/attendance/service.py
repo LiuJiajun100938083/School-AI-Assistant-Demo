@@ -430,6 +430,16 @@ class AttendanceService:
             actual_minutes, actual_periods, planned_minutes, planned_periods,
         )
 
+        # 16:55 後離開一律視為完成
+        if not is_completed:
+            checkout_total_min = checkout_time.hour * 60 + checkout_time.minute
+            if checkout_total_min >= 16 * 60 + 55:  # >= 16:55
+                is_completed = True
+                logger.info(
+                    "16:55 規則: session=%d, student=%s 於 %s 離開，視為完成",
+                    session_id, login, checkout_time.strftime("%H:%M"),
+                )
+
         status = AttendanceStatus.DETENTION_COMPLETED if is_completed else "detention_incomplete"
 
         # 更新记录

@@ -50,7 +50,8 @@ let selectedManualDetentionReason = null; // 手動簽到時選擇的原因
 // 留堂原因映射
 const DETENTION_REASONS = {
     'homework': '功課留堂',
-    'morning': '晨讀留堂'
+    'morning': '晨讀留堂',
+    'both': '功課+晨讀留堂'
 };
 
 // 排序晨讀紀錄（點擊表頭方式）
@@ -3962,20 +3963,37 @@ function selectDetentionReason(reason) {
     selectedDetentionReason = reason;
 
     // 更新按鈕狀態
-    const reasonArea = document.getElementById('reasonSelectionArea');
-    if (reasonArea) {
-        reasonArea.querySelectorAll('.reason-option-btn').forEach(btn => {
+    const modal = document.getElementById('periodsModal');
+    if (modal) {
+        modal.querySelectorAll('.reason-option-btn').forEach(btn => {
             btn.classList.remove('selected');
-            if (btn.dataset.reason === reason) {
-                btn.classList.add('selected');
-            }
         });
+        // 用 id 精確匹配
+        const btnId = reason === 'homework' ? 'reasonHomework' : reason === 'morning' ? 'reasonMorning' : 'reasonBoth';
+        const targetBtn = document.getElementById(btnId);
+        if (targetBtn) targetBtn.classList.add('selected');
     }
 
     // 顯示節數選擇区域
     const periodsArea = document.getElementById('periodsSelectionArea');
     if (periodsArea) {
         periodsArea.style.display = 'block';
+    }
+
+    // 「功課+晨讀」默認自動選擇 2 節
+    if (reason === 'both') {
+        setTimeout(() => {
+            const periodOptions = document.querySelectorAll('#periodsOptions .period-option');
+            periodOptions.forEach(opt => opt.classList.remove('highlighted'));
+            if (periodOptions.length >= 2) {
+                periodOptions[1].classList.add('highlighted');
+            }
+        }, 50);
+    } else {
+        // 清除高亮
+        document.querySelectorAll('#periodsOptions .period-option').forEach(opt => {
+            opt.classList.remove('highlighted');
+        });
     }
 }
 
@@ -3984,20 +4002,35 @@ function selectManualDetentionReason(reason) {
     selectedManualDetentionReason = reason;
 
     // 更新按鈕狀態
-    const reasonArea = document.getElementById('manualReasonSelectionArea');
-    if (reasonArea) {
-        reasonArea.querySelectorAll('.reason-option-btn').forEach(btn => {
+    const modal = document.getElementById('manualPeriodsModal');
+    if (modal) {
+        modal.querySelectorAll('.reason-option-btn').forEach(btn => {
             btn.classList.remove('selected');
-            if (btn.dataset.reason === reason) {
-                btn.classList.add('selected');
-            }
         });
+        const btnId = reason === 'homework' ? 'manualReasonHomework' : reason === 'morning' ? 'manualReasonMorning' : 'manualReasonBoth';
+        const targetBtn = document.getElementById(btnId);
+        if (targetBtn) targetBtn.classList.add('selected');
     }
 
     // 顯示節數選擇区域
     const periodsArea = document.getElementById('manualPeriodsSelectionArea');
     if (periodsArea) {
         periodsArea.style.display = 'block';
+    }
+
+    // 「功課+晨讀」默認自動選擇 2 節
+    if (reason === 'both') {
+        setTimeout(() => {
+            const periodOptions = document.querySelectorAll('#manualPeriodsOptions .period-option');
+            periodOptions.forEach(opt => opt.classList.remove('highlighted'));
+            if (periodOptions.length >= 2) {
+                periodOptions[1].classList.add('highlighted');
+            }
+        }, 50);
+    } else {
+        document.querySelectorAll('#manualPeriodsOptions .period-option').forEach(opt => {
+            opt.classList.remove('highlighted');
+        });
     }
 }
 
@@ -4035,6 +4068,9 @@ function getReasonTagHtml(reason) {
     }
     if (reason === 'morning') {
         return '<span class="reason-tag morning">晨讀</span>';
+    }
+    if (reason === 'both') {
+        return '<span class="reason-tag both">功課+晨讀</span>';
     }
     return '<span class="reason-tag unknown">' + reason + '</span>';
 }

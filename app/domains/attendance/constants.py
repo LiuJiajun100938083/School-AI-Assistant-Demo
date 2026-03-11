@@ -71,10 +71,12 @@ class DetentionReason:
     """留堂原因代码"""
     HOMEWORK = "homework"
     MORNING = "morning"
+    BOTH = "both"
 
     LABELS_ZH = {
         HOMEWORK: "功课",
         MORNING: "晨读",
+        BOTH: "功课+晨读",
     }
 
 

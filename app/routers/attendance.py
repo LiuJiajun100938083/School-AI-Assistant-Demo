@@ -1241,6 +1241,7 @@ def _excel_styles():
         "gray_fill": PatternFill(start_color="BFBFBF", end_color="BFBFBF", fill_type="solid"),
         "homework_fill": PatternFill(start_color="9BC2E6", end_color="9BC2E6", fill_type="solid"),
         "morning_fill": PatternFill(start_color="FFE699", end_color="FFE699", fill_type="solid"),
+        "both_fill": PatternFill(start_color="B4A7D6", end_color="B4A7D6", fill_type="solid"),
         "other_reason_fill": PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid"),
         "thin_border": Border(
             left=Side(style="thin"), right=Side(style="thin"),
@@ -1390,6 +1391,8 @@ def _build_detention_export_excel(session, records):
                     cell.fill = s["homework_fill"]
                 elif reason == DetentionReason.MORNING:
                     cell.fill = s["morning_fill"]
+                elif reason == DetentionReason.BOTH:
+                    cell.fill = s["both_fill"]
                 elif reason:
                     cell.fill = s["other_reason_fill"]
 
@@ -1440,6 +1443,8 @@ def _build_detention_history_excel(history):
                     cell.fill = s["homework_fill"]
                 elif reason == DetentionReason.MORNING:
                     cell.fill = s["morning_fill"]
+                elif reason == DetentionReason.BOTH:
+                    cell.fill = s["both_fill"]
                 elif reason:
                     cell.fill = s["other_reason_fill"]
 

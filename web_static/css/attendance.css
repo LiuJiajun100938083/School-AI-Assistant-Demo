@@ -1960,12 +1960,13 @@ body {
 /* 留堂原因選擇 */
 .detention-reason-options {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 20px;
 }
 
 .reason-option-btn {
-    flex: 1;
+    flex: 1 1 calc(50% - 10px);
     padding: 14px 16px;
     background: var(--fill-tertiary);
     border: 2px solid transparent;
@@ -1995,6 +1996,42 @@ body {
     padding: 8px;
     background: rgba(52, 199, 89, 0.1);
     border-radius: var(--radius-sm);
+}
+
+/* 留堂原因標籤（記錄列表中顯示） */
+.reason-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.reason-tag.homework {
+    background: rgba(0, 122, 255, 0.12);
+    color: #007AFF;
+}
+
+.reason-tag.morning {
+    background: rgba(255, 149, 0, 0.12);
+    color: #FF9500;
+}
+
+.reason-tag.both {
+    background: rgba(175, 82, 222, 0.12);
+    color: #AF52DE;
+}
+
+.reason-tag.unknown {
+    background: rgba(142, 142, 147, 0.12);
+    color: #8E8E93;
+}
+
+/* 節數選項高亮（功課+晨讀默認 2 節） */
+.period-option.highlighted {
+    border: 2px solid var(--brand);
+    background: var(--brand-light);
 }
 
 /* 節數選項 */
