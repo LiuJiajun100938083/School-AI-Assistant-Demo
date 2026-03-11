@@ -47,3 +47,14 @@ class InvalidClassCodeError(AppException):
             message=f"無效的班級代碼: {class_code}",
             status_code=400,
         )
+
+
+class PeriodOverlapError(AppException):
+    """節數重疊"""
+
+    def __init__(self, existing_subject: str, period_text: str):
+        super().__init__(
+            code="PERIOD_OVERLAP",
+            message=f"該時段已有記錄：{existing_subject} ({period_text})",
+            status_code=409,
+        )

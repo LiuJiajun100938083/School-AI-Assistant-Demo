@@ -919,6 +919,83 @@ body {
 }
 .summary-delete-reason:hover { color: #FF3B30; }
 
+/* ========== Validation Errors ========== */
+.validation-error {
+    border-color: var(--danger) !important;
+}
+
+.validation-msg {
+    display: none;
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.validation-msg.show {
+    display: block;
+}
+
+/* ========== Edit Mode Bar ========== */
+.edit-mode-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--brand-border);
+    background: var(--brand-light);
+    font-size: 13px;
+    color: var(--brand);
+}
+
+.edit-mode-bar.show {
+    display: flex;
+}
+
+.edit-mode-bar .edit-mode-text {
+    font-weight: 500;
+}
+
+.edit-mode-bar .btn-cancel-edit {
+    padding: 4px 12px;
+    border: 1px solid var(--brand-border);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--brand);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.edit-mode-bar .btn-cancel-edit:active {
+    background: var(--brand-lighter);
+}
+
+/* ========== Record Actions ========== */
+.record-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+}
+
+.btn-record-delete {
+    padding: 4px 12px;
+    border: 1px solid var(--danger);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--danger);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-record-delete:active {
+    background: #FFF0F0;
+}
+
 /* ========== Responsive ========== */
 @media (min-width: 480px) {
     .main-content {

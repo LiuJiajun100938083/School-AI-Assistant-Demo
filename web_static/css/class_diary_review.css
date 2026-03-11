@@ -333,12 +333,84 @@ body {
     border-color: var(--brand);
 }
 
-/* 文字截斷 */
+/* 可展開文字 */
 .cell-text {
-    max-width: 160px;
+    max-width: 200px;
+    position: relative;
+}
+
+.cell-expandable {
+    cursor: pointer;
+}
+
+.cell-truncated {
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    max-width: 160px;
+}
+
+.cell-full {
+    display: none;
+    white-space: normal;
+    word-break: break-all;
+    line-height: 1.6;
+}
+
+.cell-expandable.expanded .cell-truncated {
+    display: none;
+}
+
+.cell-expandable.expanded .cell-full {
+    display: block;
+}
+
+.expand-icon {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-left: 4px;
+    display: inline;
+}
+
+.cell-expandable.expanded .expand-icon {
+    display: none;
+}
+
+/* 行為欄位結構化顯示 */
+.behavior-entry {
+    margin-bottom: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.behavior-entry:last-child {
+    margin-bottom: 0;
+}
+
+.behavior-reason {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.behavior-students {
+    color: var(--text-secondary);
+}
+
+/* 刪除按鈕 */
+.btn-delete-entry {
+    padding: 2px 8px;
+    border: 1px solid var(--danger);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--danger);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-delete-entry:hover {
+    background: #FFF0F0;
 }
 
 /* ========== 空狀態 ========== */
@@ -422,6 +494,223 @@ body {
 .sig-modal button:hover {
     border-color: var(--brand);
     color: var(--brand);
+}
+
+/* ========== 儀表板 ========== */
+.dashboard-section {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    background: var(--brand-lighter);
+    user-select: none;
+}
+
+.dashboard-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dashboard-toggle {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    transition: transform 0.2s;
+}
+
+.dashboard-section.collapsed .dashboard-toggle {
+    transform: rotate(-90deg);
+}
+
+.dashboard-section.collapsed .dashboard-body {
+    display: none;
+}
+
+.dashboard-body {
+    padding: 20px;
+}
+
+/* 概覽卡片 */
+.dash-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.dash-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+}
+
+.dash-card-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.dash-card-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 班級排名條形圖 */
+.dash-chart-section {
+    margin-bottom: 24px;
+}
+
+.dash-chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.dash-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.dash-bar-label {
+    width: 40px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.dash-bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.dash-bar-track {
+    height: 14px;
+    background: var(--border-light);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
+.dash-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.dash-bar-fill.discipline {
+    background: var(--brand);
+}
+
+.dash-bar-fill.cleanliness {
+    background: var(--info);
+}
+
+.dash-bar-value {
+    width: 30px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: left;
+    flex-shrink: 0;
+}
+
+.dash-bar-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.legend-dot.discipline { background: var(--brand); }
+.legend-dot.cleanliness { background: var(--info); }
+
+/* 行為分析 */
+.dash-behavior-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.dash-behavior-group {
+    /* no extra styling needed */
+}
+
+.dash-behavior-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.dash-behavior-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.dash-behavior-name {
+    width: 80px;
+    text-align: right;
+    color: var(--text-primary);
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dash-mini-bar-track {
+    flex: 1;
+    height: 12px;
+    background: var(--border-light);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.dash-mini-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.dash-mini-bar.praise { background: var(--brand); }
+.dash-mini-bar.violation { background: var(--warning); }
+.dash-mini-bar.medical { background: var(--info); }
+
+.dash-behavior-count {
+    width: 40px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 /* ========== 滾動條 ========== */
@@ -588,6 +877,18 @@ body {
     }
 
     .cell-text {
+        max-width: 100px;
+    }
+
+    .cell-truncated {
         max-width: 80px;
+    }
+
+    .dash-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dash-behavior-section {
+        grid-template-columns: 1fr;
     }
 }

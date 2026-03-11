@@ -54,6 +54,19 @@
         <button id="exportBtn" class="btn-export" style="display:none;" onclick="exportCSV()">📥 匯出 CSV</button>
     </div>
 
+    <!-- 儀表板 -->
+    <div class="dashboard-section" id="dashboardSection" style="display:none;">
+        <div class="dashboard-header" onclick="toggleDashboard()">
+            <span class="dashboard-title">今日概覽</span>
+            <span class="dashboard-toggle" id="dashToggle">▼</span>
+        </div>
+        <div class="dashboard-body" id="dashboardBody">
+            <div class="dash-cards" id="dashCards"></div>
+            <div class="dash-chart-section" id="dashClassChart"></div>
+            <div class="dash-behavior-section" id="dashBehavior"></div>
+        </div>
+    </div>
+
     <!-- 班級匯總 -->
     <div class="summary-grid" id="summaryGrid"></div>
 

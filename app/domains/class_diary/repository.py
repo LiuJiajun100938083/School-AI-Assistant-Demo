@@ -65,6 +65,27 @@ class ClassDiaryEntryRepository(BaseRepository):
         """
         return self.raw_query_one(sql, (class_code, entry_date))
 
+    def find_overlapping_entries(
+        self,
+        class_code: str,
+        entry_date: str,
+        period_start: int,
+        period_end: int,
+        exclude_id: int = None,
+    ) -> List[Dict[str, Any]]:
+        """查找重疊節數的記錄"""
+        sql = """
+            SELECT id, period_start, period_end, subject
+            FROM class_diary_entries
+            WHERE class_code = %s AND entry_date = %s
+              AND period_start <= %s AND period_end >= %s
+        """
+        params: list = [class_code, entry_date, period_end, period_start]
+        if exclude_id:
+            sql += " AND id != %s"
+            params.append(exclude_id)
+        return self.raw_query(sql, tuple(params))
+
     def get_classes_with_entries_on_date(self, entry_date: str) -> List[Dict[str, Any]]:
         """獲取某日有記錄的所有班級"""
         sql = """

@@ -184,6 +184,39 @@ def init_class_diary_tables():
             if "already exists" not in str(e).lower():
                 logger.error("創建課室日誌表失敗: %s", e)
 
+    # 安全新增 submitted_by 欄位（舊表可能沒有）
+    try:
+        pool.execute_write(
+            "ALTER TABLE class_diary_entries "
+            "ADD COLUMN submitted_by VARCHAR(100) DEFAULT NULL "
+            "COMMENT '提交者用戶名' AFTER submitted_from"
+        )
+        logger.info("已新增 submitted_by 欄位")
+    except Exception:
+        pass  # 欄位已存在
+
+    # 新增 UNIQUE 約束防重複節數（若不存在）
+    try:
+        pool.execute_write(
+            "ALTER TABLE class_diary_entries "
+            "ADD UNIQUE INDEX uq_class_date_period "
+            "(class_code, entry_date, period_start, period_end)"
+        )
+        logger.info("已新增 uq_class_date_period UNIQUE 約束")
+    except Exception:
+        pass  # 約束已存在
+
+    # 新增 medical_room_students 欄位（上次遷移可能未執行）
+    try:
+        pool.execute_write(
+            "ALTER TABLE class_diary_entries "
+            "ADD COLUMN medical_room_students TEXT DEFAULT NULL "
+            "COMMENT '醫務室' AFTER rule_violations"
+        )
+        logger.info("已新增 medical_room_students 欄位")
+    except Exception:
+        pass  # 欄位已存在
+
     logger.info("課室日誌數據表初始化完成")
 
 
@@ -209,7 +242,7 @@ async def create_entry(request: Request):
         user_agent = request.headers.get("User-Agent", "")
 
         service = _get_service()
-        result = service.create_entry(entry_data.model_dump(), user_agent)
+        result = service.create_entry(entry_data.model_dump(), user_agent, submitted_by=username)
 
         return success_response(result, "評級提交成功")
 
@@ -270,12 +303,30 @@ async def get_students_for_class(class_code: str):
 
 @router.put("/api/class-diary/entries/{entry_id}")
 async def update_entry(entry_id: int, request: Request):
-    """修改已提交的評級記錄"""
+    """修改已提交的評級記錄（需教師/管理員登入）"""
     try:
+        username, role = _verify_request(request)
+        if role == "student":
+            raise AppException(
+                code="FORBIDDEN",
+                message="僅限教師或管理員修改記錄",
+                status_code=403,
+            )
+
+        service = _get_service()
+        existing = service.get_entry(entry_id)
+
+        # 權限檢查：admin 可改任何，教師只能改自己的
+        if role != "admin":
+            if not existing.get("submitted_by"):
+                # 舊記錄（submitted_by IS NULL）只有 admin 可修改
+                raise AuthorizationError("舊記錄僅限管理員修改")
+            if existing["submitted_by"] != username:
+                raise AuthorizationError("只能修改自己提交的記錄")
+
         body = await request.json()
         update_data = UpdateEntryRequest(**body)
 
-        service = _get_service()
         result = service.update_entry(entry_id, update_data.model_dump(exclude_none=True))
 
         return success_response(result, "記錄更新成功")
@@ -284,6 +335,47 @@ async def update_entry(entry_id: int, request: Request):
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
         logger.exception("更新記錄失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.delete("/api/class-diary/entries/{entry_id}")
+async def delete_entry_by_teacher(entry_id: int, request: Request):
+    """刪除記錄（教師只能刪自己的，管理員可刪任何）"""
+    try:
+        username, role = _verify_request(request)
+        if role == "student":
+            raise AppException(
+                code="FORBIDDEN",
+                message="僅限教師或管理員刪除記錄",
+                status_code=403,
+            )
+
+        service = _get_service()
+        existing = service.get_entry(entry_id)
+
+        # 權限檢查
+        if role != "admin":
+            if not existing.get("submitted_by"):
+                raise AuthorizationError("舊記錄僅限管理員刪除")
+            if existing["submitted_by"] != username:
+                raise AuthorizationError("只能刪除自己提交的記錄")
+
+        # 審計日誌
+        logger.info(
+            "Entry %d deleted by %s (was: class=%s, date=%s, period=%d-%d, subject=%s)",
+            entry_id, username,
+            existing.get("class_code"), existing.get("entry_date"),
+            existing.get("period_start", 0), existing.get("period_end", 0),
+            existing.get("subject"),
+        )
+
+        service.delete_entry(entry_id)
+        return success_response(None, "記錄已刪除")
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("刪除記錄失敗")
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 

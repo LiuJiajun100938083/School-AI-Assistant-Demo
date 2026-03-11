@@ -110,6 +110,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 初始化星級選擇
     initStarRatings();
 
+    // 節數變化時檢查是否有已提交記錄（自動載入編輯模式）
+    document.getElementById('periodStart').addEventListener('change', checkAndLoadExisting);
+    document.getElementById('periodEnd').addEventListener('change', checkAndLoadExisting);
+
     // 根據當前時間自動填寫節數
     autoFillPeriod();
 
@@ -436,6 +440,7 @@ function initSignaturePad() {
     signatureCanvas.addEventListener('touchstart', onTouchStart, { passive: false });
     signatureCanvas.addEventListener('touchmove', onTouchMove, { passive: false });
     signatureCanvas.addEventListener('touchend', onTouchEnd);
+    signatureCanvas.addEventListener('touchcancel', onTouchEnd);
 
     // 滑鼠事件（平板可能用觸控筆）
     signatureCanvas.addEventListener('mousedown', onMouseDown);
@@ -661,12 +666,44 @@ function escapeHtml(str) {
 /* ============================================================
    表單提交
    ============================================================ */
+function showValidationError(fieldId, msg) {
+    // 清除之前的錯誤
+    clearValidationErrors();
+    // 找到目標元素
+    const el = document.getElementById(fieldId);
+    if (el) {
+        el.classList.add('validation-error');
+        // 插入錯誤信息
+        const msgEl = document.createElement('div');
+        msgEl.className = 'validation-msg show';
+        msgEl.textContent = msg;
+        el.parentElement.appendChild(msgEl);
+        // 滾動到欄位
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function clearValidationErrors() {
+    document.querySelectorAll('.validation-error').forEach(el => el.classList.remove('validation-error'));
+    document.querySelectorAll('.validation-msg').forEach(el => el.remove());
+}
+
 async function submitForm() {
-    if (state.isSubmitting) return;
+    // 超時保護：若 isSubmitting 卡住超過 15 秒，強制重置
+    if (state.isSubmitting) {
+        if (state._submitStartTime && Date.now() - state._submitStartTime > 15000) {
+            state.isSubmitting = false;
+            showLoading(false);
+            showValidationError('submitBtn', '提交逾時，請重試');
+        }
+        return;
+    }
+
+    clearValidationErrors();
 
     // 驗證必填
     if (!state.classCode) {
-        alert('請選擇班級');
+        showValidationError('classSelect', '請選擇班級');
         return;
     }
 
@@ -674,23 +711,28 @@ async function submitForm() {
     const subject = document.getElementById('subject').value.trim();
 
     if (!periodStart && periodStart !== '0') {
-        alert('請選擇節數');
+        showValidationError('periodStart', '請選擇節數');
         return;
     }
     if (!subject) {
-        alert('請輸入科目名稱');
+        showValidationError('subject', '請選擇科目');
         return;
     }
     if (state.disciplineRating === 0) {
-        alert('請評選紀律評級');
+        showValidationError('disciplineStars', '請評選紀律評級');
         return;
     }
     if (state.cleanlinessRating === 0) {
-        alert('請評選整潔評級');
+        showValidationError('cleanlinessStars', '請評選整潔評級');
         return;
     }
+
+    // 簽名安全補救：若畫過但 signatureData 為空，重新擷取
+    if (hasSignature && !state.signatureData) {
+        state.signatureData = signatureCanvas.toDataURL('image/png');
+    }
     if (!state.signatureData) {
-        alert('請手寫簽名');
+        showValidationError('signatureWrap', '請手寫簽名');
         return;
     }
 
@@ -699,7 +741,7 @@ async function submitForm() {
     if (state.periodCount === 2) {
         periodEnd = parseInt(document.getElementById('periodEnd').value);
         if (isNaN(periodEnd)) {
-            alert('請選擇結束節數');
+            showValidationError('periodEnd', '請選擇結束節數');
             return;
         }
     } else {
@@ -726,13 +768,37 @@ async function submitForm() {
         signature: state.signatureData,
     };
 
+    // 客戶端重疊檢查（非編輯模式時）
+    if (!state.editingEntryId && state.existingRecords) {
+        const newStart = payload.period_start;
+        const newEnd = payload.period_end;
+        const overlap = state.existingRecords.find(r =>
+            r.period_start <= newEnd && r.period_end >= newStart
+        );
+        if (overlap) {
+            const periodLabels = ['早會','第一節','第二節','第三節','第四節','第五節','第六節','第七節','第八節','第九節'];
+            const overlapText = overlap.period_start === overlap.period_end
+                ? periodLabels[overlap.period_start]
+                : `${periodLabels[overlap.period_start]}-${periodLabels[overlap.period_end]}`;
+            showValidationError('periodStart', `${overlapText} 已有「${overlap.subject}」的記錄，請選擇其他節數或點擊已提交記錄進行編輯`);
+            return;
+        }
+    }
+
     state.isSubmitting = true;
+    state._submitStartTime = Date.now();
     showLoading(true);
 
     try {
         const token = AuthModule.getToken();
-        const resp = await fetch('/api/class-diary/entries', {
-            method: 'POST',
+        const isEditing = !!state.editingEntryId;
+        const url = isEditing
+            ? `/api/class-diary/entries/${state.editingEntryId}`
+            : '/api/class-diary/entries';
+        const method = isEditing ? 'PUT' : 'POST';
+
+        const resp = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
@@ -743,15 +809,24 @@ async function submitForm() {
         const data = await resp.json();
 
         if (data.success) {
+            if (isEditing) {
+                cancelEdit();
+            }
             showSuccessToast();
             loadExistingRecords();
+        } else if (data.error?.code === 'PERIOD_OVERLAP') {
+            showValidationError('periodStart', data.error.message || '該時段已有記錄');
+        } else if (resp.status === 404 && isEditing) {
+            showValidationError('periodStart', '此記錄已不存在，請重新提交');
+            cancelEdit();
         } else {
-            alert('提交失敗：' + (data.detail || data.error?.message || '未知錯誤'));
+            showValidationError('submitBtn', '提交失敗：' + (data.detail || data.error?.message || '未知錯誤'));
         }
     } catch (err) {
-        alert('網絡錯誤：' + err.message);
+        showValidationError('submitBtn', '網絡錯誤：' + err.message);
     } finally {
         state.isSubmitting = false;
+        state._submitStartTime = null;
         showLoading(false);
     }
 }
@@ -768,8 +843,14 @@ async function loadExistingRecords() {
         const resp = await fetch(`/api/class-diary/entries/by-class?class_code=${encodeURIComponent(state.classCode)}&entry_date=${dateStr}`);
         const data = await resp.json();
 
-        if (data.success && data.data && data.data.length > 0) {
-            renderExistingRecords(data.data);
+        if (data.success && data.data) {
+            state.existingRecords = data.data;
+            if (data.data.length > 0) {
+                renderExistingRecords(data.data);
+            } else {
+                document.getElementById('existingRecords').style.display = 'none';
+                document.getElementById('recordsList').innerHTML = '';
+            }
         }
     } catch (err) {
         console.error('載入記錄失敗:', err);
@@ -789,17 +870,17 @@ function renderExistingRecords(records) {
             : `${periodLabels[r.period_start]} → ${periodLabels[r.period_end]}`;
 
         return `
-            <div class="record-card">
+            <div class="record-card" data-entry-id="${r.id}">
                 <div class="record-header">
                     <span class="record-period">${periodText}</span>
-                    <span class="record-subject">${r.subject}</span>
+                    <span class="record-subject">${escapeHtml(r.subject)}</span>
                 </div>
                 <div class="record-ratings">
-                    <span>📏 紀律 ${'★'.repeat(r.discipline_rating)}${'☆'.repeat(5 - r.discipline_rating)}</span>
-                    <span>🧹 整潔 ${'★'.repeat(r.cleanliness_rating)}${'☆'.repeat(5 - r.cleanliness_rating)}</span>
+                    <span>紀律 ${'★'.repeat(r.discipline_rating)}${'☆'.repeat(5 - r.discipline_rating)}</span>
+                    <span>整潔 ${'★'.repeat(r.cleanliness_rating)}${'☆'.repeat(5 - r.cleanliness_rating)}</span>
                 </div>
-                <div style="margin-top:0.4rem;">
-                    <span class="record-badge">✅ 已提交</span>
+                <div class="record-actions">
+                    <button class="btn-record-delete" onclick="deleteRecord(${r.id})">刪除</button>
                 </div>
             </div>
         `;
@@ -1197,4 +1278,187 @@ function escapeHtmlBehavior(str) {
 function escapeAttr(str) {
     if (!str) return '';
     return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+
+/* ============================================================
+   記錄編輯與刪除
+   ============================================================ */
+
+/**
+ * 檢查當前選擇的節數是否有已提交記錄，若有則自動載入進編輯模式
+ */
+function checkAndLoadExisting() {
+    if (!state.existingRecords || state.existingRecords.length === 0) return;
+
+    const startVal = document.getElementById('periodStart').value;
+    if (startVal === '' && startVal !== '0') return;
+
+    const newStart = parseInt(startVal);
+    let newEnd;
+    if (state.periodCount === 2) {
+        const endVal = document.getElementById('periodEnd').value;
+        if (endVal === '') return;
+        newEnd = parseInt(endVal);
+    } else {
+        newEnd = newStart;
+    }
+
+    // 查找完全匹配的記錄（相同 period_start 和 period_end）
+    const match = state.existingRecords.find(r =>
+        r.period_start === newStart && r.period_end === newEnd
+    );
+
+    if (match) {
+        editRecord(match);
+    } else if (state.editingEntryId) {
+        // 選擇了不同的節數，退出編輯模式
+        cancelEdit();
+    }
+}
+
+/**
+ * 進入編輯模式：將已提交記錄回填到表單
+ */
+function editRecord(record) {
+    state.editingEntryId = record.id;
+
+    // 回填科目
+    document.getElementById('subject').value = record.subject || '';
+
+    // 回填考勤
+    document.getElementById('absentStudents').value = record.absent_students || '';
+    document.getElementById('lateStudents').value = record.late_students || '';
+    PICKER_FIELDS.forEach(fieldId => {
+        renderFieldPicker(fieldId);
+        updateToggleText(fieldId);
+    });
+
+    // 回填評級
+    setStarRating('discipline', record.discipline_rating || 0);
+    setStarRating('cleanliness', record.cleanliness_rating || 0);
+
+    // 回填行為記錄
+    restoreBehaviorFromRecord(record);
+
+    // 更新提交按鈕文字
+    document.getElementById('submitBtn').textContent = '更新記錄';
+
+    // 顯示編輯模式提示
+    const periodLabels = ['早會','第一節','第二節','第三節','第四節','第五節','第六節','第七節','第八節','第九節'];
+    const periodText = record.period_start === record.period_end
+        ? periodLabels[record.period_start]
+        : `${periodLabels[record.period_start]}-${periodLabels[record.period_end]}`;
+    const bar = document.getElementById('editModeBar');
+    document.getElementById('editModeText').textContent = `正在編輯 ${periodText} - ${record.subject}`;
+    bar.classList.add('show');
+}
+
+/**
+ * 取消編輯模式：完全清除所有編輯狀態
+ */
+function cancelEdit() {
+    state.editingEntryId = null;
+
+    // 重置表單
+    document.getElementById('subject').value = '';
+    document.getElementById('absentStudents').value = '';
+    document.getElementById('lateStudents').value = '';
+
+    // 重置學生選擇器
+    PICKER_FIELDS.forEach(fieldId => {
+        renderFieldPicker(fieldId);
+        updateToggleText(fieldId);
+    });
+
+    // 重置評分
+    setStarRating('discipline', 0);
+    setStarRating('cleanliness', 0);
+    document.getElementById('disciplineValue').textContent = '未評分';
+    document.getElementById('cleanlinessValue').textContent = '未評分';
+    document.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
+
+    // 重置行為記錄
+    resetBehaviorState();
+
+    // 清除簽名
+    clearSignature();
+
+    // 重置提交按鈕
+    document.getElementById('submitBtn').textContent = '提交評級';
+
+    // 隱藏編輯模式提示
+    document.getElementById('editModeBar').classList.remove('show');
+
+    // 清除驗證錯誤
+    clearValidationErrors();
+}
+
+/**
+ * 從已提交記錄恢復行為記錄狀態
+ */
+function restoreBehaviorFromRecord(record) {
+    // 先重置
+    resetBehaviorState();
+
+    // 嘗試從各個行為欄位解析 JSON
+    const fieldMapping = {
+        commended_students: 'praise',
+        rule_violations: 'classroom',
+        appearance_issues: 'appearance',
+        medical_room_students: 'medical',
+    };
+
+    Object.entries(fieldMapping).forEach(([field, category]) => {
+        const value = record[field];
+        if (!value) return;
+
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+                behaviorState.assignments[category] = parsed.map(item => ({
+                    reason: item.reason || '',
+                    students: Array.isArray(item.students) ? [...item.students] : [],
+                })).filter(item => item.reason && item.students.length > 0);
+            }
+        } catch {
+            // 非 JSON 格式（舊格式純文字），直接設入 textarea
+            const textarea = document.getElementById(CATEGORY_FIELD_MAP[category]);
+            if (textarea) textarea.value = value;
+        }
+    });
+
+    // 刷新所有行為 UI
+    renderReasonChips();
+    updateBehaviorSummary();
+    updateBehaviorBadges();
+    serializeBehaviorToTextareas();
+}
+
+/**
+ * 刪除記錄
+ */
+async function deleteRecord(entryId) {
+    if (!confirm('確定要刪除此記錄嗎？此操作無法撤銷。')) return;
+
+    try {
+        const token = AuthModule.getToken();
+        const resp = await fetch(`/api/class-diary/entries/${entryId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        const data = await resp.json();
+        if (data.success) {
+            // 若正在編輯被刪除的記錄，退出編輯模式
+            if (state.editingEntryId === entryId) {
+                cancelEdit();
+            }
+            loadExistingRecords();
+        } else {
+            alert('刪除失敗：' + (data.error?.message || data.detail || '未知錯誤'));
+        }
+    } catch (err) {
+        alert('刪除失敗：' + err.message);
+    }
 }
