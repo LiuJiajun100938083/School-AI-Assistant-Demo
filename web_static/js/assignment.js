@@ -1856,8 +1856,8 @@ const AssignmentApp = {
         pendingAttachments: [],    // new File objects to upload
         existingAttachments: [],   // already uploaded (from server)
         deletedAttachmentIds: [],  // IDs to delete on save
-        // Assignment type: 'file' (normal) or 'exam' (questionnaire/exam)
-        assignmentType: 'file',
+        // Assignment type: 'file_upload' (normal) or 'form' or 'exam'
+        assignmentType: 'file_upload',
         // Exam upload (OCR) state
         examBatchId: null,
         examFiles: [],
