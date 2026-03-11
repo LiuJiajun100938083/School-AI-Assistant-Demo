@@ -30,6 +30,19 @@
 <!-- 主容器 -->
 <div class="container" id="mainContainer" style="display:none;">
 
+    <!-- 每日 AI 報告區 (僅報告接收人可見) -->
+    <div id="dailyReportSection" style="display:none;">
+        <div class="daily-report-card">
+            <div class="daily-report-header">
+                <h3>📊 今日課室日誌報告</h3>
+                <span class="report-date" id="reportDate"></span>
+            </div>
+            <div id="dailyReportStatus"></div>
+            <div id="dailyReportContent"></div>
+            <div id="dailyAnomalies"></div>
+        </div>
+    </div>
+
     <!-- 篩選欄 -->
     <div class="filter-bar">
         <label>📅 日期</label>
@@ -38,6 +51,7 @@
         <select id="filterClass">
             <option value="">全部班級</option>
         </select>
+        <button id="exportBtn" class="btn-export" style="display:none;" onclick="exportCSV()">📥 匯出 CSV</button>
     </div>
 
     <!-- 班級匯總 -->

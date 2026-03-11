@@ -22,6 +22,9 @@
     GET   /api/class-diary/admin/classes          班級列表
 """
 
+import csv
+import io
+import json
 import logging
 from datetime import date, datetime
 from typing import Optional
@@ -124,6 +127,25 @@ def init_class_diary_tables():
         CREATE TABLE IF NOT EXISTS class_diary_reviewers (
             id          INT AUTO_INCREMENT PRIMARY KEY,
             username    VARCHAR(100) NOT NULL UNIQUE     COMMENT '被授權用戶名',
+            granted_by  VARCHAR(100) NOT NULL            COMMENT '授權管理員',
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS class_diary_daily_reports (
+            id              INT AUTO_INCREMENT PRIMARY KEY,
+            report_date     DATE NOT NULL UNIQUE          COMMENT '報告日期',
+            report_text     MEDIUMTEXT NOT NULL            COMMENT 'AI 生成的報告文本',
+            anomalies_json  MEDIUMTEXT                    COMMENT '異常記錄 JSON',
+            status          VARCHAR(20) DEFAULT 'pending' COMMENT 'pending/generating/done/failed',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS class_diary_report_recipients (
+            id          INT AUTO_INCREMENT PRIMARY KEY,
+            username    VARCHAR(100) NOT NULL UNIQUE     COMMENT '報告接收人用戶名',
             granted_by  VARCHAR(100) NOT NULL            COMMENT '授權管理員',
             created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -578,4 +600,359 @@ async def delete_class(class_code: str, request: Request):
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
+#  每日報告 — 報告接收人管理                                                 #
+# ====================================================================== #
+
+@router.get("/api/class-diary/admin/report-recipients")
+async def list_report_recipients(request: Request):
+    """列出所有報告接收人"""
+    try:
+        _verify_admin(request)
+        pool = get_database_pool()
+        rows = pool.execute(
+            "SELECT username, granted_by, created_at FROM class_diary_report_recipients ORDER BY created_at"
+        )
+        return success_response(rows or [])
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.post("/api/class-diary/admin/report-recipients")
+async def add_report_recipient(request: Request):
+    """添加報告接收人"""
+    try:
+        admin_user, _ = _verify_admin(request)
+        body = await request.json()
+        username = (body.get("username") or "").strip()
+        if not username:
+            return error_response("VALIDATION_ERROR", "用戶名不可為空", status_code=400)
+
+        pool = get_database_pool()
+        existing = pool.execute(
+            "SELECT id FROM class_diary_report_recipients WHERE username = %s", (username,)
+        )
+        if existing:
+            return error_response("ALREADY_EXISTS", "該用戶已是報告接收人", status_code=409)
+
+        pool.execute_write(
+            "INSERT INTO class_diary_report_recipients (username, granted_by) VALUES (%s, %s)",
+            (username, admin_user),
+        )
+        return success_response({"username": username}, "報告接收人添加成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.delete("/api/class-diary/admin/report-recipients/{username}")
+async def remove_report_recipient(username: str, request: Request):
+    """移除報告接收人"""
+    try:
+        _verify_admin(request)
+        pool = get_database_pool()
+        pool.execute_write(
+            "DELETE FROM class_diary_report_recipients WHERE username = %s", (username,)
+        )
+        return success_response(None, "報告接收人已移除")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
+#  每日報告 — 生成 & 查詢                                                  #
+# ====================================================================== #
+
+_REPORT_SYSTEM_PROMPT = """你是一位學校課室日誌分析助手。根據提供的課堂記錄數據，生成一份簡潔的每日報告。
+
+要求：
+1. 先給出整體概況（共幾個班有記錄，平均紀律/整潔分數）
+2. 逐班列出：班級名、記錄數、平均分、重點問題
+3. 重點標出「異常」：紀律或整潔 ≤ 2 分的課堂、缺席人數多的課堂、有違規記錄的課堂
+4. 最後給出簡短的總結建議
+5. 使用繁體中文，語氣正式但簡潔
+6. 不要使用 Markdown 標題語法，使用【】來標記章節"""
+
+
+def _detect_anomalies(entries: list) -> list:
+    """規則檢測異常記錄"""
+    anomalies = []
+    for e in entries:
+        reasons = []
+        if e.get("discipline_rating") and int(e["discipline_rating"]) <= 2:
+            reasons.append(f"紀律評分低 ({e['discipline_rating']}/5)")
+        if e.get("cleanliness_rating") and int(e["cleanliness_rating"]) <= 2:
+            reasons.append(f"整潔評分低 ({e['cleanliness_rating']}/5)")
+
+        absent = (e.get("absent_students") or "").strip()
+        if absent:
+            count = len([s for s in absent.split(",") if s.strip()])
+            if count > 3:
+                reasons.append(f"缺席人數多 ({count}人)")
+
+        if (e.get("rule_violations") or "").strip():
+            reasons.append(f"課堂違規: {e['rule_violations'][:60]}")
+        if (e.get("appearance_issues") or "").strip():
+            reasons.append(f"儀表問題: {e['appearance_issues'][:60]}")
+
+        if reasons:
+            anomalies.append({
+                "entry_id": e.get("id"),
+                "class_code": e.get("class_code", ""),
+                "period_start": e.get("period_start"),
+                "period_end": e.get("period_end"),
+                "subject": e.get("subject", ""),
+                "reasons": reasons,
+            })
+    return anomalies
+
+
+def _build_report_prompt(entries: list, anomalies: list, report_date: str) -> str:
+    """把當天所有記錄組織成給 AI 的提問文本"""
+    if not entries:
+        return f"日期：{report_date}\n今天沒有任何課堂記錄。請簡單說明沒有數據。"
+
+    # 按班級分組
+    by_class = {}
+    for e in entries:
+        cc = e.get("class_code", "unknown")
+        by_class.setdefault(cc, []).append(e)
+
+    lines = [f"日期：{report_date}", f"共 {len(by_class)} 個班有記錄，合計 {len(entries)} 條。", ""]
+
+    for cc, class_entries in sorted(by_class.items()):
+        disc_avg = sum(int(e.get("discipline_rating") or 0) for e in class_entries) / len(class_entries)
+        clean_avg = sum(int(e.get("cleanliness_rating") or 0) for e in class_entries) / len(class_entries)
+        lines.append(f"【班級 {cc}】 {len(class_entries)} 條記錄, 平均紀律 {disc_avg:.1f}, 平均整潔 {clean_avg:.1f}")
+
+        for e in class_entries:
+            absent = (e.get("absent_students") or "").strip()
+            late = (e.get("late_students") or "").strip()
+            violations = (e.get("rule_violations") or "").strip()
+            appearance = (e.get("appearance_issues") or "").strip()
+            commended = (e.get("commended_students") or "").strip()
+
+            detail = f"  節{e.get('period_start', '?')}-{e.get('period_end', '?')} {e.get('subject', '')} 紀律{e.get('discipline_rating', '?')} 整潔{e.get('cleanliness_rating', '?')}"
+            if absent:
+                detail += f" 缺席:{absent}"
+            if late:
+                detail += f" 遲到:{late}"
+            if violations:
+                detail += f" 違規:{violations}"
+            if appearance:
+                detail += f" 儀表:{appearance}"
+            if commended:
+                detail += f" 嘉許:{commended}"
+            lines.append(detail)
+        lines.append("")
+
+    if anomalies:
+        lines.append(f"===== 異常記錄（共 {len(anomalies)} 條） =====")
+        for a in anomalies:
+            lines.append(f"  {a['class_code']} 節{a.get('period_start', '?')}-{a.get('period_end', '?')} {a['subject']}: {', '.join(a['reasons'])}")
+
+    return "\n".join(lines)
+
+
+def _generate_report_sync(report_date: str):
+    """同步版本的報告生成（供 run_in_executor 調用）"""
+    pool = get_database_pool()
+
+    pool.execute_write(
+        "INSERT INTO class_diary_daily_reports (report_date, report_text, status) "
+        "VALUES (%s, '', 'generating') "
+        "ON DUPLICATE KEY UPDATE status = 'generating', updated_at = NOW()",
+        (report_date,),
+    )
+
+    try:
+        service = _get_service()
+        entries = service.get_entries_by_date(report_date)
+        anomalies = _detect_anomalies(entries)
+        prompt_text = _build_report_prompt(entries, anomalies, report_date)
+
+        if not entries:
+            report_text = f"{report_date} 今天沒有任何課堂記錄。"
+        else:
+            from llm.services.qa_service import ask_ai_local
+            report_text, _ = ask_ai_local(
+                question=prompt_text,
+                subject="general",
+                system_prompt=_REPORT_SYSTEM_PROMPT,
+                task_type="summary",
+            )
+
+        anomalies_json = json.dumps(anomalies, ensure_ascii=False)
+        pool.execute_write(
+            "UPDATE class_diary_daily_reports "
+            "SET report_text = %s, anomalies_json = %s, status = 'done', updated_at = NOW() "
+            "WHERE report_date = %s",
+            (report_text, anomalies_json, report_date),
+        )
+        logger.info("每日報告生成完成: %s (%d 條記錄, %d 條異常)", report_date, len(entries), len(anomalies))
+    except Exception as e:
+        logger.exception("每日報告生成失敗: %s", report_date)
+        pool.execute_write(
+            "UPDATE class_diary_daily_reports SET status = 'failed', report_text = %s, updated_at = NOW() WHERE report_date = %s",
+            (f"生成失敗: {str(e)[:500]}", report_date),
+        )
+        raise
+
+
+@router.post("/api/class-diary/admin/generate-report")
+async def admin_generate_report(request: Request):
+    """管理員手動觸發報告生成（異步，立即返回）"""
+    try:
+        _verify_admin(request)
+        body = await request.json()
+        report_date = (body.get("report_date") or str(date.today())).strip()
+
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, _generate_report_sync, report_date)
+
+        return success_response({"report_date": report_date, "status": "generating"}, "報告生成已啟動")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/review/daily-report")
+async def get_daily_report(
+    request: Request,
+    entry_date: Optional[str] = Query(None, description="日期 YYYY-MM-DD"),
+):
+    """獲取每日 AI 報告"""
+    try:
+        username, role = _verify_request(request)
+        service = _get_service()
+
+        if not service.check_review_access(username, role):
+            from app.domains.class_diary.exceptions import ReviewAccessDeniedError
+            raise ReviewAccessDeniedError()
+
+        if not entry_date:
+            entry_date = str(date.today())
+
+        pool = get_database_pool()
+
+        # 查詢報告
+        rows = pool.execute(
+            "SELECT report_text, anomalies_json, status, created_at "
+            "FROM class_diary_daily_reports WHERE report_date = %s",
+            (entry_date,),
+        )
+        report = rows[0] if rows else None
+
+        # 檢查是否為報告接收人
+        recipient_rows = pool.execute(
+            "SELECT id FROM class_diary_report_recipients WHERE username = %s",
+            (username,),
+        )
+        is_recipient = bool(recipient_rows)
+
+        # 檢查是否為 reviewer（整理人，可匯出）
+        is_reviewer = role == "admin" or service._reviewer_repo.is_reviewer(username)
+
+        if report:
+            anomalies = []
+            if report.get("anomalies_json"):
+                try:
+                    anomalies = json.loads(report["anomalies_json"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+            return success_response({
+                "report_text": report["report_text"],
+                "anomalies": anomalies,
+                "status": report["status"],
+                "is_recipient": is_recipient,
+                "is_reviewer": is_reviewer,
+            })
+        else:
+            return success_response({
+                "report_text": None,
+                "anomalies": [],
+                "status": "none",
+                "is_recipient": is_recipient,
+                "is_reviewer": is_reviewer,
+            })
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("查詢每日報告失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
+#  匯出 CSV                                                               #
+# ====================================================================== #
+
+@router.get("/api/class-diary/review/export")
+async def export_entries_csv(
+    request: Request,
+    entry_date: Optional[str] = Query(None, description="日期 YYYY-MM-DD"),
+):
+    """匯出當天所有班級的記錄為 CSV"""
+    try:
+        _verify_reviewer(request)
+
+        if not entry_date:
+            entry_date = str(date.today())
+
+        service = _get_service()
+        entries = service.get_entries_by_date(entry_date)
+
+        period_labels = ["早會", "第一節", "第二節", "第三節", "第四節",
+                         "第五節", "第六節", "第七節", "第八節", "第九節"]
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "班級", "日期", "節數", "科目",
+            "紀律", "整潔", "缺席學生", "遲到學生",
+            "嘉許學生", "儀表問題", "課堂違規",
+        ])
+
+        for e in entries:
+            ps = e.get("period_start", 0)
+            pe = e.get("period_end", 0)
+            period_text = period_labels[ps] if ps == pe and ps < len(period_labels) else f"{period_labels[min(ps, len(period_labels)-1)]}-{period_labels[min(pe, len(period_labels)-1)]}"
+            writer.writerow([
+                e.get("class_code", ""),
+                e.get("entry_date", ""),
+                period_text,
+                e.get("subject", ""),
+                e.get("discipline_rating", ""),
+                e.get("cleanliness_rating", ""),
+                e.get("absent_students", ""),
+                e.get("late_students", ""),
+                e.get("commended_students", ""),
+                e.get("appearance_issues", ""),
+                e.get("rule_violations", ""),
+            ])
+
+        csv_bytes = output.getvalue().encode("utf-8-sig")
+        filename = f"class_diary_{entry_date}.csv"
+
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("匯出 CSV 失敗")
         return error_response("SERVER_ERROR", str(e), status_code=500)

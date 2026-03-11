@@ -184,6 +184,14 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("啟動遷移失敗: %s", e)
 
+        # 啟動每日課室日誌報告定時任務
+        try:
+            import asyncio as _aio
+            _aio.create_task(_daily_report_scheduler())
+            logger.info("每日課室日誌報告定時任務已啟動 (每天 16:00)")
+        except Exception as e:
+            logger.warning("啟動每日報告定時任務失敗: %s", e)
+
         logger.info("应用启动完成")
 
     @app.on_event("shutdown")
@@ -255,6 +263,49 @@ def _mount_static_files(app: FastAPI, settings) -> None:
         logger.info("上傳文件目錄已掛載: %s", uploads_dir)
     except Exception as e:
         logger.warning("挂载静态文件时出错: %s", e)
+
+
+async def _daily_report_scheduler():
+    """
+    每日 16:00 自動生成課室日誌報告的背景協程。
+    計算距離下一個 16:00 的秒數，sleep 後觸發生成。
+    """
+    import asyncio
+    from datetime import datetime, timedelta, date as _date
+
+    while True:
+        try:
+            now = datetime.now()
+            target = now.replace(hour=16, minute=0, second=0, microsecond=0)
+            if now >= target:
+                target += timedelta(days=1)
+
+            wait_seconds = (target - now).total_seconds()
+            logger.info("每日報告下次生成時間: %s (%.0f 秒後)", target.strftime("%Y-%m-%d %H:%M"), wait_seconds)
+            await asyncio.sleep(wait_seconds)
+
+            # 生成今天的報告
+            report_date = str(_date.today())
+            logger.info("定時任務觸發：開始生成 %s 的每日報告", report_date)
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _run_daily_report, report_date)
+
+        except asyncio.CancelledError:
+            logger.info("每日報告定時任務已取消")
+            break
+        except Exception as e:
+            logger.exception("每日報告定時任務異常，60 秒後重試")
+            await asyncio.sleep(60)
+
+
+def _run_daily_report(report_date: str):
+    """在線程池中運行同步的報告生成"""
+    try:
+        from app.routers.class_diary import _generate_report_sync
+        _generate_report_sync(report_date)
+    except Exception as e:
+        logger.error("每日報告生成失敗: %s - %s", report_date, e)
 
 
 # 创建应用实例

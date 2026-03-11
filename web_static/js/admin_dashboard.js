@@ -1352,6 +1352,12 @@ const AdminApp = {
         document.querySelectorAll('[data-action="addReviewer"]').forEach(btn => {
             btn.addEventListener('click', () => this.addReviewer());
         });
+        document.querySelectorAll('[data-action="addReportRecipient"]').forEach(btn => {
+            btn.addEventListener('click', () => this.addReportRecipient());
+        });
+        document.querySelectorAll('[data-action="manualGenerateReport"]').forEach(btn => {
+            btn.addEventListener('click', () => this.manualGenerateReport());
+        });
 
         // (knowledge tab auto-load is handled in switchTab)
     },
@@ -2765,12 +2771,14 @@ ${report.teacher_attention_points || '暫無'}
     _teacherList: [],  // 緩存教師列表供班主任下拉使用
 
     async loadClassDiaryTab() {
-        // 先載入教師列表（班主任下拉和 Reviewer 下拉共用）
+        // 先載入教師列表（班主任下拉和 Reviewer/接收人 下拉共用）
         await this._loadTeacherList();
         await Promise.all([
             this.loadClassDiaryQRGrid(),
             this.loadReviewers(),
             this.loadTeachersForReviewer(),
+            this.loadReportRecipients(),
+            this.loadTeachersForReportRecipient(),
         ]);
     },
 
@@ -3008,6 +3016,106 @@ ${report.teacher_attention_points || '暫無'}
             await this.loadReviewers();
         } catch (error) {
             alert('移除失敗: ' + error.message);
+        }
+    },
+
+    /* ============================================================
+       每日報告接收人管理
+       ============================================================ */
+
+    async loadTeachersForReportRecipient() {
+        try {
+            const select = document.getElementById('reportRecipientSelect');
+            if (!select) return;
+            select.innerHTML = '<option value="">選擇教師帳戶...</option>';
+            this._teacherList.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.username;
+                opt.textContent = `${u.display_name || u.username} (${u.username})`;
+                select.appendChild(opt);
+            });
+        } catch (error) {
+            console.error('載入教師列表失敗:', error);
+        }
+    },
+
+    async loadReportRecipients() {
+        const container = document.getElementById('reportRecipientsList');
+        if (!container) return;
+        try {
+            const data = await AdminAPI.fetchWithAuth('/api/class-diary/admin/report-recipients');
+            const recipients = data.data || [];
+
+            if (recipients.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.9rem;">尚未添加任何報告接收人。</p>';
+                return;
+            }
+
+            container.innerHTML = recipients.map(r => `
+                <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 16px;">
+                    <div>
+                        <span style="font-weight:600;">${r.username}</span>
+                        <span style="color:var(--text-secondary);font-size:0.8rem;margin-left:8px;">由 ${r.granted_by} 授權</span>
+                    </div>
+                    <button onclick="AdminApp.removeReportRecipient('${r.username}')"
+                        style="padding:4px 10px;border:1px solid #EF4444;border-radius:6px;background:#fff;color:#EF4444;font-size:0.8rem;cursor:pointer;">
+                        移除
+                    </button>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = '<p style="color:red;">載入失敗: ' + error.message + '</p>';
+        }
+    },
+
+    async addReportRecipient() {
+        const select = document.getElementById('reportRecipientSelect');
+        const username = select.value;
+        if (!username) {
+            alert('請選擇教師帳戶');
+            return;
+        }
+        try {
+            await AdminAPI.fetchWithAuth('/api/class-diary/admin/report-recipients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username }),
+            });
+            select.value = '';
+            await this.loadReportRecipients();
+        } catch (error) {
+            alert('添加失敗: ' + error.message);
+        }
+    },
+
+    async removeReportRecipient(username) {
+        if (!confirm(`確定移除 ${username} 的報告接收權限？`)) return;
+        try {
+            await AdminAPI.fetchWithAuth(`/api/class-diary/admin/report-recipients/${username}`, {
+                method: 'DELETE',
+            });
+            await this.loadReportRecipients();
+        } catch (error) {
+            alert('移除失敗: ' + error.message);
+        }
+    },
+
+    async manualGenerateReport() {
+        const statusEl = document.getElementById('reportGenStatus');
+        if (statusEl) statusEl.textContent = '⏳ 報告生成中...';
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            await AdminAPI.fetchWithAuth('/api/class-diary/admin/generate-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ report_date: today }),
+            });
+            if (statusEl) statusEl.textContent = '✅ 報告生成已啟動，AI 正在分析中...';
+            // 10 秒後清除狀態提示
+            setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 10000);
+        } catch (error) {
+            if (statusEl) statusEl.textContent = '❌ 生成失敗: ' + error.message;
         }
     },
 

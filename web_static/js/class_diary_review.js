@@ -11,6 +11,8 @@ const reviewState = {
     currentClass: '',
     entries: [],
     hasAccess: false,
+    isRecipient: false,
+    isReviewer: false,
 };
 
 /* ============================================================
@@ -54,8 +56,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterDate').addEventListener('change', onFilterChange);
     document.getElementById('filterClass').addEventListener('change', onFilterChange);
 
-    // 載入數據
-    await loadSummary();
+    // 載入每日報告 + 數據
+    await Promise.all([
+        loadDailyReport(),
+        loadSummary(),
+    ]);
 });
 
 
@@ -265,9 +270,131 @@ function closeSigModal() {
 
 
 /* ============================================================
+   每日 AI 報告
+   ============================================================ */
+async function loadDailyReport() {
+    const dateVal = document.getElementById('filterDate').value;
+    try {
+        const data = await APIClient.get(`/api/class-diary/review/daily-report?entry_date=${dateVal}`);
+        if (!data.success || !data.data) return;
+
+        const { report_text, anomalies, status, is_recipient, is_reviewer } = data.data;
+        reviewState.isRecipient = is_recipient;
+        reviewState.isReviewer = is_reviewer;
+
+        // 顯示匯出按鈕（reviewer 或 admin）
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn && is_reviewer) {
+            exportBtn.style.display = '';
+        }
+
+        // 報告接收人 或 reviewer/admin 都能看到報告區
+        const section = document.getElementById('dailyReportSection');
+        if (!is_recipient && !is_reviewer) {
+            section.style.display = 'none';
+            return;
+        }
+
+        const reportDateEl = document.getElementById('reportDate');
+        reportDateEl.textContent = dateVal;
+
+        const statusEl = document.getElementById('dailyReportStatus');
+        const contentEl = document.getElementById('dailyReportContent');
+        const anomaliesEl = document.getElementById('dailyAnomalies');
+
+        if (status === 'none') {
+            section.style.display = '';
+            statusEl.innerHTML = '<p style="color:var(--text-secondary);font-style:italic;">該日期尚未生成報告。</p>';
+            contentEl.innerHTML = '';
+            anomaliesEl.innerHTML = '';
+            return;
+        }
+
+        if (status === 'generating') {
+            section.style.display = '';
+            statusEl.innerHTML = '<p style="color:var(--primary);">⏳ 報告生成中，請稍候刷新...</p>';
+            contentEl.innerHTML = '';
+            anomaliesEl.innerHTML = '';
+            return;
+        }
+
+        if (status === 'failed') {
+            section.style.display = '';
+            statusEl.innerHTML = '<p style="color:#EF4444;">❌ 報告生成失敗</p>';
+            contentEl.innerHTML = report_text ? `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(report_text)}</p>` : '';
+            anomaliesEl.innerHTML = '';
+            return;
+        }
+
+        // status === 'done'
+        section.style.display = '';
+        statusEl.innerHTML = '';
+
+        // 渲染 AI 報告文本（保留換行）
+        contentEl.innerHTML = `<div class="report-text">${escapeHtml(report_text || '').replace(/\n/g, '<br>')}</div>`;
+
+        // 渲染異常列表
+        if (anomalies && anomalies.length > 0) {
+            const periodLabels = ['早會', '第一節', '第二節', '第三節', '第四節', '第五節', '第六節', '第七節', '第八節', '第九節'];
+            anomaliesEl.innerHTML = `
+                <div class="anomalies-section">
+                    <h4 class="anomalies-title">⚠️ 異常記錄 (${anomalies.length} 條)</h4>
+                    ${anomalies.map(a => {
+                        const ps = a.period_start != null ? (periodLabels[a.period_start] || a.period_start) : '?';
+                        return `
+                        <div class="anomaly-item">
+                            <span class="anomaly-badge">${escapeHtml(a.class_code)}</span>
+                            <span class="anomaly-period">${ps}</span>
+                            <span class="anomaly-subject">${escapeHtml(a.subject)}</span>
+                            <span class="anomaly-reasons">${a.reasons.map(r => escapeHtml(r)).join('；')}</span>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+        } else {
+            anomaliesEl.innerHTML = '';
+        }
+
+    } catch (e) {
+        console.error('載入每日報告失敗:', e);
+    }
+}
+
+
+/* ============================================================
+   匯出 CSV
+   ============================================================ */
+function exportCSV() {
+    const dateVal = document.getElementById('filterDate').value;
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+    // 直接觸發下載
+    const url = `/api/class-diary/review/export?entry_date=${dateVal}`;
+    const a = document.createElement('a');
+    a.href = url;
+    // 使用 fetch 帶 token 下載
+    fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(resp => {
+            if (!resp.ok) throw new Error('匯出失敗');
+            return resp.blob();
+        })
+        .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            const dl = document.createElement('a');
+            dl.href = blobUrl;
+            dl.download = `class_diary_${dateVal}.csv`;
+            document.body.appendChild(dl);
+            dl.click();
+            document.body.removeChild(dl);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        })
+        .catch(err => alert('匯出失敗: ' + err.message));
+}
+
+
+/* ============================================================
    篩選事件
    ============================================================ */
 function onFilterChange() {
+    loadDailyReport();
     loadSummary();
 }
 
