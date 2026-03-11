@@ -249,6 +249,34 @@ const GameCenterAPI = {
         } catch {
             return null;
         }
+    },
+
+    /**
+     * 加載神州菜園排行榜
+     * @param {number} limit
+     * @returns {Promise<Array|null>}
+     */
+    async loadFarmLeaderboard(limit = 10) {
+        try {
+            const data = await APIClient.get('/api/farm-game/scores/leaderboard', { limit });
+            return (data?.success && data.data) ? data.data : null;
+        } catch {
+            return null;
+        }
+    },
+
+    /**
+     * 加載全球貿易大亨排行榜
+     * @param {number} limit
+     * @returns {Promise<Array|null>}
+     */
+    async loadTradeLeaderboard(limit = 10) {
+        try {
+            const data = await APIClient.get('/api/trade-game/scores/leaderboard', { limit });
+            return (data?.success && data.data) ? data.data : null;
+        } catch {
+            return null;
+        }
     }
 };
 
@@ -290,6 +318,42 @@ const GameCenterUI = {
                     ${games.map(game => this.createGameCardHTML(game, isAdmin)).join('')}
                 </div>
             </section>
+        `;
+    },
+
+    /**
+     * 生成排行榜區塊 HTML
+     */
+    createLeaderboardHTML(title, icon, entries, gameUrl) {
+        if (!entries || entries.length === 0) return '';
+
+        const RANK_ICONS = ['🥇', '🥈', '🥉'];
+        const RESULT_MAP = { completed: '任期屆滿', bankrupt: '破產', redline: '國安紅線' };
+
+        const rowsHTML = entries.map((e, i) => {
+            const rankIcon = RANK_ICONS[i] || `<span class="gc-lb-rank-num">${e.rank || i + 1}</span>`;
+            const rowClass = i < 3 ? `gc-lb-row--top${i + 1}` : '';
+            const resultTag = e.result ? `<span class="gc-lb-result">${RESULT_MAP[e.result] || e.result}</span>` : '';
+            return `<div class="gc-lb-row ${rowClass}">
+                <span class="gc-lb-rank">${rankIcon}</span>
+                <span class="gc-lb-name">${Utils.escapeHtml(e.student_name || '')}</span>
+                <span class="gc-lb-class">${Utils.escapeHtml(e.class_name || '')}</span>
+                ${resultTag}
+                <span class="gc-lb-score">${e.score?.toLocaleString() || 0}</span>
+            </div>`;
+        }).join('');
+
+        return `
+            <div class="gc-leaderboard-card">
+                <div class="gc-lb-header">
+                    <span class="gc-lb-icon">${icon}</span>
+                    <span class="gc-lb-title">${Utils.escapeHtml(title)}</span>
+                    <a href="${gameUrl}" class="gc-lb-play-btn">去挑戰 ▶</a>
+                </div>
+                <div class="gc-lb-body">
+                    ${rowsHTML}
+                </div>
+            </div>
         `;
     },
 
@@ -387,6 +451,9 @@ const GameCenterApp = {
         this._renderGameSections();
         this._updateUserDisplay();
         this._hideSplash();
+
+        // 異步加載排行榜（不阻塞主界面）
+        this._loadLeaderboards();
     },
 
     _cacheElements() {
@@ -666,6 +733,30 @@ const GameCenterApp = {
             console.error('刪除遊戲失敗:', error);
             UIModule.toast('刪除失敗，請稍後再試', 'error');
         }
+    },
+
+    async _loadLeaderboards() {
+        const [farmData, tradeData] = await Promise.all([
+            GameCenterAPI.loadFarmLeaderboard(10),
+            GameCenterAPI.loadTradeLeaderboard(10)
+        ]);
+
+        // 找到公民（ces）區塊
+        const cesSection = this.elements.gamesContainer.querySelector('.game-section[data-subject="ces"]');
+        if (!cesSection) return;
+
+        const farmHtml = GameCenterUI.createLeaderboardHTML('神州菜園經營家 排行榜', '🥬', farmData, '/farm-game');
+        const tradeHtml = GameCenterUI.createLeaderboardHTML('全球貿易大亨 排行榜', '🌐', tradeData, '/trade-game');
+
+        if (!farmHtml && !tradeHtml) return;
+
+        let container = cesSection.querySelector('.gc-leaderboards');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'gc-leaderboards';
+            cesSection.appendChild(container);
+        }
+        container.innerHTML = farmHtml + tradeHtml;
     },
 
     _filterGames() {
