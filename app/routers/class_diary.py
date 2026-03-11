@@ -530,7 +530,7 @@ async def create_class(request: Request):
 
         # 檢查是否已存在
         existing = pool.execute(
-            "SELECT class_id FROM classes WHERE class_code = %s", (class_code,)
+            "SELECT id FROM classes WHERE class_code = %s", (class_code,)
         )
         if existing:
             return error_response("ALREADY_EXISTS", f"班級 {class_code} 已存在", status_code=409)

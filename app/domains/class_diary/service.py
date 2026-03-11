@@ -288,7 +288,7 @@ class ClassDiaryService:
                 for name in class_names
             ]
         # fallback: 從 classes 表
-        sql = "SELECT class_id, class_code, class_name, grade FROM classes ORDER BY class_code"
+        sql = "SELECT id, class_code, class_name, grade FROM classes ORDER BY class_code"
         return self._entry_repo.raw_query(sql)
 
     def get_students_for_class(self, class_code: str) -> List[Dict[str, Any]]:
