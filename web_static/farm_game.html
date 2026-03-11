@@ -772,7 +772,7 @@
                 if (!access.allowed) {
                     document.getElementById('auth-screen').classList.add('hidden');
                     document.getElementById('access-denied-screen').classList.remove('hidden');
-                    document.getElementById('access-denied-msg').innerText = `此遊戲僅供中三學生（${(access.allowed_classes || []).join(', ')}）遊玩。你的班級：${access.class_name || '未知'}`;
+                    document.getElementById('access-denied-msg').innerText = `此遊戲僅供中二學生（${(access.allowed_classes || []).join(', ')}）遊玩。你的班級：${access.class_name || '未知'}`;
                     return;
                 }
 

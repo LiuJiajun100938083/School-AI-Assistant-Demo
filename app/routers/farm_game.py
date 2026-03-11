@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 farm_game_router = APIRouter(prefix="/api/farm-game", tags=["Farm Game"])
 
-ALLOWED_CLASSES = {"3A", "3B", "3C", "3D", "3S"}
+ALLOWED_CLASSES = {"2A", "2B", "2C", "2D", "2S"}
 
 
 def _extract_user(current_user: Dict) -> Dict:
@@ -59,7 +59,7 @@ def _require_allowed_class(user: Dict) -> None:
     if user["class_name"] not in ALLOWED_CLASSES:
         raise HTTPException(
             403,
-            f"只有中三學生（{', '.join(sorted(ALLOWED_CLASSES))}）可以遊玩此遊戲"
+            f"只有中二學生（{', '.join(sorted(ALLOWED_CLASSES))}）可以遊玩此遊戲"
         )
 
 

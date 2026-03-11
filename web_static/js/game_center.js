@@ -182,7 +182,7 @@ const GameConfig = {
                 icon: '🥬',
                 description: '經營菜園守護糧食安全：戰爭貿易戰、種子主權與耕地紅線',
                 url: '/farm-game',
-                difficulty: ['中一', '中二', '中三'],
+                difficulty: ['中二'],
                 tags: ['糧食安全', '農業', '國安', '策略', '公民'],
                 badge: '新',
                 roles: ['student', 'teacher', 'admin']
