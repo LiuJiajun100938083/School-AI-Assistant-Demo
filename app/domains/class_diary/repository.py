@@ -38,6 +38,16 @@ class ClassDiaryEntryRepository(BaseRepository):
             order_by="entry_date DESC, period_start ASC",
         )
 
+    def find_all_by_date_range(
+        self, start_date: str, end_date: str
+    ) -> List[Dict[str, Any]]:
+        """查詢日期範圍內所有班級的記錄"""
+        return self.find_all(
+            where="entry_date BETWEEN %s AND %s",
+            params=(start_date, end_date),
+            order_by="entry_date ASC, class_code ASC, period_start ASC",
+        )
+
     def find_all_by_date(self, entry_date: str) -> List[Dict[str, Any]]:
         """查詢某日所有班級的記錄"""
         return self.find_all(

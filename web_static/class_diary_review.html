@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>課室日誌 Review</title>
     <link rel="stylesheet" href="/static/css/class_diary_review.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -32,67 +33,177 @@
 
     <!-- 篩選欄 -->
     <div class="filter-bar">
-        <label>📅 日期</label>
-        <input type="date" id="filterDate">
-        <label>🏫 班級</label>
-        <select id="filterClass">
-            <option value="">全部班級</option>
-        </select>
-        <button id="exportBtn" class="btn-export" style="display:none;" onclick="exportCSV()">📥 匯出 CSV</button>
-    </div>
-
-    <!-- 今日概覽（數據 + AI 報告合併） -->
-    <div class="dashboard-section" id="dashboardSection" style="display:none;">
-        <div class="dashboard-header" onclick="toggleDashboard()">
-            <span class="dashboard-title">今日概覽</span>
-            <span class="dashboard-toggle" id="dashToggle">▼</span>
+        <div class="date-mode-toggle" id="dateModeToggle">
+            <button class="mode-btn active" data-mode="single" onclick="setDateMode('single')">單日</button>
+            <button class="mode-btn" data-mode="range" onclick="setDateMode('range')">日期範圍</button>
         </div>
-        <div class="dashboard-body" id="dashboardBody">
-            <div class="dash-cards" id="dashCards"></div>
-            <div class="dash-chart-section" id="dashClassChart"></div>
-            <div class="dash-behavior-section" id="dashBehavior"></div>
-            <!-- AI 報告（報告接收人/reviewer 可見） -->
-            <div id="aiReportBlock" style="display:none;">
-                <div id="dailyReportStatus"></div>
-                <div id="dailyReportContent"></div>
-                <div id="dailyAnomalies"></div>
+
+        <div class="date-single-group" id="dateSingleGroup">
+            <label>📅 日期</label>
+            <input type="date" id="filterDate">
+        </div>
+
+        <div class="date-range-group" id="dateRangeGroup" style="display:none;">
+            <label>開始</label>
+            <input type="date" id="rangeStart">
+            <label>結束</label>
+            <input type="date" id="rangeEnd">
+            <button class="btn-apply-range" onclick="applyDateRange()">查詢</button>
+        </div>
+
+        <div class="filter-right">
+            <label>🏫 班級</label>
+            <select id="filterClass">
+                <option value="">全部班級</option>
+            </select>
+            <div class="export-dropdown" id="exportDropdown" style="display:none;">
+                <button class="btn-export" onclick="toggleExportMenu()">匯出 XLSX ▾</button>
+                <div class="export-menu" id="exportMenu">
+                    <button onclick="exportSingleDay()">匯出當天</button>
+                    <button onclick="showRangeExportModal()">匯出日期範圍...</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 班級匯總 -->
-    <div class="summary-grid" id="summaryGrid"></div>
-
-    <!-- 記錄列表 -->
-    <div class="entries-section" id="entriesSection" style="display:none;">
-        <div class="entries-header">
-            <h3 id="entriesTitle">課堂記錄</h3>
-            <span class="entries-count" id="entriesCount">0 條</span>
-        </div>
-        <div style="overflow-x:auto;">
-            <table class="entries-table">
-                <thead>
-                    <tr>
-                        <th>節數</th>
-                        <th>科目</th>
-                        <th>紀律</th>
-                        <th>整潔</th>
-                        <th>缺席</th>
-                        <th>遲到</th>
-                        <th>嘉許</th>
-                        <th>違規</th>
-                        <th>醫務室</th>
-                        <th>簽名</th>
-                    </tr>
-                </thead>
-                <tbody id="entriesBody"></tbody>
-            </table>
+    <!-- ========== 單日視圖 ========== -->
+    <div id="singleDayView">
+        <!-- 今日概覽（數據 + AI 報告合併） -->
+        <div class="dashboard-section" id="dashboardSection" style="display:none;">
+            <div class="dashboard-header" onclick="toggleDashboard()">
+                <span class="dashboard-title">今日概覽</span>
+                <span class="dashboard-toggle" id="dashToggle">▼</span>
+            </div>
+            <div class="dashboard-body" id="dashboardBody">
+                <div class="dash-cards" id="dashCards"></div>
+                <div class="dash-chart-section" id="dashClassChart"></div>
+                <div class="dash-behavior-section" id="dashBehavior"></div>
+                <!-- AI 報告（報告接收人/reviewer 可見） -->
+                <div id="aiReportBlock" style="display:none;">
+                    <div id="dailyReportStatus"></div>
+                    <div id="dailyReportContent"></div>
+                    <div id="dailyAnomalies"></div>
+                </div>
+            </div>
         </div>
 
-        <!-- 空狀態 -->
-        <div class="empty-state" id="emptyState" style="display:none;">
-            <div class="icon">📭</div>
-            <p>該日期暫無評級記錄</p>
+        <!-- 班級匯總 -->
+        <div class="summary-grid" id="summaryGrid"></div>
+
+        <!-- 記錄列表 -->
+        <div class="entries-section" id="entriesSection" style="display:none;">
+            <div class="entries-header">
+                <h3 id="entriesTitle">課堂記錄</h3>
+                <span class="entries-count" id="entriesCount">0 條</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="entries-table">
+                    <thead>
+                        <tr>
+                            <th>節數</th>
+                            <th>科目</th>
+                            <th>紀律</th>
+                            <th>整潔</th>
+                            <th>缺席</th>
+                            <th>遲到</th>
+                            <th>嘉許</th>
+                            <th>違規</th>
+                            <th>醫務室</th>
+                            <th>簽名</th>
+                        </tr>
+                    </thead>
+                    <tbody id="entriesBody"></tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <div class="icon">📭</div>
+                <p>該日期暫無評級記錄</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 日期範圍視圖 ========== -->
+    <div id="rangeView" style="display:none;">
+
+        <!-- 1. 範圍概覽（所有 tier 可見） -->
+        <div id="rangeOverviewSection">
+            <div class="dash-cards" id="rangeCards"></div>
+        </div>
+
+        <!-- 2. 範圍圖表（charts tier 可見） -->
+        <div id="rangeChartSection" style="display:none;">
+            <div class="chart-container">
+                <h4>每日趨勢</h4>
+                <canvas id="dailyTrendChart"></canvas>
+                <div class="chart-empty" id="trendChartEmpty" style="display:none;">指定範圍內沒有記錄</div>
+            </div>
+            <div class="chart-row-2col">
+                <div class="chart-container">
+                    <h4>節數分析</h4>
+                    <canvas id="periodChart"></canvas>
+                    <div class="chart-empty" id="periodChartEmpty" style="display:none;">無數據</div>
+                </div>
+                <div class="chart-container">
+                    <h4>星期分析</h4>
+                    <canvas id="weekdayChart"></canvas>
+                    <div class="chart-empty" id="weekdayChartEmpty" style="display:none;">無數據</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h4>科目分析</h4>
+                <canvas id="subjectChart"></canvas>
+                <div class="chart-empty" id="subjectChartEmpty" style="display:none;">無數據</div>
+            </div>
+        </div>
+
+        <!-- 3. 範圍原始數據表（raw_data tier 可見） -->
+        <div id="rangeRawDataSection" style="display:none;">
+            <div class="range-table-container">
+                <h4>學生記名統計</h4>
+                <div style="overflow-x:auto;"><table class="range-student-table" id="rangeStudentTable"></table></div>
+            </div>
+            <div class="range-table-container">
+                <h4>風險學生</h4>
+                <div style="overflow-x:auto;"><table class="range-student-table" id="rangeRiskTable"></table></div>
+            </div>
+        </div>
+
+        <!-- 4. 範圍 AI 報告（ai_report tier 可見） -->
+        <div id="rangeAiSection" style="display:none;">
+            <div class="range-ai-header">
+                <h4>AI 範圍報告</h4>
+                <button class="btn-generate-range-report" id="generateRangeReportBtn"
+                        style="display:none;" onclick="generateRangeReport()">生成 AI 報告</button>
+            </div>
+            <div id="rangeReportStatus"></div>
+            <div id="rangeReportContent"></div>
+            <div id="rangeAnomalies"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- 日期範圍匯出彈窗 -->
+<div class="range-modal-overlay" id="rangeModal">
+    <div class="range-modal">
+        <div class="range-modal-header">
+            <h3>匯出日期範圍</h3>
+            <button class="range-modal-close" onclick="closeRangeModal()">&times;</button>
+        </div>
+        <div class="range-modal-body">
+            <div class="range-form-group">
+                <label>開始日期</label>
+                <input type="date" id="rangeStartDate">
+            </div>
+            <div class="range-form-group">
+                <label>結束日期</label>
+                <input type="date" id="rangeEndDate">
+            </div>
+            <p class="range-hint">匯出包含學生記名統計、班級趨勢、節數/科目/星期分析等 10 個工作表。</p>
+        </div>
+        <div class="range-modal-footer">
+            <button class="btn-range-cancel" onclick="closeRangeModal()">取消</button>
+            <button class="btn-range-confirm" id="rangeConfirmBtn" onclick="exportDateRange()">匯出</button>
         </div>
     </div>
 </div>

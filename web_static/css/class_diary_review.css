@@ -834,6 +834,161 @@ body {
     background: var(--brand-hover);
 }
 
+/* Export dropdown */
+.export-dropdown {
+    position: relative;
+    margin-left: auto;
+}
+
+.export-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    min-width: 180px;
+    z-index: 100;
+    margin-top: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.export-menu.show {
+    display: block;
+}
+
+.export-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.export-menu button:hover {
+    background: #E8F5EC;
+}
+
+.export-menu button + button {
+    border-top: 1px solid var(--border-light);
+}
+
+/* Range export modal */
+.range-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.range-modal-overlay.show {
+    display: flex;
+}
+
+.range-modal {
+    background: #fff;
+    border-radius: 8px;
+    width: 380px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+
+.range-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.range-modal-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.range-modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--text-tertiary);
+}
+
+.range-modal-body {
+    padding: 20px;
+}
+
+.range-form-group {
+    margin-bottom: 12px;
+}
+
+.range-form-group label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.range-form-group input[type="date"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.range-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 8px;
+}
+
+.range-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+}
+
+.btn-range-cancel {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-range-confirm {
+    padding: 8px 16px;
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-range-confirm:hover {
+    background: var(--brand-hover);
+}
+
+.btn-range-confirm:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* ========== 響應式 ========== */
 @media (max-width: 768px) {
     .navbar {
@@ -1029,5 +1184,301 @@ body {
 .dash-card.clickable:hover {
     box-shadow: 0 2px 8px rgba(0,0,0,.1);
     background-color: #fafafa;
+}
+
+/* ============================================================
+   日期模式切換
+   ============================================================ */
+
+.date-mode-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.mode-btn {
+    padding: 6px 16px;
+    border: none;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s;
+}
+
+.mode-btn + .mode-btn {
+    border-left: 1px solid var(--border);
+}
+
+.mode-btn.active {
+    background: var(--brand);
+    color: #fff;
+}
+
+.mode-btn:hover:not(.active) {
+    background: var(--brand-lighter);
+    color: var(--brand);
+}
+
+/* 日期範圍輸入組 */
+.date-single-group,
+.date-range-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-apply-range {
+    padding: 8px 16px;
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.btn-apply-range:hover {
+    background: var(--brand-hover);
+}
+
+.filter-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+/* ============================================================
+   Chart.js 圖表容器
+   ============================================================ */
+
+.chart-container {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.chart-container h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 12px;
+}
+
+.chart-row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.chart-empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+}
+
+/* ============================================================
+   範圍視圖學生 / 風險表格
+   ============================================================ */
+
+.range-table-container {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.range-table-container h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 12px;
+}
+
+.range-student-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.range-student-table th {
+    background: var(--brand);
+    color: #fff;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.range-student-table th:first-child {
+    border-radius: 4px 0 0 0;
+}
+
+.range-student-table th:last-child {
+    border-radius: 0 4px 0 0;
+}
+
+.range-student-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+}
+
+.range-student-table tr:last-child td {
+    border-bottom: none;
+}
+
+.range-student-table tr:hover {
+    background: var(--brand-lighter);
+}
+
+.risk-high {
+    background: #FEF2F2 !important;
+}
+
+.risk-high:hover {
+    background: #FEE2E2 !important;
+}
+
+.date-cell {
+    font-size: 12px;
+    color: var(--text-secondary);
+    max-width: 180px;
+    word-break: break-all;
+}
+
+/* ============================================================
+   範圍 AI 報告區
+   ============================================================ */
+
+.range-ai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.range-ai-header h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.btn-generate-range-report {
+    padding: 8px 16px;
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-generate-range-report:hover {
+    background: var(--brand-hover);
+}
+
+.btn-generate-range-report:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 載入文字 */
+.loading-text {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+}
+
+/* AI 報告 muted status */
+.ai-report-status.muted {
+    color: var(--text-tertiary);
+}
+
+/* ============================================================
+   範圍視圖各分區間距
+   ============================================================ */
+
+#rangeOverviewSection {
+    margin-bottom: 24px;
+}
+
+#rangeChartSection {
+    margin-bottom: 24px;
+}
+
+#rangeRawDataSection {
+    margin-bottom: 24px;
+}
+
+#rangeAiSection {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+/* ============================================================
+   響應式 — 新增組件
+   ============================================================ */
+
+@media (max-width: 768px) {
+    .chart-row-2col {
+        grid-template-columns: 1fr;
+    }
+
+    .date-mode-toggle {
+        width: 100%;
+    }
+
+    .mode-btn {
+        flex: 1;
+        text-align: center;
+    }
+
+    .date-range-group {
+        flex-wrap: wrap;
+    }
+
+    .date-range-group input[type="date"] {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .filter-right {
+        margin-left: 0;
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .range-ai-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .range-student-table {
+        font-size: 12px;
+    }
+
+    .range-student-table th,
+    .range-student-table td {
+        padding: 5px 8px;
+    }
 }
 
