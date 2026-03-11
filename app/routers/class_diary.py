@@ -338,12 +338,18 @@ async def check_review_access(request: Request):
 
 @router.get("/api/class-diary/admin/classes")
 async def admin_list_classes(request: Request):
-    """列出所有班級（管理員用）"""
+    """列出所有班級（管理員用，含班主任資訊）"""
     try:
         _verify_admin(request)
-        service = _get_service()
-        classes = service.get_all_classes()
-        return success_response(classes)
+
+        from app.infrastructure.database import get_database_pool
+        pool = get_database_pool()
+
+        classes = pool.execute(
+            "SELECT class_code, class_name, grade, teacher_username, vice_teacher_username "
+            "FROM classes ORDER BY class_code"
+        )
+        return success_response(classes or [])
 
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -521,6 +527,36 @@ async def create_class(request: Request):
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
         logger.exception("創建班級失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.put("/api/class-diary/admin/classes/{class_code}/teachers")
+async def update_class_teachers(class_code: str, request: Request):
+    """設定班級的班主任和副班主任"""
+    try:
+        _verify_admin(request)
+        body = await request.json()
+
+        teacher_username = (body.get("teacher_username") or "").strip() or None
+        vice_teacher_username = (body.get("vice_teacher_username") or "").strip() or None
+
+        from app.infrastructure.database import get_database_pool
+        pool = get_database_pool()
+
+        pool.execute(
+            "UPDATE classes SET teacher_username = %s, vice_teacher_username = %s WHERE class_code = %s",
+            (teacher_username, vice_teacher_username, class_code),
+        )
+
+        return success_response(
+            {"class_code": class_code, "teacher_username": teacher_username, "vice_teacher_username": vice_teacher_username},
+            "班主任設定已更新",
+        )
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("更新班主任失敗")
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 

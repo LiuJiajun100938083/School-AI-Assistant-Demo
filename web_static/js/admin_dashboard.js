@@ -2762,12 +2762,34 @@ ${report.teacher_attention_points || '暫無'}
         }
     },
 
+    _teacherList: [],  // 緩存教師列表供班主任下拉使用
+
     async loadClassDiaryTab() {
+        // 先載入教師列表（班主任下拉和 Reviewer 下拉共用）
+        await this._loadTeacherList();
         await Promise.all([
             this.loadClassDiaryQRGrid(),
             this.loadReviewers(),
             this.loadTeachersForReviewer(),
         ]);
+    },
+
+    async _loadTeacherList() {
+        try {
+            const data = await AdminAPI.fetchWithAuth('/api/admin/users?role=teacher');
+            this._teacherList = data.data || data.users || [];
+        } catch (e) {
+            console.error('載入教師列表失敗:', e);
+        }
+    },
+
+    _buildTeacherOptions(selectedUsername) {
+        let html = '<option value="">未設定</option>';
+        this._teacherList.forEach(u => {
+            const sel = u.username === selectedUsername ? ' selected' : '';
+            html += `<option value="${u.username}"${sel}>${u.display_name || u.username}</option>`;
+        });
+        return html;
     },
 
     async loadClassDiaryQRGrid() {
@@ -2788,6 +2810,20 @@ ${report.teacher_attention_points || '暫無'}
                         title="刪除班級">✕</button>
                     <div style="font-size:1.1rem;font-weight:700;margin-bottom:0.25rem;">${c.class_code}</div>
                     <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem;">${c.class_name || ''} ${c.grade ? '(' + c.grade + ')' : ''}</div>
+
+                    <div style="text-align:left;margin-bottom:0.5rem;font-size:0.8rem;">
+                        <label style="color:var(--text-secondary);display:block;margin-bottom:2px;">班主任</label>
+                        <select id="teacher-${c.class_code}" onchange="AdminApp.saveClassTeachers('${c.class_code}')"
+                            style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;">
+                            ${this._buildTeacherOptions(c.teacher_username)}
+                        </select>
+                        <label style="color:var(--text-secondary);display:block;margin:4px 0 2px;">副班主任</label>
+                        <select id="vice-teacher-${c.class_code}" onchange="AdminApp.saveClassTeachers('${c.class_code}')"
+                            style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;">
+                            ${this._buildTeacherOptions(c.vice_teacher_username)}
+                        </select>
+                    </div>
+
                     <div id="qr-wrap-${c.class_code}" style="min-height:140px;display:flex;align-items:center;justify-content:center;">
                         <div class="spinner-small" id="qr-loading-${c.class_code}"></div>
                     </div>
@@ -2807,6 +2843,32 @@ ${report.teacher_attention_points || '暫無'}
             }
         } catch (error) {
             grid.innerHTML = '<p style="color:red;">載入班級失敗: ' + error.message + '</p>';
+        }
+    },
+
+    async saveClassTeachers(classCode) {
+        const teacherEl = document.getElementById(`teacher-${classCode}`);
+        const viceEl = document.getElementById(`vice-teacher-${classCode}`);
+        if (!teacherEl || !viceEl) return;
+
+        try {
+            await AdminAPI.fetchWithAuth(`/api/class-diary/admin/classes/${encodeURIComponent(classCode)}/teachers`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teacher_username: teacherEl.value || null,
+                    vice_teacher_username: viceEl.value || null,
+                }),
+            });
+            // 短暫顯示已保存提示
+            const card = teacherEl.closest('div[style*="background:#fff"]');
+            if (card) {
+                const old = card.style.borderColor;
+                card.style.borderColor = '#22c55e';
+                setTimeout(() => { card.style.borderColor = old; }, 1000);
+            }
+        } catch (error) {
+            alert('保存班主任設定失敗: ' + error.message);
         }
     },
 

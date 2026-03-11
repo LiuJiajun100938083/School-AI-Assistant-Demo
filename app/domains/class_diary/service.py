@@ -150,10 +150,23 @@ class ClassDiaryService:
     # ================================================================== #
 
     def check_review_access(self, username: str, role: str) -> bool:
-        """檢查用戶是否有 Review 訪問權限"""
+        """檢查用戶是否有 Review 訪問權限（admin / reviewer / 班主任或副班）"""
         if role == "admin":
             return True
-        return self._reviewer_repo.is_reviewer(username)
+        if self._reviewer_repo.is_reviewer(username):
+            return True
+        # 檢查是否為某班的班主任或副班主任
+        try:
+            rows = self._entry_repo.raw_query(
+                "SELECT class_code FROM classes "
+                "WHERE teacher_username = %s OR vice_teacher_username = %s",
+                (username, username),
+            )
+            if rows:
+                return True
+        except Exception:
+            pass
+        return False
 
     def get_all_reviewers(self) -> List[Dict[str, Any]]:
         """獲取所有 reviewer"""

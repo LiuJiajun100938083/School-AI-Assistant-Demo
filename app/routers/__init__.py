@@ -108,6 +108,19 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- 确保 classes 表有班主任/副班欄位 ---
+        cols = pool.execute("SHOW COLUMNS FROM classes LIKE 'teacher_username'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE classes ADD COLUMN teacher_username VARCHAR(100) "
+                "DEFAULT NULL COMMENT '班主任 username'"
+            )
+            pool.execute(
+                "ALTER TABLE classes ADD COLUMN vice_teacher_username VARCHAR(100) "
+                "DEFAULT NULL COMMENT '副班主任 username'"
+            )
+            logger.info("数据库迁移: 已为 classes 表添加 teacher_username / vice_teacher_username 列")
+
         # --- 确保 users 表有 class_name 列 ---
         # 代码中广泛使用 class_name（VARCHAR）而非 class_id（INT），
         # 需要在 users 表中添加此列以兼容现有代码逻辑。
