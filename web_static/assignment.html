@@ -131,7 +131,7 @@
                 <div class="form-group">
                     <label>作業類型</label>
                     <div class="assignment-type-selector" id="asgTypeSelector">
-                        <div class="asg-type-option selected" data-type="file" onclick="AssignmentApp.selectAssignmentType('file')">
+                        <div class="asg-type-option selected" data-type="file_upload" onclick="AssignmentApp.selectAssignmentType('file_upload')">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                             <div>
                                 <div class="asg-type-title">普通作業</div>
@@ -144,22 +144,6 @@
                                 <div class="asg-type-title">問卷 / 試卷</div>
                                 <div class="asg-type-desc">設定題目、答案與分數</div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- 附件上傳 -->
-                <div class="form-group">
-                    <label>作業類型</label>
-                    <div class="assignment-type-cards" id="assignmentTypeCards">
-                        <div class="asg-type-card selected" data-type="file_upload" onclick="AssignmentApp.selectAssignmentType('file_upload')">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-                            <div class="asg-type-name">文件上傳</div>
-                            <div class="asg-type-desc">學生上傳文件提交</div>
-                        </div>
-                        <div class="asg-type-card" data-type="form" onclick="AssignmentApp.selectAssignmentType('form')">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
-                            <div class="asg-type-name">表單問卷</div>
-                            <div class="asg-type-desc">學生在線答題</div>
                         </div>
                     </div>
                 </div>

@@ -3576,9 +3576,6 @@ const AssignmentApp = {
         this.state.assignmentType = type;
         this.state.selectedAssignmentType = type;
         // Update card selection
-        document.querySelectorAll('#assignmentTypeCards .asg-type-card').forEach(c => {
-            c.classList.toggle('selected', c.dataset.type === type);
-        });
         document.querySelectorAll('.asg-type-option').forEach(el => {
             el.classList.toggle('selected', el.dataset.type === type);
         });
