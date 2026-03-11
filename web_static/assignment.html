@@ -68,6 +68,19 @@
                 <textarea id="submitContent" rows="3" placeholder="輸入你的作業說明或備註..."></textarea>
             </div>
             <div class="form-group">
+                <button type="button" class="btn btn-outline btn-sm code-paste-toggle" onclick="document.getElementById('codePasteSection').classList.toggle('open')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    貼上代碼
+                </button>
+                <div id="codePasteSection" class="code-paste-section">
+                    <div style="margin-bottom:8px;">
+                        <label style="font-size:13px;color:var(--text-secondary);">文件名</label>
+                        <input type="text" id="codeFileName" class="code-filename-input" value="code.txt" placeholder="例如 main.py">
+                    </div>
+                    <textarea id="codeContent" class="code-input" rows="10" placeholder="在此貼上你的代碼..." spellcheck="false"></textarea>
+                </div>
+            </div>
+            <div class="form-group">
                 <label>上傳文件</label>
                 <div class="upload-zone" id="uploadZone">
                     <div class="upload-zone-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>

@@ -1428,6 +1428,52 @@ body {
    Code Preview
    ============================================================ */
 
+/* Code paste in submit modal */
+.code-paste-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.code-paste-section {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, margin 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    margin-top: 0;
+}
+.code-paste-section.open {
+    max-height: 500px;
+    opacity: 1;
+    margin-top: 12px;
+}
+.code-filename-input {
+    width: 200px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: var(--font-mono);
+    margin-top: 4px;
+}
+textarea.code-input {
+    width: 100%;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #333;
+    border-radius: var(--radius-card);
+    padding: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    tab-size: 4;
+}
+textarea.code-input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: none;
+}
+
 .code-preview {
     background: #1e1e1e;
     color: #d4d4d4;

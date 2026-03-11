@@ -3461,7 +3461,7 @@ const AssignmentApp = {
         this.state.editingId = editId;
         this.state.currentStep = 1;
         this.state.selectedRubricType = 'points';
-        this.state.assignmentType = 'file';
+        this.state.assignmentType = 'file_upload';
         this.state.pendingAttachments = [];
         this.state.existingAttachments = [];
         this.state.deletedAttachmentIds = [];
@@ -3573,10 +3573,14 @@ const AssignmentApp = {
     },
 
     selectAssignmentType(type) {
+        this.state.assignmentType = type;
         this.state.selectedAssignmentType = type;
         // Update card selection
         document.querySelectorAll('#assignmentTypeCards .asg-type-card').forEach(c => {
             c.classList.toggle('selected', c.dataset.type === type);
+        });
+        document.querySelectorAll('.asg-type-option').forEach(el => {
+            el.classList.toggle('selected', el.dataset.type === type);
         });
         const isForm = type === 'form';
         // Toggle visibility of file_upload-specific fields
@@ -3614,13 +3618,6 @@ const AssignmentApp = {
                 this._renderQuestionEditor();
             }
         }
-    },
-
-    selectAssignmentType(type) {
-        this.state.assignmentType = type;
-        document.querySelectorAll('.asg-type-option').forEach(el => {
-            el.classList.toggle('selected', el.dataset.type === type);
-        });
     },
 
     _renderRubricTypeGrid() {
@@ -5104,6 +5101,13 @@ const AssignmentApp = {
         this.state.selectedFiles = [];
         document.getElementById('submitContent').value = '';
         document.getElementById('selectedFiles').innerHTML = '';
+        // Reset code paste section
+        const codeSec = document.getElementById('codePasteSection');
+        if (codeSec) codeSec.classList.remove('open');
+        const codeContent = document.getElementById('codeContent');
+        if (codeContent) codeContent.value = '';
+        const codeFileName = document.getElementById('codeFileName');
+        if (codeFileName) codeFileName.value = 'code.txt';
         document.getElementById('submitModal').classList.add('active');
         document.body.style.overflow = 'hidden';
         // Focus first input after animation
@@ -5163,7 +5167,15 @@ const AssignmentApp = {
         btn.innerHTML = '<div class="loading-spinner"></div> 提交中...';
 
         const content = document.getElementById('submitContent').value;
-        const files = this.state.selectedFiles;
+        const files = [...this.state.selectedFiles];
+
+        // Convert pasted code to a File object
+        const codeText = (document.getElementById('codeContent')?.value || '').trim();
+        if (codeText) {
+            const fileName = (document.getElementById('codeFileName')?.value || '').trim() || 'code.txt';
+            const codeFile = new File([codeText], fileName, { type: 'text/plain' });
+            files.push(codeFile);
+        }
 
         const resp = await AssignmentAPI.submitAssignment(
             this.state.currentAssignment, content, files
