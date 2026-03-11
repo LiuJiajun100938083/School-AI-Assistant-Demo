@@ -122,6 +122,20 @@ def _run_schema_migrations() -> None:
                 pass
             logger.info("数据库迁移: 已为 classes 表添加 class_code 列")
 
+        # --- 确保 classes 表有 grade 欄位 ---
+        cols = pool.execute("SHOW COLUMNS FROM classes LIKE 'grade'")
+        if not cols:
+            pool.execute(
+                "ALTER TABLE classes ADD COLUMN grade VARCHAR(20) "
+                "DEFAULT NULL COMMENT '年級'"
+            )
+            # 從 grade_level 回填（舊表用 grade_level）
+            try:
+                pool.execute("UPDATE classes SET grade = grade_level WHERE grade IS NULL AND grade_level IS NOT NULL")
+            except Exception:
+                pass
+            logger.info("数据库迁移: 已为 classes 表添加 grade 列")
+
         # --- 确保 classes 表有班主任/副班欄位 ---
         cols = pool.execute("SHOW COLUMNS FROM classes LIKE 'teacher_username'")
         if not cols:
