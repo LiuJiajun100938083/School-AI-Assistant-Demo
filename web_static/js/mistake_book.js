@@ -773,26 +773,9 @@ const UI = {
      */
     summarizeStudentApproach(m) {
         const bullets = [];
-        // Bullet 1: 學生答案（完整顯示）
+        // 只顯示學生的實際答案，不從 AI 分析中提取描述
         if (m.answer_text && m.answer_text.trim()) {
             bullets.push(m.answer_text.trim());
-        }
-        // Bullet 2+: 從分析中提取學生行為描述
-        const raw = this.extractRawAnalysis(m);
-        if (raw) {
-            const patterns = [
-                /學生[^。！\n]{2,}[。！]/g,
-                /(?:誤|忽略了|混淆了|未能|沒有|遺漏了)[^。！\n]{2,}[。！]/g,
-            ];
-            for (const pat of patterns) {
-                const matches = raw.match(pat) || [];
-                for (const match of matches) {
-                    const clean = match.replace(/[。！]$/, '').trim();
-                    if (clean && !bullets.some(b => b.includes(clean.substring(0, 10)))) {
-                        bullets.push(clean);
-                    }
-                }
-            }
         }
         return bullets;
     },
