@@ -17,6 +17,8 @@ from typing import AsyncGenerator
 
 import httpx
 
+import re
+
 from app.config.settings import Settings
 from app.core.ai_gate import (
     get_scheduler, get_shared_ollama_client, Priority, Weight
@@ -24,6 +26,42 @@ from app.core.ai_gate import (
 from app.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------ #
+#  內容安全 — 違禁關鍵詞（色情、暴力、毒品、恐怖等）
+# ------------------------------------------------------------------ #
+
+_BLOCKED_KEYWORDS: list[str] = [
+    # —— 色情 / 裸露 ——
+    "色情", "裸体", "裸露", "裸女", "裸男", "性爱", "性交", "做爱",
+    "自慰", "手淫", "阴茎", "阴道", "乳房", "胸部裸露", "生殖器",
+    "淫荡", "淫秽", "情色", "成人内容", "AV女优", "黄色图片",
+    "porn", "nude", "naked", "nsfw", "hentai", "erotic",
+    "sexual", "genitalia", "xxx", "orgasm", "masturbat",
+    # —— 暴力 / 血腥 ——
+    "血腥", "暴力", "杀人", "砍头", "斩首", "肢解", "虐杀",
+    "酷刑", "折磨", "虐待", "内脏", "开膛", "割喉", "屠杀",
+    "gore", "dismember", "behead", "mutilat", "torture",
+    "bloodbath", "slaughter", "disembowel",
+    # —— 毒品 / 违禁品 ——
+    "吸毒", "制毒", "冰毒", "海洛因", "可卡因", "大麻种植",
+    "cocaine", "heroin", "meth lab", "drug use",
+    # —— 恐怖主义 / 极端主义 ——
+    "恐怖袭击", "炸弹制作", "爆炸物", "自杀式", "极端主义",
+    "terrorist", "bomb making", "extremist",
+    # —— 儿童相关 ——
+    "儿童色情", "恋童", "未成年人色情",
+    "child porn", "pedophil", "underage",
+    # —— 歧视 / 仇恨 ——
+    "种族歧视", "纳粹", "白人至上", "仇恨",
+    "nazi", "white supremac", "hate symbol",
+]
+
+# 預編譯正則（忽略大小寫，用 | 連接所有關鍵詞）
+_BLOCKED_RE = re.compile(
+    "|".join(re.escape(kw) for kw in _BLOCKED_KEYWORDS),
+    re.IGNORECASE,
+)
 
 
 class ImageGenService:
@@ -56,7 +94,7 @@ class ImageGenService:
             清理後的 prompt 字串
 
         Raises:
-            ValidationError: prompt 為空或超過長度限制
+            ValidationError: prompt 為空、超過長度限制或包含違禁內容
         """
         cleaned = (prompt or "").strip()
         if not cleaned:
@@ -64,6 +102,17 @@ class ImageGenService:
         max_len = self._settings.image_gen_max_prompt_length
         if len(cleaned) > max_len:
             raise ValidationError(f"描述不能超過 {max_len} 字")
+
+        # 內容安全檢查
+        match = _BLOCKED_RE.search(cleaned)
+        if match:
+            logger.warning(
+                "image_gen prompt blocked: keyword='%s'", match.group()
+            )
+            raise ValidationError(
+                "您的描述包含不適當內容（色情、暴力等），請修改後重試"
+            )
+
         return cleaned
 
     # ------------------------------------------------------------------ #
