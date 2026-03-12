@@ -160,20 +160,7 @@ const GameConfig = {
             }
         ],
         physics: [],
-        chemistry: [
-            {
-                id: 'chemistry_2048',
-                name: '中三 — 化學元素 2048',
-                nameEn: 'Chemistry 2048',
-                icon: '⚗️',
-                description: '合併元素到達鈣 (Ca)！5x5 終極挑戰',
-                url: '/chemistry-2048',
-                difficulty: ['中三'],
-                tags: ['元素', '化學', '益智', '2048'],
-                badge: '新',
-                roles: ['student', 'teacher', 'admin']
-            }
-        ],
+        chemistry: [],
         biology: [],
         ces: [
             {
@@ -197,6 +184,18 @@ const GameConfig = {
                 url: '/farm-game',
                 difficulty: ['中二'],
                 tags: ['糧食安全', '農業', '國安', '策略', '公民'],
+                badge: '新',
+                roles: ['student', 'teacher', 'admin']
+            },
+            {
+                id: 'chemistry_2048',
+                name: '中三 — 化學元素 2048',
+                nameEn: 'Chemistry 2048',
+                icon: '⚗️',
+                description: '合併元素到達鈣 (Ca)！5x5 終極挑戰',
+                url: '/chemistry-2048',
+                difficulty: ['中三'],
+                tags: ['元素', '化學', '益智', '2048', '公民'],
                 badge: '新',
                 roles: ['student', 'teacher', 'admin']
             }
