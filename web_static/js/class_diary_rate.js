@@ -22,11 +22,14 @@ function toggleCardSection(bodyId) {
 const state = {
     classCode: '',
     periodCount: 1,       // 一節或兩節
-    disciplineRating: 0,
-    cleanlinessRating: 0,
-    signatureData: '',    // base64
+    disciplineRating: 5,
+    cleanlinessRating: 5,
     isSubmitting: false,
+    quickMode: true,       // 快速模式（默認開啟）
+    lastSubmittedPeriodEnd: null,  // 上次提交的結束節數（用於「繼續下一節」）
 };
+
+const LS_KEY_LAST_SESSION = 'cd_last_session';  // localStorage key
 
 // 學生列表（從 API 載入）
 let classStudents = [];
@@ -75,6 +78,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
     const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日 星期${weekdays[today.getDay()]}`;
 
+    // 載入行為原因代碼（靜默，不阻塞）
+    loadReasonCodes();
+
     // 載入班級列表，並預選 URL 中的班級
     loadClasses(urlClass, dateStr);
 
@@ -117,14 +123,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 根據當前時間自動填寫節數
     autoFillPeriod();
 
-    // 初始化簽名板
-    initSignaturePad();
-
     // 初始化行為記錄
     renderReasonChips();
     document.getElementById('behaviorClassSelect')?.addEventListener('change', function () {
         loadBehaviorStudents(this.value || state.classCode);
     });
+
+    // 恢復上次科目偏好和快速模式
+    restoreLastSession();
+    restoreQuickMode();
 });
 
 
@@ -402,6 +409,9 @@ function initStarRatings() {
             });
         });
     });
+    // 默認 5 分
+    setStarRating('discipline', 5);
+    setStarRating('cleanliness', 5);
 }
 
 function setStarRating(field, value) {
@@ -420,116 +430,6 @@ function setStarRating(field, value) {
     });
 }
 
-
-/* ============================================================
-   簽名板
-   ============================================================ */
-let signatureCanvas, signatureCtx;
-let isDrawing = false;
-let hasSignature = false;
-
-function initSignaturePad() {
-    signatureCanvas = document.getElementById('signatureCanvas');
-    signatureCtx = signatureCanvas.getContext('2d');
-
-    // 設定 Canvas 實際尺寸
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    // 觸摸事件
-    signatureCanvas.addEventListener('touchstart', onTouchStart, { passive: false });
-    signatureCanvas.addEventListener('touchmove', onTouchMove, { passive: false });
-    signatureCanvas.addEventListener('touchend', onTouchEnd);
-    signatureCanvas.addEventListener('touchcancel', onTouchEnd);
-
-    // 滑鼠事件（平板可能用觸控筆）
-    signatureCanvas.addEventListener('mousedown', onMouseDown);
-    signatureCanvas.addEventListener('mousemove', onMouseMove);
-    signatureCanvas.addEventListener('mouseup', onMouseUp);
-    signatureCanvas.addEventListener('mouseleave', onMouseUp);
-}
-
-function resizeCanvas() {
-    const wrap = document.getElementById('signatureWrap');
-    const rect = wrap.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-
-    signatureCanvas.width = rect.width * dpr;
-    signatureCanvas.height = 150 * dpr;
-    signatureCanvas.style.height = '150px';
-
-    signatureCtx.scale(dpr, dpr);
-    signatureCtx.strokeStyle = '#1F2937';
-    signatureCtx.lineWidth = 2.5;
-    signatureCtx.lineCap = 'round';
-    signatureCtx.lineJoin = 'round';
-}
-
-function getCanvasPos(e) {
-    const rect = signatureCanvas.getBoundingClientRect();
-    const touch = e.touches ? e.touches[0] : e;
-    return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
-    };
-}
-
-function onTouchStart(e) {
-    e.preventDefault();
-    isDrawing = true;
-    hasSignature = true;
-    document.getElementById('sigPlaceholder').classList.add('hidden');
-    document.getElementById('signatureWrap').classList.add('signing');
-    const pos = getCanvasPos(e);
-    signatureCtx.beginPath();
-    signatureCtx.moveTo(pos.x, pos.y);
-}
-
-function onTouchMove(e) {
-    if (!isDrawing) return;
-    e.preventDefault();
-    const pos = getCanvasPos(e);
-    signatureCtx.lineTo(pos.x, pos.y);
-    signatureCtx.stroke();
-}
-
-function onTouchEnd() {
-    isDrawing = false;
-    document.getElementById('signatureWrap').classList.remove('signing');
-    state.signatureData = signatureCanvas.toDataURL('image/png');
-}
-
-function onMouseDown(e) {
-    isDrawing = true;
-    hasSignature = true;
-    document.getElementById('sigPlaceholder').classList.add('hidden');
-    document.getElementById('signatureWrap').classList.add('signing');
-    const pos = getCanvasPos(e);
-    signatureCtx.beginPath();
-    signatureCtx.moveTo(pos.x, pos.y);
-}
-
-function onMouseMove(e) {
-    if (!isDrawing) return;
-    const pos = getCanvasPos(e);
-    signatureCtx.lineTo(pos.x, pos.y);
-    signatureCtx.stroke();
-}
-
-function onMouseUp() {
-    if (!isDrawing) return;
-    isDrawing = false;
-    document.getElementById('signatureWrap').classList.remove('signing');
-    state.signatureData = signatureCanvas.toDataURL('image/png');
-}
-
-function clearSignature() {
-    const dpr = window.devicePixelRatio || 1;
-    signatureCtx.clearRect(0, 0, signatureCanvas.width / dpr, signatureCanvas.height / dpr);
-    hasSignature = false;
-    state.signatureData = '';
-    document.getElementById('sigPlaceholder').classList.remove('hidden');
-}
 
 
 /* ============================================================
@@ -727,15 +627,6 @@ async function submitForm() {
         return;
     }
 
-    // 簽名安全補救：若畫過但 signatureData 為空，重新擷取
-    if (hasSignature && !state.signatureData) {
-        state.signatureData = signatureCanvas.toDataURL('image/png');
-    }
-    if (!state.signatureData) {
-        showValidationError('signatureWrap', '請手寫簽名');
-        return;
-    }
-
     // 確定 periodEnd
     let periodEnd;
     if (state.periodCount === 2) {
@@ -765,7 +656,6 @@ async function submitForm() {
         appearance_issues: document.getElementById('appearanceIssues').value.trim(),
         rule_violations: document.getElementById('ruleViolations').value.trim(),
         medical_room_students: document.getElementById('medicalRoomStudents').value.trim(),
-        signature: state.signatureData,
     };
 
     // 客戶端重疊檢查（非編輯模式時）
@@ -812,6 +702,15 @@ async function submitForm() {
             if (isEditing) {
                 cancelEdit();
             }
+            // 記住本次提交的班級、科目、結束節數（供「繼續下一節」使用）
+            state.lastSubmittedPeriodEnd = periodEnd;
+            try {
+                localStorage.setItem(LS_KEY_LAST_SESSION, JSON.stringify({
+                    class_code: state.classCode,
+                    subject: subject,
+                    ts: Date.now(),
+                }));
+            } catch (_) { /* ignore */ }
             showSuccessToast();
             loadExistingRecords();
         } else if (data.error?.code === 'PERIOD_OVERLAP') {
@@ -907,10 +806,13 @@ function closeToast() {
 function continueRating() {
     closeToast();
 
-    // 清除表單（保留班級信息）
-    document.getElementById('periodStart').value = '';
-    document.getElementById('periodEnd').innerHTML = '<option value="">結束節數</option>';
-    document.getElementById('subject').value = '';
+    // 保留班級和科目，自動推進到下一節
+    const prevSubject = document.getElementById('subject').value;
+    const nextPeriod = (state.lastSubmittedPeriodEnd != null)
+        ? state.lastSubmittedPeriodEnd + 1
+        : null;
+
+    // 清除考勤和行為
     document.getElementById('absentStudents').value = '';
     document.getElementById('lateStudents').value = '';
     document.getElementById('commendedStudents').value = '';
@@ -921,15 +823,9 @@ function continueRating() {
     // 重置行為記錄
     resetBehaviorState();
 
-    // 重置評分
-    setStarRating('discipline', 0);
-    setStarRating('cleanliness', 0);
-    document.getElementById('disciplineValue').textContent = '未評分';
-    document.getElementById('cleanlinessValue').textContent = '未評分';
-    document.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
-
-    // 清除簽名
-    clearSignature();
+    // 重置評分（默認 5 分）
+    setStarRating('discipline', 5);
+    setStarRating('cleanliness', 5);
 
     // 重新渲染學生選擇器（清除選中狀態）並收起面板
     renderAllPickers();
@@ -940,8 +836,90 @@ function continueRating() {
         if (wrap) wrap.classList.remove('open');
     });
 
+    // 自動帶入下一節
+    if (nextPeriod !== null && nextPeriod <= 9) {
+        // 確保是單節模式
+        setPeriodCount(1);
+        document.getElementById('periodStart').value = nextPeriod;
+    } else {
+        document.getElementById('periodStart').value = '';
+        document.getElementById('periodEnd').innerHTML = '<option value="">結束節數</option>';
+    }
+
+    // 保留科目
+    if (prevSubject) {
+        document.getElementById('subject').value = prevSubject;
+    }
+
     // 滾動到頂部
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+
+/* ============================================================
+   快速模式：隱藏考勤 + 行為區塊，只留課堂信息 + 評分
+   ============================================================ */
+function toggleQuickMode() {
+    state.quickMode = !state.quickMode;
+    applyQuickModeUI();
+    try {
+        localStorage.setItem('cd_quick_mode', state.quickMode ? '1' : '0');
+    } catch (_) { /* ignore */ }
+}
+
+/** 根據 state.quickMode 更新分段控件、提示文字和卡片顯示 */
+function applyQuickModeUI() {
+    const bg = document.getElementById('modeToggleBg');
+    const labelQuick = document.getElementById('modeLabelQuick');
+    const labelFull = document.getElementById('modeLabelFull');
+    const hint = document.getElementById('quickModeHint');
+
+    // 滑塊位置：快速模式 = 左側，完整模式 = 右側
+    if (bg) bg.classList.toggle('right', !state.quickMode);
+    if (labelQuick) labelQuick.classList.toggle('active', state.quickMode);
+    if (labelFull) labelFull.classList.toggle('active', !state.quickMode);
+
+    if (hint) {
+        hint.textContent = state.quickMode
+            ? '需要記錄考勤或行為？切換至完整模式'
+            : '只需評分？切換至快速模式';
+    }
+    // 考勤和行為卡片的父元素（第 3、4 張 .card）
+    const cards = document.querySelectorAll('#mainContent > .card');
+    // cards[0]=課堂信息, cards[1]=評級, cards[2]=考勤, cards[3]=行為
+    if (cards[2]) cards[2].style.display = state.quickMode ? 'none' : '';
+    if (cards[3]) cards[3].style.display = state.quickMode ? 'none' : '';
+}
+
+/** 頁面載入時恢復快速模式偏好（默認開啟） */
+function restoreQuickMode() {
+    try {
+        const saved = localStorage.getItem('cd_quick_mode');
+        if (saved === '0') {
+            state.quickMode = false;  // 用戶曾手動關閉
+        }
+        // else: 保持默認 true 或用戶曾手動開啟
+    } catch (_) { /* ignore */ }
+    // 不管如何都套用一次 UI
+    applyQuickModeUI();
+}
+
+/** 頁面載入時恢復上次科目 */
+function restoreLastSession() {
+    try {
+        const raw = localStorage.getItem(LS_KEY_LAST_SESSION);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        // 只恢復 24 小時內的
+        if (Date.now() - saved.ts > 24 * 60 * 60 * 1000) return;
+        // 科目自動帶入（若 URL 未預選班級則也帶入班級）
+        if (saved.subject) {
+            const subjectEl = document.getElementById('subject');
+            if (subjectEl && !subjectEl.value) {
+                subjectEl.value = saved.subject;
+            }
+        }
+    } catch (_) { /* ignore */ }
 }
 
 
@@ -949,12 +927,39 @@ function continueRating() {
    行為記錄 — Reason-First Flow
    ============================================================ */
 
-const BEHAVIOR_REASONS = {
-    praise: ['上課積極', '勇於回答問題', '認真聽講', '樂於助人', '表現出色', '主動學習'],
-    classroom: ['聊天', '不認真', '嬉戲打鬧', '擾亂課堂秩序', '睡覺', '使用手機', '違規使用iPad'],
-    appearance: ['領帶不整', '未將恤衫塞入西褲', '未穿校鞋', '校褸不整', '頭髮過長/染髮', '未穿整齊校服'],
-    medical: ['頭痛', '肚痛', '受傷', '身體不適', '發燒'],
+// 行為原因（從 API 動態載入，含 code + text）
+let BEHAVIOR_REASONS = {
+    praise: [{code:'ACTIVE',text:'上課積極'},{code:'ANSWER',text:'勇於回答問題'},{code:'ATTENTIVE',text:'認真聽講'},{code:'HELPFUL',text:'樂於助人'},{code:'OUTSTANDING',text:'表現出色'},{code:'SELF_STUDY',text:'主動學習'}],
+    classroom: [{code:'CHAT',text:'聊天'},{code:'INATTENTIVE',text:'不認真'},{code:'HORSEPLAY',text:'嬉戲打鬧'},{code:'DISRUPT',text:'擾亂課堂秩序'},{code:'SLEEP',text:'睡覺'},{code:'PHONE',text:'使用手機'},{code:'IPAD',text:'違規使用iPad'}],
+    appearance: [{code:'TIE',text:'領帶不整'},{code:'SHIRT',text:'未將恤衫塞入西褲'},{code:'SHOES',text:'未穿校鞋'},{code:'JACKET',text:'校褸不整'},{code:'HAIR',text:'頭髮過長/染髮'},{code:'UNIFORM',text:'未穿整齊校服'}],
+    medical: [{code:'HEADACHE',text:'頭痛'},{code:'STOMACH',text:'肚痛'},{code:'INJURY',text:'受傷'},{code:'UNWELL',text:'身體不適'},{code:'FEVER',text:'發燒'}],
 };
+
+// text → code 反查表（初始化時從 BEHAVIOR_REASONS 建立）
+let REASON_TEXT_TO_CODE = {};
+function _buildReasonLookup() {
+    REASON_TEXT_TO_CODE = {};
+    for (const reasons of Object.values(BEHAVIOR_REASONS)) {
+        for (const r of reasons) {
+            REASON_TEXT_TO_CODE[r.text] = r.code;
+        }
+    }
+}
+_buildReasonLookup();
+
+// 從 API 載入 reason codes（靜默，失敗則用硬編碼 fallback）
+async function loadReasonCodes() {
+    try {
+        const resp = await fetch('/api/class-diary/reason-codes');
+        const data = await resp.json();
+        if (data.success && data.data) {
+            BEHAVIOR_REASONS = data.data;
+            _buildReasonLookup();
+        }
+    } catch (err) {
+        console.warn('載入 reason codes 失敗，使用內建預設:', err);
+    }
+}
 
 const CATEGORY_FIELD_MAP = {
     praise: 'commendedStudents',
@@ -996,24 +1001,25 @@ function renderReasonChips() {
     const container = document.getElementById('reasonChips');
     if (!container) return;
     const category = behaviorState.activeTab;
-    const reasons = BEHAVIOR_REASONS[category];
+    const reasons = BEHAVIOR_REASONS[category] || [];
 
     container.innerHTML = '';
-    reasons.forEach(reason => {
+    reasons.forEach(r => {
+        const text = typeof r === 'string' ? r : r.text;
         const chip = document.createElement('span');
         chip.className = 'reason-chip';
         chip.dataset.category = category;
-        chip.textContent = reason;
+        chip.textContent = text;
 
-        const assignment = behaviorState.assignments[category].find(a => a.reason === reason);
+        const assignment = behaviorState.assignments[category].find(a => a.reason === text);
         if (assignment && assignment.students.length > 0) {
             chip.classList.add('has-students');
         }
-        if (behaviorState.selectedReason === reason) {
+        if (behaviorState.selectedReason === text) {
             chip.classList.add('selected-' + category);
         }
 
-        chip.addEventListener('click', () => selectReason(reason));
+        chip.addEventListener('click', () => selectReason(text));
         container.appendChild(chip);
     });
 }
@@ -1086,7 +1092,7 @@ function toggleBehaviorStudent(category, reason, studentName) {
     let assignment = behaviorState.assignments[category].find(a => a.reason === reason);
 
     if (!assignment) {
-        assignment = { reason, students: [] };
+        assignment = { reason, reason_code: REASON_TEXT_TO_CODE[reason] || '', students: [] };
         behaviorState.assignments[category].push(assignment);
     }
 
@@ -1230,7 +1236,13 @@ function serializeBehaviorToTextareas() {
         const textarea = document.getElementById(fieldId);
         if (!textarea) return;
 
-        const data = behaviorState.assignments[cat].filter(a => a.students.length > 0);
+        const data = behaviorState.assignments[cat]
+            .filter(a => a.students.length > 0)
+            .map(a => ({
+                reason_code: a.reason_code || REASON_TEXT_TO_CODE[a.reason] || '',
+                reason_text: a.reason,
+                students: a.students,
+            }));
         textarea.value = data.length === 0 ? '' : JSON.stringify(data);
     });
 }
@@ -1371,18 +1383,12 @@ function cancelEdit() {
         updateToggleText(fieldId);
     });
 
-    // 重置評分
-    setStarRating('discipline', 0);
-    setStarRating('cleanliness', 0);
-    document.getElementById('disciplineValue').textContent = '未評分';
-    document.getElementById('cleanlinessValue').textContent = '未評分';
-    document.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
+    // 重置評分（默認 5 分）
+    setStarRating('discipline', 5);
+    setStarRating('cleanliness', 5);
 
     // 重置行為記錄
     resetBehaviorState();
-
-    // 清除簽名
-    clearSignature();
 
     // 重置提交按鈕
     document.getElementById('submitBtn').textContent = '提交評級';
@@ -1417,7 +1423,8 @@ function restoreBehaviorFromRecord(record) {
             const parsed = JSON.parse(value);
             if (Array.isArray(parsed)) {
                 behaviorState.assignments[category] = parsed.map(item => ({
-                    reason: item.reason || '',
+                    reason: item.reason_text || item.reason || '',
+                    reason_code: item.reason_code || REASON_TEXT_TO_CODE[item.reason_text || item.reason || ''] || '',
                     students: Array.isArray(item.students) ? [...item.students] : [],
                 })).filter(item => item.reason && item.students.length > 0);
             }

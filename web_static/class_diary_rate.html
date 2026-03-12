@@ -28,6 +28,12 @@
 <div class="page-header">
     <h1>課堂評級</h1>
     <div class="subtitle" id="headerInfo">載入中...</div>
+    <div class="mode-toggle" id="modeToggle" onclick="toggleQuickMode()">
+        <span class="mode-toggle-bg" id="modeToggleBg"></span>
+        <span class="mode-toggle-item" id="modeLabelQuick">快速模式</span>
+        <span class="mode-toggle-item" id="modeLabelFull">完整模式</span>
+    </div>
+    <div class="mode-toggle-hint" id="quickModeHint">需要記錄考勤或行為？切換至完整模式</div>
 </div>
 
 <!-- Main Content -->
@@ -236,20 +242,6 @@
         <textarea id="medicalRoomStudents" style="display:none;"></textarea>
 
         </div><!-- /commendBody -->
-    </div>
-
-    <!-- Signature Card -->
-    <div class="card">
-        <div class="card-title">教師簽名 <span class="required">*</span></div>
-        <div class="signature-area">
-            <div class="signature-canvas-wrap" id="signatureWrap">
-                <canvas id="signatureCanvas"></canvas>
-                <div class="signature-placeholder" id="sigPlaceholder">請在此處手寫簽名</div>
-            </div>
-            <div class="signature-actions">
-                <button class="btn-clear-sig" onclick="clearSignature()">清除簽名</button>
-            </div>
-        </div>
     </div>
 
     <!-- Existing Records -->

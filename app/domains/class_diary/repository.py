@@ -112,6 +112,22 @@ class ClassDiaryEntryRepository(BaseRepository):
         return self.raw_query(sql, (entry_date,))
 
 
+    def get_recent_subjects(self, submitted_by: str, limit: int = 10) -> List[str]:
+        """獲取教師最近使用的科目（去重，按最近使用排序）"""
+        sql = """
+            SELECT subject FROM (
+                SELECT subject, MAX(id) AS latest_id
+                FROM class_diary_entries
+                WHERE submitted_by = %s
+                GROUP BY subject
+            ) t
+            ORDER BY latest_id DESC
+            LIMIT %s
+        """
+        rows = self.raw_query(sql, (submitted_by, limit))
+        return [r["subject"] for r in rows] if rows else []
+
+
 class ClassDiaryReviewerRepository(BaseRepository):
     """Review 授權用戶 Repository"""
 

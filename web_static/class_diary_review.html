@@ -87,6 +87,18 @@
             </div>
         </div>
 
+        <!-- 提交狀況（reviewer/admin 可見） -->
+        <div id="submissionGapsSection" style="display:none;">
+            <div class="dashboard-header" onclick="document.getElementById('gapsBody').style.display = document.getElementById('gapsBody').style.display === 'none' ? '' : 'none'">
+                <span class="dashboard-title">提交狀況</span>
+                <span class="dashboard-toggle">▼</span>
+            </div>
+            <div id="gapsBody">
+                <div class="dash-cards" id="gapsCards"></div>
+                <div id="gapsGrid" style="overflow-x:auto;"></div>
+            </div>
+        </div>
+
         <!-- 班級匯總 -->
         <div class="summary-grid" id="summaryGrid"></div>
 
@@ -109,7 +121,6 @@
                             <th>嘉許</th>
                             <th>違規</th>
                             <th>醫務室</th>
-                            <th>簽名</th>
                         </tr>
                     </thead>
                     <tbody id="entriesBody"></tbody>
@@ -205,15 +216,6 @@
             <button class="btn-range-cancel" onclick="closeRangeModal()">取消</button>
             <button class="btn-range-confirm" id="rangeConfirmBtn" onclick="exportDateRange()">匯出</button>
         </div>
-    </div>
-</div>
-
-<!-- 簽名模態框 -->
-<div class="sig-modal-overlay" id="sigModal">
-    <div class="sig-modal">
-        <img id="sigModalImg" src="" alt="簽名">
-        <br>
-        <button onclick="closeSigModal()">關閉</button>
     </div>
 </div>
 

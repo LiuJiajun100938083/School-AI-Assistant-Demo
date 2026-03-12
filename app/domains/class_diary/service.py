@@ -89,7 +89,7 @@ class ClassDiaryService:
             "appearance_issues": data.get("appearance_issues", ""),
             "rule_violations": data.get("rule_violations", ""),
             "medical_room_students": data.get("medical_room_students", ""),
-            "signature": data["signature"],
+            "signature": data.get("signature") or "",
             "submitted_from": self._summarize_ua(user_agent),
             "submitted_by": submitted_by,
         }
@@ -208,11 +208,13 @@ class ClassDiaryService:
 
         判定順序：admin → reviewer → class_teacher → report_recipient → none
         同一用戶若屬多個身份，取最高優先級 tier。
+        先查新表 class_diary_permissions（含 scope），再 fallback 舊表。
         """
         base = {
             "tier": "none",
             "has_access": False,
             "own_classes": [],
+            "scope": None,
             "can_view_raw_data": False,
             "can_export": False,
             "can_view_ai_report": False,
@@ -225,10 +227,33 @@ class ClassDiaryService:
                         can_view_ai_report=True, can_view_charts=True)
             return base
 
+        # ── 查新權限表 ──
+        new_perms = self._get_new_permissions(username)
+
+        # reviewer（新表 or 舊表）
+        if "reviewer" in new_perms:
+            scope = new_perms["reviewer"]
+            base.update(tier="reviewer", has_access=True, scope=scope,
+                        can_view_raw_data=True, can_export=True,
+                        can_view_ai_report=True, can_view_charts=True)
+            if scope and scope.get("classes"):
+                base["own_classes"] = scope["classes"]
+            return base
+
         if self._reviewer_repo.is_reviewer(username):
             base.update(tier="reviewer", has_access=True,
                         can_view_raw_data=True, can_export=True,
                         can_view_ai_report=True, can_view_charts=True)
+            return base
+
+        # class_teacher（新表 or classes 表）
+        if "class_teacher" in new_perms:
+            scope = new_perms["class_teacher"]
+            classes = scope.get("classes", []) if scope else []
+            base.update(tier="class_teacher", has_access=True,
+                        own_classes=classes, scope=scope,
+                        can_view_raw_data=True, can_export=False,
+                        can_view_ai_report=False, can_view_charts=True)
             return base
 
         teacher_classes = self.get_teacher_classes(username)
@@ -239,6 +264,14 @@ class ClassDiaryService:
                         can_view_ai_report=False, can_view_charts=True)
             return base
 
+        # report_recipient（新表 or 舊表）
+        if "report_recipient" in new_perms:
+            base.update(tier="report_recipient", has_access=True,
+                        scope=new_perms["report_recipient"],
+                        can_view_raw_data=False, can_export=False,
+                        can_view_ai_report=True, can_view_charts=False)
+            return base
+
         if self._is_report_recipient(username):
             base.update(tier="report_recipient", has_access=True,
                         can_view_raw_data=False, can_export=False,
@@ -246,6 +279,26 @@ class ClassDiaryService:
             return base
 
         return base
+
+    def _get_new_permissions(self, username: str) -> Dict[str, Optional[Dict]]:
+        """從 class_diary_permissions 表查詢用戶角色 → scope 映射"""
+        try:
+            rows = self._entry_repo.raw_query(
+                "SELECT role, scope_json FROM class_diary_permissions WHERE username = %s",
+                (username,),
+            )
+            result = {}
+            for row in (rows or []):
+                scope = None
+                if row.get("scope_json"):
+                    try:
+                        scope = json.loads(row["scope_json"])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                result[row["role"]] = scope
+            return result
+        except Exception:
+            return {}
 
     def get_teacher_classes(self, username: str) -> List[str]:
         """獲取用戶擔任班主任或副班主任的所有班級代碼"""
@@ -388,6 +441,78 @@ class ClassDiaryService:
         if self._user_repo:
             return self._user_repo.get_students_by_class(class_code)
         return []
+
+    # ================================================================== #
+    #  提交狀況監控                                                         #
+    # ================================================================== #
+
+    def get_submission_gaps(self, entry_date: str, expected_periods: int = 9) -> Dict[str, Any]:
+        """檢測某日各班的提交缺口
+
+        Args:
+            entry_date: 日期 YYYY-MM-DD
+            expected_periods: 預期總節數 (默認 9，即第 1-9 節)
+
+        Returns:
+            {total_classes, fully_submitted, partially_submitted, not_submitted,
+             gaps: [{class_code, submitted_periods, missing_periods, submitted_count, entries}]}
+        """
+        all_classes = self.get_all_classes()
+        entries = self.get_entries_by_date(entry_date)
+
+        # 按班級分組已提交的節次
+        class_periods: Dict[str, set] = defaultdict(set)
+        class_entries: Dict[str, list] = defaultdict(list)
+        for e in entries:
+            cc = e.get("class_code", "")
+            ps = e.get("period_start", 0)
+            pe = e.get("period_end", 0)
+            for p in range(ps, pe + 1):
+                if p >= 1:  # 排除早會 (period=0)
+                    class_periods[cc].add(p)
+            class_entries[cc].append({
+                "period_start": ps, "period_end": pe,
+                "subject": e.get("subject", ""),
+            })
+
+        all_expected = set(range(1, expected_periods + 1))
+        gaps = []
+        fully_submitted = 0
+        partially_submitted = 0
+        not_submitted = 0
+
+        for cls in all_classes:
+            cc = cls.get("class_code", "")
+            submitted = class_periods.get(cc, set())
+            missing = sorted(all_expected - submitted)
+
+            if len(missing) == 0:
+                fully_submitted += 1
+            elif len(submitted) == 0:
+                not_submitted += 1
+            else:
+                partially_submitted += 1
+
+            gaps.append({
+                "class_code": cc,
+                "submitted_periods": sorted(submitted),
+                "missing_periods": missing,
+                "submitted_count": len(submitted),
+                "total_expected": expected_periods,
+                "entries": class_entries.get(cc, []),
+            })
+
+        # 按缺交數量降序排列
+        gaps.sort(key=lambda g: len(g["missing_periods"]), reverse=True)
+
+        return {
+            "entry_date": entry_date,
+            "total_classes": len(all_classes),
+            "fully_submitted": fully_submitted,
+            "partially_submitted": partially_submitted,
+            "not_submitted": not_submitted,
+            "gaps": gaps,
+        }
 
     # ================================================================== #
     #  工具方法                                                            #
@@ -679,7 +804,7 @@ class ClassDiaryService:
             })
 
         # ---- Reason Analysis ----
-        reason_map: Dict[Tuple[str, str], Dict] = {}  # (reason, category) -> stats
+        reason_map: Dict[Tuple[str, str], Dict] = {}  # (reason_key, category) -> stats
         _REASON_FIELDS = [
             ("commended_students", "表揚"),
             ("rule_violations", "課堂違規"),
@@ -690,10 +815,12 @@ class ClassDiaryService:
             cc = e.get("class_code", "")
             d = str(e.get("entry_date", ""))
             for field, category in _REASON_FIELDS:
-                for reason, names in extract_students_with_reasons(e.get(field, "")):
-                    rk = (reason, category)
+                for reason_code, reason_text, names in extract_students_with_reasons(e.get(field, "")):
+                    # 優先用 reason_code 作為聚合鍵，fallback 到 reason_text
+                    reason_key = reason_code or reason_text
+                    rk = (reason_key, category)
                     rec = reason_map.setdefault(rk, {
-                        "reason": reason, "category": category,
+                        "reason_code": reason_code, "reason": reason_text, "category": category,
                         "total_count": 0, "students": set(), "classes": set(), "dates": set(),
                     })
                     rec["total_count"] += len(names)
@@ -705,7 +832,7 @@ class ClassDiaryService:
         for rk, rec in reason_map.items():
             all_dates = sorted(rec["dates"])
             reason_analysis.append({
-                "reason": rec["reason"], "category": rec["category"],
+                "reason_code": rec["reason_code"], "reason": rec["reason"], "category": rec["category"],
                 "total_count": rec["total_count"],
                 "student_count": len(rec["students"]),
                 "class_count": len(rec["classes"]),
@@ -825,27 +952,36 @@ def extract_student_names(value: str) -> List[str]:
     ))
 
 
-def extract_students_with_reasons(value: str) -> List[Tuple[str, List[str]]]:
-    """提取 [(reason, [student_names]), ...] — 僅適用於 JSON 格式行為欄位"""
+def extract_students_with_reasons(value: str) -> List[Tuple[str, str, List[str]]]:
+    """提取 [(reason_code, reason_text, [student_names]), ...] — 兼容新舊格式
+
+    新格式: [{"reason_code": "CHAT", "reason_text": "聊天", "students": [...]}]
+    舊格式: [{"reason": "聊天", "students": [...]}]
+    """
     if not value or not value.strip():
         return []
     try:
+        from app.domains.class_diary.constants import REASON_TEXT_TO_CODE
         data = json.loads(value)
         if isinstance(data, list):
             result = []
             for item in data:
                 if isinstance(item, dict):
-                    reason = item.get("reason", "")
+                    reason_code = item.get("reason_code", "")
+                    reason_text = item.get("reason_text") or item.get("reason", "")
+                    # 舊格式沒有 reason_code，嘗試從 text 反查
+                    if not reason_code and reason_text:
+                        reason_code = REASON_TEXT_TO_CODE.get(reason_text, "")
                     students = [normalize_student_name(n) for n in item.get("students", []) if normalize_student_name(n)]
                     if students:
-                        result.append((reason, students))
+                        result.append((reason_code, reason_text, students))
             return result
     except (json.JSONDecodeError, TypeError, AttributeError):
         pass
     # 非 JSON → 視為無原因的名單
     names = extract_student_names(value)
     if names:
-        return [("", names)]
+        return [("", "", names)]
     return []
 
 

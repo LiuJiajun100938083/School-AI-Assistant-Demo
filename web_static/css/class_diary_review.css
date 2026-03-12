@@ -815,6 +815,86 @@ body {
     font-size: 12px;
 }
 
+/* Findings 證據鏈 */
+.findings-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-light);
+}
+.findings-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--brand);
+    margin-bottom: 10px;
+}
+.findings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.finding-card {
+    padding: 12px 14px;
+    border-radius: 6px;
+    background: #FAFAFA;
+    border: 1px solid var(--border-light);
+}
+.finding-card[data-severity="high"] { border-left: 3px solid #FF3B30; }
+.finding-card[data-severity="medium"] { border-left: 3px solid #FF9500; }
+.finding-card[data-severity="low"] { border-left: 3px solid #34C759; }
+.finding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.finding-type {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.finding-severity {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+}
+.finding-desc {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: 6px;
+}
+.finding-evidence {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 6px 10px;
+    background: #F5F5F5;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+.evidence-item {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 2px 0;
+}
+.evidence-link {
+    color: var(--brand);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+.evidence-link:hover {
+    text-decoration: underline;
+}
+.finding-recommendation {
+    font-size: 12px;
+    color: var(--brand);
+    font-style: italic;
+}
+
 /* 匯出按鈕 */
 .btn-export {
     padding: 8px 16px;
@@ -1480,5 +1560,57 @@ body {
     .range-student-table td {
         padding: 5px 8px;
     }
+}
+
+
+/* ========================================
+   提交狀況網格
+   ======================================== */
+#submissionGapsSection {
+    border: 1px solid var(--brand-border);
+    border-radius: 4px;
+    margin-bottom: 16px;
+    padding: 0;
+}
+
+#submissionGapsSection .dashboard-header {
+    padding: 12px 16px;
+    cursor: pointer;
+}
+
+#gapsBody {
+    padding: 0 16px 16px;
+}
+
+.gaps-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+.gaps-table th,
+.gaps-table td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: center;
+}
+
+.gaps-table th {
+    background: var(--brand-lighter);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.gaps-table td.gap-ok {
+    background: #E8F5EC;
+    color: var(--success);
+    font-weight: bold;
+}
+
+.gaps-table td.gap-missing {
+    background: #FFF0F0;
+    color: var(--danger);
+    font-weight: bold;
 }
 

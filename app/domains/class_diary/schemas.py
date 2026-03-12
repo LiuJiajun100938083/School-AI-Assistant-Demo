@@ -28,7 +28,7 @@ class CreateEntryRequest(BaseModel):
     # 必填字段
     discipline_rating: int = Field(..., ge=1, le=5, description="紀律評級 1-5")
     cleanliness_rating: int = Field(..., ge=1, le=5, description="整潔評級 1-5")
-    signature: str = Field(..., min_length=10, description="手寫簽名 (base64 PNG)")
+    signature: Optional[str] = Field(default=None, description="手寫簽名 (已棄用，保留向後兼容)")
 
 
 class UpdateEntryRequest(BaseModel):

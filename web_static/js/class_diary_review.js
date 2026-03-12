@@ -21,6 +21,7 @@ const reviewState = {
     rangeEnd: '',
     permissionTier: 'none',     // admin|reviewer|class_teacher|report_recipient|none
     ownClasses: [],
+    scope: null,                // 新權限表的 scope 對象
     canViewRawData: false,
     canExport: false,
     canViewAiReport: false,
@@ -85,6 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 載入數據
     await loadDailyReport();
     await loadSummary();
+    loadSubmissionGaps();
 });
 
 
@@ -103,6 +105,7 @@ async function checkAccess(token) {
         Object.assign(reviewState, {
             permissionTier: d.tier,
             ownClasses: d.own_classes || [],
+            scope: d.scope || null,
             canViewRawData: d.can_view_raw_data,
             canExport: d.can_export,
             canViewAiReport: d.can_view_ai_report,
@@ -129,8 +132,9 @@ function applyPermissionVisibility() {
         exportDropdown.style.display = reviewState.canExport ? '' : 'none';
     }
 
-    // 班主任：班級下拉只顯示自己的班
-    if (tier === 'class_teacher' && reviewState.ownClasses.length > 0) {
+    // 班主任 或 scoped reviewer：班級下拉只顯示授權班級
+    const hasScopedClasses = reviewState.ownClasses.length > 0;
+    if (hasScopedClasses && tier !== 'admin') {
         const select = document.getElementById('filterClass');
         select.innerHTML = '';
         if (reviewState.ownClasses.length > 1) {
@@ -352,10 +356,6 @@ function renderEntries(entries, classCode) {
         const discStars = renderMiniStars(e.discipline_rating);
         const cleanStars = renderMiniStars(e.cleanliness_rating);
 
-        const sigHtml = e.signature && typeof e.signature === 'string' && e.signature.startsWith('data:')
-            ? `<img class="sig-thumb" src="${e.signature}" onclick="showSignature('${e.id}')" title="點擊查看">`
-            : (e.signature ? '<span style="color:var(--success)">✓</span>' : '<span style="color:var(--text-tertiary)">—</span>');
-
         const deleteBtn = isAdmin
             ? `<td><button class="btn-delete-entry" onclick="deleteEntryFromReview(${e.id})">刪除</button></td>`
             : '';
@@ -371,7 +371,6 @@ function renderEntries(entries, classCode) {
                 <td class="cell-text">${renderBehaviorCell(e.commended_students)}</td>
                 <td class="cell-text">${renderBehaviorCell([e.rule_violations, e.appearance_issues].filter(Boolean).join('|||'))}</td>
                 <td class="cell-text">${renderBehaviorCell(e.medical_room_students)}</td>
-                <td>${sigHtml}</td>
                 ${deleteBtn}
             </tr>
         `;
@@ -406,20 +405,6 @@ function showEmptyEntries() {
 }
 
 
-/* ============================================================
-   簽名模態框
-   ============================================================ */
-function showSignature(entryId) {
-    const entry = reviewState.entries.find(e => String(e.id) === String(entryId));
-    if (!entry || !entry.signature) return;
-    document.getElementById('sigModalImg').src = entry.signature;
-    document.getElementById('sigModal').classList.add('show');
-}
-
-function closeSigModal() {
-    document.getElementById('sigModal').classList.remove('show');
-}
-
 
 /* ============================================================
    每日 AI 報告
@@ -430,7 +415,7 @@ async function loadDailyReport() {
         const data = await APIClient.get(`/api/class-diary/review/daily-report?entry_date=${dateVal}`);
         if (!data.success || !data.data) return;
 
-        const { report_text, anomalies, status, is_recipient, is_reviewer } = data.data;
+        const { report_text, anomalies, findings, status, is_recipient, is_reviewer } = data.data;
         reviewState.isRecipient = is_recipient;
         reviewState.isReviewer = is_reviewer;
 
@@ -450,23 +435,32 @@ async function loadDailyReport() {
         }
 
         renderAiReport(block, 'dailyReportStatus', 'dailyReportContent', 'dailyAnomalies',
-            status, report_text, anomalies, reviewState.isReviewer);
+            status, report_text, anomalies, findings || [], reviewState.isReviewer);
 
     } catch (e) {
         console.error('載入每日報告失敗:', e);
     }
 }
 
-function renderAiReport(block, statusId, contentId, anomaliesId, status, reportText, anomalies, showAnomalies) {
+function renderAiReport(block, statusId, contentId, anomaliesId, status, reportText, anomalies, findings, showAnomalies) {
     const statusEl = document.getElementById(statusId);
     const contentEl = document.getElementById(contentId);
     const anomaliesEl = document.getElementById(anomaliesId);
+
+    // findings 容器（在 anomalies 下方）
+    let findingsEl = block.querySelector('.findings-section-wrap');
+    if (!findingsEl) {
+        findingsEl = document.createElement('div');
+        findingsEl.className = 'findings-section-wrap';
+        block.appendChild(findingsEl);
+    }
 
     if (status === 'none') {
         block.style.display = '';
         statusEl.innerHTML = '<p class="ai-report-status muted">該日期尚未生成 AI 報告。</p>';
         contentEl.innerHTML = '';
         if (anomaliesEl) anomaliesEl.innerHTML = '';
+        findingsEl.innerHTML = '';
         return;
     }
     if (status === 'generating') {
@@ -474,6 +468,7 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
         statusEl.innerHTML = '<p class="ai-report-status generating">報告生成中，請稍候刷新...</p>';
         contentEl.innerHTML = '';
         if (anomaliesEl) anomaliesEl.innerHTML = '';
+        findingsEl.innerHTML = '';
         return;
     }
     if (status === 'failed') {
@@ -481,6 +476,7 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
         statusEl.innerHTML = '<p class="ai-report-status failed">報告生成失敗</p>';
         contentEl.innerHTML = reportText ? `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(reportText)}</p>` : '';
         if (anomaliesEl) anomaliesEl.innerHTML = '';
+        findingsEl.innerHTML = '';
         return;
     }
 
@@ -508,6 +504,76 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
     } else if (anomaliesEl) {
         anomaliesEl.innerHTML = '';
     }
+
+    // Findings（AI 證據鏈）
+    if (showAnomalies && findings && findings.length > 0) {
+        findingsEl.innerHTML = renderFindings(findings);
+    } else {
+        findingsEl.innerHTML = '';
+    }
+}
+
+/** 渲染 AI findings 證據鏈卡片 */
+function renderFindings(findings) {
+    const severityColors = { high: '#FF3B30', medium: '#FF9500', low: '#34C759' };
+    const severityLabels = { high: '高', medium: '中', low: '低' };
+    const typeLabels = { anomaly: '異常', trend: '趨勢', praise: '表揚' };
+    const typeIcons = { anomaly: '⚠️', trend: '📈', praise: '🌟' };
+
+    const cards = findings.map((f, i) => {
+        const sev = f.severity || 'medium';
+        const ftype = f.finding_type || 'anomaly';
+        const evidenceHtml = (f.evidence || []).map(ev => {
+            const entryLink = ev.entry_id
+                ? `<a href="#" class="evidence-link" onclick="showEvidenceEntry(${ev.entry_id});return false;">[#${ev.entry_id}]</a>`
+                : '';
+            return `<div class="evidence-item">
+                ${entryLink}
+                <span>${escapeHtml(ev.class_code || '')} ${escapeHtml(ev.date || '')} ${escapeHtml(ev.field || '')}: ${escapeHtml(String(ev.value || ''))}</span>
+            </div>`;
+        }).join('');
+
+        return `
+        <div class="finding-card" data-severity="${sev}">
+            <div class="finding-header">
+                <span class="finding-type">${typeIcons[ftype] || '📋'} ${typeLabels[ftype] || ftype}</span>
+                <span class="finding-severity" style="background:${severityColors[sev] || '#999'}">${severityLabels[sev] || sev}</span>
+            </div>
+            <div class="finding-desc">${escapeHtml(f.description || '')}</div>
+            ${evidenceHtml ? `<div class="finding-evidence">${evidenceHtml}</div>` : ''}
+            ${f.recommendation ? `<div class="finding-recommendation">💡 ${escapeHtml(f.recommendation)}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    return `
+        <div class="findings-section">
+            <h4 class="findings-title">AI 分析發現 (${findings.length} 項)</h4>
+            <div class="findings-grid">${cards}</div>
+        </div>`;
+}
+
+/** 顯示證據記錄詳情（從 dashboardEntries 中查找） */
+function showEvidenceEntry(entryId) {
+    const entry = (dashboardEntries || []).find(e => e.id === entryId);
+    if (!entry) {
+        alert(`記錄 #${entryId} 不在當前數據中。`);
+        return;
+    }
+    // 復用現有的 detail modal
+    const title = `${entry.class_code} 節${entry.period_start}-${entry.period_end} ${entry.subject}`;
+    const body = document.getElementById('detailModalBody');
+    body.innerHTML = `
+        <table class="entries-table" style="width:100%;">
+            <tr><th>紀律</th><td>${'★'.repeat(entry.discipline_rating || 0)}${'☆'.repeat(5-(entry.discipline_rating||0))}</td></tr>
+            <tr><th>整潔</th><td>${'★'.repeat(entry.cleanliness_rating || 0)}${'☆'.repeat(5-(entry.cleanliness_rating||0))}</td></tr>
+            <tr><th>缺席</th><td>${escapeHtml(entry.absent_students || '-')}</td></tr>
+            <tr><th>遲到</th><td>${escapeHtml(entry.late_students || '-')}</td></tr>
+            <tr><th>嘉許</th><td>${escapeHtml(entry.commended_students || '-')}</td></tr>
+            <tr><th>違規</th><td>${escapeHtml(entry.rule_violations || '-')}</td></tr>
+            <tr><th>醫務室</th><td>${escapeHtml(entry.medical_room_students || '-')}</td></tr>
+        </table>`;
+    document.getElementById('detailModalTitle').textContent = title;
+    document.getElementById('detailModal').classList.add('show');
 }
 
 
@@ -600,7 +666,80 @@ function onFilterChange() {
     if (reviewState.dateMode === 'single') {
         loadDailyReport();
         loadSummary();
+        loadSubmissionGaps();
     }
+}
+
+
+/* ============================================================
+   提交狀況監控
+   ============================================================ */
+async function loadSubmissionGaps() {
+    const section = document.getElementById('submissionGapsSection');
+    if (!section) return;
+
+    // 僅 reviewer/admin 可見
+    if (reviewState.permissionTier !== 'admin' && reviewState.permissionTier !== 'reviewer') {
+        section.style.display = 'none';
+        return;
+    }
+
+    const dateVal = document.getElementById('filterDate').value;
+    try {
+        const data = await APIClient.get(`/api/class-diary/review/submission-gaps?entry_date=${dateVal}`);
+        if (data.success && data.data) {
+            section.style.display = '';
+            renderSubmissionGaps(data.data);
+        }
+    } catch (e) {
+        console.warn('載入提交狀況失敗:', e);
+        section.style.display = 'none';
+    }
+}
+
+function renderSubmissionGaps(data) {
+    const cardsEl = document.getElementById('gapsCards');
+    const gridEl = document.getElementById('gapsGrid');
+
+    // 概覽卡片
+    const pct = data.total_classes > 0
+        ? Math.round(data.fully_submitted / data.total_classes * 100)
+        : 0;
+    const pctColor = pct >= 80 ? 'var(--brand)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
+    cardsEl.innerHTML = `
+        <div class="dash-card"><div class="dash-card-value" style="color:${pctColor}">${pct}%</div><div class="dash-card-label">完成率</div></div>
+        <div class="dash-card"><div class="dash-card-value">${data.fully_submitted}</div><div class="dash-card-label">全部提交</div></div>
+        <div class="dash-card"><div class="dash-card-value" style="color:${data.partially_submitted > 0 ? 'var(--warning)' : ''}">${data.partially_submitted}</div><div class="dash-card-label">部分提交</div></div>
+        <div class="dash-card"><div class="dash-card-value" style="color:${data.not_submitted > 0 ? 'var(--danger)' : ''}">${data.not_submitted}</div><div class="dash-card-label">未提交</div></div>
+    `;
+
+    // 班級×節次網格
+    if (!data.gaps || data.gaps.length === 0) {
+        gridEl.innerHTML = '';
+        return;
+    }
+
+    const periodLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    let html = '<table class="gaps-table"><thead><tr><th>班級</th>';
+    periodLabels.forEach((p, i) => { html += `<th>${p}</th>`; });
+    html += '<th>已交</th></tr></thead><tbody>';
+
+    data.gaps.forEach(g => {
+        const submitted = new Set(g.submitted_periods);
+        const total = g.total_expected;
+        html += `<tr><td><strong>${escapeHtml(g.class_code)}</strong></td>`;
+        for (let p = 1; p <= total; p++) {
+            if (submitted.has(p)) {
+                html += '<td class="gap-ok">✓</td>';
+            } else {
+                html += '<td class="gap-missing">✗</td>';
+            }
+        }
+        html += `<td>${g.submitted_count}/${total}</td></tr>`;
+    });
+
+    html += '</tbody></table>';
+    gridEl.innerHTML = html;
 }
 
 
@@ -1354,10 +1493,10 @@ async function loadRangeReport(startDate, endDate) {
         );
         if (!data.success || !data.data) return;
 
-        const { report_text, anomalies, status, is_reviewer } = data.data;
+        const { report_text, anomalies, findings, status, is_reviewer } = data.data;
         const block = document.getElementById('rangeAiSection');
         renderAiReport(block, 'rangeReportStatus', 'rangeReportContent', 'rangeAnomalies',
-            status, report_text, anomalies, is_reviewer);
+            status, report_text, anomalies, findings || [], is_reviewer);
     } catch (e) {
         console.error('載入範圍報告失敗:', e);
     }
@@ -1374,7 +1513,7 @@ async function generateRangeReport() {
 
     try {
         const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
-        await fetch('/api/class-diary/admin/generate-range-report', {
+        const resp = await fetch('/api/class-diary/admin/generate-range-report', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -1382,13 +1521,46 @@ async function generateRangeReport() {
             },
             body: JSON.stringify({ start_date: start, end_date: end }),
         });
+        const result = await resp.json();
+        const taskId = result?.data?.task_id;
 
         document.getElementById('rangeReportStatus').innerHTML =
-            '<p class="ai-report-status generating">報告生成中，請稍候刷新...</p>';
+            '<p class="ai-report-status generating">報告生成中...</p>';
+
+        if (taskId) {
+            pollTaskAndReload(taskId, () => loadRangeReport(start, end), btn);
+        }
     } catch (e) {
         alert('生成報告失敗: ' + e.message);
-    } finally {
         btn.textContent = '生成 AI 報告';
         btn.disabled = false;
     }
+}
+
+/** 輪詢任務狀態，完成後執行 callback */
+function pollTaskAndReload(taskId, onDone, btn, interval = 3000, maxTries = 60) {
+    let tries = 0;
+    const timer = setInterval(async () => {
+        tries++;
+        try {
+            const data = await APIClient.get(`/api/class-diary/tasks/${taskId}`);
+            if (!data.success) { clearInterval(timer); return; }
+
+            const task = data.data;
+            if (task.status === 'done') {
+                clearInterval(timer);
+                if (btn) { btn.textContent = '生成 AI 報告'; btn.disabled = false; }
+                if (onDone) onDone();
+            } else if (task.status === 'failed') {
+                clearInterval(timer);
+                if (btn) { btn.textContent = '生成 AI 報告'; btn.disabled = false; }
+                alert('任務失敗: ' + (task.error || '未知錯誤'));
+            }
+        } catch (_) { /* ignore network blip */ }
+
+        if (tries >= maxTries) {
+            clearInterval(timer);
+            if (btn) { btn.textContent = '生成 AI 報告'; btn.disabled = false; }
+        }
+    }, interval);
 }

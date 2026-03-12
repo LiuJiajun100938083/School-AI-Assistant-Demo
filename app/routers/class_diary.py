@@ -39,6 +39,8 @@ from app.domains.class_diary.schemas import (
     ReviewerRequest,
     UpdateEntryRequest,
 )
+from app.domains.class_diary.audit import ClassDiaryAuditLogger as _audit
+from app.domains.class_diary.task_manager import task_manager as _tasks
 from app.infrastructure.database.pool import get_database_pool
 
 logger = logging.getLogger(__name__)
@@ -58,8 +60,9 @@ def _get_service():
 def _format_behavior_field(value: str) -> str:
     """Format JSON behavior field for display, with backward compatibility.
 
-    New JSON format: [{"reason": "聊天", "students": ["張三", "李四"]}, ...]
-    Legacy format: plain text (comma/separator separated student names)
+    New format:    [{"reason_code": "CHAT", "reason_text": "聊天", "students": [...]}]
+    Legacy format: [{"reason": "聊天", "students": [...]}]
+    Plain text:    comma/separator separated student names
     """
     if not value or not value.strip():
         return ""
@@ -68,7 +71,7 @@ def _format_behavior_field(value: str) -> str:
         if isinstance(data, list):
             parts = []
             for item in data:
-                reason = item.get("reason", "")
+                reason = item.get("reason_text") or item.get("reason", "")
                 students = item.get("students", [])
                 if students:
                     joined = "、".join(students)
@@ -249,12 +252,89 @@ def init_class_diary_tables():
     except Exception:
         pass
 
+    # 權限模型表（role + scope）
+    try:
+        pool.execute_write("""
+            CREATE TABLE IF NOT EXISTS class_diary_permissions (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                username    VARCHAR(100) NOT NULL,
+                role        VARCHAR(30)  NOT NULL  COMMENT 'reviewer|class_teacher|report_recipient',
+                scope_json  TEXT                   COMMENT '{"classes":["S1A"],"grades":["S1"]}',
+                granted_by  VARCHAR(100) NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE INDEX uq_user_role (username, role)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        logger.info("已創建 class_diary_permissions 表")
+    except Exception:
+        pass
+
+    # 審計日誌表
+    try:
+        pool.execute_write("""
+            CREATE TABLE IF NOT EXISTS class_diary_audit_log (
+                id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+                action        VARCHAR(50)  NOT NULL   COMMENT 'CREATE|UPDATE|DELETE|GRANT_*|REVOKE_*|GENERATE_REPORT|EXPORT',
+                target_type   VARCHAR(50)  NOT NULL   COMMENT 'entry|reviewer|recipient|daily_report|range_report|class',
+                target_id     VARCHAR(100)            COMMENT '目標 ID',
+                actor         VARCHAR(100) NOT NULL   COMMENT '操作人',
+                old_value     MEDIUMTEXT              COMMENT '修改前 JSON',
+                new_value     MEDIUMTEXT              COMMENT '修改後 JSON',
+                metadata_json TEXT                    COMMENT '額外元數據',
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_actor (actor),
+                INDEX idx_target (target_type, target_id),
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        logger.info("已創建 class_diary_audit_log 表")
+    except Exception:
+        pass
+
+    # 報告表新增 findings_json 欄位（AI 證據鏈）
+    for tbl in ("class_diary_daily_reports", "class_diary_range_reports"):
+        try:
+            pool.execute_write(
+                f"ALTER TABLE {tbl} "
+                "ADD COLUMN findings_json MEDIUMTEXT DEFAULT NULL "
+                "COMMENT '結構化發現 JSON' AFTER anomalies_json"
+            )
+            logger.info("已新增 %s.findings_json 欄位", tbl)
+        except Exception:
+            pass  # 欄位已存在
+
     logger.info("課室日誌數據表初始化完成")
 
 
 # ====================================================================== #
-#  公開端點 — 教師掃碼提交（無需登入）                                        #
+#  公開端點                                                                #
 # ====================================================================== #
+
+@router.get("/api/class-diary/teacher/recent-subjects")
+async def get_recent_subjects(
+    request: Request,
+    limit: int = Query(10, ge=1, le=30),
+):
+    """獲取當前教師最近使用的科目（需教師/管理員登入）"""
+    try:
+        username, role = _verify_request(request)
+        if role == "student":
+            raise AuthorizationError("僅限教師使用")
+        service = _get_service()
+        subjects = service._entry_repo.get_recent_subjects(username, limit)
+        return success_response(subjects)
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/reason-codes")
+async def get_reason_codes():
+    """返回行為原因代碼（公開，供前端動態載入）"""
+    from app.domains.class_diary.constants import REASON_CODES
+    return success_response(REASON_CODES)
+
 
 @router.post("/api/class-diary/entries")
 async def create_entry(request: Request):
@@ -275,6 +355,9 @@ async def create_entry(request: Request):
 
         service = _get_service()
         result = service.create_entry(entry_data.model_dump(), user_agent, submitted_by=username)
+
+        _audit.log("CREATE", "entry", username, target_id=result.get("id"),
+                   new_value={"class_code": entry_data.class_code, "period": f"{entry_data.period_start}-{entry_data.period_end}", "subject": entry_data.subject})
 
         return success_response(result, "評級提交成功")
 
@@ -359,7 +442,12 @@ async def update_entry(entry_id: int, request: Request):
         body = await request.json()
         update_data = UpdateEntryRequest(**body)
 
-        result = service.update_entry(entry_id, update_data.model_dump(exclude_none=True))
+        update_dict = update_data.model_dump(exclude_none=True)
+        result = service.update_entry(entry_id, update_dict)
+
+        _audit.log("UPDATE", "entry", username, target_id=entry_id,
+                   old_value={"subject": existing.get("subject"), "discipline": existing.get("discipline_rating")},
+                   new_value=update_dict)
 
         return success_response(result, "記錄更新成功")
 
@@ -392,16 +480,11 @@ async def delete_entry_by_teacher(entry_id: int, request: Request):
             if existing["submitted_by"] != username:
                 raise AuthorizationError("只能刪除自己提交的記錄")
 
-        # 審計日誌
-        logger.info(
-            "Entry %d deleted by %s (was: class=%s, date=%s, period=%d-%d, subject=%s)",
-            entry_id, username,
-            existing.get("class_code"), existing.get("entry_date"),
-            existing.get("period_start", 0), existing.get("period_end", 0),
-            existing.get("subject"),
-        )
-
         service.delete_entry(entry_id)
+        _audit.log("DELETE", "entry", username, target_id=entry_id,
+                   old_value={"class_code": existing.get("class_code"), "date": str(existing.get("entry_date")),
+                              "period": f"{existing.get('period_start', 0)}-{existing.get('period_end', 0)}",
+                              "subject": existing.get("subject")})
         return success_response(None, "記錄已刪除")
 
     except AppException as e:
@@ -499,6 +582,33 @@ async def check_review_access(request: Request):
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/review/submission-gaps")
+async def get_submission_gaps(
+    request: Request,
+    entry_date: Optional[str] = Query(None, description="日期 YYYY-MM-DD"),
+):
+    """獲取某日各班提交缺口（reviewer/admin 限定）"""
+    try:
+        username, role = _verify_request(request)
+        service = _get_service()
+        tier = service.get_user_permission_tier(username, role)
+
+        if tier["tier"] not in ("admin", "reviewer"):
+            raise AuthorizationError("僅限 reviewer 或管理員查看提交狀況")
+
+        if not entry_date:
+            entry_date = str(date.today())
+
+        result = service.get_submission_gaps(entry_date)
+        return success_response(result)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("獲取提交缺口失敗")
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
@@ -708,6 +818,7 @@ async def add_reviewer(request: Request):
         if not added:
             return error_response("ALREADY_EXISTS", "該用戶已是 Reviewer", status_code=409)
 
+        _audit.log("GRANT_REVIEWER", "reviewer", admin_user, target_id=data.username)
         return success_response({"username": data.username}, "Reviewer 添加成功")
 
     except AppException as e:
@@ -720,13 +831,14 @@ async def add_reviewer(request: Request):
 async def remove_reviewer(username: str, request: Request):
     """移除 reviewer"""
     try:
-        _verify_admin(request)
+        admin_user, _ = _verify_admin(request)
         service = _get_service()
         removed = service.remove_reviewer(username)
 
         if not removed:
             return error_response("NOT_FOUND", "該用戶不是 Reviewer", status_code=404)
 
+        _audit.log("REVOKE_REVIEWER", "reviewer", admin_user, target_id=username)
         return success_response(None, "Reviewer 已移除")
 
     except AppException as e:
@@ -739,9 +851,13 @@ async def remove_reviewer(username: str, request: Request):
 async def admin_delete_entry(entry_id: int, request: Request):
     """管理員刪除記錄"""
     try:
-        _verify_admin(request)
+        admin_user, _ = _verify_admin(request)
         service = _get_service()
+        existing = service.get_entry(entry_id)
         service.delete_entry(entry_id)
+        _audit.log("DELETE", "entry", admin_user, target_id=entry_id,
+                   old_value={"class_code": existing.get("class_code"), "date": str(existing.get("entry_date")),
+                              "subject": existing.get("subject")})
         return success_response(None, "記錄已刪除")
 
     except AppException as e:
@@ -887,6 +1003,7 @@ async def add_report_recipient(request: Request):
             "INSERT INTO class_diary_report_recipients (username, granted_by) VALUES (%s, %s)",
             (username, admin_user),
         )
+        _audit.log("GRANT_RECIPIENT", "recipient", admin_user, target_id=username)
         return success_response({"username": username}, "報告接收人添加成功")
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
@@ -898,12 +1015,152 @@ async def add_report_recipient(request: Request):
 async def remove_report_recipient(username: str, request: Request):
     """移除報告接收人"""
     try:
-        _verify_admin(request)
+        admin_user, _ = _verify_admin(request)
         pool = get_database_pool()
         pool.execute_write(
             "DELETE FROM class_diary_report_recipients WHERE username = %s", (username,)
         )
+        _audit.log("REVOKE_RECIPIENT", "recipient", admin_user, target_id=username)
         return success_response(None, "報告接收人已移除")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ---------- 審計日誌查詢 ---------- #
+
+@router.get("/api/class-diary/admin/audit-log")
+async def get_audit_log(
+    request: Request,
+    actor: Optional[str] = Query(None),
+    target_type: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """查詢審計日誌（僅管理員）"""
+    try:
+        _verify_admin(request)
+        rows = _audit.query(actor=actor, target_type=target_type, action=action, limit=limit, offset=offset)
+        return success_response(rows)
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ---------- 權限管理 (role + scope) ---------- #
+
+@router.get("/api/class-diary/admin/permissions")
+async def list_permissions(
+    request: Request,
+    username: Optional[str] = Query(None),
+):
+    """列出所有權限記錄（僅管理員）"""
+    try:
+        admin_user = _verify_admin(request)
+        pool = get_database_pool()
+        if username:
+            rows = pool.execute_query(
+                "SELECT id, username, role, scope_json, granted_by, created_at "
+                "FROM class_diary_permissions WHERE username = %s ORDER BY created_at DESC",
+                (username,),
+            )
+        else:
+            rows = pool.execute_query(
+                "SELECT id, username, role, scope_json, granted_by, created_at "
+                "FROM class_diary_permissions ORDER BY username, role",
+            )
+        # 解析 scope_json
+        for r in (rows or []):
+            if r.get("scope_json"):
+                try:
+                    r["scope"] = json.loads(r["scope_json"])
+                except (json.JSONDecodeError, TypeError):
+                    r["scope"] = None
+            else:
+                r["scope"] = None
+            if r.get("created_at"):
+                r["created_at"] = str(r["created_at"])
+        return success_response(rows or [])
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.post("/api/class-diary/admin/permissions")
+async def grant_permission(request: Request):
+    """授予權限（僅管理員）
+
+    Body: {"username": "...", "role": "reviewer|class_teacher|report_recipient",
+           "scope": {"classes": ["S1A"], "grades": ["S1"]}}
+    scope 可省略表示無範圍限制。
+    """
+    try:
+        admin_user, _ = _verify_admin(request)
+        body = await request.json()
+        target = body.get("username", "").strip()
+        role = body.get("role", "").strip()
+        scope = body.get("scope")
+
+        if not target:
+            raise AppException(code="INVALID_INPUT", message="缺少 username", status_code=400)
+        valid_roles = ("reviewer", "class_teacher", "report_recipient")
+        if role not in valid_roles:
+            raise AppException(
+                code="INVALID_INPUT",
+                message=f"role 必須是 {', '.join(valid_roles)} 之一",
+                status_code=400,
+            )
+
+        scope_json = json.dumps(scope, ensure_ascii=False) if scope else None
+        pool = get_database_pool()
+        pool.execute_write(
+            "INSERT INTO class_diary_permissions (username, role, scope_json, granted_by) "
+            "VALUES (%s, %s, %s, %s) "
+            "ON DUPLICATE KEY UPDATE scope_json = VALUES(scope_json), granted_by = VALUES(granted_by)",
+            (target, role, scope_json, admin_user),
+        )
+        _audit.log(
+            "GRANT_PERMISSION", "permission", admin_user,
+            target_id=f"{target}:{role}",
+            new_value=json.dumps({"role": role, "scope": scope}, ensure_ascii=False),
+        )
+        return success_response(None, f"已授予 {target} 角色 {role}")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.delete("/api/class-diary/admin/permissions/{perm_id}")
+async def revoke_permission(request: Request, perm_id: int):
+    """撤銷權限（僅管理員）"""
+    try:
+        admin_user, _ = _verify_admin(request)
+        pool = get_database_pool()
+        # 先查出舊記錄供審計
+        rows = pool.execute_query(
+            "SELECT id, username, role, scope_json FROM class_diary_permissions WHERE id = %s",
+            (perm_id,),
+        )
+        if not rows:
+            raise AppException(code="NOT_FOUND", message="權限記錄不存在", status_code=404)
+        old = rows[0]
+        pool.execute_write(
+            "DELETE FROM class_diary_permissions WHERE id = %s", (perm_id,),
+        )
+        _audit.log(
+            "REVOKE_PERMISSION", "permission", admin_user,
+            target_id=f"{old['username']}:{old['role']}",
+            old_value=json.dumps(
+                {"role": old["role"], "scope_json": old.get("scope_json")},
+                ensure_ascii=False,
+            ),
+        )
+        return success_response(None, f"已撤銷 {old['username']} 的 {old['role']} 權限")
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
@@ -936,7 +1193,12 @@ _REPORT_SYSTEM_PROMPT = """你是一位學校課室日誌分析助手。根據�
 
 通用要求：
 - 使用繁體中文，語氣正式但簡潔
-- 不要使用 Markdown 標題語法，使用【】來標記章節"""
+- 不要使用 Markdown 標題語法，使用【】來標記章節
+
+===FINDINGS_JSON===
+最後，請輸出一段 JSON 陣列（不含其他文字），列出你的關鍵發現。格式：
+[{"finding_type":"anomaly|trend|praise","severity":"high|medium|low","description":"簡短描述","evidence":[{"entry_id":<ID>,"date":"YYYY-MM-DD","class_code":"...","field":"discipline_rating|cleanliness_rating|absent_students|rule_violations|commended_students","value":"..."}],"recommendation":"建議"}]
+如果沒有明顯發現，輸出空陣列 []。"""
 
 _RANGE_REPORT_SYSTEM_PROMPT = """你是一位學校課室日誌分析助手。根據提供的多日匯總數據，生成一份日期範圍分析報告。
 
@@ -962,7 +1224,12 @@ _RANGE_REPORT_SYSTEM_PROMPT = """你是一位學校課室日誌分析助手。�
 
 通用要求：
 - 使用繁體中文，語氣正式但簡潔
-- 不要使用 Markdown 標題語法，使用【】來標記章節"""
+- 不要使用 Markdown 標題語法，使用【】來標記章節
+
+===FINDINGS_JSON===
+最後，請輸出一段 JSON 陣列（不含其他文字），列出你的關鍵發現。格式：
+[{"finding_type":"anomaly|trend|praise","severity":"high|medium|low","description":"簡短描述","evidence":[{"date":"YYYY-MM-DD","class_code":"...","field":"discipline_rating|cleanliness_rating|absent_students|rule_violations|commended_students","value":"..."}],"recommendation":"建議"}]
+如果沒有明顯發現，輸出空陣列 []。"""
 
 
 def _detect_anomalies(entries: list) -> list:
@@ -1029,7 +1296,8 @@ def _build_report_prompt(entries: list, anomalies: list, report_date: str) -> st
             commended = _format_behavior_field((e.get("commended_students") or "").strip())
             medical = _format_behavior_field((e.get("medical_room_students") or "").strip())
 
-            detail = f"  節{e.get('period_start', '?')}-{e.get('period_end', '?')} {e.get('subject', '')} 紀律{e.get('discipline_rating', '?')} 整潔{e.get('cleanliness_rating', '?')}"
+            eid = e.get('id', '?')
+            detail = f"  [ID:{eid}] 節{e.get('period_start', '?')}-{e.get('period_end', '?')} {e.get('subject', '')} 紀律{e.get('discipline_rating', '?')} 整潔{e.get('cleanliness_rating', '?')}"
             if absent:
                 detail += f" 缺席:{absent}"
             if late:
@@ -1054,9 +1322,24 @@ def _build_report_prompt(entries: list, anomalies: list, report_date: str) -> st
 
 
 def _split_report_versions(ai_output: str):
-    """將 AI 輸出拆分為完整版和摘要版"""
+    """將 AI 輸出拆分為完整版、摘要版和 findings JSON"""
     full_text = ai_output
     summary_text = ""
+    findings_json = None
+
+    # 先提取 findings JSON（在任何版本分割之前）
+    if "===FINDINGS_JSON===" in ai_output:
+        parts = ai_output.split("===FINDINGS_JSON===", 1)
+        ai_output = parts[0].strip()
+        raw_findings = parts[1].strip()
+        try:
+            # 嘗試解析 JSON — AI 可能前後帶有多餘文字
+            import re as _re
+            match = _re.search(r'\[.*\]', raw_findings, _re.DOTALL)
+            if match:
+                findings_json = json.loads(match.group(0))
+        except (json.JSONDecodeError, TypeError):
+            findings_json = None
 
     if "===摘要版===" in ai_output:
         parts = ai_output.split("===摘要版===", 1)
@@ -1064,8 +1347,10 @@ def _split_report_versions(ai_output: str):
         summary_text = parts[1].strip()
     elif "===完整版===" in ai_output:
         full_text = ai_output.replace("===完整版===", "").strip()
+    else:
+        full_text = ai_output.strip()
 
-    return full_text, summary_text
+    return full_text, summary_text, findings_json
 
 
 def _generate_report_sync(report_date: str):
@@ -1085,6 +1370,7 @@ def _generate_report_sync(report_date: str):
         anomalies = _detect_anomalies(entries)
         prompt_text = _build_report_prompt(entries, anomalies, report_date)
 
+        findings = None
         if not entries:
             full_text = f"{report_date} 今天沒有任何課堂記錄。"
             summary_text = full_text
@@ -1096,17 +1382,19 @@ def _generate_report_sync(report_date: str):
                 system_prompt=_REPORT_SYSTEM_PROMPT,
                 task_type="summary",
             )
-            full_text, summary_text = _split_report_versions(ai_output)
+            full_text, summary_text, findings = _split_report_versions(ai_output)
 
         anomalies_json = json.dumps(anomalies, ensure_ascii=False)
+        findings_str = json.dumps(findings, ensure_ascii=False) if findings else None
         pool.execute_write(
             "UPDATE class_diary_daily_reports "
             "SET report_text = %s, summary_text = %s, anomalies_json = %s, "
-            "status = 'done', updated_at = NOW() "
+            "findings_json = %s, status = 'done', updated_at = NOW() "
             "WHERE report_date = %s",
-            (full_text, summary_text, anomalies_json, report_date),
+            (full_text, summary_text, anomalies_json, findings_str, report_date),
         )
-        logger.info("每日報告生成完成: %s (%d 條記錄, %d 條異常)", report_date, len(entries), len(anomalies))
+        logger.info("每日報告生成完成: %s (%d 條記錄, %d 條異常, %d findings)",
+                     report_date, len(entries), len(anomalies), len(findings or []))
     except Exception as e:
         logger.exception("每日報告生成失敗: %s", report_date)
         pool.execute_write(
@@ -1118,17 +1406,27 @@ def _generate_report_sync(report_date: str):
 
 @router.post("/api/class-diary/admin/generate-report")
 async def admin_generate_report(request: Request):
-    """管理員手動觸發報告生成（異步，立即返回）"""
+    """管理員手動觸發報告生成（異步，立即返回 task_id）"""
     try:
-        _verify_admin(request)
+        admin_user, _ = _verify_admin(request)
         body = await request.json()
         report_date = (body.get("report_date") or str(date.today())).strip()
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(None, _generate_report_sync, report_date)
+        def _daily_task():
+            _generate_report_sync(report_date)
 
-        return success_response({"report_date": report_date, "status": "generating"}, "報告生成已啟動")
+        task_id = _tasks.submit(
+            task_type="daily_report",
+            func=_daily_task,
+            requested_by=admin_user,
+            description=f"每日報告 {report_date}",
+        )
+
+        _audit.log("GENERATE_REPORT", "daily_report", admin_user, target_id=report_date)
+        return success_response(
+            {"report_date": report_date, "status": "generating", "task_id": task_id},
+            "報告生成已啟動",
+        )
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
@@ -1156,7 +1454,7 @@ async def get_daily_report(
         pool = get_database_pool()
 
         rows = pool.execute(
-            "SELECT report_text, summary_text, anomalies_json, status "
+            "SELECT report_text, summary_text, anomalies_json, findings_json, status "
             "FROM class_diary_daily_reports WHERE report_date = %s",
             (entry_date,),
         )
@@ -1172,6 +1470,12 @@ async def get_daily_report(
                     anomalies = json.loads(report["anomalies_json"])
                 except (json.JSONDecodeError, TypeError):
                     pass
+            findings = []
+            if report.get("findings_json"):
+                try:
+                    findings = json.loads(report["findings_json"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
             # 根據 tier 返回對應版本
             if tier["tier"] == "report_recipient":
@@ -1182,6 +1486,7 @@ async def get_daily_report(
             return success_response({
                 "report_text": text,
                 "anomalies": anomalies if is_reviewer else [],
+                "findings": findings if is_reviewer else [],
                 "status": report["status"],
                 "is_recipient": is_recipient,
                 "is_reviewer": is_reviewer,
@@ -1190,6 +1495,7 @@ async def get_daily_report(
             return success_response({
                 "report_text": None,
                 "anomalies": [],
+                "findings": [],
                 "status": "none",
                 "is_recipient": is_recipient,
                 "is_reviewer": is_reviewer,
@@ -1277,6 +1583,7 @@ def _generate_range_report_sync(start_date: str, end_date: str, requested_by: st
         agg = service.aggregate_date_range(entries)
         prompt_text = _build_range_report_prompt(agg, start_date, end_date)
 
+        findings = None
         if not entries:
             full_text = f"{start_date} 至 {end_date} 沒有任何課堂記錄。"
             summary_text = full_text
@@ -1288,19 +1595,21 @@ def _generate_range_report_sync(start_date: str, end_date: str, requested_by: st
                 system_prompt=_RANGE_REPORT_SYSTEM_PROMPT,
                 task_type="summary",
             )
-            full_text, summary_text = _split_report_versions(ai_output)
+            full_text, summary_text, findings = _split_report_versions(ai_output)
 
         anomalies = _detect_anomalies(entries)
         anomalies_json = json.dumps(anomalies, ensure_ascii=False)
+        findings_str = json.dumps(findings, ensure_ascii=False) if findings else None
 
         pool.execute_write(
             "UPDATE class_diary_range_reports "
             "SET report_text = %s, summary_text = %s, anomalies_json = %s, "
-            "status = 'done', updated_at = NOW() "
+            "findings_json = %s, status = 'done', updated_at = NOW() "
             "WHERE start_date = %s AND end_date = %s",
-            (full_text, summary_text, anomalies_json, start_date, end_date),
+            (full_text, summary_text, anomalies_json, findings_str, start_date, end_date),
         )
-        logger.info("範圍報告生成完成: %s ~ %s (%d 條記錄)", start_date, end_date, len(entries))
+        logger.info("範圍報告生成完成: %s ~ %s (%d 條記錄, %d findings)",
+                     start_date, end_date, len(entries), len(findings or []))
     except Exception as e:
         logger.exception("範圍報告生成失敗: %s ~ %s", start_date, end_date)
         pool.execute_write(
@@ -1326,12 +1635,20 @@ async def admin_generate_range_report(request: Request):
         if start_date > end_date:
             return error_response("VALIDATION_ERROR", "start_date 不能晚於 end_date", status_code=400)
 
-        import asyncio
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(None, _generate_range_report_sync, start_date, end_date, admin_user)
+        def _range_task():
+            _generate_range_report_sync(start_date, end_date, admin_user)
 
+        task_id = _tasks.submit(
+            task_type="range_report",
+            func=_range_task,
+            requested_by=admin_user,
+            description=f"範圍報告 {start_date}~{end_date}",
+        )
+
+        _audit.log("GENERATE_REPORT", "range_report", admin_user,
+                   target_id=f"{start_date}~{end_date}")
         return success_response(
-            {"start_date": start_date, "end_date": end_date, "status": "generating"},
+            {"start_date": start_date, "end_date": end_date, "status": "generating", "task_id": task_id},
             "範圍報告生成已啟動",
         )
     except AppException as e:
@@ -1358,7 +1675,7 @@ async def get_range_report(
 
         pool = get_database_pool()
         rows = pool.execute(
-            "SELECT report_text, summary_text, anomalies_json, status "
+            "SELECT report_text, summary_text, anomalies_json, findings_json, status "
             "FROM class_diary_range_reports WHERE start_date = %s AND end_date = %s",
             (start_date, end_date),
         )
@@ -1373,6 +1690,12 @@ async def get_range_report(
                     anomalies = json.loads(report["anomalies_json"])
                 except (json.JSONDecodeError, TypeError):
                     pass
+            findings = []
+            if report.get("findings_json"):
+                try:
+                    findings = json.loads(report["findings_json"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
 
             if tier["tier"] == "report_recipient":
                 text = report.get("summary_text") or report["report_text"]
@@ -1382,6 +1705,7 @@ async def get_range_report(
             return success_response({
                 "report_text": text,
                 "anomalies": anomalies if is_reviewer else [],
+                "findings": findings if is_reviewer else [],
                 "status": report["status"],
                 "is_reviewer": is_reviewer,
             })
@@ -1389,6 +1713,7 @@ async def get_range_report(
             return success_response({
                 "report_text": None,
                 "anomalies": [],
+                "findings": [],
                 "status": "none",
                 "is_reviewer": is_reviewer,
             })
@@ -1397,6 +1722,38 @@ async def get_range_report(
         return error_response(e.code, e.message, status_code=e.status_code)
     except Exception as e:
         logger.exception("查詢範圍報告失敗")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
+#  任務管理                                                                 #
+# ====================================================================== #
+
+@router.get("/api/class-diary/tasks/{task_id}")
+async def get_task_status(request: Request, task_id: str):
+    """查詢單個任務狀態"""
+    try:
+        _verify_request(request)
+        task = _tasks.get_status(task_id)
+        if not task:
+            return error_response("NOT_FOUND", "任務不存在", status_code=404)
+        return success_response(task)
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/class-diary/tasks")
+async def list_tasks(request: Request, limit: int = Query(20, ge=1, le=100)):
+    """列出任務（僅管理員）"""
+    try:
+        admin_user, _ = _verify_admin(request)
+        tasks = _tasks.list_tasks(limit=limit)
+        return success_response(tasks)
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
@@ -1600,7 +1957,7 @@ async def export_entries_xlsx(
     from urllib.parse import quote
 
     try:
-        _verify_reviewer(request)
+        export_user, _ = _verify_reviewer(request)
 
         if not entry_date:
             entry_date = str(date.today())
@@ -1614,6 +1971,8 @@ async def export_entries_xlsx(
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
+
+        _audit.log("EXPORT", "entry", export_user, target_id=entry_date, metadata={"type": "single_day"})
 
         filename = f"課室日誌_{entry_date}.xlsx"
         return StreamingResponse(
@@ -1974,7 +2333,7 @@ async def export_entries_range_xlsx(
     from urllib.parse import quote
 
     try:
-        _verify_reviewer(request)
+        export_user, _ = _verify_reviewer(request)
 
         if start_date > end_date:
             return error_response("INVALID_DATE_RANGE", "開始日期不能晚於結束日期", status_code=400)
@@ -1990,6 +2349,8 @@ async def export_entries_range_xlsx(
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
+
+        _audit.log("EXPORT", "entry", export_user, target_id=f"{start_date}~{end_date}", metadata={"type": "date_range"})
 
         filename = f"課室日誌_{start_date}_至_{end_date}.xlsx"
         return StreamingResponse(
