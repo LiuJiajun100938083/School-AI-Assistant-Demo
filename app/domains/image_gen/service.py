@@ -166,6 +166,8 @@ class ImageGenService:
             "image_gen", Priority.INTERACTIVE, Weight.VISION_MULTI
         )
 
+        # failed 追蹤任務是否成功完成，用於 finally 統一釋放
+        failed = True
         try:
             # ── Phase 1: 排隊等待 — yield queue events ──
             last_pos = None
@@ -198,10 +200,7 @@ class ImageGenService:
 
             # Phase 1 → Phase 2 邊界守衛
             if not entry.event.is_set():
-                cancelled = await scheduler.cancel(entry)
-                if not cancelled:
-                    await scheduler.release_entry(entry, failed=True)
-                return
+                return  # finally 會處理釋放
 
             # ── Phase 2: 生成 ──
             t_gate = time.monotonic()
@@ -258,6 +257,7 @@ class ImageGenService:
                             username, t_done - t_start,
                         )
                         yield {"type": "complete", "image": chunk["image"]}
+                        failed = False
                         return
 
                 # 流結束但未收到圖片
@@ -267,24 +267,25 @@ class ImageGenService:
                 }
 
         except asyncio.CancelledError:
-            cancelled = await scheduler.cancel(entry)
-            if not cancelled:
-                await scheduler.release_entry(entry, failed=True)
+            logger.info("image_gen cancelled user=%s", username)
             raise
         except httpx.TimeoutException:
             logger.warning("image_gen timeout user=%s", username)
-            cancelled = await scheduler.cancel(entry)
-            if not cancelled:
-                await scheduler.release_entry(entry, failed=True)
             yield {"type": "error", "message": "生成超時，請稍後重試"}
         except Exception as e:
             logger.error("image_gen error: %s", e, exc_info=True)
-            cancelled = await scheduler.cancel(entry)
-            if not cancelled:
-                await scheduler.release_entry(entry, failed=True)
             yield {"type": "error", "message": "生成失敗，請稍後重試"}
-        else:
-            await scheduler.release_entry(entry, failed=False)
+        finally:
+            # 統一釋放調度器 entry — 覆蓋所有退出路徑：
+            # 正常完成、異常、CancelledError、GeneratorExit（客戶端斷開 SSE）
+            # release_entry 是冪等的：QUEUED→cancel, DISPATCHED→release, 終態→no-op
+            try:
+                await scheduler.release_entry(entry, failed=failed)
+            except Exception:
+                logger.error(
+                    "image_gen failed to release entry seq=%d",
+                    entry.sequence, exc_info=True,
+                )
 
     # ------------------------------------------------------------------ #
     #  輔助
