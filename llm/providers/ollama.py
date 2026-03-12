@@ -4,8 +4,10 @@ Ollama LLM 提供者
 支持本地 Ollama 服務，包括同步調用和異步流式輸出
 """
 
+import asyncio
 import json
 import logging
+import time
 from typing import List, Dict, Optional, Callable, AsyncGenerator
 
 import httpx
@@ -125,7 +127,10 @@ class OllamaProvider(BaseLLMProvider):
 
     async def async_stream(self, prompt: str, enable_thinking: bool = True) -> AsyncGenerator[tuple, None]:
         """
-        異步流式調用 Ollama — 逐 token yield
+        異步流式調用 Ollama — 逐 token yield，帶排隊可觀測性
+
+        使用低層 scheduler API (enqueue/release_entry/cancel)，
+        在排隊等待期間 yield ("queue", {...}) 事件，讓前端顯示真實排隊位置。
 
         使用 /api/chat 端點，確保：
         - 模型的 chat template 被正確應用
@@ -137,13 +142,19 @@ class OllamaProvider(BaseLLMProvider):
             enable_thinking: 是否開啟思考模式（Ollama think 參數硬開關）
 
         Yields:
-            tuple[str, str]: (type, content) — type 為 "thinking" 或 "answer"
+            tuple[str, str|dict]:
+                ("queue", {"position": int, "total": int})  — 排隊等待期間
+                ("thinking", str)  — 思考 token
+                ("answer", str)    — 回答 token
         """
+        from app.core.ai_gate import (
+            get_scheduler, get_shared_ollama_client, Priority, Weight
+        )
+
         # --- 動態 num_ctx：根據 prompt 長度自適應 ---
         dynamic_num_ctx = self._calc_dynamic_num_ctx(prompt)
         estimated_tokens = int(len(prompt) / 1.5)
 
-        url = f"{self.base_url}/api/chat"
         payload = {
             "model": self.model,
             "messages": [
@@ -164,16 +175,57 @@ class OllamaProvider(BaseLLMProvider):
             payload["options"]["stop"] = self.stop_tokens
 
         gpu_info = f", num_gpu={self.num_gpu}" if self.num_gpu is not None else ""
-        logger.info(f"🔗 Ollama 請求: model={self.model}, num_ctx={dynamic_num_ctx}(prompt≈{estimated_tokens}tok), num_predict={self.max_tokens}{gpu_info}")
-        from app.core.ai_gate import ai_gate, Priority, Weight
-        async with ai_gate("llm_stream", Priority.INTERACTIVE, Weight.CHAT) as client:
-            async with client.stream("POST", "/api/chat", json=payload,
-                                     timeout=httpx.Timeout(self.timeout, connect=10.0)) as response:
+        logger.info(
+            "Ollama 請求: model=%s, num_ctx=%d(prompt≈%dtok), num_predict=%d%s",
+            self.model, dynamic_num_ctx, estimated_tokens, self.max_tokens, gpu_info,
+        )
+
+        scheduler = get_scheduler()
+        entry = await scheduler.enqueue("llm_stream", Priority.INTERACTIVE, Weight.CHAT)
+
+        try:
+            # ── Phase 1: 排隊等待 — yield queue events（去重 + 10s keepalive）──
+            last_pos = None
+            last_push_time = 0.0
+
+            while not entry.event.is_set():
+                pos, total = await scheduler.get_queue_position(entry)
+                if pos == 0:
+                    break  # 已離開隊列（dispatch 或 cancel）
+
+                now = time.monotonic()
+                changed = (pos, total) != last_pos
+                stale = (now - last_push_time) >= 10.0
+                if changed or stale:
+                    last_pos = (pos, total)
+                    last_push_time = now
+                    yield ("queue", {"position": pos, "total": total})
+
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(entry.event.wait()), timeout=3.0
+                    )
+                except asyncio.TimeoutError:
+                    continue
+
+            # Phase 1 → Phase 2 邊界守衛
+            if not entry.event.is_set():
+                # 非正常退出（entry 被外部取消但未 dispatch）
+                cancelled = await scheduler.cancel(entry)
+                if not cancelled:
+                    await scheduler.release_entry(entry, failed=True)
+                return
+
+            # ── Phase 2: 生成 — 使用共享 client ──
+            client = get_shared_ollama_client()
+            async with client.stream(
+                "POST", "/api/chat", json=payload,
+                timeout=httpx.Timeout(self.timeout, connect=10.0),
+            ) as response:
                 if response.status_code != 200:
-                    # 讀取 Ollama 錯誤詳情
                     error_body = await response.aread()
                     error_text = error_body.decode("utf-8", errors="replace")[:500]
-                    logger.error(f"❌ Ollama API 錯誤 {response.status_code}: {error_text}")
+                    logger.error("Ollama API 錯誤 %d: %s", response.status_code, error_text)
                     response.raise_for_status()
 
                 async for line in response.aiter_lines():
@@ -183,12 +235,12 @@ class OllamaProvider(BaseLLMProvider):
                     try:
                         chunk = json.loads(line)
                     except json.JSONDecodeError:
-                        logger.warning(f"跳過無效 JSON 行: {line[:100]}")
+                        logger.warning("跳過無效 JSON 行: %s", line[:100])
                         continue
 
                     # Ollama /api/chat + think:true 返回格式：
-                    #   思考階段: {"message": {"role":"assistant", "thinking":"...", "content":""}}
-                    #   回答階段: {"message": {"role":"assistant", "thinking":"",  "content":"..."}}
+                    #   思考階段: {"message": {"thinking":"...", "content":""}}
+                    #   回答階段: {"message": {"thinking":"",  "content":"..."}}
                     msg = chunk.get("message") or {}
 
                     thinking_token = msg.get("thinking") or ""
@@ -201,6 +253,19 @@ class OllamaProvider(BaseLLMProvider):
 
                     if chunk.get("done", False):
                         return
+
+        except asyncio.CancelledError:
+            cancelled = await scheduler.cancel(entry)
+            if not cancelled:
+                await scheduler.release_entry(entry, failed=True)
+            raise
+        except Exception:
+            cancelled = await scheduler.cancel(entry)
+            if not cancelled:
+                await scheduler.release_entry(entry, failed=True)
+            raise
+        else:
+            await scheduler.release_entry(entry, failed=False)
 
     def reload(self):
         """重新初始化 LLM"""

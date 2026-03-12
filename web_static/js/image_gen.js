@@ -6,15 +6,23 @@
  * 職責:
  * 1. 認證檢查
  * 2. Prompt 輸入管理（字數、快捷鍵）
- * 3. SSE 流式消費（status → progress → complete / error）
+ * 3. SSE 流式消費（queue → status → progress → complete / error）
  * 4. 結果展示與下載
+ *
+ * 前端狀態機:
+ *   idle → submitting → queued → generating → progress → completed / error
  */
 'use strict';
 
 const ImageGenApp = {
     _els: {},
-    _isGenerating: false,
     _lastImage: null,
+
+    /**
+     * 前端狀態機 — 同一時刻只有一個主狀態。
+     * 所有 SSE 事件和本地操作都走狀態遷移。
+     */
+    _state: 'idle',  // idle | submitting | queued | generating | progress | completed | error
 
     /* ---------- 初始化 ---------- */
 
@@ -67,26 +75,115 @@ const ImageGenApp = {
 
         // 重新生成
         newGenBtn.addEventListener('click', () => {
-            this._els.resultArea.style.display = 'none';
+            this._transitionTo('idle');
             this._els.prompt.focus();
         });
+    },
+
+    /* ---------- 狀態遷移 ---------- */
+
+    _transitionTo(newState, data) {
+        const prev = this._state;
+        // 防止不合法遷移（終態 → 排隊）
+        if (prev === 'completed' && newState === 'queued') return;
+        if (prev === 'error' && newState === 'queued') return;
+
+        this._state = newState;
+
+        switch (newState) {
+            case 'idle':
+                this._els.genBtn.disabled = false;
+                this._els.prompt.disabled = false;
+                this._els.genBtn.textContent = '生成圖片';
+                this._els.statusArea.style.display = 'none';
+                this._els.resultArea.style.display = 'none';
+                this._els.errorArea.style.display = 'none';
+                break;
+
+            case 'submitting':
+                this._els.genBtn.disabled = true;
+                this._els.prompt.disabled = true;
+                this._els.genBtn.textContent = '提交中...';
+                this._els.statusArea.style.display = 'flex';
+                this._els.statusText.textContent = '正在提交生成請求...';
+                this._els.resultArea.style.display = 'none';
+                this._els.errorArea.style.display = 'none';
+                // 提交超時兜底（30 秒無 SSE → error）
+                this._submitTimeout = setTimeout(() => {
+                    if (this._state === 'submitting') {
+                        this._transitionTo('error', { message: '連線異常，請重試' });
+                    }
+                }, 30000);
+                break;
+
+            case 'queued': {
+                if (this._submitTimeout) { clearTimeout(this._submitTimeout); this._submitTimeout = null; }
+                this._els.statusArea.style.display = 'flex';
+                const { position: pos, total, est_wait: est } = data || {};
+                let text = `圖片生成需求較多，已加入隊列（第 ${pos}/${total} 位`;
+                if (est) text += `，${est}`;
+                text += '）';
+                // 淡入讓學生感知隊列在動
+                this._els.statusText.style.transition = 'opacity 0.3s';
+                this._els.statusText.style.opacity = '0.7';
+                this._els.statusText.textContent = text;
+                requestAnimationFrame(() => { this._els.statusText.style.opacity = '1'; });
+                break;
+            }
+
+            case 'generating':
+                if (this._submitTimeout) { clearTimeout(this._submitTimeout); this._submitTimeout = null; }
+                this._els.statusArea.style.display = 'flex';
+                this._els.statusText.style.transition = '';
+                this._els.statusText.textContent = (data && data.message) || '正在生成圖片...';
+                break;
+
+            case 'progress': {
+                const step = data.step || 0;
+                const total = data.total || 0;
+                const pct = total > 0 ? Math.round((step / total) * 100) : 0;
+                this._els.statusText.textContent =
+                    total > 0 ? `生成中... ${pct}% (${step}/${total})` : '生成中...';
+                break;
+            }
+
+            case 'completed':
+                if (this._submitTimeout) { clearTimeout(this._submitTimeout); this._submitTimeout = null; }
+                this._lastImage = data.image;
+                this._els.resultImg.src = `data:image/png;base64,${data.image}`;
+                this._els.resultArea.style.display = 'block';
+                this._els.statusArea.style.display = 'none';
+                this._els.genBtn.disabled = false;
+                this._els.prompt.disabled = false;
+                this._els.genBtn.textContent = '生成圖片';
+                break;
+
+            case 'error':
+                if (this._submitTimeout) { clearTimeout(this._submitTimeout); this._submitTimeout = null; }
+                this._els.errorText.textContent = (data && data.message) || '生成失敗，請稍後重試';
+                this._els.errorArea.style.display = 'block';
+                this._els.statusArea.style.display = 'none';
+                this._els.genBtn.disabled = false;
+                this._els.prompt.disabled = false;
+                this._els.genBtn.textContent = '生成圖片';
+                break;
+        }
     },
 
     /* ---------- 生成流程 ---------- */
 
     async _generate() {
-        if (this._isGenerating) return;
+        // 非 idle/completed/error 狀態下禁止重複提交
+        if (!['idle', 'completed', 'error'].includes(this._state)) return;
 
         const prompt = this._els.prompt.value.trim();
         if (!prompt) {
-            this._showError('請輸入圖片描述');
+            this._transitionTo('error', { message: '請輸入圖片描述' });
             return;
         }
 
-        this._isGenerating = true;
-        this._setLoading(true);
-        this._hideError();
-        this._els.resultArea.style.display = 'none';
+        // 200ms 內本地回饋
+        this._transitionTo('submitting');
 
         try {
             const resp = await fetch('/api/image-gen/generate', {
@@ -110,10 +207,7 @@ const ImageGenApp = {
             // 消費 SSE 流
             await this._consumeSSE(resp);
         } catch (err) {
-            this._showError(err.message || '生成失敗');
-        } finally {
-            this._isGenerating = false;
-            this._setLoading(false);
+            this._transitionTo('error', { message: err.message || '生成失敗' });
         }
     },
 
@@ -142,34 +236,25 @@ const ImageGenApp = {
 
     _handleMessage(data) {
         switch (data.type) {
+            case 'queue':
+                this._transitionTo('queued', data);
+                break;
             case 'status':
-                this._els.statusText.textContent = data.message;
+                this._transitionTo('generating', data);
                 break;
-            case 'progress': {
-                const step = data.step || 0;
-                const total = data.total || 0;
-                const pct = total > 0 ? Math.round((step / total) * 100) : 0;
-                this._els.statusText.textContent =
-                    total > 0 ? `生成中... ${pct}% (${step}/${total})` : '生成中...';
+            case 'progress':
+                this._transitionTo('progress', data);
                 break;
-            }
             case 'complete':
-                this._showImage(data.image);
+                this._transitionTo('completed', data);
                 break;
             case 'error':
-                this._showError(data.message);
+                this._transitionTo('error', data);
                 break;
         }
     },
 
-    /* ---------- UI 更新 ---------- */
-
-    _showImage(base64) {
-        this._lastImage = base64;
-        this._els.resultImg.src = `data:image/png;base64,${base64}`;
-        this._els.resultArea.style.display = 'block';
-        this._els.statusArea.style.display = 'none';
-    },
+    /* ---------- UI 輔助 ---------- */
 
     _download() {
         if (!this._lastImage) return;
@@ -177,23 +262,6 @@ const ImageGenApp = {
         a.href = `data:image/png;base64,${this._lastImage}`;
         a.download = `ai-image-${Date.now()}.png`;
         a.click();
-    },
-
-    _setLoading(on) {
-        this._els.genBtn.disabled = on;
-        this._els.prompt.disabled = on;
-        this._els.genBtn.textContent = on ? '生成中...' : '生成圖片';
-        this._els.statusArea.style.display = on ? 'flex' : 'none';
-    },
-
-    _showError(msg) {
-        this._els.errorText.textContent = msg;
-        this._els.errorArea.style.display = 'block';
-        this._els.statusArea.style.display = 'none';
-    },
-
-    _hideError() {
-        this._els.errorArea.style.display = 'none';
     },
 };
 

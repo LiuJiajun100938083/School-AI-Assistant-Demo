@@ -387,7 +387,11 @@ class ChatService:
                     else:
                         chunk_type, chunk_content = event
 
-                    if chunk_type == "thinking":
+                    if chunk_type == "queue":
+                        # 排队事件：content 为 JSON 字符串，解析后透传
+                        import json as _json
+                        yield self._sse_event("queue", _json.loads(chunk_content))
+                    elif chunk_type == "thinking":
                         full_thinking.append(chunk_content)
                         yield self._sse_event("thinking", {"content": chunk_content})
                     elif chunk_type == "answer":

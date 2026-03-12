@@ -120,6 +120,11 @@ async def stream_ai_subject(
         logger.info(f"🔄 開始流式生成: 科目={subject_code}, 思考模式={'開' if enable_thinking else '關'}, 問題={question[:50]}...")
 
         async for token_type, token_content in provider.async_stream(thinking_prompt, enable_thinking=enable_thinking):
+            # 排隊事件：直接透傳（content 為 dict）
+            if token_type == "queue":
+                import json as _json
+                yield StreamEvent(type="queue", content=_json.dumps(token_content, ensure_ascii=False))
+                continue
             if not token_content:
                 continue
             if token_type == "thinking":

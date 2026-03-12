@@ -569,7 +569,7 @@ const ChatUI = {
         bubbleDiv.innerHTML = `
             <div class="subject-badge">${subjectInfo.icon} ${subjectInfo.name}</div>
             <div class="typing-indicator">
-                正在思考中
+                正在提交請求...
                 <div class="typing-dots">
                     <div class="typing-dot"></div>
                     <div class="typing-dot"></div>
@@ -1456,8 +1456,10 @@ const ChatApp = {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            ChatUI.removeTypingIndicator();
-            const streamCtx = ChatUI.createStreamingMessage(this.state.currentSubject);
+            // 不立刻移除 typing indicator — 排隊期間繼續顯示，
+            // 等收到第一個 thinking/answer 事件時再替換為流式消息。
+            // 使用 holder 讓 _handleStreamEvent 可以懶初始化 streamCtx。
+            const ctxHolder = { ctx: null };
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -1472,15 +1474,19 @@ const ChatApp = {
                 sseBuffer = parts.pop() || '';
 
                 for (const part of parts) {
-                    this._processSSEPart(part, streamCtx);
+                    this._processSSEPart(part, ctxHolder);
                 }
             }
 
             if (sseBuffer.trim()) {
-                this._processSSEPart(sseBuffer, streamCtx);
+                this._processSSEPart(sseBuffer, ctxHolder);
             }
 
-            this._finalizeStreamingMessage(streamCtx);
+            // 清理：如果整個流只有 queue/meta 事件（沒有 thinking/answer），需要移除 indicator
+            ChatUI.removeTypingIndicator();
+            if (ctxHolder.ctx) {
+                this._finalizeStreamingMessage(ctxHolder.ctx);
+            }
             this._clearConversationFiles();
             await this._loadConversations();
 
@@ -1500,7 +1506,7 @@ const ChatApp = {
         }
     },
 
-    _processSSEPart(partRaw, streamCtx) {
+    _processSSEPart(partRaw, ctxHolder) {
         const partText = partRaw.trim();
         if (!partText) return;
 
@@ -1519,14 +1525,26 @@ const ChatApp = {
             try {
                 const eventData = JSON.parse(dataStr);
                 if (eventType) eventData.type = eventType;
-                this._handleStreamEvent(eventData, streamCtx);
+                this._handleStreamEvent(eventData, ctxHolder);
             } catch (parseErr) {
                 console.warn('SSE 解析跳过:', partText.slice(0, 100));
             }
         }
     },
 
-    _handleStreamEvent(eventData, ctx) {
+    /**
+     * 確保 streamCtx 已創建（懶初始化）。
+     * 在收到第一個 thinking/answer 事件時移除 typing indicator 並創建流式消息。
+     */
+    _ensureStreamCtx(ctxHolder) {
+        if (!ctxHolder.ctx) {
+            ChatUI.removeTypingIndicator();
+            ctxHolder.ctx = ChatUI.createStreamingMessage(this.state.currentSubject);
+        }
+        return ctxHolder.ctx;
+    },
+
+    _handleStreamEvent(eventData, ctxHolder) {
         switch (eventData.type) {
             case 'meta':
                 if (eventData.conversation_id) {
@@ -1534,7 +1552,27 @@ const ChatApp = {
                 }
                 break;
 
-            case 'thinking':
+            case 'queue': {
+                // 排隊位置更新 — 更新 typing indicator 文案
+                const pos = eventData.position;
+                const total = eventData.total;
+                const indicator = document.getElementById('typing-indicator');
+                if (indicator) {
+                    const bubble = indicator.querySelector('.typing-indicator');
+                    if (bubble) {
+                        bubble.childNodes[0].textContent = `目前使用人數較多，正在排隊（第 ${pos}/${total} 位）`;
+                        // 淡入效果讓學生感知隊列在動
+                        bubble.style.transition = 'opacity 0.3s';
+                        bubble.style.opacity = '0.7';
+                        requestAnimationFrame(() => { bubble.style.opacity = '1'; });
+                    }
+                }
+                break;
+            }
+
+            case 'thinking': {
+                // 硬性規則：收到 thinking 立刻清空排隊提示，創建流式消息
+                const ctx = this._ensureStreamCtx(ctxHolder);
                 if (ctx.phase === 'init') {
                     ctx.phase = 'thinking';
                     ctx.thinkingSection.style.display = '';
@@ -1549,23 +1587,27 @@ const ChatApp = {
                 }
                 ChatUI.scrollToBottom();
                 break;
+            }
 
-            case 'answer':
+            case 'answer': {
+                const ctx = this._ensureStreamCtx(ctxHolder);
                 if (ctx.phase !== 'answer') {
                     ctx.phase = 'answer';
                     if (ctx.thinkingCursor) ctx.thinkingCursor.remove();
                     const contentEl = ctx.thinkingSection.querySelector('.section-content');
                     if (contentEl) contentEl.classList.add('collapsed');
-                    const indicator = ctx.thinkingSection.querySelector('.collapse-indicator');
-                    if (indicator) indicator.classList.remove('expanded');
+                    const collapseIndicator = ctx.thinkingSection.querySelector('.collapse-indicator');
+                    if (collapseIndicator) collapseIndicator.classList.remove('expanded');
                     ctx.answerDiv.style.display = '';
                 }
                 ctx.fullAnswer += (eventData.content || eventData.token || '');
                 ctx.answerText.textContent = ctx.fullAnswer;
                 ChatUI.scrollToBottom();
                 break;
+            }
 
-            case 'done':
+            case 'done': {
+                const ctx = this._ensureStreamCtx(ctxHolder);
                 ctx.phase = 'done';
                 if (eventData.full_answer) ctx.fullAnswer = eventData.full_answer;
                 if (eventData.full_thinking) ctx.fullThinking = eventData.full_thinking;
@@ -1573,9 +1615,11 @@ const ChatApp = {
                     this.state.currentConversationId = eventData.conversation_id;
                 }
                 break;
+            }
 
             case 'error':
-                ChatUI.showStatusMessage(eventData.message, 5000);
+                ChatUI.removeTypingIndicator();
+                ChatUI.showStatusMessage(eventData.message || 'AI 服務繁忙，請稍後重試', 5000);
                 break;
         }
     },

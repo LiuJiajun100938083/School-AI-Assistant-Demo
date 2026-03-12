@@ -1,13 +1,14 @@
 """
 AI Gate — 加權優先級調度器 + 共享連接池
 ========================================
-所有 Ollama 調用（Vision OCR、AI 聊天、錯題分析）必須經過此調度器。
+所有 Ollama 調用（Vision OCR、AI 聊天、錯題分析、圖片生成）必須經過此調度器。
 避免高並發直打 GPU → 超時 → 雪崩。
 
 核心設計：
 - WeightedPriorityScheduler：分層 deque，按 (priority, FIFO) 調度，weight 控制 GPU 容量
 - 共享 httpx.AsyncClient：連接池複用，避免每次請求建立 TCP
-- ai_gate() context manager：一行整合調度 + 連接池
+- ai_gate() context manager：一行整合調度 + 連接池（高層 API，其他功能繼續使用）
+- enqueue/release_entry/cancel：低層顯式生命周期 API（用於需要排隊可觀測性的功能）
 """
 
 import asyncio
@@ -40,7 +41,26 @@ class Weight(IntEnum):
     CHAT = 1           # 文字 AI 聊天
     VISION_SINGLE = 2  # 單圖 OCR
     ANALYSIS = 2       # AI 分析（錯題、批改）
-    VISION_MULTI = 3   # 多圖/PDF OCR
+    VISION_MULTI = 3   # 多圖/PDF OCR / 圖片生成
+
+
+# ================================================================
+#  Entry 狀態機
+# ================================================================
+
+class _EntryState(IntEnum):
+    """
+    調度 entry 的顯式生命周期狀態。
+
+    狀態轉換（全部在 scheduler._lock 下原子完成）：
+        QUEUED → DISPATCHED  （只由 _try_dispatch 觸發）
+        QUEUED → CANCELLED   （由 cancel / release_entry 觸發）
+        DISPATCHED → RELEASED（由 release_entry 觸發）
+    """
+    QUEUED = 1       # 在隊列中等待
+    DISPATCHED = 2   # 已分配 GPU，正在執行
+    CANCELLED = 3    # 已取消（終態）
+    RELEASED = 4     # 已釋放（終態）
 
 
 # ================================================================
@@ -56,6 +76,7 @@ class _QueueEntry:
     weight: int
     task_name: str
     event: asyncio.Event = dataclasses.field(compare=False)
+    state: int = dataclasses.field(default=_EntryState.QUEUED, compare=False)
 
     def __lt__(self, other: "_QueueEntry") -> bool:
         return (self.priority, self.created_at, self.sequence) < \
@@ -77,6 +98,10 @@ class WeightedPriorityScheduler:
     4. 避免隊頭阻塞：如果隊頭太重放不下，繼續往後找同層更輕的任務
 
     使用分層 deque（priority → deque[_QueueEntry]），而非 heapq。
+
+    提供兩套 API：
+    - acquire() / ai_gate()：高層封裝，隱藏排隊等待（適合不需要觀測排隊的功能）
+    - enqueue() / release_entry() / cancel()：低層顯式生命周期（適合需要推送排隊位置的功能）
     """
 
     # 優先級名稱映射（用於監控面板）
@@ -102,18 +127,21 @@ class WeightedPriorityScheduler:
         # 滑動窗口：最近 N 次完成任務的耗時（秒）
         self._recent_durations: deque[float] = deque(maxlen=20)
 
-    @asynccontextmanager
-    async def acquire(self, task_name: str, priority: int, weight: int):
-        """
-        獲取 GPU 容量槽位。
+    # ================================================================
+    #  低層公開 API — 顯式生命周期管理
+    # ================================================================
 
-        用法::
-
-            async with scheduler.acquire("vision_ocr", Priority.INTERACTIVE, Weight.VISION_SINGLE):
-                # 在此區間內佔用 weight 個容量單位
-                response = await client.post(...)
+    async def enqueue(self, task_name: str, priority: int, weight: int) -> _QueueEntry:
         """
-        # ---- 入口校驗：weight > capacity 直接拒絕 ----
+        將任務加入調度隊列，立即返回 entry（不等待 dispatch）。
+
+        調用端通過 entry.event.wait() 或輪詢 entry.event.is_set() 等待 dispatch。
+        dispatch 後必須調用 release_entry() 釋放資源。
+        如需取消排隊中的任務，調用 cancel()。
+
+        Raises:
+            ValueError: weight 超過總容量或 <= 0
+        """
         if weight > self._total_capacity:
             self._stats["rejected"] += 1
             logger.error(
@@ -124,11 +152,9 @@ class WeightedPriorityScheduler:
                 f"Task '{task_name}' weight={weight} exceeds "
                 f"total capacity={self._total_capacity}"
             )
-
         if weight <= 0:
             raise ValueError(f"Task '{task_name}' weight must be > 0, got {weight}")
 
-        # ---- 入隊 ----
         async with self._lock:
             self._seq += 1
             entry = _QueueEntry(
@@ -138,6 +164,7 @@ class WeightedPriorityScheduler:
                 weight=weight,
                 task_name=task_name,
                 event=asyncio.Event(),
+                state=_EntryState.QUEUED,
             )
             layer = self._layers.setdefault(priority, deque())
             layer.append(entry)
@@ -148,21 +175,128 @@ class WeightedPriorityScheduler:
             )
             self._try_dispatch()
 
-        # ---- 等待被調度 ----
-        await entry.event.wait()
+        return entry
 
-        # ---- 註冊為運行中任務（受鎖保護） ----
-        registered = False
-        run_id = entry.sequence
+    async def get_queue_position(self, entry: _QueueEntry) -> tuple[int, int]:
+        """
+        獲取 entry 在全局調度隊列中的真實等待位置。
+
+        語義定義（鎖死）：
+        - position = 全局隊列中的真實等待排位（1-indexed），按 scheduler
+          實際 dispatch 規則排序（priority 高的先 dispatch，同 priority FIFO）
+        - total = 當前所有 priority 層中等待任務的總數
+        - (0, 0) = entry 已不在等待隊列中（已 dispatch / 已取消 / 已釋放）
+
+        Service 層規則：pos > 0 才發 queue event，(0, 0) 直接退出 queue loop。
+
+        Returns:
+            (position, total) — position 為 1-indexed，total 為全局等待數
+        """
         async with self._lock:
-            self._running_tasks.append({
-                "id": run_id,
-                "task_name": task_name,
-                "weight": weight,
-                "priority": priority,
-                "started_at": time.monotonic(),
-            })
-            registered = True
+            if entry.state != _EntryState.QUEUED:
+                return (0, 0)
+            return self._compute_position_locked(entry)
+
+    async def release_entry(self, entry: _QueueEntry, failed: bool = False):
+        """
+        Safe finalizer for an entry. If still queued, degrades to cancellation. Idempotent.
+
+        不管 entry 當前在什麼狀態，都安全地將其帶入終態。
+        可以安全地重複調用，不會重複記賬。
+
+        Args:
+            entry: 要釋放的 entry
+            failed: True 表示任務失敗（記入 failed 統計），False 表示成功完成
+        """
+        async with self._lock:
+            if entry.state == _EntryState.RELEASED:
+                return  # 已釋放，no-op
+            if entry.state == _EntryState.CANCELLED:
+                return  # 已取消，no-op
+            if entry.state == _EntryState.QUEUED:
+                # 還在排隊中，未被 dispatch — 降級為 cancel
+                self._remove_from_queue_locked(entry)
+                entry.state = _EntryState.CANCELLED
+                logger.debug(
+                    "AI gate release→cancel: %s (seq=%d) — still queued",
+                    entry.task_name, entry.sequence,
+                )
+                return
+            # state == DISPATCHED — 正式釋放
+            entry.state = _EntryState.RELEASED
+            self._used_capacity -= entry.weight
+            self._stats["running"] -= 1
+            if failed:
+                self._stats["failed"] += 1
+            else:
+                self._stats["completed"] += 1
+            # 記錄完成耗時，移除 running task
+            for t in self._running_tasks:
+                if t["id"] == entry.sequence:
+                    self._recent_durations.append(
+                        time.monotonic() - t["started_at"]
+                    )
+                    break
+            self._running_tasks = [
+                t for t in self._running_tasks if t["id"] != entry.sequence
+            ]
+            logger.info(
+                "AI gate release: %s (w=%d seq=%d failed=%s) capacity=%d/%d",
+                entry.task_name, entry.weight, entry.sequence, failed,
+                self._used_capacity, self._total_capacity,
+            )
+            self._try_dispatch()
+
+    async def cancel(self, entry: _QueueEntry) -> bool:
+        """
+        取消一個排隊中的任務。
+
+        只能取消 QUEUED 狀態的 entry。如果 entry 已被 dispatch 或已終態，
+        返回 False — 調用端應改用 release_entry()。
+
+        典型用法（處理斷開/取消）：
+            cancelled = await scheduler.cancel(entry)
+            if not cancelled:
+                await scheduler.release_entry(entry, failed=True)
+
+        Returns:
+            True = 成功取消（從隊列移除）
+            False = entry 已非 QUEUED 狀態，需要走 release_entry
+        """
+        async with self._lock:
+            if entry.state != _EntryState.QUEUED:
+                return False
+            self._remove_from_queue_locked(entry)
+            entry.state = _EntryState.CANCELLED
+            logger.info(
+                "AI gate cancel: %s (seq=%d) removed from queue",
+                entry.task_name, entry.sequence,
+            )
+            return True
+
+    # ================================================================
+    #  高層 API — 隱藏式排隊（向後兼容）
+    # ================================================================
+
+    @asynccontextmanager
+    async def acquire(self, task_name: str, priority: int, weight: int):
+        """
+        獲取 GPU 容量槽位（高層封裝）。
+
+        隱藏排隊等待過程，適合不需要觀測排隊位置的功能。
+        需要排隊可觀測性的功能請使用 enqueue() + release_entry()。
+
+        用法::
+
+            async with scheduler.acquire("vision_ocr", Priority.INTERACTIVE, Weight.VISION_SINGLE):
+                # 在此區間內佔用 weight 個容量單位
+                response = await client.post(...)
+        """
+        # 使用 enqueue 入隊（共用同一套狀態機）
+        entry = await self.enqueue(task_name, priority, weight)
+
+        # 等待被調度
+        await entry.event.wait()
 
         logger.info(
             "AI gate dispatch: %s (pri=%d w=%d) running=%d capacity=%d/%d",
@@ -171,37 +305,18 @@ class WeightedPriorityScheduler:
             self._used_capacity, self._total_capacity,
         )
 
-        # ---- 執行區：分離 completed / failed ----
+        # 執行區：分離 completed / failed
         try:
             yield
         except Exception:
-            async with self._lock:
-                self._stats["failed"] += 1
+            await self.release_entry(entry, failed=True)
             raise
         else:
-            async with self._lock:
-                self._stats["completed"] += 1
-        finally:
-            async with self._lock:
-                self._used_capacity -= weight
-                self._stats["running"] -= 1
-                if registered:
-                    # 記錄完成耗時
-                    for t in self._running_tasks:
-                        if t["id"] == run_id:
-                            self._recent_durations.append(
-                                time.monotonic() - t["started_at"]
-                            )
-                            break
-                    self._running_tasks = [
-                        t for t in self._running_tasks if t["id"] != run_id
-                    ]
-                logger.info(
-                    "AI gate release: %s (w=%d) capacity=%d/%d",
-                    task_name, weight,
-                    self._used_capacity, self._total_capacity,
-                )
-                self._try_dispatch()
+            await self.release_entry(entry, failed=False)
+
+    # ================================================================
+    #  內部方法
+    # ================================================================
 
     def _try_dispatch(self):
         """
@@ -209,6 +324,14 @@ class WeightedPriorityScheduler:
 
         避免隊頭阻塞：如果 deque 頭太重放不下，繼續往後找同層更輕的任務。
         dispatch 成功後繼續嘗試填更多任務，直到容量用盡。
+
+        dispatch 時原子完成所有狀態轉換：
+        - 從隊列移除
+        - state = DISPATCHED
+        - 增加 used_capacity
+        - 更新 running stats
+        - 註冊 running task
+        - entry.event.set()
 
         注意：此方法必須在持有 self._lock 的情況下調用。
         """
@@ -226,11 +349,20 @@ class WeightedPriorityScheduler:
                 if entry.weight <= remaining:
                     # 可調度！從 deque 中移除
                     del layer[i]  # O(n) 但 deque 通常極短（< 30）
+                    # ---- 原子完成所有 dispatch 狀態轉換 ----
+                    entry.state = _EntryState.DISPATCHED
                     self._used_capacity += entry.weight
                     self._stats["queued"] -= 1
                     self._stats["running"] += 1
+                    self._running_tasks.append({
+                        "id": entry.sequence,
+                        "task_name": entry.task_name,
+                        "weight": entry.weight,
+                        "priority": entry.priority,
+                        "started_at": time.monotonic(),
+                    })
                     remaining -= entry.weight
-                    entry.event.set()  # 喚醒等待的協程
+                    entry.event.set()  # 喚醒等待的協程（最後執行）
                     # 不 break — 繼續嘗試填更多任務
                     if remaining <= 0:
                         # 清理空層後返回
@@ -247,6 +379,46 @@ class WeightedPriorityScheduler:
         # 清理空層
         for p in empty_pris:
             self._layers.pop(p, None)
+
+    def _compute_position_locked(self, entry: _QueueEntry) -> tuple[int, int]:
+        """
+        計算 entry 在全局隊列中的位置。必須持有 _lock。
+
+        遍歷所有 priority 層，統計會在此 entry 之前被 dispatch 的任務數。
+        """
+        position = 0
+        for pri in sorted(self._layers.keys()):
+            layer = self._layers.get(pri, deque())
+            if pri < entry.priority:
+                # 更高優先級的任務全部排在前面
+                position += len(layer)
+            elif pri == entry.priority:
+                # 同優先級，FIFO 排在前面的
+                for e in layer:
+                    if e.sequence == entry.sequence:
+                        break
+                    position += 1
+                break
+            else:
+                break  # 更低優先級不會排在前面
+        total = sum(len(l) for l in self._layers.values())
+        return (position + 1, total)  # 1-indexed
+
+    def _remove_from_queue_locked(self, entry: _QueueEntry):
+        """從 _layers 中按 sequence 精準移除 entry。必須持有 _lock。"""
+        layer = self._layers.get(entry.priority)
+        if layer:
+            for i, e in enumerate(layer):
+                if e.sequence == entry.sequence:
+                    del layer[i]
+                    self._stats["queued"] -= 1
+                    if not layer:
+                        self._layers.pop(entry.priority, None)
+                    return
+
+    # ================================================================
+    #  統計
+    # ================================================================
 
     @property
     def stats(self) -> dict:
@@ -410,6 +582,9 @@ async def ai_gate(
 ):
     """
     一行整合 調度器 + 共享連接池。
+
+    高層封裝，隱藏排隊等待。適合不需要排隊可觀測性的功能。
+    需要推送排隊位置的功能，請使用 scheduler.enqueue() + release_entry()。
 
     用法::
 
