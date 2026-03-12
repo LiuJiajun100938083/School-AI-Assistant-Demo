@@ -235,6 +235,15 @@ def _ensure_initialized():
 #  響應解析（雙層：JSON → 前綴回退）
 # ------------------------------------------------------------------ #
 
+# qwen3.5 是思考模型，回復格式：<think>思考過程</think>實際回答
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+
+def _strip_think_tags(raw: str) -> str:
+    """剝離 qwen3.5 思考標籤，只保留最終回答"""
+    return _THINK_RE.sub("", raw).strip()
+
+
 def _parse_safety_response(raw: str) -> tuple[str, str, str]:
     """
     解析安全審核模型響應。
@@ -243,7 +252,7 @@ def _parse_safety_response(raw: str) -> tuple[str, str, str]:
         (decision, category, reason)
         decision: "SAFE" | "BLOCKED" | "UNKNOWN"
     """
-    raw = raw.strip()
+    raw = _strip_think_tags(raw)
 
     # 第一層：嘗試 JSON
     # 先嘗試提取 JSON 子串（模型可能在 JSON 前後加文字）
@@ -279,7 +288,7 @@ def _parse_topic_response(raw: str) -> tuple[str, str]:
         (decision, reason)
         decision: "APPROVED" | "REJECTED" | "UNKNOWN"
     """
-    raw = raw.strip()
+    raw = _strip_think_tags(raw)
 
     # 第一層：JSON
     json_match = re.search(r'\{[^{}]*"decision"[^{}]*\}', raw)
@@ -386,6 +395,7 @@ async def check_content_safety(
                 {"role": "user", "content": f"<CONTENT>\n{normalized}\n</CONTENT>"},
             ],
             "stream": False,
+            "think": False,  # 關閉 qwen3.5 思考模式，直接輸出分類結果
             "options": {
                 "temperature": 0.1,
                 "num_predict": 50,
@@ -528,6 +538,7 @@ async def check_content_ai_related(
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
+            "think": False,  # 關閉 qwen3.5 思考模式
             "options": {
                 "temperature": 0.1,
                 "num_predict": 50,
