@@ -131,6 +131,7 @@ class UserService:
         role: str = "student",
         display_name: str = "",
         class_name: str = "",
+        class_number: Optional[int] = None,
         email: str = "",
         created_by: str = "system",
     ) -> Dict[str, Any]:
@@ -161,6 +162,7 @@ class UserService:
             role=role,
             display_name=display_name or username,
             class_name=class_name,
+            class_number=class_number,
             email=email,
         )
 
@@ -283,6 +285,9 @@ class UserService:
                 })
                 continue
 
+            class_number_raw = row.get("class_number") or row.get("班號") or row.get("班号")
+            class_number = int(class_number_raw) if class_number_raw else None
+
             password_hash = PasswordManager.hash_password(password)
             batch_buffer.append({
                 "username": username,
@@ -290,6 +295,7 @@ class UserService:
                 "role": role,
                 "display_name": display_name or username,
                 "class_name": class_name,
+                "class_number": class_number,
             })
             existing_usernames.add(username)
 
@@ -338,7 +344,8 @@ class UserService:
             raise NotFoundError("用户", username)
 
         allowed_fields = {
-            "display_name", "email", "class_name", "role", "status", "is_active",
+            "display_name", "email", "class_name", "class_number",
+            "role", "status", "is_active",
         }
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
         if not update_data:

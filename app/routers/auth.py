@@ -54,12 +54,13 @@ async def login(request: Request):
             client_ip=client_ip,
             user_agent=user_agent,
         )
-        # login() 已返回 class_name，直接构建 user_info
+        # login() 已返回 class_name/class_number，直接构建 user_info
         user_info = {
             "username": result["username"],
             "role": result["role"],
             "display_name": result["display_name"],
             "class_name": result.get("class_name", ""),
+            "class_number": result.get("class_number"),
         }
 
         # 返回扁平结构，兼容前端预期格式
@@ -105,12 +106,13 @@ async def secure_login(request: Request):
             client_ip=client_ip,
             user_agent=user_agent,
         )
-        # login() 已返回 class_name，直接构建 user_info
+        # login() 已返回 class_name/class_number，直接构建 user_info
         user_info = {
             "username": result["username"],
             "role": result["role"],
             "display_name": result["display_name"],
             "class_name": result.get("class_name", ""),
+            "class_number": result.get("class_number"),
         }
 
         # 返回扁平结构，兼容前端预期格式
@@ -218,6 +220,7 @@ async def verify_user_token(request: Request):
             payload.update({
                 "display_name": user.get("display_name", ""),
                 "class_name": user.get("class_name", ""),
+                "class_number": user.get("class_number"),
                 "email": user.get("email", ""),
                 "login_count": user.get("login_count", 0),
                 "last_login": user.get("last_login", ""),

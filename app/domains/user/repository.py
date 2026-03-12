@@ -42,7 +42,7 @@ class UserRepository(BaseRepository):
             "username = %s",
             (username,),
             columns=(
-                "id, username, display_name, email, role, class_name, "
+                "id, username, display_name, email, role, class_name, class_number, "
                 "is_active, created_at, last_login, login_count"
             ),
         )
@@ -52,7 +52,7 @@ class UserRepository(BaseRepository):
         return self.find_one(
             "username = %s",
             (username,),
-            columns="id, username, display_name, class_name, role, is_active",
+            columns="id, username, display_name, class_name, class_number, role, is_active",
         )
 
     def username_exists(self, username: str) -> bool:
@@ -114,10 +114,11 @@ class UserRepository(BaseRepository):
         role: str = "student",
         display_name: str = "",
         class_name: str = "",
+        class_number: Optional[int] = None,
         email: str = "",
     ) -> int:
         """创建新用户"""
-        return self.insert({
+        data = {
             "username": username,
             "password_hash": password_hash,
             "role": role,
@@ -127,7 +128,10 @@ class UserRepository(BaseRepository):
             "is_active": True,
             "is_locked": False,
             "created_at": datetime.now(),
-        })
+        }
+        if class_number is not None:
+            data["class_number"] = class_number
+        return self.insert(data)
 
     def batch_create_users(self, users: List[Dict[str, Any]]) -> int:
         """
@@ -141,9 +145,9 @@ class UserRepository(BaseRepository):
 
         sql = (
             "INSERT INTO users "
-            "(username, password_hash, display_name, class_name, role, "
+            "(username, password_hash, display_name, class_name, class_number, role, "
             "is_active, is_locked, created_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
         )
         params_list = [
             (
@@ -151,6 +155,7 @@ class UserRepository(BaseRepository):
                 u["password_hash"],
                 u.get("display_name", u["username"]),
                 u.get("class_name", ""),
+                u.get("class_number"),
                 u.get("role", "student"),
                 True,
                 False,

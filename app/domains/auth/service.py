@@ -189,6 +189,7 @@ class AuthService:
             "role": role,
             "display_name": display_name,
             "class_name": user.get("class_name", ""),
+            "class_number": user.get("class_number"),
         }
 
     async def login_with_encrypted_password(

@@ -80,6 +80,7 @@ CREATE TABLE users (
     role ENUM('student', 'teacher', 'admin') DEFAULT 'student',
     class_id INT,
     class_name VARCHAR(100) DEFAULT '',
+    class_number INT DEFAULT NULL COMMENT '班號',
     is_active BOOLEAN DEFAULT TRUE,
     is_locked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
