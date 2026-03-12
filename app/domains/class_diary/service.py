@@ -19,10 +19,6 @@ from app.domains.class_diary.exceptions import (
 from app.domains.class_diary.repository import (
     ClassDiaryEntryRepository,
     ClassDiaryReviewerRepository,
-    ClassRepository,
-    DailyReportRepository,
-    RangeReportRepository,
-    ReportRecipientRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,25 +31,17 @@ _MOBILE_UA_PATTERNS = re.compile(
 
 
 class ClassDiaryService:
-    """課室日誌業務邏輯（用例協調器）"""
+    """課室日誌業務邏輯"""
 
     def __init__(
         self,
         entry_repo: ClassDiaryEntryRepository,
         reviewer_repo: ClassDiaryReviewerRepository,
         user_repo=None,
-        class_repo: Optional["ClassRepository"] = None,
-        recipient_repo: Optional["ReportRecipientRepository"] = None,
-        daily_report_repo: Optional["DailyReportRepository"] = None,
-        range_report_repo: Optional["RangeReportRepository"] = None,
     ):
         self._entry_repo = entry_repo
         self._reviewer_repo = reviewer_repo
         self._user_repo = user_repo
-        self._class_repo = class_repo
-        self._recipient_repo = recipient_repo
-        self._daily_report_repo = daily_report_repo
-        self._range_report_repo = range_report_repo
 
     # ================================================================== #
     #  評級記錄 CRUD                                                       #
@@ -261,8 +249,6 @@ class ClassDiaryService:
 
     def get_teacher_classes(self, username: str) -> List[str]:
         """獲取用戶擔任班主任或副班主任的所有班級代碼"""
-        if self._class_repo:
-            return self._class_repo.get_classes_for_teacher(username)
         try:
             rows = self._entry_repo.raw_query(
                 "SELECT class_code FROM classes "
@@ -275,8 +261,6 @@ class ClassDiaryService:
 
     def _is_report_recipient(self, username: str) -> bool:
         """檢查用戶是否為報告接收人"""
-        if self._recipient_repo:
-            return self._recipient_repo.is_recipient(username)
         try:
             rows = self._entry_repo.raw_query(
                 "SELECT id FROM class_diary_report_recipients WHERE username = %s",
@@ -285,201 +269,6 @@ class ClassDiaryService:
             return bool(rows)
         except Exception:
             return False
-
-    # ================================================================== #
-    #  班級管理                                                            #
-    # ================================================================== #
-
-    def list_admin_classes(self) -> List[Dict[str, Any]]:
-        """列出所有班級（含班主任資訊）"""
-        if self._class_repo:
-            return self._class_repo.get_all_ordered()
-        return self._entry_repo.raw_query(
-            "SELECT class_code, class_name, grade, teacher_username, "
-            "vice_teacher_username FROM classes ORDER BY class_code"
-        ) or []
-
-    def create_class(
-        self, class_code: str, class_name: str, grade: str
-    ) -> Dict[str, Any]:
-        """創建班級"""
-        if self._class_repo:
-            existing = self._class_repo.find_by_class_code(class_code)
-            if existing:
-                from app.core.exceptions import AppException
-                raise AppException(
-                    code="ALREADY_EXISTS",
-                    message=f"班級 {class_code} 已存在",
-                    status_code=409,
-                )
-            self._class_repo.create_class(class_code, class_name, grade)
-        return {"class_code": class_code, "class_name": class_name, "grade": grade}
-
-    def update_class_teachers(
-        self,
-        class_code: str,
-        teacher_username: Optional[str],
-        vice_teacher_username: Optional[str],
-    ) -> Dict[str, Any]:
-        """設定班級班主任"""
-        if self._class_repo:
-            self._class_repo.update_teachers(
-                class_code, teacher_username, vice_teacher_username
-            )
-        return {
-            "class_code": class_code,
-            "teacher_username": teacher_username,
-            "vice_teacher_username": vice_teacher_username,
-        }
-
-    def delete_class(self, class_code: str) -> None:
-        """刪除班級"""
-        if self._class_repo:
-            self._class_repo.delete_by_code(class_code)
-
-    # ================================================================== #
-    #  報告接收人管理                                                       #
-    # ================================================================== #
-
-    def list_report_recipients(self) -> List[Dict[str, Any]]:
-        """列出所有報告接收人"""
-        if self._recipient_repo:
-            return self._recipient_repo.get_all()
-        return []
-
-    def add_report_recipient(self, username: str, granted_by: str) -> bool:
-        """添加報告接收人，返回是否成功（已存在返回 False）"""
-        if self._recipient_repo:
-            if self._recipient_repo.is_recipient(username):
-                return False
-            self._recipient_repo.add_recipient(username, granted_by)
-            return True
-        return False
-
-    def remove_report_recipient(self, username: str) -> None:
-        """移除報告接收人"""
-        if self._recipient_repo:
-            self._recipient_repo.remove_recipient(username)
-
-    # ================================================================== #
-    #  AI 報告 — 查詢                                                     #
-    # ================================================================== #
-
-    def get_daily_report(self, report_date: str) -> Optional[Dict[str, Any]]:
-        """獲取每日 AI 報告"""
-        if self._daily_report_repo:
-            return self._daily_report_repo.get_by_date(report_date)
-        return None
-
-    def get_range_report(
-        self, start_date: str, end_date: str
-    ) -> Optional[Dict[str, Any]]:
-        """獲取日期範圍 AI 報告"""
-        if self._range_report_repo:
-            return self._range_report_repo.get_by_range(start_date, end_date)
-        return None
-
-    # ================================================================== #
-    #  AI 報告 — 生成（同步，供 run_in_executor 調用）                        #
-    # ================================================================== #
-
-    def generate_daily_report_sync(self, report_date: str) -> None:
-        """同步生成每日報告"""
-        from app.domains.class_diary.anomaly_detection import detect_anomalies
-        from app.domains.class_diary.report_builder import (
-            build_daily_report_prompt,
-            split_report_versions,
-        )
-        from app.domains.class_diary.prompts import DAILY_REPORT_SYSTEM_PROMPT
-
-        self._daily_report_repo.upsert_generating(report_date)
-
-        try:
-            entries = self.get_entries_by_date(report_date)
-            anomalies = detect_anomalies(
-                entries, format_behavior_fn=_format_behavior_field
-            )
-            prompt_text = build_daily_report_prompt(
-                entries, anomalies, report_date,
-                format_behavior_fn=_format_behavior_field,
-            )
-
-            if not entries:
-                full_text = f"{report_date} 今天沒有任何課堂記錄。"
-                summary_text = full_text
-            else:
-                from llm.services.qa_service import ask_ai_local
-                ai_output, _ = ask_ai_local(
-                    question=prompt_text,
-                    subject="general",
-                    system_prompt=DAILY_REPORT_SYSTEM_PROMPT,
-                    task_type="summary",
-                )
-                full_text, summary_text = split_report_versions(ai_output)
-
-            anomalies_json = json.dumps(anomalies, ensure_ascii=False)
-            self._daily_report_repo.save_completed(
-                report_date, full_text, summary_text, anomalies_json
-            )
-            logger.info(
-                "每日報告生成完成: %s (%d 條記錄, %d 條異常)",
-                report_date, len(entries), len(anomalies),
-            )
-        except Exception as e:
-            logger.exception("每日報告生成失敗: %s", report_date)
-            self._daily_report_repo.save_failed(report_date, str(e))
-            raise
-
-    def generate_range_report_sync(
-        self, start_date: str, end_date: str, requested_by: str
-    ) -> None:
-        """同步生成日期範圍報告"""
-        from app.domains.class_diary.anomaly_detection import detect_anomalies
-        from app.domains.class_diary.report_builder import (
-            build_range_report_prompt,
-            split_report_versions,
-        )
-        from app.domains.class_diary.prompts import RANGE_REPORT_SYSTEM_PROMPT
-
-        self._range_report_repo.upsert_generating(
-            start_date, end_date, requested_by
-        )
-
-        try:
-            entries = self.get_all_entries_by_date_range(start_date, end_date)
-            agg = self.aggregate_date_range(entries)
-            prompt_text = build_range_report_prompt(agg, start_date, end_date)
-
-            if not entries:
-                full_text = f"{start_date} 至 {end_date} 沒有任何課堂記錄。"
-                summary_text = full_text
-            else:
-                from llm.services.qa_service import ask_ai_local
-                ai_output, _ = ask_ai_local(
-                    question=prompt_text,
-                    subject="general",
-                    system_prompt=RANGE_REPORT_SYSTEM_PROMPT,
-                    task_type="summary",
-                )
-                full_text, summary_text = split_report_versions(ai_output)
-
-            anomalies = detect_anomalies(
-                entries, format_behavior_fn=_format_behavior_field
-            )
-            anomalies_json = json.dumps(anomalies, ensure_ascii=False)
-            self._range_report_repo.save_completed(
-                start_date, end_date, full_text, summary_text, anomalies_json,
-            )
-            logger.info(
-                "範圍報告生成完成: %s ~ %s (%d 條記錄)",
-                start_date, end_date, len(entries),
-            )
-        except Exception as e:
-            logger.exception("範圍報告生成失敗: %s ~ %s", start_date, end_date)
-            self._range_report_repo.save_failed(
-                start_date, end_date, str(e)
-            )
-            raise
 
     def get_all_reviewers(self) -> List[Dict[str, Any]]:
         """獲取所有 reviewer"""
@@ -994,30 +783,6 @@ class ClassDiaryService:
             "weekday_analysis": weekday_analysis,
             "submitter_analysis": submitter_analysis,
         }
-
-
-def _format_behavior_field(value: str) -> str:
-    """Format JSON behavior field for display, with backward compatibility.
-
-    New JSON format: [{"reason": "聊天", "students": ["張三", "李四"]}, ...]
-    Legacy format: plain text (comma/separator separated student names)
-    """
-    if not value or not value.strip():
-        return ""
-    try:
-        data = json.loads(value)
-        if isinstance(data, list):
-            parts = []
-            for item in data:
-                reason = item.get("reason", "")
-                students = item.get("students", [])
-                if students:
-                    joined = "、".join(students)
-                    parts.append(f"{reason}: {joined}" if reason else joined)
-            return "；".join(parts)
-    except (json.JSONDecodeError, TypeError, AttributeError):
-        pass
-    return value
 
 
 # ====================================================================== #
