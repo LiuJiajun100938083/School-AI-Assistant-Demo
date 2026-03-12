@@ -187,19 +187,27 @@
         }
         .tile {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%;
-            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             border-radius: 6px;
             font-weight: bold;
-            animation: pop 0.2s ease-in-out;
             text-align: center;
             line-height: 1.1;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1;
+            will-change: left, top, transform;
+        }
+        .tile-sliding {
+            transition: left 0.13s ease-in-out, top 0.13s ease-in-out;
+        }
+        .tile-new {
+            animation: tile-appear 0.15s ease-out;
+        }
+        .tile-merged {
+            animation: tile-merge 0.2s ease-out;
+            z-index: 2;
         }
         .tile .atomic-no { position: absolute; top: 4px; left: 6px; font-size: 0.75em; font-weight: 900; opacity: 0.8; }
         .tile .symbol { font-size: 1.5em; margin-top: 5px; }
@@ -211,9 +219,14 @@
             .tile .zh { font-size: 0.6em; }
             .tile .atomic-no { font-size: 0.6em; top: 2px; left: 4px; }
         }
-        @keyframes pop {
-            0% { transform: scale(0.5); }
-            50% { transform: scale(1.1); }
+        @keyframes tile-appear {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.08); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes tile-merge {
+            0% { transform: scale(0.85); }
+            50% { transform: scale(1.18); }
             100% { transform: scale(1); }
         }
         .controls {
@@ -596,6 +609,113 @@
         bestScoreEl.innerText = bestScore;
 
         // ============================================================
+        //  Tile DOM Management (for smooth animation)
+        // ============================================================
+        let tileElements = new Map(); // "r-c" -> {el, value}
+        let isAnimating = false;
+        const SLIDE_MS = 130;
+        const boardEl_ref = document.getElementById('game-board');
+
+        function getCellRect(row, col) {
+            const cell = document.getElementById(`cell-${row}-${col}`);
+            return { left: cell.offsetLeft, top: cell.offsetTop, width: cell.offsetWidth, height: cell.offsetHeight };
+        }
+
+        function createTileEl(value, row, col) {
+            const elData = elements[value] || elements[1048576];
+            const rect = getCellRect(row, col);
+            const el = document.createElement('div');
+            el.classList.add('tile');
+            el.style.cssText = `left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;`;
+            el.style.backgroundColor = elData.bg;
+            el.style.color = elData.color;
+            el.innerHTML = `<span class="atomic-no">${elData.no}</span><span class="symbol">${elData.symbol}</span><span class="en">${elData.en}</span><span class="zh">${elData.zh}</span>`;
+            boardEl_ref.appendChild(el);
+            return el;
+        }
+
+        function clearAllTiles() {
+            for (const [, t] of tileElements) t.el.remove();
+            tileElements.clear();
+        }
+
+        function repositionAllTiles() {
+            for (const [key, tile] of tileElements) {
+                const [r, c] = key.split('-').map(Number);
+                const rect = getCellRect(r, c);
+                tile.el.style.transition = 'none';
+                Object.assign(tile.el.style, { left: rect.left+'px', top: rect.top+'px', width: rect.width+'px', height: rect.height+'px' });
+            }
+        }
+
+        /** Pure function: process move and track every tile movement */
+        function processMoveTracked(currentBoard, direction) {
+            let scoreGain = 0, moved = false;
+            let newBoard = currentBoard.map(r => [...r]);
+            let movements = []; // {fromR, fromC, toR, toC}
+            let merges = [];    // {row, col, value}
+
+            function processLine(line, getRC) {
+                let nonZero = [];
+                for (let i = 0; i < line.length; i++) {
+                    if (line[i] !== 0) nonZero.push({ value: line[i], idx: i });
+                }
+                let result = Array(boardSize).fill(0);
+                let w = 0, i = 0;
+                while (i < nonZero.length) {
+                    const src = getRC(nonZero[i].idx);
+                    if (i + 1 < nonZero.length && nonZero[i].value === nonZero[i + 1].value) {
+                        const src2 = getRC(nonZero[i + 1].idx);
+                        const dst = getRC(w);
+                        movements.push({ fromR: src.r, fromC: src.c, toR: dst.r, toC: dst.c });
+                        movements.push({ fromR: src2.r, fromC: src2.c, toR: dst.r, toC: dst.c });
+                        const mVal = nonZero[i].value * 2;
+                        result[w] = mVal;
+                        scoreGain += mVal;
+                        merges.push({ row: dst.r, col: dst.c, value: mVal });
+                        if (src.r !== dst.r || src.c !== dst.c || src2.r !== dst.r || src2.c !== dst.c) moved = true;
+                        i += 2;
+                    } else {
+                        const dst = getRC(w);
+                        movements.push({ fromR: src.r, fromC: src.c, toR: dst.r, toC: dst.c });
+                        result[w] = nonZero[i].value;
+                        if (src.r !== dst.r || src.c !== dst.c) moved = true;
+                        i++;
+                    }
+                    w++;
+                }
+                return result;
+            }
+
+            if (direction === 'Left') {
+                for (let r = 0; r < boardSize; r++)
+                    newBoard[r] = processLine(newBoard[r], i => ({ r, c: i }));
+            } else if (direction === 'Right') {
+                for (let r = 0; r < boardSize; r++) {
+                    const res = processLine([...newBoard[r]].reverse(), i => ({ r, c: boardSize - 1 - i }));
+                    newBoard[r] = res.reverse();
+                }
+            } else if (direction === 'Up') {
+                for (let c = 0; c < boardSize; c++) {
+                    const col = [];
+                    for (let r = 0; r < boardSize; r++) col.push(newBoard[r][c]);
+                    const res = processLine(col, i => ({ r: i, c }));
+                    for (let r = 0; r < boardSize; r++) newBoard[r][c] = res[r];
+                }
+            } else if (direction === 'Down') {
+                for (let c = 0; c < boardSize; c++) {
+                    const col = [];
+                    for (let r = 0; r < boardSize; r++) col.push(newBoard[r][c]);
+                    const res = processLine(col.reverse(), i => ({ r: boardSize - 1 - i, c }));
+                    const final = res.reverse();
+                    for (let r = 0; r < boardSize; r++) newBoard[r][c] = final[r];
+                }
+            }
+
+            return { moved, newBoard, scoreGain, movements, merges };
+        }
+
+        // ============================================================
         //  Start / Init
         // ============================================================
         async function startGame() {
@@ -617,6 +737,8 @@
                 }
             }
 
+            // Ensure layout computed before tile positioning
+            await new Promise(r => requestAnimationFrame(r));
             initGame();
         }
 
@@ -633,6 +755,8 @@
         }
 
         function initGame() {
+            clearAllTiles();
+            isAnimating = false;
             board = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
             score = 0;
             totalMoves = 0;
@@ -645,7 +769,7 @@
             tipDisplay.style.opacity = 0;
             addRandomTile();
             addRandomTile();
-            renderBoard();
+            renderBoard(true);
         }
 
         function addRandomTile() {
@@ -656,28 +780,21 @@
                 }
             }
             if (emptyCells.length > 0) {
-                let randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-                board[randomCell.r][randomCell.c] = Math.random() < 0.9 ? 2 : 4;
+                let cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                board[cell.r][cell.c] = Math.random() < 0.9 ? 2 : 4;
+                return cell;
             }
+            return null;
         }
 
-        function renderBoard() {
+        function renderBoard(withAppear) {
+            clearAllTiles();
             for (let r = 0; r < boardSize; r++) {
                 for (let c = 0; c < boardSize; c++) {
-                    let cell = document.getElementById(`cell-${r}-${c}`);
-                    cell.innerHTML = '';
-                    let val = board[r][c];
-                    if (val !== 0) {
-                        let tile = document.createElement('div');
-                        tile.classList.add('tile');
-                        let elData = elements[val] || elements[1048576];
-                        tile.innerHTML = `<span class="atomic-no">${elData.no}</span>
-                                          <span class="symbol">${elData.symbol}</span>
-                                          <span class="en">${elData.en}</span>
-                                          <span class="zh">${elData.zh}</span>`;
-                        tile.style.backgroundColor = elData.bg;
-                        tile.style.color = elData.color;
-                        cell.appendChild(tile);
+                    if (board[r][c] !== 0) {
+                        const el = createTileEl(board[r][c], r, c);
+                        if (withAppear) el.classList.add('tile-new');
+                        tileElements.set(`${r}-${c}`, { el, value: board[r][c] });
                     }
                 }
             }
@@ -763,26 +880,71 @@
             return max;
         }
 
-        function handleInput(direction) {
-            if (!isGameActive || gameOverEl.style.display === 'flex') return;
-            let result = processMove(board, direction, true);
-            if (result.moved) {
-                board = result.newBoard;
-                totalMoves++;
-                addRandomTile();
-                renderBoard();
-                tipDisplay.style.opacity = 0;
+        async function handleInput(direction) {
+            if (!isGameActive || isAnimating || gameOverEl.style.display === 'flex') return;
+            if (isLeaderboardOpen) return;
 
-                // Update best score
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestScoreEl.innerText = bestScore;
-                    try { localStorage.setItem('chem2048_best', String(bestScore)); } catch(_) {}
-                }
+            const moveResult = processMoveTracked(board, direction);
+            if (!moveResult.moved) return;
 
-                if (checkGameOver()) {
-                    onGameOver();
+            isAnimating = true;
+
+            // Phase 1: Slide existing tiles to new positions
+            for (const mv of moveResult.movements) {
+                const key = `${mv.fromR}-${mv.fromC}`;
+                const tile = tileElements.get(key);
+                if (tile) {
+                    tile.el.classList.add('tile-sliding');
+                    const rect = getCellRect(mv.toR, mv.toC);
+                    tile.el.style.left = rect.left + 'px';
+                    tile.el.style.top = rect.top + 'px';
                 }
+            }
+
+            // Phase 2: Wait for slide animation
+            await new Promise(r => setTimeout(r, SLIDE_MS));
+
+            // Phase 3: Update game state
+            board = moveResult.newBoard;
+            totalMoves++;
+            score += moveResult.scoreGain;
+            scoreEl.innerText = score;
+
+            // Phase 4: Remove old tiles, rebuild final state
+            for (const [, t] of tileElements) t.el.remove();
+            tileElements.clear();
+
+            const mergeKeys = new Set(moveResult.merges.map(m => `${m.row}-${m.col}`));
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    if (board[r][c] !== 0) {
+                        const el = createTileEl(board[r][c], r, c);
+                        if (mergeKeys.has(`${r}-${c}`)) el.classList.add('tile-merged');
+                        tileElements.set(`${r}-${c}`, { el, value: board[r][c] });
+                    }
+                }
+            }
+
+            // Phase 5: Add new random tile with appear animation
+            const newPos = addRandomTile();
+            if (newPos) {
+                const el = createTileEl(board[newPos.r][newPos.c], newPos.r, newPos.c);
+                el.classList.add('tile-new');
+                tileElements.set(`${newPos.r}-${newPos.c}`, { el, value: board[newPos.r][newPos.c] });
+            }
+
+            // Phase 6: Update best score
+            if (score > bestScore) {
+                bestScore = score;
+                bestScoreEl.innerText = bestScore;
+                try { localStorage.setItem('chem2048_best', String(bestScore)); } catch (_) {}
+            }
+
+            tipDisplay.style.opacity = 0;
+            isAnimating = false;
+
+            if (checkGameOver()) {
+                onGameOver();
             }
         }
 
@@ -823,7 +985,7 @@
         //  Tip Logic
         // ============================================================
         function useTip() {
-            if (tipsRemaining <= 0 || gameOverEl.style.display === 'flex') return;
+            if (tipsRemaining <= 0 || isAnimating || gameOverEl.style.display === 'flex') return;
             const directions = ['Up', 'Down', 'Left', 'Right'];
             let bestDir = null;
             let maxScore = -1;
@@ -971,6 +1133,17 @@
             } else {
                 if (dy > 30) handleInput('Down'); else if (dy < -30) handleInput('Up');
             }
+        });
+
+        // ============================================================
+        //  Resize handler (reposition tiles on window resize)
+        // ============================================================
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (isGameActive && tileElements.size > 0) repositionAllTiles();
+            }, 100);
         });
 
         // ============================================================
