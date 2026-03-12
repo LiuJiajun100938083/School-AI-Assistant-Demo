@@ -200,7 +200,7 @@ class ImageGenService:
 
         scheduler = get_scheduler()
         entry = await scheduler.enqueue(
-            "image_gen", Priority.INTERACTIVE, Weight.VISION_MULTI
+            "image_gen", Priority.INTERACTIVE, Weight.CHAT
         )
 
         # failed 追蹤任務是否成功完成，用於 finally 統一釋放
