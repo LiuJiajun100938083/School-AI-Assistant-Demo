@@ -190,12 +190,11 @@ class ImageGenService:
                         "est_wait": est,
                     }
 
+                # 輪詢等待 dispatch（避免 asyncio.shield 產生孤兒 task）
                 try:
-                    await asyncio.wait_for(
-                        asyncio.shield(entry.event.wait()), timeout=3.0
-                    )
+                    await asyncio.wait_for(entry.event.wait(), timeout=3.0)
                 except asyncio.TimeoutError:
-                    continue
+                    pass
 
             # Phase 1 → Phase 2 邊界守衛
             if not entry.event.is_set():
