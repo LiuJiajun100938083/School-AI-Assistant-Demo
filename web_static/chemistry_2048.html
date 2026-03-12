@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chemistry 2048 | 化學元素 2048</title>
+    <script src="/static/js/shared/auth.js"></script>
+    <style>
+        :root {
+            --bg-color: #faf8ef;
+            --text-color: #776e65;
+            --board-bg: #bbada0;
+            --empty-cell: #cdc1b4;
+            --font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            touch-action: none;
+        }
+        .hidden { display: none !important; }
+
+        /* --- Welcome Screen --- */
+        #welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 450px;
+            margin-top: 5vh;
+            text-align: center;
+            animation: fadeIn 0.5s ease-in;
+        }
+        #welcome-screen h1 { font-size: 36px; margin-bottom: 20px; }
+        #welcome-screen input {
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #bbada0;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            width: 80%;
+            text-align: center;
+            outline: none;
+            font-family: var(--font-family);
+            color: var(--text-color);
+        }
+        #welcome-screen input:focus { border-color: #8f7a66; }
+        .instructions-box {
+            background: #eee4da;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            color: #776e65;
+            font-size: 15px;
+            line-height: 1.6;
+            text-align: left;
+            width: 90%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Main Game Container --- */
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 450px;
+        }
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .mode-btn {
+            padding: 8px 16px;
+            border: 2px solid #8f7a66;
+            background: transparent;
+            color: #8f7a66;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        .mode-btn.active { background: #8f7a66; color: white; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .title-area h1 { margin: 0; font-size: 26px; line-height: 1.2; }
+        .title-area h1 small { font-size: 16px; color: #8f7a66; }
+        .player-name-display {
+            font-size: 14px;
+            color: #8f7a66;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+        .scores-area {
+            display: flex;
+            gap: 10px;
+        }
+        .scores {
+            background: var(--board-bg);
+            padding: 8px 16px;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        .score-title { font-size: 11px; text-transform: uppercase; }
+        .score-value { font-size: 20px; display: block; }
+        .best-score { background: #8f7a66; }
+        #tip-display {
+            height: 24px;
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            text-align: center;
+        }
+        /* 5x5 Grid */
+        #game-board {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: var(--board-bg);
+            border-radius: 10px;
+            padding: 8px;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 8px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        @media (max-width: 450px) {
+            #game-board { gap: 6px; padding: 6px; }
+        }
+        .cell {
+            background-color: var(--empty-cell);
+            border-radius: 6px;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .tile {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 6px;
+            font-weight: bold;
+            animation: pop 0.2s ease-in-out;
+            text-align: center;
+            line-height: 1.1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .tile .atomic-no { position: absolute; top: 4px; left: 6px; font-size: 0.75em; font-weight: 900; opacity: 0.8; }
+        .tile .symbol { font-size: 1.5em; margin-top: 5px; }
+        .tile .en { font-size: 0.65em; margin-top: 2px; }
+        .tile .zh { font-size: 0.7em; margin-top: 2px; }
+        @media (max-width: 450px) {
+            .tile .symbol { font-size: 1.2em; }
+            .tile .en { font-size: 0.55em; }
+            .tile .zh { font-size: 0.6em; }
+            .tile .atomic-no { font-size: 0.6em; top: 2px; left: 4px; }
+        }
+        @keyframes pop {
+            0% { transform: scale(0.5); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background-color: #8f7a66;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: #9f8b77; }
+        .btn:disabled { background-color: #cdc1b4; cursor: not-allowed; }
+        #btn-tip { background-color: #e6a822; }
+        #btn-tip:hover:not(:disabled) { background-color: #f5b935; }
+        #btn-leaderboard { background-color: #5fa3cc; }
+        #btn-leaderboard:hover { background-color: #6fb3dc; }
+        #d-pad {
+            display: none;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(3, 60px);
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        body.ipad-mode #d-pad { display: grid; }
+        .d-btn {
+            background-color: #bbada0;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            box-shadow: 0 4px 0 #a39587;
+        }
+        .d-btn:active {
+            box-shadow: 0 0 0 #a39587;
+            transform: translateY(4px);
+            background-color: #a39587;
+        }
+        .d-btn.up { grid-column: 2; grid-row: 1; }
+        .d-btn.left { grid-column: 1; grid-row: 2; }
+        .d-btn.right { grid-column: 3; grid-row: 2; }
+        .d-btn.down { grid-column: 2; grid-row: 3; }
+        #game-over {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(238, 228, 218, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-color);
+            z-index: 10;
+            text-align: center;
+        }
+        #game-over .final-info {
+            font-size: 16px;
+            margin: 10px 0 20px;
+            font-weight: normal;
+        }
+
+        /* --- Leaderboard Modal --- */
+        .lb-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .lb-overlay.open { display: flex; }
+        .lb-modal {
+            background: var(--bg-color);
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            animation: fadeIn 0.3s ease;
+        }
+        .lb-header {
+            padding: 20px 20px 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee4da;
+        }
+        .lb-header h2 { margin: 0; font-size: 22px; color: #776e65; }
+        .lb-close {
+            position: absolute;
+            top: 12px; right: 16px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #776e65;
+        }
+        .lb-body {
+            overflow-y: auto;
+            padding: 10px 20px 20px;
+            flex: 1;
+        }
+        .lb-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .lb-table th {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #a39587;
+            padding: 8px 6px;
+            text-align: left;
+            border-bottom: 2px solid #eee4da;
+        }
+        .lb-table td {
+            padding: 10px 6px;
+            font-size: 14px;
+            border-bottom: 1px solid #f0ebe3;
+        }
+        .lb-row { transition: background 0.2s; position: relative; }
+
+        /* Leaderboard rank effects */
+        .lb-rank-1 {
+            background: linear-gradient(135deg, rgba(234,179,8,0.2), rgba(251,191,36,0.1));
+            border-left: 3px solid rgba(234,179,8,0.8);
+            animation: shimmerGold 3s ease-in-out infinite;
+        }
+        .lb-rank-2 {
+            background: linear-gradient(135deg, rgba(192,192,220,0.15), rgba(148,163,184,0.1));
+            border-left: 3px solid rgba(192,192,220,0.7);
+            animation: glowSilver 4s ease-in-out infinite;
+        }
+        .lb-rank-3 {
+            background: linear-gradient(135deg, rgba(205,127,50,0.15), rgba(180,83,9,0.1));
+            border-left: 3px solid rgba(205,127,50,0.6);
+        }
+        @keyframes shimmerGold {
+            0%, 100% { box-shadow: inset 0 0 10px rgba(234,179,8,0.05); }
+            50% { box-shadow: inset 0 0 20px rgba(234,179,8,0.15); }
+        }
+        @keyframes glowSilver {
+            0%, 100% { box-shadow: inset 0 0 8px rgba(192,192,220,0.05); }
+            50% { box-shadow: inset 0 0 15px rgba(192,192,220,0.12); }
+        }
+        .lb-rank-icon { font-size: 18px; }
+        .lb-rank-num { font-weight: bold; font-size: 16px; color: #8f7a66; }
+        .element-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        .lb-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #a39587;
+            font-size: 16px;
+        }
+        .lb-login-hint {
+            text-align: center;
+            padding: 20px;
+            color: #a39587;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="welcome-screen">
+        <h1>Chemistry 2048<br><small>化學元素 2048 (5x5)</small></h1>
+        <div class="instructions-box">
+            <strong>The Ultimate Challenge!</strong><br>
+            Reach the 20th element, Calcium (Ca), by combining elements up to 1,048,576! The grid is expanded to 5x5 to give you enough room to experiment.<br><br>
+            <strong>終極挑戰！</strong><br>
+            挑戰達到第 20 個元素：鈣 (Ca)！為了容納巨大的數值 (1,048,576)，這是一張 5x5 的加大網格。祝你好運！
+        </div>
+        <input type="text" id="player-name-input" placeholder="Enter your name / 輸入你的名字" autocomplete="off" maxlength="15">
+        <button class="btn" onclick="startGame()">Start Challenge / 開始挑戰</button>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <div class="mode-selector">
+            <button id="btn-pc" class="mode-btn active" onclick="setMode('pc')">PC / 電腦</button>
+            <button id="btn-ipad" class="mode-btn" onclick="setMode('ipad')">iPad / 平板</button>
+        </div>
+        <header>
+            <div class="title-area">
+                <h1>Chemistry 2048</h1>
+                <div id="display-name" class="player-name-display">Player: Guest</div>
+            </div>
+            <div class="scores-area">
+                <div class="scores best-score">
+                    <div class="score-title">Best / 最高</div>
+                    <span class="score-value" id="best-score">0</span>
+                </div>
+                <div class="scores">
+                    <div class="score-title">Score / 分數</div>
+                    <span class="score-value" id="score">0</span>
+                </div>
+            </div>
+        </header>
+        <div id="tip-display">Suggested Move: UP / 向上</div>
+        <div id="game-board">
+            <script>
+                for(let r=0; r<5; r++) {
+                    for(let c=0; c<5; c++) {
+                        document.write(`<div class="cell" id="cell-${r}-${c}"></div>`);
+                    }
+                }
+            </script>
+            <div id="game-over">
+                Experiment Over! / 實驗結束
+                <div class="final-info" id="final-info"></div>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn" onclick="initGame()">Try Again / 再試</button>
+                    <button class="btn" id="btn-leaderboard" onclick="showLeaderboard()">Ranking / 排行榜</button>
+                </div>
+            </div>
+        </div>
+        <div id="d-pad">
+            <button class="d-btn up" onclick="handleInput('Up')">&#9650;</button>
+            <button class="d-btn left" onclick="handleInput('Left')">&#9668;</button>
+            <button class="d-btn right" onclick="handleInput('Right')">&#9658;</button>
+            <button class="d-btn down" onclick="handleInput('Down')">&#9660;</button>
+        </div>
+        <div class="controls">
+            <button class="btn" onclick="initGame()">Restart / 重新開始</button>
+            <button id="btn-tip" class="btn" onclick="useTip()">Tip / 提示 (1)</button>
+            <button id="btn-leaderboard-main" class="btn" onclick="showLeaderboard()" style="background:#5fa3cc;">Ranking / 排行榜</button>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div class="lb-overlay" id="lb-overlay" onclick="if(event.target===this)closeLeaderboard()">
+        <div class="lb-modal" style="position:relative;">
+            <button class="lb-close" onclick="closeLeaderboard()">&times;</button>
+            <div class="lb-header">
+                <h2>Ranking / 排行榜</h2>
+            </div>
+            <div class="lb-body" id="lb-body">
+                <div class="lb-empty">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  Auth & API helpers
+        // ============================================================
+        let currentUser = null;
+        let isLoggedIn = false;
+
+        async function initAuth() {
+            try {
+                if (typeof AuthModule !== 'undefined' && AuthModule.getToken()) {
+                    currentUser = await AuthModule.getUserInfo();
+                    isLoggedIn = true;
+                    // Pre-fill name
+                    const nameInput = document.getElementById('player-name-input');
+                    if (currentUser && currentUser.display_name && nameInput && !nameInput.value) {
+                        nameInput.value = currentUser.display_name;
+                    }
+                }
+            } catch (_) { /* not logged in */ }
+        }
+
+        async function apiCall(method, path, body) {
+            if (!isLoggedIn) return null;
+            const token = AuthModule.getToken();
+            if (!token) return null;
+            try {
+                const opts = {
+                    method,
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                };
+                if (body) opts.body = JSON.stringify(body);
+                const resp = await fetch(path, opts);
+                const data = await resp.json();
+                return data.success ? data : null;
+            } catch (_) { return null; }
+        }
+
+        // ============================================================
+        //  Elements data
+        // ============================================================
+        const elements = {
+            2: { no: 1, symbol: "H", en: "Hydrogen", zh: "氫", bg: "#eee4da", color: "#776e65" },
+            4: { no: 2, symbol: "He", en: "Helium", zh: "氦", bg: "#ede0c8", color: "#776e65" },
+            8: { no: 3, symbol: "Li", en: "Lithium", zh: "鋰", bg: "#f2b179", color: "#f9f6f2" },
+            16: { no: 4, symbol: "Be", en: "Beryllium", zh: "鈹", bg: "#f59563", color: "#f9f6f2" },
+            32: { no: 5, symbol: "B", en: "Boron", zh: "硼", bg: "#f67c5f", color: "#f9f6f2" },
+            64: { no: 6, symbol: "C", en: "Carbon", zh: "碳", bg: "#f65e3b", color: "#f9f6f2" },
+            128: { no: 7, symbol: "N", en: "Nitrogen", zh: "氮", bg: "#edcf72", color: "#f9f6f2" },
+            256: { no: 8, symbol: "O", en: "Oxygen", zh: "氧", bg: "#edcc61", color: "#f9f6f2" },
+            512: { no: 9, symbol: "F", en: "Fluorine", zh: "氟", bg: "#edc850", color: "#f9f6f2" },
+            1024: { no: 10, symbol: "Ne", en: "Neon", zh: "氖", bg: "#edc53f", color: "#f9f6f2" },
+            2048: { no: 11, symbol: "Na", en: "Sodium", zh: "鈉", bg: "#edc22e", color: "#f9f6f2" },
+            4096: { no: 12, symbol: "Mg", en: "Magnesium", zh: "鎂", bg: "#3c3a32", color: "#f9f6f2" },
+            8192: { no: 13, symbol: "Al", en: "Aluminum", zh: "鋁", bg: "#5fa3cc", color: "#f9f6f2" },
+            16384: { no: 14, symbol: "Si", en: "Silicon", zh: "矽", bg: "#4a8a99", color: "#f9f6f2" },
+            32768: { no: 15, symbol: "P", en: "Phosphorus", zh: "磷", bg: "#7bb38d", color: "#f9f6f2" },
+            65536: { no: 16, symbol: "S", en: "Sulfur", zh: "硫", bg: "#a8c256", color: "#f9f6f2" },
+            131072: { no: 17, symbol: "Cl", en: "Chlorine", zh: "氯", bg: "#8a9e40", color: "#f9f6f2" },
+            262144: { no: 18, symbol: "Ar", en: "Argon", zh: "氬", bg: "#a37ebd", color: "#f9f6f2" },
+            524288: { no: 19, symbol: "K", en: "Potassium", zh: "鉀", bg: "#8f57a6", color: "#f9f6f2" },
+            1048576: { no: 20, symbol: "Ca", en: "Calcium", zh: "鈣", bg: "#5c336e", color: "#f9f6f2" }
+        };
+
+        // ============================================================
+        //  Game state
+        // ============================================================
+        let isGameActive = false;
+        let board = [];
+        let score = 0;
+        let bestScore = 0;
+        let tipsRemaining = 1;
+        let totalMoves = 0;
+        let tipsUsed = 0;
+        const boardSize = 5;
+
+        const scoreEl = document.getElementById('score');
+        const bestScoreEl = document.getElementById('best-score');
+        const gameOverEl = document.getElementById('game-over');
+        const tipBtn = document.getElementById('btn-tip');
+        const tipDisplay = document.getElementById('tip-display');
+
+        // Load best score from localStorage
+        try { bestScore = parseInt(localStorage.getItem('chem2048_best') || '0'); } catch(_) {}
+        bestScoreEl.innerText = bestScore;
+
+        // ============================================================
+        //  Start / Init
+        // ============================================================
+        async function startGame() {
+            const nameInput = document.getElementById('player-name-input').value.trim();
+            const playerName = nameInput || "Guest / 訪客";
+            document.getElementById('display-name').innerText = `Player: ${playerName}`;
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+            isGameActive = true;
+
+            // Load personal best from server
+            if (isLoggedIn) {
+                const res = await apiCall('GET', '/api/chem2048/scores/check');
+                if (res && res.data && res.data.score) {
+                    const serverBest = res.data.score.score || 0;
+                    if (serverBest > bestScore) {
+                        bestScore = serverBest;
+                        bestScoreEl.innerText = bestScore;
+                    }
+                }
+            }
+
+            initGame();
+        }
+
+        document.getElementById('player-name-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') startGame();
+        });
+
+        function setMode(mode) {
+            if (mode === 'ipad') {
+                document.body.classList.add('ipad-mode');
+                document.getElementById('btn-ipad').classList.add('active');
+                document.getElementById('btn-pc').classList.remove('active');
+            } else {
+                document.body.classList.remove('ipad-mode');
+                document.getElementById('btn-pc').classList.add('active');
+                document.getElementById('btn-ipad').classList.remove('active');
+            }
+        }
+
+        function initGame() {
+            board = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
+            score = 0;
+            totalMoves = 0;
+            tipsUsed = 0;
+            scoreEl.innerText = score;
+            gameOverEl.style.display = 'none';
+            tipsRemaining = 1;
+            tipBtn.innerText = `Tip / 提示 (${tipsRemaining})`;
+            tipBtn.disabled = false;
+            tipDisplay.style.opacity = 0;
+            addRandomTile();
+            addRandomTile();
+            renderBoard();
+        }
+
+        function addRandomTile() {
+            let emptyCells = [];
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    if (board[r][c] === 0) emptyCells.push({r, c});
+                }
+            }
+            if (emptyCells.length > 0) {
+                let randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                board[randomCell.r][randomCell.c] = Math.random() < 0.9 ? 2 : 4;
+            }
+        }
+
+        function renderBoard() {
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    let cell = document.getElementById(`cell-${r}-${c}`);
+                    cell.innerHTML = '';
+                    let val = board[r][c];
+                    if (val !== 0) {
+                        let tile = document.createElement('div');
+                        tile.classList.add('tile');
+                        let elData = elements[val] || elements[1048576];
+                        tile.innerHTML = `<span class="atomic-no">${elData.no}</span>
+                                          <span class="symbol">${elData.symbol}</span>
+                                          <span class="en">${elData.en}</span>
+                                          <span class="zh">${elData.zh}</span>`;
+                        tile.style.backgroundColor = elData.bg;
+                        tile.style.color = elData.color;
+                        cell.appendChild(tile);
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        //  Core Movement Logic
+        // ============================================================
+        function slide(row) {
+            let filteredRow = row.filter(val => val !== 0);
+            let missing = boardSize - filteredRow.length;
+            return filteredRow.concat(Array(missing).fill(0));
+        }
+
+        function combine(row, modifyScore = true) {
+            let scoreGain = 0;
+            for (let i = 0; i < boardSize - 1; i++) {
+                if (row[i] !== 0 && row[i] === row[i + 1]) {
+                    row[i] *= 2;
+                    row[i + 1] = 0;
+                    scoreGain += row[i];
+                    if (modifyScore) {
+                        score += row[i];
+                        scoreEl.innerText = score;
+                    }
+                }
+            }
+            return { row, scoreGain };
+        }
+
+        function processMove(currentBoard, direction, modifyScore = true) {
+            let moved = false;
+            let totalScoreGain = 0;
+            let newBoard = currentBoard.map(r => [...r]);
+
+            if (direction === 'Left' || direction === 'Right') {
+                for (let r = 0; r < boardSize; r++) {
+                    let row = newBoard[r];
+                    if (direction === 'Right') row = row.slice().reverse();
+                    let newRow = slide(row);
+                    let combineData = combine(newRow, modifyScore);
+                    newRow = slide(combineData.row);
+                    totalScoreGain += combineData.scoreGain;
+                    if (direction === 'Right') newRow = newRow.reverse();
+                    if (newBoard[r].toString() !== newRow.toString()) moved = true;
+                    newBoard[r] = newRow;
+                }
+            } else {
+                for (let c = 0; c < boardSize; c++) {
+                    let col = [];
+                    for(let r = 0; r < boardSize; r++) col.push(newBoard[r][c]);
+                    if (direction === 'Down') col = col.slice().reverse();
+                    let newCol = slide(col);
+                    let combineData = combine(newCol, modifyScore);
+                    newCol = slide(combineData.row);
+                    totalScoreGain += combineData.scoreGain;
+                    if (direction === 'Down') newCol = newCol.reverse();
+                    let oldCol = [];
+                    for(let r = 0; r < boardSize; r++) oldCol.push(currentBoard[r][c]);
+                    if (oldCol.toString() !== newCol.toString()) moved = true;
+                    for (let r = 0; r < boardSize; r++) newBoard[r][c] = newCol[r];
+                }
+            }
+            return { moved, newBoard, totalScoreGain };
+        }
+
+        function checkGameOver() {
+            for (let r = 0; r < boardSize; r++) {
+                for (let c = 0; c < boardSize; c++) {
+                    if (board[r][c] === 0) return false;
+                    if (r !== boardSize - 1 && board[r][c] === board[r + 1][c]) return false;
+                    if (c !== boardSize - 1 && board[r][c] === board[r][c + 1]) return false;
+                }
+            }
+            return true;
+        }
+
+        function getHighestTile() {
+            let max = 0;
+            for (let r = 0; r < boardSize; r++)
+                for (let c = 0; c < boardSize; c++)
+                    if (board[r][c] > max) max = board[r][c];
+            return max;
+        }
+
+        function handleInput(direction) {
+            if (!isGameActive || gameOverEl.style.display === 'flex') return;
+            let result = processMove(board, direction, true);
+            if (result.moved) {
+                board = result.newBoard;
+                totalMoves++;
+                addRandomTile();
+                renderBoard();
+                tipDisplay.style.opacity = 0;
+
+                // Update best score
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestScoreEl.innerText = bestScore;
+                    try { localStorage.setItem('chem2048_best', String(bestScore)); } catch(_) {}
+                }
+
+                if (checkGameOver()) {
+                    onGameOver();
+                }
+            }
+        }
+
+        // ============================================================
+        //  Game Over & Score Submission
+        // ============================================================
+        async function onGameOver() {
+            const highestTile = getHighestTile();
+            const elData = elements[highestTile] || elements[2];
+
+            document.getElementById('final-info').innerHTML =
+                `Score: ${score} | Highest: ${elData.symbol} (${elData.zh})<br>` +
+                `Moves: ${totalMoves}`;
+            gameOverEl.style.display = 'flex';
+
+            // Submit score
+            if (isLoggedIn) {
+                await apiCall('POST', '/api/chem2048/scores', {
+                    score: score,
+                    highest_tile: highestTile,
+                    highest_element: elData.symbol,
+                    highest_element_no: elData.no,
+                    total_moves: totalMoves,
+                    tips_used: tipsUsed,
+                });
+            }
+        }
+
+        // ============================================================
+        //  Tip Logic
+        // ============================================================
+        function useTip() {
+            if (tipsRemaining <= 0 || gameOverEl.style.display === 'flex') return;
+            const directions = ['Up', 'Down', 'Left', 'Right'];
+            let bestDir = null;
+            let maxScore = -1;
+            let maxEmpty = -1;
+            for (let dir of directions) {
+                let res = processMove(board, dir, false);
+                if (res.moved) {
+                    let emptyCount = res.newBoard.flat().filter(v => v === 0).length;
+                    if (res.totalScoreGain > maxScore || (res.totalScoreGain === maxScore && emptyCount > maxEmpty)) {
+                        maxScore = res.totalScoreGain;
+                        maxEmpty = emptyCount;
+                        bestDir = dir;
+                    }
+                }
+            }
+            if (bestDir) {
+                tipsRemaining--;
+                tipsUsed++;
+                tipBtn.innerText = `Tip / 提示 (${tipsRemaining})`;
+                tipBtn.disabled = true;
+                const dirText = {
+                    'Up': 'UP / 向上', 'Down': 'DOWN / 向下',
+                    'Left': 'LEFT / 向左', 'Right': 'RIGHT / 向右'
+                };
+                tipDisplay.innerText = `Suggested: ${dirText[bestDir]}`;
+                tipDisplay.style.opacity = 1;
+                setTimeout(() => { tipDisplay.style.opacity = 0; }, 3500);
+            } else {
+                tipDisplay.innerText = "No moves left! / 沒步了！";
+                tipDisplay.style.opacity = 1;
+            }
+        }
+
+        // ============================================================
+        //  Leaderboard
+        // ============================================================
+        async function showLeaderboard() {
+            const overlay = document.getElementById('lb-overlay');
+            const body = document.getElementById('lb-body');
+            overlay.classList.add('open');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+
+            if (!isLoggedIn) {
+                body.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
+                return;
+            }
+
+            const res = await apiCall('GET', '/api/chem2048/scores/leaderboard?limit=50');
+            if (!res || !res.data || res.data.length === 0) {
+                body.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
+                return;
+            }
+
+            const rows = res.data;
+            let html = '<table class="lb-table"><thead><tr>' +
+                '<th>#</th><th>Player / 玩家</th><th>Class / 班級</th>' +
+                '<th>Score / 分數</th><th>Element / 元素</th>' +
+                '</tr></thead><tbody>';
+
+            rows.forEach((r, i) => {
+                const rankClass = i === 0 ? 'lb-rank-1' : i === 1 ? 'lb-rank-2' : i === 2 ? 'lb-rank-3' : '';
+                const rankIcon = i === 0 ? '&#x1F3C6;' : i === 1 ? '&#x1F948;' : i === 2 ? '&#x1F949;' : '';
+                const elBg = elements[Math.pow(2, r.highest_element_no)] ? elements[Math.pow(2, r.highest_element_no)].bg : '#8f7a66';
+
+                html += `<tr class="lb-row ${rankClass}">
+                    <td>${rankIcon ? '<span class="lb-rank-icon">' + rankIcon + '</span>' : '<span class="lb-rank-num">' + r.rank + '</span>'}</td>
+                    <td><strong>${escapeHtml(r.student_name)}</strong></td>
+                    <td>${escapeHtml(r.class_name || '-')}</td>
+                    <td><strong>${r.score.toLocaleString()}</strong></td>
+                    <td><span class="element-badge" style="background:${elBg}">${escapeHtml(r.highest_element)} ${escapeHtml(r.element_zh || '')}</span></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            body.innerHTML = html;
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('lb-overlay').classList.remove('open');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // ============================================================
+        //  Keyboard Controls
+        // ============================================================
+        document.addEventListener('keydown', (e) => {
+            if (!isGameActive) return;
+            if (e.key === 'Escape') { closeLeaderboard(); return; }
+            if (['ArrowLeft', 'a', 'A'].includes(e.key)) handleInput('Left');
+            else if (['ArrowRight', 'd', 'D'].includes(e.key)) handleInput('Right');
+            else if (['ArrowUp', 'w', 'W'].includes(e.key)) handleInput('Up');
+            else if (['ArrowDown', 's', 'S'].includes(e.key)) handleInput('Down');
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
+        });
+
+        // Swipe Controls
+        const boardEl = document.getElementById('game-board');
+        let touchStartX = 0; let touchStartY = 0;
+        boardEl.addEventListener('touchstart', e => {
+            if (!isGameActive) return;
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+            e.preventDefault();
+        }, {passive: false});
+        boardEl.addEventListener('touchend', e => {
+            if (!isGameActive) return;
+            let dx = e.changedTouches[0].screenX - touchStartX;
+            let dy = e.changedTouches[0].screenY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (dx > 30) handleInput('Right'); else if (dx < -30) handleInput('Left');
+            } else {
+                if (dy > 30) handleInput('Down'); else if (dy < -30) handleInput('Up');
+            }
+        });
+
+        // ============================================================
+        //  Init
+        // ============================================================
+        initAuth();
+    </script>
+</body>
+</html>

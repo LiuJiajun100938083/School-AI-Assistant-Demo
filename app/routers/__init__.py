@@ -48,6 +48,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.school_learning_center import router as school_learning_center_router
     from app.routers.trade_game import trade_game_router
     from app.routers.farm_game import farm_game_router
+    from app.routers.chem2048 import chem2048_router
     from app.routers.assignment import router as assignment_router
     from app.routers.class_diary import router as class_diary_router
 
@@ -73,6 +74,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(school_learning_center_router)
     app.include_router(trade_game_router)
     app.include_router(farm_game_router)
+    app.include_router(chem2048_router)
     app.include_router(assignment_router)
     app.include_router(class_diary_router)
 

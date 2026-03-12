@@ -219,6 +219,12 @@ async def farm_game():
     return _serve_page("farm_game.html")
 
 
+@router.get("/chemistry-2048")
+async def chemistry_2048():
+    """化學元素 2048"""
+    return _serve_page("chemistry_2048.html")
+
+
 @router.get("/swift-code-game")
 async def swift_code_game():
     """SwiftUI 代碼學堂"""
