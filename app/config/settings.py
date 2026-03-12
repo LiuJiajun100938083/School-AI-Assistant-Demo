@@ -147,6 +147,11 @@ class LLMSettings(BaseSettings):
         default=["<|im_start|>", "<|im_end|>", "<|endoftext|>"]
     )
 
+    # 圖片生成
+    image_gen_model: str = Field(default="x/flux2-klein:4b", description="圖片生成模型")
+    image_gen_timeout: int = Field(default=600, description="圖片生成超時(秒)")
+    image_gen_max_prompt_length: int = Field(default=500, description="圖片描述最大長度")
+
 
 class ServerSettings(BaseSettings):
     """服务器配置"""

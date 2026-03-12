@@ -120,6 +120,21 @@
     "category": "learning"
   },
   {
+    "id": "image_gen",
+    "name": "AI 圖片生成",
+    "icon": "🎨",
+    "description": "輸入文字描述，AI 幫你生成圖片",
+    "url": "/image-gen",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 7,
+    "category": "learning"
+  },
+  {
     "id": "classroom",
     "name": "課堂教學",
     "icon": "🏫",
@@ -131,7 +146,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 7,
+    "order": 8,
     "category": "teaching"
   },
   {
@@ -145,7 +160,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 8,
+    "order": 9,
     "category": "teaching"
   },
   {
@@ -159,7 +174,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 9,
+    "order": 10,
     "category": "teaching"
   },
   {
@@ -173,7 +188,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 10,
+    "order": 11,
     "category": "teaching"
   },
   {
@@ -186,7 +201,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 11,
+    "order": 12,
     "category": "admin"
   },
   {
@@ -200,7 +215,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 12,
+    "order": 13,
     "category": "teaching"
   },
   {
@@ -214,7 +229,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 13,
+    "order": 14,
     "category": "teaching"
   },
   {
@@ -229,7 +244,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 14,
+    "order": 15,
     "category": "teaching"
   },
   {
@@ -242,7 +257,7 @@
       "admin"
     ],
     "enabled": true,
-    "order": 15,
+    "order": 16,
     "category": "admin"
   }
 ]

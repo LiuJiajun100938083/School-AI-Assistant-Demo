@@ -130,6 +130,7 @@ from app.domains.chem2048.service import Chem2048Service
 from app.domains.assignment.service import AssignmentService
 from app.domains.assignment.plagiarism_service import PlagiarismService
 from app.domains.class_diary.service import ClassDiaryService
+from app.domains.image_gen.service import ImageGenService
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,7 @@ class ServiceContainer:
         self._assignment: Optional[AssignmentService] = None
         self._plagiarism: Optional[PlagiarismService] = None
         self._class_diary: Optional[ClassDiaryService] = None
+        self._image_gen: Optional[ImageGenService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -423,6 +425,13 @@ class ServiceContainer:
                 user_repo=self._get_repo(UserRepository),
             )
         return self._class_diary
+
+    @property
+    def image_gen(self) -> ImageGenService:
+        """AI 圖片生成服務"""
+        if self._image_gen is None:
+            self._image_gen = ImageGenService(settings=self._settings)
+        return self._image_gen
 
     @property
     def vision(self) -> VisionService:
