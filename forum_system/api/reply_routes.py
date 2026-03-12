@@ -43,12 +43,31 @@ async def create_reply(
     """
     username, role = user_info
 
-    # AI 内容审核：学生回复需要审核，教师/管理员跳过
+    # 內容安全審核（所有角色 — 色情/暴力/毒品等）
+    from ..service.content_moderator import check_content_safety
+    safety_result = await check_content_safety(
+        request.content,
+        content_type="forum_reply",
+        route="create_reply",
+        username=username,
+    )
+    if safety_result.status == "blocked":
+        raise HTTPException(
+            status_code=403, detail="內容未通過安全審核，請調整後再提交"
+        )
+    elif safety_result.status == "error":
+        raise HTTPException(
+            status_code=503, detail="安全審核服務暫時不可用，請稍後重試"
+        )
+
+    # AI 話題相關性審核：學生回覆需要審核，教師/管理員跳過
     if role not in ("teacher", "admin"):
         from ..service.content_moderator import check_content_ai_related
         approved, reason = await check_content_ai_related(
             title="",
             content=request.content,
+            route="create_reply",
+            username=username,
         )
         if not approved:
             raise HTTPException(status_code=403, detail=reason)

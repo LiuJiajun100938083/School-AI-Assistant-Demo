@@ -152,6 +152,31 @@ class LLMSettings(BaseSettings):
     image_gen_timeout: int = Field(default=600, description="圖片生成超時(秒)")
     image_gen_max_prompt_length: int = Field(default=500, description="圖片描述最大長度")
 
+    # 內容安全審核
+    content_moderation_model: str = Field(
+        default="qwen3.5:4b", description="內容安全審核模型"
+    )
+    content_moderation_timeout: int = Field(
+        default=10, description="審核超時(秒)"
+    )
+    content_moderation_enabled: bool = Field(
+        default=True, description="啟用 LLM 安全審核"
+    )
+    content_moderation_max_concurrency: int = Field(
+        default=2, description="安全審核最大並發數"
+    )
+    content_moderation_fail_closed: bool = Field(
+        default=True, description="審核失敗時拒絕(True)或放行(False)"
+    )
+
+    # AI 話題相關性審核（討論區用，None 則跟隨 content_moderation_model）
+    content_ai_related_model: Optional[str] = Field(
+        default=None, description="AI 話題審核模型，None=跟隨安全審核模型"
+    )
+    content_ai_related_max_concurrency: int = Field(
+        default=2, description="AI 話題審核最大並發數"
+    )
+
 
 class ServerSettings(BaseSettings):
     """服务器配置"""

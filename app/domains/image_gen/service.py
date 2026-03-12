@@ -146,6 +146,29 @@ class ImageGenService:
             self._active_users.add(username)
 
         try:
+            # ★ LLM 安全審核（在排隊之前，不佔 AI Gate 槽位）
+            if self._settings.content_moderation_enabled:
+                from forum_system.service.content_moderator import check_content_safety
+
+                result = await check_content_safety(
+                    prompt,
+                    content_type="image_prompt",
+                    route="image_gen",
+                    username=username,
+                )
+                if result.status == "blocked":
+                    yield {
+                        "type": "error",
+                        "message": "您的描述可能包含不適當內容，請修改後重試",
+                    }
+                    return
+                elif result.status == "error":
+                    yield {
+                        "type": "error",
+                        "message": "安全審核服務暫時不可用，請稍後重試",
+                    }
+                    return
+
             async for msg in self._do_generate(prompt, username):
                 yield msg
         finally:

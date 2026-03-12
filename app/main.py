@@ -157,6 +157,22 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("AI 調度器初始化失敗（AI 功能可能不受保護）: %s", e)
 
+        # 預熱內容審核模型，避免冷啟動觸發熔斷
+        if settings.content_moderation_enabled:
+            try:
+                from forum_system.service.content_moderator import check_content_safety
+                warmup_result = await check_content_safety(
+                    "warmup test", content_type="warmup", route="startup",
+                )
+                logger.info(
+                    "內容審核模型預熱完成 (model=%s, status=%s, latency=%.0fms)",
+                    settings.content_moderation_model,
+                    warmup_result.status,
+                    warmup_result.latency_ms,
+                )
+            except Exception as e:
+                logger.warning("內容審核模型預熱失敗，首次請求可能較慢: %s", e)
+
         # 创建必要目录
         for dir_name in [
             settings.log_dir,
