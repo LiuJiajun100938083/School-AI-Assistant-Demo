@@ -97,6 +97,7 @@ class Chem2048Repository(BaseRepository):
         獲取排行榜（每位學生取最高分，按 score 降序）
 
         使用子查詢找出每位學生的最高分記錄。
+        若同一學生有多筆相同最高分，取最新一筆（MAX(id)）避免重複。
         """
         sql = """
             SELECT t.id, t.student_name, t.class_name,
@@ -104,10 +105,15 @@ class Chem2048Repository(BaseRepository):
                    t.highest_element_no, t.total_moves, t.tips_used, t.played_at
             FROM chem2048_scores t
             INNER JOIN (
-                SELECT student_id, MAX(score) AS max_score
-                FROM chem2048_scores
-                GROUP BY student_id
-            ) best ON t.student_id = best.student_id AND t.score = best.max_score
+                SELECT MAX(s.id) AS best_id
+                FROM chem2048_scores s
+                INNER JOIN (
+                    SELECT student_id, MAX(score) AS max_score
+                    FROM chem2048_scores
+                    GROUP BY student_id
+                ) m ON s.student_id = m.student_id AND s.score = m.max_score
+                GROUP BY s.student_id
+            ) best ON t.id = best.best_id
             ORDER BY t.score DESC
             LIMIT %s
         """

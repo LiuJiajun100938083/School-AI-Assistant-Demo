@@ -507,6 +507,13 @@ def _register_optional_routers(app: FastAPI) -> None:
     except Exception as e:
         logger.warning("神州菜園經營家系統初始化失敗: %s", e)
 
+    # 初始化化學 2048 系統
+    try:
+        from app.routers.chem2048 import init_chem2048_system
+        init_chem2048_system()
+    except Exception as e:
+        logger.warning("化學 2048 系統初始化失敗: %s", e)
+
     # 初始化課室日誌系統
     try:
         from app.routers.class_diary import init_class_diary_tables

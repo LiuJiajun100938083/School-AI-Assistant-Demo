@@ -22,7 +22,6 @@
             align-items: center;
             margin: 0;
             padding: 20px;
-            touch-action: none;
         }
         .hidden { display: none !important; }
 
@@ -174,6 +173,7 @@
             gap: 8px;
             box-sizing: border-box;
             position: relative;
+            touch-action: none;
         }
         @media (max-width: 450px) {
             #game-board { gap: 6px; padding: 6px; }
@@ -402,6 +402,25 @@
             color: #a39587;
             font-size: 14px;
         }
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 200;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { background: #27ae60; }
+        .toast.error { background: #e74c3c; }
+        .toast.info { background: #5fa3cc; }
     </style>
 </head>
 <body>
@@ -781,7 +800,7 @@
 
             // Submit score
             if (isLoggedIn) {
-                await apiCall('POST', '/api/chem2048/scores', {
+                const res = await apiCall('POST', '/api/chem2048/scores', {
                     score: score,
                     highest_tile: highestTile,
                     highest_element: elData.symbol,
@@ -789,6 +808,14 @@
                     total_moves: totalMoves,
                     tips_used: tipsUsed,
                 });
+                if (res && res.data) {
+                    const msg = res.data.is_new_best
+                        ? `New Record! / 新紀錄！ 🎉`
+                        : `Score submitted / 成績已記錄 ✓`;
+                    showToast(msg, res.data.is_new_best ? 'success' : 'info');
+                } else {
+                    showToast('Score save failed / 成績保存失敗', 'error');
+                }
             }
         }
 
@@ -833,24 +860,9 @@
         // ============================================================
         //  Leaderboard
         // ============================================================
-        async function showLeaderboard() {
-            const overlay = document.getElementById('lb-overlay');
-            const body = document.getElementById('lb-body');
-            overlay.classList.add('open');
-            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+        let isLeaderboardOpen = false;
 
-            if (!isLoggedIn) {
-                body.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
-                return;
-            }
-
-            const res = await apiCall('GET', '/api/chem2048/scores/leaderboard?limit=50');
-            if (!res || !res.data || res.data.length === 0) {
-                body.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
-                return;
-            }
-
-            const rows = res.data;
+        function renderLeaderboardHtml(rows) {
             let html = '<table class="lb-table"><thead><tr>' +
                 '<th>#</th><th>Player / 玩家</th><th>Class / 班級</th>' +
                 '<th>Score / 分數</th><th>Element / 元素</th>' +
@@ -871,55 +883,59 @@
             });
 
             html += '</tbody></table>';
-            body.innerHTML = html;
+            return html;
+        }
+
+        async function fetchAndRenderLeaderboard(targetEl, limit) {
+            if (!isLoggedIn) {
+                targetEl.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
+                return;
+            }
+            const res = await apiCall('GET', `/api/chem2048/scores/leaderboard?limit=${limit}`);
+            if (!res || !res.data || res.data.length === 0) {
+                targetEl.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
+                return;
+            }
+            targetEl.innerHTML = renderLeaderboardHtml(res.data);
+        }
+
+        async function showLeaderboard() {
+            const overlay = document.getElementById('lb-overlay');
+            const body = document.getElementById('lb-body');
+            overlay.classList.add('open');
+            isLeaderboardOpen = true;
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            await fetchAndRenderLeaderboard(body, 50);
         }
 
         function closeLeaderboard() {
             document.getElementById('lb-overlay').classList.remove('open');
+            isLeaderboardOpen = false;
         }
 
         async function loadWelcomeLeaderboard() {
             const body = document.getElementById('welcome-lb-body');
             if (!body) return;
-
-            if (!isLoggedIn) {
-                body.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
-                return;
-            }
-
-            const res = await apiCall('GET', '/api/chem2048/scores/leaderboard?limit=10');
-            if (!res || !res.data || res.data.length === 0) {
-                body.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
-                return;
-            }
-
-            const rows = res.data;
-            let html = '<table class="lb-table"><thead><tr>' +
-                '<th>#</th><th>Player / 玩家</th><th>Class / 班級</th>' +
-                '<th>Score / 分數</th><th>Element / 元素</th>' +
-                '</tr></thead><tbody>';
-
-            rows.forEach((r, i) => {
-                const rankClass = i === 0 ? 'lb-rank-1' : i === 1 ? 'lb-rank-2' : i === 2 ? 'lb-rank-3' : '';
-                const rankIcon = i === 0 ? '&#x1F3C6;' : i === 1 ? '&#x1F948;' : i === 2 ? '&#x1F949;' : '';
-                const elBg = elements[Math.pow(2, r.highest_element_no)] ? elements[Math.pow(2, r.highest_element_no)].bg : '#8f7a66';
-
-                html += `<tr class="lb-row ${rankClass}">
-                    <td>${rankIcon ? '<span class="lb-rank-icon">' + rankIcon + '</span>' : '<span class="lb-rank-num">' + r.rank + '</span>'}</td>
-                    <td><strong>${escapeHtml(r.student_name)}</strong></td>
-                    <td>${escapeHtml(r.class_name || '-')}</td>
-                    <td><strong>${r.score.toLocaleString()}</strong></td>
-                    <td><span class="element-badge" style="background:${elBg}">${escapeHtml(r.highest_element)} ${escapeHtml(r.element_zh || '')}</span></td>
-                </tr>`;
-            });
-
-            html += '</tbody></table>';
-            body.innerHTML = html;
+            await fetchAndRenderLeaderboard(body, 10);
         }
 
         function escapeHtml(str) {
             if (!str) return '';
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function showToast(msg, type = 'info') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
         }
 
         // ============================================================
@@ -928,6 +944,8 @@
         document.addEventListener('keydown', (e) => {
             if (!isGameActive) return;
             if (e.key === 'Escape') { closeLeaderboard(); return; }
+            // 排行榜打開時不接受遊戲輸入
+            if (isLeaderboardOpen) return;
             if (['ArrowLeft', 'a', 'A'].includes(e.key)) handleInput('Left');
             else if (['ArrowRight', 'd', 'D'].includes(e.key)) handleInput('Right');
             else if (['ArrowUp', 'w', 'W'].includes(e.key)) handleInput('Up');
