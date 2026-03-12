@@ -121,18 +121,6 @@ const GameConfig = {
         ],
         history: [
             {
-                id: 'china_economy',
-                name: '中國經濟發展桌遊',
-                nameEn: 'China Economy Game',
-                icon: '🇨🇳',
-                description: '體驗改革開放經濟發展歷程，了解中國經濟騰飛的奧秘',
-                url: '/china_economy_game',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['經濟', '改革開放', '歷史', '策略'],
-                badge: null,
-                roles: ['student', 'teacher', 'admin']
-            },
-            {
                 id: 'ming_dynasty',
                 name: '大明風雲：布衣天子之路',
                 nameEn: 'Rise of Ming Dynasty',
@@ -160,9 +148,34 @@ const GameConfig = {
             }
         ],
         physics: [],
-        chemistry: [],
+        chemistry: [
+            {
+                id: 'chemistry_2048',
+                name: '中三 — 化學元素 2048',
+                nameEn: 'Chemistry 2048',
+                icon: '⚗️',
+                description: '合併元素到達鈣 (Ca)！5x5 終極挑戰',
+                url: '/chemistry-2048',
+                difficulty: ['中三'],
+                tags: ['元素', '化學', '益智', '2048'],
+                badge: '新',
+                roles: ['student', 'teacher', 'admin']
+            }
+        ],
         biology: [],
         ces: [
+            {
+                id: 'china_economy',
+                name: '中國經濟發展桌遊',
+                nameEn: 'China Economy Game',
+                icon: '🇨🇳',
+                description: '體驗改革開放經濟發展歷程，了解中國經濟騰飛的奧秘',
+                url: '/china_economy_game',
+                difficulty: ['中一', '中二', '中三'],
+                tags: ['經濟', '改革開放', '公民', '策略'],
+                badge: null,
+                roles: ['student', 'teacher', 'admin']
+            },
             {
                 id: 'trade_game',
                 name: '中三 — 全球貿易大亨',
@@ -184,18 +197,6 @@ const GameConfig = {
                 url: '/farm-game',
                 difficulty: ['中二'],
                 tags: ['糧食安全', '農業', '國安', '策略', '公民'],
-                badge: '新',
-                roles: ['student', 'teacher', 'admin']
-            },
-            {
-                id: 'chemistry_2048',
-                name: '中三 — 化學元素 2048',
-                nameEn: 'Chemistry 2048',
-                icon: '⚗️',
-                description: '合併元素到達鈣 (Ca)！5x5 終極挑戰',
-                url: '/chemistry-2048',
-                difficulty: ['中三'],
-                tags: ['元素', '化學', '益智', '2048', '公民'],
                 badge: '新',
                 roles: ['student', 'teacher', 'admin']
             }
