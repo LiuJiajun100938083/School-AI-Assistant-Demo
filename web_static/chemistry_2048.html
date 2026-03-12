@@ -39,19 +39,46 @@
             animation: fadeIn 0.5s ease-in;
         }
         #welcome-screen h1 { font-size: 36px; margin-bottom: 20px; }
-        #welcome-screen input {
-            padding: 12px;
-            font-size: 16px;
-            border: 2px solid #bbada0;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            width: 80%;
-            text-align: center;
-            outline: none;
-            font-family: var(--font-family);
-            color: var(--text-color);
+        .welcome-user {
+            font-size: 18px;
+            font-weight: bold;
+            color: #8f7a66;
+            margin-bottom: 16px;
+            padding: 8px 20px;
+            background: #eee4da;
+            border-radius: 20px;
         }
-        #welcome-screen input:focus { border-color: #8f7a66; }
+        .btn-start-big {
+            font-size: 20px;
+            padding: 16px 48px;
+            margin-bottom: 24px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .welcome-lb {
+            width: 90%;
+            max-width: 420px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 16px;
+            margin-top: 4px;
+        }
+        .welcome-lb h3 {
+            margin: 0 0 12px;
+            font-size: 18px;
+            color: #776e65;
+            text-align: center;
+        }
+        .welcome-lb-body {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .welcome-lb-body .lb-table th { font-size: 11px; }
+        .welcome-lb-body .lb-table td { padding: 8px 6px; font-size: 13px; }
         .instructions-box {
             background: #eee4da;
             padding: 20px;
@@ -386,8 +413,14 @@
             <strong>終極挑戰！</strong><br>
             挑戰達到第 20 個元素：鈣 (Ca)！為了容納巨大的數值 (1,048,576)，這是一張 5x5 的加大網格。祝你好運！
         </div>
-        <input type="text" id="player-name-input" placeholder="Enter your name / 輸入你的名字" autocomplete="off" maxlength="15">
-        <button class="btn" onclick="startGame()">Start Challenge / 開始挑戰</button>
+        <div id="welcome-user" class="welcome-user hidden"></div>
+        <button class="btn btn-start-big" onclick="startGame()">Start Challenge / 開始挑戰</button>
+        <div id="welcome-leaderboard" class="welcome-lb">
+            <h3>Ranking / 排行榜</h3>
+            <div id="welcome-lb-body" class="welcome-lb-body">
+                <div class="lb-empty">Loading...</div>
+            </div>
+        </div>
     </div>
 
     <div id="game-container" class="hidden">
@@ -467,13 +500,16 @@
                 if (typeof AuthModule !== 'undefined' && AuthModule.getToken()) {
                     currentUser = await AuthModule.getUserInfo();
                     isLoggedIn = true;
-                    // Pre-fill name
-                    const nameInput = document.getElementById('player-name-input');
-                    if (currentUser && currentUser.display_name && nameInput && !nameInput.value) {
-                        nameInput.value = currentUser.display_name;
+                    // Show user name on welcome screen
+                    const welcomeUser = document.getElementById('welcome-user');
+                    if (currentUser && currentUser.display_name && welcomeUser) {
+                        welcomeUser.textContent = `Welcome, ${currentUser.display_name}!`;
+                        welcomeUser.classList.remove('hidden');
                     }
                 }
             } catch (_) { /* not logged in */ }
+            // Load leaderboard on welcome screen
+            loadWelcomeLeaderboard();
         }
 
         async function apiCall(method, path, body) {
@@ -544,8 +580,7 @@
         //  Start / Init
         // ============================================================
         async function startGame() {
-            const nameInput = document.getElementById('player-name-input').value.trim();
-            const playerName = nameInput || "Guest / 訪客";
+            const playerName = (currentUser && currentUser.display_name) || "Guest / 訪客";
             document.getElementById('display-name').innerText = `Player: ${playerName}`;
             document.getElementById('welcome-screen').classList.add('hidden');
             document.getElementById('game-container').classList.remove('hidden');
@@ -565,10 +600,6 @@
 
             initGame();
         }
-
-        document.getElementById('player-name-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') startGame();
-        });
 
         function setMode(mode) {
             if (mode === 'ipad') {
@@ -845,6 +876,45 @@
 
         function closeLeaderboard() {
             document.getElementById('lb-overlay').classList.remove('open');
+        }
+
+        async function loadWelcomeLeaderboard() {
+            const body = document.getElementById('welcome-lb-body');
+            if (!body) return;
+
+            if (!isLoggedIn) {
+                body.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
+                return;
+            }
+
+            const res = await apiCall('GET', '/api/chem2048/scores/leaderboard?limit=10');
+            if (!res || !res.data || res.data.length === 0) {
+                body.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
+                return;
+            }
+
+            const rows = res.data;
+            let html = '<table class="lb-table"><thead><tr>' +
+                '<th>#</th><th>Player / 玩家</th><th>Class / 班級</th>' +
+                '<th>Score / 分數</th><th>Element / 元素</th>' +
+                '</tr></thead><tbody>';
+
+            rows.forEach((r, i) => {
+                const rankClass = i === 0 ? 'lb-rank-1' : i === 1 ? 'lb-rank-2' : i === 2 ? 'lb-rank-3' : '';
+                const rankIcon = i === 0 ? '&#x1F3C6;' : i === 1 ? '&#x1F948;' : i === 2 ? '&#x1F949;' : '';
+                const elBg = elements[Math.pow(2, r.highest_element_no)] ? elements[Math.pow(2, r.highest_element_no)].bg : '#8f7a66';
+
+                html += `<tr class="lb-row ${rankClass}">
+                    <td>${rankIcon ? '<span class="lb-rank-icon">' + rankIcon + '</span>' : '<span class="lb-rank-num">' + r.rank + '</span>'}</td>
+                    <td><strong>${escapeHtml(r.student_name)}</strong></td>
+                    <td>${escapeHtml(r.class_name || '-')}</td>
+                    <td><strong>${r.score.toLocaleString()}</strong></td>
+                    <td><span class="element-badge" style="background:${elBg}">${escapeHtml(r.highest_element)} ${escapeHtml(r.element_zh || '')}</span></td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            body.innerHTML = html;
         }
 
         function escapeHtml(str) {
