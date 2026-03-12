@@ -32,29 +32,43 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------ #
 
 _BLOCKED_KEYWORDS: list[str] = [
-    # —— 色情 / 裸露 ——
+    # —— 色情 / 裸露 / 性暗示 ——
     "色情", "裸体", "裸露", "裸女", "裸男", "性爱", "性交", "做爱",
     "自慰", "手淫", "阴茎", "阴道", "乳房", "胸部裸露", "生殖器",
     "淫荡", "淫秽", "情色", "成人内容", "AV女优", "黄色图片",
+    "交配", "交媾", "口交", "肛交", "颜射", "潮吹", "调教",
+    "捆绑", "SM", "露点", "走光", "偷拍", "透视", "内衣秀",
+    "勾引", "约炮", "一夜情", "卖淫", "嫖娼", "援交", "陪睡",
+    "春药", "催情", "壮阳", "飞机杯", "充气娃娃", "情趣用品",
     "porn", "nude", "naked", "nsfw", "hentai", "erotic",
     "sexual", "genitalia", "xxx", "orgasm", "masturbat",
+    "intercourse", "blowjob", "handjob", "bondage", "fetish",
+    "stripper", "lingerie", "topless", "buttocks", "crotch",
+    "seduct", "provocat", "lewd", "explicit",
     # —— 暴力 / 血腥 ——
     "血腥", "暴力", "杀人", "砍头", "斩首", "肢解", "虐杀",
     "酷刑", "折磨", "虐待", "内脏", "开膛", "割喉", "屠杀",
+    "捅刀", "刺杀", "枪杀", "绞刑", "溅血", "碎尸",
     "gore", "dismember", "behead", "mutilat", "torture",
-    "bloodbath", "slaughter", "disembowel",
+    "bloodbath", "slaughter", "disembowel", "stabbing",
+    "decapitat", "execution", "massacre",
     # —— 毒品 / 违禁品 ——
     "吸毒", "制毒", "冰毒", "海洛因", "可卡因", "大麻种植",
-    "cocaine", "heroin", "meth lab", "drug use",
+    "摇头丸", "致幻剂", "注射毒品",
+    "cocaine", "heroin", "meth lab", "drug use", "marijuana",
+    "ecstasy", "hallucinogen",
     # —— 恐怖主义 / 极端主义 ——
     "恐怖袭击", "炸弹制作", "爆炸物", "自杀式", "极端主义",
-    "terrorist", "bomb making", "extremist",
+    "terrorist", "bomb making", "extremist", "jihad",
     # —— 儿童相关 ——
-    "儿童色情", "恋童", "未成年人色情",
-    "child porn", "pedophil", "underage",
+    "儿童色情", "恋童", "未成年人色情", "幼女", "萝莉控",
+    "child porn", "pedophil", "underage", "loli",
     # —— 歧视 / 仇恨 ——
     "种族歧视", "纳粹", "白人至上", "仇恨",
-    "nazi", "white supremac", "hate symbol",
+    "nazi", "white supremac", "hate symbol", "racial slur",
+    # —— 自残 / 自杀 ——
+    "自杀方法", "割腕", "上吊", "跳楼自杀",
+    "suicide method", "self-harm", "cut wrist",
 ]
 
 # 預編譯正則（忽略大小寫，用 | 連接所有關鍵詞）
