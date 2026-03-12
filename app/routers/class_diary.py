@@ -1323,6 +1323,7 @@ def _build_report_prompt(entries: list, anomalies: list, report_date: str) -> st
 
 def _split_report_versions(ai_output: str):
     """將 AI 輸出拆分為完整版、摘要版和 findings JSON"""
+    import re as _re
     full_text = ai_output
     summary_text = ""
     findings_json = None
@@ -1334,12 +1335,22 @@ def _split_report_versions(ai_output: str):
         raw_findings = parts[1].strip()
         try:
             # 嘗試解析 JSON — AI 可能前後帶有多餘文字
-            import re as _re
             match = _re.search(r'\[.*\]', raw_findings, _re.DOTALL)
             if match:
                 findings_json = json.loads(match.group(0))
         except (json.JSONDecodeError, TypeError):
             findings_json = None
+    else:
+        # 回退：嘗試偵測文本末尾的 JSON 陣列（AI 未使用分隔符時）
+        match = _re.search(r'\n\s*(\[\s*\{[\s\S]*\}[\s\n]*\])\s*$', ai_output)
+        if match:
+            try:
+                parsed = json.loads(match.group(1))
+                if isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+                    findings_json = parsed
+                    ai_output = ai_output[:match.start()].strip()
+            except (json.JSONDecodeError, TypeError):
+                pass
 
     if "===摘要版===" in ai_output:
         parts = ai_output.split("===摘要版===", 1)

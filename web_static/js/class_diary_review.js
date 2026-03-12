@@ -483,7 +483,9 @@ function renderAiReport(block, statusId, contentId, anomaliesId, status, reportT
     // status === 'done'
     block.style.display = '';
     statusEl.innerHTML = '';
-    contentEl.innerHTML = `<div class="report-text">${escapeHtml(reportText || '').replace(/\n/g, '<br>')}</div>`;
+    // 移除 report_text 末尾可能殘留的 JSON 陣列（AI 未正確分離時的安全網）
+    let cleanText = (reportText || '').replace(/\n\s*\[\s*\{[\s\S]*\}\s*\]\s*$/, '').trim();
+    contentEl.innerHTML = `<div class="report-text">${escapeHtml(cleanText).replace(/\n/g, '<br>')}</div>`;
 
     if (anomaliesEl && showAnomalies && anomalies && anomalies.length > 0) {
         const periodLabels = ['早會', '第一節', '第二節', '第三節', '第四節', '第五節', '第六節', '第七節', '第八節', '第九節'];
