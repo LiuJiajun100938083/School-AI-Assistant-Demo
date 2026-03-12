@@ -88,6 +88,10 @@ from app.domains.farm_game.repository import FarmGameRepository
 from app.domains.class_diary.repository import (
     ClassDiaryEntryRepository,
     ClassDiaryReviewerRepository,
+    ClassRepository,
+    DailyReportRepository,
+    RangeReportRepository,
+    ReportRecipientRepository,
 )
 from app.domains.ai_learning_center.repository import (
     LCCategoryRepository,
@@ -179,6 +183,8 @@ class ServiceContainer:
         self._assignment: Optional[AssignmentService] = None
         self._plagiarism: Optional[PlagiarismService] = None
         self._class_diary: Optional[ClassDiaryService] = None
+        self._batch_grading = None
+        self._plagiarism_jobs = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -402,6 +408,22 @@ class ServiceContainer:
         return self._plagiarism
 
     @property
+    def batch_grading(self):
+        """批量 AI 批改管理器"""
+        if self._batch_grading is None:
+            from app.domains.assignment.batch_grading import BatchGradingManager
+            self._batch_grading = BatchGradingManager()
+        return self._batch_grading
+
+    @property
+    def plagiarism_jobs(self):
+        """抄袭檢測背景任務管理器"""
+        if self._plagiarism_jobs is None:
+            from app.domains.assignment.batch_grading import PlagiarismJobManager
+            self._plagiarism_jobs = PlagiarismJobManager()
+        return self._plagiarism_jobs
+
+    @property
     def class_diary(self) -> ClassDiaryService:
         """課室日誌服務"""
         if self._class_diary is None:
@@ -409,6 +431,10 @@ class ServiceContainer:
                 entry_repo=self._get_repo(ClassDiaryEntryRepository),
                 reviewer_repo=self._get_repo(ClassDiaryReviewerRepository),
                 user_repo=self._get_repo(UserRepository),
+                class_repo=self._get_repo(ClassRepository),
+                recipient_repo=self._get_repo(ReportRecipientRepository),
+                daily_report_repo=self._get_repo(DailyReportRepository),
+                range_report_repo=self._get_repo(RangeReportRepository),
             )
         return self._class_diary
 
