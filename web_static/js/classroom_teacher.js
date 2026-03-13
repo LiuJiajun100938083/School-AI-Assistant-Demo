@@ -1409,13 +1409,14 @@ function renderLessonGenericSlide(slide, cfg, lifecycle) {
 async function promptStartLesson() {
     try {
         const token = AuthModule.getToken();
-        const res = await fetch('/api/classroom/lesson-plans', {
+        // Only fetch lesson plans belonging to THIS classroom
+        const res = await fetch(`/api/classroom/lesson-plans?room_id=${encodeURIComponent(roomId)}`, {
             headers: { 'Authorization': `Bearer ${token}` },
         });
         const json = await res.json();
         const plans = (json.success && json.data) ? json.data : [];
         if (plans.length === 0) {
-            UIModule.toast('沒有可用課案，請先在課案編輯器中創建', 'error');
+            UIModule.toast('此課堂尚無課案，請先點擊課堂列表的「課案編輯」創建', 'info');
             return;
         }
 

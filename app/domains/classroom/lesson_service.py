@@ -180,27 +180,37 @@ class LessonService:
         except Exception:
             pass  # Already nullable or table doesn't exist yet
 
+        # Add room_id to lesson_plans (each plan belongs to a specific classroom)
+        try:
+            pool.execute_write(
+                "ALTER TABLE lesson_plans ADD COLUMN room_id VARCHAR(64) DEFAULT NULL "
+                "COMMENT '→ classroom_rooms.room_id (NULL=旧数据/全局)'"
+            )
+        except Exception:
+            pass  # Column already exists
+        try:
+            pool.execute_write(
+                "ALTER TABLE lesson_plans ADD INDEX idx_room_id (room_id)"
+            )
+        except Exception:
+            pass  # Index already exists
+
         logger.info("课案系统表初始化完成")
 
     # ================================================================
     # Plan CRUD
     # ================================================================
 
-    def create_plan(self, teacher_username: str, title: str, description: str = "") -> Dict[str, Any]:
+    def create_plan(
+        self,
+        teacher_username: str,
+        title: str,
+        description: str = "",
+        room_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         plan_id = str(uuid.uuid4())
         now = datetime.now()
-        self._plan_repo.create_plan({
-            "plan_id": plan_id,
-            "title": title.strip(),
-            "description": description.strip(),
-            "teacher_username": teacher_username,
-            "total_slides": 0,
-            "status": "draft",
-            "created_at": now,
-            "updated_at": now,
-        })
-        logger.info("教师 %s 创建课案 %s", teacher_username, plan_id)
-        return {
+        data = {
             "plan_id": plan_id,
             "title": title.strip(),
             "description": description.strip(),
@@ -210,6 +220,13 @@ class LessonService:
             "created_at": now,
             "updated_at": now,
         }
+        if room_id:
+            data["room_id"] = room_id
+        self._plan_repo.create_plan(data)
+        logger.info("教师 %s 创建课案 %s (room=%s)", teacher_username, plan_id, room_id)
+        data_out = dict(data)
+        data_out["room_id"] = room_id
+        return data_out
 
     def get_plan(self, plan_id: str, teacher_username: str) -> Dict[str, Any]:
         plan = self._plan_repo.get_by_plan_id(plan_id)
@@ -225,8 +242,35 @@ class LessonService:
         plan["slides"] = slides
         return plan
 
-    def list_plans(self, teacher_username: str, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        return self._plan_repo.list_by_teacher(teacher_username, status=status)
+    def list_plans(
+        self,
+        teacher_username: str,
+        status: Optional[str] = None,
+        room_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        plans = self._plan_repo.list_by_teacher(
+            teacher_username, status=status, room_id=room_id,
+        )
+        if room_id and not plans:
+            # No room-specific plans found. Auto-claim orphaned global plans
+            # (room_id IS NULL) that were used in this room via lesson sessions.
+            orphans = self._plan_repo.list_by_teacher(teacher_username, status=status)
+            orphans = [p for p in orphans if not p.get("room_id")]
+            for orphan in orphans:
+                # Check if this plan was ever used in the requested room
+                sessions = self._session_repo.list_by_room(room_id, limit=100)
+                if any(s["plan_id"] == orphan["plan_id"] for s in sessions):
+                    # Claim this orphan for the room
+                    self._plan_repo.update_plan(
+                        orphan["plan_id"], {"room_id": room_id}
+                    )
+                    orphan["room_id"] = room_id
+                    plans.append(orphan)
+            if plans:
+                logger.info(
+                    "已将 %d 个无归属课案绑定到房间 %s", len(plans), room_id
+                )
+        return plans
 
     def update_plan(self, plan_id: str, teacher_username: str, data: Dict[str, Any]) -> Dict[str, Any]:
         plan = self.get_plan(plan_id, teacher_username)

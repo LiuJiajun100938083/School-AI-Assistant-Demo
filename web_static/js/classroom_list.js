@@ -301,7 +301,7 @@ const ClassroomApp = {
                 await this._joinRoom(roomId);
                 break;
             case 'lesson-plans':
-                this._openLessonPlans();
+                this._openLessonPlans(roomId);
                 break;
         }
     },
@@ -428,28 +428,33 @@ const ClassroomApp = {
         }
     },
 
-    async _openLessonPlans() {
-        // Fetch teacher's lesson plans and show picker, or create a new one
+    async _openLessonPlans(roomId) {
+        // Fetch lesson plans for this specific classroom, or create a new one
         try {
             const token = AuthModule.getToken();
-            const res = await fetch('/api/classroom/lesson-plans', {
+            const url = roomId
+                ? `/api/classroom/lesson-plans?room_id=${encodeURIComponent(roomId)}`
+                : '/api/classroom/lesson-plans';
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
             const json = await res.json();
             const plans = (json.success && json.data) ? json.data : [];
 
             if (plans.length > 0) {
-                // open first plan for now (later: show picker)
+                // Open the first plan belonging to this room
                 window.location.href = `/classroom/lesson-editor/${plans[0].plan_id}`;
             } else {
-                // create a new plan
+                // Create a new plan bound to this classroom
+                const room = this.state.rooms.find(r => r.room_id === roomId);
+                const title = room ? `${room.title} 課案` : '新課案';
                 const createRes = await fetch('/api/classroom/lesson-plans', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ title: '新課案', description: '' }),
+                    body: JSON.stringify({ title, description: '', room_id: roomId || null }),
                 });
                 const createJson = await createRes.json();
                 if (createJson.success && createJson.data) {

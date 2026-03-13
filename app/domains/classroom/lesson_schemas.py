@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 class CreatePlanRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     description: str = Field(default="", max_length=2000)
+    room_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class UpdatePlanRequest(BaseModel):

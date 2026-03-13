@@ -940,6 +940,7 @@ async def create_lesson_plan(
                 teacher_username=username,
                 title=body.title,
                 description=body.description,
+                room_id=body.room_id,
             ),
         )
         return success_response(plan, "课案创建成功")
@@ -950,14 +951,17 @@ async def create_lesson_plan(
 @router.get("/api/classroom/lesson-plans")
 async def list_lesson_plans(
     status: str = Query(default=None),
+    room_id: str = Query(default=None),
     user_info: Tuple[str, str] = Depends(require_teacher),
 ):
-    """列出教师的课案"""
+    """列出教师的课案 (可按 room_id 过滤)"""
     username, role = user_info
     loop = asyncio.get_event_loop()
     plans = await loop.run_in_executor(
         None,
-        lambda: get_services().lesson.list_plans(username, status=status),
+        lambda: get_services().lesson.list_plans(
+            username, status=status, room_id=room_id,
+        ),
     )
     return success_response(plans)
 

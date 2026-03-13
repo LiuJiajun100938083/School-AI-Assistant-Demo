@@ -29,12 +29,16 @@ class LessonPlanRepository(BaseRepository):
         self,
         teacher_username: str,
         status: Optional[str] = None,
+        room_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         where = "teacher_username = %s AND is_deleted = FALSE"
         params: list = [teacher_username]
         if status:
             where += " AND status = %s"
             params.append(status)
+        if room_id:
+            where += " AND room_id = %s"
+            params.append(room_id)
         return self.find_all(
             where=where, params=tuple(params), order_by="updated_at DESC"
         )
