@@ -91,7 +91,7 @@
                     <canvas id="fabricCanvas"></canvas>
                 </div>
                 <div class="canvas-placeholder" id="canvasPlaceholder">
-                    上傳課件後開始
+                    載入課案中...
                 </div>
             </div>
 
@@ -137,17 +137,17 @@
                     <div id="lessonControlBar" style="display:none;" class="lesson-controls">
                         <div id="lessonInfo" style="font-size:12px;color:#6E6E73;margin-bottom:8px;"></div>
                         <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                            <button class="control-btn" onclick="lessonNavigate('prev')" title="上一張">Prev</button>
-                            <button class="control-btn" onclick="lessonNavigate('next')" title="下一張">Next</button>
-                            <button class="control-btn" onclick="lessonSlideAction('activate')" title="激活">Activate</button>
-                            <button class="control-btn" onclick="lessonSlideAction('open_responses')" title="開放回應">Open</button>
-                            <button class="control-btn" onclick="lessonSlideAction('close_responses')" title="關閉回應">Close</button>
-                            <button class="control-btn" onclick="lessonSlideAction('complete')" title="完成">Complete</button>
-                            <button class="control-btn" onclick="endLesson()" style="color:#FF3B30;">End</button>
+                            <button class="control-btn" onclick="lessonNavigate('prev')" title="上一張">◄ 上一張</button>
+                            <button class="control-btn" onclick="lessonNavigate('next')" title="下一張">下一張 ►</button>
+                            <button class="control-btn primary" onclick="lessonSlideAction('activate')" title="激活推送">推送</button>
+                            <button class="control-btn" onclick="lessonSlideAction('open_responses')" title="開放回應">開放回應</button>
+                            <button class="control-btn" onclick="lessonSlideAction('close_responses')" title="關閉回應">關閉回應</button>
+                            <button class="control-btn" onclick="lessonSlideAction('complete')" title="完成">完成</button>
+                            <button class="control-btn" onclick="endLesson()" style="color:#FF3B30;">結束課案</button>
                         </div>
                     </div>
                     <div id="lessonStartBar" class="lesson-controls">
-                        <button class="control-btn primary" id="startLessonBtn" onclick="promptStartLesson()">Start Lesson</button>
+                        <button class="control-btn primary" id="startLessonBtn" onclick="promptStartLesson()">選擇課案</button>
                     </div>
                 </div>
 

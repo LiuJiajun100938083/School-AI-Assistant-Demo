@@ -40,6 +40,8 @@ const state = {
     lessonSessionId: null,
     lessonSession: null,
     lessonSlide: null,
+    lessonSlides: [],
+    lessonPlanId: null,
 };
 
 // ==================== INITIALIZATION ====================
@@ -280,12 +282,20 @@ function updateHistoryButtons() {
 
 // ==================== PAGE NAVIGATION ====================
 function previousPage() {
+    if (state.lessonMode) {
+        lessonNavigate('prev');
+        return;
+    }
     if (state.currentPage > 0) {
         loadPage(state.currentPage - 1);
     }
 }
 
 function nextPage() {
+    if (state.lessonMode) {
+        lessonNavigate('next');
+        return;
+    }
     if (state.currentPage < state.totalPages - 1) {
         loadPage(state.currentPage + 1);
     }
@@ -585,6 +595,17 @@ async function pushToStudents() {
         return;
     }
 
+    // Lesson mode: activate current slide (which pushes to students)
+    if (state.lessonMode) {
+        const lifecycle = (state.lessonSession || {}).slide_lifecycle || 'prepared';
+        if (lifecycle === 'prepared') {
+            await lessonSlideAction('activate');
+        } else {
+            UIModule.toast('幻燈片已推送', 'info');
+        }
+        return;
+    }
+
     try {
         const annotationsJson = JSON.stringify(state.canvas.toJSON());
 
@@ -780,11 +801,21 @@ function handleWebSocketMessage(message) {
             state.lessonSessionId = message.session_id;
             state.lessonMode = true;
             UIModule.toast('課案已啟動', 'info');
+            // Reload lesson state to get full session + slides
             checkLessonState();
             break;
         case 'lesson_session_ended':
             state.lessonMode = false;
             state.lessonSessionId = null;
+            state.lessonSlides = [];
+            state.lessonSlide = null;
+            state.lessonSession = null;
+            state.lessonPlanId = null;
+            // Restore upload section
+            const uploadSection = document.querySelector('.upload-section');
+            if (uploadSection) uploadSection.style.display = '';
+            const $startBar = document.getElementById('lessonStartBar');
+            if ($startBar) $startBar.style.display = '';
             UIModule.toast('課案已結束', 'info');
             updateLessonUI();
             break;
@@ -805,15 +836,154 @@ async function checkLessonState() {
         });
         const json = await res.json();
         if (json.success && json.data && json.data.session) {
+            // Active session found → enter lesson mode
+            const session = json.data.session;
             state.lessonMode = true;
-            state.lessonSessionId = json.data.session.session_id;
+            state.lessonSessionId = session.session_id;
             state.lessonSlide = json.data.slide;
-            state.lessonSession = json.data.session;
-            updateLessonUI();
+            state.lessonSession = session;
+            state.lessonPlanId = session.plan_id;
+            await enterLessonMode(session.plan_id);
+        } else {
+            // No active session → auto-prompt lesson picker after brief delay
+            setTimeout(() => autoPromptLesson(), 600);
         }
     } catch (e) {
         console.error('Check lesson state error:', e);
     }
+}
+
+/**
+ * 自动检查是否有课案可用，有则弹出选择器
+ */
+async function autoPromptLesson() {
+    try {
+        const token = AuthModule.getToken();
+        const res = await fetch('/api/classroom/lesson-plans', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const json = await res.json();
+        const plans = (json.success && json.data) ? json.data : [];
+        if (plans.length > 0) {
+            // Has lesson plans → show picker
+            promptStartLesson();
+        }
+        // else: no plans → keep the original upload UI as fallback
+    } catch (e) {
+        console.log('Auto-prompt lesson: no plans available');
+    }
+}
+
+/**
+ * 进入课案模式 — 加载课案幻灯片列表，渲染左侧时间线
+ */
+async function enterLessonMode(planId) {
+    try {
+        const token = AuthModule.getToken();
+        const res = await fetch(`/api/classroom/lesson-plans/${planId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+            const plan = json.data;
+            state.lessonSlides = plan.slides || [];
+            state.lessonPlanId = planId;
+
+            // Hide upload section, show lesson timeline
+            const uploadSection = document.querySelector('.upload-section');
+            if (uploadSection) uploadSection.style.display = 'none';
+
+            // Show lesson plan header in sidebar
+            renderLessonTimeline(plan.title);
+
+            // Show lesson control bar, hide start bar
+            const $controlBar = document.getElementById('lessonControlBar');
+            const $startBar = document.getElementById('lessonStartBar');
+            if ($controlBar) $controlBar.style.display = 'flex';
+            if ($startBar) $startBar.style.display = 'none';
+
+            // Update placeholder
+            document.getElementById('canvasPlaceholder').textContent = '選擇左側幻燈片開始';
+
+            // Render current slide if exists
+            updateLessonUI();
+        }
+    } catch (e) {
+        console.error('Enter lesson mode error:', e);
+    }
+}
+
+/**
+ * 渲染左侧课案幻灯片时间线
+ */
+function renderLessonTimeline(planTitle) {
+    const container = document.getElementById('thumbnailsContainer');
+    container.innerHTML = '';
+
+    // Plan title header
+    if (planTitle) {
+        const header = document.createElement('div');
+        header.className = 'lesson-timeline-header';
+        header.innerHTML = `<span class="lesson-timeline-icon">📋</span> ${planTitle}`;
+        container.appendChild(header);
+    }
+
+    const typeIcons = {
+        ppt: '📄', game: '🎮', quiz: '❓',
+        quick_answer: '⚡', raise_hand: '✋', poll: '📊'
+    };
+
+    state.lessonSlides.forEach((slide, i) => {
+        const el = document.createElement('div');
+        el.className = 'lesson-slide-thumb';
+        el.dataset.slideId = slide.slide_id;
+
+        const isActive = state.lessonSlide && state.lessonSlide.slide_id === slide.slide_id;
+        if (isActive) el.classList.add('active');
+
+        const icon = typeIcons[slide.slide_type] || '📄';
+        const cfg = typeof slide.config === 'string' ? JSON.parse(slide.config) : (slide.config || {});
+
+        if (slide.slide_type === 'ppt' && cfg.file_id) {
+            const imgUrl = `/uploads/ppt/${cfg.file_id}/page_${cfg.page_number}.png`;
+            el.innerHTML = `
+                <div class="slide-thumb-header">
+                    <span class="slide-thumb-number">${i + 1}</span>
+                    <span class="slide-thumb-type">${icon} PPT</span>
+                </div>
+                <img src="${imgUrl}" class="slide-thumb-img" onerror="this.style.display='none'" />
+            `;
+        } else {
+            const label = slide.title || cfg.game_name || cfg.question_text || slide.slide_type;
+            el.innerHTML = `
+                <div class="slide-thumb-header">
+                    <span class="slide-thumb-number">${i + 1}</span>
+                    <span class="slide-thumb-type">${icon} ${slide.slide_type}</span>
+                </div>
+                <div class="slide-thumb-content">
+                    <div class="slide-thumb-icon-large">${icon}</div>
+                    <div class="slide-thumb-label">${label}</div>
+                </div>
+            `;
+        }
+
+        el.addEventListener('click', () => lessonNavigate('goto', slide.slide_id));
+        container.appendChild(el);
+    });
+}
+
+/**
+ * 更新课案模式页码显示
+ */
+function updateLessonPageCounter() {
+    if (!state.lessonMode || !state.lessonSlides.length) return;
+    const currentIndex = state.lessonSlides.findIndex(s =>
+        state.lessonSlide && s.slide_id === state.lessonSlide.slide_id
+    );
+    document.getElementById('currentPage').textContent = currentIndex >= 0 ? currentIndex + 1 : '-';
+    document.getElementById('totalPages').textContent = state.lessonSlides.length;
+    document.getElementById('prevBtn').disabled = currentIndex <= 0;
+    document.getElementById('nextBtn').disabled = currentIndex >= state.lessonSlides.length - 1;
 }
 
 async function startLesson(planId) {
@@ -831,9 +1001,15 @@ async function startLesson(planId) {
         if (json.success) {
             state.lessonMode = true;
             state.lessonSessionId = json.data.session_id;
-            UIModule.toast('課案已啟動', 'success');
-            // navigate to first slide
+            state.lessonPlanId = planId;
+
+            // Enter lesson mode (load slides, render timeline)
+            await enterLessonMode(planId);
+
+            // Navigate to first slide
             await lessonNavigate('next');
+
+            UIModule.toast('課案已啟動', 'success');
         } else {
             UIModule.toast(json.message || '啟動失敗', 'error');
         }
@@ -849,7 +1025,26 @@ async function endLesson() {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
         });
+        // Reset lesson state
         state.lessonMode = false;
+        state.lessonSessionId = null;
+        state.lessonSlides = [];
+        state.lessonSlide = null;
+        state.lessonSession = null;
+        state.lessonPlanId = null;
+
+        // Restore upload section + start bar
+        const uploadSection = document.querySelector('.upload-section');
+        if (uploadSection) uploadSection.style.display = '';
+        const $startBar = document.getElementById('lessonStartBar');
+        if ($startBar) $startBar.style.display = '';
+
+        // Reset main area
+        document.getElementById('canvasArea').style.display = 'none';
+        document.getElementById('canvasPlaceholder').style.display = 'block';
+        document.getElementById('canvasPlaceholder').textContent = '選擇課案開始上課';
+        document.getElementById('thumbnailsContainer').innerHTML = '';
+
         updateLessonUI();
         UIModule.toast('課案已結束', 'success');
     } catch (e) {
@@ -928,57 +1123,129 @@ function updateLessonUI() {
     const slide = state.lessonSlide;
     const lifecycle = sess.slide_lifecycle || 'prepared';
 
-    // update lesson info
+    // update lesson info text
     const $info = document.getElementById('lessonInfo');
     if ($info && slide) {
-        $info.textContent = `Slide ${(slide.slide_order || 0) + 1}: ${slide.title || slide.slide_type} [${lifecycle}]`;
+        const lifecycleLabels = {
+            prepared: '準備中', activated: '已激活', responding: '回應中',
+            closed: '已關閉', results_shown: '顯示結果', completed: '已完成',
+        };
+        $info.textContent = `第 ${(slide.slide_order || 0) + 1} 張: ${slide.title || slide.slide_type} [${lifecycleLabels[lifecycle] || lifecycle}]`;
     }
 
-    // render lesson slide preview in main canvas area if it's PPT
-    if (slide && slide.slide_type === 'ppt' && slide.config) {
-        const cfg = slide.config;
-        const imgUrl = `${API_BASE}/classroom/ppt/${cfg.file_id}/page/${cfg.page_number}`;
-        loadPPTPageFromURL(imgUrl);
-    } else if (slide && slide.slide_type === 'game') {
-        // show game placeholder in canvas area
-        const canvasContainer = document.querySelector('.canvas-area') || document.getElementById('pptArea');
-        if (canvasContainer) {
-            canvasContainer.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-secondary,#6E6E73);">
-                    <h2>${slide.config?.game_name || 'Game'}</h2>
-                    <p>遊戲已推送給學生</p>
-                    <p>Lifecycle: ${lifecycle}</p>
-                </div>`;
+    // Render current slide in main area
+    if (slide) {
+        const cfg = typeof slide.config === 'string' ? JSON.parse(slide.config) : (slide.config || {});
+        if (slide.slide_type === 'ppt' && cfg.file_id) {
+            renderLessonPPTSlide(slide, cfg);
+        } else if (slide.slide_type === 'game') {
+            renderLessonGameSlide(slide, cfg, lifecycle);
+        } else {
+            renderLessonGenericSlide(slide, cfg, lifecycle);
         }
     }
+
+    // Update timeline active state
+    document.querySelectorAll('.lesson-slide-thumb').forEach(el => {
+        el.classList.toggle('active', slide && el.dataset.slideId === slide.slide_id);
+    });
+
+    // Update page counter
+    updateLessonPageCounter();
 }
 
-function loadPPTPageFromURL(imgUrl) {
-    // Load PPT page image into the main display
-    const img = new Image();
-    img.onload = function () {
+/**
+ * 渲染 PPT 类型幻灯片到主区域 (使用静态图片路径 + Fabric.js 画布)
+ */
+function renderLessonPPTSlide(slide, cfg) {
+    const imgUrl = `/uploads/ppt/${cfg.file_id}/page_${cfg.page_number}.png`;
+
+    document.getElementById('canvasPlaceholder').style.display = 'none';
+    document.getElementById('canvasArea').style.display = 'flex';
+
+    if (!state.canvas) initializeCanvas();
+
+    const img = document.getElementById('pptImage');
+    if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+
+    img.onload = () => {
+        resizeCanvasToImage();
+        // Clear canvas for new slide & reset history
         if (state.canvas) {
             state.canvas.clear();
-            fabric.Image.fromURL(imgUrl, function (fabricImg) {
-                const scale = Math.min(
-                    state.canvas.width / fabricImg.width,
-                    state.canvas.height / fabricImg.height,
-                    1
-                );
-                fabricImg.scale(scale);
-                fabricImg.set({
-                    left: (state.canvas.width - fabricImg.width * scale) / 2,
-                    top: (state.canvas.height - fabricImg.height * scale) / 2,
-                    selectable: false,
-                    evented: false,
-                });
-                state.canvas.add(fabricImg);
-                state.canvas.sendToBack(fabricImg);
-                state.canvas.renderAll();
-            });
+            state.canvasHistory = [];
+            state.historyIndex = -1;
+            addHistorySnapshot();
+
+            // Load saved annotations from session if available
+            if (state.lessonSession && state.lessonSession.annotations_json) {
+                try {
+                    const ann = typeof state.lessonSession.annotations_json === 'string'
+                        ? JSON.parse(state.lessonSession.annotations_json) : state.lessonSession.annotations_json;
+                    state.canvas.loadFromJSON(ann, () => {
+                        state.canvas.renderAll();
+                        addHistorySnapshot();
+                    });
+                } catch (e) { /* ignore parse errors */ }
+            }
         }
+        ensureDrawingReady();
     };
     img.src = imgUrl;
+}
+
+/**
+ * 渲染游戏类型幻灯片
+ */
+function renderLessonGameSlide(slide, cfg, lifecycle) {
+    document.getElementById('canvasArea').style.display = 'none';
+    const placeholder = document.getElementById('canvasPlaceholder');
+    placeholder.style.display = 'flex';
+    placeholder.style.alignItems = 'center';
+    placeholder.style.justifyContent = 'center';
+    placeholder.style.flexDirection = 'column';
+    const lifecycleLabels = {
+        prepared: '點擊「Activate」推送給學生',
+        activated: '遊戲進行中...',
+        responding: '等待學生完成...',
+        completed: '已完成',
+    };
+    placeholder.innerHTML = `
+        <div style="text-align:center;">
+            <div style="font-size:64px;margin-bottom:16px;">🎮</div>
+            <h3 style="font-size:18px;font-weight:600;margin-bottom:8px;">${cfg.game_name || slide.title || 'Game'}</h3>
+            <p style="color:var(--text-secondary);font-size:14px;">${lifecycleLabels[lifecycle] || lifecycle}</p>
+        </div>
+    `;
+}
+
+/**
+ * 渲染其他类型幻灯片 (quiz/poll/quick_answer/raise_hand)
+ */
+function renderLessonGenericSlide(slide, cfg, lifecycle) {
+    const typeLabels = {
+        quiz: '測驗', poll: '投票', quick_answer: '搶答', raise_hand: '舉手',
+    };
+    const typeIcons = {
+        quiz: '❓', poll: '📊', quick_answer: '⚡', raise_hand: '✋',
+    };
+    document.getElementById('canvasArea').style.display = 'none';
+    const placeholder = document.getElementById('canvasPlaceholder');
+    placeholder.style.display = 'flex';
+    placeholder.style.alignItems = 'center';
+    placeholder.style.justifyContent = 'center';
+    placeholder.style.flexDirection = 'column';
+    placeholder.innerHTML = `
+        <div style="text-align:center;">
+            <div style="font-size:64px;margin-bottom:16px;">${typeIcons[slide.slide_type] || '📄'}</div>
+            <h3 style="font-size:18px;font-weight:600;margin-bottom:8px;">
+                ${slide.title || typeLabels[slide.slide_type] || slide.slide_type}
+            </h3>
+            <p style="color:var(--text-secondary);font-size:14px;max-width:300px;">
+                ${cfg.question_text || cfg.prompt_text || '使用右側控制按鈕管理此幻燈片'}
+            </p>
+        </div>
+    `;
 }
 
 async function promptStartLesson() {
