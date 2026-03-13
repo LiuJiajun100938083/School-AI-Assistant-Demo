@@ -1034,6 +1034,21 @@ body {
     border-top: 1px solid var(--border-light);
 }
 
+.btn-record-edit {
+    padding: 4px 12px;
+    border: 1px solid var(--primary);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--primary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-record-edit:active {
+    background: #F0F8F0;
+}
+
 .btn-record-delete {
     padding: 4px 12px;
     border: 1px solid var(--danger);

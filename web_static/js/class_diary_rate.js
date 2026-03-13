@@ -366,6 +366,9 @@ function setPeriodCount(count) {
 
     // 切換節數類型時重新自動填寫
     autoFillPeriod();
+
+    // 節數模式變更後重新檢查是否有已提交記錄
+    checkAndLoadExisting();
 }
 
 // 當 periodStart 改變時更新 periodEnd 的選項
@@ -393,6 +396,9 @@ function updateEndOptions() {
 
     // 默認選最後
     endSelect.value = Math.min(start + 1, 9);
+
+    // 結束節設定後重新檢查是否有已提交記錄（程式設值不觸發 change 事件）
+    checkAndLoadExisting();
 }
 
 
@@ -666,11 +672,13 @@ async function submitForm() {
             r.period_start <= newEnd && r.period_end >= newStart
         );
         if (overlap) {
+            // 直接載入重疊的記錄進入編輯模式，而非僅顯示錯誤
+            loadRecordForEdit(overlap.id);
             const periodLabels = ['早會','第一節','第二節','第三節','第四節','第五節','第六節','第七節','第八節','第九節'];
             const overlapText = overlap.period_start === overlap.period_end
                 ? periodLabels[overlap.period_start]
                 : `${periodLabels[overlap.period_start]}-${periodLabels[overlap.period_end]}`;
-            showValidationError('periodStart', `${overlapText} 已有「${overlap.subject}」的記錄，請選擇其他節數或點擊已提交記錄進行編輯`);
+            UIModule.toast(`已載入 ${overlapText}「${overlap.subject}」的記錄，可直接修改後提交`, 'info');
             return;
         }
     }
@@ -779,6 +787,7 @@ function renderExistingRecords(records) {
                     <span>整潔 ${'★'.repeat(r.cleanliness_rating)}${'☆'.repeat(5 - r.cleanliness_rating)}</span>
                 </div>
                 <div class="record-actions">
+                    <button class="btn-record-edit" onclick="loadRecordForEdit(${r.id})">編輯</button>
                     <button class="btn-record-delete" onclick="deleteRecord(${r.id})">刪除</button>
                 </div>
             </div>
@@ -1301,6 +1310,7 @@ function escapeAttr(str) {
  * 檢查當前選擇的節數是否有已提交記錄，若有則自動載入進編輯模式
  */
 function checkAndLoadExisting() {
+    if (_loadingRecord) return;
     if (!state.existingRecords || state.existingRecords.length === 0) return;
 
     const startVal = document.getElementById('periodStart').value;
@@ -1316,13 +1326,21 @@ function checkAndLoadExisting() {
         newEnd = newStart;
     }
 
-    // 查找完全匹配的記錄（相同 period_start 和 period_end）
+    // 查找完全匹配或範圍重疊的記錄
     const match = state.existingRecords.find(r =>
         r.period_start === newStart && r.period_end === newEnd
+    ) || state.existingRecords.find(r =>
+        r.period_start <= newEnd && r.period_end >= newStart
     );
 
     if (match) {
-        editRecord(match);
+        // 如果是完全匹配，直接載入；若是範圍重疊，調整節數選擇器再載入
+        const isExact = match.period_start === newStart && match.period_end === newEnd;
+        if (isExact) {
+            editRecord(match);
+        } else {
+            loadRecordForEdit(match.id);
+        }
     } else if (state.editingEntryId) {
         // 選擇了不同的節數，退出編輯模式
         cancelEdit();
@@ -1398,6 +1416,38 @@ function cancelEdit() {
 
     // 清除驗證錯誤
     clearValidationErrors();
+}
+
+/**
+ * 從已提交記錄列表點擊「編輯」：設定節數選擇器後載入記錄
+ */
+let _loadingRecord = false; // 防止 loadRecordForEdit ↔ checkAndLoadExisting 遞迴
+
+function loadRecordForEdit(entryId) {
+    if (_loadingRecord) return;
+    const record = state.existingRecords.find(r => r.id === entryId);
+    if (!record) return;
+
+    _loadingRecord = true;
+    clearValidationErrors();
+
+    // 設定節數類型
+    const isTwoPeriods = record.period_start !== record.period_end;
+    setPeriodCount(isTwoPeriods ? 2 : 1);
+
+    // 設定節數選擇器
+    document.getElementById('periodStart').value = record.period_start;
+    if (isTwoPeriods) {
+        updateEndOptions();
+        document.getElementById('periodEnd').value = record.period_end;
+    }
+
+    // 進入編輯模式
+    editRecord(record);
+    _loadingRecord = false;
+
+    // 滾動到頂部讓老師看到表單
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /**
