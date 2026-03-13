@@ -756,8 +756,30 @@ const ClassroomStudentApp = {
         }
     },
 
+    _restoreCanvasWrapper() {
+        // If a game slide replaced canvas-wrapper innerHTML, restore original structure
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (wrapper && !document.getElementById('pageImage')) {
+            wrapper.style.width = '';
+            wrapper.style.height = '';
+            wrapper.style.display = '';
+            wrapper.innerHTML = `
+                <img id="pageImage" class="page-image" alt="PPT 頁面">
+                <canvas id="annotationCanvas" style="display: none;"></canvas>
+            `;
+            // Re-init fabric canvas on the restored annotation canvas
+            const c = document.getElementById('annotationCanvas');
+            this.state.fabricCanvas = new fabric.Canvas(c, {
+                isDrawingMode: false,
+                selection: false,
+                interactive: false,
+            });
+        }
+    },
+
     async _renderLessonPPTDirect(imgUrl, annotationsJson, pageNumber) {
         try {
+            this._restoreCanvasWrapper();
             ClassroomStudentUI.showLoadingSpinner();
 
             // displayPageImage accepts any URL (blob or static)
