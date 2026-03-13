@@ -340,9 +340,9 @@ class ClassroomService:
             raise EnrollmentError("只有学生可以加入课堂")
 
         # 校验班级权限（空列表表示不限制班级）
+        student_class = (student.get("class_name") or "").strip()
         allowed = self._get_allowed_classes(room)
         if allowed:
-            student_class = (student.get("class_name") or "").strip()
             if not student_class or student_class not in allowed:
                 raise ClassNotAllowedError(student_class)
 
