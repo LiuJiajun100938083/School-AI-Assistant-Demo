@@ -1789,3 +1789,12 @@ async def websocket_classroom(
                     "student_username": username,
                     "online_count": online_count,
                 })
+
+
+# ==================================================================================
+#                                   初始化
+# ==================================================================================
+
+def init_lesson_system():
+    """初始化课案系统（幂等建表）"""
+    get_services().lesson.init_tables()

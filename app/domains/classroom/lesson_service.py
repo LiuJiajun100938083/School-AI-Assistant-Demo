@@ -68,6 +68,110 @@ class LessonService:
         self._session_repo = session_repo
         self._response_repo = response_repo
 
+    # ============================================================
+    # Init (auto-create tables)
+    # ============================================================
+
+    def init_tables(self) -> None:
+        """幂等建表 — 启动时调用，确保 4 张表存在"""
+        logger.info("初始化课案系统表...")
+        pool = self._plan_repo.pool
+
+        pool.execute_write("""
+            CREATE TABLE IF NOT EXISTS lesson_plans (
+                id               INT AUTO_INCREMENT,
+                plan_id          VARCHAR(64) NOT NULL,
+                title            VARCHAR(255) NOT NULL,
+                description      TEXT,
+                teacher_username VARCHAR(100) NOT NULL,
+                total_slides     INT DEFAULT 0,
+                status           ENUM('draft','ready','archived') DEFAULT 'draft',
+                created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                is_deleted       BOOLEAN DEFAULT FALSE,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_plan_id (plan_id),
+                INDEX idx_teacher (teacher_username),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        pool.execute_write("""
+            CREATE TABLE IF NOT EXISTS lesson_slides (
+                id               INT AUTO_INCREMENT,
+                slide_id         VARCHAR(64) NOT NULL,
+                plan_id          VARCHAR(64) NOT NULL,
+                slide_order      INT NOT NULL,
+                slide_type       ENUM('ppt','game','quiz','quick_answer','raise_hand','poll') NOT NULL,
+                title            VARCHAR(255) DEFAULT '',
+                config           JSON NOT NULL,
+                config_version   INT DEFAULT 1,
+                duration_seconds INT DEFAULT 0,
+                created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_slide_id (slide_id),
+                UNIQUE KEY uk_plan_order (plan_id, slide_order),
+                FOREIGN KEY (plan_id) REFERENCES lesson_plans(plan_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        pool.execute_write("""
+            CREATE TABLE IF NOT EXISTS lesson_sessions (
+                id                  INT AUTO_INCREMENT,
+                session_id          VARCHAR(64) NOT NULL,
+                room_id             VARCHAR(64) NOT NULL,
+                plan_id             VARCHAR(64) NOT NULL,
+                status              ENUM('pending','live','paused','ended') DEFAULT 'pending',
+                current_slide_id    VARCHAR(64) DEFAULT NULL,
+                current_slide_order INT DEFAULT -1,
+                slide_lifecycle     ENUM('prepared','activated','responding','closed',
+                                         'results_shown','completed') DEFAULT 'prepared',
+                slide_started_at    DATETIME DEFAULT NULL,
+                slide_ends_at       DATETIME DEFAULT NULL,
+                accepting_responses BOOLEAN DEFAULT FALSE,
+                annotations_json    LONGTEXT DEFAULT NULL,
+                runtime_meta        JSON DEFAULT NULL,
+                started_at          DATETIME DEFAULT NULL,
+                ended_at            DATETIME DEFAULT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_session_id (session_id),
+                INDEX idx_room (room_id),
+                INDEX idx_room_status (room_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        pool.execute_write("""
+            CREATE TABLE IF NOT EXISTS lesson_slide_responses (
+                id               INT AUTO_INCREMENT,
+                response_id      VARCHAR(64) NOT NULL,
+                session_id       VARCHAR(64) NOT NULL,
+                slide_id         VARCHAR(64) NOT NULL,
+                student_username VARCHAR(100) NOT NULL,
+                response_type    ENUM('quiz_answer','quick_answer','raise_hand',
+                                     'poll_vote','game_score') NOT NULL,
+                response_data    JSON NOT NULL,
+                is_correct       TINYINT(1) DEFAULT NULL,
+                score            DECIMAL(8,2) DEFAULT NULL,
+                responded_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uk_response_id (response_id),
+                UNIQUE KEY uk_one_response (session_id, slide_id, student_username, response_type),
+                INDEX idx_session_slide (session_id, slide_id),
+                INDEX idx_student (student_username, session_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # Add lesson_session_id column to classroom_rooms if not exists
+        try:
+            pool.execute_write(
+                "ALTER TABLE classroom_rooms ADD COLUMN lesson_session_id VARCHAR(64) DEFAULT NULL"
+            )
+        except Exception:
+            pass  # Column already exists
+
+        logger.info("课案系统表初始化完成")
+
     # ================================================================
     # Plan CRUD
     # ================================================================

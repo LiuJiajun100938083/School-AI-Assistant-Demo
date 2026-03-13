@@ -523,6 +523,13 @@ def _register_optional_routers(app: FastAPI) -> None:
     except Exception as e:
         logger.warning("課室日誌系統初始化失敗: %s", e)
 
+    # 初始化课案系统
+    try:
+        from app.routers.classroom import init_lesson_system
+        init_lesson_system()
+    except Exception as e:
+        logger.warning("课案系统初始化失败: %s", e)
+
     # 论坛系统
     try:
         from forum_system.api import forum_router
