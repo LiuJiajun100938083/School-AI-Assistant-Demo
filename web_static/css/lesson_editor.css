@@ -192,6 +192,10 @@ body {
 }
 .slide-thumb:hover { background: var(--bg-page); }
 .slide-thumb.active { background: var(--brand-light); border-color: var(--brand); }
+.slide-thumb[draggable="true"] { cursor: grab; }
+.slide-thumb.dragging { opacity: 0.35; }
+.slide-thumb.drag-over-above { box-shadow: 0 -2px 0 0 var(--brand); }
+.slide-thumb.drag-over-below { box-shadow: 0 2px 0 0 var(--brand); }
 
 .slide-thumb-order {
     font-size: 11px;

@@ -79,6 +79,9 @@
     }
 
     // ===== Render timeline =====
+    // ===== Drag-and-drop reorder state =====
+    let dragSrcId = null;
+
     function renderTimeline() {
         const slides = editorState.slides;
         $slideCount.textContent = slides.length;
@@ -88,6 +91,7 @@
             const el = document.createElement('div');
             el.className = 'slide-thumb' + (s.slide_id === editorState.selectedSlideId ? ' active' : '');
             el.dataset.slideId = s.slide_id;
+            el.draggable = true;
             el.innerHTML = `
                 <span class="slide-thumb-order">${i + 1}</span>
                 <div class="slide-thumb-info">
@@ -96,8 +100,73 @@
                 </div>
             `;
             el.addEventListener('click', () => selectSlide(s.slide_id));
+
+            // Drag events
+            el.addEventListener('dragstart', (e) => {
+                dragSrcId = s.slide_id;
+                el.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            el.addEventListener('dragend', () => {
+                dragSrcId = null;
+                el.classList.remove('dragging');
+                document.querySelectorAll('.slide-thumb.drag-over-above, .slide-thumb.drag-over-below').forEach(
+                    n => n.classList.remove('drag-over-above', 'drag-over-below')
+                );
+            });
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (s.slide_id === dragSrcId) return;
+                const rect = el.getBoundingClientRect();
+                const mid = rect.top + rect.height / 2;
+                if (e.clientY < mid) {
+                    el.classList.add('drag-over-above');
+                    el.classList.remove('drag-over-below');
+                } else {
+                    el.classList.add('drag-over-below');
+                    el.classList.remove('drag-over-above');
+                }
+            });
+            el.addEventListener('dragleave', () => {
+                el.classList.remove('drag-over-above', 'drag-over-below');
+            });
+            el.addEventListener('drop', (e) => {
+                e.preventDefault();
+                el.classList.remove('drag-over-above', 'drag-over-below');
+                if (!dragSrcId || dragSrcId === s.slide_id) return;
+                const rect = el.getBoundingClientRect();
+                const mid = rect.top + rect.height / 2;
+                const dropAbove = e.clientY < mid;
+                reorderSlides(dragSrcId, s.slide_id, dropAbove);
+            });
+
             $slideList.appendChild(el);
         });
+    }
+
+    async function reorderSlides(srcId, targetId, above) {
+        const slides = editorState.slides;
+        const srcIdx = slides.findIndex(s => s.slide_id === srcId);
+        let targetIdx = slides.findIndex(s => s.slide_id === targetId);
+        if (srcIdx === -1 || targetIdx === -1) return;
+
+        // Remove src and insert at new position
+        const [moved] = slides.splice(srcIdx, 1);
+        targetIdx = slides.findIndex(s => s.slide_id === targetId);
+        const insertAt = above ? targetIdx : targetIdx + 1;
+        slides.splice(insertAt, 0, moved);
+
+        renderTimeline();
+        renderPreview();
+
+        // Persist to server
+        const slideIds = slides.map(s => s.slide_id);
+        try {
+            await api('PUT', `/api/classroom/lesson-plans/${planId}/slides/reorder`, { slide_ids: slideIds });
+        } catch (e) {
+            console.error('Reorder failed:', e);
+        }
     }
 
     function typeLabel(t) {
