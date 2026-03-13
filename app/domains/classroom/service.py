@@ -536,6 +536,59 @@ class ClassroomService:
             "uploaded_at": now,
         }
 
+    def upload_ppt_standalone(
+        self,
+        teacher_username: str,
+        file_bytes: bytes,
+        original_filename: str,
+    ) -> Dict[str, Any]:
+        """
+        上传 PPT 文件 (不绑定房间, 用于课案编辑器直传)
+
+        与 upload_ppt 逻辑相同，但不需要 room_id、不做房间权限校验。
+        ppt_files.room_id 存为 NULL。
+        """
+        # 验证文件
+        is_valid, err_msg = self.ppt_processor.validate_file(
+            file_bytes, original_filename,
+        )
+        if not is_valid:
+            raise PPTError(err_msg)
+
+        # 保存文件
+        file_id = str(uuid.uuid4())
+        stored_path = self.ppt_processor.save_file(
+            file_bytes, file_id, original_filename,
+        )
+
+        # 创建数据库记录 (room_id=None)
+        now = datetime.now()
+        self._ppt_repo.create_ppt_record({
+            "file_id": file_id,
+            "room_id": None,
+            "teacher_username": teacher_username,
+            "original_filename": original_filename,
+            "stored_path": stored_path,
+            "file_size": len(file_bytes),
+            "total_pages": 0,
+            "process_status": "pending",
+            "uploaded_at": now,
+        })
+
+        logger.info(
+            "PPT 直传上传成功: %s (教师 %s, 大小 %d bytes)",
+            file_id, teacher_username, len(file_bytes),
+        )
+
+        return {
+            "file_id": file_id,
+            "teacher_username": teacher_username,
+            "original_filename": original_filename,
+            "file_size": len(file_bytes),
+            "process_status": "pending",
+            "uploaded_at": now,
+        }
+
     async def process_ppt(
         self,
         file_id: str,

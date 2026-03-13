@@ -1144,6 +1144,55 @@ async def import_ppt_to_plan(
         return error_response(e.message, e.code, e.status_code)
 
 
+@router.post("/api/classroom/lesson-plans/{plan_id}/upload-ppt")
+async def upload_ppt_for_plan(
+    plan_id: str,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """
+    在课案编辑器中直接上传 PPT 文件 (不绑定房间)
+
+    上传后自动在后台处理 (转图片 + 提取文字)。
+    前端轮询 GET /api/classroom/ppt/{file_id} 查状态，
+    完成后调 POST .../import-ppt?file_id=xxx 导入。
+    """
+    username, _ = user_info
+    try:
+        file_bytes = await file.read()
+        original_filename = file.filename or "unknown.pptx"
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.upload_ppt_standalone(
+                teacher_username=username,
+                file_bytes=file_bytes,
+                original_filename=original_filename,
+            ),
+        )
+
+        # 后台处理 PPT
+        async def _process_ppt_task():
+            try:
+                await get_services().classroom.process_ppt(
+                    file_id=result["file_id"],
+                    teacher_username=username,
+                )
+            except Exception as e:
+                logger.error("后台处理 PPT 失败: %s", e)
+
+        background_tasks.add_task(_process_ppt_task)
+
+        return success_response(result, "PPT 上传成功，正在后台处理")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("课案 PPT 上传失败: %s", e, exc_info=True)
+        return error_response("SERVER_ERROR", "上传 PPT 失败", status_code=500)
+
+
 # ====================================================================== #
 #  课案 Session 控制 (教师)                                                  #
 # ====================================================================== #

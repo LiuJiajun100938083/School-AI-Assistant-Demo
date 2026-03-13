@@ -307,6 +307,163 @@
     });
 
     // ===== PPT import =====
+
+    // --- PPT Tab switching ---
+    const $pptTabUpload = document.getElementById('pptTabUpload');
+    const $pptTabRoom = document.getElementById('pptTabRoom');
+    const $pptUploadTab = document.getElementById('pptUploadTab');
+    const $pptRoomTab = document.getElementById('pptRoomTab');
+
+    function switchPPTTab(tab) {
+        if (tab === 'upload') {
+            $pptTabUpload.classList.add('active');
+            $pptTabRoom.classList.remove('active');
+            $pptUploadTab.style.display = '';
+            $pptRoomTab.style.display = 'none';
+        } else {
+            $pptTabRoom.classList.add('active');
+            $pptTabUpload.classList.remove('active');
+            $pptRoomTab.style.display = '';
+            $pptUploadTab.style.display = 'none';
+            loadRoomsForPPT();
+        }
+    }
+
+    $pptTabUpload.addEventListener('click', () => switchPPTTab('upload'));
+    $pptTabRoom.addEventListener('click', () => switchPPTTab('room'));
+
+    // --- Direct Upload ---
+    const $pptUploadZone = document.getElementById('pptUploadZone');
+    const $pptFileInput = document.getElementById('pptFileInput');
+    const $pptUploadProgress = document.getElementById('pptUploadProgress');
+
+    // Click zone to trigger file input
+    $pptUploadZone.addEventListener('click', (e) => {
+        if (e.target.closest('#pptUploadBtn') || e.target === $pptUploadZone || e.target.closest('svg') || e.target.closest('p') || e.target.closest('span')) {
+            $pptFileInput.click();
+        }
+    });
+
+    $pptFileInput.addEventListener('change', () => {
+        if ($pptFileInput.files.length > 0) {
+            handlePPTUpload($pptFileInput.files[0]);
+        }
+    });
+
+    // Drag & drop
+    $pptUploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        $pptUploadZone.classList.add('drag-over');
+    });
+    $pptUploadZone.addEventListener('dragleave', () => {
+        $pptUploadZone.classList.remove('drag-over');
+    });
+    $pptUploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        $pptUploadZone.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) handlePPTUpload(files[0]);
+    });
+
+    async function handlePPTUpload(file) {
+        const name = file.name.toLowerCase();
+        if (!name.endsWith('.pptx') && !name.endsWith('.ppt')) {
+            alert('請選擇 .pptx 或 .ppt 檔案');
+            return;
+        }
+        if (file.size > 150 * 1024 * 1024) {
+            alert('檔案大小不能超過 150MB');
+            return;
+        }
+
+        // Show progress
+        $pptUploadProgress.style.display = '';
+        document.getElementById('pptProgressFilename').textContent = file.name;
+        const $status = document.getElementById('pptProgressStatus');
+        const $fill = document.getElementById('pptProgressFill');
+        $status.textContent = '上傳中...';
+        $status.className = 'ppt-progress-status';
+        $fill.className = 'ppt-progress-fill';
+        $fill.style.width = '30%';
+
+        try {
+            // Upload via multipart
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadRes = await fetch(`/api/classroom/lesson-plans/${planId}/upload-ppt`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData,
+            });
+            const uploadJson = await uploadRes.json();
+            if (!uploadJson.success) throw new Error(uploadJson.message || 'Upload failed');
+
+            const fileId = uploadJson.data.file_id;
+            $fill.style.width = '50%';
+            $status.textContent = '處理中...';
+            $fill.classList.add('processing');
+
+            // Poll for processing completion
+            const pptInfo = await pollPPTStatus(fileId);
+
+            $fill.classList.remove('processing');
+            $fill.style.width = '80%';
+            $status.textContent = '匯入中...';
+
+            // Auto-import slides
+            const slides = await api('POST', `/api/classroom/lesson-plans/${planId}/import-ppt?file_id=${fileId}`);
+            editorState.slides.push(...slides);
+
+            $fill.style.width = '100%';
+            $status.textContent = `完成 (${slides.length} 頁)`;
+            $status.classList.add('success');
+
+            renderTimeline();
+            if (slides.length > 0) selectSlide(slides[0].slide_id);
+
+            // Auto-close modal after brief delay
+            setTimeout(() => {
+                closeAddModal();
+                // Reset upload UI
+                $pptUploadProgress.style.display = 'none';
+                $pptFileInput.value = '';
+            }, 800);
+
+        } catch (e) {
+            $fill.classList.remove('processing');
+            $fill.style.width = '100%';
+            $fill.style.background = 'var(--color-danger)';
+            $status.textContent = '失敗: ' + e.message;
+            $status.classList.add('error');
+            // Allow retry
+            setTimeout(() => {
+                $pptUploadProgress.style.display = 'none';
+                $fill.style.background = '';
+                $pptFileInput.value = '';
+            }, 3000);
+        }
+    }
+
+    async function pollPPTStatus(fileId) {
+        const maxAttempts = 120;  // up to ~2 minutes
+        for (let i = 0; i < maxAttempts; i++) {
+            await new Promise(r => setTimeout(r, 1000));
+            try {
+                const info = await api('GET', `/api/classroom/ppt/${fileId}`);
+                if (info.process_status === 'completed') return info;
+                if (info.process_status === 'failed') {
+                    throw new Error(info.error_message || 'PPT 處理失敗');
+                }
+            } catch (e) {
+                if (e.message.includes('處理失敗')) throw e;
+                // Network error — keep polling
+            }
+        }
+        throw new Error('PPT 處理超時');
+    }
+
+    // --- Select from Room (existing flow) ---
     async function loadRoomsForPPT() {
         try {
             const rooms = await api('GET', '/api/classroom/rooms');

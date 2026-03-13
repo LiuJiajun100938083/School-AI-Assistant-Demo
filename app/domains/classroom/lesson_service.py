@@ -170,6 +170,15 @@ class LessonService:
         except Exception:
             pass  # Column already exists
 
+        # Make ppt_files.room_id nullable (for room-independent lesson plan uploads)
+        try:
+            pool.execute_write(
+                "ALTER TABLE ppt_files MODIFY room_id VARCHAR(64) DEFAULT NULL "
+                "COMMENT '→ classroom_rooms.room_id (NULL=课案直传)'"
+            )
+        except Exception:
+            pass  # Already nullable or table doesn't exist yet
+
         logger.info("课案系统表初始化完成")
 
     # ================================================================

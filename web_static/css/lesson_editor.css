@@ -464,6 +464,118 @@ body {
 .ppt-file-name, .game-name { font-size: 14px; font-weight: 500; }
 .ppt-file-pages, .game-desc { font-size: 12px; color: var(--text-tertiary); }
 
+/* ===== PPT Source Tabs ===== */
+.ppt-source-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    border-bottom: 2px solid var(--border-default);
+}
+.ppt-tab {
+    flex: 1;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    transition: all 0.15s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+.ppt-tab:hover { color: var(--text-secondary); }
+.ppt-tab.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+
+/* PPT Upload Zone */
+.ppt-upload-zone {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 32px 20px;
+    text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.ppt-upload-zone:hover,
+.ppt-upload-zone.drag-over {
+    border-color: var(--brand);
+    background: var(--brand-light);
+}
+.ppt-upload-zone svg { margin-bottom: 12px; }
+.ppt-upload-zone p { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; }
+.ppt-upload-zone span { font-size: 12px; color: var(--text-tertiary); display: block; margin-bottom: 8px; }
+.ppt-upload-btn {
+    display: inline-block;
+    padding: 8px 20px;
+    background: var(--brand);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s;
+}
+.ppt-upload-btn:hover { background: var(--brand-hover); }
+.ppt-upload-hint {
+    font-size: 11px !important;
+    color: var(--text-tertiary) !important;
+    margin-top: 8px;
+    margin-bottom: 0 !important;
+}
+
+/* PPT Upload Progress */
+.ppt-upload-progress {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg-page);
+    border-radius: var(--radius-sm);
+}
+.ppt-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.ppt-progress-filename {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60%;
+}
+.ppt-progress-status {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+.ppt-progress-status.success { color: var(--color-success); font-weight: 600; }
+.ppt-progress-status.error { color: var(--color-danger); font-weight: 600; }
+.ppt-progress-bar {
+    height: 4px;
+    background: var(--border-default);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.ppt-progress-fill {
+    height: 100%;
+    background: var(--brand);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+.ppt-progress-fill.processing {
+    width: 100%;
+    background: linear-gradient(90deg, var(--brand), var(--brand-hover), var(--brand));
+    background-size: 200% 100%;
+    animation: progressPulse 1.5s ease-in-out infinite;
+}
+@keyframes progressPulse {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
 /* Game config in config panel */
 .game-config-preview {
     padding: 10px 12px;

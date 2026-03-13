@@ -138,13 +138,48 @@
 
                 <!-- PPT Import Section (shown when PPT type selected) -->
                 <div id="pptImportSection" style="display:none;">
-                    <div class="config-section">
-                        <label class="config-label">選擇 PPT 來源</label>
-                        <select id="pptSourceSelect" class="config-input">
-                            <option value="">-- 選擇房間 --</option>
-                        </select>
+                    <!-- Tabs: Upload vs Select from Room -->
+                    <div class="ppt-source-tabs">
+                        <button class="ppt-tab active" data-tab="upload" id="pptTabUpload">從電腦上傳</button>
+                        <button class="ppt-tab" data-tab="room" id="pptTabRoom">從房間選擇</button>
                     </div>
-                    <div id="pptFileList" class="ppt-file-list"></div>
+
+                    <!-- Tab: Direct Upload -->
+                    <div class="ppt-tab-content" id="pptUploadTab">
+                        <div class="ppt-upload-zone" id="pptUploadZone">
+                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <p>拖放 PPTX 檔案到此處</p>
+                            <span>或</span>
+                            <button class="ppt-upload-btn" id="pptUploadBtn">選擇檔案</button>
+                            <input type="file" id="pptFileInput" accept=".pptx,.ppt" style="display:none;">
+                            <p class="ppt-upload-hint">支援 .pptx / .ppt，最大 150MB</p>
+                        </div>
+                        <!-- Upload Progress -->
+                        <div class="ppt-upload-progress" id="pptUploadProgress" style="display:none;">
+                            <div class="ppt-progress-info">
+                                <span class="ppt-progress-filename" id="pptProgressFilename"></span>
+                                <span class="ppt-progress-status" id="pptProgressStatus">上傳中...</span>
+                            </div>
+                            <div class="ppt-progress-bar">
+                                <div class="ppt-progress-fill" id="pptProgressFill"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: Select from Room -->
+                    <div class="ppt-tab-content" id="pptRoomTab" style="display:none;">
+                        <div class="config-section">
+                            <label class="config-label">選擇房間</label>
+                            <select id="pptSourceSelect" class="config-input">
+                                <option value="">-- 選擇房間 --</option>
+                            </select>
+                        </div>
+                        <div id="pptFileList" class="ppt-file-list"></div>
+                    </div>
                 </div>
 
                 <!-- Game Select Section -->
