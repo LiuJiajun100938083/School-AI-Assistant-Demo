@@ -993,14 +993,42 @@ async function promptStartLesson() {
             UIModule.toast('沒有可用課案，請先在課案編輯器中創建', 'error');
             return;
         }
-        // for now, use the first ready plan, or first plan
-        const readyPlan = plans.find(p => p.status === 'ready') || plans[0];
-        if (confirm(`啟動課案「${readyPlan.title}」？`)) {
-            await startLesson(readyPlan.plan_id);
-        }
+
+        // Build a picker dialog
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:#fff;border-radius:12px;padding:20px;width:400px;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.12);';
+        modal.innerHTML = '<h3 style="margin:0 0 16px;font-size:16px;">選擇課案</h3>';
+        const list = document.createElement('div');
+        list.style.cssText = 'flex:1;overflow-y:auto;';
+        plans.forEach(p => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;';
+            item.onmouseover = () => { item.style.borderColor = '#006633'; item.style.background = '#E8F5EC'; };
+            item.onmouseout = () => { item.style.borderColor = '#e0e0e0'; item.style.background = ''; };
+            const statusLabel = p.status === 'ready' ? ' (就緒)' : p.status === 'draft' ? ' (草稿)' : '';
+            const slideCount = p.total_slides || 0;
+            item.innerHTML = `<div style="font-weight:600;font-size:14px;">${p.title}${statusLabel}</div><div style="font-size:12px;color:#888;margin-top:4px;">${slideCount} 張幻燈片</div>`;
+            item.addEventListener('click', async () => {
+                document.body.removeChild(overlay);
+                await startLesson(p.plan_id);
+            });
+            list.appendChild(item);
+        });
+        modal.appendChild(list);
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        cancelBtn.style.cssText = 'margin-top:12px;padding:8px 16px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;';
+        cancelBtn.addEventListener('click', () => document.body.removeChild(overlay));
+        modal.appendChild(cancelBtn);
+        overlay.appendChild(modal);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
+        document.body.appendChild(overlay);
     } catch (e) {
         UIModule.toast('載入課案列表失敗', 'error');
     }
+}
 
 function startHeartbeat() {
     setInterval(() => {
