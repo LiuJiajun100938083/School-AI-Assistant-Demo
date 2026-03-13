@@ -130,7 +130,7 @@
 
         if (slide.slide_type === 'ppt') {
             const cfg = slide.config || {};
-            const imgUrl = `/api/classroom/ppt/${cfg.file_id}/page/${cfg.page_number}`;
+            const imgUrl = `/uploads/ppt/${cfg.file_id}/page_${cfg.page_number}.png`;
             $previewContent.innerHTML = `<img src="${imgUrl}" alt="PPT Page ${cfg.page_number}" onerror="this.alt='Image not available';this.style.opacity=0.3;">`;
         } else if (slide.slide_type === 'game') {
             const cfg = slide.config || {};
