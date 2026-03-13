@@ -787,8 +787,15 @@ const ClassroomStudentApp = {
         if (contentArea) {
             const placeholder = document.getElementById('canvasPlaceholder');
             if (placeholder) placeholder.style.display = 'none';
+            const noPage = document.getElementById('noPageMessage');
+            if (noPage) noPage.style.display = 'none';
+            const spinner = document.getElementById('loadingSpinner');
+            if (spinner) spinner.style.display = 'none';
 
+            // Make wrapper fill the container for game display
             contentArea.style.display = 'flex';
+            contentArea.style.width = '100%';
+            contentArea.style.height = '100%';
             contentArea.innerHTML = `
                 <div style="width:100%;height:100%;display:flex;flex-direction:column;">
                     <div style="padding:8px 16px;background:#f5f5f7;border-bottom:1px solid rgba(0,0,0,0.08);display:flex;justify-content:space-between;align-items:center;">
@@ -797,7 +804,7 @@ const ClassroomStudentApp = {
                     </div>
                     <iframe
                         src="${Utils.escapeHtml(gameUrl)}"
-                        style="flex:1;border:none;width:100%;"
+                        style="flex:1;border:none;width:100%;min-height:0;"
                         sandbox="allow-scripts allow-same-origin"
                         id="gameIframe"
                     ></iframe>
