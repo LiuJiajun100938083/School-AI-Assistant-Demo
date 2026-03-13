@@ -71,6 +71,7 @@ from app.domains.classroom.lesson_schemas import (
     AddSlideRequest,
     CreatePlanRequest,
     NavigateRequest,
+    PushAnnotationsRequest,
     ReorderSlidesRequest,
     SlideActionRequest,
     StartSessionRequest,
@@ -1272,6 +1273,7 @@ async def navigate_lesson(
         return success_response({
             "session": result["session"],
             "slide": result["slide"],
+            "slide_annotations": result.get("slide_annotations"),
         })
     except AppException as e:
         return error_response(e.message, e.code, e.status_code)
@@ -1324,6 +1326,49 @@ async def lesson_slide_action(
             "accepting_responses": result["accepting_responses"],
             "auto_transition": result.get("auto_transition"),
         })
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.post("/api/classroom/rooms/{room_id}/lesson/push-annotations")
+async def push_lesson_annotations(
+    room_id: str,
+    body: PushAnnotationsRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """推送教师标注给学生 — 不改变 slide lifecycle，仅同步标注数据"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.push_annotations(
+                room_id, session_id, body.slide_id, body.annotations_json,
+            ),
+        )
+
+        # Broadcast to students only (not back to teacher)
+        ws_manager = get_classroom_ws_manager()
+        await ws_manager.broadcast_to_students(room_id, {
+            "type": "lesson_annotations_update",
+            "room_id": room_id,
+            "session_id": session_id,
+            "slide_id": body.slide_id,
+            "data": {
+                "annotations_json": body.annotations_json,
+            },
+        })
+
+        return success_response(result, "標註已推送")
     except AppException as e:
         return error_response(e.message, e.code, e.status_code)
 

@@ -558,6 +558,9 @@ const ClassroomStudentApp = {
                 case 'lesson_slide_lifecycle':
                     this._handleLessonLifecycle(message);
                     break;
+                case 'lesson_annotations_update':
+                    this._handleAnnotationsUpdate(message);
+                    break;
                 case 'response_ack':
                     UIModule.toast('回應已提交', 'success');
                     break;
@@ -669,9 +672,11 @@ const ClassroomStudentApp = {
                 return;
             }
 
-            // Render annotations AFTER canvas is correctly sized
+            // Render annotations AFTER canvas is correctly sized (with scaling)
             if (annotations_json) {
-                await ClassroomStudentUI.renderAnnotations(annotations_json, this.state.fabricCanvas);
+                await AnnotationUtils.loadAndScale(this.state.fabricCanvas, annotations_json);
+                const annCanvas = document.getElementById('annotationCanvas');
+                if (annCanvas) annCanvas.style.display = 'block';
             } else {
                 ClassroomStudentUI.clearAnnotations(this.state.fabricCanvas);
             }
@@ -732,6 +737,23 @@ const ClassroomStudentApp = {
         }
     },
 
+    _handleAnnotationsUpdate(message) {
+        if (!message.data) return;
+        const slideId = message.slide_id;
+        // Only apply if this is for the current slide
+        if (slideId && this.state.currentLessonSlide &&
+            slideId !== this.state.currentLessonSlide.slide_id) {
+            return;
+        }
+        const annJson = message.data.annotations_json;
+        if (this.state.fabricCanvas && annJson) {
+            AnnotationUtils.loadAndScale(this.state.fabricCanvas, annJson).then(() => {
+                const annCanvas = document.getElementById('annotationCanvas');
+                if (annCanvas) annCanvas.style.display = 'block';
+            });
+        }
+    },
+
     _renderLessonSlide(slideData) {
         const type = slideData.slide_type;
         this.state.currentLessonSlide = slideData;
@@ -785,8 +807,11 @@ const ClassroomStudentApp = {
             // displayPageImage accepts any URL (blob or static)
             await ClassroomStudentUI.displayPageImage(imgUrl, this.state.fabricCanvas);
 
+            // Use AnnotationUtils for scaling-aware annotation rendering
             if (annotationsJson) {
-                await ClassroomStudentUI.renderAnnotations(annotationsJson, this.state.fabricCanvas);
+                await AnnotationUtils.loadAndScale(this.state.fabricCanvas, annotationsJson);
+                const annCanvas = document.getElementById('annotationCanvas');
+                if (annCanvas) annCanvas.style.display = 'block';
             } else {
                 ClassroomStudentUI.clearAnnotations(this.state.fabricCanvas);
             }

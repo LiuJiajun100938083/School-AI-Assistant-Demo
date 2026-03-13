@@ -73,6 +73,12 @@ class SlideActionRequest(BaseModel):
     annotations_json: Optional[str] = Field(default=None, description="PPT 标注 JSON (activate 时)")
 
 
+class PushAnnotationsRequest(BaseModel):
+    """推送教师标注 — 不走 lifecycle，仅更新当前 PPT slide 的标注并广播"""
+    slide_id: str = Field(..., description="当前 slide ID (必须匹配 session 当前 slide)")
+    annotations_json: str = Field(..., description="Fabric.js JSON (含 _canvasRef)")
+
+
 # ============================================================
 # Response — 请求
 # ============================================================

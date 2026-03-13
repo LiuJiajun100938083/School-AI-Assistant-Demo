@@ -386,22 +386,29 @@ function resizeCanvasToImage() {
         const imgRect = img.getBoundingClientRect();
         const wrapperRect = wrapper.getBoundingClientRect();
 
-        // 使用圖片的顯示尺寸（不是原始像素尺寸）
-        const displayWidth = imgRect.width;
-        const displayHeight = imgRect.height;
+        const newWidth = imgRect.width;
+        const newHeight = imgRect.height;
+        const oldWidth = state.canvas.getWidth();
+        const oldHeight = state.canvas.getHeight();
 
         // 圖片在 wrapper 內的相對位置
         const relLeft = imgRect.left - wrapperRect.left;
         const relTop = imgRect.top - wrapperRect.top;
 
-        state.canvas.setWidth(displayWidth);
-        state.canvas.setHeight(displayHeight);
+        state.canvas.setWidth(newWidth);
+        state.canvas.setHeight(newHeight);
 
         // 定位 Fabric.js 的 .canvas-container（它包裹了實際的 canvas）
         const canvasContainer = wrapper.querySelector('.canvas-container');
         if (canvasContainer) {
             canvasContainer.style.left = relLeft + 'px';
             canvasContainer.style.top = relTop + 'px';
+        }
+
+        // 按比例縮放已有標註對象，避免 resize 後位置偏移
+        if (oldWidth > 0 && oldHeight > 0 &&
+            (Math.abs(oldWidth - newWidth) > 1 || Math.abs(oldHeight - newHeight) > 1)) {
+            AnnotationUtils.scaleObjects(state.canvas, newWidth / oldWidth, newHeight / oldHeight);
         }
 
         // 重新計算畫布偏移，否則滑鼠/觸摸座標會偏移
@@ -595,19 +602,27 @@ async function pushToStudents() {
         return;
     }
 
-    // Lesson mode: activate current slide (which pushes to students)
+    // Lesson mode: activate or re-push annotations
     if (state.lessonMode) {
+        const slide = state.lessonSlide;
         const lifecycle = (state.lessonSession || {}).slide_lifecycle || 'prepared';
-        if (lifecycle === 'prepared') {
+        if (slide && slide.slide_type === 'ppt') {
+            if (lifecycle === 'prepared') {
+                await lessonSlideAction('activate');
+            } else {
+                await pushLessonAnnotations();
+            }
+        } else if (lifecycle === 'prepared') {
             await lessonSlideAction('activate');
         } else {
-            UIModule.toast('幻燈片已推送', 'info');
+            UIModule.toast('此幻燈片已推送', 'info');
         }
         return;
     }
 
     try {
-        const annotationsJson = JSON.stringify(state.canvas.toJSON());
+        const canvasJSON = AnnotationUtils.embedCanvasRef(state.canvas);
+        const annotationsJson = JSON.stringify(canvasJSON);
 
         const payload = {
             page_id: state.currentFileId,
@@ -641,6 +656,39 @@ async function pushToStudents() {
         UIModule.toast('已推送給學生', 'success');
     } catch (error) {
         UIModule.toast(`推送失敗: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Push current annotations to students (for already-activated PPT slides).
+ * Bypasses lifecycle — just saves & broadcasts annotation data.
+ */
+async function pushLessonAnnotations() {
+    if (!state.canvas || !state.lessonSlide) {
+        UIModule.toast('無法推送標註', 'error');
+        return;
+    }
+    try {
+        const canvasJSON = AnnotationUtils.embedCanvasRef(state.canvas);
+        const annotationsJson = JSON.stringify(canvasJSON);
+        const response = await fetch(`/api/classroom/rooms/${roomId}/lesson/push-annotations`, {
+            method: 'POST',
+            headers: {
+                ...AuthModule.getAuthHeaders(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                slide_id: state.lessonSlide.slide_id,
+                annotations_json: annotationsJson,
+            }),
+        });
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.message || '推送失敗');
+        }
+        UIModule.toast('標註已推送給學生', 'success');
+    } catch (error) {
+        UIModule.toast(`推送標註失敗: ${error.message}`, 'error');
     }
 }
 
@@ -1057,9 +1105,10 @@ async function lessonNavigate(action, slideId) {
         const token = AuthModule.getToken();
         const body = { action };
         if (slideId) body.slide_id = slideId;
-        // save current annotations
+        // save current slide annotations with _canvasRef
         if (state.canvas) {
-            body.annotations_json = JSON.stringify(state.canvas.toJSON());
+            const canvasJSON = AnnotationUtils.embedCanvasRef(state.canvas);
+            body.annotations_json = JSON.stringify(canvasJSON);
         }
         const res = await fetch(`/api/classroom/rooms/${roomId}/lesson/navigate`, {
             method: 'POST',
@@ -1073,6 +1122,8 @@ async function lessonNavigate(action, slideId) {
         if (json.success && json.data) {
             state.lessonSession = json.data.session;
             state.lessonSlide = json.data.slide;
+            // Store target slide's saved annotations for renderLessonPPTSlide to use
+            state.lessonSlideAnnotations = json.data.slide_annotations || null;
             updateLessonUI();
         } else {
             UIModule.toast(json.message || '導航失敗', 'error');
@@ -1087,7 +1138,8 @@ async function lessonSlideAction(action) {
         const token = AuthModule.getToken();
         const body = { action };
         if (state.canvas && action === 'activate') {
-            body.annotations_json = JSON.stringify(state.canvas.toJSON());
+            const canvasJSON = AnnotationUtils.embedCanvasRef(state.canvas);
+            body.annotations_json = JSON.stringify(canvasJSON);
         }
         const res = await fetch(`/api/classroom/rooms/${roomId}/lesson/slide-action`, {
             method: 'POST',
@@ -1145,6 +1197,25 @@ function updateLessonUI() {
         }
     }
 
+    // Button management: push button label + sidebar activate visibility
+    const pushBtn = document.getElementById('pushBtn');
+    const activateBtn = document.getElementById('lessonActivateBtn');
+    if (pushBtn) {
+        if (slide && slide.slide_type === 'ppt') {
+            pushBtn.style.display = '';
+            pushBtn.innerHTML = lifecycle === 'prepared'
+                ? '📤 推送給學生'
+                : '📤 推送標註';
+        } else {
+            // Non-PPT: hide push button (lifecycle controls handle it)
+            pushBtn.style.display = lifecycle === 'prepared' ? '' : 'none';
+            pushBtn.innerHTML = '📤 推送給學生';
+        }
+    }
+    if (activateBtn) {
+        activateBtn.style.display = lifecycle === 'prepared' ? '' : 'none';
+    }
+
     // Update timeline active state
     document.querySelectorAll('.lesson-slide-thumb').forEach(el => {
         el.classList.toggle('active', slide && el.dataset.slideId === slide.slide_id);
@@ -1168,26 +1239,21 @@ function renderLessonPPTSlide(slide, cfg) {
     const img = document.getElementById('pptImage');
     if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
 
-    img.onload = () => {
+    img.onload = async () => {
         resizeCanvasToImage();
         // Clear canvas for new slide & reset history
         if (state.canvas) {
             state.canvas.clear();
             state.canvasHistory = [];
             state.historyIndex = -1;
-            addHistorySnapshot();
 
-            // Load saved annotations from session if available
-            if (state.lessonSession && state.lessonSession.annotations_json) {
-                try {
-                    const ann = typeof state.lessonSession.annotations_json === 'string'
-                        ? JSON.parse(state.lessonSession.annotations_json) : state.lessonSession.annotations_json;
-                    state.canvas.loadFromJSON(ann, () => {
-                        state.canvas.renderAll();
-                        addHistorySnapshot();
-                    });
-                } catch (e) { /* ignore parse errors */ }
+            // Load per-slide saved annotations (from navigate response)
+            const annJson = state.lessonSlideAnnotations || null;
+            if (annJson) {
+                await AnnotationUtils.loadAndScale(state.canvas, annJson);
             }
+            addHistorySnapshot();
+            state.lessonSlideAnnotations = null; // consumed
         }
         ensureDrawingReady();
     };

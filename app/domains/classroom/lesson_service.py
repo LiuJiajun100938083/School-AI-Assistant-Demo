@@ -12,6 +12,7 @@
 - 状态查询 (重连恢复)
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -458,6 +459,11 @@ class LessonService:
         else:
             raise SlideNotFoundError()
 
+        # Save current slide's annotations before switching (if provided)
+        current_slide_id = session.get("current_slide_id")
+        if annotations_json is not None and current_slide_id:
+            self.save_slide_annotations(session_id, current_slide_id, annotations_json)
+
         # get handler for initial runtime_meta
         handler = get_slide_handler(slide["slide_type"])
         initial_meta = handler.get_initial_runtime_meta()
@@ -472,15 +478,20 @@ class LessonService:
             "accepting_responses": False,
             "runtime_meta": initial_meta,
         }
-        if annotations_json is not None:
-            update["annotations_json"] = annotations_json
+        # Don't overwrite the annotations_json map with raw annotations —
+        # already saved above per-slide.
 
         self._session_repo.update_session(session_id, update)
 
         session.update(update)
+
+        # Load target slide's saved annotations (if any)
+        target_annotations = self.get_slide_annotations(session_id, slide["slide_id"])
+
         return {
             "session": session,
             "slide": slide,
+            "slide_annotations": target_annotations,
         }
 
     # ================================================================
@@ -536,8 +547,9 @@ class LessonService:
         elif not accepting:
             update["slide_ends_at"] = None
 
-        if annotations_json is not None:
-            update["annotations_json"] = annotations_json
+        # Save annotations per-slide (not on session level)
+        if annotations_json is not None and slide_id:
+            self.save_slide_annotations(session_id, slide_id, annotations_json)
 
         self._session_repo.update_session(session_id, update)
         session.update(update)
@@ -579,12 +591,18 @@ class LessonService:
             return None
 
         slide = None
-        if session.get("current_slide_id"):
-            slide = self._slide_repo.get_by_slide_id(session["current_slide_id"])
+        slide_annotations = None
+        current_slide_id = session.get("current_slide_id")
+        if current_slide_id:
+            slide = self._slide_repo.get_by_slide_id(current_slide_id)
+            slide_annotations = self.get_slide_annotations(
+                session["session_id"], current_slide_id
+            )
 
         return {
             "session": session,
             "slide": slide,
+            "slide_annotations": slide_annotations,
         }
 
     # ================================================================
@@ -714,7 +732,14 @@ class LessonService:
             raise SessionNotFoundError()
 
         handler = get_slide_handler(slide["slide_type"])
-        return handler.build_student_payload(slide, session)
+        payload = handler.build_student_payload(slide, session)
+
+        # For PPT slides, inject per-slide annotations from the map
+        if slide["slide_type"] == "ppt":
+            ann = self.get_slide_annotations(session_id, slide_id)
+            payload["annotations_json"] = ann
+
+        return payload
 
     # ================================================================
     # PPT Import Helper
@@ -749,6 +774,96 @@ class LessonService:
             created.append(slide)
 
         return created
+
+    # ================================================================
+    # Per-Slide Annotations
+    # ================================================================
+    # annotations_json 列的语义 (过渡架构):
+    #   {slide_id: fabric_json_object, slide_id2: ...}
+    # 每个 value 是完整 Fabric JSON (含 _canvasRef)。
+    # 未来可拆成独立表。
+
+    def _read_annotations_map(self, session: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse session's annotations_json as {slide_id: object} map."""
+        raw = session.get("annotations_json")
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw) if isinstance(raw, str) else raw
+            # Backward compat: if it looks like a Fabric JSON (has "objects" key),
+            # it's old single-slide format — return empty map (discard stale data)
+            if isinstance(parsed, dict) and "objects" in parsed:
+                return {}
+            return parsed if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    def _write_annotations_map(self, session_id: str, ann_map: Dict[str, Any]) -> None:
+        """Serialize per-slide annotation map back to the column."""
+        self._session_repo.update_session(session_id, {
+            "annotations_json": json.dumps(ann_map, ensure_ascii=False),
+        })
+
+    def save_slide_annotations(
+        self, session_id: str, slide_id: str, annotations_json_str: str,
+    ) -> None:
+        """Save annotations for a specific slide within the session."""
+        session = self._session_repo.get_by_session_id(session_id)
+        if not session:
+            raise SessionNotFoundError()
+        ann_map = self._read_annotations_map(session)
+        try:
+            ann_map[slide_id] = json.loads(annotations_json_str) if isinstance(
+                annotations_json_str, str
+            ) else annotations_json_str
+        except (json.JSONDecodeError, TypeError):
+            ann_map[slide_id] = annotations_json_str
+        self._write_annotations_map(session_id, ann_map)
+
+    def get_slide_annotations(self, session_id: str, slide_id: str) -> Optional[str]:
+        """Get annotations for a specific slide, stringified for frontend."""
+        session = self._session_repo.get_by_session_id(session_id)
+        if not session:
+            return None
+        ann_map = self._read_annotations_map(session)
+        ann = ann_map.get(slide_id)
+        if ann is None:
+            return None
+        return json.dumps(ann, ensure_ascii=False) if isinstance(ann, dict) else str(ann)
+
+    def push_annotations(
+        self,
+        room_id: str,
+        session_id: str,
+        slide_id: str,
+        annotations_json: str,
+    ) -> Dict[str, Any]:
+        """
+        Push updated annotations for the current PPT slide.
+        Validates: session active, slide_id == current, slide type == ppt.
+        Returns: {slide_id, annotations_json, updated_at}
+        """
+        session = self._get_active_session(room_id, session_id)
+
+        if session.get("current_slide_id") != slide_id:
+            raise SlideNotFoundError(slide_id)
+
+        slide = self._slide_repo.get_by_slide_id(slide_id)
+        if not slide:
+            raise SlideNotFoundError(slide_id)
+        if slide["slide_type"] != "ppt":
+            raise InvalidLifecycleTransitionError(
+                slide["slide_type"], "push_annotations (only ppt allowed)"
+            )
+
+        self.save_slide_annotations(session_id, slide_id, annotations_json)
+        now = datetime.now()
+
+        return {
+            "slide_id": slide_id,
+            "annotations_json": annotations_json,
+            "updated_at": now.isoformat(),
+        }
 
     # ================================================================
     # Internal Helpers
