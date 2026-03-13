@@ -36,18 +36,21 @@ router = APIRouter(tags=["页面"])
 STATIC_DIR = str(Path(__file__).resolve().parent.parent.parent / "web_static")
 
 
-def _serve_page(filename: str):
+def _serve_page(filename: str, csp: str | None = None):
     """通用页面服务函数（禁止浏览器缓存 HTML，确保每次获取最新版本）"""
     file_path = os.path.join(STATIC_DIR, filename)
     if os.path.exists(file_path):
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+        if csp:
+            headers["Content-Security-Policy"] = csp
         return FileResponse(
             file_path,
             media_type="text/html",
-            headers={
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0",
-            },
+            headers=headers,
         )
     return HTMLResponse(
         content=f"<h1>页面未找到: {filename}</h1>",
@@ -161,6 +164,21 @@ async def school_learning_center():
 #  课堂教学页面                                                             #
 # ====================================================================== #
 
+# 课堂页面 CSP — 允许 iframe 加载同源上传游戏 + WebSocket + Fabric.js CDN
+_CLASSROOM_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
+    "https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
+    "style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net "
+    "https://fonts.googleapis.com 'unsafe-inline'; "
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+    "img-src 'self' data: blob:; "
+    "connect-src 'self' ws: wss: https://cdnjs.cloudflare.com; "
+    "frame-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'"
+)
+
 @router.get("/classroom")
 async def classroom_list():
     """课堂房间列表"""
@@ -170,13 +188,13 @@ async def classroom_list():
 @router.get("/classroom/teacher/{room_id}")
 async def classroom_teacher(room_id: str):
     """教师课堂页面 (含 PPT 展示 + 画板 + 推送)"""
-    return _serve_page("classroom_teacher.html")
+    return _serve_page("classroom_teacher.html", csp=_CLASSROOM_CSP)
 
 
 @router.get("/classroom/student/{room_id}")
 async def classroom_student(room_id: str):
     """学生课堂页面 (接收推送 + AI 助手)"""
-    return _serve_page("classroom_student.html")
+    return _serve_page("classroom_student.html", csp=_CLASSROOM_CSP)
 
 
 @router.get("/classroom/lesson-editor/{plan_id}")
