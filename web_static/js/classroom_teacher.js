@@ -951,34 +951,18 @@ async function checkLessonState() {
             state.lessonPlanId = session.plan_id;
             await enterLessonMode(session.plan_id);
         } else {
-            // No active session → auto-prompt lesson picker after brief delay
-            setTimeout(() => autoPromptLesson(), 600);
+            // No active session — teacher can manually click "選擇課案" or upload PPT.
+            // Each classroom starts clean; no auto-prompt to avoid accidental
+            // reuse of the same lesson plan across different classrooms.
         }
     } catch (e) {
         console.error('Check lesson state error:', e);
     }
 }
 
-/**
- * 自动检查是否有课案可用，有则弹出选择器
- */
-async function autoPromptLesson() {
-    try {
-        const token = AuthModule.getToken();
-        const res = await fetch('/api/classroom/lesson-plans', {
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-        const json = await res.json();
-        const plans = (json.success && json.data) ? json.data : [];
-        if (plans.length > 0) {
-            // Has lesson plans → show picker
-            promptStartLesson();
-        }
-        // else: no plans → keep the original upload UI as fallback
-    } catch (e) {
-        console.log('Auto-prompt lesson: no plans available');
-    }
-}
+// autoPromptLesson removed — each classroom starts clean.
+// Teachers use the "選擇課案" button (right panel) to manually pick a lesson plan,
+// or the upload button (left rail) to add room-specific PPT files.
 
 /**
  * 进入课案模式 — 加载课案幻灯片列表，渲染左侧时间线
@@ -1147,7 +1131,7 @@ async function endLesson() {
         // Reset main area
         document.getElementById('canvasArea').style.display = 'none';
         document.getElementById('canvasPlaceholder').style.display = 'block';
-        document.getElementById('canvasPlaceholder').textContent = '選擇課案開始上課';
+        document.getElementById('canvasPlaceholder').textContent = '請選擇課案或上傳課件';
         document.getElementById('thumbnailsContainer').innerHTML = '';
 
         updateLessonUI();
@@ -1221,6 +1205,16 @@ async function lessonSlideAction(action) {
 function updateLessonUI() {
     const $bar = document.getElementById('lessonControlBar');
     if (!$bar) return;
+
+    // Update dropdown lesson items BEFORE early return — must always toggle
+    const selectLessonItem = document.getElementById('selectLessonItem');
+    if (selectLessonItem) {
+        selectLessonItem.style.display = state.lessonMode ? 'none' : '';
+    }
+    const endLessonItem = document.getElementById('endLessonItem');
+    if (endLessonItem) {
+        endLessonItem.style.display = state.lessonMode ? '' : 'none';
+    }
 
     if (!state.lessonMode) {
         $bar.style.display = 'none';
@@ -1304,11 +1298,7 @@ function updateLessonUI() {
         }
     }
 
-    // Update end lesson item in dropdown
-    const endLessonItem = document.getElementById('endLessonItem');
-    if (endLessonItem) {
-        endLessonItem.style.display = state.lessonMode ? '' : 'none';
-    }
+    // (dropdown lesson items already toggled at top of function)
 
     // Update slide type pill in top bar
     const pill = document.getElementById('slideTypePill');

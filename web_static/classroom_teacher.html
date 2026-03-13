@@ -125,6 +125,9 @@
                     <button class="dropdown-item" id="resumeBtn" style="display:none;">
                         <svg class="icon"><use href="#icon-play"/></svg> 繼續課堂
                     </button>
+                    <button class="dropdown-item" id="selectLessonItem" onclick="promptStartLesson()">
+                        <svg class="icon"><use href="#icon-list"/></svg> 選擇課案
+                    </button>
                     <button class="dropdown-item" id="endLessonItem" onclick="endLesson()" style="display:none;">
                         <svg class="icon"><use href="#icon-square"/></svg> 結束課案
                     </button>
@@ -161,7 +164,7 @@
             </div>
             <!-- Placeholder -->
             <div class="canvas-placeholder" id="canvasPlaceholder">
-                載入課案中...
+                請選擇課案或上傳課件
             </div>
 
             <!-- FLOATING ANNOTATION BAR -->
