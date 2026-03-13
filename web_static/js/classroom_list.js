@@ -124,7 +124,14 @@ const ClassroomUI = {
             container.innerHTML = `
                 <div style="grid-column: 1 / -1;">
                     <div class="empty-state">
-                        <div class="empty-state-icon">📚</div>
+                        <svg class="empty-state-icon-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="6" y="8" width="36" height="32" rx="3"/>
+                            <path d="M6 16h36"/>
+                            <path d="M16 8v8"/>
+                            <path d="M32 8v8"/>
+                            <path d="M18 26h12"/>
+                            <path d="M18 32h8"/>
+                        </svg>
                         <div class="empty-state-text">暫無課堂</div>
                         <div class="empty-state-hint">點擊「創建課堂」開始</div>
                     </div>
@@ -140,7 +147,7 @@ const ClassroomUI = {
                 </div>
                 ${room.description ? `<p class="room-description">${Utils.escapeHtml(room.description)}</p>` : ''}
                 <div class="room-meta">
-                    <span>👥 ${room.student_count || 0} 名學生</span>
+                    <span>${room.student_count || 0} 名學生</span>
                     <span>${Utils.formatDate(room.created_at)}</span>
                 </div>
                 ${room.allowed_classes && room.allowed_classes.length > 0 ? `
@@ -162,7 +169,10 @@ const ClassroomUI = {
             container.innerHTML = `
                 <div style="grid-column: 1 / -1;">
                     <div class="empty-state">
-                        <div class="empty-state-icon">🔍</div>
+                        <svg class="empty-state-icon-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="22" cy="22" r="14"/>
+                            <path d="M32 32l10 10" stroke-linecap="round"/>
+                        </svg>
                         <div class="empty-state-text">暫無可用課堂</div>
                         <div class="empty-state-hint">請聯繫教師獲取課堂</div>
                     </div>
@@ -178,7 +188,7 @@ const ClassroomUI = {
                 </div>
                 ${room.description ? `<p class="room-description">${Utils.escapeHtml(room.description)}</p>` : ''}
                 <div class="room-meta">
-                    <span>👨‍🏫 ${room.teacher_display_name || '教師'}</span>
+                    <span>${room.teacher_display_name || '教師'}</span>
                     <span>${Utils.formatDate(room.created_at)}</span>
                 </div>
                 ${room.allowed_classes && room.allowed_classes.length > 0 ? `
