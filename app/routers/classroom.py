@@ -1049,6 +1049,27 @@ async def add_slide(
         return error_response(e.message, e.code, e.status_code)
 
 
+@router.put("/api/classroom/lesson-plans/{plan_id}/slides/reorder")
+async def reorder_slides(
+    plan_id: str,
+    body: ReorderSlidesRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """重排幻灯片顺序"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        count = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.reorder_slides(
+                plan_id, username, body.slide_ids,
+            ),
+        )
+        return success_response({"updated": count}, "排序已更新")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
 @router.put("/api/classroom/lesson-plans/{plan_id}/slides/{slide_id}")
 async def update_slide(
     plan_id: str,
@@ -1087,27 +1108,6 @@ async def delete_slide(
             lambda: get_services().lesson.delete_slide(plan_id, slide_id, username),
         )
         return success_response(None, "幻灯片已删除")
-    except AppException as e:
-        return error_response(e.message, e.code, e.status_code)
-
-
-@router.put("/api/classroom/lesson-plans/{plan_id}/slides/reorder")
-async def reorder_slides(
-    plan_id: str,
-    body: ReorderSlidesRequest,
-    user_info: Tuple[str, str] = Depends(require_teacher),
-):
-    """重排幻灯片顺序"""
-    username, role = user_info
-    try:
-        loop = asyncio.get_event_loop()
-        count = await loop.run_in_executor(
-            None,
-            lambda: get_services().lesson.reorder_slides(
-                plan_id, username, body.slide_ids,
-            ),
-        )
-        return success_response({"updated": count}, "排序已更新")
     except AppException as e:
         return error_response(e.message, e.code, e.status_code)
 

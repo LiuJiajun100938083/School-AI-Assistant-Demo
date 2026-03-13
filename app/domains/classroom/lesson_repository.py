@@ -104,7 +104,16 @@ class LessonSlideRepository(BaseRepository):
         return (row["max_order"] if row and row["max_order"] is not None else -1)
 
     def reorder_slides(self, plan_id: str, slide_ids: List[str]) -> int:
-        """按 slide_ids 顺序重排 slide_order (0-based)。"""
+        """按 slide_ids 顺序重排 slide_order (0-based)。
+        先设为负数避免 UNIQUE KEY 冲突，再设最终值。"""
+        # Phase 1: set to negative temp values to avoid unique constraint collision
+        for i, sid in enumerate(slide_ids):
+            self.update(
+                {"slide_order": -(i + 1)},
+                "slide_id = %s AND plan_id = %s",
+                (sid, plan_id),
+            )
+        # Phase 2: set final order
         updated = 0
         for order, sid in enumerate(slide_ids):
             updated += self.update(
