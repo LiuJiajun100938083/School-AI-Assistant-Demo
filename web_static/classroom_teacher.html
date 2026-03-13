@@ -3,184 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教師課堂 - 課件演示系統</title>
+    <title>教學控制台</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="/static/css/classroom_teacher.css">
 </head>
 <body>
-    <div class="container">
-        <!-- TOP TOOLBAR -->
-        <div class="toolbar">
-            <div class="toolbar-left">
-                <button class="tool-btn back-btn" id="backToListBtn" title="返回課堂列表">
-                    <span>←</span> 返回
+
+<!-- ===== SVG Icon Sprite Sheet ===== -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="icon-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+    </symbol>
+    <symbol id="icon-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+    </symbol>
+    <symbol id="icon-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+    </symbol>
+    <symbol id="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+    </symbol>
+    <symbol id="icon-more" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+    </symbol>
+    <symbol id="icon-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+    </symbol>
+    <symbol id="icon-highlighter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>
+    </symbol>
+    <symbol id="icon-eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.9-9.9c1-1 2.5-1 3.4 0l5.3 5.3c1 1 1 2.5 0 3.4L12 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>
+    </symbol>
+    <symbol id="icon-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>
+    </symbol>
+    <symbol id="icon-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+    </symbol>
+    <symbol id="icon-redo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </symbol>
+    <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    </symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </symbol>
+    <symbol id="icon-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+    </symbol>
+    <symbol id="icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+    </symbol>
+    <symbol id="icon-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+    </symbol>
+    <symbol id="icon-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+    </symbol>
+    <symbol id="icon-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/>
+    </symbol>
+    <symbol id="icon-help-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </symbol>
+    <symbol id="icon-bar-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>
+    </symbol>
+    <symbol id="icon-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </symbol>
+    <symbol id="icon-hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 11V6a2 2 0 0 0-4 0v1"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+    </symbol>
+    <symbol id="icon-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+    </symbol>
+</svg>
+
+<div class="app">
+
+    <!-- ===== TOP BAR ===== -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <button class="topbar-btn" id="backToListBtn" title="返回課堂列表">
+                <svg class="icon"><use href="#icon-arrow-left"/></svg>
+            </button>
+            <div class="topbar-divider"></div>
+            <span class="topbar-title" id="topbarTitle">課堂</span>
+            <span class="room-status draft" id="roomStatus">草稿</span>
+        </div>
+
+        <div class="topbar-center">
+            <button class="topbar-btn" id="prevBtn" title="上一頁">
+                <svg class="icon"><use href="#icon-chevron-left"/></svg>
+            </button>
+            <span class="page-indicator">
+                第 <span id="currentPage">-</span> / <span id="totalPages">-</span> 張
+            </span>
+            <span class="slide-type-pill" id="slideTypePill"></span>
+            <button class="topbar-btn" id="nextBtn" title="下一頁">
+                <svg class="icon"><use href="#icon-chevron-right"/></svg>
+            </button>
+        </div>
+
+        <div class="topbar-right">
+            <button class="cta-btn" id="pushBtn" title="推送給學生">
+                <svg class="icon"><use href="#icon-send"/></svg>
+                <span>推送給學生</span>
+            </button>
+            <div class="topbar-divider"></div>
+            <div class="dropdown-wrapper" id="dropdownWrapper">
+                <button class="topbar-btn" id="moreBtn" title="更多操作">
+                    <svg class="icon"><use href="#icon-more"/></svg>
                 </button>
-
-                <div class="separator"></div>
-
-                <button class="tool-btn" id="penBtn" title="畫筆">
-                    <span>🖊</span> 畫筆
-                </button>
-                <button class="tool-btn" id="highlighterBtn" title="螢光筆">
-                    <span>🖍</span> 螢光筆
-                </button>
-                <button class="tool-btn" id="eraserBtn" title="橡皮擦">
-                    <span>🧹</span> 橡皮擦
-                </button>
-                <button class="tool-btn" id="textBtn" title="文字">
-                    <span>📝</span> 文字
-                </button>
-                <button class="tool-btn" id="clearBtn" title="清除">
-                    <span>✕</span> 清除
-                </button>
-
-                <div class="separator"></div>
-
-                <div class="color-picker-group">
-                    <div class="color-swatch active" data-color="#000000" style="background: #000000;"></div>
-                    <div class="color-swatch" data-color="#ff3b30" style="background: #ff3b30;"></div>
-                    <div class="color-swatch" data-color="#0071e3" style="background: #0071e3;"></div>
-                    <div class="color-swatch" data-color="#34c759" style="background: #34c759;"></div>
-                    <div class="color-swatch" data-color="#ff9500" style="background: #ff9500;"></div>
-                    <div class="color-swatch" data-color="#a855f7" style="background: #a855f7;"></div>
-                </div>
-
-                <div class="separator"></div>
-
-                <div class="slider-group">
-                    <label>筆寬:</label>
-                    <input type="range" id="lineWidthSlider" min="1" max="10" value="2">
-                </div>
-            </div>
-
-            <div class="toolbar-center">
-                <button class="tool-btn" id="undoBtn" title="撤銷">↶ 撤銷</button>
-                <button class="tool-btn" id="redoBtn" title="重做">↷ 重做</button>
-            </div>
-
-            <div class="toolbar-right">
-                <button class="push-btn" id="pushBtn" title="推送給學生">📤 推送給學生</button>
-
-                <div class="separator"></div>
-
-                <div class="page-nav">
-                    <button class="tool-btn" id="prevBtn" title="上一頁">◄ 上一頁</button>
-                    <div class="page-display">
-                        <span id="currentPage">-</span> / <span id="totalPages">-</span>
-                    </div>
-                    <button class="tool-btn" id="nextBtn" title="下一頁">下一頁 ►</button>
+                <div class="dropdown-menu" id="moreMenu">
+                    <button class="dropdown-item" id="pauseBtn" style="display:none;">
+                        <svg class="icon"><use href="#icon-pause"/></svg> 暫停課堂
+                    </button>
+                    <button class="dropdown-item" id="resumeBtn" style="display:none;">
+                        <svg class="icon"><use href="#icon-play"/></svg> 繼續課堂
+                    </button>
+                    <button class="dropdown-item" id="endLessonItem" onclick="endLesson()" style="display:none;">
+                        <svg class="icon"><use href="#icon-square"/></svg> 結束課案
+                    </button>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item danger" id="endClassBtn">
+                        <svg class="icon"><use href="#icon-square"/></svg> 結束課堂
+                    </button>
                 </div>
             </div>
         </div>
+    </header>
 
-        <!-- MAIN CONTENT -->
-        <div class="main-content">
-            <!-- LEFT SIDEBAR -->
-            <div class="left-sidebar">
-                <div class="upload-section">
-                    <button class="upload-btn" id="uploadBtn">📤 上傳課件</button>
-                    <input type="file" id="pptFile" accept=".pptx">
-                </div>
-                <div class="thumbnails-container" id="thumbnailsContainer"></div>
+    <!-- ===== MAIN AREA ===== -->
+    <div class="main">
+
+        <!-- LEFT RAIL -->
+        <aside class="left-rail">
+            <div class="upload-section">
+                <button class="upload-btn" id="uploadBtn">
+                    <svg class="icon"><use href="#icon-upload"/></svg>
+                    <span>上傳課件</span>
+                </button>
+                <input type="file" id="pptFile" accept=".pptx" style="display:none;">
+            </div>
+            <div class="slide-rail" id="thumbnailsContainer"></div>
+        </aside>
+
+        <!-- STAGE -->
+        <main class="stage">
+            <!-- Canvas area -->
+            <div class="canvas-wrapper" id="canvasArea" style="display: none;">
+                <img id="pptImage" class="ppt-image">
+                <canvas id="fabricCanvas"></canvas>
+            </div>
+            <!-- Placeholder -->
+            <div class="canvas-placeholder" id="canvasPlaceholder">
+                載入課案中...
             </div>
 
-            <!-- CENTER CANVAS -->
-            <div class="center-canvas">
-                <div class="canvas-wrapper" id="canvasArea" style="display: none;">
-                    <img id="pptImage" class="ppt-image">
-                    <canvas id="fabricCanvas"></canvas>
+            <!-- FLOATING ANNOTATION BAR -->
+            <div class="annotation-bar" id="annotationBar">
+                <!-- Tools group: icon + label -->
+                <div class="anno-group">
+                    <button class="tool-btn" id="penBtn" title="畫筆">
+                        <svg class="icon"><use href="#icon-pen"/></svg>
+                        <span class="anno-label">畫筆</span>
+                    </button>
+                    <button class="tool-btn" id="highlighterBtn" title="螢光筆">
+                        <svg class="icon"><use href="#icon-highlighter"/></svg>
+                        <span class="anno-label">螢光</span>
+                    </button>
+                    <button class="tool-btn" id="eraserBtn" title="橡皮擦">
+                        <svg class="icon"><use href="#icon-eraser"/></svg>
+                        <span class="anno-label">橡皮</span>
+                    </button>
+                    <button class="tool-btn" id="textBtn" title="文字">
+                        <svg class="icon"><use href="#icon-type"/></svg>
+                        <span class="anno-label">文字</span>
+                    </button>
                 </div>
-                <div class="canvas-placeholder" id="canvasPlaceholder">
-                    載入課案中...
+                <div class="anno-sep"></div>
+                <!-- Style group: icon-only -->
+                <div class="anno-group">
+                    <div class="color-picker-group">
+                        <div class="color-swatch active" data-color="#000000" style="background:#000000;" title="黑色"></div>
+                        <div class="color-swatch" data-color="#ff3b30" style="background:#ff3b30;" title="紅色"></div>
+                        <div class="color-swatch" data-color="#0071e3" style="background:#0071e3;" title="藍色"></div>
+                        <div class="color-swatch" data-color="#34c759" style="background:#34c759;" title="綠色"></div>
+                        <div class="color-swatch" data-color="#ff9500" style="background:#ff9500;" title="橙色"></div>
+                        <div class="color-swatch" data-color="#a855f7" style="background:#a855f7;" title="紫色"></div>
+                    </div>
+                    <div class="width-control">
+                        <input type="range" id="lineWidthSlider" min="1" max="10" value="2" title="筆寬">
+                    </div>
+                </div>
+                <div class="anno-sep"></div>
+                <!-- Edit group: icon-only -->
+                <div class="anno-group">
+                    <button class="anno-action-btn" id="undoBtn" title="撤銷">
+                        <svg class="icon"><use href="#icon-undo"/></svg>
+                    </button>
+                    <button class="anno-action-btn" id="redoBtn" title="重做">
+                        <svg class="icon"><use href="#icon-redo"/></svg>
+                    </button>
+                    <button class="anno-action-btn" id="clearBtn" title="清除標註">
+                        <svg class="icon"><use href="#icon-trash"/></svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- RIGHT PANEL -->
+        <aside class="right-panel">
+            <!-- A. Status Summary -->
+            <div class="panel-section panel-status">
+                <div class="status-line">
+                    <span class="status-dim">課室</span>
+                    <span class="status-val" id="roomId">-</span>
+                </div>
+                <div class="status-line">
+                    <span class="status-dim">講師</span>
+                    <span class="status-val" id="teacherName">-</span>
+                </div>
+                <div class="status-line">
+                    <span class="status-dim">在線</span>
+                    <span class="online-dot"></span>
+                    <span class="status-val"><span id="studentCount">0</span> 人</span>
                 </div>
             </div>
 
-            <!-- RIGHT SIDEBAR -->
-            <div class="right-sidebar">
-                <!-- Room Info -->
-                <div class="sidebar-section">
-                    <div class="sidebar-section-title">課室資訊</div>
-                    <div class="room-info">
-                        <div class="room-info-item">
-                            <span>課室號:</span>
-                            <span id="roomId">-</span>
-                        </div>
-                        <div class="room-info-item">
-                            <span>講師:</span>
-                            <span id="teacherName">-</span>
-                        </div>
-                        <div class="room-info-item">
-                            <span>狀態:</span>
-                            <span class="room-status draft" id="roomStatus">草稿</span>
-                        </div>
-                        <div class="room-info-item">
-                            <span>學生人數:</span>
-                            <span id="studentCount">0</span>
-                        </div>
-                    </div>
+            <!-- B. Slide Operations -->
+            <div class="panel-section panel-actions">
+                <div class="panel-section-title">操作</div>
+                <div class="slide-status-text" id="slideStatusText">課堂尚未開始</div>
+                <div class="lesson-info-text" id="lessonInfo"></div>
+
+                <!-- Draft: Start class CTA -->
+                <button class="ctrl-btn primary full-width" id="startClassBtn">
+                    <svg class="icon"><use href="#icon-play"/></svg> 開始上課
+                </button>
+
+                <!-- No active lesson: Select lesson -->
+                <div id="lessonStartBar">
+                    <button class="ctrl-btn outline full-width" id="startLessonBtn" onclick="promptStartLesson()">
+                        <svg class="icon"><use href="#icon-list"/></svg> 選擇課案
+                    </button>
                 </div>
 
-                <!-- Room Controls -->
-                <div class="sidebar-section">
-                    <div class="sidebar-section-title">課室控制</div>
-                    <div class="room-controls">
-                        <button class="control-btn primary" id="startClassBtn">🟢 開始上課</button>
-                        <button class="control-btn" id="pauseBtn" style="display: none;">⏸ 暫停</button>
-                        <button class="control-btn" id="resumeBtn" style="display: none;">▶ 繼續</button>
-                        <button class="control-btn" id="endClassBtn">🔴 結束</button>
-                    </div>
-                </div>
-
-                <!-- Lesson Plan Controls -->
-                <div class="sidebar-section">
-                    <div class="sidebar-section-title">課案控制</div>
-                    <div id="lessonControlBar" style="display:none;" class="lesson-controls">
-                        <div id="lessonInfo" style="font-size:12px;color:#6E6E73;margin-bottom:8px;"></div>
-                        <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                            <button class="control-btn" onclick="lessonNavigate('prev')" title="上一張">◄ 上一張</button>
-                            <button class="control-btn" onclick="lessonNavigate('next')" title="下一張">下一張 ►</button>
-                            <button class="control-btn primary" id="lessonActivateBtn" onclick="lessonSlideAction('activate')" title="激活推送">推送</button>
-                            <button class="control-btn" onclick="lessonSlideAction('open_responses')" title="開放回應">開放回應</button>
-                            <button class="control-btn" onclick="lessonSlideAction('close_responses')" title="關閉回應">關閉回應</button>
-                            <button class="control-btn" onclick="lessonSlideAction('complete')" title="完成">完成</button>
-                            <button class="control-btn" onclick="endLesson()" style="color:#FF3B30;">結束課案</button>
-                        </div>
-                    </div>
-                    <div id="lessonStartBar" class="lesson-controls">
-                        <button class="control-btn primary" id="startLessonBtn" onclick="promptStartLesson()">選擇課案</button>
-                    </div>
-                </div>
-
-                <!-- Student List -->
-                <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column;">
-                    <div class="sidebar-section-title">在線學生</div>
-                    <div class="students-container" id="studentsList">
-                        <div style="color: #999; font-size: 12px; text-align: center; padding: 20px;">
-                            暫無學生連接
-                        </div>
-                    </div>
+                <!-- Active lesson: Slide control buttons -->
+                <div id="lessonControlBar" style="display:none;" class="lesson-action-group">
+                    <button class="ctrl-btn primary full-width" id="lessonActivateBtn" onclick="lessonSlideAction('activate')">推送</button>
+                    <button class="ctrl-btn outline full-width" onclick="lessonSlideAction('open_responses')">開放回應</button>
+                    <button class="ctrl-btn outline full-width" onclick="lessonSlideAction('close_responses')">關閉回應</button>
+                    <button class="ctrl-btn outline full-width" onclick="lessonSlideAction('complete')">完成</button>
                 </div>
             </div>
+
+            <!-- D. Online Students -->
+            <div class="panel-section panel-students">
+                <div class="panel-section-title">在線學生</div>
+                <div class="students-container" id="studentsList">
+                    <div class="empty-state">尚無學生連線</div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+</div>
+
+<!-- ===== Confirm Modal ===== -->
+<div class="modal" id="confirmModal">
+    <div class="modal-content">
+        <div class="modal-title" id="confirmTitle">確認操作</div>
+        <div class="modal-body" id="confirmBody">確認執行此操作嗎？</div>
+        <div class="modal-buttons">
+            <button class="modal-btn" id="confirmCancel">取消</button>
+            <button class="modal-btn primary" id="confirmOk">確認</button>
         </div>
     </div>
+</div>
 
-    <!-- Confirm Modal -->
-    <div class="modal" id="confirmModal">
-        <div class="modal-content">
-            <div class="modal-title" id="confirmTitle">確認操作</div>
-            <div class="modal-body" id="confirmBody">確認執行此操作嗎？</div>
-            <div class="modal-buttons">
-                <button class="modal-btn" id="confirmCancel">取消</button>
-                <button class="modal-btn primary" id="confirmOk">確認</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="/static/js/shared/utils.js"></script>
-    <script src="/static/js/shared/auth.js"></script>
-    <script src="/static/js/shared/ui.js"></script>
-    <script src="/static/js/shared/api.js"></script>
-    <script src="/static/js/shared/annotation_utils.js"></script>
-    <script src="/static/js/classroom_teacher.js"></script>
+<script src="/static/js/shared/utils.js"></script>
+<script src="/static/js/shared/auth.js"></script>
+<script src="/static/js/shared/ui.js"></script>
+<script src="/static/js/shared/api.js"></script>
+<script src="/static/js/shared/annotation_utils.js"></script>
+<script src="/static/js/classroom_teacher.js"></script>
 </body>
 </html>

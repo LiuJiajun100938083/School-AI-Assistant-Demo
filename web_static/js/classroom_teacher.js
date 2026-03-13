@@ -44,6 +44,17 @@ const state = {
     lessonPlanId: null,
 };
 
+// ==================== SVG ICON HELPER ====================
+function svgIcon(name, size = 16) {
+    return `<svg class="icon" width="${size}" height="${size}"><use href="#icon-${name}"/></svg>`;
+}
+
+// Slide type → icon name mapping (replaces emoji)
+const SLIDE_TYPE_ICONS = {
+    ppt: 'doc', game: 'gamepad', quiz: 'help-circle',
+    quick_answer: 'zap', raise_hand: 'hand', poll: 'bar-chart',
+};
+
 // ==================== INITIALIZATION ====================
 async function initialize() {
     if (!AuthModule.isAuthenticated()) {
@@ -81,6 +92,9 @@ function setupDOM() {
     if (userInfo.name) {
         document.getElementById('teacherName').textContent = userInfo.name;
     }
+    // Set initial slide status text
+    const statusText = document.getElementById('slideStatusText');
+    if (statusText) statusText.textContent = '課堂尚未開始';
 }
 
 function initializeCanvas() {
@@ -105,6 +119,21 @@ function initializeCanvas() {
     state.canvas.on('object:removed', () => {
         if (!state.isTextMode) {
             addHistorySnapshot();
+        }
+    });
+
+    // Eraser: set globalCompositeOperation on created paths
+    state.canvas.on('path:created', (e) => {
+        if (state.currentTool === 'eraser' && e.path) {
+            e.path.globalCompositeOperation = 'destination-out';
+            e.path.stroke = 'rgba(0,0,0,1)';
+            e.path.selectable = false;
+            e.path.evented = false;
+            // Overwrite last history snapshot with corrected path state
+            if (state.canvasHistory.length > 0) {
+                state.canvasHistory[state.historyIndex] = JSON.stringify(state.canvas.toJSON());
+            }
+            state.canvas.renderAll();
         }
     });
 
@@ -167,6 +196,23 @@ function setupEventListeners() {
     // Confirm modal
     document.getElementById('confirmCancel').addEventListener('click', closeConfirmModal);
     document.getElementById('confirmOk').addEventListener('click', executeConfirmAction);
+
+    // Dropdown toggle
+    const moreBtn = document.getElementById('moreBtn');
+    if (moreBtn) {
+        moreBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMoreMenu();
+        });
+    }
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+        const wrapper = document.getElementById('dropdownWrapper');
+        const menu = document.getElementById('moreMenu');
+        if (menu && wrapper && !wrapper.contains(e.target)) {
+            menu.classList.remove('open');
+        }
+    });
 }
 
 // ==================== TOOL SELECTION ====================
@@ -211,10 +257,9 @@ function updateBrush() {
         brush.color = changeOpacity(state.currentColor, 0.3);
         brush.width = state.currentLineWidth * 3;
     } else if (state.currentTool === 'eraser') {
-        brush.globalCompositeOperation = 'destination-out';
-        brush.color = 'rgba(0,0,0,1)';
-    } else {
-        brush.globalCompositeOperation = 'source-over';
+        // Preview stroke: semi-transparent gray; actual erasing via path:created handler
+        brush.color = 'rgba(180,180,180,0.4)';
+        brush.width = Math.max(state.currentLineWidth * 3, 12);
     }
 }
 
@@ -349,14 +394,27 @@ function ensureDrawingReady() {
     // 強制重新計算 canvas 偏移量（滑鼠座標修正）
     state.canvas.calcOffset();
 
-    // 確保 upper-canvas 尺寸與 lower-canvas 一致
-    const upperCanvas = state.canvas.upperCanvasEl;
-    const lowerCanvas = state.canvas.lowerCanvasEl;
-    if (upperCanvas && lowerCanvas) {
-        upperCanvas.width = lowerCanvas.width;
-        upperCanvas.height = lowerCanvas.height;
-        upperCanvas.style.width = lowerCanvas.style.width;
-        upperCanvas.style.height = lowerCanvas.style.height;
+    // 確保 upper-canvas DPR 縮放與 lower-canvas 一致
+    // 注意：不可直接設置 upperCanvas.width/height，
+    // 那會重置 context 的 transform（包括 DPR scale）。
+    // Fabric.js 的 setWidth/setHeight 已經在 resizeCanvasToImage 中處理了尺寸，
+    // 這裡只需確保 DPR 縮放正確。
+    const dpr = fabric.devicePixelRatio || window.devicePixelRatio || 1;
+    const ctxTop = state.canvas.contextTop;
+    if (ctxTop && dpr !== 1) {
+        const currentTransform = ctxTop.getTransform();
+        // 如果 DPR 縮放遺失（scale 被重置為 1），重新套用
+        if (Math.abs(currentTransform.a - dpr) > 0.01) {
+            const upper = state.canvas.upperCanvasEl;
+            const lower = state.canvas.lowerCanvasEl;
+            if (upper && lower) {
+                upper.width = lower.width;
+                upper.height = lower.height;
+                upper.style.width = lower.style.width;
+                upper.style.height = lower.style.height;
+                ctxTop.scale(dpr, dpr);
+            }
+        }
     }
 
     // 重新設置當前工具的 brush
@@ -366,15 +424,6 @@ function ensureDrawingReady() {
     }
 
     state.canvas.renderAll();
-
-    console.log('[Canvas] ensureDrawingReady:', {
-        canvasW: state.canvas.width,
-        canvasH: state.canvas.height,
-        upperW: upperCanvas?.width,
-        upperH: upperCanvas?.height,
-        isDrawingMode: state.canvas.isDrawingMode,
-        hasBrush: !!state.canvas.freeDrawingBrush,
-    });
 }
 
 function resizeCanvasToImage() {
@@ -530,13 +579,13 @@ async function loadPPTFiles() {
                 updatePageNavigation();
             } else if (firstFile.process_status === 'pending' || firstFile.process_status === 'processing') {
                 // 正在處理，輪詢等待
-                document.getElementById('canvasPlaceholder').innerHTML =
-                    '⏳ 課件正在處理中，請稍候...';
+                document.getElementById('canvasPlaceholder').textContent =
+                    '課件正在處理中，請稍候...';
                 UIModule.toast('課件正在處理中，請稍候...', 'info');
                 pptPollTimer = setTimeout(loadPPTFiles, 3000);
             } else if (firstFile.process_status === 'failed') {
-                document.getElementById('canvasPlaceholder').innerHTML =
-                    '❌ 課件處理失敗，請重新上傳';
+                document.getElementById('canvasPlaceholder').textContent =
+                    '課件處理失敗，請重新上傳';
                 UIModule.toast('課件處理失敗，請重新上傳', 'error');
             }
         }
@@ -730,23 +779,32 @@ function updateRoomStatusUI() {
     statusEl.textContent = getStatusLabel(state.roomStatus);
     statusEl.className = `room-status ${state.roomStatus}`;
 
+    // Right panel: startClassBtn visibility
     const startBtn = document.getElementById('startClassBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const resumeBtn = document.getElementById('resumeBtn');
-
-    startBtn.style.display = 'none';
-    pauseBtn.style.display = 'none';
-    resumeBtn.style.display = 'none';
-
-    if (state.roomStatus === 'draft') {
-        startBtn.style.display = 'block';
-    } else if (state.roomStatus === 'active') {
-        pauseBtn.style.display = 'block';
-    } else if (state.roomStatus === 'paused') {
-        resumeBtn.style.display = 'block';
+    if (startBtn) {
+        startBtn.style.display = state.roomStatus === 'draft' ? '' : 'none';
     }
 
+    // Dropdown items: pauseBtn / resumeBtn visibility
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    if (pauseBtn) pauseBtn.style.display = state.roomStatus === 'active' ? '' : 'none';
+    if (resumeBtn) resumeBtn.style.display = state.roomStatus === 'paused' ? '' : 'none';
+
+    // Push button state
     document.getElementById('pushBtn').disabled = state.roomStatus !== 'active';
+
+    // Update slide status text
+    const statusText = document.getElementById('slideStatusText');
+    if (statusText) {
+        if (state.roomStatus === 'draft') statusText.textContent = '課堂尚未開始';
+        else if (state.roomStatus === 'paused') statusText.textContent = '課堂已暫停';
+        else if (state.roomStatus === 'ended') statusText.textContent = '課堂已結束';
+        else if (!state.lessonMode) statusText.textContent = '請選擇課案';
+    }
+
+    // Cascade: update lesson UI button states (disabled when not active)
+    if (state.lessonMode) updateLessonUI();
 }
 
 function getStatusLabel(status) {
@@ -941,6 +999,10 @@ async function enterLessonMode(planId) {
             const uploadSection = document.querySelector('.upload-section');
             if (uploadSection) uploadSection.style.display = 'none';
 
+            // Update top bar title with plan title
+            const topTitle = document.getElementById('topbarTitle');
+            if (topTitle && plan.title) topTitle.textContent = plan.title;
+
             // Show lesson plan header in sidebar
             renderLessonTimeline(plan.title);
 
@@ -972,14 +1034,9 @@ function renderLessonTimeline(planTitle) {
     if (planTitle) {
         const header = document.createElement('div');
         header.className = 'lesson-timeline-header';
-        header.innerHTML = `<span class="lesson-timeline-icon">📋</span> ${planTitle}`;
+        header.innerHTML = `${svgIcon('list', 14)} ${planTitle}`;
         container.appendChild(header);
     }
-
-    const typeIcons = {
-        ppt: '📄', game: '🎮', quiz: '❓',
-        quick_answer: '⚡', raise_hand: '✋', poll: '📊'
-    };
 
     state.lessonSlides.forEach((slide, i) => {
         const el = document.createElement('div');
@@ -989,7 +1046,7 @@ function renderLessonTimeline(planTitle) {
         const isActive = state.lessonSlide && state.lessonSlide.slide_id === slide.slide_id;
         if (isActive) el.classList.add('active');
 
-        const icon = typeIcons[slide.slide_type] || '📄';
+        const iconName = SLIDE_TYPE_ICONS[slide.slide_type] || 'doc';
         const cfg = typeof slide.config === 'string' ? JSON.parse(slide.config) : (slide.config || {});
 
         if (slide.slide_type === 'ppt' && cfg.file_id) {
@@ -997,7 +1054,7 @@ function renderLessonTimeline(planTitle) {
             el.innerHTML = `
                 <div class="slide-thumb-header">
                     <span class="slide-thumb-number">${i + 1}</span>
-                    <span class="slide-thumb-type">${icon} PPT</span>
+                    <span class="slide-thumb-type">${svgIcon(iconName, 10)} PPT</span>
                 </div>
                 <img src="${imgUrl}" class="slide-thumb-img" onerror="this.style.display='none'" />
             `;
@@ -1006,10 +1063,10 @@ function renderLessonTimeline(planTitle) {
             el.innerHTML = `
                 <div class="slide-thumb-header">
                     <span class="slide-thumb-number">${i + 1}</span>
-                    <span class="slide-thumb-type">${icon} ${slide.slide_type}</span>
+                    <span class="slide-thumb-type">${svgIcon(iconName, 10)} ${slide.slide_type}</span>
                 </div>
                 <div class="slide-thumb-content">
-                    <div class="slide-thumb-icon-large">${icon}</div>
+                    <div class="slide-thumb-icon-large">${svgIcon(iconName, 24)}</div>
                     <div class="slide-thumb-label">${label}</div>
                 </div>
             `;
@@ -1204,16 +1261,63 @@ function updateLessonUI() {
         if (slide && slide.slide_type === 'ppt') {
             pushBtn.style.display = '';
             pushBtn.innerHTML = lifecycle === 'prepared'
-                ? '📤 推送給學生'
-                : '📤 推送標註';
+                ? `${svgIcon('send', 14)} <span>推送給學生</span>`
+                : `${svgIcon('send', 14)} <span>推送標註</span>`;
         } else {
             // Non-PPT: hide push button (lifecycle controls handle it)
             pushBtn.style.display = lifecycle === 'prepared' ? '' : 'none';
-            pushBtn.innerHTML = '📤 推送給學生';
+            pushBtn.innerHTML = `${svgIcon('send', 14)} <span>推送給學生</span>`;
         }
     }
     if (activateBtn) {
         activateBtn.style.display = lifecycle === 'prepared' ? '' : 'none';
+        activateBtn.disabled = state.roomStatus !== 'active';
+    }
+
+    // Disable all lifecycle buttons when room is not active
+    const roomActive = state.roomStatus === 'active';
+    document.querySelectorAll('#lessonControlBar .ctrl-btn').forEach(btn => {
+        if (btn.id !== 'lessonActivateBtn') { // activateBtn handled above
+            btn.disabled = !roomActive;
+        }
+    });
+
+    // Update slide status text in right panel
+    const statusText = document.getElementById('slideStatusText');
+    if (statusText) {
+        if (state.roomStatus === 'draft') {
+            statusText.textContent = '課堂尚未開始';
+        } else if (state.roomStatus === 'paused') {
+            statusText.textContent = '課堂已暫停';
+        } else if (state.roomStatus === 'ended') {
+            statusText.textContent = '課堂已結束';
+        } else if (slide) {
+            const statusLabels = {
+                prepared: '尚未推送',
+                activated: '已展示給學生',
+                responding: '正在收集回應',
+                closed: '已關閉回應',
+                results_shown: '已顯示結果',
+                completed: '已完成',
+            };
+            statusText.textContent = statusLabels[lifecycle] || lifecycle;
+        }
+    }
+
+    // Update end lesson item in dropdown
+    const endLessonItem = document.getElementById('endLessonItem');
+    if (endLessonItem) {
+        endLessonItem.style.display = state.lessonMode ? '' : 'none';
+    }
+
+    // Update slide type pill in top bar
+    const pill = document.getElementById('slideTypePill');
+    if (pill && slide) {
+        const typeLabels = { ppt: 'PPT', game: 'Game', quiz: 'Quiz', poll: 'Poll', quick_answer: 'Q&A', raise_hand: 'Raise' };
+        pill.textContent = typeLabels[slide.slide_type] || slide.slide_type;
+        pill.classList.add('visible');
+    } else if (pill) {
+        pill.classList.remove('visible');
     }
 
     // Update timeline active state
@@ -1271,14 +1375,14 @@ function renderLessonGameSlide(slide, cfg, lifecycle) {
     placeholder.style.justifyContent = 'center';
     placeholder.style.flexDirection = 'column';
     const lifecycleLabels = {
-        prepared: '點擊「Activate」推送給學生',
+        prepared: '點擊「推送」推送給學生',
         activated: '遊戲進行中...',
         responding: '等待學生完成...',
         completed: '已完成',
     };
     placeholder.innerHTML = `
         <div style="text-align:center;">
-            <div style="font-size:64px;margin-bottom:16px;">🎮</div>
+            <div style="margin-bottom:16px;color:var(--text-tertiary);">${svgIcon('gamepad', 48)}</div>
             <h3 style="font-size:18px;font-weight:600;margin-bottom:8px;">${cfg.game_name || slide.title || 'Game'}</h3>
             <p style="color:var(--text-secondary);font-size:14px;">${lifecycleLabels[lifecycle] || lifecycle}</p>
         </div>
@@ -1292,9 +1396,7 @@ function renderLessonGenericSlide(slide, cfg, lifecycle) {
     const typeLabels = {
         quiz: '測驗', poll: '投票', quick_answer: '搶答', raise_hand: '舉手',
     };
-    const typeIcons = {
-        quiz: '❓', poll: '📊', quick_answer: '⚡', raise_hand: '✋',
-    };
+    const iconName = SLIDE_TYPE_ICONS[slide.slide_type] || 'doc';
     document.getElementById('canvasArea').style.display = 'none';
     const placeholder = document.getElementById('canvasPlaceholder');
     placeholder.style.display = 'flex';
@@ -1303,7 +1405,7 @@ function renderLessonGenericSlide(slide, cfg, lifecycle) {
     placeholder.style.flexDirection = 'column';
     placeholder.innerHTML = `
         <div style="text-align:center;">
-            <div style="font-size:64px;margin-bottom:16px;">${typeIcons[slide.slide_type] || '📄'}</div>
+            <div style="margin-bottom:16px;color:var(--text-tertiary);">${svgIcon(iconName, 48)}</div>
             <h3 style="font-size:18px;font-weight:600;margin-bottom:8px;">
                 ${slide.title || typeLabels[slide.slide_type] || slide.slide_type}
             </h3>
@@ -1395,11 +1497,7 @@ function renderStudents() {
     document.getElementById('studentCount').textContent = count;
 
     if (count === 0) {
-        container.innerHTML = `
-            <div style="color: #999; font-size: 12px; text-align: center; padding: 20px;">
-                暫無學生連接
-            </div>
-        `;
+        container.innerHTML = '<div class="empty-state">尚無學生連線</div>';
         return;
     }
 
@@ -1435,6 +1533,9 @@ async function loadRoomInfo() {
             // 更新課室資訊顯示
             if (room.title) {
                 document.getElementById('roomId').textContent = room.title;
+                // Also update top bar title
+                const topTitle = document.getElementById('topbarTitle');
+                if (topTitle) topTitle.textContent = room.title;
             }
             if (room.teacher_display_name) {
                 document.getElementById('teacherName').textContent = room.teacher_display_name;
@@ -1498,6 +1599,12 @@ function executeConfirmAction() {
         window.confirmAction();
     }
     closeConfirmModal();
+}
+
+// ==================== DROPDOWN MENU ====================
+function toggleMoreMenu() {
+    const menu = document.getElementById('moreMenu');
+    if (menu) menu.classList.toggle('open');
 }
 
 // ==================== WINDOW EVENTS ====================
