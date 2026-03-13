@@ -737,13 +737,11 @@ const ClassroomStudentApp = {
         this.state.currentLessonSlide = slideData;
 
         if (type === 'ppt') {
-            // Render PPT using existing page push mechanism
-            this._handlePagePushed({
-                page_id: slideData.page_id || slideData.file_id,
-                page_number: slideData.page_number,
-                annotations_json: slideData.annotations_json || '',
-                text_content: '',
-            });
+            // Use static image path (lesson PPT files may not be room-bound)
+            const fileId = slideData.file_id || slideData.page_id;
+            const pageNum = slideData.page_number || 1;
+            const imgUrl = `/uploads/ppt/${fileId}/page_${pageNum}.png`;
+            this._renderLessonPPTDirect(imgUrl, slideData.annotations_json, pageNum);
         } else if (type === 'game') {
             // Render game in iframe
             this._renderGameSlide(slideData);
@@ -755,6 +753,27 @@ const ClassroomStudentApp = {
                     <p>Slide type: ${type}</p>
                 </div>`
             );
+        }
+    },
+
+    async _renderLessonPPTDirect(imgUrl, annotationsJson, pageNumber) {
+        try {
+            ClassroomStudentUI.showLoadingSpinner();
+
+            // displayPageImage accepts any URL (blob or static)
+            await ClassroomStudentUI.displayPageImage(imgUrl, this.state.fabricCanvas);
+
+            if (annotationsJson) {
+                await ClassroomStudentUI.renderAnnotations(annotationsJson, this.state.fabricCanvas);
+            } else {
+                ClassroomStudentUI.clearAnnotations(this.state.fabricCanvas);
+            }
+
+            ClassroomStudentUI.updatePageNumber(pageNumber);
+            UIModule.toast(`已接收到第 ${pageNumber} 頁`, 'success');
+        } catch (error) {
+            console.error('Error rendering lesson PPT:', error);
+            UIModule.toast('加載頁面失敗: ' + error.message, 'error');
         }
     },
 
