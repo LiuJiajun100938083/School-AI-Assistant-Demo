@@ -67,6 +67,17 @@ from app.domains.classroom.schemas import (
     UpdateRoomInfoRequest,
     UpdateRoomStatusRequest,
 )
+from app.domains.classroom.lesson_schemas import (
+    AddSlideRequest,
+    CreatePlanRequest,
+    NavigateRequest,
+    ReorderSlidesRequest,
+    SlideActionRequest,
+    StartSessionRequest,
+    SubmitResponseRequest,
+    UpdatePlanRequest,
+    UpdateSlideRequest,
+)
 from app.services import get_services
 from app.services.ws_manager import get_classroom_ws_manager
 
@@ -910,6 +921,523 @@ async def classroom_ai_stream(
 
 
 # ====================================================================== #
+#  课案计划 CRUD (教师)                                                      #
+# ====================================================================== #
+
+@router.post("/api/classroom/lesson-plans")
+async def create_lesson_plan(
+    body: CreatePlanRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """创建课案模板"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        plan = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.create_plan(
+                teacher_username=username,
+                title=body.title,
+                description=body.description,
+            ),
+        )
+        return success_response(plan, "课案创建成功")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.get("/api/classroom/lesson-plans")
+async def list_lesson_plans(
+    status: str = Query(default=None),
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """列出教师的课案"""
+    username, role = user_info
+    loop = asyncio.get_event_loop()
+    plans = await loop.run_in_executor(
+        None,
+        lambda: get_services().lesson.list_plans(username, status=status),
+    )
+    return success_response(plans)
+
+
+@router.get("/api/classroom/lesson-plans/{plan_id}")
+async def get_lesson_plan(
+    plan_id: str,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """获取课案详情 (含 slides)"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        plan = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_plan_with_slides(plan_id, username),
+        )
+        return success_response(plan)
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.put("/api/classroom/lesson-plans/{plan_id}")
+async def update_lesson_plan(
+    plan_id: str,
+    body: UpdatePlanRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """更新课案元信息"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        plan = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.update_plan(
+                plan_id, username, body.model_dump(exclude_none=True),
+            ),
+        )
+        return success_response(plan, "课案更新成功")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.delete("/api/classroom/lesson-plans/{plan_id}")
+async def delete_lesson_plan(
+    plan_id: str,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """软删除课案"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.delete_plan(plan_id, username),
+        )
+        return success_response(None, "课案已删除")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+# ====================================================================== #
+#  幻灯片管理 (教师)                                                        #
+# ====================================================================== #
+
+@router.post("/api/classroom/lesson-plans/{plan_id}/slides")
+async def add_slide(
+    plan_id: str,
+    body: AddSlideRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """添加幻灯片"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        slide = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.add_slide(
+                plan_id=plan_id,
+                teacher_username=username,
+                slide_type=body.slide_type,
+                config=body.config,
+                title=body.title,
+                duration_seconds=body.duration_seconds,
+                insert_at=body.insert_at,
+            ),
+        )
+        return success_response(slide, "幻灯片已添加")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.put("/api/classroom/lesson-plans/{plan_id}/slides/{slide_id}")
+async def update_slide(
+    plan_id: str,
+    slide_id: str,
+    body: UpdateSlideRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """更新幻灯片"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        slide = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.update_slide(
+                plan_id, slide_id, username,
+                body.model_dump(exclude_none=True),
+            ),
+        )
+        return success_response(slide, "幻灯片已更新")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.delete("/api/classroom/lesson-plans/{plan_id}/slides/{slide_id}")
+async def delete_slide(
+    plan_id: str,
+    slide_id: str,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """删除幻灯片"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.delete_slide(plan_id, slide_id, username),
+        )
+        return success_response(None, "幻灯片已删除")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.put("/api/classroom/lesson-plans/{plan_id}/slides/reorder")
+async def reorder_slides(
+    plan_id: str,
+    body: ReorderSlidesRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """重排幻灯片顺序"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        count = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.reorder_slides(
+                plan_id, username, body.slide_ids,
+            ),
+        )
+        return success_response({"updated": count}, "排序已更新")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.post("/api/classroom/lesson-plans/{plan_id}/import-ppt")
+async def import_ppt_to_plan(
+    plan_id: str,
+    file_id: str = Query(..., description="PPT file_id"),
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """从已上传的 PPT 文件批量创建 ppt slides"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        # get PPT pages from existing service
+        ppt_info = await loop.run_in_executor(
+            None,
+            lambda: get_services().classroom.get_ppt_info(
+                file_id, username, role,
+            ),
+        )
+        pages = [
+            {"page_id": p.get("page_id", ""), "page_number": p["page_number"]}
+            for p in ppt_info.get("pages", [])
+        ]
+        slides = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.import_ppt_slides(
+                plan_id, username, file_id, pages,
+            ),
+        )
+        return success_response(slides, f"已导入 {len(slides)} 张 PPT 页面")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+# ====================================================================== #
+#  课案 Session 控制 (教师)                                                  #
+# ====================================================================== #
+
+@router.post("/api/classroom/rooms/{room_id}/lesson/start")
+async def start_lesson_session(
+    room_id: str,
+    body: StartSessionRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """在房间中启动课案 session"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.start_session(
+                room_id, body.plan_id, username,
+            ),
+        )
+        # broadcast to room
+        ws_manager = get_classroom_ws_manager()
+        await ws_manager.broadcast_to_room(room_id, {
+            "type": "lesson_session_started",
+            "session_id": result["session_id"],
+            "plan_id": result["plan_id"],
+        })
+        return success_response(result, "课案已启动")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.post("/api/classroom/rooms/{room_id}/lesson/navigate")
+async def navigate_lesson(
+    room_id: str,
+    body: NavigateRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """导航到指定 slide"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        # get active session
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.navigate(
+                room_id, session_id, body.action,
+                slide_id=body.slide_id,
+                annotations_json=body.annotations_json,
+            ),
+        )
+
+        # build student payload and broadcast
+        slide = result["slide"]
+        student_payload = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.build_student_payload(
+                slide["slide_id"], session_id,
+            ),
+        )
+        ws_manager = get_classroom_ws_manager()
+        await ws_manager.broadcast_to_students(room_id, {
+            "type": "lesson_slide_pushed",
+            "room_id": room_id,
+            "session_id": session_id,
+            "data": student_payload,
+        })
+
+        return success_response({
+            "session": result["session"],
+            "slide": result["slide"],
+        })
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.post("/api/classroom/rooms/{room_id}/lesson/slide-action")
+async def lesson_slide_action(
+    room_id: str,
+    body: SlideActionRequest,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """执行 slide 生命周期动作"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.slide_action(
+                room_id, session_id, body.action,
+                annotations_json=body.annotations_json,
+            ),
+        )
+
+        # broadcast lifecycle change to all
+        ws_manager = get_classroom_ws_manager()
+        await ws_manager.broadcast_to_room(room_id, {
+            "type": "lesson_slide_lifecycle",
+            "room_id": room_id,
+            "session_id": session_id,
+            "data": {
+                "slide_id": result["slide"]["slide_id"],
+                "lifecycle": result["new_lifecycle"],
+                "accepting_responses": result["accepting_responses"],
+                "slide_ends_at": result["session"].get("slide_ends_at").isoformat()
+                if result["session"].get("slide_ends_at") else None,
+            },
+        })
+
+        return success_response({
+            "session": result["session"],
+            "new_lifecycle": result["new_lifecycle"],
+            "accepting_responses": result["accepting_responses"],
+            "auto_transition": result.get("auto_transition"),
+        })
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.get("/api/classroom/rooms/{room_id}/lesson/state")
+async def get_lesson_state(
+    room_id: str,
+    user_info: Tuple[str, str] = Depends(verify_token),
+):
+    """获取当前课案状态 (重连恢复用)"""
+    username, role = user_info
+    loop = asyncio.get_event_loop()
+    state = await loop.run_in_executor(
+        None,
+        lambda: get_services().lesson.get_session_state(room_id),
+    )
+    if not state:
+        return success_response(None, "当前没有活跃的课案")
+    return success_response(state)
+
+
+@router.post("/api/classroom/rooms/{room_id}/lesson/end")
+async def end_lesson_session(
+    room_id: str,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """结束课案 session"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+        await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.end_session(room_id, session_id),
+        )
+
+        ws_manager = get_classroom_ws_manager()
+        await ws_manager.broadcast_to_room(room_id, {
+            "type": "lesson_session_ended",
+            "room_id": room_id,
+            "session_id": session_id,
+        })
+        return success_response(None, "课案已结束")
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+# ====================================================================== #
+#  学生响应                                                                 #
+# ====================================================================== #
+
+@router.post("/api/classroom/rooms/{room_id}/lesson/slide/{slide_id}/respond")
+async def submit_response(
+    room_id: str,
+    slide_id: str,
+    body: SubmitResponseRequest,
+    user_info: Tuple[str, str] = Depends(verify_token),
+):
+    """学生提交响应"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.submit_response(
+                room_id, session_id, slide_id,
+                username, body.response_type, body.response_data,
+            ),
+        )
+
+        # notify teacher
+        ws_manager = get_classroom_ws_manager()
+        await ws_manager.broadcast_to_room(room_id, {
+            "type": "student_responded",
+            "room_id": room_id,
+            "session_id": session_id,
+            "data": {
+                "slide_id": slide_id,
+                "student_username": username,
+                "response_type": body.response_type,
+                "is_correct": result.get("is_correct"),
+                "total_responses": result["total_responses"],
+            },
+        }, exclude=username)
+
+        return success_response(result)
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.get("/api/classroom/rooms/{room_id}/lesson/slide/{slide_id}/results")
+async def get_slide_results(
+    room_id: str,
+    slide_id: str,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """获取 slide 聚合结果 (教师)"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+        results = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_slide_results(session_id, slide_id),
+        )
+        return success_response(results)
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+@router.get("/api/classroom/rooms/{room_id}/lesson/slide/{slide_id}/my-response")
+async def get_my_response(
+    room_id: str,
+    slide_id: str,
+    response_type: str = Query(...),
+    user_info: Tuple[str, str] = Depends(verify_token),
+):
+    """获取学生自己的响应"""
+    username, role = user_info
+    try:
+        loop = asyncio.get_event_loop()
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+        resp = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_my_response(
+                session_id, slide_id, username, response_type,
+            ),
+        )
+        return success_response(resp)
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
+# ====================================================================== #
 #  WebSocket 课堂实时通信                                                   #
 # ====================================================================== #
 
@@ -1140,8 +1668,96 @@ async def websocket_classroom(
                 except Exception as e:
                     logger.error("获取最新推送失败: %s", e)
 
-            # 后续阶段会在这里扩展更多消息类型
-            # elif msg_type == "raise_hand": ...
+            elif msg_type == "get_lesson_state":
+                # 学生重连时获取当前课案状态
+                try:
+                    state = await loop.run_in_executor(
+                        None,
+                        lambda: get_services().lesson.get_session_state(room_id),
+                    )
+                    if state and state.get("session"):
+                        sess = state["session"]
+                        slide_payload = None
+                        if state.get("slide"):
+                            slide_payload = await loop.run_in_executor(
+                                None,
+                                lambda: get_services().lesson.build_student_payload(
+                                    sess["current_slide_id"], sess["session_id"],
+                                ),
+                            )
+                        await websocket.send_json({
+                            "type": "lesson_state",
+                            "session_id": sess["session_id"],
+                            "status": sess["status"],
+                            "slide_lifecycle": sess.get("slide_lifecycle", "prepared"),
+                            "accepting_responses": sess.get("accepting_responses", False),
+                            "slide": slide_payload,
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "lesson_state",
+                            "session_id": None,
+                        })
+                except Exception as e:
+                    logger.error("获取课案状态失败: %s", e)
+
+            elif msg_type == "submit_response" and role == "student":
+                # 学生通过 WS 提交响应
+                try:
+                    state = await loop.run_in_executor(
+                        None,
+                        lambda: get_services().lesson.get_session_state(room_id),
+                    )
+                    if not state or not state.get("session"):
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "当前没有活跃的课案",
+                        })
+                        continue
+
+                    session_id = state["session"]["session_id"]
+                    result = await loop.run_in_executor(
+                        None,
+                        lambda: get_services().lesson.submit_response(
+                            room_id, session_id,
+                            data.get("slide_id", ""),
+                            username,
+                            data.get("response_type", ""),
+                            data.get("response_data", {}),
+                        ),
+                    )
+
+                    # ack to student
+                    await websocket.send_json({
+                        "type": "response_ack",
+                        "slide_id": data.get("slide_id"),
+                        "is_correct": result.get("is_correct"),
+                        "score": result.get("score"),
+                    })
+
+                    # notify teacher
+                    await ws_manager.broadcast_to_room(room_id, {
+                        "type": "student_responded",
+                        "data": {
+                            "slide_id": data.get("slide_id"),
+                            "student_username": username,
+                            "response_type": data.get("response_type"),
+                            "is_correct": result.get("is_correct"),
+                            "total_responses": result["total_responses"],
+                        },
+                    }, exclude=username)
+                except AppException as e:
+                    await websocket.send_json({
+                        "type": "error",
+                        "code": e.code,
+                        "message": e.message,
+                    })
+                except Exception as e:
+                    logger.error("WS 响应提交失败: %s", e)
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "响应提交失败",
+                    })
 
     except WebSocketDisconnect:
         logger.info("WS 正常断开: %s (房间 %s)", username or "unknown", room_id)

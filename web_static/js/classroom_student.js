@@ -198,6 +198,28 @@ const ClassroomStudentUI = {
         }, 3000);
     },
 
+    showSlideContent(html) {
+        const wrapper = document.querySelector('.canvas-wrapper');
+        const placeholder = document.getElementById('canvasPlaceholder');
+        if (placeholder) placeholder.style.display = 'none';
+        if (wrapper) {
+            wrapper.style.display = 'flex';
+            wrapper.innerHTML = html;
+        }
+    },
+
+    showLessonEnded() {
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (wrapper) {
+            wrapper.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#6E6E73;">
+                    <h2>課案已結束</h2>
+                    <p>等待老師下一步指示</p>
+                </div>
+            `;
+        }
+    },
+
     /**
      * Display the page image on the canvas area.
      * Returns a Promise that resolves after the image loads and canvas resizes.
@@ -299,7 +321,13 @@ const ClassroomStudentApp = {
         // AI Chat state
         aiConversationId: null,
         aiIsStreaming: false,
-        aiCurrentPageText: null
+        aiCurrentPageText: null,
+        // Lesson Plan mode
+        lessonMode: false,
+        lessonSessionId: null,
+        lessonLifecycle: 'prepared',
+        lessonAccepting: false,
+        currentLessonSlide: null
     },
 
     // ---- Initialization ----
@@ -474,6 +502,8 @@ const ClassroomStudentApp = {
                     console.log('Connected to WebSocket server');
                     // Request latest push after (re)connect
                     this._sendWSMessage({ type: 'get_latest_push' });
+                    // Also check for lesson state
+                    this._sendWSMessage({ type: 'get_lesson_state' });
                     break;
 
                 case 'page_pushed':
@@ -508,6 +538,28 @@ const ClassroomStudentApp = {
 
                 case 'error':
                     UIModule.toast(message.message || '伺服器錯誤', 'error');
+                    break;
+
+                // ===== Lesson Plan Mode =====
+                case 'lesson_state':
+                    this._handleLessonState(message);
+                    break;
+                case 'lesson_session_started':
+                    UIModule.toast('課案已開始', 'info');
+                    this._sendWSMessage({ type: 'get_lesson_state' });
+                    break;
+                case 'lesson_session_ended':
+                    this.state.lessonMode = false;
+                    ClassroomStudentUI.showLessonEnded();
+                    break;
+                case 'lesson_slide_pushed':
+                    this._handleLessonSlidePushed(message);
+                    break;
+                case 'lesson_slide_lifecycle':
+                    this._handleLessonLifecycle(message);
+                    break;
+                case 'response_ack':
+                    UIModule.toast('回應已提交', 'success');
                     break;
 
                 default:
@@ -647,6 +699,118 @@ const ClassroomStudentApp = {
         } catch (error) {
             console.error('Error requesting latest push:', error);
         }
+    },
+
+    // ---- Lesson Plan Mode Handlers ----
+
+    _handleLessonState(message) {
+        if (message.session_id) {
+            this.state.lessonMode = true;
+            this.state.lessonSessionId = message.session_id;
+            this.state.lessonLifecycle = message.slide_lifecycle || 'prepared';
+            this.state.lessonAccepting = message.accepting_responses || false;
+            if (message.slide) {
+                this._renderLessonSlide(message.slide);
+            }
+        }
+    },
+
+    _handleLessonSlidePushed(message) {
+        this.state.lessonMode = true;
+        this.state.lessonSessionId = message.session_id;
+        if (message.data) {
+            this._renderLessonSlide(message.data);
+        }
+    },
+
+    _handleLessonLifecycle(message) {
+        if (message.data) {
+            this.state.lessonLifecycle = message.data.lifecycle;
+            this.state.lessonAccepting = message.data.accepting_responses;
+            // Update response UI
+            this._updateLessonResponseUI();
+        }
+    },
+
+    _renderLessonSlide(slideData) {
+        const type = slideData.slide_type;
+        this.state.currentLessonSlide = slideData;
+
+        if (type === 'ppt') {
+            // Render PPT using existing page push mechanism
+            this._handlePagePushed({
+                page_id: slideData.page_id || slideData.file_id,
+                page_number: slideData.page_number,
+                annotations_json: slideData.annotations_json || '',
+                text_content: '',
+            });
+        } else if (type === 'game') {
+            // Render game in iframe
+            this._renderGameSlide(slideData);
+        } else {
+            // Generic slide
+            ClassroomStudentUI.showSlideContent(
+                `<div style="text-align:center;padding:40px;">
+                    <h2>${slideData.title || type}</h2>
+                    <p>Slide type: ${type}</p>
+                </div>`
+            );
+        }
+    },
+
+    _renderGameSlide(slideData) {
+        const gameUrl = slideData.game_url || '';
+        const gameName = slideData.game_name || 'Game';
+        const timeLimit = slideData.time_limit || 0;
+
+        // Show game in an iframe (sandboxed)
+        const contentArea = document.getElementById('contentArea') || document.querySelector('.canvas-wrapper');
+        if (contentArea) {
+            const placeholder = document.getElementById('canvasPlaceholder');
+            if (placeholder) placeholder.style.display = 'none';
+
+            contentArea.style.display = 'flex';
+            contentArea.innerHTML = `
+                <div style="width:100%;height:100%;display:flex;flex-direction:column;">
+                    <div style="padding:8px 16px;background:#f5f5f7;border-bottom:1px solid rgba(0,0,0,0.08);display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:600;">${Utils.escapeHtml(gameName)}</span>
+                        ${timeLimit > 0 ? `<span style="color:#6E6E73;font-size:13px;">${timeLimit} 秒</span>` : ''}
+                    </div>
+                    <iframe
+                        src="${Utils.escapeHtml(gameUrl)}"
+                        style="flex:1;border:none;width:100%;"
+                        sandbox="allow-scripts allow-same-origin"
+                        id="gameIframe"
+                    ></iframe>
+                </div>
+            `;
+
+            // Listen for game score messages
+            window.addEventListener('message', this._handleGameMessage.bind(this));
+        }
+    },
+
+    _handleGameMessage(event) {
+        // Accept score from game iframe
+        if (event.data && event.data.type === 'game_score') {
+            const score = event.data.score || 0;
+            const slideId = this.state.currentLessonSlide?.slide_id;
+            if (slideId && this.state.lessonAccepting) {
+                this._sendWSMessage({
+                    type: 'submit_response',
+                    slide_id: slideId,
+                    response_type: 'game_score',
+                    response_data: { score },
+                });
+            }
+        }
+    },
+
+    _updateLessonResponseUI() {
+        // Update response-related UI based on lifecycle
+        const lifecycle = this.state.lessonLifecycle;
+        const accepting = this.state.lessonAccepting;
+        console.log(`Lesson lifecycle: ${lifecycle}, accepting: ${accepting}`);
     },
 
     // ---- Room Status Handling ----

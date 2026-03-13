@@ -179,6 +179,12 @@ async def classroom_student(room_id: str):
     return _serve_page("classroom_student.html")
 
 
+@router.get("/classroom/lesson-editor/{plan_id}")
+async def lesson_editor(plan_id: str):
+    """课案编辑器"""
+    return _serve_page("lesson_editor.html")
+
+
 # ====================================================================== #
 #  課室日誌頁面                                                             #
 # ====================================================================== #

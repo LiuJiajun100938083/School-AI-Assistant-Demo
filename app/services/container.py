@@ -82,6 +82,12 @@ from app.domains.assignment.plagiarism_repository import (
     PlagiarismPairRepository,
     PlagiarismReportRepository,
 )
+from app.domains.classroom.lesson_repository import (
+    LessonPlanRepository,
+    LessonResponseRepository,
+    LessonSessionRepository,
+    LessonSlideRepository,
+)
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.farm_game.repository import FarmGameRepository
@@ -111,6 +117,7 @@ from app.domains.school_learning_center.repository import (
 
 # Service imports
 from app.domains.classroom.service import ClassroomService
+from app.domains.classroom.lesson_service import LessonService
 from app.domains.analytics.service import AnalyticsService
 from app.domains.attendance.service import AttendanceService
 from app.domains.auth.service import AuthService
@@ -184,6 +191,7 @@ class ServiceContainer:
         self._plagiarism: Optional[PlagiarismService] = None
         self._class_diary: Optional[ClassDiaryService] = None
         self._image_gen: Optional[ImageGenService] = None
+        self._lesson: Optional[LessonService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -235,6 +243,18 @@ class ServiceContainer:
                 settings=self._settings,
             )
         return self._classroom
+
+    @property
+    def lesson(self) -> LessonService:
+        """课案计划服务"""
+        if self._lesson is None:
+            self._lesson = LessonService(
+                plan_repo=self._get_repo(LessonPlanRepository),
+                slide_repo=self._get_repo(LessonSlideRepository),
+                session_repo=self._get_repo(LessonSessionRepository),
+                response_repo=self._get_repo(LessonResponseRepository),
+            )
+        return self._lesson
 
     @property
     def attendance(self) -> AttendanceService:

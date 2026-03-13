@@ -35,6 +35,11 @@ const state = {
     isTextMode: false,
     ws: null,
     wsConnected: false,
+    // Lesson plan mode
+    lessonMode: false,
+    lessonSessionId: null,
+    lessonSession: null,
+    lessonSlide: null,
 };
 
 // ==================== INITIALIZATION ====================
@@ -65,6 +70,8 @@ async function initialize() {
     setupEventListeners();
     connectWebSocket();
     loadUserInfo();
+    // Check if there's an active lesson session
+    checkLessonState();
 }
 
 function setupDOM() {
@@ -767,8 +774,233 @@ function handleWebSocketMessage(message) {
             break;
         case 'pong':
             break;
+
+        // ===== Lesson Plan Mode =====
+        case 'lesson_session_started':
+            state.lessonSessionId = message.session_id;
+            state.lessonMode = true;
+            UIModule.toast('課案已啟動', 'info');
+            checkLessonState();
+            break;
+        case 'lesson_session_ended':
+            state.lessonMode = false;
+            state.lessonSessionId = null;
+            UIModule.toast('課案已結束', 'info');
+            updateLessonUI();
+            break;
+        case 'student_responded':
+            if (message.data) {
+                UIModule.toast(`學生 ${message.data.student_username} 已回應 (${message.data.total_responses} 人)`, 'info');
+            }
+            break;
     }
 }
+
+// ==================== LESSON PLAN MODE ====================
+async function checkLessonState() {
+    try {
+        const token = AuthModule.getToken();
+        const res = await fetch(`/api/classroom/rooms/${roomId}/lesson/state`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json.success && json.data && json.data.session) {
+            state.lessonMode = true;
+            state.lessonSessionId = json.data.session.session_id;
+            state.lessonSlide = json.data.slide;
+            state.lessonSession = json.data.session;
+            updateLessonUI();
+        }
+    } catch (e) {
+        console.error('Check lesson state error:', e);
+    }
+}
+
+async function startLesson(planId) {
+    try {
+        const token = AuthModule.getToken();
+        const res = await fetch(`/api/classroom/rooms/${roomId}/lesson/start`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ plan_id: planId }),
+        });
+        const json = await res.json();
+        if (json.success) {
+            state.lessonMode = true;
+            state.lessonSessionId = json.data.session_id;
+            UIModule.toast('課案已啟動', 'success');
+            // navigate to first slide
+            await lessonNavigate('next');
+        } else {
+            UIModule.toast(json.message || '啟動失敗', 'error');
+        }
+    } catch (e) {
+        UIModule.toast('啟動課案失敗', 'error');
+    }
+}
+
+async function endLesson() {
+    try {
+        const token = AuthModule.getToken();
+        await fetch(`/api/classroom/rooms/${roomId}/lesson/end`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        state.lessonMode = false;
+        updateLessonUI();
+        UIModule.toast('課案已結束', 'success');
+    } catch (e) {
+        UIModule.toast('結束課案失敗', 'error');
+    }
+}
+
+async function lessonNavigate(action, slideId) {
+    try {
+        const token = AuthModule.getToken();
+        const body = { action };
+        if (slideId) body.slide_id = slideId;
+        // save current annotations
+        if (state.canvas) {
+            body.annotations_json = JSON.stringify(state.canvas.toJSON());
+        }
+        const res = await fetch(`/api/classroom/rooms/${roomId}/lesson/navigate`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+            state.lessonSession = json.data.session;
+            state.lessonSlide = json.data.slide;
+            updateLessonUI();
+        } else {
+            UIModule.toast(json.message || '導航失敗', 'error');
+        }
+    } catch (e) {
+        UIModule.toast('導航失敗', 'error');
+    }
+}
+
+async function lessonSlideAction(action) {
+    try {
+        const token = AuthModule.getToken();
+        const body = { action };
+        if (state.canvas && action === 'activate') {
+            body.annotations_json = JSON.stringify(state.canvas.toJSON());
+        }
+        const res = await fetch(`/api/classroom/rooms/${roomId}/lesson/slide-action`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+            state.lessonSession = json.data.session;
+            updateLessonUI();
+        } else {
+            UIModule.toast(json.message || '操作失敗', 'error');
+        }
+    } catch (e) {
+        UIModule.toast('操作失敗', 'error');
+    }
+}
+
+function updateLessonUI() {
+    const $bar = document.getElementById('lessonControlBar');
+    if (!$bar) return;
+
+    if (!state.lessonMode) {
+        $bar.style.display = 'none';
+        return;
+    }
+    $bar.style.display = 'flex';
+
+    const sess = state.lessonSession || {};
+    const slide = state.lessonSlide;
+    const lifecycle = sess.slide_lifecycle || 'prepared';
+
+    // update lesson info
+    const $info = document.getElementById('lessonInfo');
+    if ($info && slide) {
+        $info.textContent = `Slide ${(slide.slide_order || 0) + 1}: ${slide.title || slide.slide_type} [${lifecycle}]`;
+    }
+
+    // render lesson slide preview in main canvas area if it's PPT
+    if (slide && slide.slide_type === 'ppt' && slide.config) {
+        const cfg = slide.config;
+        const imgUrl = `${API_BASE}/classroom/ppt/${cfg.file_id}/page/${cfg.page_number}`;
+        loadPPTPageFromURL(imgUrl);
+    } else if (slide && slide.slide_type === 'game') {
+        // show game placeholder in canvas area
+        const canvasContainer = document.querySelector('.canvas-area') || document.getElementById('pptArea');
+        if (canvasContainer) {
+            canvasContainer.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-secondary,#6E6E73);">
+                    <h2>${slide.config?.game_name || 'Game'}</h2>
+                    <p>遊戲已推送給學生</p>
+                    <p>Lifecycle: ${lifecycle}</p>
+                </div>`;
+        }
+    }
+}
+
+function loadPPTPageFromURL(imgUrl) {
+    // Load PPT page image into the main display
+    const img = new Image();
+    img.onload = function () {
+        if (state.canvas) {
+            state.canvas.clear();
+            fabric.Image.fromURL(imgUrl, function (fabricImg) {
+                const scale = Math.min(
+                    state.canvas.width / fabricImg.width,
+                    state.canvas.height / fabricImg.height,
+                    1
+                );
+                fabricImg.scale(scale);
+                fabricImg.set({
+                    left: (state.canvas.width - fabricImg.width * scale) / 2,
+                    top: (state.canvas.height - fabricImg.height * scale) / 2,
+                    selectable: false,
+                    evented: false,
+                });
+                state.canvas.add(fabricImg);
+                state.canvas.sendToBack(fabricImg);
+                state.canvas.renderAll();
+            });
+        }
+    };
+    img.src = imgUrl;
+}
+
+async function promptStartLesson() {
+    try {
+        const token = AuthModule.getToken();
+        const res = await fetch('/api/classroom/lesson-plans', {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const json = await res.json();
+        const plans = (json.success && json.data) ? json.data : [];
+        if (plans.length === 0) {
+            UIModule.toast('沒有可用課案，請先在課案編輯器中創建', 'error');
+            return;
+        }
+        // for now, use the first ready plan, or first plan
+        const readyPlan = plans.find(p => p.status === 'ready') || plans[0];
+        if (confirm(`啟動課案「${readyPlan.title}」？`)) {
+            await startLesson(readyPlan.plan_id);
+        }
+    } catch (e) {
+        UIModule.toast('載入課案列表失敗', 'error');
+    }
 
 function startHeartbeat() {
     setInterval(() => {

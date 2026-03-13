@@ -156,6 +156,7 @@ const ClassroomUI = {
                     </div>` : ''}
                 <div class="room-actions">
                     <button class="room-action-btn primary" data-action="enter" data-room-id="${room.room_id}">進入課堂</button>
+                    <button class="room-action-btn" data-action="lesson-plans" data-room-id="${room.room_id}">課案編輯</button>
                     <button class="room-action-btn" data-action="toggle" data-room-id="${room.room_id}" data-status="${room.room_status}">${this._toggleStatusText(room.room_status)}</button>
                     <button class="room-action-btn danger" data-action="delete" data-room-id="${room.room_id}">刪除</button>
                 </div>
@@ -299,6 +300,9 @@ const ClassroomApp = {
             case 'join':
                 await this._joinRoom(roomId);
                 break;
+            case 'lesson-plans':
+                this._openLessonPlans();
+                break;
         }
     },
 
@@ -421,6 +425,42 @@ const ClassroomApp = {
         } catch (error) {
             console.error('Join room error:', error);
             UIModule.toast('加入課堂出錯', 'error');
+        }
+    },
+
+    async _openLessonPlans() {
+        // Fetch teacher's lesson plans and show picker, or create a new one
+        try {
+            const token = AuthModule.getToken();
+            const res = await fetch('/api/classroom/lesson-plans', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const json = await res.json();
+            const plans = (json.success && json.data) ? json.data : [];
+
+            if (plans.length > 0) {
+                // open first plan for now (later: show picker)
+                window.location.href = `/classroom/lesson-editor/${plans[0].plan_id}`;
+            } else {
+                // create a new plan
+                const createRes = await fetch('/api/classroom/lesson-plans', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ title: '新課案', description: '' }),
+                });
+                const createJson = await createRes.json();
+                if (createJson.success && createJson.data) {
+                    window.location.href = `/classroom/lesson-editor/${createJson.data.plan_id}`;
+                } else {
+                    UIModule.toast(createJson.message || '創建課案失敗', 'error');
+                }
+            }
+        } catch (e) {
+            console.error('Open lesson plans error:', e);
+            UIModule.toast('打開課案失敗', 'error');
         }
     }
 };
