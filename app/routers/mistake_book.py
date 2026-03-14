@@ -452,6 +452,22 @@ async def delete_mistake(
 # 學生端：練習題
 # ============================================================
 
+@router.get("/api/mistakes/practice/mastery")
+async def get_practice_mastery(
+    subject: str = Query(..., description="科目代碼"),
+    current_user: dict = Depends(get_current_user),
+):
+    """獲取練習用知識點掌握度列表（含狀態標籤和推薦標記）"""
+    _validate_subject(subject)
+    service = get_services().mistake_book
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: service.get_practice_mastery_list(current_user["username"], subject),
+    )
+    return {"success": True, "data": result}
+
+
 @router.post("/api/mistakes/practice/generate")
 async def generate_practice(
     req: GeneratePracticeRequest,

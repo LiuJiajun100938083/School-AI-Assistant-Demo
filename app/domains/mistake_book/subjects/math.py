@@ -171,12 +171,15 @@ class MathHandler(BaseSubjectHandler):
         question_count: int,
         difficulty: Optional[int] = None,
         student_mistakes_context: str = "",
+        student_history_context: str = "",
     ) -> str:
         points_desc = "\n".join(
             f"- {p['point_name']}（{p.get('category', '')}）"
             for p in target_points
         )
         diff_note = f"難度要求：{difficulty}/5" if difficulty else "難度逐步遞進"
+        history_section = f"\n{student_history_context}\n" if student_history_context else ""
+        num_points = len(target_points)
 
         return f"""你是一位香港數學科教師，請根據以下薄弱知識點，出 {question_count} 道練習題。
 
@@ -187,12 +190,19 @@ class MathHandler(BaseSubjectHandler):
 
 ## 學生此前的典型錯誤
 {student_mistakes_context if student_mistakes_context else "無"}
-
+{history_section}
 ## 出題要求
 - 符合香港中學數學課程（DSE 風格）
 - 數學公式使用 LaTeX 標記
 - 提供不同數值但方法相同的變式題
 - 包含完整的解題步驟
+
+## 題目分配規則
+- 每個目標知識點至少 1 題（共 {num_points} 個知識點，{question_count} 題）
+- 不可讓超過一半的題目集中在同一個知識點（除非只有 1 個知識點）
+- 掌握度低的知識點可多分 1 題，出基礎理解題（單步運算、直接辨識）
+- 掌握度中等的知識點出常規應用題（兩步推導、基礎變式）
+- 掌握度高的知識點出綜合變式題（多條件綜合、跨點遷移、非常規設問）
 
 ## 輸出格式（JSON）
 ```json

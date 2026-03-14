@@ -100,12 +100,15 @@ Notes:
         question_count: int,
         difficulty: Optional[int] = None,
         student_mistakes_context: str = "",
+        student_history_context: str = "",
     ) -> str:
         points_desc = "\n".join(
             f"- {p['point_name']}（{p.get('category', '')}）"
             for p in target_points
         )
         diff_note = f"Difficulty: {difficulty}/5" if difficulty else "Progressive difficulty (easy to hard)"
+        history_section = f"\n{student_history_context}\n" if student_history_context else ""
+        num_points = len(target_points)
 
         return f"""You are a Hong Kong English teacher. Generate {question_count} practice questions based on these weak points.
 
@@ -116,13 +119,20 @@ Notes:
 
 ## Student's Previous Mistakes
 {student_mistakes_context if student_mistakes_context else "None"}
-
+{history_section}
 ## Requirements
 - Follow Hong Kong secondary school English curriculum style
 - For grammar: error correction, fill-in-the-blank, sentence rewriting
 - For dictation/spelling: word lists, sentence completion
 - For reading: short passages with comprehension questions
 - Provide ALL explanations in English
+
+## Question Allocation Rules
+- Each target knowledge point must have at least 1 question ({num_points} points, {question_count} questions)
+- No more than half the questions on a single knowledge point (unless only 1 point selected)
+- Low mastery points: basic questions (core vocabulary, single grammar point, direct context)
+- Medium mastery points: application questions (vocabulary+grammar combined, paragraph-level judgment)
+- High mastery points: advanced questions (implied tone, passage inference, complex rewriting)
 
 ## Output Format (JSON)
 ```json

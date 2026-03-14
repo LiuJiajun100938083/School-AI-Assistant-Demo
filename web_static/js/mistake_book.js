@@ -298,10 +298,16 @@ const API = {
             body: JSON.stringify({ result }),
         });
     },
-    async generatePractice(subject, count = 5) {
+    async getPracticeMastery(subject) {
+        return this._fetch(`/api/mistakes/practice/mastery?subject=${encodeURIComponent(subject)}`);
+    },
+    async generatePractice(subject, count = 5, targetPoints = null, difficulty = null) {
+        const body = { subject, question_count: count, session_type: 'targeted' };
+        if (targetPoints && targetPoints.length > 0) body.target_points = targetPoints;
+        if (difficulty) body.difficulty = difficulty;
         return this._fetch('/api/mistakes/practice/generate', {
             method: 'POST',
-            body: JSON.stringify({ subject, question_count: count, session_type: 'targeted' }),
+            body: JSON.stringify(body),
         });
     },
     async submitPractice(sessionId, answers) {
@@ -1741,6 +1747,26 @@ const Views = {
                 <div class="mb-practice-setup__desc">
                     根據你的${UI.subjectLabel(subject)}薄弱知識點自動出題
                 </div>
+
+                <!-- 知識點選擇器 -->
+                <div class="mb-practice-setup__points" id="practicePointsArea">
+                    <div class="mb-practice-setup__label" style="text-align:left;margin-bottom:8px">
+                        選擇知識點
+                        <span style="font-weight:400;color:var(--mb-text-tertiary)">（不選則由系統智能推薦）</span>
+                    </div>
+                    <div id="practicePointsList" style="text-align:left;margin-bottom:12px">
+                        <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
+                            載入知識點中...
+                        </div>
+                    </div>
+                    <div id="practicePointsActions" style="display:none;text-align:left;margin-bottom:16px;gap:8px;display:flex;flex-wrap:wrap">
+                        <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectWeak()">只選薄弱</button>
+                        <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectAll()">全選</button>
+                        <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceClearAll()">清空</button>
+                    </div>
+                    <div id="practicePointsWarning" style="display:none;font-size:12px;color:var(--mb-warning);margin-bottom:8px"></div>
+                </div>
+
                 <div class="mb-practice-setup__form">
                     <label class="mb-practice-setup__label">題目數量</label>
                     <select class="mb-select" id="practiceCount">
@@ -1749,21 +1775,169 @@ const Views = {
                         <option value="10">10 題 · 深度練習</option>
                     </select>
                 </div>
+
+                <div class="mb-practice-setup__form">
+                    <label class="mb-practice-setup__label">難度</label>
+                    <select class="mb-select" id="practiceDifficulty">
+                        <option value="" selected>自動匹配（根據掌握度）</option>
+                        <option value="1">基礎</option>
+                        <option value="3">中等</option>
+                        <option value="5">進階</option>
+                    </select>
+                </div>
+
+                <!-- 練習計劃預覽 -->
+                <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;background:var(--mb-bg-secondary);text-align:left;font-size:13px;color:var(--mb-text-secondary)">
+                </div>
+
                 <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
                         id="startPracticeBtn" style="max-width:240px">
                     開始練習
                 </button>
             </div>
         `;
+
+        // 加載知識點掌握度數據
+        this._loadPracticeMastery(subject);
+    },
+
+    // ---- 練習知識點加載 ----
+    _practiceAbortController: null,
+    _practiceMasteryData: [],
+
+    async _loadPracticeMastery(subject) {
+        // 取消舊請求
+        if (this._practiceAbortController) {
+            this._practiceAbortController.abort();
+        }
+        this._practiceAbortController = new AbortController();
+        this._practiceMasteryData = [];
+
+        const listEl = document.getElementById('practicePointsList');
+        const actionsEl = document.getElementById('practicePointsActions');
+        if (!listEl) return;
+
+        try {
+            const res = await API.getPracticeMastery(subject);
+            // 檢查是否已切換科目
+            if (!document.getElementById('practicePointsList')) return;
+
+            if (!res || !res.data || res.data.length === 0) {
+                listEl.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
+                    暫無知識點數據，仍可直接開始練習
+                </div>`;
+                return;
+            }
+
+            this._practiceMasteryData = res.data;
+            this._renderPracticePointsList(listEl, res.data);
+            if (actionsEl) actionsEl.style.display = 'flex';
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+            listEl.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
+                掌握度數據暫不可用，仍可直接開始練習
+            </div>`;
+        }
+    },
+
+    _renderPracticePointsList(container, data) {
+        const statusLabels = {
+            weak: { text: '薄弱', color: 'var(--mb-danger, #e74c3c)' },
+            consolidating: { text: '待鞏固', color: 'var(--mb-warning, #f39c12)' },
+            mastered: { text: '已掌握', color: 'var(--mb-success, #27ae60)' },
+            unknown: { text: '暫無數據', color: 'var(--mb-text-tertiary)' },
+        };
+
+        const html = data.map((pt, i) => {
+            const sl = statusLabels[pt.status_label] || statusLabels.unknown;
+            const mastery = pt.mastery_level !== null ? `${pt.mastery_level}%` : '--';
+            const checked = pt.is_recommended ? 'checked' : '';
+
+            return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:13px;border-bottom:1px solid var(--mb-border)">
+                <input type="checkbox" class="practice-point-cb" value="${UI.escapeHtml(pt.point_code)}" ${checked} onchange="Views._onPracticePointChange()">
+                <span style="flex:1">${UI.escapeHtml(pt.point_name)}</span>
+                <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${sl.color}22;color:${sl.color};font-weight:500">${sl.text}</span>
+                <span style="font-size:12px;color:var(--mb-text-tertiary);min-width:36px;text-align:right">${mastery}</span>
+            </label>`;
+        }).join('');
+
+        container.innerHTML = `<div style="max-height:260px;overflow-y:auto;border:1px solid var(--mb-border);border-radius:8px;padding:4px 12px">${html}</div>`;
+    },
+
+    _onPracticePointChange() {
+        const checked = document.querySelectorAll('.practice-point-cb:checked');
+        const warningEl = document.getElementById('practicePointsWarning');
+        if (warningEl) {
+            if (checked.length > 8) {
+                warningEl.style.display = 'block';
+                warningEl.textContent = `已選 ${checked.length} 個知識點，建議一次聚焦不超過 5 個`;
+            } else {
+                warningEl.style.display = 'none';
+            }
+        }
+        this._updatePracticePlanPreview();
+    },
+
+    _practiceSelectWeak() {
+        document.querySelectorAll('.practice-point-cb').forEach((cb, i) => {
+            const pt = this._practiceMasteryData[i];
+            cb.checked = pt && pt.is_recommended;
+        });
+        this._onPracticePointChange();
+    },
+
+    _practiceSelectAll() {
+        document.querySelectorAll('.practice-point-cb').forEach(cb => cb.checked = true);
+        this._onPracticePointChange();
+    },
+
+    _practiceClearAll() {
+        document.querySelectorAll('.practice-point-cb').forEach(cb => cb.checked = false);
+        this._onPracticePointChange();
+    },
+
+    _getSelectedPracticePoints() {
+        const checked = document.querySelectorAll('.practice-point-cb:checked');
+        return Array.from(checked).map(cb => cb.value);
+    },
+
+    _updatePracticePlanPreview() {
+        const previewEl = document.getElementById('practicePlanPreview');
+        if (!previewEl) return;
+
+        const selected = this._getSelectedPracticePoints();
+        const count = document.getElementById('practiceCount')?.value || 5;
+        const diffEl = document.getElementById('practiceDifficulty');
+        const diffVal = diffEl?.value;
+        const diffLabel = diffVal ? diffEl.options[diffEl.selectedIndex].text : '自動匹配';
+
+        if (selected.length === 0) {
+            previewEl.style.display = 'block';
+            previewEl.innerHTML = `將由系統根據薄弱點智能推薦知識點 · ${count} 題 · 難度：${diffLabel}`;
+            return;
+        }
+
+        const pointNames = selected.map(code => {
+            const pt = this._practiceMasteryData.find(p => p.point_code === code);
+            return pt ? pt.point_name : code;
+        });
+
+        previewEl.style.display = 'block';
+        previewEl.innerHTML = `${pointNames.join('、')} · ${count} 題 · 難度：${diffLabel}`;
     },
 
     async _startPractice(subject) {
         const btn = document.getElementById('startPracticeBtn');
+        if (btn.disabled) return; // 防重複點擊
         btn.disabled = true;
         btn.textContent = 'AI 出題中...';
 
         const count = parseInt(document.getElementById('practiceCount').value);
-        const res = await API.generatePractice(subject, count);
+        const targetPoints = this._getSelectedPracticePoints();
+        const diffVal = document.getElementById('practiceDifficulty')?.value;
+        const difficulty = diffVal ? parseInt(diffVal) : null;
+
+        const res = await API.generatePractice(subject, count, targetPoints.length > 0 ? targetPoints : null, difficulty);
 
         if (!res || !res.data) {
             btn.disabled = false;
@@ -1773,16 +1947,36 @@ const Views = {
 
         App.state._practiceSession = res.data;
         const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+
+        // 如果是系統推薦模式，先顯示推薦信息
+        if (res.data.recommendation_mode === 'auto_recommended' && res.data.recommended_points?.length > 0) {
+            const pointNames = res.data.recommended_points.map(p =>
+                `${p.point_name}${p.mastery_level !== null ? ` (${p.mastery_level}%)` : ''}`
+            ).join('、');
+            App.state._practiceSession._recommendedInfo = pointNames;
+        }
+
         this._renderPracticeQuestions(target, res.data);
     },
 
     _renderPracticeQuestions(container, session) {
         const questions = session.questions || [];
+        const recommendedInfo = session._recommendedInfo || '';
+        const diffLabel = session.difficulty ? `難度 ${session.difficulty}/5` : '';
+
+        let headerInfo = `${UI.subjectLabel(session.subject)} · ${questions.length} 題`;
+        if (diffLabel) headerInfo += ` · ${diffLabel}`;
 
         let html = `<div class="mb-practice">
             <div style="text-align:center;font-size:13px;color:var(--mb-text-tertiary);margin-bottom:16px">
-                ${UI.subjectLabel(session.subject)} · ${questions.length} 題
+                ${headerInfo}
             </div>`;
+
+        if (recommendedInfo) {
+            html += `<div style="text-align:center;font-size:12px;color:var(--mb-text-tertiary);margin-bottom:16px;padding:8px 12px;background:var(--mb-bg-secondary);border-radius:8px">
+                系統推薦知識點：${UI.escapeHtml(recommendedInfo)}
+            </div>`;
+        }
 
         questions.forEach((q, i) => {
             html += `

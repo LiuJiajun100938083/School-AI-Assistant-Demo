@@ -100,6 +100,7 @@ class BaseSubjectHandler(ABC):
         question_count: int,
         difficulty: Optional[int] = None,
         student_mistakes_context: str = "",
+        student_history_context: str = "",
     ) -> str:
         """構建 AI 練習題生成 prompt。"""
         ...
@@ -254,11 +255,13 @@ class DefaultSubjectHandler(BaseSubjectHandler):
         question_count: int,
         difficulty: Optional[int] = None,
         student_mistakes_context: str = "",
+        student_history_context: str = "",
     ) -> str:
         points_desc = "\n".join(f"- {p['point_name']}" for p in target_points)
+        history_section = f"\n{student_history_context}\n" if student_history_context else ""
         return f"""請根據以下知識點出 {question_count} 道練習題：
 {points_desc}
-
+{history_section}
 輸出 JSON 格式，每題包含 question, correct_answer, explanation, point_code, difficulty。
 只輸出 JSON。"""
 

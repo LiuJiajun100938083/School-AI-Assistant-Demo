@@ -1167,6 +1167,91 @@ class MistakeBookService:
     # AI 練習題生成
     # ================================================================
 
+    def get_practice_mastery_list(self, username: str, subject: str) -> List[Dict]:
+        """
+        獲取練習用知識點掌握度列表（含狀態標籤和推薦標記）。
+        前端直接可用，無需二次計算。
+        """
+        all_points = self._knowledge.find_by_subject(subject)
+        mastery_data = self._mastery.get_all_mastery(username, subject)
+        mastery_map = {m["point_code"]: m for m in mastery_data}
+
+        # 獲取錯題頻率 — 用於推薦排序
+        mistake_points = self._links.get_weak_points_for_student(
+            username, subject, limit=50
+        )
+        mistake_count_map = {
+            mp["point_code"]: mp.get("mistake_count", 0) for mp in mistake_points
+        }
+
+        result = []
+        for pt in all_points:
+            code = pt["point_code"]
+            m = mastery_map.get(code)
+            mastery_level = m["mastery_level"] if m else None
+            error_count = mistake_count_map.get(code, 0)
+            trend = m.get("trend", "stable") if m else "stable"
+            last_practice = m.get("last_practice_at") if m else None
+
+            # status_label + status_reason
+            if mastery_level is None:
+                status_label = "unknown"
+                status_reason = "暫無數據"
+            elif mastery_level < 40:
+                status_label = "weak"
+                if error_count > 3:
+                    status_reason = "近期錯誤較多"
+                else:
+                    status_reason = "掌握度偏低"
+            elif mastery_level < 70:
+                status_label = "consolidating"
+                if trend == "declining":
+                    status_reason = "掌握度下降中"
+                else:
+                    status_reason = "待鞏固"
+            else:
+                status_label = "mastered"
+                status_reason = "表現穩定"
+
+            result.append({
+                "point_code": code,
+                "point_name": pt.get("point_name", code),
+                "category": pt.get("category", ""),
+                "mastery_level": mastery_level,
+                "error_count": error_count,
+                "trend": trend,
+                "last_practice_at": last_practice.isoformat() if last_practice else None,
+                "status_label": status_label,
+                "status_reason": status_reason,
+                "is_recommended": False,  # 後面標記
+            })
+
+        # 標記推薦：按掌握度 ASC + 錯誤次數 DESC 取前 3 個薄弱知識點
+        weak_items = [
+            r for r in result
+            if r["mastery_level"] is not None and r["mastery_level"] < 60
+        ]
+        weak_items.sort(
+            key=lambda x: (x["mastery_level"], -x["error_count"])
+        )
+        recommended_codes = set()
+        for item in weak_items[:3]:
+            item["is_recommended"] = True
+            recommended_codes.add(item["point_code"])
+
+        # 若推薦不足 3 個，補充數據稀疏或 declining 的
+        if len(recommended_codes) < 3:
+            declining = [
+                r for r in result
+                if r["trend"] == "declining"
+                and r["point_code"] not in recommended_codes
+            ]
+            for item in declining[:3 - len(recommended_codes)]:
+                item["is_recommended"] = True
+                recommended_codes.add(item["point_code"])
+
+        return result
+
     async def generate_practice(
         self,
         username: str,
@@ -1176,33 +1261,46 @@ class MistakeBookService:
         target_points: Optional[List[str]] = None,
         difficulty: Optional[int] = None,
     ) -> Dict:
-        """根據薄弱知識點生成練習題"""
+        """根據薄弱知識點生成練習題（4 步流程）"""
         if not self._ask_ai_raw:
             raise AnalysisFailedError("AI 服務未配置")
 
-        # 選擇目標知識點
-        if target_points:
-            points_data = self._knowledge.find_by_codes(target_points)
-        else:
-            mastery_data = self._mastery.get_all_mastery(username, subject)
-            mistake_points = self._links.get_weak_points_for_student(
-                username, subject, limit=10
-            )
-            targets = self._engine.select_practice_targets(
-                mastery_data, mistake_points, count=min(question_count, 5)
-            )
-            codes = [t["point_code"] for t in targets]
-            points_data = self._knowledge.find_by_codes(codes) if codes else []
+        # Step 1: 解析目標知識點
+        points_data, recommendation_mode = self._resolve_target_points(
+            username, subject, target_points, question_count
+        )
 
-        if not points_data:
-            points_data = self._knowledge.find_by_subject(subject)[:3]
+        # Step 2: 解析難度
+        mastery_data = self._mastery.get_all_mastery(username, subject)
+        mastery_map = {m["point_code"]: m for m in mastery_data}
+        points_mastery = [
+            mastery_map[p["point_code"]]
+            for p in points_data if p["point_code"] in mastery_map
+        ]
+        resolved_difficulty, difficulty_source = self._resolve_difficulty(
+            difficulty, points_mastery
+        )
 
-        # 獲取學生歷史錯題作為出題參考
-        context = self._get_student_mistakes_context(username, subject, limit=3)
+        # Step 3: 構建結構化上下文
+        generation_context = self._build_generation_context(
+            username, subject, points_data, mastery_map, difficulty_source
+        )
 
-        # AI 出題
+        # Decision snapshot（調試用）
+        logger.info(
+            "Practice generation decision: subject=%s, count=%d, "
+            "mode=%s, difficulty=%d(%s), points=%s, dedupe_refs=%d",
+            subject, question_count, recommendation_mode,
+            resolved_difficulty, difficulty_source,
+            [p["point_code"] for p in points_data],
+            len(generation_context.get("recent_practice_summaries", [])),
+        )
+
+        # Step 4: AI 出題
         prompt = build_practice_prompt(
-            subject, points_data, question_count, difficulty, context
+            subject, points_data, question_count,
+            resolved_difficulty, generation_context.get("student_mistakes_context", ""),
+            student_history_context=generation_context.get("history_context", ""),
         )
         raw = await self._ask_ai(prompt, subject)
         questions_data = self._parse_json_response(raw)
@@ -1221,10 +1319,25 @@ class MistakeBookService:
             "status": "generated",
         })
 
+        # 構建推薦信息（供前端顯示）
+        recommended_info = []
+        if recommendation_mode == "auto_recommended":
+            for p in points_data:
+                m = mastery_map.get(p["point_code"])
+                recommended_info.append({
+                    "point_code": p["point_code"],
+                    "point_name": p.get("point_name", p["point_code"]),
+                    "mastery_level": m["mastery_level"] if m else None,
+                })
+
         return {
             "session_id": session_id,
             "subject": subject,
             "session_type": session_type,
+            "recommendation_mode": recommendation_mode,
+            "recommended_points": recommended_info,
+            "difficulty": resolved_difficulty,
+            "difficulty_source": difficulty_source,
             "questions": [
                 {
                     "index": q.get("index", i + 1),
@@ -1238,6 +1351,179 @@ class MistakeBookService:
             ],
             "total_questions": len(questions),
         }
+
+    def _resolve_target_points(
+        self,
+        username: str,
+        subject: str,
+        target_points: Optional[List[str]],
+        question_count: int,
+    ) -> Tuple[List[Dict], str]:
+        """
+        Step 1: 解析目標知識點。
+
+        Returns:
+            (points_data, recommendation_mode)
+            recommendation_mode: 'user_selected' | 'auto_recommended'
+        """
+        if target_points:
+            points_data = self._knowledge.find_by_codes(target_points)
+            return points_data, "user_selected"
+
+        # 智能推薦：按固定優先級選 2~3 點
+        mastery_data = self._mastery.get_all_mastery(username, subject)
+        mistake_points = self._links.get_weak_points_for_student(
+            username, subject, limit=10
+        )
+        targets = self._engine.select_practice_targets(
+            mastery_data, mistake_points, count=min(question_count, 5)
+        )
+        codes = [t["point_code"] for t in targets]
+        points_data = self._knowledge.find_by_codes(codes) if codes else []
+
+        if not points_data:
+            points_data = self._knowledge.find_by_subject(subject)[:3]
+
+        return points_data, "auto_recommended"
+
+    @staticmethod
+    def _resolve_difficulty(
+        difficulty: Optional[int],
+        points_mastery: List[Dict],
+    ) -> Tuple[int, str]:
+        """
+        Step 2: 解析難度。
+
+        Returns:
+            (resolved_difficulty, difficulty_source)
+        """
+        if difficulty is not None:
+            return difficulty, "manual"
+
+        from app.domains.adaptive.engine import AdaptiveLearningEngine
+        auto_diff = AdaptiveLearningEngine.adapt_difficulty(points_mastery)
+        return auto_diff, "auto_from_mastery"
+
+    def _build_generation_context(
+        self,
+        username: str,
+        subject: str,
+        points_data: List[Dict],
+        mastery_map: Dict[str, Dict],
+        difficulty_source: str,
+    ) -> Dict:
+        """
+        Step 3: 構建結構化上下文。
+
+        返回 dict 結構，由 Prompt 層轉為文字。
+        """
+        # 學生錯題摘要
+        student_mistakes_context = self._get_student_mistakes_context(
+            username, subject, limit=5
+        )
+
+        # 學生歷史上下文（掌握度 + 趨勢 + 錯誤類型分佈）
+        history_context = self._build_practice_history_context(
+            username, subject, points_data, mastery_map, difficulty_source
+        )
+
+        # 近期練習題摘要（去重用）
+        recent_summaries = self._get_recent_practice_summaries(username, subject)
+
+        return {
+            "student_mistakes_context": student_mistakes_context,
+            "history_context": history_context,
+            "recent_practice_summaries": recent_summaries,
+        }
+
+    def _build_practice_history_context(
+        self,
+        username: str,
+        subject: str,
+        points_data: List[Dict],
+        mastery_map: Dict[str, Dict],
+        difficulty_source: str,
+    ) -> str:
+        """構建練習出題用的結構化學生畫像上下文"""
+        lines = []
+
+        # 1. 目標知識點掌握度
+        lines.append("## 學生畫像")
+        lines.append("目標知識點：")
+        for p in points_data:
+            code = p["point_code"]
+            m = mastery_map.get(code)
+            if m:
+                trend_str = {"improving": "↑改善中", "declining": "↓下降中", "stable": "→穩定"}.get(
+                    m.get("trend", "stable"), ""
+                )
+                lines.append(
+                    f"- {p.get('point_name', code)}（{p.get('category', '')}）"
+                    f"— 掌握度 {m.get('mastery_level', 0)}% {trend_str}"
+                    f"，錯題 {m.get('total_mistakes', 0)} 次"
+                )
+            else:
+                lines.append(
+                    f"- {p.get('point_name', code)}（{p.get('category', '')}）— 暫無掌握度數據"
+                )
+
+        # 2. 難度來源
+        if difficulty_source == "manual":
+            lines.append("\n難度來源：學生手動指定")
+        else:
+            lines.append("\n難度來源：系統根據掌握度自動匹配")
+
+        # 3. 錯誤類型分佈
+        try:
+            error_stats = self._mistakes.get_error_type_stats(username, subject)
+            if error_stats:
+                lines.append("\n## 錯誤類型分佈")
+                for es in error_stats[:3]:
+                    lines.append(f"- {es.get('error_type', '未知')}: {es.get('cnt', 0)} 次")
+        except Exception:
+            pass
+
+        # 4. 分層出題規則
+        lines.append("\n## 分層出題規則")
+        lines.append("- 掌握度 < 40%：出基礎理解題（單步、直接辨識）")
+        lines.append("- 掌握度 40-70%：出常規應用題（兩步推導）")
+        lines.append("- 掌握度 > 70%：出綜合變式題（跨點遷移）")
+
+        # 5. 近期練習去重
+        recent = self._get_recent_practice_summaries(username, subject)
+        if recent:
+            lines.append("\n## 近期已出過的題目（請避免重複相同題型和解法）")
+            for s in recent:
+                lines.append(f"- [{s['point']}] {s['stem_summary']}")
+
+        return "\n".join(lines)
+
+    def _get_recent_practice_summaries(
+        self, username: str, subject: str, session_limit: int = 2
+    ) -> List[Dict]:
+        """獲取近期練習題摘要（用於去重）"""
+        result = self._practices.find_by_student(
+            username, subject=subject, page=1, page_size=session_limit
+        )
+        sessions = result.get("items", [])
+        summaries = []
+        for sess in sessions:
+            questions = sess.get("questions")
+            if isinstance(questions, str):
+                try:
+                    questions = json.loads(questions)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            if not questions:
+                continue
+            for q in questions:
+                stem = q.get("question", "")[:80]
+                summaries.append({
+                    "point": q.get("point_code", ""),
+                    "type": q.get("question_type", "short_answer"),
+                    "stem_summary": stem,
+                })
+        return summaries
 
     async def submit_practice(
         self,

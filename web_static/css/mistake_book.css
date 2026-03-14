@@ -2310,6 +2310,12 @@
     margin-bottom: 28px;
 }
 
+.mb-practice-setup__points {
+    max-width: 480px;
+    margin: 0 auto 20px;
+    text-align: left;
+}
+
 .mb-practice-setup__form {
     margin-bottom: 20px;
     max-width: 240px;

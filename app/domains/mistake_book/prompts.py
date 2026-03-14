@@ -63,6 +63,7 @@ def build_practice_prompt(
     question_count: int,
     difficulty: Optional[int] = None,
     student_mistakes_context: str = "",
+    student_history_context: str = "",
 ) -> str:
     """
     構建出題 prompt（委託到對應科目的 Handler）
@@ -73,10 +74,12 @@ def build_practice_prompt(
         question_count: 題目數量
         difficulty: 難度 1-5（None = 自動匹配知識點難度）
         student_mistakes_context: 學生此前的典型錯題（供參考）
+        student_history_context: 結構化學生畫像上下文（掌握度、錯誤分佈、去重）
     """
     handler = SubjectHandlerRegistry.get(subject)
     prompt = handler.build_practice_prompt(
-        target_points, question_count, difficulty, student_mistakes_context,
+        target_points, question_count, difficulty,
+        student_mistakes_context, student_history_context,
     )
     if BaseSubjectHandler._is_english_text(student_mistakes_context):
         prompt += _ENGLISH_PRACTICE_NOTE

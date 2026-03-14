@@ -295,13 +295,39 @@ class AdaptiveLearningEngine:
         """
         raise NotImplementedError("風險預測功能開發中")
 
+    @staticmethod
     def adapt_difficulty(
-        self, student_username: str, subject: str
+        points_mastery: List[Dict],
+        error_distribution: Optional[Dict] = None,
     ) -> int:
         """
-        [未來] 動態調整出題難度
+        動態調整出題難度
 
-        根據學生近期表現自動調整，
-        保持在「學習區」（不太簡單也不太難）。
+        根據所選知識點的掌握度自動計算全局難度參考值。
+        真正的細分控制由 Prompt 內 point-level mastery 完成。
+
+        Args:
+            points_mastery: 目標知識點掌握度列表
+                [{mastery_level: int, ...}]
+            error_distribution: 錯誤類型分佈（預留擴展）
+
+        Returns:
+            難度 1-5
         """
-        raise NotImplementedError("難度自適應功能開發中")
+        if not points_mastery:
+            return 3  # 無數據時默認中等
+
+        avg = sum(
+            m.get("mastery_level", 50) for m in points_mastery
+        ) / len(points_mastery)
+
+        if avg < 30:
+            return 1
+        elif avg < 50:
+            return 2
+        elif avg < 70:
+            return 3
+        elif avg < 85:
+            return 4
+        else:
+            return 5

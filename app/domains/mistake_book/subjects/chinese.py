@@ -100,12 +100,15 @@ class ChineseHandler(BaseSubjectHandler):
         question_count: int,
         difficulty: Optional[int] = None,
         student_mistakes_context: str = "",
+        student_history_context: str = "",
     ) -> str:
         points_desc = "\n".join(
             f"- {p['point_name']}（{p.get('category', '')}）: {p.get('description', '')}"
             for p in target_points
         )
         diff_note = f"難度要求：{difficulty}/5" if difficulty else "難度逐步遞進（由易到難）"
+        history_section = f"\n{student_history_context}\n" if student_history_context else ""
+        num_points = len(target_points)
 
         return f"""你是一位香港中文科教師，請根據以下薄弱知識點，出 {question_count} 道練習題。
 
@@ -116,12 +119,19 @@ class ChineseHandler(BaseSubjectHandler):
 
 ## 學生此前的典型錯誤（供參考出題方向）
 {student_mistakes_context if student_mistakes_context else "無"}
-
+{history_section}
 ## 出題要求
 - 題型要符合香港中學考試格式（DSE 風格）
 - 使用繁體中文
 - 每道題獨立、完整
 - 涵蓋所列的知識點
+
+## 題目分配規則
+- 每個目標知識點至少 1 題（共 {num_points} 個知識點，{question_count} 題）
+- 不可讓超過一半的題目集中在同一個知識點（除非只有 1 個知識點）
+- 掌握度低的知識點出基礎題（字詞理解、顯性信息提取）
+- 掌握度中等的知識點出應用題（修辭作用、段意概括、語境分析）
+- 掌握度高的知識點出綜合題（篇章主旨、表達手法比較、遷移寫作）
 
 ## 輸出格式（JSON）
 ```json
