@@ -316,6 +316,23 @@ const API = {
             body: JSON.stringify({ answers }),
         });
     },
+    async recognizeHandwriting(imageBlob, subject, mode = 'canvas') {
+        try {
+            const formData = new FormData();
+            formData.append('image', imageBlob, 'handwriting.png');
+            formData.append('subject', subject);
+            formData.append('mode', mode);
+            const res = await fetch('/api/mistakes/practice/recognize-handwriting', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${App.state.token}` },
+                body: formData,
+            });
+            return await res.json();
+        } catch (err) {
+            UI.toast('識別失敗: ' + err.message, 'error');
+            return null;
+        }
+    },
     async deleteMistake(id) { return this._fetch(`/api/mistakes/${id}`, { method: 'DELETE' }); },
     async cancelRecognition(id) { return this._fetch(`/api/mistakes/${id}/cancel`, { method: 'POST' }); },
 };
@@ -1959,10 +1976,16 @@ const Views = {
         this._renderPracticeQuestions(target, res.data);
     },
 
+    // ---- 練習題渲染 + 手寫識別 ----
+
+    // 每題 state：{mode, strokes, imagePreview, loading}
+    _practiceInputStates: {},
+
     _renderPracticeQuestions(container, session) {
         const questions = session.questions || [];
         const recommendedInfo = session._recommendedInfo || '';
         const diffLabel = session.difficulty ? `難度 ${session.difficulty}/5` : '';
+        this._practiceInputStates = {};
 
         let headerInfo = `${UI.subjectLabel(session.subject)} · ${questions.length} 題`;
         if (diffLabel) headerInfo += ` · ${diffLabel}`;
@@ -1979,17 +2002,27 @@ const Views = {
         }
 
         questions.forEach((q, i) => {
+            this._practiceInputStates[i] = { mode: 'keyboard', strokes: [], imagePreview: null, loading: false };
+            const isMultiChoice = !!q.options;
             html += `
                 <div class="mb-practice__question">
                     <div class="mb-practice__question-number">第 ${q.index || i + 1} 題</div>
                     <div class="mb-practice__question-text">${UI.renderMath(q.question)}</div>
-                    ${q.options ? `<div style="margin-top:12px">${q.options.map((opt, oi) =>
+                    ${isMultiChoice ? `<div style="margin-top:12px">${q.options.map((opt, oi) =>
                         `<label style="display:block;padding:8px 0;cursor:pointer;font-size:14px">
                             <input type="radio" name="q_${i}" value="${UI.escapeHtml(opt)}"> ${UI.renderMath(opt)}
                         </label>`
-                    ).join('')}</div>` :
-                    `<textarea class="mb-practice__answer-input" id="answer_${i}"
-                              placeholder="在此輸入你的答案..."></textarea>`}
+                    ).join('')}</div>` : `
+                    <div class="mb-hw" id="hw_wrap_${i}">
+                        <div class="mb-hw__modes">
+                            <button class="mb-hw__mode-btn mb-hw__mode-btn--active" data-mode="keyboard" onclick="Views._switchInputMode(${i},'keyboard')" title="鍵盤">⌨️ 鍵盤</button>
+                            <button class="mb-hw__mode-btn" data-mode="handwrite" onclick="Views._switchInputMode(${i},'handwrite')" title="手寫">✏️ 手寫</button>
+                            <button class="mb-hw__mode-btn" data-mode="photo" onclick="Views._switchInputMode(${i},'photo')" title="拍照">📷 拍照</button>
+                        </div>
+                        <div class="mb-hw__panel" id="hw_panel_${i}">
+                            <textarea class="mb-practice__answer-input" id="answer_${i}" placeholder="在此輸入你的答案..."></textarea>
+                        </div>
+                    </div>`}
                 </div>
             `;
         });
@@ -1999,6 +2032,397 @@ const Views = {
                  </button></div>`;
 
         container.innerHTML = html;
+    },
+
+    _switchInputMode(idx, mode) {
+        const state = this._practiceInputStates[idx];
+        if (!state || state.mode === mode) return;
+
+        // 保存 textarea 值
+        const ta = document.getElementById(`answer_${idx}`);
+        if (ta) state.textareaValue = ta.value;
+
+        state.mode = mode;
+
+        // 更新按鈕 active
+        const wrap = document.getElementById(`hw_wrap_${idx}`);
+        if (!wrap) return;
+        wrap.querySelectorAll('.mb-hw__mode-btn').forEach(btn => {
+            btn.classList.toggle('mb-hw__mode-btn--active', btn.dataset.mode === mode);
+        });
+
+        const panel = document.getElementById(`hw_panel_${idx}`);
+        if (!panel) return;
+
+        if (mode === 'keyboard') {
+            panel.innerHTML = `<textarea class="mb-practice__answer-input" id="answer_${idx}" placeholder="在此輸入你的答案...">${UI.escapeHtml(state.textareaValue || '')}</textarea>`;
+        } else if (mode === 'handwrite') {
+            this._renderHandwritePanel(panel, idx);
+        } else if (mode === 'photo') {
+            this._renderPhotoPanel(panel, idx);
+        }
+    },
+
+    _renderHandwritePanel(panel, idx) {
+        const state = this._practiceInputStates[idx];
+        panel.innerHTML = `
+            <div class="mb-hw__canvas-wrap">
+                <canvas class="mb-hw__canvas" id="hw_canvas_${idx}"></canvas>
+            </div>
+            <div class="mb-hw__toolbar">
+                <button class="mb-hw__tool-btn" onclick="Views._hwUndo(${idx})">↩ 撤銷</button>
+                <button class="mb-hw__tool-btn" onclick="Views._hwClear(${idx})">🗑 清除</button>
+                <button class="mb-hw__tool-btn mb-hw__tool-btn--primary" id="hw_recognize_${idx}" onclick="Views._hwRecognize(${idx})">
+                    識別
+                </button>
+            </div>
+            <textarea class="mb-practice__answer-input mb-hw__result-ta" id="answer_${idx}" placeholder="識別結果將顯示在這裡，也可手動輸入...">${UI.escapeHtml(state.textareaValue || '')}</textarea>
+        `;
+        this._initCanvas(idx);
+    },
+
+    _initCanvas(idx) {
+        const canvas = document.getElementById(`hw_canvas_${idx}`);
+        if (!canvas) return;
+        const state = this._practiceInputStates[idx];
+
+        // 高 DPI 適配
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const cssW = rect.width || 320;
+        const cssH = 200;
+        canvas.style.width = cssW + 'px';
+        canvas.style.height = cssH + 'px';
+        canvas.width = cssW * dpr;
+        canvas.height = cssH * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#222';
+
+        // 重繪已有 strokes
+        this._hwRedraw(canvas, state.strokes);
+
+        // Pointer Events
+        let drawing = false;
+        let currentStroke = [];
+
+        const getPos = (e) => {
+            const r = canvas.getBoundingClientRect();
+            return [e.clientX - r.left, e.clientY - r.top];
+        };
+
+        canvas.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            canvas.setPointerCapture(e.pointerId);
+            drawing = true;
+            currentStroke = [getPos(e)];
+            ctx.beginPath();
+            ctx.moveTo(...currentStroke[0]);
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!drawing) return;
+            e.preventDefault();
+            const pos = getPos(e);
+            currentStroke.push(pos);
+            ctx.lineTo(...pos);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(...pos);
+        });
+
+        const endDraw = (e) => {
+            if (!drawing) return;
+            drawing = false;
+            if (currentStroke.length > 1) {
+                state.strokes.push([...currentStroke]);
+            }
+            currentStroke = [];
+        };
+
+        canvas.addEventListener('pointerup', endDraw);
+        canvas.addEventListener('pointercancel', endDraw);
+        canvas.addEventListener('pointerleave', endDraw);
+    },
+
+    _hwRedraw(canvas, strokes) {
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#222';
+        strokes.forEach(stroke => {
+            if (stroke.length < 2) return;
+            ctx.beginPath();
+            ctx.moveTo(...stroke[0]);
+            for (let i = 1; i < stroke.length; i++) ctx.lineTo(...stroke[i]);
+            ctx.stroke();
+        });
+    },
+
+    _hwUndo(idx) {
+        const state = this._practiceInputStates[idx];
+        if (!state || state.strokes.length === 0) return;
+        state.strokes.pop();
+        const canvas = document.getElementById(`hw_canvas_${idx}`);
+        if (canvas) this._hwRedraw(canvas, state.strokes);
+    },
+
+    _hwClear(idx) {
+        const state = this._practiceInputStates[idx];
+        if (!state) return;
+        state.strokes = [];
+        const canvas = document.getElementById(`hw_canvas_${idx}`);
+        if (canvas) this._hwRedraw(canvas, state.strokes);
+    },
+
+    _hwGetCroppedBlob(canvas, strokes) {
+        // 白底 + 裁邊 + padding + 最小尺寸
+        return new Promise(resolve => {
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+
+            // 創建白底圖
+            const offscreen = document.createElement('canvas');
+            offscreen.width = canvas.width;
+            offscreen.height = canvas.height;
+            const octx = offscreen.getContext('2d');
+            octx.scale(dpr, dpr);
+            octx.fillStyle = '#fff';
+            octx.fillRect(0, 0, w, h);
+            // 重繪 strokes
+            octx.lineCap = 'round';
+            octx.lineJoin = 'round';
+            octx.lineWidth = 2;
+            octx.strokeStyle = '#222';
+            strokes.forEach(stroke => {
+                if (stroke.length < 2) return;
+                octx.beginPath();
+                octx.moveTo(...stroke[0]);
+                for (let i = 1; i < stroke.length; i++) octx.lineTo(...stroke[i]);
+                octx.stroke();
+            });
+
+            // 掃描有效像素邊界
+            const imageData = octx.getImageData(0, 0, offscreen.width, offscreen.height);
+            const data = imageData.data;
+            let minX = offscreen.width, minY = offscreen.height, maxX = 0, maxY = 0;
+            for (let y = 0; y < offscreen.height; y++) {
+                for (let x = 0; x < offscreen.width; x++) {
+                    const i = (y * offscreen.width + x) * 4;
+                    if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            if (maxX <= minX || maxY <= minY) {
+                // 空白畫布
+                resolve(null);
+                return;
+            }
+
+            // 加 padding
+            const pad = 20 * dpr;
+            minX = Math.max(0, minX - pad);
+            minY = Math.max(0, minY - pad);
+            maxX = Math.min(offscreen.width, maxX + pad);
+            maxY = Math.min(offscreen.height, maxY + pad);
+
+            let cropW = maxX - minX;
+            let cropH = maxY - minY;
+
+            // 最小輸出尺寸
+            const minDim = 100 * dpr;
+            if (cropW < minDim) { const d = minDim - cropW; minX = Math.max(0, minX - d/2); cropW = minDim; }
+            if (cropH < minDim) { const d = minDim - cropH; minY = Math.max(0, minY - d/2); cropH = minDim; }
+
+            const cropped = document.createElement('canvas');
+            cropped.width = cropW;
+            cropped.height = cropH;
+            const cctx = cropped.getContext('2d');
+            cctx.fillStyle = '#fff';
+            cctx.fillRect(0, 0, cropW, cropH);
+            cctx.drawImage(offscreen, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+
+            cropped.toBlob(blob => resolve(blob), 'image/png');
+        });
+    },
+
+    async _hwRecognize(idx) {
+        const state = this._practiceInputStates[idx];
+        if (!state || state.loading) return;
+        if (state.strokes.length === 0) {
+            UI.toast('請先書寫內容', 'warning');
+            return;
+        }
+
+        const canvas = document.getElementById(`hw_canvas_${idx}`);
+        const blob = await this._hwGetCroppedBlob(canvas, state.strokes);
+        if (!blob) {
+            UI.toast('畫布為空', 'warning');
+            return;
+        }
+
+        await this._doRecognize(idx, blob, 'canvas');
+    },
+
+    _renderPhotoPanel(panel, idx) {
+        const state = this._practiceInputStates[idx];
+        panel.innerHTML = `
+            <div class="mb-hw__photo-area">
+                <div class="mb-hw__photo-zone" id="hw_photo_zone_${idx}" onclick="document.getElementById('hw_file_${idx}').click()">
+                    ${state.imagePreview ?
+                        `<img src="${state.imagePreview}" class="mb-hw__photo-preview">` :
+                        `<div style="padding:24px;text-align:center;color:var(--mb-text-tertiary)">
+                            <div style="font-size:28px;margin-bottom:8px">📷</div>
+                            <div style="font-size:13px">點擊拍照或選擇照片</div>
+                        </div>`
+                    }
+                </div>
+                <input type="file" id="hw_file_${idx}" accept="image/*" capture="environment" style="display:none"
+                       onchange="Views._hwPhotoSelected(${idx}, this)">
+                <div class="mb-hw__toolbar" style="margin-top:8px">
+                    <button class="mb-hw__tool-btn mb-hw__tool-btn--primary" id="hw_recognize_${idx}" onclick="Views._hwPhotoRecognize(${idx})"
+                            ${state.imagePreview ? '' : 'disabled'}>
+                        識別
+                    </button>
+                </div>
+            </div>
+            <textarea class="mb-practice__answer-input mb-hw__result-ta" id="answer_${idx}" placeholder="識別結果將顯示在這裡，也可手動輸入...">${UI.escapeHtml(state.textareaValue || '')}</textarea>
+        `;
+    },
+
+    _hwPhotoSelected(idx, input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const state = this._practiceInputStates[idx];
+        state._photoFile = file;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            state.imagePreview = e.target.result;
+            const zone = document.getElementById(`hw_photo_zone_${idx}`);
+            if (zone) zone.innerHTML = `<img src="${state.imagePreview}" class="mb-hw__photo-preview">`;
+            const btn = document.getElementById(`hw_recognize_${idx}`);
+            if (btn) btn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+    },
+
+    async _hwPhotoRecognize(idx) {
+        const state = this._practiceInputStates[idx];
+        if (!state || state.loading || !state._photoFile) return;
+        await this._doRecognize(idx, state._photoFile, 'photo');
+    },
+
+    async _doRecognize(idx, blob, mode) {
+        const state = this._practiceInputStates[idx];
+        const session = App.state._practiceSession;
+        if (!session) return;
+        state.loading = true;
+
+        // 禁用識別按鈕
+        const btn = document.getElementById(`hw_recognize_${idx}`);
+        if (btn) { btn.disabled = true; btn.textContent = '識別中...'; }
+
+        const _warnings = {
+            empty_result: '未能識別到內容',
+            very_short_abnormal: '識別結果可能不完整',
+            garbled_text: '部分內容無法識別',
+            possible_truncation: '部分內容可能未被識別',
+            unclear_math_symbols: '公式部分可能不準確',
+        };
+
+        try {
+            const res = await API.recognizeHandwriting(blob, session.subject, mode);
+            if (!res || !res.success || !res.data) {
+                UI.toast('識別失敗，請重試', 'error');
+                return;
+            }
+
+            const { text, low_confidence, warnings } = res.data;
+
+            // 低信心提示
+            if (low_confidence && warnings && warnings.length > 0) {
+                const msg = warnings.map(w => _warnings[w] || w).join('；');
+                UI.toast(msg, 'warning');
+            }
+
+            if (!text) {
+                UI.toast('未能識別到內容', 'warning');
+                return;
+            }
+
+            // 回填邏輯
+            const ta = document.getElementById(`answer_${idx}`);
+            const existing = (ta ? ta.value.trim() : '') || (state.textareaValue || '').trim();
+
+            if (!existing) {
+                // 直接填入
+                if (ta) ta.value = text;
+                state.textareaValue = text;
+                this._switchInputMode(idx, 'keyboard');
+            } else {
+                // 覆蓋/追加選擇
+                this._showFillDialog(idx, existing, text);
+            }
+
+        } catch (e) {
+            UI.toast('識別失敗: ' + e.message, 'error');
+        } finally {
+            state.loading = false;
+            if (btn) { btn.disabled = false; btn.textContent = '識別'; }
+        }
+    },
+
+    _showFillDialog(idx, existing, recognized) {
+        // 彈層：原內容 + 識別內容 + 覆蓋/追加
+        const overlay = document.createElement('div');
+        overlay.className = 'mb-hw__dialog-overlay';
+        const defaultBtn = existing.length <= 5 ? 'replace' : 'append';
+        overlay.innerHTML = `
+            <div class="mb-hw__dialog">
+                <div class="mb-hw__dialog-title">識別結果</div>
+                <div class="mb-hw__dialog-section">
+                    <div class="mb-hw__dialog-label">原有內容</div>
+                    <div class="mb-hw__dialog-text">${UI.escapeHtml(existing)}</div>
+                </div>
+                <div class="mb-hw__dialog-section">
+                    <div class="mb-hw__dialog-label">識別內容</div>
+                    <div class="mb-hw__dialog-text">${UI.escapeHtml(recognized)}</div>
+                </div>
+                <div class="mb-hw__dialog-actions">
+                    <button class="mb-btn mb-btn--sm ${defaultBtn === 'replace' ? 'mb-btn--primary' : 'mb-btn--ghost'}"
+                            id="hwDialogReplace">覆蓋</button>
+                    <button class="mb-btn mb-btn--sm ${defaultBtn === 'append' ? 'mb-btn--primary' : 'mb-btn--ghost'}"
+                            id="hwDialogAppend">追加</button>
+                    <button class="mb-btn mb-btn--sm mb-btn--ghost" id="hwDialogCancel">取消</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const applyAndClose = (value) => {
+            const state = this._practiceInputStates[idx];
+            state.textareaValue = value;
+            this._switchInputMode(idx, 'keyboard');
+            overlay.remove();
+        };
+
+        overlay.querySelector('#hwDialogReplace').onclick = () => applyAndClose(recognized);
+        overlay.querySelector('#hwDialogAppend').onclick = () => applyAndClose(existing + '\n' + recognized);
+        overlay.querySelector('#hwDialogCancel').onclick = () => overlay.remove();
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     },
 
     async _submitAllPractice() {

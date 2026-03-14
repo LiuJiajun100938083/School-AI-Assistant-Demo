@@ -1252,6 +1252,79 @@ class MistakeBookService:
 
         return result
 
+    # ================================================================
+    #  手寫答案識別（練習輔助輸入）
+    # ================================================================
+
+    async def recognize_handwriting(
+        self,
+        image_data: bytes,
+        filename: str,
+        subject: str,
+        mode: str = "canvas",
+    ) -> Dict:
+        """
+        識別手寫答案，返回文字/LaTeX。
+        輔助輸入能力，不是主答案層。
+
+        Args:
+            image_data: 圖片二進制數據
+            filename: 原始文件名
+            subject: 科目代碼
+            mode: 輸入模式 (canvas/photo)
+        """
+        import time as _time
+        t0 = _time.monotonic()
+        temp_path = None
+
+        try:
+            from app.domains.vision.schemas import RecognitionSubject
+
+            # 保存臨時文件
+            upload_dir = os.path.join(self._upload_dir, "handwriting_temp")
+            os.makedirs(upload_dir, exist_ok=True)
+            import uuid
+            ext = os.path.splitext(filename)[1] or ".jpg"
+            temp_path = os.path.join(upload_dir, f"{uuid.uuid4().hex}{ext}")
+            with open(temp_path, "wb") as f:
+                f.write(image_data)
+
+            # 調用 VisionService
+            if not self._vision:
+                return {
+                    "text": "", "has_math": False,
+                    "low_confidence": True, "warnings": ["empty_result"],
+                }
+
+            subject_enum = RecognitionSubject(subject)
+            result = await self._vision.recognize_handwriting_answer(
+                temp_path, subject_enum,
+            )
+
+            latency = _time.monotonic() - t0
+            logger.info(
+                "手寫識別業務層: subject=%s, mode=%s, latency=%.1fs, "
+                "text_len=%d, warnings=%s",
+                subject, mode, latency,
+                len(result.get("text", "")), result.get("warnings", []),
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error("手寫識別業務層異常: %s", e, exc_info=True)
+            return {
+                "text": "", "has_math": False,
+                "low_confidence": True, "warnings": ["empty_result"],
+            }
+        finally:
+            # 清理臨時文件
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+
     async def generate_practice(
         self,
         username: str,

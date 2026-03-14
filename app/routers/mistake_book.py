@@ -468,6 +468,61 @@ async def get_practice_mastery(
     return {"success": True, "data": result}
 
 
+@router.post("/api/mistakes/practice/recognize-handwriting")
+async def recognize_handwriting(
+    image: UploadFile = File(...),
+    subject: str = Form(...),
+    mode: str = Form("canvas"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    識別手寫答案（練習輔助輸入）
+
+    - **image**: 手寫答案圖片（Canvas 導出或拍照）
+    - **subject**: 科目代碼
+    - **mode**: 輸入模式 (canvas/photo)
+    """
+    _validate_subject(subject)
+
+    # 檔案大小驗證
+    content = await image.read()
+    if len(content) > 4 * 1024 * 1024:
+        raise HTTPException(400, "圖片太大，最大允許 4MB")
+    if len(content) == 0:
+        raise HTTPException(400, "圖片為空")
+
+    # MIME type 驗證
+    ct = image.content_type or ""
+    if not ct.startswith("image/"):
+        raise HTTPException(400, "只支持圖片文件")
+
+    # 解碼驗證 + 像素上限
+    try:
+        from PIL import Image
+        import io
+        with Image.open(io.BytesIO(content)) as img:
+            w, h = img.size
+            if w * h > 25_000_000:
+                raise HTTPException(400, "圖片解析度過大")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(400, "圖片無法解碼，請檢查文件格式")
+
+    try:
+        service = get_services().mistake_book
+        result = await service.recognize_handwriting(
+            image_data=content,
+            filename=image.filename or "handwriting.png",
+            subject=subject,
+            mode=mode,
+        )
+        return {"success": True, "data": result}
+    except Exception as e:
+        logger.error("手寫識別端點異常: %s", e, exc_info=True)
+        raise HTTPException(500, "識別服務暫時不可用")
+
+
 @router.post("/api/mistakes/practice/generate")
 async def generate_practice(
     req: GeneratePracticeRequest,

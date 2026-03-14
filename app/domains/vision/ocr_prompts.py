@@ -1090,3 +1090,56 @@ Output JSON only.
 - "answer" = ONLY student's handwritten work. If none → "answer" = "".
 - NEVER generate or fabricate content.
 """
+
+
+# ================================================================
+#  手寫答案識別 Prompt（練習輔助輸入）
+# ================================================================
+
+_HANDWRITING_BASE = """You are a handwriting transcription tool. Your ONLY job is to convert the handwritten content in this image into typed text.
+
+## Rules — STRICTLY follow ALL of these:
+- Output the transcribed text ONLY. No JSON, no explanations, no commentary.
+- Do NOT complete sentences, guess missing words, or add any content not visible.
+- Do NOT solve problems, correct answers, or provide reasoning.
+- Do NOT output phrases like "The answer is..." or "識別結果如下".
+- If something is unclear, keep the original shape or mark it as [?].
+- Preserve line breaks as they appear in the handwriting.
+"""
+
+_HANDWRITING_MATH = _HANDWRITING_BASE + """
+## Math/Physics formula rules:
+- Wrap ALL math expressions with $...$ (inline LaTeX).
+- Pure formula lines: wrap the entire line, e.g. $x = 3$
+- Lines mixing text and formulas: only wrap the formula parts, e.g. 因此 $x = 3$
+- Use standard LaTeX: $\\frac{a}{b}$, $\\sqrt{x}$, $x^2$, $x_1$, $\\sin\\theta$
+- Units: write inside LaTeX as $5 \\text{ m s}^{-1}$ or outside as plain text
+- Do NOT use $$...$$ (display math). Only inline $...$.
+- Preserve the student's notation even if non-standard.
+"""
+
+_HANDWRITING_CHINESE = _HANDWRITING_BASE + """
+## Chinese text rules:
+- Output in Traditional Chinese (繁體中文).
+- Preserve original punctuation marks.
+- If a character is unclear, use the most likely candidate or mark [?].
+"""
+
+_HANDWRITING_ENGLISH = _HANDWRITING_BASE + """
+## English text rules:
+- Preserve original spelling exactly, even if misspelled.
+- Do NOT auto-correct spelling or grammar.
+- Preserve capitalization as written.
+"""
+
+
+def build_handwriting_prompt(subject: RecognitionSubject) -> str:
+    """構建手寫答案識別 prompt（轉錄導向，非理解導向）"""
+    if subject in (RecognitionSubject.MATH, RecognitionSubject.PHYSICS):
+        return _HANDWRITING_MATH
+    elif subject == RecognitionSubject.CHINESE:
+        return _HANDWRITING_CHINESE
+    elif subject == RecognitionSubject.ENGLISH:
+        return _HANDWRITING_ENGLISH
+    else:
+        return _HANDWRITING_BASE

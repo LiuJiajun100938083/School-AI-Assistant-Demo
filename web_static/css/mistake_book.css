@@ -1401,6 +1401,155 @@
 }
 
 /* ============================================================
+   Handwriting Input (手寫識別)
+   ============================================================ */
+
+.mb-hw { margin-top: 12px; }
+
+.mb-hw__modes {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.mb-hw__mode-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--mb-border);
+    border-radius: var(--mb-radius-md);
+    background: var(--mb-card);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--mb-duration);
+    color: var(--mb-text-secondary);
+}
+
+.mb-hw__mode-btn:hover { border-color: var(--mb-brand); }
+
+.mb-hw__mode-btn--active {
+    background: var(--mb-brand);
+    color: #fff;
+    border-color: var(--mb-brand);
+}
+
+.mb-hw__canvas-wrap {
+    border: 1.5px solid var(--mb-border-strong);
+    border-radius: var(--mb-radius-md);
+    overflow: hidden;
+    background: #fff;
+}
+
+.mb-hw__canvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.mb-hw__toolbar {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.mb-hw__tool-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--mb-border);
+    border-radius: var(--mb-radius-sm);
+    background: var(--mb-card);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--mb-duration);
+    color: var(--mb-text-secondary);
+}
+
+.mb-hw__tool-btn:hover { border-color: var(--mb-brand); color: var(--mb-text); }
+
+.mb-hw__tool-btn--primary {
+    background: var(--mb-brand);
+    color: #fff;
+    border-color: var(--mb-brand);
+}
+
+.mb-hw__tool-btn--primary:hover { opacity: 0.9; }
+.mb-hw__tool-btn--primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mb-hw__result-ta { margin-top: 8px; }
+
+.mb-hw__photo-zone {
+    border: 1.5px dashed var(--mb-border-strong);
+    border-radius: var(--mb-radius-md);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color var(--mb-duration);
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mb-hw__photo-zone:hover { border-color: var(--mb-brand); }
+
+.mb-hw__photo-preview {
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    display: block;
+}
+
+/* 覆蓋/追加彈層 */
+.mb-hw__dialog-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.mb-hw__dialog {
+    background: var(--mb-card);
+    border-radius: var(--mb-radius-lg);
+    padding: 20px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+
+.mb-hw__dialog-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+.mb-hw__dialog-section { margin-bottom: 12px; }
+
+.mb-hw__dialog-label {
+    font-size: 12px;
+    color: var(--mb-text-tertiary);
+    margin-bottom: 4px;
+}
+
+.mb-hw__dialog-text {
+    padding: 8px 12px;
+    background: var(--mb-bg-secondary);
+    border-radius: var(--mb-radius-sm);
+    font-size: 13px;
+    max-height: 80px;
+    overflow-y: auto;
+    word-break: break-all;
+}
+
+.mb-hw__dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 16px;
+}
+
+/* ============================================================
    Select
    ============================================================ */
 

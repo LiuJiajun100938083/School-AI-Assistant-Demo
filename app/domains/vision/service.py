@@ -25,7 +25,7 @@ from app.domains.vision.schemas import (
 )
 from app.domains.vision.ollama_client import OllamaVisionClient
 from app.domains.vision.exam_recognizer import ExamRecognizer
-from app.domains.vision.ocr_prompts import build_ocr_prompt
+from app.domains.vision.ocr_prompts import build_ocr_prompt, build_handwriting_prompt
 from app.domains.vision.ocr_parser import parse_ocr_response
 from app.domains.vision import json_utils
 from app.domains.vision import figure_handler
@@ -167,6 +167,161 @@ class VisionService:
         return await self.recognize(
             image_path, RecognitionSubject.ENGLISH, RecognitionTask.DICTATION,
         )
+
+    # ================================================================
+    #  公開方法 — 手寫答案識別（練習輔助輸入）
+    # ================================================================
+
+    async def recognize_handwriting_answer(
+        self,
+        image_path: str,
+        subject: RecognitionSubject,
+    ) -> dict:
+        """
+        識別手寫答案，返回純文字/LaTeX。
+
+        這是輔助輸入能力，不是完整 OCR。只做轉錄，不做理解。
+        返回: {"text": str, "has_math": bool, "low_confidence": bool, "warnings": list}
+        """
+        try:
+            t0 = time.monotonic()
+
+            if not os.path.exists(image_path):
+                return {
+                    "text": "", "has_math": False,
+                    "low_confidence": True, "warnings": ["empty_result"],
+                }
+
+            processed_path = await self._client.preprocess_image(image_path)
+
+            # 解碼後像素上限檢查
+            try:
+                from PIL import Image
+                with Image.open(processed_path) as img:
+                    w, h = img.size
+                    total_pixels = w * h
+                    if total_pixels > 25_000_000:  # 25MP 上限
+                        logger.warning(
+                            "手寫識別圖片像素過大: %dx%d (%dMP)，縮放處理",
+                            w, h, total_pixels // 1_000_000,
+                        )
+                        ratio = (25_000_000 / total_pixels) ** 0.5
+                        new_size = (int(w * ratio), int(h * ratio))
+                        resized = img.resize(new_size, Image.LANCZOS)
+                        resized.save(processed_path)
+            except ImportError:
+                pass  # PIL 不可用時跳過
+
+            prompt = build_handwriting_prompt(subject)
+
+            # 用普通模式（非 JSON 模式），因為輸出是純文字
+            raw_response = await self._client.call_vision_model(
+                processed_path, prompt,
+                priority=2,  # INTERACTIVE
+                weight=2,    # VISION_SINGLE
+            )
+
+            t_done = time.monotonic()
+            latency = t_done - t0
+
+            if raw_response is None:
+                logger.info(
+                    "手寫識別失敗: subject=%s, latency=%.1fs", subject.value, latency,
+                )
+                return {
+                    "text": "", "has_math": False,
+                    "low_confidence": True, "warnings": ["empty_result"],
+                }
+
+            # 清理模型輸出（去掉 thinking tags、多餘空白）
+            text = json_utils.strip_thinking_tags(raw_response).strip()
+
+            # has_math 後處理判定（多條件組合）
+            has_math = self._detect_math_content(text, subject)
+
+            # 低信心 heuristic（多條件組合）
+            low_confidence, warnings = self._evaluate_confidence(text, subject)
+
+            logger.info(
+                "手寫識別完成: subject=%s, latency=%.1fs, text_len=%d, "
+                "has_math=%s, low_confidence=%s, warnings=%s",
+                subject.value, latency, len(text),
+                has_math, low_confidence, warnings,
+            )
+
+            return {
+                "text": text,
+                "has_math": has_math,
+                "low_confidence": low_confidence,
+                "warnings": warnings,
+            }
+
+        except Exception as e:
+            logger.error("手寫識別異常: %s", e, exc_info=True)
+            return {
+                "text": "", "has_math": False,
+                "low_confidence": True, "warnings": ["empty_result"],
+            }
+
+    @staticmethod
+    def _detect_math_content(text: str, subject: RecognitionSubject) -> bool:
+        """判定文字是否包含數學內容（多條件組合）"""
+        import re
+
+        # LaTeX 命令
+        if re.search(r'\\(frac|sqrt|text|sin|cos|tan|log|lim|sum|int|pi|theta|alpha|beta|delta|Delta|infty)\b', text):
+            return True
+        # 上下標結構
+        if re.search(r'[\^_]\s*[{\w]', text):
+            return True
+        # $...$ 包裹的內容
+        if re.search(r'\$[^$]+\$', text):
+            return True
+        # 數學表達式模式（x = ..., f(x), 等）
+        if subject in (RecognitionSubject.MATH, RecognitionSubject.PHYSICS):
+            if re.search(r'[a-zA-Z]\s*[=<>≤≥≠±]\s*\d', text):
+                return True
+            if re.search(r'[a-zA-Z]\s*\(', text) and '=' in text:
+                return True
+        return False
+
+    @staticmethod
+    def _evaluate_confidence(text: str, subject: RecognitionSubject) -> tuple:
+        """低信心 heuristic（多條件組合，避免誤傷短而合理的答案）"""
+        import re
+        warnings = []
+
+        if not text:
+            return True, ["empty_result"]
+
+        # 大量不可識別字符（超過 30% 是異常字符）
+        total_chars = len(text)
+        garbage_chars = len(re.findall(r'[^\w\s\$\\{}()（）=+\-*/^_.,;:!?！？。，、；：「」【】\u4e00-\u9fff\u3000-\u303f]', text))
+        if total_chars > 0 and garbage_chars / total_chars > 0.3:
+            warnings.append("garbled_text")
+
+        # 極短 + 結構異常（排除合理短答案）
+        stripped = text.strip()
+        if len(stripped) <= 2:
+            # 合理短答案：單個數字、字母、常見選項、短中文
+            reasonable_short = re.match(
+                r'^[\d]+$|^[A-Da-d]$|^[是否對錯有無]$|^[A-Za-z]{1,3}$|^\$[^$]+\$$',
+                stripped,
+            )
+            if not reasonable_short:
+                warnings.append("very_short_abnormal")
+
+        # 可能被截斷（末尾不完整的 LaTeX）
+        if re.search(r'\$[^$]*$', text) and text.count('$') % 2 != 0:
+            warnings.append("possible_truncation")
+
+        # 數學科目但完全沒有合理數學結構
+        if subject in (RecognitionSubject.MATH, RecognitionSubject.PHYSICS):
+            if len(stripped) > 10 and not re.search(r'[\d=+\-*/^$\\]', text):
+                warnings.append("unclear_math_symbols")
+
+        low_confidence = len(warnings) > 0
+        return low_confidence, warnings
 
     # ================================================================
     #  公開方法 — 試卷識別
