@@ -213,11 +213,7 @@ def initialize_vector_store():
                 vector_db = get_vector_db()
                 sample_docs = vector_db.similarity_search("", k=100)
 
-                all_docs = []
-                for doc in sample_docs:
-                    if 'subject' not in doc.metadata:
-                        doc.metadata['subject'] = 'ict'
-                    all_docs.append(doc)
+                all_docs = list(sample_docs)
 
                 logger.info(f"📚 從向量數據庫加載了 {len(all_docs)} 個文檔樣本")
             except Exception as e:

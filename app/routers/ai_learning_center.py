@@ -1131,3 +1131,67 @@ async def batch_import_paths(
     except Exception as e:
         logger.exception("Error batch importing learning paths")
         return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ================================================================
+# 管理員端點 - 重建向量索引
+# ================================================================
+
+@router.post("/api/admin/learning-center/rebuild-index")
+async def rebuild_vector_index(
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
+):
+    """
+    重建所有已發佈內容的向量索引。
+
+    刪除舊索引後重新建立，確保 metadata（含 subject）完整。
+    """
+    try:
+        from llm.rag.content_indexer import get_content_indexer
+
+        service = get_services().learning_center
+        contents_repo = service._contents
+
+        # 获取所有已发布内容
+        result = contents_repo.find_all(
+            "status = 'published' AND is_deleted = 0",
+            columns="id, title, subject_code",
+        )
+
+        indexer = get_content_indexer()
+        loop = asyncio.get_running_loop()
+
+        success_count = 0
+        fail_count = 0
+
+        for row in result:
+            content_id = row["id"]
+            # 先删除旧索引
+            await loop.run_in_executor(None, indexer.delete, content_id)
+            # 获取完整行
+            full_row = contents_repo.find_by_id(content_id)
+            if not full_row:
+                fail_count += 1
+                continue
+            # 重新索引
+            ok = await loop.run_in_executor(
+                None, indexer.index, content_id, dict(full_row)
+            )
+            if ok:
+                success_count += 1
+            else:
+                fail_count += 1
+
+        return success_response(
+            data={
+                "total": len(result),
+                "success": success_count,
+                "failed": fail_count,
+            },
+            message=f"重建索引完成：成功 {success_count}，失敗 {fail_count}",
+        )
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.exception("重建向量索引失败")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
