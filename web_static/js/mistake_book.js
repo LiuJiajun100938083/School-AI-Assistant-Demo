@@ -2038,9 +2038,11 @@ const Views = {
         const state = this._practiceInputStates[idx];
         if (!state || state.mode === mode) return;
 
-        // 保存 textarea 值
-        const ta = document.getElementById(`answer_${idx}`);
-        if (ta) state.textareaValue = ta.value;
+        // 保存 textarea 值（只在鍵盤模式下保存，其他模式的 textarea 是占位符）
+        if (state.mode === 'keyboard') {
+            const ta = document.getElementById(`answer_${idx}`);
+            if (ta) state.textareaValue = ta.value;
+        }
 
         state.mode = mode;
 
@@ -2113,11 +2115,12 @@ const Views = {
 
     _openHandwriteModal(idx) {
         const state = this._practiceInputStates[idx];
+        if (!state.pencilMode) state.pencilMode = false;
+        if (!state.canvasTransform) state.canvasTransform = { scale: 1, tx: 0, ty: 0 };
         const session = App.state._practiceSession;
         const q = session && session.questions ? session.questions[idx] : null;
         const questionText = q ? q.question : '';
 
-        // 創建全屏彈層
         const overlay = document.createElement('div');
         overlay.className = 'mb-hw__fullscreen-overlay';
         overlay.id = `hw_modal_${idx}`;
@@ -2128,14 +2131,19 @@ const Views = {
                     <button class="mb-hw__fullscreen-close" id="hw_modal_close_${idx}">✕</button>
                 </div>
                 <div class="mb-hw__fullscreen-question">${UI.renderMath(questionText)}</div>
-                <div class="mb-hw__fullscreen-canvas-area">
-                    <div class="mb-hw__canvas-wrap mb-hw__canvas-wrap--full">
+                <div class="mb-hw__fullscreen-canvas-area" id="hw_canvas_area_${idx}">
+                    <div class="mb-hw__canvas-wrap mb-hw__canvas-wrap--full" id="hw_canvas_container_${idx}">
                         <canvas class="mb-hw__canvas" id="hw_canvas_${idx}"></canvas>
                     </div>
                 </div>
                 <div class="mb-hw__fullscreen-toolbar">
-                    <button class="mb-hw__tool-btn" onclick="Views._hwUndo(${idx})">↩ 撤銷</button>
-                    <button class="mb-hw__tool-btn" onclick="Views._hwClear(${idx})">🗑 清除</button>
+                    <div class="mb-hw__pen-toggle" id="hw_pen_toggle_${idx}">
+                        <button class="mb-hw__pen-btn ${state.pencilMode ? '' : 'mb-hw__pen-btn--active'}" data-pen="finger" onclick="Views._setPencilMode(${idx}, false)">👆 手指</button>
+                        <button class="mb-hw__pen-btn ${state.pencilMode ? 'mb-hw__pen-btn--active' : ''}" data-pen="pencil" onclick="Views._setPencilMode(${idx}, true)">✏️ Pencil</button>
+                    </div>
+                    <button class="mb-hw__tool-btn" onclick="Views._hwUndo(${idx})">↩</button>
+                    <button class="mb-hw__tool-btn" onclick="Views._hwClear(${idx})">🗑</button>
+                    <button class="mb-hw__tool-btn" onclick="Views._hwResetZoom(${idx})">⊙</button>
                     <button class="mb-hw__tool-btn mb-hw__tool-btn--primary mb-hw__tool-btn--lg" id="hw_recognize_${idx}" onclick="Views._hwRecognize(${idx})">
                         識別
                     </button>
@@ -2144,12 +2152,8 @@ const Views = {
         `;
         document.body.appendChild(overlay);
 
-        // 關閉按鈕
-        document.getElementById(`hw_modal_close_${idx}`).onclick = () => {
-            overlay.remove();
-        };
+        document.getElementById(`hw_modal_close_${idx}`).onclick = () => overlay.remove();
 
-        // 初始化 canvas（延遲一幀確保 DOM 已渲染）
         requestAnimationFrame(() => this._initCanvas(idx));
     },
 
@@ -2158,16 +2162,49 @@ const Views = {
         if (modal) modal.remove();
     },
 
+    _setPencilMode(idx, pencilMode) {
+        const state = this._practiceInputStates[idx];
+        if (!state) return;
+        state.pencilMode = pencilMode;
+        const toggle = document.getElementById(`hw_pen_toggle_${idx}`);
+        if (toggle) {
+            toggle.querySelectorAll('.mb-hw__pen-btn').forEach(btn => {
+                const isPencil = btn.dataset.pen === 'pencil';
+                btn.classList.toggle('mb-hw__pen-btn--active', isPencil === pencilMode);
+            });
+        }
+    },
+
+    _hwResetZoom(idx) {
+        const state = this._practiceInputStates[idx];
+        if (!state) return;
+        state.canvasTransform = { scale: 1, tx: 0, ty: 0 };
+        const canvas = document.getElementById(`hw_canvas_${idx}`);
+        if (canvas) {
+            canvas.style.transform = '';
+        }
+    },
+
+    _applyCanvasTransform(idx) {
+        const state = this._practiceInputStates[idx];
+        const canvas = document.getElementById(`hw_canvas_${idx}`);
+        if (!state || !canvas) return;
+        const tf = state.canvasTransform;
+        canvas.style.transformOrigin = '0 0';
+        canvas.style.transform = `translate(${tf.tx}px, ${tf.ty}px) scale(${tf.scale})`;
+    },
+
     _initCanvas(idx) {
         const canvas = document.getElementById(`hw_canvas_${idx}`);
         if (!canvas) return;
         const state = this._practiceInputStates[idx];
+        const container = canvas.parentElement;
 
-        // 高 DPI 適配 — 使用父容器尺寸
-        const rect = canvas.parentElement.getBoundingClientRect();
+        // 高 DPI 適配
+        const containerRect = container.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        const cssW = rect.width || 320;
-        const cssH = rect.height || 300;
+        const cssW = containerRect.width || 320;
+        const cssH = containerRect.height || 300;
         canvas.style.width = cssW + 'px';
         canvas.style.height = cssH + 'px';
         canvas.width = cssW * dpr;
@@ -2179,50 +2216,169 @@ const Views = {
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = '#222';
 
+        // 恢復已有 transform
+        if (state.canvasTransform && state.canvasTransform.scale !== 1) {
+            this._applyCanvasTransform(idx);
+        }
+
         // 重繪已有 strokes
         this._hwRedraw(canvas, state.strokes);
 
-        // Pointer Events
+        // ---- Pointer + Gesture 處理 ----
+        const activePointers = new Map();
         let drawing = false;
         let currentStroke = [];
+        let isPanning = false;
+        let lastPinchDist = null;
+        let lastPinchCenter = null;
 
-        const getPos = (e) => {
-            const r = canvas.getBoundingClientRect();
-            return [e.clientX - r.left, e.clientY - r.top];
+        const getTf = () => state.canvasTransform || { scale: 1, tx: 0, ty: 0 };
+
+        // 螢幕座標 → canvas 本地座標（考慮 CSS transform）
+        const screenToCanvas = (clientX, clientY) => {
+            const tf = getTf();
+            const cr = container.getBoundingClientRect();
+            return [
+                (clientX - cr.left - tf.tx) / tf.scale,
+                (clientY - cr.top - tf.ty) / tf.scale,
+            ];
         };
 
-        canvas.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            canvas.setPointerCapture(e.pointerId);
+        // 是否應該畫線（基於 pencilMode 和 pointerType）
+        const shouldDraw = (e) => {
+            if (state.pencilMode) return e.pointerType === 'pen';
+            return true; // 手指模式下所有輸入都畫
+        };
+
+        // 是否應該平移（基於 pencilMode 和 pointerType）
+        const shouldPan = (e) => {
+            if (state.pencilMode) return e.pointerType === 'touch';
+            return false; // 手指模式下單指不平移（靠兩指）
+        };
+
+        // ---- 繪畫 ----
+        const startDraw = (e) => {
             drawing = true;
-            currentStroke = [getPos(e)];
+            currentStroke = [screenToCanvas(e.clientX, e.clientY)];
             ctx.beginPath();
             ctx.moveTo(...currentStroke[0]);
-        });
+        };
 
-        canvas.addEventListener('pointermove', (e) => {
-            if (!drawing) return;
-            e.preventDefault();
-            const pos = getPos(e);
+        const moveDraw = (e) => {
+            const pos = screenToCanvas(e.clientX, e.clientY);
             currentStroke.push(pos);
             ctx.lineTo(...pos);
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(...pos);
-        });
+        };
 
-        const endDraw = (e) => {
-            if (!drawing) return;
-            drawing = false;
-            if (currentStroke.length > 1) {
+        const endDraw = () => {
+            if (drawing && currentStroke.length > 1) {
                 state.strokes.push([...currentStroke]);
             }
+            drawing = false;
             currentStroke = [];
         };
 
-        canvas.addEventListener('pointerup', endDraw);
-        canvas.addEventListener('pointercancel', endDraw);
-        canvas.addEventListener('pointerleave', endDraw);
+        // ---- 單指平移 (pencil mode) ----
+        let panStart = null;
+        const startPan = (e) => {
+            isPanning = true;
+            panStart = { x: e.clientX, y: e.clientY, tx: getTf().tx, ty: getTf().ty };
+        };
+
+        const movePan = (e) => {
+            if (!panStart) return;
+            const tf = getTf();
+            tf.tx = panStart.tx + (e.clientX - panStart.x);
+            tf.ty = panStart.ty + (e.clientY - panStart.y);
+            this._applyCanvasTransform(idx);
+        };
+
+        const endPan = () => {
+            isPanning = false;
+            panStart = null;
+        };
+
+        // ---- 兩指縮放+平移 ----
+        const handlePinch = () => {
+            const pts = [...activePointers.values()];
+            if (pts.length < 2) return;
+            const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+            const cx = (pts[0].x + pts[1].x) / 2;
+            const cy = (pts[0].y + pts[1].y) / 2;
+
+            if (lastPinchDist !== null) {
+                const tf = getTf();
+                const scaleDelta = dist / lastPinchDist;
+                const newScale = Math.max(0.5, Math.min(5, tf.scale * scaleDelta));
+                const cr = container.getBoundingClientRect();
+                const px = cx - cr.left;
+                const py = cy - cr.top;
+                // 以 pinch 中心為基點縮放
+                tf.tx = px - (px - tf.tx) * (newScale / tf.scale);
+                tf.ty = py - (py - tf.ty) * (newScale / tf.scale);
+                // 加上平移
+                tf.tx += cx - lastPinchCenter.x;
+                tf.ty += cy - lastPinchCenter.y;
+                tf.scale = newScale;
+                this._applyCanvasTransform(idx);
+            }
+            lastPinchDist = dist;
+            lastPinchCenter = { x: cx, y: cy };
+        };
+
+        // ---- 事件處理 ----
+        container.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            container.setPointerCapture(e.pointerId);
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+            if (activePointers.size === 1) {
+                if (shouldDraw(e)) {
+                    startDraw(e);
+                } else if (shouldPan(e)) {
+                    startPan(e);
+                }
+            } else if (activePointers.size >= 2) {
+                // 兩指開始 → 取消正在進行的繪畫/平移
+                endDraw();
+                endPan();
+                lastPinchDist = null;
+                lastPinchCenter = null;
+            }
+        });
+
+        container.addEventListener('pointermove', (e) => {
+            e.preventDefault();
+            if (activePointers.has(e.pointerId)) {
+                activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            }
+
+            if (activePointers.size >= 2) {
+                handlePinch();
+            } else if (drawing) {
+                moveDraw(e);
+            } else if (isPanning) {
+                movePan(e);
+            }
+        });
+
+        const onPointerEnd = (e) => {
+            activePointers.delete(e.pointerId);
+            if (activePointers.size < 2) {
+                lastPinchDist = null;
+                lastPinchCenter = null;
+            }
+            if (activePointers.size === 0) {
+                endDraw();
+                endPan();
+            }
+        };
+
+        container.addEventListener('pointerup', onPointerEnd);
+        container.addEventListener('pointercancel', onPointerEnd);
     },
 
     _hwRedraw(canvas, strokes) {

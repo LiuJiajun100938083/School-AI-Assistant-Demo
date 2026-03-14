@@ -1441,6 +1441,8 @@
 .mb-hw__canvas-wrap--full {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
+    position: relative;
 }
 
 .mb-hw__canvas {
@@ -1457,6 +1459,8 @@
     background: var(--mb-bg);
     z-index: 9999;
     display: flex;
+    -webkit-user-select: none;
+    user-select: none;
     flex-direction: column;
 }
 
@@ -1563,6 +1567,30 @@
 .mb-hw__tool-btn--lg {
     padding: 8px 28px;
     font-size: 15px;
+}
+
+/* 手指/Pencil 切換 */
+.mb-hw__pen-toggle {
+    display: flex;
+    border: 1px solid var(--mb-border);
+    border-radius: var(--mb-radius-md);
+    overflow: hidden;
+    margin-right: auto;
+}
+
+.mb-hw__pen-btn {
+    padding: 6px 12px;
+    border: none;
+    background: var(--mb-card);
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--mb-text-secondary);
+    transition: all var(--mb-duration);
+}
+
+.mb-hw__pen-btn--active {
+    background: var(--mb-brand);
+    color: #fff;
 }
 
 .mb-hw__result-ta { margin-top: 8px; }
