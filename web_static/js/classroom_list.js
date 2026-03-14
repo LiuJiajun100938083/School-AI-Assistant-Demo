@@ -295,10 +295,9 @@ const ClassroomUI = {
         }
 
         container.innerHTML = rooms.map(room => {
-            const statusColor = this.STATUS_COLORS[room.room_status] || this.STATUS_COLORS.draft;
             const statusDot = room.room_status === 'active' ? '<span class="status-dot-inline"></span>' : '';
             return `
-            <div class="room-card" style="--status-color: ${statusColor}">
+            <div class="room-card">
                 <div class="room-card-header">
                     <h3 class="room-title">${Utils.escapeHtml(room.title)}</h3>
                     <span class="status-badge ${room.room_status}">${statusDot}${this._statusText(room.room_status)}</span>
@@ -344,10 +343,9 @@ const ClassroomUI = {
         }
 
         container.innerHTML = rooms.map(room => {
-            const statusColor = this.STATUS_COLORS[room.room_status] || this.STATUS_COLORS.draft;
             const statusDot = room.room_status === 'active' ? '<span class="status-dot-inline"></span>' : '';
             return `
-            <div class="room-card" style="--status-color: ${statusColor}">
+            <div class="room-card">
                 <div class="room-card-header">
                     <h3 class="room-title">${Utils.escapeHtml(room.title)}</h3>
                     <span class="status-badge ${room.room_status}">${statusDot}${this._statusText(room.room_status)}</span>
