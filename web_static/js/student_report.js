@@ -39,7 +39,8 @@ const ReportAPI = {
             throw new Error(errorData.detail || `HTTP ${resp.status}`);
         }
 
-        return resp.json();
+        const result = await resp.json();
+        return result.data !== undefined ? result.data : result;
     },
 
     /**
@@ -126,14 +127,10 @@ const ReportUI = {
         this.elements.reportContent.innerHTML = `
             <div class="report-section">
                 <h3>📊 總體學習概覽</h3>
-                <p>${data.overview_summary || '暫無總體概覽'}</p>
-            </div>
-            <div class="report-section">
-                <h3>📈 整體評估</h3>
-                <p>${data.overall_assessment || '暫無整體評估'}</p>
+                <p>已分析 ${data.subjects_analyzed || 0} 個學科，整體風險等級：${data.overall_risk_level || '未知'}</p>
             </div>
             <div class="subject-grid">
-                ${this._generateSubjectCards(data.subjects || {})}
+                ${this._generateSubjectCards(data.subject_reports || {})}
             </div>
         `;
     },
@@ -145,27 +142,27 @@ const ReportUI = {
         this.elements.reportContent.innerHTML = `
             <div class="report-section">
                 <h3>📚 知識掌握情況</h3>
-                <p>${data.knowledge_mastery_report || '暫無數據'}</p>
+                <p>${data.knowledge_mastery || '暫無數據'}</p>
             </div>
             <div class="report-section">
                 <h3>🎨 學習風格分析</h3>
-                <p>${data.learning_style_report || '暫無數據'}</p>
+                <p>${data.learning_style || '暫無數據'}</p>
             </div>
             <div class="report-section">
                 <h3>⚠️ 學習困難分析</h3>
-                <p>${data.difficulty_report || '暫無數據'}</p>
+                <p>${data.difficulty_level || '暫無數據'}</p>
             </div>
             <div class="report-section">
                 <h3>💭 情感狀態分析</h3>
-                <p>${data.emotion_report || '暫無數據'}</p>
+                <p>${data.emotion_analysis || '暫無數據'}</p>
             </div>
             <div class="report-section">
                 <h3>📈 學習進度評估</h3>
-                <p>${data.progress_report || '暫無數據'}</p>
+                <p>${data.progress || '暫無數據'}</p>
             </div>
             <div class="report-section">
                 <h3>💡 個性化學習建議</h3>
-                <p>${data.suggestion_report || '暫無數據'}</p>
+                <p>${data.suggestions || '暫無數據'}</p>
             </div>
         `;
     },
