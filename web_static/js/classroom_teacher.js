@@ -936,7 +936,7 @@ function handleWebSocketMessage(message) {
         case 'quiz_answer_count':
             // Update answer count on teacher view
             if (state.lessonSession && message.data) {
-                if (!state.lessonSession.runtime_meta) state.lessonSession.runtime_meta = {};
+                _ensureRuntimeMeta();
                 if (!state.lessonSession.runtime_meta.answer_counts) state.lessonSession.runtime_meta.answer_counts = {};
                 state.lessonSession.runtime_meta.answer_counts[message.data.question_id] = message.data.count;
                 updateLessonUI();
@@ -945,7 +945,7 @@ function handleWebSocketMessage(message) {
         case 'quiz_reveal':
             // Update teacher phase to reveal + store reveal data (option_counts)
             if (state.lessonSession) {
-                if (!state.lessonSession.runtime_meta) state.lessonSession.runtime_meta = {};
+                _ensureRuntimeMeta();
                 state.lessonSession.runtime_meta.phase = 'reveal';
                 if (message.data && message.data.option_counts) {
                     state.lessonSession.runtime_meta._reveal_data = message.data;
@@ -956,7 +956,7 @@ function handleWebSocketMessage(message) {
         case 'quiz_question':
             // Advance to next question — clear reveal data from previous question
             if (state.lessonSession && message.data) {
-                if (!state.lessonSession.runtime_meta) state.lessonSession.runtime_meta = {};
+                _ensureRuntimeMeta();
                 state.lessonSession.runtime_meta.current_question_index = message.data.question_index;
                 state.lessonSession.runtime_meta.phase = 'answering';
                 delete state.lessonSession.runtime_meta._reveal_data;
@@ -981,6 +981,17 @@ function handleWebSocketMessage(message) {
     }
 }
 
+// Ensure runtime_meta is a parsed object (API may return JSON string)
+function _ensureRuntimeMeta() {
+    if (!state.lessonSession) return;
+    let rm = state.lessonSession.runtime_meta;
+    if (typeof rm === 'string') {
+        try { rm = JSON.parse(rm); } catch { rm = {}; }
+    }
+    if (!rm || typeof rm !== 'object') rm = {};
+    state.lessonSession.runtime_meta = rm;
+}
+
 // ==================== LESSON PLAN MODE ====================
 async function checkLessonState() {
     try {
@@ -996,6 +1007,7 @@ async function checkLessonState() {
             state.lessonSessionId = session.session_id;
             state.lessonSlide = json.data.slide;
             state.lessonSession = session;
+            _ensureRuntimeMeta();
             state.lessonPlanId = session.plan_id;
             await enterLessonMode(session.plan_id);
         } else {
@@ -1210,6 +1222,7 @@ async function lessonNavigate(action, slideId) {
         const json = await res.json();
         if (json.success && json.data) {
             state.lessonSession = json.data.session;
+            _ensureRuntimeMeta();
             state.lessonSlide = json.data.slide;
             // Store target slide's saved annotations for renderLessonPPTSlide to use
             state.lessonSlideAnnotations = json.data.slide_annotations || null;
@@ -1244,6 +1257,7 @@ async function lessonSlideAction(action) {
             // quiz data without a session object. Only update session if present.
             if (json.data.session) {
                 state.lessonSession = json.data.session;
+                _ensureRuntimeMeta();
             }
             updateLessonUI();
         } else {
@@ -1323,9 +1337,8 @@ function updateLessonUI() {
                 ? `${svgIcon('send', 14)} <span>推送給學生</span>`
                 : `${svgIcon('send', 14)} <span>推送標註</span>`;
         } else {
-            // Non-PPT: hide push button (lifecycle controls handle it)
-            pushBtn.style.display = lifecycle === 'prepared' ? '' : 'none';
-            pushBtn.innerHTML = `${svgIcon('send', 14)} <span>推送給學生</span>`;
+            // Non-PPT: always hide top-bar push (right panel lessonActivateBtn handles it)
+            pushBtn.style.display = 'none';
         }
     }
     if (activateBtn) {

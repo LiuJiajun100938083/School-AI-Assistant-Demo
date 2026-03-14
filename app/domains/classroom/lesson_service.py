@@ -943,6 +943,8 @@ class LessonService:
             session = self._get_active_session(room_id, session_id)
             if session.get("current_slide_id") != slide_id:
                 raise SlideNotFoundError(slide_id)
+            if not session.get("accepting_responses"):
+                raise SlideNotAcceptingResponsesError()
 
             slide = self._slide_repo.get_by_slide_id(slide_id)
             if not slide or slide["slide_type"] != "quiz":
