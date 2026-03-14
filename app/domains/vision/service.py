@@ -219,6 +219,7 @@ class VisionService:
                 processed_path, prompt,
                 priority=2,  # INTERACTIVE
                 weight=2,    # VISION_SINGLE
+                expect_json=False,
             )
 
             t_done = time.monotonic()

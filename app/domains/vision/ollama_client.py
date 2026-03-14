@@ -41,6 +41,7 @@ class OllamaVisionClient:
         self, image_path: str, prompt: str,
         priority: int = 2,   # Priority.INTERACTIVE
         weight: int = 2,     # Weight.VISION_SINGLE
+        expect_json: bool = True,
     ) -> Optional[str]:
         """
         調用 Ollama qwen3-vl 模型（普通模式）。
@@ -127,6 +128,15 @@ class OllamaVisionClient:
                     think_match = re.search(r"<think>(.*?)</think>", raw_content, re.DOTALL)
                     if think_match:
                         content = think_match.group(1).strip()
+
+            # ---- 純文字模式：跳過 JSON 提取，直接返回 ----
+            if not expect_json:
+                t_end = time.monotonic()
+                logger.info(
+                    "Vision 純文字模式: model=%s, len=%d, total=%.1fs",
+                    self._vision_model, len(content), t_end - t_start,
+                )
+                return content if content else None
 
             # ---- 純推理檢測：先嘗試從中提取嵌入 JSON ----
             is_pure_reasoning = bool(content and json_utils.looks_like_pure_reasoning(content))
