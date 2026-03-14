@@ -196,9 +196,59 @@ class MathHandler(BaseSubjectHandler):
 - 數學公式使用 LaTeX 標記
 - 提供不同數值但方法相同的變式題
 - 包含完整的解題步驟
-- **禁止**出需要看圖、看曲線、看統計圖的題目（系統不支持顯示圖片）
 - 數據表格用 Markdown 表格格式直接寫在題目中（| 列1 | 列2 | ... |）
-- 題目必須純文字自包含，所有數據直接寫在題目中
+- 題目文字條件必須自包含，即使附圖未顯示也能唯一理解幾何關係
+- 不可把答案建立在學生目測圖形長短或角度大小之上；需要的條件必須在文字中明確給出
+
+## 幾何題 SVG 附圖（可選）
+- 幾何題可以在 question 字段中附帶 SVG 圖形輔助理解
+- SVG 是可選的，只有在幾何關係（角度、平行、垂直、相似、全等等）用圖能明顯提升理解時才加，不是每題都要畫
+- 若同一題可以用純文字清楚表達，不要加 SVG
+- 圖形必須與文字敘述完全一致，若無法確定正確性，寧可不畫
+
+### 香港 DSE 畫圖風格（重要）
+- 模仿 DSE 數學試卷風格：黑白、簡潔、無陰影、無漸變、無彩色、無裝飾
+- 圖形目的只是輔助理解幾何關係，不是美術插圖
+- 除非題目要求按比例判讀，否則不需要按真實比例繪製
+- 若外觀比例可能誤導學生，在題目文字末尾加入「（圖形不一定依比例繪成）」
+- 只畫解題必要元素，不加背景、網格、陰影、立體質感
+- 只畫平面幾何圖，避免複雜立體圖、透視圖、展開圖
+- 點名用大寫英文字母（A, B, C, D, O），放圖形外側，不壓住線段或弧
+- DSE 常見幾何記號：
+  - 直角：邊長 8 的小正方形 <rect> 標記
+  - 相等線段：線段中間短刻痕（短 <line>），相等的線段用相同數量刻痕
+  - 相等角：弧線（<path>），相等的角用相同數量弧線
+  - 平行線：箭頭記號（小 <polygon>）
+- 關鍵點（交點、切點、圓心）用小實心圓 <circle r="2" fill="black">
+- 長度、角度數值放在對應位置附近，不遮擋主圖形
+- 座標幾何題只在需要時加坐標軸，原點標 O
+- 文字標註保持簡短，不在 SVG 中寫整句說明
+
+### SVG 技術規範
+- <svg viewBox="0 0 300 250" width="300" height="250">
+- 直接輸出原始 SVG 標籤，不要放在代碼塊中
+- SVG 前後各留一個空行
+- 主邊線 stroke="black" stroke-width="2"，fill="none"
+- 輔助記號（刻痕、角弧、平行箭頭）stroke-width="1" 或 "1.5"
+- 實心關鍵點 r="2"
+- 標注文字 <text font-size="14">，數值 font-size="13"
+- 所有元素在 viewBox 範圍內
+- 不要在 SVG 中使用 LaTeX
+- 只用 svg/g/line/circle/rect/polygon/polyline/path/text 標籤
+
+### SVG 範例（直角三角形 ABC，∠A=90°）
+
+<svg viewBox="0 0 300 250" width="300" height="250">
+  <line x1="60" y1="200" x2="240" y2="200" stroke="black" stroke-width="2"/>
+  <line x1="60" y1="200" x2="60" y2="50" stroke="black" stroke-width="2"/>
+  <line x1="60" y1="50" x2="240" y2="200" stroke="black" stroke-width="2"/>
+  <rect x="60" y="192" width="8" height="8" fill="none" stroke="black" stroke-width="1"/>
+  <text x="45" y="215" font-size="14">A</text>
+  <text x="245" y="215" font-size="14">B</text>
+  <text x="45" y="45" font-size="14">C</text>
+  <text x="145" y="218" font-size="13" text-anchor="middle">5</text>
+  <text x="38" y="130" font-size="13" text-anchor="middle">12</text>
+</svg>
 
 ## 題目分配規則
 - 每個目標知識點至少 1 題（共 {num_points} 個知識點，{question_count} 題）

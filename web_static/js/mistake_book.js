@@ -434,6 +434,13 @@ const UI = {
 
         text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
 
+        // 保護 SVG 塊不被後續 LaTeX/Markdown 處理干擾
+        const svgBlocks = [];
+        text = text.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+            svgBlocks.push(match);
+            return `SVGPH${svgBlocks.length - 1}ENDSVGPH`;
+        });
+
         // OCR 模型常輸出字面 \n 而非真正換行符，轉換之
         // 保護已知 LaTeX \n* 命令（\nabla \neg \neq \newline \ni \not \notin \nu）
         text = text.replace(/\\n(?!abla|e[gq]|ew|ot|otin|u(?![a-z])|i(?![a-z]))/g, '\n');
@@ -517,6 +524,19 @@ const UI = {
             result = result.replace(`KATEXPH${i}ENDPH`, html);
         });
 
+        // 還原 SVG 塊（先單獨 sanitize 每個 SVG）
+        const svgPurifyConfig = typeof DOMPurify !== 'undefined' ? {
+            ADD_TAGS: ['svg', 'g', 'line', 'circle', 'rect', 'polygon', 'polyline', 'path', 'text'],
+            ADD_ATTR: ['viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
+                       'cx', 'cy', 'r', 'points', 'd', 'fill', 'stroke', 'stroke-width',
+                       'stroke-dasharray', 'transform', 'font-size', 'text-anchor', 'opacity'],
+            FORBID_TAGS: ['script', 'style', 'foreignObject', 'image', 'img', 'iframe', 'object', 'embed', 'a'],
+        } : null;
+        svgBlocks.forEach((svg, i) => {
+            const safe = svgPurifyConfig ? DOMPurify.sanitize(svg, svgPurifyConfig) : UI.escapeHtml(svg);
+            result = result.replace(`SVGPH${i}ENDSVGPH`, safe);
+        });
+
         return result;
     },
 
@@ -527,7 +547,12 @@ const UI = {
     _renderMarkdown(text) {
         if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
             const html = marked.parse(text, { breaks: true });
-            return DOMPurify.sanitize(html);
+            return DOMPurify.sanitize(html, {
+                ADD_TAGS: ['svg', 'g', 'line', 'circle', 'rect', 'polygon', 'polyline', 'path', 'text'],
+                ADD_ATTR: ['viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
+                           'cx', 'cy', 'r', 'points', 'd', 'fill', 'stroke', 'stroke-width',
+                           'stroke-dasharray', 'transform', 'font-size', 'text-anchor', 'opacity'],
+            });
         }
         return UI.escapeHtml(text).replace(/\n/g, '<br>');
     },

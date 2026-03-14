@@ -12,6 +12,7 @@ MistakeBookService — 錯題本核心業務邏輯
 import asyncio
 import json
 import os
+import re
 import uuid
 import logging
 from datetime import datetime
@@ -308,6 +309,28 @@ def _extract_analysis_from_prose(text: str) -> Dict:
             break
 
     return result
+
+
+def _sanitize_svg_content(text: str) -> str:
+    """清除 SVG 中的危險內容，保留安全繪圖標籤（資料防線）"""
+    if not text or "<" not in text:
+        return text
+    # 刪除危險標籤（含閉合和自閉合）
+    text = re.sub(
+        r"<(script|foreignObject|image|iframe|object|embed)[^>]*>.*?</\1>",
+        "", text, flags=re.DOTALL | re.IGNORECASE,
+    )
+    text = re.sub(
+        r"<(script|foreignObject|image|iframe|object|embed)[^>]*/?\s*>",
+        "", text, flags=re.IGNORECASE,
+    )
+    # 刪除事件處理器屬性
+    text = re.sub(r"\s+on\w+\s*=\s*[\"'][^\"']*[\"']", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+on\w+\s*=\s*\S+", "", text, flags=re.IGNORECASE)
+    # 刪除 javascript: / data:text/html URL
+    text = re.sub(r"javascript\s*:", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"data\s*:\s*text/html", "", text, flags=re.IGNORECASE)
+    return text
 
 
 class MistakeBookService:
@@ -1378,6 +1401,11 @@ class MistakeBookService:
         raw = await self._ask_ai(prompt, subject)
         questions_data = self._parse_json_response(raw)
         questions = questions_data.get("questions", [])
+
+        # SVG 安全過濾（資料防線）
+        for q in questions:
+            if "question" in q:
+                q["question"] = _sanitize_svg_content(q["question"])
 
         # 保存練習記錄
         session_id = str(uuid.uuid4())[:12]

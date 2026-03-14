@@ -1379,6 +1379,16 @@
     color: var(--mb-text);
 }
 
+/* 練習題 / 全屏手寫彈層內嵌 SVG 幾何圖形 */
+.mb-practice__question-text svg,
+.mb-hw__fullscreen-question svg {
+    display: block;
+    margin: 12px auto;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
 .mb-practice__answer-input {
     width: 100%;
     min-height: 56px;
