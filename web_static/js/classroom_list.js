@@ -59,6 +59,14 @@ const ClassroomAPI = {
 const ClassroomUI = {
     elements: {},
 
+    /* Status → CSS color mapping */
+    STATUS_COLORS: {
+        active: '#34C759',
+        paused: '#FF9500',
+        draft: '#A1A1A6',
+        ended: '#FF3B30'
+    },
+
     cacheElements() {
         this.elements = {
             splashScreen: document.getElementById('splashScreen'),
@@ -127,31 +135,33 @@ const ClassroomUI = {
             container.innerHTML = `
                 <div style="grid-column: 1 / -1;">
                     <div class="empty-state">
-                        <svg class="empty-state-icon-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="6" y="8" width="36" height="32" rx="3"/>
-                            <path d="M6 16h36"/>
-                            <path d="M16 8v8"/>
-                            <path d="M32 8v8"/>
-                            <path d="M18 26h12"/>
-                            <path d="M18 32h8"/>
+                        <svg class="empty-state-icon-svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="8" y="12" width="48" height="40" rx="4"/>
+                            <path d="M8 22h48"/>
+                            <circle cx="32" cy="36" r="6"/>
+                            <path d="M26 46h12"/>
+                            <path d="M20 12V8a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v4"/>
                         </svg>
                         <div class="empty-state-text">暫無課堂</div>
-                        <div class="empty-state-hint">點擊「創建課堂」開始</div>
+                        <div class="empty-state-hint">點擊「+ 創建課堂」開始你的教學之旅</div>
                     </div>
                 </div>`;
             return;
         }
 
-        container.innerHTML = rooms.map(room => `
-            <div class="room-card">
+        container.innerHTML = rooms.map(room => {
+            const statusColor = this.STATUS_COLORS[room.room_status] || this.STATUS_COLORS.draft;
+            const statusDot = room.room_status === 'active' ? '<span class="status-dot-inline"></span>' : '';
+            return `
+            <div class="room-card" style="--status-color: ${statusColor}">
                 <div class="room-card-header">
                     <h3 class="room-title">${Utils.escapeHtml(room.title)}</h3>
-                    <span class="status-badge ${room.room_status}">${this._statusText(room.room_status)}</span>
+                    <span class="status-badge ${room.room_status}">${statusDot}${this._statusText(room.room_status)}</span>
                 </div>
                 ${room.description ? `<p class="room-description">${Utils.escapeHtml(room.description)}</p>` : ''}
                 <div class="room-meta">
-                    <span>${room.student_count || 0} 名學生</span>
-                    <span>${Utils.formatDate(room.created_at)}</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${room.student_count || 0} 名學生</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${Utils.formatDate(room.created_at)}</span>
                 </div>
                 ${room.allowed_classes && room.allowed_classes.length > 0 ? `
                     <div class="room-classes">
@@ -163,8 +173,8 @@ const ClassroomUI = {
                     <button class="room-action-btn" data-action="toggle" data-room-id="${room.room_id}" data-status="${room.room_status}">${this._toggleStatusText(room.room_status)}</button>
                     <button class="room-action-btn danger" data-action="delete" data-room-id="${room.room_id}">刪除</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     },
 
     renderStudentRooms(rooms) {
@@ -173,27 +183,32 @@ const ClassroomUI = {
             container.innerHTML = `
                 <div style="grid-column: 1 / -1;">
                     <div class="empty-state">
-                        <svg class="empty-state-icon-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="22" cy="22" r="14"/>
-                            <path d="M32 32l10 10" stroke-linecap="round"/>
+                        <svg class="empty-state-icon-svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M32 4L4 18l28 14 28-14L32 4z"/>
+                            <path d="M4 18v20l28 14"/>
+                            <path d="M60 18v20L32 52"/>
+                            <circle cx="32" cy="34" r="4"/>
                         </svg>
                         <div class="empty-state-text">暫無可用課堂</div>
-                        <div class="empty-state-hint">請聯繫教師獲取課堂</div>
+                        <div class="empty-state-hint">等待教師開啟課堂</div>
                     </div>
                 </div>`;
             return;
         }
 
-        container.innerHTML = rooms.map(room => `
-            <div class="room-card">
+        container.innerHTML = rooms.map(room => {
+            const statusColor = this.STATUS_COLORS[room.room_status] || this.STATUS_COLORS.draft;
+            const statusDot = room.room_status === 'active' ? '<span class="status-dot-inline"></span>' : '';
+            return `
+            <div class="room-card" style="--status-color: ${statusColor}">
                 <div class="room-card-header">
                     <h3 class="room-title">${Utils.escapeHtml(room.title)}</h3>
-                    <span class="status-badge ${room.room_status}">${this._statusText(room.room_status)}</span>
+                    <span class="status-badge ${room.room_status}">${statusDot}${this._statusText(room.room_status)}</span>
                 </div>
                 ${room.description ? `<p class="room-description">${Utils.escapeHtml(room.description)}</p>` : ''}
                 <div class="room-meta">
-                    <span>${room.teacher_display_name || '教師'}</span>
-                    <span>${Utils.formatDate(room.created_at)}</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${room.teacher_display_name || '教師'}</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${Utils.formatDate(room.created_at)}</span>
                 </div>
                 ${room.allowed_classes && room.allowed_classes.length > 0 ? `
                     <div class="room-classes">
@@ -204,8 +219,8 @@ const ClassroomUI = {
                         ${room.room_status === 'paused' ? '課堂已暫停' : '加入課堂'}
                     </button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     },
 
     _statusText(status) {
