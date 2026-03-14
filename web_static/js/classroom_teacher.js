@@ -1347,29 +1347,20 @@ function updateLessonUI() {
     const currentQIdx = runtimeMeta.current_question_index || 0;
     const isLastQ = currentQIdx >= totalQs - 1;
 
-    // Auto-activate: quiz/poll skip the push step
-    if (isInteractive && lifecycle === 'prepared' && state.roomStatus === 'active') {
+    // Auto-activate all slide types when navigating to them
+    if (slide && lifecycle === 'prepared' && state.roomStatus === 'active') {
         lessonSlideAction('activate');
         return;
     }
 
-    // Top-bar push button: only for PPT
+    // Top-bar push button: hidden in lesson mode (auto-activate + auto-push handles everything)
     const pushBtn = document.getElementById('pushBtn');
-    if (pushBtn) {
-        if (slide && slide.slide_type === 'ppt') {
-            pushBtn.style.display = '';
-            pushBtn.innerHTML = lifecycle === 'prepared'
-                ? `${svgIcon('send', 14)} <span>推送給學生</span>`
-                : `${svgIcon('send', 14)} <span>推送標註</span>`;
-        } else {
-            pushBtn.style.display = 'none';
-        }
-    }
+    if (pushBtn) pushBtn.style.display = 'none';
 
-    // Right panel activate button: only for non-interactive prepared slides
+    // Right panel activate button: hidden (auto-activate handles it)
     const activateBtn = document.getElementById('lessonActivateBtn');
     if (activateBtn) {
-        activateBtn.style.display = (!isInteractive && lifecycle === 'prepared') ? '' : 'none';
+        activateBtn.style.display = 'none';
         activateBtn.disabled = state.roomStatus !== 'active';
     }
 
