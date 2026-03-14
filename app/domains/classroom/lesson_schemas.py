@@ -31,7 +31,7 @@ class UpdatePlanRequest(BaseModel):
 # ============================================================
 
 class AddSlideRequest(BaseModel):
-    slide_type: Literal["ppt", "game", "quiz", "quick_answer", "raise_hand", "poll"]
+    slide_type: Literal["ppt", "game", "quiz", "quick_answer", "raise_hand", "poll", "link"]
     title: str = Field(default="", max_length=255)
     config: dict = Field(..., description="类型专属配置 (按 slide_type 校验)")
     duration_seconds: int = Field(default=0, ge=0)
@@ -70,7 +70,8 @@ class SlideActionRequest(BaseModel):
     action: Literal[
         "activate", "open_responses", "close_responses",
         "show_results", "complete",
-    ] = Field(..., description="生命周期动作")
+        "quiz_reveal", "quiz_next",
+    ] = Field(..., description="生命周期动作 (含 quiz 专属动作)")
     annotations_json: Optional[str] = Field(default=None, description="PPT 标注 JSON (activate 时)")
 
 

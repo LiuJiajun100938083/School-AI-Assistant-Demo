@@ -6,6 +6,7 @@
     <title>教學控制台</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <link rel="stylesheet" href="/static/css/classroom_teacher.css">
+    <link rel="stylesheet" href="/static/css/lesson_runtime.css">
 </head>
 <body>
 
@@ -79,6 +80,9 @@
     </symbol>
     <symbol id="icon-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+    </symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
     </symbol>
 </svg>
 
@@ -261,6 +265,9 @@
                     <button class="ctrl-btn primary full-width" id="lessonActivateBtn" onclick="lessonSlideAction('activate')">推送</button>
                     <button class="ctrl-btn outline full-width" onclick="lessonSlideAction('open_responses')">開放回應</button>
                     <button class="ctrl-btn outline full-width" onclick="lessonSlideAction('close_responses')">關閉回應</button>
+                    <button class="ctrl-btn outline full-width" id="quizRevealBtn" onclick="lessonSlideAction('quiz_reveal')" style="display:none;">揭示答案</button>
+                    <button class="ctrl-btn outline full-width" id="quizNextBtn" onclick="lessonSlideAction('quiz_next')" style="display:none;">下一題</button>
+                    <button class="ctrl-btn outline full-width" id="showResultsBtn" onclick="lessonSlideAction('show_results')" style="display:none;">顯示結果</button>
                     <button class="ctrl-btn outline full-width" onclick="lessonSlideAction('complete')">完成</button>
                 </div>
             </div>
@@ -294,6 +301,7 @@
 <script src="/static/js/shared/ui.js"></script>
 <script src="/static/js/shared/api.js"></script>
 <script src="/static/js/shared/annotation_utils.js"></script>
+<script src="/static/js/shared/lesson_slide_renderers.js"></script>
 <script src="/static/js/classroom_teacher.js"></script>
 </body>
 </html>

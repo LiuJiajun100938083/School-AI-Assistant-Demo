@@ -565,6 +565,20 @@ const ClassroomStudentApp = {
                     UIModule.toast('回應已提交', 'success');
                     break;
 
+                // ===== Quiz Per-Question Flow =====
+                case 'quiz_answer_ack':
+                    // Answer recorded — UI already shows "waiting"
+                    break;
+                case 'quiz_reveal':
+                    this._handleQuizReveal(message.data || {});
+                    break;
+                case 'quiz_question':
+                    this._handleQuizNextQuestion(message.data || {});
+                    break;
+                case 'quiz_results':
+                    this._handleQuizResults(message.data || {});
+                    break;
+
                 default:
                     console.log('Unknown message type:', message.type);
             }
@@ -767,6 +781,8 @@ const ClassroomStudentApp = {
         } else if (type === 'game') {
             // Render game in iframe
             this._renderGameSlide(slideData);
+        } else if (type === 'quiz') {
+            this._initQuizRenderer(slideData);
         } else {
             // Generic slide
             ClassroomStudentUI.showSlideContent(
@@ -877,6 +893,129 @@ const ClassroomStudentApp = {
                 });
             }
         }
+    },
+
+    // ---- Quiz Per-Question Flow ----
+
+    _initQuizRenderer(slideData) {
+        const renderer = LessonSlideRenderers.get('quiz');
+        if (!renderer) return;
+        renderer.reset();
+
+        this.state.quizSlideData = slideData;
+        this.state.quizMyAnswers = {};
+
+        const questions = slideData.questions || [];
+        const currentIdx = slideData.current_question_index || 0;
+        const phase = slideData.phase || 'answering';
+
+        if (questions.length === 0) {
+            ClassroomStudentUI.showSlideContent(
+                '<div style="text-align:center;padding:40px;"><h3>測驗</h3><p>無題目</p></div>'
+            );
+            return;
+        }
+
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (!wrapper) return;
+
+        // Hide other elements
+        const noPage = document.getElementById('noPageMessage');
+        if (noPage) noPage.style.display = 'none';
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'none';
+
+        wrapper.style.display = 'flex';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+
+        if (phase === 'answering') {
+            const q = questions[currentIdx];
+            renderer.renderStudentQuestion(wrapper, q, currentIdx, questions.length, {
+                timeLimit: slideData.time_limit || 0,
+                accepting: this.state.lessonAccepting,
+                onAnswer: (questionId, answer) => {
+                    this.state.quizMyAnswers[questionId] = answer;
+                    this._sendWSMessage({
+                        type: 'quiz_answer',
+                        slide_id: slideData.slide_id,
+                        question_id: questionId,
+                        answer: answer,
+                    });
+                },
+            });
+        } else if (phase === 'reveal') {
+            // Reconnect during reveal — show waiting
+            renderer.renderStudentWaiting(wrapper, '等待老師繼續...');
+        }
+    },
+
+    _handleQuizReveal(data) {
+        const renderer = LessonSlideRenderers.get('quiz');
+        if (!renderer) return;
+
+        const slideData = this.state.quizSlideData;
+        if (!slideData) return;
+
+        const questions = slideData.questions || [];
+        const qIndex = data.question_index != null ? data.question_index :
+            (slideData.current_question_index || 0);
+        const question = questions[qIndex];
+        if (!question) return;
+
+        const myAnswer = this.state.quizMyAnswers?.[data.question_id] || null;
+
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (!wrapper) return;
+
+        renderer.stopTimer();
+        renderer.renderStudentReveal(wrapper, question, data, myAnswer);
+    },
+
+    _handleQuizNextQuestion(data) {
+        const renderer = LessonSlideRenderers.get('quiz');
+        if (!renderer) return;
+
+        renderer.reset();
+
+        const slideData = this.state.quizSlideData;
+        if (!slideData) return;
+
+        // Update slide data state
+        slideData.current_question_index = data.question_index;
+
+        const question = data.question;
+        if (!question) return;
+
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (!wrapper) return;
+
+        renderer.renderStudentQuestion(wrapper, question, data.question_index, data.total_questions, {
+            timeLimit: question.time_limit || slideData.time_limit || 0,
+            accepting: true,
+            onAnswer: (questionId, answer) => {
+                this.state.quizMyAnswers[questionId] = answer;
+                this._sendWSMessage({
+                    type: 'quiz_answer',
+                    slide_id: slideData.slide_id,
+                    question_id: questionId,
+                    answer: answer,
+                });
+            },
+        });
+    },
+
+    _handleQuizResults(data) {
+        const renderer = LessonSlideRenderers.get('quiz');
+        if (!renderer) return;
+
+        renderer.stopTimer();
+
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (!wrapper) return;
+
+        const username = this.state.userInfo?.username || '';
+        renderer.renderResults(wrapper, data, username);
     },
 
     _updateLessonResponseUI() {

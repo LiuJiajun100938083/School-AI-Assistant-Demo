@@ -53,6 +53,7 @@ function svgIcon(name, size = 16) {
 const SLIDE_TYPE_ICONS = {
     ppt: 'doc', game: 'gamepad', quiz: 'help-circle',
     quick_answer: 'zap', raise_hand: 'hand', poll: 'bar-chart',
+    link: 'link',
 };
 
 // ==================== INITIALIZATION ====================
@@ -930,6 +931,53 @@ function handleWebSocketMessage(message) {
                 UIModule.toast(`學生 ${message.data.student_username} 已回應 (${message.data.total_responses} 人)`, 'info');
             }
             break;
+
+        // ===== Quiz Per-Question Flow =====
+        case 'quiz_answer_count':
+            // Update answer count on teacher view
+            if (state.lessonSession && message.data) {
+                if (!state.lessonSession.runtime_meta) state.lessonSession.runtime_meta = {};
+                if (!state.lessonSession.runtime_meta.answer_counts) state.lessonSession.runtime_meta.answer_counts = {};
+                state.lessonSession.runtime_meta.answer_counts[message.data.question_id] = message.data.count;
+                updateLessonUI();
+            }
+            break;
+        case 'quiz_reveal':
+            // Update teacher phase to reveal + store reveal data (option_counts)
+            if (state.lessonSession) {
+                if (!state.lessonSession.runtime_meta) state.lessonSession.runtime_meta = {};
+                state.lessonSession.runtime_meta.phase = 'reveal';
+                if (message.data && message.data.option_counts) {
+                    state.lessonSession.runtime_meta._reveal_data = message.data;
+                }
+                updateLessonUI();
+            }
+            break;
+        case 'quiz_question':
+            // Advance to next question — clear reveal data from previous question
+            if (state.lessonSession && message.data) {
+                if (!state.lessonSession.runtime_meta) state.lessonSession.runtime_meta = {};
+                state.lessonSession.runtime_meta.current_question_index = message.data.question_index;
+                state.lessonSession.runtime_meta.phase = 'answering';
+                delete state.lessonSession.runtime_meta._reveal_data;
+                updateLessonUI();
+            }
+            break;
+        case 'quiz_results':
+            // Show final rankings on teacher view
+            if (state.lessonSession && message.data) {
+                const renderer = LessonSlideRenderers.get('quiz');
+                if (renderer) {
+                    document.getElementById('canvasArea').style.display = 'none';
+                    const placeholder = document.getElementById('canvasPlaceholder');
+                    placeholder.style.display = 'flex';
+                    placeholder.style.alignItems = 'center';
+                    placeholder.style.justifyContent = 'center';
+                    placeholder.style.flexDirection = 'column';
+                    renderer.renderResults(placeholder, message.data, userInfo.username);
+                }
+            }
+            break;
     }
 }
 
@@ -1043,7 +1091,7 @@ function renderLessonTimeline(planTitle) {
                 <img src="${imgUrl}" class="slide-thumb-img" onerror="this.style.display='none'" />
             `;
         } else {
-            const label = slide.title || cfg.game_name || cfg.question_text || slide.slide_type;
+            const label = slide.title || cfg.game_name || cfg.question_text || cfg.url || slide.slide_type;
             el.innerHTML = `
                 <div class="slide-thumb-header">
                     <span class="slide-thumb-number">${i + 1}</span>
@@ -1192,7 +1240,11 @@ async function lessonSlideAction(action) {
         });
         const json = await res.json();
         if (json.success && json.data) {
-            state.lessonSession = json.data.session;
+            // Quiz-specific actions (quiz_reveal, quiz_next, show_results) return
+            // quiz data without a session object. Only update session if present.
+            if (json.data.session) {
+                state.lessonSession = json.data.session;
+            }
             updateLessonUI();
         } else {
             UIModule.toast(json.message || '操作失敗', 'error');
@@ -1244,7 +1296,20 @@ function updateLessonUI() {
         } else if (slide.slide_type === 'game') {
             renderLessonGameSlide(slide, cfg, lifecycle);
         } else {
-            renderLessonGenericSlide(slide, cfg, lifecycle);
+            // Route to registry for quiz/poll/etc
+            const renderer = LessonSlideRenderers.get(slide.slide_type);
+            if (renderer && renderer.renderTeacher) {
+                document.getElementById('canvasArea').style.display = 'none';
+                const placeholder = document.getElementById('canvasPlaceholder');
+                placeholder.style.display = 'flex';
+                placeholder.style.alignItems = 'center';
+                placeholder.style.justifyContent = 'center';
+                placeholder.style.flexDirection = 'column';
+                const runtimeMeta = sess.runtime_meta || {};
+                renderer.renderTeacher(placeholder, slide, cfg, runtimeMeta);
+            } else {
+                renderLessonGenericSlide(slide, cfg, lifecycle);
+            }
         }
     }
 
@@ -1268,13 +1333,42 @@ function updateLessonUI() {
         activateBtn.disabled = state.roomStatus !== 'active';
     }
 
+    // Quiz-specific buttons: phase-aware control
+    const isQuiz = slide && slide.slide_type === 'quiz';
+    const runtimeMeta = sess.runtime_meta || {};
+    const quizPhase = runtimeMeta.phase || 'answering';
+    const quizCfg = isQuiz ? (typeof slide.config === 'string' ? JSON.parse(slide.config) : (slide.config || {})) : {};
+    const totalQs = isQuiz ? (quizCfg.questions || []).length : 0;
+    const currentQIdx = runtimeMeta.current_question_index || 0;
+    const isLastQ = currentQIdx >= totalQs - 1;
+
+    const revealBtn = document.getElementById('quizRevealBtn');
+    const nextBtn = document.getElementById('quizNextBtn');
+    const resultsBtn = document.getElementById('showResultsBtn');
+
+    if (revealBtn) revealBtn.style.display = isQuiz && lifecycle !== 'prepared' ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = isQuiz && lifecycle !== 'prepared' ? '' : 'none';
+    if (resultsBtn) resultsBtn.style.display = isQuiz && lifecycle !== 'prepared' ? '' : 'none';
+
+    if (isQuiz) {
+        if (revealBtn) revealBtn.disabled = quizPhase !== 'answering';
+        if (nextBtn) nextBtn.disabled = !(quizPhase === 'reveal' && !isLastQ);
+        if (resultsBtn) resultsBtn.disabled = !(quizPhase === 'reveal' && isLastQ);
+    }
+
     // Disable all lifecycle buttons when room is not active
     const roomActive = state.roomStatus === 'active';
     document.querySelectorAll('#lessonControlBar .ctrl-btn').forEach(btn => {
-        if (btn.id !== 'lessonActivateBtn') { // activateBtn handled above
+        if (btn.id !== 'lessonActivateBtn' && !['quizRevealBtn', 'quizNextBtn', 'showResultsBtn'].includes(btn.id)) {
             btn.disabled = !roomActive;
         }
     });
+    // Quiz buttons also disabled when room not active
+    if (!roomActive && isQuiz) {
+        if (revealBtn) revealBtn.disabled = true;
+        if (nextBtn) nextBtn.disabled = true;
+        if (resultsBtn) resultsBtn.disabled = true;
+    }
 
     // Update slide status text in right panel
     const statusText = document.getElementById('slideStatusText');
@@ -1384,7 +1478,7 @@ function renderLessonGameSlide(slide, cfg, lifecycle) {
  */
 function renderLessonGenericSlide(slide, cfg, lifecycle) {
     const typeLabels = {
-        quiz: '測驗', poll: '投票', quick_answer: '搶答', raise_hand: '舉手',
+        quiz: '測驗', poll: '投票', quick_answer: '搶答', raise_hand: '舉手', link: '連結',
     };
     const iconName = SLIDE_TYPE_ICONS[slide.slide_type] || 'doc';
     document.getElementById('canvasArea').style.display = 'none';
@@ -1393,15 +1487,25 @@ function renderLessonGenericSlide(slide, cfg, lifecycle) {
     placeholder.style.alignItems = 'center';
     placeholder.style.justifyContent = 'center';
     placeholder.style.flexDirection = 'column';
+
+    // Build description based on slide type
+    let descHtml = '';
+    if (slide.slide_type === 'link' && cfg.url) {
+        descHtml = `<p style="color:var(--text-secondary);font-size:14px;max-width:400px;word-break:break-all;">${Utils.escapeHtml(cfg.url)}</p>`;
+        if (cfg.description) {
+            descHtml += `<p style="color:var(--text-tertiary);font-size:13px;margin-top:4px;">${Utils.escapeHtml(cfg.description)}</p>`;
+        }
+    } else {
+        descHtml = `<p style="color:var(--text-secondary);font-size:14px;max-width:300px;">${cfg.question_text || cfg.prompt_text || '使用右側控制按鈕管理此幻燈片'}</p>`;
+    }
+
     placeholder.innerHTML = `
         <div style="text-align:center;">
             <div style="margin-bottom:16px;color:var(--text-tertiary);">${svgIcon(iconName, 48)}</div>
             <h3 style="font-size:18px;font-weight:600;margin-bottom:8px;">
                 ${slide.title || typeLabels[slide.slide_type] || slide.slide_type}
             </h3>
-            <p style="color:var(--text-secondary);font-size:14px;max-width:300px;">
-                ${cfg.question_text || cfg.prompt_text || '使用右側控制按鈕管理此幻燈片'}
-            </p>
+            ${descHtml}
         </div>
     `;
 }

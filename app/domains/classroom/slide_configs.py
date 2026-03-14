@@ -38,6 +38,7 @@ class QuizQuestion(BaseModel):
     type: Literal["mc", "fill", "tf"] = Field(..., description="题型: 选择/填空/判断")
     text: str = Field(..., min_length=1, description="题目文本")
     options: Optional[list[str]] = Field(default=None, description="选项列表 (mc/tf 用)")
+    image_url: Optional[str] = Field(default=None, description="题目图片 URL")
     correct_answer: str = Field(..., description="正确答案")
     points: int = Field(default=10, ge=0, description="分值")
 
@@ -75,6 +76,12 @@ class PollSlideConfig(BaseModel):
     show_results_live: bool = Field(default=True, description="是否实时显示结果")
 
 
+class LinkSlideConfig(BaseModel):
+    """链接+二维码幻灯片配置"""
+    url: str = Field(..., min_length=1, description="链接 URL")
+    description: str = Field(default="", max_length=500, description="链接描述")
+
+
 # ============================================================
 # Runtime Meta Models (短期运行态，存入 lesson_sessions.runtime_meta)
 # ============================================================
@@ -104,6 +111,14 @@ class GameRuntime(BaseModel):
     scores_received: int = 0
 
 
+class QuizRuntime(BaseModel):
+    """Quiz 逐题运行态 — 追踪当前题号、每人每题答案"""
+    current_question_index: int = 0
+    phase: str = "answering"  # "answering" | "reveal"
+    answers: dict = Field(default_factory=dict)       # {username: {q_id: answer}} — 唯一真实来源
+    answer_counts: dict = Field(default_factory=dict)  # {q_id: int} — 快取，须与 answers 同步
+
+
 # ============================================================
 # Registry — 按 slide_type 查找对应 model
 # ============================================================
@@ -115,12 +130,14 @@ SLIDE_CONFIG_REGISTRY: dict[str, type[BaseModel]] = {
     "quick_answer": QuickAnswerSlideConfig,
     "raise_hand": RaiseHandSlideConfig,
     "poll": PollSlideConfig,
+    "link": LinkSlideConfig,
 }
 
 RUNTIME_META_REGISTRY: dict[str, type[BaseModel]] = {
     "quick_answer": QuickAnswerRuntime,
     "raise_hand": RaiseHandRuntime,
     "game": GameRuntime,
+    "quiz": QuizRuntime,
 }
 
 

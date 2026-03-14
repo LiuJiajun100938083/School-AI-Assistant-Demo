@@ -120,19 +120,26 @@
                         <div class="type-name">遊戲</div>
                         <div class="type-desc">嵌入遊戲中心遊戲</div>
                     </div>
-                    <div class="slide-type-card disabled" data-type="quiz">
+                    <div class="slide-type-card" data-type="quiz">
                         <div class="type-icon">
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </div>
                         <div class="type-name">測驗</div>
-                        <div class="type-desc">即將推出</div>
+                        <div class="type-desc">互動測驗</div>
                     </div>
-                    <div class="slide-type-card disabled" data-type="poll">
+                    <div class="slide-type-card" data-type="poll">
                         <div class="type-icon">
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                         </div>
                         <div class="type-name">投票</div>
-                        <div class="type-desc">即將推出</div>
+                        <div class="type-desc">即時投票</div>
+                    </div>
+                    <div class="slide-type-card" data-type="link">
+                        <div class="type-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                        </div>
+                        <div class="type-name">連結</div>
+                        <div class="type-desc">連結 + QR Code</div>
                     </div>
                 </div>
 
@@ -189,6 +196,19 @@
                         <input type="text" id="gameSearch" class="config-input" placeholder="輸入遊戲名稱...">
                     </div>
                     <div id="gameList" class="game-list"></div>
+                </div>
+
+                <!-- Link Input Section -->
+                <div id="linkInputSection" style="display:none;">
+                    <div class="config-section">
+                        <label class="config-label">連結 URL</label>
+                        <input type="url" id="linkUrlInput" class="config-input" placeholder="https://example.com">
+                    </div>
+                    <div class="config-section">
+                        <label class="config-label">描述 (選填)</label>
+                        <input type="text" id="linkDescInput" class="config-input" placeholder="連結描述...">
+                    </div>
+                    <button class="ppt-upload-btn" id="linkCreateBtn" style="width:100%;">建立連結幻燈片</button>
                 </div>
             </div>
         </div>

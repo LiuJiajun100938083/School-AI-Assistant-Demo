@@ -103,7 +103,7 @@ class LessonService:
                 slide_id         VARCHAR(64) NOT NULL,
                 plan_id          VARCHAR(64) NOT NULL,
                 slide_order      INT NOT NULL,
-                slide_type       ENUM('ppt','game','quiz','quick_answer','raise_hand','poll') NOT NULL,
+                slide_type       ENUM('ppt','game','quiz','quick_answer','raise_hand','poll','link') NOT NULL,
                 title            VARCHAR(255) DEFAULT '',
                 config           JSON NOT NULL,
                 config_version   INT DEFAULT 1,
@@ -194,6 +194,15 @@ class LessonService:
             )
         except Exception:
             pass  # Index already exists
+
+        # Add 'link' to lesson_slides.slide_type ENUM (for existing databases)
+        try:
+            pool.execute_write(
+                "ALTER TABLE lesson_slides MODIFY slide_type "
+                "ENUM('ppt','game','quiz','quick_answer','raise_hand','poll','link') NOT NULL"
+            )
+        except Exception:
+            pass  # Already updated
 
         logger.info("课案系统表初始化完成")
 
@@ -795,15 +804,18 @@ class LessonService:
         teacher_username: str,
         file_id: str,
         pages: List[Dict[str, Any]],
+        insert_at: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """
         从已上传的 PPT 批量创建 ppt slides。
         pages: [{"page_id": "...", "page_number": 1}, ...]
+        insert_at: 插入位置 (None=末尾)，每页递增
         """
         self.get_plan(plan_id, teacher_username)
 
         created = []
-        for page in pages:
+        for i, page in enumerate(pages):
+            pos = (insert_at + i) if insert_at is not None else None
             slide = self.add_slide(
                 plan_id=plan_id,
                 teacher_username=teacher_username,
@@ -814,6 +826,7 @@ class LessonService:
                     "page_id": page.get("page_id"),
                 },
                 title=f"Page {page['page_number']}",
+                insert_at=pos,
             )
             created.append(slide)
 
@@ -907,6 +920,187 @@ class LessonService:
             "slide_id": slide_id,
             "annotations_json": annotations_json,
             "updated_at": now.isoformat(),
+        }
+
+    # ================================================================
+    # Quiz — Per-Question Flow
+    # ================================================================
+
+    def quiz_record_answer(
+        self,
+        room_id: str,
+        session_id: str,
+        slide_id: str,
+        username: str,
+        question_id: str,
+        answer: str,
+    ) -> Dict[str, Any]:
+        """记录逐题答案到 runtime_meta（含并发重试）。幂等：重复提交直接返回。"""
+        from app.domains.classroom.slide_configs import QuizSlideConfig
+
+        MAX_RETRIES = 3
+        for _attempt in range(MAX_RETRIES):
+            session = self._get_active_session(room_id, session_id)
+            if session.get("current_slide_id") != slide_id:
+                raise SlideNotFoundError(slide_id)
+
+            slide = self._slide_repo.get_by_slide_id(slide_id)
+            if not slide or slide["slide_type"] != "quiz":
+                raise SlideNotFoundError(slide_id)
+
+            handler = get_slide_handler("quiz")
+            runtime = handler.parse_runtime_meta(session.get("runtime_meta"))
+            if not runtime:
+                raise ValueError("Quiz runtime not initialized")
+            if runtime.phase != "answering":
+                raise SlideNotAcceptingResponsesError()
+
+            config = QuizSlideConfig(**slide["config"])
+            current_q = config.questions[runtime.current_question_index]
+            if question_id != current_q.id:
+                raise ValueError(f"Question ID mismatch: expected {current_q.id}")
+
+            # 幂等：已答过直接返回
+            if username in runtime.answers and question_id in runtime.answers[username]:
+                return {
+                    "recorded": True,
+                    "answer_count": runtime.answer_counts.get(question_id, 0),
+                }
+
+            handler.record_answer(runtime, username, question_id, answer)
+            rows = self._session_repo.update_session(session_id, {
+                "runtime_meta": runtime.model_dump(),
+            })
+            if rows:
+                return {
+                    "recorded": True,
+                    "answer_count": runtime.answer_counts.get(question_id, 0),
+                }
+
+        raise ValueError("Failed to record answer after retries")
+
+    def quiz_reveal(self, room_id: str, session_id: str) -> Dict[str, Any]:
+        """揭示当前题目答案，将 phase 改为 reveal。"""
+        from app.domains.classroom.slide_configs import QuizSlideConfig
+
+        session = self._get_active_session(room_id, session_id)
+        slide_id = session.get("current_slide_id")
+        slide = self._slide_repo.get_by_slide_id(slide_id) if slide_id else None
+        if not slide or slide["slide_type"] != "quiz":
+            raise SlideNotFoundError(slide_id or "")
+
+        handler = get_slide_handler("quiz")
+        config = QuizSlideConfig(**slide["config"])
+        runtime = handler.parse_runtime_meta(session.get("runtime_meta"))
+        if not runtime:
+            raise ValueError("Quiz runtime not initialized")
+
+        reveal_data = handler.get_reveal_data(config, runtime)
+        runtime.phase = "reveal"
+        self._session_repo.update_session(session_id, {
+            "runtime_meta": runtime.model_dump(),
+        })
+        return reveal_data
+
+    def quiz_next_question(self, room_id: str, session_id: str) -> Dict[str, Any]:
+        """前进到下一题，重置 phase 为 answering。"""
+        from app.domains.classroom.slide_configs import QuizSlideConfig
+
+        session = self._get_active_session(room_id, session_id)
+        slide_id = session.get("current_slide_id")
+        slide = self._slide_repo.get_by_slide_id(slide_id) if slide_id else None
+        if not slide or slide["slide_type"] != "quiz":
+            raise SlideNotFoundError(slide_id or "")
+
+        handler = get_slide_handler("quiz")
+        config = QuizSlideConfig(**slide["config"])
+        runtime = handler.parse_runtime_meta(session.get("runtime_meta"))
+        if not runtime:
+            raise ValueError("Quiz runtime not initialized")
+
+        next_idx = runtime.current_question_index + 1
+        if next_idx >= len(config.questions):
+            raise ValueError("Already at last question")
+
+        runtime.current_question_index = next_idx
+        runtime.phase = "answering"
+        self._session_repo.update_session(session_id, {
+            "runtime_meta": runtime.model_dump(),
+        })
+
+        q = config.questions[next_idx]
+        return {
+            "question_index": next_idx,
+            "total_questions": len(config.questions),
+            "question": {
+                "id": q.id,
+                "type": q.type,
+                "text": q.text,
+                "options": q.options,
+                "image_url": q.image_url,
+                "points": q.points,
+                "time_limit": config.time_limit,
+            },
+        }
+
+    def quiz_finalize(self, room_id: str, session_id: str) -> Dict[str, Any]:
+        """最终计分：从 runtime_meta 计算成绩并持久化到 response 表。幂等。"""
+        from app.domains.classroom.slide_configs import QuizSlideConfig
+
+        session = self._get_active_session(room_id, session_id)
+        slide_id = session.get("current_slide_id")
+        slide = self._slide_repo.get_by_slide_id(slide_id) if slide_id else None
+        if not slide or slide["slide_type"] != "quiz":
+            raise SlideNotFoundError(slide_id or "")
+
+        handler = get_slide_handler("quiz")
+        config = QuizSlideConfig(**slide["config"])
+
+        # 幂等检查：已有 response 则直接返回已有结果
+        existing = self._response_repo.list_by_slide(session_id, slide["slide_id"])
+        if existing:
+            return {
+                "slide_id": slide["slide_id"],
+                "slide_type": "quiz",
+                "total_responses": len(existing),
+                "results": handler.aggregate_results(existing),
+            }
+
+        runtime = handler.parse_runtime_meta(session.get("runtime_meta"))
+        if not runtime:
+            raise ValueError("Quiz runtime not initialized")
+
+        final = handler.aggregate_final_results(config, runtime)
+
+        # 持久化每位学生的成绩
+        for entry in final["leaderboard"]:
+            try:
+                response_id = str(uuid.uuid4())
+                self._response_repo.create_response({
+                    "response_id": response_id,
+                    "session_id": session_id,
+                    "slide_id": slide["slide_id"],
+                    "student_username": entry["username"],
+                    "response_type": "quiz_answer",
+                    "response_data": {
+                        "answers": runtime.answers.get(entry["username"], {}),
+                        "_result_extra": {
+                            "correct_count": entry["correct_count"],
+                            "total_questions": entry["total_questions"],
+                        },
+                    },
+                    "is_correct": entry["correct_count"] == entry["total_questions"],
+                    "score": float(entry["score"]),
+                    "responded_at": datetime.now(),
+                })
+            except Exception:
+                logger.warning("Failed to persist quiz response for %s", entry["username"])
+
+        return {
+            "slide_id": slide["slide_id"],
+            "slide_type": "quiz",
+            "total_responses": final["total_participants"],
+            "results": final,
         }
 
     # ================================================================

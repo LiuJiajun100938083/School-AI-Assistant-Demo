@@ -43,7 +43,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Tuple
+from typing import Optional, Tuple
 
 from fastapi import (
     APIRouter,
@@ -1155,10 +1155,66 @@ async def delete_slide(
         return error_response(e.message, e.code, e.status_code)
 
 
+@router.get("/api/classroom/qr")
+async def generate_qr_code(url: str = Query(..., description="URL to encode")):
+    """生成 QR 码 PNG 图片"""
+    import io
+
+    import qrcode
+    from fastapi.responses import Response
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.post("/api/classroom/quiz-images")
+async def upload_quiz_image(
+    file: UploadFile = File(...),
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """上传测验题目图片"""
+    import uuid
+    from pathlib import Path
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        return error_response("仅支援图片文件", "INVALID_FILE_TYPE", 400)
+
+    quiz_img_dir = Path(__file__).resolve().parent.parent.parent / "uploads" / "quiz_images"
+    quiz_img_dir.mkdir(parents=True, exist_ok=True)
+
+    ext = Path(file.filename or "img").suffix or ".png"
+    stored_name = f"{uuid.uuid4()}{ext}"
+    file_path = quiz_img_dir / stored_name
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    return success_response({"url": f"/uploads/quiz_images/{stored_name}"})
+
+
 @router.post("/api/classroom/lesson-plans/{plan_id}/import-ppt")
 async def import_ppt_to_plan(
     plan_id: str,
     file_id: str = Query(..., description="PPT file_id"),
+    insert_at: Optional[int] = Query(None, ge=0, description="插入位置 (None=末尾)"),
     user_info: Tuple[str, str] = Depends(require_teacher),
 ):
     """从已上传的 PPT 文件批量创建 ppt slides"""
@@ -1179,7 +1235,7 @@ async def import_ppt_to_plan(
         slides = await loop.run_in_executor(
             None,
             lambda: get_services().lesson.import_ppt_slides(
-                plan_id, username, file_id, pages,
+                plan_id, username, file_id, pages, insert_at=insert_at,
             ),
         )
         return success_response(slides, f"已导入 {len(slides)} 张 PPT 页面")
@@ -1339,6 +1395,46 @@ async def lesson_slide_action(
             return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
 
         session_id = state["session"]["session_id"]
+        ws_manager = get_classroom_ws_manager()
+
+        # ── Quiz-specific actions (bypass normal lifecycle) ──
+        if body.action == "quiz_reveal":
+            reveal_data = await loop.run_in_executor(
+                None,
+                lambda: get_services().lesson.quiz_reveal(room_id, session_id),
+            )
+            await ws_manager.broadcast_to_room(room_id, {
+                "type": "quiz_reveal",
+                "data": reveal_data,
+            })
+            return success_response(reveal_data)
+
+        if body.action == "quiz_next":
+            next_data = await loop.run_in_executor(
+                None,
+                lambda: get_services().lesson.quiz_next_question(room_id, session_id),
+            )
+            await ws_manager.broadcast_to_room(room_id, {
+                "type": "quiz_question",
+                "data": next_data,
+            })
+            return success_response(next_data)
+
+        if body.action == "show_results":
+            # Check if current slide is quiz — if so, use quiz_finalize
+            current_slide = state.get("slide")
+            if current_slide and current_slide.get("slide_type") == "quiz":
+                final_results = await loop.run_in_executor(
+                    None,
+                    lambda: get_services().lesson.quiz_finalize(room_id, session_id),
+                )
+                await ws_manager.broadcast_to_room(room_id, {
+                    "type": "quiz_results",
+                    "data": final_results,
+                })
+                return success_response(final_results)
+
+        # ── Standard lifecycle actions ──
         result = await loop.run_in_executor(
             None,
             lambda: get_services().lesson.slide_action(
@@ -1348,7 +1444,6 @@ async def lesson_slide_action(
         )
 
         # broadcast lifecycle change to all
-        ws_manager = get_classroom_ws_manager()
         await ws_manager.broadcast_to_room(room_id, {
             "type": "lesson_slide_lifecycle",
             "room_id": room_id,
@@ -1370,6 +1465,8 @@ async def lesson_slide_action(
         })
     except AppException as e:
         return error_response(e.message, e.code, e.status_code)
+    except ValueError as e:
+        return error_response(str(e), "QUIZ_ERROR", 400)
 
 
 @router.post("/api/classroom/rooms/{room_id}/lesson/push-annotations")
@@ -1836,6 +1933,50 @@ async def websocket_classroom(
                         })
                 except Exception as e:
                     logger.error("获取课案状态失败: %s", e)
+
+            elif msg_type == "quiz_answer" and role == "student":
+                # 学生逐题提交 quiz 答案 → 存入 runtime_meta
+                try:
+                    state = await loop.run_in_executor(
+                        None,
+                        lambda: get_services().lesson.get_session_state(room_id),
+                    )
+                    if not state or not state.get("session"):
+                        await websocket.send_json({"type": "error", "message": "当前没有活跃的课案"})
+                        continue
+
+                    session_id = state["session"]["session_id"]
+                    result = await loop.run_in_executor(
+                        None,
+                        lambda: get_services().lesson.quiz_record_answer(
+                            room_id, session_id,
+                            data.get("slide_id", ""),
+                            username,
+                            data.get("question_id", ""),
+                            data.get("answer", ""),
+                        ),
+                    )
+
+                    # ack to student
+                    await websocket.send_json({
+                        "type": "quiz_answer_ack",
+                        "data": {"recorded": True, "question_id": data.get("question_id")},
+                    })
+
+                    # broadcast count to all (teacher sees progress)
+                    await ws_manager.broadcast_to_room(room_id, {
+                        "type": "quiz_answer_count",
+                        "data": {
+                            "question_id": data.get("question_id"),
+                            "count": result.get("answer_count", 0),
+                        },
+                    })
+                except Exception as e:
+                    logger.error("WS quiz_answer 失败: %s", e)
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e) if isinstance(e, (ValueError, AppException)) else "答题失败",
+                    })
 
             elif msg_type == "submit_response" and role == "student":
                 # 学生通过 WS 提交响应

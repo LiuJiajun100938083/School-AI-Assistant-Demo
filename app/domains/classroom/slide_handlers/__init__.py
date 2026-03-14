@@ -9,12 +9,18 @@
 
 from .base import SlideHandler
 from .game_handler import GameSlideHandler
+from .link_handler import LinkSlideHandler
+from .poll_handler import PollSlideHandler
 from .ppt_handler import PPTSlideHandler
+from .quiz_handler import QuizSlideHandler
 
 # 单例 handler 实例 (handler 无状态，可安全复用)
 _HANDLER_REGISTRY: dict[str, SlideHandler] = {
     "ppt": PPTSlideHandler(),
     "game": GameSlideHandler(),
+    "quiz": QuizSlideHandler(),
+    "poll": PollSlideHandler(),
+    "link": LinkSlideHandler(),
 }
 
 
@@ -37,4 +43,7 @@ __all__ = [
     "get_registered_types",
     "PPTSlideHandler",
     "GameSlideHandler",
+    "QuizSlideHandler",
+    "PollSlideHandler",
+    "LinkSlideHandler",
 ]
