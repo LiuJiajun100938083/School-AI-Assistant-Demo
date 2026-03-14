@@ -12,6 +12,7 @@ VisionService — 視覺識別服務 (Facade)
 """
 
 import os
+import re
 import logging
 import time
 from typing import Optional
@@ -237,8 +238,10 @@ class VisionService:
             # 清理模型輸出（去掉 thinking tags、多餘空白）
             text = json_utils.strip_thinking_tags(raw_response).strip()
 
-            # has_math 後處理判定（多條件組合）
+            # 去掉 LaTeX $...$ 定界符（textarea 是純文字，學生看到 $ 會困惑）
+            # 先判定 has_math（基於原始帶 $ 的文本），再 strip
             has_math = self._detect_math_content(text, subject)
+            text = re.sub(r'\$([^$]+)\$', r'\1', text)
 
             # 低信心 heuristic（多條件組合）
             low_confidence, warnings = self._evaluate_confidence(text, subject)
