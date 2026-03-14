@@ -1281,7 +1281,7 @@ class MistakeBookService:
             from app.domains.vision.schemas import RecognitionSubject
 
             # 保存臨時文件
-            upload_dir = os.path.join(self._upload_dir, "handwriting_temp")
+            upload_dir = os.path.join(UPLOAD_DIR, "handwriting_temp")
             os.makedirs(upload_dir, exist_ok=True)
             import uuid
             ext = os.path.splitext(filename)[1] or ".jpg"
