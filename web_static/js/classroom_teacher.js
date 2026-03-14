@@ -1337,34 +1337,8 @@ function updateLessonUI() {
         }
     }
 
-    // Button management: push button label + sidebar activate visibility
-    const pushBtn = document.getElementById('pushBtn');
-    const activateBtn = document.getElementById('lessonActivateBtn');
-    if (pushBtn) {
-        if (slide && slide.slide_type === 'ppt') {
-            pushBtn.style.display = '';
-            pushBtn.innerHTML = lifecycle === 'prepared'
-                ? `${svgIcon('send', 14)} <span>推送給學生</span>`
-                : `${svgIcon('send', 14)} <span>推送標註</span>`;
-        } else {
-            // Non-PPT: always hide top-bar push (right panel lessonActivateBtn handles it)
-            pushBtn.style.display = 'none';
-        }
-    }
-    if (activateBtn) {
-        activateBtn.style.display = lifecycle === 'prepared' ? '' : 'none';
-        activateBtn.disabled = state.roomStatus !== 'active';
-    }
-
-    // Response buttons: only for interactive slides (quiz, poll), not PPT/game/link
-    const isPPT = slide && slide.slide_type === 'ppt';
+    // Slide type flags
     const isInteractive = slide && ['quiz', 'poll'].includes(slide.slide_type);
-    const openBtn = document.getElementById('openResponsesBtn');
-    const closeBtn = document.getElementById('closeResponsesBtn');
-    if (openBtn) openBtn.style.display = isInteractive && lifecycle !== 'prepared' ? '' : 'none';
-    if (closeBtn) closeBtn.style.display = isInteractive && lifecycle !== 'prepared' ? '' : 'none';
-
-    // Quiz-specific buttons: phase-aware control
     const isQuiz = slide && slide.slide_type === 'quiz';
     const runtimeMeta = sess.runtime_meta || {};
     const quizPhase = runtimeMeta.phase || 'answering';
@@ -1373,33 +1347,44 @@ function updateLessonUI() {
     const currentQIdx = runtimeMeta.current_question_index || 0;
     const isLastQ = currentQIdx >= totalQs - 1;
 
+    // Auto-activate: quiz/poll skip the push step
+    if (isInteractive && lifecycle === 'prepared' && state.roomStatus === 'active') {
+        lessonSlideAction('activate');
+        return;
+    }
+
+    // Top-bar push button: only for PPT
+    const pushBtn = document.getElementById('pushBtn');
+    if (pushBtn) {
+        if (slide && slide.slide_type === 'ppt') {
+            pushBtn.style.display = '';
+            pushBtn.innerHTML = lifecycle === 'prepared'
+                ? `${svgIcon('send', 14)} <span>推送給學生</span>`
+                : `${svgIcon('send', 14)} <span>推送標註</span>`;
+        } else {
+            pushBtn.style.display = 'none';
+        }
+    }
+
+    // Right panel activate button: only for non-interactive prepared slides
+    const activateBtn = document.getElementById('lessonActivateBtn');
+    if (activateBtn) {
+        activateBtn.style.display = (!isInteractive && lifecycle === 'prepared') ? '' : 'none';
+        activateBtn.disabled = state.roomStatus !== 'active';
+    }
+
+    // Lifecycle buttons: show only the ONE current step
+    const openBtn = document.getElementById('openResponsesBtn');
+    const closeBtn = document.getElementById('closeResponsesBtn');
     const revealBtn = document.getElementById('quizRevealBtn');
     const nextBtn = document.getElementById('quizNextBtn');
     const resultsBtn = document.getElementById('showResultsBtn');
 
-    if (revealBtn) revealBtn.style.display = isQuiz && lifecycle !== 'prepared' ? '' : 'none';
-    if (nextBtn) nextBtn.style.display = isQuiz && lifecycle !== 'prepared' ? '' : 'none';
-    if (resultsBtn) resultsBtn.style.display = isQuiz && lifecycle !== 'prepared' ? '' : 'none';
-
-    if (isQuiz) {
-        if (revealBtn) revealBtn.disabled = quizPhase !== 'answering';
-        if (nextBtn) nextBtn.disabled = !(quizPhase === 'reveal' && !isLastQ);
-        if (resultsBtn) resultsBtn.disabled = !(quizPhase === 'reveal' && isLastQ);
-    }
-
-    // Disable all lifecycle buttons when room is not active
-    const roomActive = state.roomStatus === 'active';
-    document.querySelectorAll('#lessonControlBar .ctrl-btn').forEach(btn => {
-        if (btn.id !== 'lessonActivateBtn' && !['quizRevealBtn', 'quizNextBtn', 'showResultsBtn'].includes(btn.id)) {
-            btn.disabled = !roomActive;
-        }
-    });
-    // Quiz buttons also disabled when room not active
-    if (!roomActive && isQuiz) {
-        if (revealBtn) revealBtn.disabled = true;
-        if (nextBtn) nextBtn.disabled = true;
-        if (resultsBtn) resultsBtn.disabled = true;
-    }
+    if (openBtn) openBtn.style.display = isInteractive && lifecycle === 'activated' ? '' : 'none';
+    if (closeBtn) closeBtn.style.display = isInteractive && lifecycle === 'responding' ? '' : 'none';
+    if (revealBtn) revealBtn.style.display = isQuiz && lifecycle === 'closed' && quizPhase === 'answering' ? '' : 'none';
+    if (nextBtn) nextBtn.style.display = isQuiz && lifecycle === 'closed' && quizPhase === 'reveal' && !isLastQ ? '' : 'none';
+    if (resultsBtn) resultsBtn.style.display = isQuiz && lifecycle === 'closed' && quizPhase === 'reveal' && isLastQ ? '' : 'none';
 
     // Update slide status text in right panel
     const statusText = document.getElementById('slideStatusText');

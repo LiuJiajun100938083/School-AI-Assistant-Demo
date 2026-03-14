@@ -76,45 +76,102 @@ LessonSlideRenderers.register('quiz', {
         const currentQ = qs[qIndex];
 
         if (!currentQ) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;"><h3>测验</h3></div>';
+            container.innerHTML = '<div class="quiz-tv"><div class="quiz-tv-empty">測驗無題目</div></div>';
             return;
         }
 
         const qId = currentQ.id || `q${qIndex}`;
         const answered = answerCounts[qId] || 0;
+        const isRevealed = phase === 'reveal';
+        const optLabels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        const optColors = ['#E74C3C', '#3498DB', '#F39C12', '#2ECC71', '#9B59B6', '#1ABC9C', '#E67E22', '#34495E'];
+        // Total for percentage calculation
+        const totalAns = isRevealed
+            ? Object.values(optionCounts).reduce((s, v) => s + v, 0) || 1
+            : 1;
 
-        let html = '<div class="quiz-teacher-view">';
-        html += `<div class="quiz-teacher-header">
-            <span class="quiz-progress">第 ${qIndex + 1} 题 / 共 ${qs.length} 题</span>
-            <span class="quiz-teacher-phase">${phase === 'answering' ? '答题中' : '已揭示'}</span>
+        let html = '<div class="quiz-tv">';
+
+        // ── Header: progress + phase badge
+        html += `<div class="quiz-tv-header">
+            <span class="quiz-tv-progress">第 ${qIndex + 1} 題 / 共 ${qs.length} 題</span>
+            <span class="quiz-tv-phase ${isRevealed ? 'revealed' : 'live'}">
+                ${isRevealed ? '答案揭示' : '答題中'}
+                ${isRevealed ? '' : '<span class="quiz-tv-pulse"></span>'}
+            </span>
         </div>`;
 
-        html += `<div class="quiz-teacher-question">
-            <div class="quiz-q-text">${Utils.escapeHtml(currentQ.text)}</div>
-        </div>`;
-
-        if (phase === 'answering') {
-            html += `<div class="quiz-teacher-status">${answered} 人已作答</div>`;
-        } else {
-            // reveal phase — show correct answer + per-option counts
-            html += '<div class="quiz-teacher-stats">';
-            if (currentQ.options) {
-                currentQ.options.forEach((opt, i) => {
-                    const val = String.fromCharCode(65 + i);
-                    const isCorrect = val === currentQ.correct_answer;
-                    const count = optionCounts[val] || 0;
-                    html += `<div class="quiz-teacher-stat-row ${isCorrect ? 'correct' : ''}">
-                        <span>${val}. ${Utils.escapeHtml(opt)}</span>
-                        <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-                            <span class="quiz-opt-count">${count} 人</span>
-                            ${isCorrect ? '<span class="quiz-correct-badge">正确</span>' : ''}
-                        </span>
-                    </div>`;
-                });
-            }
-            html += `<div class="quiz-teacher-status" style="margin-top:8px;">共 ${revealData.total_answered || answered} 人作答</div>`;
-            html += '</div>';
+        // ── Question area
+        html += '<div class="quiz-tv-question">';
+        if (currentQ.image_url) {
+            html += `<img class="quiz-tv-q-img" src="${Utils.escapeHtml(currentQ.image_url)}" alt="">`;
         }
+        html += `<div class="quiz-tv-q-text">${Utils.escapeHtml(currentQ.text)}</div>`;
+        html += '</div>';
+
+        // ── Options area
+        if (currentQ.type === 'mc' && currentQ.options) {
+            html += '<div class="quiz-tv-options">';
+            currentQ.options.forEach((opt, i) => {
+                const val = optLabels[i] || String.fromCharCode(65 + i);
+                const color = optColors[i % optColors.length];
+                const isCorrect = val === currentQ.correct_answer;
+                const count = optionCounts[val] || 0;
+                const pct = isRevealed ? Math.round((count / totalAns) * 100) : 0;
+
+                let cls = 'quiz-tv-opt';
+                if (isRevealed) cls += isCorrect ? ' correct' : ' dimmed';
+
+                html += `<div class="${cls}">
+                    <span class="quiz-tv-opt-label" style="background:${color}">${val}</span>
+                    <span class="quiz-tv-opt-text">${Utils.escapeHtml(opt)}</span>
+                    ${isRevealed ? `
+                        <div class="quiz-tv-bar-wrap">
+                            <div class="quiz-tv-bar" style="width:${pct}%;background:${isCorrect ? '#34C759' : '#D1D1D6'}"></div>
+                        </div>
+                        <span class="quiz-tv-opt-stat">${count}人 (${pct}%)</span>
+                        ${isCorrect ? '<span class="quiz-tv-check">&#10003;</span>' : ''}
+                    ` : ''}
+                </div>`;
+            });
+            html += '</div>';
+        } else if (currentQ.type === 'tf') {
+            html += '<div class="quiz-tv-options">';
+            ['对', '错'].forEach((opt, i) => {
+                const color = i === 0 ? '#3498DB' : '#E74C3C';
+                const isCorrect = opt === currentQ.correct_answer;
+                const count = optionCounts[opt] || 0;
+                const pct = isRevealed ? Math.round((count / totalAns) * 100) : 0;
+                let cls = 'quiz-tv-opt';
+                if (isRevealed) cls += isCorrect ? ' correct' : ' dimmed';
+                html += `<div class="${cls}">
+                    <span class="quiz-tv-opt-label" style="background:${color}">${opt}</span>
+                    <span class="quiz-tv-opt-text">${opt === '对' ? '正確' : '錯誤'}</span>
+                    ${isRevealed ? `
+                        <div class="quiz-tv-bar-wrap">
+                            <div class="quiz-tv-bar" style="width:${pct}%;background:${isCorrect ? '#34C759' : '#D1D1D6'}"></div>
+                        </div>
+                        <span class="quiz-tv-opt-stat">${count}人 (${pct}%)</span>
+                        ${isCorrect ? '<span class="quiz-tv-check">&#10003;</span>' : ''}
+                    ` : ''}
+                </div>`;
+            });
+            html += '</div>';
+        } else if (currentQ.type === 'fill') {
+            // Fill-in: just show correct answer on reveal
+            if (isRevealed) {
+                html += `<div class="quiz-tv-fill-reveal">
+                    <span class="quiz-tv-fill-label">正確答案</span>
+                    <span class="quiz-tv-fill-answer">${Utils.escapeHtml(currentQ.correct_answer)}</span>
+                </div>`;
+            }
+        }
+
+        // ── Counter
+        html += `<div class="quiz-tv-counter">
+            <span class="quiz-tv-counter-num">${answered}</span>
+            <span class="quiz-tv-counter-label">人${isRevealed ? '作答' : '已作答'}</span>
+        </div>`;
 
         html += '</div>';
         container.innerHTML = html;
