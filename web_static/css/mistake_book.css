@@ -1510,6 +1510,8 @@
     max-height: 30vh;
     overflow-y: auto;
     border: 1px solid var(--mb-border);
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .mb-hw__fullscreen-canvas-area {
@@ -1517,6 +1519,8 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .mb-hw__fullscreen-toolbar {

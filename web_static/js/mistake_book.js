@@ -2056,38 +2056,43 @@ const Views = {
 
         if (mode === 'keyboard') {
             const val = state.textareaValue || '';
-            const hasContent = val.trim().length > 0;
-            panel.innerHTML = `
-                ${hasContent ? `<div class="mb-hw__preview" id="hw_preview_${idx}">${UI.renderMath(val)}</div>` : ''}
-                <textarea class="mb-practice__answer-input mb-practice__answer-input--auto" id="answer_${idx}" placeholder="在此輸入你的答案...">${UI.escapeHtml(val)}</textarea>`;
-            // 自動撐高
+            // 先放 textarea
+            panel.innerHTML = `<textarea class="mb-practice__answer-input mb-practice__answer-input--auto" id="answer_${idx}" placeholder="在此輸入你的答案..."></textarea>`;
             const ta = document.getElementById(`answer_${idx}`);
             if (ta) {
+                ta.value = val; // 用 .value 設置，避免 HTML 轉義問題
                 this._autoResizeTextarea(ta);
+                // 有內容則插入渲染預覽
+                if (val.trim()) {
+                    this._updateAnswerPreview(idx, val);
+                }
                 ta.addEventListener('input', () => {
                     this._autoResizeTextarea(ta);
-                    // 更新預覽
                     state.textareaValue = ta.value;
-                    const preview = document.getElementById(`hw_preview_${idx}`);
-                    if (ta.value.trim()) {
-                        if (preview) {
-                            preview.innerHTML = UI.renderMath(ta.value);
-                        } else {
-                            const div = document.createElement('div');
-                            div.className = 'mb-hw__preview';
-                            div.id = `hw_preview_${idx}`;
-                            div.innerHTML = UI.renderMath(ta.value);
-                            ta.parentElement.insertBefore(div, ta);
-                        }
-                    } else if (preview) {
-                        preview.remove();
-                    }
+                    this._updateAnswerPreview(idx, ta.value);
                 });
             }
         } else if (mode === 'handwrite') {
             this._renderHandwritePanel(panel, idx);
         } else if (mode === 'photo') {
             this._renderPhotoPanel(panel, idx);
+        }
+    },
+
+    _updateAnswerPreview(idx, text) {
+        const ta = document.getElementById(`answer_${idx}`);
+        if (!ta) return;
+        let preview = document.getElementById(`hw_preview_${idx}`);
+        if (text.trim()) {
+            if (!preview) {
+                preview = document.createElement('div');
+                preview.className = 'mb-hw__preview';
+                preview.id = `hw_preview_${idx}`;
+                ta.parentElement.insertBefore(preview, ta);
+            }
+            preview.innerHTML = UI.renderMath(text);
+        } else if (preview) {
+            preview.remove();
         }
     },
 
