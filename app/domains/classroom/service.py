@@ -1009,9 +1009,10 @@ class ClassroomService:
                 raise RoomAccessDeniedError("用户不存在")
 
             allowed = self._get_allowed_classes(room)
-            student_class = (user.get("class_name") or "").strip()
-            if student_class not in allowed:
-                raise RoomAccessDeniedError("你的班级无权访问此房间")
+            if allowed:
+                student_class = (user.get("class_name") or "").strip()
+                if not student_class or student_class not in allowed:
+                    raise RoomAccessDeniedError("你的班级无权访问此房间")
             return
 
         raise RoomAccessDeniedError("未知角色")
