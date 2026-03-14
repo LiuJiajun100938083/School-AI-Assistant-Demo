@@ -1,11 +1,11 @@
 /**
  * ===================================================================================
- *                              遊戲中心 v3.0
+ *                              遊戲中心 v3.1
  * ===================================================================================
  *
- * 設計風格：Apple-Style + 學科色帶卡片
+ * 設計風格：Liquid Glass + Apple-Style 直式卡片
  * 佈局：Hero 精選 → Pill Chips 科目切換 → 卡片網格（無側邊欄）
- * 品牌綠 #006633
+ * 品牌綠 #006633 | Frosted Glass 毛玻璃效果
  *
  * ===================================================================================
  */
@@ -96,6 +96,17 @@
     --subject-geography: #8B5CF6;
     --subject-economics: #0D9488;
     --subject-default: #6B7280;
+
+    /* Liquid Glass */
+    --glass-blur: 20px;
+    --glass-saturate: 180%;
+    --glass-bg: rgba(255, 255, 255, 0.55);
+    --glass-bg-hover: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.45);
+    --glass-border-subtle: rgba(255, 255, 255, 0.25);
+    --glass-highlight: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.05) 100%);
+    --glass-shadow: 0 4px 24px rgba(0, 50, 30, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --glass-shadow-hover: 0 8px 32px rgba(0, 50, 30, 0.10), 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 /* ==========================================================================
@@ -121,6 +132,16 @@ body {
     color: var(--text-primary);
     line-height: 1.5;
     min-height: 100vh;
+}
+
+/* Liquid Glass 背景：柔和漸層讓玻璃效果可見 */
+.game-center-container {
+    background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0, 102, 51, 0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0, 102, 51, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 60% at 50% 80%, rgba(37, 99, 235, 0.04) 0%, transparent 50%),
+        linear-gradient(180deg, #F0F4F2 0%, var(--bg-page) 100%);
+    background-attachment: fixed;
 }
 
 /* ==========================================================================
@@ -204,9 +225,11 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: var(--space-4) var(--space-6);
-    background: var(--bg-header);
-    border-bottom: 1px solid var(--border-light);
-    box-shadow: var(--shadow-sm);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-bottom: 1px solid var(--glass-border-subtle);
+    box-shadow: var(--glass-shadow);
 }
 
 .gc-header-left {
@@ -220,8 +243,10 @@ body {
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
-    background: var(--bg-page);
-    border: 1px solid var(--border-default);
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-full);
     color: var(--text-primary);
     font-size: var(--type-caption);
@@ -231,8 +256,8 @@ body {
 }
 
 .gc-back-btn:hover {
-    background: var(--bg-card);
-    border-color: var(--border-strong);
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.6);
     transform: translateX(-2px);
 }
 
@@ -267,17 +292,19 @@ body {
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    background: var(--bg-page);
-    border: 1px solid var(--border-default);
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border-subtle);
     border-radius: var(--radius-md);
     color: var(--text-tertiary);
     transition: all var(--duration-base) var(--ease-out);
 }
 
 .gc-search-box:focus-within {
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.6);
     border-color: var(--brand);
-    box-shadow: var(--shadow-input-focus);
+    box-shadow: 0 0 0 4px rgba(0, 102, 51, 0.08);
 }
 
 .gc-search-box input {
@@ -314,8 +341,10 @@ body {
     font-size: var(--type-caption);
     font-weight: 500;
     color: var(--text-secondary);
-    background: var(--bg-page);
-    border: 1px solid var(--border-default);
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-full);
     text-decoration: none;
     white-space: nowrap;
@@ -325,8 +354,8 @@ body {
 
 .gc-action-btn:hover {
     color: var(--text-primary);
-    background: var(--bg-card);
-    border-color: var(--border-strong);
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(255, 255, 255, 0.6);
 }
 
 .gc-action-btn.gc-action-primary {
@@ -345,7 +374,8 @@ body {
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
-    background: var(--bg-page);
+    background: rgba(255, 255, 255, 0.35);
+    border: 1px solid var(--glass-border-subtle);
     border-radius: var(--radius-full);
 }
 
@@ -494,29 +524,34 @@ body {
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
-    border: 1px solid var(--border-default);
-    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: var(--text-secondary);
     transition: all var(--duration-base) var(--ease-out);
     flex-shrink: 0;
 }
 
 .gc-pill:hover {
-    border-color: var(--border-strong);
+    border-color: rgba(255, 255, 255, 0.6);
     color: var(--text-primary);
-    background: var(--bg-card-hover);
+    background: rgba(255, 255, 255, 0.6);
 }
 
 .gc-pill.active {
-    background: var(--brand);
+    background: rgba(0, 102, 51, 0.85);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
     color: #fff;
-    border-color: var(--brand);
+    border-color: rgba(0, 102, 51, 0.3);
     font-weight: 600;
+    box-shadow: 0 2px 12px rgba(0, 102, 51, 0.2);
 }
 
 .gc-pill.active:hover {
-    background: var(--brand-hover);
-    border-color: var(--brand-hover);
+    background: rgba(0, 102, 51, 0.92);
+    border-color: rgba(0, 102, 51, 0.4);
 }
 
 .gc-pill svg {
@@ -570,7 +605,8 @@ body {
 .game-count {
     font-size: var(--type-caption);
     color: var(--text-secondary);
-    background: var(--bg-page);
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid var(--glass-border-subtle);
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-full);
 }
@@ -590,22 +626,39 @@ body {
    ========================================================================== */
 
 .game-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-card);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
     cursor: pointer;
-    transition: all var(--duration-slow) var(--ease-out);
+    transition: all 0.35s var(--ease-out);
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
+/* 卡片頂部光澤高光 */
+.game-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: var(--glass-highlight);
+    pointer-events: none;
+    z-index: 1;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
 .game-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(0, 0, 0, 0.08);
-    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-6px);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: var(--glass-shadow-hover);
+    background: var(--glass-bg-hover);
 }
 
 .game-card:active {
@@ -615,7 +668,7 @@ body {
 /* 卡片上半部：品牌綠淡色漸層 + 居中圖標 */
 .game-card-header {
     height: 120px;
-    background: linear-gradient(135deg, var(--brand-light) 0%, var(--brand-lighter) 100%);
+    background: linear-gradient(135deg, rgba(0,102,51,0.06) 0%, rgba(0,102,51,0.02) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -629,10 +682,12 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.08);
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.06);
+    z-index: 2;
 }
 
 .game-icon-wrap svg {
@@ -684,7 +739,8 @@ body {
 .game-difficulty {
     font-size: var(--type-micro);
     color: var(--brand);
-    background: var(--brand-lighter);
+    background: rgba(0, 102, 51, 0.06);
+    border: 1px solid rgba(0, 102, 51, 0.1);
     padding: 2px var(--space-2);
     border-radius: var(--radius-sm);
     display: inline-block;
@@ -735,17 +791,19 @@ body {
 .admin-btn {
     width: 30px;
     height: 30px;
-    border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all var(--duration-fast) var(--ease-out);
-    background: var(--bg-card);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-default);
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border: 1px solid var(--glass-border);
     color: var(--text-secondary);
+    z-index: 2;
 }
 
 .admin-btn svg {
@@ -794,8 +852,12 @@ body {
 }
 
 .game-badge.new {
-    background: var(--brand);
+    background: rgba(0, 102, 51, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: white;
+    border: 1px solid rgba(0, 102, 51, 0.3);
+    z-index: 2;
 }
 
 /* ==========================================================================
@@ -806,9 +868,12 @@ body {
     position: absolute;
     bottom: var(--space-4);
     right: var(--space-4);
-    width: 32px;
-    height: 32px;
-    background: var(--brand);
+    width: 34px;
+    height: 34px;
+    background: rgba(0, 102, 51, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 102, 51, 0.3);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -817,6 +882,7 @@ body {
     opacity: 0;
     transform: scale(0.8);
     transition: all var(--duration-base) var(--ease-out);
+    z-index: 2;
 }
 
 .game-play-icon svg {
@@ -866,10 +932,12 @@ body {
    ========================================================================== */
 
 .gc-footer {
-    background: var(--bg-card);
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     padding: var(--space-6);
     text-align: center;
-    border-top: 1px solid var(--border-light);
+    border-top: 1px solid var(--glass-border-subtle);
     margin-top: auto;
 }
 
@@ -895,10 +963,12 @@ body {
 }
 
 .gc-leaderboard-card {
-    background: var(--bg-card);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     border-radius: var(--radius-xl);
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-card);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
     overflow: hidden;
 }
 
@@ -907,8 +977,8 @@ body {
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-4) var(--space-5);
-    border-bottom: 1px solid var(--border-light);
-    background: var(--bg-page);
+    border-bottom: 1px solid var(--glass-border-subtle);
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .gc-lb-icon { font-size: 20px; }
