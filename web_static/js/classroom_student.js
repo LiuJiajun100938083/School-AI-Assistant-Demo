@@ -977,7 +977,7 @@ const ClassroomStudentApp = {
                 this._sendWSMessage({
                     type: 'submit_response',
                     slide_id: slideData.slide_id,
-                    response_type: 'poll',
+                    response_type: 'poll_vote',
                     response_data: { selected_options: selectedOptions },
                 });
             },
