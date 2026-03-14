@@ -1,64 +1,80 @@
 /**
- * 遊戲中心 — 前端核心模組
- * ========================
+ * 遊戲中心 v3.0 — 前端核心模組
+ * ================================
  *
  * 架構：
- *   GameConfig    — 靜態配置（學科、遊戲數據）
+ *   GameConfig    — 靜態配置（學科、遊戲數據、顏色、SVG 圖標）
  *   GameCenterAPI — API 請求封裝
  *   GameCenterUI  — DOM 渲染與模板
  *   GameCenterApp — 主控制器（狀態管理、事件處理）
  *
  * 依賴共享模組: AuthModule, APIClient, UIModule, Utils
- * 加載順序: shared/* → game_center.js
  */
 'use strict';
+
+/* ============================================================
+   SVG 圖標庫
+   ============================================================ */
+
+const GCIcons = {
+    // 科目圖標
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    calculator: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="16" y1="10" x2="16" y2="10.01"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><line x1="8" y1="18" x2="16" y2="18"/></svg>',
+    languages: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>',
+    landmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>',
+    monitor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+    zap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    flask: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L4 17.2A2 2 0 0 0 5.4 21h13.2a2 2 0 0 0 1.4-3.4l-5.4-5.8a2 2 0 0 1-.6-1.4V3"/></svg>',
+    leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 20A7 7 0 0 1 9.8 6.9C15.5 4.9 17 3.5 19 2c1 2 2 4.5 2 8 0 5.5-4.8 10-10 10Z"/><path d="M2 21c0-3 1.2-6.5 3.8-8.5"/></svg>',
+    scale: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 16l3-8 3 8c-.9 1.2-2.5 2-4.5 2s-3.6-.8-4.5-2z"/><path d="M2 16l3-8 3 8c-.9 1.2-2.5 2-4.5 2S.4 17.2-.5 16z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+    coins: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><line x1="7" y1="6" x2="7.01" y2="6"/><line x1="16" y1="14" x2="16.01" y2="14"/></svg>',
+    defaultIcon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+
+    // UI 圖標
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+};
 
 /* ============================================================
    CONFIG — 靜態配置
    ============================================================ */
 
 const GameConfig = {
-    /**
-     * 學科配置
-     * @property {string} name - 顯示名稱
-     * @property {string} icon - 圖標 emoji
-     * @property {number} order - 排序順序
-     */
     subjects: {
-        all:       { name: '全部',   icon: '🌟', order: 0 },
-        chinese:   { name: '中文',   icon: '📖', order: 1 },
-        math:      { name: '數學',   icon: '📐', order: 2 },
-        english:   { name: '英文',   icon: '🔤', order: 3 },
-        history:   { name: '歷史',   icon: '📜', order: 4 },
-        ict:       { name: 'ICT',    icon: '💻', order: 5 },
-        physics:   { name: '物理',   icon: '⚡', order: 6 },
-        chemistry: { name: '化學',   icon: '🧪', order: 7 },
-        biology:   { name: '生物',   icon: '🧬', order: 8 },
-        ces:       { name: '公民',   icon: '🏛️', order: 9 }
+        all:       { name: '全部',       icon: 'star',       color: '#006633', order: 0 },
+        chinese:   { name: '中文',       icon: 'book',       color: '#DC2626', order: 1 },
+        math:      { name: '數學',       icon: 'calculator',  color: '#2563EB', order: 2 },
+        english:   { name: '英文',       icon: 'languages',   color: '#7C3AED', order: 3 },
+        history:   { name: '歷史',       icon: 'landmark',    color: '#D97706', order: 4 },
+        ict:       { name: 'ICT',        icon: 'monitor',     color: '#059669', order: 5 },
+        physics:   { name: '物理',       icon: 'zap',         color: '#EA580C', order: 6 },
+        chemistry: { name: '化學',       icon: 'flask',       color: '#0891B2', order: 7 },
+        biology:   { name: '生物',       icon: 'leaf',        color: '#16A34A', order: 8 },
+        ces:       { name: '公民與社會發展', icon: 'scale',   color: '#E11D48', order: 9 },
+        geography: { name: '地理',       icon: 'globe',       color: '#8B5CF6', order: 10 },
+        economics: { name: '經濟',       icon: 'coins',       color: '#0D9488', order: 11 }
     },
 
-    /**
-     * 遊戲數據庫（靜態配置部分）
-     *
-     * 遊戲對象結構：
-     * @property {string} id - 唯一標識符
-     * @property {string} name - 遊戲名稱
-     * @property {string} nameEn - 英文名稱
-     * @property {string} icon - 顯示圖標
-     * @property {string} description - 簡短描述
-     * @property {string} url - 遊戲連結
-     * @property {string[]} difficulty - 適用年級
-     * @property {string[]} tags - 搜索標籤
-     * @property {string|null} badge - 徽章文字（'新' 或 null）
-     * @property {string[]} roles - 可訪問角色
-     */
+    // Hero 漸變色背景
+    heroGradients: [
+        'linear-gradient(135deg, #006633 0%, #059669 100%)',
+        'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+        'linear-gradient(135deg, #D97706 0%, #DC2626 100%)',
+        'linear-gradient(135deg, #0891B2 0%, #059669 100%)',
+        'linear-gradient(135deg, #E11D48 0%, #D97706 100%)',
+    ],
+
     games: {
         chinese: [
             {
                 id: 'chinese_reading_games',
                 name: '閱讀理解訓練',
                 nameEn: 'Reading Comprehension',
-                icon: '📚',
+                icon: 'book',
                 description: '15種閱讀理解遊戲，覆蓋理解、表達、結構、思維、元認知',
                 url: '/chinese_learning',
                 difficulty: ['中一', '中二', '中三'],
@@ -70,7 +86,7 @@ const GameConfig = {
                 id: 'classical_chinese',
                 name: '文言文訓練',
                 nameEn: 'Classical Chinese',
-                icon: '📜',
+                icon: 'book',
                 description: '文言文閱讀理解與翻譯練習',
                 url: '/learning_mode/classical',
                 difficulty: ['中一', '中二', '中三'],
@@ -82,7 +98,7 @@ const GameConfig = {
                 id: 'chinese_writing',
                 name: '作文輔導',
                 nameEn: 'Writing Guide',
-                icon: '✍️',
+                icon: 'book',
                 description: 'AI引導式作文訓練，蘇格拉底式提問',
                 url: '/learning_mode/writing',
                 difficulty: ['中一', '中二', '中三'],
@@ -96,7 +112,7 @@ const GameConfig = {
                 id: 'math_word_cards',
                 name: '數學詞彙寶庫',
                 nameEn: 'Math Word Vault',
-                icon: '🎴',
+                icon: 'calculator',
                 description: '掌握數學英文術語，從定義到題目語境全面訓練',
                 url: '/games/math_word_cards',
                 difficulty: ['中一', '中二', '中三'],
@@ -110,7 +126,7 @@ const GameConfig = {
                 id: 'english_writing_helper',
                 name: '英文寫作助手',
                 nameEn: 'Writing Helper',
-                icon: '✍️',
+                icon: 'languages',
                 description: 'AI輔助英文寫作訓練',
                 url: '/learning_mode/english_writing',
                 difficulty: ['中一', '中二', '中三'],
@@ -124,7 +140,7 @@ const GameConfig = {
                 id: 'ming_dynasty',
                 name: '大明風雲：布衣天子之路',
                 nameEn: 'Rise of Ming Dynasty',
-                icon: '👑',
+                icon: 'landmark',
                 description: '扮演朱元璋，體驗從乞丐到皇帝的傳奇人生',
                 url: '/static/ming-dynasty-game.html',
                 difficulty: ['中一', '中二', '中三'],
@@ -138,7 +154,7 @@ const GameConfig = {
                 id: 'swift_code_game',
                 name: 'SwiftUI 代碼學堂',
                 nameEn: 'SwiftUI Code Academy',
-                icon: '💻',
+                icon: 'monitor',
                 description: '看圖選代碼 + 拖拽拼代碼，從零開始理解 SwiftUI 界面編程',
                 url: '/swift-code-game',
                 difficulty: ['中一', '中二', '中三'],
@@ -153,7 +169,7 @@ const GameConfig = {
                 id: 'chemistry_2048',
                 name: '中三 — 化學元素 2048',
                 nameEn: 'Chemistry 2048',
-                icon: '⚗️',
+                icon: 'flask',
                 description: '合併元素到達鈣 (Ca)！5x5 終極挑戰',
                 url: '/chemistry-2048',
                 difficulty: ['中三'],
@@ -168,7 +184,7 @@ const GameConfig = {
                 id: 'china_economy',
                 name: '中國經濟發展桌遊',
                 nameEn: 'China Economy Game',
-                icon: '🇨🇳',
+                icon: 'scale',
                 description: '體驗改革開放經濟發展歷程，了解中國經濟騰飛的奧秘',
                 url: '/china_economy_game',
                 difficulty: ['中一', '中二', '中三'],
@@ -180,7 +196,7 @@ const GameConfig = {
                 id: 'trade_game',
                 name: '中三 — 全球貿易大亨',
                 nameEn: 'Global Trade Tycoon',
-                icon: '🌐',
+                icon: 'globe',
                 description: '模擬國際貿易：比較優勢、供需法則與經濟安全',
                 url: '/trade-game',
                 difficulty: ['中一', '中二', '中三'],
@@ -192,7 +208,7 @@ const GameConfig = {
                 id: 'farm_game',
                 name: '中二 — 神州菜園經營家',
                 nameEn: 'Farm Security Tycoon',
-                icon: '🥬',
+                icon: 'leaf',
                 description: '經營菜園守護糧食安全：戰爭貿易戰、種子主權與耕地紅線',
                 url: '/farm-game',
                 difficulty: ['中二'],
@@ -209,90 +225,45 @@ const GameConfig = {
    ============================================================ */
 
 const GameCenterAPI = {
-
-    /**
-     * 加載動態學科列表
-     * @returns {Promise<Object|null>}
-     */
     async loadSubjects() {
         try {
             const data = await APIClient.get('/api/games/subjects/list');
             return (data?.success && data.data) ? data.data : null;
-        } catch {
-            return null;
-        }
+        } catch { return null; }
     },
 
-    /**
-     * 加載數據庫中的遊戲列表
-     * @param {number} userId
-     * @param {string} userRole
-     * @param {string} userClass
-     * @returns {Promise<Array|null>}
-     */
     async loadGames(userId, userRole, userClass) {
         try {
             const params = {};
             if (userClass) params.user_class = userClass;
             const data = await APIClient.get('/api/games/list', params);
             return (data?.success && data.data) ? data.data : null;
-        } catch {
-            return null;
-        }
+        } catch { return null; }
     },
 
-    /**
-     * 刪除遊戲
-     * @param {string} uuid
-     * @param {number} userId
-     * @param {string} userRole
-     * @returns {Promise<Object>}
-     */
     async deleteGame(uuid) {
         return APIClient.delete(`/api/games/${uuid}`);
     },
 
-    /**
-     * 加載用戶信息
-     * @returns {Promise<Object|null>}
-     */
     async loadUserInfo() {
-        try {
-            return await AuthModule.getUserInfo();
-        } catch {
-            return null;
-        }
+        try { return await AuthModule.getUserInfo(); }
+        catch { return null; }
     },
 
-    /**
-     * 加載神州菜園排行榜
-     * @param {number} limit
-     * @returns {Promise<Array|null>}
-     */
     async loadFarmLeaderboard(limit = 10) {
         try {
             const data = await APIClient.get('/api/farm-game/scores/leaderboard', { limit });
             return (data?.success && data.data) ? data.data : null;
-        } catch {
-            return null;
-        }
+        } catch { return null; }
     },
 
-    /**
-     * 加載全球貿易大亨排行榜
-     * @param {string|null} difficulty - EASY/NORMAL/HARD
-     * @param {number} limit
-     * @returns {Promise<Array|null>}
-     */
     async loadTradeLeaderboard(difficulty = null, limit = 10) {
         try {
             const params = { limit };
             if (difficulty) params.difficulty = difficulty;
             const data = await APIClient.get('/api/trade-game/scores/leaderboard', params);
             return (data?.success && data.data) ? data.data : null;
-        } catch {
-            return null;
-        }
+        } catch { return null; }
     }
 };
 
@@ -302,44 +273,92 @@ const GameCenterAPI = {
 
 const GameCenterUI = {
 
-    /**
-     * 生成學科標籤 HTML
-     */
-    createSubjectTabHTML(key, config) {
-        const isActive = key === 'all' ? 'gc-sidebar__item--active' : '';
+    _getSubjectColor(subjectKey) {
+        return GameConfig.subjects[subjectKey]?.color || '#6B7280';
+    },
+
+    _getSubjectIcon(subjectKey) {
+        const iconName = GameConfig.subjects[subjectKey]?.icon || 'defaultIcon';
+        return GCIcons[iconName] || GCIcons.defaultIcon;
+    },
+
+    _getGameIcon(game) {
+        if (game.icon && GCIcons[game.icon]) return GCIcons[game.icon];
+        return GCIcons.defaultIcon;
+    },
+
+    _lightenColor(hex, amount = 0.92) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const lr = Math.round(r + (255 - r) * amount);
+        const lg = Math.round(g + (255 - g) * amount);
+        const lb = Math.round(b + (255 - b) * amount);
+        return `rgb(${lr}, ${lg}, ${lb})`;
+    },
+
+    // ── Hero 精選區 ────────────────────────────────────────
+
+    renderHero(featuredGames) {
+        if (featuredGames.length === 0) return '';
+
+        const cards = featuredGames.slice(0, 3).map((game, i) => {
+            const isPrimary = i === 0;
+            const gradient = GameConfig.heroGradients[i % GameConfig.heroGradients.length];
+            const icon = this._getGameIcon(game);
+            return `
+                <a class="gc-hero-card ${isPrimary ? 'gc-hero-card--primary' : ''}"
+                   href="${game.url}" style="background: ${gradient};">
+                    <span class="gc-hero-badge">${game.badge || '精選'}</span>
+                    <div class="gc-hero-icon">${icon}</div>
+                    <div class="gc-hero-title">${Utils.escapeHtml(game.name)}</div>
+                    <div class="gc-hero-desc">${Utils.escapeHtml(game.description)}</div>
+                </a>
+            `;
+        });
+
+        return `<div class="gc-hero-grid">${cards.join('')}</div>`;
+    },
+
+    // ── Pill Chips ─────────────────────────────────────────
+
+    createPillHTML(key, config) {
+        const isActive = key === 'all' ? 'active' : '';
+        const icon = GCIcons[config.icon] || GCIcons.defaultIcon;
         return `
-            <button class="gc-sidebar__item ${isActive}" data-subject="${key}">
-                <span class="gc-sidebar__icon">${config.icon}</span>
+            <button class="gc-pill ${isActive}" data-subject="${key}">
+                ${icon}
                 <span>${config.name}</span>
             </button>
         `;
     },
 
-    /**
-     * 生成遊戲區塊 HTML
-     */
+    // ── 區塊 ──────────────────────────────────────────────
+
     createSectionHTML(subjectKey, subjectConfig, games, isAdmin) {
         if (games.length === 0) return '';
+
+        const icon = this._getSubjectIcon(subjectKey);
+        const color = this._getSubjectColor(subjectKey);
 
         return `
             <section class="gc-section game-section" data-subject="${subjectKey}">
                 <div class="section-header">
-                    <h2 class="section-title">
-                        <span class="title-icon">${subjectConfig.icon}</span>
+                    <h2 class="section-title" style="color: ${color}">
+                        ${icon}
                         ${subjectConfig.name}遊戲
                     </h2>
                     <span class="game-count">${games.length} 個遊戲</span>
                 </div>
                 <div class="games-grid">
-                    ${games.map(game => this.createGameCardHTML(game, isAdmin)).join('')}
+                    ${games.map(game => this.createGameCardHTML(game, isAdmin, subjectKey)).join('')}
                 </div>
             </section>
         `;
     },
 
-    /**
-     * 生成排行榜區塊 HTML
-     */
+    // ── 排行榜 ─────────────────────────────────────────────
+
     createLeaderboardHTML(title, icon, entries, gameUrl) {
         if (!entries || entries.length === 0) return '';
 
@@ -366,23 +385,22 @@ const GameCenterUI = {
                     <span class="gc-lb-title">${Utils.escapeHtml(title)}</span>
                     <a href="${gameUrl}" class="gc-lb-play-btn">去挑戰 ▶</a>
                 </div>
-                <div class="gc-lb-body">
-                    ${rowsHTML}
-                </div>
+                <div class="gc-lb-body">${rowsHTML}</div>
             </div>
         `;
     },
 
-    /**
-     * 生成遊戲卡片 HTML
-     */
-    createGameCardHTML(game, isAdmin) {
+    // ── 遊戲卡片 ──────────────────────────────────────────
+
+    createGameCardHTML(game, isAdmin, subjectKey) {
+        const icon = this._getGameIcon(game);
+
         const badgeHTML = game.badge
             ? `<span class="game-badge new">${game.badge}</span>`
             : '';
 
         const difficultyHTML = game.difficulty?.length
-            ? `<div class="game-difficulty">${game.difficulty.join(' · ')}</div>`
+            ? `<span class="game-difficulty">${game.difficulty.join(' · ')}</span>`
             : '';
 
         const uploaderHTML = game.isFromDatabase && game.uploaderName
@@ -393,31 +411,33 @@ const GameCenterUI = {
         const safeGameName = Utils.escapeHtml(game.name).replace(/"/g, '&quot;');
         const adminActionsHTML = isAdmin && game.isFromDatabase
             ? `<div class="game-admin-actions">
-                <button class="admin-btn edit-btn" data-action="edit" data-uuid="${game.id}" title="編輯">✏️</button>
-                <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">📤</button>
-                <button class="admin-btn delete-btn" data-action="delete" data-uuid="${game.id}" title="刪除">🗑️</button>
+                <button class="admin-btn edit-btn" data-action="edit" data-uuid="${game.id}" title="編輯">${GCIcons.edit}</button>
+                <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">${GCIcons.share}</button>
+                <button class="admin-btn delete-btn" data-action="delete" data-uuid="${game.id}" title="刪除">${GCIcons.trash}</button>
                </div>`
             : (isTeacherOrAdmin && game.isFromDatabase
                 ? `<div class="game-admin-actions">
-                    <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">📤</button>
+                    <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">${GCIcons.share}</button>
                    </div>`
                 : '');
 
         return `
             <div class="game-card" data-game-id="${game.id}" data-url="${game.url}" data-is-db="${game.isFromDatabase || false}">
-                <div class="game-card-inner">
-                    <div class="game-icon">${game.icon}</div>
-                    <div class="game-info">
-                        <h3 class="game-name">${Utils.escapeHtml(game.name)}</h3>
-                        <p class="game-name-en">${Utils.escapeHtml(game.nameEn)}</p>
-                        <p class="game-desc">${Utils.escapeHtml(game.description)}</p>
-                        ${difficultyHTML}
-                        ${uploaderHTML}
-                    </div>
+                <div class="game-card-header">
+                    <div class="game-icon-wrap">${icon}</div>
                     ${badgeHTML}
                     ${adminActionsHTML}
-                    <div class="game-play-icon">▶</div>
                 </div>
+                <div class="game-card-body">
+                    <h3 class="game-name">${Utils.escapeHtml(game.name)}</h3>
+                    <p class="game-name-en">${Utils.escapeHtml(game.nameEn)}</p>
+                    <p class="game-desc">${Utils.escapeHtml(game.description)}</p>
+                    <div class="game-meta">
+                        ${difficultyHTML}
+                    </div>
+                    ${uploaderHTML}
+                </div>
+                <div class="game-play-icon">${GCIcons.play}</div>
             </div>
         `;
     }
@@ -429,8 +449,6 @@ const GameCenterUI = {
 
 const GameCenterApp = {
 
-    /* ---------- 狀態 ---------- */
-
     state: {
         currentSubject: 'all',
         searchQuery: '',
@@ -441,12 +459,9 @@ const GameCenterApp = {
 
     elements: {},
 
-    /* ---------- 初始化 ---------- */
-
     async init() {
         this._cacheElements();
 
-        // 加載用戶信息
         const info = await GameCenterAPI.loadUserInfo();
         if (info) {
             this.state.userInfo = info;
@@ -455,26 +470,24 @@ const GameCenterApp = {
             this.state.userRole = AuthModule.getUserRole();
         }
 
-        // 動態加載學科列表
         await this._loadDynamicSubjects();
-
-        this._renderSubjectTabs();
+        this._renderPills();
         this._bindEvents();
 
-        // 加載數據庫遊戲
         await this._loadDatabaseGames();
 
+        this._renderHero();
         this._renderGameSections();
         this._updateUserDisplay();
         this._hideSplash();
 
-        // 異步加載排行榜（不阻塞主界面）
         this._loadLeaderboards();
     },
 
     _cacheElements() {
         this.elements = {
-            subjectTabs: document.getElementById('subjectTabs'),
+            subjectPills: document.getElementById('subjectPills'),
+            heroSection: document.getElementById('heroSection'),
             gamesContainer: document.getElementById('gamesContainer'),
             emptyState: document.getElementById('emptyState'),
             searchInput: document.getElementById('gameSearch'),
@@ -498,14 +511,16 @@ const GameCenterApp = {
             if (code === 'all') continue;
 
             const name = (typeof info === 'object') ? (info.name || code) : info;
-            const icon = (typeof info === 'object') ? (info.icon || '📚') : '📚';
+            const icon = (typeof info === 'object') ? (info.icon || 'defaultIcon') : 'defaultIcon';
 
             if (GameConfig.subjects[code]) {
                 GameConfig.subjects[code].name = name;
-                GameConfig.subjects[code].icon = icon;
+                if (typeof info === 'object' && info.icon && GCIcons[info.icon]) {
+                    GameConfig.subjects[code].icon = info.icon;
+                }
             } else {
                 maxOrder++;
-                GameConfig.subjects[code] = { name, icon, order: maxOrder };
+                GameConfig.subjects[code] = { name, icon, color: '#6B7280', order: maxOrder };
                 if (!GameConfig.games[code]) {
                     GameConfig.games[code] = [];
                 }
@@ -526,11 +541,12 @@ const GameCenterApp = {
             if (!this.state.databaseGames[game.subject]) {
                 this.state.databaseGames[game.subject] = [];
             }
+            const subjectIcon = GameConfig.subjects[game.subject]?.icon || 'defaultIcon';
             this.state.databaseGames[game.subject].push({
                 id: game.uuid,
                 name: game.name,
                 nameEn: game.name_en || '',
-                icon: game.icon,
+                icon: subjectIcon,
                 description: game.description,
                 url: game.url,
                 difficulty: game.difficulty || [],
@@ -546,13 +562,28 @@ const GameCenterApp = {
 
     /* ---------- 渲染 ---------- */
 
-    _renderSubjectTabs() {
+    _renderPills() {
         const sorted = Object.entries(GameConfig.subjects)
             .sort((a, b) => a[1].order - b[1].order);
 
-        this.elements.subjectTabs.innerHTML = sorted
-            .map(([key, config]) => GameCenterUI.createSubjectTabHTML(key, config))
+        this.elements.subjectPills.innerHTML = sorted
+            .map(([key, config]) => GameCenterUI.createPillHTML(key, config))
             .join('');
+    },
+
+    _renderHero() {
+        // Collect featured games (badge = '新')
+        const featured = [];
+        Object.entries(GameConfig.games).forEach(([subjectKey, games]) => {
+            games.forEach(g => {
+                if (g.badge) featured.push(g);
+            });
+        });
+
+        if (featured.length > 0) {
+            this.elements.heroSection.innerHTML = GameCenterUI.renderHero(featured);
+            this.elements.heroSection.classList.add('active');
+        }
     },
 
     _renderGameSections() {
@@ -581,7 +612,6 @@ const GameCenterApp = {
         this.elements.userName.textContent = name;
         this.elements.userAvatar.textContent = name.charAt(0).toUpperCase();
 
-        // 教师/管理员显示管理入口
         const teacherActions = document.getElementById('teacherActions');
         if (teacherActions && ['teacher', 'admin'].includes(this.state.userRole)) {
             teacherActions.style.display = 'flex';
@@ -604,21 +634,16 @@ const GameCenterApp = {
         const splashTitle  = splashScreen.querySelector('.splash-title');
         const splashSub    = splashScreen.querySelector('.splash-subtitle');
         const splashLoader = splashScreen.querySelector('.splash-loader');
-
         const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
-
         const tl = gsap.timeline();
 
         tl
-            /* ═══ 第一幕：系統喚醒（全部同時出現） ═══ */
             .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
                 opacity: 1, filter: 'blur(0px)',
                 duration: 0.6, ease: EASE
             }, 0.1)
             .to(splashLoader, { opacity: 1, duration: 0.3, ease: 'power2.out' }, 0.3)
             .to(splashLoader, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0.9)
-
-            /* ═══ 第二幕：過渡到主界面 ═══ */
             .to(glassPanel, { opacity: 1, duration: 0.3, ease: EASE }, 1.2)
             .add(() => { splashScreen.style.display = 'none'; }, 1.5)
             .to(glassPanel, {
@@ -662,19 +687,18 @@ const GameCenterApp = {
     /* ---------- 事件綁定 ---------- */
 
     _bindEvents() {
-        // 返回首頁
         document.getElementById('backBtn')?.addEventListener('click', () => {
             window.location.href = '/';
         });
 
-        // 學科篩選（事件委託）
-        this.elements.subjectTabs.addEventListener('click', (e) => {
-            const tab = e.target.closest('.gc-sidebar__item');
-            if (!tab) return;
-            this._handleSubjectChange(tab);
+        // Pill chips 切換
+        this.elements.subjectPills.addEventListener('click', (e) => {
+            const pill = e.target.closest('.gc-pill');
+            if (!pill) return;
+            this._handleSubjectChange(pill);
         });
 
-        // 搜索（防抖）
+        // 搜索
         if (this.elements.searchInput) {
             const debouncedSearch = Utils.debounce((value) => {
                 this.state.searchQuery = value.trim();
@@ -686,9 +710,8 @@ const GameCenterApp = {
             });
         }
 
-        // 遊戲卡片點擊（事件委託）
+        // 遊戲卡片
         this.elements.gamesContainer.addEventListener('click', (e) => {
-            // 管理員操作按鈕
             const adminBtn = e.target.closest('.admin-btn');
             if (adminBtn) {
                 e.stopPropagation();
@@ -704,7 +727,6 @@ const GameCenterApp = {
                 return;
             }
 
-            // 遊戲卡片
             const card = e.target.closest('.game-card');
             if (card) {
                 const url = card.dataset.url;
@@ -715,12 +737,20 @@ const GameCenterApp = {
 
     /* ---------- 事件處理 ---------- */
 
-    _handleSubjectChange(tab) {
-        this.elements.subjectTabs.querySelectorAll('.gc-sidebar__item')
-            .forEach(t => t.classList.remove('gc-sidebar__item--active'));
-        tab.classList.add('gc-sidebar__item--active');
+    _handleSubjectChange(pill) {
+        this.elements.subjectPills.querySelectorAll('.gc-pill')
+            .forEach(t => t.classList.remove('active'));
+        pill.classList.add('active');
 
-        this.state.currentSubject = tab.dataset.subject;
+        this.state.currentSubject = pill.dataset.subject;
+
+        // Show/hide hero based on subject
+        if (this.state.currentSubject === 'all') {
+            this.elements.heroSection.classList.add('active');
+        } else {
+            this.elements.heroSection.classList.remove('active');
+        }
+
         this._filterGames();
     },
 
@@ -737,7 +767,6 @@ const GameCenterApp = {
 
         try {
             const result = await GameCenterAPI.deleteGame(uuid);
-
             if (result.success) {
                 UIModule.toast('遊戲已刪除', 'success');
                 await this._loadDatabaseGames();
@@ -753,13 +782,10 @@ const GameCenterApp = {
 
     async _loadLeaderboards() {
         const farmData = await GameCenterAPI.loadFarmLeaderboard(10);
-
-        // 找到公民（ces）區塊
         const cesSection = this.elements.gamesContainer.querySelector('.game-section[data-subject="ces"]');
         if (!cesSection) return;
 
         const farmHtml = GameCenterUI.createLeaderboardHTML('神州菜園經營家 排行榜', '🥬', farmData, '/farm-game');
-
         if (!farmHtml) return;
 
         let container = cesSection.querySelector('.gc-leaderboards');
@@ -791,7 +817,7 @@ const GameCenterApp = {
 
             if (games.length > 0) {
                 grid.innerHTML = games.map(g =>
-                    GameCenterUI.createGameCardHTML(g, isAdmin)
+                    GameCenterUI.createGameCardHTML(g, isAdmin, subject)
                 ).join('');
                 countEl.textContent = `${games.length} 個遊戲`;
                 section.style.display = 'block';
@@ -805,7 +831,7 @@ const GameCenterApp = {
 };
 
 /* ============================================================
-   分享助手
+   分享助手（保持不變）
    ============================================================ */
 
 const GameShareHelper = {
@@ -825,7 +851,6 @@ const GameShareHelper = {
 
         document.getElementById('gcShareTitle').textContent = `分享：${gameName}`;
 
-        // 重置 duration 按钮
         document.querySelectorAll('#gcShareDurations .gc-dur-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.duration === '1h');
             btn.onclick = () => {
@@ -835,7 +860,6 @@ const GameShareHelper = {
             };
         });
 
-        // 重置状态
         document.getElementById('gcShareResult').classList.remove('show');
         const genBtn = document.getElementById('gcShareGenBtn');
         genBtn.disabled = false;
@@ -879,7 +903,6 @@ const GameShareHelper = {
                 document.getElementById('gcShareResult').classList.add('show');
                 document.getElementById('gcShareUrl').value = shareUrl;
 
-                // QR code
                 const qrBox = document.getElementById('gcShareQr');
                 qrBox.innerHTML = '';
                 this.qrInstance = new QRCode(qrBox, {
@@ -932,7 +955,6 @@ const GameShareHelper = {
 document.addEventListener('DOMContentLoaded', () => {
     GameCenterApp.init();
 
-    // 調試模式（僅本地開發）
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         window.GameCenterApp = GameCenterApp;
         window.GameConfig = GameConfig;

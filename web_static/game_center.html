@@ -6,14 +6,17 @@
     <title>遊戲中心 - AI學習夥伴</title>
     <link rel="stylesheet" href="/static/css/game_center.css">
     <link rel="stylesheet" href="/static/css/spinner.css">
-    <!-- GSAP 動畫引擎（啟動畫面） -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
 <body>
     <!-- 启动画面 -->
     <div class="splash-screen" id="splashScreen">
         <div class="splash-content">
-            <div class="splash-icon">🎮</div>
+            <div class="splash-icon">
+                <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><path d="M15 10l2 2-2 2"/><path d="M17 10l2 2-2 2"/>
+                </svg>
+            </div>
             <div class="splash-title">遊戲中心</div>
             <div class="splash-subtitle">寓教於樂，輕鬆學習</div>
             <div class="splash-loader">
@@ -26,68 +29,75 @@
     <div class="glass-panel" id="glassPanel"></div>
 
     <!-- 主容器 -->
-    <div class="game-center-container">
+    <div class="game-center-container" id="mainContainer">
         <!-- 顶部导航 -->
         <header class="gc-header">
             <div class="gc-header-left">
                 <button class="gc-back-btn" id="backBtn">
-                    <span class="back-icon">←</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                     <span class="back-text">返回</span>
                 </button>
                 <div class="gc-logo">
-                    <span class="logo-icon">🎮</span>
+                    <svg class="logo-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><path d="M15 10l2 2-2 2"/>
+                    </svg>
                     <span class="logo-text">遊戲中心</span>
                 </div>
             </div>
             <div class="gc-header-center">
                 <div class="gc-search-box">
-                    <span class="search-icon">🔍</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" id="gameSearch" placeholder="搜尋遊戲..." autocomplete="off">
                 </div>
             </div>
             <div class="gc-header-right">
                 <div class="gc-teacher-actions" id="teacherActions" style="display:none;">
-                    <a href="/my_games" class="gc-action-btn">📋 我的遊戲</a>
-                    <a href="/game_upload" class="gc-action-btn gc-action-primary">+ 上傳</a>
+                    <a href="/my_games" class="gc-action-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        我的遊戲
+                    </a>
+                    <a href="/game_upload" class="gc-action-btn gc-action-primary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        上傳
+                    </a>
                 </div>
                 <div class="gc-user-info" id="userInfo">
-                    <div class="gc-user-avatar" id="userAvatar">👤</div>
+                    <div class="gc-user-avatar" id="userAvatar">U</div>
                     <span class="gc-user-name" id="userName">訪客</span>
                 </div>
             </div>
         </header>
 
-        <!-- 側邊欄 + 內容區 -->
-        <div class="gc-body">
-            <!-- 側邊欄 -->
-            <aside class="gc-sidebar" id="gcSidebar">
-                <nav class="gc-sidebar__nav" id="subjectTabs">
-                    <!-- JS 動態生成科目項 -->
-                </nav>
-                <div class="gc-sidebar__footer">遊戲中心 v2.0</div>
-            </aside>
+        <!-- Hero 精選區 -->
+        <section class="gc-hero" id="heroSection">
+            <!-- JS 動態生成 -->
+        </section>
 
-            <!-- 游戏内容区 -->
-            <main class="gc-main">
-                <div class="gc-games-container" id="gamesContainer">
-                    <!-- 动态生成各科目游戏区块 -->
-                </div>
+        <!-- 科目 Pill Chips -->
+        <nav class="gc-pills" id="subjectPills">
+            <!-- JS 動態生成 -->
+        </nav>
 
-                <!-- 空状态 -->
-                <div class="gc-empty-state" id="emptyState" style="display: none;">
-                    <div class="empty-icon">🎯</div>
-                    <div class="empty-title">未找到遊戲</div>
-                    <div class="empty-desc">嘗試其他搜尋關鍵字或選擇不同科目</div>
-                </div>
-            </main>
-        </div>
+        <!-- 游戏内容区 -->
+        <main class="gc-main">
+            <div class="gc-games-container" id="gamesContainer">
+                <!-- 动态生成各科目游戏区块 -->
+            </div>
+
+            <!-- 空状态 -->
+            <div class="gc-empty-state" id="emptyState" style="display: none;">
+                <svg class="empty-icon-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/></svg>
+                <div class="empty-title">未找到遊戲</div>
+                <div class="empty-desc">嘗試其他搜尋關鍵字或選擇不同科目</div>
+            </div>
+        </main>
 
         <!-- 底部信息 -->
         <footer class="gc-footer">
             <div class="footer-content">
-                <span>🎓 培僑中學 AI學習夥伴</span>
+                <span>培僑中學 AI學習夥伴</span>
                 <span class="footer-divider">|</span>
-                <span>遊戲中心 v2.0</span>
+                <span>遊戲中心 v3.0</span>
             </div>
         </footer>
     </div>
@@ -101,18 +111,15 @@
             </div>
             <div class="gc-share-body">
                 <p class="gc-share-desc">選擇有效期後生成二維碼，學生掃碼即可直接玩遊戲（無需登入）</p>
-
                 <div class="gc-share-durations" id="gcShareDurations">
                     <button class="gc-dur-btn" data-duration="30m">30 分鐘</button>
                     <button class="gc-dur-btn active" data-duration="1h">1 小時</button>
                     <button class="gc-dur-btn" data-duration="1d">1 天</button>
                     <button class="gc-dur-btn" data-duration="1w">1 週</button>
                 </div>
-
                 <button class="gc-share-gen-btn" id="gcShareGenBtn" onclick="GameShareHelper.generate()">
                     生成二維碼
                 </button>
-
                 <div class="gc-share-result" id="gcShareResult">
                     <div class="gc-qr-box" id="gcShareQr"></div>
                     <div class="gc-share-url-row">
