@@ -102,78 +102,79 @@ SVG 技術規範：
     # ---- V2: Geometry Spec JSON 中間層 ----
 
     def build_geometry_spec_prompt(self, question_text: str) -> str:
-        return f"""你是一個幾何分析助手。根據以下數學題目，提取幾何結構信息。
+        return f"""你是一個幾何分析助手。根據數學題目提取幾何結構，計算精確座標。
 
 題目：
 {question_text}
 
-要求：
-- 只輸出 JSON，不要輸出解釋、分析過程或 Markdown
-- 若題目不涉及幾何圖形，輸出 {{"skip": true}}
-- 座標系：viewBox 300x250，原點左上角，y 軸向下
-- 頂點座標要合理分佈在 viewBox 內（邊距至少 40px）
-- 直角頂點的兩條鄰邊必須垂直（一條水平一條垂直，或通過座標計算確保垂直）
+## 座標計算流程（你必須按此順序執行）
 
-輸出格式：
-```json
+Step 1 — 列出所有幾何對象：
+- 頂點名（A, B, C, D...）
+- 線段（AB, BC...）
+- 已知邊長、角度
+- 哪些邊垂直、平行、相等
+- 輔助點（高的垂足、中點、交點等）及它們落在哪條邊上
+
+Step 2 — 選定錨點和方向：
+- 選一個頂點作為錨點，放在合適位置
+- 選一條邊作為基準方向（通常水平）
+- 座標系：viewBox 300×250，原點左上角，y 軸向下
+- 所有頂點至少離邊界 40px
+
+Step 3 — 逐點計算座標：
+- 從錨點出發，根據邊長和角度推算每個頂點的 [x, y]
+- 直角約束：若 ∠B = 90° 且 AB 水平，則 BC 必須垂直（x 不變，y 改變）
+- 點在邊上：若 D 在 AC 上（如垂足），則 D 的座標 = A + t×(C−A)，其中 t ∈ (0,1)
+  計算方法：t = (向量 AD · 向量 AC) / |AC|²
+- 等腰三角形：AB=AC 時，A 在 BC 的垂直平分線上
+- 平行約束：PS ∥ QR 時，PS 和 QR 的方向向量相同
+
+Step 4 — 自檢：
+- 直角頂點的兩條鄰邊點積 = 0？
+- 標注的邊長和座標距離一致？（允許比例縮放，但比例必須統一）
+- 輔助點確實落在指定邊上？
+- 所有頂點都在 viewBox 40~260（x）、40~210（y）範圍內？
+
+## 輸出（只輸出 JSON，不要解釋）
+
+若題目不涉及幾何圖形，輸出 {{"skip": true}}
+
+否則輸出：
 {{
-  "points": {{"A": [60, 200], "B": [240, 200], "C": [60, 50]}},
-  "segments": [["A","B"], ["A","C"], ["B","C"]],
-  "right_angles": ["A"],
+  "points": {{"P": [60, 200], "Q": [220, 200], "R": [220, 60], "S": [60, 70]}},
+  "segments": [["P","Q"], ["Q","R"], ["R","S"], ["S","P"]],
+  "right_angles": ["P", "Q"],
   "labels": [
-    {{"segment": ["A","B"], "text": "5"}},
-    {{"segment": ["A","C"], "text": "12"}}
+    {{"segment": ["P","Q"], "text": "12"}},
+    {{"segment": ["S","P"], "text": "10"}},
+    {{"segment": ["Q","R"], "text": "13"}}
   ],
   "equal_segments": [],
   "equal_angles": [],
-  "parallel_lines": [],
+  "parallel_lines": [[["S","P"], ["Q","R"]]],
   "circles": [],
   "arcs": [],
   "special_points": [],
   "angle_labels": []
 }}
-```
 
 字段說明：
-- points: 每個頂點名 → [x, y] 座標
-- segments: 需要畫的線段（頂點名對）
-- right_angles: 直角所在的頂點名列表
-- labels: 邊長標注（segment 指定邊，text 為標注文字）
-- equal_segments: 相等線段組，如 [[["A","B"],["C","D"]]] 表示 AB=CD
-- equal_angles: 相等角組，如 [["A","B"]] 表示角 A = 角 B
+- points: 每個頂點/輔助點 → [x, y]（整數座標）
+- segments: 需要畫的線段
+- right_angles: 直角所在的頂點名（系統會自動根據鄰邊方向畫直角標記）
+- labels: 邊長/長度標注
+- equal_segments: 相等線段組，如 [[["A","B"],["C","D"]]]
+- equal_angles: 相等角組，如 [["A","B"]]
 - parallel_lines: 平行線段對，如 [[["A","B"],["C","D"]]]
 - circles: 圓，如 [{{"center": "O", "radius_to": "A"}}]
 - arcs: 弧，如 [{{"center": "O", "from": "A", "to": "B"}}]
-- special_points: 特殊點（交點、切點等），如 ["M"]
-- angle_labels: 角度標注，如 [{{"vertex": "A", "text": "30°"}}]"""
+- special_points: 輔助點（垂足、交點、切點、中點等）
+- angle_labels: 非直角的角度標注，如 [{{"vertex": "A", "text": "48°"}}]"""
 
     def build_svg_from_spec_prompt(self, question_text: str, spec_json: str) -> str:
-        return f"""你是一個 SVG 繪圖助手。根據以下幾何規格（geometry spec），生成精確的 SVG 圖形。
-
-原始題目：
-{question_text}
-
-幾何規格：
-{spec_json}
-
-要求：
-- 只輸出 JSON：{{"svg": "<svg>...</svg>"}}
-- 嚴格按照 spec 中的座標繪製，不要自行修改座標
-- 在內部完成繪製，不要輸出解釋或分析
-
-SVG 繪製規則：
-1. <svg viewBox="0 0 300 250" width="300" height="250">
-2. 按 segments 畫線段：stroke="black" stroke-width="2" fill="none"
-3. 按 right_angles 在對應頂點畫直角標記：<rect> 邊長 8，位置對準頂點兩條邊的方向
-4. 按 labels 標邊長：font-size="13"，放在對應邊中點附近
-5. 按 points 標頂點名：font-size="14"，放在圖形外側
-6. equal_segments 用刻痕標記（短 <line>），相同組用相同數量
-7. parallel_lines 用箭頭記號（小 <polygon>）
-8. circles 用 <circle> 畫圓
-9. special_points 用 <circle r="2" fill="black">
-10. angle_labels 用 <text> 標在角附近
-11. 黑白簡潔 DSE 風格，無陰影無漸變
-12. 只用 svg/g/line/circle/rect/polygon/polyline/path/text 標籤"""
+        # V2: Step 2 已改用 Python renderer，此方法僅作 fallback
+        return ""
 
     # ---- Prompt 構建 ----
 

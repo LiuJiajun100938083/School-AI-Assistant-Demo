@@ -592,8 +592,10 @@ class MistakeBookService:
         has_spec_mode: bool, question_num: int,
     ) -> str:
         """
-        兩步 SVG 生成：Step 1 提取 geometry spec → Step 2 spec → SVG。
-        若 Step 1 失敗，fallback 到直接生成（V1 模式）。
+        兩步 SVG 生成：
+          Step 1 (LLM): 題目 → geometry spec JSON（幾何語義提取 + 座標計算）
+          Step 2 (Python): spec JSON → SVG（確定性渲染，不依賴 LLM）
+        若 Step 1 失敗，fallback 到 V1 直接 LLM 生成。
         """
         from app.core.ai_gate import Priority, Weight
         gate_kwargs = dict(
@@ -604,10 +606,10 @@ class MistakeBookService:
             gate_weight=Weight.SVG_GEOMETRY,
         )
 
-        # V2: 兩步生成（spec → SVG）
+        # V2: spec 模式（Step 1 LLM + Step 2 Python renderer）
         if has_spec_mode:
             try:
-                # Step 1: 提取 geometry spec
+                # Step 1: LLM 提取 geometry spec
                 spec_prompt = handler.build_geometry_spec_prompt(question_text)
                 spec_raw = await self._call_ollama_direct(spec_prompt, **gate_kwargs)
 
@@ -616,7 +618,6 @@ class MistakeBookService:
                     try:
                         spec_data = json.loads(spec_raw)
                     except json.JSONDecodeError:
-                        # 嘗試提取 JSON
                         m = re.search(r'\{[\s\S]*\}', spec_raw)
                         if m:
                             try:
@@ -625,23 +626,26 @@ class MistakeBookService:
                                 pass
 
                 if spec_data and not spec_data.get("skip") and spec_data.get("points"):
-                    spec_json = json.dumps(spec_data, ensure_ascii=False)
-                    logger.info("題 %d geometry spec 提取成功: %d 個頂點", question_num, len(spec_data["points"]))
+                    logger.info(
+                        "題 %d geometry spec 提取成功: %d 個頂點, spec=%s",
+                        question_num, len(spec_data["points"]),
+                        json.dumps(spec_data, ensure_ascii=False)[:500],
+                    )
 
-                    # Step 2: spec → SVG
-                    svg_prompt = handler.build_svg_from_spec_prompt(question_text, spec_json)
-                    svg_raw = await self._call_ollama_direct(svg_prompt, **gate_kwargs)
-                    svg = _extract_svg_from_response(svg_raw)
-                    if svg:
+                    # Step 2: Python 確定性渲染（不再調用 LLM）
+                    from app.domains.mistake_book.svg_renderer import render_svg_from_spec
+                    svg = render_svg_from_spec(spec_data)
+                    if svg and "<svg" in svg:
+                        logger.info("題 %d Python renderer SVG 生成成功", question_num)
                         return svg
-                    logger.warning("題 %d spec → SVG 轉換失敗，fallback 到直接生成", question_num)
+                    logger.warning("題 %d Python renderer 輸出為空，fallback 到直接生成", question_num)
                 else:
                     logger.info("題 %d spec 提取無結果，fallback 到直接生成", question_num)
 
             except Exception as e:
                 logger.warning("題 %d spec 模式失敗: %s，fallback 到直接生成", question_num, e)
 
-        # V1 fallback: 直接生成 SVG
+        # V1 fallback: 直接 LLM 生成 SVG
         logger.info("題 %d 使用直接 SVG 生成模式", question_num)
         raw = await self._call_ollama_direct(
             handler.build_svg_prompt(question_text), **gate_kwargs
