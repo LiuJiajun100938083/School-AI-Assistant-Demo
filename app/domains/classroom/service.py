@@ -48,7 +48,7 @@ _VALID_STATUS_TRANSITIONS = {
     "draft": {"active"},
     "active": {"paused", "ended"},
     "paused": {"active", "ended"},
-    "ended": set(),  # ended 是终态
+    "ended": {"draft"},  # 可重新開啟
 }
 
 

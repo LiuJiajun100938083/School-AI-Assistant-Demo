@@ -99,6 +99,37 @@
         </div>
     </div>
 
+    <!-- Edit Room Modal -->
+    <div class="modal-overlay" id="editRoomModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">編輯課堂</h2>
+                <button class="modal-close" id="closeEditModal">&times;</button>
+            </div>
+            <form id="editRoomForm">
+                <input type="hidden" id="editRoomId">
+                <div class="form-group">
+                    <label class="form-label">課堂名稱 *</label>
+                    <input type="text" class="form-input" id="editRoomTitle" placeholder="輸入課堂名稱" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">課堂描述</label>
+                    <textarea class="form-textarea" id="editRoomDescription" placeholder="輸入課堂描述（可選）"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">允許的班級</label>
+                    <div class="class-picker" id="editClassPicker">
+                        <div class="class-picker-loading">載入班級中...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelEditBtn">取消</button>
+                    <button type="submit" class="btn-submit" id="submitEditBtn">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="/static/js/shared/utils.js"></script>
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/ui.js"></script>

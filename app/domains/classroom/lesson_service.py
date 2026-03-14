@@ -1106,6 +1106,155 @@ class LessonService:
         }
 
     # ================================================================
+    # Quiz — Excel Export
+    # ================================================================
+
+    def export_quiz_results(
+        self,
+        room_id: str,
+        session_id: str,
+    ) -> bytes:
+        """
+        导出指定 session 中所有 quiz slide 的成绩为 Excel。
+        返回 openpyxl workbook 序列化后的 bytes。
+        """
+        from io import BytesIO
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+        from app.domains.classroom.slide_configs import QuizSlideConfig
+
+        session = self._session_repo.get_by_session_id(session_id)
+        if not session or session["room_id"] != room_id:
+            raise SessionNotFoundError()
+
+        plan = self._plan_repo.get_by_plan_id(session["plan_id"])
+        slides = self._slide_repo.list_by_plan(session["plan_id"])
+        quiz_slides = [s for s in slides if s["slide_type"] == "quiz"]
+
+        if not quiz_slides:
+            raise ValueError("此課案沒有測驗幻燈片")
+
+        # Get student display names from enrollment
+        from app.domains.classroom.repository import EnrollmentRepository
+        enrollment_repo = EnrollmentRepository()
+        students = enrollment_repo.list_students(room_id, active_only=False)
+        name_map = {s["student_username"]: s.get("display_name", s["student_username"]) for s in students}
+
+        wb = Workbook()
+        wb.remove(wb.active)
+
+        header_font = Font(name="Microsoft YaHei", bold=True, size=11)
+        header_fill = PatternFill(start_color="E8F5EC", end_color="E8F5EC", fill_type="solid")
+        title_font = Font(name="Microsoft YaHei", bold=True, size=14, color="006633")
+        sub_font = Font(name="Microsoft YaHei", size=10, color="666666")
+        correct_font = Font(name="Microsoft YaHei", color="34C759")
+        wrong_font = Font(name="Microsoft YaHei", color="FF3B30")
+        border = Border(
+            left=Side(style="thin", color="DDDDDD"),
+            right=Side(style="thin", color="DDDDDD"),
+            top=Side(style="thin", color="DDDDDD"),
+            bottom=Side(style="thin", color="DDDDDD"),
+        )
+        center = Alignment(horizontal="center", vertical="center")
+
+        plan_title = plan["title"] if plan else "課案"
+
+        for quiz_slide in quiz_slides:
+            config = QuizSlideConfig(**quiz_slide["config"])
+            responses = self._response_repo.list_by_slide(session_id, quiz_slide["slide_id"])
+
+            sheet_name = f"測驗 {quiz_slides.index(quiz_slide) + 1}"
+            ws = wb.create_sheet(title=sheet_name[:31])
+
+            # Title row
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(config.questions) + 4)
+            ws.cell(row=1, column=1, value=plan_title).font = title_font
+
+            # Sub info
+            ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(config.questions) + 4)
+            ended = session.get("ended_at") or session.get("started_at") or ""
+            if ended:
+                ended = ended.strftime("%Y-%m-%d %H:%M") if hasattr(ended, "strftime") else str(ended)
+            ws.cell(row=2, column=1, value=f"日期: {ended}").font = sub_font
+
+            # Header row (row 4)
+            row = 4
+            headers = ["學生"]
+            for i, q in enumerate(config.questions):
+                label = f"第{i+1}題"
+                if q.type == "mc":
+                    label += "(選擇)"
+                elif q.type == "tf":
+                    label += "(判斷)"
+                elif q.type == "fill":
+                    label += "(填空)"
+                headers.append(label)
+            headers.extend(["總分", "正確率", "排名"])
+
+            for c, h in enumerate(headers, 1):
+                cell = ws.cell(row=row, column=c, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+                cell.border = border
+
+            # Build student rows sorted by score descending
+            student_rows = []
+            for resp in responses:
+                if resp.get("response_type") != "quiz_answer":
+                    continue
+                username = resp["student_username"]
+                display_name = name_map.get(username, username)
+                data = resp.get("response_data", {})
+                answers = data.get("answers", {})
+                extra = data.get("_result_extra", {})
+                score = float(resp.get("score") or 0)
+                correct_count = extra.get("correct_count", 0)
+                total_q = extra.get("total_questions", len(config.questions))
+                accuracy = correct_count / total_q if total_q > 0 else 0
+
+                row_data = {
+                    "name": display_name,
+                    "answers": answers,
+                    "score": score,
+                    "correct_count": correct_count,
+                    "total_q": total_q,
+                    "accuracy": accuracy,
+                }
+                student_rows.append(row_data)
+
+            student_rows.sort(key=lambda x: -x["score"])
+
+            # Write data rows
+            for rank, sr in enumerate(student_rows, 1):
+                row += 1
+                ws.cell(row=row, column=1, value=sr["name"]).border = border
+                for qi, q in enumerate(config.questions):
+                    student_ans = sr["answers"].get(q.id, "")
+                    correct = q.correct_answer
+                    is_correct = str(student_ans).strip().lower() == str(correct).strip().lower()
+                    cell = ws.cell(row=row, column=qi + 2, value=student_ans if student_ans else "—")
+                    cell.font = correct_font if is_correct else wrong_font
+                    cell.alignment = center
+                    cell.border = border
+
+                ws.cell(row=row, column=len(config.questions) + 2, value=sr["score"]).border = border
+                pct_cell = ws.cell(row=row, column=len(config.questions) + 3, value=sr["accuracy"])
+                pct_cell.number_format = "0%"
+                pct_cell.alignment = center
+                pct_cell.border = border
+                ws.cell(row=row, column=len(config.questions) + 4, value=rank).border = border
+
+            # Auto column widths
+            for col_idx in range(1, len(headers) + 1):
+                ws.column_dimensions[chr(64 + col_idx) if col_idx <= 26 else "A"].width = 14
+            ws.column_dimensions["A"].width = 18
+
+        buf = BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    # ================================================================
     # Internal Helpers
     # ================================================================
 

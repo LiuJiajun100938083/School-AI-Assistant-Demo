@@ -115,8 +115,9 @@ LessonSlideRenderers.register('quiz', {
             currentQ.options.forEach((opt, i) => {
                 const val = optLabels[i] || String.fromCharCode(65 + i);
                 const color = optColors[i % optColors.length];
-                const isCorrect = val === currentQ.correct_answer;
-                const count = optionCounts[val] || 0;
+                // Compare by option text (normalized format)
+                const isCorrect = opt.trim().toLowerCase() === String(currentQ.correct_answer).trim().toLowerCase();
+                const count = optionCounts[opt] || 0;
                 const pct = isRevealed ? Math.round((count / totalAns) * 100) : 0;
 
                 let cls = 'quiz-tv-opt';
@@ -137,16 +138,17 @@ LessonSlideRenderers.register('quiz', {
             html += '</div>';
         } else if (currentQ.type === 'tf') {
             html += '<div class="quiz-tv-options">';
-            ['对', '错'].forEach((opt, i) => {
+            ['对', '错'].forEach((label, i) => {
                 const color = i === 0 ? '#3498DB' : '#E74C3C';
-                const isCorrect = opt === currentQ.correct_answer;
-                const count = optionCounts[opt] || 0;
+                const tfVal = label === '对' ? 'true' : 'false';
+                const isCorrect = tfVal === String(currentQ.correct_answer).trim().toLowerCase();
+                const count = optionCounts[tfVal] || 0;
                 const pct = isRevealed ? Math.round((count / totalAns) * 100) : 0;
                 let cls = 'quiz-tv-opt';
                 if (isRevealed) cls += isCorrect ? ' correct' : ' dimmed';
                 html += `<div class="${cls}">
-                    <span class="quiz-tv-opt-label" style="background:${color}">${opt}</span>
-                    <span class="quiz-tv-opt-text">${opt === '对' ? '正確' : '錯誤'}</span>
+                    <span class="quiz-tv-opt-label" style="background:${color}">${label}</span>
+                    <span class="quiz-tv-opt-text">${label === '对' ? '正確' : '錯誤'}</span>
                     ${isRevealed ? `
                         <div class="quiz-tv-bar-wrap">
                             <div class="quiz-tv-bar" style="width:${pct}%;background:${isCorrect ? '#34C759' : '#D1D1D6'}"></div>
@@ -255,7 +257,7 @@ LessonSlideRenderers.register('quiz', {
                     if (self._state.answered) return;
                     const val = input.value.trim();
                     if (!val) return;
-                    self._submitAnswer(container, question.id, val);
+                    self._submitAnswer(container, question, val);
                 });
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') confirmBtn.click();
@@ -269,16 +271,16 @@ LessonSlideRenderers.register('quiz', {
             opt.addEventListener('click', () => {
                 if (self._state.answered) return;
                 const val = opt.dataset.val;
-                self._submitAnswer(container, question.id, val);
+                self._submitAnswer(container, question, val);
             });
         });
     },
 
-    _submitAnswer(container, questionId, answer) {
+    _submitAnswer(container, question, answer) {
         this._state.answered = true;
         this._state.selectedAnswer = answer;
 
-        // Visual feedback
+        // Visual feedback (uses raw answer for DOM matching)
         container.querySelectorAll('.quiz-opt').forEach(opt => {
             if (opt.dataset.val === answer) {
                 opt.classList.add('selected');
@@ -287,7 +289,7 @@ LessonSlideRenderers.register('quiz', {
             }
         });
 
-        // Hide fill input area
+        // Disable fill input area
         const fillInput = container.querySelector('#quizFillInput');
         const fillConfirm = container.querySelector('#quizFillConfirm');
         if (fillInput) fillInput.disabled = true;
@@ -297,9 +299,24 @@ LessonSlideRenderers.register('quiz', {
         const waiting = container.querySelector('#quizWaiting');
         if (waiting) waiting.style.display = '';
 
-        // Send via callback
+        // Normalize answer to match backend correct_answer format:
+        //   MC:  letter "A" → option text (e.g. "香蕉")
+        //   TF:  "对"/"错"  → "true"/"false"
+        //   fill: kept as-is
+        let normalized = answer;
+        const questionId = question.id;
+        if (question.type === 'mc' && question.options) {
+            const idx = answer.charCodeAt(0) - 65;
+            if (idx >= 0 && idx < question.options.length) {
+                normalized = question.options[idx];
+            }
+        } else if (question.type === 'tf') {
+            normalized = (answer === '对') ? 'true' : 'false';
+        }
+
+        // Send normalized answer via callback
         if (this._state.onAnswerCallback) {
-            this._state.onAnswerCallback(questionId, answer);
+            this._state.onAnswerCallback(questionId, normalized);
         }
     },
 
@@ -318,7 +335,7 @@ LessonSlideRenderers.register('quiz', {
                 clearInterval(this._state.timerInterval);
                 // Auto-submit empty if not answered
                 if (!this._state.answered) {
-                    this._submitAnswer(container, question.id, '');
+                    this._submitAnswer(container, question, '');
                 }
             }
         }, 1000);
@@ -355,9 +372,10 @@ LessonSlideRenderers.register('quiz', {
         if (question.type === 'mc' && question.options) {
             question.options.forEach((opt, i) => {
                 const val = String.fromCharCode(65 + i);
-                const isCorrect = val === correctAnswer;
-                const isMyAnswer = val === myAnswer;
-                const count = optionCounts[val] || 0;
+                // Compare by option text (normalized format)
+                const isCorrect = opt.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+                const isMyAnswer = myAnswer && opt.trim().toLowerCase() === myAnswer.trim().toLowerCase();
+                const count = optionCounts[opt] || 0;
 
                 let cls = 'quiz-opt reveal';
                 if (isCorrect) cls += ' correct';
@@ -372,17 +390,18 @@ LessonSlideRenderers.register('quiz', {
                 </div>`;
             });
         } else if (question.type === 'tf') {
-            ['对', '错'].forEach(opt => {
-                const isCorrect = opt === correctAnswer;
-                const isMyAnswer = opt === myAnswer;
-                const count = optionCounts[opt] || 0;
+            ['对', '错'].forEach((label, i) => {
+                const tfVal = label === '对' ? 'true' : 'false';
+                const isCorrect = tfVal === correctAnswer;
+                const isMyAnswer = myAnswer && tfVal === myAnswer;
+                const count = optionCounts[tfVal] || 0;
 
                 let cls = 'quiz-opt reveal';
                 if (isCorrect) cls += ' correct';
                 else if (isMyAnswer && !isCorrect) cls += ' wrong';
 
                 html += `<div class="${cls}">
-                    <span>${opt}</span>
+                    <span>${label}</span>
                     ${isCorrect ? '<span class="quiz-correct-mark">&#10003;</span>' : ''}
                     ${isMyAnswer && !isCorrect ? '<span class="quiz-wrong-mark">&#10007;</span>' : ''}
                     <span class="quiz-opt-count">${count} 人</span>
@@ -415,5 +434,183 @@ LessonSlideRenderers.register('quiz', {
     renderResults(container, results, myUsername) {
         const lb = results?.results?.leaderboard || results?.leaderboard || [];
         LessonSlideRenderers.renderRankings(container, lb, myUsername);
+    },
+});
+
+
+/* ================================================================
+   Poll (投票) 渲染器
+   ================================================================ */
+
+LessonSlideRenderers.register('poll', {
+
+    // ── 学生端：投票界面 ──
+    renderStudent(container, slideData, opts) {
+        const options = slideData.options || [];
+        const allowMultiple = slideData.allow_multiple || false;
+        const onVote = opts?.onVote;
+        const accepting = opts?.accepting !== false;
+
+        let html = '<div class="quiz-student">';
+
+        // Question
+        html += '<div class="quiz-question-area">';
+        html += `<div class="quiz-q-text">${Utils.escapeHtml(slideData.question_text || slideData.title || '投票')}</div>`;
+        html += '</div>';
+
+        if (accepting) {
+            html += `<div class="quiz-options" id="pollOptions">`;
+            options.forEach((opt, i) => {
+                html += `<div class="quiz-opt" data-idx="${i}">
+                    <span class="quiz-opt-label">${i + 1}.</span>
+                    <span>${Utils.escapeHtml(opt)}</span>
+                </div>`;
+            });
+            html += '</div>';
+
+            if (allowMultiple) {
+                html += `<button class="quiz-fill-confirm" id="pollSubmitBtn" style="margin-top:8px;">提交投票</button>`;
+            }
+
+            html += '<div class="quiz-waiting-text" id="pollWaiting" style="display:none;">已投票，等待結果...</div>';
+        } else {
+            html += '<div class="quiz-waiting-text" style="margin-top:24px;">等待老師開放投票...</div>';
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+
+        if (!accepting) return;
+
+        // Bind events
+        const selected = new Set();
+        let submitted = false;
+
+        container.querySelectorAll('.quiz-opt').forEach(optEl => {
+            optEl.addEventListener('click', () => {
+                if (submitted) return;
+                const idx = parseInt(optEl.dataset.idx);
+
+                if (allowMultiple) {
+                    // Toggle selection
+                    if (selected.has(idx)) {
+                        selected.delete(idx);
+                        optEl.classList.remove('selected');
+                    } else {
+                        selected.add(idx);
+                        optEl.classList.add('selected');
+                    }
+                } else {
+                    // Single select → submit immediately
+                    submitted = true;
+                    optEl.classList.add('selected');
+                    container.querySelectorAll('.quiz-opt').forEach(o => {
+                        if (o !== optEl) o.classList.add('disabled');
+                    });
+                    const waiting = container.querySelector('#pollWaiting');
+                    if (waiting) waiting.style.display = '';
+                    if (onVote) onVote([idx]);
+                }
+            });
+        });
+
+        // Multi-select submit button
+        if (allowMultiple) {
+            const submitBtn = container.querySelector('#pollSubmitBtn');
+            if (submitBtn) {
+                submitBtn.addEventListener('click', () => {
+                    if (submitted || selected.size === 0) return;
+                    submitted = true;
+                    submitBtn.disabled = true;
+                    container.querySelectorAll('.quiz-opt').forEach(o => {
+                        if (!selected.has(parseInt(o.dataset.idx))) {
+                            o.classList.add('disabled');
+                        }
+                    });
+                    const waiting = container.querySelector('#pollWaiting');
+                    if (waiting) waiting.style.display = '';
+                    if (onVote) onVote([...selected]);
+                });
+            }
+        }
+    },
+
+    // ── 学生端：投票结果 ──
+    renderResults(container, slideData, results) {
+        const options = slideData.options || [];
+        const voteCounts = results?.vote_counts || {};
+        const totalVotes = Object.values(voteCounts).reduce((s, v) => s + v, 0) || 1;
+
+        let html = '<div class="quiz-student">';
+        html += '<div class="quiz-question-area">';
+        html += `<div class="quiz-q-text">${Utils.escapeHtml(slideData.question_text || '投票結果')}</div>`;
+        html += '</div>';
+
+        html += '<div class="quiz-options">';
+        options.forEach((opt, i) => {
+            const count = voteCounts[String(i)] || 0;
+            const pct = Math.round((count / totalVotes) * 100);
+
+            html += `<div class="quiz-opt reveal">
+                <span class="quiz-opt-label">${i + 1}.</span>
+                <span>${Utils.escapeHtml(opt)}</span>
+                <span class="quiz-opt-count">${count} 票 (${pct}%)</span>
+            </div>`;
+        });
+        html += '</div>';
+
+        html += `<div class="quiz-waiting-text">共 ${Object.values(voteCounts).reduce((s, v) => s + v, 0)} 人投票</div>`;
+        html += '</div>';
+        container.innerHTML = html;
+    },
+
+    // ── 教师端：投票统计 ──
+    renderTeacher(container, slide) {
+        const options = slide.options || [];
+        const results = slide.results || {};
+        const voteCounts = results.vote_counts || {};
+        const totalResponses = results.total_responses || 0;
+        const totalVotes = Object.values(voteCounts).reduce((s, v) => s + v, 0) || 1;
+
+        const optColors = ['#E74C3C', '#3498DB', '#F39C12', '#2ECC71', '#9B59B6', '#1ABC9C', '#E67E22', '#34495E'];
+
+        let html = '<div class="quiz-tv">';
+
+        html += `<div class="quiz-tv-header">
+            <span class="quiz-tv-progress">投票</span>
+            <span class="quiz-tv-phase live">
+                ${totalResponses > 0 ? '投票中' : '等待投票'}
+                <span class="quiz-tv-pulse"></span>
+            </span>
+        </div>`;
+
+        html += '<div class="quiz-tv-question">';
+        html += `<div class="quiz-tv-q-text">${Utils.escapeHtml(slide.question_text || '')}</div>`;
+        html += '</div>';
+
+        html += '<div class="quiz-tv-options">';
+        options.forEach((opt, i) => {
+            const color = optColors[i % optColors.length];
+            const count = voteCounts[String(i)] || 0;
+            const pct = Math.round((count / totalVotes) * 100);
+
+            html += `<div class="quiz-tv-opt">
+                <span class="quiz-tv-opt-label" style="background:${color}">${i + 1}</span>
+                <span class="quiz-tv-opt-text">${Utils.escapeHtml(opt)}</span>
+                <div class="quiz-tv-bar-wrap">
+                    <div class="quiz-tv-bar" style="width:${pct}%;background:${color}"></div>
+                </div>
+                <span class="quiz-tv-opt-stat">${count}票 (${pct}%)</span>
+            </div>`;
+        });
+        html += '</div>';
+
+        html += `<div class="quiz-tv-counter">
+            <span class="quiz-tv-counter-num">${totalResponses}</span>
+            <span class="quiz-tv-counter-label">人已投票</span>
+        </div>`;
+
+        html += '</div>';
+        container.innerHTML = html;
     },
 });

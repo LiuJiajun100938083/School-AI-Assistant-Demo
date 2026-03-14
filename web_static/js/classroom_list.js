@@ -51,6 +51,22 @@ const ClassroomAPI = {
         return APIClient.post(`${this.BASE}/rooms/${roomId}/join`);
     },
 
+    async updateRoom(roomId, payload) {
+        const resp = await fetch(`${this.BASE}/rooms/${roomId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${AuthModule.getToken()}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+        if (resp.status === 401) {
+            window.location.href = '/';
+            return null;
+        }
+        return resp.json();
+    },
+
     async fetchClasses() {
         return APIClient.get(`${this.BASE}/classes`);
     }
@@ -93,7 +109,16 @@ const ClassroomUI = {
             classPicker: document.getElementById('classPicker'),
             closeCreateModal: document.getElementById('closeCreateModal'),
             cancelCreateBtn: document.getElementById('cancelCreateBtn'),
-            submitCreateBtn: document.getElementById('submitCreateBtn')
+            submitCreateBtn: document.getElementById('submitCreateBtn'),
+            editRoomModal: document.getElementById('editRoomModal'),
+            editRoomForm: document.getElementById('editRoomForm'),
+            editRoomId: document.getElementById('editRoomId'),
+            editRoomTitle: document.getElementById('editRoomTitle'),
+            editRoomDescription: document.getElementById('editRoomDescription'),
+            editClassPicker: document.getElementById('editClassPicker'),
+            closeEditModal: document.getElementById('closeEditModal'),
+            cancelEditBtn: document.getElementById('cancelEditBtn'),
+            submitEditBtn: document.getElementById('submitEditBtn')
         };
     },
 
@@ -142,24 +167,29 @@ const ClassroomUI = {
         try {
             const result = await ClassroomAPI.fetchClasses();
             const grades = (result && result.success && result.data) ? result.data.grades : {};
-            this._renderClassPicker(grades);
+            this._renderClassPickerInto(picker, grades, []);
         } catch (e) {
             picker.innerHTML = '<div class="class-picker-loading">載入失敗</div>';
         }
     },
 
-    _renderClassPicker(grades) {
-        const picker = this.elements.classPicker;
-        if (!picker) return;
+    /**
+     * Render class picker into a target element.
+     * @param {HTMLElement} pickerEl — container element
+     * @param {Object} grades — { "P1": [{class_name: "1A"}, ...], ... }
+     * @param {string[]} preSelected — pre-selected class names (empty = all students)
+     */
+    _renderClassPickerInto(pickerEl, grades, preSelected) {
+        const isAllStudents = !preSelected || preSelected.length === 0;
+        const preSet = new Set(preSelected || []);
+        const uid = 'cp_' + Math.random().toString(36).slice(2, 8);
 
         let html = '';
-        // "All students" option — default checked
         html += `<label class="cp-all-row">
-            <input type="checkbox" id="cpAllStudents" checked>
+            <input type="checkbox" data-cp-all="${uid}" ${isAllStudents ? 'checked' : ''}>
             <span>所有學生（不限制班級）</span>
         </label>`;
 
-        // Per-grade rows
         const gradeKeys = Object.keys(grades);
         if (gradeKeys.length > 0) {
             html += '<div class="cp-grades">';
@@ -169,8 +199,10 @@ const ClassroomUI = {
                 html += `<span class="cp-grade-label">${Utils.escapeHtml(grade)}</span>`;
                 html += `<div class="cp-classes">`;
                 classes.forEach(cls => {
+                    const checked = preSet.has(cls.class_name) ? 'checked' : '';
+                    const disabled = isAllStudents ? 'disabled' : '';
                     html += `<label class="cp-class-item">
-                        <input type="checkbox" class="cp-class-cb" value="${Utils.escapeHtml(cls.class_name)}" disabled>
+                        <input type="checkbox" class="cp-class-cb" value="${Utils.escapeHtml(cls.class_name)}" ${checked} ${disabled}>
                         <span>${Utils.escapeHtml(cls.class_name)}</span>
                     </label>`;
                 });
@@ -179,11 +211,10 @@ const ClassroomUI = {
             html += '</div>';
         }
 
-        picker.innerHTML = html;
+        pickerEl.innerHTML = html;
 
-        // Interaction: "All students" ↔ individual classes
-        const allCb = picker.querySelector('#cpAllStudents');
-        const classCbs = picker.querySelectorAll('.cp-class-cb');
+        const allCb = pickerEl.querySelector(`[data-cp-all="${uid}"]`);
+        const classCbs = pickerEl.querySelectorAll('.cp-class-cb');
 
         allCb.addEventListener('change', () => {
             if (allCb.checked) {
@@ -204,13 +235,43 @@ const ClassroomUI = {
         });
     },
 
-    getSelectedClasses() {
-        const picker = this.elements.classPicker;
-        if (!picker) return [];
-        const allCb = picker.querySelector('#cpAllStudents');
+    _getSelectedClassesFrom(pickerEl) {
+        if (!pickerEl) return [];
+        const allCb = pickerEl.querySelector('[data-cp-all]');
         if (allCb && allCb.checked) return [];
-        const classCbs = picker.querySelectorAll('.cp-class-cb:checked');
-        return Array.from(classCbs).map(cb => cb.value);
+        return Array.from(pickerEl.querySelectorAll('.cp-class-cb:checked')).map(cb => cb.value);
+    },
+
+    getSelectedClasses() {
+        return this._getSelectedClassesFrom(this.elements.classPicker);
+    },
+
+    getEditSelectedClasses() {
+        return this._getSelectedClassesFrom(this.elements.editClassPicker);
+    },
+
+    async openEditModal(room) {
+        const el = this.elements;
+        el.editRoomId.value = room.room_id;
+        el.editRoomTitle.value = room.title || '';
+        el.editRoomDescription.value = room.description || '';
+        el.editRoomModal.classList.add('active');
+        el.editRoomTitle.focus();
+
+        // Load class picker with pre-selected classes
+        const picker = el.editClassPicker;
+        picker.innerHTML = '<div class="class-picker-loading">載入班級中...</div>';
+        try {
+            const result = await ClassroomAPI.fetchClasses();
+            const grades = (result && result.success && result.data) ? result.data.grades : {};
+            this._renderClassPickerInto(picker, grades, room.allowed_classes || []);
+        } catch (e) {
+            picker.innerHTML = '<div class="class-picker-loading">載入失敗</div>';
+        }
+    },
+
+    closeEditModal() {
+        this.elements.editRoomModal.classList.remove('active');
     },
 
     renderTeacherRooms(rooms) {
@@ -252,9 +313,11 @@ const ClassroomUI = {
                         ${room.allowed_classes.map(cls => `<span class="class-tag">${Utils.escapeHtml(cls)}</span>`).join('')}
                     </div>` : ''}
                 <div class="room-actions">
-                    <button class="room-action-btn primary" data-action="enter" data-room-id="${room.room_id}">進入課堂</button>
+                    ${room.room_status === 'ended'
+                        ? `<button class="room-action-btn primary" data-action="reopen" data-room-id="${room.room_id}">重新開啟</button>`
+                        : `<button class="room-action-btn primary" data-action="enter" data-room-id="${room.room_id}">進入課堂</button>`}
                     <button class="room-action-btn" data-action="lesson-plans" data-room-id="${room.room_id}">課案編輯</button>
-                    <button class="room-action-btn" data-action="toggle" data-room-id="${room.room_id}" data-status="${room.room_status}">${this._toggleStatusText(room.room_status)}</button>
+                    <button class="room-action-btn" data-action="edit" data-room-id="${room.room_id}">編輯</button>
                     <button class="room-action-btn danger" data-action="delete" data-room-id="${room.room_id}">刪除</button>
                 </div>
             </div>`;
@@ -375,6 +438,12 @@ const ClassroomApp = {
             if (e.target === el.createRoomModal) ClassroomUI.closeModal();
         });
         el.createRoomForm.addEventListener('submit', (e) => this._handleCreateRoom(e));
+        el.closeEditModal.addEventListener('click', () => ClassroomUI.closeEditModal());
+        el.cancelEditBtn.addEventListener('click', () => ClassroomUI.closeEditModal());
+        el.editRoomModal.addEventListener('click', (e) => {
+            if (e.target === el.editRoomModal) ClassroomUI.closeEditModal();
+        });
+        el.editRoomForm.addEventListener('submit', (e) => this._handleEditRoom(e));
         el.searchInput.addEventListener('input', () => this._filterAndRender());
 
         // Event delegation for room action buttons
@@ -404,6 +473,12 @@ const ClassroomApp = {
                 break;
             case 'lesson-plans':
                 this._openLessonPlans(roomId);
+                break;
+            case 'edit':
+                this._openEditModal(roomId);
+                break;
+            case 'reopen':
+                await this._reopenRoom(roomId);
                 break;
         }
     },
@@ -526,6 +601,63 @@ const ClassroomApp = {
         } catch (error) {
             console.error('Join room error:', error);
             UIModule.toast('加入課堂出錯', 'error');
+        }
+    },
+
+    async _reopenRoom(roomId) {
+        try {
+            const result = await ClassroomAPI.updateRoomStatus(roomId, 'draft');
+            if (!result || !result.success) {
+                UIModule.toast(result?.message || '重新開啟失敗', 'error');
+                return;
+            }
+            UIModule.toast('課堂已重新開啟', 'success');
+            await this._loadRooms();
+        } catch (error) {
+            console.error('Reopen room error:', error);
+            UIModule.toast('重新開啟課堂出錯', 'error');
+        }
+    },
+
+    _openEditModal(roomId) {
+        const room = this.state.rooms.find(r => r.room_id === roomId);
+        if (!room) {
+            UIModule.toast('找不到課堂資料', 'error');
+            return;
+        }
+        ClassroomUI.openEditModal(room);
+    },
+
+    async _handleEditRoom(e) {
+        e.preventDefault();
+        const el = ClassroomUI.elements;
+        el.submitEditBtn.disabled = true;
+        el.submitEditBtn.innerHTML = '<span class="spinner"></span> 保存中...';
+
+        try {
+            const roomId = el.editRoomId.value;
+            const allowedClasses = ClassroomUI.getEditSelectedClasses();
+
+            const result = await ClassroomAPI.updateRoom(roomId, {
+                title: el.editRoomTitle.value,
+                description: el.editRoomDescription.value,
+                allowed_classes: allowedClasses,
+            });
+
+            if (!result || !result.success) {
+                UIModule.toast(result?.message || '保存失敗', 'error');
+                return;
+            }
+
+            UIModule.toast('課堂已更新', 'success');
+            ClassroomUI.closeEditModal();
+            await this._loadRooms();
+        } catch (error) {
+            console.error('Edit room error:', error);
+            UIModule.toast('更新課堂出錯', 'error');
+        } finally {
+            el.submitEditBtn.disabled = false;
+            el.submitEditBtn.textContent = '保存';
         }
     },
 

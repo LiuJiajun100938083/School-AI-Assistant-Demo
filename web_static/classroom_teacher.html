@@ -123,21 +123,45 @@
                     <svg class="icon"><use href="#icon-more"/></svg>
                 </button>
                 <div class="dropdown-menu" id="moreMenu">
-                    <button class="dropdown-item" id="pauseBtn" style="display:none;">
-                        <svg class="icon"><use href="#icon-pause"/></svg> 暫停課堂
-                    </button>
-                    <button class="dropdown-item" id="resumeBtn" style="display:none;">
-                        <svg class="icon"><use href="#icon-play"/></svg> 繼續課堂
-                    </button>
+                    <!-- 課案操作 -->
                     <button class="dropdown-item" id="selectLessonItem" onclick="promptStartLesson()">
-                        <svg class="icon"><use href="#icon-list"/></svg> 選擇課案
+                        <svg class="icon"><use href="#icon-list"/></svg>
+                        <span class="dropdown-item-content">
+                            <span class="dropdown-item-label">選擇課案</span>
+                            <span class="dropdown-item-desc">開始一節新課案</span>
+                        </span>
                     </button>
                     <button class="dropdown-item" id="endLessonItem" onclick="endLesson()" style="display:none;">
-                        <svg class="icon"><use href="#icon-square"/></svg> 結束課案
+                        <svg class="icon"><use href="#icon-square"/></svg>
+                        <span class="dropdown-item-content">
+                            <span class="dropdown-item-label">結束本節課案</span>
+                            <span class="dropdown-item-desc">停止當前課案，可選下一節</span>
+                        </span>
                     </button>
-                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-divider" id="lessonDivider"></div>
+                    <!-- 課堂狀態 -->
+                    <button class="dropdown-item" id="pauseBtn" style="display:none;">
+                        <svg class="icon"><use href="#icon-pause"/></svg>
+                        <span class="dropdown-item-content">
+                            <span class="dropdown-item-label">暫停課堂</span>
+                            <span class="dropdown-item-desc">學生暫時無法操作</span>
+                        </span>
+                    </button>
+                    <button class="dropdown-item" id="resumeBtn" style="display:none;">
+                        <svg class="icon"><use href="#icon-play"/></svg>
+                        <span class="dropdown-item-content">
+                            <span class="dropdown-item-label">繼續課堂</span>
+                            <span class="dropdown-item-desc">恢復課堂互動</span>
+                        </span>
+                    </button>
+                    <div class="dropdown-divider" id="statusDivider"></div>
+                    <!-- 下課 -->
                     <button class="dropdown-item danger" id="endClassBtn">
-                        <svg class="icon"><use href="#icon-square"/></svg> 結束課堂
+                        <svg class="icon"><use href="#icon-square"/></svg>
+                        <span class="dropdown-item-content">
+                            <span class="dropdown-item-label">下課</span>
+                            <span class="dropdown-item-desc">結束課堂，學生將被移出</span>
+                        </span>
                     </button>
                 </div>
             </div>
@@ -273,7 +297,7 @@
 
             <!-- D. Online Students -->
             <div class="panel-section panel-students">
-                <div class="panel-section-title">在線學生</div>
+                <div class="panel-section-title">學生</div>
                 <div class="students-container" id="studentsList">
                     <div class="empty-state">尚無學生連線</div>
                 </div>

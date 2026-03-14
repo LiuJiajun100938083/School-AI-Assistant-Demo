@@ -783,6 +783,8 @@ const ClassroomStudentApp = {
             this._renderGameSlide(slideData);
         } else if (type === 'quiz') {
             this._initQuizRenderer(slideData);
+        } else if (type === 'poll') {
+            this._initPollRenderer(slideData);
         } else {
             // Generic slide
             ClassroomStudentUI.showSlideContent(
@@ -950,6 +952,38 @@ const ClassroomStudentApp = {
         }
     },
 
+    // ── Poll 投票渲染 ──
+    _initPollRenderer(slideData) {
+        const renderer = LessonSlideRenderers.get('poll');
+        if (!renderer) return;
+
+        this.state.pollSlideData = slideData;
+
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (!wrapper) return;
+
+        const noPage = document.getElementById('noPageMessage');
+        if (noPage) noPage.style.display = 'none';
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'none';
+
+        wrapper.style.display = 'flex';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+
+        renderer.renderStudent(wrapper, slideData, {
+            accepting: this.state.lessonAccepting,
+            onVote: (selectedOptions) => {
+                this._sendWSMessage({
+                    type: 'submit_response',
+                    slide_id: slideData.slide_id,
+                    response_type: 'poll',
+                    response_data: { selected_options: selectedOptions },
+                });
+            },
+        });
+    },
+
     _handleQuizReveal(data) {
         const renderer = LessonSlideRenderers.get('quiz');
         if (!renderer) return;
@@ -1062,6 +1096,20 @@ const ClassroomStudentApp = {
                     const fillBtn = wrapper.querySelector('.quiz-fill-confirm');
                     if (fillInput) fillInput.disabled = true;
                     if (fillBtn) fillBtn.disabled = true;
+                }
+            }
+        }
+
+        // Poll: re-render when accepting changes
+        if (slide && slide.slide_type === 'poll' && this.state.pollSlideData) {
+            if (accepting) {
+                this._initPollRenderer(this.state.pollSlideData);
+            } else {
+                const wrapper = document.querySelector('.canvas-wrapper');
+                if (wrapper) {
+                    wrapper.querySelectorAll('.quiz-opt').forEach(opt => {
+                        opt.classList.add('disabled');
+                    });
                 }
             }
         }

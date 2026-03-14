@@ -56,7 +56,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.core.dependencies import get_current_user, require_teacher, verify_token
 from app.core.exceptions import AppException
@@ -1584,6 +1584,39 @@ async def end_lesson_session(
         return success_response(None, "课案已结束")
     except AppException as e:
         return error_response(e.message, e.code, e.status_code)
+
+
+# ====================================================================== #
+#  Quiz 成绩导出                                                            #
+# ====================================================================== #
+
+@router.get("/api/classroom/rooms/{room_id}/lesson/{session_id}/export-quiz-results")
+async def export_quiz_results(
+    room_id: str,
+    session_id: str,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """导出测验成绩为 Excel 文件"""
+    try:
+        loop = asyncio.get_event_loop()
+        xlsx_bytes = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.export_quiz_results(room_id, session_id),
+        )
+        return Response(
+            content=xlsx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f'attachment; filename="quiz_results_{session_id[:8]}.xlsx"'
+            },
+        )
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+    except ValueError as e:
+        return error_response(str(e), "NO_QUIZ_DATA", 400)
+    except Exception as e:
+        logger.error("Export quiz results error: %s", e, exc_info=True)
+        return error_response("导出失败", "EXPORT_ERROR", 500)
 
 
 # ====================================================================== #

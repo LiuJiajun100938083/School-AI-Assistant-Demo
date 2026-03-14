@@ -802,6 +802,11 @@ function updateRoomStatusUI() {
     if (pauseBtn) pauseBtn.style.display = state.roomStatus === 'active' ? '' : 'none';
     if (resumeBtn) resumeBtn.style.display = state.roomStatus === 'paused' ? '' : 'none';
 
+    // Divider visibility: only show status divider when pause/resume are visible
+    const statusDivider = document.getElementById('statusDivider');
+    const showStatusGroup = state.roomStatus === 'active' || state.roomStatus === 'paused';
+    if (statusDivider) statusDivider.style.display = showStatusGroup ? '' : 'none';
+
     // Push button state
     document.getElementById('pushBtn').disabled = state.roomStatus !== 'active';
 
@@ -1179,11 +1184,18 @@ async function startLesson(planId) {
 
 async function endLesson() {
     try {
+        // Check if lesson has quiz slides → offer export before ending
+        const hasQuiz = state.lessonSlides && state.lessonSlides.some(
+            s => s.slide_type === 'quiz'
+        );
+        const sessionId = state.lessonSessionId;
+
         const token = AuthModule.getToken();
         await fetch(`/api/classroom/rooms/${roomId}/lesson/end`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
         });
+
         // Reset lesson state
         state.lessonMode = false;
         state.lessonSessionId = null;
@@ -1206,9 +1218,39 @@ async function endLesson() {
 
         updateLessonUI();
         UIModule.toast('課案已結束', 'success');
+
+        // Prompt quiz export after lesson ends
+        if (hasQuiz && sessionId) {
+            const doExport = await UIModule.confirm('本節課案包含測驗，是否導出成績為 Excel？');
+            if (doExport) {
+                _downloadQuizExcel(sessionId);
+            }
+        }
     } catch (e) {
         UIModule.toast('結束課案失敗', 'error');
     }
+}
+
+function _downloadQuizExcel(sessionId) {
+    const token = AuthModule.getToken();
+    const url = `/api/classroom/rooms/${roomId}/lesson/${sessionId}/export-quiz-results`;
+    fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    }).then(resp => {
+        if (!resp.ok) throw new Error('Export failed');
+        return resp.blob();
+    }).then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `quiz_results_${sessionId.slice(0, 8)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        UIModule.toast('成績已導出', 'success');
+    }).catch(() => {
+        UIModule.toast('導出成績失敗', 'error');
+    });
 }
 
 async function lessonNavigate(action, slideId) {
@@ -1581,39 +1623,62 @@ function addStudent(studentData) {
     state.students.set(key, {
         student_username: key,
         name: studentData.display_name || key,
+        online: true,
     });
     renderStudents();
 }
 
 function removeStudent(studentUsername) {
     if (studentUsername) {
-        state.students.delete(studentUsername);
+        const existing = state.students.get(studentUsername);
+        if (existing) {
+            existing.online = false;
+            existing.leftAt = new Date();
+        }
     }
     renderStudents();
 }
 
 function renderStudents() {
     const container = document.getElementById('studentsList');
-    const count = state.students.size;
 
-    document.getElementById('studentCount').textContent = count;
-
-    if (count === 0) {
+    if (state.students.size === 0) {
+        document.getElementById('studentCount').textContent = '0';
         container.innerHTML = '<div class="empty-state">尚無學生連線</div>';
         return;
     }
 
+    // Sort: online first, then offline by leave time (recent first)
+    const sorted = [...state.students.values()].sort((a, b) => {
+        if (a.online !== b.online) return a.online ? -1 : 1;
+        if (!a.online && !b.online) return (b.leftAt || 0) - (a.leftAt || 0);
+        return 0;
+    });
+
+    const onlineCount = sorted.filter(s => s.online).length;
+    document.getElementById('studentCount').textContent = onlineCount;
+
+    const offlineCount = sorted.length - onlineCount;
     container.innerHTML = '';
-    state.students.forEach((student) => {
+    let addedDivider = false;
+    sorted.forEach((student) => {
+        // Add divider before first offline student
+        if (!student.online && !addedDivider && offlineCount > 0) {
+            addedDivider = true;
+            const divider = document.createElement('div');
+            divider.className = 'student-section-divider';
+            divider.innerHTML = `<span class="student-section-label">已離開 (${offlineCount})</span>`;
+            container.appendChild(divider);
+        }
         const studentEl = document.createElement('div');
-        studentEl.className = 'student-item';
+        studentEl.className = `student-item${student.online ? '' : ' offline'}`;
         const initials = (student.name || '學').substring(0, 1).toUpperCase();
         studentEl.innerHTML = `
-            <div class="status-indicator"></div>
+            <div class="status-indicator ${student.online ? '' : 'away'}"></div>
             <div class="student-avatar">${initials}</div>
             <div class="student-info">
                 <div class="student-name">${student.name || '未命名'}</div>
-                <div class="student-status">在線</div>
+                <div class="student-status">${student.online ? '在線' : '已離開'}</div>
             </div>
         `;
         container.appendChild(studentEl);
