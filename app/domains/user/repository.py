@@ -89,8 +89,8 @@ class UserRepository(BaseRepository):
         return self.find_all(
             "role = 'student' AND is_active = TRUE AND class_name = %s",
             (class_name,),
-            columns="username, display_name",
-            order_by="display_name ASC",
+            columns="username, display_name, class_name, class_number",
+            order_by="class_number ASC, display_name ASC",
         )
 
     def get_distinct_class_names(self) -> List[str]:

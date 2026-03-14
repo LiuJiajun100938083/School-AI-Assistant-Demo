@@ -34,6 +34,18 @@ const LS_KEY_LAST_SESSION = 'cd_last_session';  // localStorage key
 // 學生列表（從 API 載入）
 let classStudents = [];
 
+/**
+ * 格式化學生顯示標籤：班級+學號+姓名
+ * 例如：S1A-01 陳大文
+ */
+function formatStudentLabel(student) {
+    const parts = [];
+    if (student.class_name) parts.push(student.class_name);
+    if (student.class_number != null) parts.push(String(student.class_number).padStart(2, '0'));
+    const prefix = parts.join('-');
+    return prefix ? `${prefix} ${student.display_name}` : student.display_name;
+}
+
 // 需要學生選擇器的 textarea 列表（僅考勤用舊模式）
 const PICKER_FIELDS = [
     'absentStudents',
@@ -250,9 +262,10 @@ function renderFieldPicker(fieldId) {
     picker.innerHTML = '';
     students.forEach(s => {
         const name = s.display_name;
+        const label = formatStudentLabel(s);
         const chip = document.createElement('span');
         chip.className = 'student-chip' + (selectedNames.includes(name) ? ' selected' : '');
-        chip.textContent = name;
+        chip.textContent = label;
         chip.addEventListener('click', () => toggleStudent(fieldId, name));
         picker.appendChild(chip);
     });
@@ -482,9 +495,10 @@ function renderPicker(pickerId, textareaId) {
     picker.innerHTML = '';
     classStudents.forEach(s => {
         const name = s.display_name;
+        const label = formatStudentLabel(s);
         const chip = document.createElement('span');
         chip.className = 'student-chip' + (selectedNames.includes(name) ? ' selected' : '');
-        chip.textContent = name;
+        chip.textContent = label;
         chip.addEventListener('click', () => toggleStudent(textareaId, name));
         picker.appendChild(chip);
     });
@@ -1088,9 +1102,10 @@ function renderBehaviorStudents() {
     picker.innerHTML = '';
     students.forEach(s => {
         const name = s.display_name;
+        const label = formatStudentLabel(s);
         const chip = document.createElement('span');
         chip.className = 'student-chip' + (selectedNames.includes(name) ? ' selected-' + category : '');
-        chip.textContent = name;
+        chip.textContent = label;
         chip.addEventListener('click', () => toggleBehaviorStudent(category, reason, name));
         picker.appendChild(chip);
     });
