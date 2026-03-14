@@ -87,6 +87,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["课堂教学"])
 
 
+async def _extract_bearer(request: Request):
+    """从 Request 的 Authorization header 手动提取 Bearer credentials"""
+    from fastapi.security import HTTPAuthorizationCredentials
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        return HTTPAuthorizationCredentials(scheme="Bearer", credentials=auth[7:])
+    raise ValueError("No Bearer token")
+
+
 # ====================================================================== #
 #  房间管理 (教师)                                                         #
 # ====================================================================== #
@@ -511,11 +520,40 @@ async def get_page_image(
 
 @router.get("/api/classroom/ppt/{file_id}/thumb/{page_number}")
 async def get_page_thumbnail(
+    request: Request,
     file_id: str,
     page_number: int,
-    user: dict = Depends(get_current_user),
+    token: str = Query(None, alias="token"),
 ):
-    """获取 PPT 页面缩略图"""
+    """获取 PPT 页面缩略图
+
+    支持两种认证方式：
+    1. Authorization: Bearer <token> (标准 API 调用)
+    2. ?token=<token> (用于 <img src> 标签，无法发送 Authorization header)
+    """
+    # 尝试从 query param 或 Authorization header 获取用户信息
+    user = None
+    if token:
+        # query param token
+        try:
+            from app.core.dependencies import _jwt_manager
+            payload = _jwt_manager.decode_token(token)
+            username = payload.get("username")
+            role = payload.get("role", "student")
+            if username:
+                user = {"username": username, "role": role}
+        except Exception:
+            pass
+
+    if not user:
+        # fallback 到标准 Bearer auth
+        try:
+            user = await get_current_user(
+                await _extract_bearer(request),
+            )
+        except Exception:
+            return error_response("AUTH_REQUIRED", "请先登录", status_code=401)
+
     try:
         loop = asyncio.get_event_loop()
         thumb_path = await loop.run_in_executor(

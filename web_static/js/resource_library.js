@@ -167,9 +167,13 @@ const ResourceUI = {
             return;
         }
 
+        const token = window.AuthModule?.getToken() || '';
         container.innerHTML = '<div class="resource-grid">' + items.map(item => {
-            const thumbHtml = item.thumbnail_url
-                ? `<img src="${item.thumbnail_url}" alt="縮略圖" loading="lazy" onerror="this.parentElement.innerHTML='<div class=card-thumb-placeholder>${Icons.slides}</div>'">`
+            const thumbUrl = item.thumbnail_url
+                ? `${item.thumbnail_url}${item.thumbnail_url.includes('?') ? '&' : '?'}token=${token}`
+                : '';
+            const thumbHtml = thumbUrl
+                ? `<img src="${thumbUrl}" alt="縮略圖" loading="lazy" class="thumb-img">`
                 : `<div class="card-thumb-placeholder">${Icons.slides}</div>`;
 
             return `
@@ -199,6 +203,13 @@ const ResourceUI = {
                 </div>
             </div>`;
         }).join('') + '</div>';
+
+        // 為縮略圖添加 error fallback（避免 inline onerror 中 SVG 引號衝突）
+        container.querySelectorAll('.thumb-img').forEach(img => {
+            img.addEventListener('error', function() {
+                this.parentElement.innerHTML = `<div class="card-thumb-placeholder">${Icons.slides}</div>`;
+            }, { once: true });
+        });
     },
 
     renderGroupSelector(groups, container, activeId) {
