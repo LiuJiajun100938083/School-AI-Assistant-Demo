@@ -755,16 +755,21 @@ class ClassroomService:
         获取 PPT 页面缩略图的磁盘路径。
         使用 get_by_file_id_include_deleted 确保被 soft-delete 但磁盘文件
         仍保留 (因被共享/克隆引用) 的 PPT 缩略图可正常访问。
+
+        缩略图为只读预览图，教师/管理员均可访问（支持共享资源库跨课堂预览）。
         """
         ppt_record = self._ppt_repo.get_by_file_id_include_deleted(file_id)
         if not ppt_record:
             raise PPTNotFoundError(file_id)
 
-        room_id = ppt_record.get("room_id")
-        if room_id:
-            room = self._room_repo.get_by_room_id(room_id)
-            if room:
-                self._check_room_access(room, current_username, current_role)
+        # 缩略图是低分辨率预览，教师和管理员可跨课堂访问（共享资源库场景）
+        # 仅对学生做房间归属校验
+        if current_role == "student":
+            room_id = ppt_record.get("room_id")
+            if room_id:
+                room = self._room_repo.get_by_room_id(room_id)
+                if room:
+                    self._check_room_access(room, current_username, current_role)
 
         page = self._page_repo.get_page_by_number(file_id, page_number)
         if not page:
