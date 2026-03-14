@@ -2064,21 +2064,60 @@ const Views = {
     },
 
     _renderHandwritePanel(panel, idx) {
+        // 手寫模式：打開全屏彈層
+        // panel 內只放一個提示 + textarea（回到鍵盤模式時會被替換）
         const state = this._practiceInputStates[idx];
         panel.innerHTML = `
-            <div class="mb-hw__canvas-wrap">
-                <canvas class="mb-hw__canvas" id="hw_canvas_${idx}"></canvas>
-            </div>
-            <div class="mb-hw__toolbar">
-                <button class="mb-hw__tool-btn" onclick="Views._hwUndo(${idx})">↩ 撤銷</button>
-                <button class="mb-hw__tool-btn" onclick="Views._hwClear(${idx})">🗑 清除</button>
-                <button class="mb-hw__tool-btn mb-hw__tool-btn--primary" id="hw_recognize_${idx}" onclick="Views._hwRecognize(${idx})">
-                    識別
-                </button>
-            </div>
             <textarea class="mb-practice__answer-input mb-hw__result-ta" id="answer_${idx}" placeholder="識別結果將顯示在這裡，也可手動輸入...">${UI.escapeHtml(state.textareaValue || '')}</textarea>
         `;
-        this._initCanvas(idx);
+        this._openHandwriteModal(idx);
+    },
+
+    _openHandwriteModal(idx) {
+        const state = this._practiceInputStates[idx];
+        const session = App.state._practiceSession;
+        const q = session && session.questions ? session.questions[idx] : null;
+        const questionText = q ? q.question : '';
+
+        // 創建全屏彈層
+        const overlay = document.createElement('div');
+        overlay.className = 'mb-hw__fullscreen-overlay';
+        overlay.id = `hw_modal_${idx}`;
+        overlay.innerHTML = `
+            <div class="mb-hw__fullscreen">
+                <div class="mb-hw__fullscreen-header">
+                    <span class="mb-hw__fullscreen-title">第 ${(q && q.index) || idx + 1} 題 · 手寫輸入</span>
+                    <button class="mb-hw__fullscreen-close" id="hw_modal_close_${idx}">✕</button>
+                </div>
+                <div class="mb-hw__fullscreen-question">${UI.renderMath(questionText)}</div>
+                <div class="mb-hw__fullscreen-canvas-area">
+                    <div class="mb-hw__canvas-wrap mb-hw__canvas-wrap--full">
+                        <canvas class="mb-hw__canvas" id="hw_canvas_${idx}"></canvas>
+                    </div>
+                </div>
+                <div class="mb-hw__fullscreen-toolbar">
+                    <button class="mb-hw__tool-btn" onclick="Views._hwUndo(${idx})">↩ 撤銷</button>
+                    <button class="mb-hw__tool-btn" onclick="Views._hwClear(${idx})">🗑 清除</button>
+                    <button class="mb-hw__tool-btn mb-hw__tool-btn--primary mb-hw__tool-btn--lg" id="hw_recognize_${idx}" onclick="Views._hwRecognize(${idx})">
+                        識別
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // 關閉按鈕
+        document.getElementById(`hw_modal_close_${idx}`).onclick = () => {
+            overlay.remove();
+        };
+
+        // 初始化 canvas（延遲一幀確保 DOM 已渲染）
+        requestAnimationFrame(() => this._initCanvas(idx));
+    },
+
+    _closeHandwriteModal(idx) {
+        const modal = document.getElementById(`hw_modal_${idx}`);
+        if (modal) modal.remove();
     },
 
     _initCanvas(idx) {
@@ -2086,11 +2125,11 @@ const Views = {
         if (!canvas) return;
         const state = this._practiceInputStates[idx];
 
-        // 高 DPI 適配
+        // 高 DPI 適配 — 使用父容器尺寸
         const rect = canvas.parentElement.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
         const cssW = rect.width || 320;
-        const cssH = 200;
+        const cssH = rect.height || 300;
         canvas.style.width = cssW + 'px';
         canvas.style.height = cssH + 'px';
         canvas.width = cssW * dpr;
@@ -2099,7 +2138,7 @@ const Views = {
         ctx.scale(dpr, dpr);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.strokeStyle = '#222';
 
         // 重繪已有 strokes
@@ -2367,11 +2406,15 @@ const Views = {
             const ta = document.getElementById(`answer_${idx}`);
             const existing = (ta ? ta.value.trim() : '') || (state.textareaValue || '').trim();
 
+            // 關閉手寫全屏彈層
+            this._closeHandwriteModal(idx);
+
             if (!existing) {
                 // 直接填入
-                if (ta) ta.value = text;
                 state.textareaValue = text;
                 this._switchInputMode(idx, 'keyboard');
+                const taAfter = document.getElementById(`answer_${idx}`);
+                if (taAfter) taAfter.value = text;
             } else {
                 // 覆蓋/追加選擇
                 this._showFillDialog(idx, existing, text);

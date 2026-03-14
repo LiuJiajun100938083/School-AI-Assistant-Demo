@@ -1438,11 +1438,94 @@
     background: #fff;
 }
 
+.mb-hw__canvas-wrap--full {
+    flex: 1;
+    min-height: 0;
+}
+
 .mb-hw__canvas {
     display: block;
     width: 100%;
     cursor: crosshair;
     touch-action: none;
+}
+
+/* 全屏手寫彈層 */
+.mb-hw__fullscreen-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--mb-bg);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+}
+
+.mb-hw__fullscreen {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 0 12px;
+}
+
+.mb-hw__fullscreen-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    flex-shrink: 0;
+}
+
+.mb-hw__fullscreen-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--mb-text);
+}
+
+.mb-hw__fullscreen-close {
+    width: 36px; height: 36px;
+    border: none;
+    background: var(--mb-bg-secondary);
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--mb-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mb-hw__fullscreen-close:hover { background: var(--mb-border); }
+
+.mb-hw__fullscreen-question {
+    padding: 12px 16px;
+    background: var(--mb-card);
+    border-radius: var(--mb-radius-md);
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+    max-height: 30vh;
+    overflow-y: auto;
+    border: 1px solid var(--mb-border);
+}
+
+.mb-hw__fullscreen-canvas-area {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.mb-hw__fullscreen-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 0;
+    flex-shrink: 0;
+    justify-content: center;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
 .mb-hw__toolbar {
@@ -1472,6 +1555,11 @@
 
 .mb-hw__tool-btn--primary:hover { opacity: 0.9; }
 .mb-hw__tool-btn--primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.mb-hw__tool-btn--lg {
+    padding: 8px 28px;
+    font-size: 15px;
+}
 
 .mb-hw__result-ta { margin-top: 8px; }
 
