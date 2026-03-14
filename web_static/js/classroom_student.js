@@ -1019,10 +1019,38 @@ const ClassroomStudentApp = {
     },
 
     _updateLessonResponseUI() {
-        // Update response-related UI based on lifecycle
         const lifecycle = this.state.lessonLifecycle;
         const accepting = this.state.lessonAccepting;
         console.log(`Lesson lifecycle: ${lifecycle}, accepting: ${accepting}`);
+
+        // Quiz: re-render current question when accepting changes
+        const slide = this.state.currentLessonSlide;
+        if (slide && slide.slide_type === 'quiz' && accepting && this.state.quizSlideData) {
+            const sd = this.state.quizSlideData;
+            const questions = sd.questions || [];
+            const currentIdx = sd.current_question_index || 0;
+            const q = questions[currentIdx];
+            if (q && !this.state.quizMyAnswers?.[q.id]) {
+                // Re-render with options visible
+                const renderer = LessonSlideRenderers.get('quiz');
+                const wrapper = document.querySelector('.canvas-wrapper');
+                if (renderer && wrapper) {
+                    renderer.renderStudentQuestion(wrapper, q, currentIdx, questions.length, {
+                        timeLimit: sd.time_limit || 0,
+                        accepting: true,
+                        onAnswer: (questionId, answer) => {
+                            this.state.quizMyAnswers[questionId] = answer;
+                            this._sendWSMessage({
+                                type: 'quiz_answer',
+                                slide_id: sd.slide_id,
+                                question_id: questionId,
+                                answer: answer,
+                            });
+                        },
+                    });
+                }
+            }
+        }
     },
 
     // ---- Room Status Handling ----

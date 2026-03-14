@@ -142,40 +142,48 @@ LessonSlideRenderers.register('quiz', {
         html += `<div class="quiz-q-text">${Utils.escapeHtml(question.text)}</div>`;
         html += '</div>';
 
-        // Options
-        html += '<div class="quiz-options">';
-        if (question.type === 'mc' && question.options) {
-            question.options.forEach((opt, i) => {
-                const val = String.fromCharCode(65 + i);
-                html += `<div class="quiz-opt" data-val="${val}" data-qid="${question.id}">
-                    <span class="quiz-opt-label">${val}.</span>
-                    <span>${Utils.escapeHtml(opt)}</span>
-                </div>`;
-            });
-        } else if (question.type === 'tf') {
-            ['对', '错'].forEach(opt => {
-                html += `<div class="quiz-opt" data-val="${opt}" data-qid="${question.id}">
-                    <span>${opt}</span>
-                </div>`;
-            });
-        } else if (question.type === 'fill') {
-            html += `<input type="text" class="quiz-fill-input" id="quizFillInput" placeholder="输入答案..." data-qid="${question.id}">`;
-            html += `<button class="quiz-fill-confirm" id="quizFillConfirm">确认</button>`;
-        }
-        html += '</div>';
+        // Options — only shown when accepting responses
+        const accepting = state.accepting !== false;
+        if (accepting) {
+            html += '<div class="quiz-options">';
+            if (question.type === 'mc' && question.options) {
+                question.options.forEach((opt, i) => {
+                    const val = String.fromCharCode(65 + i);
+                    html += `<div class="quiz-opt" data-val="${val}" data-qid="${question.id}">
+                        <span class="quiz-opt-label">${val}.</span>
+                        <span>${Utils.escapeHtml(opt)}</span>
+                    </div>`;
+                });
+            } else if (question.type === 'tf') {
+                ['对', '错'].forEach(opt => {
+                    html += `<div class="quiz-opt" data-val="${opt}" data-qid="${question.id}">
+                        <span>${opt}</span>
+                    </div>`;
+                });
+            } else if (question.type === 'fill') {
+                html += `<input type="text" class="quiz-fill-input" id="quizFillInput" placeholder="输入答案..." data-qid="${question.id}">`;
+                html += `<button class="quiz-fill-confirm" id="quizFillConfirm">确认</button>`;
+            }
+            html += '</div>';
 
-        // Waiting text (hidden initially)
-        html += '<div class="quiz-waiting-text" id="quizWaiting" style="display:none;">已提交，等待其他同学...</div>';
+            // Waiting text (hidden initially)
+            html += '<div class="quiz-waiting-text" id="quizWaiting" style="display:none;">已提交，等待其他同学...</div>';
+        } else {
+            // Not accepting: show waiting prompt, no options
+            html += '<div class="quiz-waiting-text" style="margin-top:24px;">等待老師開放回應...</div>';
+        }
 
         html += '</div>';
         container.innerHTML = html;
 
-        // Bind click events
-        this._bindOptionEvents(container, question);
+        // Bind click events only when accepting
+        if (accepting) {
+            this._bindOptionEvents(container, question);
 
-        // Start timer if applicable
-        if (state.timeLimit && state.timeLimit > 0) {
-            this._startTimer(state.timeLimit, question, container);
+            // Start timer if applicable
+            if (state.timeLimit && state.timeLimit > 0) {
+                this._startTimer(state.timeLimit, question, container);
+            }
         }
     },
 
