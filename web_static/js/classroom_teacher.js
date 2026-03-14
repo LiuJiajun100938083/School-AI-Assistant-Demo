@@ -1387,6 +1387,7 @@ function updateLessonUI() {
     // Slide type flags
     const isInteractive = slide && ['quiz', 'poll'].includes(slide.slide_type);
     const isQuiz = slide && slide.slide_type === 'quiz';
+    const isPoll = slide && slide.slide_type === 'poll';
     const runtimeMeta = sess.runtime_meta || {};
     const quizPhase = runtimeMeta.phase || 'answering';
     const quizCfg = isQuiz ? (typeof slide.config === 'string' ? JSON.parse(slide.config) : (slide.config || {})) : {};
@@ -1422,7 +1423,10 @@ function updateLessonUI() {
     if (closeBtn) closeBtn.style.display = isInteractive && lifecycle === 'responding' ? '' : 'none';
     if (revealBtn) revealBtn.style.display = isQuiz && lifecycle === 'closed' && quizPhase === 'answering' ? '' : 'none';
     if (nextBtn) nextBtn.style.display = isQuiz && lifecycle === 'closed' && quizPhase === 'reveal' && !isLastQ ? '' : 'none';
-    if (resultsBtn) resultsBtn.style.display = isQuiz && lifecycle === 'closed' && quizPhase === 'reveal' && isLastQ ? '' : 'none';
+    if (resultsBtn) resultsBtn.style.display =
+        (isQuiz && lifecycle === 'closed' && quizPhase === 'reveal' && isLastQ) ||
+        (isPoll && lifecycle === 'closed')
+        ? '' : 'none';
 
     // Update slide status text in right panel
     const statusText = document.getElementById('slideStatusText');

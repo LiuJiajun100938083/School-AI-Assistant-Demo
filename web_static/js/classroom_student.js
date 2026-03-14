@@ -746,6 +746,10 @@ const ClassroomStudentApp = {
         if (message.data) {
             this.state.lessonLifecycle = message.data.lifecycle;
             this.state.lessonAccepting = message.data.accepting_responses;
+            // Save poll results if included (show_results broadcast)
+            if (message.data.poll_results) {
+                this.state.pollResults = message.data.poll_results.results || message.data.poll_results;
+            }
             // Update response UI
             this._updateLessonResponseUI();
         }
@@ -1102,7 +1106,14 @@ const ClassroomStudentApp = {
 
         // Poll: re-render when accepting changes
         if (slide && slide.slide_type === 'poll' && this.state.pollSlideData) {
-            if (accepting) {
+            if (lifecycle === 'results_shown' && this.state.pollResults) {
+                // Show poll results to students
+                const renderer = LessonSlideRenderers.get('poll');
+                const wrapper = document.querySelector('.canvas-wrapper');
+                if (renderer && wrapper) {
+                    renderer.renderResults(wrapper, this.state.pollSlideData, this.state.pollResults);
+                }
+            } else if (accepting) {
                 this._initPollRenderer(this.state.pollSlideData);
             } else {
                 const wrapper = document.querySelector('.canvas-wrapper');

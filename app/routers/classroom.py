@@ -1468,17 +1468,32 @@ async def lesson_slide_action(
         )
 
         # broadcast lifecycle change to all
+        broadcast_lc_data = {
+            "slide_id": result["slide"]["slide_id"],
+            "lifecycle": result["new_lifecycle"],
+            "accepting_responses": result["accepting_responses"],
+            "slide_ends_at": result["session"].get("slide_ends_at").isoformat()
+            if result["session"].get("slide_ends_at") else None,
+        }
+
+        # For poll show_results, include aggregated results so students can display them
+        if (
+            result["slide"].get("slide_type") == "poll"
+            and result["new_lifecycle"] == "results_shown"
+        ):
+            poll_results = await loop.run_in_executor(
+                None,
+                lambda: get_services().lesson.get_slide_results(
+                    session_id, result["slide"]["slide_id"]
+                ),
+            )
+            broadcast_lc_data["poll_results"] = poll_results
+
         await ws_manager.broadcast_to_room(room_id, {
             "type": "lesson_slide_lifecycle",
             "room_id": room_id,
             "session_id": session_id,
-            "data": {
-                "slide_id": result["slide"]["slide_id"],
-                "lifecycle": result["new_lifecycle"],
-                "accepting_responses": result["accepting_responses"],
-                "slide_ends_at": result["session"].get("slide_ends_at").isoformat()
-                if result["session"].get("slide_ends_at") else None,
-            },
+            "data": broadcast_lc_data,
         })
 
         return success_response({

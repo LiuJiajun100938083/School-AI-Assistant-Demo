@@ -565,8 +565,10 @@ LessonSlideRenderers.register('poll', {
     },
 
     // ── 教师端：投票统计 ──
-    renderTeacher(container, slide) {
-        const options = slide.options || [];
+    renderTeacher(container, slide, cfg) {
+        // cfg contains the parsed config with options/question_text
+        const options = cfg?.options || slide.options || [];
+        const questionText = cfg?.question_text || slide.question_text || '';
         const results = slide.results || {};
         const voteCounts = results.vote_counts || {};
         const totalResponses = results.total_responses || 0;
@@ -585,7 +587,7 @@ LessonSlideRenderers.register('poll', {
         </div>`;
 
         html += '<div class="quiz-tv-question">';
-        html += `<div class="quiz-tv-q-text">${Utils.escapeHtml(slide.question_text || '')}</div>`;
+        html += `<div class="quiz-tv-q-text">${Utils.escapeHtml(questionText)}</div>`;
         html += '</div>';
 
         html += '<div class="quiz-tv-options">';
