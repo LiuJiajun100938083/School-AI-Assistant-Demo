@@ -2033,6 +2033,7 @@ const Views = {
                 <div class="mb-practice__question">
                     <div class="mb-practice__question-number">第 ${q.index || i + 1} 題</div>
                     <div class="mb-practice__question-text">${UI.renderMath(q.question)}</div>
+                    ${q.question_svg ? `<div class="mb-practice__question-svg">${UI.renderMath(q.question_svg)}</div>` : ''}
                     ${isMultiChoice ? `<div style="margin-top:12px">${q.options.map((opt, oi) =>
                         `<label style="display:block;padding:8px 0;cursor:pointer;font-size:14px">
                             <input type="radio" name="q_${i}" value="${UI.escapeHtml(opt)}"> ${UI.renderMath(opt)}
@@ -2156,6 +2157,7 @@ const Views = {
                     <button class="mb-hw__fullscreen-close" id="hw_modal_close_${idx}">✕</button>
                 </div>
                 <div class="mb-hw__fullscreen-question">${UI.renderMath(questionText)}</div>
+                ${q && q.question_svg ? `<div class="mb-practice__question-svg">${UI.renderMath(q.question_svg)}</div>` : ''}
                 <div class="mb-hw__fullscreen-canvas-area" id="hw_canvas_area_${idx}">
                     <div class="mb-hw__canvas-wrap mb-hw__canvas-wrap--full" id="hw_canvas_container_${idx}">
                         <canvas class="mb-hw__canvas" id="hw_canvas_${idx}"></canvas>

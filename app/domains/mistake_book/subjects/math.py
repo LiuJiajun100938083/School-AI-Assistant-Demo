@@ -48,6 +48,133 @@ class MathHandler(BaseSubjectHandler):
     def pick_recognition_task(self, category: str) -> RecognitionTask:
         return RecognitionTask.MATH_SOLUTION
 
+    # ---- SVG 幾何圖生成 ----
+
+    _GEOMETRY_KEYWORDS = (
+        "三角", "四邊", "圓", "角", "平行", "垂直", "直角",
+        "相似", "全等", "面積", "周長", "弦", "切線", "半徑",
+        "座標", "坐標", "梯形", "菱形", "正方形", "長方形",
+        "多邊形", "對角線", "扇形", "弧", "內接", "外接",
+        "中線", "角平分線", "切點", "弦心距",
+    )
+
+    @property
+    def supports_svg_generation(self) -> bool:
+        return True
+
+    def needs_svg(self, question_text: str) -> bool:
+        return any(kw in question_text for kw in self._GEOMETRY_KEYWORDS)
+
+    def build_svg_prompt(self, question_text: str) -> str:
+        return f"""你是一個專門畫幾何圖形的助手。根據以下數學題目，生成一個 SVG 圖形。
+
+題目：
+{question_text}
+
+要求：
+- 只輸出 JSON：{{"svg": "<svg>...</svg>"}}
+- 若題目不需要圖形或條件不足以唯一確定圖形，輸出 {{"svg": ""}}
+- 在內部完成分析與自檢，不要輸出分析步驟、解釋文字、Markdown 或代碼塊
+- 不可依靠目測比例表達隱含條件；所有關鍵幾何關係必須能從題目文字直接得出
+
+SVG 畫圖步驟（必須按此流程）：
+1. 讀題：列出所有頂點、邊、角度、已知條件
+2. 定座標：根據直角和邊長，確定每個頂點的 (x, y)
+   - 例：∠A=90° 且 A 在左下角 → A 處兩邊分別水平和垂直
+3. 畫邊：按頂點順序用 <line> 連線
+4. 標直角：在題目指定的直角頂點處放 <rect>，x/y 對準該頂點
+5. 標邊長：每個已知邊長標在對應邊中間
+6. 標頂點名：大寫英文字母，放圖形外側
+7. 自檢：逐條對照題目條件，確認每個直角、邊、標注正確
+
+SVG 技術規範：
+- <svg viewBox="0 0 300 250" width="300" height="250">
+- 黑白簡潔 DSE 考試風格，無陰影無漸變
+- 主邊線 stroke="black" stroke-width="2"，fill="none"
+- 直角用邊長 8 的 <rect> 標記，必須在正確的直角頂點
+- 相等線段用刻痕（短 <line>），相等角用弧線（<path>）
+- 平行線用箭頭記號（小 <polygon>）
+- 關鍵點（交點、切點、圓心）用 <circle r="2" fill="black">
+- 頂點名 font-size="14"，數值 font-size="13"
+- 只用 svg/g/line/circle/rect/polygon/polyline/path/text 標籤
+- 不要在 SVG 中使用 LaTeX"""
+
+    # ---- V2: Geometry Spec JSON 中間層 ----
+
+    def build_geometry_spec_prompt(self, question_text: str) -> str:
+        return f"""你是一個幾何分析助手。根據以下數學題目，提取幾何結構信息。
+
+題目：
+{question_text}
+
+要求：
+- 只輸出 JSON，不要輸出解釋、分析過程或 Markdown
+- 若題目不涉及幾何圖形，輸出 {{"skip": true}}
+- 座標系：viewBox 300x250，原點左上角，y 軸向下
+- 頂點座標要合理分佈在 viewBox 內（邊距至少 40px）
+- 直角頂點的兩條鄰邊必須垂直（一條水平一條垂直，或通過座標計算確保垂直）
+
+輸出格式：
+```json
+{{
+  "points": {{"A": [60, 200], "B": [240, 200], "C": [60, 50]}},
+  "segments": [["A","B"], ["A","C"], ["B","C"]],
+  "right_angles": ["A"],
+  "labels": [
+    {{"segment": ["A","B"], "text": "5"}},
+    {{"segment": ["A","C"], "text": "12"}}
+  ],
+  "equal_segments": [],
+  "equal_angles": [],
+  "parallel_lines": [],
+  "circles": [],
+  "arcs": [],
+  "special_points": [],
+  "angle_labels": []
+}}
+```
+
+字段說明：
+- points: 每個頂點名 → [x, y] 座標
+- segments: 需要畫的線段（頂點名對）
+- right_angles: 直角所在的頂點名列表
+- labels: 邊長標注（segment 指定邊，text 為標注文字）
+- equal_segments: 相等線段組，如 [[["A","B"],["C","D"]]] 表示 AB=CD
+- equal_angles: 相等角組，如 [["A","B"]] 表示角 A = 角 B
+- parallel_lines: 平行線段對，如 [[["A","B"],["C","D"]]]
+- circles: 圓，如 [{{"center": "O", "radius_to": "A"}}]
+- arcs: 弧，如 [{{"center": "O", "from": "A", "to": "B"}}]
+- special_points: 特殊點（交點、切點等），如 ["M"]
+- angle_labels: 角度標注，如 [{{"vertex": "A", "text": "30°"}}]"""
+
+    def build_svg_from_spec_prompt(self, question_text: str, spec_json: str) -> str:
+        return f"""你是一個 SVG 繪圖助手。根據以下幾何規格（geometry spec），生成精確的 SVG 圖形。
+
+原始題目：
+{question_text}
+
+幾何規格：
+{spec_json}
+
+要求：
+- 只輸出 JSON：{{"svg": "<svg>...</svg>"}}
+- 嚴格按照 spec 中的座標繪製，不要自行修改座標
+- 在內部完成繪製，不要輸出解釋或分析
+
+SVG 繪製規則：
+1. <svg viewBox="0 0 300 250" width="300" height="250">
+2. 按 segments 畫線段：stroke="black" stroke-width="2" fill="none"
+3. 按 right_angles 在對應頂點畫直角標記：<rect> 邊長 8，位置對準頂點兩條邊的方向
+4. 按 labels 標邊長：font-size="13"，放在對應邊中點附近
+5. 按 points 標頂點名：font-size="14"，放在圖形外側
+6. equal_segments 用刻痕標記（短 <line>），相同組用相同數量
+7. parallel_lines 用箭頭記號（小 <polygon>）
+8. circles 用 <circle> 畫圓
+9. special_points 用 <circle r="2" fill="black">
+10. angle_labels 用 <text> 標在角附近
+11. 黑白簡潔 DSE 風格，無陰影無漸變
+12. 只用 svg/g/line/circle/rect/polygon/polyline/path/text 標籤"""
+
     # ---- Prompt 構建 ----
 
     def build_analysis_prompt(
@@ -200,75 +327,13 @@ class MathHandler(BaseSubjectHandler):
 - 題目文字條件必須自包含，即使附圖未顯示也能唯一理解幾何關係
 - 不可把答案建立在學生目測圖形長短或角度大小之上；需要的條件必須在文字中明確給出
 
-## 幾何題 SVG 附圖
-- 凡涉及三角形、四邊形、圓、平行線、角度、座標幾何等幾何題，必須在 question 字段中附帶 SVG 圖形
-- 圖形直接寫在題目文字之後，幫助學生直觀理解幾何關係
-- 非幾何題（代數、函數、概率等）不需要 SVG
-
-### 圖形正確性（最重要，必須嚴格遵守）
-- 畫 SVG 前，先在心中確認每個頂點的位置、每條邊的連接關係、每個直角/標記的位置
-- 直角標記 <rect> 必須畫在題目指定的直角頂點處，不可標錯位置
-  - 例：題目說 ∠A=90°，則直角小正方形必須在頂點 A 的位置
-  - 例：題目說 ∠QPS=90° 和 ∠PQR=90°，則直角標記必須分別在 P 和 Q
-- 頂點順序必須與題目描述一致：若題目說「四邊形 PQRS」，則 P→Q→R→S 應按順序連接
-- 邊長標注必須標在正確的邊上：若題目說 PQ=12，則 12 必須標在 P 和 Q 之間的邊
-- 若圖形畫出來後發現與題目條件矛盾（例如直角位置不對、邊的連接不對），必須重新計算座標再畫
-- 若無法確定圖形正確性，寧可不畫 SVG，只保留文字題目
-
-### 香港 DSE 畫圖風格
-- 模仿 DSE 數學試卷風格：黑白、簡潔、無陰影、無漸變、無彩色、無裝飾
-- 圖形目的只是輔助理解幾何關係，不是美術插圖
-- 除非題目要求按比例判讀，否則不需要按真實比例繪製
-- 若外觀比例可能誤導學生，在題目文字末尾加入「（圖形不一定依比例繪成）」
-- 只畫解題必要元素，不加背景、網格、陰影、立體質感
-- 只畫平面幾何圖，避免複雜立體圖、透視圖、展開圖
-- 點名用大寫英文字母（A, B, C, D, O），放圖形外側，不壓住線段或弧
-- DSE 常見幾何記號：
-  - 直角：邊長 8 的小正方形 <rect> 標記，必須在題目指定的直角頂點處
-  - 相等線段：線段中間短刻痕（短 <line>），相等的線段用相同數量刻痕
-  - 相等角：弧線（<path>），相等的角用相同數量弧線
-  - 平行線：箭頭記號（小 <polygon>）
-- 關鍵點（交點、切點、圓心）用小實心圓 <circle r="2" fill="black">
-- 長度、角度數值放在對應位置附近，不遮擋主圖形
-- 座標幾何題只在需要時加坐標軸，原點標 O
-- 文字標註保持簡短，不在 SVG 中寫整句說明
-
-### SVG 畫圖步驟（每次畫圖都必須按此流程）
-1. 讀題：列出所有頂點、邊、角度、已知條件
-2. 定座標：根據直角和邊長，先確定每個頂點的 (x, y) 座標
-   - 例：∠A=90° 且 A 在左下角 → A 處兩邊分別水平和垂直
-3. 畫邊：按頂點順序連線
-4. 標直角：在題目指定的直角頂點處放 <rect>，注意 rect 的 x, y 要對準該頂點
-5. 標邊長：每個已知邊長標在對應邊的中間位置
-6. 標頂點名：放在圖形外側
-7. 自檢：對照題目逐條檢查——每個直角、每條邊、每個標注是否正確
-
-### SVG 技術規範
-- <svg viewBox="0 0 300 250" width="300" height="250">
-- 直接輸出原始 SVG 標籤，不要放在代碼塊中
-- SVG 前後各留一個空行
-- 主邊線 stroke="black" stroke-width="2"，fill="none"
-- 輔助記號（刻痕、角弧、平行箭頭）stroke-width="1" 或 "1.5"
-- 實心關鍵點 r="2"
-- 標注文字 <text font-size="14">，數值 font-size="13"
-- 所有元素在 viewBox 範圍內
-- 不要在 SVG 中使用 LaTeX
-- 只用 svg/g/line/circle/rect/polygon/polyline/path/text 標籤
-
-### SVG 範例（直角三角形 ABC，∠A=90°，AB=5，AC=12）
-注意：∠A=90° → 直角標記在 A → A 處兩邊垂直 → A 在左下角，AB 水平向右，AC 垂直向上
-
-<svg viewBox="0 0 300 250" width="300" height="250">
-  <line x1="60" y1="200" x2="240" y2="200" stroke="black" stroke-width="2"/>
-  <line x1="60" y1="200" x2="60" y2="50" stroke="black" stroke-width="2"/>
-  <line x1="60" y1="50" x2="240" y2="200" stroke="black" stroke-width="2"/>
-  <rect x="60" y="192" width="8" height="8" fill="none" stroke="black" stroke-width="1"/>
-  <text x="45" y="215" font-size="14">A</text>
-  <text x="245" y="215" font-size="14">B</text>
-  <text x="45" y="45" font-size="14">C</text>
-  <text x="145" y="218" font-size="13" text-anchor="middle">5</text>
-  <text x="38" y="130" font-size="13" text-anchor="middle">12</text>
-</svg>
+## 幾何題與 needs_svg 標記
+- 幾何題不需要畫圖，系統會自動為幾何題生成配圖
+- 但題目文字必須自包含，即使無圖也能唯一理解幾何關係
+- 不可把答案建立在目測圖形之上；需要的條件必須在文字中明確給出
+- 每道題必須標記 needs_svg 字段：
+  - true：題目涉及幾何圖形（三角形、四邊形、圓、角、平行線、座標幾何等），配圖能幫助理解
+  - false：純代數、函數、概率、數列等不需要幾何圖形的題目
 
 ## 題目分配規則
 - 每個目標知識點至少 1 題（共 {num_points} 個知識點，{question_count} 題）
@@ -289,7 +354,8 @@ class MathHandler(BaseSubjectHandler):
       "correct_answer": "完整解題步驟和最終答案",
       "explanation": "解析（公式用 LaTeX）",
       "point_code": "對應的知識點編碼",
-      "difficulty": 3
+      "difficulty": 3,
+      "needs_svg": true
     }}
   ]
 }}

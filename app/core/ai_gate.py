@@ -39,6 +39,7 @@ class Priority(IntEnum):
 class Weight(IntEnum):
     """AI 任務 GPU 容量消耗權重"""
     CHAT = 1           # 文字 AI 聊天
+    SVG_GEOMETRY = 1   # SVG 幾何圖生成（token 不長但需結構穩定）
     VISION_SINGLE = 2  # 單圖 OCR
     ANALYSIS = 2       # AI 分析（錯題、批改）
     VISION_MULTI = 3   # 多圖/PDF OCR / 圖片生成

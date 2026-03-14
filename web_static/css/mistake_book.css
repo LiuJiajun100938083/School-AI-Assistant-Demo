@@ -1381,6 +1381,7 @@
 
 /* 練習題 / 全屏手寫彈層內嵌 SVG 幾何圖形 */
 .mb-practice__question-text svg,
+.mb-practice__question-svg svg,
 .mb-hw__fullscreen-question svg {
     display: block;
     margin: 12px auto;

@@ -333,6 +333,33 @@ def _sanitize_svg_content(text: str) -> str:
     return text
 
 
+def _extract_svg_from_response(raw: str) -> str:
+    """從 SVG 模型回應中提取 SVG，三層 fallback"""
+    if not raw:
+        return ""
+    # 1. 嚴格 JSON parse
+    try:
+        svg = json.loads(raw).get("svg", "")
+        if svg and "<svg" in svg and "</svg>" in svg:
+            return svg
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    # 2. 提取第一個包含 "svg" 的 JSON 對象再 parse
+    m = re.search(r'\{[^{}]*"svg"[^{}]*\}', raw, re.DOTALL)
+    if m:
+        try:
+            svg = json.loads(m.group()).get("svg", "")
+            if svg and "<svg" in svg and "</svg>" in svg:
+                return svg
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    # 3. 正則直接抽第一個 <svg>...</svg>
+    m = re.search(r"<svg[\s\S]*?</svg>", raw, re.IGNORECASE)
+    if m:
+        return m.group()
+    return ""
+
+
 class MistakeBookService:
     """
     錯題本核心服務
@@ -413,11 +440,17 @@ class MistakeBookService:
             return result[0] or ""
         return result or ""
 
-    async def _call_ollama_direct(self, prompt: str) -> str:
+    async def _call_ollama_direct(self, prompt: str, model_override: str = None,
+                                  timeout_override: float = None,
+                                  gate_task: str = None, gate_priority=None,
+                                  gate_weight=None) -> str:
         """
         直接異步調用 Ollama API（繞過 langchain 60s 超時限制）
 
-        使用 /api/chat 端點，超時 300 秒，適合長時間分析任務。
+        使用 /api/chat 端點，適合長時間分析任務。
+        model_override: 指定模型（如 SVG 生成用 coder 模型），None 則用全局配置。
+        timeout_override: 指定超時秒數，None 則用默認 300s。
+        gate_task/gate_priority/gate_weight: ai_gate 調度參數，None 則用默認值。
         """
         import httpx
 
@@ -430,6 +463,9 @@ class MistakeBookService:
         except Exception:
             model = "qwen3.5:35b"
             base_url = "http://localhost:11434"
+
+        if model_override:
+            model = model_override
 
         payload = {
             "model": model,
@@ -451,9 +487,13 @@ class MistakeBookService:
 
         from app.core.ai_gate import ai_gate, Priority, Weight
 
-        timeout = httpx.Timeout(300.0, connect=10.0)
+        timeout = httpx.Timeout(timeout_override or 300.0, connect=10.0)
 
-        async with ai_gate("mistake_analysis", Priority.INTERACTIVE, Weight.ANALYSIS) as client:
+        task_name = gate_task or "mistake_analysis"
+        priority = gate_priority or Priority.INTERACTIVE
+        weight = gate_weight or Weight.ANALYSIS
+
+        async with ai_gate(task_name, priority, weight) as client:
             response = await client.post("/api/chat", json=payload, timeout=timeout)
             response.raise_for_status()
             data = response.json()
@@ -483,6 +523,130 @@ class MistakeBookService:
 
         logger.info("直接 Ollama 調用成功: model=%s, content_len=%d, thinking_len=%d", model, len(content), len(thinking))
         return content
+
+    # ================================================================
+    # SVG 幾何圖生成（專用模型增強）
+    # ================================================================
+
+    async def _enrich_questions_with_svg(self, questions: list, subject: str) -> None:
+        """
+        為需要 SVG 的題目調用專用模型生成圖形，直接修改 questions list。
+
+        V2 兩步流程：題目 → geometry spec JSON → SVG。
+        幾何語義和 SVG 語法分離，提升正確率，中間 spec 可 debug。
+        若 spec 提取失敗，fallback 到 V1 直接生成。
+        SVG 是增強項，任何異常只跳過該題，不影響主鏈路。
+        """
+        from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
+        handler = SubjectHandlerRegistry.get(subject)
+        if not handler.supports_svg_generation:
+            return
+
+        from llm.config import get_llm_config
+        from app.core.ai_gate import Priority, Weight
+        svg_model = get_llm_config().svg_model
+
+        # 檢查 handler 是否支持 V2 spec 模式
+        has_spec_mode = bool(handler.build_geometry_spec_prompt("test"))
+
+        svg_triggered = 0
+        svg_success = 0
+
+        for i, q in enumerate(questions):
+            text = q.get("question", "")
+            # 優先使用出題模型判斷（V2），fallback 到 keyword
+            if q.get("needs_svg") is False:
+                continue
+            needs = q.get("needs_svg", None)
+            if needs is None:
+                needs = handler.needs_svg(text)
+            if not needs or "<svg" in text:
+                continue
+
+            svg_triggered += 1
+            try:
+                svg = await self._generate_svg_two_step(
+                    handler, text, svg_model, has_spec_mode, i + 1,
+                )
+                if svg:
+                    svg = _sanitize_svg_content(svg)
+                    if "<svg" in svg and "</svg>" in svg:
+                        q["question_svg"] = svg
+                        svg_success += 1
+                        logger.info("題 %d SVG 生成成功", i + 1)
+                    else:
+                        logger.warning("題 %d SVG 清洗後無效，跳過", i + 1)
+                else:
+                    logger.info("題 %d 無 SVG 輸出，跳過", i + 1)
+            except Exception as e:
+                logger.warning("題 %d SVG 生成失敗: %s", i + 1, e)
+
+        if svg_triggered:
+            logger.info(
+                "SVG 生成完成: 觸發=%d, 成功=%d, 失敗=%d",
+                svg_triggered, svg_success, svg_triggered - svg_success,
+            )
+
+    async def _generate_svg_two_step(
+        self, handler, question_text: str, svg_model: str,
+        has_spec_mode: bool, question_num: int,
+    ) -> str:
+        """
+        兩步 SVG 生成：Step 1 提取 geometry spec → Step 2 spec → SVG。
+        若 Step 1 失敗，fallback 到直接生成（V1 模式）。
+        """
+        from app.core.ai_gate import Priority, Weight
+        gate_kwargs = dict(
+            model_override=svg_model,
+            timeout_override=120.0,
+            gate_task="svg_geometry",
+            gate_priority=Priority.BATCH,
+            gate_weight=Weight.SVG_GEOMETRY,
+        )
+
+        # V2: 兩步生成（spec → SVG）
+        if has_spec_mode:
+            try:
+                # Step 1: 提取 geometry spec
+                spec_prompt = handler.build_geometry_spec_prompt(question_text)
+                spec_raw = await self._call_ollama_direct(spec_prompt, **gate_kwargs)
+
+                spec_data = None
+                if spec_raw:
+                    try:
+                        spec_data = json.loads(spec_raw)
+                    except json.JSONDecodeError:
+                        # 嘗試提取 JSON
+                        m = re.search(r'\{[\s\S]*\}', spec_raw)
+                        if m:
+                            try:
+                                spec_data = json.loads(m.group())
+                            except json.JSONDecodeError:
+                                pass
+
+                if spec_data and not spec_data.get("skip") and spec_data.get("points"):
+                    spec_json = json.dumps(spec_data, ensure_ascii=False)
+                    logger.info("題 %d geometry spec 提取成功: %d 個頂點", question_num, len(spec_data["points"]))
+
+                    # Step 2: spec → SVG
+                    svg_prompt = handler.build_svg_from_spec_prompt(question_text, spec_json)
+                    svg_raw = await self._call_ollama_direct(svg_prompt, **gate_kwargs)
+                    svg = _extract_svg_from_response(svg_raw)
+                    if svg:
+                        return svg
+                    logger.warning("題 %d spec → SVG 轉換失敗，fallback 到直接生成", question_num)
+                else:
+                    logger.info("題 %d spec 提取無結果，fallback 到直接生成", question_num)
+
+            except Exception as e:
+                logger.warning("題 %d spec 模式失敗: %s，fallback 到直接生成", question_num, e)
+
+        # V1 fallback: 直接生成 SVG
+        logger.info("題 %d 使用直接 SVG 生成模式", question_num)
+        raw = await self._call_ollama_direct(
+            handler.build_svg_prompt(question_text), **gate_kwargs
+        )
+        return _extract_svg_from_response(raw)
 
     # ================================================================
     # 圖形描述統一寫入（收口方法）
@@ -1402,10 +1566,15 @@ class MistakeBookService:
         questions_data = self._parse_json_response(raw)
         questions = questions_data.get("questions", [])
 
-        # SVG 安全過濾（資料防線）
+        # 為需要 SVG 的題目生成圖形（使用專用模型，逐題走 ai_gate）
+        await self._enrich_questions_with_svg(questions, subject)
+
+        # SVG 安全過濾（資料防線 — 最終整體再過一次）
         for q in questions:
             if "question" in q:
                 q["question"] = _sanitize_svg_content(q["question"])
+            if "question_svg" in q:
+                q["question_svg"] = _sanitize_svg_content(q["question_svg"])
 
         # 保存練習記錄
         session_id = str(uuid.uuid4())[:12]
@@ -1443,6 +1612,7 @@ class MistakeBookService:
                 {
                     "index": q.get("index", i + 1),
                     "question": q.get("question", ""),
+                    "question_svg": q.get("question_svg", ""),
                     "question_type": q.get("question_type", "short_answer"),
                     "options": q.get("options"),
                     "point_code": q.get("point_code", ""),

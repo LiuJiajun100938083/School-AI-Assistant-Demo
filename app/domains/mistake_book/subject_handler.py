@@ -182,6 +182,29 @@ class BaseSubjectHandler(ABC):
             return False
         return (cjk_count / non_space) < 0.1
 
+    # ---- SVG 圖形生成 ----
+
+    @property
+    def supports_svg_generation(self) -> bool:
+        """此科目是否支持 SVG 圖形生成（默認否）"""
+        return False
+
+    def needs_svg(self, question_text: str) -> bool:
+        """判斷此題是否需要 SVG 圖形（默認否）"""
+        return False
+
+    def build_svg_prompt(self, question_text: str) -> str:
+        """為題目構建 SVG 生成 prompt（子類覆寫）"""
+        return ""
+
+    def build_geometry_spec_prompt(self, question_text: str) -> str:
+        """構建幾何 spec JSON 提取 prompt（V2 中間層，子類覆寫）"""
+        return ""
+
+    def build_svg_from_spec_prompt(self, question_text: str, spec_json: str) -> str:
+        """從幾何 spec JSON 構建 SVG 生成 prompt（V2 中間層，子類覆寫）"""
+        return ""
+
     # ---- 前端 UI 特性 ----
 
     @property
