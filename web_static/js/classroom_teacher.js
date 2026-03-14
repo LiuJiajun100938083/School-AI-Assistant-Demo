@@ -855,11 +855,15 @@ function connectWebSocket() {
 
     state.ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        // 如果伺服器返回錯誤 (房間不存在/無權限)，停止重連
         if (msg.type === 'error') {
-            wsFatalError = true;
-            UIModule.toast('錯誤: ' + msg.message, 'error');
-            setTimeout(() => { window.location.href = '/classroom'; }, 3000);
+            const fatalCodes = ['ROOM_NOT_FOUND', 'FORBIDDEN', 'AUTH_ERROR'];
+            if (fatalCodes.includes(msg.code)) {
+                wsFatalError = true;
+                UIModule.toast('錯誤: ' + msg.message, 'error');
+                setTimeout(() => { window.location.href = '/classroom'; }, 3000);
+            } else {
+                UIModule.toast(msg.message || '操作失敗', 'warning');
+            }
             return;
         }
         handleWebSocketMessage(msg);

@@ -459,11 +459,17 @@ const ClassroomStudentApp = {
 
             this.state.ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
-                // Fatal error from server (room not found / no permission) — stop reconnecting
                 if (msg.type === 'error') {
-                    this.state.fatalError = true;
-                    UIModule.toast('錯誤: ' + msg.message, 'error');
-                    setTimeout(() => { window.location.href = '/classroom'; }, 3000);
+                    // Fatal errors (room not found, no permission) → redirect
+                    const fatalCodes = ['ROOM_NOT_FOUND', 'FORBIDDEN', 'AUTH_ERROR'];
+                    if (fatalCodes.includes(msg.code)) {
+                        this.state.fatalError = true;
+                        UIModule.toast('錯誤: ' + msg.message, 'error');
+                        setTimeout(() => { window.location.href = '/classroom'; }, 3000);
+                    } else {
+                        // Business logic errors (duplicate vote, not accepting, etc.) → toast only
+                        UIModule.toast(msg.message || '操作失敗', 'warning');
+                    }
                     return;
                 }
                 this._handleWSMessage(event.data);
@@ -775,6 +781,10 @@ const ClassroomStudentApp = {
     _renderLessonSlide(slideData) {
         const type = slideData.slide_type;
         this.state.currentLessonSlide = slideData;
+        // Reset poll voted state when switching to a new slide
+        if (type !== 'poll' || slideData.slide_id !== this.state.pollVotedSlideId) {
+            this.state.pollVotedSlideId = null;
+        }
 
         if (type === 'ppt') {
             // Use static image path (lesson PPT files may not be room-bound)
@@ -963,6 +973,17 @@ const ClassroomStudentApp = {
 
         this.state.pollSlideData = slideData;
 
+        // If student already voted for this slide, don't re-render interactive UI
+        if (this.state.pollVotedSlideId === slideData.slide_id) {
+            const wrapper = document.querySelector('.canvas-wrapper');
+            if (wrapper) {
+                wrapper.querySelectorAll('.quiz-opt').forEach(o => o.classList.add('disabled'));
+                const waiting = wrapper.querySelector('#pollWaiting');
+                if (waiting) waiting.style.display = '';
+            }
+            return;
+        }
+
         const wrapper = document.querySelector('.canvas-wrapper');
         if (!wrapper) return;
 
@@ -978,6 +999,8 @@ const ClassroomStudentApp = {
         renderer.renderStudent(wrapper, slideData, {
             accepting: this.state.lessonAccepting,
             onVote: (selectedOptions) => {
+                // Mark as voted to prevent re-renders from allowing duplicate submissions
+                this.state.pollVotedSlideId = slideData.slide_id;
                 this._sendWSMessage({
                     type: 'submit_response',
                     slide_id: slideData.slide_id,
