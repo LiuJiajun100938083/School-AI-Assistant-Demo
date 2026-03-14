@@ -1563,6 +1563,23 @@
 
 .mb-hw__result-ta { margin-top: 8px; }
 
+.mb-hw__preview {
+    padding: 10px 14px;
+    background: var(--mb-bg-secondary);
+    border: 1px solid var(--mb-border);
+    border-radius: var(--mb-radius-md);
+    margin-bottom: 8px;
+    font-size: 14px;
+    line-height: 1.8;
+    word-break: break-word;
+}
+
+.mb-practice__answer-input--auto {
+    overflow: hidden;
+    resize: none;
+    min-height: 60px;
+}
+
 .mb-hw__photo-zone {
     border: 1.5px dashed var(--mb-border-strong);
     border-radius: var(--mb-radius-md);

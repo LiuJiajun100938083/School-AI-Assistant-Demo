@@ -2055,12 +2055,45 @@ const Views = {
         if (!panel) return;
 
         if (mode === 'keyboard') {
-            panel.innerHTML = `<textarea class="mb-practice__answer-input" id="answer_${idx}" placeholder="在此輸入你的答案...">${UI.escapeHtml(state.textareaValue || '')}</textarea>`;
+            const val = state.textareaValue || '';
+            const hasContent = val.trim().length > 0;
+            panel.innerHTML = `
+                ${hasContent ? `<div class="mb-hw__preview" id="hw_preview_${idx}">${UI.renderMath(val)}</div>` : ''}
+                <textarea class="mb-practice__answer-input mb-practice__answer-input--auto" id="answer_${idx}" placeholder="在此輸入你的答案...">${UI.escapeHtml(val)}</textarea>`;
+            // 自動撐高
+            const ta = document.getElementById(`answer_${idx}`);
+            if (ta) {
+                this._autoResizeTextarea(ta);
+                ta.addEventListener('input', () => {
+                    this._autoResizeTextarea(ta);
+                    // 更新預覽
+                    state.textareaValue = ta.value;
+                    const preview = document.getElementById(`hw_preview_${idx}`);
+                    if (ta.value.trim()) {
+                        if (preview) {
+                            preview.innerHTML = UI.renderMath(ta.value);
+                        } else {
+                            const div = document.createElement('div');
+                            div.className = 'mb-hw__preview';
+                            div.id = `hw_preview_${idx}`;
+                            div.innerHTML = UI.renderMath(ta.value);
+                            ta.parentElement.insertBefore(div, ta);
+                        }
+                    } else if (preview) {
+                        preview.remove();
+                    }
+                });
+            }
         } else if (mode === 'handwrite') {
             this._renderHandwritePanel(panel, idx);
         } else if (mode === 'photo') {
             this._renderPhotoPanel(panel, idx);
         }
+    },
+
+    _autoResizeTextarea(ta) {
+        ta.style.height = 'auto';
+        ta.style.height = Math.max(60, ta.scrollHeight) + 'px';
     },
 
     _renderHandwritePanel(panel, idx) {
