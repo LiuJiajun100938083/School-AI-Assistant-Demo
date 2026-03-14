@@ -102,75 +102,96 @@ SVG 技術規範：
     # ---- V2: Geometry Spec JSON 中間層 ----
 
     def build_geometry_spec_prompt(self, question_text: str) -> str:
-        return f"""你是一個幾何分析助手。根據數學題目提取幾何結構，計算精確座標。
+        return f"""你是一個幾何語義提取助手。從數學題目中提取幾何約束，不計算任何座標。
+系統會根據你的約束自動求解座標並渲染圖形。
 
 題目：
 {question_text}
 
-## 座標計算流程（你必須按此順序執行）
+## 你的任務
 
-Step 1 — 列出所有幾何對象：
-- 頂點名（A, B, C, D...）
-- 線段（AB, BC...）
-- 已知邊長、角度
-- 哪些邊垂直、平行、相等
-- 輔助點（高的垂足、中點、交點等）及它們落在哪條邊上
+1. 讀題：識別所有頂點、邊長、角度、特殊關係（等腰、直角、平行等）
+2. 選 base_edge：選最適合作水平底邊的一條邊
+3. 列約束：用下方格式列出所有幾何關係
+4. 列 draw：指定要畫哪些線段、標哪些數字
 
-Step 2 — 選定錨點和方向：
-- 選一個頂點作為錨點，放在合適位置
-- 選一條邊作為基準方向（通常水平）
-- 座標系：viewBox 300×250，原點左上角，y 軸向下
-- 所有頂點至少離邊界 40px
-
-Step 3 — 逐點計算座標：
-- 從錨點出發，根據邊長和角度推算每個頂點的 [x, y]
-- 直角約束：若 ∠B = 90° 且 AB 水平，則 BC 必須垂直（x 不變，y 改變）
-- 點在邊上：若 D 在 AC 上（如垂足），則 D 的座標 = A + t×(C−A)，其中 t ∈ (0,1)
-  計算方法：t = (向量 AD · 向量 AC) / |AC|²
-- 等腰三角形：AB=AC 時，A 在 BC 的垂直平分線上
-- 平行約束：PS ∥ QR 時，PS 和 QR 的方向向量相同
-
-Step 4 — 自檢：
-- 直角頂點的兩條鄰邊點積 = 0？
-- 標注的邊長和座標距離一致？（允許比例縮放，但比例必須統一）
-- 輔助點確實落在指定邊上？
-- 所有頂點都在 viewBox 40~260（x）、40~210（y）範圍內？
-
-## 輸出（只輸出 JSON，不要解釋）
+## 輸出格式（只輸出 JSON，不要解釋）
 
 若題目不涉及幾何圖形，輸出 {{"skip": true}}
 
 否則輸出：
 {{
-  "points": {{"P": [60, 200], "Q": [220, 200], "R": [220, 60], "S": [60, 70]}},
-  "segments": [["P","Q"], ["Q","R"], ["R","S"], ["S","P"]],
-  "right_angles": ["P", "Q"],
-  "labels": [
-    {{"segment": ["P","Q"], "text": "12"}},
-    {{"segment": ["S","P"], "text": "10"}},
-    {{"segment": ["Q","R"], "text": "13"}}
-  ],
-  "equal_segments": [],
-  "equal_angles": [],
-  "parallel_lines": [[["S","P"], ["Q","R"]]],
-  "circles": [],
-  "arcs": [],
-  "special_points": [],
-  "angle_labels": []
+  "base_edge": {{"from": "P", "to": "Q", "orientation": "above"}},
+  "constraints": [...],
+  "draw": {{
+    "segments": [["P","Q"], ["Q","R"], ...],
+    "labels": [{{"segment": ["P","Q"], "text": "12"}}, ...],
+    "suppress_angle_labels": []
+  }}
 }}
 
-字段說明：
-- points: 每個頂點/輔助點 → [x, y]（整數座標）
-- segments: 需要畫的線段
-- right_angles: 直角所在的頂點名（系統會自動根據鄰邊方向畫直角標記）
-- labels: 邊長/長度標注
-- equal_segments: 相等線段組，如 [[["A","B"],["C","D"]]]
-- equal_angles: 相等角組，如 [["A","B"]]
-- parallel_lines: 平行線段對，如 [[["A","B"],["C","D"]]]
-- circles: 圓，如 [{{"center": "O", "radius_to": "A"}}]
-- arcs: 弧，如 [{{"center": "O", "from": "A", "to": "B"}}]
-- special_points: 輔助點（垂足、交點、切點、中點等）
-- angle_labels: 非直角的角度標注，如 [{{"vertex": "A", "text": "48°"}}]"""
+## base_edge
+
+- from/to：底邊兩端點名，系統會水平放置
+- orientation："above"（默認）= 其餘頂點在底邊上方，"below" = 下方
+
+## 約束類型（constraints 數組元素）
+
+| 類型 | 格式 | 說明 |
+|------|------|------|
+| length | {{"type":"length", "segment":["A","B"], "value":12}} | 邊長 |
+| angle | {{"type":"angle", "vertex":"A", "ray1":"B", "ray2":"C", "value":48}} | 頂角度數 |
+| right_angle | {{"type":"right_angle", "vertex":"A", "ray1":"B", "ray2":"C"}} | 直角（=angle 90°） |
+| equal_length | {{"type":"equal_length", "segments":[["A","B"],["A","C"]]}} | 等長邊 |
+| altitude | {{"type":"altitude", "from":"B", "to_side":["A","C"], "foot":"D"}} | 從頂點到對邊的高，D 是垂足 |
+| midpoint | {{"type":"midpoint", "point":"M", "of":["A","B"]}} | 中點 |
+| perpendicular | {{"type":"perpendicular", "seg1":["B","D"], "seg2":["A","C"]}} | 兩線段垂直 |
+| point_on_segment | {{"type":"point_on_segment", "point":"D", "segment":["A","C"]}} | 點在邊上（位置由其他約束決定） |
+| parallel | {{"type":"parallel", "seg1":["A","B"], "seg2":["C","D"]}} | 平行 |
+
+## draw 字段
+
+- segments：要畫的線段列表
+- labels：邊長標注（text 為顯示文字）
+- suppress_angle_labels：不標注角度的頂點名列表
+
+系統會自動從約束推導以下渲染標記，你不需要寫：
+- right_angles（直角標記）← right_angle / altitude 約束
+- special_points（特殊點標記）← altitude.foot / midpoint.point / point_on_segment.point
+- equal_segments（等長標記）← equal_length 約束
+- parallel_lines（平行標記）← parallel 約束
+- angle_labels（角度標注）← angle 約束
+
+## 完整示例
+
+題目：四邊形 PQRS 中，∠P=∠Q=90°，PQ=12，PS=10，QR=13。
+
+{{
+  "base_edge": {{"from": "P", "to": "Q", "orientation": "above"}},
+  "constraints": [
+    {{"type": "length", "segment": ["P","Q"], "value": 12}},
+    {{"type": "length", "segment": ["P","S"], "value": 10}},
+    {{"type": "length", "segment": ["Q","R"], "value": 13}},
+    {{"type": "right_angle", "vertex": "P", "ray1": "Q", "ray2": "S"}},
+    {{"type": "right_angle", "vertex": "Q", "ray1": "P", "ray2": "R"}}
+  ],
+  "draw": {{
+    "segments": [["P","Q"], ["Q","R"], ["R","S"], ["S","P"]],
+    "labels": [
+      {{"segment": ["P","Q"], "text": "12"}},
+      {{"segment": ["P","S"], "text": "10"}},
+      {{"segment": ["Q","R"], "text": "13"}}
+    ],
+    "suppress_angle_labels": []
+  }}
+}}
+
+## 重要規則
+
+- 不要計算任何座標，只提取語義約束
+- base_edge 沒有對應 length 約束也沒關係，系統會自動分配長度
+- point_on_segment 的位置必須由其他約束（如 altitude、perpendicular）確定，不要假設在中點
+- 所有約束都是硬約束，系統會精確求解"""
 
     def build_svg_from_spec_prompt(self, question_text: str, spec_json: str) -> str:
         # V2: Step 2 已改用 Python renderer，此方法僅作 fallback

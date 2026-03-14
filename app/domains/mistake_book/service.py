@@ -606,10 +606,10 @@ class MistakeBookService:
             gate_weight=Weight.SVG_GEOMETRY,
         )
 
-        # V2: spec 模式（Step 1 LLM + Step 2 Python renderer）
+        # V3: 約束模式（Step 1 LLM 提約束 + Step 2 Python solver + Step 3 Python renderer）
         if has_spec_mode:
             try:
-                # Step 1: LLM 提取 geometry spec
+                # Step 1: LLM 提取幾何約束（不含座標）
                 spec_prompt = handler.build_geometry_spec_prompt(question_text)
                 spec_raw = await self._call_ollama_direct(spec_prompt, **gate_kwargs)
 
@@ -625,32 +625,41 @@ class MistakeBookService:
                             except json.JSONDecodeError:
                                 pass
 
-                if spec_data and not spec_data.get("skip") and spec_data.get("points"):
+                if spec_data and not spec_data.get("skip"):
                     logger.info(
-                        "題 %d geometry spec 提取成功: %d 個頂點, spec=%s",
-                        question_num, len(spec_data["points"]),
+                        "題 %d 約束 spec 提取成功, spec=%s",
+                        question_num,
                         json.dumps(spec_data, ensure_ascii=False)[:500],
                     )
 
-                    # Step 2: Python 確定性渲染（不再調用 LLM）
+                    # Step 2: Python 約束求解器 → 座標
+                    from app.domains.mistake_book.geometry_engine import (
+                        solve_geometry_spec, GeometrySolveError,
+                    )
+                    try:
+                        renderer_spec = solve_geometry_spec(spec_data)
+                    except GeometrySolveError as e:
+                        logger.warning("題 %d solver 失敗: %s", question_num, e)
+                        return ""  # 默認：solver 失敗 = 不顯示圖
+
+                    # Step 3: Python 確定性渲染
                     from app.domains.mistake_book.svg_renderer import render_svg_from_spec
-                    svg = render_svg_from_spec(spec_data)
+                    svg = render_svg_from_spec(renderer_spec)
                     if svg and "<svg" in svg:
-                        logger.info("題 %d Python renderer SVG 生成成功", question_num)
+                        logger.info("題 %d V3 solver + renderer SVG 生成成功", question_num)
                         return svg
-                    logger.warning("題 %d Python renderer 輸出為空，fallback 到直接生成", question_num)
+                    logger.warning("題 %d renderer 輸出為空", question_num)
+                    return ""
                 else:
-                    logger.info("題 %d spec 提取無結果，fallback 到直接生成", question_num)
+                    logger.info("題 %d spec 提取為 skip 或無結果", question_num)
+                    return ""
 
             except Exception as e:
-                logger.warning("題 %d spec 模式失敗: %s，fallback 到直接生成", question_num, e)
+                logger.warning("題 %d V3 管線失敗: %s", question_num, e)
+                return ""
 
-        # V1 fallback: 直接 LLM 生成 SVG
-        logger.info("題 %d 使用直接 SVG 生成模式", question_num)
-        raw = await self._call_ollama_direct(
-            handler.build_svg_prompt(question_text), **gate_kwargs
-        )
-        return _extract_svg_from_response(raw)
+        # 非 spec 模式的 handler 不走此路徑
+        return ""
 
     # ================================================================
     # 圖形描述統一寫入（收口方法）
