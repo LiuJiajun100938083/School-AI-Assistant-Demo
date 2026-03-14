@@ -87,8 +87,9 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">允許的班級</label>
-                    <input type="text" class="form-input" id="roomClasses" placeholder="用逗號分隔，如：一年級,二年級">
-                    <div class="form-hint">留空表示不限制班級</div>
+                    <div class="class-picker" id="classPicker">
+                        <div class="class-picker-loading">載入班級中...</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" id="cancelCreateBtn">取消</button>

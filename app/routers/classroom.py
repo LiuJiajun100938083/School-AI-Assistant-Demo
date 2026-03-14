@@ -126,6 +126,30 @@ async def create_room(
         return error_response("SERVER_ERROR", "创建房间失败", status_code=500)
 
 
+@router.get("/api/classroom/classes")
+async def list_classes_for_room(
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """返回班级列表按年级分组，供创建课堂时选择允许的班级"""
+    try:
+        from app.infrastructure.database import get_database_pool
+        pool = get_database_pool()
+        rows = pool.execute(
+            "SELECT class_code, class_name, grade FROM classes ORDER BY grade, class_code"
+        )
+        grouped: dict = {}
+        for r in (rows or []):
+            grade = r.get("grade") or "未分類"
+            grouped.setdefault(grade, []).append({
+                "class_code": r["class_code"],
+                "class_name": r["class_name"],
+            })
+        return success_response({"grades": grouped})
+    except Exception as e:
+        logger.exception("获取班级列表失败")
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
 @router.get("/api/classroom/rooms")
 async def list_rooms(
     user: dict = Depends(get_current_user),

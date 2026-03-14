@@ -127,6 +127,21 @@ class ClassroomRoomRepository(BaseRepository):
         )
         return self.raw_query(sql, (json.dumps(class_name),))
 
+    def list_unrestricted_rooms_with_count(self) -> List[Dict[str, Any]]:
+        """查询不限制班级的课堂（allowed_classes 为空），供没有班级的学生使用"""
+        sql = (
+            "SELECT r.*, "
+            "  (SELECT COUNT(*) FROM classroom_enrollments e "
+            "   WHERE e.room_id = r.room_id AND e.is_active = TRUE"
+            "  ) AS student_count "
+            "FROM classroom_rooms r "
+            "WHERE JSON_LENGTH(r.allowed_classes) = 0 "
+            "  AND r.room_status IN ('active', 'paused') "
+            "  AND r.is_deleted = FALSE "
+            "ORDER BY r.created_at DESC"
+        )
+        return self.raw_query(sql)
+
     # ============================================================
     # 写入
     # ============================================================

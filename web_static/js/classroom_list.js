@@ -49,6 +49,10 @@ const ClassroomAPI = {
 
     async joinRoom(roomId) {
         return APIClient.post(`${this.BASE}/rooms/${roomId}/join`);
+    },
+
+    async fetchClasses() {
+        return APIClient.get(`${this.BASE}/classes`);
     }
 };
 
@@ -86,7 +90,7 @@ const ClassroomUI = {
             createRoomForm: document.getElementById('createRoomForm'),
             roomTitle: document.getElementById('roomTitle'),
             roomDescription: document.getElementById('roomDescription'),
-            roomClasses: document.getElementById('roomClasses'),
+            classPicker: document.getElementById('classPicker'),
             closeCreateModal: document.getElementById('closeCreateModal'),
             cancelCreateBtn: document.getElementById('cancelCreateBtn'),
             submitCreateBtn: document.getElementById('submitCreateBtn')
@@ -120,13 +124,93 @@ const ClassroomUI = {
         }, 800);
     },
 
-    openCreateModal() {
+    async openCreateModal() {
         this.elements.createRoomModal.classList.add('active');
         this.elements.roomTitle.focus();
+        await this._loadClassPicker();
     },
 
     closeModal() {
         this.elements.createRoomModal.classList.remove('active');
+    },
+
+    async _loadClassPicker() {
+        const picker = this.elements.classPicker;
+        if (!picker) return;
+        picker.innerHTML = '<div class="class-picker-loading">載入班級中...</div>';
+
+        try {
+            const result = await ClassroomAPI.fetchClasses();
+            const grades = (result && result.success && result.data) ? result.data.grades : {};
+            this._renderClassPicker(grades);
+        } catch (e) {
+            picker.innerHTML = '<div class="class-picker-loading">載入失敗</div>';
+        }
+    },
+
+    _renderClassPicker(grades) {
+        const picker = this.elements.classPicker;
+        if (!picker) return;
+
+        let html = '';
+        // "All students" option — default checked
+        html += `<label class="cp-all-row">
+            <input type="checkbox" id="cpAllStudents" checked>
+            <span>所有學生（不限制班級）</span>
+        </label>`;
+
+        // Per-grade rows
+        const gradeKeys = Object.keys(grades);
+        if (gradeKeys.length > 0) {
+            html += '<div class="cp-grades">';
+            gradeKeys.forEach(grade => {
+                const classes = grades[grade] || [];
+                html += `<div class="cp-grade-row">`;
+                html += `<span class="cp-grade-label">${Utils.escapeHtml(grade)}</span>`;
+                html += `<div class="cp-classes">`;
+                classes.forEach(cls => {
+                    html += `<label class="cp-class-item">
+                        <input type="checkbox" class="cp-class-cb" value="${Utils.escapeHtml(cls.class_name)}" disabled>
+                        <span>${Utils.escapeHtml(cls.class_name)}</span>
+                    </label>`;
+                });
+                html += '</div></div>';
+            });
+            html += '</div>';
+        }
+
+        picker.innerHTML = html;
+
+        // Interaction: "All students" ↔ individual classes
+        const allCb = picker.querySelector('#cpAllStudents');
+        const classCbs = picker.querySelectorAll('.cp-class-cb');
+
+        allCb.addEventListener('change', () => {
+            if (allCb.checked) {
+                classCbs.forEach(cb => { cb.checked = false; cb.disabled = true; });
+            } else {
+                classCbs.forEach(cb => { cb.disabled = false; });
+            }
+        });
+
+        classCbs.forEach(cb => {
+            cb.addEventListener('change', () => {
+                const anyChecked = Array.from(classCbs).some(c => c.checked);
+                if (anyChecked) {
+                    allCb.checked = false;
+                    classCbs.forEach(c => { c.disabled = false; });
+                }
+            });
+        });
+    },
+
+    getSelectedClasses() {
+        const picker = this.elements.classPicker;
+        if (!picker) return [];
+        const allCb = picker.querySelector('#cpAllStudents');
+        if (allCb && allCb.checked) return [];
+        const classCbs = picker.querySelectorAll('.cp-class-cb:checked');
+        return Array.from(classCbs).map(cb => cb.value);
     },
 
     renderTeacherRooms(rooms) {
@@ -284,7 +368,7 @@ const ClassroomApp = {
         const el = ClassroomUI.elements;
 
         el.backBtn.addEventListener('click', () => { window.location.href = '/'; });
-        el.createBtn.addEventListener('click', () => ClassroomUI.openCreateModal());
+        el.createBtn.addEventListener('click', () => { ClassroomUI.openCreateModal(); });
         el.closeCreateModal.addEventListener('click', () => ClassroomUI.closeModal());
         el.cancelCreateBtn.addEventListener('click', () => ClassroomUI.closeModal());
         el.createRoomModal.addEventListener('click', (e) => {
@@ -363,8 +447,7 @@ const ClassroomApp = {
         el.submitCreateBtn.innerHTML = '<span class="spinner"></span> 創建中...';
 
         try {
-            const allowedClasses = el.roomClasses.value
-                .split(',').map(c => c.trim()).filter(c => c);
+            const allowedClasses = ClassroomUI.getSelectedClasses();
 
             const result = await ClassroomAPI.createRoom({
                 title: el.roomTitle.value,

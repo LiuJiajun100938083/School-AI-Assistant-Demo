@@ -191,11 +191,16 @@ class ClassroomService:
             )
         elif current_role == "student":
             user = self._user_repo.find_by_username(current_username)
-            if not user or not user.get("class_name"):
+            if not user:
                 return []
-            rooms = self._room_repo.list_class_rooms_with_count(
-                user["class_name"]
-            )
+            student_class = (user.get("class_name") or "").strip()
+            if student_class:
+                rooms = self._room_repo.list_class_rooms_with_count(
+                    student_class
+                )
+            else:
+                # 没有班级的学生只能看到不限制班级的课堂
+                rooms = self._room_repo.list_unrestricted_rooms_with_count()
         else:
             return []
 

@@ -948,3 +948,93 @@ html, body {
         display: none;
     }
 }
+
+/* ========== Class Picker ========== */
+
+.class-picker {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--bg-primary);
+}
+
+.class-picker-loading {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    padding: 8px 0;
+}
+
+.cp-all-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: background 0.15s;
+}
+.cp-all-row:hover { background: var(--brand-lighter); }
+.cp-all-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--brand);
+    cursor: pointer;
+}
+
+.cp-grades {
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+}
+
+.cp-grade-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+}
+
+.cp-grade-label {
+    flex-shrink: 0;
+    width: 48px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.cp-classes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.cp-class-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background 0.15s;
+}
+.cp-class-item:hover { background: var(--brand-lighter); }
+.cp-class-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--brand);
+    cursor: pointer;
+}
+.cp-class-item input[type="checkbox"]:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.cp-class-item:has(input:disabled) {
+    opacity: 0.5;
+    cursor: default;
+}
