@@ -452,7 +452,12 @@ const ClassroomStudentApp = {
                 console.log('WebSocket connected');
                 this.state.isConnected = true;
                 ClassroomStudentUI.setConnectionStatus(true);
-                this.state.reconnectAttempts = 0;
+                // Note: reconnectAttempts is reset when we receive the
+                // "connected" message from the server (after auth + room
+                // checks pass), NOT here in onopen. This prevents an
+                // infinite reconnect loop when the server accepts the WS
+                // but immediately closes it due to room-not-found or auth
+                // errors.
                 this._startHeartbeat();
                 this._startPing();
             };
@@ -461,7 +466,7 @@ const ClassroomStudentApp = {
                 const msg = JSON.parse(event.data);
                 if (msg.type === 'error') {
                     // Fatal errors (room not found, no permission) → redirect
-                    const fatalCodes = ['ROOM_NOT_FOUND', 'FORBIDDEN', 'AUTH_ERROR'];
+                    const fatalCodes = ['ROOM_NOT_FOUND', 'ROOM_ACCESS_DENIED', 'CLASS_NOT_ALLOWED', 'FORBIDDEN', 'AUTH_ERROR'];
                     if (fatalCodes.includes(msg.code)) {
                         this.state.fatalError = true;
                         UIModule.toast('錯誤: ' + msg.message, 'error');
@@ -506,6 +511,7 @@ const ClassroomStudentApp = {
             switch (message.type) {
                 case 'connected':
                     console.log('Connected to WebSocket server');
+                    this.state.reconnectAttempts = 0;
                     // Request latest push after (re)connect
                     this._sendWSMessage({ type: 'get_latest_push' });
                     // Also check for lesson state
@@ -539,7 +545,9 @@ const ClassroomStudentApp = {
                     break;
 
                 case 'room_closed':
+                    this.state.fatalError = true;
                     ClassroomStudentUI.showRoomClosedOverlay();
+                    setTimeout(() => { window.location.href = '/classroom'; }, 5000);
                     break;
 
                 case 'error':

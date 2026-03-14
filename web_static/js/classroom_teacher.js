@@ -848,15 +848,15 @@ function connectWebSocket() {
 
     state.ws.onopen = () => {
         state.wsConnected = true;
-        wsRetryCount = 0;
-        UIModule.toast('已連接到課室', 'info');
+        // wsRetryCount is reset when "connected" message is received
+        // (after server-side auth + room checks pass), not here
         startHeartbeat();
     };
 
     state.ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type === 'error') {
-            const fatalCodes = ['ROOM_NOT_FOUND', 'FORBIDDEN', 'AUTH_ERROR'];
+            const fatalCodes = ['ROOM_NOT_FOUND', 'ROOM_ACCESS_DENIED', 'CLASS_NOT_ALLOWED', 'FORBIDDEN', 'AUTH_ERROR'];
             if (fatalCodes.includes(msg.code)) {
                 wsFatalError = true;
                 UIModule.toast('錯誤: ' + msg.message, 'error');
@@ -890,6 +890,8 @@ function connectWebSocket() {
 function handleWebSocketMessage(message) {
     switch (message.type) {
         case 'connected':
+            wsRetryCount = 0;
+            UIModule.toast('已連接到課室', 'info');
             // 連接成功後從 API 獲取房間詳情（含 status）
             loadRoomInfo();
             break;

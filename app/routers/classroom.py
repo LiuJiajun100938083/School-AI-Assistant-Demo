@@ -279,8 +279,13 @@ async def delete_room(
     """删除房间 (软删除, 仅教师)"""
     username, _ = user_info
     try:
-        # 先关闭 WS 连接
+        # 先通知所有在线用户房间即将删除，再关闭 WS 连接
         ws_manager = get_classroom_ws_manager()
+        await ws_manager.broadcast_to_room(room_id, {
+            "type": "room_closed",
+            "reason": "deleted",
+            "message": "教師已刪除此課室",
+        })
         await ws_manager.close_room(room_id)
 
         loop = asyncio.get_event_loop()
@@ -1838,6 +1843,7 @@ async def websocket_classroom(
         except AppException as e:
             await websocket.send_json({
                 "type": "error",
+                "code": e.code,
                 "message": e.message,
             })
             await websocket.close(code=4003, reason=e.message)
