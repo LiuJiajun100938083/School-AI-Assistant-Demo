@@ -124,6 +124,8 @@ function initializeCanvas() {
     });
 
     // Eraser: set globalCompositeOperation on created paths
+    // + Auto-push annotations for PPT slides in lesson mode
+    let _autoPushTimer = null;
     state.canvas.on('path:created', (e) => {
         if (state.currentTool === 'eraser' && e.path) {
             e.path.globalCompositeOperation = 'destination-out';
@@ -135,6 +137,14 @@ function initializeCanvas() {
                 state.canvasHistory[state.historyIndex] = JSON.stringify(state.canvas.toJSON());
             }
             state.canvas.renderAll();
+        }
+        // Auto-push annotations for PPT in lesson mode (debounced 500ms)
+        if (state.lessonMode && state.lessonSlide && state.lessonSlide.slide_type === 'ppt') {
+            const lc = (state.lessonSession || {}).slide_lifecycle || 'prepared';
+            if (lc !== 'prepared') {
+                clearTimeout(_autoPushTimer);
+                _autoPushTimer = setTimeout(() => pushLessonAnnotations(), 500);
+            }
         }
     });
 
@@ -1345,6 +1355,14 @@ function updateLessonUI() {
         activateBtn.style.display = lifecycle === 'prepared' ? '' : 'none';
         activateBtn.disabled = state.roomStatus !== 'active';
     }
+
+    // Response buttons: only for interactive slides (quiz, poll), not PPT/game/link
+    const isPPT = slide && slide.slide_type === 'ppt';
+    const isInteractive = slide && ['quiz', 'poll'].includes(slide.slide_type);
+    const openBtn = document.getElementById('openResponsesBtn');
+    const closeBtn = document.getElementById('closeResponsesBtn');
+    if (openBtn) openBtn.style.display = isInteractive && lifecycle !== 'prepared' ? '' : 'none';
+    if (closeBtn) closeBtn.style.display = isInteractive && lifecycle !== 'prepared' ? '' : 'none';
 
     // Quiz-specific buttons: phase-aware control
     const isQuiz = slide && slide.slide_type === 'quiz';
