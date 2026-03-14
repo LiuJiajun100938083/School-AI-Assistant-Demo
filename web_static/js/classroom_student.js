@@ -1023,15 +1023,16 @@ const ClassroomStudentApp = {
         const accepting = this.state.lessonAccepting;
         console.log(`Lesson lifecycle: ${lifecycle}, accepting: ${accepting}`);
 
-        // Quiz: re-render current question when accepting changes
         const slide = this.state.currentLessonSlide;
-        if (slide && slide.slide_type === 'quiz' && accepting && this.state.quizSlideData) {
+        if (slide && slide.slide_type === 'quiz' && this.state.quizSlideData) {
             const sd = this.state.quizSlideData;
             const questions = sd.questions || [];
             const currentIdx = sd.current_question_index || 0;
             const q = questions[currentIdx];
-            if (q && !this.state.quizMyAnswers?.[q.id]) {
-                // Re-render with options visible
+            if (!q) return;
+
+            if (accepting && !this.state.quizMyAnswers?.[q.id]) {
+                // Open responses: re-render with options visible
                 const renderer = LessonSlideRenderers.get('quiz');
                 const wrapper = document.querySelector('.canvas-wrapper');
                 if (renderer && wrapper) {
@@ -1048,6 +1049,19 @@ const ClassroomStudentApp = {
                             });
                         },
                     });
+                }
+            } else if (!accepting) {
+                // Close responses: disable all options, keep selected highlighted
+                const wrapper = document.querySelector('.canvas-wrapper');
+                if (wrapper) {
+                    wrapper.querySelectorAll('.quiz-opt').forEach(opt => {
+                        opt.classList.add('disabled');
+                    });
+                    // Disable fill-in input too
+                    const fillInput = wrapper.querySelector('.quiz-fill-input');
+                    const fillBtn = wrapper.querySelector('.quiz-fill-confirm');
+                    if (fillInput) fillInput.disabled = true;
+                    if (fillBtn) fillBtn.disabled = true;
                 }
             }
         }

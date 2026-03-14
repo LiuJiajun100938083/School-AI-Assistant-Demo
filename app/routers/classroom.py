@@ -1996,11 +1996,19 @@ async def websocket_classroom(
                         },
                     })
                 except Exception as e:
-                    logger.error("WS quiz_answer 失败: %s", e)
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": str(e) if isinstance(e, (ValueError, AppException)) else "答题失败",
-                    })
+                    from app.domains.classroom.lesson_exceptions import SlideNotAcceptingResponsesError
+                    if isinstance(e, SlideNotAcceptingResponsesError):
+                        # Not fatal: just tell student answer was not recorded
+                        await websocket.send_json({
+                            "type": "quiz_answer_ack",
+                            "data": {"recorded": False, "question_id": data.get("question_id"), "reason": "closed"},
+                        })
+                    else:
+                        logger.error("WS quiz_answer 失败: %s", e)
+                        await websocket.send_json({
+                            "type": "quiz_answer_ack",
+                            "data": {"recorded": False, "question_id": data.get("question_id")},
+                        })
 
             elif msg_type == "submit_response" and role == "student":
                 # 学生通过 WS 提交响应
