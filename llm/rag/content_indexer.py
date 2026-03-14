@@ -287,9 +287,9 @@ class ContentIndexer:
             return True
 
         doc_id = f"lc_content_{content_id}"
-        title = content_row.get("title", "")
-        filename = content_row.get("file_name", "")
-        subject = content_row.get("subject_code", "")
+        title = content_row.get("title") or ""
+        filename = content_row.get("file_name") or ""
+        subject = content_row.get("subject_code") or ""
 
         # 为每个 chunk 计算覆盖的页码
         chunk_page_map = self._map_chunks_to_pages(
@@ -309,7 +309,7 @@ class ContentIndexer:
                     "source": SOURCE_TAG,
                     "total_chunks": len(chunks),
                     "indexed_at": datetime.now().isoformat(),
-                    "page_numbers": chunk_page_map.get(i, ""),
+                    "page_numbers": chunk_page_map.get(i) or "",
                 },
             )
             for i, chunk in enumerate(chunks)
