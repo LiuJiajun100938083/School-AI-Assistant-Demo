@@ -711,12 +711,19 @@ class LessonService:
 
         total = self._response_repo.count_by_slide(session_id, slide_id)
 
-        return {
+        ret = {
             "response_id": response_id,
             "is_correct": result.get("is_correct"),
             "score": result.get("score"),
             "total_responses": total,
         }
+
+        # For poll votes, include aggregated vote counts so teacher can update live
+        if response_type == "poll_vote":
+            all_responses = self._response_repo.list_by_slide(session_id, slide_id)
+            ret["poll_results"] = handler.aggregate_results(all_responses)
+
+        return ret
 
     def get_slide_results(
         self,

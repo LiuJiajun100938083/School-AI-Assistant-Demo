@@ -944,6 +944,11 @@ function handleWebSocketMessage(message) {
         case 'student_responded':
             if (message.data) {
                 UIModule.toast(`學生 ${message.data.student_username} 已回應 (${message.data.total_responses} 人)`, 'info');
+                // Live-update poll teacher view
+                if (message.data.response_type === 'poll_vote' && message.data.poll_results && state.lessonSlide) {
+                    state.lessonSlide.results = message.data.poll_results;
+                    updateLessonUI();
+                }
             }
             break;
 

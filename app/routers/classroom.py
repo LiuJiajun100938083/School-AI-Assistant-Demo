@@ -2078,15 +2078,18 @@ async def websocket_classroom(
                     })
 
                     # notify teacher
+                    broadcast_data = {
+                        "slide_id": data.get("slide_id"),
+                        "student_username": username,
+                        "response_type": data.get("response_type"),
+                        "is_correct": result.get("is_correct"),
+                        "total_responses": result["total_responses"],
+                    }
+                    if result.get("poll_results"):
+                        broadcast_data["poll_results"] = result["poll_results"]
                     await ws_manager.broadcast_to_room(room_id, {
                         "type": "student_responded",
-                        "data": {
-                            "slide_id": data.get("slide_id"),
-                            "student_username": username,
-                            "response_type": data.get("response_type"),
-                            "is_correct": result.get("is_correct"),
-                            "total_responses": result["total_responses"],
-                        },
+                        "data": broadcast_data,
                     }, exclude=username)
                 except AppException as e:
                     await websocket.send_json({
