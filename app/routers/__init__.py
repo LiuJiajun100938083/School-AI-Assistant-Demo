@@ -52,6 +52,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.assignment import router as assignment_router
     from app.routers.class_diary import router as class_diary_router
     from app.routers.image_gen import router as image_gen_router
+    from app.routers.resource_library import router as resource_library_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -79,6 +80,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(assignment_router)
     app.include_router(class_diary_router)
     app.include_router(image_gen_router)
+    app.include_router(resource_library_router)
 
     logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, assignment, class_diary, image_gen")
 
@@ -529,6 +531,13 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_lesson_system()
     except Exception as e:
         logger.warning("课案系统初始化失败: %s", e)
+
+    # 初始化共享资源库系统
+    try:
+        from app.routers.resource_library import init_resource_library_system
+        init_resource_library_system()
+    except Exception as e:
+        logger.warning("共享资源库系统初始化失败: %s", e)
 
     # 论坛系统
     try:

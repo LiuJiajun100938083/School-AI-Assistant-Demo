@@ -286,6 +286,31 @@ html, body {
     color: var(--text-tertiary);
 }
 
+.resource-lib-btn {
+    padding: 10px 20px;
+    background: var(--bg-card);
+    color: var(--brand);
+    border: 1px solid var(--brand);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all var(--duration-fast);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex;
+    align-items: center;
+}
+
+.resource-lib-btn:hover {
+    background: var(--brand-lighter);
+    box-shadow: var(--shadow-md);
+}
+
+.resource-lib-btn:active {
+    background: var(--brand-light);
+}
+
 .create-btn {
     padding: 10px 20px;
     background: var(--brand);

@@ -718,20 +718,25 @@ class ClassroomService:
         """
         获取 PPT 页面图片的磁盘路径 (用于 FileResponse)
 
+        使用 get_by_file_id_include_deleted 查询，确保被 soft-delete 但磁盘文件
+        仍保留 (因被共享/克隆引用) 的 PPT 图片可正常访问。
+
         Returns:
             图片文件的绝对路径
 
         Raises:
             PPTNotFoundError: PPT 或页面不存在
         """
-        ppt_record = self._ppt_repo.get_by_file_id(file_id)
+        ppt_record = self._ppt_repo.get_by_file_id_include_deleted(file_id)
         if not ppt_record:
             raise PPTNotFoundError(file_id)
 
         # 校验房间访问权限
-        room = self._room_repo.get_by_room_id(ppt_record["room_id"])
-        if room:
-            self._check_room_access(room, current_username, current_role)
+        room_id = ppt_record.get("room_id")
+        if room_id:
+            room = self._room_repo.get_by_room_id(room_id)
+            if room:
+                self._check_room_access(room, current_username, current_role)
 
         page = self._page_repo.get_page_by_number(file_id, page_number)
         if not page:
@@ -746,14 +751,20 @@ class ClassroomService:
         current_username: str,
         current_role: str,
     ) -> str:
-        """获取 PPT 页面缩略图的磁盘路径"""
-        ppt_record = self._ppt_repo.get_by_file_id(file_id)
+        """
+        获取 PPT 页面缩略图的磁盘路径。
+        使用 get_by_file_id_include_deleted 确保被 soft-delete 但磁盘文件
+        仍保留 (因被共享/克隆引用) 的 PPT 缩略图可正常访问。
+        """
+        ppt_record = self._ppt_repo.get_by_file_id_include_deleted(file_id)
         if not ppt_record:
             raise PPTNotFoundError(file_id)
 
-        room = self._room_repo.get_by_room_id(ppt_record["room_id"])
-        if room:
-            self._check_room_access(room, current_username, current_role)
+        room_id = ppt_record.get("room_id")
+        if room_id:
+            room = self._room_repo.get_by_room_id(room_id)
+            if room:
+                self._check_room_access(room, current_username, current_role)
 
         page = self._page_repo.get_page_by_number(file_id, page_number)
         if not page:
@@ -793,7 +804,10 @@ class ClassroomService:
         teacher_username: str,
     ) -> None:
         """
-        删除 PPT 文件 (软删除数据库记录 + 清理磁盘文件)
+        删除 PPT 文件 (软删除数据库记录 + 条件清理磁盘文件)
+
+        如果 PPT 文件被共享资源或其他课案引用，则保留磁盘文件，
+        仅软删除数据库记录，确保引用方的图片不会 404。
         """
         ppt_record = self._ppt_repo.get_by_file_id(file_id)
         if not ppt_record:
@@ -802,16 +816,21 @@ class ClassroomService:
         if ppt_record["teacher_username"] != teacher_username:
             raise RoomAccessDeniedError("只有上传者可以删除 PPT")
 
-        # 软删除数据库记录
+        # 软删除数据库记录（永远做）
         self._ppt_repo.soft_delete_ppt(file_id)
 
-        # 清理磁盘文件
-        self.ppt_processor.delete_ppt_files(file_id)
-
-        logger.info(
-            "PPT 已删除: %s (教师: %s)",
-            file_id, teacher_username,
-        )
+        # 检查是否被共享/克隆引用，决定是否清理磁盘文件
+        if self._ppt_repo.is_file_referenced(file_id):
+            logger.info(
+                "PPT 已软删除但保留磁盘文件 (被共享/克隆引用): %s (教师: %s)",
+                file_id, teacher_username,
+            )
+        else:
+            self.ppt_processor.delete_ppt_files(file_id)
+            logger.info(
+                "PPT 已删除 (含磁盘文件): %s (教师: %s)",
+                file_id, teacher_username,
+            )
 
     # ================================================================
     # 教师推送

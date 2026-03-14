@@ -67,6 +67,7 @@ const ClassroomUI = {
             userAvatar: document.getElementById('userAvatar'),
             userName: document.getElementById('userName'),
             userRole: document.getElementById('userRole'),
+            resourceLibBtn: document.getElementById('resourceLibBtn'),
             createBtn: document.getElementById('createBtn'),
             searchInput: document.getElementById('searchInput'),
             teacherSection: document.getElementById('teacherSection'),
@@ -93,11 +94,13 @@ const ClassroomUI = {
             el.userRole.textContent = '教師';
             el.userRole.classList.add('teacher');
             el.createBtn.style.display = 'inline-block';
+            el.resourceLibBtn.style.display = 'inline-flex';
             el.teacherSection.style.display = 'block';
         } else {
             el.userRole.textContent = '學生';
             el.userRole.classList.add('student');
             el.createBtn.style.display = 'none';
+            el.resourceLibBtn.style.display = 'none';
             el.studentSection.style.display = 'block';
         }
     },

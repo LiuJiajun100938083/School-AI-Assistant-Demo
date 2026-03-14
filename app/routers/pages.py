@@ -185,6 +185,12 @@ async def classroom_list():
     return _serve_page("classroom_list.html")
 
 
+@router.get("/classroom/resource-library")
+async def resource_library():
+    """共享资源库页面"""
+    return _serve_page("resource_library.html")
+
+
 @router.get("/classroom/teacher/{room_id}")
 async def classroom_teacher(room_id: str):
     """教师课堂页面 (含 PPT 展示 + 画板 + 推送)"""

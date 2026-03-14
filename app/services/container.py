@@ -88,6 +88,12 @@ from app.domains.classroom.lesson_repository import (
     LessonSessionRepository,
     LessonSlideRepository,
 )
+from app.domains.resource_library.repository import (
+    ResourceGroupMemberRepository,
+    ResourceGroupRepository,
+    SharedResourceRepository,
+    SharedResourceSlideRepository,
+)
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.farm_game.repository import FarmGameRepository
@@ -138,6 +144,7 @@ from app.domains.assignment.service import AssignmentService
 from app.domains.assignment.plagiarism_service import PlagiarismService
 from app.domains.class_diary.service import ClassDiaryService
 from app.domains.image_gen.service import ImageGenService
+from app.domains.resource_library.service import ResourceLibraryService
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +199,7 @@ class ServiceContainer:
         self._class_diary: Optional[ClassDiaryService] = None
         self._image_gen: Optional[ImageGenService] = None
         self._lesson: Optional[LessonService] = None
+        self._resource_library: Optional[ResourceLibraryService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -255,6 +263,21 @@ class ServiceContainer:
                 response_repo=self._get_repo(LessonResponseRepository),
             )
         return self._lesson
+
+    @property
+    def resource_library(self) -> ResourceLibraryService:
+        """共享资源库服务"""
+        if self._resource_library is None:
+            self._resource_library = ResourceLibraryService(
+                group_repo=self._get_repo(ResourceGroupRepository),
+                member_repo=self._get_repo(ResourceGroupMemberRepository),
+                share_repo=self._get_repo(SharedResourceRepository),
+                share_slide_repo=self._get_repo(SharedResourceSlideRepository),
+                plan_repo=self._get_repo(LessonPlanRepository),
+                slide_repo=self._get_repo(LessonSlideRepository),
+                room_repo=self._get_repo(ClassroomRoomRepository),
+            )
+        return self._resource_library
 
     @property
     def attendance(self) -> AttendanceService:

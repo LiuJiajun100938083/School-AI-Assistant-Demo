@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>共享資源庫</title>
+    <link rel="stylesheet" href="/static/css/resource_library.css">
+    <link rel="stylesheet" href="/static/css/spinner.css">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-content">
+            <div class="splash-title">資源庫</div>
+            <div class="splash-subtitle">RESOURCE LIBRARY</div>
+            <div class="splash-loader">
+                <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container" id="mainContainer" style="display: none;">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <button class="back-button" id="backBtn" title="返回課堂">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h1 class="header-title">共享資源庫</h1>
+            </div>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div>
+                    <div class="user-name" id="userName">User</div>
+                    <span class="user-role teacher" id="userRole">教師</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav" id="tabNav">
+            <button class="tab-btn active" data-tab="personal">
+                <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+                個人課案
+            </button>
+            <button class="tab-btn" data-tab="group">
+                <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.97 5.97 0 00-.75-2.9A3.01 3.01 0 0119 15v3h-3zM4.75 12.1A5.97 5.97 0 004 15v3H1v-3a3 3 0 013.75-2.9z"/></svg>
+                組別共享
+            </button>
+            <button class="tab-btn" data-tab="school">
+                <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.05a.5.5 0 01.25.44v2.983c0 .119.043.233.12.326C6.862 13.396 8.342 14 10 14s3.138-.604 4.38-2.2a.5.5 0 00.12-.327V8.49a.5.5 0 01.25-.44l2.644-1.13a1 1 0 000-1.84l-7-3zM17 8.5v4l-1 .5v-4l1-.5z"/></svg>
+                全校共享
+            </button>
+            <button class="tab-btn" data-tab="my-shares">
+                <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.03 3.03 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg>
+                我的分享
+            </button>
+            <button class="tab-btn" data-tab="admin" id="adminTab" style="display:none;">
+                <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.53 1.53 0 01-2.29.95c-1.37-.84-2.94.73-2.1 2.1.46.75.12 1.74-.68 2.12-1.56.38-1.56 2.6 0 2.98a1.53 1.53 0 01.95 2.29c-.84 1.37.73 2.94 2.1 2.1a1.53 1.53 0 012.12.68c.38 1.56 2.6 1.56 2.98 0a1.53 1.53 0 012.29-.95c1.37.84 2.94-.73 2.1-2.1a1.53 1.53 0 01.68-2.12c1.56-.38 1.56-2.6 0-2.98a1.53 1.53 0 01-.95-2.29c.84-1.37-.73-2.94-2.1-2.1a1.53 1.53 0 01-2.12-.68zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+                分組管理
+            </button>
+        </nav>
+
+        <!-- Tab Panels -->
+        <div class="tab-panel active" id="panel-personal"></div>
+        <div class="tab-panel" id="panel-group"></div>
+        <div class="tab-panel" id="panel-school"></div>
+        <div class="tab-panel" id="panel-my-shares"></div>
+        <div class="tab-panel" id="panel-admin"></div>
+    </div>
+
+    <!-- Share Plan Modal -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">分享課案</h2>
+                <button class="modal-close" id="closeShareModal">&times;</button>
+            </div>
+            <form id="shareForm">
+                <div class="form-group">
+                    <label class="form-label">分享範圍</label>
+                    <div class="scope-radio-group">
+                        <div class="scope-radio">
+                            <input type="radio" name="shareScope" id="scopeGroup" value="group" checked>
+                            <label for="scopeGroup">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                組別
+                            </label>
+                        </div>
+                        <div class="scope-radio">
+                            <input type="radio" name="shareScope" id="scopeSchool" value="school">
+                            <label for="scopeSchool">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 22V8l10-6 10 6v14"/><path d="M6 12v6h4v-6"/><path d="M14 12v6h4v-6"/><path d="M12 2v4"/></svg>
+                                全校
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group" id="groupSelectGroup">
+                    <label class="form-label">選擇分組</label>
+                    <select class="form-select" id="shareGroupId">
+                        <option value="">請選擇...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">學科標籤</label>
+                    <input type="text" class="form-input" id="shareSubjectTag" placeholder="例如：數學、英語（可選）">
+                </div>
+                <input type="hidden" id="sharePlanId">
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelShareBtn">取消</button>
+                    <button type="submit" class="btn-submit" id="submitShareBtn">確認分享</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Clone Modal -->
+    <div class="modal-overlay" id="cloneModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">克隆課案到課堂</h2>
+                <button class="modal-close" id="closeCloneModal">&times;</button>
+            </div>
+            <form id="cloneForm">
+                <div class="form-group">
+                    <label class="form-label">選擇目標課堂</label>
+                    <select class="form-select" id="cloneRoomId">
+                        <option value="">請選擇課堂...</option>
+                    </select>
+                    <div class="form-hint">課案將以草稿狀態複製到所選課堂中</div>
+                </div>
+                <input type="hidden" id="cloneShareId">
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelCloneBtn">取消</button>
+                    <button type="submit" class="btn-submit" id="submitCloneBtn">確認克隆</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Group Modal -->
+    <div class="modal-overlay" id="createGroupModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">創建分組</h2>
+                <button class="modal-close" id="closeGroupModal">&times;</button>
+            </div>
+            <form id="createGroupForm">
+                <div class="form-group">
+                    <label class="form-label">分組名稱 *</label>
+                    <input type="text" class="form-input" id="groupName" placeholder="例如：數學科組" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">描述</label>
+                    <textarea class="form-textarea" id="groupDesc" placeholder="分組描述（可選）"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelGroupBtn">取消</button>
+                    <button type="submit" class="btn-submit" id="submitGroupBtn">創建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Member Modal -->
+    <div class="modal-overlay" id="addMemberModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">添加成員</h2>
+                <button class="modal-close" id="closeMemberModal">&times;</button>
+            </div>
+            <form id="addMemberForm">
+                <div class="form-group">
+                    <label class="form-label">選擇教師 *</label>
+                    <select class="form-select" id="memberUsername" required>
+                        <option value="">請選擇教師...</option>
+                    </select>
+                </div>
+                <input type="hidden" id="memberGroupId">
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelMemberBtn">取消</button>
+                    <button type="submit" class="btn-submit" id="submitMemberBtn">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/ui.js"></script>
+    <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/resource_library.js"></script>
+</body>
+</html>

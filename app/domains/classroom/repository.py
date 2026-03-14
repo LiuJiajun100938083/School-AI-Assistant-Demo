@@ -356,6 +356,42 @@ class PPTFileRepository(BaseRepository):
             data["error_message"] = error_message
         return self.update(data, "file_id = %s", (file_id,))
 
+    def get_by_file_id_include_deleted(self, file_id: str) -> Optional[Dict[str, Any]]:
+        """
+        根据 file_id 查询 PPT 文件 (不过滤 is_deleted)。
+        仅限图片/缩略图路径解析场景使用 — 确保 soft-deleted 但磁盘文件仍在的 PPT 可访问。
+        """
+        return self.find_one("file_id = %s", (file_id,))
+
+    def is_file_referenced(self, file_id: str, exclude_plan_id: Optional[str] = None) -> bool:
+        """
+        检查 PPT 文件是否被共享资源或其他课案引用 (防止删除磁盘文件)。
+        同时查 shared_resource_slides + lesson_slides 两张表。
+        """
+        # 1. 检查共享资源引用
+        row = self.raw_query_one(
+            "SELECT 1 FROM shared_resource_slides "
+            "WHERE JSON_EXTRACT(config, '$.file_id') = %s LIMIT 1",
+            (file_id,),
+        )
+        if row:
+            return True
+
+        # 2. 检查其他课案引用 (排除原 plan 自身)
+        if exclude_plan_id:
+            row = self.raw_query_one(
+                "SELECT 1 FROM lesson_slides "
+                "WHERE JSON_EXTRACT(config, '$.file_id') = %s AND plan_id != %s LIMIT 1",
+                (file_id, exclude_plan_id),
+            )
+        else:
+            row = self.raw_query_one(
+                "SELECT 1 FROM lesson_slides "
+                "WHERE JSON_EXTRACT(config, '$.file_id') = %s LIMIT 1",
+                (file_id,),
+            )
+        return row is not None
+
     def soft_delete_ppt(self, file_id: str) -> int:
         """软删除 PPT 文件"""
         return self.soft_delete("file_id = %s", (file_id,))
