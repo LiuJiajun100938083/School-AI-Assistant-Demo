@@ -1331,6 +1331,17 @@
         window.location.href = '/classroom';
     });
     document.getElementById('saveBtn').addEventListener('click', savePlan);
+    document.getElementById('saveSlideBtn').addEventListener('click', async () => {
+        const btn = document.getElementById('saveSlideBtn');
+        const origText = btn.innerHTML;
+        btn.classList.add('saved');
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> 已儲存';
+        await savePlan();
+        setTimeout(() => {
+            btn.classList.remove('saved');
+            btn.innerHTML = origText;
+        }, 1500);
+    });
     document.getElementById('addSlideBtn').addEventListener('click', openAddModal);
     document.getElementById('closeModalBtn').addEventListener('click', closeAddModal);
     document.getElementById('deleteSlideBtn').addEventListener('click', deleteSlide);

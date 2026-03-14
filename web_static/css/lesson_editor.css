@@ -359,7 +359,48 @@ body {
     margin-top: 24px;
     padding-top: 16px;
     border-top: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
+
+.btn-save-slide {
+    width: 100%;
+    padding: 9px 8px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--brand);
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-save-slide:hover { background: var(--brand-hover); }
+.btn-save-slide:active { transform: scale(0.98); }
+.btn-save-slide.saved {
+    background: var(--color-success);
+    pointer-events: none;
+}
+
+.btn-delete-slide {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+.btn-delete-slide:hover { color: var(--color-danger); background: rgba(255, 59, 48, 0.06); }
 
 .config-empty {
     display: flex;
@@ -370,6 +411,7 @@ body {
     font-size: 14px;
 }
 
+/* btn-danger kept for potential reuse */
 .btn-danger {
     width: 100%;
     padding: 8px;
