@@ -20,8 +20,8 @@ class LLMConfig:
     local_model: str = "qwen3.5:35b"
     local_base_url: str = "http://localhost:11434"
 
-    # SVG 幾何圖生成專用模型
-    svg_model: str = "qwen3-coder:30b"
+    # SVG 幾何圖 spec 提取專用模型
+    svg_model: str = "qwen3.5:35b"
 
     # API 模型配置 (預留，暫未啟用)
     api_model: str = "deepseek-chat"
@@ -80,7 +80,7 @@ class LLMConfigManager:
         config = LLMConfig(
             local_model=os.getenv('LLM_LOCAL_MODEL', 'qwen3.5:35b'),
             local_base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
-            svg_model=os.getenv('LLM_SVG_MODEL', 'qwen3-coder:30b'),
+            svg_model=os.getenv('LLM_SVG_MODEL', 'qwen3.5:35b'),
             api_model=os.getenv('LLM_API_MODEL', 'deepseek-chat'),
             api_base_url=os.getenv('LLM_API_BASE_URL', 'https://api.deepseek.com/v1'),
             api_key=os.getenv('LLM_API_KEY'),
