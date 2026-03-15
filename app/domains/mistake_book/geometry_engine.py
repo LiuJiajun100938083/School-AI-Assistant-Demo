@@ -150,14 +150,18 @@ def _validate_spec(spec: dict) -> None:
             raise GeometrySolveError(f"約束 {i} 缺少 type 字段")
         if ctype == "length":
             v = c.get("value")
-            if v is not None and float(v) == 0:
-                logger.info("過濾掉 length=0 約束: segment=%s", c.get("segment"))
+            if v is None:
+                logger.info("過濾掉 value=null 的 length 約束: segment=%s", c.get("segment"))
                 continue
-            if v is None or float(v) <= 0:
-                raise GeometrySolveError(f"約束 {i}: length.value 必須為正數")
+            if float(v) <= 0:
+                logger.info("過濾掉 length<=0 約束: segment=%s, value=%s", c.get("segment"), v)
+                continue
         elif ctype == "angle":
             v = c.get("value")
-            if v is None or not (0 < float(v) < 360):
+            if v is None:
+                logger.info("過濾掉 value=null 的 angle 約束: vertex=%s", c.get("vertex"))
+                continue
+            if not (0 < float(v) < 360):
                 raise GeometrySolveError(f"約束 {i}: angle.value 必須在 (0, 360)")
         filtered.append(c)
     spec["constraints"] = filtered
