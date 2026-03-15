@@ -1815,26 +1815,58 @@ class MistakeBookService:
         username: str,
         answers: List[Dict],
     ) -> Dict:
-        """提交練習答案並批改"""
+        """提交練習答案並批改（混合批改管線）"""
+        import asyncio
+
         session = self._practices.find_by_session_id(session_id)
         if not session:
             raise PracticeNotFoundError(session_id)
 
         questions = json.loads(session["questions"]) if isinstance(session["questions"], str) else session["questions"]
+        subject = session["subject"]
 
-        # 批改
+        # 並行 LLM 批改（Semaphore 限制併發）
+        sem = asyncio.Semaphore(2)
+
+        async def _grade_with_sem(q, student_answer):
+            async with sem:
+                return await self._grade_single_question(subject, q, student_answer)
+
+        # 構建批改任務
+        grade_tasks = []
+        answer_map = {}  # idx → student_answer
+        for ans in answers:
+            idx = ans.get("question_idx", 0)
+            student_answer = ans.get("answer", "")
+            answer_map[idx] = student_answer
+            if idx < len(questions):
+                grade_tasks.append((idx, _grade_with_sem(questions[idx], student_answer)))
+
+        # 並行執行批改
+        grade_results = {}
+        if grade_tasks:
+            indices, coros = zip(*grade_tasks)
+            graded = await asyncio.gather(*coros, return_exceptions=True)
+            for idx, result in zip(indices, graded):
+                if isinstance(result, Exception):
+                    logger.warning("題 %d 批改異常: %s", idx + 1, result)
+                    grade_results[idx] = {}
+                else:
+                    grade_results[idx] = result
+
+        # 組裝結果
         correct_count = 0
         results = []
         mastery_updates = []
 
         for ans in answers:
             idx = ans.get("question_idx", 0)
-            student_answer = ans.get("answer", "")
+            student_answer = answer_map.get(idx, "")
 
             if idx < len(questions):
                 q = questions[idx]
-                correct_answer = q.get("correct_answer", "")
-                is_correct = self._simple_check(student_answer, correct_answer)
+                grading = grade_results.get(idx, {})
+                is_correct = grading.get("is_correct", False)
 
                 if is_correct:
                     correct_count += 1
@@ -1843,15 +1875,20 @@ class MistakeBookService:
                     "question_idx": idx,
                     "student_answer": student_answer,
                     "is_correct": is_correct,
-                    "correct_answer": correct_answer,
+                    "correctness_level": grading.get("correctness_level"),
+                    "correct_answer": q.get("correct_answer", ""),
+                    "error_analysis": grading.get("error_analysis"),
+                    "error_type": grading.get("error_type"),
                     "explanation": q.get("explanation", ""),
+                    "grading_source": grading.get("grading_source", "deterministic"),
+                    "grading_model": grading.get("grading_model"),
                 })
 
                 # 更新掌握度
                 point_code = q.get("point_code", "")
                 if point_code:
                     update = self._update_mastery_on_practice(
-                        username, session["subject"], point_code, is_correct,
+                        username, subject, point_code, is_correct,
                         q.get("difficulty", 3),
                     )
                     if update:
@@ -1863,33 +1900,33 @@ class MistakeBookService:
         snapshot_codes = [u["point_code"] for u in mastery_updates]
         if snapshot_codes:
             self._save_mastery_snapshots(
-                username, session["subject"],
+                username, subject,
                 snapshot_codes, "practice", session_id
             )
 
-        # 更新練習記錄
+        # AI 總評（結構驅動 + best-effort）
+        ai_feedback = ""
+        try:
+            feedback_prompt = self._build_practice_feedback_prompt(
+                subject, questions, results, score
+            )
+            ai_feedback = await self._ask_ai(feedback_prompt, subject)
+        except Exception as e:
+            logger.warning("練習反饋 AI 生成失敗: %s", e)
+
+        # 更新練習記錄（含 ai_feedback）
         self._practices.update(
             {
                 "student_answers": json.dumps(results, ensure_ascii=False),
                 "correct_count": correct_count,
                 "score": score,
+                "ai_feedback": ai_feedback or None,
                 "status": "completed",
                 "completed_at": datetime.now(),
             },
             "session_id = %s",
             (session_id,),
         )
-
-        # AI 反饋
-        ai_feedback = ""
-        if self._ask_ai_raw:
-            try:
-                feedback_prompt = self._build_practice_feedback_prompt(
-                    session["subject"], questions, results, score
-                )
-                ai_feedback = await self._ask_ai(feedback_prompt, session["subject"])
-            except Exception as e:
-                logger.warning("練習反饋 AI 生成失敗: %s", e)
 
         return {
             "session_id": session_id,
@@ -1900,6 +1937,241 @@ class MistakeBookService:
             "ai_feedback": ai_feedback,
             "mastery_updates": mastery_updates,
         }
+
+    # ================================================================
+    # 練習歷史 + 詳情 + 重練
+    # ================================================================
+
+    def get_practice_history(
+        self,
+        username: str,
+        subject: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> Dict:
+        """
+        獲取練習歷史列表（已完成的 session）。
+        後端計算趨勢信號：錯題數 + 主要 error_type。
+        """
+        result = self._practices.find_by_student(
+            username=username,
+            subject=subject,
+            status="completed",
+            page=page,
+            page_size=page_size,
+        )
+
+        items = []
+        for s in result.get("items", []):
+            total = s.get("total_questions", 0)
+            correct = s.get("correct_count", 0)
+            wrong_count = total - correct
+
+            # 解析 student_answers 提取主要 error_type
+            primary_error_type = None
+            if wrong_count > 0:
+                try:
+                    answers = s.get("student_answers")
+                    if isinstance(answers, str):
+                        answers = json.loads(answers)
+                    if isinstance(answers, list):
+                        error_counts: Dict[str, int] = {}
+                        for a in answers:
+                            if not a.get("is_correct") and a.get("error_type"):
+                                et = a["error_type"]
+                                error_counts[et] = error_counts.get(et, 0) + 1
+                        if error_counts:
+                            primary_error_type = max(error_counts, key=error_counts.get)
+                except Exception:
+                    pass
+
+            items.append({
+                "session_id": s["session_id"],
+                "subject": s.get("subject", ""),
+                "score": round(s.get("score", 0) or 0, 1),
+                "correct_count": correct,
+                "total_questions": total,
+                "wrong_count": wrong_count,
+                "primary_error_type": primary_error_type,
+                "session_type": s.get("session_type", "targeted"),
+                "completed_at": str(s["completed_at"]) if s.get("completed_at") else None,
+            })
+
+        return {
+            "items": items,
+            "total": result.get("total", 0),
+            "page": page,
+            "page_size": page_size,
+        }
+
+    def get_practice_session_detail(
+        self, session_id: str, username: str,
+    ) -> Dict:
+        """
+        獲取練習詳情（題目 + 批改結果）。
+        對舊格式 student_answers 做 normalize。
+        """
+        session = self._practices.find_by_session_id(session_id)
+        if not session:
+            raise PracticeNotFoundError(session_id)
+
+        if session.get("student_username") != username:
+            raise PracticeNotFoundError(session_id)
+
+        questions = session.get("questions")
+        if isinstance(questions, str):
+            questions = json.loads(questions)
+        questions = questions or []
+
+        student_answers = session.get("student_answers")
+        if isinstance(student_answers, str):
+            student_answers = json.loads(student_answers)
+        student_answers = student_answers or []
+
+        # Normalize 舊格式（補默認字段）
+        for r in student_answers:
+            r.setdefault("correctness_level", None)
+            r.setdefault("error_analysis", None)
+            r.setdefault("error_type", None)
+            r.setdefault("grading_source", "legacy")
+
+        # 合併題目與批改結果
+        merged = []
+        for idx, q in enumerate(questions):
+            answer_data = next(
+                (a for a in student_answers if a.get("question_idx") == idx),
+                {},
+            )
+            merged.append({
+                "question_idx": idx,
+                "question": q.get("question", ""),
+                "correct_answer": q.get("correct_answer", ""),
+                "explanation": q.get("explanation", ""),
+                "point_code": q.get("point_code", ""),
+                "difficulty": q.get("difficulty", 3),
+                "question_type": q.get("question_type", "short_answer"),
+                # 批改結果
+                "student_answer": answer_data.get("student_answer", ""),
+                "is_correct": answer_data.get("is_correct", False),
+                "correctness_level": answer_data.get("correctness_level"),
+                "error_analysis": answer_data.get("error_analysis"),
+                "error_type": answer_data.get("error_type"),
+                "grading_source": answer_data.get("grading_source", "legacy"),
+            })
+
+        return {
+            "session_id": session_id,
+            "subject": session.get("subject", ""),
+            "session_type": session.get("session_type", "targeted"),
+            "score": round(session.get("score", 0) or 0, 1),
+            "correct_count": session.get("correct_count", 0),
+            "total_questions": session.get("total_questions", 0),
+            "ai_feedback": session.get("ai_feedback"),
+            "completed_at": str(session["completed_at"]) if session.get("completed_at") else None,
+            "created_at": str(session["created_at"]) if session.get("created_at") else None,
+            "questions": merged,
+        }
+
+    async def generate_repractice(
+        self,
+        username: str,
+        source_session_id: str,
+        mode: str = "redo_wrong",
+    ) -> Dict:
+        """
+        從歷史 session 生成重練。
+
+        mode:
+        - "redo_wrong": 直接用原錯題（快照重做）
+        - "similar": 按錯題 point_code 生成新題
+        """
+        source = self._practices.find_by_session_id(source_session_id)
+        if not source or source.get("student_username") != username:
+            raise PracticeNotFoundError(source_session_id)
+
+        questions = source.get("questions")
+        if isinstance(questions, str):
+            questions = json.loads(questions)
+        questions = questions or []
+
+        student_answers = source.get("student_answers")
+        if isinstance(student_answers, str):
+            student_answers = json.loads(student_answers)
+        student_answers = student_answers or []
+
+        # 找出錯題
+        wrong_indices = set()
+        for a in student_answers:
+            if not a.get("is_correct"):
+                wrong_indices.add(a.get("question_idx"))
+        wrong_questions = [q for idx, q in enumerate(questions) if idx in wrong_indices]
+
+        if not wrong_questions:
+            return {"error": "no_wrong_questions", "message": "這次練習全部答對，沒有需要重練的題目！"}
+
+        subject = source.get("subject", "math")
+        import uuid as _uuid
+
+        if mode == "redo_wrong":
+            # 原題重做：直接用錯題快照
+            new_session_id = f"practice_{_uuid.uuid4().hex[:12]}"
+            self._practices.insert({
+                "session_id": new_session_id,
+                "student_username": username,
+                "subject": subject,
+                "session_type": "targeted",
+                "target_points": json.dumps([], ensure_ascii=False),
+                "questions": json.dumps(wrong_questions, ensure_ascii=False),
+                "total_questions": len(wrong_questions),
+                "status": "generated",
+                "created_at": datetime.now(),
+            })
+
+            return {
+                "session_id": new_session_id,
+                "questions": wrong_questions,
+                "total_questions": len(wrong_questions),
+                "source_session_id": source_session_id,
+                "source_mode": "redo_wrong",
+            }
+
+        elif mode == "similar":
+            # 同類再練：按 point_code 生成新題
+            point_codes = list({q.get("point_code", "") for q in wrong_questions if q.get("point_code")})
+            if not point_codes:
+                # 沒有 point_code → 回退到原題重做
+                return await self.generate_repractice(username, source_session_id, "redo_wrong")
+
+            target_points = []
+            for code in point_codes:
+                point = self._knowledge.find_by_code(code)
+                if point:
+                    target_points.append({
+                        "point_code": code,
+                        "point_name": point.get("point_name", code),
+                        "category": point.get("category", ""),
+                    })
+
+            if not target_points:
+                return await self.generate_repractice(username, source_session_id, "redo_wrong")
+
+            # 用現有 generate_practice 生成新題
+            result = await self.generate_practice(
+                username=username,
+                subject=subject,
+                target_points=target_points,
+                question_count=len(wrong_questions),
+            )
+
+            # 記錄來源鏈（在 session 創建後追加 metadata）
+            if result.get("session_id"):
+                result["source_session_id"] = source_session_id
+                result["source_mode"] = "similar"
+
+            return result
+
+        else:
+            return {"error": "invalid_mode", "message": f"不支援的模式: {mode}"}
 
     # ================================================================
     # 間隔重複複習
@@ -2763,28 +3035,193 @@ class MistakeBookService:
         )
         return merged
 
+    # ================================================================
+    # 混合批改管線 (Hybrid Grading Pipeline)
+    # ================================================================
+
+    VALID_ERROR_TYPES = {
+        "careless", "concept", "calculation", "method",
+        "format", "incomplete", "irrelevant",
+    }
+    VALID_LEVELS = {"A", "B", "C", "D", "E", "F"}
+    CORRECT_LEVELS = {"A", "B"}  # is_correct=true 的等級
+
     @staticmethod
-    def _simple_check(student_answer: str, correct_answer: str) -> bool:
-        """簡單答案比對（用於選擇題和填空題）"""
-        sa = student_answer.strip().lower()
-        ca = correct_answer.strip().lower()
+    def _deterministic_check(
+        student_answer: str, correct_answer: str, question_type: str = "short_answer",
+    ) -> dict:
+        """
+        確定性判定（保守：寧可 low 也不誤判）。
+        返回 {is_correct, confidence: "high"|"low", hard_wrong: bool}
+        """
+        sa = student_answer.strip()
+        ca = correct_answer.strip()
 
-        if not sa or not ca:
-            return False
+        # 硬判錯：空白答案
+        if not sa:
+            return {"is_correct": False, "confidence": "high", "hard_wrong": True}
+        if not ca:
+            return {"is_correct": False, "confidence": "low", "hard_wrong": False}
 
-        # 完全匹配
-        if sa == ca:
-            return True
+        sa_lower = sa.lower()
+        ca_lower = ca.lower()
 
-        # 選擇題（A/B/C/D）
-        if len(sa) == 1 and sa in "abcd":
-            return sa == ca[0].lower() if ca else False
+        # 選擇題
+        if question_type == "multiple_choice" or (len(sa) == 1 and sa_lower in "abcd"):
+            ca_first = ca_lower[0] if ca_lower else ""
+            if sa_lower == ca_first and ca_first in "abcd":
+                return {"is_correct": True, "confidence": "high", "hard_wrong": False}
+            if sa_lower in "abcd" and ca_first in "abcd":
+                return {"is_correct": False, "confidence": "high", "hard_wrong": True}
+            return {"is_correct": False, "confidence": "low", "hard_wrong": False}
 
-        # 包含匹配（答案關鍵詞在學生答案中）
-        if len(ca) < 50 and ca in sa:
-            return True
+        # 精確匹配（去空格標準化）
+        def _normalize(s):
+            import re as _re
+            s = s.strip().lower()
+            s = s.replace('（', '(').replace('）', ')').replace('，', ',')
+            s = _re.sub(r'\s+', '', s)
+            return s
 
-        return False
+        if _normalize(sa) == _normalize(ca):
+            return {"is_correct": True, "confidence": "high", "hard_wrong": False}
+
+        # 數值等價
+        def _try_numeric(s):
+            import re as _re
+            s = s.strip().replace(' ', '')
+            # 分數 a/b
+            m = _re.match(r'^(-?\d+)/(\d+)$', s)
+            if m:
+                try:
+                    return float(m.group(1)) / float(m.group(2))
+                except (ValueError, ZeroDivisionError):
+                    pass
+            try:
+                return float(s)
+            except ValueError:
+                return None
+
+        sa_num = _try_numeric(sa)
+        ca_num = _try_numeric(ca)
+        if sa_num is not None and ca_num is not None:
+            if abs(sa_num - ca_num) < 1e-9:
+                return {"is_correct": True, "confidence": "high", "hard_wrong": False}
+            return {"is_correct": False, "confidence": "high", "hard_wrong": False}
+
+        # 無法確定 → low（交 LLM 處理）
+        return {"is_correct": False, "confidence": "low", "hard_wrong": False}
+
+    async def _llm_grade_question(
+        self, subject: str,
+        question_text: str, student_answer: str,
+        correct_answer: str, question_type: str = "short_answer",
+    ) -> dict:
+        """LLM 評語層：生成 correctness_level + error_analysis。"""
+        from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
+        from app.core.ai_gate import Priority
+
+        handler = SubjectHandlerRegistry.get(subject)
+        prompt = handler.build_practice_grading_prompt(
+            question_text, student_answer, correct_answer, question_type,
+        )
+
+        try:
+            from llm.config import get_llm_config
+            model = get_llm_config().local_model
+        except Exception:
+            model = "qwen3.5:35b"
+
+        try:
+            raw = await self._call_ollama_direct(
+                prompt,
+                timeout_override=30.0,
+                gate_task="practice_grading",
+                gate_priority=Priority.NORMAL,
+            )
+            result = self._parse_json_response(raw)
+            if not result:
+                return {}
+
+            # 嚴格校驗
+            level = result.get("correctness_level", "").upper()
+            if level not in self.VALID_LEVELS:
+                level = None
+
+            # is_correct 必須與等級邊界一致
+            if level:
+                is_correct = level in self.CORRECT_LEVELS
+            else:
+                is_correct = result.get("is_correct", False)
+
+            error_type = result.get("error_type")
+            if error_type and error_type not in self.VALID_ERROR_TYPES:
+                error_type = None
+
+            analysis = result.get("error_analysis", "")
+            if isinstance(analysis, str) and len(analysis) > 500:
+                analysis = analysis[:500]
+
+            return {
+                "correctness_level": level,
+                "is_correct": is_correct,
+                "error_analysis": analysis or None,
+                "error_type": error_type,
+                "grading_model": model,
+            }
+        except Exception as e:
+            logger.warning("LLM 批改失敗: %s", e)
+            return {}
+
+    async def _grade_single_question(
+        self, subject: str, question: dict, student_answer: str,
+    ) -> dict:
+        """混合批改管線：deterministic + LLM。"""
+        correct_answer = question.get("correct_answer", "")
+        question_type = question.get("question_type", "short_answer")
+        question_text = question.get("question", "")
+
+        # Step 1: 確定性判定
+        det = self._deterministic_check(student_answer, correct_answer, question_type)
+
+        # Step 2: LLM 補充
+        llm_result = {}
+        grading_source = "deterministic"
+
+        try:
+            llm_result = await self._llm_grade_question(
+                subject, question_text, student_answer, correct_answer, question_type,
+            )
+        except Exception as e:
+            logger.warning("LLM 批改異常: %s", e)
+
+        # Step 3: 合併
+        if llm_result:
+            if det.get("hard_wrong"):
+                # 硬判錯：LLM 不可翻正
+                is_correct = False
+                grading_source = "deterministic+llm"
+            elif det["confidence"] == "high":
+                # 確定性判定可靠：用 det 的 is_correct
+                is_correct = det["is_correct"]
+                grading_source = "deterministic+llm"
+            else:
+                # confidence low：以 LLM 為準
+                is_correct = llm_result.get("is_correct", det["is_correct"])
+                grading_source = "llm"
+        else:
+            # LLM 失敗
+            is_correct = det["is_correct"]
+            grading_source = "fallback_deterministic" if det["confidence"] == "low" else "deterministic"
+
+        return {
+            "is_correct": is_correct,
+            "correctness_level": llm_result.get("correctness_level"),
+            "error_analysis": llm_result.get("error_analysis"),
+            "error_type": llm_result.get("error_type"),
+            "grading_source": grading_source,
+            "grading_model": llm_result.get("grading_model"),
+        }
 
     @staticmethod
     def _parse_json_response(raw: str) -> Dict:
@@ -2871,23 +3308,42 @@ class MistakeBookService:
     def _build_practice_feedback_prompt(
         subject: str, questions: List, results: List, score: float
     ) -> str:
-        """構建練習反饋 prompt"""
+        """構建練習反饋 prompt（結構化摘要驅動）"""
         wrong_items = [r for r in results if not r.get("is_correct")]
+        correct_count = len(results) - len(wrong_items)
+
+        # 統計 error_type 分佈
+        error_counts = {}
+        for r in wrong_items:
+            et = r.get("error_type") or "unknown"
+            error_counts[et] = error_counts.get(et, 0) + 1
+        error_dist = ", ".join(f"{k}: {v}次" for k, v in sorted(error_counts.items(), key=lambda x: -x[1]))
+
+        # 統計 correctness_level 分佈
+        level_counts = {}
+        for r in results:
+            lv = r.get("correctness_level") or "?"
+            level_counts[lv] = level_counts.get(lv, 0) + 1
+        level_dist = ", ".join(f"{k}: {v}題" for k, v in sorted(level_counts.items()))
+
         wrong_desc = "\n".join(
-            f"- 第{r['question_idx']+1}題：學生答「{r['student_answer']}」，正確答案「{r['correct_answer']}」"
+            f"- 第{r['question_idx']+1}題（{r.get('correctness_level', '?')}級）：{r.get('error_analysis', '未知錯誤')}"
             for r in wrong_items[:5]
         )
 
         return f"""請為這位香港中學生的練習結果撰寫簡短反饋。
 
-得分：{score:.0f}/100（{len(results)}題中答對{len(results)-len(wrong_items)}題）
+得分：{score:.0f}/100（{len(results)}題中答對{correct_count}題）
+等級分佈：{level_dist}
+錯誤類型：{error_dist if error_dist else "無"}
 
-答錯的題目：
+答錯摘要：
 {wrong_desc if wrong_desc else "全部答對！"}
 
 要求：
 - 用繁體中文
 - 語氣溫暖鼓勵
-- 如果有答錯的，簡要指出需要複習的方向
+- 基於以上數據總結，不要重複列舉每題
+- 如果有答錯的，指出最需要加強的方向
 - 2-4句話即可
 - 不要用 JSON 格式，直接寫文字"""

@@ -316,6 +316,20 @@ const API = {
             body: JSON.stringify({ answers }),
         });
     },
+    async getPracticeHistory(subject, page = 1, pageSize = 10) {
+        const params = new URLSearchParams({ page, page_size: pageSize });
+        if (subject && subject !== 'all') params.set('subject', subject);
+        return this._fetch(`/api/mistakes/practice/history?${params}`);
+    },
+    async getPracticeSessionDetail(sessionId) {
+        return this._fetch(`/api/mistakes/practice/${sessionId}/detail`);
+    },
+    async redoWrongQuestions(sessionId) {
+        return this._fetch(`/api/mistakes/practice/${sessionId}/redo-wrong`, { method: 'POST' });
+    },
+    async similarPractice(sessionId) {
+        return this._fetch(`/api/mistakes/practice/${sessionId}/similar-practice`, { method: 'POST' });
+    },
     async recognizeHandwriting(imageBlob, subject, mode = 'canvas') {
         try {
             const formData = new FormData();
@@ -529,7 +543,8 @@ const UI = {
             ADD_TAGS: ['svg', 'g', 'line', 'circle', 'rect', 'polygon', 'polyline', 'path', 'text'],
             ADD_ATTR: ['viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
                        'cx', 'cy', 'r', 'points', 'd', 'fill', 'stroke', 'stroke-width',
-                       'stroke-dasharray', 'transform', 'font-size', 'text-anchor', 'opacity'],
+                       'stroke-dasharray', 'transform', 'font-size', 'font-weight',
+                       'text-anchor', 'dominant-baseline', 'opacity', 'xmlns'],
             FORBID_TAGS: ['script', 'style', 'foreignObject', 'image', 'img', 'iframe', 'object', 'embed', 'a'],
         } : null;
         svgBlocks.forEach((svg, i) => {
@@ -1627,7 +1642,7 @@ const Views = {
 
     /* ---- 學習 Tab（合併複習 + 練習） ---- */
     async renderLearn(container) {
-        if (!App.state._learnMode) App.state._learnMode = 'review';
+        if (!App.state._learnMode) App.state._learnMode = 'practice';
         const mode = App.state._learnMode;
 
         // Pre-fetch review queue
@@ -1645,10 +1660,10 @@ const Views = {
 
         container.innerHTML = `
             <div class="mb-segmented-control">
-                <button class="mb-segmented-control__item${mode === 'review' ? ' mb-segmented-control__item--active' : ''}"
-                        data-mode="review">復習${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
                 <button class="mb-segmented-control__item${mode === 'practice' ? ' mb-segmented-control__item--active' : ''}"
                         data-mode="practice">練習</button>
+                <button class="mb-segmented-control__item${mode === 'review' ? ' mb-segmented-control__item--active' : ''}"
+                        data-mode="review">復習${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
             </div>
             <div id="learnContent"></div>
         `;
@@ -1782,65 +1797,240 @@ const Views = {
             return;
         }
 
+        // 顯示歷史列表 + 新練習按鈕
         container.innerHTML = `
-            <div class="mb-practice-setup">
-                <div class="mb-practice-setup__icon">${Icons.target(40)}</div>
-                <div class="mb-practice-setup__title">AI 智能練習</div>
-                <div class="mb-practice-setup__desc">
-                    根據你的${UI.subjectLabel(subject)}薄弱知識點自動出題
-                </div>
-
-                <!-- 知識點選擇器 -->
-                <div class="mb-practice-setup__points" id="practicePointsArea">
-                    <div class="mb-practice-setup__label" style="text-align:left;margin-bottom:8px">
-                        選擇知識點
-                        <span style="font-weight:400;color:var(--mb-text-tertiary)">（不選則由系統智能推薦）</span>
-                    </div>
-                    <div id="practicePointsList" style="text-align:left;margin-bottom:12px">
-                        <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
-                            載入知識點中...
-                        </div>
-                    </div>
-                    <div id="practicePointsActions" style="display:none;text-align:left;margin-bottom:16px;gap:8px;display:flex;flex-wrap:wrap">
-                        <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectWeak()">只選薄弱</button>
-                        <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectAll()">全選</button>
-                        <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceClearAll()">清空</button>
-                    </div>
-                    <div id="practicePointsWarning" style="display:none;font-size:12px;color:var(--mb-warning);margin-bottom:8px"></div>
-                </div>
-
-                <div class="mb-practice-setup__form">
-                    <label class="mb-practice-setup__label">題目數量</label>
-                    <select class="mb-select" id="practiceCount">
-                        <option value="3">3 題 · 快速練習</option>
-                        <option value="5" selected>5 題 · 標準練習</option>
-                        <option value="10">10 題 · 深度練習</option>
-                    </select>
-                </div>
-
-                <div class="mb-practice-setup__form">
-                    <label class="mb-practice-setup__label">難度</label>
-                    <select class="mb-select" id="practiceDifficulty">
-                        <option value="" selected>自動匹配（根據掌握度）</option>
-                        <option value="1">基礎</option>
-                        <option value="3">中等</option>
-                        <option value="5">進階</option>
-                    </select>
-                </div>
-
-                <!-- 練習計劃預覽 -->
-                <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;background:var(--mb-bg-secondary);text-align:left;font-size:13px;color:var(--mb-text-secondary)">
-                </div>
-
-                <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
-                        id="startPracticeBtn" style="max-width:240px">
-                    開始練習
+            <div id="practiceHistoryArea" style="margin-bottom:16px">
+                <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
+            </div>
+            <div style="text-align:center;margin-bottom:16px">
+                <button class="mb-btn mb-btn--primary" id="toggleNewPracticeBtn" onclick="Views._toggleNewPracticeSetup()">
+                    開始新練習
                 </button>
+            </div>
+            <div id="newPracticeSetup" style="display:none">
+                <div class="mb-practice-setup">
+                    <div class="mb-practice-setup__desc">
+                        根據你的${UI.subjectLabel(subject)}薄弱知識點自動出題
+                    </div>
+                    <div class="mb-practice-setup__points" id="practicePointsArea">
+                        <div class="mb-practice-setup__label" style="text-align:left;margin-bottom:8px">
+                            選擇知識點
+                            <span style="font-weight:400;color:var(--mb-text-tertiary)">（不選則由系統智能推薦）</span>
+                        </div>
+                        <div id="practicePointsList" style="text-align:left;margin-bottom:12px">
+                            <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
+                                載入知識點中...
+                            </div>
+                        </div>
+                        <div id="practicePointsActions" style="display:none;text-align:left;margin-bottom:16px;gap:8px;display:flex;flex-wrap:wrap">
+                            <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectWeak()">只選薄弱</button>
+                            <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectAll()">全選</button>
+                            <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceClearAll()">清空</button>
+                        </div>
+                        <div id="practicePointsWarning" style="display:none;font-size:12px;color:var(--mb-warning);margin-bottom:8px"></div>
+                    </div>
+                    <div class="mb-practice-setup__form">
+                        <label class="mb-practice-setup__label">題目數量</label>
+                        <select class="mb-select" id="practiceCount">
+                            <option value="3">3 題 · 快速練習</option>
+                            <option value="5" selected>5 題 · 標準練習</option>
+                            <option value="10">10 題 · 深度練習</option>
+                        </select>
+                    </div>
+                    <div class="mb-practice-setup__form">
+                        <label class="mb-practice-setup__label">難度</label>
+                        <select class="mb-select" id="practiceDifficulty">
+                            <option value="" selected>自動匹配（根據掌握度）</option>
+                            <option value="1">基礎</option>
+                            <option value="3">中等</option>
+                            <option value="5">進階</option>
+                        </select>
+                    </div>
+                    <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;background:var(--mb-bg-secondary);text-align:left;font-size:13px;color:var(--mb-text-secondary)"></div>
+                    <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
+                            id="startPracticeBtn" style="max-width:240px">
+                        開始練習
+                    </button>
+                </div>
             </div>
         `;
 
-        // 加載知識點掌握度數據
-        this._loadPracticeMastery(subject);
+        // 載入歷史
+        this._loadPracticeHistory(subject);
+    },
+
+    _toggleNewPracticeSetup() {
+        const setup = document.getElementById('newPracticeSetup');
+        const btn = document.getElementById('toggleNewPracticeBtn');
+        if (!setup) return;
+        const showing = setup.style.display !== 'none';
+        setup.style.display = showing ? 'none' : '';
+        if (btn) btn.textContent = showing ? '開始新練習' : '收起';
+        if (!showing) {
+            // 展開時加載知識點
+            const subject = App.state.currentSubject;
+            this._loadPracticeMastery(subject);
+        }
+    },
+
+    async _loadPracticeHistory(subject) {
+        const area = document.getElementById('practiceHistoryArea');
+        if (!area) return;
+
+        try {
+            const res = await API.getPracticeHistory(subject);
+            const items = res?.data?.items || [];
+            if (!items.length) {
+                area.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
+                    還沒有練習記錄，開始你的第一次練習吧！
+                </div>`;
+                return;
+            }
+            const errorTypeLabels = {
+                careless: '粗心', concept: '概念', calculation: '計算',
+                method: '方法', format: '格式', incomplete: '不完整', irrelevant: '無關',
+            };
+            let html = `<div style="font-size:14px;font-weight:600;padding:4px 0 8px;color:var(--mb-text)">練習歷史</div>`;
+            items.forEach(s => {
+                const date = s.completed_at ? new Date(s.completed_at).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }) : '';
+                const scoreColor = s.score >= 80 ? 'var(--mb-success)' : s.score >= 60 ? 'var(--mb-warning)' : 'var(--mb-danger)';
+                const errLabel = s.primary_error_type ? (errorTypeLabels[s.primary_error_type] || s.primary_error_type) : '';
+                html += `<div class="mb-list-item" style="cursor:pointer;padding:12px;margin-bottom:6px;border-radius:8px;background:var(--mb-bg-secondary)" data-session-id="${s.session_id}">
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div>
+                            <span style="font-size:13px;font-weight:500">${date}</span>
+                            <span style="font-size:12px;color:var(--mb-text-tertiary);margin-left:8px">${s.total_questions} 題</span>
+                        </div>
+                        <span style="font-size:16px;font-weight:700;color:${scoreColor}">${Math.round(s.score)}分</span>
+                    </div>
+                    ${s.wrong_count > 0 ? `<div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:4px">
+                        錯題 ${s.wrong_count} 題${errLabel ? ' · ' + errLabel : ''}
+                    </div>` : `<div style="font-size:12px;color:var(--mb-success);margin-top:4px">全部答對</div>`}
+                </div>`;
+            });
+            area.innerHTML = html;
+
+            // 點擊進入詳情
+            area.addEventListener('click', e => {
+                const item = e.target.closest('[data-session-id]');
+                if (item) {
+                    const sid = item.dataset.sessionId;
+                    Views._openPracticeDetail(sid);
+                }
+            });
+        } catch (e) {
+            area.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入歷史失敗</div>`;
+        }
+    },
+
+    async _openPracticeDetail(sessionId) {
+        const container = document.getElementById('learnContent');
+        if (!container) return;
+        container.innerHTML = UI.loading();
+
+        try {
+            const res = await API.getPracticeSessionDetail(sessionId);
+            if (!res?.data) throw new Error('no data');
+            this._renderPracticeSessionDetail(container, res.data);
+        } catch (e) {
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">載入詳情失敗</div>`;
+        }
+    },
+
+    _renderPracticeSessionDetail(container, detail) {
+        const levelColors = {
+            A: 'var(--mb-success)', B: 'var(--mb-success)',
+            C: '#e67e22',
+            D: 'var(--mb-danger)', E: '#c0392b', F: '#7f1d1d',
+        };
+        const errorTypeLabels = {
+            careless: '粗心', concept: '概念錯誤', calculation: '計算錯誤',
+            method: '方法錯誤', format: '格式問題', incomplete: '不完整', irrelevant: '無關',
+        };
+        const wrongCount = detail.total_questions - detail.correct_count;
+
+        let html = `<div style="padding:12px 16px">
+            <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views.renderPractice(document.getElementById('learnContent'))">
+                ← 返回
+            </button>
+        </div>
+        <div style="padding:0 20px 16px;text-align:center">
+            <div style="font-size:48px;font-weight:700;letter-spacing:-0.03em;color:var(--mb-text)">${Math.round(detail.score)}</div>
+            <div style="font-size:13px;color:var(--mb-text-tertiary);margin-top:4px">
+                答對 ${detail.correct_count} / ${detail.total_questions} 題
+            </div>
+        </div>`;
+
+        if (detail.ai_feedback) {
+            html += `<div class="mb-detail-section" style="margin:0 20px 12px">
+                <div class="mb-detail-section__title">${Icons.zap(16)} AI 總評</div>
+                <div class="mb-detail-section__body">${UI.escapeHtml(detail.ai_feedback)}</div>
+            </div>`;
+        }
+
+        (detail.questions || []).forEach((q, i) => {
+            const level = q.correctness_level;
+            const levelBadge = level ? `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;background:${levelColors[level] || 'var(--mb-text-tertiary)'}">${level}</span>` : '';
+            const icon = q.is_correct ? Icons.check(16) : Icons.x(16);
+            const borderColor = q.is_correct ? 'var(--mb-success)' : (level === 'C' ? '#e67e22' : 'var(--mb-danger)');
+            const errLabel = q.error_type ? (errorTypeLabels[q.error_type] || q.error_type) : '';
+
+            html += `<div class="mb-detail-section" style="margin:0 20px 8px;border-left:3px solid ${borderColor}">
+                <div class="mb-detail-section__title">${icon} 第 ${i + 1} 題 ${levelBadge}</div>
+                <div style="font-size:13px;margin-bottom:4px">${UI.renderMath(q.question || '')}</div>
+                <div style="font-size:13px;margin-bottom:4px"><strong>你的答案：</strong>${UI.renderMath(q.student_answer || '（未作答）')}</div>
+                ${q.error_analysis ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-bottom:4px;padding:6px 8px;background:var(--mb-bg-secondary);border-radius:4px">${Icons.zap(12)} ${UI.escapeHtml(q.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</div>` : ''}
+                ${!q.is_correct ? `<details style="margin-top:4px">
+                    <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">正確答案與解析</summary>
+                    <div style="font-size:13px;margin-top:4px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(q.correct_answer || '')}</div>
+                    ${q.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(q.explanation)}</div>` : ''}
+                </details>` : ''}
+            </div>`;
+        });
+
+        // 底部按鈕
+        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            ${wrongCount > 0 ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${detail.session_id}')">重做原錯題 (${wrongCount}題)</button>
+            <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${detail.session_id}')">同類再練</button>` : ''}
+            <button class="mb-btn mb-btn--primary" onclick="Views.renderPractice(document.getElementById('learnContent'))">返回列表</button>
+        </div>`;
+
+        container.innerHTML = html;
+    },
+
+    async _redoWrong(sessionId) {
+        const container = document.getElementById('learnContent');
+        if (!container) return;
+        container.innerHTML = UI.loading('正在準備重練...');
+        try {
+            const res = await API.redoWrongQuestions(sessionId);
+            if (!res?.success || !res.data?.questions) {
+                container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary)">${res?.message || '無法重練'}</div>`;
+                return;
+            }
+            // 進入答題頁
+            App.state._practiceSession = res.data;
+            this._renderPracticeQuestions(container, res.data);
+        } catch (e) {
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">操作失敗</div>`;
+        }
+    },
+
+    async _similarPractice(sessionId) {
+        const container = document.getElementById('learnContent');
+        if (!container) return;
+        container.innerHTML = UI.loading('正在生成同類題目...');
+        try {
+            const res = await API.similarPractice(sessionId);
+            if (!res?.success || !res.data?.questions) {
+                container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary)">${res?.message || '無法生成'}</div>`;
+                return;
+            }
+            App.state._practiceSession = res.data;
+            this._renderPracticeQuestions(container, res.data);
+        } catch (e) {
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">操作失敗</div>`;
+        }
     },
 
     // ---- 練習知識點加載 ----
@@ -2720,6 +2910,16 @@ const Views = {
 
     _renderPracticeResult(container, result, questions) {
         const results = result.results || [];
+        const wrongCount = result.total_questions - result.correct_count;
+        const levelColors = {
+            A: 'var(--mb-success)', B: 'var(--mb-success)',
+            C: '#e67e22',
+            D: 'var(--mb-danger)', E: '#c0392b', F: '#7f1d1d',
+        };
+        const errorTypeLabels = {
+            careless: '粗心', concept: '概念錯誤', calculation: '計算錯誤',
+            method: '方法錯誤', format: '格式問題', incomplete: '不完整', irrelevant: '無關',
+        };
 
         let html = `<div style="padding:32px 20px;text-align:center">
             <div style="font-size:48px;font-weight:700;letter-spacing:-0.03em;color:var(--mb-text)">${Math.round(result.score)}</div>
@@ -2736,17 +2936,27 @@ const Views = {
         }
 
         results.forEach((r, i) => {
-            html += `<div class="mb-detail-section" style="margin:0 20px 8px;border-left:3px solid ${r.is_correct ? 'var(--mb-success)' : 'var(--mb-danger)'}">
-                <div class="mb-detail-section__title">${r.is_correct ? Icons.check(16) : Icons.x(16)} 第 ${i + 1} 題</div>
+            const level = r.correctness_level;
+            const levelBadge = level ? `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;background:${levelColors[level] || 'var(--mb-text-tertiary)'}">${level}</span>` : '';
+            const borderColor = r.is_correct ? 'var(--mb-success)' : (level === 'C' ? '#e67e22' : 'var(--mb-danger)');
+            const errLabel = r.error_type ? (errorTypeLabels[r.error_type] || r.error_type) : '';
+
+            html += `<div class="mb-detail-section" style="margin:0 20px 8px;border-left:3px solid ${borderColor}">
+                <div class="mb-detail-section__title">${r.is_correct ? Icons.check(16) : Icons.x(16)} 第 ${i + 1} 題 ${levelBadge}</div>
                 <div style="font-size:13px;margin-bottom:4px"><strong>你的答案：</strong>${UI.renderMath(r.student_answer || '（未作答）')}</div>
-                ${!r.is_correct ? `<div style="font-size:13px;margin-bottom:4px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(r.correct_answer || '')}</div>` : ''}
-                ${r.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(r.explanation)}</div>` : ''}
+                ${r.error_analysis ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-bottom:4px;padding:6px 8px;background:var(--mb-bg-secondary);border-radius:4px">${Icons.zap(12)} ${UI.escapeHtml(r.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</div>` : ''}
+                ${!r.is_correct ? `<details style="margin-top:4px">
+                    <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">正確答案與解析</summary>
+                    <div style="font-size:13px;margin-top:4px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(r.correct_answer || '')}</div>
+                    ${r.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(r.explanation)}</div>` : ''}
+                </details>` : ''}
             </div>`;
         });
 
-        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center">
-            <button class="mb-btn mb-btn--primary" onclick="App.state._learnMode='practice';App.navigate('learn')">再練一組</button>
-            <button class="mb-btn mb-btn--secondary" onclick="App.navigate('home')">回到首頁</button>
+        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            ${wrongCount > 0 && result.session_id ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${result.session_id}')">重做原錯題 (${wrongCount}題)</button>
+            <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${result.session_id}')">同類再練</button>` : ''}
+            <button class="mb-btn mb-btn--primary" onclick="App.state._learnMode='practice';App.navigate('learn')">返回練習</button>
         </div>`;
 
         container.innerHTML = html;

@@ -193,6 +193,39 @@ class BaseSubjectHandler(ABC):
         """判斷此題是否需要 SVG 圖形（默認否）"""
         return False
 
+    def build_practice_grading_prompt(
+        self,
+        question_text: str,
+        student_answer: str,
+        correct_answer: str,
+        question_type: str = "short_answer",
+    ) -> str:
+        """構建練習批改 prompt（LLM 評語層）。默認通用版，各科可覆寫。"""
+        return f"""你是一位經驗豐富的{self.display_name}科教師。請批改以下練習題。
+
+題目：{question_text}
+學生答案：{student_answer}
+參考答案：{correct_answer}
+題型：{question_type}
+
+## 評分等級（必須嚴格遵守邊界）
+| 等級 | 含義 | is_correct |
+|------|------|------------|
+| A | 完全正確，結果與表達都合格 | true |
+| B | 本質正確，有輕微表達問題（未化簡、格式） | true |
+| C | 主要思路對，但答案不完整/部分缺失 | false |
+| D | 有明顯方法或計算錯誤，但體現出部分理解 | false |
+| E | 基本不理解核心概念 | false |
+| F | 無關、空白、拒答、嚴重偏離題意 | false |
+
+## error_type 枚舉（只能選其一，A 級填 null）
+careless / concept / calculation / method / format / incomplete / irrelevant
+
+## 輸出（只輸出 JSON，不要解釋）
+```json
+{{"correctness_level": "A", "is_correct": true, "error_analysis": "1-2句繁體中文評語", "error_type": null}}
+```"""
+
     def build_svg_prompt(self, question_text: str) -> str:
         """為題目構建 SVG 生成 prompt（子類覆寫）"""
         return ""

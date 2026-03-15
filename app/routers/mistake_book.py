@@ -566,6 +566,88 @@ async def submit_practice(
         raise HTTPException(400, e.message)
 
 
+# ================================================================
+# 練習歷史 + 詳情 + 重練
+# ================================================================
+
+@router.get("/api/mistakes/practice/history")
+async def get_practice_history(
+    subject: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    current_user: dict = Depends(get_current_user),
+):
+    """獲取練習歷史列表"""
+    try:
+        service = get_services().mistake_book
+        result = service.get_practice_history(
+            username=current_user["username"],
+            subject=subject,
+            page=page,
+            page_size=page_size,
+        )
+        return {"success": True, "data": result}
+    except MistakeBookError as e:
+        raise HTTPException(400, e.message)
+
+
+@router.get("/api/mistakes/practice/{session_id}/detail")
+async def get_practice_session_detail(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """獲取練習詳情（題目 + 批改結果）"""
+    try:
+        service = get_services().mistake_book
+        result = service.get_practice_session_detail(
+            session_id=session_id,
+            username=current_user["username"],
+        )
+        return {"success": True, "data": result}
+    except MistakeBookError as e:
+        raise HTTPException(400, e.message)
+
+
+@router.post("/api/mistakes/practice/{session_id}/redo-wrong")
+async def redo_wrong_questions(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """重做原錯題"""
+    try:
+        service = get_services().mistake_book
+        result = await service.generate_repractice(
+            username=current_user["username"],
+            source_session_id=session_id,
+            mode="redo_wrong",
+        )
+        if result.get("error"):
+            return {"success": False, "message": result["message"]}
+        return {"success": True, "data": result}
+    except MistakeBookError as e:
+        raise HTTPException(400, e.message)
+
+
+@router.post("/api/mistakes/practice/{session_id}/similar-practice")
+async def similar_practice(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """同類再練（按錯題知識點生成新題）"""
+    try:
+        service = get_services().mistake_book
+        result = await service.generate_repractice(
+            username=current_user["username"],
+            source_session_id=session_id,
+            mode="similar",
+        )
+        if result.get("error"):
+            return {"success": False, "message": result["message"]}
+        return {"success": True, "data": result}
+    except MistakeBookError as e:
+        raise HTTPException(400, e.message)
+
+
 @router.post("/api/mistakes/{mistake_id}/review")
 async def record_review(
     mistake_id: str,
