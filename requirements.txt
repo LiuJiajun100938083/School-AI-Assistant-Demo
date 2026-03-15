@@ -50,6 +50,7 @@ PyQt6==6.10.2
 # Data processing
 pandas==2.2.3
 numpy==1.26.4
+scipy>=1.10.0
 
 # Environment and config
 python-dotenv==1.0.0

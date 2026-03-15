@@ -62,6 +62,31 @@ def solve_geometry_spec(spec: dict) -> dict:
     _find_length_for_segment._constraints = spec.get("constraints", [])
 
     _resolve_constraints(spec.get("constraints", []), points, circles, sign)
+
+    # === 數值優化後處理：用 least_squares 修正全局一致性 ===
+    try:
+        from .geometry_optimizer import optimize_layout, spec_to_ir
+        ir_constraints = spec_to_ir(spec.get("constraints", []))
+        base = (spec["base_edge"]["from"], spec["base_edge"]["to"])
+        optimized, diag = optimize_layout(points, ir_constraints, base)
+        if diag.get("accepted"):
+            points.update(optimized)
+            if diag.get("top_violations"):
+                top = diag["top_violations"][0]
+                if top["weighted_norm"] > 0.1:
+                    logger.info(
+                        "優化後最大殘差: %s %s %.4f",
+                        top["source_type"], top["points"],
+                        top["weighted_norm"])
+            logger.info(
+                "數值優化: hard_cost %.4f→%.4f, nfev=%d",
+                diag["initial_hard_cost"], diag["final_hard_cost"],
+                diag["n_function_evals"])
+        else:
+            logger.info("數值優化結果未採用，保留舊 solver")
+    except Exception as e:
+        logger.warning("數值優化失敗 fallback: %s", e)
+
     _verify_constraints(spec.get("constraints", []), points)
     _validate_geometry(points)
     _transform_to_viewbox(points, circles)
