@@ -194,7 +194,12 @@ SVG 技術規範：
 - 不要計算任何座標，只提取語義約束
 - base_edge 沒有對應 length 約束也沒關係，系統會自動分配長度
 - point_on_segment 的位置必須由其他約束（如 altitude、perpendicular）確定，不要假設在中點
-- 所有約束都是硬約束，系統會精確求解"""
+- 所有約束都是硬約束，系統會精確求解
+- **只提取題目明確給出的約束**，不要自己推導或添加題目沒提到的關係（如題目沒說高就不要加 altitude）
+- **只給題目明確給出數值的約束加 value**，不知道數值的約束直接省略，不要填 null、0、1 等佔位值
+- 兩條線相交於一點：用兩個 point_on_segment 表達（交點在兩條線上），不需要 altitude
+- 梯形：用 parallel + length 即可，不需要 altitude
+- 圓的切線：用 perpendicular 表達半徑⊥切線（{{"type":"perpendicular", "seg1":["O","C"], "seg2":["C","D"]}}），不要用 altitude"""
 
     def build_svg_from_spec_prompt(self, question_text: str, spec_json: str) -> str:
         # V2: Step 2 已改用 Python renderer，此方法僅作 fallback
