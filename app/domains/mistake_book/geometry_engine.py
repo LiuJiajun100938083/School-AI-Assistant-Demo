@@ -64,7 +64,7 @@ def solve_geometry_spec(spec: dict) -> dict:
     _resolve_constraints(spec.get("constraints", []), points, circles, sign)
     _verify_constraints(spec.get("constraints", []), points)
     _validate_geometry(points)
-    _transform_to_viewbox(points)
+    _transform_to_viewbox(points, circles)
 
     return _build_renderer_spec(points, circles, spec)
 
@@ -359,8 +359,7 @@ def _resolve_angle(c: dict, points: dict, sign: float) -> bool:
         base_angle = math.atan2(r1y - vy, r1x - vx)
         dist = _find_length_for_segment(c, points, vertex, ray2)
         if dist is None:
-            dist = CANONICAL_LENGTH * 0.8
-        # 嘗試兩個旋轉方向，選擇讓新點在 orientation 側的那個
+            dist = _estimate_ray_length(points, vertex, ray1, ray2, value)
         candidate = _pick_orientation_side(
             vx, vy, base_angle, math.radians(value), dist, sign)
         points[ray2] = candidate
@@ -371,7 +370,7 @@ def _resolve_angle(c: dict, points: dict, sign: float) -> bool:
         base_angle = math.atan2(r2y - vy, r2x - vx)
         dist = _find_length_for_segment(c, points, vertex, ray1)
         if dist is None:
-            dist = CANONICAL_LENGTH * 0.8
+            dist = _estimate_ray_length(points, vertex, ray2, ray1, value)
         candidate = _pick_orientation_side(
             vx, vy, base_angle, math.radians(value), dist, sign)
         points[ray1] = candidate
@@ -402,7 +401,7 @@ def _resolve_right_angle(c: dict, points: dict, sign: float) -> bool:
         base_angle = math.atan2(r1y - vy, r1x - vx)
         dist = _find_length_for_segment(c, points, vertex, ray2)
         if dist is None:
-            dist = CANONICAL_LENGTH * 0.8
+            dist = _estimate_ray_length(points, vertex, ray1, ray2, 90.0)
         candidate = _pick_orientation_side(
             vx, vy, base_angle, math.pi / 2, dist, sign)
         points[ray2] = candidate
@@ -413,7 +412,7 @@ def _resolve_right_angle(c: dict, points: dict, sign: float) -> bool:
         base_angle = math.atan2(r2y - vy, r2x - vx)
         dist = _find_length_for_segment(c, points, vertex, ray1)
         if dist is None:
-            dist = CANONICAL_LENGTH * 0.8
+            dist = _estimate_ray_length(points, vertex, ray2, ray1, 90.0)
         candidate = _pick_orientation_side(
             vx, vy, base_angle, math.pi / 2, dist, sign)
         points[ray1] = candidate
@@ -665,23 +664,38 @@ def _resolve_parallel(c: dict, points: dict, sign: float) -> bool:
 
 
 def _resolve_circle(c: dict, points: dict, circles: dict) -> bool:
-    """圓（數值半徑）。"""
+    """圓（數值半徑）。圓心未被其他約束定位時，自動放在已有點的質心。"""
     center = c.get("center")
     radius = c.get("radius")
     if not center or radius is None:
         return True
     if center not in points:
-        return False
+        # 延遲到第二輪：嘗試自動放置圓心
+        if len(points) >= 2:
+            # 放在已有點的質心
+            avg_x = sum(p[0] for p in points.values()) / len(points)
+            avg_y = sum(p[1] for p in points.values()) / len(points)
+            points[center] = (avg_x, avg_y)
+            logger.info("圓心 %s 自動放置在質心 (%.1f, %.1f)", center, avg_x, avg_y)
+        else:
+            return False
     circles[center] = float(radius)
     return True
 
 
 def _resolve_circle_through(c: dict, points: dict, circles: dict) -> bool:
-    """圓（過某點）。"""
+    """圓（過某點）。圓心未定位時自動放置。"""
     center = c.get("center")
     through = c.get("through")
     if not center or not through:
         return True
+    if through in points and center not in points and len(points) >= 2:
+        # 圓心未定位 → 放在 through 點附近（偏移一個合理距離）
+        tx, ty = points[through]
+        avg_x = sum(p[0] for p in points.values()) / len(points)
+        avg_y = sum(p[1] for p in points.values()) / len(points)
+        points[center] = (avg_x, avg_y)
+        logger.info("圓心 %s 自動放置在質心 (%.1f, %.1f)", center, avg_x, avg_y)
     if center not in points or through not in points:
         return False
     cx, cy = points[center]
@@ -745,6 +759,83 @@ def _find_angle_at_vertex(c: dict, vertex: str) -> Optional[float]:
         if con.get("type") == "angle" and con.get("vertex") == vertex:
             return float(con["value"])
     return None
+
+
+def _estimate_ray_length(points: dict, vertex: str, known_ray: str,
+                         unknown_ray: str, angle_at_vertex: float) -> float:
+    """
+    估算角度約束中未知射線的長度。
+    三角形 = vertex / known_ray / unknown_ray。
+    策略：
+    1. 正弦定理：已知 vertex→known_ray 距離 + 第三頂角 → 精確計算
+    2. 比例 fallback：與已知射線等長（等腰近似）
+    3. 最終 fallback：與已有最大距離成比例
+    """
+    constraints = _find_length_for_segment._constraints
+
+    # 策略 1: 正弦定理
+    # 已知邊 VK = dist(vertex, known_ray)（兩點都在 points 中）
+    # 找第三個頂角 → 算出 dist(vertex, unknown_ray)
+    if vertex in points and known_ray in points:
+        vx, vy = points[vertex]
+        kx, ky = points[known_ray]
+        vk_len = math.sqrt((kx - vx) ** 2 + (ky - vy) ** 2)
+
+        if vk_len > TOLERANCE:
+            # 查找 unknown_ray 處或 known_ray 處的角度約束
+            other_angle = None
+            other_vertex = None
+            for con in constraints:
+                if con.get("type") in ("angle", "right_angle"):
+                    cv = con.get("vertex")
+                    val = 90.0 if con["type"] == "right_angle" else float(con.get("value", 0))
+                    if cv == unknown_ray:
+                        rays = {con.get("ray1"), con.get("ray2")}
+                        if vertex in rays or known_ray in rays:
+                            other_angle = val
+                            other_vertex = "unknown_ray"
+                            break
+                    elif cv == known_ray:
+                        rays = {con.get("ray1"), con.get("ray2")}
+                        if vertex in rays or unknown_ray in rays:
+                            other_angle = val
+                            other_vertex = "known_ray"
+                            break
+
+            if other_angle is not None:
+                remaining = 180.0 - angle_at_vertex - other_angle
+                if remaining > 0:
+                    # VK/sin(angle_at_unknown_ray) = VU/sin(angle_at_known_ray)
+                    if other_vertex == "unknown_ray":
+                        sin_u = math.sin(math.radians(other_angle))
+                        sin_k = math.sin(math.radians(remaining))
+                    else:
+                        sin_k = math.sin(math.radians(other_angle))
+                        sin_u = math.sin(math.radians(remaining))
+
+                    if sin_u > TOLERANCE:
+                        dist = vk_len * sin_k / sin_u
+                        logger.info("正弦定理估算距離: %s→%s = %.1f",
+                                    vertex, unknown_ray, dist)
+                        return dist
+
+            # 策略 2: 等腰近似（與已知射線同長）
+            return vk_len
+
+    # 策略 3: 已有最大距離的 0.8 倍
+    if points:
+        max_d = 0
+        pts = list(points.values())
+        for i in range(len(pts)):
+            for j in range(i + 1, len(pts)):
+                d = math.sqrt((pts[i][0] - pts[j][0]) ** 2 +
+                              (pts[i][1] - pts[j][1]) ** 2)
+                if d > max_d:
+                    max_d = d
+        if max_d > TOLERANCE:
+            return max_d * 0.8
+
+    return CANONICAL_LENGTH * 0.8
 
 
 # ================================================================
@@ -1183,16 +1274,23 @@ def _mag(v) -> float:
 # ViewBox 變換
 # ================================================================
 
-def _transform_to_viewbox(points: dict) -> None:
-    """統一縮放 + y 翻轉 → SVG 座標系。"""
+def _transform_to_viewbox(points: dict, circles: dict = None) -> None:
+    """統一縮放 + y 翻轉 → SVG 座標系。同時縮放圓半徑。"""
     if len(points) < 2:
         return
 
     safe_x = (MARGIN, VIEWBOX_W - MARGIN)  # (40, 260)
     safe_y = (MARGIN, VIEWBOX_H - MARGIN)  # (40, 210)
 
+    # 計算 bounding box 時考慮圓的範圍
     xs = [p[0] for p in points.values()]
     ys = [p[1] for p in points.values()]
+    if circles:
+        for center, radius in circles.items():
+            if center in points:
+                cx_c, cy_c = points[center]
+                xs.extend([cx_c - radius, cx_c + radius])
+                ys.extend([cy_c - radius, cy_c + radius])
     min_x, max_x = min(xs), max(xs)
     min_y, max_y = min(ys), max(ys)
 
@@ -1216,6 +1314,11 @@ def _transform_to_viewbox(points: dict) -> None:
             round(cx + (x - mid_x) * scale, 1),
             round(cy - (y - mid_y) * scale, 1),
         )
+
+    # 同步縮放圓半徑
+    if circles:
+        for center in circles:
+            circles[center] = round(circles[center] * scale, 1)
 
 
 # ================================================================
