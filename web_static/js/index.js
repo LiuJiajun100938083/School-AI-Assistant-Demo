@@ -718,30 +718,30 @@ const HomeApp = {
             // 第一幕：系統喚醒（全部同時出現）
             .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
                 opacity: 1, filter: 'blur(0px)',
-                duration: 0.6, ease: EASE
-            }, 0.1)
-            .to(splashLoader, { opacity: 1, duration: 0.3, ease: 'power2.out' }, 0.3)
-            .to(splashLoader, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0.9)
+                duration: 0.35, ease: EASE
+            }, 0.05)
+            .to(splashLoader, { opacity: 1, duration: 0.15, ease: 'power2.out' }, 0.15)
+            .to(splashLoader, { opacity: 0, duration: 0.15, ease: 'power2.in' }, 0.45)
 
             // 第二幕：過渡
-            .to(glassPanel, { opacity: 1, duration: 0.3, ease: EASE }, 1.2)
-            .add(() => { splashScreen.style.display = 'none'; }, 1.5)
+            .to(glassPanel, { opacity: 1, duration: 0.15, ease: EASE }, 0.6)
+            .add(() => { splashScreen.style.display = 'none'; }, 0.75)
             .add(() => {
                 if (header)  gsap.set(header,  { opacity: 0, y: -10 });
                 if (sidebar) gsap.set(sidebar, { opacity: 0, x: -10 });
                 if (welcome) gsap.set(welcome, { opacity: 0, y: 10 });
                 if (appsGrid) gsap.set(appsGrid, { opacity: 0, y: 10 });
-            }, 1.5)
+            }, 0.75)
             .to(glassPanel, {
-                opacity: 0, duration: 0.4, ease: EASE,
+                opacity: 0, duration: 0.2, ease: EASE,
                 onComplete() { glassPanel.style.display = 'none'; }
-            }, 1.55)
+            }, 0.78)
 
             // 第三幕：界面元素同時進入
             .to([header, sidebar, welcome, appsGrid].filter(Boolean), {
                 opacity: 1, y: 0, x: 0,
-                duration: 0.4, ease: 'power2.out'
-            }, 1.6);
+                duration: 0.25, ease: 'power2.out'
+            }, 0.8);
     }
 };
 
