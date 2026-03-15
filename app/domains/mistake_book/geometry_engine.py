@@ -87,11 +87,33 @@ def solve_geometry_spec(spec: dict) -> dict:
     except Exception as e:
         logger.warning("數值優化失敗 fallback: %s", e)
 
-    _verify_constraints(spec.get("constraints", []), points)
+    # Phase 4: 語義驗證（降級為 warning，不阻止 SVG 生成）
+    semantic_failures = _verify_constraints(spec.get("constraints", []), points)
+    if semantic_failures:
+        n_fail = len(semantic_failures)
+        preview = semantic_failures[:5]
+        logger.warning("語義驗證有 %d 項降級: %s%s",
+                       n_fail, preview,
+                       f" ...及 {n_fail - 5} 項更多" if n_fail > 5 else "")
+
+    # Phase 4: 渲染安全驗證（fatal，阻止壞 SVG）
+    _validate_render_safety(points, circles)
+
     _validate_geometry(points)
     _transform_to_viewbox(points, circles)
 
-    return _build_renderer_spec(points, circles, spec)
+    # Post-transform 渲染安全驗證（確保變換後數據仍然有效）
+    _validate_render_safety(points, circles)
+
+    result = _build_renderer_spec(points, circles, spec)
+
+    # 附加 Phase 4 diagnostics
+    result["_phase4_diagnostics"] = {
+        "semantic_verification_failed": len(semantic_failures) > 0,
+        "semantic_failures": semantic_failures,
+    }
+
+    return result
 
 
 # ================================================================
@@ -1333,8 +1355,13 @@ def _try_place_unreferenced_vertices(constraints: list, points: dict,
 # 約束殘差驗證
 # ================================================================
 
-def _verify_constraints(constraints: list, points: dict) -> None:
-    """所有約束解完後逐條回代檢查。殘差超標 → 拋錯。"""
+def _verify_constraints(constraints: list, points: dict) -> list:
+    """所有約束解完後逐條回代檢查。語義驗證失敗降級為 warning，不阻止 SVG 生成。
+
+    Returns:
+        semantic_failures: 降級項描述列表（空 = 全部通過）
+    """
+    semantic_failures = []
     for c in constraints:
         ctype = c.get("type")
         try:
@@ -1354,10 +1381,12 @@ def _verify_constraints(constraints: list, points: dict) -> None:
                 _verify_perpendicular(c, points)
             elif ctype == "point_on_segment":
                 _verify_point_on_segment(c, points)
-        except GeometrySolveError:
-            raise
+        except GeometrySolveError as e:
+            logger.warning("語義驗證降級: %s", e)
+            semantic_failures.append(str(e))
         except Exception as e:
             logger.warning("約束 %s 驗證異常: %s", ctype, e)
+    return semantic_failures
 
 
 def _verify_length(c: dict, points: dict) -> None:
@@ -1585,6 +1614,30 @@ def _validate_geometry(points: dict) -> None:
         for j in range(i + 1, len(names)):
             if _dist(points[names[i]], points[names[j]]) < 1.0:
                 logger.warning("點重合警告: %s 和 %s 距離過近", names[i], names[j])
+
+
+def _validate_render_safety(points: dict, circles: dict) -> None:
+    """渲染安全驗證 — 失敗則不生成 SVG（fatal）。"""
+    # 1. 點座標有限性
+    for name, (x, y) in points.items():
+        if not (math.isfinite(x) and math.isfinite(y)):
+            raise GeometrySolveError(f"點 {name} 座標非法: ({x}, {y})")
+
+    # 2. 點數量
+    if len(points) < 2:
+        raise GeometrySolveError(f"點數不足: {len(points)}")
+
+    # 3. 所有點完全重合（bounding box 為零）
+    xs = [p[0] for p in points.values()]
+    ys = [p[1] for p in points.values()]
+    if max(xs) - min(xs) < 1e-6 and max(ys) - min(ys) < 1e-6:
+        raise GeometrySolveError("所有點完全重合")
+
+    # 4. 圓半徑有限且非負
+    if circles:
+        for center, r in circles.items():
+            if not math.isfinite(r) or r < 0:
+                raise GeometrySolveError(f"圓 {center} 半徑非法: {r}")
 
 
 # ================================================================

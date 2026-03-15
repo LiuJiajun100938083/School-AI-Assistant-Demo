@@ -1,5 +1,5 @@
 """
-幾何約束數值優化器 — Phase 3
+幾何約束數值優化器 — Phase 4
 
 架構角色：
 - 舊 solver (geometry_engine._resolve_constraints) 生成初始佈局
@@ -14,6 +14,7 @@
 - Multi-restart with 多檔擾動，逃離局部極小
 - DOF 啟發式估計（diagnostics only）
 - 診斷系統輸出每條約束殘差，支持 debug
+- Phase 4: 首次求解失敗時仍嘗試擾動重啟，選 best candidate
 
 IR 點順序約定：
 - angle:   [ray1, vertex, ray2]  → ∠ray1-vertex-ray2
@@ -531,16 +532,41 @@ def optimize_layout(
 
     # === 首次求解 ===
     result = _run_solve(_full_residual, x0)
-    if result is None:
-        logger.warning("首次 least_squares 求解失敗，fallback")
-        return dict(points0), _error_diagnostics("solve failed")
-
-    best_result = result
-    best_hard_cost = _hard_residual(result.x)
+    initial_solve_failed = (result is None)
+    restart_after_failure_succeeded = False
     n_restarts_tried = 0
     restart_improved = False
 
-    # === Multi-restart ===
+    if result is None:
+        # Phase 4: 首次失敗仍嘗試擾動重啟，選 best candidate
+        logger.warning("首次 least_squares 求解失敗，嘗試擾動重啟")
+        rng = np.random.default_rng(42)
+        best_result = None
+        best_hard_cost = float('inf')
+        for k, scale in enumerate(_RESTART_SCALES):
+            x_perturbed = x0 + rng.normal(0, scale * L_ref, size=x0.shape)
+            res_k = _run_solve(_full_residual, x_perturbed)
+            n_restarts_tried += 1
+            if res_k is not None:
+                hc_k = _hard_residual(res_k.x)
+                if hc_k < best_hard_cost:
+                    best_result = res_k
+                    best_hard_cost = hc_k
+        if best_result is None:
+            logger.warning("所有重啟均失敗 (tried %d restarts)，fallback", n_restarts_tried)
+            diag = _error_diagnostics("all solves failed")
+            diag["initial_solve_failed"] = True
+            diag["n_restarts_tried"] = n_restarts_tried
+            return dict(points0), diag
+        result = best_result
+        restart_after_failure_succeeded = True
+        logger.info("擾動重啟救回成功，best hard_cost=%.4f (%d restarts)",
+                    best_hard_cost, n_restarts_tried)
+
+    best_result = result
+    best_hard_cost = _hard_residual(result.x)
+
+    # === Multi-restart（首次成功但 RMS 仍高時繼續優化） ===
     hard_rms = math.sqrt(best_hard_cost / n_hard_scalars)
     if hard_rms > _RESTART_RMS_THRESHOLD:
         rng = np.random.default_rng(42)
@@ -580,6 +606,8 @@ def optimize_layout(
         excess_dof_estimate=excess_dof,
         n_restarts_tried=n_restarts_tried,
         restart_improved=restart_improved,
+        initial_solve_failed=initial_solve_failed,
+        restart_after_failure_succeeded=restart_after_failure_succeeded,
     )
 
     # Acceptance 以 hard_cost 為準
@@ -616,6 +644,7 @@ def _build_diagnostics(
     *,
     dof_estimate=0, constraint_eq_estimate=0, excess_dof_estimate=0,
     n_restarts_tried=0, restart_improved=False,
+    initial_solve_failed=False, restart_after_failure_succeeded=False,
 ) -> dict:
     """構建詳細診斷輸出。"""
     renderer_only_types = {"on_circle_radius", "on_circle_through"}
@@ -685,6 +714,9 @@ def _build_diagnostics(
         # Phase 3: Multi-restart
         "n_restarts_tried": n_restarts_tried,
         "restart_improved": restart_improved,
+        # Phase 4: 首次失敗重啟
+        "initial_solve_failed": initial_solve_failed,
+        "restart_after_failure_succeeded": restart_after_failure_succeeded,
     }
 
 
@@ -702,6 +734,7 @@ def _empty_diagnostics() -> dict:
         "under_constrained_estimate": False,
         "over_constrained_estimate": False,
         "n_restarts_tried": 0, "restart_improved": False,
+        "initial_solve_failed": False, "restart_after_failure_succeeded": False,
     }
 
 
