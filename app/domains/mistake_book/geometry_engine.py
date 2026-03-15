@@ -1502,15 +1502,9 @@ def _transform_to_viewbox(points: dict, circles: dict = None) -> None:
     safe_x = (MARGIN, VIEWBOX_W - MARGIN)  # (40, 260)
     safe_y = (MARGIN, VIEWBOX_H - MARGIN)  # (40, 210)
 
-    # 計算 bounding box 時考慮圓的範圍
+    # 只用點計算 bounding box（不含圓 extent，避免圓壓縮整體 scale）
     xs = [p[0] for p in points.values()]
     ys = [p[1] for p in points.values()]
-    if circles:
-        for center, radius in circles.items():
-            if center in points:
-                cx_c, cy_c = points[center]
-                xs.extend([cx_c - radius, cx_c + radius])
-                ys.extend([cy_c - radius, cy_c + radius])
     min_x, max_x = min(xs), max(xs)
     min_y, max_y = min(ys), max(ys)
 
@@ -1535,10 +1529,15 @@ def _transform_to_viewbox(points: dict, circles: dict = None) -> None:
             round(cy - (y - mid_y) * scale, 1),
         )
 
-    # 同步縮放圓半徑
+    # 同步縮放圓半徑 + containment clamp
     if circles:
         for center in circles:
             circles[center] = round(circles[center] * scale, 1)
+        for center in list(circles.keys()):
+            if center in points:
+                px, py = points[center]
+                max_r = min(px - 5, VIEWBOX_W - px - 5, py - 5, VIEWBOX_H - py - 5)
+                circles[center] = round(max(0.0, min(circles[center], max_r)), 1)
 
 
 # ================================================================

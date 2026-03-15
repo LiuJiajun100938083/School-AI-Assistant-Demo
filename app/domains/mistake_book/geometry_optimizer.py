@@ -1,5 +1,5 @@
 """
-幾何約束數值優化器 — Phase 1
+幾何約束數值優化器 — Phase 2
 
 架構角色：
 - 舊 solver (geometry_engine._resolve_constraints) 生成初始佈局
@@ -10,7 +10,17 @@
 - 統一約束 IR，不再逐類型寫 resolver
 - L_ref 歸一化，消除尺度依賴
 - hard/soft/reg cost 分離，acceptance 以 hard_cost 為準
+- 近重合點排斥（free-free + free-fixed），防止點重疊
 - 診斷系統輸出每條約束殘差，支持 debug
+
+IR 點順序約定：
+- angle:   [ray1, vertex, ray2]  → ∠ray1-vertex-ray2
+- midpoint: [M, A, B]           → M 是 AB 中點
+- collinear/on_segment: [P, A, B] → P 在 AB 直線/線段上
+- distance: [A, B]              → |AB|
+- parallel: [A, B, C, D]        → AB ∥ CD
+- perpendicular: [A, B, C, D]   → AB ⊥ CD
+- equal_distance: [A, B, C, D]  → |AB| = |CD|
 """
 
 from __future__ import annotations
@@ -295,6 +305,43 @@ def _compute_residuals(ir: ConstraintIR, pts: dict,
 
 
 # ================================================================
+# 3b. 約束相關點對（排斥豁免）
+# ================================================================
+
+
+def _build_related_pairs(ir_constraints: list[ConstraintIR]) -> set[frozenset]:
+    """按約束語義構建直接相關的點對集合，這些點對不應被排斥。"""
+    pairs: set[frozenset] = set()
+    for ir in ir_constraints:
+        p = ir.points
+        t = ir.type
+
+        if t == "distance" and len(p) >= 2:
+            pairs.add(frozenset([p[0], p[1]]))
+
+        elif t == "midpoint" and len(p) >= 3:
+            # M 與 A, B 相關，但 A-B 不豁免
+            pairs.add(frozenset([p[0], p[1]]))
+            pairs.add(frozenset([p[0], p[2]]))
+
+        elif t in ("collinear", "on_segment") and len(p) >= 3:
+            pairs.add(frozenset([p[0], p[1]]))
+            pairs.add(frozenset([p[0], p[2]]))
+
+        elif t == "angle" and len(p) >= 3:
+            # [ray1, vertex, ray2] → {V,A}, {V,B}
+            pairs.add(frozenset([p[1], p[0]]))
+            pairs.add(frozenset([p[1], p[2]]))
+
+        elif t in ("parallel", "perpendicular", "equal_distance") and len(p) >= 4:
+            # 只豁免同線段對，不跨線
+            pairs.add(frozenset([p[0], p[1]]))
+            pairs.add(frozenset([p[2], p[3]]))
+
+    return pairs
+
+
+# ================================================================
 # 4. 主求解函數
 # ================================================================
 
@@ -351,6 +398,25 @@ def optimize_layout(
     hard_irs = [ir for ir in ir_constraints if ir.hard]
     soft_irs = [ir for ir in ir_constraints if not ir.hard]
 
+    # 構建排斥豁免點對
+    related_pairs = _build_related_pairs(ir_constraints)
+
+    # 預算 free-free 和 free-fixed 非相關點對索引
+    free_free_repel = []
+    for i in range(len(free_names)):
+        for j in range(i + 1, len(free_names)):
+            if frozenset([free_names[i], free_names[j]]) not in related_pairs:
+                free_free_repel.append((i, j))
+
+    fixed_names = sorted(fixed & set(points0.keys()))
+    free_fixed_repel = []
+    for i, fname in enumerate(free_names):
+        for fxname in fixed_names:
+            if frozenset([fname, fxname]) not in related_pairs:
+                free_fixed_repel.append((i, fxname))
+
+    min_sep = 0.05 * L_ref
+
     # 構建完整 residual 函數
     def _full_residual(x: np.ndarray) -> np.ndarray:
         pts = _reconstruct(x)
@@ -371,6 +437,19 @@ def optimize_layout(
             dx = (x[2 * i] - points0[name][0]) / L_ref * 0.01
             dy = (x[2 * i + 1] - points0[name][1]) / L_ref * 0.01
             res.extend([dx, dy])
+
+        # 近重合點排斥：free-free
+        for i, j in free_free_repel:
+            d = math.hypot(x[2*i] - x[2*j], x[2*i+1] - x[2*j+1]) + EPS
+            if d < min_sep:
+                res.append((min_sep - d) / L_ref * 0.3)
+
+        # 近重合點排斥：free-fixed
+        for fi, fxname in free_fixed_repel:
+            fx_pt = points0[fxname]
+            d = math.hypot(x[2*fi] - fx_pt[0], x[2*fi+1] - fx_pt[1]) + EPS
+            if d < min_sep:
+                res.append((min_sep - d) / L_ref * 0.3)
 
         return np.array(res, dtype=float)
 
@@ -452,8 +531,24 @@ def _build_diagnostics(
     initial_total_cost, final_total_cost,
 ) -> dict:
     """構建詳細診斷輸出。"""
+    renderer_only_types = {"on_circle_radius", "on_circle_through"}
+
     per_constraint = []
     for ir in ir_constraints:
+        if ir.type in renderer_only_types:
+            per_constraint.append({
+                "source_type": ir.source_type,
+                "source_index": ir.source_index,
+                "ir_type": ir.type,
+                "points": ir.points,
+                "residual_norm": 0.0,
+                "weighted_norm": 0.0,
+                "hard": ir.hard,
+                "participates_in_optimization": False,
+                "status": "renderer_only",
+            })
+            continue
+
         r = _compute_residuals(ir, pts, L_ref)
         r_norm = math.sqrt(sum(v * v for v in r))
         w_norm = r_norm * ir.weight
