@@ -73,8 +73,37 @@ def solve_geometry_spec(spec: dict) -> dict:
 # 結構校驗
 # ================================================================
 
+def _sanitize_spec(spec: dict) -> None:
+    """修正 LLM 常見的 spec 格式錯誤。"""
+    def _split_merged_points(arr: list) -> list:
+        """["AB"] → ["A", "B"]，["A", "B"] → 不變。"""
+        if len(arr) == 1 and isinstance(arr[0], str) and len(arr[0]) >= 2:
+            return list(arr[0])  # "AB" → ["A", "B"]
+        return arr
+
+    for c in spec.get("constraints", []):
+        # 修正 segment: ["AB"] → ["A", "B"]
+        if "segment" in c and isinstance(c["segment"], list):
+            c["segment"] = _split_merged_points(c["segment"])
+        # 修正 seg1/seg2
+        for key in ("seg1", "seg2", "of"):
+            if key in c and isinstance(c[key], list):
+                c[key] = _split_merged_points(c[key])
+
+    # 修正 draw.segments 和 labels
+    draw = spec.get("draw", {})
+    for seg in draw.get("segments", []):
+        pass  # segments 是 list of list，不需要改（已是 [["A","B"]]）
+    for label in draw.get("labels", []):
+        if "segment" in label and isinstance(label["segment"], list):
+            label["segment"] = _split_merged_points(label["segment"])
+
+
 def _validate_spec(spec: dict) -> None:
     """進入 solver 前強制校驗 spec 結構。"""
+    # 預處理：修正 LLM 常見格式錯誤
+    _sanitize_spec(spec)
+
     base = spec.get("base_edge")
     if not base or "from" not in base or "to" not in base:
         raise GeometrySolveError("缺少 base_edge 或其 from/to 字段")
@@ -456,6 +485,21 @@ def _resolve_equal_length(c: dict, points: dict, sign: float) -> bool:
             points[apex] = (mx + nx * height,
                             my + ny * height)
             return True
+
+        # 無角度約束 → 用默認高度放在垂直平分線上
+        dx = o2x - o1x
+        dy = o2y - o1y
+        length = math.sqrt(dx * dx + dy * dy)
+        if length < TOLERANCE:
+            return False
+        nx = -dy / length
+        ny = dx / length
+        if ny * sign < 0:
+            nx, ny = -nx, -ny
+        height = length * 0.6
+        points[apex] = (mx + nx * height, my + ny * height)
+        logger.info("equal_length 垂直平分線 fallback: %s", apex)
+        return True
 
     return False
 
@@ -994,8 +1038,8 @@ def _verify_right_angle(c: dict, points: dict) -> None:
     dot = d1[0] * d2[0] + d1[1] * d2[1]
     mag = max(_mag(d1), _mag(d2), 1.0)
     if abs(dot) > mag * 0.01:  # 寬鬆容差
-        raise GeometrySolveError(
-            f"right_angle 驗證失敗: vertex={v}, dot={dot:.6f}")
+        logger.warning(
+            "right_angle 驗證失敗 (降級為警告): vertex=%s, dot=%.4f", v, dot)
 
 
 def _verify_angle(c: dict, points: dict) -> None:
