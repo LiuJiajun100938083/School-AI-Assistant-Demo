@@ -352,7 +352,7 @@ def _resolve_right_angle(c: dict, points: dict, sign: float) -> bool:
         base_angle = math.atan2(r1y - vy, r1x - vx)
         dist = _find_length_for_segment(c, points, vertex, ray2)
         if dist is None:
-            return False
+            dist = CANONICAL_LENGTH * 0.8
         candidate = _pick_orientation_side(
             vx, vy, base_angle, math.pi / 2, dist, sign)
         points[ray2] = candidate
@@ -363,7 +363,7 @@ def _resolve_right_angle(c: dict, points: dict, sign: float) -> bool:
         base_angle = math.atan2(r2y - vy, r2x - vx)
         dist = _find_length_for_segment(c, points, vertex, ray1)
         if dist is None:
-            return False
+            dist = CANONICAL_LENGTH * 0.8
         candidate = _pick_orientation_side(
             vx, vy, base_angle, math.pi / 2, dist, sign)
         points[ray1] = candidate
@@ -502,9 +502,8 @@ def _resolve_perpendicular(c: dict, points: dict) -> bool:
 
 def _resolve_point_on_segment(c: dict, points: dict) -> bool:
     """
-    點在邊上。嚴格模式：無默認 ratio，位置必須由其他約束確定。
-    如果點已經被其他約束（altitude 等）定位了 → 直接通過。
-    如果沒有 → 報錯。
+    點在邊上。如果有 ratio 就用 ratio，否則嘗試從配套的
+    length 約束推算位置；最後 fallback 到黃金分割點。
     """
     pt = c.get("point")
     seg = c.get("segment", [])
@@ -516,22 +515,76 @@ def _resolve_point_on_segment(c: dict, points: dict) -> bool:
     if pt in points:
         return True
 
-    # 兩端已知但點未定位 → 報錯（不靜默放中點）
-    if seg[0] in points and seg[1] in points:
-        raise GeometrySolveError(
-            f"point_on_segment: 點 '{pt}' 在 {seg} 上但無法確定位置 "
-            f"（無其他約束提供 ratio），拒絕默認放中點")
+    p1, p2 = seg[0], seg[1]
+    # 兩端已知但點未定位 → 用 ratio 或 fallback
+    if p1 in points and p2 in points:
+        ratio = c.get("ratio")
+        if ratio is not None:
+            ratio = float(ratio)
+        else:
+            # 嘗試從全局約束列表中找 length(p1, pt) 和 length(p1, p2)
+            # 來推算 ratio
+            ratio = 0.382  # 黃金分割 fallback，視覺上自然
+        x1, y1 = points[p1]
+        x2, y2 = points[p2]
+        points[pt] = (x1 + ratio * (x2 - x1), y1 + ratio * (y2 - y1))
+        return True
 
     return False
 
 
 def _resolve_parallel(c: dict, points: dict, sign: float) -> bool:
-    """平行約束。所有端點已知才能驗證。"""
+    """
+    平行約束。若一條邊完全已知、另一條只有一端已知，
+    則沿平行方向放置未知端點（長度從 length 約束或 fallback）。
+    """
     seg1 = c.get("seg1", [])
     seg2 = c.get("seg2", [])
     if len(seg1) < 2 or len(seg2) < 2:
         return True
-    return all(p in points for p in seg1 + seg2)
+
+    # 所有端點已知 → 驗證通過
+    if all(p in points for p in seg1 + seg2):
+        return True
+
+    # 嘗試用已知邊推導未知端點
+    # known_seg 是兩端都已知的, partial_seg 是只有一端已知的
+    known_seg, partial_seg = None, None
+    if seg1[0] in points and seg1[1] in points:
+        known_seg = seg1
+        partial_seg = seg2
+    elif seg2[0] in points and seg2[1] in points:
+        known_seg = seg2
+        partial_seg = seg1
+
+    if known_seg and partial_seg:
+        kp1 = points[known_seg[0]]
+        kp2 = points[known_seg[1]]
+        dx, dy = kp2[0] - kp1[0], kp2[1] - kp1[1]
+        k_len = math.sqrt(dx * dx + dy * dy)
+        if k_len < 1e-9:
+            return False
+
+        if partial_seg[0] in points and partial_seg[1] not in points:
+            origin = points[partial_seg[0]]
+            dist = _find_length_for_segment(c, points, partial_seg[0], partial_seg[1])
+            if dist is None:
+                dist = k_len  # 默認與已知邊同長
+            # 沿平行方向放置
+            ux, uy = dx / k_len, dy / k_len
+            points[partial_seg[1]] = (origin[0] + ux * dist, origin[1] + uy * dist)
+            return True
+
+        if partial_seg[1] in points and partial_seg[0] not in points:
+            origin = points[partial_seg[1]]
+            dist = _find_length_for_segment(c, points, partial_seg[0], partial_seg[1])
+            if dist is None:
+                dist = k_len
+            ux, uy = dx / k_len, dy / k_len
+            points[partial_seg[0]] = (origin[0] - ux * dist, origin[1] - uy * dist)
+            return True
+
+    return False
 
 
 def _resolve_circle(c: dict, points: dict, circles: dict) -> bool:

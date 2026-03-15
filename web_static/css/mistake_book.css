@@ -2992,17 +2992,21 @@
    ============================================================ */
 
 @media (min-width: 768px) {
-    .mb-content-wrap { max-width: 680px; }
+    .mb-content-wrap { max-width: 720px; }
     .mb-upload-panel__content { max-width: 560px; }
     .mb-quick-actions { grid-template-columns: 1fr 1fr; }
 }
 
 @media (min-width: 1024px) {
-    .mb-content-wrap { max-width: 760px; }
+    .mb-content-wrap { max-width: 960px; }
 }
 
 @media (min-width: 1280px) {
-    .mb-content-wrap { max-width: 840px; }
+    .mb-content-wrap { max-width: 1120px; }
+}
+
+@media (min-width: 1440px) {
+    .mb-content-wrap { max-width: 1240px; }
 }
 
 /* ============================================================
@@ -3320,7 +3324,7 @@
 .mb-glass-setup {
     padding: 32px 20px;
     text-align: center;
-    max-width: 520px;
+    max-width: 680px;
     margin: 0 auto;
 }
 .mb-glass-setup__icon {

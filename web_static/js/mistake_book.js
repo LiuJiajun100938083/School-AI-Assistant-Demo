@@ -1851,7 +1851,7 @@ const Views = {
         // Subject selected — show tabs + history + setup
         container.innerHTML = `
             <div class="mb-practice-tabs" id="practiceSubjectTabs">${tabsHtml}</div>
-            <div style="max-width:600px;margin:0 auto;padding:0 16px">
+            <div style="margin:0 auto;padding:0 16px">
             <div id="practiceHistoryArea" style="margin-bottom:16px">
                 <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
             </div>
@@ -1902,7 +1902,7 @@ const Views = {
                     </div>
                     <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:12px;background:rgba(0,0,0,0.02);text-align:left;font-size:13px;color:var(--mb-text-secondary)"></div>
                     <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
-                            id="startPracticeBtn" style="max-width:280px">
+                            id="startPracticeBtn" style="max-width:360px">
                         開始練習
                     </button>
                 </div>
