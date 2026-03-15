@@ -148,11 +148,14 @@ SVG 技術規範：
 | perpendicular | {{"type":"perpendicular", "seg1":["B","D"], "seg2":["A","C"]}} | 兩線段垂直 |
 | point_on_segment | {{"type":"point_on_segment", "point":"D", "segment":["A","C"]}} | 點在邊上（位置由其他約束決定） |
 | parallel | {{"type":"parallel", "seg1":["A","B"], "seg2":["C","D"]}} | 平行 |
+| circle | {{"type":"circle", "center":"O", "radius":5}} | 已知半徑的圓 |
+| circle_through | {{"type":"circle_through", "center":"O", "through":"A"}} | 過某點的圓（半徑=OA） |
 
 ## draw 字段
 
 - segments：要畫的線段列表
 - labels：邊長標注（text 為顯示文字）
+- circles：圓的列表，例如 [{{"center":"O", "radius_to":"A"}}]（半徑為 OA 的距離）
 - suppress_angle_labels：不標注角度的頂點名列表
 
 系統會自動從約束推導以下渲染標記，你不需要寫：

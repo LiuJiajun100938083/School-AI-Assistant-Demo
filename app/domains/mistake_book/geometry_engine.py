@@ -1617,11 +1617,17 @@ def _build_renderer_spec(points: dict, circles: dict, spec: dict) -> dict:
             if v and val and v not in suppress_angles:
                 angle_labels.append({"vertex": v, "text": f"{val}°"})
 
-    # 圓
+    # 圓：從約束求解的圓 + draw 指定的圓
     circle_specs = []
     for center, radius in circles.items():
         if center in points:
             circle_specs.append({"center": center, "radius": radius})
+    # draw.circles 直通（如 {"center":"O", "radius_to":"A"}），去重
+    existing_centers = {c["center"] for c in circle_specs}
+    for dc in draw.get("circles", []):
+        if dc.get("center") in points and dc.get("center") not in existing_centers:
+            circle_specs.append(dc)
+            existing_centers.add(dc["center"])
 
     return {
         "points": {name: list(coord) for name, coord in points.items()},
