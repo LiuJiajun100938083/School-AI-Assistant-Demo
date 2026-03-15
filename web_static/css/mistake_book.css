@@ -180,6 +180,7 @@
    ============================================================ */
 
 .mb-content-wrap {
+    width: 100%;
     max-width: 100%;
     margin: 0 auto;
     padding: 0;
@@ -1769,6 +1770,96 @@
 }
 
 /* ============================================================
+   Practice Progress Panel
+   ============================================================ */
+
+.mb-progress-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px;
+    gap: 20px;
+    animation: mbFadeIn 0.3s ease;
+}
+
+@keyframes mbFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.mb-progress-panel__spinner svg {
+    animation: mbSpin 1.2s linear infinite;
+}
+
+.mb-progress-panel__arc {
+    transform-origin: center;
+}
+
+.mb-progress-panel__stage {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--mb-text);
+    transition: opacity 0.2s ease;
+    min-height: 24px;
+}
+
+.mb-progress-panel__stage--fade {
+    opacity: 0;
+}
+
+.mb-progress-panel__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(0, 102, 51, 0.08);
+    color: var(--mb-brand);
+    flex-shrink: 0;
+}
+
+.mb-progress-panel__icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.mb-progress-panel__text {
+    letter-spacing: -0.01em;
+}
+
+.mb-progress-panel__bar-wrap {
+    width: 100%;
+    max-width: 320px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.mb-progress-panel__bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    background: var(--mb-brand);
+    transition: width 1s linear;
+}
+
+.mb-progress-panel__time {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mb-text-secondary);
+}
+
+.mb-progress-panel__tip {
+    font-size: 12px;
+    color: var(--mb-text-tertiary);
+}
+
+/* ============================================================
    Toast
    ============================================================ */
 
@@ -2608,14 +2699,14 @@
 }
 
 .mb-practice-setup__points {
-    max-width: 480px;
+    max-width: 840px;
     margin: 0 auto 20px;
     text-align: left;
 }
 
 .mb-practice-setup__form {
     margin-bottom: 20px;
-    max-width: 480px;
+    max-width: 840px;
     margin-left: auto;
     margin-right: auto;
 }
@@ -3002,11 +3093,15 @@
 }
 
 @media (min-width: 1280px) {
-    .mb-content-wrap { max-width: 1120px; }
+    .mb-content-wrap { max-width: 1200px; }
 }
 
 @media (min-width: 1440px) {
-    .mb-content-wrap { max-width: 1240px; }
+    .mb-content-wrap { max-width: 1400px; }
+}
+
+@media (min-width: 1600px) {
+    .mb-content-wrap { max-width: 1520px; }
 }
 
 /* ============================================================
@@ -3429,9 +3524,10 @@
 .mb-glass-subject-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    max-width: 480px;
+    gap: 12px;
+    max-width: 100%;
     margin: 0 auto;
+    padding: 0 40px;
 }
 .mb-glass-subject-btn {
     display: flex;

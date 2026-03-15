@@ -2249,22 +2249,139 @@ const Views = {
         previewEl.innerHTML = `${pointNames.join('、')} · ${count} 題 · 難度：${diffLabel}`;
     },
 
+    _practiceProgressTimer: null,
+
+    _showPracticeProgress(count) {
+        const setupEl = document.getElementById('newPracticeSetup');
+        if (!setupEl) return;
+
+        const _ico = {
+            search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+            chart:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+            brain:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.9 2-2 2h-4c-1.1 0-2-.9-2-2a4 4 0 0 1 4-4z"/><path d="M8 8v2a4 4 0 0 0 8 0V8"/><path d="M6 14a6 6 0 0 0 12 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>',
+            pen:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+            ruler:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20l20-20"/><path d="M5.5 13.5L8 11"/><path d="M9.5 9.5L12 7"/><path d="M13.5 5.5L16 3"/><polygon points="2 20 2 14 10 22 4 22"/></svg>',
+            check:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+            target: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+        };
+
+        const stages = [
+            { icon: _ico.search, text: '正在分析薄弱知識點...', duration: 3000 },
+            { icon: _ico.chart,  text: '正在匹配難度等級...', duration: 3000 },
+            { icon: _ico.brain,  text: 'AI 正在構思題目...', duration: 8000 },
+            { icon: _ico.pen,    text: '正在生成第 1 題...', duration: 6000 },
+            { icon: _ico.pen,    text: '正在生成第 2 題...', duration: 6000 },
+            { icon: _ico.pen,    text: '正在生成第 3 題...', duration: 6000 },
+            { icon: _ico.ruler,  text: '正在繪製幾何圖形...', duration: 8000 },
+            { icon: _ico.check,  text: '正在檢查題目品質...', duration: 5000 },
+            { icon: _ico.target, text: '即將完成，請稍候...', duration: 10000 },
+        ];
+
+        // Adjust middle stages based on question count
+        if (count > 3) {
+            for (let i = 4; i <= Math.min(count, 7); i++) {
+                stages.splice(3 + (i - 1), 0, { icon: _ico.pen, text: `正在生成第 ${i} 題...`, duration: 5000 });
+            }
+        }
+
+        const estSeconds = Math.max(30, count * 12);
+
+        setupEl.innerHTML = `
+            <div class="mb-progress-panel">
+                <div class="mb-progress-panel__spinner">
+                    <svg viewBox="0 0 40 40" width="40" height="40">
+                        <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(0,102,51,0.12)" stroke-width="3"/>
+                        <circle cx="20" cy="20" r="16" fill="none" stroke="var(--mb-brand)" stroke-width="3"
+                                stroke-dasharray="28 72" stroke-linecap="round" class="mb-progress-panel__arc"/>
+                    </svg>
+                </div>
+                <div class="mb-progress-panel__stage" id="practiceProgressStage">
+                    <span class="mb-progress-panel__icon">${stages[0].icon}</span>
+                    <span class="mb-progress-panel__text">${stages[0].text}</span>
+                </div>
+                <div class="mb-progress-panel__bar-wrap">
+                    <div class="mb-progress-panel__bar" id="practiceProgressBar"></div>
+                </div>
+                <div class="mb-progress-panel__time" id="practiceProgressTime">
+                    預計需要 ${estSeconds} 秒，請耐心等待
+                </div>
+                <div class="mb-progress-panel__tip">
+                    AI 正在為你出題，題目越多所需時間越長
+                </div>
+            </div>
+        `;
+
+        let stageIdx = 0;
+        let elapsed = 0;
+        const totalEst = estSeconds * 1000;
+
+        this._practiceProgressTimer = setInterval(() => {
+            elapsed += 1000;
+
+            // Update progress bar (cap at 95%)
+            const pct = Math.min(95, (elapsed / totalEst) * 100);
+            const bar = document.getElementById('practiceProgressBar');
+            if (bar) bar.style.width = pct + '%';
+
+            // Update time remaining
+            const remaining = Math.max(0, estSeconds - Math.floor(elapsed / 1000));
+            const timeEl = document.getElementById('practiceProgressTime');
+            if (timeEl && remaining > 0) {
+                timeEl.textContent = `預計還需 ${remaining} 秒`;
+            } else if (timeEl) {
+                timeEl.textContent = '即將完成...';
+            }
+
+            // Advance stage
+            if (stageIdx < stages.length - 1) {
+                const cumDuration = stages.slice(0, stageIdx + 1).reduce((s, st) => s + st.duration, 0);
+                if (elapsed >= cumDuration) {
+                    stageIdx++;
+                    const stageEl = document.getElementById('practiceProgressStage');
+                    if (stageEl) {
+                        stageEl.classList.add('mb-progress-panel__stage--fade');
+                        setTimeout(() => {
+                            stageEl.innerHTML = `
+                                <span class="mb-progress-panel__icon">${stages[stageIdx].icon}</span>
+                                <span class="mb-progress-panel__text">${stages[stageIdx].text}</span>
+                            `;
+                            stageEl.classList.remove('mb-progress-panel__stage--fade');
+                        }, 200);
+                    }
+                }
+            }
+        }, 1000);
+    },
+
+    _hidePracticeProgress() {
+        if (this._practiceProgressTimer) {
+            clearInterval(this._practiceProgressTimer);
+            this._practiceProgressTimer = null;
+        }
+    },
+
     async _startPractice(subject) {
         const btn = document.getElementById('startPracticeBtn');
         if (btn.disabled) return; // 防重複點擊
         btn.disabled = true;
-        btn.textContent = 'AI 出題中...';
 
         const count = parseInt(document.getElementById('practiceCount').value);
         const targetPoints = this._getSelectedPracticePoints();
         const diffVal = document.getElementById('practiceDifficulty')?.value;
         const difficulty = diffVal ? parseInt(diffVal) : null;
 
+        // Show progress UI
+        this._showPracticeProgress(count);
+
         const res = await API.generatePractice(subject, count, targetPoints.length > 0 ? targetPoints : null, difficulty);
 
+        // Clean up progress
+        this._hidePracticeProgress();
+
         if (!res || !res.data) {
-            btn.disabled = false;
-            btn.textContent = '開始練習';
+            // Restore learn view on failure
+            const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+            if (target) Views.renderLearn(target);
             return;
         }
 
