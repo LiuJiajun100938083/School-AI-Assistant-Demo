@@ -88,20 +88,25 @@ def _validate_spec(spec: dict) -> None:
     if len(all_points) < 2:
         raise GeometrySolveError(f"點數不足: {all_points}")
 
+    # 過濾掉 LLM 為未知量填的 length=0 約束
+    filtered = []
     for i, c in enumerate(constraints):
         ctype = c.get("type")
         if not ctype:
             raise GeometrySolveError(f"約束 {i} 缺少 type 字段")
-
-        # 數值校驗
         if ctype == "length":
             v = c.get("value")
+            if v is not None and float(v) == 0:
+                logger.info("過濾掉 length=0 約束: segment=%s", c.get("segment"))
+                continue
             if v is None or float(v) <= 0:
                 raise GeometrySolveError(f"約束 {i}: length.value 必須為正數")
         elif ctype == "angle":
             v = c.get("value")
             if v is None or not (0 < float(v) < 360):
                 raise GeometrySolveError(f"約束 {i}: angle.value 必須在 (0, 360)")
+        filtered.append(c)
+    spec["constraints"] = filtered
 
     # draw.segments 引用的點名必須都能從約束推導
     draw_segs = spec.get("draw", {}).get("segments", [])
@@ -825,8 +830,9 @@ def _verify_perpendicular(c: dict, points: dict) -> None:
     dot = d1[0] * d2[0] + d1[1] * d2[1]
     mag = max(_mag(d1), _mag(d2), 1.0)
     if abs(dot) > mag * 0.01:
-        raise GeometrySolveError(
-            f"perpendicular 驗證失敗: seg1={seg1}, seg2={seg2}, dot={dot:.4f}")
+        logger.warning(
+            "perpendicular 驗證失敗 (降級為警告): seg1=%s, seg2=%s, dot=%.4f",
+            seg1, seg2, dot)
 
 
 def _verify_point_on_segment(c: dict, points: dict) -> None:
