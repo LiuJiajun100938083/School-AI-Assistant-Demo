@@ -443,13 +443,15 @@ class MistakeBookService:
     async def _call_ollama_direct(self, prompt: str, model_override: str = None,
                                   timeout_override: float = None,
                                   gate_task: str = None, gate_priority=None,
-                                  gate_weight=None) -> str:
+                                  gate_weight=None,
+                                  temperature: float = 0.3) -> str:
         """
         直接異步調用 Ollama API（繞過 langchain 60s 超時限制）
 
         使用 /api/chat 端點，適合長時間分析任務。
         model_override: 指定模型（如 SVG 生成用 coder 模型），None 則用全局配置。
         timeout_override: 指定超時秒數，None 則用默認 300s。
+        temperature: 生成溫度，默認 0.3。出題建議 0.8 以增加多樣性。
         gate_task/gate_priority/gate_weight: ai_gate 調度參數，None 則用默認值。
         """
         import httpx
@@ -480,7 +482,7 @@ class MistakeBookService:
             "think": False,
             "format": "json",
             "options": {
-                "temperature": 0.3,
+                "temperature": temperature,
                 "num_predict": 8192,
             },
         }
@@ -1569,13 +1571,16 @@ class MistakeBookService:
             len(generation_context.get("recent_practice_summaries", [])),
         )
 
-        # Step 4: AI 出題
+        # Step 4: AI 出題（高溫度以增加多樣性）
+        import random
+        seed = random.randint(1000, 9999)
         prompt = build_practice_prompt(
             subject, points_data, question_count,
             resolved_difficulty, generation_context.get("student_mistakes_context", ""),
             student_history_context=generation_context.get("history_context", ""),
         )
-        raw = await self._ask_ai(prompt, subject)
+        prompt += f"\n\n[seed={seed}] 請確保每次出題的數值、情境、設問方式都不同。"
+        raw = await self._call_ollama_direct(prompt, temperature=0.8)
         questions_data = self._parse_json_response(raw)
         questions = questions_data.get("questions", [])
 
