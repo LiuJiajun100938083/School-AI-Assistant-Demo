@@ -537,19 +537,41 @@ def _resolve_altitude(c: dict, points: dict) -> bool:
 
 
 def _resolve_midpoint(c: dict, points: dict) -> bool:
-    """中點。"""
+    """中點 — 支援正向與反向推導。"""
     pt_name = c.get("point")
     of = c.get("of", [])
     if len(of) < 2 or not pt_name:
         return True
 
-    if of[0] not in points or of[1] not in points:
-        return False
+    a, b = of[0], of[1]
 
-    ax, ay = points[of[0]]
-    bx, by = points[of[1]]
-    points[pt_name] = ((ax + bx) / 2, (ay + by) / 2)
-    return True
+    # 三點皆已知 → 已解決
+    if pt_name in points and a in points and b in points:
+        return True
+
+    # 正向：兩端點已知 → 放中點（僅當中點未被其他約束放置時）
+    if a in points and b in points:
+        if pt_name not in points:
+            ax, ay = points[a]
+            bx, by = points[b]
+            points[pt_name] = ((ax + bx) / 2, (ay + by) / 2)
+        return True
+
+    # 反向：中點已知 + 一端已知 → 推導另一端
+    if pt_name in points:
+        mx, my = points[pt_name]
+        if a in points and b not in points:
+            ax, ay = points[a]
+            points[b] = (2 * mx - ax, 2 * my - ay)
+            logger.info("midpoint 反向推導: %s = 2*%s - %s", b, pt_name, a)
+            return True
+        if b in points and a not in points:
+            bx, by = points[b]
+            points[a] = (2 * mx - bx, 2 * my - by)
+            logger.info("midpoint 反向推導: %s = 2*%s - %s", a, pt_name, b)
+            return True
+
+    return False
 
 
 def _resolve_perpendicular(c: dict, points: dict) -> bool:
@@ -1156,6 +1178,10 @@ def _try_place_unreferenced_vertices(constraints: list, points: dict,
             pt = c.get("point")
             if pt:
                 precisely_positioned.add(pt)
+            # of 端點也應由 midpoint 反向推導定位，不走 fallback
+            for ep in c.get("of", []):
+                if isinstance(ep, str):
+                    precisely_positioned.add(ep)
         elif ctype == "altitude":
             ft = c.get("foot")
             if ft:
