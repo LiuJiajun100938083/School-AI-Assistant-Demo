@@ -1,5 +1,5 @@
 """
-幾何約束數值優化器 — Phase 2
+幾何約束數值優化器 — Phase 3
 
 架構角色：
 - 舊 solver (geometry_engine._resolve_constraints) 生成初始佈局
@@ -11,6 +11,8 @@
 - L_ref 歸一化，消除尺度依賴
 - hard/soft/reg cost 分離，acceptance 以 hard_cost 為準
 - 近重合點排斥（free-free + free-fixed），防止點重疊
+- Multi-restart with 多檔擾動，逃離局部極小
+- DOF 啟發式估計（diagnostics only）
 - 診斷系統輸出每條約束殘差，支持 debug
 
 IR 點順序約定：
@@ -36,6 +38,11 @@ from scipy.optimize import least_squares
 logger = logging.getLogger(__name__)
 
 EPS = 1e-12  # 分母保護
+
+# Multi-restart 參數
+_N_RESTARTS = 3
+_RESTART_SCALES = [0.02, 0.05, 0.10]  # 多檔擾動：精修 / 跳盆地 / 兜底
+_RESTART_RMS_THRESHOLD = 1e-3  # hard RMS 低於此值跳過重啟
 
 # ================================================================
 # 1. 統一約束 IR
@@ -342,6 +349,55 @@ def _build_related_pairs(ir_constraints: list[ConstraintIR]) -> set[frozenset]:
 
 
 # ================================================================
+# 3c. 求解輔助函數
+# ================================================================
+
+
+def _run_solve(residual_fn, x_init):
+    """單次 least_squares 求解。返回 result 或 None。"""
+    try:
+        result = least_squares(
+            residual_fn, x_init,
+            method='trf', loss='soft_l1',
+            ftol=1e-10, xtol=1e-10, max_nfev=500,
+        )
+        if not np.all(np.isfinite(result.x)):
+            return None
+        if not np.all(np.isfinite(result.fun)):
+            return None
+        if not np.isfinite(result.cost):
+            return None
+        return result
+    except Exception:
+        return None
+
+
+def _count_dof_estimate(free_names, ir_constraints):
+    """啟發式 DOF 估計（非嚴格數學自由度，不考慮約束依賴/冗餘）。"""
+    _EQ_COUNT = {
+        "distance": 1, "angle": 1, "midpoint": 2,
+        "collinear": 1, "on_segment": 0,
+        "perpendicular": 1, "parallel": 1, "equal_distance": 1,
+        "on_circle_radius": 0, "on_circle_through": 0,
+    }
+    n_dof = 2 * len(free_names)
+    n_eqs = sum(_EQ_COUNT.get(ir.type, 0) for ir in ir_constraints if ir.hard)
+    return n_dof, n_eqs, n_dof - n_eqs
+
+
+def _count_hard_residual_scalars(hard_irs):
+    """計算 hard residual 的 scalar 數量（用於 RMS 計算）。"""
+    # 每種約束的 residual scalar 數
+    _SCALAR_COUNT = {
+        "distance": 1, "angle": 1, "midpoint": 2,
+        "collinear": 1, "on_segment": 1,
+        "perpendicular": 1, "parallel": 1, "equal_distance": 1,
+        "on_circle_radius": 1, "on_circle_through": 1,
+    }
+    return max(sum(_SCALAR_COUNT.get(ir.type, 1) for ir in hard_irs), 1)
+
+
+# ================================================================
 # 4. 主求解函數
 # ================================================================
 
@@ -462,39 +518,68 @@ def optimize_layout(
             cost += sum(v * v * ir.weight * ir.weight for v in r)
         return cost
 
-    # 計算初始 hard cost（用同一套 pipeline）
+    # DOF 估計
+    dof_est, eq_est, excess_dof = _count_dof_estimate(free_names, ir_constraints)
+
+    # 計算初始 hard cost
     initial_hard_cost = _hard_residual(x0)
     initial_full = _full_residual(x0)
     initial_total_cost = float(np.sum(initial_full ** 2))
 
-    # 求解
-    try:
-        result = least_squares(
-            _full_residual, x0,
-            method='trf',
-            loss='soft_l1',
-            ftol=1e-10,
-            xtol=1e-10,
-            max_nfev=500,
-        )
-    except Exception as e:
-        logger.warning("least_squares 求解異常: %s", e)
-        return dict(points0), _error_diagnostics(str(e))
+    # Hard residual scalar 數（用於 RMS 計算）
+    n_hard_scalars = _count_hard_residual_scalars(hard_irs)
 
-    # 檢查 NaN
-    if np.any(np.isnan(result.x)):
-        logger.warning("優化結果含 NaN，fallback")
-        return dict(points0), _error_diagnostics("NaN in result")
+    # === 首次求解 ===
+    result = _run_solve(_full_residual, x0)
+    if result is None:
+        logger.warning("首次 least_squares 求解失敗，fallback")
+        return dict(points0), _error_diagnostics("solve failed")
 
-    # 計算最終 hard cost
-    final_hard_cost = _hard_residual(result.x)
-    final_pts = _reconstruct(result.x)
+    best_result = result
+    best_hard_cost = _hard_residual(result.x)
+    n_restarts_tried = 0
+    restart_improved = False
+
+    # === Multi-restart ===
+    hard_rms = math.sqrt(best_hard_cost / n_hard_scalars)
+    if hard_rms > _RESTART_RMS_THRESHOLD:
+        rng = np.random.default_rng(42)
+        best_x = result.x.copy()
+
+        for k, scale in enumerate(_RESTART_SCALES):
+            x_perturbed = best_x + rng.normal(0, scale * L_ref, size=best_x.shape)
+            res_k = _run_solve(_full_residual, x_perturbed)
+            n_restarts_tried += 1
+
+            if res_k is None:
+                continue
+
+            hc_k = _hard_residual(res_k.x)
+            if hc_k < best_hard_cost:
+                best_result = res_k
+                best_hard_cost = hc_k
+                best_x = res_k.x.copy()
+                restart_improved = True
+
+        if restart_improved:
+            logger.info(
+                "Multi-restart 改善: hard_cost %.6f → %.6f (%d restarts)",
+                _hard_residual(result.x), best_hard_cost, n_restarts_tried)
+
+    # === 最終結果 ===
+    final_hard_cost = best_hard_cost
+    final_pts = _reconstruct(best_result.x)
 
     # 診斷
     diagnostics = _build_diagnostics(
-        result, ir_constraints, final_pts, L_ref,
+        best_result, ir_constraints, final_pts, L_ref,
         initial_hard_cost, final_hard_cost,
-        initial_total_cost, float(result.cost),
+        initial_total_cost, float(best_result.cost),
+        dof_estimate=dof_est,
+        constraint_eq_estimate=eq_est,
+        excess_dof_estimate=excess_dof,
+        n_restarts_tried=n_restarts_tried,
+        restart_improved=restart_improved,
     )
 
     # Acceptance 以 hard_cost 為準
@@ -505,8 +590,7 @@ def optimize_layout(
         diagnostics["accepted"] = False
         return dict(points0), diagnostics
 
-    if not result.success:
-        # 未收斂但殘差改善 → 接受 + warning
+    if not best_result.success:
         if final_hard_cost <= initial_hard_cost:
             logger.info(
                 "優化未完全收斂但殘差改善: %.4f → %.4f，接受結果",
@@ -529,6 +613,9 @@ def _build_diagnostics(
     result, ir_constraints, pts, L_ref,
     initial_hard_cost, final_hard_cost,
     initial_total_cost, final_total_cost,
+    *,
+    dof_estimate=0, constraint_eq_estimate=0, excess_dof_estimate=0,
+    n_restarts_tried=0, restart_improved=False,
 ) -> dict:
     """構建詳細診斷輸出。"""
     renderer_only_types = {"on_circle_radius", "on_circle_through"}
@@ -589,6 +676,15 @@ def _build_diagnostics(
         "near_coincident_points": near_coincident,
         "n_function_evals": result.nfev,
         "accepted": None,  # 由 caller 設定
+        # Phase 3: DOF 估計
+        "dof_estimate": dof_estimate,
+        "constraint_eq_estimate": constraint_eq_estimate,
+        "excess_dof_estimate": excess_dof_estimate,
+        "under_constrained_estimate": excess_dof_estimate > 0,
+        "over_constrained_estimate": excess_dof_estimate < 0,
+        # Phase 3: Multi-restart
+        "n_restarts_tried": n_restarts_tried,
+        "restart_improved": restart_improved,
     }
 
 
@@ -601,6 +697,11 @@ def _empty_diagnostics() -> dict:
         "per_constraint": [], "top_violations": [],
         "near_coincident_points": [], "n_function_evals": 0,
         "accepted": True,
+        "dof_estimate": 0, "constraint_eq_estimate": 0,
+        "excess_dof_estimate": 0,
+        "under_constrained_estimate": False,
+        "over_constrained_estimate": False,
+        "n_restarts_tried": 0, "restart_improved": False,
     }
 
 
