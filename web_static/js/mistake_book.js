@@ -1353,7 +1353,7 @@ const Views = {
     async _fetchQueueStatus() {
         try {
             const res = await fetch('/api/mistakes/queue-status', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                headers: { 'Authorization': `Bearer ${App.state.token}` }
             });
             if (!res.ok) return;
             const data = await res.json();
