@@ -1800,6 +1800,7 @@ const Views = {
 
         // 顯示歷史列表 + 新練習按鈕
         container.innerHTML = `
+            <div style="max-width:600px;margin:0 auto;padding:0 16px">
             <div id="practiceHistoryArea" style="margin-bottom:16px">
                 <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
             </div>
@@ -1807,6 +1808,7 @@ const Views = {
                 <button class="mb-btn mb-btn--primary" id="toggleNewPracticeBtn" onclick="Views._toggleNewPracticeSetup()">
                     開始新練習
                 </button>
+            </div>
             </div>
             <div id="newPracticeSetup" style="display:none">
                 <div class="mb-practice-setup">
