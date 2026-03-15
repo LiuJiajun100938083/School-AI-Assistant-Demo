@@ -142,7 +142,7 @@ def _validate_spec(spec: dict) -> None:
     if len(all_points) < 2:
         raise GeometrySolveError(f"點數不足: {all_points}")
 
-    # 過濾掉 LLM 為未知量填的 length=0 約束
+    # 過濾掉 LLM 產生的無效約束
     filtered = []
     for i, c in enumerate(constraints):
         ctype = c.get("type")
@@ -163,7 +163,27 @@ def _validate_spec(spec: dict) -> None:
                 continue
             if not (0 < float(v) < 360):
                 raise GeometrySolveError(f"約束 {i}: angle.value 必須在 (0, 360)")
+        elif ctype == "point_on_segment":
+            seg = c.get("segment", [])
+            # LLM 有時把約束類型名（如 "circle_through"）塞進 segment 列表
+            bad_names = [s for s in seg if isinstance(s, str) and s in _CONSTRAINT_TYPE_NAMES]
+            if bad_names:
+                logger.info("過濾掉 segment 含約束類型名的 point_on_segment: %s", seg)
+                continue
         filtered.append(c)
+
+    # 二次過濾: LLM 用 length=1 作佔位符（題目有更大的長度值時）
+    length_vals = [float(c["value"]) for c in filtered if c.get("type") == "length" and c.get("value") is not None]
+    if length_vals and max(length_vals) > 2:
+        before = len(filtered)
+        filtered = [
+            c for c in filtered
+            if not (c.get("type") == "length" and c.get("value") is not None and float(c["value"]) == 1)
+        ]
+        n_removed = before - len(filtered)
+        if n_removed:
+            logger.info("過濾掉 %d 個 length=1 佔位約束（最大長度=%.1f）", n_removed, max(length_vals))
+
     spec["constraints"] = filtered
 
     # draw.segments 引用的點名必須都能從約束推導
@@ -173,6 +193,14 @@ def _validate_spec(spec: dict) -> None:
             if pt not in all_points:
                 raise GeometrySolveError(
                     f"draw.segments 引用未知點 '{pt}'，已知: {all_points}")
+
+
+_CONSTRAINT_TYPE_NAMES = {
+    "length", "angle", "midpoint", "collinear", "on_segment",
+    "perpendicular", "parallel", "equal_distance", "equal_length",
+    "circle", "circle_through", "on_circle_radius", "on_circle_through",
+    "right_angle", "point_on_segment", "distance",
+}
 
 
 def _collect_point_names(spec: dict) -> Set[str]:
@@ -204,6 +232,8 @@ def _collect_point_names(spec: dict) -> Set[str]:
                 if isinstance(pair, list):
                     names.update(pair)
 
+    # 過濾掉被誤當作點名的約束類型名（如 "circle_through"）
+    names -= _CONSTRAINT_TYPE_NAMES
     return names
 
 
