@@ -251,19 +251,29 @@ const API = {
         };
     },
 
-    async _fetch(url, options = {}) {
+    async _fetch(url, options = {}, timeoutMs = 60000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const res = await fetch(url, {
                 headers: this._headers(),
+                signal: controller.signal,
                 ...options,
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
             return data;
         } catch (err) {
-            console.error(`API Error [${url}]:`, err);
-            UI.toast(err.message, 'error');
+            if (err.name === 'AbortError') {
+                console.error(`API Timeout [${url}]: ${timeoutMs}ms`);
+                UI.toast('請求超時，請重試', 'error');
+            } else {
+                console.error(`API Error [${url}]:`, err);
+                UI.toast(err.message, 'error');
+            }
             return null;
+        } finally {
+            clearTimeout(timer);
         }
     },
 
@@ -342,7 +352,7 @@ const API = {
         return this._fetch('/api/mistakes/practice/generate', {
             method: 'POST',
             body: JSON.stringify(body),
-        });
+        }, 300000);  // 5 分鐘超時：AI 出題 + SVG 生成較慢
     },
     async submitPractice(sessionId, answers) {
         return this._fetch(`/api/mistakes/practice/${sessionId}/submit`, {

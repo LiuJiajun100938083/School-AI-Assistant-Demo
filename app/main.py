@@ -339,4 +339,5 @@ if __name__ == "__main__":
         reload=settings.server_reload or settings.server_debug,
         workers=settings.server_workers,
         log_level="debug" if settings.server_debug else "info",
+        timeout_keep_alive=300,  # AI 出題可能需要 3-5 分鐘
     )
