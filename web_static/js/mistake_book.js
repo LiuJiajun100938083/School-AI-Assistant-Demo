@@ -43,7 +43,41 @@ const Icons = {
     zap:       (s) => Icons._svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>', s),
     listView:  (s) => Icons._svg('<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>', s),
     gridView:  (s) => Icons._svg('<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect>', s),
+    keyboard:  (s) => Icons._svg('<rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line><line x1="14" y1="8" x2="14.01" y2="8"></line><line x1="18" y1="8" x2="18.01" y2="8"></line><line x1="8" y1="12" x2="8.01" y2="12"></line><line x1="12" y1="12" x2="12.01" y2="12"></line><line x1="16" y1="12" x2="16.01" y2="12"></line><line x1="7" y1="16" x2="17" y2="16"></line>', s),
+    penTool:   (s) => Icons._svg('<path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle>', s),
+    pencil:    (s) => Icons._svg('<line x1="18" y1="2" x2="22" y2="6"></line><path d="M7.5 20.5L19 9l-4-4L3.5 16.5 2 22z"></path>', s),
+    // Subject SVG icons
+    subjectChinese:  (s) => Icons._svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path><line x1="9" y1="7" x2="15" y2="7"></line><line x1="12" y1="7" x2="12" y2="17"></line><line x1="9" y1="12" x2="15" y2="12"></line>', s),
+    subjectEnglish:  (s) => Icons._svg('<polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>', s),
+    subjectMath:     (s) => Icons._svg('<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line><line x1="6" y1="6" x2="18" y2="18"></line>', s),
+    subjectScience:  (s) => Icons._svg('<path d="M9 3h6v7.5L19 17a2 2 0 0 1-1.7 3H6.7a2 2 0 0 1-1.7-3l4-6.5V3z"></path><line x1="9" y1="3" x2="15" y2="3"></line><line x1="8" y1="15" x2="16" y2="15"></line>', s),
+    subjectHistory:  (s) => Icons._svg('<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>', s),
+    subjectICT:      (s) => Icons._svg('<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>', s),
+    subjectGeneric:  (s) => Icons._svg('<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>', s),
+    sparkles:  (s) => Icons._svg('<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"></path><path d="M19 15l.5 1.5L21 17l-1.5.5L19 19l-.5-1.5L17 17l1.5-.5L19 15z"></path>', s),
+    clock:     (s) => Icons._svg('<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>', s),
 };
+
+/** Get SVG icon for a subject code */
+function getSubjectIcon(code, size) {
+    const map = {
+        chinese: Icons.subjectChinese,
+        english: Icons.subjectEnglish,
+        math: Icons.subjectMath,
+        physics: Icons.subjectScience,
+        chemistry: Icons.subjectScience,
+        biology: Icons.subjectScience,
+        science: Icons.subjectScience,
+        history: Icons.subjectHistory,
+        ICT: Icons.subjectICT,
+        ict: Icons.subjectICT,
+        ces: Icons.subjectHistory,
+        geography: Icons.subjectGeneric,
+        economics: Icons.subjectGeneric,
+        visual_arts: Icons.subjectGeneric,
+    };
+    return (map[code] || Icons.subjectGeneric)(size);
+}
 
 
 /* ============================================================
@@ -1775,20 +1809,36 @@ const Views = {
     /* ---- 練習頁 ---- */
     async renderPractice(container) {
         const subject = App.state.currentSubject;
+        const subjects = App.state.subjects || [];
+
+        // Always render subject tabs at top
+        const tabsHtml = subjects.map((s, i) => {
+            const isActive = s.subject_code === subject;
+            return `<button class="mb-practice-tab${isActive ? ' mb-practice-tab--active' : ''} mb-glass-animate"
+                            data-practice-subject="${s.subject_code}"
+                            style="animation-delay:${i * 30}ms">
+                        ${getSubjectIcon(s.subject_code, 14)}
+                        ${s.display_name}
+                    </button>`;
+        }).join('');
+
         if (subject === 'all') {
             container.innerHTML = `
-                <div class="mb-practice-setup">
-                    <div class="mb-practice-setup__icon">${Icons.target(40)}</div>
-                    <div class="mb-practice-setup__title">AI 智能練習</div>
-                    <div class="mb-practice-setup__desc">選擇一個科目，根據薄弱知識點自動出題</div>
-                    <div class="mb-practice-subjects"></div>
+                <div class="mb-glass-setup">
+                    <div class="mb-glass-setup__icon mb-glass-animate">${Icons.target(28)}</div>
+                    <div class="mb-glass-setup__title mb-glass-animate" style="animation-delay:50ms">AI 智能練習</div>
+                    <div class="mb-glass-setup__desc mb-glass-animate" style="animation-delay:80ms">選擇一個科目開始練習</div>
+                    <div class="mb-glass-subject-grid" id="practiceSubjectGrid"></div>
                 </div>
             `;
-            const subjectsDiv = container.querySelector('.mb-practice-subjects');
-            subjectsDiv.innerHTML = (App.state.subjects || []).map(s =>
-                `<button class="mb-btn mb-btn--secondary" data-practice-subject="${s.subject_code}">${s.display_name}</button>`
+            const grid = container.querySelector('#practiceSubjectGrid');
+            grid.innerHTML = subjects.map((s, i) =>
+                `<button class="mb-glass-subject-btn mb-glass-animate" data-practice-subject="${s.subject_code}" style="animation-delay:${100 + i * 40}ms">
+                    <div class="mb-glass-subject-btn__icon">${getSubjectIcon(s.subject_code, 20)}</div>
+                    <span class="mb-glass-subject-btn__label">${s.display_name}</span>
+                </button>`
             ).join('');
-            subjectsDiv.addEventListener('click', e => {
+            grid.addEventListener('click', e => {
                 const btn = e.target.closest('[data-practice-subject]');
                 if (btn) {
                     App.state.currentSubject = btn.dataset.practiceSubject;
@@ -1798,21 +1848,22 @@ const Views = {
             return;
         }
 
-        // 顯示歷史列表 + 新練習按鈕
+        // Subject selected — show tabs + history + setup
         container.innerHTML = `
+            <div class="mb-practice-tabs" id="practiceSubjectTabs">${tabsHtml}</div>
             <div style="max-width:600px;margin:0 auto;padding:0 16px">
             <div id="practiceHistoryArea" style="margin-bottom:16px">
                 <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
             </div>
-            <div style="text-align:center;margin-bottom:16px">
+            <div style="text-align:center;margin-bottom:16px" class="mb-glass-animate" style="animation-delay:100ms">
                 <button class="mb-btn mb-btn--primary" id="toggleNewPracticeBtn" onclick="Views._toggleNewPracticeSetup()">
                     開始新練習
                 </button>
             </div>
             </div>
             <div id="newPracticeSetup" style="display:none">
-                <div class="mb-practice-setup">
-                    <div class="mb-practice-setup__desc">
+                <div class="mb-glass-setup">
+                    <div class="mb-glass-setup__desc">
                         根據你的${UI.subjectLabel(subject)}薄弱知識點自動出題
                     </div>
                     <div class="mb-practice-setup__points" id="practicePointsArea">
@@ -1849,14 +1900,22 @@ const Views = {
                             <option value="5">進階</option>
                         </select>
                     </div>
-                    <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;background:var(--mb-bg-secondary);text-align:left;font-size:13px;color:var(--mb-text-secondary)"></div>
+                    <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:12px;background:rgba(0,0,0,0.02);text-align:left;font-size:13px;color:var(--mb-text-secondary)"></div>
                     <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
-                            id="startPracticeBtn" style="max-width:240px">
+                            id="startPracticeBtn" style="max-width:280px">
                         開始練習
                     </button>
                 </div>
             </div>
         `;
+
+        // Bind subject tab switching
+        container.querySelector('#practiceSubjectTabs')?.addEventListener('click', e => {
+            const tab = e.target.closest('.mb-practice-tab');
+            if (!tab) return;
+            App.state.currentSubject = tab.dataset.practiceSubject;
+            this.renderPractice(container);
+        });
 
         // 載入歷史
         this._loadPracticeHistory(subject);
@@ -1893,22 +1952,22 @@ const Views = {
                 careless: '粗心', concept: '概念', calculation: '計算',
                 method: '方法', format: '格式', incomplete: '不完整', irrelevant: '無關',
             };
-            let html = `<div style="font-size:14px;font-weight:600;padding:4px 0 8px;color:var(--mb-text)">練習歷史</div>`;
-            items.forEach(s => {
+            let html = `<div style="font-size:14px;font-weight:600;padding:4px 0 10px;color:var(--mb-text);display:flex;align-items:center;gap:6px">${Icons.clock(14)} 練習歷史</div>`;
+            items.forEach((s, idx) => {
                 const date = s.completed_at ? new Date(s.completed_at).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }) : '';
                 const scoreColor = s.score >= 80 ? 'var(--mb-success)' : s.score >= 60 ? 'var(--mb-warning)' : 'var(--mb-danger)';
                 const errLabel = s.primary_error_type ? (errorTypeLabels[s.primary_error_type] || s.primary_error_type) : '';
-                html += `<div class="mb-list-item" style="cursor:pointer;padding:12px;margin-bottom:6px;border-radius:8px;background:var(--mb-bg-secondary)" data-session-id="${s.session_id}">
-                    <div style="display:flex;justify-content:space-between;align-items:center">
+                html += `<div class="mb-glass-history mb-glass-animate" data-session-id="${s.session_id}" style="animation-delay:${idx * 40}ms">
+                    <div class="mb-glass-history__row">
                         <div>
-                            <span style="font-size:13px;font-weight:500">${date}</span>
-                            <span style="font-size:12px;color:var(--mb-text-tertiary);margin-left:8px">${s.total_questions} 題</span>
+                            <span class="mb-glass-history__date">${date}</span>
+                            <span class="mb-glass-history__meta">${s.total_questions} 題</span>
                         </div>
-                        <span style="font-size:16px;font-weight:700;color:${scoreColor}">${Math.round(s.score)}分</span>
+                        <span class="mb-glass-history__score" style="color:${scoreColor}">${Math.round(s.score)}</span>
                     </div>
-                    ${s.wrong_count > 0 ? `<div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:4px">
+                    ${s.wrong_count > 0 ? `<div class="mb-glass-history__detail">
                         錯題 ${s.wrong_count} 題${errLabel ? ' · ' + errLabel : ''}
-                    </div>` : `<div style="font-size:12px;color:var(--mb-success);margin-top:4px">全部答對</div>`}
+                    </div>` : `<div class="mb-glass-history__detail" style="color:var(--mb-success)">全部答對</div>`}
                 </div>`;
             });
             area.innerHTML = html;
@@ -1954,45 +2013,50 @@ const Views = {
 
         let html = `<div style="padding:12px 16px">
             <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views.renderPractice(document.getElementById('learnContent'))">
-                ← 返回
+                ${Icons.chevronL(14)} 返回
             </button>
         </div>
-        <div style="padding:0 20px 16px;text-align:center">
-            <div style="font-size:48px;font-weight:700;letter-spacing:-0.03em;color:var(--mb-text)">${Math.round(detail.score)}</div>
-            <div style="font-size:13px;color:var(--mb-text-tertiary);margin-top:4px">
+        <div class="mb-glass-score mb-glass-animate--scale">
+            <div class="mb-glass-score__value">${Math.round(detail.score)}</div>
+            <div class="mb-glass-score__label">
                 答對 ${detail.correct_count} / ${detail.total_questions} 題
             </div>
         </div>`;
 
         if (detail.ai_feedback) {
-            html += `<div class="mb-detail-section" style="margin:0 20px 12px">
-                <div class="mb-detail-section__title">${Icons.zap(16)} AI 總評</div>
-                <div class="mb-detail-section__body">${UI.escapeHtml(detail.ai_feedback)}</div>
+            html += `<div class="mb-glass-feedback mb-glass-animate" style="animation-delay:80ms">
+                <div class="mb-glass-feedback__title">${Icons.sparkles(14)} AI 總評</div>
+                <div class="mb-glass-feedback__body">${UI.escapeHtml(detail.ai_feedback)}</div>
             </div>`;
         }
 
         (detail.questions || []).forEach((q, i) => {
             const level = q.correctness_level;
-            const levelBadge = level ? `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;background:${levelColors[level] || 'var(--mb-text-tertiary)'}">${level}</span>` : '';
-            const icon = q.is_correct ? Icons.check(16) : Icons.x(16);
-            const borderColor = q.is_correct ? 'var(--mb-success)' : (level === 'C' ? '#e67e22' : 'var(--mb-danger)');
+            const levelBadge = level ? `<span class="mb-glass-result__badge" style="background:${levelColors[level] || 'var(--mb-text-tertiary)'}">${level}</span>` : '';
+            const statusClass = q.is_correct ? 'correct' : (level === 'C' ? 'partial' : 'wrong');
             const errLabel = q.error_type ? (errorTypeLabels[q.error_type] || q.error_type) : '';
 
-            html += `<div class="mb-detail-section" style="margin:0 20px 8px;border-left:3px solid ${borderColor}">
-                <div class="mb-detail-section__title">${icon} 第 ${i + 1} 題 ${levelBadge}</div>
+            html += `<div class="mb-glass-result mb-glass-animate" style="animation-delay:${120 + i * 50}ms">
+                <div class="mb-glass-result__header">
+                    <div class="mb-glass-result__status mb-glass-result__status--${statusClass}">
+                        ${q.is_correct ? Icons.check(14) : Icons.x(14)}
+                    </div>
+                    <span class="mb-glass-result__title">第 ${i + 1} 題</span>
+                    ${levelBadge}
+                </div>
                 <div style="font-size:13px;margin-bottom:4px">${UI.renderMath(q.question || '')}</div>
                 <div style="font-size:13px;margin-bottom:4px"><strong>你的答案：</strong>${UI.renderMath(q.student_answer || '（未作答）')}</div>
-                ${q.error_analysis ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-bottom:4px;padding:6px 8px;background:var(--mb-bg-secondary);border-radius:4px">${Icons.zap(12)} ${UI.escapeHtml(q.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</div>` : ''}
-                ${!q.is_correct ? `<details style="margin-top:4px">
+                ${q.error_analysis ? `<div class="mb-glass-result__analysis">${Icons.zap(12)} <span>${UI.escapeHtml(q.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</span></div>` : ''}
+                ${!q.is_correct ? `<details style="margin-top:8px">
                     <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">正確答案與解析</summary>
-                    <div style="font-size:13px;margin-top:4px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(q.correct_answer || '')}</div>
+                    <div style="font-size:13px;margin-top:6px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(q.correct_answer || '')}</div>
                     ${q.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(q.explanation)}</div>` : ''}
                 </details>` : ''}
             </div>`;
         });
 
         // 底部按鈕
-        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap" class="mb-glass-animate" style="animation-delay:${120 + (detail.questions || []).length * 50 + 50}ms">
             ${wrongCount > 0 ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${detail.session_id}')">重做原錯題 (${wrongCount}題)</button>
             <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${detail.session_id}')">同類再練</button>` : ''}
             <button class="mb-btn mb-btn--primary" onclick="Views.renderPractice(document.getElementById('learnContent'))">返回列表</button>
@@ -2077,26 +2141,40 @@ const Views = {
 
     _renderPracticePointsList(container, data) {
         const statusLabels = {
-            weak: { text: '薄弱', color: 'var(--mb-danger, #e74c3c)' },
-            consolidating: { text: '待鞏固', color: 'var(--mb-warning, #f39c12)' },
-            mastered: { text: '已掌握', color: 'var(--mb-success, #27ae60)' },
-            unknown: { text: '暫無數據', color: 'var(--mb-text-tertiary)' },
+            weak: { text: '薄弱', bg: 'rgba(255,59,48,0.08)', color: 'var(--mb-danger, #e74c3c)' },
+            consolidating: { text: '待鞏固', bg: 'rgba(255,149,0,0.08)', color: 'var(--mb-warning, #f39c12)' },
+            mastered: { text: '已掌握', bg: 'rgba(52,199,89,0.08)', color: 'var(--mb-success, #27ae60)' },
+            unknown: { text: '暫無數據', bg: 'rgba(0,0,0,0.03)', color: 'var(--mb-text-tertiary)' },
         };
 
         const html = data.map((pt, i) => {
             const sl = statusLabels[pt.status_label] || statusLabels.unknown;
             const mastery = pt.mastery_level !== null ? `${pt.mastery_level}%` : '--';
-            const checked = pt.is_recommended ? 'checked' : '';
+            const isSelected = pt.is_recommended;
 
-            return `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:13px;border-bottom:1px solid var(--mb-border)">
-                <input type="checkbox" class="practice-point-cb" value="${UI.escapeHtml(pt.point_code)}" ${checked} onchange="Views._onPracticePointChange()">
-                <span style="flex:1">${UI.escapeHtml(pt.point_name)}</span>
-                <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${sl.color}22;color:${sl.color};font-weight:500">${sl.text}</span>
-                <span style="font-size:12px;color:var(--mb-text-tertiary);min-width:36px;text-align:right">${mastery}</span>
-            </label>`;
+            return `<div class="mb-glass-mastery${isSelected ? ' mb-glass-mastery--selected' : ''} mb-glass-animate"
+                         data-point-code="${UI.escapeHtml(pt.point_code)}"
+                         style="animation-delay:${i * 25}ms"
+                         onclick="Views._togglePracticePoint(this)">
+                <input type="checkbox" class="practice-point-cb" value="${UI.escapeHtml(pt.point_code)}" ${isSelected ? 'checked' : ''} style="display:none" onchange="Views._onPracticePointChange()">
+                <div class="mb-glass-mastery__check">${isSelected ? Icons.check(12) : ''}</div>
+                <span class="mb-glass-mastery__name">${UI.escapeHtml(pt.point_name)}</span>
+                <span class="mb-glass-mastery__status" style="background:${sl.bg};color:${sl.color}">${sl.text}</span>
+                <span class="mb-glass-mastery__pct">${mastery}</span>
+            </div>`;
         }).join('');
 
-        container.innerHTML = `<div style="max-height:260px;overflow-y:auto;border:1px solid var(--mb-border);border-radius:8px;padding:4px 12px">${html}</div>`;
+        container.innerHTML = `<div style="max-height:300px;overflow-y:auto;padding:2px">${html}</div>`;
+    },
+
+    _togglePracticePoint(el) {
+        const cb = el.querySelector('.practice-point-cb');
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        el.classList.toggle('mb-glass-mastery--selected', cb.checked);
+        const checkEl = el.querySelector('.mb-glass-mastery__check');
+        if (checkEl) checkEl.innerHTML = cb.checked ? Icons.check(12) : '';
+        this._onPracticePointChange();
     },
 
     _onPracticePointChange() {
@@ -2209,13 +2287,13 @@ const Views = {
         if (diffLabel) headerInfo += ` · ${diffLabel}`;
 
         let html = `<div class="mb-practice">
-            <div style="text-align:center;font-size:13px;color:var(--mb-text-tertiary);margin-bottom:16px">
+            <div class="mb-glass-animate" style="text-align:center;font-size:13px;color:var(--mb-text-tertiary);margin-bottom:16px">
                 ${headerInfo}
             </div>`;
 
         if (recommendedInfo) {
-            html += `<div style="text-align:center;font-size:12px;color:var(--mb-text-tertiary);margin-bottom:16px;padding:8px 12px;background:var(--mb-bg-secondary);border-radius:8px">
-                系統推薦知識點：${UI.escapeHtml(recommendedInfo)}
+            html += `<div class="mb-glass-card mb-glass-animate" style="text-align:center;font-size:12px;color:var(--mb-text-tertiary);padding:10px 14px;animation-delay:40ms">
+                ${Icons.sparkles(12)} 系統推薦知識點：${UI.escapeHtml(recommendedInfo)}
             </div>`;
         }
 
@@ -2223,7 +2301,7 @@ const Views = {
             this._practiceInputStates[i] = { mode: 'keyboard', strokes: [], imagePreview: null, loading: false };
             const isMultiChoice = !!q.options;
             html += `
-                <div class="mb-practice__question">
+                <div class="mb-glass-question mb-glass-animate" style="animation-delay:${80 + i * 50}ms">
                     <div class="mb-practice__question-number">第 ${q.index || i + 1} 題</div>
                     <div class="mb-practice__question-text">${UI.renderMath(q.question)}</div>
                     ${q.question_svg ? `<div class="mb-practice__question-svg">${UI.renderMath(q.question_svg)}</div>` : ''}
@@ -2233,10 +2311,10 @@ const Views = {
                         </label>`
                     ).join('')}</div>` : `
                     <div class="mb-hw" id="hw_wrap_${i}">
-                        <div class="mb-hw__modes">
-                            <button class="mb-hw__mode-btn mb-hw__mode-btn--active" data-mode="keyboard" onclick="Views._switchInputMode(${i},'keyboard')" title="鍵盤">⌨️ 鍵盤</button>
-                            <button class="mb-hw__mode-btn" data-mode="handwrite" onclick="Views._switchInputMode(${i},'handwrite')" title="手寫">✏️ 手寫</button>
-                            <button class="mb-hw__mode-btn" data-mode="photo" onclick="Views._switchInputMode(${i},'photo')" title="拍照">📷 拍照</button>
+                        <div class="mb-glass-modes">
+                            <button class="mb-glass-mode-btn mb-glass-mode-btn--active" data-mode="keyboard" onclick="Views._switchInputMode(${i},'keyboard')" title="鍵盤">${Icons.keyboard(14)} 鍵盤</button>
+                            <button class="mb-glass-mode-btn" data-mode="handwrite" onclick="Views._switchInputMode(${i},'handwrite')" title="手寫">${Icons.pencil(14)} 手寫</button>
+                            <button class="mb-glass-mode-btn" data-mode="photo" onclick="Views._switchInputMode(${i},'photo')" title="拍照">${Icons.camera(14)} 拍照</button>
                         </div>
                         <div class="mb-hw__panel" id="hw_panel_${i}">
                             <textarea class="mb-practice__answer-input" id="answer_${i}" placeholder="在此輸入你的答案..."></textarea>
@@ -2246,7 +2324,7 @@ const Views = {
             `;
         });
 
-        html += `<button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._submitAllPractice()">
+        html += `<button class="mb-btn mb-btn--primary mb-btn--full mb-glass-animate" onclick="Views._submitAllPractice()" style="animation-delay:${80 + questions.length * 50 + 50}ms">
                     提交答案
                  </button></div>`;
 
@@ -2268,8 +2346,9 @@ const Views = {
         // 更新按鈕 active
         const wrap = document.getElementById(`hw_wrap_${idx}`);
         if (!wrap) return;
-        wrap.querySelectorAll('.mb-hw__mode-btn').forEach(btn => {
-            btn.classList.toggle('mb-hw__mode-btn--active', btn.dataset.mode === mode);
+        wrap.querySelectorAll('.mb-glass-mode-btn, .mb-hw__mode-btn').forEach(btn => {
+            const cls = btn.classList.contains('mb-glass-mode-btn') ? 'mb-glass-mode-btn--active' : 'mb-hw__mode-btn--active';
+            btn.classList.toggle(cls, btn.dataset.mode === mode);
         });
 
         const panel = document.getElementById(`hw_panel_${idx}`);
@@ -2924,39 +3003,45 @@ const Views = {
             method: '方法錯誤', format: '格式問題', incomplete: '不完整', irrelevant: '無關',
         };
 
-        let html = `<div style="padding:32px 20px;text-align:center">
-            <div style="font-size:48px;font-weight:700;letter-spacing:-0.03em;color:var(--mb-text)">${Math.round(result.score)}</div>
-            <div style="font-size:13px;color:var(--mb-text-tertiary);margin-top:4px">
+        let html = `<div class="mb-glass-score mb-glass-animate--scale">
+            <div class="mb-glass-score__value">${Math.round(result.score)}</div>
+            <div class="mb-glass-score__label">
                 答對 ${result.correct_count} / ${result.total_questions} 題
             </div>
         </div>`;
 
         if (result.ai_feedback) {
-            html += `<div class="mb-detail-section" style="margin:0 20px 12px">
-                <div class="mb-detail-section__title">${Icons.zap(16)} AI 反饋</div>
-                <div class="mb-detail-section__body">${UI.escapeHtml(result.ai_feedback)}</div>
+            html += `<div class="mb-glass-feedback mb-glass-animate" style="animation-delay:80ms">
+                <div class="mb-glass-feedback__title">${Icons.sparkles(14)} AI 反饋</div>
+                <div class="mb-glass-feedback__body">${UI.escapeHtml(result.ai_feedback)}</div>
             </div>`;
         }
 
         results.forEach((r, i) => {
             const level = r.correctness_level;
-            const levelBadge = level ? `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;color:#fff;background:${levelColors[level] || 'var(--mb-text-tertiary)'}">${level}</span>` : '';
-            const borderColor = r.is_correct ? 'var(--mb-success)' : (level === 'C' ? '#e67e22' : 'var(--mb-danger)');
+            const levelBadge = level ? `<span class="mb-glass-result__badge" style="background:${levelColors[level] || 'var(--mb-text-tertiary)'}">${level}</span>` : '';
+            const statusClass = r.is_correct ? 'correct' : (level === 'C' ? 'partial' : 'wrong');
             const errLabel = r.error_type ? (errorTypeLabels[r.error_type] || r.error_type) : '';
 
-            html += `<div class="mb-detail-section" style="margin:0 20px 8px;border-left:3px solid ${borderColor}">
-                <div class="mb-detail-section__title">${r.is_correct ? Icons.check(16) : Icons.x(16)} 第 ${i + 1} 題 ${levelBadge}</div>
+            html += `<div class="mb-glass-result mb-glass-animate" style="animation-delay:${120 + i * 50}ms">
+                <div class="mb-glass-result__header">
+                    <div class="mb-glass-result__status mb-glass-result__status--${statusClass}">
+                        ${r.is_correct ? Icons.check(14) : Icons.x(14)}
+                    </div>
+                    <span class="mb-glass-result__title">第 ${i + 1} 題</span>
+                    ${levelBadge}
+                </div>
                 <div style="font-size:13px;margin-bottom:4px"><strong>你的答案：</strong>${UI.renderMath(r.student_answer || '（未作答）')}</div>
-                ${r.error_analysis ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-bottom:4px;padding:6px 8px;background:var(--mb-bg-secondary);border-radius:4px">${Icons.zap(12)} ${UI.escapeHtml(r.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</div>` : ''}
-                ${!r.is_correct ? `<details style="margin-top:4px">
+                ${r.error_analysis ? `<div class="mb-glass-result__analysis">${Icons.zap(12)} <span>${UI.escapeHtml(r.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</span></div>` : ''}
+                ${!r.is_correct ? `<details style="margin-top:8px">
                     <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">正確答案與解析</summary>
-                    <div style="font-size:13px;margin-top:4px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(r.correct_answer || '')}</div>
+                    <div style="font-size:13px;margin-top:6px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(r.correct_answer || '')}</div>
                     ${r.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(r.explanation)}</div>` : ''}
                 </details>` : ''}
             </div>`;
         });
 
-        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap" class="mb-glass-animate" style="animation-delay:${120 + results.length * 50 + 50}ms">
             ${wrongCount > 0 && result.session_id ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${result.session_id}')">重做原錯題 (${wrongCount}題)</button>
             <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${result.session_id}')">同類再練</button>` : ''}
             <button class="mb-btn mb-btn--primary" onclick="App.state._learnMode='practice';App.navigate('learn')">返回練習</button>
