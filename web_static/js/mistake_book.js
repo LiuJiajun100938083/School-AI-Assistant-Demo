@@ -1885,7 +1885,7 @@ const Views = {
                     </div>
                     <div class="mb-practice-setup__form">
                         <label class="mb-practice-setup__label">題目數量</label>
-                        <select class="mb-select" id="practiceCount">
+                        <select class="mb-select" id="practiceCount" onchange="Views._updatePracticePlanPreview()">
                             <option value="3">3 題 · 快速練習</option>
                             <option value="5" selected>5 題 · 標準練習</option>
                             <option value="10">10 題 · 深度練習</option>
@@ -1893,7 +1893,7 @@ const Views = {
                     </div>
                     <div class="mb-practice-setup__form">
                         <label class="mb-practice-setup__label">難度</label>
-                        <select class="mb-select" id="practiceDifficulty">
+                        <select class="mb-select" id="practiceDifficulty" onchange="Views._updatePracticePlanPreview()">
                             <option value="" selected>自動匹配（根據掌握度）</option>
                             <option value="1">基礎</option>
                             <option value="3">中等</option>
