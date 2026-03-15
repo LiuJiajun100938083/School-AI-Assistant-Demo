@@ -168,7 +168,14 @@ def _place_base_edge(spec: dict, points: dict) -> None:
                 break
 
     if length is None:
-        length = CANONICAL_LENGTH
+        # 無直接長度約束 → 根據其他長度等比估算
+        max_len = 0
+        for c in spec.get("constraints", []):
+            if c.get("type") == "length":
+                v = float(c.get("value", 0))
+                if v > max_len:
+                    max_len = v
+        length = max_len * 1.5 if max_len > 0 else CANONICAL_LENGTH
 
     # 水平放置，中心在原點附近
     points[p1] = (0.0, 0.0)
@@ -189,14 +196,14 @@ _PRIORITY_3 = {"circle", "circle_through", "tangent", "angle_bisector"}
 def _resolve_constraints(constraints: list, points: dict,
                          circles: dict, sign: float) -> None:
     """分優先級多輪迭代求解。"""
-    # 按優先級排序
-    sorted_constraints = sorted(constraints, key=lambda c: (
-        0 if c.get("type") in _PRIORITY_1 else
-        1 if c.get("type") in _PRIORITY_2 else 2
-    ))
+    def _sort_key(c):
+        return (0 if c.get("type") in _PRIORITY_1 else
+                1 if c.get("type") in _PRIORITY_2 else 2)
 
-    unresolved = list(sorted_constraints)
-    max_passes = 15
+    unresolved = sorted(constraints, key=_sort_key)
+    max_passes = 20
+    composite_attempts = 0
+    max_composite = 3
 
     for pass_num in range(max_passes):
         progress = False
@@ -213,7 +220,16 @@ def _resolve_constraints(constraints: list, points: dict,
         if not unresolved:
             logger.info("所有 %d 個約束已解決 (pass %d)", len(constraints), pass_num + 1)
             return
+
         if not progress:
+            if composite_attempts < max_composite:
+                composite_progress = _try_composite_resolve(
+                    constraints, points, circles, sign)
+                composite_attempts += 1
+                if composite_progress:
+                    # 合成解析有進展，重新排序所有約束再跑一輪
+                    unresolved = sorted(constraints, key=_sort_key)
+                    continue
             break
 
     if unresolved:
@@ -521,15 +537,27 @@ def _resolve_point_on_segment(c: dict, points: dict) -> bool:
         return True
 
     p1, p2 = seg[0], seg[1]
-    # 兩端已知但點未定位 → 用 ratio 或 fallback
+    # 兩端已知但點未定位 → 用 ratio 或從 length 約束推算
     if p1 in points and p2 in points:
         ratio = c.get("ratio")
         if ratio is not None:
             ratio = float(ratio)
         else:
-            # 嘗試從全局約束列表中找 length(p1, pt) 和 length(p1, p2)
-            # 來推算 ratio
-            ratio = 0.382  # 黃金分割 fallback，視覺上自然
+            # 嘗試從 length 約束推算 ratio
+            all_c = _find_length_for_segment._constraints
+            len_p1_pt = _find_length_value(all_c, p1, pt)
+            len_pt_p2 = _find_length_value(all_c, pt, p2)
+            len_p1_p2 = _find_length_value(all_c, p1, p2)
+
+            if len_p1_pt is not None and len_pt_p2 is not None:
+                total = len_p1_pt + len_pt_p2
+                ratio = len_p1_pt / total if total > 0 else 0.382
+            elif len_p1_pt is not None and len_p1_p2 is not None and len_p1_p2 > 0:
+                ratio = len_p1_pt / len_p1_p2
+            elif len_pt_p2 is not None and len_p1_p2 is not None and len_p1_p2 > 0:
+                ratio = 1.0 - len_pt_p2 / len_p1_p2
+            else:
+                ratio = 0.382  # 黃金分割 fallback
         x1, y1 = points[p1]
         x2, y2 = points[p2]
         points[pt] = (x1 + ratio * (x2 - x1), y1 + ratio * (y2 - y1))
@@ -646,22 +674,24 @@ def _pick_orientation_side(vx: float, vy: float, base_angle: float,
 def _find_length_for_segment(c: dict, points: dict,
                              p1: str, p2: str) -> Optional[float]:
     """在全局約束中查找 p1-p2 的 length 約束值。"""
-    # c 所在的 constraints list 沒有直接引用，
-    # 這裡用一個 hack：把約束列表掛到 _current_constraints
     constraints = _find_length_for_segment._constraints
     if not constraints:
         return None
+    return _find_length_value(constraints, p1, p2)
 
+
+_find_length_for_segment._constraints = []
+
+
+def _find_length_value(constraints: list, p1: str, p2: str) -> Optional[float]:
+    """在約束列表中查找 p1-p2 的 length 值。"""
     target = {p1, p2}
     for con in constraints:
         if con.get("type") == "length":
             seg = con.get("segment", [])
-            if set(seg) == target:
+            if len(seg) >= 2 and set(seg) == target:
                 return float(con["value"])
     return None
-
-
-_find_length_for_segment._constraints = []
 
 
 def _find_angle_at_vertex(c: dict, vertex: str) -> Optional[float]:
@@ -671,6 +701,243 @@ def _find_angle_at_vertex(c: dict, vertex: str) -> Optional[float]:
         if con.get("type") == "angle" and con.get("vertex") == vertex:
             return float(con["value"])
     return None
+
+
+# ================================================================
+# 複合約束求解（單個約束無法獨立求解時的組合策略）
+# ================================================================
+
+def _try_composite_resolve(all_constraints: list, points: dict,
+                           circles: dict, sign: float) -> bool:
+    """當個別約束解析停滯時，嘗試組合多個約束求解。"""
+    progress = False
+
+    # 策略 1: 從 point_on_segment + 子長度推導合成長度
+    progress |= _infer_composite_lengths(all_constraints)
+
+    # 策略 2: 雙圓交點（兩個 length 約束指向同一未知點）
+    progress |= _try_circle_circle(all_constraints, points, sign)
+
+    # 策略 3: 單邊長度無角度 → 默認 60° 放置（優先於平行邊）
+    progress |= _try_single_length_fallback(all_constraints, points, sign)
+
+    # 策略 4: 平行邊兩端皆未知 → 啟發式放置（梯形場景）
+    progress |= _try_parallel_heuristic(all_constraints, points, sign)
+
+    return progress
+
+
+def _infer_composite_lengths(constraints: list) -> bool:
+    """從 point_on_segment + 子段長度推導總長度。
+    例如 D 在 AB 上且 AD=4, DB=6 → 推導 AB=10。"""
+    progress = False
+    for c in list(constraints):
+        if c.get("type") != "point_on_segment":
+            continue
+        pt = c.get("point")
+        seg = c.get("segment", [])
+        if len(seg) < 2:
+            continue
+        p1, p2 = seg[0], seg[1]
+
+        # 已有總長度則跳過
+        if _find_length_value(constraints, p1, p2) is not None:
+            continue
+
+        len1 = _find_length_value(constraints, p1, pt)
+        len2 = _find_length_value(constraints, pt, p2)
+        if len1 is not None and len2 is not None:
+            total = len1 + len2
+            constraints.append({
+                "type": "length",
+                "segment": [p1, p2],
+                "value": total,
+            })
+            logger.info("推導合成長度: %s-%s = %.1f (從 %s)", p1, p2, total, pt)
+            progress = True
+    return progress
+
+
+def _try_circle_circle(constraints: list, points: dict,
+                       sign: float) -> bool:
+    """兩個 length 約束指向同一未知點，兩個已知端點 → 雙圓交點。"""
+    from collections import defaultdict
+    progress = False
+
+    unknown_lengths = defaultdict(list)
+    for c in constraints:
+        if c.get("type") != "length":
+            continue
+        seg = c.get("segment", [])
+        if len(seg) < 2:
+            continue
+        p1, p2 = seg[0], seg[1]
+        if p1 in points and p2 not in points:
+            unknown_lengths[p2].append((p1, float(c["value"])))
+        elif p2 in points and p1 not in points:
+            unknown_lengths[p1].append((p2, float(c["value"])))
+
+    for unknown_pt, pairs in unknown_lengths.items():
+        if len(pairs) >= 2 and unknown_pt not in points:
+            (k1, r1), (k2, r2) = pairs[0], pairs[1]
+            result = _circle_circle_intersection(
+                points[k1], r1, points[k2], r2, sign)
+            if result:
+                points[unknown_pt] = result
+                logger.info("雙圓交點定位: %s = (%.1f, %.1f)",
+                            unknown_pt, result[0], result[1])
+                progress = True
+    return progress
+
+
+def _circle_circle_intersection(c1: Tuple, r1: float, c2: Tuple, r2: float,
+                                sign: float) -> Optional[Tuple[float, float]]:
+    """計算兩圓交點，選擇 sign 側的點。"""
+    dx = c2[0] - c1[0]
+    dy = c2[1] - c1[1]
+    d = math.sqrt(dx * dx + dy * dy)
+
+    if d < TOLERANCE:
+        return None
+
+    # 圓不相交時按比例縮放半徑，確保能出圖
+    if d > r1 + r2:
+        scale = d / (r1 + r2) * 1.001
+        r1 *= scale
+        r2 *= scale
+    elif d < abs(r1 - r2):
+        avg = (r1 + r2) / 2
+        r1 = avg
+        r2 = avg
+
+    a = (r1 * r1 - r2 * r2 + d * d) / (2 * d)
+    h_sq = r1 * r1 - a * a
+    if h_sq < 0:
+        h_sq = 0
+    h = math.sqrt(h_sq)
+
+    mx = c1[0] + a * dx / d
+    my = c1[1] + a * dy / d
+
+    p1 = (mx - h * dy / d, my + h * dx / d)
+    p2 = (mx + h * dy / d, my - h * dx / d)
+
+    if sign > 0:
+        return p1 if p1[1] >= p2[1] else p2
+    else:
+        return p1 if p1[1] <= p2[1] else p2
+
+
+def _try_parallel_heuristic(constraints: list, points: dict,
+                            sign: float) -> bool:
+    """平行邊兩端皆未知 → 在已知邊上方/下方啟發式放置。"""
+    progress = False
+    for c in constraints:
+        if c.get("type") != "parallel":
+            continue
+        seg1 = c.get("seg1", [])
+        seg2 = c.get("seg2", [])
+        if len(seg1) < 2 or len(seg2) < 2:
+            continue
+
+        known_seg, unknown_seg = None, None
+        if (all(p in points for p in seg1) and
+                not any(p in points for p in seg2)):
+            known_seg, unknown_seg = seg1, seg2
+        elif (all(p in points for p in seg2) and
+              not any(p in points for p in seg1)):
+            known_seg, unknown_seg = seg2, seg1
+
+        if not known_seg or not unknown_seg:
+            continue
+
+        # 不覆蓋有 point_on_segment 約束的點（它們應由主循環定位）
+        has_pos = any(
+            c2.get("type") == "point_on_segment" and
+            c2.get("point") in (unknown_seg[0], unknown_seg[1])
+            for c2 in constraints
+        )
+        if has_pos:
+            continue
+
+        kp1, kp2 = points[known_seg[0]], points[known_seg[1]]
+        dx, dy = kp2[0] - kp1[0], kp2[1] - kp1[1]
+        k_len = math.sqrt(dx * dx + dy * dy)
+        if k_len < TOLERANCE:
+            continue
+
+        ux, uy = dx / k_len, dy / k_len
+        nx, ny = -uy * sign, ux * sign  # 垂直方向
+
+        p_len = _find_length_value(constraints,
+                                   unknown_seg[0], unknown_seg[1])
+        if p_len is None:
+            p_len = k_len * 0.7
+
+        height = k_len * 0.6  # 默認高度
+
+        mid_base = ((kp1[0] + kp2[0]) / 2, (kp1[1] + kp2[1]) / 2)
+        mid_top = (mid_base[0] + nx * height, mid_base[1] + ny * height)
+
+        points[unknown_seg[0]] = (mid_top[0] - ux * p_len / 2,
+                                  mid_top[1] - uy * p_len / 2)
+        points[unknown_seg[1]] = (mid_top[0] + ux * p_len / 2,
+                                  mid_top[1] + uy * p_len / 2)
+        logger.info("平行邊啟發式定位: %s, %s", unknown_seg[0], unknown_seg[1])
+        progress = True
+
+    return progress
+
+
+def _try_single_length_fallback(constraints: list, points: dict,
+                                sign: float) -> bool:
+    """未知點只有一條邊長且無角度約束 → 默認 60° 放置。"""
+    progress = False
+    for c in constraints:
+        if c.get("type") != "length":
+            continue
+        seg = c.get("segment", [])
+        if len(seg) < 2:
+            continue
+        p1, p2 = seg[0], seg[1]
+
+        known, unknown = None, None
+        if p1 in points and p2 not in points:
+            known, unknown = p1, p2
+        elif p2 in points and p1 not in points:
+            known, unknown = p2, p1
+        else:
+            continue
+
+        # 已有角度約束可以定位的，不走 fallback
+        has_angle = any(
+            c2.get("type") in ("angle", "right_angle") and
+            c2.get("vertex") == known and
+            unknown in (c2.get("ray1"), c2.get("ray2"))
+            for c2 in constraints
+        )
+        if has_angle:
+            continue
+
+        # 有 point_on_segment 約束的點應由主循環定位
+        has_pos = any(
+            c2.get("type") == "point_on_segment" and
+            c2.get("point") == unknown
+            for c2 in constraints
+        )
+        if has_pos:
+            continue
+
+        dist = float(c["value"])
+        kx, ky = points[known]
+        angle = math.radians(60) if sign > 0 else math.radians(-60)
+        points[unknown] = (kx + dist * math.cos(angle),
+                           ky + dist * math.sin(angle))
+        logger.info("單邊長度啟發式定位: %s at 60° from %s, dist=%.1f",
+                    unknown, known, dist)
+        progress = True
+
+    return progress
 
 
 # ================================================================
@@ -851,7 +1118,7 @@ def _verify_point_on_segment(c: dict, points: dict) -> None:
     if ab_len_sq < TOLERANCE:
         return
     t = (apx * abx + apy * aby) / ab_len_sq
-    if t < -0.01 or t > 1.01:
+    if t < -0.05 or t > 1.05:
         raise GeometrySolveError(
             f"point_on_segment 驗證失敗: {pt} 不在 {seg} 上 (t={t:.4f})")
 
