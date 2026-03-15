@@ -575,11 +575,21 @@ def _resolve_point_on_segment(c: dict, points: dict) -> bool:
     if not pt or len(seg) < 2:
         return True
 
-    # 點已被定位（由其他約束）
-    if pt in points:
+    p1, p2 = seg[0], seg[1]
+
+    # 三點全部已知 → 完成
+    if pt in points and p1 in points and p2 in points:
         return True
 
-    p1, p2 = seg[0], seg[1]
+    # 點已定位，嘗試反推未知端點（E 在 AB 上，E 和 A 已知 → 推 B）
+    if pt in points:
+        if p1 in points and p2 not in points:
+            return _place_endpoint_on_ray(points, p1, pt, p2)
+        elif p2 in points and p1 not in points:
+            return _place_endpoint_on_ray(points, p2, pt, p1)
+        # 兩端都未知 → 延後
+        return False
+
     # 兩端已知但點未定位 → 用 ratio 或從 length 約束推算
     if p1 in points and p2 in points:
         ratio = c.get("ratio")
@@ -599,6 +609,13 @@ def _resolve_point_on_segment(c: dict, points: dict) -> bool:
                 ratio = len_p1_pt / len_p1_p2
             elif len_pt_p2 is not None and len_p1_p2 is not None and len_p1_p2 > 0:
                 ratio = 1.0 - len_pt_p2 / len_p1_p2
+            elif len_p1_pt is not None:
+                # 用已放置端點間的實際距離計算 ratio
+                actual_dist = _dist(points[p1], points[p2])
+                ratio = len_p1_pt / actual_dist if actual_dist > TOLERANCE else 0.382
+            elif len_pt_p2 is not None:
+                actual_dist = _dist(points[p1], points[p2])
+                ratio = 1.0 - len_pt_p2 / actual_dist if actual_dist > TOLERANCE else 0.618
             else:
                 ratio = 0.382  # 黃金分割 fallback
         x1, y1 = points[p1]
@@ -607,6 +624,39 @@ def _resolve_point_on_segment(c: dict, points: dict) -> bool:
         return True
 
     return False
+
+
+def _place_endpoint_on_ray(points: dict, known_end: str, mid_pt: str,
+                           unknown_end: str) -> bool:
+    """
+    point_on_segment 反推：pt 在 [p1, p2] 上，known_end 和 pt 已知，
+    沿 known_end → pt 方向延伸放置 unknown_end。
+    """
+    kx, ky = points[known_end]
+    px, py = points[mid_pt]
+    dx, dy = px - kx, py - ky
+    d = math.sqrt(dx * dx + dy * dy)
+    if d < TOLERANCE:
+        return True  # 重合，無法判斷方向
+
+    ux, uy = dx / d, dy / d
+
+    # 查找 known_end → unknown_end 的總長度
+    all_c = _find_length_for_segment._constraints
+    total = _find_length_value(all_c, known_end, unknown_end)
+    if total is None:
+        # 嘗試從 mid → unknown 的長度推算
+        len_mid = _find_length_value(all_c, mid_pt, unknown_end)
+        if len_mid is not None:
+            total = d + len_mid
+    if total is None:
+        # 默認：pt 在 60% 處
+        total = d / 0.6
+
+    points[unknown_end] = (kx + ux * total, ky + uy * total)
+    logger.info("point_on_segment 反推端點: %s (沿 %s→%s 方向, dist=%.1f)",
+                unknown_end, known_end, mid_pt, total)
+    return True
 
 
 def _resolve_parallel(c: dict, points: dict, sign: float) -> bool:
@@ -641,23 +691,36 @@ def _resolve_parallel(c: dict, points: dict, sign: float) -> bool:
         if k_len < 1e-9:
             return False
 
+        # 找出待放置的端點
+        unknown = None
+        origin_pt = None
         if partial_seg[0] in points and partial_seg[1] not in points:
-            origin = points[partial_seg[0]]
-            dist = _find_length_for_segment(c, points, partial_seg[0], partial_seg[1])
+            unknown = partial_seg[1]
+            origin_pt = partial_seg[0]
+        elif partial_seg[1] in points and partial_seg[0] not in points:
+            unknown = partial_seg[0]
+            origin_pt = partial_seg[1]
+
+        if unknown and origin_pt:
+            # 如果未知點有 point_on_segment 約束 → 讓 point_on_segment 處理
+            constraints = _find_length_for_segment._constraints
+            has_pos = any(
+                c2.get("type") == "point_on_segment" and
+                c2.get("point") == unknown
+                for c2 in constraints
+            )
+            if has_pos:
+                return False  # 延後，讓 point_on_segment 處理
+
+            origin = points[origin_pt]
+            dist = _find_length_for_segment(c, points, origin_pt, unknown)
             if dist is None:
                 dist = k_len  # 默認與已知邊同長
-            # 沿平行方向放置
             ux, uy = dx / k_len, dy / k_len
-            points[partial_seg[1]] = (origin[0] + ux * dist, origin[1] + uy * dist)
-            return True
-
-        if partial_seg[1] in points and partial_seg[0] not in points:
-            origin = points[partial_seg[1]]
-            dist = _find_length_for_segment(c, points, partial_seg[0], partial_seg[1])
-            if dist is None:
-                dist = k_len
-            ux, uy = dx / k_len, dy / k_len
-            points[partial_seg[0]] = (origin[0] - ux * dist, origin[1] - uy * dist)
+            if origin_pt == partial_seg[0]:
+                points[unknown] = (origin[0] + ux * dist, origin[1] + uy * dist)
+            else:
+                points[unknown] = (origin[0] - ux * dist, origin[1] - uy * dist)
             return True
 
     return False
@@ -858,6 +921,9 @@ def _try_composite_resolve(all_constraints: list, points: dict,
 
     # 策略 4: 平行邊兩端皆未知 → 啟發式放置（梯形場景）
     progress |= _try_parallel_heuristic(all_constraints, points, sign)
+
+    # 策略 5: 約束中引用但無定位信息的頂點 → 默認三角形放置
+    progress |= _try_place_unreferenced_vertices(all_constraints, points, sign)
 
     return progress
 
@@ -1071,6 +1137,109 @@ def _try_single_length_fallback(constraints: list, points: dict,
         logger.info("單邊長度啟發式定位: %s at 60° from %s, dist=%.1f",
                     unknown, known, dist)
         progress = True
+
+    return progress
+
+
+def _try_place_unreferenced_vertices(constraints: list, points: dict,
+                                     sign: float) -> bool:
+    """約束中引用但無定位信息的頂點 → 用已有鄰居推測默認位置。"""
+    # 收集可由其他約束精確定位的點（不應走 fallback）
+    precisely_positioned = set()
+    for c in constraints:
+        ctype = c.get("type")
+        if ctype == "point_on_segment":
+            pt = c.get("point")
+            if pt:
+                precisely_positioned.add(pt)
+        elif ctype == "midpoint":
+            pt = c.get("point")
+            if pt:
+                precisely_positioned.add(pt)
+        elif ctype == "altitude":
+            ft = c.get("foot")
+            if ft:
+                precisely_positioned.add(ft)
+
+    # 收集約束中所有點名
+    all_pts = set()
+    for c in constraints:
+        for key in ("segment", "seg1", "seg2", "of"):
+            val = c.get(key, [])
+            if isinstance(val, list):
+                for item in val:
+                    if isinstance(item, str):
+                        all_pts.add(item)
+        for key in ("vertex", "ray1", "ray2", "point", "from", "foot",
+                     "center", "through"):
+            val = c.get(key)
+            if isinstance(val, str):
+                all_pts.add(val)
+        if c.get("type") == "equal_length":
+            for pair in c.get("segments", []):
+                if isinstance(pair, list):
+                    all_pts.update(pair)
+
+    unplaced = all_pts - set(points.keys()) - precisely_positioned
+    if not unplaced:
+        return False
+
+    progress = False
+    for pt in sorted(unplaced):
+        # 找到已放置的鄰居（在同一約束中出現）
+        neighbors = set()
+        for c in constraints:
+            pt_in_constraint = False
+            placed_in_constraint = set()
+            for key in ("segment", "seg1", "seg2", "of"):
+                val = c.get(key, [])
+                if isinstance(val, list):
+                    if pt in val:
+                        pt_in_constraint = True
+                    for item in val:
+                        if isinstance(item, str) and item != pt and item in points:
+                            placed_in_constraint.add(item)
+            for key in ("vertex", "ray1", "ray2", "point", "from", "foot",
+                         "center", "through"):
+                val = c.get(key)
+                if val == pt:
+                    pt_in_constraint = True
+                elif isinstance(val, str) and val in points:
+                    placed_in_constraint.add(val)
+            if pt_in_constraint:
+                neighbors.update(placed_in_constraint)
+
+        ns = sorted(neighbors)
+        if len(ns) >= 2:
+            # 放在兩個鄰居的等邊三角形頂點
+            x1, y1 = points[ns[0]]
+            x2, y2 = points[ns[1]]
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            dx, dy = x2 - x1, y2 - y1
+            length = math.sqrt(dx * dx + dy * dy)
+            if length < TOLERANCE:
+                continue
+            nx, ny = -dy / length, dx / length
+            if ny * sign < 0:
+                nx, ny = -nx, -ny
+            height = length * 0.866  # ≈ sqrt(3)/2
+            points[pt] = (mx + nx * height, my + ny * height)
+            logger.info("未約束頂點默認放置: %s (鄰居 %s, %s)", pt, ns[0], ns[1])
+            progress = True
+        elif len(ns) == 1:
+            x1, y1 = points[ns[0]]
+            # 用已有最大距離估算尺寸
+            max_d = 0
+            for p in points.values():
+                d = math.sqrt((p[0] - x1) ** 2 + (p[1] - y1) ** 2)
+                if d > max_d:
+                    max_d = d
+            dist = max_d * 0.8 if max_d > 1 else CANONICAL_LENGTH * 0.5
+            angle = math.radians(60) if sign > 0 else math.radians(-60)
+            points[pt] = (x1 + dist * math.cos(angle),
+                          y1 + dist * math.sin(angle))
+            logger.info("未約束頂點默認放置: %s (單鄰居 %s)", pt, ns[0])
+            progress = True
 
     return progress
 
