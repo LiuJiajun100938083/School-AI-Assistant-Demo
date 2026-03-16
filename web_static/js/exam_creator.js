@@ -80,11 +80,25 @@ const ExamCreator = (() => {
     const UI = {
         renderMath(text) {
             if (!text) return '';
-            // KaTeX inline: $...$
-            let html = text.replace(/\$([^$]+)\$/g, (_, tex) => {
+            // 保護 SVG 塊
+            const svgBlocks = [];
+            text = text.replace(/<svg[\s\S]*?<\/svg>/gi, m => {
+                svgBlocks.push(m); return `SVGPH${svgBlocks.length - 1}ENDSVGPH`;
+            });
+            // KaTeX display: $$...$$
+            let html = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, tex) => {
                 try {
-                    return katex.renderToString(tex, { throwOnError: false });
-                } catch { return `$${tex}$`; }
+                    return katex.renderToString(tex.trim(), { throwOnError: false, displayMode: true, strict: 'ignore' });
+                } catch { return `$$${tex}$$`; }
+            });
+            // KaTeX inline: $...$（跳過純中文/CJK 內容）
+            html = html.replace(/\$([^$\n]+?)\$/g, (full, tex) => {
+                // 如果內容幾乎全是中文/CJK，不當作 LaTeX
+                const cjk = tex.replace(/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef，。：；！？、]/g, '');
+                if (cjk.trim().length < tex.trim().length * 0.3) return full;
+                try {
+                    return katex.renderToString(tex, { throwOnError: false, strict: 'ignore' });
+                } catch { return full; }
             });
             // Markdown (GFM tables supported)
             if (typeof marked !== 'undefined') {
@@ -103,6 +117,10 @@ const ExamCreator = (() => {
                                'stroke-dasharray', 'opacity'],
                 });
             }
+            // 還原 SVG 塊
+            svgBlocks.forEach((svg, i) => {
+                html = html.replace(`SVGPH${i}ENDSVGPH`, svg);
+            });
             return html;
         },
 
