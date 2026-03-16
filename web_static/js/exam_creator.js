@@ -92,6 +92,7 @@ const ExamCreator = (() => {
     const UI = {
         renderMath(text) {
             if (!text) return '';
+            if (typeof text !== 'string') text = String(text);
             // 保護 SVG 塊
             const svgBlocks = [];
             text = text.replace(/<svg[\s\S]*?<\/svg>/gi, m => {
@@ -366,7 +367,6 @@ const ExamCreator = (() => {
         if (emptyEl) emptyEl.style.display = 'none';
 
         try {
-            const resp = await API.getStatus('__NOOP__').catch(() => null); // 觸發 token 檢查
             const histResp = await fetch('/api/exam-creator/history?page=1&page_size=50', {
                 headers: API._headers(),
             });
