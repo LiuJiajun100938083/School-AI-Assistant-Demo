@@ -2095,7 +2095,9 @@ ${report.teacher_attention_points || '暫無'}
         if (searchText) {
             filteredUsers = filteredUsers.filter(u =>
                 u.username.toLowerCase().includes(searchText) ||
-                (u.display_name && u.display_name.toLowerCase().includes(searchText))
+                (u.display_name && u.display_name.toLowerCase().includes(searchText)) ||
+                (u.english_name && u.english_name.toLowerCase().includes(searchText)) ||
+                (u.card_id && u.card_id.toLowerCase().includes(searchText))
             );
         }
         AdminUI.renderUsersTable(filteredUsers);

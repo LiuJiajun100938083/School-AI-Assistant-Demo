@@ -36,9 +36,7 @@
         <div class="header-title">📋 點名系統</div>
     </div>
     <div class="header-right">
-        <button class="header-action-btn" onclick="document.getElementById('uploadModal').classList.add('active')">
-            📤 上傳學生
-        </button>
+        <!-- 學生數據已合併至後台用戶管理，不再需要單獨上傳 -->
         <div class="user-info" id="userInfo">教師</div>
     </div>
 </div>
@@ -397,21 +395,7 @@
     </div>
 </div>
 
-<!-- 上傳學生數據模態框 -->
-<div class="modal-overlay" id="uploadModal">
-    <div class="modal">
-        <div class="modal-title">📤 上傳學生數據</div>
-        <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 14px;">
-            請上傳 CSV 或 Excel (.xlsx) 檔案<br>
-            格式：ClassName, ClassNumber, UserLogin, EnglishName, ChineseName, CardID
-        </p>
-        <input type="file" class="modal-input" id="csvFileInput" accept=".csv,.xlsx,.xls">
-        <div class="modal-btns">
-            <button class="modal-btn cancel" onclick="closeUploadModal()">取消</button>
-            <button class="modal-btn confirm" onclick="uploadStudents()">上傳</button>
-        </div>
-    </div>
-</div>
+<!-- 上傳學生數據模態框（已廢棄：學生數據統一在後台用戶管理） -->
 
 <!-- 編輯固定名單模態框 -->
 <div class="modal-overlay" id="editListModal">
