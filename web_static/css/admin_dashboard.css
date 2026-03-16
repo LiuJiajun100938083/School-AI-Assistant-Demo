@@ -205,13 +205,7 @@ body {
     color: var(--brand);
 }
 
-.admin-sidebar__icon {
-    width: 16px;
-    flex-shrink: 0;
-    text-align: center;
-    font-size: 14px;
-    line-height: 1;
-}
+/* .admin-sidebar__icon — see icon system section below */
 
 .admin-sidebar__footer {
     padding: 16px;
@@ -244,9 +238,7 @@ body {
     border-left: none;
 }
 
-.stat-card:hover {
-    transform: none;
-}
+/* stat-card:hover — see animation section below */
 
 .stat-card.success, .stat-card.warning, .stat-card.info {
     border-left: none;
@@ -283,7 +275,6 @@ body {
 
 .tab-pane.active {
     display: block;
-    animation: none;
 }
 
 /* ========== 學生分析 ========== */
@@ -580,8 +571,6 @@ body {
 
 .subject-card:hover {
     border-color: var(--brand);
-    transform: none;
-    box-shadow: none;
 }
 
 .subject-card .subject-actions {
@@ -733,8 +722,6 @@ body {
 
 .student-summary-card:hover {
     border-color: var(--brand);
-    transform: none;
-    box-shadow: none;
 }
 
 .student-summary-card .student-name {
@@ -1007,3 +994,183 @@ body {
 @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 .template-filter-btn { transition: all 0.3s ease; }
 .template-filter-btn:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+/* ========== SVG Icon System ========== */
+.icon {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.icon-sm { width: 14px; height: 14px; }
+.icon-lg { width: 20px; height: 20px; }
+.icon-xl { width: 24px; height: 24px; }
+.icon-2xl { width: 28px; height: 28px; }
+.icon-3xl { width: 36px; height: 36px; }
+
+.icon-stat {
+    width: 18px;
+    height: 18px;
+    stroke: var(--brand);
+    opacity: 0.7;
+}
+
+.icon-brand {
+    width: 20px;
+    height: 20px;
+    stroke: var(--brand);
+}
+
+.icon-white {
+    stroke: #FFFFFF;
+}
+
+/* ========== Animations ========== */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Tab pane fade-in ── */
+.tab-pane.active {
+    display: block;
+    animation: fadeIn 0.25s ease-out;
+}
+
+/* ── Stat card entrance + hover ── */
+.stat-card {
+    animation: slideUp 0.3s ease-out both;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0s; }
+.stat-card:nth-child(2) { animation-delay: 0.05s; }
+.stat-card:nth-child(3) { animation-delay: 0.1s; }
+.stat-card:nth-child(4) { animation-delay: 0.15s; }
+
+/* ── Sidebar item smooth transition ── */
+.admin-sidebar__item {
+    transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.admin-sidebar__item:hover {
+    transform: translateX(2px);
+}
+
+.admin-sidebar__item--active {
+    transform: none;
+}
+
+.admin-sidebar__item--active:hover {
+    transform: none;
+}
+
+/* ── Sidebar icon container ── */
+.admin-sidebar__icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.admin-sidebar__icon .icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* ── Button transitions ── */
+.btn {
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.refresh-btn,
+.export-btn {
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.refresh-btn:active,
+.export-btn:active {
+    transform: scale(0.97);
+}
+
+/* ── Subject card hover ── */
+.subject-card {
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.subject-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Student summary card hover ── */
+.student-summary-card {
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.student-summary-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Knowledge stat card entrance ── */
+.knowledge-stat-card {
+    transition: transform 0.2s ease;
+}
+
+.knowledge-stat-card:hover {
+    transform: translateY(-1px);
+}
+
+/* ── Modal backdrop fade ── */
+[id$="Modal"][style*="display: flex"],
+[id$="Modal"].modal-open {
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* ========== Reduced Motion ========== */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .tab-pane.active {
+        animation: none;
+    }
+
+    .stat-card {
+        animation: none;
+    }
+
+    .admin-sidebar__item:hover {
+        transform: none;
+    }
+
+    .subject-card:hover,
+    .student-summary-card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}

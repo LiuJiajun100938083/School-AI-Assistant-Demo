@@ -361,6 +361,18 @@ const AdminAPI = {
 
 const AdminUI = {
 
+    /* ---------- SVG Icon Helper ---------- */
+    /** Returns an inline <svg> referencing the sprite symbol.
+     *  @param {string} id   — symbol ID without '#' (e.g. 'books')
+     *  @param {string} [cls] — extra CSS classes (e.g. 'icon-lg icon-white')
+     *  @param {string} [style] — inline style string
+     */
+    icon(id, cls, style) {
+        const c = 'icon' + (cls ? ' ' + cls : '');
+        const s = style ? ` style="${style}"` : '';
+        return `<svg class="${c}"${s}><use href="#i-${id}"/></svg>`;
+    },
+
     /* ---------- Markdown 格式化 ---------- */
     formatMarkdownText(text) {
         if (!text) return '';
@@ -424,8 +436,8 @@ const AdminUI = {
     },
 
     getTemplateTypeIcon(type) {
-        const icons = { 'activity': '🎪', 'exam': '📝', 'meeting': '👥', 'general': '📢' };
-        return icons[type] || '📄';
+        const ids = { 'activity': 'ticket', 'exam': 'pencil', 'meeting': 'users', 'general': 'megaphone' };
+        return this.icon(ids[type] || 'document', 'icon-sm');
     },
 
     getTemplateTypeColor(type) {
@@ -437,7 +449,7 @@ const AdminUI = {
     showSuccessNotification(message) {
         const notification = document.createElement('div');
         notification.style.cssText = 'position: fixed; top: 20px; right: 20px; padding: 15px 25px; background: var(--success); color: white; border-radius: 8px; box-shadow: var(--shadow); z-index: 9999; animation: slideIn 0.3s ease;';
-        notification.textContent = '✅ ' + message;
+        notification.innerHTML = this.icon('check-circle', 'icon-sm icon-white') + ' ' + message;
         document.body.appendChild(notification);
         setTimeout(() => {
             notification.style.animation = 'slideOut 0.3s ease';
@@ -460,7 +472,7 @@ const AdminUI = {
         }
 
         for (const [code, subject] of entries) {
-            const icon = (subject && (subject.icon || subject?.config?.icon)) || '📚';
+            const icon = (subject && (subject.icon || subject?.config?.icon)) || this.icon('books', 'icon-2xl', 'stroke:var(--brand)');
             const name = (subject && (subject.name || code)) || code;
             const desc = subject?.config?.description || '';
             const docCount = subject?.config?.doc_count || 0;
@@ -480,10 +492,10 @@ const AdminUI = {
             card.innerHTML = `
                 <div class="subject-actions">
                     <button class="icon-btn" title="編輯" data-action="editSubject" data-code="${code}">
-                        ✏️
+                        ${this.icon('pencil-sm', 'icon-sm')}
                     </button>
                     <button class="icon-btn btn-danger" title="刪除" data-action="deleteSubject" data-code="${code}">
-                        🗑️
+                        ${this.icon('trash', 'icon-sm')}
                     </button>
                 </div>
                 <div class="subject-icon">${icon}</div>
@@ -493,7 +505,7 @@ const AdminUI = {
                 </div>
                 ${desc ? `<div style="margin-top:8px; color:#777; font-size:13px; line-height:1.4;">${desc}</div>` : ''}
                 <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary);">
-                    📄 ${docCount} 个文檔
+                    ${this.icon('document', 'icon-sm')} ${docCount} 个文檔
                 </div>
             `;
 
@@ -522,7 +534,7 @@ const AdminUI = {
         if (!documents || documents.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+                    <div style="margin-bottom: 1rem;">${this.icon('inbox', '', 'width:48px;height:48px;stroke:var(--text-secondary)')}</div>
                     <p>该學科暫無文檔</p>
                 </div>
             `;
@@ -531,7 +543,7 @@ const AdminUI = {
 
         let html = '<div style="display: grid; gap: 1rem;">';
         documents.forEach(doc => {
-            const icon = { 'pdf': '📕', 'docx': '📘', 'txt': '📄', 'pptx': '📊', 'md': '📝' }[doc.type] || '📄';
+            const icon = AdminUI.icon('document', 'icon-lg', `stroke:${{ 'pdf': '#E53935', 'docx': '#1565C0', 'txt': '#616161', 'pptx': '#E65100', 'md': '#2E7D32' }[doc.type] || 'var(--text-secondary)'}`);
             const size = this.formatFileSize(doc.size);
             const date = new Date(doc.modified).toLocaleDateString('zh-CN');
 
@@ -641,7 +653,7 @@ const AdminUI = {
         if (allEntries.length === 0) {
             container.innerHTML = `
                 <div style="text-align:center;padding:3rem;color:var(--text-secondary);background:white;border-radius:10px;">
-                    <div style="font-size:3rem;margin-bottom:1rem;">🟢</div>
+                    <div style="margin-bottom:1rem;">${AdminUI.icon('check-circle', '', 'width:48px;height:48px;stroke:var(--success)')}</div>
                     <p style="font-size:1.05rem;margin-bottom:0.5rem;">目前沒有活躍的臨時封鎖</p>
                     <p style="font-size:0.9rem;">此處僅顯示因登錄失敗觸發的臨時限制，已過期的封鎖不會顯示。</p>
                 </div>`;
@@ -749,7 +761,7 @@ const AdminUI = {
                         <span class="risk-badge" style="background: ${riskColor}">${this.getRiskText(student.risk_level)}</span>
                     </div>
                     <div class="summary-content">${student.overall_summary || '—'}</div>
-                    <div class="preview-status">📖 预习狀態: ${student.preview_status || '—'}</div>
+                    <div class="preview-status">${AdminUI.icon('book', 'icon-sm')} 预习狀態: ${student.preview_status || '—'}</div>
                     <div class="summary-footer">
                         <span class="class-info">班级: ${student.class_name || '—'}</span>
                         <span class="update-time">更新: ${this.formatDate(student.last_updated)}</span>
@@ -791,7 +803,7 @@ const AdminUI = {
                             ${this.formatMarkdownText(student.overall_summary || '暫無摘要')}
                         </div>
                     </div>
-                    <div class="preview-status">📖 预习狀態: ${student.preview_status || '—'}</div>
+                    <div class="preview-status">${AdminUI.icon('book', 'icon-sm')} 预习狀態: ${student.preview_status || '—'}</div>
                     <div class="summary-footer">
                         <span class="class-info">班级: ${student.class_name || '—'}</span>
                         <span class="update-time">更新: ${this.formatDate(student.last_updated)}</span>
@@ -814,7 +826,7 @@ const AdminUI = {
         return `
             <div class="report-section">
                 <h4 style="color: var(--primary); margin-bottom: 15px;">
-                    📚 ${this.getSubjectName(subject)} 科目詳細分析
+                    ${this.icon('books', 'icon-lg', 'stroke:var(--primary)')} ${this.getSubjectName(subject)} 科目詳細分析
                 </h4>
 
                 <div class="risk-badge risk-${report.risk_level}" style="margin-bottom: 15px;">
@@ -822,38 +834,38 @@ const AdminUI = {
                 </div>
 
                 <div class="report-section">
-                    <h4><span>📚</span> 知识掌握情况</h4>
+                    <h4>${this.icon('books')} 知识掌握情况</h4>
                     <div class="report-content formatted-text">${this.formatReportText(report.knowledge_mastery_report || '暫無數據')}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4><span>🎨</span> 學習风格分析</h4>
+                    <h4>${this.icon('palette')} 學習风格分析</h4>
                     <div class="report-content formatted-text">${this.formatReportText(report.learning_style_report || '暫無數據')}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4><span>⚠️</span> 學習困难分析</h4>
+                    <h4>${this.icon('warning')} 學習困难分析</h4>
                     <div class="report-content formatted-text">${this.formatReportText(report.difficulty_report || '暫無數據')}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4><span>💭</span> 情感狀態分析</h4>
+                    <h4>${this.icon('chat-bubble')} 情感狀態分析</h4>
                     <div class="report-content formatted-text">${this.formatReportText(report.emotion_report || '暫無數據')}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4><span>📈</span> 學習进度评估</h4>
+                    <h4>${this.icon('trending-up')} 學習进度评估</h4>
                     <div class="report-content formatted-text">${this.formatReportText(report.progress_report || '暫無數據')}</div>
                 </div>
 
                 <div class="report-section">
-                    <h4><span>💡</span> 个性化學習建议</h4>
+                    <h4>${this.icon('lightbulb')} 个性化學習建议</h4>
                     <div class="report-content formatted-text">${this.formatReportText(report.suggestion_report || '暫無數據')}</div>
                 </div>
 
                 ${report.teacher_attention_points ? `
                 <div class="teacher-attention">
-                    <h5>⚠️ 教師关注点</h5>
+                    <h5>${this.icon('warning', 'icon-sm', 'stroke:var(--color-warning)')} 教師关注点</h5>
                     <div class="formatted-text">${this.formatReportText(report.teacher_attention_points)}</div>
                 </div>
                 ` : ''}
@@ -871,13 +883,13 @@ const AdminUI = {
             <div class="analysis-header">
                 <h3>${student.display_name || student.username} - 學習分析報告</h3>
                 <div class="analysis-meta">
-                    <span>🎓 班级：${student.class_name || '未分班'}</span>
-                    <span>📅 分析日期：${new Date(report.analysis_date).toLocaleDateString('zh-CN')}</span>
+                    <span>${this.icon('graduation', 'icon-sm')} 班级：${student.class_name || '未分班'}</span>
+                    <span>${this.icon('calendar', 'icon-sm')} 分析日期：${new Date(report.analysis_date).toLocaleDateString('zh-CN')}</span>
                 </div>
             </div>
 
             <div class="risk-assessment-card">
-                <h4>⚠️ 风险等级评估</h4>
+                <h4>${this.icon('warning')} 风险等级评估</h4>
                 <div class="risk-level-display ${riskClass}">
                     <span class="risk-badge">${riskLevelText}</span>
                     <div class="risk-description">${this.getRiskDescription(report.risk_level)}</div>
@@ -885,43 +897,43 @@ const AdminUI = {
             </div>
 
             <div class="ai-assessment">
-                <h4>🎯 總体评估</h4>
+                <h4>${this.icon('target', 'icon-white')} 總体评估</h4>
                 <div class="formatted-content">${this.formatMarkdownText(report.overall_assessment || '暫無评估')}</div>
             </div>
 
             <div class="report-section">
-                <h4><span>📚</span> 知识掌握情况</h4>
+                <h4>${this.icon('books')} 知识掌握情况</h4>
                 <div class="report-content formatted-text">${this.formatMarkdownText(report.knowledge_mastery_report || '暫無數據')}</div>
             </div>
 
             <div class="report-section">
-                <h4><span>🎨</span> 學習风格分析</h4>
+                <h4>${this.icon('palette')} 學習风格分析</h4>
                 <div class="report-content formatted-text">${this.formatMarkdownText(report.learning_style_report || '暫無數據')}</div>
             </div>
 
             <div class="report-section">
-                <h4><span>🔧</span> 难点与挑战</h4>
+                <h4>${this.icon('wrench')} 难点与挑战</h4>
                 <div class="report-content formatted-text">${this.formatMarkdownText(report.difficulty_report || '暫無數據')}</div>
             </div>
 
             <div class="report-section">
-                <h4><span>💭</span> 情感狀態</h4>
+                <h4>${this.icon('chat-bubble')} 情感狀態</h4>
                 <div class="report-content formatted-text">${this.formatMarkdownText(report.emotion_report || '暫無數據')}</div>
             </div>
 
             <div class="report-section">
-                <h4><span>💡</span> 改进建议</h4>
+                <h4>${this.icon('lightbulb')} 改进建议</h4>
                 <div class="report-content formatted-text">${this.formatMarkdownText(report.suggestion_report || '暫無數據')}</div>
             </div>
 
             <div class="report-section">
-                <h4><span>📈</span> 进步情况</h4>
+                <h4>${this.icon('trending-up')} 进步情况</h4>
                 <div class="report-content formatted-text">${this.formatMarkdownText(report.progress_report || '暫無數據')}</div>
             </div>
 
             ${report.teacher_attention_points ? `
             <div class="teacher-attention">
-                <h5>⚠️ 教師关注点</h5>
+                <h5>${this.icon('warning', 'icon-sm', 'stroke:var(--color-warning)')} 教師关注点</h5>
                 <div class="formatted-text">${this.formatMarkdownText(report.teacher_attention_points)}</div>
             </div>
             ` : ''}
@@ -943,7 +955,7 @@ const AdminUI = {
         if (totalCount === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+                    <div style="margin-bottom: 1rem;">${this.icon('inbox', '', 'width:48px;height:48px;stroke:var(--text-secondary)')}</div>
                     <p>暫無${filterType === 'all' ? '' : this.getTemplateTypeName(filterType)}范本</p>
                 </div>`;
             return;
@@ -970,7 +982,7 @@ const AdminUI = {
                                 刪除
                             </button>
                         </div>
-                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.75rem;">📅 上传時間：${uploadTime}</div>
+                        <div style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.75rem;">${AdminUI.icon('calendar', 'icon-sm')} 上传時間：${uploadTime}</div>
                         <div style="color: var(--text); font-size: 0.9rem; line-height: 1.6; padding: 1rem; background: white; border-radius: 6px; border: 1px solid var(--border);">
                             <strong>內容预览：</strong><br>${template.content_preview || ''}
                         </div>
@@ -1038,7 +1050,7 @@ const AdminUI = {
 
                     return `
                     <div style="background:white;border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px;margin-bottom:8px;${app.enabled ? '' : 'opacity:0.5;'}">
-                        <span style="font-size:28px;flex-shrink:0;">${app.icon || '📦'}</span>
+                        <span style="font-size:28px;flex-shrink:0;">${app.icon || AdminUI.icon('box', 'icon-xl')}</span>
                         <div style="flex:1;min-width:0;">
                             <div style="font-weight:600;font-size:15px;color:var(--text-primary);">${app.name}</div>
                             <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${app.description || ''}</div>
@@ -1514,7 +1526,7 @@ const AdminApp = {
         for (const [code, subject] of Object.entries(this.state.subjects)) {
             const option = document.createElement('option');
             option.value = code;
-            option.textContent = `${subject.icon || '📚'} ${subject.name || code}`;
+            option.textContent = `${subject.name || code}`;
             subjectFilter.appendChild(option);
         }
     },
@@ -1547,7 +1559,7 @@ const AdminApp = {
         const subjectData = {
             code: document.getElementById('subjectCode').value.trim(),
             name: document.getElementById('subjectName').value.trim(),
-            icon: document.getElementById('subjectIcon').value.trim() || '📚',
+            icon: document.getElementById('subjectIcon').value.trim() || '',
             description: document.getElementById('subjectDescription').value.trim()
         };
         try {
@@ -1586,7 +1598,7 @@ const AdminApp = {
         const code = document.getElementById('editSubjectCode').value;
         const subjectData = {
             subject_name: document.getElementById('editSubjectName').value,
-            icon: document.getElementById('editSubjectIcon').value || '📚',
+            icon: document.getElementById('editSubjectIcon').value || '',
             description: document.getElementById('editSubjectDescription').value
         };
         try {
@@ -1629,7 +1641,7 @@ const AdminApp = {
         for (const [code, subject] of Object.entries(this.state.subjects)) {
             const option = document.createElement('option');
             option.value = code;
-            option.textContent = `${subject.icon || '📚'} ${subject.name || code}`;
+            option.textContent = `${subject.name || code}`;
             select.appendChild(option);
         }
         select.onchange = () => this.loadDocuments(select.value);
@@ -1656,7 +1668,7 @@ const AdminApp = {
         if (!subject) {
             document.getElementById('documentsList').innerHTML = `
                 <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                    <div style="margin-bottom: 1rem;">${AdminUI.icon('folder', '', 'width:48px;height:48px;stroke:var(--text-secondary)')}</div>
                     <p>請選擇學科查看文檔</p>
                 </div>
             `;
@@ -1728,7 +1740,7 @@ const AdminApp = {
         for (const [code, subject] of Object.entries(this.state.subjects)) {
             const item = document.createElement('div');
             item.style.cssText = 'padding:12px;background:var(--bg);border-radius:8px;cursor:pointer;transition:all .3s;display:flex;align-items:center;gap:8px;';
-            item.innerHTML = `<span style="font-size:20px;">${subject.icon || '📚'}</span><span>${subject.name || code}</span>`;
+            item.innerHTML = `<span>${subject.icon || AdminUI.icon('books', 'icon-lg')}</span><span>${subject.name || code}</span>`;
             item.addEventListener('click', (event) => this.selectPromptSubject(code, subject, event));
             container.appendChild(item);
         }
@@ -1746,7 +1758,7 @@ const AdminApp = {
         }
         document.getElementById('promptEditor').style.display = 'block';
         document.getElementById('promptPlaceholder').style.display = 'none';
-        document.getElementById('promptSubjectTitle').textContent = `${subject.icon || '📚'} ${subject.name || code} - 提示詞配置`;
+        document.getElementById('promptSubjectTitle').textContent = `${subject.name || code} - 提示詞配置`;
         await this.loadPrompt(code);
     },
 
@@ -1825,7 +1837,7 @@ const AdminApp = {
 
     /* ---------- 學生分析 ---------- */
     async loadStudentAnalysis() {
-        console.log('📊 開始載入學生分析數據...');
+        console.log('[Analysis] 開始載入學生分析數據...');
         document.getElementById('studentList').innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>載入學生列表...</p></div>';
         try {
             const data = await AdminAPI.fetchUsers();
@@ -1834,7 +1846,7 @@ const AdminApp = {
             AdminUI.renderStudentList(this.state.allStudents);
             this.updateStudentStats(this.state.allStudents);
         } catch (error) {
-            console.error('❌ 載入學生數據失敗:', error);
+            console.error('[Analysis] 載入學生數據失敗:', error);
             document.getElementById('studentList').innerHTML = '<div class="empty-state"><p>載入失敗，請重试</p></div>';
         }
     },
@@ -1863,7 +1875,7 @@ const AdminApp = {
             let analysisHTML = `
                 <div class="overall-card" style="background: var(--brand); color: white; padding: 25px; border-radius: 15px; margin-bottom: 20px;">
                     <h3 style="color: white; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px; margin-bottom: 15px;">
-                        📊 ${student.display_name || student.username} - 整体學習概览
+                        ${AdminUI.icon('chart', 'icon-white')} ${student.display_name || student.username} - 整体學習概览
                     </h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                         <div style="background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
@@ -1880,10 +1892,10 @@ const AdminApp = {
                         </div>
                     </div>
                     <div style="margin-top: 15px;">
-                        <p style="margin-bottom: 8px;"><strong>📚 活躍科目：</strong> ${(overviewData.active_subjects && overviewData.active_subjects.join(', ')) || '暫無'}</p>
-                        <p style="margin-bottom: 8px;"><strong>⏰ 最近活躍：</strong> ${overviewData.last_active || '暫無記錄'}</p>
+                        <p style="margin-bottom: 8px;"><strong>${AdminUI.icon('books', 'icon-sm icon-white')} 活躍科目：</strong> ${(overviewData.active_subjects && overviewData.active_subjects.join(', ')) || '暫無'}</p>
+                        <p style="margin-bottom: 8px;"><strong>${AdminUI.icon('calendar', 'icon-sm icon-white')} 最近活躍：</strong> ${overviewData.last_active || '暫無記錄'}</p>
                         <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; margin-top: 15px;">
-                            <h4 style="color: white; margin-bottom: 10px;">🤖 AI智能評價</h4>
+                            <h4 style="color: white; margin-bottom: 10px;">${AdminUI.icon('cpu', 'icon-sm icon-white')} AI智能評價</h4>
                             <p style="line-height: 1.6; font-size: 14px;">${overviewData.overall_assessment || '需要更多數據生成評價'}</p>
                         </div>
                     </div>
@@ -1898,7 +1910,7 @@ const AdminApp = {
                 } else {
                     analysisHTML += `
                         <div class="report-card" style="background: white; padding: 20px; border-radius: 15px;">
-                            <h4 style="color: var(--primary);">📚 ${AdminUI.getSubjectName(subject)} 科目分析</h4>
+                            <h4 style="color: var(--primary);">${AdminUI.icon('books', 'icon-sm', 'stroke:var(--primary)')} ${AdminUI.getSubjectName(subject)} 科目分析</h4>
                             <p style="color: #999; text-align: center; padding: 20px;">该學生在 ${AdminUI.getSubjectName(subject)} 科目暫無學習記錄</p>
                         </div>
                     `;
@@ -1909,7 +1921,7 @@ const AdminApp = {
 
             document.getElementById('analysisContent').innerHTML = analysisHTML;
         } catch (error) {
-            console.error('❌ 获取學生分析失敗:', error);
+            console.error('[Analysis] 获取學生分析失敗:', error);
             document.getElementById('analysisContent').innerHTML = '<div class="empty-state"><h4>載入失敗</h4><p>无法获取學生分析報告，請重试</p></div>';
         }
     },
@@ -2041,9 +2053,9 @@ ${report.teacher_attention_points || '暫無'}
                 <div class="analysis-header">
                     <h3>${pseudoStudent.display_name} - 學習分析報告</h3>
                     <div class="analysis-meta">
-                        <span>🎓 班级：${pseudoStudent.class_name || '未分班'}</span>
-                        <span>📚 科目：${AdminUI.getSubjectName('ict')}</span>
-                        <span>📅 分析日期：${report.analysis_date ? new Date(report.analysis_date).toLocaleDateString('zh-CN') : '-'}</span>
+                        <span>${AdminUI.icon('graduation', 'icon-sm')} 班级：${pseudoStudent.class_name || '未分班'}</span>
+                        <span>${AdminUI.icon('books', 'icon-sm')} 科目：${AdminUI.getSubjectName('ict')}</span>
+                        <span>${AdminUI.icon('calendar', 'icon-sm')} 分析日期：${report.analysis_date ? new Date(report.analysis_date).toLocaleDateString('zh-CN') : '-'}</span>
                     </div>
                 </div>
                 ${AdminUI.generateDetailedReport(pseudoStudent, { ...report, has_data: true }, 'ict')}
@@ -2261,7 +2273,7 @@ ${report.teacher_attention_points || '暫無'}
     async processBatchAddNew() {
         const btn = document.getElementById('batchSubmitBtn');
         btn.disabled = true;
-        btn.textContent = '⏳ 導入中...';
+        btn.innerHTML = AdminUI.icon('refresh', 'icon-sm') + ' 導入中...';
         try {
             if (this.state.currentBatchTab === 'excel') {
                 await this._processExcelUpload();
@@ -2270,7 +2282,7 @@ ${report.teacher_attention_points || '暫無'}
             }
         } finally {
             btn.disabled = false;
-            btn.textContent = '🚀 開始導入';
+            btn.innerHTML = AdminUI.icon('rocket', 'icon-sm icon-white') + ' 開始導入';
         }
     },
 
@@ -2288,7 +2300,7 @@ ${report.teacher_attention_points || '暫無'}
             if (result.failed_details && result.failed_details.length > 0) {
                 html += '<ul style="list-style: none; padding: 0; margin: 0; font-size: 13px;">';
                 result.failed_details.forEach(f => {
-                    html += `<li style="padding: 4px 0; color: var(--danger);">❌ ${f.username || f.row || ''}: ${f.error}</li>`;
+                    html += `<li style="padding: 4px 0; color: var(--danger);">${AdminUI.icon('warning', 'icon-sm', 'stroke:var(--danger)')} ${f.username || f.row || ''}: ${f.error}</li>`;
                 });
                 html += '</ul>';
             }
@@ -2361,7 +2373,7 @@ ${report.teacher_attention_points || '暫無'}
         const messageDiv = document.createElement('div');
         messageDiv.className = 'notice-message ai';
         messageDiv.innerHTML = `
-            <div style="width: 35px; height: 35px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">🤖</div>
+            <div style="width: 35px; height: 35px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white;">${AdminUI.icon('cpu', 'icon-sm icon-white')}</div>
             <div class="notice-message-content">${(message || '').replace(/\n/g, '<br>')}</div>
         `;
         container.appendChild(messageDiv);
@@ -2374,7 +2386,7 @@ ${report.teacher_attention_points || '暫無'}
         const messageDiv = document.createElement('div');
         messageDiv.className = 'notice-message user';
         messageDiv.innerHTML = `
-            <div style="width: 35px; height: 35px; background: var(--brand-lighter); border-radius: 50%; display: flex; align-items: center; justify-content: center;">👤</div>
+            <div style="width: 35px; height: 35px; background: var(--brand-lighter); border-radius: 50%; display: flex; align-items: center; justify-content: center;">${AdminUI.icon('users', 'icon-sm', 'stroke:var(--brand)')}</div>
             <div class="notice-message-content">${message}</div>
         `;
         container.appendChild(messageDiv);
@@ -2424,7 +2436,7 @@ ${report.teacher_attention_points || '暫無'}
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-            this._addNoticeAIMessage('✅ Word 文件已成功匯出！');
+            this._addNoticeAIMessage(AdminUI.icon('check-circle', 'icon-sm', 'stroke:var(--success)') + ' Word 文件已成功匯出！');
         } catch (error) {
             alert('匯出時發生錯誤：' + error.message);
         }
@@ -2450,7 +2462,7 @@ ${report.teacher_attention_points || '暫無'}
         wrapper.className = 'drag-drop-zone';
         wrapper.innerHTML = `
             <div class="ddz-inner">
-                <div style="font-size: 40px;">📁</div>
+                <div>${AdminUI.icon('folder', '', 'width:40px;height:40px;stroke:var(--text-secondary)')}</div>
                 <div class="ddz-title">拖拽通告/范本文件到这里</div>
                 <div class="ddz-sub">支持批量上传 · 自动分类 · 智能识别</div>
                 <button type="button" class="ddz-btn" id="ddzPickerBtn">或点击選擇文件</button>
@@ -2516,14 +2528,14 @@ ${report.teacher_attention_points || '暫無'}
             const bar = document.createElement('div');
             bar.style.cssText = 'display:flex; gap:8px; flex-wrap: wrap; margin: 8px 0 10px;';
             const quickTemplates = [
-                { icon: '🎯', text: '使用去年同期通告作为参考' },
-                { icon: '📋', text: '复制上次的活动通告格式' },
-                { icon: '✨', text: 'AI自动填充常用資訊' }
+                { icon: AdminUI.icon('target', 'icon-sm'), text: '使用去年同期通告作为参考' },
+                { icon: AdminUI.icon('clipboard', 'icon-sm'), text: '复制上次的活动通告格式' },
+                { icon: AdminUI.icon('bolt', 'icon-sm'), text: 'AI自动填充常用資訊' }
             ];
             quickTemplates.forEach(q => {
                 const btn = document.createElement('button');
                 btn.className = 'quick-action';
-                btn.textContent = `${q.icon} ${q.text}`;
+                btn.innerHTML = `${q.icon} ${q.text}`;
                 btn.addEventListener('click', () => {
                     document.getElementById('noticeChatInput').value = q.text;
                     this.sendNoticeMessage();
@@ -2541,7 +2553,7 @@ ${report.teacher_attention_points || '暫無'}
                 pane.id = 'noticePreviewPane';
                 pane.className = 'notice-preview-pane';
                 pane.innerHTML = `
-                    <h4>📝 实时预览</h4>
+                    <h4>${AdminUI.icon('pencil', 'icon-sm', 'stroke:var(--primary)')} 实时预览</h4>
                     <div id="noticePreviewBody" class="notice-preview-empty">生成的通告內容将实时顯示在这里。</div>
                 `;
                 rightMount.parentNode.insertBefore(pane, rightMount.nextSibling);
@@ -2591,7 +2603,7 @@ ${report.teacher_attention_points || '暫無'}
             return;
         }
 
-        if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.innerHTML = '<span>⏳</span> 上传中...'; }
+        if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.innerHTML = AdminUI.icon('refresh', 'icon-sm') + ' 上传中...'; }
 
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
@@ -2613,7 +2625,7 @@ ${report.teacher_attention_points || '暫無'}
         } catch (error) {
             alert('上传失敗：' + (error.message || '網絡錯誤'));
         } finally {
-            if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.innerHTML = '<span>📤</span> 上传范本'; }
+            if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.innerHTML = AdminUI.icon('upload', 'icon-sm icon-white') + ' 上传范本'; }
         }
     },
 
@@ -2850,7 +2862,7 @@ ${report.teacher_attention_points || '暫無'}
                     <div id="qr-actions-${c.class_code}" style="display:none;gap:0.5rem;justify-content:center;">
                         <button onclick="AdminApp.downloadQR('${c.class_code}')"
                             style="padding:6px 12px;border:1px solid var(--primary);border-radius:6px;background:var(--primary);color:#fff;font-size:0.8rem;cursor:pointer;">
-                            ⬇️ 下載 PNG
+                            ${AdminUI.icon('download', 'icon-sm icon-white')} 下載 PNG
                         </button>
                     </div>
                 </div>
@@ -3113,7 +3125,7 @@ ${report.teacher_attention_points || '暫無'}
 
     async manualGenerateReport() {
         const statusEl = document.getElementById('reportGenStatus');
-        if (statusEl) statusEl.textContent = '⏳ 報告生成中...';
+        if (statusEl) statusEl.innerHTML = AdminUI.icon('refresh', 'icon-sm', 'animation:spin 0.8s linear infinite') + ' 報告生成中...';
 
         try {
             const today = new Date().toISOString().split('T')[0];
@@ -3122,11 +3134,11 @@ ${report.teacher_attention_points || '暫無'}
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ report_date: today }),
             });
-            if (statusEl) statusEl.textContent = '✅ 報告生成已啟動，AI 正在分析中...';
+            if (statusEl) statusEl.innerHTML = AdminUI.icon('check-circle', 'icon-sm', 'stroke:var(--success)') + ' 報告生成已啟動，AI 正在分析中...';
             // 10 秒後清除狀態提示
             setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 10000);
         } catch (error) {
-            if (statusEl) statusEl.textContent = '❌ 生成失敗: ' + error.message;
+            if (statusEl) statusEl.innerHTML = AdminUI.icon('warning', 'icon-sm', 'stroke:var(--danger)') + ' 生成失敗: ' + error.message;
         }
     },
 

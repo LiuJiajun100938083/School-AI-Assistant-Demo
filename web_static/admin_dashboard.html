@@ -7,15 +7,63 @@
     <link rel="stylesheet" href="/static/css/admin_dashboard.css">
 </head>
 <body>
+    <!-- SVG Icon Sprite (Heroicons Outline, MIT) -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+        <symbol id="i-graduation" viewBox="0 0 24 24"><path d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15v-3.75m0 0h-.008v.008H6.75v-.008Z"/></symbol>
+        <symbol id="i-home" viewBox="0 0 24 24"><path d="m2.25 12 8.954-8.955a1.126 1.126 0 0 1 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></symbol>
+        <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></symbol>
+        <symbol id="i-archive" viewBox="0 0 24 24"><path d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H2.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/></symbol>
+        <symbol id="i-chat-bubble" viewBox="0 0 24 24"><path d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></symbol>
+        <symbol id="i-users" viewBox="0 0 24 24"><path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></symbol>
+        <symbol id="i-cog" viewBox="0 0 24 24"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></symbol>
+        <symbol id="i-pencil" viewBox="0 0 24 24"><path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"/></symbol>
+        <symbol id="i-phone" viewBox="0 0 24 24"><path d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/></symbol>
+        <symbol id="i-clipboard" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></symbol>
+        <symbol id="i-cpu" viewBox="0 0 24 24"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5M4.5 15.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V5.25a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 5.25v13.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z"/></symbol>
+        <symbol id="i-books" viewBox="0 0 24 24"><path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></symbol>
+        <symbol id="i-document" viewBox="0 0 24 24"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></symbol>
+        <symbol id="i-message" viewBox="0 0 24 24"><path d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></symbol>
+        <symbol id="i-upload" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></symbol>
+        <symbol id="i-box" viewBox="0 0 24 24"><path d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9"/></symbol>
+        <symbol id="i-save" viewBox="0 0 24 24"><path d="M9 3.75H6.912a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859M12 3v8.25m0 0-3-3m3 3 3-3"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/></symbol>
+        <symbol id="i-folder" viewBox="0 0 24 24"><path d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></symbol>
+        <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></symbol>
+        <symbol id="i-target" viewBox="0 0 24 24"><path d="M6 13.5V3.75m0 9.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 3.75V16.5m12-3V3.75m0 9.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 3.75V16.5m-6-9V3.75m0 3.75a1.5 1.5 0 0 1 0 3m0-3a1.5 1.5 0 0 0 0 3m0 9.75V10.5"/></symbol>
+        <symbol id="i-qr" viewBox="0 0 24 24"><path d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"/><path d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z"/></symbol>
+        <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/></symbol>
+        <symbol id="i-server" viewBox="0 0 24 24"><path d="M21.75 17.25v-.228a4.5 4.5 0 0 0-.12-1.03l-2.268-9.64a3.375 3.375 0 0 0-3.285-2.602H7.923a3.375 3.375 0 0 0-3.285 2.602l-2.268 9.64a4.5 4.5 0 0 0-.12 1.03v.228m19.5 0a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3m19.5 0a3 3 0 0 0-3-3H5.25a3 3 0 0 0-3 3m16.5 0h.008v.008h-.008v-.008Zm-3 0h.008v.008h-.008v-.008Z"/></symbol>
+        <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.58-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/></symbol>
+        <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></symbol>
+        <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z"/></symbol>
+        <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H6.75a2.25 2.25 0 0 1-2.25-2.25V6.75a2.25 2.25 0 0 1 2.25-2.25h1.5c.704 0 1.402-.03 2.09-.09m0 12.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46"/></symbol>
+        <symbol id="i-spreadsheet" viewBox="0 0 24 24"><path d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-8.625 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M10.875 12h2.25m-2.25 0a1.125 1.125 0 0 1-1.125 1.125M13.125 12c-.621 0-1.125.504-1.125 1.125m0 0v1.5c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M12 13.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 13.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v1.5c0 .621-.504 1.125-1.125 1.125M12 16.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 16.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125"/></symbol>
+        <symbol id="i-text" viewBox="0 0 24 24"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12"/></symbol>
+        <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z"/></symbol>
+        <symbol id="i-palette" viewBox="0 0 24 24"><path d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.88 2.88M6.75 17.25h.008v.008H6.75v-.008Z"/></symbol>
+        <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.049.58.025 1.193-.14 1.743"/></symbol>
+        <symbol id="i-lightbulb" viewBox="0 0 24 24"><path d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></symbol>
+        <symbol id="i-trending-up" viewBox="0 0 24 24"><path d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/></symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></symbol>
+        <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859M12 3v8.25m0 0-3-3m3 3 3-3M2.25 18.75h19.5"/></symbol>
+        <symbol id="i-check-circle" viewBox="0 0 24 24"><path d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></symbol>
+        <symbol id="i-pencil-sm" viewBox="0 0 24 24"><path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></symbol>
+    </svg>
+
     <!-- 導航欄 -->
     <nav class="navbar">
         <div class="navbar-brand">
-            <span>🎓</span>
+            <svg class="icon icon-brand"><use href="#i-graduation"/></svg>
             <span>AI學習夥伴 - 教師管理後台</span>
         </div>
         <div class="navbar-user">
             <button class="btn btn-primary" data-action="backToMain">
-                <span>🏠</span>返回主系統
+                <svg class="icon icon-white"><use href="#i-home"/></svg>返回主系統
             </button>
             <div class="user-info">
                 <div class="user-avatar" id="adminAvatar">A</div>
@@ -33,40 +81,40 @@
                 <!-- 教學管理 -->
                 <div class="admin-sidebar__group-label">教學管理</div>
                 <div class="admin-sidebar__item admin-sidebar__item--active" data-tab="subjects">
-                    <span class="admin-sidebar__icon">📖</span><span>學科管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-book"/></svg></span><span>學科管理</span>
                 </div>
                 <div class="admin-sidebar__item" data-tab="knowledge">
-                    <span class="admin-sidebar__icon">🗂️</span><span>知識庫管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-archive"/></svg></span><span>知識庫管理</span>
                 </div>
                 <div class="admin-sidebar__item" data-tab="prompts">
-                    <span class="admin-sidebar__icon">💭</span><span>提示詞配置</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-chat-bubble"/></svg></span><span>提示詞配置</span>
                 </div>
                 <div class="admin-sidebar__item" data-tab="analysis">
-                    <span class="admin-sidebar__icon">📊</span><span>學生分析</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-chart"/></svg></span><span>學生分析</span>
                 </div>
 
                 <!-- 系統管理 (admin only) -->
                 <div class="admin-sidebar__group-label admin-only">系統管理</div>
                 <div class="admin-sidebar__item admin-only" data-tab="users">
-                    <span class="admin-sidebar__icon">👥</span><span>用戶管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-users"/></svg></span><span>用戶管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="settings">
-                    <span class="admin-sidebar__icon">⚙️</span><span>系統設定</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-cog"/></svg></span><span>系統設定</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="notice">
-                    <span class="admin-sidebar__icon">📝</span><span>通告管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-pencil"/></svg></span><span>通告管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="appmgr">
-                    <span class="admin-sidebar__icon">📱</span><span>應用管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-phone"/></svg></span><span>應用管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="classdiary">
-                    <span class="admin-sidebar__icon">📋</span><span>課室日誌</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-clipboard"/></svg></span><span>課室日誌</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="blocked">
-                    <span class="admin-sidebar__icon">🔒</span><span>封禁管理</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-lock"/></svg></span><span>封禁管理</span>
                 </div>
                 <div class="admin-sidebar__item admin-only" data-tab="aimonitor">
-                    <span class="admin-sidebar__icon">🤖</span><span>AI 監控</span>
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-cpu"/></svg></span><span>AI 監控</span>
                 </div>
             </nav>
             <div class="admin-sidebar__footer">v3.0</div>
@@ -77,22 +125,22 @@
             <!-- 統計卡片 -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-title"><span>📚</span> 學科總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-books"/></svg> 學科總數</div>
                     <div class="stat-value" id="totalSubjects">-</div>
                     <div class="stat-subtitle">已配置的學科</div>
                 </div>
                 <div class="stat-card success">
-                    <div class="stat-title"><span>📄</span> 文檔總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-document"/></svg> 文檔總數</div>
                     <div class="stat-value" id="totalDocuments">-</div>
                     <div class="stat-subtitle">知識庫文檔</div>
                 </div>
                 <div class="stat-card warning">
-                    <div class="stat-title"><span>👥</span> 學生總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-users"/></svg> 學生總數</div>
                     <div class="stat-value" id="totalStudents">-</div>
                     <div class="stat-subtitle">活躍用戶</div>
                 </div>
                 <div class="stat-card info">
-                    <div class="stat-title"><span>💬</span> 對話總數</div>
+                    <div class="stat-title"><svg class="icon icon-stat"><use href="#i-message"/></svg> 對話總數</div>
                     <div class="stat-value" id="totalConversations">-</div>
                     <div class="stat-subtitle">累計對話</div>
                 </div>
@@ -104,7 +152,7 @@
                     <div class="d-flex justify-between align-center mb-3">
                         <h3>學科管理</h3>
                         <button class="btn btn-primary" data-action="showAddSubjectModal">
-                            <span>➕</span> 添加新學科
+                            <svg class="icon icon-white"><use href="#i-plus"/></svg> 添加新學科
                         </button>
                     </div>
                     <div class="subject-grid" id="subjectGrid"></div>
@@ -113,7 +161,7 @@
                 <!-- 知識庫管理標籤 -->
                 <div class="tab-pane" id="knowledge-tab">
                     <div style="margin-bottom: 2rem;">
-                        <h3 style="display: inline-block; margin-right: 1rem;">🗂️ 知識庫管理</h3>
+                        <h3 style="display: inline-block; margin-right: 1rem;"><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-archive"/></svg> 知識庫管理</h3>
                         <span style="color: var(--text-secondary);">管理各學科的知識文檔</span>
                     </div>
 
@@ -139,18 +187,18 @@
                             </select>
                             <button data-action="triggerDocUpload"
                                     style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 500;">
-                                <span>📤</span> 上傳文檔
+                                <svg class="icon icon-white"><use href="#i-upload"/></svg> 上傳文檔
                             </button>
                             <button data-action="refreshDocuments"
                                     style="padding: 12px; background: var(--success); color: white; border: none; border-radius: 8px; cursor: pointer;">
-                                🔄 刷新
+                                <svg class="icon icon-white"><use href="#i-refresh"/></svg> 刷新
                             </button>
                             <input type="file" id="documentUpload" accept=".txt,.pdf,.docx,.pptx,.md" multiple style="display: none;">
                         </div>
 
                         <div id="documentsList">
                             <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                                <div style="margin-bottom: 1rem;"><svg class="icon-3xl icon" style="width:48px;height:48px;stroke:var(--text-secondary)"><use href="#i-folder"/></svg></div>
                                 <p>請選擇學科查看文檔</p>
                             </div>
                         </div>
@@ -159,7 +207,7 @@
                         <div style="margin-top: 40px; padding-top: 30px; border-top: 3px solid var(--primary);">
                             <div style="margin-bottom: 2rem;">
                                 <h3 style="display: inline-block; margin-right: 1rem; color: var(--primary);">
-                                    📝 培僑中學通告範本庫
+                                    <svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-pencil"/></svg> 培僑中學通告範本庫
                                 </h3>
                                 <span style="color: var(--text-secondary);">上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告</span>
                             </div>
@@ -186,7 +234,7 @@
                             <!-- 上傳範本區域 -->
                             <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: var(--shadow); margin-bottom: 2rem;">
                                 <h4 style="color: var(--primary); margin-bottom: 1.5rem;">
-                                    <span style="margin-right: 0.5rem;">⬆️</span>上傳新範本
+                                    <svg class="icon" style="stroke:var(--primary);margin-right:0.5rem"><use href="#i-upload"/></svg>上傳新範本
                                 </h4>
                                 <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 1rem; margin-bottom: 1rem;">
                                     <div>
@@ -202,10 +250,10 @@
                                             範本類型 <span style="color: var(--danger);">*</span>
                                         </label>
                                         <select id="noticeTemplateType" style="width: 100%; padding: 11px; border: 2px solid var(--border); border-radius: 8px; background: white;">
-                                            <option value="activity">🎪 活動通告</option>
-                                            <option value="exam">📝 考試通告</option>
-                                            <option value="meeting">👥 會議通告</option>
-                                            <option value="general">📢 一般通告</option>
+                                            <option value="activity">活動通告</option>
+                                            <option value="exam">考試通告</option>
+                                            <option value="meeting">會議通告</option>
+                                            <option value="general">一般通告</option>
                                         </select>
                                     </div>
                                     <div>
@@ -226,7 +274,7 @@
                                     </button>
                                     <button data-action="uploadNoticeTemplate" id="uploadTemplateBtn"
                                             style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 0.5rem;">
-                                        <span>📤</span> 上傳範本
+                                        <svg class="icon icon-white"><use href="#i-upload"/></svg> 上傳範本
                                     </button>
                                 </div>
                             </div>
@@ -235,7 +283,7 @@
                             <div style="background: white; border-radius: 15px; padding: 2rem; box-shadow: var(--shadow);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                                     <h4 style="color: var(--primary); margin: 0;">
-                                        <span style="margin-right: 0.5rem;">📚</span>已上傳的範本
+                                        <svg class="icon" style="stroke:var(--primary);margin-right:0.5rem"><use href="#i-books"/></svg>已上傳的範本
                                     </h4>
                                     <div style="display: flex; gap: 0.5rem;">
                                         <button data-action="filterTemplates" data-type="all" class="template-filter-btn active"
@@ -264,11 +312,11 @@
                 <!-- 提示詞配置标签 -->
                 <div class="tab-pane" id="prompts-tab">
                     <div style="margin-bottom: 2rem;">
-                        <h3 style="display: inline-block; margin-right: 1rem;">💭 提示詞配置</h3>
+                        <h3 style="display: inline-block; margin-right: 1rem;"><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-chat-bubble"/></svg> 提示詞配置</h3>
                         <span style="color: var(--text-secondary);">为每个學科配置AI助手的行为和知识范围</span>
                     </div>
                     <div style="background: var(--brand); padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; color: white;">
-                        <h4 style="margin-bottom: 1rem;">🎯 快速模板</h4>
+                        <h4 style="margin-bottom: 1rem;"><svg class="icon icon-white" style="margin-right:4px"><use href="#i-target"/></svg> 快速模板</h4>
                         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                             <button data-action="applyTemplate" data-template="basic" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">基础教学模板</button>
                             <button data-action="applyTemplate" data-template="interactive" style="padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: white; cursor: pointer;">互动问答模板</button>
@@ -278,7 +326,7 @@
                     </div>
                     <div style="display: grid; grid-template-columns: 300px 1fr; gap: 2rem;">
                         <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow); height: fit-content;">
-                            <h4 style="margin-bottom: 1rem; color: var(--primary);">📚 學科列表</h4>
+                            <h4 style="margin-bottom: 1rem; color: var(--primary);"><svg class="icon" style="stroke:var(--primary)"><use href="#i-books"/></svg> 學科列表</h4>
                             <div id="promptSubjectList" style="display: flex; flex-direction: column; gap: 8px;"></div>
                         </div>
                         <div style="background: white; border-radius: 15px; padding: 1.5rem; box-shadow: var(--shadow);">
@@ -310,11 +358,11 @@
                                 </div>
                                 <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                                     <button data-action="resetPrompt" style="padding: 12px 24px; background: var(--light); border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">重置</button>
-                                    <button data-action="savePrompt" style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">💾 保存提示詞</button>
+                                    <button data-action="savePrompt" style="padding: 12px 32px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;"><svg class="icon icon-white"><use href="#i-save"/></svg> 保存提示詞</button>
                                 </div>
                             </div>
                             <div id="promptPlaceholder" style="text-align: center; padding: 4rem; color: var(--text-secondary);">
-                                <div style="font-size: 3rem; margin-bottom: 1rem;">💭</div>
+                                <div style="margin-bottom: 1rem;"><svg class="icon" style="width:48px;height:48px;stroke:var(--text-secondary)"><use href="#i-chat-bubble"/></svg></div>
                                 <p>請選擇左侧學科開始配置提示詞</p>
                             </div>
                         </div>
@@ -324,19 +372,19 @@
                 <!-- 學生分析标签 -->
                 <div class="tab-pane" id="analysis-tab">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h3>📊 學生學習分析</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-chart"/></svg> 學生學習分析</h3>
                         <div>
-                            <button class="refresh-btn" data-action="refreshAnalysis">🔄 刷新數據</button>
-                            <button class="export-btn" data-action="exportAnalysis">📥 匯出報告</button>
+                            <button class="refresh-btn" data-action="refreshAnalysis"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新數據</button>
+                            <button class="export-btn" data-action="exportAnalysis"><svg class="icon icon-sm icon-white"><use href="#i-download"/></svg> 匯出報告</button>
                         </div>
                     </div>
                     <div class="students-summary-wrapper">
                         <div class="students-summary-header">
                             <h4 style="color: var(--primary); margin: 0; display: flex; align-items: center; gap: 8px;">
-                                <span>🧾</span> 學生摘要總览（最近更新）
+                                <svg class="icon" style="stroke:var(--primary)"><use href="#i-receipt"/></svg> 學生摘要總览（最近更新）
                             </h4>
                             <div>
-                                <button class="refresh-btn" data-action="loadStudentsSummary">🔄 刷新摘要</button>
+                                <button class="refresh-btn" data-action="loadStudentsSummary"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新摘要</button>
                             </div>
                         </div>
                         <div id="studentsSummaryList" class="students-summary-grid">
@@ -386,7 +434,7 @@
                         <div class="analysis-panel">
                             <div id="analysisContent">
                                 <div class="empty-state">
-                                    <h4>👈 請選擇一个學生查看分析報告</h4>
+                                    <h4><svg class="icon" style="margin-right:4px"><use href="#i-arrow-left"/></svg> 請選擇一个學生查看分析報告</h4>
                                     <p>選擇左侧學生列表中的學生，查看其詳細的學習分析報告</p>
                                 </div>
                             </div>
@@ -398,7 +446,7 @@
                 <div class="tab-pane" id="notice-tab">
                     <div class="notice-chat-container">
                         <div class="notice-chat-header">
-                            <span style="font-size: 24px;">🤖</span>
+                            <svg class="icon icon-xl icon-white"><use href="#i-cpu"/></svg>
                             <h3 style="margin: 0;">智能通告助手</h3>
                             <div style="flex: 1;"></div>
                             <div class="progress-bar" style="width: 150px; height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px;">
@@ -417,17 +465,17 @@
                     </div>
                     <button id="noticeExportButton" data-action="exportNotice"
                             style="position: fixed; bottom: 30px; right: 30px; padding: 12px 20px; background: var(--color-success); color: white; border: none; border-radius: 25px; cursor: pointer; display: none;">
-                        📄 匯出Word文檔
+                        <svg class="icon icon-white"><use href="#i-document"/></svg> 匯出Word文檔
                     </button>
                 </div>
 
                 <!-- 用戶管理标签 -->
                 <div class="tab-pane" id="users-tab">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                        <h3>👥 用戶管理</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-users"/></svg> 用戶管理</h3>
                         <div>
-                            <button class="btn btn-primary" data-action="showAddUserModal"><span>➕</span> 添加用戶</button>
-                            <button class="btn btn-primary" data-action="showBatchAddModal"><span>📦</span> 批量添加</button>
+                            <button class="btn btn-primary" data-action="showAddUserModal"><svg class="icon icon-white"><use href="#i-plus"/></svg> 添加用戶</button>
+                            <button class="btn btn-primary" data-action="showBatchAddModal"><svg class="icon icon-white"><use href="#i-box"/></svg> 批量添加</button>
                         </div>
                     </div>
                     <div class="filter-controls" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
@@ -472,12 +520,12 @@
                 <!-- 課室日誌管理標籤 -->
                 <div class="tab-pane" id="classdiary-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3>📋 課室日誌管理</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-clipboard"/></svg> 課室日誌管理</h3>
                     </div>
 
                     <!-- 添加班級 -->
                     <div style="margin-bottom:2rem;">
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);">➕ 添加班級</h4>
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-plus"/></svg> 添加班級</h4>
                         <div style="display:flex;gap:10px;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
                             <input type="text" id="newClassCode" placeholder="班級代碼 (如 1A)"
                                 style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:140px;">
@@ -486,20 +534,20 @@
                             <input type="text" id="newClassGrade" placeholder="年級 (如 中一)"
                                 style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;width:120px;">
                             <button class="btn btn-primary" data-action="addClass" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
-                                ➕ 添加
+                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> 添加
                             </button>
                         </div>
                     </div>
 
                     <!-- QR 碼管理 -->
                     <div style="margin-bottom:2rem;">
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);">🔲 QR 碼管理</h4>
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-qr"/></svg> QR 碼管理</h4>
                         <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
                             為每個班級生成 QR 碼，教師掃碼後可在手機上填寫課堂評級。
                         </p>
                         <div style="margin-bottom:1rem;">
                             <button class="btn btn-primary" data-action="batchDownloadQR" style="border-radius:8px;padding:8px 16px;">
-                                📦 批量下載全部 QR 碼 (ZIP)
+                                <svg class="icon icon-sm icon-white"><use href="#i-box"/></svg> 批量下載全部 QR 碼 (ZIP)
                             </button>
                         </div>
                         <div id="classDiaryQRGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
@@ -509,7 +557,7 @@
 
                     <!-- Reviewer 管理 -->
                     <div>
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);">👥 Review 授權管理（整理人）</h4>
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-users"/></svg> Review 授權管理（整理人）</h4>
                         <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
                             設定哪些教師帳戶可以查看「課室日誌 Review」頁面（含全部班級記錄 + 匯出功能）。管理員自動擁有查看權限。
                         </p>
@@ -518,7 +566,7 @@
                                 <option value="">選擇教師帳戶...</option>
                             </select>
                             <button class="btn btn-primary" data-action="addReviewer" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
-                                ➕ 添加
+                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> 添加
                             </button>
                         </div>
                         <div id="reviewersList" style="display:flex;flex-direction:column;gap:8px;">
@@ -528,7 +576,7 @@
 
                     <!-- 每日報告接收人管理 -->
                     <div style="margin-top:2rem;">
-                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);">📊 每日報告接收人</h4>
+                        <h4 style="margin-bottom:1rem;color:var(--text-secondary);"><svg class="icon" style="margin-right:4px"><use href="#i-chart"/></svg> 每日報告接收人</h4>
                         <p style="color:var(--text-secondary);margin-bottom:1rem;font-size:0.9rem;">
                             被選中的教師訪問課室日誌 Review 頁面時，會看到 AI 生成的每日總結和異常信息。系統每天下午 4 點自動生成報告。
                         </p>
@@ -537,7 +585,7 @@
                                 <option value="">選擇教師帳戶...</option>
                             </select>
                             <button class="btn btn-primary" data-action="addReportRecipient" style="border-radius:8px;padding:8px 16px;white-space:nowrap;">
-                                ➕ 添加
+                                <svg class="icon icon-sm icon-white"><use href="#i-plus"/></svg> 添加
                             </button>
                         </div>
                         <div id="reportRecipientsList" style="display:flex;flex-direction:column;gap:8px;">
@@ -546,7 +594,7 @@
                         <div style="margin-top:1rem;display:flex;gap:10px;align-items:center;">
                             <button class="btn" data-action="manualGenerateReport"
                                 style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:0.9rem;">
-                                🤖 手動生成今日報告
+                                <svg class="icon icon-sm"><use href="#i-cpu"/></svg> 手動生成今日報告
                             </button>
                             <span id="reportGenStatus" style="font-size:0.85rem;color:var(--text-secondary);"></span>
                         </div>
@@ -557,8 +605,8 @@
                     <div class="d-flex justify-between align-center mb-3">
                         <h3>首頁應用管理</h3>
                         <div style="display:flex;gap:10px;">
-                            <button class="btn" data-action="resetAppsToDefault" style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:8px 16px;cursor:pointer;">🔄 重置為預設</button>
-                            <button class="btn btn-primary" data-action="saveAppsConfig" style="border-radius:8px;padding:8px 16px;">💾 保存配置</button>
+                            <button class="btn" data-action="resetAppsToDefault" style="background:var(--light);border:1px solid var(--border);border-radius:8px;padding:8px 16px;cursor:pointer;"><svg class="icon icon-sm"><use href="#i-refresh"/></svg> 重置為預設</button>
+                            <button class="btn btn-primary" data-action="saveAppsConfig" style="border-radius:8px;padding:8px 16px;"><svg class="icon icon-sm icon-white"><use href="#i-save"/></svg> 保存配置</button>
                         </div>
                     </div>
                     <p style="color:var(--text-secondary);margin-bottom:20px;">管理首頁顯示的應用卡片。可切換啟用/停用狀態、調整排序和角色可見性。</p>
@@ -568,9 +616,9 @@
                 <!-- 封禁管理標籤 -->
                 <div class="tab-pane" id="blocked-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3>🔒 封禁管理</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-lock"/></svg> 封禁管理</h3>
                         <button class="btn btn-primary" data-action="refreshBlocked" style="border-radius:8px;padding:8px 16px;">
-                            🔄 刷新
+                            <svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新
                         </button>
                     </div>
                     <p style="color:var(--text-secondary);margin-bottom:1.5rem;">
@@ -583,7 +631,7 @@
                 <!-- AI 調度監控標籤 -->
                 <div class="tab-pane" id="aimonitor-tab">
                     <div class="d-flex justify-between align-center mb-3">
-                        <h3>🤖 AI 調度監控</h3>
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-cpu"/></svg> AI 調度監控</h3>
                         <span id="aiMonitorTimestamp" style="color:var(--text-secondary);font-size:0.85em;"></span>
                     </div>
 
@@ -625,11 +673,11 @@
                     <!-- 雙欄：排隊詳情 + 運行中任務 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;">📋 排隊詳情</h4>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-clipboard"/></svg> 排隊詳情</h4>
                             <div id="aiQueueDetails" style="font-size:0.9em;color:var(--text-secondary);">無排隊任務</div>
                         </div>
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;">⚡ 運行中任務</h4>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-bolt"/></svg> 運行中任務</h4>
                             <div id="aiRunningDetails" style="font-size:0.9em;color:var(--text-secondary);">無運行中任務</div>
                         </div>
                     </div>
@@ -637,7 +685,7 @@
                     <!-- 雙欄：伺服器資源 + 歷史統計 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;">🖥️ 伺服器資源</h4>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-server"/></svg> 伺服器資源</h4>
                             <div id="aiServerResources" style="font-size:0.9em;">
                                 <div style="margin-bottom:8px;">
                                     <span>CPU</span>
@@ -665,7 +713,7 @@
                             </div>
                         </div>
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
-                            <h4 style="margin-bottom:12px;font-size:0.95em;">📊 歷史統計</h4>
+                            <h4 style="margin-bottom:12px;font-size:0.95em;"><svg class="icon icon-sm"><use href="#i-chart"/></svg> 歷史統計</h4>
                             <div id="aiHistoryStats" style="font-size:0.9em;">
                                 <table style="width:100%;border-collapse:collapse;">
                                     <tbody>
@@ -800,30 +848,30 @@
     <!-- 批量添加用戶模态框 -->
     <div id="batchAddModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 30px; border-radius: 15px; width: 700px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h3 style="margin-bottom: 20px; color: var(--primary);">📦 批量添加用戶</h3>
+            <h3 style="margin-bottom: 20px; color: var(--primary);"><svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-box"/></svg> 批量添加用戶</h3>
             <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-                <button id="tabExcel" data-action="switchBatchTab" data-tab="excel" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px 5px 0 0; cursor: pointer;">📊 Excel 導入</button>
-                <button id="tabText" data-action="switchBatchTab" data-tab="text" style="padding: 10px 20px; background: #eee; color: #666; border: none; border-radius: 5px 5px 0 0; cursor: pointer;">📝 文本輸入</button>
+                <button id="tabExcel" data-action="switchBatchTab" data-tab="excel" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px 5px 0 0; cursor: pointer;"><svg class="icon icon-sm icon-white"><use href="#i-spreadsheet"/></svg> Excel 導入</button>
+                <button id="tabText" data-action="switchBatchTab" data-tab="text" style="padding: 10px 20px; background: #eee; color: #666; border: none; border-radius: 5px 5px 0 0; cursor: pointer;"><svg class="icon icon-sm"><use href="#i-text"/></svg> 文本輸入</button>
             </div>
             <div id="excelUploadSection">
                 <div style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); border: 2px dashed var(--primary); border-radius: 10px; padding: 30px; text-align: center; margin-bottom: 20px;">
-                    <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
+                    <div style="margin-bottom: 15px;"><svg class="icon" style="width:48px;height:48px;stroke:var(--primary)"><use href="#i-spreadsheet"/></svg></div>
                     <h4 style="margin-bottom: 10px; color: var(--primary);">上傳 Excel 文件</h4>
                     <p style="color: #666; margin-bottom: 15px;">支持 .xlsx 格式，可批量導入教師或學生</p>
                     <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
                     <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                        <button data-action="triggerExcelPicker" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">📁 選擇文件</button>
-                        <button data-action="downloadTemplate" style="padding: 12px 24px; background: white; color: var(--primary); border: 2px solid var(--primary); border-radius: 8px; cursor: pointer; font-size: 14px;">⬇️ 下載模板</button>
+                        <button data-action="triggerExcelPicker" style="padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;"><svg class="icon icon-sm icon-white"><use href="#i-folder"/></svg> 選擇文件</button>
+                        <button data-action="downloadTemplate" style="padding: 12px 24px; background: white; color: var(--primary); border: 2px solid var(--primary); border-radius: 8px; cursor: pointer; font-size: 14px;"><svg class="icon icon-sm" style="stroke:var(--primary)"><use href="#i-download"/></svg> 下載模板</button>
                     </div>
                 </div>
                 <div id="selectedFileInfo" style="display: none; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>📄 <strong id="selectedFileName">-</strong></span>
+                        <span><svg class="icon icon-sm"><use href="#i-document"/></svg> <strong id="selectedFileName">-</strong></span>
                         <button data-action="clearSelectedFile" style="background: none; border: none; color: #999; cursor: pointer; font-size: 18px;">✕</button>
                     </div>
                 </div>
                 <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <strong style="color: #e65100;">📋 Excel 格式說明：</strong>
+                    <strong style="color: #e65100;"><svg class="icon icon-sm" style="stroke:#e65100"><use href="#i-clipboard"/></svg> Excel 格式說明：</strong>
                     <table style="width: 100%; margin-top: 10px; font-size: 13px;">
                         <tr style="background: #ffe0b2;">
                             <th style="padding: 8px; text-align: left;">列</th>
@@ -856,12 +904,12 @@
                 </div>
             </div>
             <div id="importResults" style="display: none; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px; max-height: 200px; overflow-y: auto;">
-                <h4 style="margin-bottom: 10px;">📊 導入結果</h4>
+                <h4 style="margin-bottom: 10px;"><svg class="icon icon-sm"><use href="#i-chart"/></svg> 導入結果</h4>
                 <div id="importResultsList"></div>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button type="button" data-action="closeBatchAddModal" style="padding: 10px 20px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
-                <button id="batchSubmitBtn" data-action="processBatchAdd" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;">🚀 開始導入</button>
+                <button id="batchSubmitBtn" data-action="processBatchAdd" style="padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer;"><svg class="icon icon-sm icon-white"><use href="#i-rocket"/></svg> 開始導入</button>
             </div>
         </div>
     </div>
@@ -869,7 +917,7 @@
     <!-- 確認刪除對話框 -->
     <div id="deleteConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 3000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 30px; border-radius: 15px; width: 400px; max-width: 90%; text-align: center;">
-            <h3 style="color: var(--danger); margin-bottom: 20px;">⚠️ 確認刪除</h3>
+            <h3 style="color: var(--danger); margin-bottom: 20px;"><svg class="icon icon-lg" style="stroke:var(--danger)"><use href="#i-warning"/></svg> 確認刪除</h3>
             <p id="deleteConfirmMessage" style="margin-bottom: 30px;">确定要刪除这个用戶吗？</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button data-action="closeDeleteConfirm" style="padding: 10px 30px; background: var(--light); border: none; border-radius: 5px; cursor: pointer;">取消</button>
