@@ -29,12 +29,20 @@ class ExamGenerationSessionRepository(BaseRepository):
             (session_id, username),
         )
 
+    # 歷史列表只需摘要欄位，排除巨大的 questions JSON
+    _HISTORY_COLUMNS = (
+        "id, session_id, teacher_username, subject, status, "
+        "question_count, difficulty, total_marks, target_points, "
+        "question_types, exam_context, error_code, created_at, updated_at"
+    )
+
     def find_by_teacher(self, username: str, page: int = 1, page_size: int = 10) -> Dict:
-        """教師的出題歷史（分頁）"""
+        """教師的出題歷史（分頁，不含 questions / error_message 大字段）"""
         return self.paginate(
             page=page,
             page_size=page_size,
             where="teacher_username = %s",
             params=(username,),
             order_by="created_at DESC",
+            columns=self._HISTORY_COLUMNS,
         )

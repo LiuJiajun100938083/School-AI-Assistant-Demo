@@ -689,12 +689,9 @@ class ExamCreatorService:
     def get_history(
         self, teacher_username: str, page: int = 1, page_size: int = 10,
     ) -> Dict:
-        """教師的出題歷史（不含 questions 詳情，減少傳輸量）。"""
+        """教師的出題歷史（repository 已排除 questions 大字段）。"""
         result = self._sessions.find_by_teacher(teacher_username, page, page_size)
-        # 移除大字段
         for item in result.get("items", []):
-            item.pop("questions", None)
-            item.pop("error_message", None)
             # 解析 target_points
             tp = item.get("target_points")
             if isinstance(tp, str):

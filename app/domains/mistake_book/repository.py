@@ -402,6 +402,15 @@ class PracticeSessionRepository(BaseRepository):
     """練習題 Repository"""
     TABLE = "practice_sessions"
 
+    # 歷史列表只需摘要 + student_answers（算 error_type），
+    # 排除 questions / ai_feedback / weak_points_identified 等大字段
+    _HISTORY_COLUMNS = (
+        "id, session_id, student_username, subject, session_type, "
+        "target_points, total_questions, student_answers, correct_count, "
+        "score, status, error_code, "
+        "started_at, completed_at, created_at"
+    )
+
     def find_by_session_id(self, session_id: str) -> Optional[Dict]:
         return self.find_one("session_id = %s", (session_id,))
 
@@ -429,6 +438,7 @@ class PracticeSessionRepository(BaseRepository):
             where=" AND ".join(conditions),
             params=tuple(params),
             order_by="created_at DESC",
+            columns=self._HISTORY_COLUMNS,
         )
 
     def get_recent_scores(

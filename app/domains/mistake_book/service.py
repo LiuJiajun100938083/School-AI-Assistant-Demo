@@ -1956,7 +1956,7 @@ class MistakeBookService:
                     "session_id": s["session_id"],
                     "subject": s.get("subject", ""),
                     "status": status,
-                    "total_questions": s.get("question_count", 0),
+                    "total_questions": s.get("total_questions", 0),
                     "created_at": str(s.get("created_at", "")),
                 })
                 continue
