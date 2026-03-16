@@ -477,6 +477,19 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- submission_answers: 確保 ai_points / ai_feedback 列存在（向舊表補列）---
+        sa_cols = {r["Field"] for r in pool.execute("SHOW COLUMNS FROM submission_answers")}
+        if "ai_points" not in sa_cols:
+            pool.execute(
+                "ALTER TABLE submission_answers "
+                "ADD COLUMN ai_points DECIMAL(5,1) DEFAULT NULL COMMENT 'AI 建議分' AFTER points"
+            )
+        if "ai_feedback" not in sa_cols:
+            pool.execute(
+                "ALTER TABLE submission_answers "
+                "ADD COLUMN ai_feedback TEXT COMMENT 'AI 批改反饋' AFTER ai_points"
+            )
+
         logger.info("数据库 schema 迁移完成 (含作業管理表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
