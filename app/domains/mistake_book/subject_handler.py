@@ -193,6 +193,10 @@ class BaseSubjectHandler(ABC):
         """判斷此題是否需要 SVG 圖形（默認否）"""
         return False
 
+    def needs_chart(self, question_text: str) -> bool:
+        """判斷此題是否需要統計圖表 SVG（默認否，各科可覆寫）"""
+        return False
+
     def build_practice_grading_prompt(
         self,
         question_text: str,

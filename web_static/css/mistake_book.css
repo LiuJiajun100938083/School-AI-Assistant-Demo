@@ -1391,6 +1391,70 @@
     overflow: visible;
 }
 
+/* ---- 練習題 / 錯題詳情中的數據表格 ---- */
+.mb-practice__question-text .mb-table-wrap,
+.mb-practice__question-svg .mb-table-wrap,
+.mb-detail-section__body .mb-table-wrap,
+.mb-collapse__body .mb-table-wrap,
+.mb-practice__question-text > table,
+.mb-practice__question-svg > table,
+.mb-detail-section__body > table,
+.mb-collapse__body > table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 12px 0;
+    border-radius: var(--mb-radius, 8px);
+    border: 1px solid var(--mb-border);
+}
+
+.mb-practice__question-text table,
+.mb-practice__question-svg table,
+.mb-detail-section__body table,
+.mb-collapse__body table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--mb-card);
+}
+
+.mb-practice__question-text th,
+.mb-practice__question-svg th,
+.mb-detail-section__body th,
+.mb-collapse__body th {
+    background: var(--mb-accent, #5b5fc7);
+    color: #fff;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 13px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.mb-practice__question-text td,
+.mb-practice__question-svg td,
+.mb-detail-section__body td,
+.mb-collapse__body td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--mb-border);
+    text-align: center;
+    white-space: nowrap;
+    color: var(--mb-text);
+}
+
+.mb-practice__question-text tr:last-child td,
+.mb-practice__question-svg tr:last-child td,
+.mb-detail-section__body tr:last-child td,
+.mb-collapse__body tr:last-child td {
+    border-bottom: none;
+}
+
+.mb-practice__question-text tr:nth-child(even),
+.mb-practice__question-svg tr:nth-child(even),
+.mb-detail-section__body tr:nth-child(even),
+.mb-collapse__body tr:nth-child(even) {
+    background: var(--mb-bg-secondary, #f5f5f7);
+}
+
 .mb-practice__answer-input {
     width: 100%;
     min-height: 56px;

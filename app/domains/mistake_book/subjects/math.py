@@ -58,12 +58,24 @@ class MathHandler(BaseSubjectHandler):
         "中線", "角平分線", "切點", "弦心距",
     )
 
+    # ---- 統計圖表 ----
+    # 注意："數據" 過泛，不納入自動判定（僅靠 LLM 顯式 needs_chart 字段）
+    _CHART_KEYWORDS = (
+        "茎葉", "莖葉", "柱形圖", "柱狀圖", "直方圖",
+        "折線圖", "圓形圖", "餅圖", "頻率分佈圖",
+        "累積頻率", "箱線圖",
+    )
+
     @property
     def supports_svg_generation(self) -> bool:
         return True
 
     def needs_svg(self, question_text: str) -> bool:
         return any(kw in question_text for kw in self._GEOMETRY_KEYWORDS)
+
+    def needs_chart(self, question_text: str) -> bool:
+        """關鍵詞兜底：LLM 顯式 needs_chart 字段優先。"""
+        return any(kw in question_text for kw in self._CHART_KEYWORDS)
 
     def build_svg_prompt(self, question_text: str) -> str:
         return f"""你是一個專門畫幾何圖形的助手。根據以下數學題目，生成一個 SVG 圖形。
@@ -394,8 +406,27 @@ careless / concept / calculation / method / format / incomplete / irrelevant
 - 數學公式使用 LaTeX 標記
 - 提供不同數值但方法相同的變式題
 - 包含完整的解題步驟
-- 數據表格用 Markdown 表格格式直接寫在題目中（| 列1 | 列2 | ... |）
 - 題目文字條件必須自包含，即使附圖未顯示也能唯一理解幾何關係
+
+## 數據表格格式規則
+- 若題目包含數據對照關係（頻率分佈、統計表等），**必須**用 Markdown 表格格式
+- **禁止**用空格、Tab 或純文字排列數據；必須用 `|` 分隔欄位
+- 表格中的數學符號用 `$...$` 包裹
+- 若用普通文本列出數據而非 Markdown 表格，視為格式錯誤
+- 若題目只涉及數據對照、不需要圖形，優先輸出 Markdown 表格，不要設 needs_chart
+- 橫向範例（適合欄位少的情況）：
+
+| 分數範圍 | $0 \\le x < 10$ | $10 \\le x < 20$ | $20 \\le x < 30$ |
+|---|---|---|---|
+| 人數 | 4 | 8 | 12 |
+
+- 縱向範例（適合欄位多的情況）：
+
+| 分數範圍 ($x$) | 人數 |
+|---|---|
+| $0 \\le x < 10$ | 4 |
+| $10 \\le x < 20$ | 8 |
+| $20 \\le x < 30$ | 12 |
 - 不可把答案建立在學生目測圖形長短或角度大小之上；需要的條件必須在文字中明確給出
 
 ## 幾何題與 needs_svg 標記
@@ -405,6 +436,44 @@ careless / concept / calculation / method / format / incomplete / irrelevant
 - 每道題必須標記 needs_svg 字段：
   - true：題目涉及幾何圖形（三角形、四邊形、圓、角、平行線、座標幾何等），配圖能幫助理解
   - false：純代數、函數、概率、數列等不需要幾何圖形的題目
+
+## 統計圖表與 needs_chart / chart_spec
+- 若題目需要茎葉圖、柱形圖、直方圖、折線圖等統計圖形，設 needs_chart: true 並提供 chart_spec
+- 若題目只需數據表格（頻率分佈表等），用 Markdown 表格即可，不需要 chart_spec
+- needs_chart 和 needs_svg 互斥，同一題只設一個為 true
+
+### 茎葉圖 chart_spec 範例
+```json
+{{
+  "needs_chart": true,
+  "chart_spec": {{
+    "type": "stem_leaf",
+    "title": "某班數學成績",
+    "stems": [1, 2, 3, 4, 5],
+    "leaves": [[2, 5, 8], [0, 1, 3, 7], [2, 4, 4, 6, 9], [0, 1, 5], [3]],
+    "unit": "莖 = 十位，葉 = 個位"
+  }}
+}}
+```
+- stems 必須是數字列表且遞增
+- leaves 必須是列表的列表，長度與 stems 一致
+- 每個 leaf 為 0–9 之間的單位數字
+- 若某 stem 無數據，leaves 對應位置為空列表 []
+
+### 柱形圖 / 直方圖 chart_spec 範例
+```json
+{{
+  "needs_chart": true,
+  "chart_spec": {{
+    "type": "bar",
+    "title": "各班學生人數",
+    "labels": ["1A", "1B", "1C", "1D"],
+    "values": [35, 40, 38, 42],
+    "x_label": "班別",
+    "y_label": "人數"
+  }}
+}}
+```
 
 ## 題目分配規則
 - 每個目標知識點至少 1 題（共 {num_points} 個知識點，{question_count} 題）
@@ -426,7 +495,9 @@ careless / concept / calculation / method / format / incomplete / irrelevant
       "explanation": "解析（公式用 LaTeX）",
       "point_code": "對應的知識點編碼",
       "difficulty": 3,
-      "needs_svg": true
+      "needs_svg": true,
+      "needs_chart": false,
+      "chart_spec": null
     }}
   ]
 }}

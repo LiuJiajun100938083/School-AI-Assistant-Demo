@@ -664,6 +664,79 @@ class MistakeBookService:
         return ""
 
     # ================================================================
+    # 統計圖表 SVG 生成（chart_spec → 確定性渲染）
+    # ================================================================
+
+    def _enrich_questions_with_charts(self, questions: list, subject: str) -> None:
+        """
+        為含 chart_spec 的題目生成統計圖表 SVG，直接修改 questions list。
+
+        優先級：
+          1. chart_spec 結構化字段（LLM 顯式輸出）
+          2. needs_chart 字段
+          3. handler.needs_chart() 關鍵詞兜底
+
+        注意：當前 question_svg 與幾何 SVG 共用同一字段。
+        基於「同一題不會同時需要幾何圖和統計圖」的階段性假設。
+        若未來出現混用場景，需升級為 question_media 列表。
+        """
+        from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
+        handler = SubjectHandlerRegistry.get(subject)
+
+        from app.domains.mistake_book.chart_renderer import render_chart_from_spec
+
+        chart_triggered = 0
+        chart_success = 0
+
+        for i, q in enumerate(questions):
+            # 已有 SVG（幾何題已生成），跳過
+            if q.get("question_svg"):
+                continue
+
+            chart_spec = q.get("chart_spec")
+            if not chart_spec:
+                # 無 chart_spec：檢查 needs_chart 字段或關鍵詞兜底
+                needs = q.get("needs_chart", None)
+                if needs is None:
+                    needs = handler.needs_chart(q.get("question", ""))
+                if not needs:
+                    continue
+                # 有 needs_chart=True 但無 chart_spec → 跳過（無法渲染）
+                logger.info("題 %d needs_chart=True 但無 chart_spec，跳過圖表生成", i + 1)
+                continue
+
+            chart_triggered += 1
+            try:
+                svg = render_chart_from_spec(chart_spec)
+                if svg and "<svg" in svg:
+                    q["question_svg"] = svg
+                    chart_success += 1
+                    logger.info(
+                        "題 %d chart SVG 生成成功 (type=%s)",
+                        i + 1, chart_spec.get("type", "?"),
+                    )
+                else:
+                    logger.warning(
+                        "題 %d chart SVG 為空 (type=%s)",
+                        i + 1, chart_spec.get("type", "?"),
+                    )
+            except Exception as e:
+                logger.warning(
+                    "題 %d chart SVG 生成失敗 (type=%s): %s",
+                    i + 1, chart_spec.get("type", "?"), e,
+                )
+
+            # 無論成功或失敗，都從題干中移除 chart_spec（不顯示給學生）
+            q.pop("chart_spec", None)
+            q.pop("needs_chart", None)
+
+        if chart_triggered:
+            logger.info(
+                "Chart SVG 生成完成: 觸發=%d, 成功=%d, 失敗=%d",
+                chart_triggered, chart_success, chart_triggered - chart_success,
+            )
+
+    # ================================================================
     # 圖形描述統一寫入（收口方法）
     # ================================================================
 
@@ -1586,6 +1659,9 @@ class MistakeBookService:
 
         # 為需要 SVG 的題目生成圖形（使用專用模型，逐題走 ai_gate）
         await self._enrich_questions_with_svg(questions, subject)
+
+        # 為需要統計圖表的題目生成 chart SVG（純 Python 渲染，無需 LLM）
+        self._enrich_questions_with_charts(questions, subject)
 
         # SVG 安全過濾（資料防線 — 最終整體再過一次）
         for q in questions:
