@@ -352,7 +352,10 @@ const API = {
         return this._fetch('/api/mistakes/practice/generate', {
             method: 'POST',
             body: JSON.stringify(body),
-        }, 300000);  // 5 分鐘超時：AI 出題 + SVG 生成較慢
+        });  // 異步模式：快速返回 session_id
+    },
+    async getPracticeStatus(sessionId) {
+        return this._fetch(`/api/mistakes/practice/${sessionId}/status`);
     },
     async submitPractice(sessionId, answers) {
         return this._fetch(`/api/mistakes/practice/${sessionId}/submit`, {
@@ -1858,10 +1861,28 @@ const Views = {
             return;
         }
 
+        // 檢查是否有 pending session
+        const pending = this._loadPendingSession();
+        const pendingCardHtml = pending ? `
+            <div class="mb-glass-card mb-glass-animate" id="pendingPracticeCard"
+                 style="padding:16px;margin-bottom:16px;text-align:center;border:1px dashed var(--mb-brand);border-radius:var(--mb-radius,12px)">
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+                    <svg viewBox="0 0 40 40" width="20" height="20">
+                        <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(0,102,51,0.12)" stroke-width="3"/>
+                        <circle cx="20" cy="20" r="16" fill="none" stroke="var(--mb-brand)" stroke-width="3"
+                                stroke-dasharray="28 72" stroke-linecap="round" class="mb-progress-panel__arc"/>
+                    </svg>
+                    <span style="font-size:14px;font-weight:500" id="pendingCardText">練習題正在生成中...</span>
+                </div>
+                <div style="font-size:12px;color:var(--mb-text-tertiary)">生成完成後可直接開始答題</div>
+            </div>
+        ` : '';
+
         // Subject selected — show tabs + history + setup
         container.innerHTML = `
             <div class="mb-practice-tabs" id="practiceSubjectTabs">${tabsHtml}</div>
             <div style="margin:0 auto;padding:0 16px">
+            ${pendingCardHtml}
             <div id="practiceHistoryArea" style="margin-bottom:16px">
                 <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
             </div>
@@ -1929,6 +1950,84 @@ const Views = {
 
         // 載入歷史
         this._loadPracticeHistory(subject);
+
+        // 若有 pending session，啟動輪詢
+        if (pending) {
+            this._startPendingCardPolling(pending.session_id, pending.subject, container);
+        }
+    },
+
+    _pendingCardPollingTimer: null,
+
+    _stopPendingCardPolling() {
+        if (this._pendingCardPollingTimer) {
+            clearTimeout(this._pendingCardPollingTimer);
+            this._pendingCardPollingTimer = null;
+        }
+    },
+
+    async _startPendingCardPolling(sessionId, subject, container) {
+        this._stopPendingCardPolling();
+
+        const poll = async () => {
+            const res = await API.getPracticeStatus(sessionId);
+            if (!res || !res.data) {
+                this._pendingCardPollingTimer = setTimeout(poll, 5000);
+                return;
+            }
+
+            const { status } = res.data;
+
+            if (status === 'generated') {
+                this._stopPendingCardPolling();
+                this._clearPendingSession();
+                const card = document.getElementById('pendingPracticeCard');
+                if (card) {
+                    card.style.border = '1px solid var(--mb-brand)';
+                    card.style.cursor = 'pointer';
+                    card.innerHTML = `
+                        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">
+                            <span style="font-size:14px;font-weight:500;color:var(--mb-brand)">練習已生成，點擊開始</span>
+                        </div>
+                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${res.data.total_questions} 題</div>
+                    `;
+                    card.onclick = () => {
+                        App.state._practiceSession = res.data;
+                        if (res.data.recommended_points?.length > 0) {
+                            const pointNames = res.data.recommended_points.map(p =>
+                                `${p.point_name}${p.mastery_level !== null ? ` (${p.mastery_level}%)` : ''}`
+                            ).join('、');
+                            App.state._practiceSession._recommendedInfo = pointNames;
+                        }
+                        const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+                        Views._renderPracticeQuestions(target, res.data);
+                    };
+                }
+                return;
+            }
+
+            if (status === 'generation_failed') {
+                this._stopPendingCardPolling();
+                this._clearPendingSession();
+                const card = document.getElementById('pendingPracticeCard');
+                if (card) {
+                    card.innerHTML = `
+                        <div style="font-size:14px;color:var(--mb-error);margin-bottom:4px">
+                            題目生成失敗${res.data.retryable ? '，請重新嘗試' : ''}
+                        </div>
+                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${res.data.error_message || ''}</div>
+                    `;
+                    card.style.border = '1px dashed var(--mb-error)';
+                    setTimeout(() => { card.style.display = 'none'; }, 5000);
+                }
+                return;
+            }
+
+            // 繼續輪詢
+            this._pendingCardPollingTimer = setTimeout(poll, 5000);
+        };
+
+        this._pendingCardPollingTimer = setTimeout(poll, 3000);
     },
 
     _toggleNewPracticeSetup() {
@@ -2308,6 +2407,11 @@ const Views = {
                 <div class="mb-progress-panel__tip">
                     AI 正在為你出題，題目越多所需時間越長
                 </div>
+                <button class="mb-btn mb-btn--ghost mb-btn--sm" id="practiceBackgroundBtn"
+                        style="margin-top:16px;display:none"
+                        onclick="Views._goBackgroundPractice()">
+                    稍後回來查看
+                </button>
             </div>
         `;
 
@@ -2360,9 +2464,121 @@ const Views = {
         }
     },
 
+    // ---- 練習生成輪詢管理 ----
+    _practicePollingTimer: null,
+    _practicePollingCount: 0,
+
+    _stopPracticePolling() {
+        if (this._practicePollingTimer) {
+            clearTimeout(this._practicePollingTimer);
+            this._practicePollingTimer = null;
+        }
+        this._practicePollingCount = 0;
+    },
+
+    _getPollingInterval() {
+        // Backoff: 3s × 5次 → 5s × 5次 → 10s 之後
+        const n = this._practicePollingCount;
+        if (n < 5) return 3000;
+        if (n < 10) return 5000;
+        return 10000;
+    },
+
+    _savePendingSession(sessionId, subject) {
+        try {
+            localStorage.setItem('mb_pending_practice', JSON.stringify({
+                session_id: sessionId, subject, ts: Date.now(),
+            }));
+        } catch (_) { /* localStorage 不可用時靜默 */ }
+    },
+
+    _clearPendingSession() {
+        try { localStorage.removeItem('mb_pending_practice'); } catch (_) {}
+        App.state._pendingPracticeSession = null;
+    },
+
+    _loadPendingSession() {
+        try {
+            const raw = localStorage.getItem('mb_pending_practice');
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            // 超過 30 分鐘的 pending 視為過期
+            if (Date.now() - data.ts > 30 * 60 * 1000) {
+                localStorage.removeItem('mb_pending_practice');
+                return null;
+            }
+            return data;
+        } catch (_) { return null; }
+    },
+
+    _goBackgroundPractice() {
+        // 停止輪詢、回到練習列表
+        this._stopPracticePolling();
+        this._hidePracticeProgress();
+        const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+        if (target) this.renderPractice(target);
+    },
+
+    async _pollPracticeStatus(sessionId, subject) {
+        this._practicePollingCount++;
+        const res = await API.getPracticeStatus(sessionId);
+        if (!res || !res.data) {
+            // 網路錯誤 → 繼續輪詢
+            this._practicePollingTimer = setTimeout(
+                () => this._pollPracticeStatus(sessionId, subject),
+                this._getPollingInterval()
+            );
+            return;
+        }
+
+        const { status } = res.data;
+
+        if (status === 'generated') {
+            this._stopPracticePolling();
+            this._hidePracticeProgress();
+            this._clearPendingSession();
+
+            App.state._practiceSession = res.data;
+            const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+
+            if (res.data.recommendation_mode === 'auto_recommended' && res.data.recommended_points?.length > 0) {
+                const pointNames = res.data.recommended_points.map(p =>
+                    `${p.point_name}${p.mastery_level !== null ? ` (${p.mastery_level}%)` : ''}`
+                ).join('、');
+                App.state._practiceSession._recommendedInfo = pointNames;
+            }
+
+            this._renderPracticeQuestions(target, res.data);
+            return;
+        }
+
+        if (status === 'generation_failed') {
+            this._stopPracticePolling();
+            this._hidePracticeProgress();
+            this._clearPendingSession();
+
+            const msg = res.data.error_message || '題目生成失敗';
+            UI.toast(msg, 'error');
+            const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+            if (target) this.renderPractice(target);
+            return;
+        }
+
+        // status === 'generating' → 繼續輪詢
+        // 5秒後顯示"稍後回來查看"按鈕
+        if (this._practicePollingCount >= 2) {
+            const bgBtn = document.getElementById('practiceBackgroundBtn');
+            if (bgBtn) bgBtn.style.display = '';
+        }
+        this._practicePollingTimer = setTimeout(
+            () => this._pollPracticeStatus(sessionId, subject),
+            this._getPollingInterval()
+        );
+    },
+
     async _startPractice(subject) {
         const btn = document.getElementById('startPracticeBtn');
-        if (btn.disabled) return; // 防重複點擊
+        if (btn.disabled) return;
         btn.disabled = true;
 
         const count = parseInt(document.getElementById('practiceCount').value);
@@ -2373,30 +2589,28 @@ const Views = {
         // Show progress UI
         this._showPracticeProgress(count);
 
+        // Step 1: POST — 快速拿到 session_id
         const res = await API.generatePractice(subject, count, targetPoints.length > 0 ? targetPoints : null, difficulty);
 
-        // Clean up progress
-        this._hidePracticeProgress();
-
         if (!res || !res.data) {
-            // Restore learn view on failure
+            this._hidePracticeProgress();
             const target = document.getElementById('learnContent') || document.getElementById('mainContent');
             if (target) Views.renderLearn(target);
             return;
         }
 
-        App.state._practiceSession = res.data;
-        const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+        const sessionId = res.data.session_id;
 
-        // 如果是系統推薦模式，先顯示推薦信息
-        if (res.data.recommendation_mode === 'auto_recommended' && res.data.recommended_points?.length > 0) {
-            const pointNames = res.data.recommended_points.map(p =>
-                `${p.point_name}${p.mastery_level !== null ? ` (${p.mastery_level}%)` : ''}`
-            ).join('、');
-            App.state._practiceSession._recommendedInfo = pointNames;
-        }
+        // 保存 pending session 到 localStorage
+        this._savePendingSession(sessionId, subject);
+        App.state._pendingPracticeSession = { session_id: sessionId, subject };
 
-        this._renderPracticeQuestions(target, res.data);
+        // Step 2: 開始輪詢
+        this._practicePollingCount = 0;
+        this._practicePollingTimer = setTimeout(
+            () => this._pollPracticeStatus(sessionId, subject),
+            this._getPollingInterval()
+        );
     },
 
     // ---- 練習題渲染 + 手寫識別 ----

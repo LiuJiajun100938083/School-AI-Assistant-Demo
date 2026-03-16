@@ -2072,7 +2072,8 @@ class AssignmentService:
                 correct = (q.get("correct_answer") or "").strip().upper()
                 student_ans = (ans.get("answer_text") or "").strip().upper()
                 is_correct = student_ans == correct if correct else False
-                pts = float(q["max_points"]) if is_correct else 0.0
+                raw_mp = q.get("max_points") or q.get("points") or 0
+                pts = float(raw_mp) if is_correct else 0.0
                 record["is_correct"] = is_correct
                 record["points"] = pts
                 record["score_source"] = ScoreSource.AUTO
@@ -2263,8 +2264,10 @@ class AssignmentService:
             if not q or q["question_type"] == "mc":
                 continue
 
-            max_pts = float(q["max_points"])
-            reference = (q.get("reference_answer") or "").strip()
+            # 兼容 exam-paper (max_points) 和 form (points) 兩種 schema
+            raw_pts = q.get("max_points") or q.get("points")
+            max_pts = float(raw_pts) if raw_pts is not None else 0
+            reference = (q.get("reference_answer") or q.get("answer_text") or "").strip()
             grading_notes = (q.get("grading_notes") or "").strip()
 
             if reference:

@@ -1600,7 +1600,31 @@ class MistakeBookService:
                 except OSError:
                     pass
 
-    async def generate_practice(
+    # ── 練習題生成（異步兩步模式） ──────────────────────────
+
+    # 超時閾值：超過此時間的 generating session 視為卡死
+    _STUCK_TIMEOUT_MINUTES = 10
+
+    def _recover_stuck_sessions(self, username: str) -> int:
+        """掃描並回收當前用戶卡死的 generating sessions。"""
+        stuck = self._practices.raw_query(
+            "SELECT session_id FROM practice_sessions "
+            "WHERE student_username = %s AND status = 'generating' "
+            "AND created_at < DATE_SUB(NOW(), INTERVAL %s MINUTE)",
+            (username, self._STUCK_TIMEOUT_MINUTES),
+        )
+        for row in stuck:
+            self._practices.update(
+                {"status": "generation_failed", "error_code": "STUCK_TIMEOUT",
+                 "error_message": "生成超時，請重新嘗試"},
+                "session_id = %s", (row["session_id"],),
+            )
+        if stuck:
+            logger.warning("Recovered %d stuck generating sessions for %s",
+                           len(stuck), username)
+        return len(stuck)
+
+    def start_practice_generation(
         self,
         username: str,
         subject: str,
@@ -1609,16 +1633,39 @@ class MistakeBookService:
         target_points: Optional[List[str]] = None,
         difficulty: Optional[int] = None,
     ) -> Dict:
-        """根據薄弱知識點生成練習題（4 步流程）"""
+        """
+        Step A: 快速返回 session_id，不做 LLM 調用。
+
+        包含 stuck recovery + 去重保護。
+        """
         if not self._ask_ai_raw:
             raise AnalysisFailedError("AI 服務未配置")
 
-        # Step 1: 解析目標知識點
+        # Stuck recovery：標記超時的 generating sessions
+        self._recover_stuck_sessions(username)
+
+        # 去重：若已有活躍 generating session → 直接返回
+        existing = self._practices.raw_query(
+            "SELECT session_id, subject, session_type, target_points, created_at "
+            "FROM practice_sessions "
+            "WHERE student_username = %s AND status = 'generating' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (username,),
+        )
+        if existing:
+            row = existing[0]
+            logger.info("Reusing existing generating session %s for %s",
+                        row["session_id"], username)
+            return {
+                "session_id": row["session_id"],
+                "status": "generating",
+                "reused": True,
+            }
+
+        # Step 1-3: 快速解析（< 1s）
         points_data, recommendation_mode = self._resolve_target_points(
             username, subject, target_points, question_count
         )
-
-        # Step 2: 解析難度
         mastery_data = self._mastery.get_all_mastery(username, subject)
         mastery_map = {m["point_code"]: m for m in mastery_data}
         points_mastery = [
@@ -1628,62 +1675,11 @@ class MistakeBookService:
         resolved_difficulty, difficulty_source = self._resolve_difficulty(
             difficulty, points_mastery
         )
-
-        # Step 3: 構建結構化上下文
         generation_context = self._build_generation_context(
             username, subject, points_data, mastery_map, difficulty_source
         )
 
-        # Decision snapshot（調試用）
-        logger.info(
-            "Practice generation decision: subject=%s, count=%d, "
-            "mode=%s, difficulty=%d(%s), points=%s, dedupe_refs=%d",
-            subject, question_count, recommendation_mode,
-            resolved_difficulty, difficulty_source,
-            [p["point_code"] for p in points_data],
-            len(generation_context.get("recent_practice_summaries", [])),
-        )
-
-        # Step 4: AI 出題（高溫度以增加多樣性）
-        import random
-        seed = random.randint(1000, 9999)
-        prompt = build_practice_prompt(
-            subject, points_data, question_count,
-            resolved_difficulty, generation_context.get("student_mistakes_context", ""),
-            student_history_context=generation_context.get("history_context", ""),
-        )
-        prompt += f"\n\n[seed={seed}] 請確保每次出題的數值、情境、設問方式都不同。"
-        raw = await self._call_ollama_direct(prompt, temperature=0.8)
-        questions_data = self._parse_json_response(raw)
-        questions = questions_data.get("questions", [])
-
-        # 為需要 SVG 的題目生成圖形（使用專用模型，逐題走 ai_gate）
-        await self._enrich_questions_with_svg(questions, subject)
-
-        # 為需要統計圖表的題目生成 chart SVG（純 Python 渲染，無需 LLM）
-        self._enrich_questions_with_charts(questions, subject)
-
-        # SVG 安全過濾（資料防線 — 最終整體再過一次）
-        for q in questions:
-            if "question" in q:
-                q["question"] = _sanitize_svg_content(q["question"])
-            if "question_svg" in q:
-                q["question_svg"] = _sanitize_svg_content(q["question_svg"])
-
-        # 保存練習記錄
-        session_id = str(uuid.uuid4())[:12]
-        self._practices.insert({
-            "session_id": session_id,
-            "student_username": username,
-            "subject": subject,
-            "session_type": session_type,
-            "target_points": json.dumps([p["point_code"] for p in points_data]),
-            "questions": json.dumps(questions, ensure_ascii=False),
-            "total_questions": len(questions),
-            "status": "generated",
-        })
-
-        # 構建推薦信息（供前端顯示）
+        # 構建推薦信息
         recommended_info = []
         if recommendation_mode == "auto_recommended":
             for p in points_data:
@@ -1694,15 +1690,151 @@ class MistakeBookService:
                     "mastery_level": m["mastery_level"] if m else None,
                 })
 
+        logger.info(
+            "Practice generation decision: subject=%s, count=%d, "
+            "mode=%s, difficulty=%d(%s), points=%s, dedupe_refs=%d",
+            subject, question_count, recommendation_mode,
+            resolved_difficulty, difficulty_source,
+            [p["point_code"] for p in points_data],
+            len(generation_context.get("recent_practice_summaries", [])),
+        )
+
+        # 建立 session 記錄（status=generating）
+        session_id = str(uuid.uuid4())[:12]
+        self._practices.insert({
+            "session_id": session_id,
+            "student_username": username,
+            "subject": subject,
+            "session_type": session_type,
+            "target_points": json.dumps([p["point_code"] for p in points_data]),
+            "questions": json.dumps([]),  # 空佔位
+            "total_questions": question_count,
+            "status": "generating",
+        })
+
         return {
             "session_id": session_id,
+            "status": "generating",
             "subject": subject,
             "session_type": session_type,
             "recommendation_mode": recommendation_mode,
             "recommended_points": recommended_info,
             "difficulty": resolved_difficulty,
             "difficulty_source": difficulty_source,
-            "questions": [
+            # 傳遞給後台任務的上下文
+            "_bg_context": {
+                "points_data": points_data,
+                "question_count": question_count,
+                "resolved_difficulty": resolved_difficulty,
+                "generation_context": generation_context,
+            },
+        }
+
+    async def generate_practice_background(
+        self,
+        session_id: str,
+        points_data: List[Dict],
+        question_count: int,
+        resolved_difficulty: int,
+        generation_context: Dict,
+    ) -> None:
+        """
+        Step B: 後台生成題目（LLM + SVG + chart）。
+
+        幂等保護：只在 status='generating' 時執行。
+        """
+        # 幂等檢查
+        session = self._practices.find_by_session_id(session_id)
+        if not session or session["status"] != "generating":
+            logger.warning("Skipping background generation for %s (status=%s)",
+                           session_id, session.get("status") if session else "NOT_FOUND")
+            return
+
+        subject = session["subject"]
+
+        try:
+            import random
+            seed = random.randint(1000, 9999)
+            prompt = build_practice_prompt(
+                subject, points_data, question_count,
+                resolved_difficulty,
+                generation_context.get("student_mistakes_context", ""),
+                student_history_context=generation_context.get("history_context", ""),
+            )
+            prompt += f"\n\n[seed={seed}] 請確保每次出題的數值、情境、設問方式都不同。"
+            raw = await self._call_ollama_direct(prompt, temperature=0.8)
+            questions_data = self._parse_json_response(raw)
+            questions = questions_data.get("questions", [])
+
+            # 為需要 SVG 的題目生成圖形
+            await self._enrich_questions_with_svg(questions, subject)
+
+            # 為需要統計圖表的題目生成 chart SVG
+            self._enrich_questions_with_charts(questions, subject)
+
+            # SVG 安全過濾
+            for q in questions:
+                if "question" in q:
+                    q["question"] = _sanitize_svg_content(q["question"])
+                if "question_svg" in q:
+                    q["question_svg"] = _sanitize_svg_content(q["question_svg"])
+
+            # 更新 session 記錄
+            self._practices.update(
+                {
+                    "questions": json.dumps(questions, ensure_ascii=False),
+                    "total_questions": len(questions),
+                    "status": "generated",
+                },
+                "session_id = %s AND status = 'generating'",
+                (session_id,),
+            )
+            logger.info("Practice generation completed: session=%s, questions=%d",
+                        session_id, len(questions))
+
+        except Exception as e:
+            # 結構化失敗信息
+            error_code = "UNKNOWN_ERROR"
+            error_message = str(e)[:500]
+
+            if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                error_code = "LLM_TIMEOUT"
+            elif "json" in str(e).lower() or "parse" in str(e).lower():
+                error_code = "PARSE_ERROR"
+            elif "svg" in str(e).lower():
+                error_code = "SVG_ERROR"
+
+            self._practices.update(
+                {
+                    "status": "generation_failed",
+                    "error_code": error_code,
+                    "error_message": error_message,
+                },
+                "session_id = %s AND status = 'generating'",
+                (session_id,),
+            )
+            logger.error("Practice generation failed: session=%s, error=%s: %s",
+                         session_id, error_code, e, exc_info=True)
+
+    def get_practice_generation_status(
+        self, session_id: str, username: str
+    ) -> Optional[Dict]:
+        """查詢練習生成狀態（含 ownership 檢查）"""
+        session = self._practices.find_by_session_id(session_id)
+        if not session or session["student_username"] != username:
+            return None
+
+        result = {
+            "session_id": session_id,
+            "status": session["status"],
+            "subject": session["subject"],
+            "session_type": session["session_type"],
+            "created_at": session["created_at"].isoformat() if session.get("created_at") else None,
+        }
+
+        if session["status"] == "generated":
+            questions = json.loads(session["questions"]) if session["questions"] else []
+            result["questions"] = [
                 {
                     "index": q.get("index", i + 1),
                     "question": q.get("question", ""),
@@ -1713,9 +1845,30 @@ class MistakeBookService:
                     "difficulty": q.get("difficulty", 3),
                 }
                 for i, q in enumerate(questions)
-            ],
-            "total_questions": len(questions),
-        }
+            ]
+            result["total_questions"] = len(questions)
+            # 補充推薦信息
+            target_points = json.loads(session["target_points"]) if session.get("target_points") else []
+            if target_points:
+                mastery_data = self._mastery.get_all_mastery(username, session["subject"])
+                mastery_map = {m["point_code"]: m for m in mastery_data}
+                points_data = self._knowledge.find_by_codes(target_points)
+                result["recommended_points"] = [
+                    {
+                        "point_code": p["point_code"],
+                        "point_name": p.get("point_name", p["point_code"]),
+                        "mastery_level": mastery_map.get(p["point_code"], {}).get("mastery_level"),
+                    }
+                    for p in points_data
+                ]
+
+        elif session["status"] == "generation_failed":
+            error_code = session.get("error_code", "UNKNOWN_ERROR")
+            result["error_code"] = error_code
+            result["error_message"] = session.get("error_message", "生成失敗")
+            result["retryable"] = error_code in ("LLM_TIMEOUT", "STUCK_TIMEOUT", "UNKNOWN_ERROR")
+
+        return result
 
     def _resolve_target_points(
         self,

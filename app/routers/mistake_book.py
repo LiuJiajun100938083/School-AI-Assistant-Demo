@@ -525,14 +525,15 @@ async def recognize_handwriting(
 
 @router.post("/api/mistakes/practice/generate")
 async def generate_practice(
+    background_tasks: BackgroundTasks,
     req: GeneratePracticeRequest,
     current_user: dict = Depends(get_current_user),
 ):
-    """AI 根據薄弱知識點生成練習題"""
+    """AI 根據薄弱知識點生成練習題（異步：快速返回 + 後台生成）"""
     try:
         service = get_services().mistake_book
         _validate_subject(req.subject)
-        result = await service.generate_practice(
+        result = service.start_practice_generation(
             username=current_user["username"],
             subject=req.subject,
             session_type=req.session_type.value,
@@ -540,10 +541,49 @@ async def generate_practice(
             target_points=req.target_points,
             difficulty=req.difficulty,
         )
+
+        # 去重命中時不需要再啟動後台任務
+        if not result.get("reused"):
+            bg_ctx = result.pop("_bg_context", {})
+
+            async def _generate_task():
+                try:
+                    svc = get_services().mistake_book
+                    await svc.generate_practice_background(
+                        session_id=result["session_id"],
+                        points_data=bg_ctx["points_data"],
+                        question_count=bg_ctx["question_count"],
+                        resolved_difficulty=bg_ctx["resolved_difficulty"],
+                        generation_context=bg_ctx["generation_context"],
+                    )
+                except Exception as e:
+                    logger.error("後台練習生成失敗 (session=%s): %s",
+                                 result["session_id"], e)
+
+            background_tasks.add_task(_generate_task)
+        else:
+            result.pop("_bg_context", None)
+
         return {"success": True, "data": result}
 
     except MistakeBookError as e:
         raise HTTPException(400, e.message)
+
+
+@router.get("/api/mistakes/practice/{session_id}/status")
+async def get_practice_status(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """查詢練習生成狀態（輪詢用）"""
+    service = get_services().mistake_book
+    result = service.get_practice_generation_status(
+        session_id=session_id,
+        username=current_user["username"],
+    )
+    if not result:
+        raise HTTPException(404, "練習不存在或無權訪問")
+    return {"success": True, "data": result}
 
 
 @router.post("/api/mistakes/practice/{session_id}/submit")
