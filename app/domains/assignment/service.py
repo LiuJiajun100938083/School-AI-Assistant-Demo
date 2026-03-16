@@ -414,7 +414,8 @@ class AssignmentService:
         assignment["rubric_items"] = rubric_items
 
         # Form 類型：附帶題目（含正確答案）
-        if (assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD) == AssignmentType.FORM:
+        asg_type = assignment.get("assignment_type") or AssignmentType.FILE_UPLOAD
+        if asg_type == AssignmentType.FORM:
             assignment["questions"] = self.get_form_questions(
                 assignment_id, include_answers=include_answers
             )
@@ -433,6 +434,14 @@ class AssignmentService:
             assignment["questions"] = questions
         else:
             assignment["questions"] = []
+
+        # Form/Exam 類型：從實際題目重新計算滿分
+        if asg_type in (AssignmentType.FORM, AssignmentType.EXAM) and assignment.get("questions"):
+            assignment["max_score"] = sum(
+                float(q.get("max_points") or q.get("points") or 0)
+                for q in assignment["questions"]
+                if q.get("question_type") != "passage"
+            )
 
         stats = self._submission_repo.get_submission_stats(assignment_id)
         assignment["submission_count"] = stats["total_submissions"] if stats else 0
@@ -1038,6 +1047,14 @@ class AssignmentService:
         elif is_exam:
             assignment["questions"] = self.get_assignment_questions_for_student(
                 assignment_id
+            )
+
+        # 從實際題目重新計算滿分（防止 DB 中 max_score 不準確）
+        if (is_form or is_exam) and assignment.get("questions"):
+            assignment["max_score"] = sum(
+                float(q.get("max_points") or q.get("points") or 0)
+                for q in assignment["questions"]
+                if q.get("question_type") != "passage"
             )
 
         # 附件
