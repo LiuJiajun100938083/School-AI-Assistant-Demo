@@ -477,18 +477,22 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
-        # --- submission_answers: 確保 ai_points / ai_feedback 列存在（向舊表補列）---
+        # --- submission_answers: 確保新版列存在（向舊表補列）---
         sa_cols = {r["Field"] for r in pool.execute("SHOW COLUMNS FROM submission_answers")}
-        if "ai_points" not in sa_cols:
-            pool.execute(
-                "ALTER TABLE submission_answers "
-                "ADD COLUMN ai_points DECIMAL(5,1) DEFAULT NULL COMMENT 'AI 建議分' AFTER points"
-            )
-        if "ai_feedback" not in sa_cols:
-            pool.execute(
-                "ALTER TABLE submission_answers "
-                "ADD COLUMN ai_feedback TEXT COMMENT 'AI 批改反饋' AFTER ai_points"
-            )
+        _sa_missing = {
+            "ai_points":        ("DECIMAL(5,1) DEFAULT NULL COMMENT 'AI 建議分'",          "points"),
+            "ai_feedback":      ("TEXT COMMENT 'AI 批改反饋'",                              "ai_points"),
+            "teacher_feedback":  ("TEXT COMMENT '老師批改反饋'",                             "ai_feedback"),
+            "score_source":     ("ENUM('auto','ai','teacher') DEFAULT NULL COMMENT '分數來源'", "teacher_feedback"),
+            "graded_at":        ("DATETIME DEFAULT NULL",                                   "score_source"),
+            "reviewed_at":      ("DATETIME DEFAULT NULL COMMENT '老師覆核時間'",             "graded_at"),
+        }
+        for col_name, (col_def, after_col) in _sa_missing.items():
+            if col_name not in sa_cols:
+                after_clause = f" AFTER {after_col}" if after_col in sa_cols or after_col in _sa_missing else ""
+                pool.execute(
+                    f"ALTER TABLE submission_answers ADD COLUMN {col_name} {col_def}{after_clause}"
+                )
 
         logger.info("数据库 schema 迁移完成 (含作業管理表)")
     except Exception as e:
