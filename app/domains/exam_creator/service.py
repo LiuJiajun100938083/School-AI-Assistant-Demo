@@ -164,6 +164,7 @@ class ExamCreatorService:
                 gate_task="exam_generation",
                 gate_priority=Priority.URGENT,
                 gate_weight=Weight.ANALYSIS,
+                num_predict=16384,
             )
 
             # 2. JSON 解析

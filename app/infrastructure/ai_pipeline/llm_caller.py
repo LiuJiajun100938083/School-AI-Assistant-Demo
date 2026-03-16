@@ -27,6 +27,7 @@ async def call_ollama_json(
     gate_task: str = "ai_pipeline",
     gate_priority=None,
     gate_weight=None,
+    num_predict: int = 8192,
 ) -> str:
     """
     調用 Ollama API（JSON 模式），返回原始 content 字串。
@@ -76,7 +77,7 @@ async def call_ollama_json(
         "format": "json",
         "options": {
             "temperature": temperature,
-            "num_predict": 8192,
+            "num_predict": num_predict,
         },
     }
 
@@ -136,6 +137,7 @@ def repair_latex_json(text: str) -> str:
         ('\x08', 'b'),  # \bar, \binom, \begin, \beta, \boldsymbol, \bmod
         ('\f', 'f'),    # \frac, \forall, \flat
         ('\r', 'r'),    # \right, \rangle, \rho, \rightarrow, \rm
+        ('\n', 'n'),    # \newcommand, \ne, \neq, \neg, \nu, \nabla
     ]
     for ctrl, letter in repairs:
         text = re.sub(
