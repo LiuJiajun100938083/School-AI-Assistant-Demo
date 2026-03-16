@@ -35,7 +35,6 @@ class ExamCreatorService:
     def start_exam_generation(
         self,
         teacher_username: str,
-        teacher_id: int,
         subject: str,
         question_count: int = 10,
         difficulty: int = 3,
@@ -84,7 +83,6 @@ class ExamCreatorService:
         self._sessions.insert({
             "session_id": session_id,
             "teacher_username": teacher_username,
-            "teacher_id": teacher_id,
             "subject": subject,
             "status": "generating",
             "question_count": question_count,

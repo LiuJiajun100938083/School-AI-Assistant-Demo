@@ -31,15 +31,14 @@ router = APIRouter(tags=["AI 考卷出題"])
 async def start_exam_generation(
     req: ExamGenerationRequest,
     background_tasks: BackgroundTasks,
-    teacher_info: Tuple[str, int] = Depends(require_teacher),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
-    teacher_username, teacher_id = teacher_info
+    teacher_username, _ = teacher_info
     service = get_services().exam_creator
 
     try:
         result = service.start_exam_generation(
             teacher_username=teacher_username,
-            teacher_id=teacher_id,
             subject=req.subject,
             question_count=req.question_count,
             difficulty=req.difficulty,
@@ -73,7 +72,7 @@ async def start_exam_generation(
 @router.get("/api/exam-creator/{session_id}/status")
 async def get_exam_generation_status(
     session_id: str,
-    teacher_info: Tuple[str, int] = Depends(require_teacher),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     teacher_username, _ = teacher_info
     service = get_services().exam_creator
@@ -94,7 +93,7 @@ async def update_question(
     session_id: str,
     index: int,
     req: UpdateQuestionRequest,
-    teacher_info: Tuple[str, int] = Depends(require_teacher),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     teacher_username, _ = teacher_info
     service = get_services().exam_creator
@@ -120,7 +119,7 @@ async def update_question(
 async def regenerate_question(
     session_id: str,
     req: RegenerateQuestionRequest,
-    teacher_info: Tuple[str, int] = Depends(require_teacher),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     teacher_username, _ = teacher_info
     service = get_services().exam_creator
@@ -144,7 +143,7 @@ async def regenerate_question(
 
 @router.get("/api/exam-creator/history")
 async def get_exam_generation_history(
-    teacher_info: Tuple[str, int] = Depends(require_teacher),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
 ):
@@ -167,7 +166,7 @@ async def get_exam_generation_history(
 @router.get("/api/exam-creator/knowledge-points/{subject}")
 async def get_knowledge_points(
     subject: str,
-    teacher_info: Tuple[str, int] = Depends(require_teacher),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     service = get_services().exam_creator
     points = service.get_knowledge_points(subject)
@@ -181,7 +180,7 @@ async def get_knowledge_points(
 @router.get("/api/exam-creator/{session_id}/export")
 async def export_exam_data(
     session_id: str,
-    teacher_info: Tuple[str, int] = Depends(require_teacher),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
 ):
     teacher_username, _ = teacher_info
     service = get_services().exam_creator
