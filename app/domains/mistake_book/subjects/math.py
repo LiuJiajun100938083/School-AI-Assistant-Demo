@@ -48,7 +48,7 @@ class MathHandler(BaseSubjectHandler):
     def pick_recognition_task(self, category: str) -> RecognitionTask:
         return RecognitionTask.MATH_SOLUTION
 
-    # ---- SVG 幾何圖生成 ----
+    # ---- 圖形渲染分類 ----
 
     _GEOMETRY_KEYWORDS = (
         "三角", "四邊", "圓", "角", "平行", "垂直", "直角",
@@ -57,6 +57,10 @@ class MathHandler(BaseSubjectHandler):
         "多邊形", "對角線", "扇形", "弧", "內接", "外接",
         "中線", "角平分線", "切點", "弦心距",
     )
+
+    # JSXGraph 路由關鍵詞：圓相關的複雜約束（幾何引擎不支援）
+    _JSXGRAPH_KEYWORDS = ("弦", "切線", "內接", "外接", "切點", "弦心距", "直徑")
+    _CIRCLE_CONTEXT_KEYWORDS = ("圓",)
 
     # ---- 統計圖表 ----
     # 注意："數據" 過泛，不納入自動判定（僅靠 LLM 顯式 needs_chart 字段）
@@ -76,6 +80,125 @@ class MathHandler(BaseSubjectHandler):
     def needs_chart(self, question_text: str) -> bool:
         """關鍵詞兜底：LLM 顯式 needs_chart 字段優先。"""
         return any(kw in question_text for kw in self._CHART_KEYWORDS)
+
+    def classify_diagram_type(self, question_text: str) -> str:
+        """
+        分類題目需要的圖形渲染方式。
+
+        Returns: "none" | "svg" | "jsxgraph"
+        Phase 1: 只路由「圓 + 弦/交點/內接外接」類到 JSXGraph
+        """
+        has_circle = any(kw in question_text for kw in self._CIRCLE_CONTEXT_KEYWORDS)
+        has_jsxg_feature = any(kw in question_text for kw in self._JSXGRAPH_KEYWORDS)
+        if has_circle and has_jsxg_feature:
+            return "jsxgraph"
+        if self.needs_svg(question_text):
+            return "svg"
+        return "none"
+
+    def build_jsxgraph_spec_prompt(self, question_text: str) -> str:
+        """構建 JSXGraph config 的 LLM 提取 prompt。"""
+        return f"""你是一個幾何語義提取助手。從數學題目中提取圓相關的幾何元素，輸出一個 JSON 配置。
+系統會用此 JSON 在前端渲染互動式幾何圖形。
+
+題目：
+{question_text}
+
+## 輸出格式（只輸出 JSON，不要解釋）
+
+若題目不涉及圓/弦/切線等幾何圖形，輸出 {{"skip": true}}
+
+否則輸出：
+{{
+  "boundingBox": [-1, 8, 9, -1],
+  "elements": [...]
+}}
+
+## boundingBox
+
+[xmin, ymax, xmax, ymin] — 通常用 [-1, 8, 9, -1] 即可。
+若圖形較大可適當擴大。
+
+## elements 數組
+
+每個元素是一個 dict，必須包含 type 和 id（textLabel 可無 id）。
+**重要**：elements 必須拓撲有序 — 被引用的元素必須在引用者之前定義。
+
+### 支援的 type
+
+1. **point** — 自由點
+   {{"type": "point", "id": "O", "coords": [4, 4], "label": "O"}}
+
+2. **circle** — 圓（圓心 + 半徑）
+   {{"type": "circle", "id": "c1", "center": "O", "radius": 3, "label": "圓"}}
+
+3. **pointOnCircle** — 圓上的點（用角度定位）
+   {{"type": "pointOnCircle", "id": "A", "circle": "c1", "angle": 60, "label": "A"}}
+   角度是從 3 點鐘方向（正 x 軸）逆時針量度，單位為度。
+
+4. **segment** — 線段（連接兩個已定義的點）
+   {{"type": "segment", "id": "AB", "endpoints": ["A", "B"], "label": "弦 AB"}}
+
+5. **intersection** — 兩線段/圓的交點
+   {{"type": "intersection", "id": "P", "of": ["AB", "CD"], "index": 0, "label": "P"}}
+   index: 0 或 1（兩條線/曲線可能有 2 個交點）
+
+6. **textLabel** — 獨立文字標注
+   {{"type": "textLabel", "text": "3 cm", "coords": [5, 2]}}
+   或
+   {{"type": "textLabel", "text": "r", "at": "c1"}}
+
+## 完整範例
+
+題目：圓 O 中，弦 AB 與弦 CD 相交於 P，已知 AP=3, PB=4, CP=2，求 PD。
+
+{{
+  "boundingBox": [-1, 8, 9, -1],
+  "elements": [
+    {{"type": "point", "id": "O", "coords": [4, 4], "label": "O"}},
+    {{"type": "circle", "id": "c1", "center": "O", "radius": 3}},
+    {{"type": "pointOnCircle", "id": "A", "circle": "c1", "angle": 150, "label": "A"}},
+    {{"type": "pointOnCircle", "id": "B", "circle": "c1", "angle": 330, "label": "B"}},
+    {{"type": "pointOnCircle", "id": "C", "circle": "c1", "angle": 60, "label": "C"}},
+    {{"type": "pointOnCircle", "id": "D", "circle": "c1", "angle": 240, "label": "D"}},
+    {{"type": "segment", "id": "AB", "endpoints": ["A", "B"]}},
+    {{"type": "segment", "id": "CD", "endpoints": ["C", "D"]}},
+    {{"type": "intersection", "id": "P", "of": ["AB", "CD"], "index": 0, "label": "P"}},
+    {{"type": "textLabel", "text": "AP=3", "coords": [2.5, 5.2]}},
+    {{"type": "textLabel", "text": "PB=4", "coords": [5.5, 3]}},
+    {{"type": "textLabel", "text": "CP=2", "coords": [4.8, 5.8]}}
+  ]
+}}
+
+## 範例 2
+
+題目：圓 O 的半徑為 5，弦 AB 的弦心距為 3，求弦 AB 的長度。
+
+{{
+  "boundingBox": [-1, 8, 9, -1],
+  "elements": [
+    {{"type": "point", "id": "O", "coords": [4, 4], "label": "O"}},
+    {{"type": "circle", "id": "c1", "center": "O", "radius": 3.5}},
+    {{"type": "pointOnCircle", "id": "A", "circle": "c1", "angle": 140, "label": "A"}},
+    {{"type": "pointOnCircle", "id": "B", "circle": "c1", "angle": 220, "label": "B"}},
+    {{"type": "segment", "id": "AB", "endpoints": ["A", "B"], "label": "弦 AB"}},
+    {{"type": "point", "id": "M", "coords": [2.5, 3.2], "label": "M"}},
+    {{"type": "segment", "id": "OM", "endpoints": ["O", "M"]}},
+    {{"type": "textLabel", "text": "r=5", "coords": [5.5, 5.5]}},
+    {{"type": "textLabel", "text": "弦心距=3", "coords": [3, 3]}}
+  ]
+}}
+
+## 重要規則
+
+- **label 屬性**只用於標注點名或簡短說明（最多 20 字符）
+- **label / text 中禁止包含 HTML 標籤**
+- **coords 座標**要落在 boundingBox 範圍內
+- **pointOnCircle 的 angle 是度數**（0-360），不是弧度
+- **拓撲順序**：先定義 point/circle，再定義依賴它們的 segment/pointOnCircle/intersection
+- 不要添加題目未提及的幾何元素
+- 不要計算答案，只提取圖形結構
+- 只輸出 JSON"""
 
     def build_svg_prompt(self, question_text: str) -> str:
         return f"""你是一個專門畫幾何圖形的助手。根據以下數學題目，生成一個 SVG 圖形。

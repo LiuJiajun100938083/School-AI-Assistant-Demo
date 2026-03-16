@@ -49,9 +49,13 @@ def sanitize_svg(text: str) -> str:
 
 async def enrich_with_svg(questions: list, subject: str) -> None:
     """
-    為 needs_svg=True 的題目生成幾何 SVG，直接修改 questions list。
+    為 needs_svg=True 的題目生成幾何圖形，直接修改 questions list。
 
-    管線：
+    雙管線路由：
+      - 圓類複雜約束 → JSXGraph DSL（question_jsxgraph 欄位）
+      - 一般幾何 → SVG 管線（question_svg 欄位）
+
+    SVG 管線：
       Step 1 (LLM): 題目 → geometry spec JSON（幾何語義提取）
       Step 2 (Python): spec JSON → 座標（約束求解器）
       Step 3 (Python): 座標 → SVG（確定性渲染器）
@@ -68,9 +72,12 @@ async def enrich_with_svg(questions: list, subject: str) -> None:
 
     svg_model = get_llm_config().svg_model
     has_spec_mode = bool(handler.build_geometry_spec_prompt("test"))
+    has_jsxgraph = hasattr(handler, 'classify_diagram_type')
 
     svg_triggered = 0
     svg_success = 0
+    jsx_triggered = 0
+    jsx_success = 0
 
     for i, q in enumerate(questions):
         text = q.get("question", "")
@@ -82,6 +89,29 @@ async def enrich_with_svg(questions: list, subject: str) -> None:
         if not needs or "<svg" in text:
             continue
 
+        # ---- 路由：JSXGraph or SVG ----
+        diagram_type = "svg"
+        if has_jsxgraph:
+            diagram_type = handler.classify_diagram_type(text)
+
+        if diagram_type == "jsxgraph":
+            jsx_triggered += 1
+            try:
+                config = await _generate_jsxgraph_spec(
+                    handler, text, svg_model, i + 1,
+                )
+                if config:
+                    q["question_jsxgraph"] = config
+                    jsx_success += 1
+                    logger.info("題 %d JSXGraph 生成成功", i + 1)
+                else:
+                    logger.info("題 %d JSXGraph 生成失敗，不回退 SVG（圓類 SVG 會畫錯）", i + 1)
+            except Exception as e:
+                logger.warning("題 %d JSXGraph 生成異常: %s", i + 1, e)
+            # 不回退 SVG — 圓類走 SVG 會畫錯
+            continue
+
+        # ---- SVG 管線（原有邏輯） ----
         svg_triggered += 1
         try:
             svg = await _generate_svg_two_step(
@@ -100,11 +130,84 @@ async def enrich_with_svg(questions: list, subject: str) -> None:
         except Exception as e:
             logger.warning("題 %d SVG 生成失敗: %s", i + 1, e)
 
-    if svg_triggered:
+    if svg_triggered or jsx_triggered:
         logger.info(
-            "SVG 生成完成: 觸發=%d, 成功=%d, 失敗=%d",
-            svg_triggered, svg_success, svg_triggered - svg_success,
+            "圖形生成完成: SVG(觸發=%d, 成功=%d) JSXGraph(觸發=%d, 成功=%d)",
+            svg_triggered, svg_success, jsx_triggered, jsx_success,
         )
+
+
+async def _generate_jsxgraph_spec(
+    handler, question_text: str, svg_model: str, question_num: int,
+) -> Optional[dict]:
+    """
+    LLM 生成 JSXGraph config + 嚴格校驗。
+
+    Returns: validated config dict, or None on failure.
+    """
+    from app.core.ai_gate import Priority, Weight
+    from app.infrastructure.ai_pipeline.llm_caller import call_ollama_json
+    from app.domains.mistake_book.jsxgraph_schema import (
+        validate_jsxgraph_config, sanitize_label_text,
+    )
+
+    gate_kwargs = dict(
+        model=svg_model,
+        timeout=120.0,
+        gate_task="jsxgraph_spec",
+        gate_priority=Priority.BATCH,
+        gate_weight=Weight.SVG_GEOMETRY,
+    )
+
+    try:
+        prompt = handler.build_jsxgraph_spec_prompt(question_text)
+        raw = await call_ollama_json(prompt, **gate_kwargs)
+
+        if not raw:
+            logger.warning("[Q%d] JSXGraph LLM 返回空", question_num)
+            return None
+
+        # 解析 JSON
+        spec_data = None
+        try:
+            spec_data = json.loads(raw)
+        except json.JSONDecodeError:
+            m = re.search(r'\{[\s\S]*\}', raw)
+            if m:
+                try:
+                    spec_data = json.loads(m.group())
+                except json.JSONDecodeError:
+                    pass
+
+        if not spec_data or spec_data.get("skip"):
+            logger.info("[Q%d] JSXGraph spec 為 skip 或解析失敗", question_num)
+            return None
+
+        # 嚴格校驗
+        is_valid, errors = validate_jsxgraph_config(spec_data)
+        if not is_valid:
+            logger.warning(
+                "[Q%d] JSXGraph 校驗失敗: %s",
+                question_num, errors[:5],
+            )
+            return None
+
+        # 淨化所有 label / text 欄位（後端嚴格層）
+        for el in spec_data.get("elements", []):
+            if "label" in el and isinstance(el["label"], str):
+                el["label"] = sanitize_label_text(el["label"])
+            if el.get("type") == "textLabel" and "text" in el:
+                el["text"] = sanitize_label_text(el["text"])
+
+        logger.info(
+            "[Q%d] JSXGraph spec 校驗通過, %d elements",
+            question_num, len(spec_data.get("elements", [])),
+        )
+        return spec_data
+
+    except Exception as e:
+        logger.warning("[Q%d] JSXGraph 管線異常: %s", question_num, e)
+        return None
 
 
 async def _generate_svg_two_step(

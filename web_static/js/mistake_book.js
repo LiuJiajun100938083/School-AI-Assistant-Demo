@@ -2697,14 +2697,27 @@ const Views = {
             </div>`;
         }
 
+        const pendingJsx = [];
+
         questions.forEach((q, i) => {
             this._practiceInputStates[i] = { mode: 'keyboard', strokes: [], imagePreview: null, loading: false };
             const isMultiChoice = !!q.options;
+
+            // JSXGraph 優先，SVG 其次
+            let diagramHtml = '';
+            if (q.question_jsxgraph) {
+                const cid = `jsxg-practice-q${i}`;
+                diagramHtml = `<div id="${cid}" class="mb-practice__question-svg" style="width:300px;height:250px"></div>`;
+                pendingJsx.push({ id: cid, config: q.question_jsxgraph });
+            } else if (q.question_svg) {
+                diagramHtml = `<div class="mb-practice__question-svg">${UI.renderMath(q.question_svg)}</div>`;
+            }
+
             html += `
                 <div class="mb-glass-question mb-glass-animate" style="animation-delay:${80 + i * 50}ms">
                     <div class="mb-practice__question-number">第 ${q.index || i + 1} 題</div>
                     <div class="mb-practice__question-text">${UI.renderMath(q.question)}</div>
-                    ${q.question_svg ? `<div class="mb-practice__question-svg">${UI.renderMath(q.question_svg)}</div>` : ''}
+                    ${diagramHtml}
                     ${isMultiChoice ? `<div style="margin-top:12px">${q.options.map((opt, oi) =>
                         `<label style="display:block;padding:8px 0;cursor:pointer;font-size:14px">
                             <input type="radio" name="q_${i}" value="${UI.escapeHtml(opt)}"> ${UI.renderMath(opt)}
@@ -2729,6 +2742,14 @@ const Views = {
                  </button></div>`;
 
         container.innerHTML = html;
+
+        // JSXGraph 渲染（DOM 已就緒）
+        pendingJsx.forEach(r => {
+            if (window.JSXGraphRenderer) {
+                try { JSXGraphRenderer.render(r.id, r.config); }
+                catch (e) { console.warn('JSXGraph render failed:', r.id, e); }
+            }
+        });
     },
 
     _switchInputMode(idx, mode) {
@@ -2829,7 +2850,8 @@ const Views = {
                     <button class="mb-hw__fullscreen-close" id="hw_modal_close_${idx}">✕</button>
                 </div>
                 <div class="mb-hw__fullscreen-question">${UI.renderMath(questionText)}</div>
-                ${q && q.question_svg ? `<div class="mb-practice__question-svg">${UI.renderMath(q.question_svg)}</div>` : ''}
+                ${q && q.question_jsxgraph ? `<div id="jsxg-hw-q${idx}" class="mb-practice__question-svg" style="width:280px;height:220px"></div>` :
+                  q && q.question_svg ? `<div class="mb-practice__question-svg">${UI.renderMath(q.question_svg)}</div>` : ''}
                 <div class="mb-hw__fullscreen-canvas-area" id="hw_canvas_area_${idx}">
                     <div class="mb-hw__canvas-wrap mb-hw__canvas-wrap--full" id="hw_canvas_container_${idx}">
                         <canvas class="mb-hw__canvas" id="hw_canvas_${idx}"></canvas>
@@ -2851,7 +2873,16 @@ const Views = {
         `;
         document.body.appendChild(overlay);
 
-        document.getElementById(`hw_modal_close_${idx}`).onclick = () => overlay.remove();
+        // JSXGraph 渲染（手寫全屏模態中的圖形）
+        if (q && q.question_jsxgraph && window.JSXGraphRenderer) {
+            try { JSXGraphRenderer.render(`jsxg-hw-q${idx}`, q.question_jsxgraph); }
+            catch (e) { console.warn('JSXGraph hw render failed:', idx, e); }
+        }
+
+        document.getElementById(`hw_modal_close_${idx}`).onclick = () => {
+            if (window.JSXGraphRenderer) JSXGraphRenderer.destroy(`jsxg-hw-q${idx}`);
+            overlay.remove();
+        };
 
         requestAnimationFrame(() => this._initCanvas(idx));
     },

@@ -177,10 +177,22 @@ const ExamCreator = (() => {
                 long_answer: '解答題', fill_blank: '填空題',
             };
 
+            const pendingJsx = [];
+
             questions.forEach((q, i) => {
                 const typeLabel = typeLabels[q.question_type] || q.question_type || '題目';
                 const points = q.points || 0;
-                const svgHtml = q.question_svg ? `<div class="question-svg-container">${q.question_svg}</div>` : '';
+
+                // JSXGraph 優先，SVG 其次
+                let diagramHtml = '';
+                if (q.question_jsxgraph) {
+                    const cid = `jsxg-exam-q${i}`;
+                    diagramHtml = `<div id="${cid}" class="question-svg-container" style="width:300px;height:250px"></div>`;
+                    pendingJsx.push({ id: cid, config: q.question_jsxgraph });
+                } else if (q.question_svg) {
+                    diagramHtml = `<div class="question-svg-container">${q.question_svg}</div>`;
+                }
+
                 const questionHtml = UI.renderMath(q.question || '');
                 const answerHtml = UI.renderMath(q.correct_answer || '');
                 const markingHtml = q.marking_scheme
@@ -217,7 +229,7 @@ const ExamCreator = (() => {
                     </div>
                     <div class="question-card-body">
                         <div class="question-text">${questionHtml}</div>
-                        ${svgHtml}
+                        ${diagramHtml}
                         ${optionsHtml}
                     </div>
                     <button class="answer-toggle" onclick="this.nextElementSibling.classList.toggle('show')">
@@ -231,6 +243,14 @@ const ExamCreator = (() => {
             });
 
             container.innerHTML = html;
+
+            // JSXGraph 渲染（DOM 已就緒）
+            pendingJsx.forEach(r => {
+                if (window.JSXGraphRenderer) {
+                    try { JSXGraphRenderer.render(r.id, r.config); }
+                    catch (e) { console.warn('JSXGraph render failed:', r.id, e); }
+                }
+            });
         },
 
         showState(stateName) {
@@ -405,6 +425,8 @@ const ExamCreator = (() => {
 
     function retry() {
         stopPolling();
+        // 清理 JSXGraph boards
+        if (window.JSXGraphRenderer) JSXGraphRenderer.destroyAll();
         Views.showState('emptyState');
     }
 
