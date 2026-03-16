@@ -192,6 +192,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "exam_creator",
+        "name": "AI 出題輔助器",
+        "icon": "",
+        "description": "AI 智能生成考卷，支持編輯、預覽、打印",
+        "url": "/exam-creator",
+        "roles": ["teacher", "admin"],
+        "enabled": True,
+        "order": 15,
+        "category": "teaching",
+    },
+    {
         "id": "admin_dashboard",
         "name": "管理後台",
         "icon": "⚙️",
@@ -199,7 +210,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "url": "/admin",
         "roles": ["admin"],
         "enabled": True,
-        "order": 15,
+        "order": 16,
         "category": "admin",
     },
 ]
