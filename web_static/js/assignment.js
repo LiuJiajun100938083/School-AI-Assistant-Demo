@@ -195,7 +195,24 @@ const AssignmentAPI = {
         });
     },
     async aiGradeForm(submissionId) {
-        return this._call(`/api/assignments/teacher/submissions/${submissionId}/ai-grade-form`, { method: 'POST' });
+        // AI 批改可能需要較長時間（每題 ~7s），3 分鐘超時
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 180000);
+        try {
+            const resp = await fetch(
+                `/api/assignments/teacher/submissions/${submissionId}/ai-grade-form`,
+                { method: 'POST', headers: this._headers(), signal: controller.signal }
+            );
+            if (resp.status === 401) { window.location.href = '/'; return null; }
+            return resp.json();
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                console.error('AI 批改超時 (3min)');
+                return { success: false, message: 'AI 批改超時，請稍後重試' };
+            }
+            console.error('API error:', e);
+            return null;
+        } finally { clearTimeout(timer); }
     },
     async gradeFormAnswer(submissionId, answerId, data) {
         return this._call(`/api/assignments/teacher/submissions/${submissionId}/answers/${answerId}/grade`, {
