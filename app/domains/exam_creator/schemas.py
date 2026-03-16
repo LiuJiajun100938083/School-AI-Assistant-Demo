@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class ExamGenerationRequest(BaseModel):
     """啟動 AI 出題的請求"""
     subject: str = Field(..., min_length=1, max_length=50, description="科目代碼，如 math")
-    question_count: int = Field(default=10, ge=1, le=30, description="題目數量")
+    question_count: int = Field(default=5, ge=1, le=5, description="題目數量（最多5題）")
     difficulty: int = Field(default=3, ge=1, le=5, description="難度 1-5")
     target_points: Optional[List[str]] = Field(
         default=None, description="目標知識點 codes，None 則自動選擇",

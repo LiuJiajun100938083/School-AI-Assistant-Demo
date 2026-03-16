@@ -682,7 +682,7 @@ const ExamCreator = (() => {
     function startPolling() {
         const interval = 3000;
         let attempts = 0;
-        const totalCount = parseInt(UI.$('questionCount').value) || 10;
+        const totalCount = parseInt(UI.$('questionCount').value) || 5;
 
         function updateProgress(completed, total) {
             const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
