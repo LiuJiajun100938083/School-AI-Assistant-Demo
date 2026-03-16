@@ -581,8 +581,10 @@ const AdminUI = {
             tr.innerHTML = `
                 <td style="padding: 12px;">${user.username}</td>
                 <td style="padding: 12px;">${user.display_name || '-'}</td>
+                <td style="padding: 12px;">${user.english_name || '-'}</td>
                 <td style="padding: 12px;">${roleDisplay}</td>
                 <td style="padding: 12px;">${user.class_name || '-'}</td>
+                <td style="padding: 12px;">${user.card_id || '-'}</td>
                 <td style="padding: 12px;">${statusDisplay}</td>
                 <td style="padding: 12px;">${user.login_count || 0}</td>
                 <td style="padding: 12px;">${lastLogin}</td>
@@ -2118,6 +2120,8 @@ ${report.teacher_attention_points || '暫無'}
         document.getElementById('userPassword').required = false;
         document.getElementById('userPassword').value = '';
         document.getElementById('userDisplayName').value = user.display_name || '';
+        document.getElementById('userEnglishName').value = user.english_name || '';
+        document.getElementById('userCardId').value = user.card_id || '';
         document.getElementById('userRole').value = user.role || 'student';
         document.getElementById('userClass').value = user.class_name || '';
         document.getElementById('userClassNumber').value = user.class_number || '';
@@ -2137,6 +2141,8 @@ ${report.teacher_attention_points || '暫無'}
         const userData = {
             username: document.getElementById('userUsername').value,
             display_name: document.getElementById('userDisplayName').value,
+            english_name: document.getElementById('userEnglishName').value,
+            card_id: document.getElementById('userCardId').value || null,
             role: document.getElementById('userRole').value,
             class_name: document.getElementById('userClass').value,
             class_number: classNumberVal ? parseInt(classNumberVal) : null,

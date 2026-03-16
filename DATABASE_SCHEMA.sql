@@ -42,7 +42,9 @@ CREATE TABLE users (
     user_id              INT UNIQUE                        COMMENT '備用用戶ID',
     username             VARCHAR(50) UNIQUE NOT NULL       COMMENT '登入帳號(唯一)',
     password_hash        VARCHAR(255) NOT NULL             COMMENT 'bcrypt 加密密碼',
-    display_name         VARCHAR(100)                      COMMENT '顯示名稱',
+    display_name         VARCHAR(100)                      COMMENT '顯示名稱（中文名）',
+    english_name         VARCHAR(100) DEFAULT ''           COMMENT '英文名',
+    card_id              VARCHAR(50) DEFAULT NULL          COMMENT '學生證 CardID（簽到用）',
     email                VARCHAR(100)                      COMMENT '電郵(明文)',
     email_encrypted      TEXT                              COMMENT '電郵(加密存儲)',
     phone                VARCHAR(20)                       COMMENT '電話(明文)',
@@ -50,6 +52,7 @@ CREATE TABLE users (
     role                 ENUM('student','teacher','admin') DEFAULT 'student' COMMENT '角色',
     class_id             INT                               COMMENT '所屬班級ID',
     class_name           VARCHAR(100) DEFAULT ''           COMMENT '班級名稱(冗餘欄位，方便查詢)',
+    class_number         INT DEFAULT NULL                  COMMENT '班號',
     is_active            BOOLEAN DEFAULT TRUE              COMMENT '帳號是否啟用',
     is_locked            BOOLEAN DEFAULT FALSE             COMMENT '帳號是否鎖定',
     created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -62,7 +65,8 @@ CREATE TABLE users (
     data_consent_date    TIMESTAMP NULL                    COMMENT '同意日期',
 
     INDEX idx_username (username),
-    INDEX idx_role (role)
+    INDEX idx_role (role),
+    INDEX idx_card_id (card_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -1219,8 +1223,9 @@ CREATE TABLE forum_user_preferences (
 -- ====================================================================
 
 -- --------------------------------------------------------------------
--- 9.1  attendance_students — 點名系統學生表
--- 說明: 獨立的學生表，由 CSV/Excel 批量導入，通過 card_id 綁定學生證
+-- 9.1  attendance_students — [DEPRECATED] 已合併至 users 表
+-- 說明: 原獨立學生表，english_name 和 card_id 已遷移至 users 表。
+--       保留此表作為備份，不再被程式碼查詢。
 -- --------------------------------------------------------------------
 CREATE TABLE attendance_students (
     id           INT AUTO_INCREMENT PRIMARY KEY,

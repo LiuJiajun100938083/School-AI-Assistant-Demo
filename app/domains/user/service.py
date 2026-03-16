@@ -133,6 +133,8 @@ class UserService:
         class_name: str = "",
         class_number: Optional[int] = None,
         email: str = "",
+        english_name: str = "",
+        card_id: Optional[str] = None,
         created_by: str = "system",
     ) -> Dict[str, Any]:
         """
@@ -164,6 +166,8 @@ class UserService:
             class_name=class_name,
             class_number=class_number,
             email=email,
+            english_name=english_name,
+            card_id=card_id,
         )
 
         logger.info("用户创建成功: %s (role=%s, by=%s)", username, role, created_by)
@@ -288,12 +292,23 @@ class UserService:
             class_number_raw = row.get("class_number") or row.get("班號") or row.get("班号")
             class_number = int(class_number_raw) if class_number_raw else None
 
+            english_name = (
+                row.get("english_name") or row.get("英文名")
+                or row.get("英文名稱") or ""
+            ).strip()
+            card_id = (
+                row.get("card_id") or row.get("卡號")
+                or row.get("卡号") or ""
+            ).strip() or None
+
             password_hash = PasswordManager.hash_password(password)
             batch_buffer.append({
                 "username": username,
                 "password_hash": password_hash,
                 "role": role,
                 "display_name": display_name or username,
+                "english_name": english_name,
+                "card_id": card_id,
                 "class_name": class_name,
                 "class_number": class_number,
             })
@@ -344,7 +359,8 @@ class UserService:
             raise NotFoundError("用户", username)
 
         allowed_fields = {
-            "display_name", "email", "class_name", "class_number",
+            "display_name", "english_name", "card_id",
+            "email", "class_name", "class_number",
             "role", "status", "is_active",
         }
         update_data = {k: v for k, v in data.items() if k in allowed_fields}

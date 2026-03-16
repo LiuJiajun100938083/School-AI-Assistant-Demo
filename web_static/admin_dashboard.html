@@ -448,8 +448,10 @@
                                 <tr>
                                     <th style="padding: 12px;">用戶名</th>
                                     <th style="padding: 12px;">顯示名称</th>
+                                    <th style="padding: 12px;">英文名</th>
                                     <th style="padding: 12px;">角色</th>
                                     <th style="padding: 12px;">班级/部门</th>
+                                    <th style="padding: 12px;">卡號</th>
                                     <th style="padding: 12px;">狀態</th>
                                     <th style="padding: 12px;">登录次数</th>
                                     <th style="padding: 12px;">最后登录</th>
@@ -756,8 +758,16 @@
                     <small style="color: #666;">留空则不修改密碼</small>
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;">顯示名称：</label>
+                    <label style="display: block; margin-bottom: 5px;">顯示名称（中文名）：</label>
                     <input type="text" id="userDisplayName" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">英文名：</label>
+                    <input type="text" id="userEnglishName" placeholder="例如: CHAN Tai Man" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px;">卡號 (Card ID)：</label>
+                    <input type="text" id="userCardId" placeholder="學生證卡號" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;">角色：</label>

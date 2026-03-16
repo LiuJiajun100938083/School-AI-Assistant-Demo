@@ -30,24 +30,35 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 class AttendanceStudentRepository(BaseRepository):
-    """考勤学生数据"""
+    """
+    考勤学生数据 — 已合併至 users 表
 
-    TABLE = "attendance_students"
+    所有查询直接操作 users 表，通过 column alias 保持 API 回传格式不变：
+      username → user_login, display_name → chinese_name
+    """
+
+    TABLE = "attendance_students"  # 保留，供 BaseRepository 初始化；實際查詢用 raw_query
+
+    # --- 統一 SELECT 片段 ---
+    _STUDENT_COLS = (
+        "username AS user_login, english_name, display_name AS chinese_name, "
+        "class_name, class_number, card_id"
+    )
 
     def find_by_card_id(self, card_id: str) -> Optional[Dict[str, Any]]:
-        """根据卡号查找学生"""
-        return self.find_one(
-            "card_id = %s AND is_active = TRUE",
+        """根据卡号查找学生（从 users 表）"""
+        return self.raw_query_one(
+            f"SELECT {self._STUDENT_COLS} FROM users "
+            "WHERE card_id = %s AND is_active = TRUE AND role = 'student'",
             (card_id,),
-            columns="user_login, english_name, chinese_name, class_name, class_number, card_id",
         )
 
     def find_by_login(self, user_login: str) -> Optional[Dict[str, Any]]:
-        """根据登录名查找学生"""
-        return self.find_one(
-            "user_login = %s AND is_active = TRUE",
+        """根据登录名查找学生（从 users 表）"""
+        return self.raw_query_one(
+            f"SELECT {self._STUDENT_COLS} FROM users "
+            "WHERE username = %s AND is_active = TRUE",
             (user_login,),
-            columns="user_login, english_name, chinese_name, class_name, class_number, card_id",
         )
 
     def list_students(
@@ -55,57 +66,84 @@ class AttendanceStudentRepository(BaseRepository):
         class_name: str = "",
         search: str = "",
     ) -> List[Dict[str, Any]]:
-        """
-        查询学生列表
-
-        Args:
-            class_name: 按班级筛选
-            search: 搜索关键词
-        """
-        where = "is_active = TRUE"
-        params = []
+        """查询学生列表（从 users 表）"""
+        where = "role = 'student' AND is_active = TRUE"
+        params: list = []
 
         if class_name:
             where += " AND class_name = %s"
             params.append(class_name)
         if search:
-            where += " AND (english_name LIKE %s OR chinese_name LIKE %s OR user_login LIKE %s)"
+            where += (
+                " AND (english_name LIKE %s OR display_name LIKE %s OR username LIKE %s)"
+            )
             params.extend([f"%{search}%"] * 3)
 
-        return self.find_all(
-            where=where,
-            params=tuple(params) if params else None,
-            order_by="class_name, class_number",
-            columns="id, class_name, class_number, user_login, english_name, chinese_name, card_id",
+        return self.raw_query(
+            f"SELECT id, class_name, class_number, username AS user_login, "
+            f"english_name, display_name AS chinese_name, card_id "
+            f"FROM users WHERE {where} "
+            "ORDER BY class_name, class_number",
+            tuple(params) if params else None,
         )
 
     def list_classes(self) -> List[str]:
-        """获取所有班级名称"""
+        """获取所有班级名称（从 users 表）"""
         rows = self.raw_query(
-            "SELECT DISTINCT class_name FROM attendance_students "
-            "WHERE is_active = TRUE ORDER BY class_name"
+            "SELECT DISTINCT class_name FROM users "
+            "WHERE role = 'student' AND is_active = TRUE "
+            "AND class_name IS NOT NULL AND class_name != '' "
+            "ORDER BY class_name"
         )
         return [r["class_name"] for r in rows]
 
     def deactivate_all(self) -> int:
-        """停用所有学生 (批量导入前)"""
-        return self.raw_execute("UPDATE attendance_students SET is_active = FALSE")
+        """停用所有学生（仅 role='student'，不影响教师/管理员）"""
+        return self.raw_execute(
+            "UPDATE users SET is_active = FALSE WHERE role = 'student'"
+        )
 
     def upsert_student(self, data: Dict[str, Any]) -> int:
-        """创建或更新学生"""
-        return self.raw_execute(
-            "INSERT INTO attendance_students "
-            "(class_name, class_number, user_login, english_name, chinese_name, card_id, is_active) "
-            "VALUES (%s, %s, %s, %s, %s, %s, TRUE) "
-            "ON DUPLICATE KEY UPDATE "
-            "  class_name = VALUES(class_name), class_number = VALUES(class_number), "
-            "  english_name = VALUES(english_name), chinese_name = VALUES(chinese_name), "
-            "  card_id = VALUES(card_id), is_active = TRUE",
-            (
-                data["class_name"], data["class_number"], data["user_login"],
-                data["english_name"], data["chinese_name"], data.get("card_id", ""),
-            ),
+        """
+        创建或更新学生（写入 users 表）
+
+        - 已存在 → UPDATE 班级、姓名、卡号等
+        - 不存在 → INSERT 新帐号，密码 = hash(username)，must_change_password = TRUE
+        """
+        existing = self.raw_query_one(
+            "SELECT id FROM users WHERE username = %s",
+            (data["user_login"],),
         )
+        if existing:
+            return self.raw_execute(
+                "UPDATE users SET "
+                "  class_name = %s, class_number = %s, "
+                "  english_name = %s, display_name = %s, "
+                "  card_id = %s, is_active = TRUE "
+                "WHERE username = %s",
+                (
+                    data["class_name"], data["class_number"],
+                    data["english_name"], data["chinese_name"],
+                    data.get("card_id", ""),
+                    data["user_login"],
+                ),
+            )
+        else:
+            # 自动建帐：密码 = username，首次登入需改密码
+            from app.core.security import PasswordManager
+            password_hash = PasswordManager.hash_password(data["user_login"])
+            return self.raw_execute(
+                "INSERT INTO users "
+                "(username, password_hash, display_name, english_name, card_id, "
+                " class_name, class_number, role, is_active, must_change_password, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, 'student', TRUE, TRUE, NOW())",
+                (
+                    data["user_login"], password_hash,
+                    data["chinese_name"], data["english_name"],
+                    data.get("card_id", ""),
+                    data["class_name"], data["class_number"],
+                ),
+            )
 
 
 # ============================================================
@@ -302,9 +340,9 @@ class AttendanceRecordRepository(BaseRepository):
             "  COALESCE(ar.status, 'absent') AS attendance_status, "
             "  ar.scan_time, ar.card_id, ar.late_minutes, ar.makeup_minutes, "
             "  ar.is_registered, ar.id AS record_id, "
-            "  s.class_name, s.class_number, s.english_name, s.chinese_name "
+            "  s.class_name, s.class_number, s.english_name, s.display_name AS chinese_name "
             "FROM attendance_session_students ss "
-            "JOIN attendance_students s ON ss.user_login = s.user_login "
+            "JOIN users s ON ss.user_login = s.username "
             "LEFT JOIN attendance_records ar "
             "  ON ar.session_id = ss.session_id AND ar.user_login = ss.user_login "
             "WHERE ss.session_id = %s "
@@ -355,9 +393,9 @@ class AttendanceRecordRepository(BaseRepository):
             "  ar.planned_periods, ar.planned_minutes, ar.planned_end_time, "
             "  ar.actual_minutes, ar.actual_periods, ar.checkout_time, "
             "  ar.detention_reason, "
-            "  s.class_name, s.class_number, s.english_name, s.chinese_name "
+            "  s.class_name, s.class_number, s.english_name, s.display_name AS chinese_name "
             "FROM attendance_records ar "
-            "JOIN attendance_students s ON ar.user_login = s.user_login "
+            "JOIN users s ON ar.user_login = s.username "
             "WHERE ar.session_id = %s "
             "ORDER BY s.class_name, s.class_number",
             (session_id,),
@@ -448,10 +486,10 @@ class DetentionHistoryRepository(BaseRepository):
             params.append(class_name)
 
         return self.raw_query(
-            "SELECT dh.*, s.english_name, s.chinese_name, s.class_name, s.class_number, "
+            "SELECT dh.*, s.english_name, s.display_name AS chinese_name, s.class_name, s.class_number, "
             "  ar.planned_minutes, ar.actual_minutes, ar.planned_periods, ar.actual_periods "
             "FROM detention_history dh "
-            "JOIN attendance_students s ON dh.user_login = s.user_login "
+            "JOIN users s ON dh.user_login = s.username "
             "LEFT JOIN attendance_records ar ON dh.session_id = ar.session_id "
             "  AND dh.user_login = ar.user_login "
             f"WHERE {where} "
@@ -508,10 +546,10 @@ class DetentionHistoryRepository(BaseRepository):
         where = " AND ".join(clauses) if clauses else "1=1"
 
         return self.raw_query(
-            "SELECT dh.*, s.english_name, s.chinese_name, s.class_name, s.class_number, "
+            "SELECT dh.*, s.english_name, s.display_name AS chinese_name, s.class_name, s.class_number, "
             "  ar.planned_minutes, ar.actual_minutes, ar.planned_periods, ar.actual_periods "
             "FROM detention_history dh "
-            "JOIN attendance_students s ON dh.user_login = s.user_login "
+            "JOIN users s ON dh.user_login = s.username "
             "LEFT JOIN attendance_records ar ON dh.session_id = ar.session_id "
             "  AND dh.user_login = ar.user_login "
             f"WHERE {where} "
@@ -595,10 +633,10 @@ class FixedListRepository(BaseRepository):
             return None
 
         students = self.raw_query(
-            "SELECT s.user_login, s.class_name, s.class_number, "
-            "  s.english_name, s.chinese_name "
+            "SELECT s.username AS user_login, s.class_name, s.class_number, "
+            "  s.english_name, s.display_name AS chinese_name "
             "FROM attendance_fixed_list_students fls "
-            "JOIN attendance_students s ON fls.user_login = s.user_login "
+            "JOIN users s ON fls.user_login = s.username "
             "WHERE fls.list_id = %s",
             (list_id,),
         )
@@ -689,8 +727,10 @@ class ActivityGroupRepository(BaseRepository):
         if not group:
             return None
         students = self.raw_query(
-            "SELECT s.* FROM attendance_students s "
-            "JOIN activity_group_students gs ON s.user_login = gs.user_login "
+            "SELECT s.username AS user_login, s.english_name, "
+            "  s.display_name AS chinese_name, s.class_name, s.class_number, s.card_id "
+            "FROM users s "
+            "JOIN activity_group_students gs ON s.username = gs.user_login "
             "WHERE gs.group_id = %s",
             (group_id,),
         )
@@ -787,9 +827,9 @@ class ActivitySessionRepository(BaseRepository):
         if not session:
             return None
         records = self.raw_query(
-            "SELECT r.*, s.class_name, s.class_number, s.chinese_name, s.english_name "
+            "SELECT r.*, s.class_name, s.class_number, s.display_name AS chinese_name, s.english_name "
             "FROM activity_records r "
-            "JOIN attendance_students s ON r.user_login = s.user_login "
+            "JOIN users s ON r.user_login = s.username "
             "WHERE r.session_id = %s",
             (session_id,),
         )

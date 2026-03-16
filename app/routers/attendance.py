@@ -322,6 +322,20 @@ def init_attendance_tables():
         """)
 
         db.commit()
+
+        # --- 合併 attendance_students → users：為 users 表添加簽到欄位 ---
+        alter_sqls = [
+            "ALTER TABLE users ADD COLUMN english_name VARCHAR(100) DEFAULT '' COMMENT '英文名' AFTER display_name",
+            "ALTER TABLE users ADD COLUMN card_id VARCHAR(50) DEFAULT NULL COMMENT '學生證 CardID' AFTER english_name",
+            "ALTER TABLE users ADD INDEX idx_card_id (card_id)",
+        ]
+        for sql in alter_sqls:
+            try:
+                cursor.execute(sql)
+                db.commit()
+            except Exception:
+                db.rollback()  # 欄位/索引已存在，忽略
+
         logger.info("点名系统数据库表初始化完成")
 
 

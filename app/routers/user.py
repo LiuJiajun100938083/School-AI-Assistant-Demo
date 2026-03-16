@@ -124,6 +124,8 @@ async def create_user(request: Request):
             class_name=body.get("class_name", ""),
             class_number=class_number,
             email=body.get("email", ""),
+            english_name=body.get("english_name", ""),
+            card_id=body.get("card_id") or None,
             created_by=admin_user,
         )
         return success_response(user, "用户创建成功")
@@ -224,6 +226,15 @@ async def upload_excel_users(request: Request, file: UploadFile = File(...)):
                 row_dict["role"] = row_dict["角色"]
             if "role" not in row_dict and "角色(student/teacher)" in row_dict:
                 row_dict["role"] = row_dict["角色(student/teacher)"]
+            # 英文名 / 卡號
+            if "english_name" not in row_dict and "英文名" in row_dict:
+                row_dict["english_name"] = row_dict["英文名"]
+            if "english_name" not in row_dict and "英文名稱" in row_dict:
+                row_dict["english_name"] = row_dict["英文名稱"]
+            if "card_id" not in row_dict and "卡號" in row_dict:
+                row_dict["card_id"] = row_dict["卡號"]
+            if "card_id" not in row_dict and "卡号" in row_dict:
+                row_dict["card_id"] = row_dict["卡号"]
 
             rows.append(row_dict)
 
@@ -256,25 +267,32 @@ async def download_user_template(request: Request):
         ws.title = "用户导入模板"
 
         # 表头
-        headers = ["username", "password", "display_name", "class_name", "role"]
-        chinese_headers = ["用户名*", "密码*", "显示名称*", "班级", "角色(student/teacher)"]
+        headers = [
+            "username", "password", "display_name", "english_name",
+            "card_id", "class_name", "class_number", "role",
+        ]
+        chinese_headers = [
+            "用户名*", "密码*", "显示名称*", "英文名",
+            "卡號", "班级", "班號", "角色(student/teacher)",
+        ]
         for col, (en, cn) in enumerate(zip(headers, chinese_headers), 1):
             ws.cell(row=1, column=col, value=cn)
 
         # 示例数据（含学生和教师示例）
         examples = [
-            ["student001", "Pass123!", "张三", "1A", "student"],
-            ["student002", "Pass456!", "李四", "1B", "student"],
-            ["teacher001", "Pass789!", "王老师", "", "teacher"],
-            ["teacher002", "Pass012!", "陈老师", "", "teacher"],
+            ["student001", "Pass123!", "张三", "ZHANG San", "CARD001", "1A", 1, "student"],
+            ["student002", "Pass456!", "李四", "LI Si", "CARD002", "1B", 2, "student"],
+            ["teacher001", "Pass789!", "王老师", "", "", "", "", "teacher"],
+            ["teacher002", "Pass012!", "陈老师", "", "", "", "", "teacher"],
         ]
         for row_idx, example in enumerate(examples, 2):
             for col_idx, value in enumerate(example, 1):
                 ws.cell(row=row_idx, column=col_idx, value=value)
 
         # 调整列宽
-        for col in range(1, 6):
-            ws.column_dimensions[chr(64 + col)].width = 15
+        col_widths = [15, 12, 15, 18, 12, 10, 8, 20]
+        for col, w in enumerate(col_widths, 1):
+            ws.column_dimensions[chr(64 + col)].width = w
 
         buf = io.BytesIO()
         wb.save(buf)

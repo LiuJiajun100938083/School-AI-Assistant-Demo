@@ -73,6 +73,8 @@ CREATE TABLE users (
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(100),
+    english_name VARCHAR(100) DEFAULT '' COMMENT '英文名',
+    card_id VARCHAR(50) DEFAULT NULL COMMENT '學生證 CardID',
     email VARCHAR(100),
     email_encrypted TEXT,
     phone VARCHAR(20),
@@ -92,7 +94,8 @@ CREATE TABLE users (
     data_consent BOOLEAN DEFAULT FALSE,
     data_consent_date TIMESTAMP NULL,
     INDEX idx_username (username),
-    INDEX idx_role (role)
+    INDEX idx_role (role),
+    INDEX idx_card_id (card_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

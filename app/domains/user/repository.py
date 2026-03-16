@@ -42,7 +42,8 @@ class UserRepository(BaseRepository):
             "username = %s",
             (username,),
             columns=(
-                "id, username, display_name, email, role, class_name, class_number, "
+                "id, username, display_name, english_name, card_id, email, role, "
+                "class_name, class_number, "
                 "is_active, created_at, last_login, login_count"
             ),
         )
@@ -52,7 +53,7 @@ class UserRepository(BaseRepository):
         return self.find_one(
             "username = %s",
             (username,),
-            columns="id, username, display_name, class_name, class_number, role, is_active",
+            columns="id, username, display_name, english_name, card_id, class_name, class_number, role, is_active",
         )
 
     def username_exists(self, username: str) -> bool:
@@ -116,6 +117,8 @@ class UserRepository(BaseRepository):
         class_name: str = "",
         class_number: Optional[int] = None,
         email: str = "",
+        english_name: str = "",
+        card_id: Optional[str] = None,
     ) -> int:
         """创建新用户"""
         data = {
@@ -123,6 +126,7 @@ class UserRepository(BaseRepository):
             "password_hash": password_hash,
             "role": role,
             "display_name": display_name or username,
+            "english_name": english_name,
             "class_name": class_name,
             "email": email,
             "is_active": True,
@@ -131,6 +135,8 @@ class UserRepository(BaseRepository):
         }
         if class_number is not None:
             data["class_number"] = class_number
+        if card_id is not None:
+            data["card_id"] = card_id
         return self.insert(data)
 
     def batch_create_users(self, users: List[Dict[str, Any]]) -> int:
@@ -145,15 +151,18 @@ class UserRepository(BaseRepository):
 
         sql = (
             "INSERT INTO users "
-            "(username, password_hash, display_name, class_name, class_number, role, "
+            "(username, password_hash, display_name, english_name, card_id, "
+            "class_name, class_number, role, "
             "is_active, is_locked, created_at) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
         )
         params_list = [
             (
                 u["username"],
                 u["password_hash"],
                 u.get("display_name", u["username"]),
+                u.get("english_name", ""),
+                u.get("card_id"),
                 u.get("class_name", ""),
                 u.get("class_number"),
                 u.get("role", "student"),
