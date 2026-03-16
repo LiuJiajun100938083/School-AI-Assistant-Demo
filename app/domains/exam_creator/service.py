@@ -419,9 +419,9 @@ class ExamCreatorService:
     def get_knowledge_points(self, subject: str) -> List[Dict]:
         """返回指定科目的知識點列表。"""
         rows = self._knowledge.find_all(
-            where="subject_code = %s AND is_active = 1",
+            where="subject = %s AND is_active = 1",
             params=(subject,),
-            order_by="category, sort_order, point_code",
+            order_by="category, display_order, point_code",
         )
         return [
             {
@@ -472,7 +472,7 @@ class ExamCreatorService:
             points = []
             for code in target_point_codes:
                 row = self._knowledge.find_one(
-                    "point_code = %s AND subject_code = %s",
+                    "point_code = %s AND subject = %s",
                     (code, subject),
                 )
                 if row:
@@ -485,9 +485,9 @@ class ExamCreatorService:
 
         # 未指定：返回該科目所有知識點
         rows = self._knowledge.find_all(
-            where="subject_code = %s AND is_active = 1",
+            where="subject = %s AND is_active = 1",
             params=(subject,),
-            order_by="sort_order",
+            order_by="display_order",
             limit=20,
         )
         return [
