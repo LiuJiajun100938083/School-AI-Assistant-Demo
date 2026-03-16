@@ -365,7 +365,7 @@ def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
     # 判斷作業類型，Form 走不同的批改流程
     try:
         assignment = services.assignment._get_assignment_or_raise(assignment_id)
-        is_form = assignment.get("type") == "form"
+        is_form = assignment.get("assignment_type") == "form"
     except Exception:
         is_form = False
 
