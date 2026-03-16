@@ -22,6 +22,13 @@ class ExamGenerationSessionRepository(BaseRepository):
             (username,),
         )
 
+    def delete_by_session_id(self, session_id: str, username: str) -> int:
+        """刪除指定 session（需驗證 ownership）"""
+        return self.delete(
+            "session_id = %s AND teacher_username = %s",
+            (session_id, username),
+        )
+
     def find_by_teacher(self, username: str, page: int = 1, page_size: int = 10) -> Dict:
         """教師的出題歷史（分頁）"""
         return self.paginate(

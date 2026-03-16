@@ -2645,16 +2645,12 @@ const Views = {
         const diffVal = document.getElementById('practiceDifficulty')?.value;
         const difficulty = diffVal ? parseInt(diffVal) : null;
 
-        // Show progress UI
-        this._showPracticeProgress(count);
-
-        // Step 1: POST — 快速拿到 session_id
+        // 直接 POST，不顯示進度動畫（跳轉到列表頁，後台自動完成）
         const res = await API.generatePractice(subject, count, targetPoints.length > 0 ? targetPoints : null, difficulty);
 
         if (!res || !res.data) {
-            this._hidePracticeProgress();
-            const target = document.getElementById('learnContent') || document.getElementById('mainContent');
-            if (target) Views.renderLearn(target);
+            btn.disabled = false;
+            UI.toast('生成請求失敗，請重試', 'error');
             return;
         }
 
@@ -2664,12 +2660,11 @@ const Views = {
         this._savePendingSession(sessionId, subject);
         App.state._pendingPracticeSession = { session_id: sessionId, subject };
 
-        // Step 2: 開始輪詢
-        this._practicePollingCount = 0;
-        this._practicePollingTimer = setTimeout(
-            () => this._pollPracticeStatus(sessionId, subject),
-            this._getPollingInterval()
-        );
+        UI.toast('練習題已開始生成，請稍候', 'success');
+
+        // 回到練習列表 → pendingPracticeCard 自動出現 + 自動輪詢
+        const target = document.getElementById('learnContent') || document.getElementById('mainContent');
+        if (target) Views.renderPractice(target);
     },
 
     // ---- 練習題渲染 + 手寫識別 ----

@@ -163,6 +163,25 @@ async def get_exam_generation_history(
 
 
 # ================================================================
+# DELETE /api/exam-creator/{session_id} — 刪除 session
+# ================================================================
+
+@router.delete("/api/exam-creator/{session_id}")
+async def delete_exam_session(
+    session_id: str,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    teacher_username, _ = teacher_info
+    service = get_services().exam_creator
+
+    deleted = service.delete_session(session_id, teacher_username)
+    if not deleted:
+        return error_response(message="Session 不存在、無權限或正在生成中", status_code=400)
+
+    return success_response(message="已刪除")
+
+
+# ================================================================
 # GET /api/exam-creator/knowledge-points/{subject} — 知識點列表
 # ================================================================
 

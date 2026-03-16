@@ -311,6 +311,95 @@ body {
 
 .print-template { display: none; }
 
+/* ================================================================
+   History View
+   ================================================================ */
+
+/* History Button (sidebar) */
+.btn-history {
+    width: 100%; padding: 10px; margin-top: 8px;
+    background: #fff; color: #6366f1; border: 1px solid #d1d5db;
+    border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.15s;
+}
+.btn-history:hover { border-color: #6366f1; background: #eef2ff; }
+
+/* History Header */
+.history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+}
+.history-header h2 { font-size: 18px; font-weight: 600; }
+
+/* History Card */
+.history-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+    transition: all 0.2s;
+}
+.history-card--clickable { cursor: pointer; }
+.history-card--clickable:hover {
+    border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.1);
+}
+
+.history-card__row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+}
+.history-card__info {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 13px; color: #475569;
+}
+.history-card__subject { font-weight: 600; color: #334155; }
+.history-card__sep { color: #cbd5e1; }
+.history-card__points { color: #6366f1; font-size: 12px; }
+.history-card__right {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.history-card__date {
+    font-size: 12px; color: #94a3b8; margin-top: 6px;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-block; padding: 2px 10px;
+    border-radius: 10px; font-size: 12px; font-weight: 500;
+    white-space: nowrap;
+}
+.status-badge--generating {
+    background: #dbeafe; color: #1d4ed8;
+    animation: pulse-badge 1.5s ease-in-out infinite;
+}
+.status-badge--generated { background: #dcfce7; color: #15803d; }
+.status-badge--failed { background: #fee2e2; color: #b91c1c; }
+
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Delete Button */
+.btn-delete {
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; cursor: pointer; border-radius: 6px;
+    color: #94a3b8; transition: all 0.15s;
+}
+.btn-delete:hover { background: #fee2e2; color: #ef4444; }
+
+/* Detail Header */
+.detail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+}
+.btn-back {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 12px; background: #fff; border: 1px solid #d1d5db;
+    border-radius: 6px; cursor: pointer; font-size: 13px; color: #475569;
+    transition: all 0.15s;
+}
+.btn-back:hover { border-color: #6366f1; color: #6366f1; }
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .app-body { flex-direction: column; }

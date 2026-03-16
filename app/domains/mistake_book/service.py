@@ -1935,19 +1935,33 @@ class MistakeBookService:
         page_size: int = 10,
     ) -> Dict:
         """
-        獲取練習歷史列表（已完成的 session）。
-        後端計算趨勢信號：錯題數 + 主要 error_type。
+        獲取練習歷史列表（含所有狀態：generating / completed / generation_failed）。
+        後端計算趨勢信號：錯題數 + 主要 error_type（僅 completed）。
         """
         result = self._practices.find_by_student(
             username=username,
             subject=subject,
-            status="completed",
+            status=None,  # 不過濾狀態 — 返回所有
             page=page,
             page_size=page_size,
         )
 
         items = []
         for s in result.get("items", []):
+            status = s.get("status", "completed")
+
+            # generating / failed 狀態返回簡化數據
+            if status in ("generating", "generation_failed"):
+                items.append({
+                    "session_id": s["session_id"],
+                    "subject": s.get("subject", ""),
+                    "status": status,
+                    "total_questions": s.get("question_count", 0),
+                    "created_at": str(s.get("created_at", "")),
+                })
+                continue
+
+            # completed 狀態：原有邏輯
             total = s.get("total_questions", 0)
             correct = s.get("correct_count", 0)
             wrong_count = total - correct
@@ -1973,6 +1987,7 @@ class MistakeBookService:
             items.append({
                 "session_id": s["session_id"],
                 "subject": s.get("subject", ""),
+                "status": status,
                 "score": round(s.get("score", 0) or 0, 1),
                 "correct_count": correct,
                 "total_questions": total,

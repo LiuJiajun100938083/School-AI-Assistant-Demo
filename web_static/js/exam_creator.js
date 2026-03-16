@@ -1,7 +1,15 @@
 /**
  * AI 考卷出題 — 前端邏輯
  * ========================
- * 分層：API → UI → Views → State → App
+ * 分層：State → API(內部) → UI → Views → History → Actions → App
+ *
+ * 依賴（共用模組）：
+ *   - window.AuthModule  — JWT 管理
+ *   - window.UIModule    — Toast / Confirm / Loading
+ *   - window.APIClient   — HTTP 請求（新代碼使用）
+ *   - window.Utils       — formatDate / escapeHtml
+ *
+ * 視圖狀態機：config ↔ history ↔ detail
  */
 
 const ExamCreator = (() => {
@@ -19,10 +27,14 @@ const ExamCreator = (() => {
         pollTimer: null,
         editingIndex: -1,
         knowledgePoints: [],
+        // 新增：視圖狀態機
+        view: 'config',              // 'config' | 'history' | 'detail'
+        historyPollingTimer: null,    // 歷史頁輪詢 timer
+        historyGeneratingIds: [],    // 正在生成的 session ids
     };
 
     // ================================================================
-    // API — 後端 fetch 封裝
+    // API — 後端 fetch 封裝（舊代碼保持兼容，新功能用 APIClient）
     // ================================================================
     const API = {
         _headers() {
@@ -93,7 +105,6 @@ const ExamCreator = (() => {
             });
             // KaTeX inline: $...$（跳過純中文/CJK 內容）
             html = html.replace(/\$([^$\n]+?)\$/g, (full, tex) => {
-                // 如果內容幾乎全是中文/CJK，不當作 LaTeX
                 const cjk = tex.replace(/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef，。：；！？、]/g, '');
                 if (cjk.trim().length < tex.trim().length * 0.3) return full;
                 try {
@@ -125,10 +136,43 @@ const ExamCreator = (() => {
         },
 
         $(id) { return document.getElementById(id); },
-
         show(id) { const el = this.$(id); if (el) el.style.display = ''; },
         hide(id) { const el = this.$(id); if (el) el.style.display = 'none'; },
     };
+
+    // ================================================================
+    // 視圖狀態機 — 統一控制 config / history / detail 切換
+    // ================================================================
+
+    const ALL_VIEW_IDS = [
+        'emptyState', 'generatingState', 'errorState',
+        'questionsContainer', 'historyView', 'detailView',
+    ];
+
+    function showView(name) {
+        // 離開舊視圖時清理
+        if (state.view === 'history') stopHistoryPolling();
+        if (state.view !== name && window.JSXGraphRenderer) JSXGraphRenderer.destroyAll();
+
+        state.view = name;
+
+        // 隱藏所有容器
+        ALL_VIEW_IDS.forEach(id => UI.hide(id));
+
+        // 顯示目標
+        switch (name) {
+            case 'config':
+                UI.show('emptyState');
+                break;
+            case 'history':
+                UI.show('historyView');
+                loadHistory();
+                break;
+            case 'detail':
+                UI.show('detailView');
+                break;
+        }
+    }
 
     // ================================================================
     // Views — 各面板渲染
@@ -164,8 +208,14 @@ const ExamCreator = (() => {
             UI.$('pointsCount').textContent = `(${points.length} 個)`;
         },
 
-        renderQuestions(questions) {
-            const container = UI.$('questionsList');
+        /**
+         * 渲染題目列表到指定容器
+         * @param {string} containerId — DOM 容器 id
+         * @param {Array} questions — 題目列表
+         */
+        renderQuestionsInto(containerId, questions) {
+            const container = UI.$(containerId);
+            if (!container) return;
             if (!questions || !questions.length) {
                 container.innerHTML = '<div class="loading-text">無題目</div>';
                 return;
@@ -253,11 +303,250 @@ const ExamCreator = (() => {
             });
         },
 
+        /** 向後兼容：舊的 renderQuestions 指向 questionsList */
+        renderQuestions(questions) {
+            this.renderQuestionsInto('questionsList', questions);
+        },
+
         showState(stateName) {
-            ['emptyState', 'generatingState', 'errorState', 'questionsContainer'].forEach(id => UI.hide(id));
+            ALL_VIEW_IDS.forEach(id => UI.hide(id));
             UI.show(stateName);
         },
     };
+
+    // ================================================================
+    // localStorage 持久化 — pending session（30min TTL）
+    // ================================================================
+
+    const PENDING_KEY = 'ec_pending_session';
+    const PENDING_TTL = 30 * 60 * 1000; // 30 分鐘
+
+    function savePendingSession(sessionId) {
+        try {
+            localStorage.setItem(PENDING_KEY, JSON.stringify({
+                sid: sessionId, ts: Date.now(),
+            }));
+        } catch (_) { /* localStorage 不可用時靜默 */ }
+    }
+
+    function loadPendingSession() {
+        try {
+            const raw = localStorage.getItem(PENDING_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (Date.now() - data.ts > PENDING_TTL) {
+                localStorage.removeItem(PENDING_KEY);
+                return null;
+            }
+            return data;
+        } catch (_) { return null; }
+    }
+
+    function clearPendingSession() {
+        try { localStorage.removeItem(PENDING_KEY); } catch (_) {}
+    }
+
+    // ================================================================
+    // History — 歷史列表視圖
+    // ================================================================
+
+    const SUBJECT_LABELS = { math: '數學' };
+    const STATUS_CONFIG = {
+        generating:        { label: '生成中', cls: 'status-badge--generating' },
+        generated:         { label: '已完成', cls: 'status-badge--generated' },
+        generation_failed: { label: '失敗',   cls: 'status-badge--failed' },
+    };
+
+    async function loadHistory() {
+        const listEl = UI.$('historyList');
+        const emptyEl = UI.$('historyEmpty');
+        if (!listEl) return;
+
+        listEl.innerHTML = '<div class="loading-text" style="text-align:center;padding:40px;color:#9ca3af;">載入歷史...</div>';
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        try {
+            const resp = await API.getStatus('__NOOP__').catch(() => null); // 觸發 token 檢查
+            const histResp = await fetch('/api/exam-creator/history?page=1&page_size=50', {
+                headers: API._headers(),
+            });
+            const result = await histResp.json();
+
+            if (!result.success || !result.data || !result.data.length) {
+                listEl.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = '';
+                return;
+            }
+
+            renderHistoryCards(result.data, listEl);
+
+            // 輪詢 generating 項
+            const generating = result.data.filter(i => i.status === 'generating');
+            state.historyGeneratingIds = generating.map(i => i.session_id);
+            if (generating.length > 0) startHistoryPolling();
+        } catch (e) {
+            console.error('loadHistory failed:', e);
+            listEl.innerHTML = '<div class="loading-text" style="text-align:center;padding:40px;color:#ef4444;">載入失敗</div>';
+        }
+    }
+
+    function renderHistoryCards(items, container) {
+        const formatDate = window.Utils?.formatDate || (d => String(d).slice(0, 16));
+
+        let html = '';
+        items.forEach(item => {
+            const subjectLabel = SUBJECT_LABELS[item.subject] || item.subject || '未知';
+            const statusCfg = STATUS_CONFIG[item.status] || { label: item.status, cls: '' };
+            const dateStr = formatDate(item.created_at, true);
+            const count = item.question_count || 0;
+            const difficulty = item.difficulty || '-';
+            const isClickable = item.status === 'generated';
+
+            // 解析 target_points
+            let pointsText = '';
+            if (item.target_points) {
+                const pts = typeof item.target_points === 'string'
+                    ? JSON.parse(item.target_points) : item.target_points;
+                if (Array.isArray(pts) && pts.length) {
+                    pointsText = pts.slice(0, 3).join('、') + (pts.length > 3 ? '...' : '');
+                }
+            }
+
+            html += `
+            <div class="history-card ${isClickable ? 'history-card--clickable' : ''}"
+                 id="card-${item.session_id}"
+                 ${isClickable ? `onclick="ExamCreator.showDetail('${item.session_id}')"` : ''}>
+                <div class="history-card__row">
+                    <div class="history-card__info">
+                        <span class="history-card__subject">${subjectLabel}</span>
+                        <span class="history-card__sep">·</span>
+                        <span>${count} 題</span>
+                        <span class="history-card__sep">·</span>
+                        <span>難度 ${difficulty}</span>
+                        ${pointsText ? `<span class="history-card__sep">·</span><span class="history-card__points">${pointsText}</span>` : ''}
+                    </div>
+                    <div class="history-card__right">
+                        <span class="status-badge ${statusCfg.cls}">${statusCfg.label}</span>
+                        ${item.status !== 'generating' ? `
+                            <button class="btn-delete" title="刪除" onclick="event.stopPropagation(); ExamCreator.deleteSession('${item.session_id}')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                            </button>` : ''}
+                    </div>
+                </div>
+                <div class="history-card__date">${dateStr}</div>
+            </div>`;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function updateCardStatus(sessionId, newStatus) {
+        const card = UI.$(`card-${sessionId}`);
+        if (!card) return;
+
+        const badge = card.querySelector('.status-badge');
+        if (badge) {
+            const cfg = STATUS_CONFIG[newStatus] || { label: newStatus, cls: '' };
+            badge.className = `status-badge ${cfg.cls}`;
+            badge.textContent = cfg.label;
+        }
+
+        if (newStatus === 'generated') {
+            card.classList.add('history-card--clickable');
+            card.onclick = () => showDetail(sessionId);
+            // 加刪除按鈕
+            const rightEl = card.querySelector('.history-card__right');
+            if (rightEl && !rightEl.querySelector('.btn-delete')) {
+                rightEl.insertAdjacentHTML('beforeend', `
+                    <button class="btn-delete" title="刪除" onclick="event.stopPropagation(); ExamCreator.deleteSession('${sessionId}')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    </button>`);
+            }
+        }
+    }
+
+    // ================================================================
+    // History Polling — 輪詢 generating 項
+    // ================================================================
+
+    function startHistoryPolling() {
+        stopHistoryPolling();
+        state.historyPollingTimer = setInterval(pollGeneratingItems, 5000);
+    }
+
+    function stopHistoryPolling() {
+        if (state.historyPollingTimer) {
+            clearInterval(state.historyPollingTimer);
+            state.historyPollingTimer = null;
+        }
+    }
+
+    async function pollGeneratingItems() {
+        const ids = [...state.historyGeneratingIds];
+        if (!ids.length) {
+            stopHistoryPolling();
+            return;
+        }
+
+        for (const sid of ids) {
+            try {
+                const resp = await API.getStatus(sid);
+                if (!resp.success || !resp.data) continue;
+
+                const { status } = resp.data;
+                if (status === 'generated') {
+                    updateCardStatus(sid, 'generated');
+                    state.historyGeneratingIds = state.historyGeneratingIds.filter(id => id !== sid);
+                    clearPendingSession();
+                    if (window.UIModule) UIModule.toast('試卷生成完成！', 'success');
+                } else if (status === 'generation_failed') {
+                    updateCardStatus(sid, 'generation_failed');
+                    state.historyGeneratingIds = state.historyGeneratingIds.filter(id => id !== sid);
+                    clearPendingSession();
+                    if (window.UIModule) UIModule.toast('試卷生成失敗', 'error');
+                }
+            } catch (e) {
+                console.warn('Poll generating item failed:', sid, e);
+            }
+        }
+
+        // 全部完成 → 停止輪詢
+        if (!state.historyGeneratingIds.length) stopHistoryPolling();
+    }
+
+    // ================================================================
+    // Detail — 試卷詳情視圖
+    // ================================================================
+
+    async function showDetail(sessionId) {
+        showView('detail');
+
+        // 加載中
+        const listEl = UI.$('detailQuestionsList');
+        if (listEl) listEl.innerHTML = '<div class="loading-text" style="text-align:center;padding:40px;">載入題目...</div>';
+
+        try {
+            const resp = await API.getStatus(sessionId);
+            if (!resp.success || !resp.data || !resp.data.questions) {
+                if (listEl) listEl.innerHTML = '<div class="loading-text" style="color:#ef4444;">無法載入題目</div>';
+                return;
+            }
+
+            state.sessionId = sessionId;
+            state.questions = resp.data.questions;
+
+            // 更新總分
+            const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
+            const badge = UI.$('detailMarksBadge');
+            if (badge) badge.textContent = `總分 ${totalMarks} 分`;
+
+            // 渲染題目
+            Views.renderQuestionsInto('detailQuestionsList', state.questions);
+        } catch (e) {
+            console.error('showDetail failed:', e);
+            if (listEl) listEl.innerHTML = '<div class="loading-text" style="color:#ef4444;">載入失敗</div>';
+        }
+    }
 
     // ================================================================
     // App — 初始化 + 事件綁定
@@ -301,6 +590,12 @@ const ExamCreator = (() => {
 
         // Load initial knowledge points
         loadKnowledgePoints('math');
+
+        // 檢查 pending session → 自動跳歷史
+        const pending = loadPendingSession();
+        if (pending) {
+            showView('history');
+        }
     }
 
     async function loadKnowledgePoints(subject) {
@@ -320,7 +615,7 @@ const ExamCreator = (() => {
     }
 
     // ================================================================
-    // Actions
+    // Actions — 生成 / 編輯 / 刪除
     // ================================================================
 
     async function generate() {
@@ -359,15 +654,23 @@ const ExamCreator = (() => {
 
             if (resp.success && resp.data) {
                 state.sessionId = resp.data.session_id;
-                UI.$('genCount').textContent = questionCount;
-                Views.showState('generatingState');
-                startPolling();
+                savePendingSession(resp.data.session_id);
+                if (window.UIModule) UIModule.toast('試卷已開始生成', 'success');
+                showView('history');
             } else {
-                alert('啟動失敗：' + (resp.message || '未知錯誤'));
+                if (window.UIModule) {
+                    UIModule.toast('啟動失敗：' + (resp.message || '未知錯誤'), 'error');
+                } else {
+                    alert('啟動失敗：' + (resp.message || '未知錯誤'));
+                }
             }
         } catch (e) {
             console.error('Generate failed:', e);
-            alert('請求失敗，請檢查網路連線');
+            if (window.UIModule) {
+                UIModule.toast('請求失敗，請檢查網路連線', 'error');
+            } else {
+                alert('請求失敗，請檢查網路連線');
+            }
         } finally {
             btn.disabled = false;
             btn.innerHTML = `
@@ -377,7 +680,7 @@ const ExamCreator = (() => {
     }
 
     function startPolling() {
-        const interval = 3000; // 逐題生成，輪詢間隔固定 3s
+        const interval = 3000;
         let attempts = 0;
         const totalCount = parseInt(UI.$('questionCount').value) || 10;
 
@@ -401,9 +704,7 @@ const ExamCreator = (() => {
 
                 const data = resp.data;
                 if (data.status === 'generated') {
-                    // 先顯示 100% 進度
                     updateProgress(data.question_count, data.question_count);
-                    // 短延遲後切換到結果
                     setTimeout(() => {
                         state.questions = data.questions || [];
                         Views.showState('questionsContainer');
@@ -414,7 +715,6 @@ const ExamCreator = (() => {
                     UI.$('errorMessage').textContent = data.error_message || '生成過程出錯';
                     Views.showState('errorState');
                 } else {
-                    // Still generating — 更新進度
                     const completed = data.completed_count || 0;
                     const total = data.question_count || totalCount;
                     updateProgress(completed, total);
@@ -428,7 +728,6 @@ const ExamCreator = (() => {
             });
         }
 
-        // 初始化進度顯示
         updateProgress(0, totalCount);
         poll();
     }
@@ -442,9 +741,41 @@ const ExamCreator = (() => {
 
     function retry() {
         stopPolling();
-        // 清理 JSXGraph boards
         if (window.JSXGraphRenderer) JSXGraphRenderer.destroyAll();
-        Views.showState('emptyState');
+        showView('config');
+    }
+
+    async function deleteSession(sessionId) {
+        if (!window.UIModule) {
+            if (!confirm('確定要刪除這份試卷嗎？')) return;
+        } else {
+            const ok = await UIModule.confirm('確定要刪除這份試卷嗎？');
+            if (!ok) return;
+        }
+
+        try {
+            const resp = await fetch(`/api/exam-creator/${sessionId}`, {
+                method: 'DELETE',
+                headers: API._headers(),
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                const card = UI.$(`card-${sessionId}`);
+                if (card) {
+                    card.style.transition = 'opacity 0.3s, transform 0.3s';
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateX(20px)';
+                    setTimeout(() => card.remove(), 300);
+                }
+                if (window.UIModule) UIModule.toast('已刪除', 'info');
+            } else {
+                if (window.UIModule) UIModule.toast(result.message || '刪除失敗', 'error');
+            }
+        } catch (e) {
+            console.error('Delete failed:', e);
+            if (window.UIModule) UIModule.toast('刪除失敗', 'error');
+        }
     }
 
     // ---- Edit Modal ----
@@ -483,18 +814,23 @@ const ExamCreator = (() => {
         try {
             const resp = await API.updateQuestion(state.sessionId, i, edits);
             if (resp.success) {
-                // Update local state
                 Object.assign(state.questions[i], edits);
-                Views.renderQuestions(state.questions);
+                // 根據當前視圖渲染到對應容器
+                const containerId = state.view === 'detail' ? 'detailQuestionsList' : 'questionsList';
+                Views.renderQuestionsInto(containerId, state.questions);
                 const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
-                UI.$('totalMarksBadge').textContent = `總分 ${totalMarks} 分`;
+                const badgeId = state.view === 'detail' ? 'detailMarksBadge' : 'totalMarksBadge';
+                const badge = UI.$(badgeId);
+                if (badge) badge.textContent = `總分 ${totalMarks} 分`;
                 closeEditModal();
             } else {
-                alert('保存失敗：' + (resp.message || ''));
+                if (window.UIModule) UIModule.toast('保存失敗：' + (resp.message || ''), 'error');
+                else alert('保存失敗：' + (resp.message || ''));
             }
         } catch (e) {
             console.error('Save edit failed:', e);
-            alert('保存失敗');
+            if (window.UIModule) UIModule.toast('保存失敗', 'error');
+            else alert('保存失敗');
         }
     }
 
@@ -508,16 +844,21 @@ const ExamCreator = (() => {
             const resp = await API.regenerateQuestion(state.sessionId, index, '');
             if (resp.success && resp.data) {
                 state.questions[index] = resp.data;
-                Views.renderQuestions(state.questions);
+                const containerId = state.view === 'detail' ? 'detailQuestionsList' : 'questionsList';
+                Views.renderQuestionsInto(containerId, state.questions);
                 const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
-                UI.$('totalMarksBadge').textContent = `總分 ${totalMarks} 分`;
+                const badgeId = state.view === 'detail' ? 'detailMarksBadge' : 'totalMarksBadge';
+                const badge = UI.$(badgeId);
+                if (badge) badge.textContent = `總分 ${totalMarks} 分`;
             } else {
-                alert('重新生成失敗：' + (resp.message || ''));
+                if (window.UIModule) UIModule.toast('重新生成失敗：' + (resp.message || ''), 'error');
+                else alert('重新生成失敗：' + (resp.message || ''));
                 if (card) card.classList.remove('regenerating');
             }
         } catch (e) {
             console.error('Regenerate failed:', e);
-            alert('重新生成失敗');
+            if (window.UIModule) UIModule.toast('重新生成失敗', 'error');
+            else alert('重新生成失敗');
             if (card) card.classList.remove('regenerating');
         }
     }
@@ -535,6 +876,7 @@ const ExamCreator = (() => {
 
     // Public API
     return {
+        // 原有
         generate,
         retry,
         openEditModal,
@@ -542,5 +884,10 @@ const ExamCreator = (() => {
         saveEdit,
         regenerate,
         printExam,
+        // 新增：歷史/詳情導航
+        showHistory: () => showView('history'),
+        showDetail,
+        showConfig: () => showView('config'),
+        deleteSession,
     };
 })();

@@ -104,11 +104,17 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                 AI 生成試卷
             </button>
+
+            <!-- History Button -->
+            <button class="btn-history" id="historyBtn" onclick="ExamCreator.showHistory()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                出題歷史
+            </button>
         </aside>
 
         <!-- Right: Results Area -->
         <main class="results-area" id="resultsArea">
-            <!-- Empty State -->
+            <!-- Empty State (default) -->
             <div class="empty-state" id="emptyState">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
@@ -117,7 +123,7 @@
                 <p>在左側配置出題參數，AI 將自動生成符合 DSE 風格的試卷</p>
             </div>
 
-            <!-- Generating State -->
+            <!-- Generating State (kept for direct polling fallback) -->
             <div class="generating-state" id="generatingState" style="display:none;">
                 <div class="spinner"></div>
                 <h3>AI 正在逐題出題...</h3>
@@ -143,7 +149,7 @@
                 <button class="btn-retry" onclick="ExamCreator.retry()">重新嘗試</button>
             </div>
 
-            <!-- Questions List -->
+            <!-- Questions List (kept for legacy/direct view) -->
             <div class="questions-container" id="questionsContainer" style="display:none;">
                 <div class="questions-header">
                     <h2>生成結果</h2>
@@ -156,6 +162,39 @@
                     </div>
                 </div>
                 <div class="questions-list" id="questionsList"></div>
+            </div>
+
+            <!-- History View -->
+            <div id="historyView" style="display:none;">
+                <div class="history-header">
+                    <h2>出題歷史</h2>
+                </div>
+                <div id="historyList"></div>
+                <div id="historyEmpty" class="empty-state" style="display:none;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                        <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/>
+                    </svg>
+                    <h3>還沒有出過題目</h3>
+                    <p>點擊左側「AI 生成試卷」開始第一份試卷</p>
+                </div>
+            </div>
+
+            <!-- Detail View -->
+            <div id="detailView" style="display:none;">
+                <div class="detail-header">
+                    <button class="btn-back" onclick="ExamCreator.showHistory()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                        返回歷史
+                    </button>
+                    <div class="questions-actions">
+                        <span class="total-marks-badge" id="detailMarksBadge"></span>
+                        <button class="btn-print" onclick="ExamCreator.printExam()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                            打印試卷
+                        </button>
+                    </div>
+                </div>
+                <div class="questions-list" id="detailQuestionsList"></div>
             </div>
         </main>
     </div>
@@ -209,6 +248,8 @@
 
 <script src="/static/js/shared/utils.js"></script>
 <script src="/static/js/shared/auth.js"></script>
+<script src="/static/js/shared/ui.js"></script>
+<script src="/static/js/shared/api.js"></script>
 <script src="/static/js/exam_creator.js"></script>
 </body>
 </html>

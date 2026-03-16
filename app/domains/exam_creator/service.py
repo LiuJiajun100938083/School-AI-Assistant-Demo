@@ -663,6 +663,26 @@ class ExamCreatorService:
         return new_q
 
     # ================================================================
+    # 刪除 session
+    # ================================================================
+
+    def delete_session(self, session_id: str, teacher_username: str) -> bool:
+        """
+        刪除指定 session。
+
+        生成中的 session 不允許刪除（後台任務仍在跑）。
+        """
+        session = self._sessions.find_by_session_id(session_id)
+        if not session or session["teacher_username"] != teacher_username:
+            return False
+        if session["status"] == "generating":
+            return False
+        count = self._sessions.delete_by_session_id(session_id, teacher_username)
+        if count > 0:
+            logger.info("Exam session deleted: %s by %s", session_id, teacher_username)
+        return count > 0
+
+    # ================================================================
     # 歷史列表
     # ================================================================
 
