@@ -502,6 +502,9 @@ const UI = {
             return `SVGPH${svgBlocks.length - 1}ENDSVGPH`;
         });
 
+        // 檢測純文本表格（空格分隔列）並轉為 Markdown 表格
+        text = UI._convertPlainTextTable(text);
+
         // OCR 模型常輸出字面 \n 而非真正換行符，轉換之
         // 保護已知 LaTeX \n* 命令（\nabla \neg \neq \newline \ni \not \notin \nu）
         text = text.replace(/\\n(?!abla|e[gq]|ew|ot|otin|u(?![a-z])|i(?![a-z]))/g, '\n');
@@ -606,6 +609,62 @@ const UI = {
      * 渲染 Markdown 文字（支持 **粗體**、### 標題 等）
      * 若 marked 不可用則退回 escapeHtml + <br>
      */
+    /**
+     * 檢測純文本表格（用 2+ 空格分隔列）並轉為 Markdown 表格語法
+     * 典型場景：AI 生成統計題時沒用 | 分隔，而是空格排列
+     */
+    _convertPlainTextTable(text) {
+        const lines = text.split('\n');
+        const result = [];
+        let i = 0;
+
+        while (i < lines.length) {
+            const line = lines[i].trim();
+            // 嘗試匹配連續 2+ 行、每行可拆為 3+ 列（by 2+ 空格）
+            if (line) {
+                const cols = line.split(/\s{2,}/).filter(c => c.trim());
+                if (cols.length >= 3 && i + 1 < lines.length) {
+                    const nextLine = lines[i + 1].trim();
+                    const nextCols = nextLine ? nextLine.split(/\s{2,}/).filter(c => c.trim()) : [];
+                    // 第二行列數相近才算表格（允許 ±1 差異）
+                    if (nextCols.length >= 3 && Math.abs(cols.length - nextCols.length) <= 1) {
+                        const maxCols = Math.max(cols.length, nextCols.length);
+                        const pad = (arr) => {
+                            while (arr.length < maxCols) arr.push('');
+                            return arr;
+                        };
+                        const mkRow = (arr) => '| ' + pad([...arr]).join(' | ') + ' |';
+                        const sep = '|' + Array(maxCols).fill('---').join('|') + '|';
+                        // 收集所有連續的表格行
+                        const tableRows = [cols];
+                        let j = i + 1;
+                        while (j < lines.length) {
+                            const tl = lines[j].trim();
+                            if (!tl) break;
+                            const tc = tl.split(/\s{2,}/).filter(c => c.trim());
+                            if (tc.length >= 3 && Math.abs(tc.length - maxCols) <= 1) {
+                                tableRows.push(tc);
+                                j++;
+                            } else {
+                                break;
+                            }
+                        }
+                        result.push(mkRow(tableRows[0]));
+                        result.push(sep);
+                        for (let k = 1; k < tableRows.length; k++) {
+                            result.push(mkRow(tableRows[k]));
+                        }
+                        i = j;
+                        continue;
+                    }
+                }
+            }
+            result.push(lines[i]);
+            i++;
+        }
+        return result.join('\n');
+    },
+
     _renderMarkdown(text) {
         if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
             const html = marked.parse(text, { breaks: true });
