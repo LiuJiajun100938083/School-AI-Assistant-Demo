@@ -354,7 +354,7 @@ class ExamCreatorService:
             gate_task="exam_generation",
             gate_priority=Priority.URGENT,
             gate_weight=Weight.ANALYSIS,
-            num_predict=4096,  # 單題不需要太多 token
+            num_predict=8192,  # 單題含完整解答+評分標準，中文 ≈1 token/字
         )
 
         # JSON 解析
