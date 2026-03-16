@@ -83,6 +83,7 @@ class ExamCreatorService:
         self._sessions.insert({
             "session_id": session_id,
             "teacher_username": teacher_username,
+            "teacher_id": 0,
             "subject": subject,
             "status": "generating",
             "question_count": question_count,
