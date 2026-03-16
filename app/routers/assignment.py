@@ -365,8 +365,11 @@ def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
     # 判斷作業類型，Form 走不同的批改流程
     try:
         assignment = services.assignment._get_assignment_or_raise(assignment_id)
-        is_form = assignment.get("assignment_type") == "form"
-    except Exception:
+        asg_type = assignment.get("assignment_type")
+        is_form = asg_type == "form"
+        logger.info("批量 AI 批改: assignment #%d, type=%s, is_form=%s", assignment_id, asg_type, is_form)
+    except Exception as e:
+        logger.error("批量 AI 批改: 無法取得作業 #%d 類型: %s", assignment_id, e)
         is_form = False
 
     for sub_id in submission_ids:
