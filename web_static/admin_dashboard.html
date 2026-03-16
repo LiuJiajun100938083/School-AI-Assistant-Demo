@@ -430,17 +430,17 @@
                             <button class="btn btn-primary" data-action="showBatchAddModal"><span>📦</span> 批量添加</button>
                         </div>
                     </div>
-                    <div class="filter-controls" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                        <select class="filter-select" id="userRoleFilter">
+                    <div class="filter-controls" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
+                        <select class="filter-select" id="userRoleFilter" style="width: auto; flex: 0 0 auto; min-width: 120px;">
                             <option value="">所有角色</option>
                             <option value="admin">管理员</option>
                             <option value="teacher">教師</option>
                             <option value="student">學生</option>
                         </select>
-                        <select class="filter-select" id="userClassFilter">
+                        <select class="filter-select" id="userClassFilter" style="width: auto; flex: 0 0 auto; min-width: 120px;">
                             <option value="">所有班级</option>
                         </select>
-                        <input type="text" class="filter-select" id="userSearchInput" placeholder="搜索用戶..." style="flex: 1;">
+                        <input type="text" class="filter-select" id="userSearchInput" placeholder="搜索用戶名 / 英文名 / 卡號..." style="flex: 1; min-width: 200px;">
                     </div>
                     <div style="overflow-x: auto;">
                         <table id="usersTable" style="width: 100%; background: white; border-radius: 10px;">
