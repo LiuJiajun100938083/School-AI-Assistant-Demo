@@ -362,15 +362,15 @@ def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
 
     services = get_services()
 
-    # 判斷作業類型，Form 走不同的批改流程
+    # 判斷作業類型，Form/Exam 走逐題批改流程（無 rubric）
     try:
         assignment = services.assignment._get_assignment_or_raise(assignment_id)
         asg_type = assignment.get("assignment_type")
-        is_form = asg_type == "form"
-        logger.info("批量 AI 批改: assignment #%d, type=%s, is_form=%s", assignment_id, asg_type, is_form)
+        is_form_or_exam = asg_type in ("form", "exam")
+        logger.info("批量 AI 批改: assignment #%d, type=%s, is_form_or_exam=%s", assignment_id, asg_type, is_form_or_exam)
     except Exception as e:
         logger.error("批量 AI 批改: 無法取得作業 #%d 類型: %s", assignment_id, e)
-        is_form = False
+        is_form_or_exam = False
 
     for sub_id in submission_ids:
         # 檢查取消
@@ -379,8 +379,8 @@ def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
             return
 
         try:
-            if is_form:
-                # ---- Form 類型：逐題 AI 批改 ----
+            if is_form_or_exam:
+                # ---- Form / Exam 類型：逐題 AI 批改 ----
                 result = asyncio.run(
                     services.assignment.ai_grade_form_submission(
                         sub_id, extra_prompt=extra_prompt,
@@ -407,7 +407,7 @@ def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
                 job["success"] += 1
 
             else:
-                # ---- File / Exam 類型：rubric 批改 ----
+                # ---- File Upload 類型：rubric 批改 ----
                 result = services.assignment.ai_grade_submission(sub_id, extra_prompt=extra_prompt)
                 if result.get("error"):
                     job["fail"] += 1
