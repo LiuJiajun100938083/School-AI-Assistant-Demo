@@ -347,27 +347,52 @@ class ExamCreatorService:
         else:
             prompt += f"\n\n[seed={random.randint(1000, 9999)}] 請確保題目的數值和情境具有變化。"
 
-        # LLM 調用
-        raw = await call_ollama_json(
-            prompt,
-            temperature=0.7,
-            gate_task="exam_generation",
-            gate_priority=Priority.URGENT,
-            gate_weight=Weight.ANALYSIS,
-            num_predict=8192,  # 單題含完整解答+評分標準，中文 ≈1 token/字
-        )
+        # LLM 調用（最多重試 1 次）
+        MAX_ATTEMPTS = 2
+        questions = None
 
-        # JSON 解析
-        result = parse_questions_json(raw)
-        questions = result.get("questions", [])
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            raw = await call_ollama_json(
+                prompt,
+                temperature=0.7 + (attempt - 1) * 0.1,  # 重試時稍高溫度
+                gate_task="exam_generation",
+                gate_priority=Priority.URGENT,
+                gate_weight=Weight.ANALYSIS,
+                num_predict=8192,  # 單題含完整解答+評分標準，中文 ≈1 token/字
+            )
+
+            if not raw or not raw.strip():
+                logger.warning(
+                    "Q%d attempt %d/%d: LLM 返回空內容",
+                    index, attempt, MAX_ATTEMPTS,
+                )
+                continue
+
+            # JSON 解析
+            result = parse_questions_json(raw)
+            questions = result.get("questions", [])
+
+            if not questions:
+                # 嘗試直接解析（有些 LLM 會返回單個 object 而非 questions array）
+                if result and "question" in result:
+                    questions = [result]
+                else:
+                    logger.warning(
+                        "Q%d attempt %d/%d: JSON 無 questions, keys=%s, snippet=%s",
+                        index, attempt, MAX_ATTEMPTS,
+                        list(result.keys()) if result else "EMPTY",
+                        raw[:300] if raw else "None",
+                    )
+                    continue
+
+            # 成功解析到題目
+            if attempt > 1:
+                logger.info("Q%d: 重試第 %d 次成功", index, attempt)
+            break
 
         if not questions:
-            # 嘗試直接解析（有些 LLM 會返回單個 object 而非 questions array）
-            if result and "question" in result:
-                questions = [result]
-            else:
-                logger.warning("Q%d: LLM 返回的 JSON 中無 questions", index)
-                return None
+            logger.warning("Q%d: %d 次嘗試均失敗", index, MAX_ATTEMPTS)
+            return None
 
         new_q = questions[0]
         new_q["index"] = index
