@@ -1,7 +1,10 @@
 """
 AI 考試出題 — 業務邏輯層
 ==========================
-編排出題流程：建 session → 後台 LLM 生成 → SVG/Chart 增強 → 更新結果。
+編排出題流程：建 session → 後台逐題 LLM 生成 → SVG/Chart 增強 → 更新結果。
+
+逐題生成策略：每次只生成 1 題，上下文更短 → LLM 更精準。
+每完成一題即寫回 DB，前端可輪詢 completed_count 顯示進度。
 
 依賴方向：
   service → repository（數據訪問）
@@ -9,8 +12,10 @@ AI 考試出題 — 業務邏輯層
   service → SubjectHandlerRegistry（唯讀：prompt 模板 + 知識點判斷）
 """
 
+import asyncio
 import json
 import logging
+import random
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -66,18 +71,6 @@ class ExamCreatorService:
         if not points_data:
             raise ValueError(f"找不到科目 {subject} 的知識點")
 
-        # 建構 prompt
-        from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
-        handler = SubjectHandlerRegistry.get(subject)
-        prompt = handler.build_exam_prompt(
-            target_points=points_data,
-            question_count=question_count,
-            difficulty=difficulty,
-            question_types=question_types,
-            exam_context=exam_context,
-            total_marks=total_marks,
-        )
-
         # 建 session 記錄
         session_id = str(uuid.uuid4())[:12]
         self._sessions.insert({
@@ -108,31 +101,45 @@ class ExamCreatorService:
             "status": "generating",
             "reused": False,
             "_bg_context": {
-                "prompt": prompt,
                 "points_data": points_data,
                 "question_count": question_count,
                 "difficulty": difficulty,
                 "subject": subject,
+                "question_types": question_types,
+                "exam_context": exam_context,
+                "total_marks": total_marks,
             },
         }
 
     # ================================================================
-    # Step B: 後台生成（異步 BackgroundTask）
+    # Step B: 後台批量生成（異步 BackgroundTask）
     # ================================================================
+
+    # 每批並發數：2 題同時生成
+    # ai_gate Weight.ANALYSIS=2，一般 capacity=4-6，2 題佔用 4 不會過載
+    BATCH_CONCURRENCY = 2
 
     async def generate_exam_background(
         self,
         session_id: str,
-        prompt: str,
         subject: str,
         question_count: int,
         difficulty: int,
+        points_data: List[Dict],
+        question_types: Optional[List[str]] = None,
+        exam_context: str = "",
+        total_marks: Optional[int] = None,
     ) -> None:
         """
-        後台 LLM 生成 + SVG/Chart 增強，更新 session。
+        後台分批並發 LLM 生成 + SVG/Chart 增強，每批完成即更新 session。
+
+        策略：每次只讓 LLM 出 1 題（上下文短 → 更精準），
+        但同一批內 2 題並發（asyncio.gather），速度翻倍。
+        同批內的題目共享去重上下文（前幾批的結果），
+        但彼此之間不去重（可接受，因為目標知識點不同）。
 
         冪等保護：只在 status='generating' 時執行。
-        錯誤降級：SVG 失敗不阻塞，只有 LLM/JSON 失敗才標記 generation_failed。
+        錯誤降級：單題失敗跳過繼續（SVG 失敗不阻塞），全部失敗才標記 generation_failed。
         """
         # 冪等檢查
         session = self._sessions.find_by_session_id(session_id)
@@ -144,62 +151,104 @@ class ExamCreatorService:
             return
 
         try:
-            from app.infrastructure.ai_pipeline import (
-                call_ollama_json,
-                enrich_with_charts,
-                enrich_with_svg,
-                parse_questions_json,
-                sanitize_svg,
-            )
-            from app.core.ai_gate import Priority, Weight
+            from app.infrastructure.ai_pipeline import sanitize_svg
+            from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
 
-            # 1. LLM 調用
-            import random
-            seed = random.randint(1000, 9999)
-            full_prompt = prompt + f"\n\n[seed={seed}] 請確保每道題的數值和情境都不同。"
+            handler = SubjectHandlerRegistry.get(subject)
 
-            raw = await call_ollama_json(
-                full_prompt,
-                temperature=0.7,
-                gate_task="exam_generation",
-                gate_priority=Priority.URGENT,
-                gate_weight=Weight.ANALYSIS,
-                num_predict=16384,
-            )
+            # 1. 分配知識點到每道題
+            point_assignments = self._distribute_points(points_data, question_count)
 
-            # 2. JSON 解析
-            questions_data = parse_questions_json(raw)
-            questions = questions_data.get("questions", [])
+            # 2. 計算每題配分（若指定總分）
+            per_question_marks = None
+            if total_marks:
+                per_question_marks = self._distribute_marks(question_count, total_marks)
 
-            if not questions:
-                raise ValueError("LLM 返回的 JSON 中無 questions 陣列")
+            generated_questions = []  # 按 index 排序的最終結果
+            failed_count = 0
 
-            # 3. SVG 幾何增強（fail-soft）
-            await enrich_with_svg(questions, subject)
+            # 3. 分批並發生成
+            batch_size = self.BATCH_CONCURRENCY
+            for batch_start in range(0, question_count, batch_size):
+                batch_end = min(batch_start + batch_size, question_count)
+                batch_indices = list(range(batch_start, batch_end))
 
-            # 4. Chart 統計圖增強（fail-soft）
-            enrich_with_charts(questions, subject)
+                # 本批所有任務的 coroutine
+                coros = []
+                for i in batch_indices:
+                    point = point_assignments[i]
+                    q_marks = per_question_marks[i] if per_question_marks else None
+                    coros.append(
+                        self._generate_single_question(
+                            handler=handler,
+                            point=point,
+                            index=i + 1,
+                            difficulty=difficulty,
+                            question_types=question_types,
+                            exam_context=exam_context,
+                            marks=q_marks,
+                            previous_questions=generated_questions,  # 快照：前幾批的結果
+                            subject=subject,
+                        )
+                    )
 
-            # 5. SVG 安全過濾
-            for q in questions:
+                # 並發執行本批，return_exceptions=True 確保單題失敗不影響同批其他題
+                results = await asyncio.gather(*coros, return_exceptions=True)
+
+                # 收集結果（按 index 順序）
+                for idx_in_batch, result in enumerate(results):
+                    global_idx = batch_indices[idx_in_batch]
+                    if isinstance(result, Exception):
+                        failed_count += 1
+                        logger.warning(
+                            "Exam Q%d generation failed: session=%s, error=%s",
+                            global_idx + 1, session_id, result,
+                        )
+                    elif result is None:
+                        failed_count += 1
+                        logger.warning(
+                            "Exam Q%d generation returned empty: session=%s",
+                            global_idx + 1, session_id,
+                        )
+                    else:
+                        generated_questions.append(result)
+
+                # 每批完成後更新 DB，讓前端看到進度
+                self._sessions.update(
+                    {"questions": json.dumps(generated_questions, ensure_ascii=False)},
+                    "session_id = %s AND status = 'generating'",
+                    (session_id,),
+                )
+
+                logger.info(
+                    "Exam batch done: session=%s, batch=%d-%d, total_done=%d/%d",
+                    session_id, batch_start + 1, batch_end,
+                    len(generated_questions), question_count,
+                )
+
+            # 4. 全部完成 — 更新最終狀態
+            if not generated_questions:
+                raise ValueError("所有題目生成均失敗")
+
+            # SVG 安全過濾（最終統一做一次）
+            for q in generated_questions:
                 if "question" in q:
                     q["question"] = sanitize_svg(q["question"])
                 if "question_svg" in q:
                     q["question_svg"] = sanitize_svg(q["question_svg"])
 
-            # 6. 更新 session
             self._sessions.update(
                 {
-                    "questions": json.dumps(questions, ensure_ascii=False),
-                    "question_count": len(questions),
+                    "questions": json.dumps(generated_questions, ensure_ascii=False),
+                    "question_count": len(generated_questions),
                     "status": "generated",
                 },
                 "session_id = %s AND status = 'generating'",
                 (session_id,),
             )
             logger.info(
-                "Exam generation completed: session=%s, questions=%d",
-                session_id, len(questions),
+                "Exam generation completed: session=%s, questions=%d, failed=%d",
+                session_id, len(generated_questions), failed_count,
             )
 
         except Exception as e:
@@ -226,13 +275,196 @@ class ExamCreatorService:
             )
 
     # ================================================================
+    # 單題生成核心
+    # ================================================================
+
+    async def _generate_single_question(
+        self,
+        handler,
+        point: Dict,
+        index: int,
+        difficulty: int,
+        question_types: Optional[List[str]],
+        exam_context: str,
+        marks: Optional[int],
+        previous_questions: List[Dict],
+        subject: str,
+    ) -> Optional[Dict]:
+        """
+        生成單道題目 + SVG/Chart 增強。
+
+        Args:
+            handler: SubjectHandler 實例
+            point: 當前題目的目標知識點 {"point_code", "point_name", "category"}
+            index: 題號（1-based）
+            difficulty: 難度 1-5
+            question_types: 允許的題型列表
+            exam_context: 考試場景
+            marks: 此題配分（None 則由 LLM 決定）
+            previous_questions: 已生成的題目列表（用於去重）
+            subject: 科目代碼
+
+        Returns:
+            生成的題目 dict，或 None（失敗）。
+        """
+        from app.infrastructure.ai_pipeline import (
+            call_ollama_json,
+            enrich_with_charts,
+            enrich_with_svg,
+            parse_questions_json,
+        )
+        from app.core.ai_gate import Priority, Weight
+
+        # 構建單題 prompt
+        prompt = handler.build_exam_prompt(
+            target_points=[point],
+            question_count=1,
+            difficulty=difficulty,
+            question_types=question_types,
+            exam_context=exam_context,
+            total_marks=None,  # 單題不用總分
+        )
+
+        # 附加配分要求
+        if marks:
+            prompt += f"\n\n此題配分：{marks} 分，請確保 points 字段為 {marks}。"
+
+        # 附加去重上下文
+        if previous_questions:
+            dedup_lines = []
+            for j, pq in enumerate(previous_questions):
+                q_text = pq.get("question", "")
+                # 只取前 80 字符，避免 prompt 過長
+                snippet = q_text[:80].replace("\n", " ")
+                dedup_lines.append(f"  Q{j+1}: {snippet}")
+            dedup_context = "\n".join(dedup_lines)
+            prompt += (
+                f"\n\n## 去重要求\n"
+                f"以下題目已經生成，新題必須使用不同的數值、情境和設問方式：\n"
+                f"{dedup_context}\n"
+                f"[seed={random.randint(1000, 9999)}]"
+            )
+        else:
+            prompt += f"\n\n[seed={random.randint(1000, 9999)}] 請確保題目的數值和情境具有變化。"
+
+        # LLM 調用
+        raw = await call_ollama_json(
+            prompt,
+            temperature=0.7,
+            gate_task="exam_generation",
+            gate_priority=Priority.URGENT,
+            gate_weight=Weight.ANALYSIS,
+            num_predict=4096,  # 單題不需要太多 token
+        )
+
+        # JSON 解析
+        result = parse_questions_json(raw)
+        questions = result.get("questions", [])
+
+        if not questions:
+            # 嘗試直接解析（有些 LLM 會返回單個 object 而非 questions array）
+            if result and "question" in result:
+                questions = [result]
+            else:
+                logger.warning("Q%d: LLM 返回的 JSON 中無 questions", index)
+                return None
+
+        new_q = questions[0]
+        new_q["index"] = index
+
+        # SVG 幾何增強（fail-soft）
+        try:
+            await enrich_with_svg([new_q], subject)
+        except Exception as e:
+            logger.warning("Q%d SVG enrichment failed: %s", index, e)
+
+        # Chart 統計圖增強（fail-soft）
+        try:
+            enrich_with_charts([new_q], subject)
+        except Exception as e:
+            logger.warning("Q%d chart enrichment failed: %s", index, e)
+
+        logger.info(
+            "Q%d generated: point=%s, type=%s, marks=%s",
+            index, point.get("point_code"), new_q.get("question_type"), new_q.get("points"),
+        )
+        return new_q
+
+    # ================================================================
+    # 知識點分配 + 配分計算
+    # ================================================================
+
+    @staticmethod
+    def _distribute_points(
+        points_data: List[Dict], question_count: int,
+    ) -> List[Dict]:
+        """
+        將知識點均勻分配到每道題。
+
+        規則：
+        - 每個知識點至少 1 題
+        - 剩餘題目輪流分配
+        - 最終 shuffle 避免同知識點題目連續出現
+        """
+        if not points_data:
+            return [{"point_code": "", "point_name": "", "category": ""}] * question_count
+
+        assignments = []
+
+        # 每個知識點至少 1 題
+        for p in points_data:
+            assignments.append(p)
+
+        # 剩餘題目輪流分配
+        remaining = question_count - len(assignments)
+        idx = 0
+        while remaining > 0:
+            assignments.append(points_data[idx % len(points_data)])
+            idx += 1
+            remaining -= 1
+
+        # 截斷（若 points > question_count）
+        assignments = assignments[:question_count]
+
+        # Shuffle（但保持第一題 = 第一個知識點，方便閱讀）
+        if len(assignments) > 2:
+            tail = assignments[1:]
+            random.shuffle(tail)
+            assignments = [assignments[0]] + tail
+
+        return assignments
+
+    @staticmethod
+    def _distribute_marks(
+        question_count: int, total_marks: int,
+    ) -> List[int]:
+        """
+        將總分均勻分配到每道題。
+
+        規則：
+        - 基礎分 = total_marks // question_count
+        - 餘數分配給前幾題（每題 +1）
+        """
+        base = total_marks // question_count
+        remainder = total_marks % question_count
+
+        marks = []
+        for i in range(question_count):
+            marks.append(base + (1 if i < remainder else 0))
+        return marks
+
+    # ================================================================
     # 輪詢狀態
     # ================================================================
 
     def get_generation_status(
         self, session_id: str, teacher_username: str,
     ) -> Optional[Dict]:
-        """查詢生成狀態（含 ownership 驗證）。"""
+        """
+        查詢生成狀態（含 ownership 驗證）。
+
+        generating 時返回 completed_count 讓前端顯示進度。
+        """
         session = self._sessions.find_by_session_id(session_id)
         if not session or session["teacher_username"] != teacher_username:
             return None
@@ -246,7 +478,22 @@ class ExamCreatorService:
             "created_at": str(session["created_at"]) if session.get("created_at") else None,
         }
 
-        if session["status"] == "generated":
+        if session["status"] == "generating":
+            # 返回已完成的題數（從 partial questions 計算）
+            questions = session.get("questions")
+            completed = 0
+            if questions:
+                if isinstance(questions, str):
+                    try:
+                        parsed = json.loads(questions)
+                        completed = len(parsed) if isinstance(parsed, list) else 0
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                elif isinstance(questions, list):
+                    completed = len(questions)
+            result["completed_count"] = completed
+
+        elif session["status"] == "generated":
             questions = session.get("questions")
             if isinstance(questions, str):
                 questions = json.loads(questions)

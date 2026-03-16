@@ -164,9 +164,9 @@ class MathHandler(BaseSubjectHandler):
     {{"type": "segment", "id": "AB", "endpoints": ["A", "B"]}},
     {{"type": "segment", "id": "CD", "endpoints": ["C", "D"]}},
     {{"type": "intersection", "id": "P", "of": ["AB", "CD"], "index": 0, "label": "P"}},
-    {{"type": "textLabel", "text": "AP=3", "coords": [2.5, 5.2]}},
-    {{"type": "textLabel", "text": "PB=4", "coords": [5.5, 3]}},
-    {{"type": "textLabel", "text": "CP=2", "coords": [4.8, 5.8]}}
+    {{"type": "textLabel", "text": "AP=3", "coords": [1.5, 5.5]}},
+    {{"type": "textLabel", "text": "PB=4", "coords": [6.5, 2.5]}},
+    {{"type": "textLabel", "text": "CP=2", "coords": [5.8, 6.5]}}
   ]
 }}
 
@@ -198,7 +198,16 @@ class MathHandler(BaseSubjectHandler):
 - **拓撲順序**：先定義 point/circle，再定義依賴它們的 segment/pointOnCircle/intersection
 - 不要添加題目未提及的幾何元素
 - 不要計算答案，只提取圖形結構
-- 只輸出 JSON"""
+- 只輸出 JSON
+
+## 標注防重疊規則（重要！）
+
+- **pointOnCircle 的 angle 必須間隔 ≥ 40°**，避免圓上相鄰的點/標籤重疊
+- **textLabel 的 coords 之間距離 ≥ 1.5 單位**（歐氏距離），避免文字互相遮擋
+- **textLabel 盡量放在圓的外側**，不要放在圓內部或線段上
+- 邊長標注（如 AP=3）放在對應線段的中點偏外位置
+- 角度標注（如 ∠BAC）放在對應角的外側弧附近
+- 若多個標注集中在同一區域，向外擴散分佈"""
 
     def build_svg_prompt(self, question_text: str) -> str:
         return f"""你是一個專門畫幾何圖形的助手。根據以下數學題目，生成一個 SVG 圖形。

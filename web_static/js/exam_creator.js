@@ -377,14 +377,23 @@ const ExamCreator = (() => {
     }
 
     function startPolling() {
-        let interval = 2000;
+        const interval = 3000; // 逐題生成，輪詢間隔固定 3s
         let attempts = 0;
+        const totalCount = parseInt(UI.$('questionCount').value) || 10;
+
+        function updateProgress(completed, total) {
+            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const bar = UI.$('progressBarFill');
+            const text = UI.$('progressText');
+            if (bar) bar.style.width = pct + '%';
+            if (text) text.textContent = `已完成 ${completed} / ${total} 題`;
+        }
 
         function poll() {
             attempts++;
             API.getStatus(state.sessionId).then(resp => {
                 if (!resp.success || !resp.data) {
-                    if (attempts < 60) {
+                    if (attempts < 200) {
                         state.pollTimer = setTimeout(poll, interval);
                     }
                     return;
@@ -392,27 +401,35 @@ const ExamCreator = (() => {
 
                 const data = resp.data;
                 if (data.status === 'generated') {
-                    state.questions = data.questions || [];
-                    Views.showState('questionsContainer');
-                    Views.renderQuestions(state.questions);
-                    UI.$('totalMarksBadge').textContent = `總分 ${data.total_marks || 0} 分`;
+                    // 先顯示 100% 進度
+                    updateProgress(data.question_count, data.question_count);
+                    // 短延遲後切換到結果
+                    setTimeout(() => {
+                        state.questions = data.questions || [];
+                        Views.showState('questionsContainer');
+                        Views.renderQuestions(state.questions);
+                        UI.$('totalMarksBadge').textContent = `總分 ${data.total_marks || 0} 分`;
+                    }, 500);
                 } else if (data.status === 'generation_failed') {
                     UI.$('errorMessage').textContent = data.error_message || '生成過程出錯';
                     Views.showState('errorState');
                 } else {
-                    // Still generating — backoff
-                    if (attempts > 5) interval = 5000;
-                    if (attempts > 15) interval = 10000;
+                    // Still generating — 更新進度
+                    const completed = data.completed_count || 0;
+                    const total = data.question_count || totalCount;
+                    updateProgress(completed, total);
                     state.pollTimer = setTimeout(poll, interval);
                 }
             }).catch(e => {
                 console.error('Poll error:', e);
-                if (attempts < 60) {
+                if (attempts < 200) {
                     state.pollTimer = setTimeout(poll, interval);
                 }
             });
         }
 
+        // 初始化進度顯示
+        updateProgress(0, totalCount);
         poll();
     }
 

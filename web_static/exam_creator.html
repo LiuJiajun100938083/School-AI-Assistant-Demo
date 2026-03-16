@@ -120,9 +120,17 @@
             <!-- Generating State -->
             <div class="generating-state" id="generatingState" style="display:none;">
                 <div class="spinner"></div>
-                <h3>AI 正在出題...</h3>
-                <p>正在生成 <span id="genCount"></span> 道題目，包含幾何圖形和統計圖表</p>
-                <p class="text-muted">通常需要 30-60 秒</p>
+                <h3>AI 正在逐題出題...</h3>
+                <p>正在生成 <span id="genCount"></span> 道題目，每題獨立生成以確保品質</p>
+                <div class="progress-container" style="margin:16px auto;max-width:320px;">
+                    <div style="background:#e2e8f0;border-radius:8px;height:8px;overflow:hidden;">
+                        <div id="progressBarFill" style="background:#3b82f6;height:100%;width:0%;transition:width 0.5s ease;border-radius:8px;"></div>
+                    </div>
+                    <p id="progressText" style="margin-top:8px;font-size:15px;font-weight:500;color:#475569;">
+                        準備中...
+                    </p>
+                </div>
+                <p class="text-muted">每題約 10-20 秒</p>
             </div>
 
             <!-- Error State -->

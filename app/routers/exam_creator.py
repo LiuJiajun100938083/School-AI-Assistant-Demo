@@ -56,10 +56,13 @@ async def start_exam_generation(
         background_tasks.add_task(
             service.generate_exam_background,
             session_id=result["session_id"],
-            prompt=bg_context["prompt"],
             subject=bg_context["subject"],
             question_count=bg_context["question_count"],
             difficulty=bg_context["difficulty"],
+            points_data=bg_context["points_data"],
+            question_types=bg_context.get("question_types"),
+            exam_context=bg_context.get("exam_context", ""),
+            total_marks=bg_context.get("total_marks"),
         )
 
     return success_response(data=result, message="出題任務已啟動")
