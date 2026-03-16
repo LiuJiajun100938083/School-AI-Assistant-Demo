@@ -113,12 +113,16 @@ async def create_user(request: Request):
         admin_user, _ = _verify_admin(request)
         body = await request.json()
 
+        class_number_raw = body.get("class_number")
+        class_number = int(class_number_raw) if class_number_raw is not None else None
+
         user = get_services().user.create_user(
             username=body.get("username", "").strip(),
             password=body.get("password", ""),
             role=body.get("role", "student"),
             display_name=body.get("display_name", ""),
             class_name=body.get("class_name", ""),
+            class_number=class_number,
             email=body.get("email", ""),
             created_by=admin_user,
         )

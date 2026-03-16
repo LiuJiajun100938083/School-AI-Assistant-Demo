@@ -2120,6 +2120,7 @@ ${report.teacher_attention_points || '暫無'}
         document.getElementById('userDisplayName').value = user.display_name || '';
         document.getElementById('userRole').value = user.role || 'student';
         document.getElementById('userClass').value = user.class_name || '';
+        document.getElementById('userClassNumber').value = user.class_number || '';
         document.getElementById('userNotes').value = user.notes || '';
         document.getElementById('userModal').style.display = 'flex';
     },
@@ -2132,11 +2133,13 @@ ${report.teacher_attention_points || '暫無'}
         e.preventDefault();
         const editUserId = document.getElementById('editUserId').value;
         const isEdit = !!editUserId;
+        const classNumberVal = document.getElementById('userClassNumber').value;
         const userData = {
             username: document.getElementById('userUsername').value,
             display_name: document.getElementById('userDisplayName').value,
             role: document.getElementById('userRole').value,
             class_name: document.getElementById('userClass').value,
+            class_number: classNumberVal ? parseInt(classNumberVal) : null,
             notes: document.getElementById('userNotes').value
         };
         if (!isEdit) {
