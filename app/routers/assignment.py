@@ -354,13 +354,20 @@ _batch_jobs: Dict[int, dict] = {}  # assignment_id → job state
 
 def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
                          teacher_id: int, extra_prompt: str):
-    """背景線程：逐份 AI 批改 + 自動保存"""
+    """背景線程：逐份 AI 批改 + 自動保存（支持 File/Exam 及 Form 類型）"""
     job = _batch_jobs.get(assignment_id)
     if not job:
         return
     job["status"] = "running"
 
     services = get_services()
+
+    # 判斷作業類型，Form 走不同的批改流程
+    try:
+        assignment = services.assignment._get_assignment_or_raise(assignment_id)
+        is_form = assignment.get("type") == "form"
+    except Exception:
+        is_form = False
 
     for sub_id in submission_ids:
         # 檢查取消
@@ -369,39 +376,67 @@ def _batch_grade_worker(assignment_id: int, submission_ids: List[int],
             return
 
         try:
-            # Step 1: AI 批改
-            result = services.assignment.ai_grade_submission(sub_id, extra_prompt=extra_prompt)
-            if result.get("error"):
-                job["fail"] += 1
-                job["done"] += 1
-                continue
+            if is_form:
+                # ---- Form 類型：逐題 AI 批改 ----
+                result = asyncio.run(
+                    services.assignment.ai_grade_form_submission(
+                        sub_id, extra_prompt=extra_prompt,
+                    )
+                )
+                graded_count = result.get("graded_count", 0)
+                if graded_count == 0:
+                    # 沒有需要批改的題目（全是 MC 或已批改），仍算成功
+                    pass
 
-            # Step 2: 構建分數並保存
-            scores = []
-            if result.get("selected_level") is not None:
-                scores.append({
-                    "rubric_item_id": 0,
-                    "points": result.get("points", 0),
-                    "selected_level": result.get("selected_level", ""),
-                })
+                # 更新提交狀態為已批改
+                from datetime import datetime as _dt
+                services.assignment._submission_repo.update(
+                    data={
+                        "status": "graded",
+                        "feedback": f"AI 自動批改（{graded_count} 道文字題）",
+                        "graded_by": teacher_id,
+                        "graded_at": _dt.now(),
+                        "updated_at": _dt.now(),
+                    },
+                    where="id = %s",
+                    params=(sub_id,),
+                )
+                job["success"] += 1
+
             else:
-                for item in result.get("items", []):
-                    entry: dict = {"rubric_item_id": item["rubric_item_id"]}
-                    if item.get("points") is not None:
-                        entry["points"] = item["points"]
-                    if item.get("passed") is not None:
-                        entry["points"] = 1 if item["passed"] else 0
-                    if item.get("selected_level"):
-                        entry["selected_level"] = item["selected_level"]
-                    scores.append(entry)
+                # ---- File / Exam 類型：rubric 批改 ----
+                result = services.assignment.ai_grade_submission(sub_id, extra_prompt=extra_prompt)
+                if result.get("error"):
+                    job["fail"] += 1
+                    job["done"] += 1
+                    continue
 
-            services.assignment.grade_submission(
-                submission_id=sub_id,
-                teacher_id=teacher_id,
-                rubric_scores=scores,
-                feedback=result.get("overall_feedback", "AI 自動批改"),
-            )
-            job["success"] += 1
+                # 構建分數並保存
+                scores = []
+                if result.get("selected_level") is not None:
+                    scores.append({
+                        "rubric_item_id": 0,
+                        "points": result.get("points", 0),
+                        "selected_level": result.get("selected_level", ""),
+                    })
+                else:
+                    for item in result.get("items", []):
+                        entry: dict = {"rubric_item_id": item["rubric_item_id"]}
+                        if item.get("points") is not None:
+                            entry["points"] = item["points"]
+                        if item.get("passed") is not None:
+                            entry["points"] = 1 if item["passed"] else 0
+                        if item.get("selected_level"):
+                            entry["selected_level"] = item["selected_level"]
+                        scores.append(entry)
+
+                services.assignment.grade_submission(
+                    submission_id=sub_id,
+                    teacher_id=teacher_id,
+                    rubric_scores=scores,
+                    feedback=result.get("overall_feedback", "AI 自動批改"),
+                )
+                job["success"] += 1
 
         except Exception as e:
             logger.error("批量 AI 批改 submission #%d 失敗: %s", sub_id, e)

@@ -5475,7 +5475,7 @@ textarea[data-autogrow] {
 /* ---- 3-Column Body ---- */
 .fgv-body {
     display: grid;
-    grid-template-columns: 180px 1fr 320px;
+    grid-template-columns: 180px 1fr 280px;
     flex: 1;
     overflow: hidden;
     min-height: 0;
@@ -5889,10 +5889,67 @@ textarea[data-autogrow] {
     padding: var(--space-2) 0;
 }
 
+/* ---- Student Answer Card (center column) ---- */
+.fgv-student-answer-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-left: 3px solid var(--color-info, #007AFF);
+    border-radius: var(--radius-card, 6px);
+    padding: var(--space-4) var(--space-5);
+}
+.fgv-section-label {
+    font-size: var(--type-badge, 12px);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.fgv-answer-files {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+.fgv-answer-file-img {
+    max-width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: var(--radius-card, 6px);
+    border: 1px solid var(--border-light);
+}
+
+/* ---- AI Feedback Card (center column) ---- */
+.fgv-ai-feedback-card {
+    background: rgba(255, 149, 0, 0.04);
+    border: 1px solid rgba(255, 149, 0, 0.15);
+    border-radius: var(--radius-card, 6px);
+    padding: var(--space-4) var(--space-5);
+}
+
+/* ---- AI Score Badge (compact, right panel) ---- */
+.fgv-ai-score-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-card, 6px);
+    font-size: var(--type-body, 14px);
+    font-weight: 600;
+    background: rgba(255, 149, 0, 0.06);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+}
+
+/* ---- Nav Status: AI auto-accepted ---- */
+.fgv-nav-status.ai-graded { background: var(--color-success, #34C759); }
+
 /* ---- Responsive ---- */
 .fgv-nav-toggle { display: none; }
 @media (max-width: 1024px) {
-    .fgv-body { grid-template-columns: 1fr 300px; }
+    .fgv-body { grid-template-columns: 1fr 260px; }
     .fgv-nav { display: none; }
     .fgv-nav.open {
         display: block;

@@ -7010,7 +7010,7 @@ const FormGradingView = {
             maxPoints += q.max_points || 0;
             const a = s.answerMap[q.id] || {};
             if (a.points != null) scored += a.points;
-            if (this._isMc(q) || a.reviewed_at || a.score_source === 'teacher') graded++;
+            if (this._isMc(q) || a.reviewed_at || a.score_source === 'teacher' || a.score_source === 'ai') graded++;
         });
         return { total, graded, scored, maxPoints };
     },
@@ -7019,7 +7019,7 @@ const FormGradingView = {
         if (f === 'all') return true;
         if (q.question_type === 'passage') return false;
         if (f === 'text') return !this._isMc(q);
-        if (f === 'ungraded') return !this._isMc(q) && !(a.reviewed_at || a.score_source === 'teacher');
+        if (f === 'ungraded') return !this._isMc(q) && !(a.reviewed_at || a.score_source === 'teacher' || a.score_source === 'ai');
         return true;
     },
 
@@ -7091,6 +7091,7 @@ const FormGradingView = {
             if (isPassage) { statusClass = ''; }
             else if (this._isMc(q)) { statusClass = 'auto'; }
             else if (a.reviewed_at || a.score_source === 'teacher') { statusClass = 'graded'; }
+            else if (a.score_source === 'ai') { statusClass = 'ai-graded'; }
             else if (a.ai_points != null) { statusClass = 'ai-pending'; }
             else { statusClass = 'ungraded'; }
             const typeLabelMap = { passage:'材料', mc:'選擇', multiple_choice:'選擇', true_false:'判斷', short_answer:'短答', fill_blank:'填空', open:'問答' };
@@ -7149,23 +7150,15 @@ const FormGradingView = {
             });
             html += '</div>';
         }
-        html += '</div>';
-        return html;
-    },
+        html += '</div>'; // close fgv-question-card
 
-    // ---- Right Grading Panel ----
-    _renderPanel() {
-        const s = this._state;
-        const q = s.questions[s.currentIndex];
-        if (!q) return '';
-        if (q.question_type === 'passage') return '<div class="fgv-panel-empty">閱讀材料無需批改</div>';
+        // ---- Student Answer (inline below question) ----
         const a = s.answerMap[q.id] || {};
         const files = s.fileMap[a.id] || [];
         const isMc = this._isMc(q);
-        let html = '';
 
-        // Student Answer
-        html += '<div class="fgv-student-answer"><div class="fgv-student-answer-label">學生答案</div>';
+        html += '<div class="fgv-student-answer-card">';
+        html += '<div class="fgv-section-label">學生答案</div>';
         if (isMc) {
             let correct = a.is_correct;
             if (correct == null && a.answer_text && q.correct_answer) {
@@ -7183,7 +7176,6 @@ const FormGradingView = {
                 const parsed = JSON.parse(a.answer_text);
                 if (typeof parsed === 'object' && parsed !== null) {
                     html += '<div class="fgv-blank-fields">';
-                    // Handle {blanks: [{value, label?}]} or flat {key: value}
                     const blanks = Array.isArray(parsed.blanks) ? parsed.blanks
                                  : Array.isArray(parsed) ? parsed : null;
                     if (blanks) {
@@ -7213,17 +7205,50 @@ const FormGradingView = {
         } else {
             html += `<div class="fgv-student-answer-text">${AssignmentApp._escapeHtml(a.answer_text||'(未作答)')}</div>`;
         }
+        // File attachments
         if (files.length) {
-            html += '<div class="fgv-panel-files" style="margin-top:var(--space-3);">';
+            html += '<div class="fgv-answer-files">';
             files.forEach(f => {
                 const isImg = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.original_name);
                 html += isImg
-                    ? `<img class="fgv-panel-file-img" src="${f.file_path}" alt="${AssignmentApp._escapeHtml(f.original_name)}">`
+                    ? `<img class="fgv-answer-file-img" src="${f.file_path}" alt="${AssignmentApp._escapeHtml(f.original_name)}">`
                     : `<a href="${f.file_path}" target="_blank" class="btn btn-sm btn-outline">${AssignmentApp._escapeHtml(f.original_name)}</a>`;
             });
             html += '</div>';
         }
-        html += '</div>';
+        html += '</div>'; // close fgv-student-answer-card
+
+        // ---- AI Feedback (inline below answer) ----
+        if (a.ai_feedback && !isMc) {
+            html += `<div class="fgv-ai-feedback-card">
+                <div class="fgv-section-label"><span class="fgv-ai-tag">AI</span> 批改反饋</div>
+                <div class="fgv-ai-feedback-text">${AssignmentApp._escapeHtml(a.ai_feedback)}</div>
+            </div>`;
+        }
+
+        // ---- Reference Answer (collapsible) ----
+        if (q.reference_answer && !isMc) {
+            html += `<div class="fgv-reference-section">
+                <button class="fgv-reference-toggle" onclick="FormGradingView._toggleReference()">參考答案 <span id="fgvRefIcon">▶</span></button>
+                <div class="fgv-reference-body" id="fgvRefBody">${AssignmentApp._escapeHtml(q.reference_answer)}</div>
+            </div>`;
+        }
+        if (q.grading_notes && !isMc) {
+            html += `<div class="fgv-grading-notes"><strong>批改注意:</strong> ${AssignmentApp._escapeHtml(q.grading_notes)}</div>`;
+        }
+
+        return html;
+    },
+
+    // ---- Right Grading Panel (compact: score + feedback + actions only) ----
+    _renderPanel() {
+        const s = this._state;
+        const q = s.questions[s.currentIndex];
+        if (!q) return '';
+        if (q.question_type === 'passage') return '<div class="fgv-panel-empty">閱讀材料無需批改</div>';
+        const a = s.answerMap[q.id] || {};
+        const isMc = this._isMc(q);
+        let html = '';
 
         // MC: auto score + nav only
         if (isMc) {
@@ -7238,36 +7263,22 @@ const FormGradingView = {
             return html;
         }
 
-        // Reference answer
-        if (q.reference_answer) {
-            html += `<div class="fgv-reference-section">
-                <button class="fgv-reference-toggle" onclick="FormGradingView._toggleReference()">參考答案 <span id="fgvRefIcon">▶</span></button>
-                <div class="fgv-reference-body" id="fgvRefBody">${AssignmentApp._escapeHtml(q.reference_answer)}</div>
-            </div>`;
-        }
-        if (q.grading_notes) {
-            html += `<div class="fgv-grading-notes"><strong>批改注意:</strong> ${AssignmentApp._escapeHtml(q.grading_notes)}</div>`;
-        }
-        // AI suggestion
+        // AI score badge (compact, no accept button)
         if (a.ai_points != null) {
-            html += `<div class="fgv-ai-suggestion">
-                <div class="fgv-ai-suggestion-header">
-                    <span class="fgv-ai-tag">AI</span>
-                    <span class="fgv-ai-score">${a.ai_points} / ${q.max_points}</span>
-                    ${!a.reviewed_at ? `<button class="btn btn-sm btn-outline" style="margin-left:auto;" onclick="FormGradingView._acceptAiScore()">接受</button>` : ''}
-                </div>
-                ${a.ai_feedback ? `<div class="fgv-ai-feedback-text">${AssignmentApp._escapeHtml(a.ai_feedback)}</div>` : ''}
+            html += `<div class="fgv-ai-score-badge">
+                <span class="fgv-ai-tag">AI</span>
+                <span>${a.ai_points} / ${q.max_points}</span>
             </div>`;
         }
-        // Score input
+        // Score input (pre-filled with current points, which backend already sets to ai_points)
         html += `<div class="fgv-score-section"><div class="fgv-score-row">
             <span class="fgv-score-label">給分</span>
             <input type="number" class="fgv-score-input" id="fgvScoreInput" value="${a.points!=null?a.points:''}" min="0" max="${q.max_points}" step="0.5" placeholder="0">
             <span class="fgv-score-max">/ ${q.max_points}</span>
         </div></div>`;
-        // Feedback
+        // Feedback (pre-filled with teacher feedback or AI feedback)
         html += `<div class="fgv-feedback-section"><label>反饋</label>
-            <textarea id="fgvFeedback" rows="3" placeholder="輸入反饋...">${AssignmentApp._escapeHtml(a.teacher_feedback||'')}</textarea>
+            <textarea id="fgvFeedback" rows="3" placeholder="輸入反饋...">${AssignmentApp._escapeHtml(a.teacher_feedback || a.ai_feedback || '')}</textarea>
         </div>`;
         // Actions
         html += `<div class="fgv-actions">
@@ -7298,7 +7309,7 @@ const FormGradingView = {
             const q = s.questions[i];
             if (q.question_type === 'passage' || this._isMc(q)) return false;
             const a = s.answerMap[q.id] || {};
-            return !(a.reviewed_at || a.score_source === 'teacher');
+            return !(a.reviewed_at || a.score_source === 'teacher' || a.score_source === 'ai');
         };
         for (let i = s.currentIndex + 1; i < s.questions.length; i++) { if (check(i)) { this.goToQuestion(i); return; } }
         for (let i = 0; i < s.currentIndex; i++) { if (check(i)) { this.goToQuestion(i); return; } }
@@ -7338,21 +7349,6 @@ const FormGradingView = {
         const a = this._state.answerMap[this._state.questions[this._state.currentIndex]?.id] || {};
         if (a.score_source === 'teacher') this._goToNextUngraded();
     },
-    async _acceptAiScore() {
-        const s = this._state;
-        const q = s.questions[s.currentIndex];
-        const a = s.answerMap[q.id] || {};
-        if (a.ai_points == null) return;
-        const resp = await AssignmentAPI.gradeFormAnswer(s.submissionId, a.id, { points: a.ai_points, feedback: a.ai_feedback || '' });
-        if (resp?.success) {
-            a.points = a.ai_points; a.teacher_feedback = a.ai_feedback || '';
-            a.reviewed_at = new Date().toISOString(); a.score_source = 'teacher';
-            const panel = document.getElementById('fgvPanel');
-            if (panel) panel.innerHTML = this._renderPanel();
-            this._updateSummary(); this._updateNavStatus();
-            UIModule.toast('已接受 AI 建議分', 'success');
-        } else { UIModule.toast('操作失敗', 'error'); }
-    },
     async _aiGradeAll() {
         if (!confirm('確定要對所有文字題進行 AI 批改？')) return;
         UIModule.toast('AI 批改中...', 'info');
@@ -7382,6 +7378,7 @@ const FormGradingView = {
             dot.className = 'fgv-nav-status';
             if (this._isMc(q)) dot.classList.add('auto');
             else if (a.reviewed_at || a.score_source === 'teacher') dot.classList.add('graded');
+            else if (a.score_source === 'ai') dot.classList.add('ai-graded');
             else if (a.ai_points != null) dot.classList.add('ai-pending');
             else dot.classList.add('ungraded');
         });

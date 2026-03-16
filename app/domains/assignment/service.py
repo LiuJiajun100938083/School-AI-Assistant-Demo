@@ -2238,7 +2238,7 @@ class AssignmentService:
 
         return {"original_name": original_name, "stored_name": stored_name}
 
-    async def ai_grade_form_submission(self, submission_id: int) -> Dict[str, Any]:
+    async def ai_grade_form_submission(self, submission_id: int, extra_prompt: str = "") -> Dict[str, Any]:
         """AI 批改 Form 提交中的文字題"""
         if not self._ask_ai_func:
             raise ValidationError("AI 功能未初始化")
@@ -2270,6 +2270,11 @@ class AssignmentService:
             reference = (q.get("reference_answer") or q.get("answer_text") or "").strip()
             grading_notes = (q.get("grading_notes") or "").strip()
 
+            # 教師額外批改指示
+            teacher_note = ""
+            if extra_prompt and extra_prompt.strip():
+                teacher_note = f"教師批改指示：{extra_prompt.strip()}\n"
+
             if reference:
                 prompt = (
                     f"你是一位嚴謹的教師，正在根據參考答案批改學生的答案。\n\n"
@@ -2280,6 +2285,8 @@ class AssignmentService:
                 )
                 if grading_notes:
                     prompt += f"批改注意事項：{grading_notes}\n"
+                if teacher_note:
+                    prompt += teacher_note
                 prompt += (
                     f"\n學生答案：{ans.get('answer_text') or '（空白）'}\n\n"
                     f"請嚴格按照參考答案的要點來評分。\n"
@@ -2294,6 +2301,8 @@ class AssignmentService:
                 )
                 if grading_notes:
                     prompt += f"批改注意事項：{grading_notes}\n"
+                if teacher_note:
+                    prompt += teacher_note
                 prompt += (
                     f"\n學生答案：{ans.get('answer_text') or '（空白）'}\n\n"
                     f"請根據答案的正確性和完整性來評分。\n"
