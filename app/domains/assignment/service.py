@@ -2301,10 +2301,13 @@ class AssignmentService:
                 )
 
             try:
-                ai_response = self._ask_ai_func(prompt)
-                if hasattr(ai_response, '__await__'):
-                    import asyncio
-                    ai_response = await ai_response
+                # 與 rubric 批改保持一致的調用方式
+                ai_response, _ = self._ask_ai_func(
+                    question=prompt,
+                    subject_code=assignment.get("subject", "general"),
+                    use_api=False,
+                    conversation_history=[],
+                )
 
                 ai_result = self._parse_ai_form_response(str(ai_response), max_pts)
                 ai_pts = ai_result.get("points", 0)
