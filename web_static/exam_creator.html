@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-TW" style="color-scheme: light only;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 考卷出題</title>
+    <link rel="stylesheet" href="/static/css/exam_creator.css">
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <!-- Markdown + Sanitizer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="/" class="topbar-back" title="返回首頁">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </a>
+            <div class="topbar-divider"></div>
+            <h1 class="topbar-title">AI 考卷出題</h1>
+        </div>
+        <div class="topbar-actions">
+            <span class="user-badge" id="userBadge"></span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="app-body">
+        <!-- Left: Config Panel -->
+        <aside class="config-panel" id="configPanel">
+            <h2 class="panel-title">出題設定</h2>
+
+            <!-- Subject -->
+            <div class="form-group">
+                <label>科目</label>
+                <select id="subjectSelect">
+                    <option value="math">數學</option>
+                </select>
+            </div>
+
+            <!-- Knowledge Points -->
+            <div class="form-group">
+                <label>知識點 <small class="text-muted" id="pointsCount">(載入中...)</small></label>
+                <div class="points-list" id="pointsList">
+                    <div class="loading-text">載入知識點...</div>
+                </div>
+            </div>
+
+            <!-- Question Count -->
+            <div class="form-group">
+                <label>題目數量</label>
+                <div class="range-group">
+                    <input type="range" id="questionCount" min="1" max="30" value="10">
+                    <span class="range-value" id="questionCountVal">10</span>
+                </div>
+            </div>
+
+            <!-- Difficulty -->
+            <div class="form-group">
+                <label>難度</label>
+                <div class="difficulty-selector">
+                    <button class="diff-btn" data-diff="1">1</button>
+                    <button class="diff-btn" data-diff="2">2</button>
+                    <button class="diff-btn active" data-diff="3">3</button>
+                    <button class="diff-btn" data-diff="4">4</button>
+                    <button class="diff-btn" data-diff="5">5</button>
+                </div>
+            </div>
+
+            <!-- Question Types -->
+            <div class="form-group">
+                <label>題型</label>
+                <div class="checkbox-group">
+                    <label class="checkbox-label"><input type="checkbox" value="multiple_choice"> 選擇題</label>
+                    <label class="checkbox-label"><input type="checkbox" value="short_answer" checked> 簡答題</label>
+                    <label class="checkbox-label"><input type="checkbox" value="long_answer"> 解答題</label>
+                    <label class="checkbox-label"><input type="checkbox" value="fill_blank"> 填空題</label>
+                </div>
+            </div>
+
+            <!-- Total Marks -->
+            <div class="form-group">
+                <label>總分 <small class="text-muted">(選填)</small></label>
+                <input type="number" id="totalMarks" placeholder="自動分配" min="1" max="500">
+            </div>
+
+            <!-- Exam Context -->
+            <div class="form-group">
+                <label>考試場景 <small class="text-muted">(選填)</small></label>
+                <input type="text" id="examContext" placeholder="如：期中考試、單元測驗" maxlength="200">
+            </div>
+
+            <!-- Generate Button -->
+            <button class="btn-generate" id="generateBtn" onclick="ExamCreator.generate()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                AI 生成試卷
+            </button>
+        </aside>
+
+        <!-- Right: Results Area -->
+        <main class="results-area" id="resultsArea">
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                </svg>
+                <h3>選擇知識點開始出題</h3>
+                <p>在左側配置出題參數，AI 將自動生成符合 DSE 風格的試卷</p>
+            </div>
+
+            <!-- Generating State -->
+            <div class="generating-state" id="generatingState" style="display:none;">
+                <div class="spinner"></div>
+                <h3>AI 正在出題...</h3>
+                <p>正在生成 <span id="genCount"></span> 道題目，包含幾何圖形和統計圖表</p>
+                <p class="text-muted">通常需要 30-60 秒</p>
+            </div>
+
+            <!-- Error State -->
+            <div class="error-state" id="errorState" style="display:none;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                <h3>生成失敗</h3>
+                <p id="errorMessage"></p>
+                <button class="btn-retry" onclick="ExamCreator.retry()">重新嘗試</button>
+            </div>
+
+            <!-- Questions List -->
+            <div class="questions-container" id="questionsContainer" style="display:none;">
+                <div class="questions-header">
+                    <h2>生成結果</h2>
+                    <div class="questions-actions">
+                        <span class="total-marks-badge" id="totalMarksBadge"></span>
+                        <button class="btn-print" onclick="ExamCreator.printExam()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                            打印試卷
+                        </button>
+                    </div>
+                </div>
+                <div class="questions-list" id="questionsList"></div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal" style="display:none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>編輯題目</h3>
+            <button class="modal-close" onclick="ExamCreator.closeEditModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>題目</label>
+                <textarea id="editQuestion" rows="5"></textarea>
+            </div>
+            <div class="form-group">
+                <label>答案</label>
+                <textarea id="editAnswer" rows="4"></textarea>
+            </div>
+            <div class="form-group">
+                <label>評分準則</label>
+                <textarea id="editMarking" rows="3"></textarea>
+            </div>
+            <div class="form-group inline-group">
+                <div>
+                    <label>配分</label>
+                    <input type="number" id="editPoints" min="1" max="100">
+                </div>
+                <div>
+                    <label>題型</label>
+                    <select id="editType">
+                        <option value="short_answer">簡答題</option>
+                        <option value="multiple_choice">選擇題</option>
+                        <option value="long_answer">解答題</option>
+                        <option value="fill_blank">填空題</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="ExamCreator.closeEditModal()">取消</button>
+            <button class="btn-primary" onclick="ExamCreator.saveEdit()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Print Template (hidden, shown only in @media print) -->
+<div class="print-template" id="printTemplate"></div>
+
+<script src="/static/js/shared/utils.js"></script>
+<script src="/static/js/shared/auth.js"></script>
+<script src="/static/js/exam_creator.js"></script>
+</body>
+</html>

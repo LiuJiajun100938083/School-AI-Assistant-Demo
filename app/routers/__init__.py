@@ -53,6 +53,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.class_diary import router as class_diary_router
     from app.routers.image_gen import router as image_gen_router
     from app.routers.resource_library import router as resource_library_router
+    from app.routers.exam_creator import router as exam_creator_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -81,6 +82,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(class_diary_router)
     app.include_router(image_gen_router)
     app.include_router(resource_library_router)
+    app.include_router(exam_creator_router)
 
     logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, assignment, class_diary, image_gen")
 
@@ -494,7 +496,33 @@ def _run_schema_migrations() -> None:
                     f"ALTER TABLE submission_answers ADD COLUMN {col_name} {col_def}{after_clause}"
                 )
 
-        logger.info("数据库 schema 迁移完成 (含作業管理表)")
+        # --- exam_generation_sessions 表（AI 考卷出題）---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_generation_sessions (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                session_id        VARCHAR(64) NOT NULL UNIQUE,
+                teacher_username  VARCHAR(100) NOT NULL,
+                teacher_id        INT NOT NULL,
+                subject           VARCHAR(50) NOT NULL,
+                status            ENUM('generating','generated','generation_failed')
+                                  DEFAULT 'generating',
+                question_count    INT DEFAULT 5,
+                difficulty        INT DEFAULT 3,
+                total_marks       INT DEFAULT NULL,
+                target_points     JSON DEFAULT NULL       COMMENT '目標知識點 codes',
+                question_types    JSON DEFAULT NULL       COMMENT '指定題型列表',
+                exam_context      VARCHAR(200) DEFAULT '' COMMENT '考試場景描述',
+                questions         JSON DEFAULT NULL       COMMENT '生成結果',
+                error_code        VARCHAR(50) DEFAULT NULL,
+                error_message     TEXT DEFAULT NULL,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_egs_teacher (teacher_username),
+                INDEX idx_egs_created (created_at DESC)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
 

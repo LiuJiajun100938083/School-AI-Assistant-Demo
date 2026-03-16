@@ -504,5 +504,114 @@ careless / concept / calculation / method / format / incomplete / irrelevant
 ```
 只輸出 JSON。"""
 
+    def build_exam_prompt(
+        self,
+        target_points: List[Dict],
+        question_count: int,
+        difficulty: int = 3,
+        question_types: Optional[List[str]] = None,
+        exam_context: str = "",
+        total_marks: Optional[int] = None,
+    ) -> str:
+        points_desc = "\n".join(
+            f"- {p['point_name']}（{p.get('category', '')}）"
+            for p in target_points
+        )
+        types_desc = "、".join(question_types) if question_types else "自動分配（選擇題、簡答題、解答題混合）"
+        marks_note = f"，總分 {total_marks} 分（請合理分配每題配分，使總和等於 {total_marks}）" if total_marks else ""
+        context_note = f"（{exam_context}）" if exam_context else ""
+        num_points = len(target_points)
+
+        return f"""你是一位香港數學科教師，請為考試{context_note}出 {question_count} 道題目{marks_note}。
+
+## 目標知識點
+{points_desc}
+
+## 難度要求：{difficulty}/5
+
+## 題型要求：{types_desc}
+
+## 出題要求
+- 符合香港中學數學課程（DSE 風格）
+- 數學公式使用 LaTeX 標記
+- 每題標明配分（points 字段）
+- 提供完整的解題步驟（correct_answer）和評分準則（marking_scheme）
+- 題目文字條件必須自包含，即使附圖未顯示也能唯一理解幾何關係
+- 不可把答案建立在目測圖形之上
+
+## 數據表格格式規則
+- 若題目包含數據對照關係（頻率分佈、統計表等），**必須**用 Markdown 表格格式
+- **禁止**用空格、Tab 或純文字排列數據；必須用 `|` 分隔欄位
+- 表格中的數學符號用 `$...$` 包裹
+- 若題目只涉及數據對照、不需要圖形，優先輸出 Markdown 表格，不要設 needs_chart
+
+## 幾何題與 needs_svg 標記
+- 幾何題不需要畫圖，系統會自動為幾何題生成配圖
+- 每道題必須標記 needs_svg 字段：
+  - true：題目涉及幾何圖形（三角形、四邊形、圓、角、平行線、座標幾何等）
+  - false：純代數、函數、概率、數列等不需要幾何圖形的題目
+
+## 統計圖表與 needs_chart / chart_spec
+- 若題目需要茎葉圖、柱形圖、直方圖等統計圖形，設 needs_chart: true 並提供 chart_spec
+- 若題目只需數據表格（頻率分佈表等），用 Markdown 表格即可
+- needs_chart 和 needs_svg 互斥
+
+### 茎葉圖 chart_spec 範例
+```json
+{{{{
+  "needs_chart": true,
+  "chart_spec": {{{{
+    "type": "stem_leaf",
+    "title": "某班數學成績",
+    "stems": [1, 2, 3, 4, 5],
+    "leaves": [[2, 5, 8], [0, 1, 3, 7], [2, 4, 4, 6, 9], [0, 1, 5], [3]],
+    "unit": "莖 = 十位，葉 = 個位"
+  }}}}
+}}}}
+```
+
+### 柱形圖 / 直方圖 chart_spec 範例
+```json
+{{{{
+  "needs_chart": true,
+  "chart_spec": {{{{
+    "type": "bar",
+    "title": "各班學生人數",
+    "labels": ["1A", "1B", "1C", "1D"],
+    "values": [35, 40, 38, 42],
+    "x_label": "班別",
+    "y_label": "人數"
+  }}}}
+}}}}
+```
+
+## 題目分配規則
+- 每個目標知識點至少 1 題（共 {num_points} 個知識點，{question_count} 題）
+- 不可讓超過一半的題目集中在同一個知識點（除非只有 1 個知識點）
+- 難度從簡到難遞進
+
+## 輸出格式（JSON）
+```json
+{{{{
+  "questions": [
+    {{{{
+      "index": 1,
+      "question": "題目（LaTeX 公式用 $ 包裹）",
+      "question_type": "short_answer / multiple_choice / fill_blank",
+      "options": null,
+      "correct_answer": "完整解題步驟和最終答案",
+      "marking_scheme": "評分要點（如：列式 1 分，計算 2 分，答案 1 分）",
+      "points": 5,
+      "point_code": "對應的知識點編碼",
+      "difficulty": {difficulty},
+      "needs_svg": true,
+      "needs_chart": false,
+      "chart_spec": null
+    }}}}
+  ]
+}}}}
+```
+只輸出 JSON。"""
+
 
 HANDLER_CLASS = MathHandler

@@ -105,6 +105,71 @@ class BaseSubjectHandler(ABC):
         """構建 AI 練習題生成 prompt。"""
         ...
 
+    def build_exam_prompt(
+        self,
+        target_points: List[Dict],
+        question_count: int,
+        difficulty: int = 3,
+        question_types: Optional[List[str]] = None,
+        exam_context: str = "",
+        total_marks: Optional[int] = None,
+    ) -> str:
+        """
+        構建 AI 考卷出題 prompt（教師用）。
+
+        與 build_practice_prompt 的區別：
+        - 無學生上下文（無薄弱點、無歷史）
+        - 有配分和評分準則
+        - 教師可指定題型
+        - 更正式的考卷格式
+
+        默認實現提供通用模板，各科可覆寫。
+        """
+        points_desc = "\n".join(
+            f"- {p['point_name']}（{p.get('category', '')}）"
+            for p in target_points
+        )
+        types_desc = "、".join(question_types) if question_types else "自動分配"
+        marks_desc = f"，總分 {total_marks} 分" if total_marks else ""
+        context_desc = f"（{exam_context}）" if exam_context else ""
+
+        return f"""你是一位經驗豐富的{self.display_name}科教師，請為考試{context_desc}出 {question_count} 道題目{marks_desc}。
+
+## 目標知識點
+{points_desc}
+
+## 難度要求：{difficulty}/5
+## 題型要求：{types_desc}
+
+## 出題要求
+- 題目文字條件必須自包含
+- 數學公式使用 LaTeX 標記
+- 每題標明配分（points）
+- 提供完整的答案和評分準則（marking_scheme）
+
+## 輸出格式（JSON）
+```json
+{{{{
+  "questions": [
+    {{{{
+      "index": 1,
+      "question": "題目（LaTeX 公式用 $ 包裹）",
+      "question_type": "short_answer / multiple_choice / fill_blank",
+      "options": null,
+      "correct_answer": "完整解題步驟和最終答案",
+      "marking_scheme": "配分要點（如：列式 1 分，計算 2 分）",
+      "points": 5,
+      "point_code": "對應的知識點編碼",
+      "difficulty": {difficulty},
+      "needs_svg": false,
+      "needs_chart": false,
+      "chart_spec": null
+    }}}}
+  ]
+}}}}
+```
+只輸出 JSON。"""
+
     def build_weakness_report_prompt(
         self,
         weak_points: List[Dict],

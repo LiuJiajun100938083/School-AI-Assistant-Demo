@@ -448,83 +448,18 @@ class MistakeBookService:
         """
         直接異步調用 Ollama API（繞過 langchain 60s 超時限制）
 
-        使用 /api/chat 端點，適合長時間分析任務。
-        model_override: 指定模型（如 SVG 生成用 coder 模型），None 則用全局配置。
-        timeout_override: 指定超時秒數，None 則用默認 300s。
-        temperature: 生成溫度，默認 0.3。出題建議 0.8 以增加多樣性。
-        gate_task/gate_priority/gate_weight: ai_gate 調度參數，None 則用默認值。
+        委託給 infrastructure.ai_pipeline.llm_caller，保持向後相容。
         """
-        import httpx
-
-        # 從全局 LLM 配置獲取模型和 URL
-        try:
-            from llm.config import get_llm_config
-            config = get_llm_config()
-            model = config.local_model
-            base_url = config.local_base_url
-        except Exception:
-            model = "qwen3.5:35b"
-            base_url = "http://localhost:11434"
-
-        if model_override:
-            model = model_override
-
-        payload = {
-            "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are an expert teacher. You MUST respond with valid JSON only. No explanations, no reasoning, no markdown — just a single JSON object.",
-                },
-                {"role": "user", "content": prompt},
-            ],
-            "stream": False,
-            "think": False,
-            "format": "json",
-            "options": {
-                "temperature": temperature,
-                "num_predict": 8192,
-            },
-        }
-
-        from app.core.ai_gate import ai_gate, Priority, Weight
-
-        timeout = httpx.Timeout(timeout_override or 300.0, connect=10.0)
-
-        task_name = gate_task or "mistake_analysis"
-        priority = gate_priority or Priority.INTERACTIVE
-        weight = gate_weight or Weight.ANALYSIS
-
-        async with ai_gate(task_name, priority, weight) as client:
-            response = await client.post("/api/chat", json=payload, timeout=timeout)
-            response.raise_for_status()
-            data = response.json()
-
-        msg = data.get("message", {})
-        content = msg.get("content", "")
-        thinking = msg.get("thinking", "")
-
-        import re
-
-        # 修復 JSON 解析對 LaTeX 命令的損壞
-        # 外層 JSON 將 \times → \t(tab)+"imes", \frac → \f(FF)+"rac" 等
-        content = _repair_latex_json_corruption(content)
-
-        # 移除 thinking 標籤（如果在 content 裡）
-        content = re.sub(r"<think>[\s\S]*?</think>", "", content, flags=re.DOTALL).strip()
-
-        # 如果 content 為空但 thinking 字段有內容，使用 thinking
-        if not content and thinking:
-            logger.info("Ollama content 為空，使用 thinking 字段 (len=%d)", len(thinking))
-            content = re.sub(r"<think>[\s\S]*?</think>", "", thinking, flags=re.DOTALL).strip()
-            if not content:
-                content = thinking.strip()
-
-        # 最終清理殘留的 think 標籤
-        content = re.sub(r"</?think>", "", content).strip()
-
-        logger.info("直接 Ollama 調用成功: model=%s, content_len=%d, thinking_len=%d", model, len(content), len(thinking))
-        return content
+        from app.infrastructure.ai_pipeline.llm_caller import call_ollama_json
+        return await call_ollama_json(
+            prompt=prompt,
+            model=model_override,
+            temperature=temperature,
+            timeout=timeout_override or 300.0,
+            gate_task=gate_task or "mistake_analysis",
+            gate_priority=gate_priority,
+            gate_weight=gate_weight,
+        )
 
     # ================================================================
     # SVG 幾何圖生成（專用模型增強）
@@ -532,136 +467,13 @@ class MistakeBookService:
 
     async def _enrich_questions_with_svg(self, questions: list, subject: str) -> None:
         """
-        為需要 SVG 的題目調用專用模型生成圖形，直接修改 questions list。
-
-        V2 兩步流程：題目 → geometry spec JSON → SVG。
-        幾何語義和 SVG 語法分離，提升正確率，中間 spec 可 debug。
-        若 spec 提取失敗，fallback 到 V1 直接生成。
-        SVG 是增強項，任何異常只跳過該題，不影響主鏈路。
+        為需要 SVG 的題目生成幾何圖形，直接修改 questions list。
+        委託給 infrastructure.ai_pipeline.question_enricher。
         """
-        from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
-        handler = SubjectHandlerRegistry.get(subject)
-        if not handler.supports_svg_generation:
-            return
+        from app.infrastructure.ai_pipeline.question_enricher import enrich_with_svg
+        await enrich_with_svg(questions, subject)
 
-        from llm.config import get_llm_config
-        from app.core.ai_gate import Priority, Weight
-        svg_model = get_llm_config().svg_model
-
-        # 檢查 handler 是否支持 V2 spec 模式
-        has_spec_mode = bool(handler.build_geometry_spec_prompt("test"))
-
-        svg_triggered = 0
-        svg_success = 0
-
-        for i, q in enumerate(questions):
-            text = q.get("question", "")
-            # 優先使用出題模型判斷（V2），fallback 到 keyword
-            if q.get("needs_svg") is False:
-                continue
-            needs = q.get("needs_svg", None)
-            if needs is None:
-                needs = handler.needs_svg(text)
-            if not needs or "<svg" in text:
-                continue
-
-            svg_triggered += 1
-            try:
-                svg = await self._generate_svg_two_step(
-                    handler, text, svg_model, has_spec_mode, i + 1,
-                )
-                if svg:
-                    svg = _sanitize_svg_content(svg)
-                    if "<svg" in svg and "</svg>" in svg:
-                        q["question_svg"] = svg
-                        svg_success += 1
-                        logger.info("題 %d SVG 生成成功", i + 1)
-                    else:
-                        logger.warning("題 %d SVG 清洗後無效，跳過", i + 1)
-                else:
-                    logger.info("題 %d 無 SVG 輸出，跳過", i + 1)
-            except Exception as e:
-                logger.warning("題 %d SVG 生成失敗: %s", i + 1, e)
-
-        if svg_triggered:
-            logger.info(
-                "SVG 生成完成: 觸發=%d, 成功=%d, 失敗=%d",
-                svg_triggered, svg_success, svg_triggered - svg_success,
-            )
-
-    async def _generate_svg_two_step(
-        self, handler, question_text: str, svg_model: str,
-        has_spec_mode: bool, question_num: int,
-    ) -> str:
-        """
-        兩步 SVG 生成：
-          Step 1 (LLM): 題目 → geometry spec JSON（幾何語義提取 + 座標計算）
-          Step 2 (Python): spec JSON → SVG（確定性渲染，不依賴 LLM）
-        若 Step 1 失敗，fallback 到 V1 直接 LLM 生成。
-        """
-        from app.core.ai_gate import Priority, Weight
-        gate_kwargs = dict(
-            model_override=svg_model,
-            timeout_override=120.0,
-            gate_task="svg_geometry",
-            gate_priority=Priority.BATCH,
-            gate_weight=Weight.SVG_GEOMETRY,
-        )
-
-        # V3: 約束模式（Step 1 LLM 提約束 + Step 2 Python solver + Step 3 Python renderer）
-        if has_spec_mode:
-            try:
-                # Step 1: LLM 提取幾何約束（不含座標）
-                spec_prompt = handler.build_geometry_spec_prompt(question_text)
-                spec_raw = await self._call_ollama_direct(spec_prompt, **gate_kwargs)
-
-                spec_data = None
-                if spec_raw:
-                    try:
-                        spec_data = json.loads(spec_raw)
-                    except json.JSONDecodeError:
-                        m = re.search(r'\{[\s\S]*\}', spec_raw)
-                        if m:
-                            try:
-                                spec_data = json.loads(m.group())
-                            except json.JSONDecodeError:
-                                pass
-
-                if spec_data and not spec_data.get("skip"):
-                    logger.info(
-                        "題 %d 約束 spec 提取成功, spec=%s",
-                        question_num,
-                        json.dumps(spec_data, ensure_ascii=False)[:500],
-                    )
-
-                    # Step 2: Python 約束求解器 → 座標
-                    from app.domains.mistake_book.geometry_engine import (
-                        solve_geometry_spec, GeometrySolveError,
-                    )
-                    try:
-                        renderer_spec = solve_geometry_spec(spec_data)
-                    except GeometrySolveError as e:
-                        logger.warning("題 %d solver 失敗: %s", question_num, e)
-                        return ""  # 默認：solver 失敗 = 不顯示圖
-
-                    # Step 3: Python 確定性渲染
-                    from app.domains.mistake_book.svg_renderer import render_svg_from_spec
-                    svg = render_svg_from_spec(renderer_spec)
-                    if svg and "<svg" in svg:
-                        logger.info("題 %d V3 solver + renderer SVG 生成成功", question_num)
-                        return svg
-                    logger.warning("題 %d renderer 輸出為空", question_num)
-                    return ""
-                else:
-                    logger.info("題 %d spec 提取為 skip 或無結果", question_num)
-                    return ""
-
-            except Exception as e:
-                logger.warning("題 %d V3 管線失敗: %s", question_num, e)
-                return ""
-
-        # 非 spec 模式的 handler 不走此路徑
-        return ""
+    # _generate_svg_two_step 已遷移到 infrastructure.ai_pipeline.question_enricher
 
     # ================================================================
     # 統計圖表 SVG 生成（chart_spec → 確定性渲染）
@@ -670,71 +482,10 @@ class MistakeBookService:
     def _enrich_questions_with_charts(self, questions: list, subject: str) -> None:
         """
         為含 chart_spec 的題目生成統計圖表 SVG，直接修改 questions list。
-
-        優先級：
-          1. chart_spec 結構化字段（LLM 顯式輸出）
-          2. needs_chart 字段
-          3. handler.needs_chart() 關鍵詞兜底
-
-        注意：當前 question_svg 與幾何 SVG 共用同一字段。
-        基於「同一題不會同時需要幾何圖和統計圖」的階段性假設。
-        若未來出現混用場景，需升級為 question_media 列表。
+        委託給 infrastructure.ai_pipeline.question_enricher。
         """
-        from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
-        handler = SubjectHandlerRegistry.get(subject)
-
-        from app.domains.mistake_book.chart_renderer import render_chart_from_spec
-
-        chart_triggered = 0
-        chart_success = 0
-
-        for i, q in enumerate(questions):
-            # 已有 SVG（幾何題已生成），跳過
-            if q.get("question_svg"):
-                continue
-
-            chart_spec = q.get("chart_spec")
-            if not chart_spec:
-                # 無 chart_spec：檢查 needs_chart 字段或關鍵詞兜底
-                needs = q.get("needs_chart", None)
-                if needs is None:
-                    needs = handler.needs_chart(q.get("question", ""))
-                if not needs:
-                    continue
-                # 有 needs_chart=True 但無 chart_spec → 跳過（無法渲染）
-                logger.info("題 %d needs_chart=True 但無 chart_spec，跳過圖表生成", i + 1)
-                continue
-
-            chart_triggered += 1
-            try:
-                svg = render_chart_from_spec(chart_spec)
-                if svg and "<svg" in svg:
-                    q["question_svg"] = svg
-                    chart_success += 1
-                    logger.info(
-                        "題 %d chart SVG 生成成功 (type=%s)",
-                        i + 1, chart_spec.get("type", "?"),
-                    )
-                else:
-                    logger.warning(
-                        "題 %d chart SVG 為空 (type=%s)",
-                        i + 1, chart_spec.get("type", "?"),
-                    )
-            except Exception as e:
-                logger.warning(
-                    "題 %d chart SVG 生成失敗 (type=%s): %s",
-                    i + 1, chart_spec.get("type", "?"), e,
-                )
-
-            # 無論成功或失敗，都從題干中移除 chart_spec（不顯示給學生）
-            q.pop("chart_spec", None)
-            q.pop("needs_chart", None)
-
-        if chart_triggered:
-            logger.info(
-                "Chart SVG 生成完成: 觸發=%d, 成功=%d, 失敗=%d",
-                chart_triggered, chart_success, chart_triggered - chart_success,
-            )
+        from app.infrastructure.ai_pipeline.question_enricher import enrich_with_charts
+        enrich_with_charts(questions, subject)
 
     # ================================================================
     # 圖形描述統一寫入（收口方法）
@@ -3459,84 +3210,17 @@ class MistakeBookService:
 
     @staticmethod
     def _parse_json_response(raw: str) -> Dict:
-        """解析 LLM 返回的 JSON（容錯處理 LaTeX 反斜槓）"""
-        if not raw:
-            return {}
-
-        text = raw.strip()
-
-        # 移除 thinking 標籤
-        import re
-        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-
-        # 提取 JSON
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            parts = text.split("```")
-            if len(parts) >= 3:
-                text = parts[1].strip()
-
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1:
-            text = text[start:end + 1]
-
-        # 多級容錯解析（處理 LaTeX 反斜槓如 \frac \sqrt \binom 等）
-        #
-        # 核心問題：JSON 標準轉義 \b \f \n \r \t 與 LaTeX 命令衝突
-        #   \frac → \f 被 json.loads 解讀為 form-feed，結果變成 rac
-        #   \binom → \b 被解讀為 backspace
-        #   \ne → \n 被解讀為 newline
-        # 因此必須在 json.loads 前預處理，將 LaTeX 反斜槓雙重轉義。
-
-        def _fix_latex_escapes(s: str) -> str:
-            """將非 JSON 標準轉義的反斜槓雙重轉義，同時保護 LaTeX 命令中
-            碰巧以 JSON 轉義字符開頭的序列（如 \\frac, \\binom, \\nabla, \\right, \\text）。
-            """
-            # 匹配 \ 後跟一個字母序列。如果字母序列長度 > 1 且以 b/f/n/r/t 開頭，
-            # 那幾乎一定是 LaTeX 命令而非 JSON 轉義（JSON 轉義後面是非字母字符）。
-            def _replace(m: re.Match) -> str:
-                seq = m.group(1)  # 反斜槓後面的內容
-                # 真正的 JSON 轉義只有：\" \\ \/ \b \f \n \r \t \uXXXX
-                # 其中 \b \f \n \r \t 後面不會緊跟字母（在 JSON 值中它們是單字符轉義）
-                # 如果後面跟了字母（如 \frac, \binom），那是 LaTeX → 需雙重轉義
-                if len(seq) > 1:
-                    return '\\\\' + seq  # LaTeX 命令：雙重轉義
-                # 單字符：保留原樣讓 json.loads 處理（真正的 \n \t 等）
-                return m.group(0)
-
-            # 匹配 \ 後跟至少一個字母，但排除已經雙重轉義的 \\
-            return re.sub(r'(?<!\\)\\([a-zA-Z]+)', _replace, s)
-
-        # 第一次：修復 LaTeX 轉義後解析
-        fixed = _fix_latex_escapes(text)
-        try:
-            return json.loads(fixed)
-        except json.JSONDecodeError:
-            pass
-
-        # 第二次：全部反斜槓雙重轉義（更激進）
-        try:
-            return json.loads(text.replace('\\', '\\\\'))
-        except json.JSONDecodeError:
-            pass
-
-        # 第三次：嘗試用正則找到最大的 JSON 對象
-        json_blocks = re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL)
-        for block in sorted(json_blocks, key=len, reverse=True):
-            for attempt in [_fix_latex_escapes(block), block.replace('\\', '\\\\')]:
-                try:
-                    parsed = json.loads(attempt)
-                    if isinstance(parsed, dict) and len(parsed) >= 2:
-                        logger.info("正則提取 JSON 成功: %d 個字段", len(parsed))
-                        return parsed
-                except json.JSONDecodeError:
-                    continue
-
-        # 最終回退：從散文文本中提取關鍵信息構建結果
-        logger.warning("JSON 解析失敗，嘗試從散文提取: %s", text[:200])
-        return _extract_analysis_from_prose(raw)
+        """
+        解析 LLM 返回的 JSON（容錯處理 LaTeX 反斜槓）。
+        委託給 infrastructure.ai_pipeline.llm_caller，
+        失敗時 fallback 到 _extract_analysis_from_prose（錯題分析專用）。
+        """
+        from app.infrastructure.ai_pipeline.llm_caller import parse_questions_json
+        result = parse_questions_json(raw)
+        if result:
+            return result
+        # ai_pipeline 返回空 dict 時，嘗試從散文提取（錯題分析場景專用）
+        return _extract_analysis_from_prose(raw) if raw else {}
 
     @staticmethod
     def _build_practice_feedback_prompt(

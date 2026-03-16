@@ -277,6 +277,12 @@ async def assignment_page():
     return _serve_page("assignment.html")
 
 
+@router.get("/exam-creator")
+async def exam_creator_page():
+    """AI 考卷出題"""
+    return _serve_page("exam_creator.html")
+
+
 @router.get("/game_upload")
 async def game_upload():
     """游戏上传页"""

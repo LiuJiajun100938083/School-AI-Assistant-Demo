@@ -145,6 +145,8 @@ from app.domains.assignment.plagiarism_service import PlagiarismService
 from app.domains.class_diary.service import ClassDiaryService
 from app.domains.image_gen.service import ImageGenService
 from app.domains.resource_library.service import ResourceLibraryService
+from app.domains.exam_creator.repository import ExamGenerationSessionRepository
+from app.domains.exam_creator.service import ExamCreatorService
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +202,7 @@ class ServiceContainer:
         self._image_gen: Optional[ImageGenService] = None
         self._lesson: Optional[LessonService] = None
         self._resource_library: Optional[ResourceLibraryService] = None
+        self._exam_creator: Optional[ExamCreatorService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -475,6 +478,16 @@ class ServiceContainer:
         if self._image_gen is None:
             self._image_gen = ImageGenService(settings=self._settings)
         return self._image_gen
+
+    @property
+    def exam_creator(self) -> ExamCreatorService:
+        """AI 考卷出題服務"""
+        if self._exam_creator is None:
+            self._exam_creator = ExamCreatorService(
+                session_repo=self._get_repo(ExamGenerationSessionRepository),
+                knowledge_repo=self._get_repo(KnowledgePointRepository),
+            )
+        return self._exam_creator
 
     @property
     def vision(self) -> VisionService:
