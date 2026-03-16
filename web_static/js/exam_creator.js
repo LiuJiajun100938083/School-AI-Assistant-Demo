@@ -227,7 +227,7 @@ const ExamCreator = (() => {
 
     function init() {
         // Auth check
-        state.token = localStorage.getItem('token');
+        state.token = localStorage.getItem('auth_token') || localStorage.getItem('token');
         state.username = localStorage.getItem('username') || '';
         if (!state.token) {
             window.location.href = '/login';
