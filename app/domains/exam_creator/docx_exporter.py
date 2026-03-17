@@ -61,14 +61,24 @@ def _convert_mathml_node(src, parent, nsmap):
         for child in src:
             _convert_mathml_node(child, parent, nsmap)
 
-    elif tag == 'mn' or tag == 'mi' or tag == 'mo' or tag == 'mtext':
+    elif tag in ('mn', 'mi', 'mo', 'mtext'):
         # 數字/變量/運算符/文字 → m:r (run)
         r = etree.SubElement(parent, qn('m:r'))
+        rpr = etree.SubElement(r, qn('m:rPr'))
         if tag == 'mi':
-            # 斜體
-            rpr = etree.SubElement(r, qn('m:rPr'))
+            # 變量用斜體
             sty = etree.SubElement(rpr, qn('m:sty'))
             sty.set(qn('m:val'), 'i')
+        elif tag == 'mtext':
+            # 普通文字（如 cm、kg）→ 正常字體，非數學斜體
+            nor = etree.SubElement(rpr, qn('m:nor'))
+            nor.set(qn('m:val'), '1')
+        # 為所有 math run 設定 Word 字體，避免 Cambria Math 缺字
+        wrpr = etree.SubElement(r, qn('w:rPr'))
+        rfonts = etree.SubElement(wrpr, qn('w:rFonts'))
+        rfonts.set(qn('w:ascii'), 'Times New Roman')
+        rfonts.set(qn('w:hAnsi'), 'Times New Roman')
+        rfonts.set(qn('w:eastAsia'), '微軟正黑體')
         t = etree.SubElement(r, qn('m:t'))
         t.text = src.text or ''
         t.set(qn('xml:space'), 'preserve')
