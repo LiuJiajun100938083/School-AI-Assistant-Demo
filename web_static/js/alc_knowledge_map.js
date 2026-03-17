@@ -13,6 +13,12 @@
     // Module-level render context — populated by renderKnowledgeMap(), used by highlightNodeWithPath()
     let _mapCtx = null;
 
+    // 層級關係類型（中英文兼容）
+    function isHierarchyEdge(relType) {
+        const t = (relType || '').toLowerCase();
+        return t === '包含' || t === 'includes' || t === 'contains';
+    }
+
     // rAF gate for tickHandler — batches rapid calls into one paint
     let _tickRafId = null;
 
@@ -50,14 +56,11 @@
 
     /** Edge color palette by relation_type */
     const EDGE_COLORS = {
-        '包含': '#999',
-        '前置': '#006633',
-        '關聯': '#0066cc',
-        '关联': '#0066cc',
-        '影響': '#e67e22',
-        '影响': '#e67e22',
-        '備選': '#8e44ad',
-        '备选': '#8e44ad',
+        '包含': '#999',       'includes': '#999',    'contains': '#999',
+        '前置': '#006633',    'prerequisite': '#006633',
+        '關聯': '#0066cc',    '关联': '#0066cc',     'related': '#0066cc',
+        '影響': '#e67e22',    '影响': '#e67e22',
+        '備選': '#8e44ad',    '备选': '#8e44ad',
         '延伸': '#0066cc',
     };
     const EDGE_COLOR_DEFAULT = '#aaa';
@@ -96,7 +99,7 @@
             adjacencyMap.get(tId).add(sId);
 
             const relType = e.relation_type || e.relationship_type || e.label || '';
-            if (relType === '包含') {
+            if (isHierarchyEdge(relType)) {
                 inDegree.set(tId, (inDegree.get(tId) || 0) + 1);
                 childrenMap.get(sId).push(tId);
                 hierarchyEdges.push(e);
@@ -1321,7 +1324,7 @@
         const parentMap = new Map();
         $.state.edges.forEach(e => {
             const relType = e.relation_type || e.relationship_type || e.label || '';
-            if (relType === '包含') {
+            if (isHierarchyEdge(relType)) {
                 parentMap.set(e.target_node_id, e.source_node_id);
             }
         });
