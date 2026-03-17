@@ -551,10 +551,15 @@ class ResourceLibraryService:
 
         # 情况 B: 有活跃分享 + force=False — 阻止并返回信息
         if not force:
+            serializable_shares = [
+                {k: (v.isoformat() if isinstance(v, datetime) else v)
+                 for k, v in s.items()}
+                for s in active_shares
+            ]
             return {
                 "deleted": False,
                 "code": "PLAN_HAS_ACTIVE_SHARES",
-                "active_shares": active_shares,
+                "active_shares": serializable_shares,
                 "message": f"该课件有 {len(active_shares)} 条活跃分享，"
                            "确认删除将同时取消所有分享",
             }
