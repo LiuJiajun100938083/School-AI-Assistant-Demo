@@ -486,6 +486,7 @@ class ServiceContainer:
             self._exam_creator = ExamCreatorService(
                 session_repo=self._get_repo(ExamGenerationSessionRepository),
                 knowledge_repo=self._get_repo(KnowledgePointRepository),
+                vision_service=self.vision,
             )
         return self._exam_creator
 

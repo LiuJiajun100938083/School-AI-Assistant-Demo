@@ -24,14 +24,16 @@ logger = logging.getLogger(__name__)
 
 class ExamCreatorService:
 
-    def __init__(self, session_repo, knowledge_repo):
+    def __init__(self, session_repo, knowledge_repo, vision_service=None):
         """
         Args:
             session_repo: ExamGenerationSessionRepository
             knowledge_repo: KnowledgePointRepository（共享參考資料，唯讀）
+            vision_service: VisionService（可選，相似題圖片 OCR 用）
         """
         self._sessions = session_repo
         self._knowledge = knowledge_repo
+        self._vision = vision_service
 
     # ================================================================
     # Step A: 啟動出題（同步，< 1s 返回）
@@ -500,6 +502,8 @@ class ExamCreatorService:
             "subject": session["subject"],
             "question_count": session["question_count"],
             "difficulty": session["difficulty"],
+            "mode": session.get("mode", "generate"),
+            "source_type": session.get("source_type"),
             "created_at": str(session["created_at"]) if session.get("created_at") else None,
         }
 
@@ -699,6 +703,9 @@ class ExamCreatorService:
                     item["target_points"] = json.loads(tp)
                 except (json.JSONDecodeError, TypeError):
                     pass
+            # 確保 mode 和 source_type 有默認值
+            item.setdefault("mode", "generate")
+            item.setdefault("source_type", None)
         return result
 
     # ================================================================
@@ -748,6 +755,296 @@ class ExamCreatorService:
             "questions": questions or [],
             "created_at": str(session["created_at"]) if session.get("created_at") else None,
         }
+
+    # ================================================================
+    # 內部方法
+    # ================================================================
+
+    # ================================================================
+    # 相似題生成 — Step A: 啟動（同步，< 1s）
+    # ================================================================
+
+    # 允許的相似題科目（受控枚舉）
+    _SIMILAR_SUBJECTS = frozenset({"math", "physics"})
+
+    def start_similar_generation(
+        self,
+        teacher_username: str,
+        subject: str,
+        question_text: str,
+        count: int = 3,
+        difficulty_variation: bool = True,
+        source_type: str = "text",
+    ) -> Dict:
+        """
+        建 session（mode=similar），返回 session_id + 後台上下文。
+
+        exam_context 字段在 similar 模式下存原題文字（複用字段換開發速度）。
+        """
+        if subject not in self._SIMILAR_SUBJECTS:
+            raise ValueError(f"相似題目前只支援 {self._SIMILAR_SUBJECTS}")
+
+        # 去重檢查（與 generate 共用）
+        existing = self._sessions.find_generating_by_teacher(teacher_username)
+        if existing:
+            return {
+                "session_id": existing["session_id"],
+                "status": "generating",
+                "reused": True,
+            }
+
+        session_id = str(uuid.uuid4())[:12]
+        self._sessions.insert({
+            "session_id": session_id,
+            "teacher_username": teacher_username,
+            "teacher_id": 0,
+            "subject": subject,
+            "status": "generating",
+            "question_count": count,
+            "difficulty": 3,  # 相似題由原題決定，這裡存默認值
+            "mode": "similar",
+            "source_type": source_type,
+            # similar 模式：exam_context 存原題文字
+            "exam_context": question_text[:3000],
+        })
+
+        logger.info(
+            "Similar generation started: session=%s, teacher=%s, subject=%s, "
+            "count=%d, source=%s",
+            session_id, teacher_username, subject, count, source_type,
+        )
+
+        return {
+            "session_id": session_id,
+            "status": "generating",
+            "reused": False,
+            "_bg_context": {
+                "subject": subject,
+                "question_text": question_text,
+                "count": count,
+                "difficulty_variation": difficulty_variation,
+            },
+        }
+
+    # ================================================================
+    # 相似題生成 — Step B: 後台生成（異步 BackgroundTask）
+    # ================================================================
+
+    async def generate_similar_background(
+        self,
+        session_id: str,
+        subject: str,
+        question_text: str,
+        count: int = 3,
+        difficulty_variation: bool = True,
+    ) -> None:
+        """
+        後台生成相似題：構建 prompt → LLM → 解析 → SVG/Chart enrichment。
+
+        錯誤分層：
+        - llm_call_failed: 模型調用失敗
+        - llm_format_error: 模型輸出格式解析失敗
+        - UNKNOWN_ERROR: 其他未知錯誤
+        """
+        session = self._sessions.find_by_session_id(session_id)
+        if not session or session["status"] != "generating":
+            return
+
+        try:
+            from app.infrastructure.ai_pipeline import (
+                call_ollama_json, parse_questions_json,
+                enrich_with_svg, enrich_with_charts, sanitize_svg,
+            )
+            from app.core.ai_gate import Priority, Weight
+
+            # 1. 構建相似題 prompt（域內私有方法）
+            prompt = self._build_similar_prompt(
+                subject, question_text, count, difficulty_variation,
+            )
+
+            # 2. LLM 調用（最多重試 1 次）
+            raw = None
+            for attempt in range(1, 3):
+                raw = await call_ollama_json(
+                    prompt,
+                    temperature=0.7 + (attempt - 1) * 0.1,
+                    gate_task="similar_question",
+                    gate_priority=Priority.URGENT,
+                    gate_weight=Weight.ANALYSIS,
+                    num_predict=16384,  # 多題需要更多 token
+                )
+                if raw and raw.strip():
+                    break
+                logger.warning(
+                    "Similar Q attempt %d/2: LLM 空回應, session=%s",
+                    attempt, session_id,
+                )
+
+            if not raw or not raw.strip():
+                self._sessions.update(
+                    {
+                        "status": "generation_failed",
+                        "error_code": "llm_call_failed",
+                        "error_message": "模型未返回結果",
+                    },
+                    "session_id = %s AND status = 'generating'",
+                    (session_id,),
+                )
+                return
+
+            # 3. 解析 JSON
+            result = parse_questions_json(raw)
+            questions = result.get("questions", [])
+
+            if not questions:
+                # 嘗試直接解析
+                if result and "question" in result:
+                    questions = [result]
+
+            if not questions:
+                self._sessions.update(
+                    {
+                        "status": "generation_failed",
+                        "error_code": "llm_format_error",
+                        "error_message": f"模型輸出格式無法解析，keys={list(result.keys()) if result else 'EMPTY'}",
+                    },
+                    "session_id = %s AND status = 'generating'",
+                    (session_id,),
+                )
+                return
+
+            # 4. 截取到指定數量 + 設置 index
+            questions = questions[:count]
+            for i, q in enumerate(questions):
+                q["index"] = i + 1
+
+            # 5. SVG / Chart enrichment（fail-soft）
+            try:
+                await enrich_with_svg(questions, subject)
+            except Exception as e:
+                logger.warning("Similar SVG enrichment failed: session=%s, %s", session_id, e)
+
+            try:
+                enrich_with_charts(questions, subject)
+            except Exception as e:
+                logger.warning("Similar chart enrichment failed: session=%s, %s", session_id, e)
+
+            # 6. SVG 安全過濾
+            for q in questions:
+                if "question" in q:
+                    q["question"] = sanitize_svg(q["question"])
+                if "question_svg" in q:
+                    q["question_svg"] = sanitize_svg(q["question_svg"])
+
+            # 7. 更新 session
+            self._sessions.update(
+                {
+                    "questions": json.dumps(questions, ensure_ascii=False),
+                    "question_count": len(questions),
+                    "status": "generated",
+                },
+                "session_id = %s AND status = 'generating'",
+                (session_id,),
+            )
+            logger.info(
+                "Similar generation completed: session=%s, questions=%d",
+                session_id, len(questions),
+            )
+
+        except Exception as e:
+            error_code = "UNKNOWN_ERROR"
+            if "timeout" in str(e).lower():
+                error_code = "llm_call_failed"
+            elif "json" in str(e).lower():
+                error_code = "llm_format_error"
+
+            self._sessions.update(
+                {
+                    "status": "generation_failed",
+                    "error_code": error_code,
+                    "error_message": str(e)[:500],
+                },
+                "session_id = %s AND status = 'generating'",
+                (session_id,),
+            )
+            logger.error(
+                "Similar generation failed: session=%s, %s: %s",
+                session_id, error_code, e, exc_info=True,
+            )
+
+    # ================================================================
+    # 相似題 Prompt 構建（域內私有方法）
+    # ================================================================
+
+    _SUBJECT_NAMES = {"math": "數學", "physics": "物理"}
+
+    def _build_similar_prompt(
+        self,
+        subject: str,
+        original_question: str,
+        count: int = 3,
+        difficulty_variation: bool = True,
+    ) -> str:
+        """
+        構建相似題生成 prompt。
+
+        強約束四個維度：知識點一致、題型結構一致、解法路徑相近、難度小幅波動。
+        輸出 JSON 格式與 build_exam_prompt 一致，方便前端零改動渲染。
+        """
+        subject_name = self._SUBJECT_NAMES.get(subject, subject)
+
+        if difficulty_variation:
+            diff_instruction = (
+                f"生成 {count} 道相似題目，難度逐漸遞進。\n"
+                f"第 1 題難度比原題稍低（difficulty -1），最後一題稍高（difficulty +1），"
+                f"中間題目與原題難度相當。"
+            )
+        else:
+            diff_instruction = f"生成 {count} 道相似題目，難度與原題相當。"
+
+        return f"""你是一位經驗豐富的DSE {subject_name}科教師。
+
+## 原始題目
+{original_question}
+
+## 任務
+{diff_instruction}
+
+## 嚴格約束（必須遵守）
+1. **核心知識點一致**：每道相似題必須考察與原題相同的知識點，不能偏移到相鄰或相關知識點
+2. **題型結構一致**：原題是單問就生成單問，原題是多小問就對應生成多小問，不能改變題型結構
+3. **解題方法路徑相近**：相似題的解法步驟應與原題使用同類方法，不能換用完全不同的解題策略
+4. **數值和情境變化**：改變具體數值、變量名、應用情境和設問角度，但保持題目本質不變
+
+## 出題要求
+- 題目文字條件必須自包含（不依賴外部圖形）
+- 數學公式使用 LaTeX 標記（$...$ 行內，$$...$$ 獨立行）
+- 每題標明配分（points）和難度（difficulty 1-5）
+- 提供完整的解題步驟和最終答案
+- 提供評分準則（marking_scheme）
+- 使用繁體中文出題
+
+## 輸出格式（JSON）
+```json
+{{{{
+  "questions": [
+    {{{{
+      "index": 1,
+      "question": "題目（LaTeX 公式用 $ 包裹）",
+      "question_type": "short_answer / multiple_choice / fill_blank",
+      "options": null,
+      "correct_answer": "完整解題步驟和最終答案",
+      "marking_scheme": "配分要點（如：列式 1 分，計算 2 分）",
+      "points": 5,
+      "difficulty": 3,
+      "needs_svg": false,
+      "needs_chart": false,
+      "chart_spec": null
+    }}}}
+  ]
+}}}}
+```
+只輸出 JSON。"""
 
     # ================================================================
     # 內部方法

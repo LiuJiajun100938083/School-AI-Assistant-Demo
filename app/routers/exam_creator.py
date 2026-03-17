@@ -6,9 +6,11 @@ Router 只做：收參數 → 調 service → 返回標準響應。
 """
 
 import logging
+import os
+import uuid
 from typing import Tuple
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import require_teacher
@@ -18,6 +20,7 @@ from app.domains.exam_creator.schemas import (
     GeometryDescriptionRequest,
     QuestionExportRequest,
     RegenerateQuestionRequest,
+    SimilarQuestionRequest,
     UpdateQuestionRequest,
 )
 from app.services import get_services
@@ -328,3 +331,117 @@ async def export_question_docx(
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": "attachment; filename=question.docx"},
     )
+
+
+# ================================================================
+# POST /api/exam-creator/similar/text — 相似題生成（文字輸入）
+# ================================================================
+
+@router.post("/api/exam-creator/similar/text")
+async def generate_similar_from_text(
+    req: SimilarQuestionRequest,
+    background_tasks: BackgroundTasks,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """從文字輸入生成相似題目。"""
+    teacher_username, _ = teacher_info
+    service = get_services().exam_creator
+
+    try:
+        result = service.start_similar_generation(
+            teacher_username=teacher_username,
+            subject=req.subject,
+            question_text=req.question_text,
+            count=req.count,
+            difficulty_variation=req.difficulty_variation,
+            source_type="text",
+        )
+    except ValueError as e:
+        return error_response(message=str(e), status_code=400)
+
+    bg_context = result.pop("_bg_context", None)
+    if bg_context and not result.get("reused"):
+        background_tasks.add_task(
+            service.generate_similar_background,
+            session_id=result["session_id"],
+            subject=bg_context["subject"],
+            question_text=bg_context["question_text"],
+            count=bg_context["count"],
+            difficulty_variation=bg_context["difficulty_variation"],
+        )
+
+    return success_response(data=result, message="相似題生成任務已啟動")
+
+
+# ================================================================
+# POST /api/exam-creator/similar/image — 相似題 OCR（圖片→文字）
+# ================================================================
+
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+
+@router.post("/api/exam-creator/similar/image")
+async def ocr_similar_question_image(
+    image: UploadFile = File(...),
+    subject: str = Form(...),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """
+    上傳題目圖片 → OCR 識別 → 返回文字（不直接生成）。
+
+    前端收到 OCR 文字後填入 textarea，老師可修正，再走 /similar/text 生成。
+    """
+    teacher_username, _ = teacher_info
+
+    # 校驗科目
+    if subject not in ("math", "physics"):
+        return error_response(message="相似題目前只支援 math 或 physics", status_code=400)
+
+    # 校驗檔案大小
+    content = await image.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        return error_response(message="圖片大小超過 10MB 限制", status_code=400)
+
+    # 存檔
+    upload_dir = os.path.join("uploads", "exam_creator", teacher_username)
+    os.makedirs(upload_dir, exist_ok=True)
+
+    ext = os.path.splitext(image.filename or "image.jpg")[1] or ".jpg"
+    file_id = str(uuid.uuid4())[:8]
+    file_path = os.path.join(upload_dir, f"similar_{file_id}{ext}")
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    # OCR 識別
+    try:
+        from app.domains.vision.schemas import RecognitionSubject, RecognitionTask
+
+        vision = get_services().vision
+        ocr_result = await vision.recognize(
+            image_path=file_path,
+            subject=RecognitionSubject(subject),
+            task=RecognitionTask.QUESTION_ONLY,
+        )
+
+        ocr_text = (ocr_result.question_text or "").strip()
+        confidence = ocr_result.confidence
+
+        # OCR 可用性判斷
+        warning = None
+        if not ocr_text or len(ocr_text) < 10:
+            warning = "OCR 識別結果過短或為空，建議手動輸入題目文字"
+        elif confidence < 0.3:
+            warning = f"OCR 識別信心度較低（{confidence:.0%}），建議核對並修正文字"
+
+        return success_response(data={
+            "ocr_text": ocr_text,
+            "confidence": round(confidence, 2),
+            "warning": warning,
+        })
+
+    except Exception as e:
+        logger.error("Similar question OCR failed: %s", e, exc_info=True)
+        return error_response(
+            message="圖片識別失敗，請手動輸入題目文字",
+            status_code=500,
+        )

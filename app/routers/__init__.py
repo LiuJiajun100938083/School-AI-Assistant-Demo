@@ -522,6 +522,26 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- exam_generation_sessions: 補列（相似題生成模式）---
+        egs_cols = {r["Field"] for r in pool.execute("SHOW COLUMNS FROM exam_generation_sessions")}
+        _egs_missing = {
+            "mode":        ("VARCHAR(20) DEFAULT 'generate' COMMENT '模式: generate|similar'", "status"),
+            "source_type": ("VARCHAR(20) DEFAULT NULL COMMENT '輸入來源: text|image'",         "mode"),
+        }
+        for col_name, (col_def, after_col) in _egs_missing.items():
+            if col_name not in egs_cols:
+                after_clause = f" AFTER {after_col}" if after_col in egs_cols or after_col in _egs_missing else ""
+                pool.execute(
+                    f"ALTER TABLE exam_generation_sessions ADD COLUMN {col_name} {col_def}{after_clause}"
+                )
+        # exam_context 從 VARCHAR(200) 擴展為 TEXT（similar 模式存原題文字，最長 3000 字）
+        for col_info in pool.execute("SHOW COLUMNS FROM exam_generation_sessions"):
+            if col_info["Field"] == "exam_context" and "varchar" in col_info["Type"].lower():
+                pool.execute(
+                    "ALTER TABLE exam_generation_sessions MODIFY COLUMN exam_context TEXT COMMENT '考試場景(generate) / 原題文字(similar)'"
+                )
+                break
+
         logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)

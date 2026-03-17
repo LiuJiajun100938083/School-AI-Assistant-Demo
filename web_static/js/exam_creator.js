@@ -32,6 +32,10 @@ const ExamCreator = (() => {
         historyPollingTimer: null,    // 歷史頁輪詢 timer
         historyGeneratingIds: [],    // 正在生成的 session ids
         pendingGeometry: null,       // 待用的 JSXGraph config（幾何預覽）
+        // 相似題模式
+        mode: 'generate',            // 'generate' | 'similar'
+        inputMethod: 'text',         // 'text' | 'image'
+        uploadedFile: null,          // 圖片上傳 File object
     };
 
     // ================================================================
@@ -82,6 +86,24 @@ const ExamCreator = (() => {
         async getKnowledgePoints(subject) {
             const resp = await fetch(`/api/exam-creator/knowledge-points/${subject}`, {
                 headers: this._headers(),
+            });
+            return resp.json();
+        },
+
+        async generateSimilar(params) {
+            const resp = await fetch('/api/exam-creator/similar/text', {
+                method: 'POST',
+                headers: this._headers(),
+                body: JSON.stringify(params),
+            });
+            return resp.json();
+        },
+
+        async ocrImage(formData) {
+            const resp = await fetch('/api/exam-creator/similar/image', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${state.token}` },
+                body: formData,
             });
             return resp.json();
         },
@@ -355,7 +377,9 @@ const ExamCreator = (() => {
     // History — 歷史列表視圖
     // ================================================================
 
-    const SUBJECT_LABELS = { math: '數學' };
+    const SUBJECT_LABELS = { math: '數學', physics: '物理' };
+    const MODE_LABELS = { generate: 'AI 出題', similar: '相似題' };
+    const SOURCE_TYPE_LABELS = { text: '文字輸入', image: '圖片 OCR' };
     const STATUS_CONFIG = {
         generating:        { label: '生成中', cls: 'status-badge--generating' },
         generated:         { label: '已完成', cls: 'status-badge--generated' },
@@ -406,6 +430,12 @@ const ExamCreator = (() => {
             const difficulty = item.difficulty || '-';
             const isClickable = item.status === 'generated';
 
+            // Mode badge
+            const modeLabel = MODE_LABELS[item.mode] || MODE_LABELS.generate;
+            const sourceLabel = item.source_type ? SOURCE_TYPE_LABELS[item.source_type] : '';
+            const modeBadgeText = sourceLabel ? `${modeLabel} · ${sourceLabel}` : modeLabel;
+            const modeBadgeCls = item.mode === 'similar' ? 'mode-badge mode-badge--similar' : 'mode-badge';
+
             // 解析 target_points
             let pointsText = '';
             if (item.target_points) {
@@ -422,6 +452,8 @@ const ExamCreator = (() => {
                  ${isClickable ? `onclick="ExamCreator.showDetail('${item.session_id}')"` : ''}>
                 <div class="history-card__row">
                     <div class="history-card__info">
+                        <span class="${modeBadgeCls}">${modeBadgeText}</span>
+                        <span class="history-card__sep">·</span>
                         <span class="history-card__subject">${subjectLabel}</span>
                         <span class="history-card__sep">·</span>
                         <span>${count} 題</span>
@@ -553,6 +585,198 @@ const ExamCreator = (() => {
     }
 
     // ================================================================
+    // Similar Mode — 相似題生成模式
+    // ================================================================
+
+    function switchMode(mode) {
+        state.mode = mode;
+
+        // Toggle pill buttons
+        document.querySelectorAll('#modeToggle .mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+        // Toggle config panels
+        const genPanel = UI.$('generateConfig');
+        const simPanel = UI.$('similarConfig');
+        if (genPanel) genPanel.style.display = mode === 'generate' ? '' : 'none';
+        if (simPanel) simPanel.style.display = mode === 'similar' ? '' : 'none';
+    }
+
+    function switchInputMethod(method) {
+        state.inputMethod = method;
+
+        document.querySelectorAll('.input-method-toggle .method-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.method === method);
+        });
+
+        const textGroup = UI.$('similarTextInput');
+        const imageGroup = UI.$('similarImageInput');
+        if (textGroup) textGroup.style.display = method === 'text' ? '' : 'none';
+        if (imageGroup) imageGroup.style.display = method === 'image' ? '' : 'none';
+    }
+
+    function setupUploadZone() {
+        const zone = UI.$('uploadZone');
+        const fileInput = UI.$('similarImageFile');
+        if (!zone || !fileInput) return;
+
+        // Click → open file picker
+        zone.addEventListener('click', () => fileInput.click());
+
+        // Drag events
+        zone.addEventListener('dragover', e => {
+            e.preventDefault();
+            zone.classList.add('drag-over');
+        });
+        zone.addEventListener('dragleave', () => {
+            zone.classList.remove('drag-over');
+        });
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) handleImageFile(file);
+        });
+
+        // File input change
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files[0]) handleImageFile(fileInput.files[0]);
+        });
+    }
+
+    function handleImageFile(file) {
+        if (file.size > 10 * 1024 * 1024) {
+            if (window.UIModule) UIModule.toast('圖片大小超過 10MB 限制', 'warning');
+            return;
+        }
+        state.uploadedFile = file;
+
+        // Show preview using existing HTML structure
+        const previewEl = UI.$('uploadPreview');
+        const previewImg = UI.$('previewImg');
+        const zone = UI.$('uploadZone');
+        if (previewEl && previewImg) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                previewImg.src = e.target.result;
+                previewEl.style.display = '';
+            };
+            reader.readAsDataURL(file);
+        }
+        if (zone) zone.style.display = 'none';
+
+        // Show OCR button
+        const ocrBtn = UI.$('ocrBtn');
+        if (ocrBtn) ocrBtn.style.display = '';
+    }
+
+    function removeUploadedImage() {
+        state.uploadedFile = null;
+        const previewEl = UI.$('uploadPreview');
+        const previewImg = UI.$('previewImg');
+        const zone = UI.$('uploadZone');
+        const ocrBtn = UI.$('ocrBtn');
+        const fileInput = UI.$('similarImageFile');
+
+        if (previewImg) previewImg.src = '';
+        if (previewEl) previewEl.style.display = 'none';
+        if (zone) zone.style.display = '';
+        if (ocrBtn) ocrBtn.style.display = 'none';
+        if (fileInput) fileInput.value = '';
+    }
+
+    async function ocrImage() {
+        if (!state.uploadedFile) {
+            if (window.UIModule) UIModule.toast('請先上傳圖片', 'warning');
+            return;
+        }
+
+        const subject = UI.$('similarSubject')?.value || 'math';
+        const formData = new FormData();
+        formData.append('image', state.uploadedFile);
+        formData.append('subject', subject);
+
+        // Loading state
+        const ocrBtn = UI.$('ocrBtn');
+        const ocrLoading = UI.$('ocrLoading');
+        if (ocrBtn) ocrBtn.style.display = 'none';
+        if (ocrLoading) ocrLoading.style.display = '';
+
+        try {
+            const resp = await API.ocrImage(formData);
+
+            if (resp.success && resp.data) {
+                const textarea = UI.$('similarQuestionText');
+                if (textarea) {
+                    textarea.value = resp.data.ocr_text || '';
+                    textarea.focus();
+                }
+
+                // Show warning if any
+                if (resp.data.warning) {
+                    if (window.UIModule) UIModule.toast(resp.data.warning, 'warning');
+                } else {
+                    if (window.UIModule) UIModule.toast('OCR 識別完成，請確認文字後生成', 'success');
+                }
+
+                // Switch to text view so teacher can edit
+                switchInputMethod('text');
+            } else {
+                if (window.UIModule) UIModule.toast(resp.message || 'OCR 識別失敗', 'error');
+            }
+        } catch (e) {
+            console.error('OCR failed:', e);
+            if (window.UIModule) UIModule.toast('OCR 請求失敗', 'error');
+        } finally {
+            if (ocrLoading) ocrLoading.style.display = 'none';
+            if (ocrBtn) ocrBtn.style.display = '';
+        }
+    }
+
+    async function generateSimilar() {
+        const subject = UI.$('similarSubject')?.value || 'math';
+        const questionText = (UI.$('similarQuestionText')?.value || '').trim();
+        const count = parseInt(UI.$('similarCount')?.value) || 3;
+
+        if (!questionText || questionText.length < 5) {
+            if (window.UIModule) UIModule.toast('請輸入至少 5 個字的題目文字', 'warning');
+            return;
+        }
+
+        const btn = UI.$('similarGenerateBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '正在提交...'; }
+
+        try {
+            const resp = await API.generateSimilar({
+                subject,
+                question_text: questionText,
+                count,
+                difficulty_variation: true,
+            });
+
+            if (resp.success && resp.data) {
+                state.sessionId = resp.data.session_id;
+                savePendingSession(resp.data.session_id);
+                if (window.UIModule) UIModule.toast('相似題生成任務已啟動', 'success');
+                showView('history');
+            } else {
+                if (window.UIModule) UIModule.toast('啟動失敗：' + (resp.message || ''), 'error');
+            }
+        } catch (e) {
+            console.error('generateSimilar failed:', e);
+            if (window.UIModule) UIModule.toast('請求失敗', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    生成相似題`;
+            }
+        }
+    }
+
+    // ================================================================
     // App — 初始化 + 事件綁定
     // ================================================================
 
@@ -598,6 +822,28 @@ const ExamCreator = (() => {
         // Load initial knowledge points + show geometry group for math
         loadKnowledgePoints('math');
         toggleGeometryGroup('math');
+
+        // Mode toggle — AI 出題 / 相似題
+        document.querySelectorAll('#modeToggle .mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+        });
+
+        // Input method toggle — 文字 / 圖片
+        document.querySelectorAll('.input-method-toggle .method-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchInputMethod(btn.dataset.method));
+        });
+
+        // Similar count slider
+        const simSlider = UI.$('similarCount');
+        const simSliderVal = UI.$('similarCountVal');
+        if (simSlider && simSliderVal) {
+            simSlider.addEventListener('input', () => {
+                simSliderVal.textContent = simSlider.value;
+            });
+        }
+
+        // Upload zone drag-drop
+        setupUploadZone();
 
         // 檢查 pending session → 自動跳歷史
         const pending = loadPendingSession();
@@ -995,8 +1241,14 @@ const ExamCreator = (() => {
         showDetail,
         showConfig: () => showView('config'),
         deleteSession,
-        // 新增：幾何預覽 + DOCX 導出
+        // 幾何預覽 + DOCX 導出
         generateGeometry,
         exportDocx,
+        // 相似題模式
+        switchMode,
+        switchInputMethod,
+        removeUploadedImage,
+        ocrImage,
+        generateSimilar,
     };
 })();

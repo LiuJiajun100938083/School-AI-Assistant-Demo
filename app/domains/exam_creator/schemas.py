@@ -4,7 +4,7 @@ AI 考試出題 — 請求/響應模型
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class ExamGenerationRequest(BaseModel):
@@ -41,6 +41,26 @@ class RegenerateQuestionRequest(BaseModel):
 class GeometryDescriptionRequest(BaseModel):
     """從文字描述生成 JSXGraph 幾何圖形"""
     description: str = Field(..., min_length=2, max_length=500, description="幾何描述文字")
+
+
+class SimilarQuestionRequest(BaseModel):
+    """相似題生成請求（文字輸入模式）"""
+    subject: str = Field(
+        ..., pattern=r'^(math|physics)$',
+        description="科目：math 或 physics",
+    )
+    question_text: str = Field(
+        ..., min_length=5, max_length=3000,
+        description="原題文字（支援 LaTeX）",
+    )
+    count: int = Field(default=3, ge=1, le=5, description="生成相似題數量")
+    difficulty_variation: bool = Field(
+        default=True, description="是否包含難度變化（±1 範圍）",
+    )
+
+    @validator('question_text')
+    def strip_text(cls, v):
+        return v.strip()
 
 
 class QuestionExportRequest(BaseModel):

@@ -37,6 +37,14 @@
     <div class="app-body">
         <!-- Left: Config Panel -->
         <aside class="config-panel" id="configPanel">
+            <!-- Mode Toggle -->
+            <div class="mode-toggle" id="modeToggle">
+                <button class="mode-btn active" data-mode="generate" onclick="ExamCreator.switchMode('generate')">AI 出題</button>
+                <button class="mode-btn" data-mode="similar" onclick="ExamCreator.switchMode('similar')">相似題生成</button>
+            </div>
+
+            <!-- ========== Generate Mode Config ========== -->
+            <div id="generateConfig">
             <h2 class="panel-title">出題設定</h2>
 
             <!-- Subject -->
@@ -123,6 +131,84 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
                 出題歷史
             </button>
+            </div><!-- /generateConfig -->
+
+            <!-- ========== Similar Mode Config (hidden by default) ========== -->
+            <div id="similarConfig" style="display:none;">
+                <h2 class="panel-title">相似題生成</h2>
+
+                <!-- Subject -->
+                <div class="form-group">
+                    <label>科目</label>
+                    <select id="similarSubject">
+                        <option value="math">數學</option>
+                        <option value="physics">物理</option>
+                    </select>
+                </div>
+
+                <!-- Input Method Toggle -->
+                <div class="form-group">
+                    <label>輸入方式</label>
+                    <div class="input-method-toggle">
+                        <button class="method-btn active" data-method="text" onclick="ExamCreator.switchInputMethod('text')">文字輸入</button>
+                        <button class="method-btn" data-method="image" onclick="ExamCreator.switchInputMethod('image')">圖片上傳</button>
+                    </div>
+                </div>
+
+                <!-- Text Input -->
+                <div class="form-group" id="similarTextInput">
+                    <label>原題內容 <small class="text-muted">(支援 LaTeX)</small></label>
+                    <textarea id="similarQuestionText" rows="6" placeholder="輸入或貼上原始題目文字...&#10;數學公式用 $...$ 或 $$...$$ 包裹"></textarea>
+                </div>
+
+                <!-- Image Upload -->
+                <div class="form-group" id="similarImageInput" style="display:none;">
+                    <label>上傳題目圖片</label>
+                    <div class="upload-zone" id="uploadZone">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>拖曳圖片至此處或 <span class="upload-link">點擊上傳</span></p>
+                        <small class="text-muted">支援 JPG, PNG, HEIC（最大 10MB）</small>
+                        <input type="file" id="similarImageFile" accept="image/*,.heic,.heif" style="display:none;">
+                    </div>
+                    <div class="upload-preview" id="uploadPreview" style="display:none;">
+                        <img id="previewImg" alt="preview">
+                        <button class="btn-remove-preview" onclick="ExamCreator.removeUploadedImage()">✕ 移除</button>
+                    </div>
+                    <button class="btn-ocr" id="ocrBtn" style="display:none;" onclick="ExamCreator.ocrImage()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        識別題目文字
+                    </button>
+                    <div class="ocr-loading" id="ocrLoading" style="display:none;">
+                        <div class="spinner-small"></div>
+                        <span>正在識別...</span>
+                    </div>
+                </div>
+
+                <!-- Count -->
+                <div class="form-group">
+                    <label>生成數量</label>
+                    <div class="range-group">
+                        <input type="range" id="similarCount" min="1" max="5" value="3">
+                        <span class="range-value" id="similarCountVal">3</span>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="btn-generate" id="similarGenerateBtn" onclick="ExamCreator.generateSimilar()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    生成相似題
+                </button>
+
+                <!-- History Button -->
+                <button class="btn-history" onclick="ExamCreator.showHistory()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                    出題歷史
+                </button>
+            </div><!-- /similarConfig -->
         </aside>
 
         <!-- Right: Results Area -->
