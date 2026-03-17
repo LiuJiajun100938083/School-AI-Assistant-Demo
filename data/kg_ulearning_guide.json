@@ -1,0 +1,346 @@
+{
+  "meta": {
+    "subject_code": "",
+    "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf",
+    "exported_at": "2026-03-16T12:00:00.000000",
+    "description": "ULearning LMS 教師使用指南知識圖譜"
+  },
+  "subject_code": "",
+  "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf",
+  "nodes": [
+    {
+      "id": "node_1",
+      "title": "ULearning LMS",
+      "description": "ULearning LMS 教師平台概覽——涵蓋課程設定、課件、班級、作業、考試、成績及數據分析。[p5]",
+      "icon": "📚",
+      "color": "#1565C0"
+    },
+    {
+      "id": "node_2",
+      "title": "LMS 基礎",
+      "description": "ULearning 術語及教學快速入門清單。[p6-10]",
+      "icon": "📖",
+      "color": "#1565C0"
+    },
+    {
+      "id": "node_3",
+      "title": "登入",
+      "description": "以教師身份登入 ULearning LMS 的方法。[p12-13]",
+      "icon": "🔑",
+      "color": "#1565C0"
+    },
+    {
+      "id": "node_4",
+      "title": "準備課程",
+      "description": "在 ULearning 建立新課程——課程建立、導航及結構。[p14-15]",
+      "icon": "📋",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_5",
+      "title": "建立新課程",
+      "description": "逐步指南：建立含標題、描述及設定的新課程。[p14-15]",
+      "icon": "➕",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_6",
+      "title": "製作課件",
+      "description": "在課程內建立課件內容——新增頁面、章節及學習材料。[p16-22]",
+      "icon": "📝",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_7",
+      "title": "富文本內容",
+      "description": "使用內建編輯器在課件頁面建立富文本內容。[p23]",
+      "icon": "✏️",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_8",
+      "title": "嵌入影片",
+      "description": "在課件中嵌入 YouTube 影片及上傳本地影片檔案。[p24-30]",
+      "icon": "🎬",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_9",
+      "title": "儲存課件",
+      "description": "如何儲存課件進度及草稿。[p31]",
+      "icon": "💾",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_10",
+      "title": "預覽課件",
+      "description": "發佈前預覽課件以檢查版面及內容。[p32]",
+      "icon": "👁️",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_11",
+      "title": "發佈課件",
+      "description": "發佈課件使其可用——設定可見性、排程及存取權限。[p33-35]",
+      "icon": "🚀",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_12",
+      "title": "插入課件至課程",
+      "description": "將已發佈的課件插入課程結構供學生使用。[p36-38]",
+      "icon": "📥",
+      "color": "#2E7D32"
+    },
+    {
+      "id": "node_13",
+      "title": "班級與成員",
+      "description": "管理班級——建立班級、新增學生、檢視名冊、指派教師。[p39-50]",
+      "icon": "👥",
+      "color": "#6A1B9A"
+    },
+    {
+      "id": "node_14",
+      "title": "建立班級",
+      "description": "在課程內建立新班級的逐步指南。[p39-41]",
+      "icon": "🏫",
+      "color": "#6A1B9A"
+    },
+    {
+      "id": "node_15",
+      "title": "新增學生至班級",
+      "description": "如何將學生加入班級——搜尋、邀請或批量匯入。[p42-43]",
+      "icon": "🧑‍🎓",
+      "color": "#6A1B9A"
+    },
+    {
+      "id": "node_16",
+      "title": "檢視班級名冊",
+      "description": "查看及管理班級已註冊學生名單。[p44-45]",
+      "icon": "📋",
+      "color": "#6A1B9A"
+    },
+    {
+      "id": "node_17",
+      "title": "新增教師至課程",
+      "description": "如何將協同教師或助教加入課程。[p46-47]",
+      "icon": "👨‍🏫",
+      "color": "#6A1B9A"
+    },
+    {
+      "id": "node_18",
+      "title": "指派教師至班級",
+      "description": "指派教師管理課程內的特定班級。[p48-49]",
+      "icon": "🔗",
+      "color": "#6A1B9A"
+    },
+    {
+      "id": "node_19",
+      "title": "公告",
+      "description": "建立及管理課程公告以與學生溝通。[p51-55]",
+      "icon": "📢",
+      "color": "#E65100"
+    },
+    {
+      "id": "node_20",
+      "title": "資源",
+      "description": "管理課程資源——上傳檔案及建立微課。[p56-69]",
+      "icon": "📁",
+      "color": "#00838F"
+    },
+    {
+      "id": "node_21",
+      "title": "新增資源",
+      "description": "從電腦上傳資源檔案至課程資源庫。[p56-59]",
+      "icon": "📤",
+      "color": "#00838F"
+    },
+    {
+      "id": "node_22",
+      "title": "建立微課",
+      "description": "建立含投影片及旁白的微課供學生使用。[p60-67]",
+      "icon": "🎙️",
+      "color": "#00838F"
+    },
+    {
+      "id": "node_23",
+      "title": "發佈微課",
+      "description": "發佈已完成的微課使其對學生可用。[p68-69]",
+      "icon": "📡",
+      "color": "#00838F"
+    },
+    {
+      "id": "node_24",
+      "title": "作業",
+      "description": "建立及管理作業——個人任務、題目及測驗。[p70-89]",
+      "icon": "📝",
+      "color": "#C62828"
+    },
+    {
+      "id": "node_25",
+      "title": "個人作業",
+      "description": "建立並發佈含說明及截止日期的個人作業。[p70-73]",
+      "icon": "📄",
+      "color": "#C62828"
+    },
+    {
+      "id": "node_26",
+      "title": "建立題目",
+      "description": "在題庫中建立各類題目（選擇題、填充題、論述題等）。[p74-82]",
+      "icon": "❓",
+      "color": "#C62828"
+    },
+    {
+      "id": "node_27",
+      "title": "建立並發佈測驗",
+      "description": "從題庫組建測驗、設定參數並發佈。[p83-89]",
+      "icon": "📊",
+      "color": "#C62828"
+    },
+    {
+      "id": "node_28",
+      "title": "討論區",
+      "description": "建立及管理課程討論區供學生互動。[p90-94]",
+      "icon": "💬",
+      "color": "#F57F17"
+    },
+    {
+      "id": "node_29",
+      "title": "考試",
+      "description": "從題庫建立考試、指派至課程並批改學生答卷。[p95-113]",
+      "icon": "📑",
+      "color": "#AD1457"
+    },
+    {
+      "id": "node_30",
+      "title": "在題庫建立考試",
+      "description": "在題庫中建立含各類題型及分值的試卷。[p95-102]",
+      "icon": "🏦",
+      "color": "#AD1457"
+    },
+    {
+      "id": "node_31",
+      "title": "建立課程考試",
+      "description": "在課程內建立預設考試——指派試卷、設定時限及規則。[p103-107]",
+      "icon": "📝",
+      "color": "#AD1457"
+    },
+    {
+      "id": "node_32",
+      "title": "批改課程考試",
+      "description": "批改學生考試答卷——自動批改及論述題人工批改。[p108-113]",
+      "icon": "✅",
+      "color": "#AD1457"
+    },
+    {
+      "id": "node_33",
+      "title": "成績",
+      "description": "管理評分規則及查看課程學生成績摘要。[p114-123]",
+      "icon": "🏆",
+      "color": "#4527A0"
+    },
+    {
+      "id": "node_34",
+      "title": "設定評分規則",
+      "description": "設定評分規則——作業、測驗、考試及出勤的權重分配。[p114-123]",
+      "icon": "⚖️",
+      "color": "#4527A0"
+    },
+    {
+      "id": "node_35",
+      "title": "數據分析",
+      "description": "查看課程數據分析——學生參與度、完成率及表現數據。[p124-127]",
+      "icon": "📈",
+      "color": "#00695C"
+    }
+  ],
+  "edges": [
+    { "source": "node_1", "target": "node_2", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_3", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_4", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_13", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_19", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_20", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_24", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_28", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_29", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_33", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_1", "target": "node_35", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_4", "target": "node_5", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_4", "target": "node_6", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_6", "target": "node_7", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_6", "target": "node_8", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_6", "target": "node_9", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_6", "target": "node_10", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_4", "target": "node_11", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_4", "target": "node_12", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_13", "target": "node_14", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_13", "target": "node_15", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_13", "target": "node_16", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_13", "target": "node_17", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_13", "target": "node_18", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_20", "target": "node_21", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_20", "target": "node_22", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_20", "target": "node_23", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_24", "target": "node_25", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_24", "target": "node_26", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_24", "target": "node_27", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_29", "target": "node_30", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_29", "target": "node_31", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_29", "target": "node_32", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_33", "target": "node_34", "relation_type": "包含", "label": "包含", "weight": 1.0 },
+    { "source": "node_3", "target": "node_4", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_4", "target": "node_13", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_6", "target": "node_11", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_11", "target": "node_12", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_14", "target": "node_15", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_22", "target": "node_23", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_26", "target": "node_27", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_30", "target": "node_31", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_31", "target": "node_32", "relation_type": "前置", "label": "前置", "weight": 1.0 },
+    { "source": "node_26", "target": "node_30", "relation_type": "關聯", "label": "關聯", "weight": 1.0 },
+    { "source": "node_24", "target": "node_33", "relation_type": "關聯", "label": "關聯", "weight": 1.0 },
+    { "source": "node_29", "target": "node_33", "relation_type": "關聯", "label": "關聯", "weight": 1.0 },
+    { "source": "node_20", "target": "node_6", "relation_type": "關聯", "label": "關聯", "weight": 1.0 },
+    { "source": "node_32", "target": "node_34", "relation_type": "關聯", "label": "關聯", "weight": 1.0 },
+    { "source": "node_27", "target": "node_29", "relation_type": "關聯", "label": "關聯", "weight": 1.0 },
+    { "source": "node_35", "target": "node_33", "relation_type": "關聯", "label": "關聯", "weight": 1.0 }
+  ],
+  "content_links": [
+    { "node": "node_1", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 5 } },
+    { "node": "node_2", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 6 } },
+    { "node": "node_3", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 12 } },
+    { "node": "node_4", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 14 } },
+    { "node": "node_5", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 14 } },
+    { "node": "node_6", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 16 } },
+    { "node": "node_7", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 23 } },
+    { "node": "node_8", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 24 } },
+    { "node": "node_9", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 31 } },
+    { "node": "node_10", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 32 } },
+    { "node": "node_11", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 33 } },
+    { "node": "node_12", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 36 } },
+    { "node": "node_13", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 39 } },
+    { "node": "node_14", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 39 } },
+    { "node": "node_15", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 42 } },
+    { "node": "node_16", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 44 } },
+    { "node": "node_17", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 46 } },
+    { "node": "node_18", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 48 } },
+    { "node": "node_19", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 51 } },
+    { "node": "node_20", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 56 } },
+    { "node": "node_21", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 56 } },
+    { "node": "node_22", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 60 } },
+    { "node": "node_23", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 68 } },
+    { "node": "node_24", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 70 } },
+    { "node": "node_25", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 70 } },
+    { "node": "node_26", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 74 } },
+    { "node": "node_27", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 83 } },
+    { "node": "node_28", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 90 } },
+    { "node": "node_29", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 95 } },
+    { "node": "node_30", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 95 } },
+    { "node": "node_31", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 103 } },
+    { "node": "node_32", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 108 } },
+    { "node": "node_33", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 114 } },
+    { "node": "node_34", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 114 } },
+    { "node": "node_35", "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf", "anchor": { "type": "page", "value": 124 } }
+  ]
+}

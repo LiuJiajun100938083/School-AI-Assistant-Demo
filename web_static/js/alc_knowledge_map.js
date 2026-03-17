@@ -51,7 +51,8 @@
         animationDuration: 600,               // 展开/收起动画时长 ms
         lodLabelThreshold: 0.85,              // zoom < this → hide L2+ labels
         lodCrossLinkThreshold: 1.5,           // zoom > this → show cross-links
-        radialRadii: [0, 180, 320, 440],      // per-depth ring radii for radial layout
+        radialRadii: [0, 260, 460, 620],      // per-depth ring radii for radial layout
+        minArcPerNode: 0.35,                   // 最小弧度/節點，防止擠壓
     };
 
     /** Edge color palette by relation_type */
@@ -260,7 +261,7 @@
         if (roots.length === 0) return;
 
         // Radii for each depth ring (from LAYOUT_CONFIG)
-        const radii = LAYOUT_CONFIG.radialRadii;   // [0, 180, 320, 440]
+        const radii = LAYOUT_CONFIG.radialRadii;   // [0, 260, 460, 620]
 
         // Count visible leaf descendants for proportional angular allocation
         const _descCache = new Map();
@@ -287,11 +288,17 @@
 
                 const r = radii[Math.min(depth, radii.length - 1)] || (depth * 160);
                 const totalLeaves = kids.reduce((s, k) => s + leafCount(k.id), 0);
-                let angle = centerAngle - arcSpan / 2;
+
+                // Enforce minimum arc per child to prevent crowding
+                const minArc = LAYOUT_CONFIG.minArcPerNode || 0.35;
+                const requiredArc = kids.length * minArc;
+                const effectiveArc = Math.max(arcSpan, requiredArc);
+
+                let angle = centerAngle - effectiveArc / 2;
 
                 kids.forEach(kid => {
                     const weight = leafCount(kid.id) / totalLeaves;
-                    const kidArc = arcSpan * weight;
+                    const kidArc = Math.max(effectiveArc * weight, minArc);
                     const kidAngle = angle + kidArc / 2;
 
                     kid.x = cx + Math.cos(kidAngle) * r;
