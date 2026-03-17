@@ -438,9 +438,10 @@ body {
     background: #f1f5f9; border-radius: 8px; padding: 3px;
 }
 .mode-btn {
-    flex: 1; padding: 8px 12px; border: none; border-radius: 6px;
-    background: transparent; font-size: 13px; font-weight: 500;
+    flex: 1; padding: 8px 6px; border: none; border-radius: 6px;
+    background: transparent; font-size: 12px; font-weight: 500;
     cursor: pointer; color: #64748b; transition: all 0.15s;
+    white-space: nowrap;
 }
 .mode-btn.active {
     background: #fff; color: #6366f1; box-shadow: 0 1px 3px rgba(0,0,0,0.1);

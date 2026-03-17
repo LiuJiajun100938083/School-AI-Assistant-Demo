@@ -603,10 +603,14 @@ const ExamCreator = (() => {
         });
 
         // Toggle config panels
-        const genPanel = UI.$('generateConfig');
-        const simPanel = UI.$('similarConfig');
-        if (genPanel) genPanel.style.display = mode === 'generate' ? '' : 'none';
-        if (simPanel) simPanel.style.display = mode === 'similar' ? '' : 'none';
+        const panels = {
+            generate: UI.$('generateConfig'),
+            similar: UI.$('similarConfig'),
+            describe: UI.$('describeConfig'),
+        };
+        Object.entries(panels).forEach(([key, el]) => {
+            if (el) el.style.display = key === mode ? '' : 'none';
+        });
     }
 
     function switchInputMethod(method) {
@@ -764,6 +768,62 @@ const ExamCreator = (() => {
     }
 
     // ================================================================
+    // 描述出題 — generateFromDescription
+    // ================================================================
+
+    async function generateFromDescription() {
+        const subject = UI.$('describeSubject')?.value || 'math';
+        const descText = (UI.$('describeText')?.value || '').trim();
+        const count = parseInt(UI.$('describeCount')?.value) || 3;
+
+        if (!descText || descText.length < 5) {
+            if (window.UIModule) UIModule.toast('請輸入至少 5 個字的題目描述', 'warning');
+            return;
+        }
+
+        // 讀取難度（描述模式的 difficulty selector）
+        let difficulty = 3;
+        const activeBtn = document.querySelector('#describeDiffSelector .diff-btn.active');
+        if (activeBtn) difficulty = parseInt(activeBtn.dataset.diff) || 3;
+
+        const btn = UI.$('describeGenerateBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '正在提交...'; }
+
+        try {
+            // 複用 AI 出題 API，description 作為 exam_context + geometry_description
+            const resp = await API.generate({
+                subject,
+                question_count: count,
+                difficulty,
+                exam_context: descText,
+                geometry_description: descText,
+            });
+
+            if (resp.success && resp.data) {
+                state.sessionId = resp.data.session_id;
+                savePendingSession(resp.data.session_id);
+                if (window.UIModule) UIModule.toast('描述出題任務已啟動', 'success');
+                const genCountEl = UI.$('genCount');
+                if (genCountEl) genCountEl.textContent = count;
+                showView('generating');
+                startPolling(count);
+            } else {
+                if (window.UIModule) UIModule.toast('啟動失敗：' + (resp.message || ''), 'error');
+            }
+        } catch (e) {
+            console.error('generateFromDescription failed:', e);
+            if (window.UIModule) UIModule.toast('請求失敗', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    描述生成題目`;
+            }
+        }
+    }
+
+    // ================================================================
     // App — 初始化 + 事件綁定
     // ================================================================
 
@@ -779,12 +839,20 @@ const ExamCreator = (() => {
         const badge = UI.$('userBadge');
         if (badge) badge.textContent = state.username;
 
-        // Difficulty buttons
-        document.querySelectorAll('.diff-btn').forEach(btn => {
+        // Difficulty buttons（AI 出題面板）
+        document.querySelectorAll('.config-panel .difficulty-selector:not(#describeDiffSelector) .diff-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                btn.closest('.difficulty-selector').querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 state.difficulty = parseInt(btn.dataset.diff);
+            });
+        });
+
+        // Difficulty buttons（描述出題面板）
+        document.querySelectorAll('#describeDiffSelector .diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#describeDiffSelector .diff-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
             });
         });
 
@@ -829,6 +897,15 @@ const ExamCreator = (() => {
             });
         }
 
+        // Describe count slider
+        const descSlider = UI.$('describeCount');
+        const descSliderVal = UI.$('describeCountVal');
+        if (descSlider && descSliderVal) {
+            descSlider.addEventListener('input', () => {
+                descSliderVal.textContent = descSlider.value;
+            });
+        }
+
         // Upload zone drag-drop
         setupUploadZone();
 
@@ -862,18 +939,19 @@ const ExamCreator = (() => {
     // ================================================================
 
     function toggleGeometryGroup(subject) {
-        const group = UI.$('mathGeometryGroup');
+        // 幾何預覽已移到描述出題面板，此函數保留兼容性
+        const group = UI.$('describeGeoGroup');
         if (group) group.style.display = subject === 'math' ? '' : 'none';
     }
 
     async function generateGeometry() {
-        const desc = (UI.$('geometryDesc')?.value || '').trim();
+        const desc = (UI.$('describeText')?.value || '').trim();
         if (!desc) {
             if (window.UIModule) UIModule.toast('請輸入幾何描述', 'warning');
             return;
         }
 
-        const btn = UI.$('generateGeoBtn');
+        const btn = UI.$('describeGeoBtn');
         if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
 
         try {
@@ -980,8 +1058,6 @@ const ExamCreator = (() => {
         btn.textContent = '正在提交...';
 
         try {
-            const geometryDesc = (UI.$('geometryDesc')?.value || '').trim();
-
             const resp = await API.generate({
                 subject,
                 question_count: questionCount,
@@ -990,7 +1066,6 @@ const ExamCreator = (() => {
                 question_types: questionTypes.length ? questionTypes : null,
                 exam_context: examContext,
                 total_marks: totalMarks,
-                geometry_description: geometryDesc || '',
             });
 
             if (resp.success && resp.data) {
@@ -1249,5 +1324,7 @@ const ExamCreator = (() => {
         switchInputMethod,
         removeUploadedImage,
         generateSimilar,
+        // 描述出題模式
+        generateFromDescription,
     };
 })();
