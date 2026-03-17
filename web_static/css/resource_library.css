@@ -722,6 +722,28 @@ html, body {
 .plan-status.ready { background: rgba(52, 199, 89, 0.12); color: var(--color-success); }
 .plan-status.archived { background: rgba(255, 149, 0, 0.12); color: var(--color-warning); }
 
+.plan-status-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    padding: 3px 22px 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 10px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.plan-status-select:hover { border-color: var(--border-primary); }
+.plan-status-select:focus { border-color: var(--brand-green); box-shadow: 0 0 0 2px rgba(52,199,89,0.15); }
+.plan-status-select.draft { background-color: var(--bg-page); color: var(--text-tertiary); }
+.plan-status-select.ready { background-color: rgba(52, 199, 89, 0.12); color: var(--color-success); }
+.plan-status-select.archived { background-color: rgba(255, 149, 0, 0.12); color: var(--color-warning); }
+
 .plan-actions {
     display: flex;
     gap: var(--space-2);

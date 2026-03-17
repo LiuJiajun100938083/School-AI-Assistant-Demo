@@ -166,7 +166,11 @@ const ResourceUI = {
                         ${p.room_id ? '<span>&middot;</span><span>已綁定課堂</span>' : '<span>&middot;</span><span style="color:var(--brand-green)">獨立課件</span>'}
                     </div>
                 </div>
-                <span class="plan-status ${p.status}">${this._statusMap[p.status] || p.status}</span>
+                <select class="plan-status-select ${p.status}" data-action="change-status" data-plan-id="${p.plan_id}">
+                    <option value="draft" ${p.status === 'draft' ? 'selected' : ''}>草稿</option>
+                    <option value="ready" ${p.status === 'ready' ? 'selected' : ''}>就緒</option>
+                    <option value="archived" ${p.status === 'archived' ? 'selected' : ''}>已歸檔</option>
+                </select>
                 <div class="plan-actions">
                     <button class="btn btn-sm btn-secondary" data-action="edit-plan" data-plan-id="${p.plan_id}" title="編輯">
                         ${Icons.edit}
@@ -414,6 +418,7 @@ const ResourceApp = {
         // Tab panel event delegation
         document.querySelectorAll('.tab-panel').forEach(panel => {
             panel.addEventListener('click', (e) => this._handlePanelAction(e));
+            panel.addEventListener('change', (e) => this._handlePanelChange(e));
         });
 
         // Share modal
@@ -683,6 +688,27 @@ const ResourceApp = {
             case 'remove-member':
                 await this._handleRemoveMember(btn.dataset.groupId, btn.dataset.username);
                 break;
+        }
+    },
+
+    // ── Status Change ─────────────────────────────────────────
+
+    async _handlePanelChange(e) {
+        const el = e.target.closest('[data-action="change-status"]');
+        if (!el) return;
+        await this._handleChangeStatus(el.dataset.planId, el.value, el);
+    },
+
+    async _handleChangeStatus(planId, newStatus, selectEl) {
+        try {
+            await ResourceAPI.updatePlan(planId, { status: newStatus });
+            // Update select styling
+            selectEl.className = `plan-status-select ${newStatus}`;
+            UIModule.toast(`狀態已更新為「${ResourceUI._statusMap[newStatus]}」`, 'success');
+        } catch (err) {
+            console.error('Change status error:', err);
+            // Revert on failure — reload tab
+            await this._switchTab(this.state.activeTab);
         }
     },
 
