@@ -108,6 +108,23 @@ const ResourceAPI = {
     async getMyRooms() {
         return APIClient.get('/api/classroom/rooms');
     },
+
+    // ── Standalone Plans (独立备课) ──────────────────────────
+    async createPlan(body) {
+        return APIClient.post(`${this.BASE}/plans`, body);
+    },
+    async getStandalonePlans(params = {}) {
+        return APIClient.get(`${this.BASE}/plans`, params);
+    },
+    async getPlanDetail(planId) {
+        return APIClient.get(`${this.BASE}/plans/${planId}`);
+    },
+    async updatePlan(planId, body) {
+        return APIClient.put(`${this.BASE}/plans/${planId}`, body);
+    },
+    async deletePlan(planId, force = false) {
+        return APIClient.delete(`${this.BASE}/plans/${planId}?force=${force}`);
+    },
 };
 
 /* ============================================================
@@ -119,16 +136,25 @@ const ResourceUI = {
     _scopeMap: { group: '組別', school: '全校' },
 
     renderPersonalPlans(plans, container) {
+        // Toolbar with create button
+        const toolbar = `
+            <div class="toolbar">
+                <div class="toolbar-left"><span style="font-size:13px;color:var(--text-secondary)">所有課案（含課堂綁定與獨立課件）</span></div>
+                <div class="toolbar-right">
+                    <button class="btn btn-primary" data-action="create-plan">${Icons.plus} 新建課件</button>
+                </div>
+            </div>`;
+
         if (!plans || plans.length === 0) {
-            container.innerHTML = `
+            container.innerHTML = toolbar + `
                 <div class="empty-state">
                     ${Icons.empty}
                     <div class="empty-state-text">暫無課案</div>
-                    <div class="empty-state-hint">在課堂中創建課案後將顯示在此處</div>
+                    <div class="empty-state-hint">點擊「新建課件」直接開始備課</div>
                 </div>`;
             return;
         }
-        container.innerHTML = '<div class="plan-list">' + plans.map(p => `
+        container.innerHTML = toolbar + '<div class="plan-list">' + plans.map(p => `
             <div class="plan-card" data-plan-id="${p.plan_id}">
                 <div class="plan-icon">${Icons.slides}</div>
                 <div class="plan-info">
@@ -137,7 +163,7 @@ const ResourceUI = {
                         <span>${p.total_slides || 0} 頁</span>
                         <span>&middot;</span>
                         <span>${Utils.formatDate(p.updated_at || p.created_at)}</span>
-                        ${p.room_id ? '<span>&middot;</span><span>已綁定課堂</span>' : ''}
+                        ${p.room_id ? '<span>&middot;</span><span>已綁定課堂</span>' : '<span>&middot;</span><span style="color:var(--brand-green)">獨立課件</span>'}
                     </div>
                 </div>
                 <span class="plan-status ${p.status}">${this._statusMap[p.status] || p.status}</span>
@@ -150,6 +176,9 @@ const ResourceUI = {
                             ${Icons.share} 分享
                         </button>
                     ` : ''}
+                    <button class="btn btn-sm btn-danger" data-action="delete-plan" data-plan-id="${p.plan_id}" data-plan-title="${Utils.escapeHtml(p.title)}" title="刪除">
+                        ${Icons.trash}
+                    </button>
                 </div>
             </div>
         `).join('') + '</div>';
@@ -408,6 +437,10 @@ const ResourceApp = {
         // Add member modal
         this._bindModal('addMemberModal', 'closeMemberModal', 'cancelMemberBtn');
         document.getElementById('addMemberForm').addEventListener('submit', (e) => this._handleAddMember(e));
+
+        // Create plan modal
+        this._bindModal('createPlanModal', 'closePlanModal', 'cancelPlanBtn');
+        document.getElementById('createPlanForm').addEventListener('submit', (e) => this._handleCreatePlan(e));
     },
 
     _bindModal(overlayId, closeId, cancelId) {
@@ -605,8 +638,19 @@ const ResourceApp = {
         const action = btn.dataset.action;
 
         switch (action) {
+            case 'create-plan':
+                document.getElementById('createPlanModal').classList.add('active');
+                document.getElementById('newPlanTitle').value = '';
+                document.getElementById('newPlanDesc').value = '';
+                document.getElementById('newPlanTitle').focus();
+                break;
+
             case 'edit-plan':
                 window.location.href = `/classroom/lesson-editor/${btn.dataset.planId}`;
+                break;
+
+            case 'delete-plan':
+                await this._handleDeletePlan(btn.dataset.planId, btn.dataset.planTitle);
                 break;
 
             case 'share-plan':
@@ -712,7 +756,7 @@ const ResourceApp = {
             const rooms = (result.data || []).filter(r => !r.is_deleted);
             this.state.myRooms = rooms;
             const select = document.getElementById('cloneRoomId');
-            select.innerHTML = '<option value="">請選擇課堂...</option>' +
+            select.innerHTML = '<option value="">克隆為獨立課件（不綁定課堂）</option>' +
                 rooms.map(r => `<option value="${r.room_id}">${Utils.escapeHtml(r.title)}</option>`).join('');
         } catch (err) {
             console.error('Load rooms for clone:', err);
@@ -724,21 +768,18 @@ const ResourceApp = {
     async _handleClone(e) {
         e.preventDefault();
         const roomId = document.getElementById('cloneRoomId').value;
-        if (!roomId) {
-            UIModule.toast('請選擇目標課堂', 'warning');
-            return;
-        }
 
         const submitBtn = document.getElementById('submitCloneBtn');
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="spinner"></span> 克隆中...';
 
         try {
-            const result = await ResourceAPI.clonePlan({
-                share_id: document.getElementById('cloneShareId').value,
-                target_room_id: roomId,
-            });
-            UIModule.toast('克隆成功！課案已添加到課堂中', 'success');
+            const body = { share_id: document.getElementById('cloneShareId').value };
+            if (roomId) body.target_room_id = roomId;
+
+            const result = await ResourceAPI.clonePlan(body);
+            const msg = roomId ? '克隆成功！課案已添加到課堂中' : '克隆成功！已創建為獨立課件';
+            UIModule.toast(msg, 'success');
             document.getElementById('cloneModal').classList.remove('active');
 
             // Offer to go edit
@@ -766,6 +807,78 @@ const ResourceApp = {
             await this._switchTab('my-shares');
         } catch (err) {
             console.error('Unshare error:', err);
+        }
+    },
+
+    // ── Create Plan ─────────────────────────────────────────
+
+    async _handleCreatePlan(e) {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submitPlanBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> 創建中...';
+
+        try {
+            const result = await ResourceAPI.createPlan({
+                title: document.getElementById('newPlanTitle').value.trim(),
+                description: document.getElementById('newPlanDesc').value.trim(),
+            });
+            UIModule.toast('課件創建成功', 'success');
+            document.getElementById('createPlanModal').classList.remove('active');
+
+            // Go to editor
+            if (result.data?.plan_id) {
+                window.location.href = `/classroom/lesson-editor/${result.data.plan_id}`;
+            }
+        } catch (err) {
+            console.error('Create plan error:', err);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '創建並編輯';
+        }
+    },
+
+    // ── Delete Plan (with share detection) ───────────────────
+
+    async _handleDeletePlan(planId, planTitle) {
+        const confirmed = await UIModule.confirm(`確定要刪除課件「${planTitle || ''}」嗎？`);
+        if (!confirmed) return;
+
+        try {
+            const result = await ResourceAPI.deletePlan(planId, false);
+
+            // Check if blocked by active shares (409)
+            if (!result.success && result.error?.details?.active_shares) {
+                const shares = result.error.details.active_shares;
+                const forceConfirm = await UIModule.confirm(
+                    `此課件有 ${shares.length} 條活躍分享。\n刪除將同時取消所有分享，確定繼續嗎？`
+                );
+                if (!forceConfirm) return;
+
+                // Force delete
+                await ResourceAPI.deletePlan(planId, true);
+            }
+
+            UIModule.toast('課件已刪除', 'success');
+            await this._switchTab(this.state.activeTab);
+        } catch (err) {
+            // Handle 409 from error response
+            if (err.details?.active_shares) {
+                const shares = err.details.active_shares;
+                const forceConfirm = await UIModule.confirm(
+                    `此課件有 ${shares.length} 條活躍分享。\n刪除將同時取消所有分享，確定繼續嗎？`
+                );
+                if (!forceConfirm) return;
+                try {
+                    await ResourceAPI.deletePlan(planId, true);
+                    UIModule.toast('課件已刪除', 'success');
+                    await this._switchTab(this.state.activeTab);
+                } catch (err2) {
+                    console.error('Force delete error:', err2);
+                }
+            } else {
+                console.error('Delete plan error:', err);
+            }
         }
     },
 

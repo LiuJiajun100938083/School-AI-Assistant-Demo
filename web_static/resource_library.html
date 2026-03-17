@@ -122,16 +122,16 @@
     <div class="modal-overlay" id="cloneModal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">克隆課案到課堂</h2>
+                <h2 class="modal-title">克隆課案</h2>
                 <button class="modal-close" id="closeCloneModal">&times;</button>
             </div>
             <form id="cloneForm">
                 <div class="form-group">
                     <label class="form-label">選擇目標課堂</label>
                     <select class="form-select" id="cloneRoomId">
-                        <option value="">請選擇課堂...</option>
+                        <option value="">克隆為獨立課件（不綁定課堂）</option>
                     </select>
-                    <div class="form-hint">課案將以草稿狀態複製到所選課堂中</div>
+                    <div class="form-hint">不選擇課堂則克隆為獨立課件，可稍後綁定</div>
                 </div>
                 <input type="hidden" id="cloneShareId">
                 <div class="modal-footer">
@@ -161,6 +161,30 @@
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" id="cancelGroupBtn">取消</button>
                     <button type="submit" class="btn-submit" id="submitGroupBtn">創建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Plan Modal -->
+    <div class="modal-overlay" id="createPlanModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">新建課件</h2>
+                <button class="modal-close" id="closePlanModal">&times;</button>
+            </div>
+            <form id="createPlanForm">
+                <div class="form-group">
+                    <label class="form-label">課件名稱 *</label>
+                    <input type="text" class="form-input" id="newPlanTitle" placeholder="請輸入課件名稱" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">描述</label>
+                    <textarea class="form-textarea" id="newPlanDesc" placeholder="課件描述（可選）"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" id="cancelPlanBtn">取消</button>
+                    <button type="submit" class="btn-submit" id="submitPlanBtn">創建</button>
                 </div>
             </form>
         </div>
