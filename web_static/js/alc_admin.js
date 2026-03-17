@@ -968,7 +968,7 @@
 
         try {
             const response = await $.apiPost(
-                `${ADMIN_API}/knowledge-graph/import`,
+                `${ADMIN_API}/knowledge-graph/batch-import`,
                 payload
             );
 
@@ -1394,7 +1394,7 @@
      */
     async function loadSubjectOptions() {
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
             const resp = await fetch('/api/subjects', {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
