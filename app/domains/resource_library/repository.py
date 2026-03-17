@@ -129,6 +129,20 @@ class SharedResourceRepository(BaseRepository):
             (plan_id,),
         )
 
+    def list_active_by_source_plan(self, plan_id: str) -> List[Dict[str, Any]]:
+        """查找某课件的所有活跃分享记录"""
+        return self.find_all(
+            where="source_plan_id = %s AND is_deleted = FALSE",
+            params=(plan_id,),
+            columns="share_id, title, share_scope, group_id, shared_at",
+        )
+
+    def soft_delete_by_source_plan(self, plan_id: str) -> int:
+        """软删除某课件的所有分享记录"""
+        return self.soft_delete(
+            "source_plan_id = %s AND is_deleted = FALSE", (plan_id,),
+        )
+
     def list_by_teacher(
         self,
         teacher_username: str,

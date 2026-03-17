@@ -40,4 +40,13 @@ class SharePlanRequest(BaseModel):
 
 class ClonePlanRequest(BaseModel):
     share_id: str = Field(..., min_length=1, max_length=64)
-    target_room_id: str = Field(..., min_length=1, max_length=64)
+    target_room_id: Optional[str] = Field(default=None, max_length=64)
+
+
+# ============================================================
+# Plan — 资源库备课操作
+# ============================================================
+
+class CreatePlanFromLibraryRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    description: str = Field(default="", max_length=2000)

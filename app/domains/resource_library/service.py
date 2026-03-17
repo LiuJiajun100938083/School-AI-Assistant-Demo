@@ -424,11 +424,12 @@ class ResourceLibraryService:
     def clone_plan(
         self,
         share_id: str,
-        target_room_id: str,
         teacher_username: str,
+        target_room_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        克隆共享课案到教师自己的课堂。
+        克隆共享课案到教师自己的课堂或个人备课空间。
+        target_room_id=None 时创建独立课件 (room_id=NULL)。
         创建新的 lesson_plan + lesson_slides，保留 PPT file_id 引用。
         """
         # 1. 获取共享资源
@@ -441,20 +442,21 @@ class ResourceLibraryService:
             if not self._member_repo.is_member(share["group_id"], teacher_username):
                 raise ShareNotFoundError(share_id)
 
-        # 2. 校验目标课堂归属 — 防止克隆到别人的课堂
-        room = self._room_repo.get_by_room_id(target_room_id)
-        if not room:
-            raise ResourceError(
-                code="RESOURCE_ERROR",
-                message="目标课堂不存在",
-                status_code=404,
-            )
-        if room["teacher_username"] != teacher_username:
-            raise ResourceError(
-                code="RESOURCE_ERROR",
-                message="目标课堂不存在",  # 不暴露 "没权限"
-                status_code=404,
-            )
+        # 2. 校验目标课堂归属 (仅当指定了 target_room_id)
+        if target_room_id:
+            room = self._room_repo.get_by_room_id(target_room_id)
+            if not room:
+                raise ResourceError(
+                    code="RESOURCE_ERROR",
+                    message="目标课堂不存在",
+                    status_code=404,
+                )
+            if room["teacher_username"] != teacher_username:
+                raise ResourceError(
+                    code="RESOURCE_ERROR",
+                    message="目标课堂不存在",  # 不暴露 "没权限"
+                    status_code=404,
+                )
 
         # 3. 获取共享 slides
         shared_slides = self._share_slide_repo.list_by_share(share_id)
@@ -467,7 +469,7 @@ class ResourceLibraryService:
             "title": share["title"],
             "description": share.get("description", ""),
             "teacher_username": teacher_username,
-            "room_id": target_room_id,
+            "room_id": target_room_id,  # None → 独立课件
             "total_slides": len(shared_slides),
             "status": "draft",  # 克隆后默认草稿，教师可编辑后再就绪
             "created_at": now,
@@ -497,7 +499,7 @@ class ResourceLibraryService:
 
         logger.info(
             "教师 %s 克隆共享课案 %s -> plan %s (room=%s)",
-            teacher_username, share_id, new_plan_id, target_room_id,
+            teacher_username, share_id, new_plan_id, target_room_id or "独立课件",
         )
         return {
             "new_plan_id": new_plan_id,
@@ -513,6 +515,99 @@ class ResourceLibraryService:
     def list_my_groups(self, teacher_username: str) -> List[Dict[str, Any]]:
         """教师所属的所有分组"""
         return self._member_repo.list_groups_for_teacher(teacher_username)
+
+    # ============================================================
+    # Delete Plan (教师, 带分享检测)
+    # ============================================================
+
+    def delete_plan(
+        self,
+        plan_id: str,
+        teacher_username: str,
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        删除课件 (带分享检测)。
+
+        - 无活跃分享 → 直接软删除
+        - 有活跃分享 + force=False → 返回阻止信息 (含 shares 列表)
+        - 有活跃分享 + force=True → 事务内级联取消分享 + 软删除
+        """
+        # 1. 校验课件存在 + owner 归属
+        plan = self._plan_repo.get_by_plan_id(plan_id)
+        if not plan:
+            raise ShareNotFoundError()
+        if plan["teacher_username"] != teacher_username:
+            raise ShareNotFoundError()
+
+        # 2. 查找活跃分享记录
+        active_shares = self._share_repo.list_active_by_source_plan(plan_id)
+
+        # 情况 A: 无活跃分享 — 直接删除
+        if not active_shares:
+            self._plan_repo.soft_delete_plan(plan_id)
+            logger.info("教师 %s 删除课件 %s (无分享)", teacher_username, plan_id)
+            return {"deleted": True}
+
+        # 情况 B: 有活跃分享 + force=False — 阻止并返回信息
+        if not force:
+            return {
+                "deleted": False,
+                "code": "PLAN_HAS_ACTIVE_SHARES",
+                "active_shares": active_shares,
+                "message": f"该课件有 {len(active_shares)} 条活跃分享，"
+                           "确认删除将同时取消所有分享",
+            }
+
+        # 情况 C: 有活跃分享 + force=True — 事务内级联删除
+        with self._share_repo.transaction() as conn:
+            cursor = conn.cursor()
+            # 软删所有相关 shared_resources
+            cursor.execute(
+                "UPDATE shared_resources SET is_deleted = TRUE "
+                "WHERE source_plan_id = %s AND is_deleted = FALSE",
+                (plan_id,),
+            )
+            cancelled = cursor.rowcount
+            # 软删课件
+            cursor.execute(
+                "UPDATE lesson_plans SET is_deleted = TRUE "
+                "WHERE plan_id = %s AND is_deleted = FALSE",
+                (plan_id,),
+            )
+
+        logger.info(
+            "教师 %s 强制删除课件 %s (取消 %d 条分享)",
+            teacher_username, plan_id, cancelled,
+        )
+        return {"deleted": True, "cancelled_shares": cancelled}
+
+    # ============================================================
+    # Standalone Plans List (教师, 独立课件)
+    # ============================================================
+
+    def list_standalone_plans(
+        self,
+        teacher_username: str,
+        status: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Dict[str, Any]:
+        """
+        列出教师的独立课件 (room_id IS NULL)。
+        """
+        where = "teacher_username = %s AND room_id IS NULL AND is_deleted = FALSE"
+        params: list = [teacher_username]
+        if status:
+            where += " AND status = %s"
+            params.append(status)
+        return self._plan_repo.paginate(
+            page=page,
+            page_size=page_size,
+            where=where,
+            params=tuple(params),
+            order_by="updated_at DESC",
+        )
 
     # ============================================================
     # Internal Helpers
