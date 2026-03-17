@@ -148,6 +148,11 @@ class MathHandler(BaseSubjectHandler):
    或
    {{"type": "textLabel", "text": "r", "at": "c1"}}
 
+7. **tangent** — 切線（過圓上一點的切線）
+   {{"type": "tangent", "id": "tA", "circle": "c1", "point": "A", "label": "切線"}}
+   circle: 引用圓的 id；point: 引用切點的 id（必須是已定義的 point 或 pointOnCircle）。
+   系統會自動畫出過切點且垂直於半徑的切線。
+
 ## 完整範例
 
 題目：圓 O 中，弦 AB 與弦 CD 相交於 P，已知 AP=3, PB=4, CP=2，求 PD。
@@ -186,6 +191,47 @@ class MathHandler(BaseSubjectHandler):
     {{"type": "segment", "id": "OM", "endpoints": ["O", "M"]}},
     {{"type": "textLabel", "text": "r=5", "coords": [5.5, 5.5]}},
     {{"type": "textLabel", "text": "弦心距=3", "coords": [3, 3]}}
+  ]
+}}
+
+## 範例 3（切線）
+
+題目：圓 O 的半徑為 4，P 為圓外一點，PA 和 PB 分別切圓 O 於 A 和 B，已知 OP=5，求 PA 的長。
+
+{{
+  "boundingBox": [-1, 9, 11, -1],
+  "elements": [
+    {{"type": "point", "id": "O", "coords": [4, 4], "label": "O"}},
+    {{"type": "circle", "id": "c1", "center": "O", "radius": 3.5}},
+    {{"type": "pointOnCircle", "id": "A", "circle": "c1", "angle": 50, "label": "A"}},
+    {{"type": "pointOnCircle", "id": "B", "circle": "c1", "angle": 310, "label": "B"}},
+    {{"type": "point", "id": "P", "coords": [9, 4], "label": "P"}},
+    {{"type": "tangent", "id": "tA", "circle": "c1", "point": "A"}},
+    {{"type": "tangent", "id": "tB", "circle": "c1", "point": "B"}},
+    {{"type": "segment", "id": "PA", "endpoints": ["P", "A"]}},
+    {{"type": "segment", "id": "PB", "endpoints": ["P", "B"]}},
+    {{"type": "segment", "id": "OP", "endpoints": ["O", "P"]}},
+    {{"type": "textLabel", "text": "r=4", "coords": [2.5, 5.5]}},
+    {{"type": "textLabel", "text": "OP=5", "coords": [6.5, 4.5]}}
+  ]
+}}
+
+## 範例 4（切線與弦的交替弓形角）
+
+題目：圓 O 中，TA 是圓在 A 點的切線，弦 AB 與直徑 AC 所成的角為 30°，求切線 TA 與弦 AB 的夾角。
+
+{{
+  "boundingBox": [-1, 8, 9, -1],
+  "elements": [
+    {{"type": "point", "id": "O", "coords": [4, 4], "label": "O"}},
+    {{"type": "circle", "id": "c1", "center": "O", "radius": 3}},
+    {{"type": "pointOnCircle", "id": "A", "circle": "c1", "angle": 180, "label": "A"}},
+    {{"type": "pointOnCircle", "id": "B", "circle": "c1", "angle": 60, "label": "B"}},
+    {{"type": "pointOnCircle", "id": "C", "circle": "c1", "angle": 0, "label": "C"}},
+    {{"type": "segment", "id": "AB", "endpoints": ["A", "B"], "label": "弦 AB"}},
+    {{"type": "segment", "id": "AC", "endpoints": ["A", "C"], "label": "直徑"}},
+    {{"type": "tangent", "id": "tA", "circle": "c1", "point": "A", "label": "切線"}},
+    {{"type": "textLabel", "text": "30°", "coords": [2.5, 5]}}
   ]
 }}
 

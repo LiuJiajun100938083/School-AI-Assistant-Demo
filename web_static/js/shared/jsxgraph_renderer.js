@@ -6,6 +6,7 @@
  * 文字經 _escapeHtml 轉義（前端第二道保險，後端已做嚴格字符集過濾）。
  *
  * Phase 1 支援：point, circle, pointOnCircle, segment, intersection, textLabel
+ * Phase 2 支援：tangent（切線）
  */
 
 window.JSXGraphRenderer = (() => {
@@ -130,6 +131,9 @@ window.JSXGraphRenderer = (() => {
                 break;
             case 'intersection':
                 created = _createIntersection(board, el, refs, labelPositions);
+                break;
+            case 'tangent':
+                created = _createTangent(board, el, refs);
                 break;
             case 'textLabel':
                 created = _createTextLabel(board, el, refs, labelPositions);
@@ -388,6 +392,46 @@ window.JSXGraphRenderer = (() => {
         }
 
         return created;
+    }
+
+    function _createTangent(board, el, refs) {
+        const circleObj = refs[el.circle];
+        const pointObj = refs[el.point];
+        if (!circleObj || !pointObj) return null;
+
+        // 計算切線方向：垂直於半徑（圓心→切點）
+        const cx = circleObj.center.X();
+        const cy = circleObj.center.Y();
+        const px = typeof pointObj.X === 'function' ? pointObj.X() : 0;
+        const py = typeof pointObj.Y === 'function' ? pointObj.Y() : 0;
+
+        // 半徑方向 (dx, dy)，切線方向 = 旋轉 90° = (-dy, dx)
+        const dx = px - cx;
+        const dy = py - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 0.01) return null; // 切點與圓心重合，無法定義切線
+
+        const tx = -dy / dist;
+        const ty = dx / dist;
+
+        // 切線長度（可見部分），取半徑的 1.8 倍向兩側延伸
+        const r = circleObj.Radius();
+        const ext = r * 1.8;
+        const p1 = [px - tx * ext, py - ty * ext];
+        const p2 = [px + tx * ext, py + ty * ext];
+
+        const opts = {
+            strokeColor: THEME.strokeColor,
+            strokeWidth: THEME.strokeWidth,
+            highlightStrokeColor: THEME.highlightStrokeColor,
+            fixed: true,
+            straightFirst: false,
+            straightLast: false,
+            name: _escapeHtml(el.label || ''),
+            withLabel: !!el.label,
+            label: { fontSize: THEME.fontSize - 1, strokeColor: '#555' },
+        };
+        return board.create('segment', [p1, p2], opts);
     }
 
     function _createTextLabel(board, el, refs, labelPositions) {

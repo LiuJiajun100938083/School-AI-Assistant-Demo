@@ -4,6 +4,7 @@ JSXGraph 受限 DSL — Schema 定義 + 校驗
 純函數模組，無外部依賴，易測試。
 
 Phase 1 支援：point, circle, pointOnCircle, segment, intersection, textLabel
+Phase 2 支援：tangent（切線）
 """
 
 import re
@@ -15,6 +16,7 @@ from typing import Dict, List, Tuple
 
 ALLOWED_ELEMENT_TYPES = frozenset({
     "point", "circle", "pointOnCircle", "segment", "intersection", "textLabel",
+    "tangent",  # Phase 2: 切線
 })
 
 # 每個 type 的必要欄位 + 可選欄位
@@ -25,6 +27,7 @@ ELEMENT_SCHEMAS: Dict[str, Dict[str, List[str]]] = {
     "segment":       {"required": ["endpoints"],         "optional": ["label"]},
     "intersection":  {"required": ["of", "index"],       "optional": ["label"]},
     "textLabel":     {"required": ["text"],              "optional": ["at", "coords"]},
+    "tangent":       {"required": ["circle", "point"],   "optional": ["label"]},
 }
 
 # 引用欄位 → 指向的 element type 白名單（None = 任意）
@@ -32,6 +35,7 @@ _REF_FIELDS: Dict[str, Dict[str, object]] = {
     "pointOnCircle": {"circle": {"circle"}},
     "segment":       {"endpoints": None},   # list of point-like ids
     "intersection":  {"of": None},          # list of segment/circle ids
+    "tangent":       {"circle": {"circle"}, "point": None},  # point = 切點 id
 }
 
 # label / text 允許的字符集（中英數 + 常用數學符號）
@@ -131,6 +135,10 @@ def validate_jsxgraph_config(config: dict) -> Tuple[bool, List[str]]:
             if idx is not None and not isinstance(idx, int):
                 errors.append(f"[{i}] intersection.index must be an integer")
 
+        elif etype == "tangent":
+            # tangent.circle 和 tangent.point 都是字串引用，Pass 2 做完整性校驗
+            pass
+
         # text 安全（label 屬性 + textLabel.text）
         _check_text_field(el.get("label"), f"[{i}] label", errors)
         if etype == "textLabel":
@@ -157,6 +165,16 @@ def validate_jsxgraph_config(config: dict) -> Tuple[bool, List[str]]:
             for ref in (el.get("of") or []):
                 if ref and ref not in all_ids:
                     errors.append(f"[{i}] intersection.of refs undefined id: {ref}")
+
+        elif etype == "tangent":
+            c_ref = el.get("circle")
+            if c_ref and c_ref not in all_ids:
+                errors.append(f"[{i}] tangent.circle refs undefined id: {c_ref}")
+            elif c_ref and all_ids.get(c_ref) != "circle":
+                errors.append(f"[{i}] tangent.circle must ref a circle, got {all_ids.get(c_ref)}")
+            p_ref = el.get("point")
+            if p_ref and p_ref not in all_ids:
+                errors.append(f"[{i}] tangent.point refs undefined id: {p_ref}")
 
         elif etype == "textLabel":
             at_ref = el.get("at")
