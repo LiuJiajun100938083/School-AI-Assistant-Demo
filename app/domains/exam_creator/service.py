@@ -1047,6 +1047,15 @@ class ExamCreatorService:
 - 提供評分準則（marking_scheme）
 - 使用繁體中文出題
 
+## 幾何題與 needs_svg 標記
+- 幾何題不需要你畫圖，系統會自動為幾何題生成配圖
+- 但題目文字必須自包含，即使無圖也能唯一理解幾何關係
+- 不可把答案建立在目測圖形之上；需要的條件必須在文字中明確給出
+- 每道題必須標記 needs_svg 字段：
+  - true：題目涉及幾何圖形（三角形、四邊形、圓、角、平行線、座標幾何等），配圖能幫助理解
+  - false：純代數、函數、概率、數列等不需要幾何圖形的題目
+- needs_chart 和 needs_svg 互斥，同一題只設一個為 true
+
 ## 輸出格式（JSON）
 ```json
 {{{{
@@ -1060,7 +1069,7 @@ class ExamCreatorService:
       "marking_scheme": "配分要點（如：列式 1 分，計算 2 分）",
       "points": 5,
       "difficulty": 3,
-      "needs_svg": false,
+      "needs_svg": true,
       "needs_chart": false,
       "chart_spec": null
     }}}}
@@ -1069,6 +1078,7 @@ class ExamCreatorService:
 ```
 注意：
 - 只輸出 JSON
+- needs_svg 根據題目是否涉及幾何圖形來決定 true/false
 - 題目中的分行請使用實際換行，不要寫成 \\n
 - 所有數學公式必須用 $ 包裹（行內 $...$，獨立行 $$...$$）
 - 單位寫法用 $\\text{{J kg}}^{{-1}}$ 或直接寫 J kg⁻¹"""

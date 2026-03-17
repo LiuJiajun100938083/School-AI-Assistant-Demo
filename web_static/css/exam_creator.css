@@ -4,17 +4,22 @@
 
 /* ---- Reset & Base ---- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; overflow: hidden; }
+html { height: 100%; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #f1f5f9;
     color: #1e293b;
     line-height: 1.6;
-    height: 100%; overflow: hidden;
+    height: 100%;
 }
 
 /* ---- App Shell ---- */
-.app-shell { display: flex; flex-direction: column; height: 100vh; }
+.app-shell {
+    display: flex; flex-direction: column;
+    height: 100vh;
+    height: 100dvh;    /* iPad 動態視口高度，應對地址欄/鍵盤變化 */
+    overflow: hidden;  /* 在 shell 層級控制溢出，而非 html/body（iOS Safari 兼容） */
+}
 
 /* ---- Top Bar ---- */
 .topbar {
