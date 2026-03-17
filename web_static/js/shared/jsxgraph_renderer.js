@@ -409,14 +409,19 @@ window.JSXGraphRenderer = (() => {
         const dx = px - cx;
         const dy = py - cy;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 0.01) return null; // 切點與圓心重合，無法定義切線
+        if (dist < 0.01) return null;
 
         const tx = -dy / dist;
         const ty = dx / dist;
 
-        // 切線長度（可見部分），取半徑的 1.8 倍向兩側延伸
+        // 切線策略：從切點向兩側延伸，但用 bbox 裁剪可見範圍
+        // 取足夠長的線段，JSXGraph 會自動裁剪到 bbox 內
         const r = circleObj.Radius();
-        const ext = r * 1.8;
+        const bbox = board.getBoundingBox(); // [xmin, ymax, xmax, ymin]
+        const bboxDiag = Math.sqrt(
+            (bbox[2] - bbox[0]) ** 2 + (bbox[1] - bbox[3]) ** 2
+        );
+        const ext = bboxDiag * 0.6; // 足夠長，bbox 自然裁剪
         const p1 = [px - tx * ext, py - ty * ext];
         const p2 = [px + tx * ext, py + ty * ext];
 

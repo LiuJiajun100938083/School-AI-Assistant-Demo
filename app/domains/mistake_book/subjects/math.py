@@ -194,9 +194,11 @@ class MathHandler(BaseSubjectHandler):
   ]
 }}
 
-## 範例 3（切線）
+## 範例 3（外點切線 — 不需要 tangent 元素）
 
 題目：圓 O 的半徑為 4，P 為圓外一點，PA 和 PB 分別切圓 O 於 A 和 B，已知 OP=5，求 PA 的長。
+
+注意：PA、PB 本身就是切線，只需用 segment 連接即可，**不要**再加 tangent 元素，否則會產生重疊線條。
 
 {{
   "boundingBox": [-1, 9, 11, -1],
@@ -206,8 +208,6 @@ class MathHandler(BaseSubjectHandler):
     {{"type": "pointOnCircle", "id": "A", "circle": "c1", "angle": 50, "label": "A"}},
     {{"type": "pointOnCircle", "id": "B", "circle": "c1", "angle": 310, "label": "B"}},
     {{"type": "point", "id": "P", "coords": [9, 4], "label": "P"}},
-    {{"type": "tangent", "id": "tA", "circle": "c1", "point": "A"}},
-    {{"type": "tangent", "id": "tB", "circle": "c1", "point": "B"}},
     {{"type": "segment", "id": "PA", "endpoints": ["P", "A"]}},
     {{"type": "segment", "id": "PB", "endpoints": ["P", "B"]}},
     {{"type": "segment", "id": "OP", "endpoints": ["O", "P"]}},
@@ -245,6 +245,7 @@ class MathHandler(BaseSubjectHandler):
 - 不要添加題目未提及的幾何元素
 - 不要計算答案，只提取圖形結構
 - 只輸出 JSON
+- **tangent vs segment 區分**：若切線兩端已用 segment 連接（如外點 P 到切點 A 的 PA），則 **不要** 重複加 tangent 元素。tangent 只用於需要畫出一條獨立切線的場景（如範例 4 中 A 點的切線 TA，沒有 segment 覆蓋）。
 
 ## 標注防重疊規則（重要！）
 
