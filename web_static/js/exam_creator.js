@@ -116,6 +116,8 @@ const ExamCreator = (() => {
         renderMath(text) {
             if (!text) return '';
             if (typeof text !== 'string') text = String(text);
+            // 將 LLM 返回的字面 \n 轉為真實換行（排除 LaTeX 命令如 \newcommand）
+            text = text.replace(/\\n(?![a-zA-Z])/g, '\n');
             // 保護 SVG 塊
             const svgBlocks = [];
             text = text.replace(/<svg[\s\S]*?<\/svg>/gi, m => {
@@ -187,6 +189,9 @@ const ExamCreator = (() => {
         switch (name) {
             case 'config':
                 UI.show('emptyState');
+                break;
+            case 'generating':
+                UI.show('generatingState');
                 break;
             case 'history':
                 UI.show('historyView');
@@ -665,10 +670,6 @@ const ExamCreator = (() => {
             reader.readAsDataURL(file);
         }
         if (zone) zone.style.display = 'none';
-
-        // Show OCR button
-        const ocrBtn = UI.$('ocrBtn');
-        if (ocrBtn) ocrBtn.style.display = '';
     }
 
     function removeUploadedImage() {
@@ -676,78 +677,51 @@ const ExamCreator = (() => {
         const previewEl = UI.$('uploadPreview');
         const previewImg = UI.$('previewImg');
         const zone = UI.$('uploadZone');
-        const ocrBtn = UI.$('ocrBtn');
         const fileInput = UI.$('similarImageFile');
 
         if (previewImg) previewImg.src = '';
         if (previewEl) previewEl.style.display = 'none';
         if (zone) zone.style.display = '';
-        if (ocrBtn) ocrBtn.style.display = 'none';
         if (fileInput) fileInput.value = '';
-    }
-
-    async function ocrImage() {
-        if (!state.uploadedFile) {
-            if (window.UIModule) UIModule.toast('請先上傳圖片', 'warning');
-            return;
-        }
-
-        const subject = UI.$('similarSubject')?.value || 'math';
-        const formData = new FormData();
-        formData.append('image', state.uploadedFile);
-        formData.append('subject', subject);
-
-        // Loading state
-        const ocrBtn = UI.$('ocrBtn');
-        const ocrLoading = UI.$('ocrLoading');
-        if (ocrBtn) ocrBtn.style.display = 'none';
-        if (ocrLoading) ocrLoading.style.display = '';
-
-        try {
-            const resp = await API.ocrImage(formData);
-
-            if (resp.success && resp.data) {
-                const textarea = UI.$('similarQuestionText');
-                if (textarea) {
-                    textarea.value = resp.data.ocr_text || '';
-                    textarea.focus();
-                }
-
-                // Show warning if any
-                if (resp.data.warning) {
-                    if (window.UIModule) UIModule.toast(resp.data.warning, 'warning');
-                } else {
-                    if (window.UIModule) UIModule.toast('OCR 識別完成，請確認文字後生成', 'success');
-                }
-
-                // Switch to text view so teacher can edit
-                switchInputMethod('text');
-            } else {
-                if (window.UIModule) UIModule.toast(resp.message || 'OCR 識別失敗', 'error');
-            }
-        } catch (e) {
-            console.error('OCR failed:', e);
-            if (window.UIModule) UIModule.toast('OCR 請求失敗', 'error');
-        } finally {
-            if (ocrLoading) ocrLoading.style.display = 'none';
-            if (ocrBtn) ocrBtn.style.display = '';
-        }
     }
 
     async function generateSimilar() {
         const subject = UI.$('similarSubject')?.value || 'math';
-        const questionText = (UI.$('similarQuestionText')?.value || '').trim();
+        let questionText = (UI.$('similarQuestionText')?.value || '').trim();
         const count = parseInt(UI.$('similarCount')?.value) || 3;
 
-        if (!questionText || questionText.length < 5) {
-            if (window.UIModule) UIModule.toast('請輸入至少 5 個字的題目文字', 'warning');
-            return;
-        }
-
         const btn = UI.$('similarGenerateBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '正在提交...'; }
+        if (btn) { btn.disabled = true; btn.textContent = '正在處理...'; }
 
         try {
+            // 如果圖片模式且有上傳圖片，先 OCR 識別
+            if (state.inputMethod === 'image' && state.uploadedFile) {
+                if (window.UIModule) UIModule.toast('正在識別圖片文字...', 'info');
+                const formData = new FormData();
+                formData.append('image', state.uploadedFile);
+                formData.append('subject', subject);
+
+                const ocrResp = await API.ocrImage(formData);
+                if (ocrResp.success && ocrResp.data && ocrResp.data.ocr_text) {
+                    questionText = ocrResp.data.ocr_text.trim();
+                    // 填入 textarea 供記錄
+                    const textarea = UI.$('similarQuestionText');
+                    if (textarea) textarea.value = questionText;
+
+                    if (ocrResp.data.warning) {
+                        if (window.UIModule) UIModule.toast(ocrResp.data.warning, 'warning');
+                    }
+                } else {
+                    if (window.UIModule) UIModule.toast(ocrResp.message || 'OCR 識別失敗，請手動輸入題目文字', 'error');
+                    return;
+                }
+            }
+
+            if (!questionText || questionText.length < 5) {
+                if (window.UIModule) UIModule.toast('請輸入至少 5 個字的題目文字', 'warning');
+                return;
+            }
+
             const resp = await API.generateSimilar({
                 subject,
                 question_text: questionText,
@@ -759,7 +733,11 @@ const ExamCreator = (() => {
                 state.sessionId = resp.data.session_id;
                 savePendingSession(resp.data.session_id);
                 if (window.UIModule) UIModule.toast('相似題生成任務已啟動', 'success');
-                showView('history');
+                // 顯示生成進度
+                const genCountEl = UI.$('genCount');
+                if (genCountEl) genCountEl.textContent = count;
+                showView('generating');
+                startPolling(count);
             } else {
                 if (window.UIModule) UIModule.toast('啟動失敗：' + (resp.message || ''), 'error');
             }
@@ -845,10 +823,12 @@ const ExamCreator = (() => {
         // Upload zone drag-drop
         setupUploadZone();
 
-        // 檢查 pending session → 自動跳歷史
+        // 檢查 pending session → 恢復生成進度
         const pending = loadPendingSession();
         if (pending) {
-            showView('history');
+            state.sessionId = pending.sid;
+            showView('generating');
+            startPolling(5);
         }
     }
 
@@ -1008,7 +988,12 @@ const ExamCreator = (() => {
                 state.sessionId = resp.data.session_id;
                 savePendingSession(resp.data.session_id);
                 if (window.UIModule) UIModule.toast('試卷已開始生成', 'success');
-                showView('history');
+                // 顯示生成進度
+                const count = parseInt(UI.$('questionCount').value) || 5;
+                const genCountEl = UI.$('genCount');
+                if (genCountEl) genCountEl.textContent = count;
+                showView('generating');
+                startPolling(count);
             } else {
                 if (window.UIModule) {
                     UIModule.toast('啟動失敗：' + (resp.message || '未知錯誤'), 'error');
@@ -1031,10 +1016,10 @@ const ExamCreator = (() => {
         }
     }
 
-    function startPolling() {
+    function startPolling(expectedCount) {
         const interval = 3000;
         let attempts = 0;
-        const totalCount = parseInt(UI.$('questionCount').value) || 5;
+        const totalCount = expectedCount || 5;
 
         function updateProgress(completed, total) {
             const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -1057,13 +1042,19 @@ const ExamCreator = (() => {
                 const data = resp.data;
                 if (data.status === 'generated') {
                     updateProgress(data.question_count, data.question_count);
+                    clearPendingSession();
                     setTimeout(() => {
                         state.questions = data.questions || [];
-                        Views.showState('questionsContainer');
-                        Views.renderQuestions(state.questions);
-                        UI.$('totalMarksBadge').textContent = `總分 ${data.total_marks || 0} 分`;
+                        showView('detail');
+                        // 更新總分
+                        const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
+                        const badge = UI.$('detailMarksBadge');
+                        if (badge) badge.textContent = `總分 ${totalMarks} 分`;
+                        Views.renderQuestionsInto('detailQuestionsList', state.questions);
+                        if (window.UIModule) UIModule.toast('題目生成完成！', 'success');
                     }, 500);
                 } else if (data.status === 'generation_failed') {
+                    clearPendingSession();
                     UI.$('errorMessage').textContent = data.error_message || '生成過程出錯';
                     Views.showState('errorState');
                 } else {
@@ -1248,7 +1239,6 @@ const ExamCreator = (() => {
         switchMode,
         switchInputMethod,
         removeUploadedImage,
-        ocrImage,
         generateSimilar,
     };
 })();
