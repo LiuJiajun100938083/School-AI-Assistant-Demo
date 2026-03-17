@@ -121,6 +121,28 @@ body {
 .btn-generate:hover { background: #4f46e5; }
 .btn-generate:disabled { background: #94a3b8; cursor: not-allowed; }
 
+/* Geometry Description (Math only) */
+#mathGeometryGroup textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #d1d5db;
+    border-radius: 6px; font-size: 13px; font-family: inherit; resize: vertical;
+}
+#mathGeometryGroup textarea:focus {
+    outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,.15);
+}
+.btn-generate-geo {
+    width: 100%; padding: 8px; margin-top: 6px;
+    background: #fff; color: #6366f1; border: 1px solid #c7d2fe;
+    border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.15s;
+}
+.btn-generate-geo:hover { background: #eef2ff; border-color: #6366f1; }
+.btn-generate-geo:disabled { color: #94a3b8; border-color: #d1d5db; cursor: not-allowed; }
+#geoPreview {
+    border: 1px solid #e2e8f0; border-radius: 6px; margin-top: 8px;
+    background: #fafbfc; overflow: hidden;
+}
+
 /* ---- Results Area (Right) ---- */
 .results-area {
     flex: 1; overflow-y: auto; padding: 24px;

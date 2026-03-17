@@ -9,11 +9,14 @@ import logging
 from typing import Tuple
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import require_teacher
 from app.core.responses import error_response, paginated_response, success_response
 from app.domains.exam_creator.schemas import (
     ExamGenerationRequest,
+    GeometryDescriptionRequest,
+    QuestionExportRequest,
     RegenerateQuestionRequest,
     UpdateQuestionRequest,
 )
@@ -37,6 +40,12 @@ async def start_exam_generation(
     service = get_services().exam_creator
 
     try:
+        # 如有幾何描述，附加到 exam_context
+        exam_context = req.exam_context
+        if req.geometry_description:
+            geo_prefix = f"[幾何圖形描述] {req.geometry_description}"
+            exam_context = f"{geo_prefix}\n{exam_context}" if exam_context else geo_prefix
+
         result = service.start_exam_generation(
             teacher_username=teacher_username,
             subject=req.subject,
@@ -44,7 +53,7 @@ async def start_exam_generation(
             difficulty=req.difficulty,
             target_points=req.target_points,
             question_types=req.question_types,
-            exam_context=req.exam_context,
+            exam_context=exam_context,
             total_marks=req.total_marks,
         )
     except ValueError as e:
@@ -212,3 +221,110 @@ async def export_exam_data(
         return error_response(message="Session 不存在或無權限", status_code=404)
 
     return success_response(data=result)
+
+
+# ================================================================
+# POST /api/exam-creator/generate-geometry — 從描述生成 JSXGraph
+# ================================================================
+
+@router.post("/api/exam-creator/generate-geometry")
+async def generate_geometry(
+    req: GeometryDescriptionRequest,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """從文字描述生成 JSXGraph 幾何圖形 config（用於預覽）。"""
+    import json
+    import re
+
+    from app.core.ai_gate import Priority, Weight
+    from app.domains.mistake_book.jsxgraph_schema import (
+        sanitize_label_text,
+        validate_jsxgraph_config,
+    )
+    from app.domains.mistake_book.subject_handler import SubjectHandlerRegistry
+    from app.infrastructure.ai_pipeline.llm_caller import call_ollama_json
+
+    handler = SubjectHandlerRegistry.get("math")
+    prompt = handler.build_jsxgraph_spec_prompt(req.description)
+
+    try:
+        raw = await call_ollama_json(
+            prompt,
+            temperature=0.3,
+            gate_task="jsxgraph_spec",
+            gate_priority=Priority.BATCH,
+            gate_weight=Weight.SVG_GEOMETRY,
+            timeout=120.0,
+        )
+    except Exception as e:
+        logger.warning("generate-geometry LLM failed: %s", e)
+        return error_response(message="AI 生成失敗，請重試", status_code=500)
+
+    if not raw or not raw.strip():
+        return error_response(message="AI 返回為空", status_code=500)
+
+    # 解析 JSON
+    spec_data = None
+    try:
+        spec_data = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r'\{[\s\S]*\}', raw)
+        if m:
+            try:
+                spec_data = json.loads(m.group())
+            except json.JSONDecodeError:
+                pass
+
+    if not spec_data or spec_data.get("skip"):
+        return error_response(message="無法從描述中提取幾何圖形", status_code=422)
+
+    # 校驗
+    is_valid, errors = validate_jsxgraph_config(spec_data)
+    if not is_valid:
+        logger.warning("generate-geometry validation failed: %s", errors[:5])
+        return error_response(
+            message=f"幾何圖形校驗失敗: {', '.join(errors[:3])}", status_code=422,
+        )
+
+    # 淨化 label/text
+    for el in spec_data.get("elements", []):
+        if "label" in el and isinstance(el["label"], str):
+            el["label"] = sanitize_label_text(el["label"])
+        if el.get("type") == "textLabel" and "text" in el:
+            el["text"] = sanitize_label_text(el["text"])
+
+    return success_response(data=spec_data, message="幾何圖形已生成")
+
+
+# ================================================================
+# POST /api/exam-creator/export-docx — 單題導出 DOCX
+# ================================================================
+
+@router.post("/api/exam-creator/export-docx")
+async def export_question_docx(
+    req: QuestionExportRequest,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """將單題導出為 .docx（含 OMML 公式）。"""
+    from app.domains.exam_creator.docx_exporter import export_question_to_docx
+
+    question_data = {
+        "question": req.question,
+        "correct_answer": req.correct_answer,
+        "marking_scheme": req.marking_scheme,
+        "points": req.points,
+        "question_type": req.question_type,
+        "options": req.options or [],
+    }
+
+    try:
+        output = export_question_to_docx(question_data)
+    except Exception as e:
+        logger.error("DOCX export failed: %s", e)
+        return error_response(message="DOCX 生成失敗", status_code=500)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=question.docx"},
+    )

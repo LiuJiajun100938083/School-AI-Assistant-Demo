@@ -99,6 +99,19 @@
                 <input type="text" id="examContext" placeholder="如：期中考試、單元測驗" maxlength="200">
             </div>
 
+            <!-- Geometry Description (Math only) -->
+            <div class="form-group" id="mathGeometryGroup" style="display:none;">
+                <label>幾何圖形描述 <small class="text-muted">(選填，數學專用)</small></label>
+                <textarea id="geometryDesc" rows="3" placeholder="輸入題目或幾何描述，如：圓O半徑5，弦AB長8，求弦心距" maxlength="500"></textarea>
+                <button class="btn-generate-geo" id="generateGeoBtn" onclick="ExamCreator.generateGeometry()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    預覽幾何圖形
+                </button>
+                <div id="geoPreview" style="display:none;">
+                    <div id="geoPreviewBoard" style="width:280px;height:240px;margin:8px auto;"></div>
+                </div>
+            </div>
+
             <!-- Generate Button -->
             <button class="btn-generate" id="generateBtn" onclick="ExamCreator.generate()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>

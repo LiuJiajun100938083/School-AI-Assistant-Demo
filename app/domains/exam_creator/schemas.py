@@ -21,6 +21,7 @@ class ExamGenerationRequest(BaseModel):
     )
     exam_context: str = Field(default="", max_length=200, description="考試場景，如 '期中考試'")
     total_marks: Optional[int] = Field(default=None, ge=1, le=500, description="總分")
+    geometry_description: str = Field(default="", max_length=500, description="幾何圖形描述（數學專用）")
 
 
 class UpdateQuestionRequest(BaseModel):
@@ -35,3 +36,18 @@ class RegenerateQuestionRequest(BaseModel):
     """重新生成指定題目"""
     question_index: int = Field(ge=0, description="題目索引")
     instruction: str = Field(default="", max_length=500, description="額外指示")
+
+
+class GeometryDescriptionRequest(BaseModel):
+    """從文字描述生成 JSXGraph 幾何圖形"""
+    description: str = Field(..., min_length=2, max_length=500, description="幾何描述文字")
+
+
+class QuestionExportRequest(BaseModel):
+    """單題導出為 DOCX"""
+    question: str = Field(default="", description="題目文字")
+    correct_answer: str = Field(default="", description="參考答案")
+    marking_scheme: str = Field(default="", description="評分標準")
+    points: Optional[int] = Field(default=None, description="分數")
+    question_type: str = Field(default="short_answer", description="題型")
+    options: Optional[List[str]] = Field(default=None, description="選項（選擇題）")

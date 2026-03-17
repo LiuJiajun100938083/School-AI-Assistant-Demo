@@ -31,6 +31,7 @@ const ExamCreator = (() => {
         view: 'config',              // 'config' | 'history' | 'detail'
         historyPollingTimer: null,    // 歷史頁輪詢 timer
         historyGeneratingIds: [],    // 正在生成的 session ids
+        pendingGeometry: null,       // 待用的 JSXGraph config（幾何預覽）
     };
 
     // ================================================================
@@ -275,6 +276,9 @@ const ExamCreator = (() => {
                             </button>
                             <button class="card-action-btn" title="重新生成" onclick="ExamCreator.regenerate(${i})">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                            </button>
+                            <button class="card-action-btn" title="導出 Word" onclick="ExamCreator.exportDocx(${i})">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                             </button>
                         </div>
                     </div>
@@ -582,14 +586,18 @@ const ExamCreator = (() => {
             });
         }
 
-        // Subject change → reload knowledge points
+        // Subject change → reload knowledge points + toggle geometry group
         const subjectSelect = UI.$('subjectSelect');
         if (subjectSelect) {
-            subjectSelect.addEventListener('change', () => loadKnowledgePoints(subjectSelect.value));
+            subjectSelect.addEventListener('change', () => {
+                loadKnowledgePoints(subjectSelect.value);
+                toggleGeometryGroup(subjectSelect.value);
+            });
         }
 
-        // Load initial knowledge points
+        // Load initial knowledge points + show geometry group for math
         loadKnowledgePoints('math');
+        toggleGeometryGroup('math');
 
         // 檢查 pending session → 自動跳歷史
         const pending = loadPendingSession();
@@ -611,6 +619,101 @@ const ExamCreator = (() => {
         } catch (e) {
             console.error('Failed to load knowledge points:', e);
             UI.$('pointsList').innerHTML = '<div class="loading-text">載入失敗</div>';
+        }
+    }
+
+    // ================================================================
+    // Geometry — 幾何描述區塊（數學專用）
+    // ================================================================
+
+    function toggleGeometryGroup(subject) {
+        const group = UI.$('mathGeometryGroup');
+        if (group) group.style.display = subject === 'math' ? '' : 'none';
+    }
+
+    async function generateGeometry() {
+        const desc = (UI.$('geometryDesc')?.value || '').trim();
+        if (!desc) {
+            if (window.UIModule) UIModule.toast('請輸入幾何描述', 'warning');
+            return;
+        }
+
+        const btn = UI.$('generateGeoBtn');
+        if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+
+        try {
+            const resp = await fetch('/api/exam-creator/generate-geometry', {
+                method: 'POST',
+                headers: API._headers(),
+                body: JSON.stringify({ description: desc }),
+            });
+            const result = await resp.json();
+
+            if (result.success && result.data) {
+                state.pendingGeometry = result.data;
+                // 渲染預覽
+                const preview = UI.$('geoPreview');
+                if (preview) preview.style.display = '';
+                if (window.JSXGraphRenderer) {
+                    try {
+                        JSXGraphRenderer.destroy('geoPreviewBoard');
+                    } catch (_) {}
+                    JSXGraphRenderer.render('geoPreviewBoard', result.data);
+                }
+                if (window.UIModule) UIModule.toast('幾何圖形已生成', 'success');
+            } else {
+                if (window.UIModule) UIModule.toast(result.message || '生成失敗', 'error');
+            }
+        } catch (e) {
+            console.error('generateGeometry failed:', e);
+            if (window.UIModule) UIModule.toast('請求失敗', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                    預覽幾何圖形`;
+            }
+        }
+    }
+
+    async function exportDocx(index) {
+        const q = state.questions[index];
+        if (!q) return;
+
+        try {
+            const resp = await fetch('/api/exam-creator/export-docx', {
+                method: 'POST',
+                headers: API._headers(),
+                body: JSON.stringify({
+                    question: q.question || '',
+                    correct_answer: q.correct_answer || '',
+                    marking_scheme: q.marking_scheme || '',
+                    points: q.points || null,
+                    question_type: q.question_type || 'short_answer',
+                    options: q.options || null,
+                }),
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                if (window.UIModule) UIModule.toast(err.message || 'DOCX 導出失敗', 'error');
+                return;
+            }
+
+            // 觸發下載
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `題目${index + 1}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('exportDocx failed:', e);
+            if (window.UIModule) UIModule.toast('導出失敗', 'error');
         }
     }
 
@@ -642,6 +745,8 @@ const ExamCreator = (() => {
         btn.textContent = '正在提交...';
 
         try {
+            const geometryDesc = (UI.$('geometryDesc')?.value || '').trim();
+
             const resp = await API.generate({
                 subject,
                 question_count: questionCount,
@@ -650,6 +755,7 @@ const ExamCreator = (() => {
                 question_types: questionTypes.length ? questionTypes : null,
                 exam_context: examContext,
                 total_marks: totalMarks,
+                geometry_description: geometryDesc || '',
             });
 
             if (resp.success && resp.data) {
@@ -884,10 +990,13 @@ const ExamCreator = (() => {
         saveEdit,
         regenerate,
         printExam,
-        // 新增：歷史/詳情導航
+        // 歷史/詳情導航
         showHistory: () => showView('history'),
         showDetail,
         showConfig: () => showView('config'),
         deleteSession,
+        // 新增：幾何預覽 + DOCX 導出
+        generateGeometry,
+        exportDocx,
     };
 })();
