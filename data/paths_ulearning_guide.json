@@ -1,0 +1,247 @@
+{
+  "meta": {
+    "subject_code": "",
+    "exported_at": "2026-03-16T12:00:00.000000",
+    "description": "ULearning LMS 教師使用指南學習路徑"
+  },
+  "subject_code": "",
+  "paths": [
+    {
+      "id": "path_ul_1",
+      "title": "快速入門指南",
+      "description": "ULearning LMS 入門——登入、建立第一個課程、設定班級及新增學生。適合新教師。",
+      "difficulty": "beginner",
+      "estimated_hours": 1.0,
+      "icon": "🚀",
+      "tags": ["快速入門", "初學者", "設定"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "LMS 基礎與術語",
+          "description": "了解 ULearning 術語，查閱教學快速入門清單。",
+          "node_match": "LMS 基礎",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "登入 ULearning",
+          "description": "進入 ULearning 平台並以教師身份登入。",
+          "node_match": "登入",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "建立新課程",
+          "description": "設定你的第一個課程，包括標題、描述及基本設定。",
+          "node_match": "建立新課程",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "建立班級",
+          "description": "在課程內建立班級以組織學生群組。",
+          "node_match": "建立班級",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "新增學生",
+          "description": "將學生加入班級，使其能存取課程內容。",
+          "node_match": "新增學生至班級",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "檢視班級名冊",
+          "description": "查看班級名冊，確認學生已正確註冊。",
+          "node_match": "檢視班級名冊",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "發佈公告",
+          "description": "建立第一則課程公告以歡迎學生。",
+          "node_match": "公告",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_ul_2",
+      "title": "製作課件",
+      "description": "學習建立豐富的課件內容——新增文字、嵌入影片，並將學習材料發佈至課程。",
+      "difficulty": "beginner",
+      "estimated_hours": 2.0,
+      "icon": "📝",
+      "tags": ["課件", "內容", "影片"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "建立課件",
+          "description": "進入課件區域，建立含章節及頁面的新課件。",
+          "node_match": "製作課件",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "新增富文本內容",
+          "description": "使用富文本編輯器在課件頁面中加入格式化文字、圖片及連結。",
+          "node_match": "富文本內容",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "嵌入影片",
+          "description": "在課件中嵌入 YouTube 影片或上傳本地影片檔案。",
+          "node_match": "嵌入影片",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "儲存課件",
+          "description": "定期儲存課件進度，避免遺失工作內容。",
+          "node_match": "儲存課件",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "預覽課件",
+          "description": "發佈前預覽課件，檢查版面及內容。",
+          "node_match": "預覽課件",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 6,
+          "title": "發佈課件",
+          "description": "發佈完成的課件使其可供使用。",
+          "node_match": "發佈課件",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 7,
+          "title": "插入課件至課程",
+          "description": "將已發佈的課件加入課程結構，供學生存取。",
+          "node_match": "插入課件至課程",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_ul_3",
+      "title": "資源與微課",
+      "description": "上傳資源並建立含投影片及旁白的微課，製作引人入勝的多媒體內容。",
+      "difficulty": "intermediate",
+      "estimated_hours": 1.5,
+      "icon": "🎙️",
+      "tags": ["資源", "微課", "多媒體"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "新增資源檔案",
+          "description": "從電腦上傳資源檔案（文件、投影片、PDF）至課程資源庫。",
+          "node_match": "新增資源",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "建立微課",
+          "description": "上傳投影片並為每張投影片添加旁白，建立微課。",
+          "node_match": "建立微課",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "發佈微課",
+          "description": "發佈已完成的微課，使學生可以使用。",
+          "node_match": "發佈微課",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_ul_4",
+      "title": "作業與測驗",
+      "description": "建立題目、組建測驗並發佈個人作業，以評量學生學習成效。",
+      "difficulty": "intermediate",
+      "estimated_hours": 2.0,
+      "icon": "📊",
+      "tags": ["作業", "測驗", "題目", "評量"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "建立題目",
+          "description": "在題庫中建立各類題目（選擇題、填充題、論述題）。",
+          "node_match": "建立題目",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "組建並發佈測驗",
+          "description": "將題目組建為測驗，設定時限及參數並發佈。",
+          "node_match": "建立並發佈測驗",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "建立個人作業",
+          "description": "建立並發佈含說明、附件及截止日期的個人作業。",
+          "node_match": "個人作業",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "建立討論區",
+          "description": "設定討論區主題，供學生互動及分享想法。",
+          "node_match": "討論區",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        }
+      ]
+    },
+    {
+      "id": "path_ul_5",
+      "title": "考試與評分",
+      "description": "掌握考試系統——建立試卷、指派考試、批改答卷及設定評分規則。",
+      "difficulty": "advanced",
+      "estimated_hours": 2.5,
+      "icon": "🏆",
+      "tags": ["考試", "評分", "數據分析", "進階"],
+      "steps": [
+        {
+          "step_order": 1,
+          "title": "在題庫建立考試",
+          "description": "在題庫中建立含題目、分值及段落的試卷。",
+          "node_match": "在題庫建立考試",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 2,
+          "title": "建立課程考試",
+          "description": "將試卷指派至課程，設定時限、作答規則及排程。",
+          "node_match": "建立課程考試",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 3,
+          "title": "批改考試答卷",
+          "description": "查閱並批改學生考試答卷——客觀題自動批改、論述題人工批改。",
+          "node_match": "批改課程考試",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 4,
+          "title": "設定評分規則",
+          "description": "設定評分規則——作業、測驗、考試及出勤的權重分配。",
+          "node_match": "設定評分規則",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        },
+        {
+          "step_order": 5,
+          "title": "查看課程數據分析",
+          "description": "查看課程數據分析，追蹤學生參與度、完成率及表現。",
+          "node_match": "數據分析",
+          "source_pdf": "ulearning_guide_teachers_en_web-browser.pdf"
+        }
+      ]
+    }
+  ]
+}
