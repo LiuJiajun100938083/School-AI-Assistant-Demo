@@ -67,7 +67,10 @@ async def call_ollama_json(
                 "role": "system",
                 "content": (
                     "You are an expert teacher. You MUST respond with valid JSON only. "
-                    "No explanations, no reasoning, no markdown — just a single JSON object."
+                    "No explanations, no reasoning, no markdown — just a single JSON object. "
+                    "When writing solution steps (correct_answer), output CLEAN standard solutions "
+                    "like a textbook. NEVER include self-talk, backtracking, or exploratory reasoning "
+                    "like '不，應該是…' or '讓我們換個角度' in any JSON field value."
                 ),
             },
             {"role": "user", "content": prompt},

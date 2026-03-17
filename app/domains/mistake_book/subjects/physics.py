@@ -243,6 +243,13 @@ class PhysicsHandler(BaseSubjectHandler):
 - 提供不同數值但方法相同的變式題
 - 包含完整的解題步驟
 - **禁止**出需要看圖、看電路圖、看實驗裝置圖的題目（系統不支持顯示圖片）
+
+## correct_answer 格式要求（極重要）
+correct_answer 必須是**乾淨、標準的解題過程**，像教科書或考試標準答案一樣。
+- 每一步驟用清晰的物理推理，逐步推導到最終答案（帶單位）
+- 使用 LaTeX 公式標記
+- **嚴禁**包含任何自我對話、自我糾正、試錯過程、回溯或探索性文字
+- **嚴禁**出現「讓我們換個角度」「不，應該是…」「這似乎太複雜」「等等」「重新考慮」等思考痕跡
 - 數據表格用 Markdown 表格格式直接寫在題目中（| 列1 | 列2 | ... |）
 - 題目必須純文字自包含，所有數據直接寫在題目中
 
@@ -262,7 +269,7 @@ class PhysicsHandler(BaseSubjectHandler):
       "question": "題目（繁體中文，LaTeX 公式用 $ 包裹，數值帶單位）",
       "question_type": "multiple_choice / structured / essay",
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-      "correct_answer": "完整解題步驟和最終答案（帶單位）",
+      "correct_answer": "標準解題步驟（乾淨逐步推導，禁止思考痕跡）和最終答案（帶單位）",
       "explanation": "解析（公式用 LaTeX）",
       "scoring_points": ["得分點1", "得分點2"],
       "common_mistakes": ["常見錯誤1"],

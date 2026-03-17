@@ -147,6 +147,12 @@ class BaseSubjectHandler(ABC):
 - 每題標明配分（points）
 - 提供完整的答案和評分準則（marking_scheme）
 
+## correct_answer 格式要求（極重要）
+correct_answer 必須是**乾淨、標準的解題過程**，像教科書或考試標準答案一樣。
+- 每一步驟用清晰的推理，逐步推導到最終答案
+- **嚴禁**包含任何自我對話、自我糾正、試錯過程、回溯或探索性文字
+- **嚴禁**出現「讓我們換個角度」「不，應該是…」「這似乎太複雜」「等等」「重新考慮」等思考痕跡
+
 ## 輸出格式（JSON）
 ```json
 {{{{
@@ -156,7 +162,7 @@ class BaseSubjectHandler(ABC):
       "question": "題目（LaTeX 公式用 $ 包裹）",
       "question_type": "short_answer / multiple_choice / fill_blank",
       "options": null,
-      "correct_answer": "完整解題步驟和最終答案",
+      "correct_answer": "標準解題步驟（乾淨逐步推導，禁止思考痕跡）和最終答案",
       "marking_scheme": "配分要點（如：列式 1 分，計算 2 分）",
       "points": 5,
       "point_code": "對應的知識點編碼",

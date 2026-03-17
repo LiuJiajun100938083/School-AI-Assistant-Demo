@@ -587,6 +587,13 @@ careless / concept / calculation / method / format / incomplete / irrelevant
 - 包含完整的解題步驟
 - 題目文字條件必須自包含，即使附圖未顯示也能唯一理解幾何關係
 
+## correct_answer 格式要求（極重要）
+correct_answer 必須是**乾淨、標準的解題過程**，像教科書或考試標準答案一樣。
+- 每一步驟用清晰的數學推理，逐步推導到最終答案
+- 使用 LaTeX 公式標記
+- **嚴禁**包含任何自我對話、自我糾正、試錯過程、回溯或探索性文字
+- **嚴禁**出現「讓我們換個角度」「不，應該是…」「這似乎太複雜」「等等」「重新考慮」等思考痕跡
+
 ## 數據表格格式規則
 - 若題目包含數據對照關係（頻率分佈、統計表等），**必須**用 Markdown 表格格式
 - **禁止**用空格、Tab 或純文字排列數據；必須用 `|` 分隔欄位
@@ -670,7 +677,7 @@ careless / concept / calculation / method / format / incomplete / irrelevant
       "question": "題目（LaTeX 公式用 $ 包裹）",
       "question_type": "short_answer / multiple_choice / fill_blank",
       "options": null,
-      "correct_answer": "完整解題步驟和最終答案",
+      "correct_answer": "標準解題步驟（乾淨逐步推導，禁止思考痕跡）和最終答案",
       "explanation": "解析（公式用 LaTeX）",
       "point_code": "對應的知識點編碼",
       "difficulty": 3,
@@ -717,6 +724,15 @@ careless / concept / calculation / method / format / incomplete / irrelevant
 - 提供完整的解題步驟（correct_answer）和評分準則（marking_scheme）
 - 題目文字條件必須自包含，即使附圖未顯示也能唯一理解幾何關係
 - 不可把答案建立在目測圖形之上
+
+## correct_answer 格式要求（極重要）
+correct_answer 必須是**乾淨、標準的解題過程**，像教科書或考試標準答案一樣。
+- 每一步驟用清晰的數學推理，逐步推導到最終答案
+- 使用 LaTeX 公式標記
+- **嚴禁**包含任何自我對話、自我糾正、試錯過程、回溯或探索性文字
+- **嚴禁**出現「讓我們換個角度」「不，應該是…」「這似乎太複雜」「等等」「重新考慮」等思考痕跡
+- 格式範例：
+  「由 △ABC ≅ △BAD（已知），得 AC = BD。\n已知 AD = 8 cm，故 BC = 8 cm。\n在直角 △ADB 中，由畢氏定理：AB² = AD² + BD² = ...」
 
 ## 數據表格格式規則
 - 若題目包含數據對照關係（頻率分佈、統計表等），**必須**用 Markdown 表格格式
@@ -778,7 +794,7 @@ careless / concept / calculation / method / format / incomplete / irrelevant
       "question": "題目（LaTeX 公式用 $ 包裹）",
       "question_type": "short_answer / multiple_choice / fill_blank",
       "options": null,
-      "correct_answer": "完整解題步驟和最終答案",
+      "correct_answer": "標準解題步驟（乾淨逐步推導，禁止思考痕跡）和最終答案",
       "marking_scheme": "評分要點（如：列式 1 分，計算 2 分，答案 1 分）",
       "points": 5,
       "point_code": "對應的知識點編碼",
