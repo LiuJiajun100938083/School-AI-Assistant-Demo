@@ -354,7 +354,8 @@ async def generate_similar_from_text(
             question_text=req.question_text,
             count=req.count,
             difficulty_variation=req.difficulty_variation,
-            source_type="text",
+            source_type="image" if req.figure_description else "text",
+            figure_description=req.figure_description,
         )
     except ValueError as e:
         return error_response(message=str(e), status_code=400)
@@ -368,6 +369,7 @@ async def generate_similar_from_text(
             question_text=bg_context["question_text"],
             count=bg_context["count"],
             difficulty_variation=bg_context["difficulty_variation"],
+            figure_description=bg_context.get("figure_description"),
         )
 
     return success_response(data=result, message="相似題生成任務已啟動")
@@ -417,14 +419,16 @@ async def ocr_similar_question_image(
         from app.domains.vision.schemas import RecognitionSubject, RecognitionTask
 
         vision = get_services().vision
+        # 使用 MATH_SOLUTION 以同時提取圖形描述（力學圖、電路圖等）
         ocr_result = await vision.recognize(
             image_path=file_path,
             subject=RecognitionSubject(subject),
-            task=RecognitionTask.QUESTION_ONLY,
+            task=RecognitionTask.MATH_SOLUTION,
         )
 
         ocr_text = (ocr_result.question_text or "").strip()
         confidence = ocr_result.confidence
+        figure_desc = (ocr_result.figure_description or "").strip()
 
         # OCR 可用性判斷
         warning = None
@@ -437,6 +441,7 @@ async def ocr_similar_question_image(
             "ocr_text": ocr_text,
             "confidence": round(confidence, 2),
             "warning": warning,
+            "figure_description": figure_desc if figure_desc else None,
         })
 
     except Exception as e:

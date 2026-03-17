@@ -36,6 +36,7 @@ const ExamCreator = (() => {
         mode: 'generate',            // 'generate' | 'similar'
         inputMethod: 'text',         // 'text' | 'image'
         uploadedFile: null,          // 圖片上傳 File object
+        figureDescription: null,     // OCR 提取的圖形結構化描述
     };
 
     // ================================================================
@@ -674,6 +675,7 @@ const ExamCreator = (() => {
 
     function removeUploadedImage() {
         state.uploadedFile = null;
+        state.figureDescription = null;
         const previewEl = UI.$('uploadPreview');
         const previewImg = UI.$('previewImg');
         const zone = UI.$('uploadZone');
@@ -704,6 +706,8 @@ const ExamCreator = (() => {
                 const ocrResp = await API.ocrImage(formData);
                 if (ocrResp.success && ocrResp.data && ocrResp.data.ocr_text) {
                     questionText = ocrResp.data.ocr_text.trim();
+                    // 存圖形描述（力學圖、電路圖等）
+                    state.figureDescription = ocrResp.data.figure_description || null;
                     // 填入 textarea 供記錄
                     const textarea = UI.$('similarQuestionText');
                     if (textarea) textarea.value = questionText;
@@ -722,12 +726,17 @@ const ExamCreator = (() => {
                 return;
             }
 
-            const resp = await API.generateSimilar({
+            const params = {
                 subject,
                 question_text: questionText,
                 count,
                 difficulty_variation: true,
-            });
+            };
+            // 附帶圖形描述（OCR 從圖片提取的力學圖/電路圖等）
+            if (state.figureDescription) {
+                params.figure_description = state.figureDescription;
+            }
+            const resp = await API.generateSimilar(params);
 
             if (resp.success && resp.data) {
                 state.sessionId = resp.data.session_id;

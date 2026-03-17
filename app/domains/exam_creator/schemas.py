@@ -57,6 +57,10 @@ class SimilarQuestionRequest(BaseModel):
     difficulty_variation: bool = Field(
         default=True, description="是否包含難度變化（±1 範圍）",
     )
+    figure_description: Optional[str] = Field(
+        default=None, max_length=5000,
+        description="圖形結構化描述（OCR 提取的力學圖/電路圖等）",
+    )
 
     @validator('question_text')
     def strip_text(cls, v):

@@ -775,6 +775,7 @@ class ExamCreatorService:
         count: int = 3,
         difficulty_variation: bool = True,
         source_type: str = "text",
+        figure_description: Optional[str] = None,
     ) -> Dict:
         """
         建 session（mode=similar），返回 session_id + 後台上下文。
@@ -823,6 +824,7 @@ class ExamCreatorService:
                 "question_text": question_text,
                 "count": count,
                 "difficulty_variation": difficulty_variation,
+                "figure_description": figure_description,
             },
         }
 
@@ -837,6 +839,7 @@ class ExamCreatorService:
         question_text: str,
         count: int = 3,
         difficulty_variation: bool = True,
+        figure_description: Optional[str] = None,
     ) -> None:
         """
         後台生成相似題：構建 prompt → LLM → 解析 → SVG/Chart enrichment。
@@ -860,6 +863,7 @@ class ExamCreatorService:
             # 1. 構建相似題 prompt（域內私有方法）
             prompt = self._build_similar_prompt(
                 subject, question_text, count, difficulty_variation,
+                figure_description=figure_description,
             )
 
             # 2. LLM 調用（最多重試 1 次）
@@ -984,6 +988,7 @@ class ExamCreatorService:
         original_question: str,
         count: int = 3,
         difficulty_variation: bool = True,
+        figure_description: Optional[str] = None,
     ) -> str:
         """
         構建相似題生成 prompt。
@@ -1002,11 +1007,29 @@ class ExamCreatorService:
         else:
             diff_instruction = f"生成 {count} 道相似題目，難度與原題相當。"
 
+        # 圖形描述區段（OCR 從圖片提取的力學圖、電路圖等結構化描述）
+        figure_section = ""
+        if figure_description and figure_description.strip():
+            figure_section = f"""
+## 原題圖形描述（由視覺模型從題目圖片中提取）
+
+以下是原題附圖的結構化描述，請充分理解原題的物理/數學情境：
+
+```
+{figure_description}
+```
+
+**相似題圖形約束**：
+- 新題的物理情境應與原題結構相似（相同類型的元件/物體/關係），但改變具體數值和配置
+- 新題的文字描述必須自包含（完整描述所有物理量和條件），不依賴外部圖形
+- 如果原題涉及電路，新題也應涉及電路；如果涉及力學，新題也應涉及力學
+"""
+
         return f"""你是一位經驗豐富的DSE {subject_name}科教師。
 
 ## 原始題目
 {original_question}
-
+{figure_section}
 ## 任務
 {diff_instruction}
 
