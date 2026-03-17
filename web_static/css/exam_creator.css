@@ -11,6 +11,7 @@ body {
     color: #1e293b;
     line-height: 1.6;
     height: 100%;
+    overflow: hidden;  /* 阻止 iOS Safari body 弹性滚动導致底部空白 */
 }
 
 /* ---- App Shell ---- */

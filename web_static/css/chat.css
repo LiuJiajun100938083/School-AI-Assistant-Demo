@@ -135,7 +135,7 @@ body {
         radial-gradient(ellipse at 80% 100%, rgba(0, 102, 51, 0.03) 0%, transparent 50%);
     color: var(--text-primary);
     line-height: 1.5;
-    overflow-x: hidden;
+    overflow: hidden; /* 阻止 iOS Safari/Chrome body 彈性滾動導致底部空白 */
 }
 
 /* ========== 全局文字顏色確保 ========== */

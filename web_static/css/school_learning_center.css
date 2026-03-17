@@ -53,6 +53,10 @@
 }
 
 /* ── 全局重置 ── */
+body {
+    overflow: hidden; /* 阻止 iOS Safari/Chrome body 彈性滾動導致底部空白 */
+}
+
 .slc-page {
     display: flex;
     flex-direction: column;

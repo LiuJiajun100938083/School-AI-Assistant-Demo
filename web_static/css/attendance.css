@@ -124,6 +124,7 @@ body {
     background: var(--bg-page);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow: hidden; /* 阻止 iOS Safari/Chrome body 彈性滾動導致底部空白 */
 }
 
 /* ================================================

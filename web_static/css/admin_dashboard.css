@@ -63,6 +63,7 @@ body {
     background: #FFFFFF;
     color: var(--text-primary);
     line-height: 1.6;
+    overflow: hidden; /* 阻止 iOS Safari/Chrome body 彈性滾動導致底部空白 */
 }
 
 /* ========== 導航欄 - 簡潔線條 ========== */
