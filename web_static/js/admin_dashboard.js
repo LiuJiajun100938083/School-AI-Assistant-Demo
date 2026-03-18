@@ -3380,7 +3380,7 @@ async function loadCloudStatus() {
     try {
         const data = await AdminAPI.fetchWithAuth('/api/exam-creator/cloud-status');
         const info = data.data || data;
-        if (modelEl) modelEl.value = info.model || 'deepseek-chat';
+        if (modelEl) modelEl.value = info.model || 'deepseek-reasoner';
         if (statusEl) {
             if (info.available) {
                 statusEl.textContent = 'API Key 已配置，雲端可用';
@@ -3411,10 +3411,16 @@ function toggleApiKeyVisibility() {
 async function saveCloudConfig() {
     const msgEl = document.getElementById('cloudConfigMsg');
     const keyInput = document.getElementById('cloudApiKey');
+    const modelSelect = document.getElementById('cloudApiModel');
     const apiKey = keyInput ? keyInput.value.trim() : '';
+    const apiModel = modelSelect ? modelSelect.value : '';
 
-    if (!apiKey) {
-        showCloudMsg('請輸入 API Key', 'warning');
+    const payload = {};
+    if (apiKey) payload.api_key = apiKey;
+    if (apiModel) payload.api_model = apiModel;
+
+    if (!apiKey && !apiModel) {
+        showCloudMsg('請輸入 API Key 或選擇模型', 'warning');
         return;
     }
 
@@ -3422,7 +3428,7 @@ async function saveCloudConfig() {
         const data = await AdminAPI.fetchWithAuth('/api/exam-creator/cloud-config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ api_key: apiKey }),
+            body: JSON.stringify(payload),
         });
         showCloudMsg('配置已保存', 'success');
         if (keyInput) keyInput.value = '';

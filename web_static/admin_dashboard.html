@@ -534,8 +534,11 @@
                                 </button>
                             </div>
                             <label style="font-weight:500;color:var(--text);">模型</label>
-                            <input type="text" id="cloudApiModel" value="deepseek-reasoner" readonly
-                                style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--light);color:var(--text-secondary);">
+                            <select id="cloudApiModel"
+                                style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;background:white;color:var(--text);cursor:pointer;">
+                                <option value="deepseek-reasoner">deepseek-reasoner (推理模式，質量最高)</option>
+                                <option value="deepseek-chat">deepseek-chat (對話模式，速度較快)</option>
+                            </select>
                             <label style="font-weight:500;color:var(--text);">狀態</label>
                             <span id="cloudConfigStatus" style="font-size:0.9rem;color:var(--text-muted);">載入中...</span>
                         </div>
