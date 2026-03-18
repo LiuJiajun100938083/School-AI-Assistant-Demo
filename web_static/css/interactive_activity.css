@@ -911,8 +911,7 @@
     border: var(--glass-border);
     border-radius: var(--glass-radius);
     overflow: hidden;
-    max-width: 800px;
-    max-height: 600px;
+    width: 100%;
     margin: 0 auto;
     background: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(var(--glass-blur));
@@ -925,7 +924,7 @@
     height: 100%;
     border: none;
     display: block;
-    min-height: 300px;
+    min-height: 70vh;
 }
 
 .html-sandbox-split {
