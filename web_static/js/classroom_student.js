@@ -387,7 +387,7 @@ const ClassroomStudentApp = {
 
             // Show classroom
             document.getElementById('classroomContainer').style.display = 'flex';
-            document.getElementById('aiCircleButton').style.display = 'flex';
+            document.getElementById('aiCircleButton').style.display = 'inline-flex';
 
             // Connect WebSocket
             this._connectWebSocket();

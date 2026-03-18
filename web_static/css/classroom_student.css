@@ -370,6 +370,33 @@ html, body {
     transform: scale(0.95);
 }
 
+/* ========== AI Bottom Bar Button ========== */
+.ai-bar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--brand, #006633);
+    background: transparent;
+    color: var(--brand, #006633);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.ai-bar-btn:hover {
+    background: var(--brand-light, rgba(0,102,51,0.08));
+}
+.ai-bar-btn:active {
+    transform: scale(0.96);
+}
+.ai-bar-btn svg {
+    flex-shrink: 0;
+    stroke: currentColor;
+}
+
 /* ========== AI Floating Window ========== */
 .ai-float {
     position: fixed;
