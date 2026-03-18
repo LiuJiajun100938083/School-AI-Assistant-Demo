@@ -205,8 +205,8 @@ async def classroom_student(room_id: str):
 
 @router.get("/classroom/lesson-editor/{plan_id}")
 async def lesson_editor(plan_id: str):
-    """课案编辑器"""
-    return _serve_page("lesson_editor.html")
+    """课案编辑器 — 需要 frame-src 'self' 以支持 html_sandbox iframe 预览"""
+    return _serve_page("lesson_editor.html", csp=_CLASSROOM_CSP)
 
 
 # ====================================================================== #
