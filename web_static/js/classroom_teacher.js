@@ -1608,14 +1608,26 @@ function renderLessonGenericSlide(slide, cfg, lifecycle) {
 async function promptStartLesson() {
     try {
         const token = AuthModule.getToken();
-        // Only fetch lesson plans belonging to THIS classroom
-        const res = await fetch(`/api/classroom/lesson-plans?room_id=${encodeURIComponent(roomId)}`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-        });
-        const json = await res.json();
-        const plans = (json.success && json.data) ? json.data : [];
+        // 先取本課室的課案，再取所有課案（去重），讓教師能跨課室選用
+        const [resRoom, resAll] = await Promise.all([
+            fetch(`/api/classroom/lesson-plans?room_id=${encodeURIComponent(roomId)}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            }),
+            fetch('/api/classroom/lesson-plans', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            }),
+        ]);
+        const jsonRoom = await resRoom.json();
+        const jsonAll = await resAll.json();
+        const roomPlans = (jsonRoom.success && jsonRoom.data) ? jsonRoom.data : [];
+        const allPlans = (jsonAll.success && jsonAll.data) ? jsonAll.data : [];
+        // 合併去重：本課室的排在前面
+        const seen = new Set();
+        const plans = [];
+        roomPlans.forEach(function(p) { if (!seen.has(p.plan_id)) { seen.add(p.plan_id); p._isLocal = true; plans.push(p); } });
+        allPlans.forEach(function(p) { if (!seen.has(p.plan_id)) { seen.add(p.plan_id); plans.push(p); } });
         if (plans.length === 0) {
-            UIModule.toast('此課堂尚無課案，請先點擊課堂列表的「課案編輯」創建', 'info');
+            UIModule.toast('尚無課案，請先到課堂列表的「課案編輯」創建', 'info');
             return;
         }
 
@@ -1634,7 +1646,8 @@ async function promptStartLesson() {
             item.onmouseout = () => { item.style.borderColor = '#e0e0e0'; item.style.background = ''; };
             const statusLabel = p.status === 'ready' ? ' (就緒)' : p.status === 'draft' ? ' (草稿)' : '';
             const slideCount = p.total_slides || 0;
-            item.innerHTML = `<div style="font-weight:600;font-size:14px;">${p.title}${statusLabel}</div><div style="font-size:12px;color:#888;margin-top:4px;">${slideCount} 張幻燈片</div>`;
+            const sourceTag = p._isLocal ? '' : '<span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#E3F2FD;color:#1565C0;font-size:11px;margin-left:6px;">其他課室</span>';
+            item.innerHTML = `<div style="font-weight:600;font-size:14px;">${p.title}${statusLabel}${sourceTag}</div><div style="font-size:12px;color:#888;margin-top:4px;">${slideCount} 張幻燈片</div>`;
             item.addEventListener('click', async () => {
                 document.body.removeChild(overlay);
                 await startLesson(p.plan_id);
