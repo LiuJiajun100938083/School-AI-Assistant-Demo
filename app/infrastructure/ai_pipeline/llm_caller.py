@@ -192,6 +192,11 @@ async def _call_deepseek(
     """
     調用 DeepSeek API（OpenAI-compatible），返回 content 字串。
 
+    使用 deepseek-reasoner 模型啟用 thinking/reasoning 模式：
+    - 回應包含 reasoning_content（思考鏈）和 content（最終答案）
+    - 只取 content 作為結果，reasoning_content 被丟棄
+    - thinking 模式下 temperature/top_p 無效（API 會忽略）
+
     不走 ai_gate（雲端不佔本地 GPU），使用獨立 Semaphore 限流。
     """
     import httpx
@@ -212,10 +217,16 @@ async def _call_deepseek(
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ],
-        "temperature": temperature,
         "max_tokens": num_predict,
         "response_format": {"type": "json_object"},
     }
+
+    # deepseek-reasoner 原生支持 thinking；
+    # deepseek-chat 則需要顯式啟用 thinking 參數
+    if resolved_model != "deepseek-reasoner":
+        payload["thinking"] = {"type": "enabled"}
+        # 非 reasoner 模型可設置 temperature
+        payload["temperature"] = temperature
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -235,12 +246,25 @@ async def _call_deepseek(
             response.raise_for_status()
             data = response.json()
 
-    content = data["choices"][0]["message"]["content"]
+    message = data["choices"][0]["message"]
+    content = message.get("content", "")
+    reasoning = message.get("reasoning_content", "")
 
     logger.info(
-        "LLM 調用成功: provider=deepseek, model=%s, content_len=%d",
-        resolved_model, len(content),
+        "LLM 調用成功: provider=deepseek, model=%s, "
+        "reasoning_len=%d, content_len=%d",
+        resolved_model, len(reasoning) if reasoning else 0, len(content),
     )
+
+    # 只返回 content（最終答案），丟棄 reasoning_content（思考鏈）
+    # 如果 content 為空但 reasoning 有內容，嘗試從 reasoning 提取 JSON
+    if not content and reasoning:
+        logger.warning(
+            "DeepSeek content 為空，嘗試從 reasoning_content 提取 (len=%d)",
+            len(reasoning),
+        )
+        content = reasoning
+
     return content
 
 

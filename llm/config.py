@@ -23,8 +23,8 @@ class LLMConfig:
     # SVG 幾何圖 spec 提取專用模型
     svg_model: str = "qwen3.5:35b"
 
-    # API 模型配置 (預留，暫未啟用)
-    api_model: str = "deepseek-chat"
+    # API 模型配置 (DeepSeek 雲端)
+    api_model: str = "deepseek-reasoner"
     api_base_url: str = "https://api.deepseek.com/v1"
     api_key: Optional[str] = None
 
@@ -81,7 +81,7 @@ class LLMConfigManager:
             local_model=os.getenv('LLM_LOCAL_MODEL', 'qwen3.5:35b'),
             local_base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
             svg_model=os.getenv('LLM_SVG_MODEL', 'qwen3.5:35b'),
-            api_model=os.getenv('LLM_API_MODEL', 'deepseek-chat'),
+            api_model=os.getenv('LLM_API_MODEL', 'deepseek-reasoner'),
             api_base_url=os.getenv('LLM_API_BASE_URL', 'https://api.deepseek.com/v1'),
             api_key=os.getenv('LLM_API_KEY'),
             temperature=float(os.getenv('LLM_TEMPERATURE', '0.6')),
