@@ -1444,13 +1444,7 @@ LessonSlideRenderers.register('interactive', {
 
             container.innerHTML = `
                 <div style="display:flex;flex-direction:column;width:100%;height:100%;min-height:80vh;">
-                    <div style="padding:10px 16px;font-size:14px;font-weight:600;color:#1D1D1F;background:rgba(255,255,255,0.8);border-bottom:1px solid #E5E5EA;">
-                        ${this._escapeHtml(instruction)}
-                    </div>
                     <iframe id="sandboxFrame" sandbox="allow-scripts" style="flex:1;width:100%;border:none;min-height:0;"></iframe>
-                    <div style="padding:10px 16px;display:flex;gap:10px;background:rgba(255,255,255,0.8);border-top:1px solid #E5E5EA;">
-                        <button class="interactive-submit-btn" id="interactiveSubmitBtn" style="flex:1;">我已查看</button>
-                    </div>
                     <div class="interactive-lock-overlay" id="interactiveLockOverlay" style="display:${this._state.locked ? 'flex' : 'none'};">
                         <div class="lock-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
                         <div>老師已暫停操作</div>
@@ -1464,13 +1458,45 @@ LessonSlideRenderers.register('interactive', {
                 frame.addEventListener('load', () => { this._state.onProgressCallback(100); });
             }
 
-            document.getElementById('interactiveSubmitBtn').addEventListener('click', () => {
-                if (this._state.submitted) return;
-                this._state.submitted = true;
-                document.getElementById('interactiveSubmitBtn').textContent = '已確認';
-                document.getElementById('interactiveSubmitBtn').disabled = true;
-                if (this._state.onSubmitCallback) this._state.onSubmitCallback({});
-            });
+            // 將「我已查看」按鈕插入底欄（如果存在）
+            const self = this;
+            const bottomBar = document.querySelector('.bottom-bar');
+            if (bottomBar) {
+                // 檢查是否已有回應按鈕
+                let existingBtn = document.getElementById('interactiveSubmitBtn');
+                if (existingBtn) existingBtn.remove();
+
+                const btn = document.createElement('button');
+                btn.id = 'interactiveSubmitBtn';
+                btn.className = 'ai-bar-btn';
+                btn.style.cssText = 'background:var(--brand,#006633);color:#fff;border-color:var(--brand,#006633);';
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>我已查看</span>';
+                btn.addEventListener('click', function() {
+                    if (self._state.submitted) return;
+                    self._state.submitted = true;
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span>已確認</span>';
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    if (self._state.onSubmitCallback) self._state.onSubmitCallback({});
+                });
+                // 插入到 AI 按鈕之前
+                const aiBtn = document.getElementById('aiCircleButton');
+                if (aiBtn) bottomBar.insertBefore(btn, aiBtn);
+                else bottomBar.appendChild(btn);
+            } else {
+                // Fallback: 沒有底欄時在容器底部放按鈕
+                const fallbackDiv = document.createElement('div');
+                fallbackDiv.style.cssText = 'padding:10px 16px;background:rgba(255,255,255,0.8);border-top:1px solid #E5E5EA;';
+                fallbackDiv.innerHTML = '<button class="interactive-submit-btn" id="interactiveSubmitBtn" style="width:100%;">我已查看</button>';
+                container.querySelector('div').appendChild(fallbackDiv);
+                document.getElementById('interactiveSubmitBtn').addEventListener('click', function() {
+                    if (self._state.submitted) return;
+                    self._state.submitted = true;
+                    this.textContent = '已確認';
+                    this.disabled = true;
+                    if (self._state.onSubmitCallback) self._state.onSubmitCallback({});
+                });
+            }
         }
 
         if (timeLimit > 0) this._startTimer(timeLimit);
