@@ -156,6 +156,18 @@ class FarmGameRepository(BaseRepository):
             order_by="class_name ASC, score DESC",
         )
 
+    def delete_by_class(self, class_name: str) -> int:
+        """按班級批量刪除所有成績"""
+        return self.delete("class_name = %s", (class_name,))
+
+    def count_student_plays(self, student_id: int) -> int:
+        """查詢學生的遊玩次數"""
+        rows = self.raw_query(
+            "SELECT COUNT(*) as cnt FROM farm_game_scores WHERE student_id = %s",
+            (student_id,),
+        )
+        return rows[0]["cnt"] if rows else 0
+
     def get_class_list(self) -> List[str]:
         """獲取有成績記錄的班級列表"""
         rows = self.raw_query(

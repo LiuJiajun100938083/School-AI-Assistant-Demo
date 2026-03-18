@@ -249,7 +249,7 @@
                 <div id="end-leaderboard-body" class="max-h-60 overflow-y-auto rounded-xl border-2 border-green-200"></div>
             </div>
 
-            <button onclick="location.reload()" class="btn-cute w-full py-4 bg-green-400 text-white text-2xl">重新經營</button>
+            <button onclick="location.reload()" class="btn-cute w-full py-4 bg-green-400 text-white text-2xl">返回首頁</button>
         </div>
     </div>
 
@@ -423,6 +423,7 @@
                 <select id="class-filter" onchange="loadTeacherData()" class="border-2 border-gray-300 rounded-lg px-3 py-1">
                     <option value="">全部</option>
                 </select>
+                <button id="batch-delete-btn" onclick="batchDeleteClass()" class="text-sm bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 hidden">刪除該班全部記錄</button>
                 <button onclick="exportCSV()" class="ml-auto text-sm bg-green-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-600">📥 下載 CSV</button>
             </div>
 
@@ -494,6 +495,10 @@
 
             async deleteScore(scoreId) {
                 return APIClient.delete(`/api/farm-game/scores/${scoreId}`);
+            },
+
+            async batchDeleteByClass(className) {
+                return APIClient.delete(`/api/farm-game/scores/batch?class_name=${encodeURIComponent(className)}`);
             },
 
             getExportUrl(className) {
@@ -581,12 +586,22 @@
                 loadEndLeaderboard();
             } catch (e) {
                 console.error('Submit failed:', e);
-                btn.disabled = false;
-                btn.innerText = '重新提交';
-                btn.classList.remove('opacity-50');
-                statusEl.innerText = '提交失敗，請重試';
-                statusEl.classList.remove('hidden', 'text-green-600');
-                statusEl.classList.add('text-red-500');
+                const isAlreadyPlayed = e?.message?.includes('已經遊玩') || e?.message?.includes('只能遊玩一次');
+                if (isAlreadyPlayed) {
+                    btn.innerText = '已提交';
+                    btn.classList.remove('bg-green-500');
+                    btn.classList.add('bg-gray-400');
+                    statusEl.innerText = '你已經遊玩過了，成績以首次遊玩為準';
+                    statusEl.classList.remove('hidden', 'text-green-600');
+                    statusEl.classList.add('text-red-500');
+                } else {
+                    btn.disabled = false;
+                    btn.innerText = '重新提交';
+                    btn.classList.remove('opacity-50');
+                    statusEl.innerText = '提交失敗，請重試';
+                    statusEl.classList.remove('hidden', 'text-green-600');
+                    statusEl.classList.add('text-red-500');
+                }
             }
         }
 
@@ -635,6 +650,13 @@
 
         async function loadTeacherData() {
             const className = document.getElementById('class-filter').value;
+
+            // Show/hide batch delete button based on class selection
+            const batchBtn = document.getElementById('batch-delete-btn');
+            if (batchBtn) {
+                batchBtn.classList.toggle('hidden', !className);
+            }
+
             try {
                 const result = await FarmGameBridge.getAllScores(className);
                 const { scores, classes, summary } = result;
@@ -701,6 +723,19 @@
                 loadTeacherData();
             } catch (e) {
                 alert('刪除失敗');
+            }
+        }
+
+        async function batchDeleteClass() {
+            const className = document.getElementById('class-filter').value;
+            if (!className) return;
+            if (!confirm(`確定刪除 ${className} 的全部遊戲記錄？此操作不可撤銷，被刪除記錄的學生將可重新遊玩。`)) return;
+            try {
+                const resp = await FarmGameBridge.batchDeleteByClass(className);
+                alert(resp.message || '刪除成功');
+                loadTeacherData();
+            } catch (e) {
+                alert('批量刪除失敗');
             }
         }
 
@@ -786,6 +821,32 @@
 
                 // Load leaderboard
                 loadStartLeaderboard();
+
+                // Check if student already played (teachers exempt)
+                if (!FarmGameBridge.isTeacher()) {
+                    const playStatus = await FarmGameBridge.checkPlayed();
+                    if (playStatus.played) {
+                        // Hide start button, show "already played" message with score
+                        const startBtn = document.querySelector('#start-screen button[onclick="startGame()"]');
+                        if (startBtn) startBtn.remove();
+                        const nameEl = document.getElementById('player-name-display');
+                        const score = playStatus.score;
+                        const resultNames = { completed: '任期屆滿', bankrupt: '破產', redline: '國安紅線' };
+                        nameEl.innerHTML = `
+                            <div class="text-center">
+                                <div class="text-2xl game-font text-green-700 mb-2">👨‍🌾 ${state.name}</div>
+                                <div class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 mt-3">
+                                    <div class="text-lg font-bold text-yellow-700 mb-1">你已完成遊戲</div>
+                                    <div class="text-sm text-gray-600 mb-2">每位學生只能遊玩一次</div>
+                                    ${score ? `
+                                        <div class="text-3xl font-black text-green-700">${score.score} 分</div>
+                                        <div class="text-sm text-gray-500 mt-1">${resultNames[score.result] || score.result} · ${score.turns_played} 回合</div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
 
                 // If teacher, add dashboard button
                 if (FarmGameBridge.isTeacher()) {

@@ -49,14 +49,23 @@ class FarmGameService:
         """檢查學生是否已遊玩過"""
         return self._repo.get_student_best_score(student_id)
 
+    def has_played(self, student_id: int) -> bool:
+        """檢查學生是否已遊玩過（布爾值）"""
+        return self._repo.count_student_plays(student_id) > 0
+
     def submit_score(
         self,
         student_id: int,
         student_name: str,
         class_name: str,
         data: Dict[str, Any],
+        bypass_limit: bool = False,
     ) -> Dict[str, Any]:
-        """提交遊戲成績（允許多次遊玩）"""
+        """提交遊戲成績（每位學生只能遊玩一次）"""
+        # 寫入前再次檢查（防並發提交）
+        if not bypass_limit and self._repo.count_student_plays(student_id) > 0:
+            raise ValueError("already_played")
+
         previous_best = self._repo.get_student_best_score(student_id)
         previous_best_score = previous_best["score"] if previous_best else None
 
@@ -138,6 +147,12 @@ class FarmGameService:
         if affected > 0:
             logger.info("老師已刪除成績 score_id=%d", score_id)
         return affected > 0
+
+    def delete_scores_by_class(self, class_name: str) -> int:
+        """按班級批量刪除所有成績"""
+        affected = self._repo.delete_by_class(class_name)
+        logger.info("批量刪除 class=%s 的 %d 條成績", class_name, affected)
+        return affected
 
     def export_scores_csv(self, class_name: Optional[str] = None) -> bytes:
         """導出成績為 CSV"""

@@ -72,10 +72,19 @@ async def submit_score(
     data: ScoreSubmitRequest,
     current_user: Dict = Depends(get_current_user),
 ):
-    """提交遊戲成績"""
+    """提交遊戲成績（每位學生只能遊玩一次）"""
     user = _extract_user(current_user)
     _require_allowed_class(user)
     loop = asyncio.get_event_loop()
+    is_teacher = user["role"] in ("teacher", "admin")
+
+    # 學生只能遊玩一次（老師不受限制，用於測試）
+    if not is_teacher:
+        has_played = await loop.run_in_executor(
+            None, lambda: _get_service().has_played(user["id"])
+        )
+        if has_played:
+            raise HTTPException(409, "你已經遊玩過了，每位學生只能遊玩一次")
 
     score_data = {
         "result": data.result.value,
@@ -88,15 +97,22 @@ async def submit_score(
         "feedback_tags": data.feedback_tags,
     }
 
-    result = await loop.run_in_executor(
-        None,
-        lambda: _get_service().submit_score(
-            student_id=user["id"],
-            student_name=user["display_name"] or user["username"],
-            class_name=user["class_name"],
-            data=score_data,
-        ),
-    )
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: _get_service().submit_score(
+                student_id=user["id"],
+                student_name=user["display_name"] or user["username"],
+                class_name=user["class_name"],
+                data=score_data,
+                bypass_limit=is_teacher,
+            ),
+        )
+    except ValueError as e:
+        if "already_played" in str(e):
+            raise HTTPException(409, "你已經遊玩過了，每位學生只能遊玩一次")
+        raise
+
     return {"success": True, "message": "成績已記錄", "data": result}
 
 
@@ -207,6 +223,27 @@ async def update_score(
         raise HTTPException(404, "成績記錄不存在或無有效更新")
 
     return {"success": True, "message": "成績已更新"}
+
+
+@farm_game_router.delete("/scores/batch")
+async def batch_delete_scores(
+    class_name: str = Query(..., description="要刪除的班級"),
+    current_user: Dict = Depends(get_current_user),
+):
+    """老師按班級批量刪除成績"""
+    user = _extract_user(current_user)
+    _require_teacher(user)
+
+    loop = asyncio.get_event_loop()
+    deleted = await loop.run_in_executor(
+        None, lambda: _get_service().delete_scores_by_class(class_name)
+    )
+
+    return {
+        "success": True,
+        "message": f"已刪除 {class_name} 的 {deleted} 條記錄",
+        "deleted": deleted,
+    }
 
 
 @farm_game_router.delete("/scores/{score_id}")
