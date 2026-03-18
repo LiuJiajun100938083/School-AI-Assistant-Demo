@@ -180,23 +180,38 @@
                 $el.classList.add('has-interactive-preview');
                 this._pendingPreview = { container: $el, slide: slide };
             } else {
-                // Fallback: static metadata card (if preview module not loaded)
+                // Fallback: inline preview
                 const cfg = slide.config || {};
                 const tpl = TEMPLATES.find(t => t.id === cfg.template) || TEMPLATES[0];
                 const subCfg = cfg[cfg.template] || {};
-                const itemCount = subCfg.items?.length || subCfg.left_items?.length || 0;
-                $el.innerHTML = `
-                    <div class="preview-type-card">
-                        <div class="preview-type-icon" style="display:flex;justify-content:center;">${tpl.icon}</div>
-                        <div style="font-weight:600;margin:8px 0 4px;">${tpl.name}</div>
-                        <div style="font-size:12px;color:var(--text-tertiary);">
-                            ${subCfg.instruction || tpl.desc}
+
+                // html_sandbox: 直接用 iframe 預覽 HTML 代碼
+                if (cfg.template === 'html_sandbox' && subCfg.html_content) {
+                    $el.innerHTML = `
+                        <div style="width:100%;height:100%;display:flex;flex-direction:column;">
+                            <div style="padding:8px 12px;font-size:12px;color:var(--text-tertiary);border-bottom:1px solid var(--border-light,#F2F2F7);display:flex;justify-content:space-between;align-items:center;">
+                                <span>${tpl.name} — ${escapeHtml(subCfg.instruction || '')}</span>
+                            </div>
+                            <iframe id="editorHtmlPreviewFrame" sandbox="allow-scripts" style="flex:1;border:none;width:100%;min-height:400px;border-radius:0 0 8px 8px;background:#fff;"></iframe>
                         </div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">
-                            ${itemCount} 個項目 · 時限 ${cfg.time_limit || 120}s
+                    `;
+                    const frame = document.getElementById('editorHtmlPreviewFrame');
+                    if (frame) frame.srcdoc = subCfg.html_content;
+                } else {
+                    const itemCount = subCfg.items?.length || subCfg.left_items?.length || 0;
+                    $el.innerHTML = `
+                        <div class="preview-type-card">
+                            <div class="preview-type-icon" style="display:flex;justify-content:center;">${tpl.icon}</div>
+                            <div style="font-weight:600;margin:8px 0 4px;">${tpl.name}</div>
+                            <div style="font-size:12px;color:var(--text-tertiary);">
+                                ${subCfg.instruction || tpl.desc}
+                            </div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">
+                                ${itemCount} 個項目 · 時限 ${cfg.time_limit || 120}s
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             }
         },
 
