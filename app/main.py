@@ -208,12 +208,25 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("啟動每日報告定時任務失敗: %s", e)
 
+        # AI 看門狗：自動回收超時任務
+        try:
+            from app.core.ai_gate import start_watchdog
+            start_watchdog()
+        except Exception as e:
+            logger.warning("啟動 AI 看門狗失敗: %s", e)
+
         logger.info("应用启动完成")
 
     @app.on_event("shutdown")
     async def shutdown():
         """应用关闭时清理"""
         logger.info("正在关闭应用...")
+        # 停止 AI 看門狗
+        try:
+            from app.core.ai_gate import stop_watchdog
+            await stop_watchdog()
+        except Exception as e:
+            logger.warning("停止 AI 看門狗失敗: %s", e)
         # 關閉共享 Ollama 連接池
         try:
             from app.core.ai_gate import close_shared_client

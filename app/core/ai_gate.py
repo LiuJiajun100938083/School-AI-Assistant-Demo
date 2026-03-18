@@ -433,6 +433,81 @@ class WeightedPriorityScheduler:
             "concurrency": self._total_capacity,
         }
 
+    async def force_release(self, task_id: int) -> dict | None:
+        """
+        管理員強制釋放一個運行中的任務（僅釋放調度容量，不終止底層執行）。
+
+        幂等：同一 task_id 重複調用只生效一次。
+
+        Args:
+            task_id: 任務的 sequence id（running_details 中的 id 字段）
+
+        Returns:
+            被釋放任務的信息 dict，若未找到返回 None
+        """
+        async with self._lock:
+            target = None
+            for t in self._running_tasks:
+                if t["id"] == task_id:
+                    target = t
+                    break
+            if target is None:
+                return None
+
+            # 記錄耗時
+            duration = time.monotonic() - target["started_at"]
+            self._recent_durations.append(duration)
+
+            # 釋放容量
+            self._used_capacity = max(0, self._used_capacity - target["weight"])
+            self._stats["running"] = max(0, self._stats["running"] - 1)
+            self._stats["failed"] += 1
+
+            # 移除記錄
+            self._running_tasks = [
+                t for t in self._running_tasks if t["id"] != task_id
+            ]
+
+            logger.warning(
+                "AI gate FORCE RELEASE: task_id=%d name=%s weight=%d "
+                "ran %.1fs — capacity=%d/%d (admin/watchdog triggered)",
+                task_id, target["task_name"], target["weight"],
+                duration, self._used_capacity, self._total_capacity,
+            )
+
+            # 嘗試調度等待中的任務
+            self._try_dispatch()
+
+            return {
+                "id": task_id,
+                "task_name": target["task_name"],
+                "weight": target["weight"],
+                "priority": self._PRI_NAMES.get(target["priority"], str(target["priority"])),
+                "running_seconds": round(duration, 1),
+            }
+
+    async def force_release_stale(self, max_seconds: float = 1800) -> list[dict]:
+        """
+        批量強制釋放所有運行超過 max_seconds 的任務。
+
+        Returns:
+            被釋放任務的列表
+        """
+        now = time.monotonic()
+        stale_ids = []
+        async with self._lock:
+            for t in self._running_tasks:
+                if (now - t["started_at"]) > max_seconds:
+                    stale_ids.append(t["id"])
+
+        # 逐個釋放（每次都會重新加鎖，保證幂等）
+        released = []
+        for tid in stale_ids:
+            result = await self.force_release(tid)
+            if result:
+                released.append(result)
+        return released
+
     async def get_detailed_stats(self) -> dict:
         """
         返回詳細調度器統計（用於 AI 監控面板）。
@@ -597,3 +672,64 @@ async def ai_gate(
     scheduler = get_scheduler()
     async with scheduler.acquire(task_name, priority, weight):
         yield get_shared_ollama_client()
+
+
+# ================================================================
+#  看門狗：自動回收超時任務
+# ================================================================
+
+_watchdog_task: Optional[asyncio.Task] = None
+
+# 默認超時閾值（秒）— 運行超過此時間的任務會被自動回收
+WATCHDOG_STALE_SECONDS = 1800  # 30 分鐘
+WATCHDOG_INTERVAL = 60         # 掃描間隔（秒）
+
+
+async def _watchdog_loop():
+    """看門狗主循環：定期掃描並回收超時任務。"""
+    logger.info(
+        "AI 看門狗啟動 (stale_threshold=%ds, interval=%ds)",
+        WATCHDOG_STALE_SECONDS, WATCHDOG_INTERVAL,
+    )
+    while True:
+        try:
+            await asyncio.sleep(WATCHDOG_INTERVAL)
+            scheduler = get_scheduler()
+            released = await scheduler.force_release_stale(
+                max_seconds=WATCHDOG_STALE_SECONDS
+            )
+            if released:
+                names = ", ".join(
+                    f"{r['task_name']}(id={r['id']}, {r['running_seconds']}s)"
+                    for r in released
+                )
+                logger.warning(
+                    "AI 看門狗回收了 %d 個超時任務: %s", len(released), names,
+                )
+        except asyncio.CancelledError:
+            logger.info("AI 看門狗已停止")
+            return
+        except Exception:
+            # 看門狗自身異常不能退出，只記日誌
+            logger.exception("AI 看門狗掃描異常（將繼續運行）")
+
+
+def start_watchdog():
+    """啟動看門狗後台任務（在 app startup 時調用）"""
+    global _watchdog_task
+    if _watchdog_task is None or _watchdog_task.done():
+        _watchdog_task = asyncio.get_event_loop().create_task(_watchdog_loop())
+        logger.info("AI 看門狗後台任務已創建")
+
+
+async def stop_watchdog():
+    """停止看門狗（在 app shutdown 時調用）"""
+    global _watchdog_task
+    if _watchdog_task and not _watchdog_task.done():
+        _watchdog_task.cancel()
+        try:
+            await _watchdog_task
+        except asyncio.CancelledError:
+            pass
+        _watchdog_task = None
+        logger.info("AI 看門狗已關閉")

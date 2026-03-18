@@ -209,6 +209,71 @@ async def get_ai_monitor(request: Request):
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
+@router.post("/api/admin/ai-task/force-release")
+async def force_release_task(request: Request):
+    """管理員強制釋放單個運行中的任務（僅釋放調度容量，不終止底層執行）"""
+    try:
+        username, _ = _verify_request(request)
+
+        body = await request.json()
+        task_id = body.get("task_id")
+        if task_id is None:
+            return error_response("INVALID_PARAM", "task_id is required", status_code=400)
+
+        from app.core.ai_gate import get_scheduler
+        scheduler = get_scheduler()
+        result = await scheduler.force_release(int(task_id))
+
+        if result is None:
+            return error_response(
+                "NOT_FOUND",
+                f"Task {task_id} not found in running tasks",
+                status_code=404,
+            )
+
+        logger.warning(
+            "Admin %s force-released task: id=%d name=%s ran=%.1fs",
+            username, task_id, result["task_name"], result["running_seconds"],
+        )
+        return success_response({"released": result})
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.post("/api/admin/ai-task/force-release-stale")
+async def force_release_stale_tasks(request: Request):
+    """管理員批量強制釋放超時任務"""
+    try:
+        username, _ = _verify_request(request)
+
+        body = await request.json()
+        max_seconds = body.get("max_seconds", 1800)
+
+        from app.core.ai_gate import get_scheduler
+        scheduler = get_scheduler()
+        released = await scheduler.force_release_stale(max_seconds=float(max_seconds))
+
+        if released:
+            logger.warning(
+                "Admin %s force-released %d stale tasks (threshold=%ds): %s",
+                username, len(released), max_seconds,
+                ", ".join(f"{r['task_name']}(id={r['id']})" for r in released),
+            )
+
+        return success_response({
+            "released_count": len(released),
+            "released": released,
+        })
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
 @router.post("/api/process-temp-file")
 async def process_temp_file(request: Request, file: UploadFile = File(...)):
     """

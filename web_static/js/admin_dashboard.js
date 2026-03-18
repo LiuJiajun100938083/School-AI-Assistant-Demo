@@ -3284,11 +3284,12 @@ ${report.teacher_attention_points || '暫無'}
             if (rd.length === 0) {
                 rdEl.textContent = '無運行中任務';
             } else {
-                let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 0;font-weight:600;">任務</th><th style="text-align:center;padding:4px;font-weight:600;">優先級</th><th style="text-align:center;padding:4px;font-weight:600;">權重</th><th style="text-align:right;padding:4px 0;font-weight:600;">時長</th></tr></thead><tbody>';
+                let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 0;font-weight:600;">任務</th><th style="text-align:center;padding:4px;font-weight:600;">優先級</th><th style="text-align:center;padding:4px;font-weight:600;">權重</th><th style="text-align:right;padding:4px;font-weight:600;">時長</th><th style="text-align:center;padding:4px;font-weight:600;">操作</th></tr></thead><tbody>';
                 rd.forEach(t => {
                     const dur = t.running_seconds || 0;
                     const durColor = dur > 30 ? 'var(--danger)' : dur > 10 ? 'var(--warning)' : 'inherit';
-                    html += `<tr><td style="padding:4px 0;">${t.task_name}</td><td style="text-align:center;padding:4px;">${t.priority}</td><td style="text-align:center;padding:4px;">${t.weight}</td><td style="text-align:right;padding:4px 0;color:${durColor};font-weight:600;">${dur}s</td></tr>`;
+                    const staleWarning = dur > 1800 ? ' background:rgba(220,53,69,0.08);' : '';
+                    html += `<tr style="${staleWarning}"><td style="padding:4px 0;">${t.task_name}</td><td style="text-align:center;padding:4px;">${t.priority}</td><td style="text-align:center;padding:4px;">${t.weight}</td><td style="text-align:right;padding:4px;color:${durColor};font-weight:600;">${dur}s</td><td style="text-align:center;padding:4px;"><button onclick="AdminApp._forceReleaseTask(${t.id},'${t.task_name}')" title="釋放此任務的調度容量（不保證底層請求立即終止）" style="padding:2px 8px;font-size:0.78em;border:1px solid var(--danger);color:var(--danger);background:transparent;border-radius:4px;cursor:pointer;">釋放占用</button></td></tr>`;
                 });
                 html += '</tbody></table>';
                 rdEl.innerHTML = html;
@@ -3322,6 +3323,29 @@ ${report.teacher_attention_points || '暫無'}
         const h = Math.floor(up / 3600);
         const m = Math.floor((up % 3600) / 60);
         el('aiStatUptime', h > 0 ? `${h}h ${m}m` : `${m}m`);
+    },
+
+    async _forceReleaseTask(taskId, taskName) {
+        if (!confirm(`確定要釋放任務「${taskName}」的調度占用嗎？\n\n注意：這會釋放調度容量讓後續任務可以執行，但不保證底層網路請求立即終止。`)) return;
+        try {
+            const resp = await fetch('/api/admin/ai-task/force-release', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
+                },
+                body: JSON.stringify({ task_id: taskId }),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                this.showToast(`已釋放任務 ${taskName} 的調度占用`, 'success');
+                this.refreshAiMonitor();
+            } else {
+                this.showToast(`釋放失敗: ${data.message || '未知錯誤'}`, 'error');
+            }
+        } catch (e) {
+            this.showToast(`請求失敗: ${e.message}`, 'error');
+        }
     },
 
     _setAiCongestion(level, text, sub) {
