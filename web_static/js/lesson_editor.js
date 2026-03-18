@@ -262,6 +262,12 @@
 
     // ===== Render preview (registry-driven) =====
     function renderPreview() {
+        // Cleanup interactive preview engines when switching slides
+        if (window._interactivePreview) {
+            window._interactivePreview.destroy();
+        }
+        $previewContent.classList.remove('has-interactive-preview');
+
         const slide = getSelectedSlide();
         if (!slide) {
             $previewEmpty.style.display = '';

@@ -1097,3 +1097,126 @@ body {
     margin-bottom: 4px;
     margin-top: 8px;
 }
+
+/* ===== Interactive Live Preview ===== */
+
+.has-interactive-preview {
+    display: flex;
+    flex-direction: column;
+    padding: 0 !important;
+    height: 100%;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+}
+
+.interactive-preview-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+    flex-shrink: 0;
+}
+
+.ipreview-tab {
+    padding: 6px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.ipreview-tab:hover {
+    background: rgba(255, 255, 255, 0.65);
+}
+.ipreview-tab.active {
+    background: var(--brand, #006633);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+}
+
+.interactive-preview-viewport {
+    flex: 1;
+    overflow: auto;
+    padding: 16px;
+    min-height: 300px;
+}
+
+.interactive-preview-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    height: 100%;
+}
+
+/* ===== Drag Match Paired-Row UI ===== */
+.dm-pair-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px) saturate(160%);
+    -webkit-backdrop-filter: blur(8px) saturate(160%);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.dm-pair-row:hover {
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.dm-pair-num {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 18px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.dm-pair-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+    width: 24px;
+}
+.dm-pair-row .config-input {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+}
+.dm-pair-remove {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.dm-pair-remove:hover:not(:disabled) {
+    background: rgba(255, 59, 48, 0.1);
+    color: #FF3B30;
+}
+.dm-pair-remove:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}

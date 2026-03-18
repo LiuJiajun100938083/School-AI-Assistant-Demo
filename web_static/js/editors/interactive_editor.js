@@ -13,17 +13,86 @@
 
     // 模板定义
     const TEMPLATES = [
-        { id: 'drag_sort', name: '拖拽排序', desc: '將項目排列為正確順序', icon: '↕', enabled: true },
-        { id: 'drag_match', name: '拖拽配對', desc: '將左右兩側配對連線', icon: '↔', enabled: false },
-        { id: 'drag_place', name: '拖拽放置', desc: '將項目放置到正確位置', icon: '📌', enabled: false },
-        { id: 'free_canvas', name: '自由畫布', desc: '在畫布上標記或繪圖', icon: '🎨', enabled: false },
-        { id: 'html_sandbox', name: '代碼動畫', desc: '嵌入互動 HTML 動畫', icon: '💻', enabled: false },
+        { id: 'drag_sort', name: '拖拽排序', desc: '將項目排列為正確順序', icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="8,9 12,5 16,9"/><polyline points="8,15 12,19 16,15"/></svg>', enabled: true },
+        { id: 'drag_match', name: '拖拽配對', desc: '將左右兩側配對連線', icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="15,8 19,12 15,16"/><polyline points="9,8 5,12 9,16"/></svg>', enabled: true },
+        { id: 'drag_place', name: '拖拽放置', desc: '將項目放置到正確位置', icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>', enabled: true },
+        { id: 'free_canvas', name: '自由畫布', desc: '在畫布上標記或繪圖', icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>', enabled: true },
+        { id: 'html_sandbox', name: '代碼動畫', desc: '嵌入互動 HTML 動畫', icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>', enabled: true },
     ];
 
     // 模板子编辑器 registry
     const TEMPLATE_EDITORS = {};
     window._registerInteractiveTemplateEditor = function (templateId, editor) {
         TEMPLATE_EDITORS[templateId] = editor;
+    };
+
+    // ── 编辑器公共 helpers (避免子编辑器复制粘贴) ──
+    let _helperCounter = 0;
+    window._interactiveEditorHelpers = {
+        genItemId() {
+            _helperCounter++;
+            return 'item' + _helperCounter + '_' + Date.now().toString(36);
+        },
+
+        /** 渲染通用字段: instruction / time_limit / show_leaderboard */
+        renderCommonFields(container, cfg, opts) {
+            const hideLeaderboard = opts && opts.hideLeaderboard;
+            container.innerHTML = `
+                <div class="config-section">
+                    <label class="config-label">指令文本</label>
+                    <input type="text" class="config-input common-instruction" value="${escapeHtml(cfg.instruction || '')}" placeholder="活動指令...">
+                </div>
+                <div class="config-section" style="display:flex;gap:12px;">
+                    <div style="flex:1;">
+                        <label class="config-label">時間限制 (秒)</label>
+                        <input type="number" class="config-input common-time-limit" value="${cfg.time_limit || 0}" min="0" step="10">
+                    </div>
+                    ${hideLeaderboard ? '' : `
+                    <div style="flex:1;">
+                        <label class="config-label" style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" class="common-show-leaderboard" ${cfg.show_leaderboard ? 'checked' : ''}> 顯示排行榜
+                        </label>
+                    </div>`}
+                </div>
+            `;
+        },
+
+        /** 收集通用字段值 */
+        collectCommonFields(container) {
+            return {
+                instruction: container.querySelector('.common-instruction')?.value?.trim() || '',
+                time_limit: parseInt(container.querySelector('.common-time-limit')?.value) || 0,
+                show_leaderboard: container.querySelector('.common-show-leaderboard')?.checked ?? false,
+            };
+        },
+
+        /** 渲染可增删的 item 列表 */
+        renderItemListEditor(listEl, items, opts) {
+            const label = opts && opts.label || '項目';
+            listEl.innerHTML = items.map((item, i) => `
+                <div class="ds-item-row" data-idx="${i}" style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px;">
+                    <span style="color:var(--text-tertiary);font-size:12px;min-width:20px;text-align:center;">${i + 1}</span>
+                    <input type="text" class="config-input helper-item-content" value="${escapeHtml(item.content)}"
+                           placeholder="${label}內容..." style="flex:1;margin:0;">
+                    <button class="helper-remove-btn" data-idx="${i}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:16px;padding:4px;">&times;</button>
+                </div>
+            `).join('');
+
+            listEl.querySelectorAll('.helper-remove-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.idx);
+                    if (items.length <= (opts && opts.minItems || 2)) return alert(`至少需要 ${opts && opts.minItems || 2} 個${label}`);
+                    items.splice(idx, 1);
+                    window._interactiveEditorHelpers.renderItemListEditor(listEl, items, opts);
+                });
+            });
+
+            listEl.querySelectorAll('.helper-item-content').forEach((inp, idx) => {
+                inp.addEventListener('input', () => { items[idx].content = inp.value; });
+            });
+        },
+
+        escapeHtml,
     };
 
     /**
@@ -40,7 +109,7 @@
                         <div class="interactive-tpl-card ${t.enabled ? '' : 'disabled'}"
                              data-template="${t.id}"
                              style="border:2px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:${t.enabled ? 'pointer' : 'not-allowed'};opacity:${t.enabled ? '1' : '0.4'};transition:all .2s;">
-                            <div style="font-size:24px;margin-bottom:4px;">${t.icon}</div>
+                            <div style="display:flex;justify-content:center;margin-bottom:4px;">${t.icon}</div>
                             <div style="font-weight:600;font-size:13px;">${t.name}</div>
                             <div style="font-size:11px;color:var(--text-tertiary);">${t.desc}</div>
                             ${!t.enabled ? '<div style="font-size:10px;color:var(--text-tertiary);margin-top:4px;">即將推出</div>' : ''}
@@ -105,22 +174,30 @@
         },
 
         renderPreview(slide, $el) {
-            const cfg = slide.config || {};
-            const tpl = TEMPLATES.find(t => t.id === cfg.template) || TEMPLATES[0];
-            const subCfg = cfg[cfg.template] || {};
-            const itemCount = subCfg.items?.length || subCfg.left_items?.length || 0;
-            $el.innerHTML = `
-                <div class="preview-type-card">
-                    <div class="preview-type-icon" style="font-size:32px;">${tpl.icon}</div>
-                    <div style="font-weight:600;margin:8px 0 4px;">${tpl.name}</div>
-                    <div style="font-size:12px;color:var(--text-tertiary);">
-                        ${subCfg.instruction || tpl.desc}
+            if (window._interactivePreview) {
+                // Deferred: preview.create() will be called from renderConfig()
+                // because renderPreview runs first and config DOM doesn't exist yet
+                $el.classList.add('has-interactive-preview');
+                this._pendingPreview = { container: $el, slide: slide };
+            } else {
+                // Fallback: static metadata card (if preview module not loaded)
+                const cfg = slide.config || {};
+                const tpl = TEMPLATES.find(t => t.id === cfg.template) || TEMPLATES[0];
+                const subCfg = cfg[cfg.template] || {};
+                const itemCount = subCfg.items?.length || subCfg.left_items?.length || 0;
+                $el.innerHTML = `
+                    <div class="preview-type-card">
+                        <div class="preview-type-icon" style="display:flex;justify-content:center;">${tpl.icon}</div>
+                        <div style="font-weight:600;margin:8px 0 4px;">${tpl.name}</div>
+                        <div style="font-size:12px;color:var(--text-tertiary);">
+                            ${subCfg.instruction || tpl.desc}
+                        </div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">
+                            ${itemCount} 個項目 · 時限 ${cfg.time_limit || 120}s
+                        </div>
                     </div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">
-                        ${itemCount} 個項目 · 時限 ${cfg.time_limit || 120}s
-                    </div>
-                </div>
-            `;
+                `;
+            }
         },
 
         renderConfig(slide, $el) {
@@ -136,6 +213,22 @@
                         <p style="color:var(--text-tertiary);">此模板的配置編輯器尚未就緒</p>
                     </div>
                 `;
+            }
+
+            // Now both preview container and config root exist — create live preview
+            const pending = this._pendingPreview;
+            if (pending && window._interactivePreview) {
+                window._interactivePreview.create(
+                    pending.container,
+                    slide,
+                    () => {
+                        // Dynamic: always read current template, never capture stale value
+                        const tid = (slide.config || {}).template || 'drag_sort';
+                        return { editor: TEMPLATE_EDITORS[tid], templateId: tid };
+                    },
+                    $el  // configRoot — preview binds/unbinds listeners here
+                );
+                this._pendingPreview = null;
             }
         },
 

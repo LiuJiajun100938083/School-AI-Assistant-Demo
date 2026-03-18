@@ -70,7 +70,10 @@ async def call_ollama_json(
                     "No explanations, no reasoning, no markdown — just a single JSON object. "
                     "When writing solution steps (correct_answer), output CLEAN standard solutions "
                     "like a textbook. NEVER include self-talk, backtracking, or exploratory reasoning "
-                    "like '不，應該是…' or '讓我們換個角度' in any JSON field value."
+                    "like '不，應該是…' or '讓我們換個角度' in any JSON field value. "
+                    "NEVER include problem verification, condition checking, problem redesign, "
+                    "or any meta-commentary like '檢查題目條件', '重新設計題目', '修正條件' in any field. "
+                    "Output ONLY the final, clean question and solution — no drafts, no revisions."
                 ),
             },
             {"role": "user", "content": prompt},

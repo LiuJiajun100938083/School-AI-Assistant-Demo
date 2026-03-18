@@ -16,10 +16,97 @@ import asyncio
 import json
 import logging
 import random
+import re
 import uuid
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+# ================================================================
+# LLM 思考痕跡清理
+# ================================================================
+
+# 匹配 LLM 自我對話 / 回溯 / 探索性推理的段落起始模式
+_THINKING_LINE_PATTERNS = re.compile(
+    r'^('
+    r'(?:檢查|檢驗|驗證)(?:題目|條件|數據|結果|一下|是否)'
+    r'|(?:題目|條件)(?:缺少|不足|矛盾|有誤|似乎|可能)'
+    r'|(?:修正|修改|調整|更正)(?:題目|條件|數據|參數)'
+    r'|(?:重新|重來|再次)(?:設計|構建|出題|考慮|計算|嘗試|分析)'
+    r'|不[，,](?:應該|這樣|對|行)'
+    r'|(?:讓我們?|我(?:需要|應該|先|來))(?:換個|重新|再|檢查|想想|考慮)'
+    r'|(?:等等|不對|有問題|這(?:似乎|好像|不))'
+    r'|(?:注意到|發現|但是|然而).*(?:矛盾|不對|有誤|問題)'
+    r'|此題設計(?:上|中)?(?:存在|有)'
+    r'|(?:為了?|需要)(?:確保|保證)(?:自洽|合理|正確)'
+    r')',
+    re.MULTILINE,
+)
+
+
+def _strip_thinking_from_answer(question: Dict) -> None:
+    """
+    移除 correct_answer 中 LLM 混入的思考過程，只保留乾淨的解題步驟。
+
+    策略：逐行掃描，遇到思考模式的段落則跳過整個段落（直到下一個空行或解題標記）。
+    如果清理後找到明確的解題起始標記（解：、步驟：），則從該處截取。
+    """
+    answer = question.get("correct_answer", "")
+    if not answer or len(answer) < 50:
+        return
+
+    # 策略 1：如果存在明確的「解：」或「解法：」標記，且前面有思考痕跡，
+    #          直接從最後一個解題標記開始截取
+    solution_markers = list(re.finditer(r'^(?:解[：:]|解法[：:]|步驟[：:])', answer, re.MULTILINE))
+    if solution_markers:
+        # 檢查標記之前是否有思考痕跡
+        last_marker = solution_markers[-1]
+        prefix = answer[:last_marker.start()]
+        if _THINKING_LINE_PATTERNS.search(prefix):
+            cleaned = answer[last_marker.start():]
+            logger.info(
+                "Stripped %d chars of thinking from correct_answer (marker: '%s')",
+                len(prefix), last_marker.group(),
+            )
+            question["correct_answer"] = cleaned.strip()
+            return
+
+    # 策略 2：逐行過濾思考段落
+    lines = answer.split('\n')
+    result_lines = []
+    skip_paragraph = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # 空行重置段落跳過狀態
+        if not stripped:
+            skip_paragraph = False
+            result_lines.append(line)
+            continue
+
+        # 檢查是否為思考段落的起始
+        if _THINKING_LINE_PATTERNS.match(stripped):
+            skip_paragraph = True
+            continue
+
+        if skip_paragraph:
+            continue
+
+        result_lines.append(line)
+
+    cleaned = '\n'.join(result_lines).strip()
+
+    # 清理可能產生的多餘空行
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+
+    if len(cleaned) < len(answer):
+        logger.info(
+            "Stripped thinking lines from correct_answer: %d → %d chars",
+            len(answer), len(cleaned),
+        )
+        question["correct_answer"] = cleaned
 
 
 class ExamCreatorService:
@@ -398,6 +485,9 @@ class ExamCreatorService:
 
         new_q = questions[0]
         new_q["index"] = index
+
+        # 清理 correct_answer 中混入的 LLM 思考過程
+        _strip_thinking_from_answer(new_q)
 
         # SVG 幾何增強（fail-soft）
         try:

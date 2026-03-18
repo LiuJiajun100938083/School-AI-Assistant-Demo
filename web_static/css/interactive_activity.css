@@ -1,10 +1,29 @@
 /**
- * 互动活动 (Interactive Activity) — 运行时样式
- * 沿用设计系统: 白底、#006633 品牌绿、圆角卡片、Apple-Style
+ * Interactive Activity — Runtime Styles
+ * Design: Liquid Glass / Frosted Glass with brand green (#006633)
+ * No emojis. SVG icons only.
  */
 
 /* ============================
-   主容器
+   Liquid Glass Design Tokens
+   ============================ */
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.55);
+    --glass-bg-hover: rgba(255, 255, 255, 0.7);
+    --glass-bg-strong: rgba(255, 255, 255, 0.75);
+    --glass-blur: 16px;
+    --glass-blur-heavy: 24px;
+    --glass-border: 1px solid rgba(255, 255, 255, 0.35);
+    --glass-border-subtle: 1px solid rgba(255, 255, 255, 0.2);
+    --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+    --glass-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06);
+    --glass-radius: 16px;
+    --glass-radius-sm: 12px;
+    --glass-radius-lg: 20px;
+}
+
+/* ============================
+   Main Container
    ============================ */
 .interactive-activity {
     display: flex;
@@ -18,7 +37,7 @@
 }
 
 /* ============================
-   头部 — 指令 + 计时器
+   Header — Instruction + Timer
    ============================ */
 .interactive-header {
     display: flex;
@@ -41,9 +60,12 @@
     align-items: center;
     justify-content: center;
     padding: 6px 14px;
-    background: #FFF3E0;
+    background: rgba(255, 243, 224, 0.75);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border-subtle);
     color: #E65100;
-    border-radius: 12px;
+    border-radius: var(--glass-radius-sm);
     font-size: 14px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -54,13 +76,15 @@
 }
 
 .interactive-timer.time-warning {
-    background: #FFF0F0;
+    background: rgba(255, 240, 240, 0.8);
     color: #FF3B30;
     animation: timer-pulse 1s ease-in-out infinite;
 }
 
 .interactive-timer.time-up {
-    background: #FF3B30;
+    background: rgba(255, 59, 48, 0.85);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     color: #fff;
 }
 
@@ -70,7 +94,7 @@
 }
 
 /* ============================
-   拖拽排序容器
+   Drag Sort Container
    ============================ */
 .drag-sort-container {
     flex: 1;
@@ -83,23 +107,25 @@
 }
 
 /* ============================
-   拖拽项目卡片
+   Drag Item Cards — Liquid Glass
    ============================ */
 .drag-item {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 14px 16px;
-    background: var(--bg-card, #FFFFFF);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
     cursor: grab;
     touch-action: none;
-    transition: box-shadow 0.2s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
-                transform 0.2s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+    transition: box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
                 border-color 0.2s,
                 background 0.2s;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    box-shadow: var(--glass-shadow);
     position: relative;
     z-index: 1;
 }
@@ -110,9 +136,10 @@
 
 .drag-handle {
     color: var(--text-tertiary, #A1A1A6);
-    font-size: 16px;
     flex-shrink: 0;
     line-height: 1;
+    display: flex;
+    align-items: center;
 }
 
 .drag-content {
@@ -123,37 +150,41 @@
     word-break: break-word;
 }
 
-/* 拖拽中 */
+/* Dragging state — elevated glass */
 .drag-item.dragging {
     transform: scale(1.03);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
-    border-color: var(--brand, #006633);
-    background: #FAFFFE;
+    box-shadow: var(--glass-shadow-elevated);
+    border-color: rgba(0, 102, 51, 0.4);
+    background: var(--glass-bg-hover);
     z-index: 100;
     opacity: 0.95;
 }
 
-/* 占位符 */
+/* Placeholder */
 .drag-placeholder {
     border: 2px dashed rgba(0, 102, 51, 0.25);
-    border-radius: 12px;
+    border-radius: var(--glass-radius);
     background: rgba(0, 102, 51, 0.04);
     transition: height 0.15s ease;
 }
 
 /* ============================
-   正确 / 错误反馈 (揭晓阶段)
+   Correct / Incorrect — Reveal
    ============================ */
 .drag-item.correct {
-    border-color: var(--color-success, #34C759);
-    background: linear-gradient(135deg, #F0FFF4 0%, #FAFFFE 100%);
-    box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.1);
+    border-color: rgba(52, 199, 89, 0.5);
+    background: rgba(240, 255, 244, 0.7);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.12), 0 4px 16px rgba(52, 199, 89, 0.1);
 }
 
 .drag-item.incorrect {
-    border-color: var(--color-danger, #FF3B30);
-    background: linear-gradient(135deg, #FFF5F5 0%, #FFFAFA 100%);
-    box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.12), 0 2px 8px rgba(255, 59, 48, 0.08);
+    border-color: rgba(255, 59, 48, 0.5);
+    background: rgba(255, 245, 245, 0.7);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1), 0 4px 16px rgba(255, 59, 48, 0.08);
     animation: shake 0.4s ease-in-out;
 }
 
@@ -166,31 +197,35 @@
 }
 
 /* ============================
-   提交按钮
+   Submit Button — Glass accent
    ============================ */
 .interactive-submit-btn {
     display: block;
     width: 100%;
     padding: 14px;
     margin-top: 16px;
-    background: var(--brand, #006633);
+    background: rgba(0, 102, 51, 0.88);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     color: #fff;
-    border: none;
-    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--glass-radius);
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.2s, transform 0.15s, opacity 0.2s;
+    transition: background 0.2s, transform 0.15s, opacity 0.2s, box-shadow 0.2s;
     flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0, 102, 51, 0.2);
 }
 
 .interactive-submit-btn:hover {
-    background: var(--brand-hover, #007A3D);
+    background: rgba(0, 122, 61, 0.92);
+    box-shadow: 0 6px 20px rgba(0, 102, 51, 0.28);
 }
 
 .interactive-submit-btn:active {
     transform: scale(0.98);
-    background: var(--brand-active, #005528);
+    background: rgba(0, 85, 40, 0.95);
 }
 
 .interactive-submit-btn:disabled {
@@ -200,7 +235,7 @@
 }
 
 /* ============================
-   锁定覆盖层
+   Lock Overlay — Frosted Glass
    ============================ */
 .interactive-lock-overlay {
     position: absolute;
@@ -209,17 +244,21 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(var(--glass-blur-heavy)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--glass-blur-heavy)) saturate(160%);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
     z-index: 200;
     gap: 8px;
 }
 
 .lock-icon {
-    font-size: 40px;
-    opacity: 0.7;
+    opacity: 0.6;
+    color: var(--text-tertiary, #A1A1A6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .lock-text {
@@ -229,7 +268,7 @@
 }
 
 /* ============================
-   老师端 — 进度面板
+   Teacher View — Progress Panel
    ============================ */
 .interactive-teacher-view {
     padding: 16px;
@@ -249,7 +288,10 @@
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
-    background: var(--brand-light, #E8F5EC);
+    background: rgba(0, 102, 51, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 102, 51, 0.15);
     color: var(--brand, #006633);
     border-radius: 8px;
     font-size: 12px;
@@ -264,7 +306,7 @@
     color: var(--text-secondary, #6E6E73);
 }
 
-/* 学生进度网格 */
+/* Student Progress Grid */
 .interactive-progress-grid {
     flex: 1;
     overflow-y: auto;
@@ -279,15 +321,17 @@
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
-    background: var(--bg-card, #FFFFFF);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 10px;
-    transition: border-color 0.2s;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border-subtle);
+    border-radius: var(--glass-radius-sm);
+    transition: border-color 0.2s, background 0.2s;
 }
 
 .interactive-progress-row.submitted {
-    border-color: var(--color-success, #34C759);
-    background: linear-gradient(135deg, #FAFFFE 0%, #F0FFF4 100%);
+    border-color: rgba(52, 199, 89, 0.35);
+    background: rgba(240, 255, 244, 0.6);
 }
 
 .interactive-progress-name {
@@ -310,7 +354,7 @@
     height: 100%;
     background: var(--brand, #006633);
     border-radius: 3px;
-    transition: width 0.4s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     min-width: 0;
 }
 
@@ -324,7 +368,7 @@
 }
 
 /* ============================
-   结果页面
+   Results Page — Glass Cards
    ============================ */
 .interactive-results {
     padding: 20px;
@@ -352,7 +396,7 @@
     font-weight: 700;
 }
 
-/* 排行榜 */
+/* Leaderboard */
 .interactive-results-board {
     width: 100%;
     max-width: 420px;
@@ -366,15 +410,17 @@
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
-    background: var(--bg-card, #FFFFFF);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 10px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border-subtle);
+    border-radius: var(--glass-radius-sm);
     transition: background 0.2s, border-color 0.2s;
 }
 
 .interactive-results-row.is-me {
-    border-color: var(--brand, #006633);
-    background: var(--brand-light, #E8F5EC);
+    border-color: rgba(0, 102, 51, 0.4);
+    background: rgba(0, 102, 51, 0.08);
 }
 
 .interactive-results-row .rank {
@@ -403,7 +449,7 @@
 }
 
 /* ============================
-   编辑器 — 模板选择卡片
+   Editor — Template Selector
    ============================ */
 .template-selector {
     display: grid;
@@ -418,22 +464,26 @@
     align-items: center;
     gap: 8px;
     padding: 16px 12px;
-    background: var(--bg-card, #FFFFFF);
-    border: 2px solid rgba(0, 0, 0, 0.06);
-    border-radius: 12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
     cursor: pointer;
-    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s;
     text-align: center;
+    box-shadow: var(--glass-shadow);
 }
 
 .template-card:hover:not(.disabled) {
     border-color: rgba(0, 102, 51, 0.3);
-    background: #FAFFFE;
+    background: var(--glass-bg-hover);
+    box-shadow: var(--glass-shadow-elevated);
 }
 
 .template-card.selected {
-    border-color: var(--brand, #006633);
-    background: var(--brand-light, #E8F5EC);
+    border-color: rgba(0, 102, 51, 0.5);
+    background: rgba(0, 102, 51, 0.08);
 }
 
 .template-card.disabled {
@@ -443,7 +493,9 @@
 }
 
 .template-card .template-icon {
-    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     line-height: 1;
 }
 
@@ -460,7 +512,7 @@
 }
 
 /* ============================
-   锁定 / 解锁按钮 (老师端)
+   Lock / Unlock Buttons (Teacher)
    ============================ */
 .interactive-lock-btn,
 .interactive-unlock-btn {
@@ -468,30 +520,33 @@
     align-items: center;
     gap: 6px;
     padding: 8px 14px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 10px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--glass-radius-sm);
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
-    background: var(--bg-card, #FFFFFF);
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     color: var(--text-primary, #1D1D1F);
+    box-shadow: var(--glass-shadow);
 }
 
 .interactive-lock-btn:hover {
-    background: #FFF3E0;
-    border-color: #FF9500;
+    background: rgba(255, 243, 224, 0.7);
+    border-color: rgba(255, 149, 0, 0.4);
     color: #E65100;
 }
 
 .interactive-unlock-btn:hover {
-    background: var(--brand-light, #E8F5EC);
-    border-color: var(--brand, #006633);
+    background: rgba(0, 102, 51, 0.08);
+    border-color: rgba(0, 102, 51, 0.4);
     color: var(--brand, #006633);
 }
 
 /* ============================
-   响应式 — 平板优化
+   Responsive — Tablet
    ============================ */
 @media (max-width: 768px) {
     .interactive-activity {
@@ -522,7 +577,7 @@
     }
 }
 
-/* iPad 横屏优化 */
+/* iPad landscape */
 @media (min-width: 769px) and (max-width: 1024px) {
     .drag-sort-container {
         max-width: 600px;
@@ -533,5 +588,505 @@
     .interactive-submit-btn {
         max-width: 600px;
         margin: 16px auto 0;
+    }
+}
+
+/* ============================
+   Drag Match — Liquid Glass
+   ============================ */
+.drag-match-workspace {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    position: relative;
+    overflow: hidden;
+    min-height: 200px;
+}
+
+.drag-match-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    z-index: 2;
+}
+
+.drag-match-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.drag-match-canvas line {
+    pointer-events: stroke;
+}
+
+.drag-match-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius-sm);
+    font-size: 14px;
+    color: var(--text-primary, #1D1D1F);
+    cursor: pointer;
+    touch-action: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.25s;
+    user-select: none;
+    -webkit-user-select: none;
+    word-break: break-word;
+    line-height: 1.4;
+    box-shadow: var(--glass-shadow);
+}
+
+.drag-match-item.active {
+    border-color: rgba(0, 102, 51, 0.5);
+    background: var(--glass-bg-hover);
+    box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.1), var(--glass-shadow-elevated);
+}
+
+.drag-match-item.paired {
+    border-color: rgba(0, 102, 51, 0.4);
+    background: rgba(0, 102, 51, 0.08);
+}
+
+.drag-match-item.correct {
+    border-color: rgba(52, 199, 89, 0.5);
+    background: rgba(240, 255, 244, 0.65);
+    box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.12);
+}
+
+.drag-match-item.incorrect {
+    border-color: rgba(255, 59, 48, 0.5);
+    background: rgba(255, 245, 245, 0.65);
+    box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.1);
+    animation: shake 0.4s ease-in-out;
+}
+
+/* ============================
+   Drag Place — Liquid Glass
+   ============================ */
+.drag-place-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 200px;
+}
+
+.drag-place-background {
+    position: relative;
+    flex: 1;
+    min-height: 180px;
+    background: rgba(245, 245, 247, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: var(--glass-radius);
+    overflow: hidden;
+    border: var(--glass-border-subtle);
+    box-shadow: var(--glass-shadow);
+}
+
+.drag-place-background img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.drag-place-zone {
+    position: absolute;
+    border: 2px dashed rgba(0, 102, 51, 0.3);
+    border-radius: var(--glass-radius-sm);
+    background: rgba(0, 102, 51, 0.04);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    z-index: 2;
+}
+
+.drag-place-zone .zone-label {
+    font-size: 11px;
+    color: var(--brand, #006633);
+    font-weight: 600;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.drag-place-zone.hover {
+    background: rgba(0, 102, 51, 0.1);
+    border-color: var(--brand, #006633);
+    box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.12), inset 0 0 12px rgba(0, 102, 51, 0.06);
+}
+
+.drag-place-zone.has-item .zone-label {
+    display: none;
+}
+
+.drag-place-zone.correct {
+    border-color: rgba(52, 199, 89, 0.5);
+    background: rgba(52, 199, 89, 0.1);
+    box-shadow: 0 0 16px rgba(52, 199, 89, 0.2);
+}
+
+.drag-place-zone.incorrect {
+    border-color: rgba(255, 59, 48, 0.5);
+    background: rgba(255, 59, 48, 0.06);
+    animation: shake 0.4s ease-in-out;
+}
+
+.drag-place-item-pool {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(245, 245, 247, 0.6);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border-subtle);
+    border-radius: var(--glass-radius);
+    min-height: 48px;
+    align-items: center;
+    box-shadow: var(--glass-shadow);
+}
+
+.drag-place-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--glass-radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary, #1D1D1F);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+    box-shadow: var(--glass-shadow);
+}
+
+.drag-place-chip.dragging {
+    box-shadow: var(--glass-shadow-elevated);
+    border-color: rgba(0, 102, 51, 0.4);
+    transform: scale(1.05);
+    z-index: 100;
+    opacity: 0.9;
+}
+
+.drag-place-chip.placed {
+    border-color: rgba(0, 102, 51, 0.4);
+    background: rgba(0, 102, 51, 0.08);
+}
+
+.drag-place-chip.correct {
+    border-color: rgba(52, 199, 89, 0.5);
+    background: rgba(240, 255, 244, 0.7);
+}
+
+.drag-place-chip.incorrect {
+    border-color: rgba(255, 59, 48, 0.5);
+    background: rgba(255, 245, 245, 0.7);
+    animation: shake 0.4s ease-in-out;
+}
+
+/* ============================
+   Free Canvas — Frosted Toolbar
+   ============================ */
+.free-canvas-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    border: var(--glass-border);
+    border-radius: var(--glass-radius-sm);
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    box-shadow: var(--glass-shadow);
+}
+
+.free-canvas-toolbar .toolbar-separator {
+    width: 1px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.08);
+    margin: 0 4px;
+}
+
+.canvas-tool-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-secondary, #6E6E73);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.canvas-tool-btn:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.canvas-tool-btn.active {
+    background: rgba(0, 102, 51, 0.1);
+    border-color: rgba(0, 102, 51, 0.3);
+    color: var(--brand, #006633);
+}
+
+.canvas-color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.canvas-color-swatch:hover {
+    transform: scale(1.15);
+}
+
+.canvas-color-swatch.active {
+    border-color: var(--text-primary, #1D1D1F);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 0 4px var(--text-tertiary, #A1A1A6);
+}
+
+.canvas-stroke-btn {
+    padding: 4px 10px;
+    border: var(--glass-border-subtle);
+    border-radius: 6px;
+    background: var(--glass-bg);
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-secondary, #6E6E73);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.canvas-stroke-btn.active {
+    background: rgba(0, 102, 51, 0.1);
+    border-color: rgba(0, 102, 51, 0.3);
+    color: var(--brand, #006633);
+}
+
+.free-canvas-wrapper {
+    flex: 1;
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
+    overflow: hidden;
+    touch-action: none;
+    min-height: 300px;
+    background: #FFFFFF;
+    position: relative;
+    box-shadow: var(--glass-shadow);
+}
+
+/* ============================
+   HTML Sandbox — Glass Panels
+   ============================ */
+.html-sandbox-frame-wrap {
+    flex: 1;
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
+    overflow: hidden;
+    max-width: 800px;
+    max-height: 600px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--glass-shadow-elevated);
+}
+
+.html-sandbox-frame-wrap iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    min-height: 300px;
+}
+
+.html-sandbox-split {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    min-height: 300px;
+}
+
+.html-sandbox-editor-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.html-sandbox-editor-pane textarea {
+    flex: 1;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    tab-size: 2;
+    background: rgba(30, 30, 30, 0.92);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    color: #D4D4D4;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--glass-radius-sm);
+    padding: 12px;
+    resize: none;
+    outline: none;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.html-sandbox-editor-pane textarea:focus {
+    border-color: rgba(0, 102, 51, 0.5);
+}
+
+.html-sandbox-preview-pane {
+    flex: 1;
+    border: var(--glass-border);
+    border-radius: var(--glass-radius-sm);
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: var(--glass-shadow);
+}
+
+.html-sandbox-preview-pane iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+.html-sandbox-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    margin-bottom: 6px;
+}
+
+.html-sandbox-toolbar button {
+    padding: 4px 12px;
+    border: var(--glass-border-subtle);
+    border-radius: 6px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text-secondary, #6E6E73);
+    transition: background 0.15s, box-shadow 0.15s;
+}
+
+.html-sandbox-toolbar button:hover {
+    background: var(--glass-bg-hover);
+    box-shadow: var(--glass-shadow);
+}
+
+.html-sandbox-toolbar label {
+    font-size: 12px;
+    color: var(--text-tertiary, #A1A1A6);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Reveal Cards — Glass */
+.free-canvas-reveal-card,
+.html-sandbox-confirm-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--text-secondary, #6E6E73);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: var(--glass-border);
+    border-radius: var(--glass-radius);
+    box-shadow: var(--glass-shadow);
+}
+
+.free-canvas-reveal-card .reveal-icon,
+.html-sandbox-confirm-card .confirm-icon {
+    opacity: 0.6;
+    color: var(--text-tertiary, #A1A1A6);
+}
+
+/* ============================
+   Responsive — Tablet / Mobile
+   ============================ */
+@media (max-width: 768px) {
+    .drag-match-workspace {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .drag-match-canvas {
+        display: none;
+    }
+
+    .drag-match-item {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    .drag-place-chip {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .free-canvas-toolbar {
+        gap: 4px;
+        padding: 6px 8px;
+    }
+
+    .canvas-tool-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .canvas-color-swatch {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+@media (max-width: 600px) {
+    .html-sandbox-split {
+        flex-direction: column;
+    }
+
+    .html-sandbox-editor-pane,
+    .html-sandbox-preview-pane {
+        min-height: 200px;
     }
 }
