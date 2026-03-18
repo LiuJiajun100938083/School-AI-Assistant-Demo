@@ -53,7 +53,7 @@ function svgIcon(name, size = 16) {
 const SLIDE_TYPE_ICONS = {
     ppt: 'doc', game: 'gamepad', quiz: 'help-circle',
     quick_answer: 'zap', raise_hand: 'hand', poll: 'bar-chart',
-    link: 'link',
+    link: 'link', interactive: 'grid',
 };
 
 // ==================== INITIALIZATION ====================
@@ -1004,6 +1004,28 @@ function handleWebSocketMessage(message) {
                 }
             }
             break;
+
+        // ===== Interactive Activity =====
+        case 'interactive_progress':
+            // 学生进度上报 — 更新老师端进度面板 (内存, 不存 DB)
+            if (message.data) {
+                const interactiveRenderer = LessonSlideRenderers.get('interactive');
+                if (interactiveRenderer) {
+                    interactiveRenderer.updateStudentProgress(
+                        message.data.student_username,
+                        message.data.pct,
+                    );
+                }
+            }
+            break;
+        case 'interactive_lock':
+            // 锁定/解锁状态同步
+            if (state.lessonSession && message.data) {
+                _ensureRuntimeMeta();
+                state.lessonSession.runtime_meta.locked = message.data.locked;
+                updateLessonUI();
+            }
+            break;
     }
 }
 
@@ -1391,9 +1413,10 @@ function updateLessonUI() {
     }
 
     // Slide type flags
-    const isInteractive = slide && ['quiz', 'poll'].includes(slide.slide_type);
+    const isInteractive = slide && ['quiz', 'poll', 'interactive'].includes(slide.slide_type);
     const isQuiz = slide && slide.slide_type === 'quiz';
     const isPoll = slide && slide.slide_type === 'poll';
+    const isInteractiveActivity = slide && slide.slide_type === 'interactive';
     const runtimeMeta = sess.runtime_meta || {};
     const quizPhase = runtimeMeta.phase || 'answering';
     const quizCfg = isQuiz ? (typeof slide.config === 'string' ? JSON.parse(slide.config) : (slide.config || {})) : {};
@@ -1431,8 +1454,16 @@ function updateLessonUI() {
     if (nextBtn) nextBtn.style.display = isQuiz && lifecycle === 'closed' && quizPhase === 'reveal' && !isLastQ ? '' : 'none';
     if (resultsBtn) resultsBtn.style.display =
         (isQuiz && lifecycle === 'closed' && quizPhase === 'reveal' && isLastQ) ||
-        (isPoll && lifecycle === 'closed')
+        (isPoll && lifecycle === 'closed') ||
+        (isInteractiveActivity && lifecycle === 'closed')
         ? '' : 'none';
+
+    // Interactive lock/unlock buttons
+    const lockBtn = document.getElementById('interactiveLockBtn');
+    const unlockBtn = document.getElementById('interactiveUnlockBtn');
+    const interactiveLocked = runtimeMeta.locked || false;
+    if (lockBtn) lockBtn.style.display = isInteractiveActivity && lifecycle === 'responding' && !interactiveLocked ? '' : 'none';
+    if (unlockBtn) unlockBtn.style.display = isInteractiveActivity && lifecycle === 'responding' && interactiveLocked ? '' : 'none';
 
     // Update slide status text in right panel
     const statusText = document.getElementById('slideStatusText');

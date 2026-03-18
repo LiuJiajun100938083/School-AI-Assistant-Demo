@@ -292,6 +292,8 @@
                     <button class="ctrl-btn outline full-width" id="quizRevealBtn" onclick="lessonSlideAction('quiz_reveal')" style="display:none;">揭示答案</button>
                     <button class="ctrl-btn outline full-width" id="quizNextBtn" onclick="lessonSlideAction('quiz_next')" style="display:none;">下一題</button>
                     <button class="ctrl-btn outline full-width" id="showResultsBtn" onclick="lessonSlideAction('show_results')" style="display:none;">顯示結果</button>
+                    <button class="ctrl-btn outline full-width" id="interactiveLockBtn" onclick="lessonSlideAction('interactive_lock')" style="display:none;">🔒 鎖定學生</button>
+                    <button class="ctrl-btn outline full-width" id="interactiveUnlockBtn" onclick="lessonSlideAction('interactive_unlock')" style="display:none;">🔓 解鎖學生</button>
                 </div>
             </div>
 
@@ -325,6 +327,8 @@
 <script src="/static/js/shared/api.js"></script>
 <script src="/static/js/shared/annotation_utils.js"></script>
 <script src="/static/js/shared/lesson_slide_renderers.js"></script>
+<script src="/static/js/shared/interactive_renderers.js"></script>
+<link rel="stylesheet" href="/static/css/interactive_activity.css">
 <script src="/static/js/classroom_teacher.js"></script>
 </body>
 </html>

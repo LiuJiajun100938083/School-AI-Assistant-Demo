@@ -593,6 +593,16 @@ const ClassroomStudentApp = {
                     this._handleQuizResults(message.data || {});
                     break;
 
+                // ===== Interactive Activity =====
+                case 'interactive_lock': {
+                    const interactiveRenderer = LessonSlideRenderers.get('interactive');
+                    if (interactiveRenderer && message.data) {
+                        interactiveRenderer.setLocked(message.data.locked);
+                        UIModule.toast(message.data.locked ? '老師已暫停操作' : '老師已解鎖操作', 'info');
+                    }
+                    break;
+                }
+
                 default:
                     console.log('Unknown message type:', message.type);
             }
@@ -764,6 +774,21 @@ const ClassroomStudentApp = {
             if (message.data.poll_results) {
                 this.state.pollResults = message.data.poll_results.results || message.data.poll_results;
             }
+            // Interactive reveal: play reveal animation when show_results
+            if (message.data.interactive_reveal) {
+                const interactiveRenderer = LessonSlideRenderers.get('interactive');
+                if (interactiveRenderer) {
+                    const wrapper = document.querySelector('.canvas-wrapper');
+                    if (wrapper) {
+                        interactiveRenderer.renderReveal(
+                            wrapper,
+                            this.state.interactiveSlideData,
+                            message.data.interactive_reveal,
+                            null,
+                        );
+                    }
+                }
+            }
             // Update response UI
             this._updateLessonResponseUI();
         }
@@ -807,6 +832,8 @@ const ClassroomStudentApp = {
             this._initQuizRenderer(slideData);
         } else if (type === 'poll') {
             this._initPollRenderer(slideData);
+        } else if (type === 'interactive') {
+            this._initInteractiveRenderer(slideData);
         } else {
             // Generic slide
             ClassroomStudentUI.showSlideContent(
@@ -1015,6 +1042,51 @@ const ClassroomStudentApp = {
                     response_type: 'poll_vote',
                     response_data: { selected_options: selectedOptions },
                 });
+            },
+        });
+    },
+
+    // ── Interactive 互动活动渲染 ──
+    _initInteractiveRenderer(slideData) {
+        const renderer = LessonSlideRenderers.get('interactive');
+        if (!renderer) return;
+
+        this.state.interactiveSlideData = slideData;
+
+        const wrapper = document.querySelector('.canvas-wrapper');
+        if (!wrapper) return;
+
+        const noPage = document.getElementById('noPageMessage');
+        if (noPage) noPage.style.display = 'none';
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'none';
+
+        wrapper.style.display = 'flex';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+
+        // 进度上报 debounce
+        let progressTimer = null;
+        const self = this;
+
+        renderer.renderStudent(wrapper, slideData, {
+            accepting: this.state.lessonAccepting,
+            onSubmit: (responseData) => {
+                self._sendWSMessage({
+                    type: 'submit_response',
+                    slide_id: slideData.slide_id,
+                    response_type: 'interactive_response',
+                    response_data: responseData,
+                });
+            },
+            onProgress: (pct) => {
+                if (progressTimer) clearTimeout(progressTimer);
+                progressTimer = setTimeout(() => {
+                    self._sendWSMessage({
+                        type: 'interactive_progress',
+                        pct: pct,
+                    });
+                }, 3000);
             },
         });
     },

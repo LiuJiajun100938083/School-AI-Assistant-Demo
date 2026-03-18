@@ -145,6 +145,16 @@
                         <div class="type-name">連結</div>
                         <div class="type-desc">連結 + QR Code</div>
                     </div>
+                    <div class="slide-type-card" data-type="interactive">
+                        <div class="type-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                                <path d="M10 6.5h4M6.5 10v4M17.5 10v4M10 17.5h4" stroke-dasharray="2 2"/>
+                            </svg>
+                        </div>
+                        <div class="type-name">互動活動</div>
+                        <div class="type-desc">拖拽排序 / 配對 / 放置</div>
+                    </div>
                 </div>
 
                 <!-- PPT Import Section (shown when PPT type selected) -->
@@ -214,6 +224,11 @@
                     </div>
                     <button class="ppt-upload-btn" id="linkCreateBtn" style="width:100%;">建立連結幻燈片</button>
                 </div>
+
+                <!-- Interactive Activity Config Section -->
+                <div id="interactiveConfigSection" style="display:none;">
+                    <div id="interactiveTemplateConfig"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -245,5 +260,7 @@
     </div>
 
     <script src="/static/js/lesson_editor.js"></script>
+    <script src="/static/js/editors/interactive_editor.js"></script>
+    <script src="/static/js/editors/interactive_editor_drag_sort.js"></script>
 </body>
 </html>

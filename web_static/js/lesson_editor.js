@@ -40,6 +40,10 @@
         SLIDE_TYPE_HANDLERS[type] = handler;
     }
 
+    // 暴露给外部编辑器模块 (如 interactive_editor.js)
+    window._lessonEditorRegisterSlideType = registerSlideType;
+    window._lessonEditorEscapeHtml = escapeHtml;
+
     function typeLabel(t) {
         return SLIDE_TYPE_HANDLERS[t]?.label || t;
     }
@@ -369,6 +373,7 @@
         document.getElementById('pptImportSection').style.display = 'none';
         document.getElementById('gameSelectSection').style.display = 'none';
         document.getElementById('linkInputSection').style.display = 'none';
+        document.getElementById('interactiveConfigSection').style.display = 'none';
     }
     function closeAddModal() { $addSlideModal.style.display = 'none'; }
 
@@ -381,6 +386,7 @@
             document.getElementById('pptImportSection').style.display = 'none';
             document.getElementById('gameSelectSection').style.display = 'none';
             document.getElementById('linkInputSection').style.display = 'none';
+            document.getElementById('interactiveConfigSection').style.display = 'none';
 
             if (type === 'ppt') {
                 document.getElementById('pptImportSection').style.display = '';
@@ -393,6 +399,14 @@
                 createSlideOfType('poll');
             } else if (type === 'link') {
                 document.getElementById('linkInputSection').style.display = '';
+            } else if (type === 'interactive') {
+                document.getElementById('interactiveConfigSection').style.display = '';
+                if (window._interactiveEditorInit) {
+                    window._interactiveEditorInit(
+                        document.getElementById('interactiveTemplateConfig'),
+                        (config) => createSlideOfType('interactive', config),
+                    );
+                }
             }
         });
     });

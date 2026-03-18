@@ -1449,6 +1449,21 @@ async def lesson_slide_action(
             })
             return success_response(next_data)
 
+        # ── Interactive-specific actions (bypass normal lifecycle) ──
+        if body.action in ("interactive_lock", "interactive_unlock"):
+            locked = body.action == "interactive_lock"
+            lock_result = await loop.run_in_executor(
+                None,
+                lambda: get_services().lesson.interactive_set_lock(
+                    room_id, session_id, locked=locked
+                ),
+            )
+            await ws_manager.broadcast_to_room(room_id, {
+                "type": "interactive_lock",
+                "data": {"locked": locked},
+            })
+            return success_response(lock_result)
+
         if body.action == "show_results":
             # Check if current slide is quiz — if so, use quiz_finalize
             current_slide = state.get("slide")
@@ -1493,6 +1508,16 @@ async def lesson_slide_action(
                 ),
             )
             broadcast_lc_data["poll_results"] = poll_results
+
+        # For interactive show_results, include template-specific reveal payload
+        if (
+            result["slide"].get("slide_type") == "interactive"
+            and result["new_lifecycle"] == "results_shown"
+        ):
+            from app.domains.classroom.slide_handlers import get_slide_handler
+            handler = get_slide_handler("interactive")
+            reveal_payload = handler.build_reveal_payload(result["slide"])
+            broadcast_lc_data["interactive_reveal"] = reveal_payload
 
         await ws_manager.broadcast_to_room(room_id, {
             "type": "lesson_slide_lifecycle",
@@ -2124,6 +2149,16 @@ async def websocket_classroom(
                         "type": "error",
                         "message": "响应提交失败",
                     })
+
+            elif msg_type == "interactive_progress" and role == "student":
+                # 学生进度上报 — 只通过 WS 转发给老师，不落 DB
+                await ws_manager.broadcast_to_room(room_id, {
+                    "type": "interactive_progress",
+                    "data": {
+                        "student_username": username,
+                        "pct": data.get("pct", 0),
+                    },
+                }, exclude=username)
 
     except WebSocketDisconnect:
         logger.info("WS 正常断开: %s (房间 %s)", username or "unknown", room_id)

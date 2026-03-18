@@ -9,6 +9,7 @@
 
 from .base import SlideHandler
 from .game_handler import GameSlideHandler
+from .interactive_handler import InteractiveSlideHandler
 from .link_handler import LinkSlideHandler
 from .poll_handler import PollSlideHandler
 from .ppt_handler import PPTSlideHandler
@@ -21,6 +22,7 @@ _HANDLER_REGISTRY: dict[str, SlideHandler] = {
     "quiz": QuizSlideHandler(),
     "poll": PollSlideHandler(),
     "link": LinkSlideHandler(),
+    "interactive": InteractiveSlideHandler(),
 }
 
 
@@ -46,4 +48,5 @@ __all__ = [
     "QuizSlideHandler",
     "PollSlideHandler",
     "LinkSlideHandler",
+    "InteractiveSlideHandler",
 ]

@@ -204,6 +204,24 @@ class LessonService:
         except Exception:
             pass  # Already updated
 
+        # Add 'interactive' to lesson_slides.slide_type ENUM
+        try:
+            pool.execute_write(
+                "ALTER TABLE lesson_slides MODIFY slide_type "
+                "ENUM('ppt','game','quiz','quick_answer','raise_hand','poll','link','interactive') NOT NULL"
+            )
+        except Exception:
+            pass  # Already updated
+
+        # Add 'interactive_response' to lesson_slide_responses.response_type ENUM
+        try:
+            pool.execute_write(
+                "ALTER TABLE lesson_slide_responses MODIFY response_type "
+                "ENUM('quiz_answer','quick_answer','raise_hand','poll_vote','game_score','interactive_response') NOT NULL"
+            )
+        except Exception:
+            pass  # Already updated
+
         logger.info("课案系统表初始化完成")
 
     # ================================================================
@@ -1111,6 +1129,20 @@ class LessonService:
             "total_responses": final["total_participants"],
             "results": final,
         }
+
+    # ================================================================
+    # Interactive — Lock / Unlock
+    # ================================================================
+
+    def interactive_set_lock(
+        self, room_id: str, session_id: str, *, locked: bool
+    ) -> Dict[str, Any]:
+        """设置互动活动的锁定状态 (冻结/解冻学生操作)"""
+        session = self._get_active_session(room_id, session_id)
+        runtime_meta = session.get("runtime_meta") or {}
+        runtime_meta["locked"] = locked
+        self._session_repo.update_session(session_id, {"runtime_meta": runtime_meta})
+        return {"locked": locked}
 
     # ================================================================
     # Quiz — Excel Export
