@@ -72,6 +72,30 @@ LessonSlideRenderers.register('interactive', {
         const template = cfg.template || 'drag_sort';
         const subCfg = cfg[template] || {};
         const locked = runtimeMeta?.locked || false;
+
+        // html_sandbox: 教師端也顯示 iframe 內容，方便一邊播放一邊教學
+        if (template === 'html_sandbox' && subCfg.html_content) {
+            container.innerHTML = `
+                <div class="interactive-teacher-view" style="display:flex;flex-direction:column;height:100%;">
+                    <div class="interactive-teacher-header">
+                        <div class="interactive-template-badge">${this._templateName(template)}</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">${this._escapeHtml(subCfg.instruction || '')}</div>
+                    </div>
+                    <div style="flex:1;min-height:0;border-radius:12px;overflow:hidden;border:1px solid var(--border-light, #E5E5EA);margin-top:12px;">
+                        <iframe id="teacherSandboxFrame" sandbox="allow-scripts" style="width:100%;height:100%;border:none;min-height:400px;"></iframe>
+                    </div>
+                    <div class="interactive-progress-grid" id="interactiveProgressGrid" style="margin-top:12px;">
+                        <div style="text-align:center;padding:12px;color:var(--text-tertiary);font-size:13px;">
+                            學生操作進度會顯示在這裡
+                        </div>
+                    </div>
+                </div>
+            `;
+            const frame = document.getElementById('teacherSandboxFrame');
+            if (frame) frame.srcdoc = subCfg.html_content;
+            return;
+        }
+
         const totalItems = subCfg.items?.length || subCfg.left_items?.length || 0;
 
         container.innerHTML = `
@@ -1410,17 +1434,24 @@ LessonSlideRenderers.register('interactive', {
                 editor.addEventListener('input', () => { this._state.onProgressCallback(50); }, { once: true });
             }
         } else {
-            // 纯展示模式
+            // 纯展示模式 — iframe 全屏顯示
+            // 強制容器撐滿（覆蓋 canvas-wrapper 的 inline-block 限制）
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.width = '100%';
+            container.style.height = '100%';
+            container.style.maxWidth = 'none';
+            container.style.maxHeight = 'none';
+
             container.innerHTML = `
-                <div class="interactive-activity html-sandbox-activity">
-                    <div class="interactive-header">
-                        <div class="interactive-instruction-text">${this._escapeHtml(instruction)}</div>
-                        ${timeLimit > 0 ? `<div class="interactive-timer" id="interactiveTimer">${timeLimit}s</div>` : ''}
+                <div style="display:flex;flex-direction:column;width:100%;height:100%;min-height:80vh;">
+                    <div style="padding:10px 16px;font-size:14px;font-weight:600;color:#1D1D1F;background:rgba(255,255,255,0.8);border-bottom:1px solid #E5E5EA;">
+                        ${this._escapeHtml(instruction)}
                     </div>
-                    <div class="html-sandbox-frame-wrap">
-                        <iframe id="sandboxFrame" sandbox="allow-scripts"></iframe>
+                    <iframe id="sandboxFrame" sandbox="allow-scripts" style="flex:1;width:100%;border:none;min-height:0;"></iframe>
+                    <div style="padding:10px 16px;display:flex;gap:10px;background:rgba(255,255,255,0.8);border-top:1px solid #E5E5EA;">
+                        <button class="interactive-submit-btn" id="interactiveSubmitBtn" style="flex:1;">我已查看</button>
                     </div>
-                    <button class="interactive-submit-btn" id="interactiveSubmitBtn">我已查看</button>
                     <div class="interactive-lock-overlay" id="interactiveLockOverlay" style="display:${this._state.locked ? 'flex' : 'none'};">
                         <div class="lock-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
                         <div>老師已暫停操作</div>
