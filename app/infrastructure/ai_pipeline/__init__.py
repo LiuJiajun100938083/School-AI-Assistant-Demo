@@ -8,6 +8,7 @@ AI 出題管線 — 基礎設施層
 """
 
 from app.infrastructure.ai_pipeline.llm_caller import (
+    call_llm_json,
     call_ollama_json,
     parse_questions_json,
     repair_latex_json,
@@ -19,6 +20,7 @@ from app.infrastructure.ai_pipeline.question_enricher import (
 )
 
 __all__ = [
+    "call_llm_json",
     "call_ollama_json",
     "parse_questions_json",
     "repair_latex_json",

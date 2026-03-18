@@ -136,6 +136,7 @@ class ExamCreatorService:
         question_types: Optional[List[str]] = None,
         exam_context: str = "",
         total_marks: Optional[int] = None,
+        provider: str = "local",
     ) -> Dict:
         """
         建 session 記錄，解析知識點，返回 session_id + 後台上下文。
@@ -180,9 +181,9 @@ class ExamCreatorService:
 
         logger.info(
             "Exam generation started: session=%s, teacher=%s, subject=%s, "
-            "count=%d, difficulty=%d, points=%s",
+            "count=%d, difficulty=%d, provider=%s, points=%s",
             session_id, teacher_username, subject, question_count, difficulty,
-            [p["point_code"] for p in points_data],
+            provider, [p["point_code"] for p in points_data],
         )
 
         return {
@@ -197,6 +198,7 @@ class ExamCreatorService:
                 "question_types": question_types,
                 "exam_context": exam_context,
                 "total_marks": total_marks,
+                "provider": provider,
             },
         }
 
@@ -218,6 +220,7 @@ class ExamCreatorService:
         question_types: Optional[List[str]] = None,
         exam_context: str = "",
         total_marks: Optional[int] = None,
+        provider: str = "local",
     ) -> None:
         """
         後台分批並發 LLM 生成 + SVG/Chart 增強，每批完成即更新 session。
@@ -278,6 +281,7 @@ class ExamCreatorService:
                             marks=q_marks,
                             previous_questions=generated_questions,  # 快照：前幾批的結果
                             subject=subject,
+                            provider=provider,
                         )
                     )
 
@@ -378,6 +382,7 @@ class ExamCreatorService:
         marks: Optional[int],
         previous_questions: List[Dict],
         subject: str,
+        provider: str = "local",
     ) -> Optional[Dict]:
         """
         生成單道題目 + SVG/Chart 增強。
@@ -397,7 +402,7 @@ class ExamCreatorService:
             生成的題目 dict，或 None（失敗）。
         """
         from app.infrastructure.ai_pipeline import (
-            call_ollama_json,
+            call_llm_json,
             enrich_with_charts,
             enrich_with_svg,
             parse_questions_json,
@@ -441,8 +446,9 @@ class ExamCreatorService:
         questions = None
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
-            raw = await call_ollama_json(
+            raw = await call_llm_json(
                 prompt,
+                provider=provider,
                 temperature=0.7 + (attempt - 1) * 0.1,  # 重試時稍高溫度
                 gate_task="exam_generation",
                 gate_priority=Priority.URGENT,

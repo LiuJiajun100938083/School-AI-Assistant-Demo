@@ -1460,6 +1460,8 @@ const AdminApp = {
             this.loadBlockedAccounts();
         } else if (tabName === 'aimonitor') {
             this.startAiMonitor();
+        } else if (tabName === 'settings') {
+            loadCloudStatus();
         }
     },
 
@@ -3366,3 +3368,98 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('beforeunload', () => {
     if (AdminApp.state.aiMonitorTimer) clearInterval(AdminApp.state.aiMonitorTimer);
 });
+
+
+/* ============================================================
+   LLM 雲端配置 — 系統設定 Tab
+   ============================================================ */
+
+async function loadCloudStatus() {
+    const statusEl = document.getElementById('cloudConfigStatus');
+    const modelEl = document.getElementById('cloudApiModel');
+    try {
+        const data = await AdminAPI.fetchWithAuth('/api/exam-creator/cloud-status');
+        const info = data.data || data;
+        if (modelEl) modelEl.value = info.model || 'deepseek-chat';
+        if (statusEl) {
+            if (info.available) {
+                statusEl.textContent = 'API Key 已配置，雲端可用';
+                statusEl.style.color = 'var(--success, #22c55e)';
+            } else {
+                const reasons = {
+                    missing_api_key: '未配置 API Key',
+                    config_error: '配置載入錯誤',
+                };
+                statusEl.textContent = reasons[info.reason] || '不可用';
+                statusEl.style.color = 'var(--warning, #f59e0b)';
+            }
+        }
+    } catch (e) {
+        if (statusEl) {
+            statusEl.textContent = '載入失敗';
+            statusEl.style.color = 'var(--danger, #ef4444)';
+        }
+    }
+}
+
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('cloudApiKey');
+    if (!input) return;
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+async function saveCloudConfig() {
+    const msgEl = document.getElementById('cloudConfigMsg');
+    const keyInput = document.getElementById('cloudApiKey');
+    const apiKey = keyInput ? keyInput.value.trim() : '';
+
+    if (!apiKey) {
+        showCloudMsg('請輸入 API Key', 'warning');
+        return;
+    }
+
+    try {
+        const data = await AdminAPI.fetchWithAuth('/api/exam-creator/cloud-config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey }),
+        });
+        showCloudMsg('配置已保存', 'success');
+        if (keyInput) keyInput.value = '';
+        loadCloudStatus();
+    } catch (e) {
+        showCloudMsg('保存失敗: ' + e.message, 'error');
+    }
+}
+
+async function testCloudConnection() {
+    showCloudMsg('測試中...', 'info');
+    try {
+        const data = await AdminAPI.fetchWithAuth('/api/exam-creator/cloud-status');
+        const info = data.data || data;
+        if (info.available) {
+            showCloudMsg('連接正常，雲端 API 可用', 'success');
+        } else {
+            showCloudMsg('雲端不可用: ' + (info.reason === 'missing_api_key' ? '未配置 API Key' : info.reason), 'warning');
+        }
+    } catch (e) {
+        showCloudMsg('測試失敗: ' + e.message, 'error');
+    }
+}
+
+function showCloudMsg(text, type) {
+    const el = document.getElementById('cloudConfigMsg');
+    if (!el) return;
+    const colors = {
+        success: 'var(--success, #22c55e)',
+        warning: 'var(--warning, #f59e0b)',
+        error: 'var(--danger, #ef4444)',
+        info: 'var(--text-secondary, #64748b)',
+    };
+    el.textContent = text;
+    el.style.color = colors[type] || colors.info;
+    el.style.display = 'block';
+    if (type !== 'info') {
+        setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+}

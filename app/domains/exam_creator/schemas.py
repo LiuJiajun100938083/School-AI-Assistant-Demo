@@ -22,6 +22,11 @@ class ExamGenerationRequest(BaseModel):
     exam_context: str = Field(default="", max_length=200, description="考試場景，如 '期中考試'")
     total_marks: Optional[int] = Field(default=None, ge=1, le=500, description="總分")
     geometry_description: str = Field(default="", max_length=500, description="幾何圖形描述（數學專用）")
+    provider: str = Field(
+        default="local",
+        pattern=r"^(local|deepseek)$",
+        description="生成模型來源: local（本地 Ollama）或 deepseek（雲端 API）",
+    )
 
 
 class UpdateQuestionRequest(BaseModel):

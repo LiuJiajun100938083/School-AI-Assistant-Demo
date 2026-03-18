@@ -513,7 +513,38 @@
 
                 <!-- 系統設定标签 -->
                 <div class="tab-pane" id="settings-tab">
-                    <h3>系統設定</h3>
+                    <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-cog"/></svg> 系統設定</h3>
+
+                    <!-- LLM 雲端配置 -->
+                    <div style="background:white;border-radius:12px;padding:1.5rem;margin-top:1rem;border:1px solid var(--border);">
+                        <h4 style="margin:0 0 1rem;color:var(--text-secondary);">
+                            <svg class="icon" style="margin-right:4px"><use href="#i-cpu"/></svg> LLM 雲端生成配置 (DeepSeek)
+                        </h4>
+                        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">
+                            配置雲端 API Key 後，教師可在出卷頁面選擇「雲端生成」以獲得更高品質的題目。
+                        </p>
+                        <div style="display:grid;grid-template-columns:140px 1fr;gap:0.75rem 1rem;align-items:center;max-width:500px;">
+                            <label style="font-weight:500;color:var(--text);">API Key</label>
+                            <div style="display:flex;gap:0.5rem;">
+                                <input type="password" id="cloudApiKey" placeholder="sk-..."
+                                    style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;font-family:monospace;">
+                                <button type="button" onclick="toggleApiKeyVisibility()" title="顯示/隱藏"
+                                    style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--light);cursor:pointer;">
+                                    <svg class="icon" style="width:16px;height:16px"><use href="#i-lock"/></svg>
+                                </button>
+                            </div>
+                            <label style="font-weight:500;color:var(--text);">模型</label>
+                            <input type="text" id="cloudApiModel" value="deepseek-chat" readonly
+                                style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--light);color:var(--text-secondary);">
+                            <label style="font-weight:500;color:var(--text);">狀態</label>
+                            <span id="cloudConfigStatus" style="font-size:0.9rem;color:var(--text-muted);">載入中...</span>
+                        </div>
+                        <div style="margin-top:1.25rem;display:flex;gap:0.75rem;">
+                            <button class="btn btn-primary" onclick="saveCloudConfig()">保存配置</button>
+                            <button class="btn btn-outline" onclick="testCloudConnection()">測試連接</button>
+                        </div>
+                        <div id="cloudConfigMsg" style="margin-top:0.75rem;font-size:0.85rem;display:none;"></div>
+                    </div>
                 </div>
 
                 <!-- 應用管理標籤 -->

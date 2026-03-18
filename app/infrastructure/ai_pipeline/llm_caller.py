@@ -1,12 +1,18 @@
 """
 LLM 調用與 JSON 解析 — 基礎設施
 =================================
-從 MistakeBookService 提取的通用 LLM 調用能力。
+統一 LLM 調用能力，支持本地 Ollama 和雲端 DeepSeek。
 純函數，無狀態，無域依賴。
+
+Provider 架構：
+- call_llm_json()：統一入口，根據 provider 分發
+- _call_ollama()：本地 Ollama，走 ai_gate GPU 調度
+- _call_deepseek()：雲端 DeepSeek，走輕量並發控制
 
 依賴：ai_gate（core 層）、llm.config（配置層）
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -14,10 +20,72 @@ from typing import Dict
 
 logger = logging.getLogger(__name__)
 
+# 雲端 API 輕量並發控制（不走 ai_gate，獨立限流）
+_cloud_semaphore = asyncio.Semaphore(3)
+
 
 # ================================================================
-# LLM 調用
+# 共用常量
 # ================================================================
+
+_SYSTEM_PROMPT = (
+    "You are an expert teacher. You MUST respond with valid JSON only. "
+    "No explanations, no reasoning, no markdown — just a single JSON object. "
+    "When writing solution steps (correct_answer), output CLEAN standard solutions "
+    "like a textbook. NEVER include self-talk, backtracking, or exploratory reasoning "
+    "like '不，應該是…' or '讓我們換個角度' in any JSON field value. "
+    "NEVER include problem verification, condition checking, problem redesign, "
+    "or any meta-commentary like '檢查題目條件', '重新設計題目', '修正條件' in any field. "
+    "Output ONLY the final, clean question and solution — no drafts, no revisions."
+)
+
+
+# ================================================================
+# 統一入口
+# ================================================================
+
+async def call_llm_json(
+    prompt: str,
+    provider: str = "local",
+    model: str = None,
+    temperature: float = 0.3,
+    timeout: float = 300.0,
+    gate_task: str = "ai_pipeline",
+    gate_priority=None,
+    gate_weight=None,
+    num_predict: int = 8192,
+) -> str:
+    """
+    統一 LLM 調用入口，根據 provider 分發到不同後端。
+
+    Args:
+        prompt: 用戶 prompt
+        provider: "local"（Ollama）或 "deepseek"（雲端 API）
+        model: 指定模型，None 則用各 provider 的默認配置
+        temperature: 生成溫度
+        timeout: 超時秒數
+        gate_task: ai_gate 任務名稱（僅 local 使用）
+        gate_priority: ai_gate 優先級（僅 local 使用）
+        gate_weight: ai_gate 權重（僅 local 使用）
+        num_predict: 最大生成 token 數
+    """
+    if provider == "deepseek":
+        content = await _call_deepseek(
+            prompt, model=model, temperature=temperature,
+            timeout=timeout, num_predict=num_predict,
+        )
+    else:
+        content = await _call_ollama(
+            prompt, model=model, temperature=temperature,
+            timeout=timeout, num_predict=num_predict,
+            gate_task=gate_task, gate_priority=gate_priority,
+            gate_weight=gate_weight,
+        )
+
+    # 共用後處理
+    content = _postprocess_content(content)
+    return content
+
 
 async def call_ollama_json(
     prompt: str,
@@ -29,25 +97,33 @@ async def call_ollama_json(
     gate_weight=None,
     num_predict: int = 8192,
 ) -> str:
-    """
-    調用 Ollama API（JSON 模式），返回原始 content 字串。
+    """向後兼容入口，轉發到 call_llm_json(provider='local')。"""
+    return await call_llm_json(
+        prompt, provider="local", model=model,
+        temperature=temperature, timeout=timeout,
+        gate_task=gate_task, gate_priority=gate_priority,
+        gate_weight=gate_weight, num_predict=num_predict,
+    )
 
-    繞過 langchain 60s 超時限制，直接使用 /api/chat 端點。
-    透過 ai_gate 進行 GPU 調度，防止並發過載。
 
-    Args:
-        prompt: 用戶 prompt
-        model: 指定模型，None 則用全局配置
-        temperature: 生成溫度，出題建議 0.7-0.8
-        timeout: 超時秒數
-        gate_task: ai_gate 任務名稱
-        gate_priority: ai_gate 優先級，None 則用 INTERACTIVE
-        gate_weight: ai_gate 權重，None 則用 ANALYSIS
-    """
+# ================================================================
+# Provider: 本地 Ollama
+# ================================================================
+
+async def _call_ollama(
+    prompt: str,
+    model: str = None,
+    temperature: float = 0.3,
+    timeout: float = 300.0,
+    num_predict: int = 8192,
+    gate_task: str = "ai_pipeline",
+    gate_priority=None,
+    gate_weight=None,
+) -> str:
+    """調用 Ollama API（JSON 模式），透過 ai_gate 進行 GPU 調度。"""
     import httpx
     from app.core.ai_gate import ai_gate, Priority, Weight
 
-    # 從全局 LLM 配置獲取模型和 URL
     try:
         from llm.config import get_llm_config
         config = get_llm_config()
@@ -63,19 +139,7 @@ async def call_ollama_json(
     payload = {
         "model": resolved_model,
         "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You are an expert teacher. You MUST respond with valid JSON only. "
-                    "No explanations, no reasoning, no markdown — just a single JSON object. "
-                    "When writing solution steps (correct_answer), output CLEAN standard solutions "
-                    "like a textbook. NEVER include self-talk, backtracking, or exploratory reasoning "
-                    "like '不，應該是…' or '讓我們換個角度' in any JSON field value. "
-                    "NEVER include problem verification, condition checking, problem redesign, "
-                    "or any meta-commentary like '檢查題目條件', '重新設計題目', '修正條件' in any field. "
-                    "Output ONLY the final, clean question and solution — no drafts, no revisions."
-                ),
-            },
+            {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ],
         "stream": False,
@@ -100,26 +164,101 @@ async def call_ollama_json(
     content = msg.get("content", "")
     thinking = msg.get("thinking", "")
 
-    # 修復 JSON 解析對 LaTeX 命令的損壞
-    content = repair_latex_json(content)
-
-    # 移除 thinking 標籤
-    content = re.sub(r"<think>[\s\S]*?</think>", "", content, flags=re.DOTALL).strip()
-
-    # content 為空但 thinking 字段有內容，使用 thinking
+    # Ollama 特有：content 為空但 thinking 字段有內容
     if not content and thinking:
         logger.info("Ollama content 為空，使用 thinking 字段 (len=%d)", len(thinking))
         content = re.sub(r"<think>[\s\S]*?</think>", "", thinking, flags=re.DOTALL).strip()
         if not content:
             content = thinking.strip()
 
+    logger.info(
+        "LLM 調用成功: provider=local, task=%s, model=%s, content_len=%d",
+        gate_task, resolved_model, len(content),
+    )
+    return content
+
+
+# ================================================================
+# Provider: DeepSeek 雲端 API
+# ================================================================
+
+async def _call_deepseek(
+    prompt: str,
+    model: str = None,
+    temperature: float = 0.3,
+    timeout: float = 120.0,
+    num_predict: int = 8192,
+) -> str:
+    """
+    調用 DeepSeek API（OpenAI-compatible），返回 content 字串。
+
+    不走 ai_gate（雲端不佔本地 GPU），使用獨立 Semaphore 限流。
+    """
+    import httpx
+
+    from llm.config import get_llm_config
+    config = get_llm_config()
+
+    resolved_model = model or config.api_model
+    base_url = config.api_base_url
+    api_key = config.api_key
+
+    if not api_key:
+        raise ValueError("DeepSeek API key 未配置（請在後台管理 → 系統設定中配置）")
+
+    payload = {
+        "model": resolved_model,
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": temperature,
+        "max_tokens": num_predict,
+        "response_format": {"type": "json_object"},
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+
+    http_timeout = httpx.Timeout(timeout, connect=10.0)
+
+    async with _cloud_semaphore:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=http_timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+    content = data["choices"][0]["message"]["content"]
+
+    logger.info(
+        "LLM 調用成功: provider=deepseek, model=%s, content_len=%d",
+        resolved_model, len(content),
+    )
+    return content
+
+
+# ================================================================
+# 共用後處理
+# ================================================================
+
+def _postprocess_content(content: str) -> str:
+    """LaTeX 修復 + thinking 標籤清理。"""
+    # 修復 JSON 解析對 LaTeX 命令的損壞
+    content = repair_latex_json(content)
+
+    # 移除 thinking 標籤
+    content = re.sub(r"<think>[\s\S]*?</think>", "", content, flags=re.DOTALL).strip()
+
     # 最終清理殘留的 think 標籤
     content = re.sub(r"</?think>", "", content).strip()
 
-    logger.info(
-        "Ollama 調用成功: task=%s, model=%s, content_len=%d, thinking_len=%d",
-        gate_task, resolved_model, len(content), len(thinking),
-    )
     return content
 
 

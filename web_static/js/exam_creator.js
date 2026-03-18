@@ -37,6 +37,9 @@ const ExamCreator = (() => {
         inputMethod: 'text',         // 'text' | 'image'
         uploadedFile: null,          // 圖片上傳 File object
         figureDescription: null,     // OCR 提取的圖形結構化描述
+        provider: 'local',           // 'local' | 'deepseek'
+        cloudAvailable: false,       // 雲端是否可用
+        cloudReason: null,           // 不可用原因
     };
 
     // ================================================================
@@ -797,6 +800,7 @@ const ExamCreator = (() => {
                 difficulty,
                 exam_context: descText,
                 geometry_description: descText,
+                provider: state.provider,
             });
 
             if (resp.success && resp.data) {
@@ -820,6 +824,56 @@ const ExamCreator = (() => {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     描述生成題目`;
             }
+        }
+    }
+
+    // ================================================================
+    // Provider Toggle — 本地 / 雲端切換
+    // ================================================================
+
+    function setProvider(provider) {
+        if (provider === 'deepseek' && !state.cloudAvailable) return;
+        state.provider = provider;
+        document.querySelectorAll('#providerToggle .provider-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.provider === provider);
+        });
+        const hint = UI.$('providerHintText');
+        if (hint) {
+            hint.textContent = provider === 'local'
+                ? '速度穩定，校內可控'
+                : '質量更高，需聯網';
+        }
+    }
+
+    async function checkCloudAvailability() {
+        try {
+            const resp = await fetch('/api/exam-creator/cloud-status', {
+                headers: API._headers(),
+            });
+            const data = await resp.json();
+            const info = data.data || data;
+            state.cloudAvailable = !!info.available;
+            state.cloudReason = info.reason;
+
+            const cloudBtn = UI.$('cloudProviderBtn');
+            if (cloudBtn) {
+                if (!info.available) {
+                    cloudBtn.disabled = true;
+                    cloudBtn.title = info.reason === 'missing_api_key'
+                        ? '未配置 API Key（請聯繫管理員）'
+                        : '雲端不可用';
+                    cloudBtn.style.opacity = '0.5';
+                    cloudBtn.style.cursor = 'not-allowed';
+                } else {
+                    cloudBtn.disabled = false;
+                    cloudBtn.title = '';
+                    cloudBtn.style.opacity = '';
+                    cloudBtn.style.cursor = '';
+                }
+            }
+        } catch (e) {
+            state.cloudAvailable = false;
+            console.warn('Cloud status check failed:', e);
         }
     }
 
@@ -908,6 +962,9 @@ const ExamCreator = (() => {
 
         // Upload zone drag-drop
         setupUploadZone();
+
+        // 檢查雲端生成可用性
+        checkCloudAvailability();
 
         // 檢查 pending session → 恢復生成進度
         const pending = loadPendingSession();
@@ -1066,6 +1123,7 @@ const ExamCreator = (() => {
                 question_types: questionTypes.length ? questionTypes : null,
                 exam_context: examContext,
                 total_marks: totalMarks,
+                provider: state.provider,
             });
 
             if (resp.success && resp.data) {
@@ -1326,5 +1384,7 @@ const ExamCreator = (() => {
         generateSimilar,
         // 描述出題模式
         generateFromDescription,
+        // Provider 切換
+        setProvider,
     };
 })();

@@ -13,7 +13,7 @@ from typing import Tuple
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
-from app.core.dependencies import require_teacher
+from app.core.dependencies import require_admin, require_teacher
 from app.core.responses import error_response, paginated_response, success_response
 from app.domains.exam_creator.schemas import (
     ExamGenerationRequest,
@@ -58,6 +58,7 @@ async def start_exam_generation(
             question_types=req.question_types,
             exam_context=exam_context,
             total_marks=req.total_marks,
+            provider=req.provider,
         )
     except ValueError as e:
         return error_response(message=str(e), status_code=400)
@@ -75,6 +76,7 @@ async def start_exam_generation(
             question_types=bg_context.get("question_types"),
             exam_context=bg_context.get("exam_context", ""),
             total_marks=bg_context.get("total_marks"),
+            provider=bg_context.get("provider", "local"),
         )
 
     return success_response(data=result, message="出題任務已啟動")
@@ -450,3 +452,76 @@ async def ocr_similar_question_image(
             message="圖片識別失敗，請手動輸入題目文字",
             status_code=500,
         )
+
+
+# ================================================================
+# GET /api/exam-creator/cloud-status — 雲端生成可用狀態
+# ================================================================
+
+@router.get("/api/exam-creator/cloud-status")
+async def get_cloud_status(
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """查詢雲端 LLM 是否可用（老師可用）。"""
+    try:
+        from llm.config import get_llm_config
+        config = get_llm_config()
+
+        if not config.api_key:
+            return success_response(data={
+                "available": False,
+                "model": config.api_model or "deepseek-chat",
+                "provider": "deepseek",
+                "reason": "missing_api_key",
+            })
+
+        return success_response(data={
+            "available": True,
+            "model": config.api_model or "deepseek-chat",
+            "provider": "deepseek",
+            "reason": None,
+        })
+    except Exception as e:
+        logger.warning("cloud-status check failed: %s", e)
+        return success_response(data={
+            "available": False,
+            "model": None,
+            "provider": "deepseek",
+            "reason": "config_error",
+        })
+
+
+# ================================================================
+# PUT /api/exam-creator/cloud-config — 管理員配置雲端 API Key
+# ================================================================
+
+@router.put("/api/exam-creator/cloud-config")
+async def update_cloud_config(
+    body: dict,
+    admin_info: Tuple[str, str] = Depends(require_admin),
+):
+    """管理員配置雲端 LLM API Key（需 admin 權限）。"""
+    from llm.config import get_llm_config_manager
+
+    manager = get_llm_config_manager()
+
+    api_key = body.get("api_key")
+    api_model = body.get("api_model")
+
+    if api_key is not None:
+        manager.update_runtime(api_key=api_key)
+    if api_model is not None:
+        manager.update_runtime(api_model=api_model)
+
+    config = manager.config
+    # 回傳時遮罩 API key
+    masked_key = None
+    if config.api_key:
+        key = config.api_key
+        masked_key = f"{key[:3]}****{key[-4:]}" if len(key) > 8 else "****"
+
+    return success_response(data={
+        "api_key_masked": masked_key,
+        "api_model": config.api_model,
+        "available": bool(config.api_key),
+    }, message="雲端配置已更新")

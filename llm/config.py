@@ -132,6 +132,13 @@ class LLMConfigManager:
         self._config = self._load_config()
         logger.info("配置已重新加載")
 
+    def update_runtime(self, **kwargs):
+        """運行時更新配置字段（不持久化到文件）。"""
+        for key, value in kwargs.items():
+            if hasattr(self._config, key):
+                setattr(self._config, key, value)
+                logger.info("LLM 配置已更新: %s", key)
+
     def save_config(self, path: str = 'llm_config.json'):
         """保存當前配置到文件"""
         config_dict = {
@@ -174,6 +181,11 @@ def get_current_model() -> str:
 def get_base_url() -> str:
     """獲取當前 API 基礎 URL"""
     return llm_config_manager.base_url
+
+
+def get_llm_config_manager() -> LLMConfigManager:
+    """獲取配置管理器實例"""
+    return llm_config_manager
 
 
 def is_using_api() -> bool:

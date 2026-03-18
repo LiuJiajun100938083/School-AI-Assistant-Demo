@@ -1010,25 +1010,34 @@ def _estimate_ray_length(points: dict, vertex: str, known_ray: str,
 
 def _try_composite_resolve(all_constraints: list, points: dict,
                            circles: dict, sign: float) -> bool:
-    """當個別約束解析停滯時，嘗試組合多個約束求解。"""
-    progress = False
+    """當個別約束解析停滯時，嘗試組合多個約束求解。
+
+    重要：每次只執行到第一個取得進展的策略就返回，
+    讓主迴圈有機會用正式約束（如 parallel）定位剩餘頂點，
+    避免後面的啟發式策略搶先把頂點放到錯誤位置。
+    """
 
     # 策略 1: 從 point_on_segment + 子長度推導合成長度
-    progress |= _infer_composite_lengths(all_constraints)
+    if _infer_composite_lengths(all_constraints):
+        return True
 
     # 策略 2: 雙圓交點（兩個 length 約束指向同一未知點）
-    progress |= _try_circle_circle(all_constraints, points, sign)
+    if _try_circle_circle(all_constraints, points, sign):
+        return True
 
     # 策略 3: 單邊長度無角度 → 默認 60° 放置（優先於平行邊）
-    progress |= _try_single_length_fallback(all_constraints, points, sign)
+    if _try_single_length_fallback(all_constraints, points, sign):
+        return True
 
     # 策略 4: 平行邊兩端皆未知 → 啟發式放置（梯形場景）
-    progress |= _try_parallel_heuristic(all_constraints, points, sign)
+    if _try_parallel_heuristic(all_constraints, points, sign):
+        return True
 
     # 策略 5: 約束中引用但無定位信息的頂點 → 默認三角形放置
-    progress |= _try_place_unreferenced_vertices(all_constraints, points, sign)
+    if _try_place_unreferenced_vertices(all_constraints, points, sign):
+        return True
 
-    return progress
+    return False
 
 
 def _infer_composite_lengths(constraints: list) -> bool:

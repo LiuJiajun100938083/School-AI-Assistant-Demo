@@ -599,6 +599,31 @@ body {
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
+/* ---- Provider Toggle ---- */
+.provider-toggle {
+    display: flex; gap: 4px;
+    background: rgba(241,245,249,0.8); border-radius: 8px; padding: 3px;
+}
+.provider-btn {
+    flex: 1; padding: 8px 10px; border: none; border-radius: 6px;
+    background: transparent; font-size: 12px; font-weight: 500;
+    cursor: pointer; color: #64748b;
+    transition: all var(--ec-duration-base, 0.2s) var(--ec-ease-out, ease-out);
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    white-space: nowrap;
+}
+.provider-btn.active {
+    background: #fff; color: var(--ec-brand, #16a34a);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.provider-btn:disabled {
+    opacity: 0.5; cursor: not-allowed;
+}
+.provider-hint {
+    margin-top: 4px; text-align: center;
+    font-size: 11px; color: #94a3b8;
+}
+
 /* ---- Input Method Toggle ---- */
 .input-method-toggle {
     display: flex; gap: 4px; background: rgba(241,245,249,0.8);
