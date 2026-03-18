@@ -4,6 +4,7 @@ LLM 配置管理器
 集中管理所有 LLM 相關配置，避免硬編碼分散在各個文件中。
 """
 
+import base64
 import os
 import json
 import logging
@@ -83,7 +84,7 @@ class LLMConfigManager:
             svg_model=os.getenv('LLM_SVG_MODEL', 'qwen3.5:35b'),
             api_model=os.getenv('LLM_API_MODEL', 'deepseek-reasoner'),
             api_base_url=os.getenv('LLM_API_BASE_URL', 'https://api.deepseek.com/v1'),
-            api_key=os.getenv('LLM_API_KEY'),
+            api_key=self._decode_api_key(os.getenv('LLM_API_KEY')),
             temperature=float(os.getenv('LLM_TEMPERATURE', '0.6')),
             top_p=float(os.getenv('LLM_TOP_P', '0.95')),
             timeout=int(os.getenv('LLM_TIMEOUT', '120')),
@@ -133,11 +134,71 @@ class LLMConfigManager:
         logger.info("配置已重新加載")
 
     def update_runtime(self, **kwargs):
-        """運行時更新配置字段（不持久化到文件）。"""
+        """運行時更新配置字段，關鍵配置同步持久化到 .env。"""
+        # 需要持久化到 .env 的字段映射：屬性名 → 環境變量名
+        _PERSIST_MAP = {
+            "api_key": "LLM_API_KEY",
+            "api_model": "LLM_API_MODEL",
+        }
+        env_updates = {}
         for key, value in kwargs.items():
             if hasattr(self._config, key):
                 setattr(self._config, key, value)
                 logger.info("LLM 配置已更新: %s", key)
+                if key in _PERSIST_MAP and value is not None:
+                    # api_key 存入 .env 時做 base64 編碼，避免明文暴露
+                    store_val = self._encode_api_key(value) if key == "api_key" else value
+                    env_updates[_PERSIST_MAP[key]] = store_val
+        if env_updates:
+            self._update_env_file(env_updates)
+
+    @staticmethod
+    def _encode_api_key(key: str) -> str:
+        """Base64 編碼 API key（防止磁盤明文暴露）"""
+        return "b64:" + base64.b64encode(key.encode()).decode()
+
+    @staticmethod
+    def _decode_api_key(raw: str | None) -> str | None:
+        """解碼 API key：帶 b64: 前綴的做 base64 解碼，否則原樣返回（兼容舊明文）。"""
+        if not raw:
+            return None
+        if raw.startswith("b64:"):
+            try:
+                return base64.b64decode(raw[4:]).decode()
+            except Exception:
+                return raw  # 解碼失敗則當明文
+        return raw
+
+    @staticmethod
+    def _update_env_file(updates: dict[str, str], env_path: str = ".env"):
+        """將鍵值對寫入 .env 文件（已有則更新，沒有則追加）。"""
+        lines = []
+        if os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+        remaining = dict(updates)  # 還沒寫入的 key
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                eq_pos = stripped.find("=")
+                if eq_pos > 0:
+                    env_key = stripped[:eq_pos].strip()
+                    if env_key in remaining:
+                        new_lines.append(f"{env_key}={remaining.pop(env_key)}\n")
+                        continue
+            new_lines.append(line)
+
+        # 追加新的 key
+        for env_key, env_val in remaining.items():
+            if new_lines and not new_lines[-1].endswith("\n"):
+                new_lines.append("\n")
+            new_lines.append(f"{env_key}={env_val}\n")
+
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+        logger.info("已持久化到 %s: %s", env_path, list(updates.keys()))
 
     def save_config(self, path: str = 'llm_config.json'):
         """保存當前配置到文件"""
