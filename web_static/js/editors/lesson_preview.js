@@ -52,8 +52,17 @@
     // ═══════════════════════════════════════════════════════
 
     function open(slides) {
-        if (!slides || slides.length === 0) return;
-        _slides = slides;
+        if (!slides || slides.length === 0) {
+            console.warn('[LessonPreview] No slides to preview');
+            return;
+        }
+        _slides = slides.map(function (s) {
+            // 確保 config 是 object（防止 JSON string 殘留）
+            if (typeof s.config === 'string') {
+                try { s = Object.assign({}, s, { config: JSON.parse(s.config) }); } catch (e) { }
+            }
+            return s;
+        });
         _currentIndex = 0;
         _buildDOM();
         _renderCurrentSlide();
