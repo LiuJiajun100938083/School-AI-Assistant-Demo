@@ -1362,6 +1362,10 @@
             btn.innerHTML = origText;
         }, 1500);
     });
+    document.getElementById('previewBtn').addEventListener('click', () => {
+        if (editorState.slides.length === 0) return;
+        window.LessonPreview.open(editorState.slides);
+    });
     document.getElementById('addSlideBtn').addEventListener('click', openAddModal);
     document.getElementById('closeModalBtn').addEventListener('click', closeAddModal);
     document.getElementById('deleteSlideBtn').addEventListener('click', deleteSlide);

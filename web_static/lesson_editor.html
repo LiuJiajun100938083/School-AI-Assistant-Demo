@@ -26,6 +26,10 @@
                 <option value="ready">就緒</option>
                 <option value="archived">已歸檔</option>
             </select>
+            <button class="tool-btn preview-btn" id="previewBtn" title="模擬上課預覽">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                模擬上課
+            </button>
             <button class="tool-btn save-btn" id="saveBtn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
                 儲存
@@ -259,9 +263,13 @@
         </div>
     </div>
 
+    <!-- Lesson Preview Overlay (模擬上課) -->
+    <div id="lessonPreviewOverlay" style="display:none;"></div>
+
     <!-- Runtime renderers for live preview -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <link rel="stylesheet" href="/static/css/lesson_runtime.css">
     <link rel="stylesheet" href="/static/css/interactive_activity.css">
     <script src="/static/js/shared/lesson_slide_renderers.js"></script>
     <script src="/static/js/shared/interactive_renderers.js"></script>
@@ -273,6 +281,7 @@
     <script src="/static/js/editors/interactive_editor_drag_place.js"></script>
     <script src="/static/js/editors/interactive_editor_free_canvas.js"></script>
     <script src="/static/js/editors/interactive_editor_html_sandbox.js"></script>
+    <script src="/static/js/editors/lesson_preview.js"></script>
     <script src="/static/js/editors/interactive_preview.js"></script>
 </body>
 </html>
