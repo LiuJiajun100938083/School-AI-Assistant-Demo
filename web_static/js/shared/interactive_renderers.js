@@ -1357,7 +1357,7 @@ LessonSlideRenderers.register('interactive', {
                             <textarea id="sandboxCodeEditor">${this._escapeHtml(htmlContent)}</textarea>
                         </div>
                         <div class="html-sandbox-preview-pane">
-                            <iframe id="sandboxFrame" sandbox="allow-scripts" srcdoc="${this._escapeHtml(sanitized)}"></iframe>
+                            <iframe id="sandboxFrame" sandbox="allow-scripts"></iframe>
                         </div>
                     </div>
                     <button class="interactive-submit-btn" id="interactiveSubmitBtn">提交代碼</button>
@@ -1370,6 +1370,7 @@ LessonSlideRenderers.register('interactive', {
 
             const editor = document.getElementById('sandboxCodeEditor');
             const frame = document.getElementById('sandboxFrame');
+            if (frame) frame.srcdoc = sanitized;
 
             // Tab 键插入空格
             editor.addEventListener('keydown', (e) => {
@@ -1417,7 +1418,7 @@ LessonSlideRenderers.register('interactive', {
                         ${timeLimit > 0 ? `<div class="interactive-timer" id="interactiveTimer">${timeLimit}s</div>` : ''}
                     </div>
                     <div class="html-sandbox-frame-wrap">
-                        <iframe id="sandboxFrame" sandbox="allow-scripts" srcdoc="${this._escapeHtml(sanitized)}"></iframe>
+                        <iframe id="sandboxFrame" sandbox="allow-scripts"></iframe>
                     </div>
                     <button class="interactive-submit-btn" id="interactiveSubmitBtn">我已查看</button>
                     <div class="interactive-lock-overlay" id="interactiveLockOverlay" style="display:${this._state.locked ? 'flex' : 'none'};">
@@ -1428,6 +1429,7 @@ LessonSlideRenderers.register('interactive', {
             `;
 
             const frame = document.getElementById('sandboxFrame');
+            if (frame) frame.srcdoc = htmlContent;
             if (this._state.onProgressCallback) {
                 frame.addEventListener('load', () => { this._state.onProgressCallback(100); });
             }
