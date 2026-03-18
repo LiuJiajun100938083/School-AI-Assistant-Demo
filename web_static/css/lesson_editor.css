@@ -439,7 +439,7 @@ body {
     background: var(--bg-card);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-modal);
-    width: 560px;
+    width: 720px;
     max-height: 80vh;
     display: flex;
     flex-direction: column;

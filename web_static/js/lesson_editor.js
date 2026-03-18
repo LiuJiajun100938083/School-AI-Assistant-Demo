@@ -1366,9 +1366,7 @@
     document.getElementById('closeModalBtn').addEventListener('click', closeAddModal);
     document.getElementById('deleteSlideBtn').addEventListener('click', deleteSlide);
 
-    $addSlideModal.addEventListener('click', (e) => {
-        if (e.target === $addSlideModal) closeAddModal();
-    });
+    /* 禁止點擊遮罩關閉，僅允許 X 按鈕關閉 */
 
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
