@@ -276,11 +276,47 @@
     }
 
     function _renderInteractive(slide, cfg) {
-        var renderer = window.LessonSlideRenderers && window.LessonSlideRenderers.get('interactive');
-        if (!renderer) { _renderFallback('interactive'); return; }
-
         var template = cfg.template || 'drag_sort';
         var templateData = cfg[template] || {};
+
+        // ── html_sandbox: 直接用 iframe，不走互動引擎 ──
+        // 互動引擎的 renderStudent 用 document.getElementById 做全局 DOM 查找，
+        // 在左右分屏場景下會衝突，所以 html_sandbox 走獨立渲染路徑
+        if (template === 'html_sandbox') {
+            var htmlContent = templateData.html_content || '<p>內容未設定</p>';
+            var instruction = templateData.instruction || '查看互動內容';
+
+            // 學生端: iframe 渲染 HTML
+            _studentPane.innerHTML =
+                '<div style="display:flex;flex-direction:column;height:100%;">' +
+                    '<div style="padding:10px 14px;font-size:13px;font-weight:600;color:var(--text-primary);border-bottom:1px solid var(--border-light,#F2F2F7);">' +
+                        _esc(instruction) +
+                    '</div>' +
+                    '<iframe sandbox="allow-scripts" style="flex:1;border:none;width:100%;min-height:0;background:#fff;"></iframe>' +
+                '</div>';
+            var studentFrame = _studentPane.querySelector('iframe');
+            if (studentFrame) studentFrame.srcdoc = htmlContent;
+
+            // 教師端: 同樣顯示 + 進度面板
+            _teacherPane.innerHTML =
+                '<div style="display:flex;flex-direction:column;height:100%;">' +
+                    '<div style="padding:10px 14px;font-size:13px;font-weight:600;color:var(--text-primary);border-bottom:1px solid var(--border-light,#F2F2F7);">' +
+                        '教師視角 — ' + _esc(instruction) +
+                    '</div>' +
+                    '<iframe sandbox="allow-scripts" style="flex:1;border:none;width:100%;min-height:0;background:#fff;"></iframe>' +
+                    '<div style="padding:12px 14px;border-top:1px solid var(--border-light,#F2F2F7);font-size:12px;color:var(--text-tertiary);">' +
+                        '上課時教師端會顯示學生操作進度' +
+                    '</div>' +
+                '</div>';
+            var teacherFrame = _teacherPane.querySelector('iframe');
+            if (teacherFrame) teacherFrame.srcdoc = htmlContent;
+
+            return;
+        }
+
+        // ── 其他互動模板: 走 renderer 引擎 ──
+        var renderer = window.LessonSlideRenderers && window.LessonSlideRenderers.get('interactive');
+        if (!renderer) { _renderFallback('interactive'); return; }
 
         // 扁平化 config
         var flatConfig = Object.assign({}, templateData);
