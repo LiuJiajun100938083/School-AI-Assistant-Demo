@@ -127,6 +127,8 @@ const ClassroomStudentUI = {
     updateRoomInfo(data) {
         if (data.title) {
             document.getElementById('roomTitle').textContent = data.title;
+            const bottomTitle = document.getElementById('bottomRoomTitle');
+            if (bottomTitle) bottomTitle.textContent = data.title;
         }
         const teacherName = data.teacher_display_name || data.teacher_name || '';
         if (teacherName) {

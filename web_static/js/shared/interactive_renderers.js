@@ -75,20 +75,19 @@ LessonSlideRenderers.register('interactive', {
 
         // html_sandbox: 教師端也顯示 iframe 內容，方便一邊播放一邊教學
         if (template === 'html_sandbox' && subCfg.html_content) {
+            // 強制容器撐滿
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.width = '100%';
+            container.style.height = '100%';
+
             container.innerHTML = `
-                <div class="interactive-teacher-view" style="display:flex;flex-direction:column;height:100%;">
-                    <div class="interactive-teacher-header">
-                        <div class="interactive-template-badge">${this._templateName(template)}</div>
-                        <div style="font-size:13px;color:var(--text-secondary);">${this._escapeHtml(subCfg.instruction || '')}</div>
+                <div style="display:flex;flex-direction:column;width:100%;height:100%;min-height:70vh;">
+                    <div style="padding:8px 14px;font-size:13px;font-weight:600;color:#1D1D1F;background:rgba(245,245,247,0.9);border-bottom:1px solid #E5E5EA;display:flex;align-items:center;gap:8px;">
+                        <span style="padding:2px 8px;border-radius:6px;background:#006633;color:#fff;font-size:11px;">${this._templateName(template)}</span>
+                        <span>${this._escapeHtml(subCfg.instruction || '')}</span>
                     </div>
-                    <div style="flex:1;min-height:0;border-radius:12px;overflow:hidden;border:1px solid var(--border-light, #E5E5EA);margin-top:12px;">
-                        <iframe id="teacherSandboxFrame" sandbox="allow-scripts" style="width:100%;height:100%;border:none;min-height:400px;"></iframe>
-                    </div>
-                    <div class="interactive-progress-grid" id="interactiveProgressGrid" style="margin-top:12px;">
-                        <div style="text-align:center;padding:12px;color:var(--text-tertiary);font-size:13px;">
-                            學生操作進度會顯示在這裡
-                        </div>
-                    </div>
+                    <iframe id="teacherSandboxFrame" sandbox="allow-scripts" style="flex:1;width:100%;border:none;min-height:0;"></iframe>
                 </div>
             `;
             const frame = document.getElementById('teacherSandboxFrame');
