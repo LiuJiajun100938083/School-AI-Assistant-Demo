@@ -163,6 +163,21 @@ const AdminAPI = {
         return resp.json();
     },
 
+    /* ---------- 系統日誌 ---------- */
+    async fetchSystemLogs(params = {}) {
+        const qs = new URLSearchParams({
+            log_type: params.log_type || 'app_file',
+            limit: params.limit || '100',
+            search: params.search || '',
+            level: params.level || '',
+        }).toString();
+        const resp = await fetch(`/api/admin/system-logs?${qs}`, {
+            headers: AuthModule.getAuthHeaders()
+        });
+        if (!resp.ok) throw new Error('載入系統日誌失敗');
+        return resp.json();
+    },
+
     /* ---------- 用戶 ---------- */
     async fetchUsers() {
         const resp = await fetch('/api/admin/users', {
@@ -626,6 +641,79 @@ const AdminUI = {
             </tr>`);
         }
         tbody.innerHTML = rows.join('');
+    },
+
+    /* ---------- 系統日誌渲染 ---------- */
+    renderSystemLogs(data) {
+        const container = document.getElementById('syslogsContainer');
+        if (!container) return;
+
+        const entries = data?.data?.entries || [];
+        if (entries.length === 0) {
+            container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:2rem;">暫無日誌記錄</p>';
+            return;
+        }
+
+        const levelBadge = (lv) => {
+            const colors = {
+                ERROR:   'background:#FEE2E2;color:#DC2626;',
+                WARNING: 'background:#FEF3C7;color:#D97706;',
+                INFO:    'background:#E8F5EC;color:#006633;',
+                DEBUG:   'background:#F3F4F6;color:#6B7280;',
+            };
+            const style = colors[lv] || colors.INFO;
+            return `<span style="${style}padding:2px 8px;border-radius:4px;font-size:0.75em;font-weight:600;">${lv}</span>`;
+        };
+
+        const formatTime = (ts) => {
+            if (!ts) return '-';
+            try {
+                const d = new Date(ts);
+                if (isNaN(d.getTime())) return ts;
+                return d.toLocaleString('zh-TW', { hour12: false });
+            } catch { return ts; }
+        };
+
+        const escHtml = (s) => {
+            if (!s) return '';
+            const d = document.createElement('div');
+            d.textContent = String(s);
+            return d.innerHTML;
+        };
+
+        let html = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.85em;">
+                <thead>
+                    <tr style="background:var(--light);text-align:left;">
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">時間</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">級別</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">事件</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">用戶</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);white-space:nowrap;">IP</th>
+                        <th style="padding:10px 12px;border-bottom:2px solid var(--border);">詳情</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        for (const e of entries) {
+            const detailStr = e.details && Object.keys(e.details).length > 0
+                ? escHtml(JSON.stringify(e.details)).substring(0, 120)
+                : '-';
+            html += `
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:8px 12px;white-space:nowrap;color:var(--text-secondary);font-family:monospace;font-size:0.9em;">${escHtml(formatTime(e.timestamp))}</td>
+                    <td style="padding:8px 12px;">${levelBadge(e.level)}</td>
+                    <td style="padding:8px 12px;font-weight:500;">${escHtml(e.event)}</td>
+                    <td style="padding:8px 12px;">${escHtml(e.username) || '-'}</td>
+                    <td style="padding:8px 12px;font-family:monospace;font-size:0.9em;">${escHtml(e.ip) || '-'}</td>
+                    <td style="padding:8px 12px;color:var(--text-secondary);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                        title="${escHtml(JSON.stringify(e.details || {}))}">${detailStr}</td>
+                </tr>`;
+        }
+
+        html += '</tbody></table>';
+        html += `<p style="text-align:center;color:var(--text-secondary);font-size:0.8em;margin-top:12px;">共 ${entries.length} 條記錄</p>`;
+        container.innerHTML = html;
     },
 
     /* ---------- 封禁列表渲染 ---------- */
@@ -1265,6 +1353,9 @@ const AdminApp = {
         document.querySelectorAll('[data-action="refreshBlocked"]').forEach(btn => {
             btn.addEventListener('click', () => this.loadBlockedAccounts());
         });
+        document.querySelectorAll('[data-action="refreshSyslogs"]').forEach(btn => {
+            btn.addEventListener('click', () => this.loadSystemLogs());
+        });
 
         // Filters
         const classFilter = document.getElementById('classFilter');
@@ -1417,7 +1508,7 @@ const AdminApp = {
                 el.style.display = 'none';
             });
             // 同時隱藏對應的 tab-pane
-            ['users', 'settings', 'notice', 'appmgr', 'classdiary', 'blocked', 'aimonitor'].forEach(tab => {
+            ['users', 'settings', 'notice', 'appmgr', 'classdiary', 'blocked', 'aimonitor', 'syslogs'].forEach(tab => {
                 const pane = document.getElementById(tab + '-tab');
                 if (pane) pane.style.display = 'none';
             });
@@ -1435,6 +1526,11 @@ const AdminApp = {
         if (this.state.aiMonitorTimer) {
             clearInterval(this.state.aiMonitorTimer);
             this.state.aiMonitorTimer = null;
+        }
+        // 離開系統日誌 tab 時停止自動刷新
+        if (this.state.syslogsRefreshTimer) {
+            clearInterval(this.state.syslogsRefreshTimer);
+            this.state.syslogsRefreshTimer = null;
         }
 
         document.querySelectorAll('.admin-sidebar__item').forEach(
@@ -1476,12 +1572,65 @@ const AdminApp = {
             this.startAiMonitor();
         } else if (tabName === 'settings') {
             loadCloudStatus();
+        } else if (tabName === 'syslogs') {
+            this.loadSystemLogs();
         }
     },
 
     /* ---------- 返回主系統 ---------- */
     backToMain() {
         window.location.href = '/';
+    },
+
+    /* ---------- 系統日誌 ---------- */
+    async loadSystemLogs() {
+        // 停止舊的自動刷新
+        if (this.state.syslogsRefreshTimer) {
+            clearInterval(this.state.syslogsRefreshTimer);
+            this.state.syslogsRefreshTimer = null;
+        }
+
+        const doLoad = async () => {
+            try {
+                const params = {
+                    log_type: document.getElementById('syslogsType')?.value || 'app_file',
+                    limit: document.getElementById('syslogsLimit')?.value || '100',
+                    search: document.getElementById('syslogsSearch')?.value || '',
+                    level: document.getElementById('syslogsLevel')?.value || '',
+                };
+                const data = await AdminAPI.fetchSystemLogs(params);
+                AdminUI.renderSystemLogs(data);
+            } catch (e) {
+                console.error('載入系統日誌失敗:', e);
+                const c = document.getElementById('syslogsContainer');
+                if (c) c.innerHTML = `<p style="color:#DC2626;text-align:center;padding:2rem;">載入失敗: ${e.message}</p>`;
+            }
+        };
+
+        await doLoad();
+
+        // 綁定篩選變更事件（只綁定一次）
+        if (!this.state._syslogsEventsSet) {
+            this.state._syslogsEventsSet = true;
+            for (const id of ['syslogsType', 'syslogsLevel', 'syslogsLimit']) {
+                document.getElementById(id)?.addEventListener('change', () => doLoad());
+            }
+            // 搜尋框 debounce
+            let searchTimer;
+            document.getElementById('syslogsSearch')?.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => doLoad(), 300);
+            });
+            // 自動刷新 checkbox
+            document.getElementById('syslogsAutoRefresh')?.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.state.syslogsRefreshTimer = setInterval(() => doLoad(), 10000);
+                } else if (this.state.syslogsRefreshTimer) {
+                    clearInterval(this.state.syslogsRefreshTimer);
+                    this.state.syslogsRefreshTimer = null;
+                }
+            });
+        }
     },
 
     /* ---------- 封禁管理 ---------- */

@@ -44,8 +44,9 @@ KEY_PREFIX_PATTERNS = [
 # 賦值語句中的可疑模式（排除 masked 值如 "XXX****XXXX"）
 ASSIGNMENT_PATTERNS = [
     # api_key = "actual_value" 或 api_key: "actual_value"
+    # 值必須是 ASCII 字母/數字/符號（排除含空格或 CJK 的描述文字）
     re.compile(
-        r'''(?:api[_-]?key|api[_-]?secret|secret[_-]?key|access[_-]?token|auth[_-]?token|bearer)\s*[=:]\s*["']([^"'*]{8,})["']''',
+        r'''(?:api[_-]?key|api[_-]?secret|secret[_-]?key|access[_-]?token|auth[_-]?token|bearer)\s*[=:]\s*["']([a-zA-Z0-9\-_./+=%]{8,})["']''',
         re.IGNORECASE,
     ),
     # Authorization: Bearer <token>（非變數引用）

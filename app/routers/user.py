@@ -460,6 +460,143 @@ async def unblock_account(request: Request):
 
 
 # ====================================================================== #
+#  管理员 - 系統日誌                                                       #
+# ====================================================================== #
+
+@router.get("/api/admin/system-logs")
+async def get_system_logs(request: Request):
+    """查詢系統日誌（管理員）
+
+    Query params:
+        log_type: "security_db" (DB 審計) | "app_file" (應用日誌文件)
+        limit:    筆數上限 (default 100, max 500)
+        search:   搜尋關鍵字 (用戶名 / IP / 事件)
+        level:    日誌級別篩選 (INFO / WARNING / ERROR)
+    """
+    try:
+        _verify_admin(request)
+
+        log_type = request.query_params.get("log_type", "security_db")
+        limit = min(int(request.query_params.get("limit", "100")), 500)
+        search = request.query_params.get("search", "").strip()
+        level = request.query_params.get("level", "").upper().strip()
+
+        if log_type == "security_db":
+            entries = _query_security_db_logs(limit=limit, search=search)
+        else:
+            entries = _query_app_file_logs(limit=limit, search=search, level=level)
+
+        return success_response({"entries": entries, "total": len(entries)})
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("查詢系統日誌失敗: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+def _query_security_db_logs(limit: int = 100, search: str = "") -> list:
+    """從 security_audit_log 表查詢"""
+    try:
+        from app.core.audit import SecurityAuditLogger
+        rows = SecurityAuditLogger.query(limit=limit)
+        if search:
+            kw = search.lower()
+            rows = [r for r in rows if kw in str(r).lower()]
+        # 格式化為前端需要的結構
+        entries = []
+        for r in rows:
+            entries.append({
+                "timestamp": str(r.get("created_at", "")),
+                "level": "INFO",
+                "event": r.get("action", ""),
+                "username": r.get("actor", ""),
+                "ip": r.get("ip_address", ""),
+                "details": r.get("details_json") if isinstance(r.get("details_json"), dict) else {},
+            })
+        return entries
+    except Exception as e:
+        logger.warning("查詢 security_audit_log 失敗: %s", e)
+        return []
+
+
+def _query_app_file_logs(limit: int = 100, search: str = "", level: str = "") -> list:
+    """讀取 logs/security_audit.log 文件尾部（JSON Lines 格式）"""
+    import json as _json
+    import os as _os
+
+    log_path = _os.path.join("logs", "security_audit.log")
+    if not _os.path.exists(log_path):
+        return []
+
+    entries = []
+    try:
+        # 讀取尾部（效率：只讀最後 200KB）
+        file_size = _os.path.getsize(log_path)
+        read_size = min(file_size, 200 * 1024)
+
+        with open(log_path, "r", encoding="utf-8") as f:
+            if file_size > read_size:
+                f.seek(file_size - read_size)
+                f.readline()  # 跳過可能截斷的第一行
+            lines = f.readlines()
+
+        # 反序（最新在前）
+        for line in reversed(lines):
+            if len(entries) >= limit:
+                break
+            line = line.strip()
+            if not line:
+                continue
+
+            # 提取 JSON 部分（格式: "2025-xx-xx ... - INFO - {json}"）
+            json_start = line.find("{")
+            if json_start < 0:
+                continue
+
+            # 提取日誌級別
+            line_level = "INFO"
+            prefix = line[:json_start]
+            for lv in ("ERROR", "WARNING", "INFO", "DEBUG"):
+                if lv in prefix:
+                    line_level = lv
+                    break
+
+            # 級別篩選
+            if level and line_level != level:
+                continue
+
+            try:
+                data = _json.loads(line[json_start:])
+            except _json.JSONDecodeError:
+                continue
+
+            entry = {
+                "timestamp": data.get("timestamp", ""),
+                "level": line_level,
+                "event": data.get("event", data.get("event_type", "")),
+                "username": data.get("username", data.get("user_id", "")),
+                "ip": data.get("ip", data.get("ip_address", "")),
+                "details": {k: v for k, v in data.items()
+                            if k not in ("timestamp", "event", "event_type", "username", "user_id", "ip", "ip_address")},
+            }
+
+            # 關鍵字搜索
+            if search:
+                kw = search.lower()
+                haystack = f"{entry['event']} {entry['username']} {entry['ip']} {str(entry['details'])}".lower()
+                if kw not in haystack:
+                    continue
+
+            entries.append(entry)
+
+    except Exception as e:
+        logger.warning("讀取應用日誌文件失敗: %s", e)
+
+    return entries
+
+
+# ====================================================================== #
 #  辅助函数                                                               #
 # ====================================================================== #
 

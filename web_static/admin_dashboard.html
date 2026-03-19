@@ -116,6 +116,9 @@
                 <div class="admin-sidebar__item admin-only" data-tab="aimonitor">
                     <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-cpu"/></svg></span><span>AI 監控</span>
                 </div>
+                <div class="admin-sidebar__item admin-only" data-tab="syslogs">
+                    <span class="admin-sidebar__icon"><svg class="icon"><use href="#i-server"/></svg></span><span>系統日誌</span>
+                </div>
             </nav>
             <div class="admin-sidebar__footer">v3.0</div>
         </aside>
@@ -762,6 +765,49 @@
                     </div>
                 </div>
             </div>
+
+                <!-- 系統日誌標籤 -->
+                <div class="tab-pane" id="syslogs-tab">
+                    <div class="d-flex justify-between align-center mb-3">
+                        <h3><svg class="icon icon-lg" style="stroke:var(--brand)"><use href="#i-server"/></svg> 系統日誌</h3>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <label style="display:flex;align-items:center;gap:4px;font-size:0.85em;color:var(--text-secondary);cursor:pointer;">
+                                <input type="checkbox" id="syslogsAutoRefresh"> 自動刷新
+                            </label>
+                            <button class="btn btn-primary" data-action="refreshSyslogs" style="border-radius:8px;padding:8px 16px;">
+                                <svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> 刷新
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 篩選列 -->
+                    <div style="display:flex;gap:12px;margin-bottom:1rem;flex-wrap:wrap;align-items:center;">
+                        <select id="syslogsType" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
+                            <option value="app_file">應用日誌（文件）</option>
+                            <option value="security_db">安全審計（DB）</option>
+                        </select>
+                        <select id="syslogsLevel" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
+                            <option value="">全部級別</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="INFO">INFO</option>
+                        </select>
+                        <input type="text" id="syslogsSearch" placeholder="搜尋用戶名 / IP / 事件..."
+                               style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
+                        <select id="syslogsLimit" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9em;">
+                            <option value="50">50 條</option>
+                            <option value="100" selected>100 條</option>
+                            <option value="200">200 條</option>
+                            <option value="500">500 條</option>
+                        </select>
+                    </div>
+
+                    <!-- 日誌表格 -->
+                    <div id="syslogsContainer" style="overflow-x:auto;">
+                        <p style="color:var(--text-secondary);text-align:center;padding:2rem;">點擊刷新載入日誌...</p>
+                    </div>
+                </div>
+
         </main>
     </div>
 
