@@ -41,9 +41,9 @@ class CreateRoomRequest(BaseModel):
 
 class UpdateRoomStatusRequest(BaseModel):
     """更新房间状态请求"""
-    status: Literal["active", "paused", "ended"] = Field(
+    status: Literal["draft", "active", "paused", "ended"] = Field(
         ...,
-        description="目标状态: active(开始上课), paused(暂停), ended(结束)",
+        description="目标状态: draft(重新開啟), active(开始上课), paused(暂停), ended(结束)",
     )
 
 
