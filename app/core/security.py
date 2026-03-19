@@ -465,18 +465,18 @@ class LoginAttemptTracker:
 
     def __init__(
         self,
-        max_attempts_per_ip: int = 30,
+        max_attempts_per_ip: int = 200,
         max_attempts_per_user: int = 5,
         max_attempts_per_ip_user: int = 3,
-        block_duration: int = 900,
+        block_duration: int = 120,
         block_duration_user: int = 300,
         time_window: int = 300,
         ip_whitelist: Optional[List[str]] = None,
     ):
-        self.max_attempts_per_ip = max_attempts_per_ip          # IP 级别阈值（调高，防止共享 IP 误锁）
+        self.max_attempts_per_ip = max_attempts_per_ip          # IP 级别阈值（極高，學校共享 IP 不應連坐）
         self.max_attempts_per_user = max_attempts_per_user      # 单用户阈值
         self.max_attempts_per_ip_user = max_attempts_per_ip_user  # IP+用户组合阈值
-        self.block_duration = block_duration                    # IP 级别锁定时长
+        self.block_duration = block_duration                    # IP 级别锁定时长（短，僅防DDoS）
         self.block_duration_user = block_duration_user          # 用户级别锁定时长（较短）
         self.time_window = time_window
         self.ip_whitelist = set(ip_whitelist or ["127.0.0.1", "::1"])
@@ -529,10 +529,18 @@ class LoginAttemptTracker:
                     self._user_attempts.pop(username, None)
 
             # 检查 IP 是否被封锁（高阈值，仅防止大规模暴力攻击）
+            # ⚠️ 關鍵：IP 級封禁不連坐——如果該用戶本人在此 IP 上沒有失敗記錄，放行
             if ip in self._blocked_ips:
                 if now < self._blocked_ips[ip]:
-                    retry_after = int(self._blocked_ips[ip] - now)
-                    raise AccountLockedError(retry_after=retry_after)
+                    # 只有該用戶自己也有失敗記錄時才封禁，避免教室共享 IP 連坐
+                    user_has_failures = (
+                        ip_user_key in self._ip_user_attempts
+                        and len(self._ip_user_attempts[ip_user_key]) > 0
+                    )
+                    if user_has_failures:
+                        retry_after = int(self._blocked_ips[ip] - now)
+                        raise AccountLockedError(retry_after=retry_after)
+                    # 該用戶無失敗記錄 → 放行（不因別人的錯誤被連坐）
                 else:
                     del self._blocked_ips[ip]
                     self._ip_attempts.pop(ip, None)
