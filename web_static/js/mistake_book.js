@@ -1977,80 +1977,79 @@ const Views = {
             </div>
         ` : '';
 
-        // Subject selected — show tabs + history + setup
+        // Subject selected — show tabs + two-column layout (history | setup)
         container.innerHTML = `
             <div class="mb-practice-tabs" id="practiceSubjectTabs">${tabsHtml}</div>
-            <div style="margin:0 auto;padding:0 16px">
             ${pendingCardHtml}
-            <div id="practiceHistoryArea" style="margin-bottom:16px">
-                <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
-            </div>
-            <div style="text-align:center;margin-bottom:16px" class="mb-glass-animate" style="animation-delay:100ms">
-                <button class="mb-btn mb-btn--primary" id="toggleNewPracticeBtn" onclick="Views._toggleNewPracticeSetup()">
-                    開始新練習
-                </button>
-            </div>
-            </div>
-            <div id="newPracticeSetup" style="display:none">
-                <div class="mb-glass-setup">
-                    <div class="mb-glass-setup__desc">
-                        根據你的${UI.subjectLabel(subject)}薄弱知識點自動出題
+            <div class="mb-practice-layout">
+                <!-- 左欄：練習歷史 -->
+                <div class="mb-practice-layout__history">
+                    <div id="practiceHistoryArea">
+                        <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
                     </div>
-                    <div class="mb-practice-setup__points" id="practicePointsArea">
-                        <div class="mb-practice-setup__label" style="text-align:left;margin-bottom:8px">
-                            選擇知識點
-                            <span style="font-weight:400;color:var(--mb-text-tertiary)">（不選則由系統智能推薦）</span>
+                </div>
+                <!-- 右欄：出題設定 -->
+                <div class="mb-practice-layout__setup">
+                    <div class="mb-glass-setup">
+                        <div class="mb-glass-setup__title">${Icons.sparkles(16)} 新練習</div>
+                        <div class="mb-practice-setup__points" id="practicePointsArea">
+                            <div class="mb-practice-setup__label" style="text-align:left;margin-bottom:8px">
+                                知識點
+                                <span style="font-weight:400;color:var(--mb-text-tertiary)">（不選則智能推薦）</span>
+                            </div>
+                            <div id="practicePointsList" style="text-align:left;margin-bottom:8px">
+                                <div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
+                                    載入知識點中...
+                                </div>
+                            </div>
+                            <div id="practicePointsActions" style="display:none;text-align:left;margin-bottom:12px;gap:8px;display:flex;flex-wrap:wrap">
+                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectWeak()">只選薄弱</button>
+                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectAll()">全選</button>
+                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceClearAll()">清空</button>
+                            </div>
+                            <div id="practicePointsWarning" style="display:none;font-size:12px;color:var(--mb-warning);margin-bottom:8px"></div>
                         </div>
-                        <div id="practicePointsList" style="text-align:left;margin-bottom:12px">
-                            <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
-                                載入知識點中...
+                        <div class="mb-practice-setup__row">
+                            <div class="mb-practice-setup__form" style="flex:1">
+                                <label class="mb-practice-setup__label">題數</label>
+                                <select class="mb-select" id="practiceCount" onchange="Views._updatePracticePlanPreview()">
+                                    <option value="3">3 題</option>
+                                    <option value="5" selected>5 題</option>
+                                    <option value="10">10 題</option>
+                                </select>
+                            </div>
+                            <div class="mb-practice-setup__form" style="flex:1">
+                                <label class="mb-practice-setup__label">難度</label>
+                                <select class="mb-select" id="practiceDifficulty" onchange="Views._updatePracticePlanPreview()">
+                                    <option value="" selected>自動</option>
+                                    <option value="1">基礎</option>
+                                    <option value="3">中等</option>
+                                    <option value="5">進階</option>
+                                </select>
                             </div>
                         </div>
-                        <div id="practicePointsActions" style="display:none;text-align:left;margin-bottom:16px;gap:8px;display:flex;flex-wrap:wrap">
-                            <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectWeak()">只選薄弱</button>
-                            <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectAll()">全選</button>
-                            <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceClearAll()">清空</button>
+                        <div id="practicePlanPreview" style="display:none;margin-bottom:12px;padding:10px;border-radius:10px;background:rgba(0,0,0,0.02);text-align:left;font-size:12px;color:var(--mb-text-secondary)"></div>
+                        <div class="mb-practice-setup__form">
+                            <label class="mb-practice-setup__label">生成方式</label>
+                            <div class="mb-provider-toggle" id="practiceProviderToggle">
+                                <button class="mb-provider-btn active" data-provider="local" onclick="App.setPracticeProvider('local')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V5.25a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 5.25v13.5a2.25 2.25 0 002.25 2.25z"/></svg>
+                                    本地生成
+                                </button>
+                                <button class="mb-provider-btn" data-provider="deepseek" id="practiceCloudProviderBtn" onclick="App.setPracticeProvider('deepseek')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
+                                    雲端生成
+                                </button>
+                            </div>
+                            <div class="mb-provider-hint" id="practiceProviderHint">
+                                <span id="practiceProviderHintText">速度穩定，校內可控</span>
+                            </div>
                         </div>
-                        <div id="practicePointsWarning" style="display:none;font-size:12px;color:var(--mb-warning);margin-bottom:8px"></div>
+                        <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
+                                id="startPracticeBtn">
+                            開始練習
+                        </button>
                     </div>
-                    <div class="mb-practice-setup__form">
-                        <label class="mb-practice-setup__label">題目數量</label>
-                        <select class="mb-select" id="practiceCount" onchange="Views._updatePracticePlanPreview()">
-                            <option value="3">3 題 · 快速練習</option>
-                            <option value="5" selected>5 題 · 標準練習</option>
-                            <option value="10">10 題 · 深度練習</option>
-                        </select>
-                    </div>
-                    <div class="mb-practice-setup__form">
-                        <label class="mb-practice-setup__label">難度</label>
-                        <select class="mb-select" id="practiceDifficulty" onchange="Views._updatePracticePlanPreview()">
-                            <option value="" selected>自動匹配（根據掌握度）</option>
-                            <option value="1">基礎</option>
-                            <option value="3">中等</option>
-                            <option value="5">進階</option>
-                        </select>
-                    </div>
-                    <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:12px;background:rgba(0,0,0,0.02);text-align:left;font-size:13px;color:var(--mb-text-secondary)"></div>
-                    <div class="mb-practice-setup__form">
-                        <label class="mb-practice-setup__label">生成方式</label>
-                        <div class="mb-provider-toggle" id="practiceProviderToggle">
-                            <button class="mb-provider-btn active" data-provider="local" onclick="App.setPracticeProvider('local')">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V5.25a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 5.25v13.5a2.25 2.25 0 002.25 2.25z"/></svg>
-                                本地生成
-                            </button>
-                            <button class="mb-provider-btn" data-provider="deepseek" id="practiceCloudProviderBtn" onclick="App.setPracticeProvider('deepseek')">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
-                                雲端生成
-                            </button>
-                        </div>
-                        <div class="mb-provider-hint" id="practiceProviderHint">
-                            <span id="practiceProviderHintText">速度穩定，校內可控</span>
-                        </div>
-                    </div>
-                    <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
-                            id="startPracticeBtn" style="max-width:360px">
-                        開始練習
-                    </button>
                 </div>
             </div>
         `;
@@ -2063,8 +2062,9 @@ const Views = {
             this.renderPractice(container);
         });
 
-        // 載入歷史
+        // 載入歷史 + 知識點（setup 始終可見）
         this._loadPracticeHistory(subject);
+        this._loadPracticeMastery(subject);
 
         // 檢查雲端可用性 & 恢復 provider 狀態
         App.checkCloudAvailability().then(() => {
