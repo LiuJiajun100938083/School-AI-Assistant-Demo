@@ -634,6 +634,22 @@ p, span, div, li, label {
     color: var(--text-primary);
     letter-spacing: -0.02em;
     margin-bottom: 2px;
+    font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace, system-ui, sans-serif;
+    min-height: 1.4em;  /* 防止動畫時高度跳動 */
+}
+
+/* 解密動畫 — 亂碼字元 */
+.decrypt-scramble {
+    opacity: 0.4;
+    color: var(--accent, #007AFF);
+    font-weight: 400;
+}
+
+/* 解密動畫 — 已揭示字元 */
+.decrypt-revealed {
+    opacity: 1;
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 .home-welcome__subtitle {

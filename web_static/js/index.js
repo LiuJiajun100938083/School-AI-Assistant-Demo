@@ -257,7 +257,15 @@ const HomeUI = {
     renderWelcomeStats(apps, userName) {
         const title = this.elements.homeWelcomeTitle;
         if (title && userName) {
-            title.textContent = `歡迎回來，${userName}`;
+            const welcomeText = `歡迎回來，${userName}`;
+            DecryptText.animate(title, welcomeText, {
+                speed: 50,
+                maxIterations: 8,
+                sequential: true,
+                revealDirection: 'start',
+                className: 'decrypt-revealed',
+                encryptedClassName: 'decrypt-scramble',
+            });
         }
 
         const statsEl = this.elements.homeWelcomeStats;
