@@ -1610,7 +1610,7 @@ const ChatApp = {
                 const ctx = this._ensureStreamCtx(ctxHolder);
                 ctx.phase = 'done';
                 if (eventData.full_answer) ctx.fullAnswer = eventData.full_answer;
-                if (eventData.full_thinking) ctx.fullThinking = eventData.full_thinking;
+                if (eventData.full_thinking || eventData.thinking) ctx.fullThinking = eventData.full_thinking || eventData.thinking;
                 if (eventData.conversation_id) {
                     this.state.currentConversationId = eventData.conversation_id;
                 }
@@ -1697,14 +1697,21 @@ const ChatApp = {
 
             if (thinking) {
                 const sections = this._parseThinkingContent(thinking);
+                let hasSection = false;
                 if (sections.knowledge) {
                     html += this._buildSectionHtml('knowledge-section', '參考資料', sections.knowledge);
+                    hasSection = true;
                 }
                 if (sections.reasoning) {
                     html += this._buildSectionHtml('reasoning-section', '分析過程', sections.reasoning);
+                    hasSection = true;
                 }
                 if (sections.thinking) {
                     html += this._buildSectionHtml('thinking-section', '思考筆記', sections.thinking);
+                    hasSection = true;
+                }
+                if (!hasSection && thinking.trim()) {
+                    html += this._buildSectionHtml('reasoning-section', '思考過程', thinking);
                 }
             }
 
