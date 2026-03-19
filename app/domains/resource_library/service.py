@@ -133,7 +133,7 @@ class ResourceLibraryService:
                 id                INT AUTO_INCREMENT,
                 share_id          VARCHAR(64) NOT NULL,
                 slide_order       INT NOT NULL,
-                slide_type        ENUM('ppt','game','quiz','quick_answer','raise_hand','poll') NOT NULL,
+                slide_type        ENUM('ppt','game','quiz','quick_answer','raise_hand','poll','link','interactive') NOT NULL,
                 title             VARCHAR(255) DEFAULT '',
                 config            JSON NOT NULL,
                 config_version    INT DEFAULT 1,
@@ -143,6 +143,15 @@ class ResourceLibraryService:
                 FOREIGN KEY (share_id) REFERENCES shared_resources(share_id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
+
+        # 更新已存在的表，补齐 ENUM 值
+        try:
+            pool.execute_write("""
+                ALTER TABLE shared_resource_slides
+                MODIFY COLUMN slide_type ENUM('ppt','game','quiz','quick_answer','raise_hand','poll','link','interactive') NOT NULL
+            """)
+        except Exception:
+            pass  # 表可能尚未建立，忽略
 
         logger.info("共享资源库系统表初始化完成")
 
