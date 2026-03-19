@@ -574,23 +574,41 @@ const AdminUI = {
         });
     },
 
-    /* ---------- 用戶表格渲染 ---------- */
+    /* ---------- 用戶表格渲染（性能優化版） ---------- */
     renderUsersTable(users) {
         const tbody = document.getElementById('usersTableBody');
-        tbody.innerHTML = '';
-        users.forEach(user => {
-            const tr = document.createElement('tr');
-            const roleDisplay = {
-                'admin': '<span style="background: var(--color-error); color: white; padding: 2px 8px; border-radius: 12px;">管理员</span>',
-                'teacher': '<span style="background: var(--color-warning); color: white; padding: 2px 8px; border-radius: 12px;">教師</span>',
-                'student': '<span style="background: var(--color-success); color: white; padding: 2px 8px; border-radius: 12px;">學生</span>'
-            }[user.role] || user.role;
+
+        // 使用事件委派（只綁一次，不再逐行綁定）
+        if (!tbody._delegated) {
+            tbody._delegated = true;
+            tbody.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const uname = btn.dataset.username;
+                if (action === 'editUser') AdminApp.editUser(uname);
+                else if (action === 'resetPwd') AdminApp.resetUserPassword(uname);
+                else if (action === 'deleteUser') AdminApp.deleteUser(uname);
+            });
+        }
+
+        // 使用 innerHTML 一次寫入，避免逐行 DOM 操作
+        const roleMap = {
+            'admin': '<span style="background: var(--color-error); color: white; padding: 2px 8px; border-radius: 12px;">管理员</span>',
+            'teacher': '<span style="background: var(--color-warning); color: white; padding: 2px 8px; border-radius: 12px;">教師</span>',
+            'student': '<span style="background: var(--color-success); color: white; padding: 2px 8px; border-radius: 12px;">學生</span>'
+        };
+
+        const rows = [];
+        for (let i = 0; i < users.length; i++) {
+            const user = users[i];
+            const roleDisplay = roleMap[user.role] || user.role;
             const statusDisplay = user.status === 'active' ? '<span style="color: green;">✓ 活躍</span>' : '<span style="color: red;">✗ 禁用</span>';
             let lastLogin = user.last_login || '从未登录';
             if (lastLogin !== '从未登录') {
                 try { lastLogin = new Date(lastLogin).toLocaleString('zh-CN'); } catch (e) {}
             }
-            tr.innerHTML = `
+            rows.push(`<tr>
                 <td style="padding: 12px;">${user.username}</td>
                 <td style="padding: 12px;">${user.display_name || '-'}</td>
                 <td style="padding: 12px;">${user.english_name || '-'}</td>
@@ -605,19 +623,9 @@ const AdminUI = {
                     <button data-action="resetPwd" data-username="${user.username}" style="padding: 4px 8px; background: var(--warning); color: white; border: none; border-radius: 4px; margin-right: 5px; cursor: pointer;">重置密碼</button>
                     <button data-action="deleteUser" data-username="${user.username}" style="padding: 4px 8px; background: var(--danger); color: white; border: none; border-radius: 4px; cursor: pointer;">刪除</button>
                 </td>
-            `;
-            // bind action buttons
-            tr.querySelectorAll('[data-action]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const action = btn.dataset.action;
-                    const uname = btn.dataset.username;
-                    if (action === 'editUser') AdminApp.editUser(uname);
-                    else if (action === 'resetPwd') AdminApp.resetUserPassword(uname);
-                    else if (action === 'deleteUser') AdminApp.deleteUser(uname);
-                });
-            });
-            tbody.appendChild(tr);
-        });
+            </tr>`);
+        }
+        tbody.innerHTML = rows.join('');
     },
 
     /* ---------- 封禁列表渲染 ---------- */
@@ -1279,7 +1287,13 @@ const AdminApp = {
         const userClassFilter = document.getElementById('userClassFilter');
         if (userClassFilter) userClassFilter.addEventListener('change', () => this.filterUsers());
         const userSearchInput = document.getElementById('userSearchInput');
-        if (userSearchInput) userSearchInput.addEventListener('keyup', () => this.filterUsers());
+        if (userSearchInput) {
+            let _searchTimer = null;
+            userSearchInput.addEventListener('keyup', () => {
+                clearTimeout(_searchTimer);
+                _searchTimer = setTimeout(() => this.filterUsers(), 250);
+            });
+        }
 
         // User form
         const userForm = document.getElementById('userForm');
@@ -2075,8 +2089,13 @@ ${report.teacher_attention_points || '暫無'}
     },
 
     /* ---------- 用戶管理 ---------- */
-    async loadUsers() {
+    async loadUsers(forceRefresh = false) {
         try {
+            // 有緩存且非強制刷新時直接渲染，避免重複請求
+            if (!forceRefresh && this.state.allUsers && this.state.allUsers.length > 0) {
+                AdminUI.renderUsersTable(this.state.allUsers);
+                return;
+            }
             const data = await AdminAPI.fetchUsers();
             this.state.allUsers = data.users || [];
             this.updateUserClassFilter();
@@ -2179,7 +2198,7 @@ ${report.teacher_attention_points || '暫無'}
                 alert('用戶添加成功！');
             }
             this.closeUserModal();
-            this.loadUsers();
+            this.loadUsers(true);
         } catch (error) {
             alert('操作失敗：' + error.message);
         }
@@ -2208,7 +2227,7 @@ ${report.teacher_attention_points || '暫無'}
             await AdminAPI.deleteUser(this.state.userToDelete);
             alert('用戶刪除成功！');
             this.closeDeleteConfirm();
-            this.loadUsers();
+            this.loadUsers(true);
         } catch (error) {
             alert('刪除失敗：' + error.message);
         }
@@ -2307,7 +2326,7 @@ ${report.teacher_attention_points || '暫無'}
                 html += '</ul>';
             }
             resultsList.innerHTML = html;
-            if (result.success_count > 0) this.loadUsers();
+            if (result.success_count > 0) this.loadUsers(true);
             if (result.failed_count === 0 && result.success_count > 0) {
                 alert(`導入完成！成功添加 ${result.success_count} 個用戶`);
             }
@@ -2335,7 +2354,7 @@ ${report.teacher_attention_points || '暫無'}
             const result = response_data.data || response_data;
             alert(`批量添加完成！\n成功：${result.success_count || 0}\n失敗：${result.failed_count || 0}`);
             this.closeBatchAddModal();
-            this.loadUsers();
+            this.loadUsers(true);
         } catch (error) {
             alert('批量添加失敗：' + error.message);
         }
