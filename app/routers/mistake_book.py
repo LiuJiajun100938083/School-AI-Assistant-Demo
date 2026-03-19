@@ -540,6 +540,7 @@ async def generate_practice(
             question_count=req.question_count,
             target_points=req.target_points,
             difficulty=req.difficulty,
+            provider=req.provider,
         )
 
         # 去重命中時不需要再啟動後台任務
@@ -555,6 +556,7 @@ async def generate_practice(
                         question_count=bg_ctx["question_count"],
                         resolved_difficulty=bg_ctx["resolved_difficulty"],
                         generation_context=bg_ctx["generation_context"],
+                        provider=bg_ctx.get("provider", "local"),
                     )
                 except Exception as e:
                     logger.error("後台練習生成失敗 (session=%s): %s",
@@ -584,6 +586,39 @@ async def get_practice_status(
     if not result:
         raise HTTPException(404, "練習不存在或無權訪問")
     return {"success": True, "data": result}
+
+
+@router.get("/api/mistakes/practice/cloud-status")
+async def get_practice_cloud_status(
+    current_user: dict = Depends(get_current_user),
+):
+    """查詢雲端 LLM 是否可用（練習生成用）。"""
+    try:
+        from llm.config import get_llm_config
+        config = get_llm_config()
+
+        if not config.api_key:
+            return {"success": True, "data": {
+                "available": False,
+                "model": config.api_model or "deepseek-chat",
+                "provider": "deepseek",
+                "reason": "missing_api_key",
+            }}
+
+        return {"success": True, "data": {
+            "available": True,
+            "model": config.api_model or "deepseek-chat",
+            "provider": "deepseek",
+            "reason": None,
+        }}
+    except Exception as e:
+        logger.warning("practice cloud-status check failed: %s", e)
+        return {"success": True, "data": {
+            "available": False,
+            "model": None,
+            "provider": "deepseek",
+            "reason": "config_error",
+        }}
 
 
 @router.post("/api/mistakes/practice/{session_id}/submit")

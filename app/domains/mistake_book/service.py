@@ -1383,6 +1383,7 @@ class MistakeBookService:
         question_count: int = 5,
         target_points: Optional[List[str]] = None,
         difficulty: Optional[int] = None,
+        provider: str = "local",
     ) -> Dict:
         """
         Step A: 快速返回 session_id，不做 LLM 調用。
@@ -1478,6 +1479,7 @@ class MistakeBookService:
                 "question_count": question_count,
                 "resolved_difficulty": resolved_difficulty,
                 "generation_context": generation_context,
+                "provider": provider,
             },
         }
 
@@ -1488,6 +1490,7 @@ class MistakeBookService:
         question_count: int,
         resolved_difficulty: int,
         generation_context: Dict,
+        provider: str = "local",
     ) -> None:
         """
         Step B: 後台生成題目（LLM + SVG + chart）。
@@ -1513,7 +1516,11 @@ class MistakeBookService:
                 student_history_context=generation_context.get("history_context", ""),
             )
             prompt += f"\n\n[seed={seed}] 請確保每次出題的數值、情境、設問方式都不同。"
-            raw = await self._call_ollama_direct(prompt, temperature=0.8)
+            from app.infrastructure.ai_pipeline.llm_caller import call_llm_json
+            raw = await call_llm_json(
+                prompt, provider=provider, temperature=0.8,
+                gate_task="practice_generation",
+            )
             questions_data = self._parse_json_response(raw)
             questions = questions_data.get("questions", [])
 

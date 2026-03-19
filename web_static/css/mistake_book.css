@@ -3681,3 +3681,28 @@
         transition: none;
     }
 }
+
+/* ---- Provider Toggle (練習生成方式) ---- */
+.mb-provider-toggle {
+    display: flex; gap: 4px;
+    background: rgba(241,245,249,0.8); border-radius: 8px; padding: 3px;
+}
+.mb-provider-btn {
+    flex: 1; padding: 8px 10px; border: none; border-radius: 6px;
+    background: transparent; font-size: 12px; font-weight: 500;
+    color: var(--mb-text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.mb-provider-btn.active {
+    background: #fff; color: var(--mb-brand, #006633);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.mb-provider-btn:disabled {
+    opacity: 0.5; cursor: not-allowed;
+}
+.mb-provider-hint {
+    margin-top: 4px; text-align: center;
+    font-size: 11px; color: #94a3b8;
+}

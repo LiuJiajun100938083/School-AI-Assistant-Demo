@@ -80,6 +80,7 @@ class GeneratePracticeRequest(BaseModel):
     question_count: int = Field(default=5, ge=1, le=20, description="題目數量")
     target_points: Optional[List[str]] = Field(None, description="指定知識點（不填則自動選擇薄弱點）")
     difficulty: Optional[int] = Field(None, ge=1, le=5, description="指定難度（不填則自動匹配）")
+    provider: str = Field(default="local", description="LLM 提供者：local（Ollama）或 deepseek（雲端）")
 
 
 class SubmitPracticeRequest(BaseModel):

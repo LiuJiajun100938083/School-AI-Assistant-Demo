@@ -97,6 +97,9 @@ const App = {
         dashboard: null,
         currentMistake: null,
         viewMode: localStorage.getItem('mb_viewMode') || 'list',
+        practiceProvider: 'local',       // 'local' | 'deepseek'
+        cloudAvailable: false,
+        cloudReason: null,
     },
 
     /** 切換列表/網格視圖 */
@@ -104,6 +107,43 @@ const App = {
         this.state.viewMode = mode;
         localStorage.setItem('mb_viewMode', mode);
         Views._renderCurrentMistakes();
+    },
+
+    /** 切換練習生成 Provider */
+    setPracticeProvider(provider) {
+        if (provider === 'deepseek' && !this.state.cloudAvailable) return;
+        this.state.practiceProvider = provider;
+        document.querySelectorAll('#practiceProviderToggle .mb-provider-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.provider === provider);
+        });
+        const hint = document.getElementById('practiceProviderHintText');
+        if (hint) {
+            hint.textContent = provider === 'local' ? '速度穩定，校內可控' : '雲端 API，品質更高';
+        }
+    },
+
+    /** 檢查雲端可用性 */
+    async checkCloudAvailability() {
+        try {
+            const resp = await fetch('/api/mistakes/practice/cloud-status', {
+                headers: { 'Authorization': `Bearer ${this.state.token}` },
+            });
+            const data = await resp.json();
+            const info = data.data || data;
+            this.state.cloudAvailable = !!info.available;
+            this.state.cloudReason = info.reason;
+
+            const cloudBtn = document.getElementById('practiceCloudProviderBtn');
+            if (cloudBtn) {
+                cloudBtn.disabled = !this.state.cloudAvailable;
+                if (!this.state.cloudAvailable) {
+                    cloudBtn.title = info.reason === 'missing_api_key' ? '未配置雲端 API Key' : '雲端服務不可用';
+                }
+            }
+        } catch (e) {
+            this.state.cloudAvailable = false;
+            console.warn('Practice cloud status check failed:', e);
+        }
     },
 
     /** 獲取當前科目的分類列表 */
@@ -345,8 +385,8 @@ const API = {
     async getPracticeMastery(subject) {
         return this._fetch(`/api/mistakes/practice/mastery?subject=${encodeURIComponent(subject)}`);
     },
-    async generatePractice(subject, count = 5, targetPoints = null, difficulty = null) {
-        const body = { subject, question_count: count, session_type: 'targeted' };
+    async generatePractice(subject, count = 5, targetPoints = null, difficulty = null, provider = 'local') {
+        const body = { subject, question_count: count, session_type: 'targeted', provider };
         if (targetPoints && targetPoints.length > 0) body.target_points = targetPoints;
         if (difficulty) body.difficulty = difficulty;
         return this._fetch('/api/mistakes/practice/generate', {
@@ -1991,6 +2031,22 @@ const Views = {
                         </select>
                     </div>
                     <div id="practicePlanPreview" style="display:none;margin-bottom:16px;padding:12px;border-radius:12px;background:rgba(0,0,0,0.02);text-align:left;font-size:13px;color:var(--mb-text-secondary)"></div>
+                    <div class="mb-practice-setup__form">
+                        <label class="mb-practice-setup__label">生成方式</label>
+                        <div class="mb-provider-toggle" id="practiceProviderToggle">
+                            <button class="mb-provider-btn active" data-provider="local" onclick="App.setPracticeProvider('local')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V5.25a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 5.25v13.5a2.25 2.25 0 002.25 2.25z"/></svg>
+                                本地生成
+                            </button>
+                            <button class="mb-provider-btn" data-provider="deepseek" id="practiceCloudProviderBtn" onclick="App.setPracticeProvider('deepseek')">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
+                                雲端生成
+                            </button>
+                        </div>
+                        <div class="mb-provider-hint" id="practiceProviderHint">
+                            <span id="practiceProviderHintText">速度穩定，校內可控</span>
+                        </div>
+                    </div>
                     <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
                             id="startPracticeBtn" style="max-width:360px">
                         開始練習
@@ -2009,6 +2065,11 @@ const Views = {
 
         // 載入歷史
         this._loadPracticeHistory(subject);
+
+        // 檢查雲端可用性 & 恢復 provider 狀態
+        App.checkCloudAvailability().then(() => {
+            App.setPracticeProvider(App.state.practiceProvider);
+        });
 
         // 若有 pending session，啟動輪詢
         if (pending) {
@@ -2645,8 +2706,9 @@ const Views = {
         const diffVal = document.getElementById('practiceDifficulty')?.value;
         const difficulty = diffVal ? parseInt(diffVal) : null;
 
+        const provider = App.state.practiceProvider || 'local';
         // 直接 POST，不顯示進度動畫（跳轉到列表頁，後台自動完成）
-        const res = await API.generatePractice(subject, count, targetPoints.length > 0 ? targetPoints : null, difficulty);
+        const res = await API.generatePractice(subject, count, targetPoints.length > 0 ? targetPoints : null, difficulty, provider);
 
         if (!res || !res.data) {
             btn.disabled = false;
