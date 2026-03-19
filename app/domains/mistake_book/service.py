@@ -2011,6 +2011,16 @@ class MistakeBookService:
             "page_size": page_size,
         }
 
+    def delete_practice_session(self, session_id: str, username: str) -> None:
+        """刪除練習記錄（僅限本人）"""
+        session = self._practices.find_by_session_id(session_id)
+        if not session:
+            raise MistakeNotFoundError(session_id)
+        if session.get("student_username") != username:
+            raise MistakeNotFoundError(session_id)
+        self._practices.delete("session_id = %s AND student_username = %s", (session_id, username))
+        logger.info("Practice session deleted: %s by %s", session_id, username)
+
     def get_practice_session_detail(
         self, session_id: str, username: str,
     ) -> Dict:

@@ -2181,36 +2181,72 @@ const Views = {
                 careless: '粗心', concept: '概念', calculation: '計算',
                 method: '方法', format: '格式', incomplete: '不完整', irrelevant: '無關',
             };
-            let html = `<div style="font-size:14px;font-weight:600;padding:4px 0 10px;color:var(--mb-text);display:flex;align-items:center;gap:6px">${Icons.clock(14)} 練習歷史</div>`;
+            let html = `<div class="mb-history-header">
+                <span>${Icons.clock(14)} 練習歷史</span>
+                <span class="mb-history-count">${items.length} 筆</span>
+            </div>
+            <div class="mb-history-list">`;
             items.forEach((s, idx) => {
-                const date = s.completed_at ? new Date(s.completed_at).toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }) : '';
+                const date = s.completed_at
+                    ? new Date(s.completed_at).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })
+                    : '';
                 const scoreColor = s.score >= 80 ? 'var(--mb-success)' : s.score >= 60 ? 'var(--mb-warning)' : 'var(--mb-danger)';
                 const errLabel = s.primary_error_type ? (errorTypeLabels[s.primary_error_type] || s.primary_error_type) : '';
-                html += `<div class="mb-glass-history mb-glass-animate" data-session-id="${s.session_id}" style="animation-delay:${idx * 40}ms">
-                    <div class="mb-glass-history__row">
-                        <div>
-                            <span class="mb-glass-history__date">${date}</span>
-                            <span class="mb-glass-history__meta">${s.total_questions} 題</span>
-                        </div>
-                        <span class="mb-glass-history__score" style="color:${scoreColor}">${Math.round(s.score)}</span>
+                const detail = s.wrong_count > 0
+                    ? `錯 ${s.wrong_count}${errLabel ? ' · ' + errLabel : ''}`
+                    : '<span style="color:var(--mb-success)">全對</span>';
+                html += `<div class="mb-history-row" data-session-id="${s.session_id}" style="animation-delay:${idx * 25}ms">
+                    <div class="mb-history-row__main">
+                        <span class="mb-history-row__date">${date}</span>
+                        <span class="mb-history-row__count">${s.total_questions} 題</span>
+                        <span class="mb-history-row__detail">${detail}</span>
                     </div>
-                    ${s.wrong_count > 0 ? `<div class="mb-glass-history__detail">
-                        錯題 ${s.wrong_count} 題${errLabel ? ' · ' + errLabel : ''}
-                    </div>` : `<div class="mb-glass-history__detail" style="color:var(--mb-success)">全部答對</div>`}
+                    <div class="mb-history-row__actions">
+                        <span class="mb-history-row__score" style="color:${scoreColor}">${Math.round(s.score)}</span>
+                        <button class="mb-history-row__del" data-del-session="${s.session_id}" title="刪除">${Icons.x(12)}</button>
+                    </div>
                 </div>`;
             });
+            html += `</div>`;
             area.innerHTML = html;
 
-            // 點擊進入詳情
+            // 點擊行進入詳情（排除刪除按鈕）
             area.addEventListener('click', e => {
-                const item = e.target.closest('[data-session-id]');
-                if (item) {
-                    const sid = item.dataset.sessionId;
-                    Views._openPracticeDetail(sid);
+                // 刪除按鈕
+                const delBtn = e.target.closest('[data-del-session]');
+                if (delBtn) {
+                    e.stopPropagation();
+                    const sid = delBtn.dataset.delSession;
+                    this._confirmDeletePractice(sid, delBtn.closest('.mb-history-row'));
+                    return;
                 }
+                const item = e.target.closest('[data-session-id]');
+                if (item) Views._openPracticeDetail(item.dataset.sessionId);
             });
         } catch (e) {
             area.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入歷史失敗</div>`;
+        }
+    },
+
+    async _confirmDeletePractice(sessionId, rowEl) {
+        if (!confirm('確定要刪除這筆練習記錄嗎？')) return;
+        try {
+            const resp = await fetch(`/api/mistakes/practice/${sessionId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${App.state.token}` },
+            });
+            const data = await resp.json();
+            if (data.success) {
+                rowEl.style.transition = 'opacity 0.2s, transform 0.2s';
+                rowEl.style.opacity = '0';
+                rowEl.style.transform = 'translateX(20px)';
+                setTimeout(() => rowEl.remove(), 200);
+                UI.toast('已刪除', 'success');
+            } else {
+                UI.toast(data.message || '刪除失敗', 'error');
+            }
+        } catch (e) {
+            UI.toast('刪除失敗', 'error');
         }
     },
 

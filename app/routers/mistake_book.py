@@ -666,6 +666,23 @@ async def get_practice_history(
         raise HTTPException(400, e.message)
 
 
+@router.delete("/api/mistakes/practice/{session_id}")
+async def delete_practice_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """刪除練習記錄"""
+    try:
+        service = get_services().mistake_book
+        service.delete_practice_session(
+            session_id=session_id,
+            username=current_user["username"],
+        )
+        return {"success": True, "message": "練習記錄已刪除"}
+    except MistakeBookError as e:
+        raise HTTPException(400, e.message)
+
+
 @router.get("/api/mistakes/practice/{session_id}/detail")
 async def get_practice_session_detail(
     session_id: str,
