@@ -115,6 +115,14 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.error(f"数据库初始化失败: {e}")
 
+        # 建立安全審計日誌表
+        try:
+            from app.core.audit import SECURITY_AUDIT_TABLE_DDL
+            pool.execute_write(SECURITY_AUDIT_TABLE_DDL)
+            logger.info("安全審計日誌表就緒")
+        except Exception as e:
+            logger.warning("安全審計日誌表初始化失敗: %s", e)
+
         # 初始化 JWT 管理器
         jwt_mgr = init_jwt_manager(settings)
         logger.info("JWT 管理器初始化成功")

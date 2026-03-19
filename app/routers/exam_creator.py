@@ -10,7 +10,7 @@ import os
 import uuid
 from typing import Tuple
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import require_admin, require_teacher
@@ -497,21 +497,41 @@ async def get_cloud_status(
 
 @router.put("/api/exam-creator/cloud-config")
 async def update_cloud_config(
+    request: Request,
     body: dict,
     admin_info: Tuple[str, str] = Depends(require_admin),
 ):
     """管理員配置雲端 LLM API Key（需 admin 權限）。"""
     from llm.config import get_llm_config_manager
+    from app.core.audit import SecurityAuditLogger
 
     manager = get_llm_config_manager()
+    username, role = admin_info
+    client_ip = request.client.host if request.client else None
 
     api_key = body.get("api_key")
     api_model = body.get("api_model")
 
     if api_key is not None:
         manager.update_runtime(api_key=api_key)
+        # 審計記錄：只記錄 masked key，不記錄原文
+        masked = f"{api_key[:3]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
+        SecurityAuditLogger.log(
+            action="UPDATE_API_KEY",
+            actor=username,
+            ip_address=client_ip,
+            details={"masked_key": masked},
+        )
+
     if api_model is not None:
+        old_model = manager.config.api_model
         manager.update_runtime(api_model=api_model)
+        SecurityAuditLogger.log(
+            action="UPDATE_API_MODEL",
+            actor=username,
+            ip_address=client_ip,
+            details={"old_model": old_model, "new_model": api_model},
+        )
 
     config = manager.config
     # 回傳時遮罩 API key

@@ -11,6 +11,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional, List
 
+from cryptography.fernet import Fernet, InvalidToken
+
 logger = logging.getLogger(__name__)
 
 
@@ -146,28 +148,59 @@ class LLMConfigManager:
                 setattr(self._config, key, value)
                 logger.info("LLM 配置已更新: %s", key)
                 if key in _PERSIST_MAP and value is not None:
-                    # api_key 存入 .env 時做 base64 編碼，避免明文暴露
+                    # api_key 存入 .env 時做 Fernet 加密，避免明文暴露
                     store_val = self._encode_api_key(value) if key == "api_key" else value
                     env_updates[_PERSIST_MAP[key]] = store_val
         if env_updates:
             self._update_env_file(env_updates)
 
-    @staticmethod
-    def _encode_api_key(key: str) -> str:
-        """Base64 編碼 API key（防止磁盤明文暴露）"""
-        return "b64:" + base64.b64encode(key.encode()).decode()
+    # ── Fernet 加密 / 解密 ──
 
     @staticmethod
-    def _decode_api_key(raw: str | None) -> str | None:
-        """解碼 API key：帶 b64: 前綴的做 base64 解碼，否則原樣返回（兼容舊明文）。"""
+    def _get_fernet() -> Optional[Fernet]:
+        """讀取 .encryption_key 並返回 Fernet 實例，失敗返回 None。"""
+        key_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".encryption_key")
+        if not os.path.exists(key_path):
+            logger.warning("加密金鑰檔案不存在: %s — API Key 將以 Base64 備援模式存儲", key_path)
+            return None
+        try:
+            with open(key_path, "r", encoding="utf-8") as f:
+                return Fernet(f.read().strip().encode())
+        except Exception as e:
+            logger.warning("載入加密金鑰失敗: %s — 降級為 Base64", e)
+            return None
+
+    @classmethod
+    def _encode_api_key(cls, key: str) -> str:
+        """加密 API key — 優先 Fernet (enc:)，降級 Base64 (b64:)"""
+        fernet = cls._get_fernet()
+        if fernet:
+            token = fernet.encrypt(key.encode()).decode()
+            return f"enc:{token}"
+        # 降級：Base64 編碼
+        return "b64:" + base64.b64encode(key.encode()).decode()
+
+    @classmethod
+    def _decode_api_key(cls, raw: str | None) -> str | None:
+        """解密 API key — 支持 enc: (Fernet)、b64: (Base64)、明文（向後兼容）。"""
         if not raw:
+            return None
+        if raw.startswith("enc:"):
+            fernet = cls._get_fernet()
+            if fernet:
+                try:
+                    return fernet.decrypt(raw[4:].encode()).decode()
+                except InvalidToken:
+                    logger.error("Fernet 解密 API Key 失敗（金鑰不匹配？）")
+                    return None
+            logger.error("無法載入加密金鑰，無法解密 enc: 格式的 API Key")
             return None
         if raw.startswith("b64:"):
             try:
                 return base64.b64decode(raw[4:]).decode()
             except Exception:
-                return raw  # 解碼失敗則當明文
-        return raw
+                return raw
+        return raw  # 明文（兼容舊配置）
 
     @staticmethod
     def _update_env_file(updates: dict[str, str], env_path: str = ".env"):
