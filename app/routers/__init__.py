@@ -542,6 +542,30 @@ def _run_schema_migrations() -> None:
                 )
                 break
 
+        # --- practice_sessions: 補充 error_code / error_message 列和擴展 status ENUM ---
+        try:
+            ps_cols = {r["Field"] for r in pool.execute("SHOW COLUMNS FROM practice_sessions")}
+            if "error_code" not in ps_cols:
+                pool.execute(
+                    "ALTER TABLE practice_sessions "
+                    "MODIFY COLUMN status ENUM('generating','generated','in_progress','completed','expired','generation_failed') DEFAULT 'generated', "
+                    "ADD COLUMN error_code VARCHAR(50) NULL COMMENT '錯誤代碼' AFTER status, "
+                    "ADD COLUMN error_message TEXT NULL COMMENT '錯誤訊息' AFTER error_code"
+                )
+                logger.info("practice_sessions: 已補充 error_code, error_message 列及擴展 status ENUM")
+            else:
+                # 確保 status ENUM 包含新值
+                for col_info in pool.execute("SHOW COLUMNS FROM practice_sessions"):
+                    if col_info["Field"] == "status" and "generating" not in col_info["Type"]:
+                        pool.execute(
+                            "ALTER TABLE practice_sessions "
+                            "MODIFY COLUMN status ENUM('generating','generated','in_progress','completed','expired','generation_failed') DEFAULT 'generated'"
+                        )
+                        break
+        except Exception as ps_e:
+            if "doesn't exist" not in str(ps_e):
+                logger.warning("practice_sessions 遷移跳過: %s", ps_e)
+
         logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
