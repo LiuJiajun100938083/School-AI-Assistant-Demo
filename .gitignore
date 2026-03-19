@@ -61,6 +61,9 @@ Knowledge_base/.trash/
 Knowledge_base/**/*.pdf
 Knowledge_base/**/*.pptx
 
+# Server runtime
+.server.pid
+
 # Misc
 llm_config.json
 forum_system.zip
