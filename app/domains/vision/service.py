@@ -34,7 +34,7 @@ from app.domains.vision import figure_handler
 logger = logging.getLogger(__name__)
 
 # 默認視覺模型（可通過環境變量 VISION_MODEL 覆蓋）
-DEFAULT_VISION_MODEL = os.getenv("VISION_MODEL", "qwen2.5vl:32b")
+DEFAULT_VISION_MODEL = os.getenv("VISION_MODEL", "qwen3.5:35b")
 
 
 class VisionService:
