@@ -234,6 +234,13 @@ const GameCenterAPI = {
         } catch { return null; }
     },
 
+    async loadPopularity() {
+        try {
+            const data = await APIClient.get('/api/games/popularity');
+            return (data?.success && data.data) ? data.data : {};
+        } catch { return {}; }
+    },
+
     async loadGames(userId, userRole) {
         try {
             const data = await APIClient.get('/api/games/list');
@@ -476,7 +483,7 @@ const GameCenterApp = {
 
         await this._loadDatabaseGames();
 
-        this._renderHero();
+        await this._renderHero();
         this._renderGameSections();
         this._updateUserDisplay();
         this._hideSplash();
@@ -573,18 +580,60 @@ const GameCenterApp = {
             .join('');
     },
 
-    _renderHero() {
-        // Collect featured games (badge = '新')
-        const featured = [];
+    async _renderHero() {
+        // 加載遊玩次數數據
+        const popularity = await GameCenterAPI.loadPopularity();
+
+        // 收集所有可訪問的遊戲（靜態 + DB）
+        const allGames = [];
+        const role = this.state.userRole;
+        const userClass = this.state.userInfo?.class_name || '';
+
         Object.entries(GameConfig.games).forEach(([subjectKey, games]) => {
             games.forEach(g => {
-                if (g.badge) featured.push(g);
+                // 權限過濾
+                if (!g.roles.includes(role) && role !== 'guest') return;
+                if (g.allowedClasses?.length && role === 'student') {
+                    if (!userClass || !g.allowedClasses.includes(userClass)) return;
+                }
+                const plays = popularity[g.id] || 0;
+                allGames.push({ ...g, _plays: plays });
             });
         });
 
-        if (featured.length > 0) {
+        // DB 遊戲也加入
+        Object.values(this.state.databaseGames).forEach(games => {
+            games.forEach(g => {
+                if (g.teacherOnly && !['teacher', 'admin'].includes(role)) return;
+                if (g.visibleTo?.length && role === 'student') {
+                    if (!userClass || !g.visibleTo.includes(userClass)) return;
+                }
+                allGames.push({ ...g, _plays: 0 });
+            });
+        });
+
+        // 按遊玩次數降序排列，取前 3
+        allGames.sort((a, b) => b._plays - a._plays);
+        const top3 = allGames.filter(g => g._plays > 0).slice(0, 3);
+
+        if (top3.length > 0) {
+            // 設置 badge 為遊玩次數
+            const featured = top3.map(g => ({
+                ...g,
+                badge: `🔥 ${g._plays} 次遊玩`
+            }));
             this.elements.heroSection.innerHTML = GameCenterUI.renderHero(featured);
             this.elements.heroSection.classList.add('active');
+        } else {
+            // 兜底：顯示帶 badge='新' 的遊戲
+            const newGames = [];
+            Object.values(GameConfig.games).forEach(games => {
+                games.forEach(g => { if (g.badge) newGames.push(g); });
+            });
+            if (newGames.length > 0) {
+                this.elements.heroSection.innerHTML = GameCenterUI.renderHero(newGames);
+                this.elements.heroSection.classList.add('active');
+            }
         }
     },
 

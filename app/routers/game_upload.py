@@ -105,6 +105,14 @@ async def get_subjects():
     }
 
 
+@game_router.get("/popularity")
+async def get_game_popularity():
+    """获取各游戏的总游玩次数（公开接口，用于 Hero 展示栏排序）"""
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(None, _get_service().get_game_popularity)
+    return {"success": True, "data": data}
+
+
 @game_router.get("/list")
 async def list_games(
     subject: Optional[str] = Query(None),

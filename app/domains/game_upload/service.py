@@ -123,6 +123,26 @@ class GameUploadService:
             logger.error("创建游戏失败: %s", e)
             raise
 
+    # ==================== 游戏热度 ====================
+
+    def get_game_popularity(self) -> Dict[str, int]:
+        """统计各内置游戏的总游玩次数"""
+        game_tables = {
+            'farm_game': 'farm_game_scores',
+            'trade_game': 'trade_game_scores',
+            'chemistry_2048': 'chem2048_scores',
+        }
+        result = {}
+        for game_id, table in game_tables.items():
+            try:
+                row = self._repo.raw_query_one(
+                    f"SELECT COUNT(*) as cnt FROM {table}"
+                )
+                result[game_id] = row['cnt'] if row else 0
+            except Exception:
+                result[game_id] = 0
+        return result
+
     # ==================== 查询游戏 ====================
 
     def get_games(
