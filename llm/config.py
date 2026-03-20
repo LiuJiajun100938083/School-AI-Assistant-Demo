@@ -67,6 +67,9 @@ class LLMConfigManager:
 
     def _load_config(self) -> LLMConfig:
         """從環境變量或配置文件加載配置"""
+        # 先從 .env 文件載入環境變量（確保 LLM_API_KEY 等持久化值可用）
+        self._load_dotenv()
+
         config_path = os.getenv('LLM_CONFIG_PATH', 'llm_config.json')
 
         # 嘗試從配置文件加載
@@ -75,7 +78,17 @@ class LLMConfigManager:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     logger.info(f"從配置文件加載 LLM 配置: {config_path}")
-                    return LLMConfig(**data)
+                    config = LLMConfig(**data)
+                    # llm_config.json 不存儲 api_key，需從 .env 補充
+                    if not config.api_key:
+                        config.api_key = self._decode_api_key(os.getenv('LLM_API_KEY'))
+                    # 同理補充 api_model（.env 可能有管理員更新的值）
+                    env_model = os.getenv('LLM_API_MODEL')
+                    if env_model:
+                        config.api_model = env_model
+                    if config.api_key:
+                        logger.info("已從 .env 補充 API Key 配置")
+                    return config
             except Exception as e:
                 logger.warning(f"加載配置文件失敗: {e}，使用默認配置")
 
@@ -99,6 +112,29 @@ class LLMConfigManager:
 
         logger.info(f"LLM 配置已加載: model={config.local_model}, use_api={config.use_api}, num_gpu={config.num_gpu}")
         return config
+
+    @staticmethod
+    def _load_dotenv():
+        """載入 .env 文件到環境變量（僅補充未設定的變量）。"""
+        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+        if not os.path.exists(env_path):
+            return
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    eq = line.find("=")
+                    if eq <= 0:
+                        continue
+                    key = line[:eq].strip()
+                    val = line[eq + 1:].strip()
+                    # 不覆蓋已有的環境變量
+                    if key not in os.environ:
+                        os.environ[key] = val
+        except Exception as e:
+            logger.warning("載入 .env 失敗: %s", e)
 
     @property
     def config(self) -> LLMConfig:
