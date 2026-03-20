@@ -2320,6 +2320,45 @@ class MistakeBookService:
             "weekly_review_trend": review_trend,
         }
 
+    def get_learning_summary(
+        self, username: str, subject: str = None,
+    ) -> Dict[str, Any]:
+        """
+        返回預聚合的學習摘要，供跨域分析使用。
+
+        這是一個穩定的公開介面，由 AnalyticsService 等外部服務調用。
+        內部復用已注入的 repo 方法，不暴露底層實現。
+
+        Args:
+            username: 學生用戶名
+            subject: 學科代碼（None 表示全部）
+
+        Returns:
+            dict: 包含錯題、掌握度、練習成績等摘要
+        """
+        dashboard = self.get_dashboard(username)
+        error_stats = self._mistakes.get_error_type_stats(username, subject)
+        weakest = self._mastery.get_weakest(username, subject or "", limit=5)
+        declining = self._mastery.get_declining(username, subject)
+
+        practice_scores = []
+        if subject:
+            practice_scores = self._practices.get_recent_scores(
+                username, subject, limit=10,
+            )
+
+        return {
+            "total_mistakes": dashboard["total_mistakes"],
+            "per_subject": dashboard["per_subject"],
+            "mastery_overview": dashboard["mastery_overview"],
+            "review_streak": dashboard["review_streak"],
+            "weekly_review_trend": dashboard["weekly_review_trend"],
+            "error_type_stats": error_stats,
+            "weakest_points": weakest,
+            "declining_points": declining,
+            "recent_practice_scores": practice_scores,
+        }
+
     # ================================================================
     # 教師視角
     # ================================================================

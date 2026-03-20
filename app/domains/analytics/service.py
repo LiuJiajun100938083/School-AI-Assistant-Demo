@@ -31,9 +31,9 @@ DEFAULT_CACHE_HOURS = 24
 # LLM 分析超时（秒）
 ANALYSIS_TIMEOUT = 60
 # 每个学科取的最大对话数
-MAX_CONVERSATIONS_PER_ANALYSIS = 3
+MAX_CONVERSATIONS_PER_ANALYSIS = 5
 # 每个对话取的最大消息数
-MAX_MESSAGES_PER_CONVERSATION = 4
+MAX_MESSAGES_PER_CONVERSATION = 6
 
 
 class AnalyticsService:
@@ -54,12 +54,14 @@ class AnalyticsService:
         user_repo: Optional[UserRepository] = None,
         conv_repo: Optional[ConversationRepository] = None,
         msg_repo: Optional[MessageRepository] = None,
+        services_getter: Optional[Callable] = None,
         settings: Optional[Settings] = None,
     ):
         self._analytics = analytics_repo or AnalyticsRepository()
         self._user = user_repo or UserRepository()
         self._conv = conv_repo or ConversationRepository()
         self._msg = msg_repo or MessageRepository()
+        self._get_services = services_getter
         self._settings = settings or get_settings()
 
         # LLM 函数 - 延迟注入
@@ -407,26 +409,22 @@ class AnalyticsService:
         username: str,
         subject: str,
     ) -> Dict[str, Any]:
-        """使用 LLM 生成学生分析报告"""
+        """使用 LLM 生成学生分析报告（多源数据增强版）"""
         if not self._ask_ai_func:
             raise LLMServiceError("AI 服务未初始化，请调用 set_ai_function()")
 
-        # 1) 收集学生对话数据
+        # 1) 收集多源结构化数据
+        multi_source = self._collect_multi_source_data(username, subject)
+
+        # 2) 收集对话消息
         conversations = self._analytics.get_student_conversations(
             username, limit=MAX_CONVERSATIONS_PER_ANALYSIS * 5,
         )
-
-        # 按学科过滤
         subject_convs = [
             c for c in conversations
             if c.get("subject") == subject
         ][:MAX_CONVERSATIONS_PER_ANALYSIS]
 
-        if not subject_convs:
-            # 无对话数据，返回默认报告
-            return self._default_report(username, subject, "暂无该学科对话数据")
-
-        # 2) 收集消息
         all_messages = []
         for conv in subject_convs:
             conv_id = conv.get("conversation_id")
@@ -435,24 +433,29 @@ class AnalyticsService:
             )
             all_messages.extend(messages)
 
-        if not all_messages:
-            return self._default_report(username, subject, "暂无消息数据")
+        # 至少需要对话数据或其他数据源之一
+        if not all_messages and not multi_source:
+            return self._default_report(username, subject, "暂无该学科学习数据")
 
-        # 3) 构建分析提示词
-        context = self._build_analysis_context(username, subject, all_messages)
+        # 3) 构建增强上下文
+        context = self._build_enriched_context(
+            username, subject, multi_source, all_messages,
+        )
 
         prompt = (
-            f"请对以下学生的 {subject} 学习情况进行全面分析，"
-            "并以 JSON 格式返回分析结果。\n\n"
+            f"请对以下学生的 {subject} 学习情况进行全面分析。\n"
+            "请综合所有提供的数据维度（对话记录、知识掌握度、错题分布、练习成绩、"
+            "考勤等），给出有数据支撑的分析，引用具体数字。\n"
+            "对于薄弱知识点，请给出 3-5 条有针对性的学习建议。\n\n"
             f"{context}\n\n"
             "请返回以下字段（JSON 格式）：\n"
             "{\n"
-            '  "knowledge_mastery": "知识掌握情况分析",\n'
-            '  "learning_style": "学习风格描述",\n'
-            '  "difficulty_level": "当前学习难度",\n'
-            '  "emotion_analysis": "学习情绪分析",\n'
-            '  "suggestions": "具体改进建议",\n'
-            '  "progress": "学习进步趋势",\n'
+            '  "knowledge_mastery": "知识掌握情况分析（引用具体掌握度百分比和薄弱点）",\n'
+            '  "learning_style": "学习风格描述（基于对话模式和学习时段）",\n'
+            '  "difficulty_level": "当前学习难度评估（基于错题类型和练习成绩）",\n'
+            '  "emotion_analysis": "学习情绪与态度分析",\n'
+            '  "suggestions": "3-5条具体改进建议（针对薄弱知识点和错题类型）",\n'
+            '  "progress": "学习进步趋势（基于练习成绩和掌握度变化）",\n'
             '  "overall_assessment": "整体评价",\n'
             '  "teacher_attention_points": "教师需关注的要点",\n'
             '  "risk_level": "low/medium/high"\n'
@@ -478,7 +481,6 @@ class AnalyticsService:
         report["student_id"] = username
         report["subject"] = subject
 
-        # 持久化
         try:
             self._analytics.save_student_report(username, subject, report)
         except Exception as e:
@@ -486,18 +488,189 @@ class AnalyticsService:
 
         return report
 
+    def _collect_multi_source_data(
+        self, username: str, subject: str,
+    ) -> Dict[str, str]:
+        """
+        从各域服务收集预聚合摘要。
+
+        每个数据源独立 try/except — 部分数据可用即可。
+        通过 ServiceContainer 的公开接口调用，不直接依赖其他域的 repo。
+
+        Returns:
+            dict: {"section_title": "summary_text", ...}
+        """
+        summaries: Dict[str, str] = {}
+        services = self._get_services() if self._get_services else None
+
+        # 1. 对话统计（已注入的 conv repo）
+        try:
+            conv_stats = self._conv.get_conversation_stats(username)
+            if conv_stats:
+                summaries["对话学习数据"] = (
+                    f"总对话数: {conv_stats.get('total', 0)}, "
+                    f"总消息数: {conv_stats.get('messages', 0)}"
+                )
+        except Exception as e:
+            logger.warning("收集对话数据失败: %s", e)
+
+        # 2. 学习投入度（已注入的 analytics repo）
+        try:
+            engagement = self._analytics.get_student_engagement(username, days=30)
+            active_hours = self._analytics.get_student_active_hours(username)
+            if engagement:
+                hours_str = ", ".join(
+                    f"{h['hour']}时({h['count']}次)"
+                    for h in (active_hours or [])[:5]
+                )
+                summaries["学习投入度"] = (
+                    f"近30天活跃天数: {engagement.get('active_days', 0)}, "
+                    f"对话总数: {engagement.get('total_conversations', 0)}。"
+                    f"常用学习时段: {hours_str or '无数据'}"
+                )
+        except Exception as e:
+            logger.warning("收集投入度数据失败: %s", e)
+
+        if not services:
+            return summaries
+
+        # 3. 错题本 + 掌握度 + 练习（通过 MistakeBookService）
+        try:
+            mb_summary = services.mistake_book.get_learning_summary(
+                username, subject if subject != "all" else None,
+            )
+            mastery = mb_summary.get("mastery_overview", {})
+            if subject != "all" and subject in mastery:
+                m = mastery[subject]
+                summaries["知识掌握度"] = (
+                    f"平均掌握度: {m['avg_mastery']}%, "
+                    f"薄弱知识点: {m['weak_count']}个, "
+                    f"已掌握: {m['strong_count']}个, "
+                    f"下滑中: {m['declining_count']}个"
+                )
+            elif mastery:
+                lines = [
+                    f"{s}: 平均{d['avg_mastery']}%, 薄弱{d['weak_count']}个"
+                    for s, d in mastery.items()
+                ]
+                summaries["各科知识掌握度"] = "; ".join(lines)
+
+            weakest = mb_summary.get("weakest_points", [])
+            if weakest:
+                pts = [
+                    f"{w.get('point_name', w.get('point_code', '?'))}"
+                    f"({w.get('mastery_level', '?')}%)"
+                    for w in weakest[:5]
+                ]
+                summaries["最薄弱知识点"] = ", ".join(pts)
+
+            declining = mb_summary.get("declining_points", [])
+            if declining:
+                pts = [
+                    w.get("point_name", w.get("point_code", "?"))
+                    for w in declining[:5]
+                ]
+                summaries["掌握度下滑知识点"] = ", ".join(pts)
+
+            error_stats = mb_summary.get("error_type_stats", [])
+            if error_stats:
+                errs = [
+                    f"{e['error_type']}({e['cnt']}次)"
+                    for e in error_stats[:5]
+                ]
+                summaries["错题类型分布"] = ", ".join(errs)
+
+            scores = mb_summary.get("recent_practice_scores", [])
+            if scores:
+                avg_score = sum(
+                    s.get("score", 0) for s in scores
+                ) / len(scores)
+                summaries["近期练习成绩"] = (
+                    f"最近{len(scores)}次练习, 平均分: {avg_score:.1f}分"
+                )
+
+            total = mb_summary.get("total_mistakes", 0)
+            streak = mb_summary.get("review_streak", 0)
+            if total > 0:
+                summaries["错题总览"] = (
+                    f"共{total}道错题, 复习连续天数: {streak}天"
+                )
+        except Exception as e:
+            logger.warning("收集错题本数据失败: %s", e)
+
+        # 4. 考勤（通过 AttendanceService）
+        try:
+            att = services.attendance.get_student_attendance_summary(username)
+            if att and att.get("detention_total", 0) > 0:
+                summaries["考勤情况"] = (
+                    f"留堂记录: {att['detention_total']}次, "
+                    f"已完成: {att['detention_completed']}次, "
+                    f"累计时长: {att['detention_minutes']}分钟"
+                )
+            elif att:
+                summaries["考勤情况"] = "无留堂记录"
+        except Exception as e:
+            logger.warning("收集考勤数据失败: %s", e)
+
+        # 5. 作业成绩（analytics repo 的 raw_query，数据留在本域）
+        try:
+            assignment_data = self._analytics.raw_query(
+                "SELECT a.subject, s.score, s.status "
+                "FROM assignment_submissions s "
+                "JOIN assignments a ON s.assignment_id = a.id "
+                "WHERE s.student_username = %s AND s.score IS NOT NULL "
+                "ORDER BY s.submitted_at DESC LIMIT 20",
+                (username,),
+            )
+            if assignment_data:
+                subj_scores: Dict[str, List] = {}
+                for row in assignment_data:
+                    s = row.get("subject", "unknown")
+                    if subject != "all" and s != subject:
+                        continue
+                    subj_scores.setdefault(s, []).append(row.get("score", 0))
+                if subj_scores:
+                    lines = []
+                    for s, sc in subj_scores.items():
+                        avg = sum(sc) / len(sc)
+                        lines.append(f"{s}: 平均{avg:.1f}分({len(sc)}份作业)")
+                    summaries["作业成绩"] = "; ".join(lines)
+        except Exception as e:
+            logger.warning("收集作业数据失败: %s", e)
+
+        return summaries
+
     @staticmethod
-    def _build_analysis_context(
+    def _build_enriched_context(
         username: str,
         subject: str,
+        summaries: Dict[str, str],
         messages: List[Dict[str, Any]],
     ) -> str:
-        """构建 LLM 分析的上下文"""
+        """将多源摘要 + 对话消息合并为 LLM 上下文"""
         lines = [f"学生: {username}", f"学科: {subject}", ""]
-        for msg in messages:
-            role = "学生" if msg.get("role") == "user" else "AI"
-            content = msg.get("content", "")[:500]  # 截断过长内容
-            lines.append(f"[{role}] {content}")
+
+        # 结构化数据摘要
+        if summaries:
+            lines.append("=" * 40)
+            lines.append("多维度学习数据")
+            lines.append("=" * 40)
+            for title, content in summaries.items():
+                lines.append(f"【{title}】")
+                lines.append(content)
+                lines.append("")
+
+        # 对话记录
+        if messages:
+            lines.append("=" * 40)
+            lines.append("AI 对话记录（最近）")
+            lines.append("=" * 40)
+            for msg in messages:
+                role = "学生" if msg.get("role") == "user" else "AI"
+                content = msg.get("content", "")[:500]
+                lines.append(f"[{role}] {content}")
+            lines.append("")
+
         return "\n".join(lines)
 
     @staticmethod

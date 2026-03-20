@@ -308,6 +308,7 @@ class ServiceContainer:
                 user_repo=self._get_repo(UserRepository),
                 conv_repo=self._get_repo(ConversationRepository),
                 msg_repo=self._get_repo(MessageRepository),
+                services_getter=lambda: self,
                 settings=self._settings,
             )
         return self._analytics

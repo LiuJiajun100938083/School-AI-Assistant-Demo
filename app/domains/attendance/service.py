@@ -1097,6 +1097,25 @@ class AttendanceService:
             }
         return summary
 
+    def get_student_attendance_summary(self, username: str) -> Dict[str, Any]:
+        """
+        返回学生考勤摘要，供跨域分析使用。
+
+        稳定公开接口，由 AnalyticsService 调用。
+
+        Args:
+            username: 学生用户名
+
+        Returns:
+            dict: {detention_total, detention_completed, detention_minutes}
+        """
+        detention = self.get_detention_summary(username)
+        return {
+            "detention_total": detention.get("total_count", 0),
+            "detention_completed": detention.get("completed_count", 0),
+            "detention_minutes": detention.get("total_minutes", 0),
+        }
+
     def complete_session(self, session_id: int) -> bool:
         """关闭签到会话"""
         self._session.complete_session(session_id)

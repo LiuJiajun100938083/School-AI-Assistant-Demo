@@ -84,17 +84,35 @@ const ReportUI = {
         };
     },
 
-    /** 學科信息映射 */
+    /** 學科信息映射 — SVG icon ID */
     subjectInfo: {
-        'ict':       { name: 'ICT',  icon: '💻' },
-        'ces':       { name: 'CES',  icon: '🏛️' },
-        'history':   { name: '歷史', icon: '📜' },
-        'chinese':   { name: '中文', icon: '📖' },
-        'english':   { name: '英文', icon: '🔤' },
-        'math':      { name: '數學', icon: '🔢' },
-        'physics':   { name: '物理', icon: '⚛️' },
-        'chemistry': { name: '化學', icon: '🧪' },
-        'biology':   { name: '生物', icon: '🧬' }
+        'ict':       { name: 'ICT',  icon: 'icon-monitor' },
+        'ces':       { name: 'CES',  icon: 'icon-building' },
+        'history':   { name: '歷史', icon: 'icon-scroll' },
+        'chinese':   { name: '中文', icon: 'icon-book' },
+        'english':   { name: '英文', icon: 'icon-globe' },
+        'math':      { name: '數學', icon: 'icon-calculator' },
+        'physics':   { name: '物理', icon: 'icon-atom' },
+        'chemistry': { name: '化學', icon: 'icon-flask' },
+        'biology':   { name: '生物', icon: 'icon-dna' }
+    },
+
+    /** 報告各節的圖標映射 */
+    sectionIcons: {
+        knowledge_mastery: 'icon-graduation',
+        learning_style:    'icon-palette',
+        difficulty_level:  'icon-alert-triangle',
+        emotion_analysis:  'icon-heart',
+        progress:          'icon-trending-up',
+        suggestions:       'icon-sparkles'
+    },
+
+    _svgIcon(id) {
+        return `<svg class="icon"><use href="#${id}"/></svg>`;
+    },
+
+    _sectionIconHtml(iconId) {
+        return `<span class="section-icon">${this._svgIcon(iconId)}</span>`;
     },
 
     showAnalyzing() {
@@ -126,7 +144,7 @@ const ReportUI = {
     renderOverallReport(data) {
         this.elements.reportContent.innerHTML = `
             <div class="report-section">
-                <h3>📊 總體學習概覽</h3>
+                <h3>${this._sectionIconHtml('icon-chart-bar')} 總體學習概覽</h3>
                 <p>已分析 ${data.subjects_analyzed || 0} 個學科，整體風險等級：${data.overall_risk_level || '未知'}</p>
             </div>
             <div class="subject-grid">
@@ -139,40 +157,29 @@ const ReportUI = {
      * 渲染單科詳細報告
      */
     renderSubjectReport(data) {
-        this.elements.reportContent.innerHTML = `
+        const sections = [
+            { key: 'knowledge_mastery', title: '知識掌握情況' },
+            { key: 'learning_style',    title: '學習風格分析' },
+            { key: 'difficulty_level',  title: '學習困難分析' },
+            { key: 'emotion_analysis',  title: '情感狀態分析' },
+            { key: 'progress',          title: '學習進度評估' },
+            { key: 'suggestions',       title: '個性化學習建議' }
+        ];
+
+        this.elements.reportContent.innerHTML = sections.map(s => `
             <div class="report-section">
-                <h3>📚 知識掌握情況</h3>
-                <p>${data.knowledge_mastery || '暫無數據'}</p>
+                <h3>${this._sectionIconHtml(this.sectionIcons[s.key])} ${s.title}</h3>
+                <p>${data[s.key] || '暫無數據'}</p>
             </div>
-            <div class="report-section">
-                <h3>🎨 學習風格分析</h3>
-                <p>${data.learning_style || '暫無數據'}</p>
-            </div>
-            <div class="report-section">
-                <h3>⚠️ 學習困難分析</h3>
-                <p>${data.difficulty_level || '暫無數據'}</p>
-            </div>
-            <div class="report-section">
-                <h3>💭 情感狀態分析</h3>
-                <p>${data.emotion_analysis || '暫無數據'}</p>
-            </div>
-            <div class="report-section">
-                <h3>📈 學習進度評估</h3>
-                <p>${data.progress || '暫無數據'}</p>
-            </div>
-            <div class="report-section">
-                <h3>💡 個性化學習建議</h3>
-                <p>${data.suggestions || '暫無數據'}</p>
-            </div>
-        `;
+        `).join('');
     },
 
     _generateSubjectCards(subjects) {
         return Object.entries(subjects).map(([key, data]) => {
-            const info = this.subjectInfo[key] || { name: key, icon: '📚' };
+            const info = this.subjectInfo[key] || { name: key, icon: 'icon-book-open' };
             return `
                 <div class="subject-card" data-subject="${key}">
-                    <div class="subject-icon">${info.icon}</div>
+                    <div class="subject-icon">${this._svgIcon(info.icon)}</div>
                     <div class="subject-name">${info.name}</div>
                     <div class="subject-hint">
                         ${data.has_data ? '點擊查看詳情' : '暫無數據'}
