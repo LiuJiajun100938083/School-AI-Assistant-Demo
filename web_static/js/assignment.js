@@ -5359,9 +5359,9 @@ const AssignmentApp = {
                     // .doc / .ppt 等舊格式
                     el.innerHTML = `<div class="file-preview-error"><p>此格式暫不支持內嵌預覽（.${ext}）</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
                 }
-            } else if (fileType === 'archive' && ext === 'swiftpm') {
-                // .swiftpm：調用後端解壓預覽
-                el.innerHTML = '<div class="file-preview-loading"><div class="loading-spinner"></div> 解壓 Swift 專案中...</div>';
+            } else if (fileType === 'archive' && (ext === 'swiftpm' || ext === 'zip')) {
+                // .swiftpm / .zip：調用後端解壓預覽代碼
+                el.innerHTML = '<div class="file-preview-loading"><div class="loading-spinner"></div> 解壓專案中...</div>';
                 const resp = await fetch(`/api/assignments/files/${fileId}/preview`, {
                     headers: AssignmentAPI._authHeaders()
                 });

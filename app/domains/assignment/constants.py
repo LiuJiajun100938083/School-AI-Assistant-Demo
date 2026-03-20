@@ -80,7 +80,7 @@ DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".pptx", ".doc", ".ppt"}
 PREVIEWABLE_OFFICE_EXTENSIONS = {".docx", ".xlsx", ".pptx"}
 
 # 可預覽的壓縮包擴展名（解壓後展示內部代碼）
-PREVIEWABLE_ARCHIVE_EXTENSIONS = {".swiftpm"}
+PREVIEWABLE_ARCHIVE_EXTENSIONS = {".swiftpm", ".zip"}
 
 # 評分類型
 RUBRIC_TYPES = (

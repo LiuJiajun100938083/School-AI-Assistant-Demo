@@ -972,15 +972,16 @@ class AssignmentService:
                 except Exception as e:
                     logger.warning("處理文件 %s 失敗: %s", original_name, e)
                     contents.append(f"### 文件: {original_name}\n（無法提取內容）")
-            elif ext == ".swiftpm":
-                # 解壓 .swiftpm 包，提取 Swift 源碼
+            elif ext in (".swiftpm", ".zip"):
+                # 解壓壓縮包，提取源碼（支持 .swiftpm 和 .zip）
                 try:
                     import zipfile
                     if file_path.exists() and zipfile.is_zipfile(file_path):
                         with zipfile.ZipFile(file_path, "r") as zf:
+                            code_exts = {".swift", ".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".html", ".css", ".json"}
                             swift_entries = sorted([
                                 n for n in zf.namelist()
-                                if n.endswith(".swift")
+                                if any(n.endswith(ce) for ce in code_exts)
                                 and not n.startswith("__MACOSX/")
                                 and "/.build/" not in n
                                 and not n.split("/")[-1].startswith(".")
@@ -1003,9 +1004,9 @@ class AssignmentService:
                                 )
                                 remaining -= len(text)
                     else:
-                        contents.append(f"### 文件: {original_name}\n（無法解壓 .swiftpm 文件）")
+                        contents.append(f"### 文件: {original_name}\n（無法解壓文件）")
                 except Exception as e:
-                    logger.warning("解壓 .swiftpm %s 失敗: %s", original_name, e)
+                    logger.warning("解壓 %s 失敗: %s", original_name, e)
                     contents.append(f"### 文件: {original_name}\n（解壓失敗）")
             else:
                 contents.append(f"### 文件: {original_name}\n（{f.get('file_type', '未知')} 類型，無法提取文本）")
@@ -1677,25 +1678,26 @@ class AssignmentService:
             "meta": {"pages": len(prs.slides), "rendered_pages": min(len(prs.slides), max_slides)},
         }
 
-    # ---- swiftpm → HTML ----
+    # ---- archive (swiftpm/zip) → HTML ----
     def _preview_swiftpm(self, file_path: Path, html_mod) -> Dict[str, Any]:
-        """解壓 .swiftpm 包，提取 Swift 源碼並轉為 HTML 預覽。"""
+        """解壓壓縮包，提取源碼並轉為 HTML 預覽。支持 .swiftpm 和 .zip。"""
         import zipfile
 
         if not zipfile.is_zipfile(file_path):
-            raise ValidationError("此 .swiftpm 文件無法解壓（非有效 ZIP 格式）")
+            raise ValidationError("此文件無法解壓（非有效 ZIP 格式）")
 
         max_total_chars = 100_000
         max_lines_per_file = 500
         total_chars = 0
         truncated = False
         file_blocks: List[str] = []
+        code_exts = {".swift", ".py", ".js", ".ts", ".java", ".c", ".cpp", ".h", ".html", ".css", ".json"}
 
         with zipfile.ZipFile(file_path, "r") as zf:
-            # 篩選 .swift 源碼，排除系統文件
+            # 篩選源碼文件，排除系統文件
             swift_entries = sorted([
                 n for n in zf.namelist()
-                if n.endswith(".swift")
+                if any(n.endswith(ce) for ce in code_exts)
                 and not n.startswith("__MACOSX/")
                 and "/.build/" not in n
                 and not n.split("/")[-1].startswith(".")
@@ -1738,7 +1740,7 @@ class AssignmentService:
                     break
 
         if not file_blocks:
-            raise ValidationError("此 .swiftpm 包中未找到 Swift 源碼文件")
+            raise ValidationError("此壓縮包中未找到源碼文件")
 
         html_content = f'<div class="doc-preview swiftpm-preview">{"".join(file_blocks)}</div>'
         return {
