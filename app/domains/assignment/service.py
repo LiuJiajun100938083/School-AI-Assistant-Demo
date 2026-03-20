@@ -33,6 +33,7 @@ from app.domains.assignment.constants import (
     DOCUMENT_EXTENSIONS,
     EXTENSION_TYPE_MAP,
     MAX_FILE_SIZE,
+    PREVIEWABLE_ARCHIVE_EXTENSIONS,
     PREVIEWABLE_OFFICE_EXTENSIONS,
     TEXT_READABLE_EXTENSIONS,
 )
@@ -971,6 +972,41 @@ class AssignmentService:
                 except Exception as e:
                     logger.warning("處理文件 %s 失敗: %s", original_name, e)
                     contents.append(f"### 文件: {original_name}\n（無法提取內容）")
+            elif ext == ".swiftpm":
+                # 解壓 .swiftpm 包，提取 Swift 源碼
+                try:
+                    import zipfile
+                    if file_path.exists() and zipfile.is_zipfile(file_path):
+                        with zipfile.ZipFile(file_path, "r") as zf:
+                            swift_entries = sorted([
+                                n for n in zf.namelist()
+                                if n.endswith(".swift")
+                                and not n.startswith("__MACOSX/")
+                                and "/.build/" not in n
+                                and not n.split("/")[-1].startswith(".")
+                            ])
+                            remaining = 10000
+                            for entry_name in swift_entries:
+                                if remaining <= 0:
+                                    break
+                                try:
+                                    raw = zf.read(entry_name)
+                                    text = raw.decode("utf-8", errors="replace")
+                                except Exception:
+                                    continue
+                                text = re.sub(r'/\*@[A-Z_]+@\*/', '', text)
+                                if len(text) > remaining:
+                                    text = text[:remaining] + "\n... (已截斷)"
+                                display_name = "/".join(entry_name.rsplit("/", 2)[-2:]) if "/" in entry_name else entry_name
+                                contents.append(
+                                    f"### 文件: {original_name} → {display_name}\n```swift\n{text}\n```"
+                                )
+                                remaining -= len(text)
+                    else:
+                        contents.append(f"### 文件: {original_name}\n（無法解壓 .swiftpm 文件）")
+                except Exception as e:
+                    logger.warning("解壓 .swiftpm %s 失敗: %s", original_name, e)
+                    contents.append(f"### 文件: {original_name}\n（解壓失敗）")
             else:
                 contents.append(f"### 文件: {original_name}\n（{f.get('file_type', '未知')} 類型，無法提取文本）")
 
@@ -1348,7 +1384,7 @@ class AssignmentService:
         # ---- 類型白名單 ----
         original_name = file_rec.get("original_name", "")
         ext = Path(original_name).suffix.lower()
-        if ext not in PREVIEWABLE_OFFICE_EXTENSIONS:
+        if ext not in PREVIEWABLE_OFFICE_EXTENSIONS and ext not in PREVIEWABLE_ARCHIVE_EXTENSIONS:
             raise ValidationError(f"不支持預覽此文件類型: {ext}")
 
         # ---- 緩存 ----
@@ -1370,6 +1406,8 @@ class AssignmentService:
                 result = self._preview_xlsx(file_path, html_mod)
             elif ext == ".pptx":
                 result = self._preview_pptx(file_path, file_id, html_mod)
+            elif ext in PREVIEWABLE_ARCHIVE_EXTENSIONS:
+                result = self._preview_swiftpm(file_path, html_mod)
             else:
                 raise ValidationError(f"不支持預覽: {ext}")
         except (ValidationError, NotFoundError):
@@ -1637,6 +1675,76 @@ class AssignmentService:
             "html": f'<div class="doc-preview pptx-preview">{"".join(slides_html)}</div>',
             "truncated": len(prs.slides) > max_slides,
             "meta": {"pages": len(prs.slides), "rendered_pages": min(len(prs.slides), max_slides)},
+        }
+
+    # ---- swiftpm → HTML ----
+    def _preview_swiftpm(self, file_path: Path, html_mod) -> Dict[str, Any]:
+        """解壓 .swiftpm 包，提取 Swift 源碼並轉為 HTML 預覽。"""
+        import zipfile
+
+        if not zipfile.is_zipfile(file_path):
+            raise ValidationError("此 .swiftpm 文件無法解壓（非有效 ZIP 格式）")
+
+        max_total_chars = 100_000
+        max_lines_per_file = 500
+        total_chars = 0
+        truncated = False
+        file_blocks: List[str] = []
+
+        with zipfile.ZipFile(file_path, "r") as zf:
+            # 篩選 .swift 源碼，排除系統文件
+            swift_entries = sorted([
+                n for n in zf.namelist()
+                if n.endswith(".swift")
+                and not n.startswith("__MACOSX/")
+                and "/.build/" not in n
+                and not n.split("/")[-1].startswith(".")
+            ])
+
+            for entry_name in swift_entries:
+                try:
+                    raw = zf.read(entry_name)
+                    text = raw.decode("utf-8", errors="replace")
+                except Exception:
+                    continue
+
+                # 清除 Swift Playgrounds 佔位標記
+                text = re.sub(r'/\*@[A-Z_]+@\*/', '', text)
+
+                lines = text.split("\n")
+                if len(lines) > max_lines_per_file:
+                    lines = lines[:max_lines_per_file]
+                    truncated = True
+                code_text = "\n".join(lines)
+
+                if total_chars + len(code_text) > max_total_chars:
+                    remaining = max_total_chars - total_chars
+                    if remaining > 0:
+                        code_text = code_text[:remaining]
+                    truncated = True
+
+                escaped = html_mod.escape(code_text)
+                # 取最後兩層路徑作為顯示名
+                display_name = "/".join(entry_name.rsplit("/", 2)[-2:]) if "/" in entry_name else entry_name
+                file_blocks.append(
+                    f'<div class="swiftpm-file">'
+                    f'<div class="swiftpm-file-name">{html_mod.escape(display_name)}</div>'
+                    f'<pre><code>{escaped}</code></pre>'
+                    f'</div>'
+                )
+
+                total_chars += len(code_text)
+                if total_chars >= max_total_chars:
+                    break
+
+        if not file_blocks:
+            raise ValidationError("此 .swiftpm 包中未找到 Swift 源碼文件")
+
+        html_content = f'<div class="doc-preview swiftpm-preview">{"".join(file_blocks)}</div>'
+        return {
+            "html": html_content,
+            "truncated": truncated,
+            "meta": {"files_count": len(file_blocks)},
         }
 
     # ================================================================

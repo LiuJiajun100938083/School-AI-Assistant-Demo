@@ -62,6 +62,7 @@ EXTENSION_TYPE_MAP = {
     ".7z": "archive",
     ".tar": "archive",
     ".gz": "archive",
+    ".swiftpm": "archive",
 }
 
 # 可直接讀取文本的擴展名 (用於 AI 批改)
@@ -77,6 +78,9 @@ DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".pptx", ".doc", ".ppt"}
 
 # 可轉 HTML 預覽的 Office 擴展名（用於 preview_file 白名單）
 PREVIEWABLE_OFFICE_EXTENSIONS = {".docx", ".xlsx", ".pptx"}
+
+# 可預覽的壓縮包擴展名（解壓後展示內部代碼）
+PREVIEWABLE_ARCHIVE_EXTENSIONS = {".swiftpm"}
 
 # 評分類型
 RUBRIC_TYPES = (

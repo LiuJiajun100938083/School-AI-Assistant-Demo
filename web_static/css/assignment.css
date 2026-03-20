@@ -3831,6 +3831,32 @@ textarea.code-input:focus {
 .file-preview-doc h4 { font-size: 1.05em; margin: 10px 0 4px; }
 .file-preview-doc img { max-width: 100%; height: auto; margin: 8px 0; border-radius: 4px; }
 
+/* SwiftPM 預覽 */
+.swiftpm-preview { display: flex; flex-direction: column; gap: 12px; }
+.swiftpm-file-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    padding: 6px 10px;
+    background: var(--bg-secondary, #f3f4f6);
+    border-radius: 6px 6px 0 0;
+    border-bottom: 1px solid var(--border-default, #e5e7eb);
+    font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+}
+.swiftpm-file pre {
+    margin: 0;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 12px;
+    border-radius: 0 0 6px 6px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.swiftpm-file code { font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace); }
+
 /* Office 表格 */
 .doc-table {
     width: 100%;

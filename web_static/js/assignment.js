@@ -5359,8 +5359,23 @@ const AssignmentApp = {
                     // .doc / .ppt 等舊格式
                     el.innerHTML = `<div class="file-preview-error"><p>此格式暫不支持內嵌預覽（.${ext}）</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
                 }
+            } else if (fileType === 'archive' && ext === 'swiftpm') {
+                // .swiftpm：調用後端解壓預覽
+                el.innerHTML = '<div class="file-preview-loading"><div class="loading-spinner"></div> 解壓 Swift 專案中...</div>';
+                const resp = await fetch(`/api/assignments/files/${fileId}/preview`, {
+                    headers: AssignmentAPI._authHeaders()
+                });
+                const json = await resp.json();
+                if (json.success && json.data && json.data.html) {
+                    const d = json.data;
+                    el.innerHTML = `<div class="file-preview-doc">${d.html}</div>
+                        ${d.truncated ? `<div class="file-preview-truncated">已截斷部分內容，完整代碼請下載查看</div>` : ''}`;
+                } else {
+                    const msg = (json.data && json.data.message) || json.message || '預覽失敗';
+                    el.innerHTML = `<div class="file-preview-error"><p>${AssignmentUI._escapeHtml(msg)}</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
+                }
             } else {
-                // archive 等
+                // 其他 archive 等
                 el.innerHTML = `<div class="file-preview-error"><p>此文件類型不支持預覽</p><a class="btn btn-sm btn-outline" href="${filePath}" download>下載文件</a></div>`;
             }
         } catch (e) {
