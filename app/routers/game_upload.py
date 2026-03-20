@@ -31,11 +31,12 @@ game_router = APIRouter(prefix="/api/games", tags=["Games"])
 
 
 def _extract_user(current_user: Dict) -> Dict:
-    """从 get_current_user 依赖中提取 id 和 role"""
+    """从 get_current_user 依赖中提取 id、role 和 class_name"""
     return {
         'id': current_user.get('id', 0),
         'role': current_user.get('role', 'guest'),
         'username': current_user.get('username', ''),
+        'class_name': current_user.get('class_name', ''),
     }
 
 
@@ -108,7 +109,6 @@ async def get_subjects():
 async def list_games(
     subject: Optional[str] = Query(None),
     only_mine: bool = Query(False),
-    user_class: Optional[str] = Query(None, description="用户班级，如2A"),
     current_user: Dict = Depends(get_current_user),
 ):
     """获取游戏列表"""
@@ -117,7 +117,7 @@ async def list_games(
     games = await loop.run_in_executor(
         None,
         lambda: _get_service().get_games(
-            user['id'], user['role'], subject, only_mine, user_class,
+            user['id'], user['role'], subject, only_mine, user['class_name'],
         ),
     )
     return {"success": True, "data": games, "count": len(games)}
@@ -146,7 +146,7 @@ async def get_game(
     loop = asyncio.get_event_loop()
     game = await loop.run_in_executor(
         None,
-        lambda: _get_service().get_game(game_uuid, user['id'], user['role']),
+        lambda: _get_service().get_game(game_uuid, user['id'], user['role'], user['class_name']),
     )
     return {"success": True, "data": game}
 

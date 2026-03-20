@@ -199,10 +199,11 @@ const GameConfig = {
                 icon: 'globe',
                 description: '模擬國際貿易：比較優勢、供需法則與經濟安全',
                 url: '/trade-game',
-                difficulty: ['中一', '中二', '中三'],
+                difficulty: ['中三'],
                 tags: ['貿易', '經濟', '國際', '策略', '公民'],
                 badge: null,
-                roles: ['student', 'teacher', 'admin']
+                roles: ['student', 'teacher', 'admin'],
+                allowedClasses: ['3A', '3B', '3C', '3D', '3S']
             },
             {
                 id: 'farm_game',
@@ -214,7 +215,8 @@ const GameConfig = {
                 difficulty: ['中二'],
                 tags: ['糧食安全', '農業', '國安', '策略', '公民'],
                 badge: '新',
-                roles: ['student', 'teacher', 'admin']
+                roles: ['student', 'teacher', 'admin'],
+                allowedClasses: ['2A', '2B', '2C', '2D', '2S']
             }
         ]
     }
@@ -232,11 +234,9 @@ const GameCenterAPI = {
         } catch { return null; }
     },
 
-    async loadGames(userId, userRole, userClass) {
+    async loadGames(userId, userRole) {
         try {
-            const params = {};
-            if (userClass) params.user_class = userClass;
-            const data = await APIClient.get('/api/games/list', params);
+            const data = await APIClient.get('/api/games/list');
             return (data?.success && data.data) ? data.data : null;
         } catch { return null; }
     },
@@ -533,7 +533,7 @@ const GameCenterApp = {
         const userRole = this.state.userRole;
         const userClass = this.state.userInfo?.class_name || '';
 
-        const games = await GameCenterAPI.loadGames(userId, userRole, userClass);
+        const games = await GameCenterAPI.loadGames(userId, userRole);
         if (!games) return;
 
         this.state.databaseGames = {};
@@ -555,7 +555,9 @@ const GameCenterApp = {
                 roles: ['student', 'teacher', 'admin'],
                 isFromDatabase: true,
                 uploaderName: game.uploader_name || null,
-                isPublic: game.is_public
+                isPublic: game.is_public,
+                teacherOnly: game.teacher_only || false,
+                visibleTo: game.visible_to || []
             });
         });
     },
@@ -659,9 +661,26 @@ const GameCenterApp = {
         const dbGames = this.state.databaseGames[subjectKey] || [];
         const allGames = [...staticGames, ...dbGames];
         const role = this.state.userRole;
+        const userClass = this.state.userInfo?.class_name || '';
 
         return allGames.filter(game => {
+            // 角色檢查
             if (!game.roles.includes(role) && role !== 'guest') return false;
+
+            // 僅教師可見（DB 遊戲）
+            if (game.teacherOnly && !['teacher', 'admin'].includes(role)) return false;
+
+            // visible_to 班級限制（DB 遊戲）
+            if (game.visibleTo?.length && role === 'student') {
+                if (!userClass || !game.visibleTo.includes(userClass)) return false;
+            }
+
+            // allowedClasses 班級限制（靜態遊戲）
+            if (game.allowedClasses?.length && role === 'student') {
+                if (!userClass || !game.allowedClasses.includes(userClass)) return false;
+            }
+
+            // 搜尋過濾
             if (this.state.searchQuery) {
                 return this._matchesSearch(game);
             }

@@ -137,22 +137,23 @@ class GameUploadService:
         games = self._repo.list_games(user_id, user_role, subject, only_mine, user_class)
         formatted = [self._format_game(g) for g in games]
 
-        # 学生端：按班级过滤（visible_to 是 JSON 数组，在应用层做）
-        if user_role == 'student' and user_class:
+        # 学生端：fail-closed 过滤（teacher_only + visible_to 班级限制）
+        if user_role == 'student':
             formatted = [
                 g for g in formatted
-                if not g.get('visible_to') or user_class in g['visible_to']
+                if not g.get('teacher_only')
+                and (not g.get('visible_to') or (user_class and user_class in g['visible_to']))
             ]
 
         return formatted
 
-    def get_game(self, game_uuid: str, user_id: int, user_role: str) -> Dict[str, Any]:
+    def get_game(self, game_uuid: str, user_id: int, user_role: str, user_class: str = '') -> Dict[str, Any]:
         """获取单个游戏详情"""
         game = self._get_formatted_game(game_uuid)
         if not game:
             raise GameNotFoundError(game_uuid)
 
-        if not self._can_access_game(game, user_id, user_role):
+        if not self._can_access_game(game, user_id, user_role, user_class):
             raise GameAccessDeniedError()
 
         return game
@@ -394,8 +395,8 @@ class GameUploadService:
             'updated_at': game['updated_at'].isoformat() if hasattr(game['updated_at'], 'isoformat') else str(game['updated_at']),
         }
 
-    def _can_access_game(self, game: Dict, user_id: int, user_role: str, user_class: Optional[str] = None) -> bool:
-        """检查用户是否有权访问游戏"""
+    def _can_access_game(self, game: Dict, user_id: int, user_role: str, user_class: str = '') -> bool:
+        """检查用户是否有权访问游戏（fail-closed 设计）"""
         if user_role == 'admin':
             return True
         if game.get('uploader_id') == user_id:
@@ -405,8 +406,10 @@ class GameUploadService:
         if game.get('is_public'):
             if user_role == 'student':
                 visible_to = game.get('visible_to') or []
-                if visible_to and user_class and user_class not in visible_to:
-                    return False
+                if visible_to:
+                    # fail-closed: 无班级信息时拒绝访问
+                    if not user_class or user_class not in visible_to:
+                        return False
             return True
         return False
 
