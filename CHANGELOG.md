@@ -11,6 +11,515 @@
 
 ---
 
+## [v3.0.60] [2026-03-21] 學習分析報告 UI 重設計 + 多源數據增強
+
+### 新增
+
+- **學習分析報告 UI 重設計** — 報告頁面全面改版，卡片式佈局 + 數據可視化增強
+- **多源數據增強** — 分析服務整合出席、錯題本、遊戲等多維數據來源，生成更全面的學習報告
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/analytics/service.py` | 修改：分析服務大幅擴充，整合多源數據 |
+| `app/domains/attendance/service.py` | 修改：為分析報告提供出席數據接口 |
+| `app/domains/mistake_book/service.py` | 修改：為分析報告提供錯題數據接口 |
+| `app/services/container.py` | 修改：容器註冊更新 |
+| `web_static/student_report.html` | 修改：報告頁面 UI 重設計 |
+| `web_static/css/student_report.css` | 修改：報告樣式全面改版 |
+| `web_static/js/student_report.js` | 修改：報告前端邏輯重構 |
+
+---
+
+## [v3.0.59] [2026-03-20] Swift 批改支持 + 視覺模型升級 + 遊戲中心改進
+
+### 新增
+
+- **支持 .swiftpm 檔案預覽與 AI 批改** — Swift Playgrounds 專案可直接預覽代碼並進行 AI 批改
+- **視覺模型切換為 qwen3.5:35b** — 原生多模態模型，統一 LLM + 視覺處理管線
+- **遊戲中心 Hero 展示欄改為按遊玩次數排序** — 最受歡迎的遊戲優先展示
+- **隱藏 AI 自動遊玩化學 2048** — Konami Code 觸發的隱藏功能
+
+### 修復
+
+- **.zip 壓縮包也支持解壓預覽代碼與 AI 批改** — 壓縮包內代碼可直接預覽
+- **API Key 重啟後丟失** — 從 .env 補充加密密鑰，確保重啟後持久化
+- **修復遊戲中心權限漏洞** — 班級限制 + teacher_only 權限檢查
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/assignment/service.py` | 修改：.swiftpm + .zip 預覽與批改支持 |
+| `app/domains/assignment/constants.py` | 修改：新增支持的檔案類型 |
+| `app/domains/vision/service.py` | 修改：視覺模型切換 |
+| `app/domains/game_upload/service.py` | 修改：遊戲中心權限修復 |
+| `llm/config.py` | 修改：模型配置更新 |
+| `web_static/js/game_center.js` | 修改：Hero 排序 + Konami Code |
+| `web_static/chemistry_2048.html` | 修改：隱藏自動遊玩 |
+| `web_static/js/assignment.js` | 修改：前端預覽支持 |
+| `web_static/css/assignment.css` | 修改：預覽樣式 |
+| `scripts/server.sh` | 修改：伺服器腳本更新 |
+
+---
+
+## [v3.0.58] [2026-03-19] HTML Sandbox 課堂嵌入 + 練習雙模式 + 企業安全加固
+
+### 新增
+
+- **html_sandbox 教師端 iframe 預覽 + 學生端全屏** — 課堂內直接嵌入 HTML 互動內容
+- **學生端隱藏頂欄最大化內容** — 教師端 iframe 全屏顯示
+- **AI 助手從浮動圓圈改為底欄按鈕** — emoji 改 SVG 圖標
+- **html_sandbox「我已查看」按鈕移到學生底欄** — 改善操作流程
+- **選擇課案支持跨課室** — 顯示所有可用課案
+- **練習頁改為左右雙欄佈局** — 歷史 | 出題設定並排
+- **練習歷史高密度列表重設計 + 刪除功能** — 更高效的歷史瀏覽
+- **錯題練習支持本地/雲端雙模式生成** — 本地 Ollama 或雲端 DeepSeek 可選
+- **首頁「歡迎回來」文字解密動畫效果** — 啟動頁面視覺增強
+- **企業級 API Key 安全加固** — 密鑰加密存儲 + 審計日誌
+- **Admin Dashboard 新增「系統日誌」tab** — 管理員可查看系統運行日誌
+- **伺服器管理腳本 scripts/server.sh** — 一鍵啟停服務
+
+### 修復
+
+- **html_sandbox iframe 改用 JS 設置 srcdoc** — 避免 HTML 屬性轉義問題
+- **html_sandbox iframe 佈局修復** — 去掉 max-width/max-height，min-height 改 70vh
+- **html_sandbox 預覽走獨立 iframe 路徑** — 避免全局 ID 衝突
+- **課案編輯器 CSP 允許 iframe** — html_sandbox 預覽需要
+- **shared_resource_slides slide_type ENUM 補齊** — link/interactive
+- **教室共享 IP 不再連坐封禁** — 修復同校 IP 誤封問題
+- **歷史聊天記錄顯示思考過程** — 展示 AI 推理過程
+- **practice_sessions 自動遷移補充 error_code 列**
+- **課堂重新開啟 422** — schema 補充 draft 狀態
+
+### 性能
+
+- **後台用戶管理性能優化** — 查詢效率提升
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/core/security.py` | 修改：API Key 安全加固 |
+| `app/core/audit.py` | 修改：審計日誌 |
+| `app/domains/classroom/` | 修改：課案跨課室 + html_sandbox 嵌入 |
+| `app/domains/mistake_book/service.py` | 修改：雙模式生成 |
+| `app/domains/exam_creator/` | 修改：頁面路由 |
+| `scripts/server.sh` | 新增：伺服器管理腳本 |
+| `scripts/check_secrets.py` | 新增：密鑰檢查腳本 |
+| `web_static/js/editors/` | 修改：html_sandbox 編輯器 |
+| `web_static/js/classroom_student.js` | 修改：學生端全屏 + 底欄 |
+| `web_static/js/classroom_teacher.js` | 修改：教師端 iframe 預覽 |
+| `web_static/js/mistake_book.js` | 修改：雙欄佈局 + 歷史列表 |
+| `web_static/js/index.js` | 修改：解密動畫 |
+| `web_static/js/shared/decrypt_text.js` | 新增：文字解密動畫模組 |
+| `web_static/js/admin_dashboard.js` | 修改：系統日誌 tab |
+| `web_static/js/chat.js` | 修改：思考過程顯示 |
+| `web_static/css/index.css` | 修改：首頁動畫樣式 |
+| `web_static/css/mistake_book.css` | 修改：練習頁樣式 |
+
+---
+
+## [v3.0.57] [2026-03-18] 互動活動系統 + DeepSeek 雲端生成 + 模擬上課預覽
+
+### 新增
+
+- **互動活動系統 Phase 1+2** — 拖拽排序全鏈路 MVP + 完整實現 + 即時預覽；支持拖拽配對、拖拽放置、拖拽排序、自由畫布、HTML Sandbox 五種活動類型
+- **出卷系統新增 DeepSeek 雲端生成** — 本地 Ollama + 雲端 DeepSeek 雙引擎
+- **DeepSeek 啟用 reasoning 思考模式** — 取 content 丟棄 reasoning_content
+- **後台管理支持選擇 DeepSeek 模型** — reasoner/chat 下拉選擇
+- **神州菜園經營家增強** — 單次遊玩限制 + 按班級批量刪除
+- **課案編輯器新增「模擬上課」預覽功能** — 教師可預覽完整上課流程
+- **資源庫課件列表支持直接切換狀態** — 草稿/就緒/已歸檔
+- **AI 調度器卡死任務治理** — 看門狗自動回收 + 管理員強制釋放
+- **API key 持久化到 .env** — base64 編碼保護
+
+### 修復
+
+- **HTML 模型默認值改為 deepseek-reasoner**
+- **delete_plan datetime 序列化** — active_shares 中 datetime 改為 isoformat
+- **新增幻燈片彈窗加寬** — 禁止誤觸遮罩關閉
+- **模擬上課預覽修復** — 添加 utils.js 依賴 + config 防禦 + 中間面板 html_sandbox iframe 預覽
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/classroom/slide_handlers/interactive_handler.py` | 新增：互動活動處理器 |
+| `app/domains/classroom/slide_handlers/interactive_strategies.py` | 新增：互動活動策略 |
+| `web_static/js/editors/interactive_editor*.js` | 新增：五種互動活動編輯器 |
+| `web_static/js/editors/interactive_preview.js` | 新增：互動活動預覽 |
+| `web_static/js/editors/lesson_preview.js` | 新增：模擬上課預覽 |
+| `web_static/js/shared/interactive_renderers.js` | 新增：互動活動渲染器 |
+| `web_static/css/interactive_activity.css` | 新增：互動活動樣式 |
+| `app/domains/exam_creator/service.py` | 修改：DeepSeek 雲端生成 |
+| `app/domains/farm_game/service.py` | 修改：遊玩限制 + 批量刪除 |
+| `app/domains/resource_library/service.py` | 修改：狀態切換 |
+| `app/core/ai_gate.py` | 修改：看門狗 + 強制釋放 |
+| `app/infrastructure/ai_pipeline/llm_caller.py` | 修改：DeepSeek 調用 |
+| `llm/config.py` | 修改：DeepSeek 模型配置 |
+| `web_static/js/lesson_editor.js` | 修改：模擬上課入口 |
+| `web_static/js/admin_dashboard.js` | 修改：模型選擇下拉 |
+| `web_static/lesson_editor.html` | 修改：預覽功能 UI |
+
+---
+
+## [v3.0.56] [2026-03-17] AI 學習中心 + 出卷增強 + 備課工作台
+
+### 新增
+
+- **AI 學習中心知識圖譜** — 修復導入 404 + 科目列表 401，支援英文邊類型，改善佈局間距，數據轉繁體中文
+- **學習路徑數據轉為繁體中文** — AI 學習中心預設打開知識地圖分頁
+- **AI 生成任務後台化 + 歷史管理** — 考卷生成改為異步後台任務，支持歷史查看
+- **JSXGraph Phase 2 — 切線(tangent)支持** — 幾何渲染器新增切線繪製
+- **數學出卷增強** — 幾何描述輸入 + 單題 DOCX 導出
+- **新增「描述出題」第三模式** — 文字描述直接出題，幾何預覽移入
+- **相似題生成模式** — 根據現有題目生成變體
+- **圖片 OCR 提取圖形描述** — 物理題可理解力學圖/電路圖
+- **資源庫升級為獨立備課工作台** — 新增課件 CRUD/Slide/PPT/刪除檢測
+- **資源庫前端新增獨立課件創建/刪除功能** — 克隆支持獨立課件
+
+### 修復
+
+- **OMML 公式中 `\text{cm}²` 渲染方框問題**
+- **iPad/iOS 全屏頁面底部空白問題** — body 添加 overflow:hidden
+- **出題進度顯示修復** — 整合 OCR 到生成流程 + 修復 `\n` 渲染
+- **歷史載入 `__NOOP__` 404** — renderMath 非字串崩潰
+- **切線渲染優化** — bbox 自然裁剪 + prompt 區分 tangent/segment 場景
+- **單題生成 num_predict 從 4096 提至 8192** — 防止 LLM 輸出截斷
+- **單題生成加重試機制** — 詳細失敗診斷日誌
+- **相似題幾何 SVG 缺失** — iPad 無法滾動到出題歷史
+- **禁止 correct_answer 輸出思維鏈** — 要求標準解題格式
+- **delete_plan datetime 序列化為 isoformat**
+
+### 性能
+
+- **歷史列表查詢排除大字段** — 解決加載緩慢
+
+### 限制
+
+- **考卷一次最多出 5 題**
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/exam_creator/docx_exporter.py` | 新增：單題 DOCX 導出 |
+| `app/domains/exam_creator/service.py` | 修改：後台生成 + 歷史 + OCR + 相似題 |
+| `app/domains/exam_creator/repository.py` | 修改：歷史管理 |
+| `app/domains/mistake_book/jsxgraph_schema.py` | 修改：切線支持 |
+| `app/domains/mistake_book/subjects/physics.py` | 修改：OCR 圖形描述 |
+| `app/domains/resource_library/` | 修改：備課工作台升級 |
+| `web_static/js/exam_creator.js` | 修改：三模式出題 + 後台任務 + 歷史 |
+| `web_static/js/shared/jsxgraph_renderer.js` | 修改：切線渲染 |
+| `web_static/js/ai_learning_center.js` | 修改：知識圖譜 + 知識地圖 |
+| `web_static/js/alc_knowledge_map.js` | 修改：佈局間距 + 繁體 |
+| `web_static/js/resource_library.js` | 修改：課件 CRUD |
+| `web_static/css/exam_creator.css` | 修改：綠色品牌色 + 毛玻璃效果 |
+| `web_static/resource_library.html` | 修改：備課工作台 UI |
+| `data/kg_ulearning_guide.json` | 修改：知識圖譜數據繁體化 |
+| `data/paths_ulearning_guide.json` | 修改：學習路徑數據繁體化 |
+
+---
+
+## [v3.0.55] [2026-03-16] AI 考試出題模組 + 幾何約束引擎重構 + 批量 AI 批改 + 管理後台升級
+
+### 新增
+
+- **AI 考試出題模組** — 教師可用 AI 生成考卷，主頁新增「AI 出題輔助器」卡片（教師/管理員可見）
+- **JSXGraph 受限 DSL 渲染器 Phase 1** — 圓 + 弦 + 交點幾何渲染
+- **逐題生成考卷 + JSXGraph 標籤防重疊** — 更可靠的出題流程
+- **幾何約束引擎 Phase 1 重構** — 統一 IR + least_squares 數值優化
+- **Phase 2** — viewbox 空間利用修正 + 近重合點排斥 + 圓 clamp
+- **Phase 3** — multi-restart + DOF 估計 + `_run_solve` 提取
+- **Phase 4** — 容錯降級 + 首次求解失敗重啟
+- **幾何引擎複合約束求解** — 雙圓交點/合成長度/梯形啟發
+- **統計題表格樣式 + 莖葉圖/柱形圖 SVG 渲染管線**
+- **練習生成進度反饋 UI + 錯題本佈局優化**
+- **練習出題改為異步後台生成** — 修復作業批改 KeyError
+- **批量 AI 批改支持 Form 作業** — FormGradingView 重構，同時支持 Form 和 Exam 類型
+- **用戶管理表單新增班號（學號）欄位**
+- **合併 attendance_students 到 users 表** — 方案B徹底合併
+- **管理後台 UI 升級** — Emoji 全替換為 SVG 圖標 + 動畫提升
+
+### 修復
+
+- **出題輔助器 auth_token 讀取修正** — 進入頁面不再被彈出
+- **出題輔助器知識點查詢列名修正（500 錯誤）**
+- **出題輔助器 teacher_id 類型錯誤** — 'admin' 插入 INT 列
+- **teacher_id NOT NULL 無默認值** — 插入時填 0 佔位
+- **自動檢測純文本表格並轉為 Markdown 表格渲染**
+- **exam_creator renderMath 改進** — 支持 display math、跳過純中文、保護 SVG
+- **出題 LLM 輸出截斷導致 JSON 解析失敗**
+- **AI 出題長連接超時** — 前端 300s AbortController + uvicorn keep-alive
+- **批量 AI 批改 Form 作業類型字段名修正**
+- **Form/Exam 作業滿分從實際題目重新計算** — 不依賴 DB 中的 max_score
+- **AI 批改 Form 作業缺少 subject_code 參數**
+- **AI 批改表單作業增加 3 分鐘超時保護**
+- **自動補全 submission_answers 所有可能缺失的列**
+- **SVG spec 提取模型從 qwen3-coder:30b 換回 qwen3.5:35b**
+- **圓形約束支援** — prompt 加 circle/circle_through + draw.circles 傳遞
+- **幾何引擎多項修復** — LLM spec 清洗、equal_length fallback、right_angle 降級、point_on_segment 反推、parallel 衝突修正、正弦定理距離估算
+- **midpoint 反向推導** — 避免角度約束被覆蓋
+- **過濾 LLM spec 的 length=1 佔位符** — 約束類型名誤作點名
+- **過濾 value=null 的 length/angle 約束** — 不再整題失敗
+- **優化幾何 spec 提取 prompt** — 禁止佔位值 + 限制推導約束
+- **練習設置摘要文字隨題數/難度選項即時更新**
+- **移除簽到學生上傳入口** — 修復用戶搜索支持英文名/卡號
+- **修復用戶管理搜索框被擠壓無法點擊**
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/exam_creator/` | 新增：完整 domain（`__init__`, `repository`, `schemas`, `service`） |
+| `app/routers/exam_creator.py` | 新增：考試出題 API |
+| `web_static/exam_creator.html` | 新增：出題輔助器前端頁面 |
+| `web_static/js/exam_creator.js` | 新增：出題輔助器前端邏輯 |
+| `web_static/css/exam_creator.css` | 新增：出題輔助器樣式 |
+| `web_static/js/shared/jsxgraph_renderer.js` | 新增：JSXGraph 渲染器 |
+| `app/domains/mistake_book/jsxgraph_schema.py` | 新增：JSXGraph DSL Schema |
+| `app/domains/mistake_book/chart_renderer.py` | 新增：莖葉圖/柱形圖渲染 |
+| `app/domains/mistake_book/geometry_engine.py` | 修改：約束引擎 Phase 1-4 重構 |
+| `app/domains/mistake_book/geometry_optimizer.py` | 修改：數值優化器 |
+| `app/domains/assignment/service.py` | 修改：批量 AI 批改 Form/Exam 支持 |
+| `app/routers/assignment.py` | 修改：批改 API 擴展 |
+| `app/domains/user/service.py` | 修改：用戶合併 + 班號 |
+| `app/routers/user.py` | 修改：用戶管理 API |
+| `database_migration/merge_attendance_to_users.sql` | 新增：合併遷移腳本 |
+| `web_static/admin_dashboard.html` | 修改：SVG 圖標 + 動畫 |
+| `web_static/css/admin_dashboard.css` | 修改：後台樣式升級 |
+| `web_static/js/admin_dashboard.js` | 修改：後台邏輯 |
+| `web_static/js/mistake_book.js` | 修改：進度反饋 + 佈局優化 |
+| `web_static/css/mistake_book.css` | 修改：錯題本樣式 |
+
+---
+
+## [v3.0.54] [2026-03-15] AI 自適應練習 + 手寫識別 + 幾何引擎 v1-v3 + iPad 優化
+
+### 新增
+
+- **升級 AI 智能練習為自適應練習系統** — 根據學生表現動態調整難度
+- **練習頁面新增 AI 手寫識別輸入模式** — 手寫數學公式 → LaTeX
+- **手寫輸入改為全屏彈層** — 書寫空間更大
+- **識別結果加 KaTeX 渲染預覽** — textarea 自動撐高
+- **iPad 優化** — Apple Pencil 模式 + 畫布縮放平移 + 練習頁預覽修復
+- **練習題支持 HKDSE 風格 SVG 幾何附圖** — 第一版，僅數學
+- **兩步模型架構** — qwen3.5 出題 + coder 模型畫 SVG 幾何圖
+- **V2 幾何圖** — Python 確定性渲染器 + spec prompt 約束求解引導
+- **V3 約束驅動幾何引擎** — LLM 提語義，Python 算座標
+- **練習歷史 + 混合批改管線 + 重練功能**
+- **練習頁液態玻璃 UI 重設計** — 各科目獨立錯題分類
+
+### 修復
+
+- **Canvas 觸摸選取問題** — 預覽渲染改用 DOM 操作
+- **手寫識別 `_upload_dir` 改用模組級 UPLOAD_DIR 常量**
+- **手寫識別加入 `expect_json=False`** — 避免純文字被當 JSON 丟棄
+- **手寫識別去掉 `$` 定界符** — 禁止出需要看圖的練習題
+- **練習 prompt 允許 markdown 表格** — 只禁止圖片
+- **幾何題 SVG 從「可選」改為「必須」** — 確保 LLM 生成附圖
+- **加強 SVG 幾何圖形正確性約束** — 畫圖步驟 + 自檢流程
+- **出題重複問題** — temperature 0.3→0.8 + 隨機種子
+- **queue-status 401** — token 來源改為 App.state.token + 空值保護
+- **練習頁佈局太窄** — form max-width 240→480px + 歷史區 600px 容器
+- **桌面端佈局拓寬** — 幾何引擎約束求解器修復
+- **幾何引擎容錯改進** — 過濾 length=0 + 降級 perpendicular 驗證
+
+### 性能
+
+- **縮短啟動畫面動畫時長** — ~2s → ~1s
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/adaptive/engine.py` | 新增：自適應練習引擎 |
+| `app/domains/mistake_book/geometry_engine.py` | 新增：幾何約束引擎 v1-v3 |
+| `app/domains/mistake_book/svg_renderer.py` | 新增：確定性 SVG 渲染器 |
+| `app/domains/mistake_book/geometry_optimizer.py` | 新增：幾何優化器 |
+| `app/domains/mistake_book/service.py` | 修改：自適應練習 + 手寫識別 + 幾何管線 |
+| `app/domains/mistake_book/prompts.py` | 修改：出題 prompt + 幾何 spec prompt |
+| `app/domains/mistake_book/subject_handler.py` | 修改：科目處理器 |
+| `app/domains/mistake_book/subjects/*.py` | 修改：各科目獨立錯題分類 |
+| `app/domains/vision/service.py` | 修改：手寫識別 OCR |
+| `web_static/js/mistake_book.js` | 修改：手寫 UI + 練習歷史 + 液態玻璃 |
+| `web_static/css/mistake_book.css` | 修改：液態玻璃 UI 樣式 |
+| `web_static/mistake_book.html` | 修改：手寫輸入全屏彈層 |
+
+---
+
+## [v3.0.53] [2026-03-14] 測驗/投票系統 + 共享資源庫 + Liquid Glass UI
+
+### 新增
+
+- **測驗系統逐題答題** — 答案揭示 + 排名 + 編輯器圖片上傳
+- **測驗教師 UI 重設計** — 自動激活 + 按鈕流程簡化
+- **PPT 幻燈片與互動幻燈片按鈕分離** — 標註自動推送
+- **所有幻燈片自動推送** — 移除推送按鈕
+- **課堂系統六項改進** — 測驗修復、投票、編輯、下課重開、Excel 導出、菜單重設計
+- **共享資源庫系統** — 分組管理、課案分享與克隆
+- **遊戲中心 UI 重設計** — App Store 風格直式卡片
+- **遊戲中心加入 Liquid Glass 毛玻璃風格**
+- **課堂列表 UI 重設計** — Liquid Glass 毛玻璃風格
+- **創建課堂班級選擇器** — 按年級分行多選 + 所有學生選項
+- **課案編輯器設定面板新增「儲存此頁」按鈕**
+- **課堂日誌學生選擇器顯示班級+學號+姓名**
+
+### 修復
+
+- **投票提交 response_type 修正** — 'poll' → 'poll_vote' 匹配後端枚舉
+- **教師端投票人數即時更新** — 後端回傳 poll_results，前端 WS 即時重新渲染
+- **投票系統多項修復** — 教師端選項顯示、關閉後顯示結果按鈕、學生端結果展示
+- **投票系統 WS 錯誤處理** — 區分致命錯誤與業務邏輯錯誤，防止重複提交
+- **測驗課堂流程三項修復** — runtime_meta 解析、回應限制、推送按鈕
+- **測驗開放回應前隱藏答案選項** — 僅顯示題目
+- **無班級學生訪問不限制班級課堂時 403 權限錯誤**
+- **移除課堂控制列「完成」按鈕**
+- **關閉回應後學生不再被踢出教室**
+- **允許教師跨課堂訪問共享資源的 PPT 縮略圖**
+- **修復共享資源庫縮略圖無法顯示**
+- **學習分析報告字段映射修復** — RAG 索引加入科目標籤
+- **RAG 知識庫科目過濾修復** — 新增重建索引接口
+- **content_indexer metadata None 值導致 ChromaDB 寫入失敗**
+- **教室 WebSocket 無限重連問題**
+
+### 重構
+
+- **課堂卡片設計簡化** — 移除玻璃高光覆蓋層，改用乾淨白色卡片
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/resource_library/` | 新增：完整 domain（`__init__`, `repository`, `schemas`, `service`, `exceptions`） |
+| `app/routers/resource_library.py` | 新增：共享資源庫 API |
+| `web_static/resource_library.html` | 新增：資源庫前端頁面 |
+| `web_static/js/resource_library.js` | 新增：資源庫前端邏輯 |
+| `web_static/css/resource_library.css` | 新增：資源庫樣式 |
+| `app/domains/classroom/slide_handlers/quiz_handler.py` | 新增：測驗處理器 |
+| `app/domains/classroom/slide_handlers/poll_handler.py` | 新增：投票處理器 |
+| `app/domains/classroom/slide_handlers/link_handler.py` | 新增：連結處理器 |
+| `app/domains/classroom/service.py` | 修改：投票/測驗流程 |
+| `app/routers/classroom.py` | 修改：測驗/投票 API |
+| `web_static/js/classroom_teacher.js` | 修改：測驗 UI + 投票 + 菜單 |
+| `web_static/js/classroom_student.js` | 修改：測驗答題 + 投票 |
+| `web_static/js/game_center.js` | 修改：App Store 風格 |
+| `web_static/css/game_center.css` | 修改：Liquid Glass 樣式 |
+| `web_static/css/classroom_list.css` | 修改：Liquid Glass 樣式 |
+| `web_static/js/classroom_list.js` | 修改：班級選擇器 |
+| `web_static/js/shared/lesson_slide_renderers.js` | 修改：幻燈片渲染 |
+| `llm/rag/content_indexer.py` | 修改：科目標籤 + metadata 修復 |
+| `llm/rag/vector_store.py` | 修改：科目過濾 |
+
+---
+
+## [v3.0.52] [2026-03-13] 互動課案編輯器 Phase 1 + LLM 內容安全審核 + 教學駕駛艙
+
+### 新增
+
+- **互動課案編輯器 Phase 1** — PPT + 遊戲幻燈片系統，支援直接從電腦上傳 PPT，拖拽排序幻燈片
+- **教師課堂自動載入課案** — 進入課堂直接顯示課案編輯器中的幻燈片
+- **教師課堂 UI 重構為 Teaching Console 教學駕駛艙**
+- **標註子系統補全** — 可重推、按頁保存、跨尺寸縮放
+- **統一 LLM 內容安全審核** — 圖片生成 + 討論區共用安全過濾
+- **圖片生成增加內容安全過濾** — 攔截色情、暴力等違禁 prompt
+
+### 修復
+
+- **PPT 預覽圖片改用靜態路徑** — 修復 403 錯誤
+- **slide reorder API route collision** — unique constraint conflict
+- **student_class UnboundLocalError in join_room**
+- **修復 classroom_teacher.js 語法錯誤** — 改善課案選擇器
+- **修復圖片生成排隊等待產生大量孤兒 asyncio task**
+- **修復圖片生成客戶端斷開時調度器槽位泄漏**
+- **排隊輪詢改用 asyncio.sleep** — 徹底消除孤兒 task 警告
+- **大幅擴充正則違禁關鍵詞列表**
+- **強化審核 prompt 對「組合暗示」的識別能力**
+- **審核 prompt 增加否定句式和學術偽裝繞過防護**
+- **處理 qwen3.5 思考模型回復格式**
+- **降低圖片生成任務權重** — VISION_MULTI(3) → CHAT(1)
+- **課堂列表頁移除 emoji 並改為全寬布局**
+- **學生端課案 PPT 頁面 404** — 改用靜態圖片路徑
+- **學生端遊戲 iframe 全屏顯示**
+- **學生端遊戲→PPT 切換崩潰** — 恢復 canvas-wrapper 結構
+- **課堂頁面 CSP 允許 iframe 加載遊戲**
+- **課室日誌已提交記錄無法編輯的問題**
+- **移除課堂自動彈出課案選擇器** — 防止 PPT 跨課堂重複出現
+- **課案計劃改為按課堂隔離** — 解決 PPT 跨課堂共享問題
+- **課案系統啟動時自動建表** — 幂等 CREATE TABLE IF NOT EXISTS
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/classroom/lesson_service.py` | 新增：課案服務 |
+| `app/domains/classroom/lesson_repository.py` | 新增：課案 Repository |
+| `app/domains/classroom/lesson_schemas.py` | 新增：課案 Schema |
+| `app/domains/classroom/lesson_exceptions.py` | 新增：課案異常 |
+| `app/domains/classroom/slide_configs.py` | 新增：幻燈片配置 |
+| `app/domains/classroom/slide_handlers/` | 新增：幻燈片處理器（base, ppt, game） |
+| `web_static/lesson_editor.html` | 新增：課案編輯器頁面 |
+| `web_static/js/lesson_editor.js` | 新增：課案編輯器邏輯 |
+| `web_static/css/lesson_editor.css` | 新增：課案編輯器樣式 |
+| `web_static/js/shared/annotation_utils.js` | 新增：標註工具 |
+| `forum_system/service/content_moderator.py` | 修改：統一內容安全審核 |
+| `app/domains/image_gen/service.py` | 修改：安全過濾 + 槽位管理 |
+| `app/core/ai_gate.py` | 修改：任務權重調整 |
+| `web_static/js/classroom_teacher.js` | 修改：Teaching Console |
+| `web_static/css/classroom_teacher.css` | 修改：駕駛艙樣式 |
+| `web_static/classroom_teacher.html` | 修改：駕駛艙 UI |
+| `web_static/classroom_student.html` | 修改：課案顯示 + 全屏 |
+| `web_static/js/classroom_student.js` | 修改：PPT 顯示 + 遊戲全屏 |
+| `web_static/js/image_gen.js` | 修改：安全過濾 UI |
+| `create_lesson_plan_tables.sql` | 新增：課案系統建表 SQL |
+
+---
+
+## [v3.0.51] [2026-03-12] 化學 2048 遊戲 + AI 圖片生成 + 課室日誌增強 + 班號欄位
+
+### 新增
+
+- **化學元素 2048 遊戲** — 分數統計與排行榜系統（僅中三），含絲滑滑動和合併動畫；開始畫面直接顯示排行榜
+- **AI 圖片生成功能** — Ollama Flux 模型，支持文字描述生成圖片
+- **全站 AI 排隊機制優化** — 實時排隊位置推送
+- **添加 class_number（班號）欄位到用戶系統**
+- **課室日誌 8 項增強** — 完整實施
+- **課室日誌審閱頁增強** — 儀表板卡片點擊彈窗 + AI 報告合併入今日概覽 + 權限分級視圖 + 日期範圍分析
+
+### 修復
+
+- **AI 報告頁面不再顯示原始 findings JSON**
+- **import_class_number 改為命令行傳參** — 不再硬編碼路徑
+- **化學 2048 分類調整** — 移至化學科；中國經濟桌遊移至公民
+- **化學 2048 修復** — 啟動建表、排行榜重複、前端多項問題
+
+### 涉及文件
+
+| 文件 | 變更 |
+|------|------|
+| `app/domains/chem2048/` | 新增：完整 domain（`__init__`, `repository`, `schemas`, `service`） |
+| `app/routers/chem2048.py` | 新增：化學 2048 API |
+| `web_static/chemistry_2048.html` | 新增：化學 2048 前端頁面 |
+| `database_migration/create_chem2048_scores.sql` | 新增：chem2048_scores 表 |
+| `app/domains/image_gen/` | 新增：完整 domain（`__init__`, `service`） |
+| `app/routers/image_gen.py` | 新增：圖片生成 API |
+| `web_static/image_gen.html` | 新增：圖片生成前端頁面 |
+| `web_static/js/image_gen.js` | 新增：圖片生成前端邏輯 |
+| `database_migration/add_class_number.sql` | 新增：班號欄位遷移 |
+| `database_migration/import_class_number.py` | 新增：班號導入腳本 |
+| `app/domains/class_diary/` | 修改：8 項增強（審閱頁、報告、權限） |
+| `web_static/class_diary_review.html` | 修改：審閱頁 UI |
+| `web_static/js/class_diary_review.js` | 修改：儀表板 + AI 報告 |
+| `web_static/css/class_diary_review.css` | 修改：審閱頁樣式 |
+| `scripts/test_data_one_day.sql` | 新增：課室日誌模擬數據 |
+| `app/core/ai_gate.py` | 修改：排隊機制優化 |
+| `web_static/js/game_center.js` | 修改：分類調整 |
+| `data/app_modules.json` | 修改：新增模組入口 |
+
+---
+
 ## [v3.0.50] [2026-03-11] 神州菜園遊戲 + 留堂「功課+晨讀」+ 作業代碼貼上
 
 ### 新增
