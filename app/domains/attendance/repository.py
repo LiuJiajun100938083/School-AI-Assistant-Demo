@@ -37,7 +37,7 @@ class AttendanceStudentRepository(BaseRepository):
       username → user_login, display_name → chinese_name
     """
 
-    TABLE = "attendance_students"  # 保留，供 BaseRepository 初始化；實際查詢用 raw_query
+    TABLE = "users"  # 已從 attendance_students 合併至 users 表
 
     # --- 統一 SELECT 片段 ---
     _STUDENT_COLS = (

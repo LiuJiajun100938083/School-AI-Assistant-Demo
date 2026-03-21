@@ -1225,26 +1225,10 @@ CREATE TABLE forum_user_preferences (
 -- ====================================================================
 
 -- --------------------------------------------------------------------
--- 9.1  attendance_students — [DEPRECATED] 已合併至 users 表
--- 說明: 原獨立學生表，english_name 和 card_id 已遷移至 users 表。
---       保留此表作為備份，不再被程式碼查詢。
+-- 9.1  attendance_students — [已刪除] 已合併至 users 表（v3.0.55）
+-- 說明: english_name 和 card_id 欄位已遷移至 users 表。
+--       生產環境可安全 DROP TABLE attendance_students。
 -- --------------------------------------------------------------------
-CREATE TABLE attendance_students (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
-    class_name   VARCHAR(10) NOT NULL                  COMMENT '班級，如 S1A',
-    class_number INT NOT NULL                          COMMENT '班號',
-    user_login   VARCHAR(50) NOT NULL UNIQUE            COMMENT '學號(唯一)',
-    english_name VARCHAR(100) NOT NULL                  COMMENT '英文名',
-    chinese_name VARCHAR(100) NOT NULL                  COMMENT '中文名',
-    card_id      VARCHAR(50)                            COMMENT '學生證 CardID',
-    is_active    BOOLEAN DEFAULT TRUE,
-    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
-    INDEX idx_class (class_name),
-    INDEX idx_card (card_id),
-    INDEX idx_user_login (user_login)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 -- --------------------------------------------------------------------
@@ -1282,7 +1266,7 @@ CREATE TABLE attendance_sessions (
 CREATE TABLE attendance_session_students (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     session_id  INT NOT NULL                           COMMENT '→ attendance_sessions.id',
-    user_login  VARCHAR(50) NOT NULL                    COMMENT '→ attendance_students.user_login',
+    user_login  VARCHAR(50) NOT NULL                    COMMENT '→ users.username',
     added_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (session_id) REFERENCES attendance_sessions(id) ON DELETE CASCADE,
@@ -1302,7 +1286,7 @@ CREATE TABLE attendance_session_students (
 CREATE TABLE attendance_records (
     id               INT AUTO_INCREMENT PRIMARY KEY,
     session_id       INT NOT NULL                      COMMENT '→ attendance_sessions.id',
-    user_login       VARCHAR(50) NOT NULL               COMMENT '→ attendance_students.user_login',
+    user_login       VARCHAR(50) NOT NULL               COMMENT '→ users.username',
     card_id          VARCHAR(50)                        COMMENT '刷卡ID',
     scan_time        DATETIME NOT NULL                  COMMENT '簽到時間',
     checkout_time    DATETIME                           COMMENT '簽退時間',
@@ -1352,7 +1336,7 @@ CREATE TABLE attendance_fixed_lists (
 CREATE TABLE attendance_fixed_list_students (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     list_id     INT NOT NULL                           COMMENT '→ attendance_fixed_lists.id',
-    user_login  VARCHAR(50) NOT NULL                    COMMENT '→ attendance_students.user_login',
+    user_login  VARCHAR(50) NOT NULL                    COMMENT '→ users.username',
     added_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (list_id) REFERENCES attendance_fixed_lists(id) ON DELETE CASCADE,

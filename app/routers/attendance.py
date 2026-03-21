@@ -123,23 +123,7 @@ def init_attendance_tables():
     with get_db() as db:
         cursor = db.cursor()
 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS attendance_students (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                class_name VARCHAR(10) NOT NULL COMMENT '班级',
-                class_number INT NOT NULL COMMENT '班号',
-                user_login VARCHAR(50) NOT NULL UNIQUE COMMENT '学号',
-                english_name VARCHAR(100) NOT NULL COMMENT '英文名',
-                chinese_name VARCHAR(100) NOT NULL COMMENT '中文名',
-                card_id VARCHAR(50) COMMENT '学生证CardID',
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_class (class_name),
-                INDEX idx_card (card_id),
-                INDEX idx_user_login (user_login)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        """)
+        # attendance_students 已合併至 users 表（v3.0.55），不再建立
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS attendance_sessions (
