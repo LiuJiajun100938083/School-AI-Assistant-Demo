@@ -556,15 +556,24 @@ const UI = {
 
         // 修復未用 $ 包裹的裸露 LaTeX（AI 有時漏掉 $ 分隔符）
         // 分割文本為 $...$ 內和外的片段，只對外部片段修復
-        const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/);
-        text = parts.map(part => {
-            // 奇數索引是已有的 $...$ 片段，保留不動
-            if (part.startsWith('$')) return part;
-            // 偶數索引是普通文本，包裹含 \ 命令的片段
-            return part.replace(
-                /([A-Za-z_]\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar)\b[^$\n,，。；]*/g,
+        const _wrapBareLatex = (plainText) => {
+            // Pass 1: 含 \ 命令的片段（擴展完整清單）
+            plainText = plainText.replace(
+                /([A-Za-z_]\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar|neq|leq|geq|pm|mp|approx|equiv|sim|le|ge|ne|lt|gt|infty|sum|prod|int|lim|log|ln|sin|cos|tan|left|right|quad|qquad|over|not|in|forall|exists|subset|cup|cap|to|rightarrow|leftarrow)\b[^$\n,，。；]*/g,
                 match => `$${match.trim()}$`
             );
+            // Pass 2: 含上標 ^ 的數學片段（如 x^2, 6x^2, (-1)^2）
+            plainText = plainText.replace(
+                /[(\d\-]*[a-zA-Z)]+\s*\^\s*(?:\{[^}]+\}|\d+)/g,
+                match => match.includes('$') ? match : `$${match.trim()}$`
+            );
+            return plainText;
+        };
+
+        const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/);
+        text = parts.map(part => {
+            if (part.startsWith('$')) return part;
+            return _wrapBareLatex(part);
         }).join('');
 
         if (typeof katex === 'undefined') {
@@ -1011,7 +1020,8 @@ const UI = {
         };
 
         // 按步驟標記或換行拆分（完整顯示每步）
-        const lines = _safeSplit(ca, /(?:Step\s*\d+[:：]|步驟\s*\d+[:：]|\(\d+\)\s*|^\d+[.、]\s*|\n{2,})/im);
+        // 注意：\(\d+\) 須錨定行首，避免拆斷 F(2)、(-1) 等數學表達式
+        const lines = _safeSplit(ca, /(?:Step\s*\d+[:：]|步驟\s*\d+[:：]|(?:^|\n)\(\d+\)\s*|^\d+[.、]\s*|\n{2,})/im);
 
         if (lines.length <= 1) {
             return _safeSplit(ca, /\n/);

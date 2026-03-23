@@ -3078,7 +3078,13 @@
     line-height: 1.65;
     color: var(--mb-text);
 }
-.mb-compare-list li { margin-bottom: 4px; }
+.mb-compare-list li {
+    margin-bottom: 6px;
+    overflow-x: auto;
+}
+.mb-compare-list li p { margin: 0; }
+.mb-compare-list .katex { font-size: 1em; }
+.mb-compare-list .katex-display { margin: 4px 0; overflow-x: auto; }
 
 /* 參考解法排版 */
 .mb-step-layout {
