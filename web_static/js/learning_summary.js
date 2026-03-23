@@ -28,11 +28,11 @@ const SUMMARY_CONFIG = {
 };
 
 const SUMMARY_MESSAGES = {
-    NO_CONVERSATION: '請先開始一個對話後再生成學習總結',
-    NO_MESSAGES: '當前對話訊息太少，至少需要2條訊息才能生成總結',
-    LOADING: '正在分析對話內容，生成學習總結...',
-    ERROR: '生成總結時出錯，請稍後重試',
-    SUCCESS: '總結生成成功！'
+    NO_CONVERSATION: i18n.t('summary.noConversation'),
+    NO_MESSAGES: i18n.t('summary.insufficientMsg'),
+    LOADING: i18n.t('summary.generating'),
+    ERROR: i18n.t('summary.generationFailed'),
+    SUCCESS: i18n.t('summary.generated')
 };
 
 /* ========== 工具函數 ========== */
@@ -114,7 +114,7 @@ class SummaryRenderer {
      */
     render(markdown) {
         if (!this.container) {
-            console.error('SummaryRenderer: 容器未設定');
+            console.error('SummaryRenderer: container not set');
             return;
         }
 
@@ -219,7 +219,7 @@ class SummaryRenderer {
             try {
                 return window.app.formatTextWithMath(markdown);
             } catch (e) {
-                console.warn('formatTextWithMath失敗，使用後備方案');
+                console.warn('formatTextWithMath failed, using fallback');
             }
         }
 
@@ -371,11 +371,11 @@ class MindmapRenderer {
      */
     async render(markmapData) {
         if (!this.container) {
-            console.error('MindmapRenderer: 容器未設定');
+            console.error('MindmapRenderer: container not set');
             return;
         }
 
-        console.log('MindmapRenderer: 開始渲染思維導圖');
+        console.log('MindmapRenderer: starting render');
 
         // 清空容器
         this.container.innerHTML = '';
@@ -389,11 +389,11 @@ class MindmapRenderer {
                 await this.renderWithMarkmap(markmapData);
             } else {
                 // 使用後備方案
-                console.log('MindmapRenderer: 使用後備渲染方案');
+                console.log('MindmapRenderer: using fallback renderer');
                 this.renderFallback(markmapData);
             }
         } catch (error) {
-            console.error('MindmapRenderer: 渲染失敗', error);
+            console.error('MindmapRenderer: render failed', error);
             // 出錯時使用後備方案
             this.renderFallback(markmapData);
         }
@@ -419,12 +419,12 @@ class MindmapRenderer {
         for (const src of scripts) {
             const loaded = await this.loadScript(src);
             if (!loaded) {
-                console.warn(`MindmapRenderer: 載入失敗 - ${src}`);
+                console.warn(`MindmapRenderer: failed to load - ${src}`);
                 return false;
             }
         }
 
-        console.log('MindmapRenderer: 所有Markmap庫載入成功');
+        console.log('MindmapRenderer: all Markmap libs loaded');
         return true;
     }
 
@@ -567,7 +567,7 @@ class MindmapRenderer {
             const transformer = new Transformer();
             const { root, features } = transformer.transform(markmapData);
 
-            console.log('MindmapRenderer: 使用固定尺寸', { width: FIXED_WIDTH, height: FIXED_HEIGHT });
+            console.log('MindmapRenderer: using fixed dimensions', { width: FIXED_WIDTH, height: FIXED_HEIGHT });
 
             // 在建立markmap之前，先用D3選擇SVG並設定初始zoom狀態
             const svgSelection = d3.select(svg);
@@ -608,7 +608,7 @@ class MindmapRenderer {
                 // 再次確保__zoom狀態同步
                 svgSelection.property('__zoom', initialTransform);
 
-                console.log('MindmapRenderer: 初始變換設定成功', initialTransform.toString());
+                console.log('MindmapRenderer: initial transform set', initialTransform.toString());
 
                 // 重新綁定zoom行為，確保它使用正確的初始狀態
                 this.setupZoomBehavior(svgSelection, g, FIXED_WIDTH, FIXED_HEIGHT);
@@ -618,13 +618,13 @@ class MindmapRenderer {
             setTimeout(() => {
                 if (this.currentMindmap && this.currentMindmap.options) {
                     this.currentMindmap.options.duration = 500;
-                    console.log('MindmapRenderer: 動畫已啟用');
+                    console.log('MindmapRenderer: animation enabled');
                 }
             }, 200);
 
-            console.log('MindmapRenderer: Markmap渲染成功');
+            console.log('MindmapRenderer: Markmap render success');
         } catch (error) {
-            console.error('MindmapRenderer: Markmap渲染出錯', error);
+            console.error('MindmapRenderer: Markmap render error', error);
             // 清空並使用後備方案
             this.container.innerHTML = '';
             this.renderFallback(markmapData);
@@ -641,7 +641,7 @@ class MindmapRenderer {
     setupZoomBehavior(svgSelection, g, width, height) {
         const d3 = window.d3;
         if (!d3 || !d3.zoom) {
-            console.warn('MindmapRenderer: D3 zoom不可用');
+            console.warn('MindmapRenderer: D3 zoom unavailable');
             return;
         }
 
@@ -657,7 +657,7 @@ class MindmapRenderer {
                 if (t && isFinite(t.x) && isFinite(t.y) && isFinite(t.k) && t.k > 0) {
                     g.attr('transform', t.toString());
                 } else {
-                    console.warn('MindmapRenderer: 阻止無效zoom事件', t);
+                    console.warn('MindmapRenderer: blocked invalid zoom event', t);
                 }
             });
 
@@ -667,7 +667,7 @@ class MindmapRenderer {
             .call(zoom)
             .call(zoom.transform, currentTransform);  // 應用當前transform
 
-        console.log('MindmapRenderer: 自定義zoom行為已設定');
+        console.log('MindmapRenderer: custom zoom behavior set');
     }
 
     /**
@@ -681,27 +681,27 @@ class MindmapRenderer {
                 setTimeout(() => {
                     try {
                         if (!this.currentMindmap || !this.currentMindmap.svg) {
-                            console.warn('MindmapRenderer: mindmap實例無效');
+                            console.warn('MindmapRenderer: mindmap instance invalid');
                             return;
                         }
 
                         const svgNode = this.currentMindmap.svg.node();
                         if (!svgNode) {
-                            console.warn('MindmapRenderer: SVG節點不存在');
+                            console.warn('MindmapRenderer: SVG node not found');
                             return;
                         }
 
                         // 檢查SVG是否有有效尺寸
                         const rect = svgNode.getBoundingClientRect();
                         if (rect.width <= 0 || rect.height <= 0) {
-                            console.warn('MindmapRenderer: SVG容器尺寸無效，跳過fit', rect);
+                            console.warn('MindmapRenderer: SVG container size invalid, skipping fit', rect);
                             // 保持pendingFit為true，下次再試
                             return;
                         }
 
                         // 檢查是否可見（不在隱藏的父元素中）
                         if (rect.width < 10 || rect.height < 10) {
-                            console.warn('MindmapRenderer: SVG容器太小，可能未完全可見');
+                            console.warn('MindmapRenderer: SVG container too small, may not be fully visible');
                             return;
                         }
 
@@ -709,10 +709,10 @@ class MindmapRenderer {
                         if (this.currentMindmap.fit) {
                             this.currentMindmap.fit();
                             this.pendingFit = false;
-                            console.log('MindmapRenderer: fit完成', { width: rect.width, height: rect.height });
+                            console.log('MindmapRenderer: fit done', { width: rect.width, height: rect.height });
                         }
                     } catch (e) {
-                        console.warn('MindmapRenderer: fit失敗', e);
+                        console.warn('MindmapRenderer: fit failed', e);
                         // 出錯時標記為已完成，避免重複嘗試
                         this.pendingFit = false;
                     }
@@ -744,13 +744,13 @@ class MindmapRenderer {
                     strValue = value.toString();
                 } else {
                     // 無法轉換，使用上次有效值
-                    console.warn('MindmapRenderer: transform值類型無效:', typeof value);
+                    console.warn('MindmapRenderer: invalid transform value type:', typeof value);
                     return originalSetAttribute.call(this, name, lastValidTransform);
                 }
 
                 // 檢查是否包含NaN或Infinity
                 if (strValue.includes('NaN') || strValue.includes('Infinity')) {
-                    console.warn('MindmapRenderer: 阻止無效transform值:', strValue);
+                    console.warn('MindmapRenderer: blocked invalid transform value:', strValue);
                     return originalSetAttribute.call(this, name, lastValidTransform);
                 }
 
@@ -762,7 +762,7 @@ class MindmapRenderer {
                     const x = parseFloat(translateMatch[1]);
                     const y = parseFloat(translateMatch[2]);
                     if (!isFinite(x) || !isFinite(y)) {
-                        console.warn('MindmapRenderer: 檢測到無效translate座標:', { x, y });
+                        console.warn('MindmapRenderer: detected invalid translate coordinates:', { x, y });
                         return originalSetAttribute.call(this, name, lastValidTransform);
                     }
                 }
@@ -770,7 +770,7 @@ class MindmapRenderer {
                 if (scaleMatch) {
                     const s = parseFloat(scaleMatch[1]);
                     if (!isFinite(s) || s <= 0) {
-                        console.warn('MindmapRenderer: 檢測到無效scale值:', s);
+                        console.warn('MindmapRenderer: detected invalid scale value:', s);
                         return originalSetAttribute.call(this, name, lastValidTransform);
                     }
                 }
@@ -783,7 +783,7 @@ class MindmapRenderer {
             return originalSetAttribute.call(this, name, value);
         };
 
-        console.log('MindmapRenderer: transform保護已啟用');
+        console.log('MindmapRenderer: transform protection enabled');
     }
 
     /**
@@ -793,7 +793,7 @@ class MindmapRenderer {
     renderFallback(markmapData) {
         if (!this.container) return;
 
-        console.log('MindmapRenderer: 使用後備樹形渲染');
+        console.log('MindmapRenderer: using fallback tree render');
 
         // 解析Markdown為層級結構
         const lines = markmapData.split('\n').filter(line => line.trim());
@@ -863,7 +863,7 @@ class MindmapRenderer {
             this.container.innerHTML = `
                 <div class="mindmap-loading">
                     <div class="summary-loading-spinner"></div>
-                    <p>正在生成思維導圖...</p>
+                    <p>${i18n.t('summary.generating')}</p>
                 </div>
             `;
         }
@@ -936,7 +936,7 @@ class LearningSummaryManager {
     createButton() {
         const inputRow = $('.input-toolbar') || $('.input-row');
         if (!inputRow) {
-            console.error('找不到 .input-toolbar 元素');
+            console.error('Cannot find .input-toolbar element');
             return;
         }
 
@@ -944,7 +944,7 @@ class LearningSummaryManager {
         this.summaryBtn = createElement('button', {
             id: 'summaryButton',
             className: 'toolbar-btn summary-button',
-            title: '生成學習總結和思維導圖'
+            title: i18n.t('summary.btnTooltip')
         });
         this.summaryBtn.innerHTML =
             '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
@@ -954,7 +954,7 @@ class LearningSummaryManager {
             '<line x1="16" y1="17" x2="8" y2="17"/>' +
             '<polyline points="10 9 9 9 8 9"/>' +
             '</svg>' +
-            '<span class="toolbar-btn-label">總結</span>';
+            '<span class="toolbar-btn-label">' + i18n.t('summary.btnLabel') + '</span>';
 
         // 插入到發送按鈕之前
         const sendButton = $('#sendButton');
@@ -983,7 +983,7 @@ class LearningSummaryManager {
                         <svg class="summary-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                         </svg>
-                        學習總結
+                        ${i18n.t('summary.title')}
                     </h2>
                     <button class="summary-modal-close" id="closeSummaryModal">&times;</button>
                 </div>
@@ -993,13 +993,13 @@ class LearningSummaryManager {
                         <svg class="summary-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                         </svg>
-                        知識點總結
+                        ${i18n.t('summary.tabSummary')}
                     </button>
                     <button class="summary-tab" data-tab="${SUMMARY_CONFIG.TABS.MINDMAP}">
                         <svg class="summary-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/>
                         </svg>
-                        思維導圖
+                        ${i18n.t('summary.tabMindmap')}
                     </button>
                 </div>
 
@@ -1007,14 +1007,14 @@ class LearningSummaryManager {
                     <div class="summary-panel active" id="summaryPanel">
                         <div class="summary-panel-content" id="summaryContent">
                             <div class="summary-placeholder">
-                                <p>點擊下方按鈕生成學習總結</p>
+                                <p>${i18n.t('summary.clickGenSummary')}</p>
                             </div>
                         </div>
                     </div>
                     <div class="summary-panel" id="mindmapPanel">
                         <div class="summary-panel-content mindmap-container" id="mindmapContent">
                             <div class="summary-placeholder">
-                                <p>點擊下方按鈕生成思維導圖</p>
+                                <p>${i18n.t('summary.clickGenMindmap')}</p>
                             </div>
                         </div>
                     </div>
@@ -1028,7 +1028,7 @@ class LearningSummaryManager {
                                 <polyline points="7 10 12 15 17 10"/>
                                 <line x1="12" y1="15" x2="12" y2="3"/>
                             </svg>
-                            導出
+                            ${i18n.t('summary.export')}
                             <svg class="export-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="export-menu" id="exportMenu">
@@ -1036,24 +1036,24 @@ class LearningSummaryManager {
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
                                 </svg>
-                                Word 文檔 (.docx)
+                                ${i18n.t('summary.exportWord')}
                             </button>
                             <button class="export-menu-item" data-export="pdf">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>
                                 </svg>
-                                PDF 文件 (.pdf)
+                                ${i18n.t('summary.exportPdf')}
                             </button>
                             <button class="export-menu-item" data-export="image">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
                                 </svg>
-                                圖片 (.png)
+                                ${i18n.t('summary.exportImage')}
                             </button>
                         </div>
                     </div>
                     <button class="summary-action-btn primary" id="generateSummaryBtn">
-                        生成總結
+                        ${i18n.t('summary.generate')}
                     </button>
                 </div>
             </div>
@@ -1167,7 +1167,7 @@ class LearningSummaryManager {
         const container = $('#messagesContainer');
 
         if (!container) {
-            console.warn('collectMessages: 找不到訊息容器');
+            console.warn('collectMessages: message container not found');
             return messages;
         }
 
@@ -1240,7 +1240,7 @@ class LearningSummaryManager {
             // 禁用按鈕，顯示載入狀態
             if (generateBtn) {
                 generateBtn.disabled = true;
-                generateBtn.textContent = '生成中...';
+                generateBtn.textContent = i18n.t('summary.generatingBtn');
             }
 
             // 顯示載入狀態
@@ -1268,7 +1268,7 @@ class LearningSummaryManager {
                 } else {
                     // 沒有思維導圖資料時，清除載入狀態並顯示提示
                     this.mindmapRenderer.container.innerHTML =
-                        '<div style="text-align:center;padding:40px;color:#9ca3af">暫無思維導圖資料</div>';
+                        '<div style="text-align:center;padding:40px;color:#9ca3af">' + i18n.t('summary.clickGenMindmap') + '</div>';
                 }
 
                 this.showToast(SUMMARY_MESSAGES.SUCCESS, 'success');
@@ -1277,7 +1277,7 @@ class LearningSummaryManager {
             }
 
         } catch (error) {
-            console.error('生成總結失敗:', error);
+            console.error('Summary generation failed:', error);
             this.summaryRenderer.showError(error.message || SUMMARY_MESSAGES.ERROR);
             this.mindmapRenderer.showError(error.message || SUMMARY_MESSAGES.ERROR);
             this.showToast(error.message || SUMMARY_MESSAGES.ERROR, 'error');
@@ -1286,7 +1286,7 @@ class LearningSummaryManager {
             // 恢復按鈕狀態
             if (generateBtn) {
                 generateBtn.disabled = false;
-                generateBtn.textContent = '生成總結';
+                generateBtn.textContent = i18n.t('summary.generate');
             }
         }
     }
@@ -1307,7 +1307,7 @@ class LearningSummaryManager {
 
         if (!hasSummaryTag && !hasMindmapTag) return;
 
-        console.log('LearningSummary: 前端容錯解析 — 檢測到未拆分的標記');
+        console.log('LearningSummary: frontend fallback parse — detected unsplit markers');
 
         // 嘗試用正則提取
         const summaryMatch = raw.match(/\[SUMMARY_START\]([\s\S]*?)(?:\[SUMMARY_END\]|$)/);
@@ -1429,7 +1429,7 @@ class LearningSummaryManager {
     _getExportFilename() {
         const subject = this.app?.state?.currentSubject || 'general';
         const date = new Date().toISOString().slice(0, 10);
-        const tabLabel = this.currentTab === SUMMARY_CONFIG.TABS.SUMMARY ? '學習總結' : '思維導圖';
+        const tabLabel = this.currentTab === SUMMARY_CONFIG.TABS.SUMMARY ? i18n.t('summary.title') : i18n.t('summary.tabMindmap');
         return `${tabLabel}_${subject}_${date}`;
     }
 
@@ -1439,17 +1439,17 @@ class LearningSummaryManager {
      */
     async exportSummary(format) {
         if (!this.summaryData) {
-            this.showToast('沒有可導出的內容，請先生成總結', 'warning');
+            this.showToast(i18n.t('summary.noContent'), 'warning');
             return;
         }
 
         const content = this._getActiveContent();
         if (!content || !content.innerHTML.trim()) {
-            this.showToast('當前頁面無內容可導出', 'warning');
+            this.showToast(i18n.t('summary.pageNoContent'), 'warning');
             return;
         }
 
-        this.showToast('正在生成導出文件...', 'info');
+        this.showToast(i18n.t('summary.generatingExport'), 'info');
 
         try {
             switch (format) {
@@ -1464,8 +1464,8 @@ class LearningSummaryManager {
                     break;
             }
         } catch (error) {
-            console.error('導出失敗:', error);
-            this.showToast('導出失敗: ' + error.message, 'error');
+            console.error('Export failed:', error);
+            this.showToast(i18n.t('summary.exportFailed') + ': ' + error.message, 'error');
         }
     }
 
@@ -1608,7 +1608,7 @@ class LearningSummaryManager {
                 resolve(canvas);
             };
             img.onerror = () => {
-                console.warn('SVG → Canvas 失敗，嘗試後備方案');
+                console.warn('SVG to Canvas failed, trying fallback');
                 resolve(null);
             };
             img.src = dataUrl;
@@ -1624,7 +1624,7 @@ class LearningSummaryManager {
      */
     async _captureFullContent(contentEl, scale = 3) {
         const ok = await this._loadHtml2Canvas();
-        if (!ok) throw new Error('無法載入截圖庫，請檢查網絡');
+        if (!ok) throw new Error(i18n.t('summary.screenshotLibFailed'));
 
         // 建立離屏克隆容器（全展開，無 overflow 限制）
         const wrapper = document.createElement('div');
@@ -1661,7 +1661,7 @@ class LearningSummaryManager {
                 canvas.toDataURL();  // 測試是否可導出
                 return canvas;
             } catch (taintErr) {
-                console.warn('Canvas tainted，使用降級方案重試');
+                console.warn('Canvas tainted, retrying with degraded options');
                 // 降級：重新截圖但不載入外部資源
                 const canvas2 = await window.html2canvas(wrapper, {
                     scale,
@@ -1741,7 +1741,7 @@ class LearningSummaryManager {
 
         const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword' });
         this._downloadBlob(blob, filename);
-        this.showToast('Word 文檔已下載', 'success');
+        this.showToast(i18n.t('summary.wordDownloaded'), 'success');
     }
 
     /**
@@ -1749,7 +1749,7 @@ class LearningSummaryManager {
      */
     async _exportPDF(contentEl) {
         const pdfOk = await this._loadJsPDF();
-        if (!pdfOk) throw new Error('無法載入 PDF 庫，請檢查網絡');
+        if (!pdfOk) throw new Error('Failed to load PDF library');
 
         const filename = this._getExportFilename() + '.pdf';
         const isMindmap = this._isMindmapTab();
@@ -1808,7 +1808,7 @@ class LearningSummaryManager {
         }
 
         pdf.save(filename);
-        this.showToast('PDF 文件已下載', 'success');
+        this.showToast(i18n.t('summary.pdfDownloaded'), 'success');
     }
 
     /**
@@ -1831,7 +1831,7 @@ class LearningSummaryManager {
         canvas.toBlob(blob => {
             if (blob) {
                 this._downloadBlob(blob, filename);
-                this.showToast('圖片已下載', 'success');
+                this.showToast(i18n.t('summary.imageDownloaded'), 'success');
             }
         }, 'image/png');
     }

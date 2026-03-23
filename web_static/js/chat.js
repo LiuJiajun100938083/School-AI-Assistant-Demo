@@ -46,7 +46,7 @@ const ChatAPI = {
             AuthModule.removeToken();
             ChatApp._clearAuth();
             window.location.href = '/';
-            throw new Error('认证失效，请重新登录');
+            throw new Error(i18n.t('chat.errorAuth'));
         }
         return resp;
     },
@@ -191,7 +191,7 @@ const ChatUI = {
     updateUserDisplay(userProfile) {
         const el = this.elements;
         el.userName.textContent = userProfile.display_name || userProfile.username;
-        el.userClass.textContent = userProfile.class_name || '未分班';
+        el.userClass.textContent = userProfile.class_name || i18n.t('home.defaultClass');
         const firstChar = (userProfile.display_name || userProfile.username).charAt(0).toUpperCase();
         el.userAvatar.textContent = firstChar;
     },
@@ -211,8 +211,8 @@ const ChatUI = {
         if (el.adminButton) {
             el.adminButton.style.display = 'flex';
             el.adminButton.innerHTML = isTeacher
-                ? '<span>⚙️</span>教學管理'
-                : '<span>⚙️</span>管理后台';
+                ? '<span>⚙️</span>' + i18n.t('menu.admin')
+                : '<span>⚙️</span>' + i18n.t('menu.admin');
         }
         if (el.adminPanel) el.adminPanel.style.display = 'flex';
         if (el.adminSeparator) el.adminSeparator.style.display = 'block';
@@ -224,10 +224,10 @@ const ChatUI = {
         const el = this.elements.statusIndicator;
         if (online) {
             el.className = 'status-indicator status-online';
-            el.textContent = '● 連接正常';
+            el.textContent = i18n.t('chat.statusOnline');
         } else {
             el.className = 'status-indicator status-offline';
-            el.textContent = '● 連接異常';
+            el.textContent = i18n.t('chat.statusOffline');
         }
     },
 
@@ -363,8 +363,8 @@ const ChatUI = {
             const subjectInfo = ChatApp._getSubjectInfo(conv.subject);
             item.innerHTML = `
                 <div class="conversation-title">${subjectInfo.icon} ${conv.title}</div>
-                <div class="conversation-meta">${conv.message_count || 0} 條訊息 · ${ChatApp._formatDate(conv.updated_at)}</div>
-                <button class="delete-conversation-btn" title="刪除對話">×</button>
+                <div class="conversation-meta">${conv.message_count || 0} ${i18n.t('chat.msgCount')} · ${ChatApp._formatDate(conv.updated_at)}</div>
+                <button class="delete-conversation-btn" title="${i18n.t('chat.deleteChat')}">×</button>
             `;
 
             item.addEventListener('click', (e) => {
@@ -422,7 +422,7 @@ const ChatUI = {
     },
 
     updateSubjectTitle(subjectInfo) {
-        this.elements.headerTitle.textContent = `${subjectInfo.icon} ${subjectInfo.name} AI 學習夥伴`;
+        this.elements.headerTitle.textContent = `${subjectInfo.icon} ${subjectInfo.name} ${i18n.t('chat.headerTitle')}`;
     },
 
     /* ---------- 功能列表 ---------- */
@@ -437,25 +437,25 @@ const ChatUI = {
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                 </svg>
-                <span>涵蓋 ${count} 個學科的知識輔導</span>
+                <span>${i18n.t('chat.featureSubjects', {count})}</span>
             </div>
             <div class="feature-item">
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.5V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.5c2.9-1.2 5-4.1 5-7.5a8 8 0 0 0-8-8z"/><line x1="10" y1="22" x2="14" y2="22"/>
                 </svg>
-                <span>深度思考模式 — AI 先推理再回答</span>
+                <span>${i18n.t('chat.featureThinking')}</span>
             </div>
             <div class="feature-item">
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/>
                 </svg>
-                <span>對話記憶 — 自動保存學習歷程</span>
+                <span>${i18n.t('chat.featureMemory')}</span>
             </div>
             <div class="feature-item">
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                 </svg>
-                <span>文檔上傳 — 拖曳檔案即可智能問答</span>
+                <span>${i18n.t('chat.featureUpload')}</span>
             </div>
         `;
     },
@@ -470,11 +470,11 @@ const ChatUI = {
         const subjectInfo = ChatApp._getSubjectInfo(currentSubject);
         this.elements.messagesContainer.innerHTML = `
             <div class="welcome-message">
-                <div class="welcome-title">👋 欢迎，${userInfo?.display_name || currentUser}！</div>
-                <div class="welcome-subtitle">开始使用 ${subjectInfo.name} AI 学习伙伴</div>
+                <div class="welcome-title">${i18n.t('chat.welcomeUser', {name: userInfo?.display_name || currentUser})}</div>
+                <div class="welcome-subtitle">${i18n.t('chat.welcomeUseSubject', {subject: subjectInfo.name})}</div>
                 <div class="feature-list" id="welcomeFeatureList">
-                    <div class="feature-item">🖥️ <strong>本地模式</strong>：快速响应，精准问答</div>
-                    <div class="feature-item">📎 <strong>文档上传</strong>：直接拖拽文件到输入框进行智能问答</div>
+                    <div class="feature-item">${i18n.t('chat.featureLocal')}</div>
+                    <div class="feature-item">${i18n.t('chat.featureUploadDetail')}</div>
                 </div>
             </div>
         `;
@@ -508,7 +508,7 @@ const ChatUI = {
         processingItem.id = `processing-${sanitizeId(file.name)}`;
         processingItem.innerHTML = `
             <div class="file-processing-spinner"></div>
-            <span>正在處理 "${file.name}"...</span>
+            <span>${i18n.t('chat.processing', {name: file.name})}</span>
         `;
         filesDiv.appendChild(processingItem);
         filesDiv.style.display = 'block';
@@ -524,8 +524,8 @@ const ChatUI = {
         if (!filesDiv) return;
 
         const processingInfo = fileData.processedLocally
-            ? '(前端處理)'
-            : fileData.processedByBackend ? '(後端處理)' : '';
+            ? i18n.t('chat.processedFrontend')
+            : fileData.processedByBackend ? i18n.t('chat.processedBackend') : '';
 
         const fileItem = document.createElement('div');
         fileItem.className = 'conversation-file-item';
@@ -596,7 +596,7 @@ const ChatUI = {
         bubbleDiv.innerHTML = `
             <div class="subject-badge">${subjectInfo.icon} ${subjectInfo.name}</div>
             <div class="typing-indicator">
-                正在提交請求...
+                ${i18n.t('chat.submitting')}
                 <div class="typing-dots">
                     <div class="typing-dot"></div>
                     <div class="typing-dot"></div>
@@ -642,7 +642,7 @@ const ChatUI = {
         thinkingSection.style.display = 'none';
         thinkingSection.innerHTML = `
             <div class="section-header section-header-toggle">
-                <span>思考過程</span>
+                <span>${i18n.t('chat.thinking')}</span>
                 <span class="collapse-indicator expanded">▾</span>
             </div>
             <div class="section-content">
@@ -901,7 +901,7 @@ const ChatApp = {
             const response = await ChatAPI.verify();
             if (response.ok) {
                 const result = await response.json();
-                if (!result.success) throw new Error('Token验证失败');
+                if (!result.success) throw new Error(i18n.t('token.verifyFailed'));
                 const userProfile = result.data;
                 this.state.currentUser = userProfile.username;
                 this.state.userRole = userProfile.role || 'student';
@@ -920,10 +920,10 @@ const ChatApp = {
 
                 this.state.userInfo = userProfile;
             } else {
-                throw new Error('Token验证失败');
+                throw new Error(i18n.t('token.verifyFailed'));
             }
         } catch (error) {
-            console.error('Token验证错误:', error);
+            console.error('Token verify error:', error);
             this._clearAuth();
             window.location.href = '/';
         }
@@ -952,16 +952,16 @@ const ChatApp = {
         const info = this.state.userInfo;
         if (info) {
             const lines = [
-                `用户名: ${info.username}`,
-                `显示名称: ${info.display_name || '未设置'}`,
-                `班级: ${info.class_name || '未分班'}`,
-                `登录次数: ${info.login_count || 0}`,
-                `最后登录: ${info.last_login ? new Date(info.last_login).toLocaleString() : '首次登录'}`
+                `${i18n.t('chat.labelUsername')}: ${info.username}`,
+                `${i18n.t('chat.labelDisplayName')}: ${info.display_name || i18n.t('home.defaultUser')}`,
+                `${i18n.t('chat.labelClass')}: ${info.class_name || i18n.t('home.defaultClass')}`,
+                `${i18n.t('chat.labelLoginCount')}: ${info.login_count || 0}`,
+                `${i18n.t('chat.labelLastLogin')}: ${info.last_login ? new Date(info.last_login).toLocaleString() : 'N/A'}`
             ];
             if (this.state.isAdmin) {
-                lines.push('权限: 管理员');
+                lines.push(i18n.t('chat.labelPermission') + ': Admin');
             }
-            alert('个人资料\n\n' + lines.join('\n'));
+            alert(i18n.t('chat.profileTitle') + '\n\n' + lines.join('\n'));
         }
     },
 
@@ -972,15 +972,15 @@ const ChatApp = {
         const confirmPassword = el.confirmPasswordInput.value;
 
         if (!oldPassword || !newPassword || !confirmPassword) {
-            el.passwordError.textContent = '请填写所有字段';
+            el.passwordError.textContent = i18n.t('password.emptyFields');
             return;
         }
         if (newPassword.length < 4) {
-            el.passwordError.textContent = '新密码至少需要4个字符';
+            el.passwordError.textContent = i18n.t('password.tooShort');
             return;
         }
         if (newPassword !== confirmPassword) {
-            el.passwordError.textContent = '兩次輸入的新密碼不一致';
+            el.passwordError.textContent = i18n.t('password.mismatch');
             return;
         }
 
@@ -988,14 +988,14 @@ const ChatApp = {
             const response = await ChatAPI.changePassword(oldPassword, newPassword);
             const result = await response.json();
             if (response.ok && result.success) {
-                alert('密碼修改成功！');
+                alert(i18n.t('password.success'));
                 ChatUI.hideChangePasswordModal();
             } else {
-                el.passwordError.textContent = result.detail || '密碼修改失敗';
+                el.passwordError.textContent = result.detail || i18n.t('password.failed');
             }
         } catch (error) {
-            console.error('修改密碼錯誤:', error);
-            el.passwordError.textContent = '網絡錯誤，請稍後重試';
+            console.error('Change password error:', error);
+            el.passwordError.textContent = i18n.t('common.networkError');
         }
     },
 
@@ -1056,27 +1056,23 @@ const ChatApp = {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
-            console.error('載入學科失敗:', error);
+            console.error('Failed to load subjects:', error);
             this._useDefaultSubjects();
         }
     },
 
     _useDefaultSubjects() {
-        this.state.allSubjects = {
-            'ict':         { code: 'ict',         name: 'ICT (資訊及通訊科技)', icon: '💻', description: '資訊與通訊科技' },
-            'ces':         { code: 'ces',         name: 'CES (公民經濟與社會)', icon: '🏛️', description: '公民经济与社会' },
-            'history':     { code: 'history',     name: '歷史 (History)',       icon: '📚', description: '歷史學科' },
-            'chinese':     { code: 'chinese',     name: '中文',               icon: '📖', description: '中文語言文學' },
-            'english':     { code: 'english',     name: '英文',               icon: '🔤', description: '英語語言文學' },
-            'math':        { code: 'math',        name: '數學',               icon: '🔢', description: '數學學科' },
-            'physics':     { code: 'physics',     name: '物理',               icon: '⚛️', description: '物理學科' },
-            'chemistry':   { code: 'chemistry',   name: '化學',               icon: '🧪', description: '化學學科' },
-            'biology':     { code: 'biology',     name: '生物',               icon: '🧬', description: '生物學科' },
-            'science':     { code: 'science',     name: '科學',               icon: '🔬', description: '綜合科學' },
-            'economics':   { code: 'economics',   name: '經濟',               icon: '💹', description: '經濟學科' },
-            'geography':   { code: 'geography',   name: '地理',               icon: '🌍', description: '地理學科' },
-            'visual_arts': { code: 'visual_arts', name: '視覺藝術',           icon: '🎨', description: '視覺藝術' }
-        };
+        const subjects = ['ict','ces','history','chinese','english','math','physics','chemistry','biology','science','economics','geography','visual_arts'];
+        this.state.allSubjects = {};
+        for (const code of subjects) {
+            const key = code === 'visual_arts' ? 'va' : code;
+            this.state.allSubjects[code] = {
+                code,
+                name: i18n.t(`subject.${key}`),
+                icon: '📚',
+                description: i18n.t(`subject.${key}.desc`)
+            };
+        }
         ChatUI.updateSubjectSelector(this.state.allSubjects, this.state.currentSubject);
         ChatUI.updateFeatureList(this.state.allSubjects);
     },
@@ -1117,7 +1113,7 @@ const ChatApp = {
             const response = await ChatAPI.verify();
             ChatUI.updateStatusIndicator(response.ok);
         } catch (error) {
-            console.error('检查系统状态失败:', error);
+            console.error('Failed to check system status:', error);
             ChatUI.updateStatusIndicator(false);
         }
     },
@@ -1135,7 +1131,7 @@ const ChatApp = {
             this.state.conversations = result.conversations;
             ChatUI.renderConversations(this.state.conversations, this.state.currentConversationId);
         } catch (error) {
-            console.error('加载对话失败:', error);
+            console.error('Failed to load conversations:', error);
         }
     },
 
@@ -1154,12 +1150,12 @@ const ChatApp = {
     async loadConversation(conversationId) {
         try {
             if (!this.state.currentUser) {
-                console.warn('currentUser 未设置，无法加载对话');
+                console.warn('currentUser not set, cannot load conversation');
                 return;
             }
             const response = await ChatAPI.fetchConversation(this.state.currentUser, conversationId);
             if (!response.ok) {
-                console.error('加载对话失败:', response.status);
+                console.error('Failed to load conversation:', response.status);
                 return;
             }
             const conversation = await response.json();
@@ -1185,7 +1181,7 @@ const ChatApp = {
             ChatUI.renderConversations(this.state.conversations, this.state.currentConversationId);
             ChatUI.scrollToBottom(true);
         } catch (error) {
-            console.error('加载对话失败:', error);
+            console.error('Failed to load conversation:', error);
         }
     },
 
@@ -1208,7 +1204,7 @@ const ChatApp = {
         e.currentTarget.classList.add('selected');
 
         el.newChatNameSection.style.display = '';
-        el.newChatNameInput.value = `${subjectInfo.name} 對話`;
+        el.newChatNameInput.value = `${subjectInfo.name} ${i18n.t('chat.conversation')}`;
         el.newChatNameInput.focus();
         el.newChatNameInput.select();
     },
@@ -1219,7 +1215,7 @@ const ChatApp = {
         if (!subjectCode) return;
 
         const el = ChatUI.elements;
-        const title = el.newChatNameInput.value.trim() || `${subjectInfo.icon} ${subjectInfo.name} 對話`;
+        const title = el.newChatNameInput.value.trim() || `${subjectInfo.icon} ${subjectInfo.name} ${i18n.t('chat.conversation')}`;
 
         this._hideNewChatModal();
 
@@ -1236,8 +1232,8 @@ const ChatApp = {
             this._clearConversationFiles();
             this._loadConversations();
         } catch (error) {
-            console.error('創建對話失敗:', error);
-            ChatUI.showStatusMessage('創建對話失敗，請稍後重試', 3000);
+            console.error('Failed to create conversation:', error);
+            ChatUI.showStatusMessage(i18n.t('chat.errorCreateConvRetry'), 3000);
         }
 
         if (this._newChatResolve) {
@@ -1258,7 +1254,7 @@ const ChatApp = {
 
     _showConfirmDelete(conv) {
         this._pendingDeleteAction = () => this._deleteConversation(conv.id, conv.title);
-        ChatUI.showConfirmDialog(`確定要刪除對話「${conv.title}」嗎？此操作無法撤銷。`);
+        ChatUI.showConfirmDialog(i18n.t('chat.confirmDeleteMsg', {title: conv.title}));
     },
 
     async _deleteConversation(conversationId, title) {
@@ -1274,14 +1270,14 @@ const ChatApp = {
                 }
                 this.state.conversations = this.state.conversations.filter(c => c.id !== conversationId);
                 ChatUI.renderConversations(this.state.conversations, this.state.currentConversationId);
-                ChatUI.showStatusMessage(`對話「${title}」刪除成功`, 3000);
+                ChatUI.showStatusMessage(i18n.t('chat.convDeleted', {title}), 3000);
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || '刪除失敗');
+                throw new Error(errorData.detail || i18n.t('chat.errorDeleteFailed'));
             }
         } catch (error) {
-            console.error('刪除對話失敗:', error);
-            alert(`刪除對話失敗: ${error.message}\n請稍後重試`);
+            console.error('Failed to delete conversation:', error);
+            alert(`${i18n.t('chat.errorDeleteFailed')}: ${error.message}`);
         }
     },
 
@@ -1314,27 +1310,27 @@ const ChatApp = {
                 ChatUI.removeFileProcessingIndicator(file.name, this._sanitizeId);
                 this._addConversationFile(fileData);
             } catch (error) {
-                console.error('檔案處理失敗:', error);
+                console.error('File processing failed:', error);
                 ChatUI.removeFileProcessingIndicator(file.name, this._sanitizeId);
-                ChatUI.showStatusMessage(`檔案「${file.name}」處理失敗: ${error.message}`, 5000);
+                ChatUI.showStatusMessage(`${i18n.t('chat.errorBackendProcess')}: ${file.name} - ${error.message}`, 5000);
             }
         }
     },
 
     _validateFile(file) {
         if (file.size > 100 * 1024 * 1024) {
-            ChatUI.showStatusMessage('檔案超過100MB限制', 5000);
+            ChatUI.showStatusMessage(i18n.t('chat.errorFileSize'), 5000);
             return false;
         }
         const supportedExts = ['.txt', '.md', '.docx', '.pdf', '.pptx'];
         const fileName = file.name.toLowerCase();
         const isSupported = supportedExts.some(ext => fileName.endsWith(ext));
         if (!isSupported) {
-            ChatUI.showStatusMessage(`不支援的檔案格式，支援: ${supportedExts.join(', ')}`, 5000);
+            ChatUI.showStatusMessage(i18n.t('chat.errorFileFormat') + ' ' + supportedExts.join(', '), 5000);
             return false;
         }
         if (this.state.conversationFiles.some(f => f.name === file.name)) {
-            ChatUI.showStatusMessage(`檔案「${file.name}」已在當前對話中`, 3000);
+            ChatUI.showStatusMessage(i18n.t('chat.errorFileDuplicate', {name: file.name}), 3000);
             return false;
         }
         return true;
@@ -1344,7 +1340,7 @@ const ChatApp = {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = () => reject(new Error('檔案讀取失敗'));
+            reader.onerror = () => reject(new Error(i18n.t('chat.errorFileRead')));
             reader.readAsText(file, 'utf-8');
         });
     },
@@ -1356,9 +1352,9 @@ const ChatApp = {
                 const errorText = await response.text();
                 try {
                     const errorData = JSON.parse(errorText);
-                    throw new Error(errorData.detail || errorData.message || '後端處理失敗');
+                    throw new Error(errorData.detail || errorData.message || i18n.t('chat.errorBackendProcess'));
                 } catch (parseError) {
-                    if (parseError.message.includes('後端處理失敗') || parseError.message.includes('detail')) {
+                    if (parseError.message.includes('detail') || parseError.message.includes('Backend')) {
                         throw parseError;
                     }
                     throw new Error(`HTTP ${response.status}: ${errorText}`);
@@ -1366,7 +1362,7 @@ const ChatApp = {
             }
             const result = await response.json();
             if (!result.success) {
-                throw new Error(result.message || '后端文件处理失败');
+                throw new Error(result.message || i18n.t('chat.errorBackendProcess'));
             }
             const data = result.data || result;
             return {
@@ -1379,8 +1375,8 @@ const ChatApp = {
                 processedByBackend: true
             };
         } catch (error) {
-            if (error.message.includes('Failed to fetch') || error.message.includes('网络错误')) {
-                throw new Error(`後端服務不可用，${file.name} 需要伺服器處理`);
+            if (error.message.includes('Failed to fetch') || error.message.includes('network')) {
+                throw new Error(i18n.t('chat.errorBackendProcess') + ': ' + file.name);
             }
             throw error;
         }
@@ -1390,9 +1386,7 @@ const ChatApp = {
         this.state.conversationFiles.push(fileData);
         ChatUI.addConversationFileItem(fileData, this._getFileIcon, this._formatFileSize);
 
-        const msg = fileData.processedLocally
-            ? `${fileData.name} 已添加到對話（前端處理）`
-            : `${fileData.name} 已添加到對話（后端解析完成）`;
+        const msg = `${fileData.name} ${i18n.t('chat.fileAdded')} ${fileData.processedLocally ? i18n.t('chat.processedFrontend') : i18n.t('chat.processedBackend')}`;
         ChatUI.showStatusMessage(msg, 3000);
     },
 
@@ -1443,7 +1437,7 @@ const ChatApp = {
 
         if (!message && this.state.conversationFiles.length === 0) return;
         if (!message && this.state.conversationFiles.length > 0) {
-            ChatUI.showStatusMessage('請輸入針對檔案的問題...', 3000);
+            ChatUI.showStatusMessage(i18n.t('chat.errorEnterQuestion'), 3000);
             el.messageInput.focus();
             return;
         }
@@ -1520,11 +1514,11 @@ const ChatApp = {
             await this._loadConversations();
 
         } catch (error) {
-            console.error('發送訊息失敗:', error);
+            console.error('Failed to send message:', error);
             ChatUI.removeTypingIndicator();
             const errorMessage = error.message === 'Failed to fetch'
-                ? '網絡連接失敗，請檢查網絡'
-                : `發送失敗: ${error.message}`;
+                ? i18n.t('common.networkFailed')
+                : i18n.t('chat.errorSendFailed') + ': ' + error.message;
             ChatUI.showStatusMessage(errorMessage, 5000);
             el.messageInput.value = message;
         } finally {
@@ -1556,7 +1550,7 @@ const ChatApp = {
                 if (eventType) eventData.type = eventType;
                 this._handleStreamEvent(eventData, ctxHolder);
             } catch (parseErr) {
-                console.warn('SSE 解析跳过:', partText.slice(0, 100));
+                console.warn('SSE parse skipped:', partText.slice(0, 100));
             }
         }
     },
@@ -1589,7 +1583,7 @@ const ChatApp = {
                 if (indicator) {
                     const bubble = indicator.querySelector('.typing-indicator');
                     if (bubble) {
-                        bubble.childNodes[0].textContent = `目前使用人數較多，正在排隊（第 ${pos}/${total} 位）`;
+                        bubble.childNodes[0].textContent = i18n.t('chat.queuePosition', {pos, total});
                         // 淡入效果讓學生感知隊列在動
                         bubble.style.transition = 'opacity 0.3s';
                         bubble.style.opacity = '0.7';
@@ -1648,7 +1642,7 @@ const ChatApp = {
 
             case 'error':
                 ChatUI.removeTypingIndicator();
-                ChatUI.showStatusMessage(eventData.message || 'AI 服務繁忙，請稍後重試', 5000);
+                ChatUI.showStatusMessage(eventData.message || i18n.t('chat.aiBusy'), 5000);
                 break;
         }
     },
@@ -1661,16 +1655,16 @@ const ChatApp = {
             let thinkingHtml = '';
 
             if (sections.knowledge) {
-                thinkingHtml += this._buildSectionHtml('knowledge-section', '參考資料', sections.knowledge);
+                thinkingHtml += this._buildSectionHtml('knowledge-section', i18n.t('chat.knowledge'), sections.knowledge);
             }
             if (sections.reasoning) {
-                thinkingHtml += this._buildSectionHtml('reasoning-section', '分析過程', sections.reasoning);
+                thinkingHtml += this._buildSectionHtml('reasoning-section', i18n.t('chat.reasoning'), sections.reasoning);
             }
             if (sections.thinking) {
-                thinkingHtml += this._buildSectionHtml('thinking-section', '思考筆記', sections.thinking);
+                thinkingHtml += this._buildSectionHtml('thinking-section', i18n.t('chat.thinkingNotes'), sections.thinking);
             }
             if (!thinkingHtml && ctx.fullThinking.trim()) {
-                thinkingHtml = this._buildSectionHtml('reasoning-section', '思考過程', ctx.fullThinking);
+                thinkingHtml = this._buildSectionHtml('reasoning-section', i18n.t('chat.thinking'), ctx.fullThinking);
             }
 
             ctx.thinkingSection.outerHTML = thinkingHtml;
@@ -1728,19 +1722,19 @@ const ChatApp = {
                 const sections = this._parseThinkingContent(thinking);
                 let hasSection = false;
                 if (sections.knowledge) {
-                    html += this._buildSectionHtml('knowledge-section', '參考資料', sections.knowledge);
+                    html += this._buildSectionHtml('knowledge-section', i18n.t('chat.knowledge'), sections.knowledge);
                     hasSection = true;
                 }
                 if (sections.reasoning) {
-                    html += this._buildSectionHtml('reasoning-section', '分析過程', sections.reasoning);
+                    html += this._buildSectionHtml('reasoning-section', i18n.t('chat.reasoning'), sections.reasoning);
                     hasSection = true;
                 }
                 if (sections.thinking) {
-                    html += this._buildSectionHtml('thinking-section', '思考筆記', sections.thinking);
+                    html += this._buildSectionHtml('thinking-section', i18n.t('chat.thinkingNotes'), sections.thinking);
                     hasSection = true;
                 }
                 if (!hasSection && thinking.trim()) {
-                    html += this._buildSectionHtml('reasoning-section', '思考過程', thinking);
+                    html += this._buildSectionHtml('reasoning-section', i18n.t('chat.thinking'), thinking);
                 }
             }
 
@@ -1789,14 +1783,13 @@ const ChatApp = {
     _buildMessageWithFileContent(userMessage) {
         let enhanced = '';
         if (this.state.conversationFiles.length > 0) {
-            enhanced += '【用户在此对话中上传的文件内容】\n\n';
+            enhanced += i18n.t('chat.filesUploaded') + '\n\n';
             this.state.conversationFiles.forEach((file, index) => {
-                enhanced += `文件 ${index + 1}: ${file.name}\n`;
-                enhanced += '文件内容:\n';
+                enhanced += `${i18n.t('chat.fileContent')} ${index + 1}: ${file.name}\n`;
                 enhanced += file.content;
                 enhanced += '\n\n---\n\n';
             });
-            enhanced += '【用户基于以上文件内容的问题】\n';
+            enhanced += i18n.t('chat.questionAboutFiles') + '\n';
         }
         enhanced += userMessage;
         return enhanced;
@@ -1959,7 +1952,7 @@ const ChatApp = {
 
         const isHtml = (language || '').toLowerCase() === 'html';
         const previewBtnHtml = isHtml
-            ? `<button class="preview-html-button" data-preview-id="${blockId}">▶ 預覽</button>`
+            ? `<button class="preview-html-button" data-preview-id="${blockId}">${i18n.t('chat.preview')}</button>`
             : '';
 
         return `
@@ -1968,7 +1961,7 @@ const ChatApp = {
                     <span class="code-language">${(language || 'plaintext').toUpperCase()}</span>
                     <div class="code-block-actions">
                         ${previewBtnHtml}
-                        <button class="copy-button" data-copy-id="${blockId}">複製</button>
+                        <button class="copy-button" data-copy-id="${blockId}">${i18n.t('chat.copy')}</button>
                     </div>
                 </div>
                 <div class="code-block-content">
@@ -1976,8 +1969,8 @@ const ChatApp = {
                 </div>
                 ${isHtml ? `<div class="html-preview-container" id="preview-${blockId}" style="display:none;">
                     <div class="html-preview-header">
-                        <span>HTML 預覽</span>
-                        <button class="preview-close-btn" data-close-preview-id="${blockId}">✕ 關閉</button>
+                        <span>${i18n.t('chat.htmlPreview')}</span>
+                        <button class="preview-close-btn" data-close-preview-id="${blockId}">${i18n.t('chat.close')}</button>
                     </div>
                     <iframe class="html-preview-iframe" sandbox="allow-scripts allow-same-origin" title="HTML Preview"></iframe>
                 </div>` : ''}
@@ -2092,7 +2085,7 @@ const ChatApp = {
             return tableHtml;
 
         } catch (error) {
-            console.warn('表格解析失敗:', error);
+            console.warn('Table parse failed:', error);
             return headerRow + '\n' + separatorRow + '\n' + dataRows;
         }
     },
@@ -2113,10 +2106,10 @@ function copyCodeBlock(blockId, btn) {
     if (!codeBlock) return;
     navigator.clipboard.writeText(codeBlock.textContent).then(() => {
         if (btn) {
-            btn.textContent = '已複製！';
+            btn.textContent = i18n.t('chat.copied');
             btn.style.background = '#4caf50';
             setTimeout(() => {
-                btn.textContent = '複製';
+                btn.textContent = i18n.t('chat.copy');
                 btn.style.background = '';
             }, 2000);
         }
