@@ -699,9 +699,9 @@ const MyGamesPage = {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
-            if (data.success) {
-                this.userId = data.id;
-                this.userRole = data.role;
+            if (data.success && data.data) {
+                this.userId = data.data.id;
+                this.userRole = data.data.role;
             }
         } catch (error) {
             console.error('获取用户信息失败', error);

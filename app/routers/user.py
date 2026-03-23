@@ -56,10 +56,8 @@ async def get_user_info(request: Request):
         username, role = _verify_request(request)
         user = get_services().user.get_user(username)
         user["role"] = role
-        # 前端（game_upload/my_games/game_center）直接读取 data.id / data.role
-        # 需要返回扁平格式并包含 success 标记
-        user["success"] = True
-        return user
+        # 前端 auth.js getUserInfo() 期望 {success, data} 格式
+        return {"success": True, "data": user}
 
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
