@@ -583,13 +583,13 @@ class ChatService:
         summary = ""
         mindmap = ""
 
-        # 策略 1：标签格式
+        # 策略 1：标签格式（支持缺少 END 标签的情况）
         summary_match = re.search(
-            r'\[SUMMARY_START\](.*?)\[SUMMARY_END\]',
+            r'\[SUMMARY_START\](.*?)(?:\[SUMMARY_END\]|\[MINDMAP_START\]|$)',
             response, re.DOTALL,
         )
         mindmap_match = re.search(
-            r'\[MINDMAP_START\](.*?)\[MINDMAP_END\]',
+            r'\[MINDMAP_START\](.*?)(?:\[MINDMAP_END\]|$)',
             response, re.DOTALL,
         )
 
@@ -599,6 +599,9 @@ class ChatService:
             mindmap = mindmap_match.group(1).strip()
 
         if summary and mindmap:
+            return summary, mindmap
+        # 只有 summary 但有标记，也返回
+        if summary_match and summary:
             return summary, mindmap
 
         # 策略 2：分隔符格式

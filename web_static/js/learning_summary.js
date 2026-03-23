@@ -435,17 +435,35 @@ class MindmapRenderer {
      */
     loadScript(src) {
         return new Promise((resolve) => {
-            // 檢查是否已存在
-            if (document.querySelector(`script[src="${src}"]`)) {
-                resolve(true);
-                return;
+            // 檢查是否已成功載入（標記 data-loaded）
+            const existing = document.querySelector(`script[src="${src}"]`);
+            if (existing) {
+                if (existing.dataset.loaded === 'true') {
+                    resolve(true);
+                } else if (existing.dataset.loaded === 'false') {
+                    // 前一次載入失敗，移除後重試
+                    existing.remove();
+                } else {
+                    // 正在載入中，等待
+                    existing.addEventListener('load', () => resolve(true));
+                    existing.addEventListener('error', () => resolve(false));
+                    return;
+                }
             }
 
             const script = document.createElement('script');
             script.src = src;
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
+            script.onload = () => { script.dataset.loaded = 'true'; resolve(true); };
+            script.onerror = () => { script.dataset.loaded = 'false'; resolve(false); };
             document.head.appendChild(script);
+
+            // 15 秒超時
+            setTimeout(() => {
+                if (!script.dataset.loaded) {
+                    script.dataset.loaded = 'false';
+                    resolve(false);
+                }
+            }, 15000);
         });
     }
 
@@ -1194,6 +1212,9 @@ class LearningSummaryManager {
 
             const data = response.data || response;
             if (response.success !== false) {
+                // 前端容錯：如果後端解析失敗，summary 中可能包含原始標記
+                this._parseSummaryFallback(data);
+
                 this.summaryData = data;
 
                 // 渲染總結
@@ -1204,6 +1225,10 @@ class LearningSummaryManager {
                 // 渲染思維導圖
                 if (data.mindmap) {
                     await this.mindmapRenderer.render(data.mindmap);
+                } else {
+                    // 沒有思維導圖資料時，清除載入狀態並顯示提示
+                    this.mindmapRenderer.container.innerHTML =
+                        '<div style="text-align:center;padding:40px;color:#9ca3af">暫無思維導圖資料</div>';
                 }
 
                 this.showToast(SUMMARY_MESSAGES.SUCCESS, 'success');
@@ -1223,6 +1248,53 @@ class LearningSummaryManager {
                 generateBtn.disabled = false;
                 generateBtn.textContent = '生成總結';
             }
+        }
+    }
+
+    /**
+     * 前端容錯解析：如果後端返回的 summary 中仍包含 [SUMMARY_START] / [MINDMAP_START] 標記，
+     * 在前端重新拆分，確保 data.summary 和 data.mindmap 正確分離。
+     * @param {Object} data - API 返回的資料物件（會就地修改）
+     */
+    _parseSummaryFallback(data) {
+        if (!data || !data.summary) return;
+
+        const raw = data.summary;
+
+        // 檢查是否包含未解析的標記
+        const hasSummaryTag = raw.includes('[SUMMARY_START]');
+        const hasMindmapTag = raw.includes('[MINDMAP_START]');
+
+        if (!hasSummaryTag && !hasMindmapTag) return;
+
+        console.log('LearningSummary: 前端容錯解析 — 檢測到未拆分的標記');
+
+        // 嘗試用正則提取
+        const summaryMatch = raw.match(/\[SUMMARY_START\]([\s\S]*?)(?:\[SUMMARY_END\]|$)/);
+        const mindmapMatch = raw.match(/\[MINDMAP_START\]([\s\S]*?)(?:\[MINDMAP_END\]|$)/);
+
+        if (summaryMatch) {
+            data.summary = summaryMatch[1].trim();
+        } else if (hasMindmapTag) {
+            // 沒有 [SUMMARY_START] 但有 [MINDMAP_START]，取 [MINDMAP_START] 之前的內容
+            data.summary = raw.split('[MINDMAP_START]')[0]
+                .replace(/\[SUMMARY_START\]/g, '')
+                .replace(/\[SUMMARY_END\]/g, '')
+                .trim();
+        }
+
+        if (mindmapMatch) {
+            data.mindmap = mindmapMatch[1].trim();
+        } else if (hasMindmapTag) {
+            // [MINDMAP_START] 存在但沒有 [MINDMAP_END]，取到結尾
+            data.mindmap = raw.split('[MINDMAP_START]').pop()
+                .replace(/\[MINDMAP_END\]/g, '')
+                .trim();
+        }
+
+        // 清理 summary 中可能殘留的思維導圖標記和內容
+        if (data.summary && data.summary.includes('[MINDMAP_START]')) {
+            data.summary = data.summary.split('[MINDMAP_START]')[0].trim();
         }
     }
 
