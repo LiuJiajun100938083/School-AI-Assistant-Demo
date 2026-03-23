@@ -1507,43 +1507,64 @@ class LearningSummaryManager {
         const cloneG = clone.querySelector('g');
         if (cloneG) cloneG.removeAttribute('transform');
 
-        // 內聯 SVG 元素的計算樣式（circle, path, line 等）
-        const svgShapes = svgEl.querySelectorAll('circle, path, line, rect, polyline, polygon');
-        const cloneShapes = clone.querySelectorAll('circle, path, line, rect, polyline, polygon');
-        cloneShapes.forEach((cloneEl, i) => {
-            const origEl = svgShapes[i];
-            if (!origEl) return;
-            const cs = window.getComputedStyle(origEl);
-            // 內聯 fill, stroke, stroke-width, opacity
-            if (cs.fill && cs.fill !== 'none') cloneEl.setAttribute('fill', cs.fill);
-            if (cs.stroke && cs.stroke !== 'none') cloneEl.setAttribute('stroke', cs.stroke);
-            if (cs.strokeWidth) cloneEl.setAttribute('stroke-width', cs.strokeWidth);
-            if (cs.opacity && cs.opacity !== '1') cloneEl.setAttribute('opacity', cs.opacity);
-        });
+        // 深度內聯所有 SVG 元素的計算樣式
+        // 使用 TreeWalker 遍歷原始 SVG 和克隆 SVG 的所有元素，保證一一對應
+        const origWalker = document.createTreeWalker(svgEl, NodeFilter.SHOW_ELEMENT);
+        const cloneWalker = document.createTreeWalker(clone, NodeFilter.SHOW_ELEMENT);
+        const svgStyleProps = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'opacity', 'fill-opacity', 'stroke-opacity'];
 
-        // 內聯 foreignObject 中的計算樣式，避免外部 CSS 依賴導致 taint
-        clone.querySelectorAll('foreignObject *').forEach(el => {
-            const origSelector = `[class="${el.getAttribute('class')}"]`;
-            const origEl = svgEl.querySelector(origSelector);
-            const computed = origEl ? window.getComputedStyle(origEl) : {};
-            el.style.fontFamily = 'sans-serif';
-            el.style.fontSize = computed.fontSize || '14px';
-            el.style.fontWeight = computed.fontWeight || 'normal';
-            el.style.color = computed.color || '#333';
-        });
-
-        // 移除可能引用外部資源的 <style> 和 <link> 標籤
-        clone.querySelectorAll('style, link').forEach(s => s.remove());
-
-        // 添加內聯基礎樣式
-        const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-        styleEl.textContent = `
-            foreignObject div, foreignObject span, foreignObject p {
-                font-family: -apple-system, 'Segoe UI', sans-serif !important;
-                line-height: 1.4;
+        let origNode = origWalker.nextNode();
+        let cloneNode = cloneWalker.nextNode();
+        while (origNode && cloneNode) {
+            const tag = origNode.tagName?.toLowerCase();
+            if (['circle', 'path', 'line', 'rect', 'polyline', 'polygon', 'ellipse'].includes(tag)) {
+                const cs = window.getComputedStyle(origNode);
+                for (const prop of svgStyleProps) {
+                    const val = cs.getPropertyValue(prop);
+                    if (val && val !== 'none' && val !== '0' && val !== '') {
+                        cloneNode.setAttribute(prop, val);
+                    }
+                }
             }
+            origNode = origWalker.nextNode();
+            cloneNode = cloneWalker.nextNode();
+        }
+
+        // 處理 foreignObject 文字樣式：使用系統字體避免外部字體 taint
+        clone.querySelectorAll('foreignObject').forEach((fo, idx) => {
+            const origFo = svgEl.querySelectorAll('foreignObject')[idx];
+            if (!origFo) return;
+            fo.querySelectorAll('*').forEach((el, j) => {
+                const origEl = origFo.querySelectorAll('*')[j];
+                if (!origEl) return;
+                const cs = window.getComputedStyle(origEl);
+                el.style.fontFamily = '-apple-system, "Segoe UI", sans-serif';
+                el.style.fontSize = cs.fontSize;
+                el.style.fontWeight = cs.fontWeight;
+                el.style.color = cs.color;
+                el.style.lineHeight = cs.lineHeight;
+                el.style.whiteSpace = cs.whiteSpace;
+            });
+        });
+
+        // 清理 <style> 中的外部資源引用（@import, @font-face），保留其餘 CSS 規則
+        clone.querySelectorAll('style').forEach(styleTag => {
+            let css = styleTag.textContent || '';
+            // 移除 @import
+            css = css.replace(/@import\s+[^;]+;/g, '');
+            // 移除 @font-face
+            css = css.replace(/@font-face\s*\{[^}]*\}/g, '');
+            styleTag.textContent = css;
+        });
+        // 移除外部 link
+        clone.querySelectorAll('link').forEach(l => l.remove());
+
+        // 覆寫字體為系統字體
+        const fontOverride = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        fontOverride.textContent = `
+            * { font-family: -apple-system, 'Segoe UI', sans-serif !important; }
         `;
-        clone.insertBefore(styleEl, clone.firstChild);
+        clone.appendChild(fontOverride);
 
         // 添加白色背景
         const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
