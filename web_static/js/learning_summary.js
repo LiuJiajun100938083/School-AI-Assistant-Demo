@@ -1499,10 +1499,38 @@ class LearningSummaryManager {
         clone.setAttribute('width', fullW);
         clone.setAttribute('height', fullH);
         clone.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${fullW} ${fullH}`);
+        // 確保 xmlns 屬性完整（序列化需要）
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 
         // 移除 transform（我們用 viewBox 定位）
         const cloneG = clone.querySelector('g');
         if (cloneG) cloneG.removeAttribute('transform');
+
+        // 內聯 foreignObject 中的計算樣式，避免外部 CSS 依賴導致 taint
+        clone.querySelectorAll('foreignObject *').forEach(el => {
+            const computed = window.getComputedStyle(
+                svgEl.querySelector(`[class="${el.getAttribute('class')}"]`) || el
+            );
+            // 只內聯關鍵文字樣式
+            el.style.fontFamily = 'sans-serif';  // 使用通用字體避免外部字體
+            el.style.fontSize = computed.fontSize || '14px';
+            el.style.fontWeight = computed.fontWeight || 'normal';
+            el.style.color = computed.color || '#333';
+        });
+
+        // 移除可能引用外部資源的 <style> 和 <link> 標籤
+        clone.querySelectorAll('style, link').forEach(s => s.remove());
+
+        // 添加內聯基礎樣式
+        const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        styleEl.textContent = `
+            foreignObject div, foreignObject span, foreignObject p {
+                font-family: -apple-system, 'Segoe UI', sans-serif !important;
+                line-height: 1.4;
+            }
+        `;
+        clone.insertBefore(styleEl, clone.firstChild);
 
         // 添加白色背景
         const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1513,10 +1541,10 @@ class LearningSummaryManager {
         bg.setAttribute('fill', '#ffffff');
         clone.insertBefore(bg, clone.firstChild);
 
-        // 序列化 → Image → Canvas
+        // 序列化 → data URL（避免 Blob URL 的 CORS 問題）
         const svgData = new XMLSerializer().serializeToString(clone);
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
+        const base64 = btoa(unescape(encodeURIComponent(svgData)));
+        const dataUrl = 'data:image/svg+xml;base64,' + base64;
 
         return new Promise((resolve) => {
             const img = new Image();
@@ -1528,14 +1556,13 @@ class LearningSummaryManager {
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                URL.revokeObjectURL(url);
                 resolve(canvas);
             };
             img.onerror = () => {
-                URL.revokeObjectURL(url);
+                console.warn('SVG → Canvas 失敗，嘗試後備方案');
                 resolve(null);
             };
-            img.src = url;
+            img.src = dataUrl;
         });
     }
 
@@ -1554,9 +1581,10 @@ class LearningSummaryManager {
         const wrapper = document.createElement('div');
         wrapper.style.cssText = `
             position: fixed; left: -9999px; top: 0;
-            width: ${contentEl.scrollWidth}px;
+            width: ${Math.max(contentEl.scrollWidth, 700)}px;
             background: #fff; padding: 24px;
             overflow: visible; z-index: -1;
+            font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
         `;
         const clone = contentEl.cloneNode(true);
         clone.style.cssText = 'overflow: visible; max-height: none; height: auto;';
@@ -1567,12 +1595,37 @@ class LearningSummaryManager {
             const canvas = await window.html2canvas(wrapper, {
                 scale,
                 useCORS: true,
+                allowTaint: true,  // 允許 taint（我們自己處理）
                 backgroundColor: '#ffffff',
                 logging: false,
                 width: wrapper.scrollWidth,
                 height: wrapper.scrollHeight,
+                // 忽略外部字體加載失敗
+                onclone: (clonedDoc) => {
+                    // 移除可能導致 taint 的外部 link 標籤
+                    clonedDoc.querySelectorAll('link[rel="stylesheet"][href*="//"]').forEach(l => l.remove());
+                }
             });
-            return canvas;
+
+            // 嘗試導出，如果被 taint 則降級處理
+            try {
+                canvas.toDataURL();  // 測試是否可導出
+                return canvas;
+            } catch (taintErr) {
+                console.warn('Canvas tainted，使用降級方案重試');
+                // 降級：重新截圖但不載入外部資源
+                const canvas2 = await window.html2canvas(wrapper, {
+                    scale,
+                    useCORS: false,
+                    allowTaint: false,
+                    foreignObjectRendering: false,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    width: wrapper.scrollWidth,
+                    height: wrapper.scrollHeight,
+                });
+                return canvas2;
+            }
         } finally {
             document.body.removeChild(wrapper);
         }
