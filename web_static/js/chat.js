@@ -431,21 +431,33 @@ const ChatUI = {
         const el = this.elements.featureList;
         if (!el) return;
 
-        let html = '';
-        const codes = Object.keys(allSubjects).slice(0, 6);
-        codes.forEach(code => {
-            const s = allSubjects[code];
-            html += `<div class="feature-item">${s.icon} <strong>${s.name}</strong>：${s.description || '學科知識輔導'}</div>`;
-        });
-        if (Object.keys(allSubjects).length > 6) {
-            html += `<div class="feature-item">➕ 以及其他 ${Object.keys(allSubjects).length - 6} 個學科...</div>`;
-        }
-        html += `
-            <div class="feature-item">🧠 <strong>推理模式</strong>：顯示AI完整思考過程</div>
-            <div class="feature-item">💾 <strong>記憶功能</strong>：保存你的學習對話</div>
-            <div class="feature-item">📎 <strong>文檔上傳</strong>：直接拖曳檔案到輸入框進行智能問答</div>
+        const count = Object.keys(allSubjects).length;
+        el.innerHTML = `
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                </svg>
+                <span>涵蓋 ${count} 個學科的知識輔導</span>
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.5V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.5c2.9-1.2 5-4.1 5-7.5a8 8 0 0 0-8-8z"/><line x1="10" y1="22" x2="14" y2="22"/>
+                </svg>
+                <span>深度思考模式 — AI 先推理再回答</span>
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/>
+                </svg>
+                <span>對話記憶 — 自動保存學習歷程</span>
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                </svg>
+                <span>文檔上傳 — 拖曳檔案即可智能問答</span>
+            </div>
         `;
-        el.innerHTML = html;
     },
 
     /* ---------- 消息区域 ---------- */
