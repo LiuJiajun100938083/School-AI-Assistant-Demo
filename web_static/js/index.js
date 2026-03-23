@@ -326,12 +326,14 @@ const HomeUI = {
                             const icon = this._appIcons[app.id]
                                 ? `<div class="tool-icon">${this._appIcons[app.id]}</div>`
                                 : `<div class="tool-icon"><span class="home-app-card__emoji">${app.icon}</span></div>`;
+                            const appName = i18n.t(`app.${app.id}`, null) !== `app.${app.id}` ? i18n.t(`app.${app.id}`) : app.name;
+                            const appDesc = i18n.t(`app.${app.id}.desc`, null) !== `app.${app.id}.desc` ? i18n.t(`app.${app.id}.desc`) : app.description;
                             return `
                                 <div class="home-app-card" data-app-id="${app.id}" data-app-url="${app.url}">
                                     ${icon}
                                     <div class="home-app-card__text">
-                                        <div class="tool-name">${app.name}</div>
-                                        <div class="tool-desc">${app.description}</div>
+                                        <div class="tool-name">${appName}</div>
+                                        <div class="tool-desc">${appDesc}</div>
                                     </div>
                                 </div>`;
                         }).join('')}
