@@ -1021,10 +1021,37 @@ class LearningSummaryManager {
                 </div>
 
                 <div class="summary-modal-footer">
-                    <button class="summary-action-btn secondary" id="copySummaryBtn">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                        複製內容
-                    </button>
+                    <div class="export-dropdown" id="exportDropdown">
+                        <button class="summary-action-btn secondary" id="exportSummaryBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            導出
+                            <svg class="export-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="export-menu" id="exportMenu">
+                            <button class="export-menu-item" data-export="word">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                                Word 文檔 (.docx)
+                            </button>
+                            <button class="export-menu-item" data-export="pdf">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>
+                                </svg>
+                                PDF 文件 (.pdf)
+                            </button>
+                            <button class="export-menu-item" data-export="image">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                                </svg>
+                                圖片 (.png)
+                            </button>
+                        </div>
+                    </div>
                     <button class="summary-action-btn primary" id="generateSummaryBtn">
                         生成總結
                     </button>
@@ -1077,10 +1104,23 @@ class LearningSummaryManager {
             generateBtn.addEventListener('click', () => this.generateSummary());
         }
 
-        // 複製按鈕
-        const copyBtn = $('#copySummaryBtn');
-        if (copyBtn) {
-            copyBtn.addEventListener('click', () => this.copySummary());
+        // 導出按鈕下拉選單
+        const exportBtn = $('#exportSummaryBtn');
+        const exportMenu = $('#exportMenu');
+        if (exportBtn && exportMenu) {
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportMenu.classList.toggle('show');
+            });
+            exportMenu.querySelectorAll('.export-menu-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    exportMenu.classList.remove('show');
+                    this.exportSummary(item.dataset.export);
+                });
+            });
+            // 點擊外部關閉
+            document.addEventListener('click', () => exportMenu.classList.remove('show'));
         }
 
         // ESC鍵關閉
@@ -1339,34 +1379,255 @@ class LearningSummaryManager {
         return await response.json();
     }
 
+    /* ---------- 導出功能 ---------- */
+
     /**
-     * 複製總結內容
+     * 載入 html2canvas 庫
+     * @returns {Promise<boolean>}
      */
-    async copySummary() {
+    async _loadHtml2Canvas() {
+        if (window.html2canvas) return true;
+        return new Promise(resolve => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+            s.onload = () => resolve(true);
+            s.onerror = () => resolve(false);
+            document.head.appendChild(s);
+        });
+    }
+
+    /**
+     * 載入 jsPDF 庫
+     * @returns {Promise<boolean>}
+     */
+    async _loadJsPDF() {
+        if (window.jspdf) return true;
+        return new Promise(resolve => {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+            s.onload = () => resolve(true);
+            s.onerror = () => resolve(false);
+            document.head.appendChild(s);
+        });
+    }
+
+    /**
+     * 取得當前 tab 的渲染容器
+     * @returns {Element|null}
+     */
+    _getActiveContent() {
+        if (this.currentTab === SUMMARY_CONFIG.TABS.SUMMARY) {
+            return $('#summaryContent');
+        }
+        return $('#mindmapContent');
+    }
+
+    /**
+     * 取得導出檔名前綴
+     * @returns {string}
+     */
+    _getExportFilename() {
+        const subject = this.app?.state?.currentSubject || 'general';
+        const date = new Date().toISOString().slice(0, 10);
+        const tabLabel = this.currentTab === SUMMARY_CONFIG.TABS.SUMMARY ? '學習總結' : '思維導圖';
+        return `${tabLabel}_${subject}_${date}`;
+    }
+
+    /**
+     * 導出總結（入口方法）
+     * @param {string} format - 'word' | 'pdf' | 'image'
+     */
+    async exportSummary(format) {
         if (!this.summaryData) {
-            this.showToast('沒有可複製的內容', 'warning');
+            this.showToast('沒有可導出的內容，請先生成總結', 'warning');
             return;
         }
 
+        const content = this._getActiveContent();
+        if (!content || !content.innerHTML.trim()) {
+            this.showToast('當前頁面無內容可導出', 'warning');
+            return;
+        }
+
+        this.showToast('正在生成導出文件...', 'info');
+
         try {
-            let textToCopy = '';
-
-            if (this.currentTab === SUMMARY_CONFIG.TABS.SUMMARY && this.summaryData.summary) {
-                textToCopy = this.summaryData.summary;
-            } else if (this.currentTab === SUMMARY_CONFIG.TABS.MINDMAP && this.summaryData.mindmap) {
-                textToCopy = this.summaryData.mindmap;
-            }
-
-            if (textToCopy) {
-                await navigator.clipboard.writeText(textToCopy);
-                this.showToast('已複製到剪貼簿', 'success');
-            } else {
-                this.showToast('沒有可複製的內容', 'warning');
+            switch (format) {
+                case 'word':
+                    await this._exportWord(content);
+                    break;
+                case 'pdf':
+                    await this._exportPDF(content);
+                    break;
+                case 'image':
+                    await this._exportImage(content);
+                    break;
             }
         } catch (error) {
-            console.error('複製失敗:', error);
-            this.showToast('複製失敗，請手動選擇複製', 'error');
+            console.error('導出失敗:', error);
+            this.showToast('導出失敗: ' + error.message, 'error');
         }
+    }
+
+    /**
+     * 導出為 Word (.docx)
+     * 使用 HTML → Blob 方式生成可用 Word 開啟的文檔
+     */
+    async _exportWord(contentEl) {
+        const filename = this._getExportFilename() + '.doc';
+
+        // 收集樣式
+        const styles = `
+            <style>
+                body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; font-size: 14px; line-height: 1.8; color: #333; padding: 20px; }
+                h1, h2, h3, h4 { color: #006633; margin: 16px 0 8px; }
+                h1 { font-size: 22px; } h2 { font-size: 18px; } h3 { font-size: 16px; }
+                strong, b { font-weight: 700; }
+                ul, ol { padding-left: 24px; }
+                li { margin: 4px 0; }
+                table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+                th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+                th { background: #f5f5f5; font-weight: 600; }
+                .mindmap-tree-node { margin: 4px 0; }
+                .mindmap-tree-icon { margin-right: 6px; }
+                svg { display: none; }
+            </style>
+        `;
+
+        // 克隆內容以避免修改原始DOM
+        const clone = contentEl.cloneNode(true);
+        // 移除 SVG 思維導圖（Word 無法顯示）
+        clone.querySelectorAll('svg[id^="mindmap-svg"]').forEach(s => {
+            const fallbackMsg = document.createElement('p');
+            fallbackMsg.style.cssText = 'color: #999; font-style: italic;';
+            fallbackMsg.textContent = '（思維導圖請使用圖片格式導出）';
+            s.parentNode.replaceChild(fallbackMsg, s);
+        });
+
+        const htmlContent = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office"
+                  xmlns:w="urn:schemas-microsoft-com:office:word"
+                  xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <title>${this._getExportFilename()}</title>
+                <!--[if gte mso 9]>
+                <xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml>
+                <![endif]-->
+                ${styles}
+            </head>
+            <body>${clone.innerHTML}</body>
+            </html>
+        `;
+
+        const blob = new Blob(['\ufeff' + htmlContent], { type: 'application/msword' });
+        this._downloadBlob(blob, filename);
+        this.showToast('Word 文檔已下載', 'success');
+    }
+
+    /**
+     * 導出為 PDF
+     * 使用 html2canvas 截圖 → jsPDF 生成
+     */
+    async _exportPDF(contentEl) {
+        const [h2cOk, pdfOk] = await Promise.all([this._loadHtml2Canvas(), this._loadJsPDF()]);
+        if (!h2cOk || !pdfOk) {
+            throw new Error('無法載入導出所需的庫，請檢查網絡');
+        }
+
+        const filename = this._getExportFilename() + '.pdf';
+
+        // 截圖
+        const canvas = await window.html2canvas(contentEl, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            windowWidth: contentEl.scrollWidth,
+            windowHeight: contentEl.scrollHeight,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+
+        // 計算 PDF 頁面尺寸（A4）
+        const { jsPDF } = window.jspdf;
+        const pdfWidth = 210; // A4 mm
+        const pdfContentWidth = pdfWidth - 20; // 10mm margin each side
+        const ratio = pdfContentWidth / imgWidth;
+        const pdfContentHeight = imgHeight * ratio;
+
+        // 分頁處理
+        const pageHeight = 297 - 20; // A4 height - margins
+        const totalPages = Math.ceil(pdfContentHeight / pageHeight);
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        for (let page = 0; page < totalPages; page++) {
+            if (page > 0) pdf.addPage();
+
+            const srcY = (page * pageHeight / ratio);
+            const srcH = Math.min(pageHeight / ratio, imgHeight - srcY);
+            const destH = srcH * ratio;
+
+            // 裁剪對應頁面的部分
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = imgWidth;
+            pageCanvas.height = srcH;
+            const ctx = pageCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, srcY, imgWidth, srcH, 0, 0, imgWidth, srcH);
+
+            const pageImg = pageCanvas.toDataURL('image/png');
+            pdf.addImage(pageImg, 'PNG', 10, 10, pdfContentWidth, destH);
+        }
+
+        pdf.save(filename);
+        this.showToast('PDF 文件已下載', 'success');
+    }
+
+    /**
+     * 導出為圖片 (.png)
+     * 使用 html2canvas 截圖
+     */
+    async _exportImage(contentEl) {
+        const ok = await this._loadHtml2Canvas();
+        if (!ok) {
+            throw new Error('無法載入截圖庫，請檢查網絡');
+        }
+
+        const filename = this._getExportFilename() + '.png';
+
+        const canvas = await window.html2canvas(contentEl, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            windowWidth: contentEl.scrollWidth,
+            windowHeight: contentEl.scrollHeight,
+        });
+
+        // 轉為下載連結
+        canvas.toBlob(blob => {
+            if (blob) {
+                this._downloadBlob(blob, filename);
+                this.showToast('圖片已下載', 'success');
+            }
+        }, 'image/png');
+    }
+
+    /**
+     * 通用下載 Blob
+     */
+    _downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     /**
