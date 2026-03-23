@@ -260,11 +260,25 @@ const ChatUI = {
 
     toggleSidebar() {
         const el = this.elements;
-        const isOpen = el.sidebar.classList.toggle('open');
-        el.sidebarOverlay.classList.toggle('active', isOpen);
-        if (window.innerWidth <= 833) {
+        if (window.innerWidth >= 834) {
+            // 桌面/iPad：切換 collapsed 狀態，絲滑寬度動畫
+            el.sidebar.classList.toggle('collapsed');
+            try { localStorage.setItem('sidebar-collapsed', el.sidebar.classList.contains('collapsed')); } catch {}
+        } else {
+            // 移動：原有抽屜行為
+            const isOpen = el.sidebar.classList.toggle('open');
+            el.sidebarOverlay.classList.toggle('active', isOpen);
             document.body.style.overflow = isOpen ? 'hidden' : '';
         }
+    },
+
+    /** 初始化時恢復側邊欄收起狀態 */
+    restoreSidebarState() {
+        try {
+            if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 834) {
+                this.elements.sidebar.classList.add('collapsed');
+            }
+        } catch {}
     },
 
     closeSidebar() {
@@ -699,6 +713,7 @@ const ChatApp = {
 
     async init() {
         ChatUI.cacheElements();
+        ChatUI.restoreSidebarState();
 
         this.state.authToken = AuthModule.getToken();
 

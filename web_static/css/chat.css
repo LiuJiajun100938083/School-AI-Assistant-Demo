@@ -253,12 +253,12 @@ p, span, div, li, label {
 
 /* 管理員按鈕 - 綠色膠囊 */
 .admin-button {
-    padding: var(--space-2) var(--space-4);
+    padding: 4px 12px;
     background: var(--brand);
     color: var(--text-on-brand);
     border: none;
     border-radius: var(--radius-full);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     font-family: var(--font-sans);
     cursor: pointer;
@@ -318,8 +318,8 @@ p, span, div, li, label {
 .user-info {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
+    gap: 8px;
+    padding: 4px 10px;
     background: var(--bg-card);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-lg);
@@ -335,14 +335,14 @@ p, span, div, li, label {
 }
 
 .user-avatar {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     background: linear-gradient(135deg, var(--brand), var(--brand-hover));
     border-radius: var(--radius-full);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--text-on-brand);
     box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
@@ -354,14 +354,16 @@ p, span, div, li, label {
 }
 
 .user-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-primary);
+    line-height: 1.2;
 }
 
 .user-class {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-secondary);
+    line-height: 1.2;
 }
 
 /* 用戶菜單下拉 - Glassmorphism */
@@ -441,6 +443,18 @@ p, span, div, li, label {
     border: 1px solid var(--glass-border-highlight);
     flex-shrink: 0;
     transform: translateZ(0);
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease,
+                border-width 0.35s ease,
+                padding 0.35s ease;
+}
+
+/* 桌面側邊欄收起狀態 */
+.sidebar.collapsed {
+    width: 0 !important;
+    opacity: 0;
+    border-width: 0;
+    box-shadow: none;
 }
 
 .sidebar-header {
@@ -2100,11 +2114,11 @@ th {
 
 /* ========== 側邊欄切換按鈕 ========== */
 #sidebarToggle {
-    display: none; /* 默認桌面端隱藏 */
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     background: var(--bg-card);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
@@ -2149,7 +2163,7 @@ th {
     }
 
     .header {
-        padding: var(--space-4) var(--space-8);
+        padding: var(--space-2) var(--space-6);
     }
 }
 
@@ -2256,7 +2270,7 @@ th {
     }
 
     #sidebarToggle {
-        display: flex !important;
+        display: flex;
     }
 
     .content-container {
@@ -2378,7 +2392,7 @@ th {
     }
 
     #sidebarToggle {
-        display: flex !important;
+        display: flex;
     }
 
     .content-container {
@@ -2439,7 +2453,7 @@ th {
     }
 
     #sidebarToggle {
-        display: flex !important;
+        display: flex;
     }
 
     .content-container {
