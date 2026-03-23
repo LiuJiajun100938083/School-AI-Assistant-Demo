@@ -1470,13 +1470,121 @@ class LearningSummaryManager {
     }
 
     /**
-     * 導出為 Word (.docx)
-     * 使用 HTML → Blob 方式生成可用 Word 開啟的文檔
+     * 判斷當前 tab 是否為思維導圖
+     */
+    _isMindmapTab() {
+        return this.currentTab === SUMMARY_CONFIG.TABS.MINDMAP;
+    }
+
+    /**
+     * 將思維導圖 SVG 渲染為高清 Canvas
+     * @param {number} scale - 縮放倍數
+     * @returns {Promise<HTMLCanvasElement|null>}
+     */
+    async _svgToCanvas(scale = 3) {
+        const svgEl = document.querySelector('[id^="mindmap-svg"]');
+        if (!svgEl) return null;
+
+        // 取得 SVG 的完整 bounding box（包含所有節點）
+        const g = svgEl.querySelector('g');
+        if (!g) return null;
+
+        const bbox = g.getBBox();
+        const padding = 40;
+        const fullW = Math.ceil(bbox.width + padding * 2);
+        const fullH = Math.ceil(bbox.height + padding * 2);
+
+        // 克隆 SVG 並設定完整 viewBox
+        const clone = svgEl.cloneNode(true);
+        clone.setAttribute('width', fullW);
+        clone.setAttribute('height', fullH);
+        clone.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${fullW} ${fullH}`);
+
+        // 移除 transform（我們用 viewBox 定位）
+        const cloneG = clone.querySelector('g');
+        if (cloneG) cloneG.removeAttribute('transform');
+
+        // 添加白色背景
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bg.setAttribute('x', bbox.x - padding);
+        bg.setAttribute('y', bbox.y - padding);
+        bg.setAttribute('width', fullW);
+        bg.setAttribute('height', fullH);
+        bg.setAttribute('fill', '#ffffff');
+        clone.insertBefore(bg, clone.firstChild);
+
+        // 序列化 → Image → Canvas
+        const svgData = new XMLSerializer().serializeToString(clone);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = fullW * scale;
+                canvas.height = fullH * scale;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                resolve(canvas);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                resolve(null);
+            };
+            img.src = url;
+        });
+    }
+
+    /**
+     * 將知識點總結容器的完整內容（包括滾動區域）截圖
+     * 建立離屏克隆，展開到完整高度後截圖
+     * @param {Element} contentEl
+     * @param {number} scale
+     * @returns {Promise<HTMLCanvasElement>}
+     */
+    async _captureFullContent(contentEl, scale = 3) {
+        const ok = await this._loadHtml2Canvas();
+        if (!ok) throw new Error('無法載入截圖庫，請檢查網絡');
+
+        // 建立離屏克隆容器（全展開，無 overflow 限制）
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = `
+            position: fixed; left: -9999px; top: 0;
+            width: ${contentEl.scrollWidth}px;
+            background: #fff; padding: 24px;
+            overflow: visible; z-index: -1;
+        `;
+        const clone = contentEl.cloneNode(true);
+        clone.style.cssText = 'overflow: visible; max-height: none; height: auto;';
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+
+        try {
+            const canvas = await window.html2canvas(wrapper, {
+                scale,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                logging: false,
+                width: wrapper.scrollWidth,
+                height: wrapper.scrollHeight,
+            });
+            return canvas;
+        } finally {
+            document.body.removeChild(wrapper);
+        }
+    }
+
+    /**
+     * 導出為 Word (.doc)
      */
     async _exportWord(contentEl) {
         const filename = this._getExportFilename() + '.doc';
+        const isMindmap = this._isMindmapTab();
 
-        // 收集樣式
         const styles = `
             <style>
                 body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; font-size: 14px; line-height: 1.8; color: #333; padding: 20px; }
@@ -1490,19 +1598,28 @@ class LearningSummaryManager {
                 th { background: #f5f5f5; font-weight: 600; }
                 .mindmap-tree-node { margin: 4px 0; }
                 .mindmap-tree-icon { margin-right: 6px; }
-                svg { display: none; }
+                img { max-width: 100%; }
             </style>
         `;
 
-        // 克隆內容以避免修改原始DOM
-        const clone = contentEl.cloneNode(true);
-        // 移除 SVG 思維導圖（Word 無法顯示）
-        clone.querySelectorAll('svg[id^="mindmap-svg"]').forEach(s => {
-            const fallbackMsg = document.createElement('p');
-            fallbackMsg.style.cssText = 'color: #999; font-style: italic;';
-            fallbackMsg.textContent = '（思維導圖請使用圖片格式導出）';
-            s.parentNode.replaceChild(fallbackMsg, s);
-        });
+        let bodyContent;
+        if (isMindmap) {
+            // 思維導圖：轉為高清圖片嵌入 Word
+            const canvas = await this._svgToCanvas(3);
+            if (canvas) {
+                const imgData = canvas.toDataURL('image/png');
+                bodyContent = `<div style="text-align:center"><img src="${imgData}" style="max-width:100%;" /></div>`;
+            } else {
+                // SVG 轉換失敗，使用 fallback 文字
+                const clone = contentEl.cloneNode(true);
+                clone.querySelectorAll('svg').forEach(s => s.remove());
+                bodyContent = clone.innerHTML;
+            }
+        } else {
+            const clone = contentEl.cloneNode(true);
+            clone.querySelectorAll('svg:not([class])').forEach(s => s.remove());
+            bodyContent = clone.innerHTML;
+        }
 
         const htmlContent = `
             <html xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -1516,7 +1633,7 @@ class LearningSummaryManager {
                 <![endif]-->
                 ${styles}
             </head>
-            <body>${clone.innerHTML}</body>
+            <body>${bodyContent}</body>
             </html>
         `;
 
@@ -1527,59 +1644,65 @@ class LearningSummaryManager {
 
     /**
      * 導出為 PDF
-     * 使用 html2canvas 截圖 → jsPDF 生成
      */
     async _exportPDF(contentEl) {
-        const [h2cOk, pdfOk] = await Promise.all([this._loadHtml2Canvas(), this._loadJsPDF()]);
-        if (!h2cOk || !pdfOk) {
-            throw new Error('無法載入導出所需的庫，請檢查網絡');
-        }
+        const pdfOk = await this._loadJsPDF();
+        if (!pdfOk) throw new Error('無法載入 PDF 庫，請檢查網絡');
 
         const filename = this._getExportFilename() + '.pdf';
+        const isMindmap = this._isMindmapTab();
 
-        // 截圖
-        const canvas = await window.html2canvas(contentEl, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            windowWidth: contentEl.scrollWidth,
-            windowHeight: contentEl.scrollHeight,
-        });
+        // 取得完整畫布
+        let canvas;
+        if (isMindmap) {
+            canvas = await this._svgToCanvas(3);
+            if (!canvas) {
+                // fallback 到 html2canvas
+                canvas = await this._captureFullContent(contentEl, 3);
+            }
+        } else {
+            canvas = await this._captureFullContent(contentEl, 3);
+        }
 
-        const imgData = canvas.toDataURL('image/png');
         const imgWidth = canvas.width;
         const imgHeight = canvas.height;
 
-        // 計算 PDF 頁面尺寸（A4）
+        // 計算 PDF 頁面尺寸
         const { jsPDF } = window.jspdf;
-        const pdfWidth = 210; // A4 mm
-        const pdfContentWidth = pdfWidth - 20; // 10mm margin each side
-        const ratio = pdfContentWidth / imgWidth;
-        const pdfContentHeight = imgHeight * ratio;
+        const isLandscape = isMindmap && (imgWidth > imgHeight * 1.2);
+        const orientation = isLandscape ? 'l' : 'p';
+        const pdfPageW = isLandscape ? 297 : 210;
+        const pdfPageH = isLandscape ? 210 : 297;
+        const margin = 10;
+        const pdfContentW = pdfPageW - margin * 2;
+        const pdfContentH = pdfPageH - margin * 2;
 
-        // 分頁處理
-        const pageHeight = 297 - 20; // A4 height - margins
-        const totalPages = Math.ceil(pdfContentHeight / pageHeight);
+        const ratio = pdfContentW / imgWidth;
+        const totalContentH = imgHeight * ratio;
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF(orientation, 'mm', 'a4');
 
-        for (let page = 0; page < totalPages; page++) {
-            if (page > 0) pdf.addPage();
+        if (totalContentH <= pdfContentH) {
+            // 單頁
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, pdfContentW, totalContentH);
+        } else {
+            // 多頁
+            const totalPages = Math.ceil(totalContentH / pdfContentH);
+            for (let page = 0; page < totalPages; page++) {
+                if (page > 0) pdf.addPage();
 
-            const srcY = (page * pageHeight / ratio);
-            const srcH = Math.min(pageHeight / ratio, imgHeight - srcY);
-            const destH = srcH * ratio;
+                const srcY = page * pdfContentH / ratio;
+                const srcH = Math.min(pdfContentH / ratio, imgHeight - srcY);
+                if (srcH <= 0) break;
 
-            // 裁剪對應頁面的部分
-            const pageCanvas = document.createElement('canvas');
-            pageCanvas.width = imgWidth;
-            pageCanvas.height = srcH;
-            const ctx = pageCanvas.getContext('2d');
-            ctx.drawImage(canvas, 0, srcY, imgWidth, srcH, 0, 0, imgWidth, srcH);
+                const pageCanvas = document.createElement('canvas');
+                pageCanvas.width = imgWidth;
+                pageCanvas.height = Math.ceil(srcH);
+                const ctx = pageCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, srcY, imgWidth, srcH, 0, 0, imgWidth, srcH);
 
-            const pageImg = pageCanvas.toDataURL('image/png');
-            pdf.addImage(pageImg, 'PNG', 10, 10, pdfContentWidth, destH);
+                pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, margin, pdfContentW, srcH * ratio);
+            }
         }
 
         pdf.save(filename);
@@ -1588,26 +1711,21 @@ class LearningSummaryManager {
 
     /**
      * 導出為圖片 (.png)
-     * 使用 html2canvas 截圖
      */
     async _exportImage(contentEl) {
-        const ok = await this._loadHtml2Canvas();
-        if (!ok) {
-            throw new Error('無法載入截圖庫，請檢查網絡');
+        const filename = this._getExportFilename() + '.png';
+        const isMindmap = this._isMindmapTab();
+
+        let canvas;
+        if (isMindmap) {
+            canvas = await this._svgToCanvas(3);
+            if (!canvas) {
+                canvas = await this._captureFullContent(contentEl, 3);
+            }
+        } else {
+            canvas = await this._captureFullContent(contentEl, 3);
         }
 
-        const filename = this._getExportFilename() + '.png';
-
-        const canvas = await window.html2canvas(contentEl, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: false,
-            windowWidth: contentEl.scrollWidth,
-            windowHeight: contentEl.scrollHeight,
-        });
-
-        // 轉為下載連結
         canvas.toBlob(blob => {
             if (blob) {
                 this._downloadBlob(blob, filename);
