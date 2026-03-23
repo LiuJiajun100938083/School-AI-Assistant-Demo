@@ -380,16 +380,43 @@ SVG 技術規範：
   }}
 }}
 
+## 示例 2：平行四邊形 + 輔助線 + 角度
+
+題目：ABCD 是平行四邊形，E 是 BC 上的一點，F 是 CD 上的一點。連接 AE 和 AF。∠DAE=20°，∠BAE=30°，∠DAF=25°。
+
+{{
+  "base_edge": {{"from": "A", "to": "B", "orientation": "above"}},
+  "constraints": [
+    {{"type": "parallel", "seg1": ["A","B"], "seg2": ["D","C"]}},
+    {{"type": "parallel", "seg1": ["A","D"], "seg2": ["B","C"]}},
+    {{"type": "equal_length", "segments": [["A","B"], ["D","C"]]}},
+    {{"type": "equal_length", "segments": [["A","D"], ["B","C"]]}},
+    {{"type": "point_on_segment", "point": "E", "segment": ["B","C"]}},
+    {{"type": "point_on_segment", "point": "F", "segment": ["C","D"]}},
+    {{"type": "angle", "vertex": "A", "ray1": "D", "ray2": "E", "value": 20}},
+    {{"type": "angle", "vertex": "A", "ray1": "E", "ray2": "B", "value": 30}},
+    {{"type": "angle", "vertex": "A", "ray1": "D", "ray2": "F", "value": 25}}
+  ],
+  "draw": {{
+    "segments": [["A","B"], ["B","C"], ["C","D"], ["D","A"], ["A","E"], ["A","F"]],
+    "labels": [],
+    "suppress_angle_labels": ["B", "C", "D", "E", "F"]
+  }}
+}}
+
+注意：平行四邊形必須用 parallel + equal_length 約束表達四條邊的關係。
+
 ## 重要規則
 
 - 不要計算任何座標，只提取語義約束
 - base_edge 沒有對應 length 約束也沒關係，系統會自動分配長度
-- point_on_segment 的位置必須由其他約束（如 altitude、perpendicular）確定，不要假設在中點
+- point_on_segment 的位置必須由其他約束（如 altitude、perpendicular、angle）確定，不要假設在中點
 - 所有約束都是硬約束，系統會精確求解
 - **只提取題目明確給出的約束**，不要自己推導或添加題目沒提到的關係（如題目沒說高就不要加 altitude）
 - **只給題目明確給出數值的約束加 value**，不知道數值的約束直接省略，不要填 null、0、1 等佔位值
 - 兩條線相交於一點：用兩個 point_on_segment 表達（交點在兩條線上），不需要 altitude
 - 梯形：用 parallel + length 即可，不需要 altitude
+- **平行四邊形**：必須用 2 組 parallel + 2 組 equal_length 表達
 - 圓的切線：用 perpendicular 表達半徑⊥切線（{{"type":"perpendicular", "seg1":["O","C"], "seg2":["C","D"]}}），不要用 altitude"""
 
     def build_svg_from_spec_prompt(self, question_text: str, spec_json: str) -> str:
