@@ -453,10 +453,74 @@ class MindmapRenderer {
      * 使用Markmap渲染
      * @param {string} markmapData - Markdown資料
      */
+    /**
+     * 預處理思維導圖資料：簡化 LaTeX 公式以適合節點顯示
+     * 將 $...$ 和 $$...$$ 內的 LaTeX 轉為更可讀的 Unicode 文字
+     * @param {string} data - 原始 Markdown 思維導圖資料
+     * @returns {string}
+     */
+    preprocessMindmapData(data) {
+        // LaTeX 命令 → Unicode 映射
+        const latexToUnicode = {
+            '\\alpha': 'α', '\\beta': 'β', '\\gamma': 'γ', '\\delta': 'δ',
+            '\\epsilon': 'ε', '\\theta': 'θ', '\\lambda': 'λ', '\\mu': 'μ',
+            '\\pi': 'π', '\\sigma': 'σ', '\\tau': 'τ', '\\phi': 'φ',
+            '\\omega': 'ω', '\\Omega': 'Ω', '\\Delta': 'Δ', '\\Sigma': 'Σ',
+            '\\infty': '∞', '\\approx': '≈', '\\neq': '≠', '\\leq': '≤',
+            '\\geq': '≥', '\\pm': '±', '\\times': '×', '\\div': '÷',
+            '\\cdot': '·', '\\rightarrow': '→', '\\leftarrow': '←',
+            '\\Rightarrow': '⇒', '\\sqrt': '√', '\\propto': '∝',
+        };
+
+        return data.replace(/\$\$([^$]+)\$\$|\$([^$]+)\$/g, (match, display, inline) => {
+            let formula = (display || inline).trim();
+
+            // 替換 \frac{a}{b} → a/b
+            formula = formula.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)');
+
+            // 替換 \sqrt{x} → √(x)  和  \sqrt[n]{x} → ⁿ√(x)
+            formula = formula.replace(/\\sqrt\[([^\]]+)\]\{([^}]+)\}/g, '$1√($2)');
+            formula = formula.replace(/\\sqrt\{([^}]+)\}/g, '√($1)');
+
+            // 替換 x^{2} → x²  (常見上標)
+            const superscripts = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', 'n': 'ⁿ', '+': '⁺', '-': '⁻' };
+            formula = formula.replace(/\^{([^}]+)}/g, (m, exp) => {
+                if (exp.length === 1 && superscripts[exp]) return superscripts[exp];
+                return '^(' + exp + ')';
+            });
+            formula = formula.replace(/\^([0-9n])/g, (m, c) => superscripts[c] || ('^' + c));
+
+            // 替換 x_{n} → x_n  (下標簡化)
+            const subscripts = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉', 'a': 'ₐ', 'c': '꜀', 'e': 'ₑ', 'g': 'ᵍ', 'n': 'ₙ', 'o': 'ₒ' };
+            formula = formula.replace(/_{([^}]+)}/g, (m, sub) => {
+                if (sub.length === 1 && subscripts[sub]) return subscripts[sub];
+                return '_(' + sub + ')';
+            });
+            formula = formula.replace(/_([0-9a-z])/g, (m, c) => subscripts[c] || ('_' + c));
+
+            // 替換 Greek 字母和符號
+            for (const [cmd, char] of Object.entries(latexToUnicode)) {
+                // 使用word boundary避免部分匹配
+                formula = formula.replace(new RegExp(cmd.replace(/\\/g, '\\\\') + '(?![a-zA-Z])', 'g'), char);
+            }
+
+            // 清理剩餘 LaTeX 命令
+            formula = formula.replace(/\\(?:text|mathrm|mathbf|textbf)\{([^}]+)\}/g, '$1');
+            formula = formula.replace(/\\(?:left|right|,|;|!|quad|qquad)/g, ' ');
+            formula = formula.replace(/\{|\}/g, '');
+            formula = formula.replace(/\s+/g, ' ').trim();
+
+            return formula;
+        });
+    }
+
     async renderWithMarkmap(markmapData) {
         // 使用固定尺寸避免隱藏面板時獲取不到尺寸的問題
         const FIXED_WIDTH = 800;
-        const FIXED_HEIGHT = 500;
+        const FIXED_HEIGHT = 600;
+
+        // 預處理：將 LaTeX 轉為 Unicode 可讀文字
+        markmapData = this.preprocessMindmapData(markmapData);
 
         // 建立包裝容器
         const wrapper = document.createElement('div');
@@ -491,7 +555,7 @@ class MindmapRenderer {
             const svgSelection = d3.select(svg);
             const initialTransform = d3.zoomIdentity
                 .translate(FIXED_WIDTH / 4, FIXED_HEIGHT / 2)
-                .scale(0.8);
+                .scale(0.7);
 
             // 預先設定__zoom屬性，防止markmap在建立時讀取到undefined
             svgSelection.property('__zoom', initialTransform);
@@ -501,10 +565,10 @@ class MindmapRenderer {
             const mm = Markmap.create(svg, {
                 autoFit: false,  // 禁用自動適配
                 duration: 0,     // 禁用初始動畫，防止NaN
-                maxWidth: 200,
-                paddingX: 50,
-                spacingHorizontal: 60,
-                spacingVertical: 6,
+                maxWidth: 280,
+                paddingX: 20,
+                spacingHorizontal: 80,
+                spacingVertical: 10,
                 zoom: true,
                 pan: true,
                 initialExpandLevel: 3
@@ -755,6 +819,11 @@ class MindmapRenderer {
 
         html += '</div></div>';
         this.container.innerHTML = html;
+
+        // 渲染數學公式（MathJax）
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise([this.container]).catch(() => {});
+        }
     }
 
     /**
@@ -1113,7 +1182,7 @@ class LearningSummaryManager {
             // 禁用按鈕，顯示載入狀態
             if (generateBtn) {
                 generateBtn.disabled = true;
-                generateBtn.textContent = '⏳ 生成中...';
+                generateBtn.textContent = '生成中...';
             }
 
             // 顯示載入狀態
