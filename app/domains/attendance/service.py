@@ -361,8 +361,6 @@ class AttendanceService:
 
         # 创建/更新签到记录
         record_data = {
-            "session_id": session_id,
-            "user_login": login,
             "card_id": card_id or "MANUAL",
             "scan_time": scan_time.strftime("%Y-%m-%d %H:%M:%S"),
             "status": AttendanceStatus.DETENTION_ACTIVE,
@@ -372,7 +370,20 @@ class AttendanceService:
         }
         if detention_reason:
             record_data["detention_reason"] = detention_reason
-        self._record.create_record(record_data)
+
+        existing = self._record.find_record(session_id, login)
+        if existing:
+            # 已有记录 → 更新（重新签到）
+            self._record.update(
+                record_data,
+                "id = %s",
+                (existing["id"],),
+            )
+        else:
+            # 新记录
+            record_data["session_id"] = session_id
+            record_data["user_login"] = login
+            self._record.create_record(record_data)
 
         logger.info(
             "留堂签到: session=%d, student=%s, duration=%d min",
