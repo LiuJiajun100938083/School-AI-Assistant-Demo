@@ -28,16 +28,15 @@
     <div class="login-brand-panel">
         <div class="brand-panel-content">
             <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="brand-mascot">
-            <div class="brand-welcome">歡迎回來</div>
-            <div class="brand-app-name">AI 學習夥伴</div>
-            <div class="brand-school">培僑中學AI學習系統</div>
+            <div class="brand-welcome" data-i18n="login.welcome">歡迎回來</div>
+            <div class="brand-app-name" data-i18n="app.name">AI 學習夥伴</div>
+            <div class="brand-school" data-i18n="app.schoolFull">培僑中學AI學習系統</div>
 
             <!-- QR Code 區域 -->
             <div class="brand-qr-section">
                 <div class="qr-container" id="qrContainer"></div>
                 <div class="qr-text-group">
-                    <div class="qr-label-zh">掃碼登入</div>
-                    <div class="qr-label-en">Scan to login</div>
+                    <div class="qr-label-zh" data-i18n="login.qrLabel">掃碼登入</div>
                 </div>
                 <div class="qr-url" id="qrUrl"></div>
             </div>
@@ -49,6 +48,15 @@
         </div>
     </div>
 
+    <!-- 語言切換 -->
+    <button class="lang-toggle" onclick="i18n.toggle()" title="Switch Language">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <span id="langLabel"></span>
+    </button>
+    <script>document.getElementById('langLabel').textContent = i18n.isZh ? 'EN' : '中';</script>
+
     <!-- ====== 右側登入表單 ====== -->
     <div class="login-form-panel">
         <div class="login-card">
@@ -56,35 +64,35 @@
                 <div class="login-icon">
                     <img src="/static/images/pkms_logo.png" alt="培僑中學" class="login-logo-img">
                 </div>
-                <div class="login-title">登入帳戶</div>
-                <div class="login-subtitle">請輸入您的用戶名和密碼</div>
+                <div class="login-title" data-i18n="login.title">登入帳戶</div>
+                <div class="login-subtitle" data-i18n="login.subtitle">請輸入您的用戶名和密碼</div>
             </div>
 
             <form id="loginForm" class="login-form">
                 <div class="input-group">
-                    <label class="input-label" for="usernameInput">用戶名</label>
+                    <label class="input-label" for="usernameInput" data-i18n="login.username">用戶名</label>
                     <div class="input-wrapper">
                         <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                             <circle cx="12" cy="7" r="4"/>
                         </svg>
-                        <input type="text" id="usernameInput" class="login-input" placeholder="請輸入用戶名"
-                               maxlength="20" required autocomplete="username">
+                        <input type="text" id="usernameInput" class="login-input" data-i18n-placeholder="login.usernamePlaceholder"
+                               placeholder="請輸入用戶名" maxlength="20" required autocomplete="username">
                     </div>
                 </div>
                 <div class="input-group">
-                    <label class="input-label" for="passwordInput">密碼</label>
+                    <label class="input-label" for="passwordInput" data-i18n="login.password">密碼</label>
                     <div class="input-wrapper">
                         <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
-                        <input type="password" id="passwordInput" class="login-input" placeholder="請輸入密碼"
-                               required autocomplete="current-password">
+                        <input type="password" id="passwordInput" class="login-input" data-i18n-placeholder="login.passwordPlaceholder"
+                               placeholder="請輸入密碼" required autocomplete="current-password">
                     </div>
                 </div>
                 <button type="submit" id="loginButton" class="login-button">
-                    <span class="btn-text">登入</span>
+                    <span class="btn-text" data-i18n="login.submit">登入</span>
                     <span class="btn-icon">→</span>
                 </button>
             </form>
@@ -135,6 +143,12 @@
         urlLabel.textContent = display;
     }
 })();
+</script>
+<script src="/static/js/shared/i18n.js"></script>
+<script>
+    document.title = i18n.t('login.pageTitle');
+    document.documentElement.style.setProperty('--loading-text', `'${i18n.t('login.submitting')}'`);
+    i18n.applyDOM();
 </script>
 <script src="/static/js/shared/utils.js"></script>
 <script src="/static/js/shared/auth.js"></script>

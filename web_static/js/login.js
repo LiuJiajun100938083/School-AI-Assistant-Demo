@@ -99,7 +99,7 @@ const LoginApp = {
         const password = el.passwordInput.value;
 
         if (!username || !password) {
-            LoginUI.showLoginError('請輸入用戶名和密碼');
+            LoginUI.showLoginError(i18n.t('login.emptyFields'));
             return;
         }
 
@@ -122,11 +122,11 @@ const LoginApp = {
                 const redirect = params.get('redirect');
                 window.location.href = redirect || '/';
             } else {
-                LoginUI.showLoginError(result.detail || '登入失敗，請檢查用戶名和密碼');
+                LoginUI.showLoginError(result.detail || i18n.t('login.failed'));
             }
         } catch (error) {
-            console.error('登入錯誤:', error);
-            LoginUI.showLoginError('網絡錯誤，請稍後重試');
+            console.error(i18n.t('login.error') + ':', error);
+            LoginUI.showLoginError(i18n.t('common.networkError'));
         } finally {
             LoginUI.showLoginLoading(false);
         }

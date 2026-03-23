@@ -45,7 +45,7 @@ const HomeAPI = {
         if (resp.status === 401) {
             AuthModule.clearAll();
             window.location.href = '/login';
-            throw new Error('認證失效，請重新登入');
+            throw new Error('Session expired');
         }
         return resp;
     },
@@ -122,8 +122,8 @@ const HomeUI = {
         const avatar = info.display_name ? info.display_name.charAt(0).toUpperCase() : 'A';
         const map = {
             homeUserAvatar: avatar,
-            homeUserName: info.display_name || info.username || '學生',
-            homeUserClass: info.class_name || '未分班'
+            homeUserName: info.display_name || info.username || i18n.t('home.defaultUser'),
+            homeUserClass: info.class_name || i18n.t('home.defaultClass')
         };
         for (const [id, val] of Object.entries(map)) {
             const el = document.getElementById(id);
@@ -179,11 +179,11 @@ const HomeUI = {
     /* ---------- 分組配置 ---------- */
 
     _categoryConfig: {
-        learning:  { label: '學習工具',  order: 1, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
-        community: { label: '社區',      order: 2, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
-        teaching:  { label: '教學管理',  order: 3, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
-        admin:     { label: '系統管理',  order: 4, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>' },
-        other:     { label: '其他',      order: 5, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
+        learning:  { i18nKey: 'category.learning',  order: 1, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
+        community: { i18nKey: 'category.community',  order: 2, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+        teaching:  { i18nKey: 'category.teaching',   order: 3, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
+        admin:     { i18nKey: 'category.system',     order: 4, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>' },
+        other:     { i18nKey: 'category.other',      order: 5, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
     },
 
     /* ---------- Sidebar 導航 ---------- */
@@ -209,16 +209,17 @@ const HomeUI = {
         let html = `
             <div class="home-sidebar__item home-sidebar__item--active" data-sidebar-cat="all">
                 <span class="home-sidebar__item-icon">${allIcon}</span>
-                <span>全部應用</span>
+                <span>${i18n.t('home.allApps')}</span>
                 <span class="home-sidebar__item-count">${apps.length}</span>
             </div>`;
 
         for (const cat of sortedCats) {
-            const cfg = this._categoryConfig[cat] || { label: cat, icon: '' };
+            const cfg = this._categoryConfig[cat] || { i18nKey: null, icon: '' };
+            const catLabel = cfg.i18nKey ? i18n.t(cfg.i18nKey) : cat;
             html += `
                 <div class="home-sidebar__item" data-sidebar-cat="${cat}">
                     <span class="home-sidebar__item-icon">${cfg.icon || ''}</span>
-                    <span>${cfg.label}</span>
+                    <span>${catLabel}</span>
                     <span class="home-sidebar__item-count">${counts[cat]}</span>
                 </div>`;
         }
@@ -244,10 +245,10 @@ const HomeUI = {
             return oa - ob;
         });
 
-        let html = `<button class="home-filter-bar__tab home-filter-bar__tab--active" data-filter-cat="all">全部</button>`;
+        let html = `<button class="home-filter-bar__tab home-filter-bar__tab--active" data-filter-cat="all">${i18n.t('home.all')}</button>`;
         for (const cat of sortedCats) {
-            const cfg = this._categoryConfig[cat] || { label: cat };
-            html += `<button class="home-filter-bar__tab" data-filter-cat="${cat}">${cfg.label}</button>`;
+            const cfg = this._categoryConfig[cat] || { i18nKey: cat };
+            html += `<button class="home-filter-bar__tab" data-filter-cat="${cat}">${i18n.t(cfg.i18nKey)}</button>`;
         }
         bar.innerHTML = html;
     },
@@ -257,7 +258,7 @@ const HomeUI = {
     renderWelcomeStats(apps, userName) {
         const title = this.elements.homeWelcomeTitle;
         if (title && userName) {
-            const welcomeText = `歡迎回來，${userName}`;
+            const welcomeText = i18n.t('home.welcomeUser', { name: userName });
             DecryptText.animate(title, welcomeText, {
                 speed: 50,
                 maxIterations: 8,
@@ -275,11 +276,11 @@ const HomeUI = {
         statsEl.innerHTML = `
             <div class="home-stat">
                 <div class="home-stat__value">${apps.length}</div>
-                <div class="home-stat__label">應用</div>
+                <div class="home-stat__label">${i18n.t('home.apps')}</div>
             </div>
             <div class="home-stat">
                 <div class="home-stat__value">${catCount}</div>
-                <div class="home-stat__label">分類</div>
+                <div class="home-stat__label">${i18n.t('home.categories')}</div>
             </div>`;
     },
 
@@ -304,7 +305,7 @@ const HomeUI = {
 
         let html = '';
         for (const cat of sortedCats) {
-            const cfg = this._categoryConfig[cat] || { label: cat, order: 99, collapsed: false };
+            const cfg = this._categoryConfig[cat] || { i18nKey: cat, order: 99, collapsed: false };
             const items = groups[cat];
             const isCollapsed = cfg.collapsed;
 
@@ -312,7 +313,7 @@ const HomeUI = {
                 <div class="home-group" data-category="${cat}">
                     <div class="home-group__header${isCollapsed ? ' home-group__header--collapsed' : ''}"
                          data-toggle-group="${cat}">
-                        <span class="home-group__label">${cfg.label}</span>
+                        <span class="home-group__label">${i18n.t(cfg.i18nKey)}</span>
                         <span class="home-group__count">${items.length}</span>
                         <svg class="home-group__chevron" width="14" height="14" viewBox="0 0 24 24"
                              fill="none" stroke="currentColor" stroke-width="2"
@@ -503,7 +504,7 @@ const HomeApp = {
             const response = await HomeAPI.verify();
             if (response.ok) {
                 const result = await response.json();
-                if (!result.success) throw new Error('Token驗證失敗');
+                if (!result.success) throw new Error(i18n.t('token.verifyFailed'));
                 const userProfile = result.data;
                 this.state.currentUser = userProfile.username;
                 this.state.userRole = userProfile.role || 'student';
@@ -516,10 +517,10 @@ const HomeApp = {
                 this._loadHomeApps();
                 HomeUI.updateHomeUserInfo(userProfile);
             } else {
-                throw new Error('Token驗證失敗');
+                throw new Error(i18n.t('token.verifyFailed'));
             }
         } catch (error) {
-            console.error('Token驗證錯誤:', error);
+            console.error(i18n.t('token.verifyError') + ':', error);
             this._clearAuth();
             window.location.href = '/login';
         }
@@ -547,15 +548,15 @@ const HomeApp = {
         const confirmPassword = el.confirmPasswordInput.value;
 
         if (!oldPassword || !newPassword || !confirmPassword) {
-            el.passwordError.textContent = '請填寫所有欄位';
+            el.passwordError.textContent = i18n.t('password.emptyFields');
             return;
         }
         if (newPassword.length < 4) {
-            el.passwordError.textContent = '新密碼至少需要4個字符';
+            el.passwordError.textContent = i18n.t('password.tooShort');
             return;
         }
         if (newPassword !== confirmPassword) {
-            el.passwordError.textContent = '兩次輸入的新密碼不一致';
+            el.passwordError.textContent = i18n.t('password.mismatch');
             return;
         }
 
@@ -563,14 +564,14 @@ const HomeApp = {
             const response = await HomeAPI.changePassword(oldPassword, newPassword);
             const result = await response.json();
             if (response.ok && result.success) {
-                alert('密碼修改成功！');
+                alert(i18n.t('password.success'));
                 HomeUI.hideChangePasswordModal();
             } else {
-                el.passwordError.textContent = result.detail || '密碼修改失敗';
+                el.passwordError.textContent = result.detail || i18n.t('password.failed');
             }
         } catch (error) {
-            console.error('修改密碼錯誤:', error);
-            el.passwordError.textContent = '網絡錯誤，請稍後重試';
+            console.error(i18n.t('password.error') + ':', error);
+            el.passwordError.textContent = i18n.t('common.networkError');
         }
     },
 
@@ -629,27 +630,22 @@ const HomeApp = {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
-            console.error('載入學科失敗:', error);
+            console.error(i18n.t('subject.loadFailed') + ':', error);
             this._useDefaultSubjects();
         }
     },
 
     _useDefaultSubjects() {
-        this.state.allSubjects = {
-            'ict':         { code: 'ict',         name: 'ICT (資訊及通訊科技)', icon: '💻', description: '資訊與通訊科技' },
-            'ces':         { code: 'ces',         name: 'CES (公民經濟與社會)', icon: '🏛️', description: '公民經濟與社會' },
-            'history':     { code: 'history',     name: '歷史 (History)',       icon: '📚', description: '歷史學科' },
-            'chinese':     { code: 'chinese',     name: '中文',               icon: '📖', description: '中文語言文學' },
-            'english':     { code: 'english',     name: '英文',               icon: '🔤', description: '英語語言文學' },
-            'math':        { code: 'math',        name: '數學',               icon: '🔢', description: '數學學科' },
-            'physics':     { code: 'physics',     name: '物理',               icon: '⚛️', description: '物理學科' },
-            'chemistry':   { code: 'chemistry',   name: '化學',               icon: '🧪', description: '化學學科' },
-            'biology':     { code: 'biology',     name: '生物',               icon: '🧬', description: '生物學科' },
-            'science':     { code: 'science',     name: '科學',               icon: '🔬', description: '綜合科學' },
-            'economics':   { code: 'economics',   name: '經濟',               icon: '💹', description: '經濟學科' },
-            'geography':   { code: 'geography',   name: '地理',               icon: '🌍', description: '地理學科' },
-            'visual_arts': { code: 'visual_arts', name: '視覺藝術',           icon: '🎨', description: '視覺藝術' }
-        };
+        const subjects = ['ict','ces','history','chinese','english','math','physics','chemistry','biology','science','economics','geography','va'];
+        this.state.allSubjects = {};
+        for (const code of subjects) {
+            this.state.allSubjects[code] = {
+                code,
+                name: i18n.t(`subject.${code}`),
+                icon: '📚',
+                description: i18n.t(`subject.${code}.desc`)
+            };
+        }
     },
 
     _getSubjectInfo(subjectCode) {
@@ -685,7 +681,7 @@ const HomeApp = {
 
             this._bindCategoryNav();
         } catch (error) {
-            console.error('載入應用列表失敗:', error);
+            console.error('Failed to load apps:', error);
         }
     },
 

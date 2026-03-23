@@ -23,8 +23,8 @@
         <div class="splash-icon">
             <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="splash-mascot">
         </div>
-        <div class="splash-title">AI 學習夥伴</div>
-        <div class="splash-subtitle">培僑中學</div>
+        <div class="splash-title" data-i18n="home.splashTitle">AI 學習夥伴</div>
+        <div class="splash-subtitle" data-i18n="home.splashSubtitle">培僑中學</div>
         <div class="splash-loader">
             <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
         </div>
@@ -37,16 +37,16 @@
 <!-- 密碼修改模態框 -->
 <div id="changePasswordModal" class="modal-overlay">
     <div class="modal">
-        <div class="modal-title">🔐 修改密碼</div>
+        <div class="modal-title" data-i18n="password.title">修改密碼</div>
         <form id="changePasswordForm" class="modal-form">
-            <input type="password" id="oldPasswordInput" class="modal-input" placeholder="當前密碼" required>
-            <input type="password" id="newPasswordInput" class="modal-input" placeholder="新密碼（至少4位）"
+            <input type="password" id="oldPasswordInput" class="modal-input" data-i18n-placeholder="password.current" placeholder="當前密碼" required>
+            <input type="password" id="newPasswordInput" class="modal-input" data-i18n-placeholder="password.new" placeholder="新密碼（至少4位）"
                    minlength="4" required>
-            <input type="password" id="confirmPasswordInput" class="modal-input" placeholder="確認新密碼" required>
+            <input type="password" id="confirmPasswordInput" class="modal-input" data-i18n-placeholder="password.confirmNew" placeholder="確認新密碼" required>
             <div id="passwordError" class="modal-error"></div>
             <div class="modal-buttons">
-                <button type="button" id="cancelPasswordChange" class="modal-button secondary">取消</button>
-                <button type="submit" id="confirmPasswordChange" class="modal-button primary">確認修改</button>
+                <button type="button" id="cancelPasswordChange" class="modal-button secondary" data-i18n="common.cancel">取消</button>
+                <button type="submit" id="confirmPasswordChange" class="modal-button primary" data-i18n="password.confirmBtn">確認修改</button>
             </div>
         </form>
     </div>
@@ -58,26 +58,26 @@
     <header class="home-header">
         <div class="home-header__left">
             <img src="/static/images/pkms_logo.png" alt="培僑中學" class="home-header__logo">
-            <span class="home-header__brand">AI 學習夥伴</span>
+            <span class="home-header__brand" data-i18n="app.name">AI 學習夥伴</span>
         </div>
         <div class="home-header__right">
             <div class="home-user-info" id="homeUserInfo">
                 <div class="user-avatar" id="homeUserAvatar">A</div>
                 <div class="user-details">
-                    <div class="user-name" id="homeUserName">學生</div>
-                    <div class="user-class" id="homeUserClass">未分班</div>
+                    <div class="user-name" id="homeUserName" data-i18n="home.defaultUser">學生</div>
+                    <div class="user-class" id="homeUserClass" data-i18n="home.defaultClass">未分班</div>
                 </div>
                 <div class="user-menu" id="homeUserMenu">
                     <div class="user-menu-item" id="homeChangePassword">
-                        <span>🔐 修改密碼</span>
+                        <span data-i18n="menu.changePassword">修改密碼</span>
                     </div>
                     <div class="user-menu-separator"></div>
                     <div class="user-menu-item" id="homeAdminPanel" style="display: none;">
-                        <span>⚙️ 管理後台</span>
+                        <span data-i18n="menu.admin">管理後台</span>
                     </div>
                     <div class="user-menu-separator" id="homeAdminSeparator" style="display: none;"></div>
                     <div class="user-menu-item" id="homeLogout">
-                        <span>🚪 退出登入</span>
+                        <span data-i18n="menu.logout">退出登入</span>
                     </div>
                 </div>
             </div>
@@ -92,6 +92,15 @@
                 <!-- JS 動態生成分類導航 -->
             </nav>
             <div class="home-sidebar__footer">
+                <button class="home-sidebar__lang-toggle" onclick="i18n.toggle()" title="Switch Language">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                    <span id="homeLangLabel"></span>
+                </button>
                 <div class="home-sidebar__version">v3.0</div>
             </div>
         </aside>
@@ -103,8 +112,8 @@
                 <div class="home-welcome__text">
                     <img src="/static/images/ai_hourse.png" alt="" class="home-welcome__mascot">
                     <div>
-                        <h1 class="home-welcome__title" id="homeWelcomeTitle">歡迎回來</h1>
-                        <p class="home-welcome__subtitle">選擇下方應用開始使用</p>
+                        <h1 class="home-welcome__title" id="homeWelcomeTitle" data-i18n="home.welcomeBack">歡迎回來</h1>
+                        <p class="home-welcome__subtitle" data-i18n="home.subtitle">選擇下方應用開始使用</p>
                     </div>
                 </div>
                 <div class="home-welcome__stats" id="homeWelcomeStats">
@@ -125,6 +134,13 @@
     </div>
 </div>
 
+<script src="/static/js/shared/i18n.js"></script>
+<script>
+    document.title = i18n.t('home.pageTitle');
+    i18n.applyDOM();
+    var ll = document.getElementById('homeLangLabel');
+    if (ll) ll.textContent = i18n.isZh ? 'EN' : '中文';
+</script>
 <script src="/static/js/shared/utils.js"></script>
 <script src="/static/js/shared/auth.js"></script>
 <script src="/static/js/shared/ui.js"></script>

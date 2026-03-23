@@ -588,14 +588,46 @@ p, span, div, li, label {
 }
 
 .home-sidebar__footer {
-    padding: var(--space-4);
+    padding: var(--space-3) var(--space-4);
     border-top: 1px solid var(--border-light);
     margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .home-sidebar__version {
     font-size: 11px;
     color: var(--text-tertiary);
+}
+
+.home-sidebar__lang-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-default);
+    border-radius: 16px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.home-sidebar__lang-toggle:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+
+.home-sidebar__lang-toggle svg {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.home-sidebar__lang-toggle:hover svg {
+    opacity: 1;
 }
 
 /* ── Main Content ── */

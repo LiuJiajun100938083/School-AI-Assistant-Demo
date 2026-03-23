@@ -137,7 +137,8 @@ const UIModule = {
      * 顯示全局加載遮罩
      * @param {string} text - 提示文字
      */
-    showLoading(text = '加載中...') {
+    showLoading(text) {
+        if (!text) text = (typeof i18n !== 'undefined') ? i18n.t('common.loading') : '加載中...';
         this._injectStyles();
         if (document.getElementById('sharedLoadingOverlay')) return;
 
@@ -168,7 +169,8 @@ const UIModule = {
      * @param {string} title - 標題（預設「確認」）
      * @returns {Promise<boolean>}
      */
-    confirm(message, title = '確認') {
+    confirm(message, title) {
+        if (!title) title = (typeof i18n !== 'undefined') ? i18n.t('common.confirm') : '確認';
         this._injectStyles();
 
         return new Promise(resolve => {
@@ -179,8 +181,8 @@ const UIModule = {
                     <h3>${title}</h3>
                     <p>${message}</p>
                     <div class="btn-row">
-                        <button class="btn-cancel">取消</button>
-                        <button class="btn-ok">確定</button>
+                        <button class="btn-cancel">${(typeof i18n !== 'undefined') ? i18n.t('common.cancel') : '取消'}</button>
+                        <button class="btn-ok">${(typeof i18n !== 'undefined') ? i18n.t('common.confirm') : '確定'}</button>
                     </div>
                 </div>
             `;
@@ -204,7 +206,8 @@ const UIModule = {
     /**
      * 返回一段 loading HTML（用於內容區佔位）
      */
-    loadingHTML(text = '加載中...') {
+    loadingHTML(text) {
+        if (!text) text = (typeof i18n !== 'undefined') ? i18n.t('common.loading') : '加載中...';
         return `<div style="text-align:center;padding:60px 20px;color:#9ca3af">
             <div style="font-size:24px;margin-bottom:8px">⏳</div>${text}
         </div>`;

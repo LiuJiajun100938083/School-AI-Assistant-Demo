@@ -52,7 +52,7 @@ const APIClient = {
             const data = await resp.json();
 
             if (!resp.ok) {
-                const msg = data.detail || data.message || `請求失敗 (${resp.status})`;
+                const msg = data.detail || data.message || `${(typeof i18n !== 'undefined') ? i18n.t('common.requestFailed') : '請求失敗'} (${resp.status})`;
                 throw new Error(msg);
             }
 
@@ -61,7 +61,7 @@ const APIClient = {
             // 網絡錯誤 or 上面拋出的錯誤
             if (err.name !== 'Error') {
                 // fetch 本身的網絡錯誤
-                err = new Error('網絡連接失敗，請檢查網絡');
+                err = new Error((typeof i18n !== 'undefined') ? i18n.t('common.networkFailed') : '網絡連接失敗，請檢查網絡');
             }
             console.error(`API Error [${url}]:`, err.message);
             // 如果 UIModule 可用，顯示 toast
