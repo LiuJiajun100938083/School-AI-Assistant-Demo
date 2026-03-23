@@ -1,33 +1,10 @@
 /* ========== 學習總結組件樣式 ========== */
 
-/* --- 📚 按鈕 --- */
+/* --- 總結按鈕（繼承 .toolbar-btn 基礎樣式，僅補充定位） --- */
 .summary-button {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: 1px solid transparent;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    font-size: 12px;
-    font-family: var(--font-sans);
-    font-weight: 500;
-    padding: 5px 10px;
-    border-radius: var(--radius-full);
-    transition: all var(--duration-fast) var(--ease-out);
-    flex-shrink: 0;
     margin-left: auto;
     margin-right: 8px;
-}
-
-.summary-button:hover {
-    color: var(--brand);
-    background: var(--brand-lighter);
-    border-color: var(--brand-border);
-}
-
-.summary-button:active {
-    transform: scale(0.93);
+    flex-shrink: 0;
 }
 
 /* --- 模態框 overlay --- */
