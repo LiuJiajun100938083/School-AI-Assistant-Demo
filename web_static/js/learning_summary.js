@@ -1521,7 +1521,22 @@ class LearningSummaryManager {
                 const cs = window.getComputedStyle(origNode);
                 for (const prop of svgStyleProps) {
                     const val = cs.getPropertyValue(prop);
-                    if (val && val !== 'none' && val !== '0' && val !== '') {
+                    if (!val || val === '' || val === '0') continue;
+
+                    if (prop === 'fill') {
+                        // path / line / polyline 是描邊元素，fill 應為 none
+                        // 除非原始元素明確有非黑色 fill
+                        const isStrokeElement = ['path', 'line', 'polyline'].includes(tag);
+                        const isBlack = val === 'rgb(0, 0, 0)' || val === '#000' || val === '#000000' || val === 'black';
+                        if (val === 'none') {
+                            cloneNode.setAttribute('fill', 'none');
+                        } else if (isStrokeElement && isBlack) {
+                            // 描邊元素的默認黑色 fill → 改為 none（避免黑色方塊）
+                            cloneNode.setAttribute('fill', 'none');
+                        } else {
+                            cloneNode.setAttribute('fill', val);
+                        }
+                    } else if (val !== 'none') {
                         cloneNode.setAttribute(prop, val);
                     }
                 }
