@@ -1507,13 +1507,26 @@ class LearningSummaryManager {
         const cloneG = clone.querySelector('g');
         if (cloneG) cloneG.removeAttribute('transform');
 
+        // 內聯 SVG 元素的計算樣式（circle, path, line 等）
+        const svgShapes = svgEl.querySelectorAll('circle, path, line, rect, polyline, polygon');
+        const cloneShapes = clone.querySelectorAll('circle, path, line, rect, polyline, polygon');
+        cloneShapes.forEach((cloneEl, i) => {
+            const origEl = svgShapes[i];
+            if (!origEl) return;
+            const cs = window.getComputedStyle(origEl);
+            // 內聯 fill, stroke, stroke-width, opacity
+            if (cs.fill && cs.fill !== 'none') cloneEl.setAttribute('fill', cs.fill);
+            if (cs.stroke && cs.stroke !== 'none') cloneEl.setAttribute('stroke', cs.stroke);
+            if (cs.strokeWidth) cloneEl.setAttribute('stroke-width', cs.strokeWidth);
+            if (cs.opacity && cs.opacity !== '1') cloneEl.setAttribute('opacity', cs.opacity);
+        });
+
         // 內聯 foreignObject 中的計算樣式，避免外部 CSS 依賴導致 taint
         clone.querySelectorAll('foreignObject *').forEach(el => {
-            const computed = window.getComputedStyle(
-                svgEl.querySelector(`[class="${el.getAttribute('class')}"]`) || el
-            );
-            // 只內聯關鍵文字樣式
-            el.style.fontFamily = 'sans-serif';  // 使用通用字體避免外部字體
+            const origSelector = `[class="${el.getAttribute('class')}"]`;
+            const origEl = svgEl.querySelector(origSelector);
+            const computed = origEl ? window.getComputedStyle(origEl) : {};
+            el.style.fontFamily = 'sans-serif';
             el.style.fontSize = computed.fontSize || '14px';
             el.style.fontWeight = computed.fontWeight || 'normal';
             el.style.color = computed.color || '#333';
