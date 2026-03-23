@@ -99,7 +99,7 @@
     <div class="header">
         <div class="header-left">
             <button id="backToHomeBtn" class="back-home-btn" title="返回首頁">←</button>
-            <button id="sidebarToggle" class="new-chat-btn">☰</button>
+            <button id="sidebarMobileToggle" class="sidebar-mobile-toggle" title="對話歷史">☰</button>
             <div id="headerTitle" class="header-title">💻 ICT AI 學習夥伴</div>
             <select id="subjectSelector" class="subject-selector" style="display:none;">
                 <option value="ict">💻 ICT (載入中...)</option>
@@ -142,6 +142,13 @@
             </div>
             <div id="conversationsList" class="conversations-list"></div>
         </div>
+
+        <!-- 側邊欄邊緣 toggle（桌面） -->
+        <button id="sidebarToggle" class="sidebar-edge-toggle" title="收起/展開側邊欄">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+        </button>
 
         <!-- 聊天區域 -->
         <div class="chat-container">

@@ -426,6 +426,7 @@ p, span, div, li, label {
     overflow: hidden;
     padding: var(--space-4);
     gap: var(--space-4);
+    position: relative;
 }
 
 
@@ -2112,9 +2113,65 @@ th {
 }
 
 
-/* ========== 側邊欄切換按鈕 ========== */
-#sidebarToggle {
+/* ========== 桌面側邊欄邊緣 Chevron Toggle ========== */
+.sidebar-edge-toggle {
+    position: absolute;
+    left: calc(var(--space-4) + 300px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+    width: 20px;
+    height: 44px;
+    border: none;
+    border-radius: 0 12px 12px 0;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06),
+                inset -1px 0 0 rgba(255, 255, 255, 0.5);
+    cursor: pointer;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.2s ease,
+                background 0.2s ease;
+}
+
+.sidebar-edge-toggle svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-tertiary);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sidebar-edge-toggle:hover {
+    width: 26px;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.sidebar-edge-toggle:hover svg {
+    color: var(--text-primary);
+}
+
+.sidebar-edge-toggle:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+/* collapsed 時 chevron 翻轉 + 滑到最左 */
+.sidebar.collapsed ~ .sidebar-edge-toggle {
+    left: 0;
+}
+
+.sidebar.collapsed ~ .sidebar-edge-toggle svg {
+    transform: rotate(180deg);
+}
+
+/* ========== 移動端側邊欄 Toggle（header 內） ========== */
+.sidebar-mobile-toggle {
+    display: none;
     align-items: center;
     justify-content: center;
     width: 32px;
@@ -2129,12 +2186,12 @@ th {
     margin-right: var(--space-3);
 }
 
-#sidebarToggle:hover {
+.sidebar-mobile-toggle:hover {
     background: var(--bg-card-hover);
     border-color: var(--border-strong);
 }
 
-#sidebarToggle:active {
+.sidebar-mobile-toggle:active {
     transform: scale(0.95);
 }
 
@@ -2147,6 +2204,14 @@ th {
 @media (min-width: 1440px) {
     .sidebar {
         width: 320px;
+    }
+
+    .sidebar-edge-toggle {
+        left: calc(var(--space-5) + 320px);
+    }
+
+    .sidebar.collapsed ~ .sidebar-edge-toggle {
+        left: 0;
     }
 
     .content-container {
@@ -2180,6 +2245,14 @@ th {
         width: 280px;
     }
 
+    .sidebar-edge-toggle {
+        left: calc(var(--space-4) + 280px);
+    }
+
+    .sidebar.collapsed ~ .sidebar-edge-toggle {
+        left: 0;
+    }
+
     .content-container {
         padding: var(--space-4);
         gap: var(--space-4);
@@ -2206,6 +2279,14 @@ th {
 
     .sidebar {
         width: 260px;
+    }
+
+    .sidebar-edge-toggle {
+        left: calc(var(--space-3) + 260px);
+    }
+
+    .sidebar.collapsed ~ .sidebar-edge-toggle {
+        left: 0;
     }
 
     .content-container {
@@ -2269,7 +2350,11 @@ th {
         display: flex;
     }
 
-    #sidebarToggle {
+    .sidebar-edge-toggle {
+        display: none;
+    }
+
+    .sidebar-mobile-toggle {
         display: flex;
     }
 
@@ -2391,7 +2476,11 @@ th {
         left: 0;
     }
 
-    #sidebarToggle {
+    .sidebar-edge-toggle {
+        display: none;
+    }
+
+    .sidebar-mobile-toggle {
         display: flex;
     }
 
@@ -2452,7 +2541,11 @@ th {
         padding: var(--space-4);
     }
 
-    #sidebarToggle {
+    .sidebar-edge-toggle {
+        display: none;
+    }
+
+    .sidebar-mobile-toggle {
         display: flex;
     }
 

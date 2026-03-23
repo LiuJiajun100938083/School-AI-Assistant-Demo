@@ -157,6 +157,7 @@ const ChatUI = {
             statusIndicator:     document.getElementById('statusIndicator'),
             sidebar:             document.getElementById('sidebar'),
             sidebarToggle:       document.getElementById('sidebarToggle'),
+            sidebarMobileToggle: document.getElementById('sidebarMobileToggle'),
             sidebarOverlay:      document.getElementById('sidebarOverlay'),
             sidebarCloseBtn:     document.getElementById('sidebarCloseBtn'),
             newChatButton:       document.getElementById('newChatButton'),
@@ -789,6 +790,7 @@ const ChatApp = {
 
         // 侧边栏
         el.sidebarToggle.addEventListener('click', () => ChatUI.toggleSidebar());
+        if (el.sidebarMobileToggle) el.sidebarMobileToggle.addEventListener('click', () => ChatUI.toggleSidebar());
         el.sidebarOverlay.addEventListener('click', () => ChatUI.closeSidebar());
         el.sidebarCloseBtn.addEventListener('click', () => ChatUI.closeSidebar());
 
