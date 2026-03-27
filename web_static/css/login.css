@@ -1,5 +1,5 @@
 /* ========================================
-   培僑中學 AI 學習夥伴 — 登入頁面樣式
+   校園AI助手 — 登入頁面樣式
    ========================================
    從 index.css 中獨立出的登入頁專屬樣式。
    包含：Splash 開屏、過渡遮罩、登入表單、品牌面板、名言輪播。
@@ -20,12 +20,12 @@ html {
 :root {
     color-scheme: light only;
     /* 品牌綠 */
-    --brand: #006633;
-    --brand-hover: #007A3D;
-    --brand-active: #005528;
-    --brand-light: #E8F5EC;
-    --brand-lighter: #F0F9F3;
-    --brand-border: #B8D4C0;
+    --brand: #6366F1;
+    --brand-hover: #4F46E5;
+    --brand-active: #4338CA;
+    --brand-light: #EEF2FF;
+    --brand-lighter: #F5F7FF;
+    --brand-border: #C7D2FE;
 
     /* 背景 */
     --bg-page: #F5F5F7;
@@ -43,7 +43,7 @@ html {
     --border-light: rgba(0, 0, 0, 0.04);
     --border-default: rgba(0, 0, 0, 0.08);
     --border-strong: rgba(0, 0, 0, 0.12);
-    --border-focus: #006633;
+    --border-focus: #6366F1;
 
     /* 功能色 */
     --color-error: #FF3B30;
@@ -137,7 +137,7 @@ body {
 /* ── 左側品牌面板 ── */
 .login-brand-panel {
     flex: 0 0 45%;
-    background: linear-gradient(170deg, #005A2E 0%, #006633 50%, #004D29 100%);
+    background: var(--login-gradient, linear-gradient(170deg, #4338CA 0%, #6366F1 50%, #3730A3 100%));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -355,6 +355,7 @@ body {
 }
 
 .login-card {
+    position: relative;
     width: 100%;
     max-width: 400px;
     text-align: center;
@@ -463,7 +464,7 @@ body {
     box-shadow:
         inset 3px 3px 7px rgba(0, 0, 0, 0.08),
         inset -3px -3px 7px rgba(255, 255, 255, 0.9),
-        0 0 0 2.5px rgba(0, 102, 51, 0.18);
+        0 0 0 2.5px rgba(99, 102, 241, 0.18);
 }
 
 .login-input::placeholder {
@@ -736,6 +737,69 @@ body {
 }
 
 .lang-toggle svg {
+    opacity: 0.7;
+}
+
+/* ========== 主題色選擇器 ========== */
+.theme-picker {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-light);
+}
+
+.theme-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background: var(--dot-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    outline: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.theme-dot:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.theme-dot.active {
+    border-color: var(--dot-color);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06), 0 0 0 5px var(--dot-color);
+    transform: scale(1.1);
+}
+
+/* ========== 登入卡片內語言切換 ========== */
+.login-lang-toggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 20px;
+    color: #6366F1;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.login-lang-toggle:hover {
+    background: rgba(99, 102, 241, 0.15);
+    color: #3730A3;
+}
+
+.login-lang-toggle svg {
     opacity: 0.7;
 }
 

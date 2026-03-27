@@ -19,9 +19,9 @@ const i18n = (() => {
     const messages = {
         zh: {
             // --- 通用 ---
-            'app.name': 'AI 學習夥伴',
-            'app.school': '培僑中學',
-            'app.schoolFull': '培僑中學AI學習系統',
+            'app.name': '校園AI助手',
+            'app.school': '',
+            'app.schoolFull': '校園AI助手系統',
             'common.cancel': '取消',
             'common.confirm': '確定',
             'common.loading': '加載中...',
@@ -30,7 +30,7 @@ const i18n = (() => {
             'common.networkFailed': '網絡連接失敗，請檢查網絡',
 
             // --- 登入頁 ---
-            'login.pageTitle': '登入 — 培僑中學 學習夥伴',
+            'login.pageTitle': '登入 — 校園AI助手',
             'login.welcome': '歡迎回來',
             'login.title': '登入帳戶',
             'login.subtitle': '請輸入您的用戶名和密碼',
@@ -46,9 +46,9 @@ const i18n = (() => {
             'login.qrLabel': '掃碼登入',
 
             // --- 首頁 ---
-            'home.pageTitle': '培僑中學 學習夥伴',
-            'home.splashTitle': 'AI 學習夥伴',
-            'home.splashSubtitle': '培僑中學',
+            'home.pageTitle': '校園AI助手',
+            'home.splashTitle': '校園AI助手',
+            'home.splashSubtitle': '',
             'home.welcomeBack': '歡迎回來',
             'home.welcomeUser': '歡迎回來，{{name}}',
             'home.subtitle': '選擇下方應用開始使用',
@@ -158,12 +158,12 @@ const i18n = (() => {
             'subject.loadFailed': '載入學科失敗',
 
             // --- AI 對話頁 ---
-            'chat.pageTitle': 'AI 學習對話 - 培僑中學',
+            'chat.pageTitle': 'AI 學習對話 - 校園AI助手',
             'chat.backHome': '返回首頁',
             'chat.history': '對話歷史',
             'chat.newChat': '+ 新對話',
             'chat.toggleSidebar': '收起/展開側邊欄',
-            'chat.welcome': '歡迎使用 AI 學習夥伴！',
+            'chat.welcome': '歡迎使用校園AI助手！',
             'chat.welcomeSubtitle': '選擇科目並開始提問吧',
             'chat.inputPlaceholder': '輸入訊息或拖曳檔案到此處...',
             'chat.uploadFile': '上傳檔案到當前對話',
@@ -171,7 +171,7 @@ const i18n = (() => {
             'chat.thinkingTooltip': '開啟後 AI 會先進行深度推理再回答，適合複雜問題',
             'chat.thinkingLabel': '深度思考',
             'chat.send': '發送',
-            'chat.headerTitle': 'AI 學習夥伴',
+            'chat.headerTitle': '校園AI助手',
             'chat.statusOnline': '● 連接正常',
             'chat.statusOffline': '● 連接異常',
             'chat.msgCount': '條訊息 · ',
@@ -182,7 +182,7 @@ const i18n = (() => {
             'chat.featureMemory': '對話記憶 — 自動保存學習歷程',
             'chat.featureUpload': '文檔上傳 — 拖曳檔案即可智能問答',
             'chat.welcomeUser': '👋 歡迎，{{name}}！',
-            'chat.welcomeUseSubject': '開始使用 {{subject}} AI 學習夥伴',
+            'chat.welcomeUseSubject': '開始使用 {{subject}} 校園AI助手',
             'chat.featureLocal': '🖥️ 本地模式：快速響應，精準問答',
             'chat.featureUploadDetail': '📎 文檔上傳：直接拖拽文件到輸入框進行智能問答',
             'chat.processing': '正在處理 "{{name}}"...',
@@ -283,9 +283,9 @@ const i18n = (() => {
 
         en: {
             // --- Common ---
-            'app.name': 'AI Learning Buddy',
-            'app.school': 'Pui Kiu College',
-            'app.schoolFull': 'Pui Kiu College AI Learning System',
+            'app.name': 'Campus AI Assistant',
+            'app.school': '',
+            'app.schoolFull': 'Campus AI Assistant System',
             'common.cancel': 'Cancel',
             'common.confirm': 'OK',
             'common.loading': 'Loading...',
@@ -294,7 +294,7 @@ const i18n = (() => {
             'common.networkFailed': 'Network connection failed, please check your connection',
 
             // --- Login ---
-            'login.pageTitle': 'Login — Pui Kiu College Learning Buddy',
+            'login.pageTitle': 'Login — Campus AI Assistant',
             'login.welcome': 'Welcome Back',
             'login.title': 'Sign In',
             'login.subtitle': 'Enter your username and password',
@@ -310,9 +310,9 @@ const i18n = (() => {
             'login.qrLabel': 'Scan to Login',
 
             // --- Home ---
-            'home.pageTitle': 'Pui Kiu College Learning Buddy',
-            'home.splashTitle': 'AI Learning Buddy',
-            'home.splashSubtitle': 'Pui Kiu College',
+            'home.pageTitle': 'Campus AI Assistant',
+            'home.splashTitle': 'Campus AI Assistant',
+            'home.splashSubtitle': '',
             'home.welcomeBack': 'Welcome Back',
             'home.welcomeUser': 'Welcome back, {{name}}',
             'home.subtitle': 'Choose an app below to get started',
@@ -422,12 +422,12 @@ const i18n = (() => {
             'subject.loadFailed': 'Failed to load subjects',
 
             // --- AI Chat Page ---
-            'chat.pageTitle': 'AI Chat - Pui Kiu College',
+            'chat.pageTitle': 'AI Chat - Campus AI Assistant',
             'chat.backHome': 'Home',
             'chat.history': 'Chat History',
             'chat.newChat': '+ New Chat',
             'chat.toggleSidebar': 'Toggle Sidebar',
-            'chat.welcome': 'Welcome to AI Learning Buddy!',
+            'chat.welcome': 'Welcome to Campus AI Assistant!',
             'chat.welcomeSubtitle': 'Select a subject and start asking',
             'chat.inputPlaceholder': 'Type a message or drag files here...',
             'chat.uploadFile': 'Upload files to conversation',
@@ -435,7 +435,7 @@ const i18n = (() => {
             'chat.thinkingTooltip': 'AI will reason deeply before answering — best for complex questions',
             'chat.thinkingLabel': 'Deep Think',
             'chat.send': 'Send',
-            'chat.headerTitle': 'AI Learning Buddy',
+            'chat.headerTitle': 'Campus AI Assistant',
             'chat.statusOnline': '● Connected',
             'chat.statusOffline': '● Disconnected',
             'chat.msgCount': ' messages · ',
@@ -446,7 +446,7 @@ const i18n = (() => {
             'chat.featureMemory': 'Memory — auto-saves learning progress',
             'chat.featureUpload': 'File Upload — drag & drop for smart Q&A',
             'chat.welcomeUser': '👋 Welcome, {{name}}!',
-            'chat.welcomeUseSubject': 'Start using {{subject}} AI Learning Buddy',
+            'chat.welcomeUseSubject': 'Start using {{subject}} Campus AI Assistant',
             'chat.featureLocal': '🖥️ Local Mode: Fast responses, precise answers',
             'chat.featureUploadDetail': '📎 File Upload: Drag files to the input for smart Q&A',
             'chat.processing': 'Processing "{{name}}"...',

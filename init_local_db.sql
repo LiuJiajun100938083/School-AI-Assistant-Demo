@@ -8,11 +8,11 @@ SET CHARACTER SET utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Create database
-CREATE DATABASE IF NOT EXISTS school_ai_assistant
+CREATE DATABASE IF NOT EXISTS school_ai_demo
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
 
-USE school_ai_assistant;
+USE school_ai_demo;
 
 -- ============================================================
 -- Drop all existing tables (clean slate)
@@ -894,5 +894,5 @@ INSERT INTO users (username, password_hash, display_name, role, is_active) VALUE
 -- Done!
 -- ============================================================
 SELECT CONCAT('Database initialized successfully! Total tables: ',
-    (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'school_ai_assistant')
+    (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'school_ai_demo')
 ) AS status;

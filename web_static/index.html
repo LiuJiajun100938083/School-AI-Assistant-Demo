@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>培僑中學 學習夥伴</title>
+    <title>校園AI助手</title>
     <link rel="stylesheet" href="/static/css/index.css">
+    <script src="/static/js/shared/theme.js"></script>
     <link rel="stylesheet" href="/static/css/spinner.css">
     <!-- GSAP 動畫引擎（啟動畫面） -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -21,10 +22,9 @@
 <div class="splash-screen" id="splashScreen">
     <div class="splash-content">
         <div class="splash-icon">
-            <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="splash-mascot">
         </div>
-        <div class="splash-title" data-i18n="home.splashTitle">AI 學習夥伴</div>
-        <div class="splash-subtitle" data-i18n="home.splashSubtitle">培僑中學</div>
+        <div class="splash-title" data-i18n="home.splashTitle">校園AI助手</div>
+        <div class="splash-subtitle" data-i18n="home.splashSubtitle"></div>
         <div class="splash-loader">
             <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
         </div>
@@ -57,8 +57,7 @@
     <!-- HEADER -->
     <header class="home-header">
         <div class="home-header__left">
-            <img src="/static/images/pkms_logo.png" alt="培僑中學" class="home-header__logo">
-            <span class="home-header__brand" data-i18n="app.name">AI 學習夥伴</span>
+            <span class="home-header__brand" data-i18n="app.name">校園AI助手</span>
         </div>
         <div class="home-header__right">
             <div class="home-user-info" id="homeUserInfo">
@@ -110,7 +109,6 @@
             <!-- 歡迎橫幅 -->
             <section class="home-welcome" id="homeWelcome">
                 <div class="home-welcome__text">
-                    <img src="/static/images/ai_hourse.png" alt="" class="home-welcome__mascot">
                     <div>
                         <h1 class="home-welcome__title" id="homeWelcomeTitle" data-i18n="home.welcomeBack">歡迎回來</h1>
                         <p class="home-welcome__subtitle" data-i18n="home.subtitle">選擇下方應用開始使用</p>

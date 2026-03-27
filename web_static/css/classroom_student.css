@@ -5,10 +5,10 @@
 
 :root {
     /* 品牌綠 */
-    --brand: #006633;
-    --brand-hover: #007A3D;
-    --brand-active: #005528;
-    --brand-light: #E8F5EC;
+    --brand: #6366F1;
+    --brand-hover: #4F46E5;
+    --brand-active: #4338CA;
+    --brand-light: #EEF2FF;
 
     /* 功能色 */
     --color-success: #34C759;
@@ -34,7 +34,7 @@
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.03), 0 4px 8px rgba(0, 0, 0, 0.04), 0 8px 16px rgba(0, 0, 0, 0.03);
     --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.03), 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.04);
-    --shadow-input-focus: 0 0 0 4px rgba(0, 102, 51, 0.08);
+    --shadow-input-focus: 0 0 0 4px rgba(99, 102, 241, 0.08);
 
     /* 圓角 */
     --radius-sm: 8px;
@@ -363,7 +363,7 @@ html, body {
 
 .ai-circle:hover {
     transform: scale(1.08);
-    box-shadow: 0 8px 24px rgba(0, 102, 51, 0.3);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
 }
 
 .ai-circle:active {
@@ -377,9 +377,9 @@ html, body {
     gap: 6px;
     padding: 6px 14px;
     border-radius: 10px;
-    border: 1px solid var(--brand, #006633);
+    border: 1px solid var(--brand, #6366F1);
     background: transparent;
-    color: var(--brand, #006633);
+    color: var(--brand, #6366F1);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;

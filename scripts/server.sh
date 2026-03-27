@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# PKMS AI Learning Buddy — 伺服器管理腳本
+# 校園AI助手 — 伺服器管理腳本
 # ==========================================
 #
 # 用法:
@@ -178,7 +178,7 @@ case "${1:-}" in
     status)  do_status ;;
     logs)    do_logs "${2:-}" ;;
     *)
-        echo "PKMS AI Learning Buddy — 伺服器管理"
+        echo "校園AI助手 — 伺服器管理"
         echo ""
         echo "用法: $0 {start|stop|restart|status|logs [N]}"
         echo ""

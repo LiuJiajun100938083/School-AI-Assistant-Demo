@@ -1,6 +1,6 @@
 /**
  * Interactive Activity — Runtime Styles
- * Design: Liquid Glass / Frosted Glass with brand green (#006633)
+ * Design: Liquid Glass / Frosted Glass with brand green (#6366F1)
  * No emojis. SVG icons only.
  */
 
@@ -154,7 +154,7 @@
 .drag-item.dragging {
     transform: scale(1.03);
     box-shadow: var(--glass-shadow-elevated);
-    border-color: rgba(0, 102, 51, 0.4);
+    border-color: rgba(99, 102, 241, 0.4);
     background: var(--glass-bg-hover);
     z-index: 100;
     opacity: 0.95;
@@ -162,9 +162,9 @@
 
 /* Placeholder */
 .drag-placeholder {
-    border: 2px dashed rgba(0, 102, 51, 0.25);
+    border: 2px dashed rgba(99, 102, 241, 0.25);
     border-radius: var(--glass-radius);
-    background: rgba(0, 102, 51, 0.04);
+    background: rgba(99, 102, 241, 0.04);
     transition: height 0.15s ease;
 }
 
@@ -204,7 +204,7 @@
     width: 100%;
     padding: 14px;
     margin-top: 16px;
-    background: rgba(0, 102, 51, 0.88);
+    background: rgba(99, 102, 241, 0.88);
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
     color: #fff;
@@ -215,12 +215,12 @@
     cursor: pointer;
     transition: background 0.2s, transform 0.15s, opacity 0.2s, box-shadow 0.2s;
     flex-shrink: 0;
-    box-shadow: 0 4px 16px rgba(0, 102, 51, 0.2);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
 }
 
 .interactive-submit-btn:hover {
     background: rgba(0, 122, 61, 0.92);
-    box-shadow: 0 6px 20px rgba(0, 102, 51, 0.28);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.28);
 }
 
 .interactive-submit-btn:active {
@@ -288,11 +288,11 @@
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
-    background: rgba(0, 102, 51, 0.08);
+    background: rgba(99, 102, 241, 0.08);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(0, 102, 51, 0.15);
-    color: var(--brand, #006633);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    color: var(--brand, #6366F1);
     border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
@@ -352,7 +352,7 @@
 
 .interactive-progress-bar-fill {
     height: 100%;
-    background: var(--brand, #006633);
+    background: var(--brand, #6366F1);
     border-radius: 3px;
     transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     min-width: 0;
@@ -392,7 +392,7 @@
 }
 
 .interactive-results-stats strong {
-    color: var(--brand, #006633);
+    color: var(--brand, #6366F1);
     font-weight: 700;
 }
 
@@ -419,8 +419,8 @@
 }
 
 .interactive-results-row.is-me {
-    border-color: rgba(0, 102, 51, 0.4);
-    background: rgba(0, 102, 51, 0.08);
+    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.08);
 }
 
 .interactive-results-row .rank {
@@ -444,7 +444,7 @@
 .interactive-results-row .score {
     font-size: 14px;
     font-weight: 700;
-    color: var(--brand, #006633);
+    color: var(--brand, #6366F1);
     font-variant-numeric: tabular-nums;
 }
 
@@ -476,14 +476,14 @@
 }
 
 .template-card:hover:not(.disabled) {
-    border-color: rgba(0, 102, 51, 0.3);
+    border-color: rgba(99, 102, 241, 0.3);
     background: var(--glass-bg-hover);
     box-shadow: var(--glass-shadow-elevated);
 }
 
 .template-card.selected {
-    border-color: rgba(0, 102, 51, 0.5);
-    background: rgba(0, 102, 51, 0.08);
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.08);
 }
 
 .template-card.disabled {
@@ -540,9 +540,9 @@
 }
 
 .interactive-unlock-btn:hover {
-    background: rgba(0, 102, 51, 0.08);
-    border-color: rgba(0, 102, 51, 0.4);
-    color: var(--brand, #006633);
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: var(--brand, #6366F1);
 }
 
 /* ============================
@@ -646,14 +646,14 @@
 }
 
 .drag-match-item.active {
-    border-color: rgba(0, 102, 51, 0.5);
+    border-color: rgba(99, 102, 241, 0.5);
     background: var(--glass-bg-hover);
-    box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.1), var(--glass-shadow-elevated);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1), var(--glass-shadow-elevated);
 }
 
 .drag-match-item.paired {
-    border-color: rgba(0, 102, 51, 0.4);
-    background: rgba(0, 102, 51, 0.08);
+    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.08);
 }
 
 .drag-match-item.correct {
@@ -702,9 +702,9 @@
 
 .drag-place-zone {
     position: absolute;
-    border: 2px dashed rgba(0, 102, 51, 0.3);
+    border: 2px dashed rgba(99, 102, 241, 0.3);
     border-radius: var(--glass-radius-sm);
-    background: rgba(0, 102, 51, 0.04);
+    background: rgba(99, 102, 241, 0.04);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     display: flex;
@@ -716,7 +716,7 @@
 
 .drag-place-zone .zone-label {
     font-size: 11px;
-    color: var(--brand, #006633);
+    color: var(--brand, #6366F1);
     font-weight: 600;
     text-align: center;
     pointer-events: none;
@@ -724,9 +724,9 @@
 }
 
 .drag-place-zone.hover {
-    background: rgba(0, 102, 51, 0.1);
-    border-color: var(--brand, #006633);
-    box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.12), inset 0 0 12px rgba(0, 102, 51, 0.06);
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--brand, #6366F1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12), inset 0 0 12px rgba(99, 102, 241, 0.06);
 }
 
 .drag-place-zone.has-item .zone-label {
@@ -782,15 +782,15 @@
 
 .drag-place-chip.dragging {
     box-shadow: var(--glass-shadow-elevated);
-    border-color: rgba(0, 102, 51, 0.4);
+    border-color: rgba(99, 102, 241, 0.4);
     transform: scale(1.05);
     z-index: 100;
     opacity: 0.9;
 }
 
 .drag-place-chip.placed {
-    border-color: rgba(0, 102, 51, 0.4);
-    background: rgba(0, 102, 51, 0.08);
+    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(99, 102, 241, 0.08);
 }
 
 .drag-place-chip.correct {
@@ -849,9 +849,9 @@
 }
 
 .canvas-tool-btn.active {
-    background: rgba(0, 102, 51, 0.1);
-    border-color: rgba(0, 102, 51, 0.3);
-    color: var(--brand, #006633);
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--brand, #6366F1);
 }
 
 .canvas-color-swatch {
@@ -886,9 +886,9 @@
 }
 
 .canvas-stroke-btn.active {
-    background: rgba(0, 102, 51, 0.1);
-    border-color: rgba(0, 102, 51, 0.3);
-    color: var(--brand, #006633);
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--brand, #6366F1);
 }
 
 .free-canvas-wrapper {
@@ -959,7 +959,7 @@
 }
 
 .html-sandbox-editor-pane textarea:focus {
-    border-color: rgba(0, 102, 51, 0.5);
+    border-color: rgba(99, 102, 241, 0.5);
 }
 
 .html-sandbox-preview-pane {

@@ -361,7 +361,6 @@ async def check_content_safety(
         ModerationResult — 上層根據 .status 區分 HTTP 響應碼
     """
     from app.config.settings import get_settings
-    from app.core.ai_gate import get_shared_ollama_client
 
     settings = get_settings()
     t_start = time.monotonic()
@@ -404,33 +403,14 @@ async def check_content_safety(
         return ModerationResult.error("semaphore_full", "審核隊列已滿", latency)
 
     try:
-        # 5. 調用 Ollama
-        model = settings.content_moderation_model
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": _SAFETY_SYSTEM_PROMPT},
-                {"role": "user", "content": f"<CONTENT>\n{normalized}\n</CONTENT>"},
-            ],
-            "stream": False,
-            "think": False,  # 關閉 qwen3.5 思考模式，直接輸出分類結果
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 50,
-            },
-        }
-
-        client = get_shared_ollama_client()
-        response = await client.post(
-            "/api/chat",
-            json=payload,
-            timeout=httpx.Timeout(settings.content_moderation_timeout, connect=10.0),
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        # 6. 解析響應（雙層）
-        raw_reply = data.get("message", {}).get("content", "").strip()
+        # 5. 調用 LLM (通過統一提供者)
+        from llm.providers import get_provider
+        provider = get_provider()
+        messages = [
+            {"role": "system", "content": _SAFETY_SYSTEM_PROMPT},
+            {"role": "user", "content": f"<CONTENT>\n{normalized}\n</CONTENT>"},
+        ]
+        raw_reply = provider.invoke_with_messages(messages).strip()
         decision, category, reason = _parse_safety_response(raw_reply)
 
         latency = (time.monotonic() - t_start) * 1000
@@ -550,29 +530,10 @@ async def check_content_ai_related(
         return True, ""
 
     try:
-        model = settings.content_ai_related_model or settings.content_moderation_model
         prompt = _AI_RELATED_PROMPT.format(content=normalized)
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
-            "think": False,  # 關閉 qwen3.5 思考模式
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 50,
-            },
-        }
-
-        client = get_shared_ollama_client()
-        response = await client.post(
-            "/api/chat",
-            json=payload,
-            timeout=httpx.Timeout(settings.content_moderation_timeout, connect=10.0),
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        raw_reply = data.get("message", {}).get("content", "").strip()
+        from llm.providers import get_provider
+        provider = get_provider()
+        raw_reply = provider.invoke(prompt).strip()
         decision, reason = _parse_topic_response(raw_reply)
 
         latency = (time.monotonic() - t_start) * 1000

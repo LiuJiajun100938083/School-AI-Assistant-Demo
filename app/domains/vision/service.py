@@ -59,11 +59,33 @@ class VisionService:
         self._base_url = ollama_base_url
         self._max_image_size = max_image_size
         self._timeout = timeout
+
+        # 從 LLM 配置中讀取雲端設定
+        use_cloud = False
+        cloud_model = "qwen-vl-max"
+        cloud_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        cloud_api_key = ""
+        try:
+            from llm.config import get_llm_config
+            config = get_llm_config()
+            if config.use_api and config.api_key:
+                use_cloud = True
+                cloud_base_url = config.api_base_url
+                cloud_api_key = config.api_key
+                # 視覺模型使用 qwen-vl-max（從環境變量可覆蓋）
+                cloud_model = os.getenv("QWEN_VL_MODEL", "qwen-vl-max")
+        except Exception:
+            pass
+
         self._client = OllamaVisionClient(
             vision_model=vision_model,
             base_url=ollama_base_url,
             max_image_size=max_image_size,
             timeout=timeout,
+            use_cloud=use_cloud,
+            cloud_model=cloud_model,
+            cloud_base_url=cloud_base_url,
+            cloud_api_key=cloud_api_key,
         )
         self._exam = ExamRecognizer(self._client)
 

@@ -1,13 +1,13 @@
 """
 LLM 調用與 JSON 解析 — 基礎設施
 =================================
-統一 LLM 調用能力，支持本地 Ollama 和雲端 DeepSeek。
+統一 LLM 調用能力，支持本地 Ollama 和雲端 Qwen (DashScope)。
 純函數，無狀態，無域依賴。
 
 Provider 架構：
 - call_llm_json()：統一入口，根據 provider 分發
 - _call_ollama()：本地 Ollama，走 ai_gate GPU 調度
-- _call_deepseek()：雲端 DeepSeek，走輕量並發控制
+- _call_qwen()：雲端 Qwen (DashScope)，走輕量並發控制
 
 依賴：ai_gate（core 層）、llm.config（配置層）
 """
@@ -46,7 +46,7 @@ _SYSTEM_PROMPT = (
 
 async def call_llm_json(
     prompt: str,
-    provider: str = "local",
+    provider: str = "qwen",
     model: str = None,
     temperature: float = 0.3,
     timeout: float = 300.0,
@@ -60,7 +60,7 @@ async def call_llm_json(
 
     Args:
         prompt: 用戶 prompt
-        provider: "local"（Ollama）或 "deepseek"（雲端 API）
+        provider: "local"（Ollama）或 "qwen"（雲端 API），兼容 "deepseek"
         model: 指定模型，None 則用各 provider 的默認配置
         temperature: 生成溫度
         timeout: 超時秒數
@@ -69,8 +69,8 @@ async def call_llm_json(
         gate_weight: ai_gate 權重（僅 local 使用）
         num_predict: 最大生成 token 數
     """
-    if provider == "deepseek":
-        content = await _call_deepseek(
+    if provider in ("deepseek", "qwen"):
+        content = await _call_qwen(
             prompt, model=model, temperature=temperature,
             timeout=timeout, num_predict=num_predict,
         )
@@ -97,9 +97,9 @@ async def call_ollama_json(
     gate_weight=None,
     num_predict: int = 8192,
 ) -> str:
-    """向後兼容入口，轉發到 call_llm_json(provider='local')。"""
+    """向後兼容入口，轉發到 call_llm_json(provider='qwen')。"""
     return await call_llm_json(
-        prompt, provider="local", model=model,
+        prompt, provider="qwen", model=model,
         temperature=temperature, timeout=timeout,
         gate_task=gate_task, gate_priority=gate_priority,
         gate_weight=gate_weight, num_predict=num_predict,
@@ -179,10 +179,10 @@ async def _call_ollama(
 
 
 # ================================================================
-# Provider: DeepSeek 雲端 API
+# Provider: Qwen 雲端 API (DashScope OpenAI-compatible)
 # ================================================================
 
-async def _call_deepseek(
+async def _call_qwen(
     prompt: str,
     model: str = None,
     temperature: float = 0.3,
@@ -190,12 +190,7 @@ async def _call_deepseek(
     num_predict: int = 8192,
 ) -> str:
     """
-    調用 DeepSeek API（OpenAI-compatible），返回 content 字串。
-
-    使用 deepseek-reasoner 模型啟用 thinking/reasoning 模式：
-    - 回應包含 reasoning_content（思考鏈）和 content（最終答案）
-    - 只取 content 作為結果，reasoning_content 被丟棄
-    - thinking 模式下 temperature/top_p 無效（API 會忽略）
+    調用 Qwen API（DashScope OpenAI-compatible），返回 content 字串。
 
     不走 ai_gate（雲端不佔本地 GPU），使用獨立 Semaphore 限流。
     """
@@ -209,7 +204,7 @@ async def _call_deepseek(
     api_key = config.api_key
 
     if not api_key:
-        raise ValueError("DeepSeek API key 未配置（請在後台管理 → 系統設定中配置）")
+        raise ValueError("Qwen API key 未配置（請在後台管理 → 系統設定中配置）")
 
     payload = {
         "model": resolved_model,
@@ -218,15 +213,9 @@ async def _call_deepseek(
             {"role": "user", "content": prompt},
         ],
         "max_tokens": num_predict,
+        "temperature": temperature,
         "response_format": {"type": "json_object"},
     }
-
-    # deepseek-reasoner 原生支持 thinking；
-    # deepseek-chat 則需要顯式啟用 thinking 參數
-    if resolved_model != "deepseek-reasoner":
-        payload["thinking"] = {"type": "enabled"}
-        # 非 reasoner 模型可設置 temperature
-        payload["temperature"] = temperature
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -248,22 +237,11 @@ async def _call_deepseek(
 
     message = data["choices"][0]["message"]
     content = message.get("content", "")
-    reasoning = message.get("reasoning_content", "")
 
     logger.info(
-        "LLM 調用成功: provider=deepseek, model=%s, "
-        "reasoning_len=%d, content_len=%d",
-        resolved_model, len(reasoning) if reasoning else 0, len(content),
+        "LLM 調用成功: provider=qwen, model=%s, content_len=%d",
+        resolved_model, len(content),
     )
-
-    # 只返回 content（最終答案），丟棄 reasoning_content（思考鏈）
-    # 如果 content 為空但 reasoning 有內容，嘗試從 reasoning 提取 JSON
-    if not content and reasoning:
-        logger.warning(
-            "DeepSeek content 為空，嘗試從 reasoning_content 提取 (len=%d)",
-            len(reasoning),
-        )
-        content = reasoning
 
     return content
 

@@ -5,11 +5,11 @@
 
 /* ---- Design Tokens (aligned with index.css) ---- */
 :root {
-    --ec-brand: #006633;
-    --ec-brand-hover: #007A3D;
-    --ec-brand-light: #E8F5EC;
-    --ec-brand-deep: #005528;
-    --ec-brand-border: #B8D4C0;
+    --ec-brand: #6366F1;
+    --ec-brand-hover: #4F46E5;
+    --ec-brand-light: #EEF2FF;
+    --ec-brand-deep: #4338CA;
+    --ec-brand-border: #C7D2FE;
     --ec-focus-ring: rgba(0,102,51,0.10);
     --ec-hover-shadow: rgba(0,102,51,0.08);
     --ec-bg-page: #F5F5F7;

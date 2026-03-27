@@ -5,9 +5,9 @@
 
 :root {
     /* ── 色彩系統 ── */
-    --slc-primary: #006633;
-    --slc-primary-light: #E8F5EC;
-    --slc-primary-dark: #004d26;
+    --slc-primary: #6366F1;
+    --slc-primary-light: #EEF2FF;
+    --slc-primary-dark: #3730A3;
     --slc-bg: #F7F8FA;
     --slc-card-bg: #FFFFFF;
     --slc-border: #E5E7EB;
@@ -273,7 +273,7 @@ body {
 }
 
 .slc-subject-item.--active .slc-subject-item__count {
-    background: rgba(0, 102, 51, 0.15);
+    background: rgba(99, 102, 241, 0.15);
     color: var(--slc-primary);
 }
 

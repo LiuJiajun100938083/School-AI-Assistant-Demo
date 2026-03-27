@@ -1,5 +1,5 @@
 /* ========================================
-   培僑中學 AI 學習夥伴 - 教師管理後台
+   校園AI助手 - 教師管理後台
    簡潔扁平設計 - 減少AI感
 
    設計核心：
@@ -17,12 +17,12 @@
 }
 
 :root {
-    --brand: #006633;
-    --brand-hover: #005528;
-    --brand-light: #E8F5EC;
+    --brand: #6366F1;
+    --brand-hover: #4338CA;
+    --brand-light: #EEF2FF;
 
-    --primary: #006633;
-    --secondary: #005528;
+    --primary: #6366F1;
+    --secondary: #4338CA;
     --success: #34C759;
     --warning: #FF9500;
     --danger: #FF3B30;
@@ -47,8 +47,8 @@
     --color-warning: #FF9500;
     --color-error: #FF3B30;
     --color-info: #007AFF;
-    --brand-lighter: #F5FAF7;
-    --brand-border: #D0E5D8;
+    --brand-lighter: #F5F7FF;
+    --brand-border: #C7D2FE;
 
     --font-sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
 }
@@ -126,9 +126,9 @@ body {
 }
 
 .role-badge.role-admin {
-    background: rgba(0, 102, 51, 0.12);
+    background: rgba(99, 102, 241, 0.12);
     color: var(--brand);
-    border-color: rgba(0, 102, 51, 0.25);
+    border-color: rgba(99, 102, 241, 0.25);
 }
 
 .role-badge.role-teacher {

@@ -46,8 +46,8 @@
 }
 
 .mode-btn.active {
-    background: #E8F5EC;  /* 改为浅绿色 */
-    color: #006633;       /* 改为绿色 */
+    background: #EEF2FF;  /* 改为浅绿色 */
+    color: #6366F1;       /* 改为绿色 */
 }
 
 .mode-btn .mode-icon {
@@ -63,7 +63,7 @@
 }
 
 .mode-btn.active .mode-name {
-    color: #006633;       /* 改为绿色 */
+    color: #6366F1;       /* 改为绿色 */
     font-weight: 600;
 }
 
@@ -126,7 +126,7 @@
 .phase-number {
     width: 28px;
     height: 28px;
-    background: #006633;  /* 绿色 */
+    background: #6366F1;  /* 绿色 */
     color: white;
     border-radius: 50%;
     display: flex;
@@ -186,7 +186,7 @@
 
 .writing-select:focus {
     outline: none;
-    border-color: #006633;
+    border-color: #6366F1;
 }
 
 /* 按钮样式 */
@@ -210,12 +210,12 @@
 }
 
 .primary-btn {
-    background: #006633;
+    background: #6366F1;
     color: white;
 }
 
 .primary-btn:hover:not(:disabled) {
-    background: #005528;
+    background: #4338CA;
     transform: translateY(-1px);
 }
 
@@ -227,7 +227,7 @@
 
 .secondary-btn:hover:not(:disabled) {
     background: #FAFAFA;
-    border-color: #006633;
+    border-color: #6366F1;
 }
 
 /* 任务显示区 */
@@ -236,7 +236,7 @@
 }
 
 .task-card {
-    background: linear-gradient(135deg, #E8F5EC, #ede9fe);
+    background: linear-gradient(135deg, #EEF2FF, #ede9fe);
     padding: 24px;
     border-radius: 12px;
 }
@@ -261,7 +261,7 @@
 }
 
 .task-level-badge {
-    background: #006633;
+    background: #6366F1;
     color: white;
 }
 
@@ -324,7 +324,7 @@
 
 .student-textarea:focus {
     outline: none;
-    border-color: #006633;
+    border-color: #6366F1;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -411,7 +411,7 @@
     gap: 16px;
     margin-bottom: 16px;
     padding: 12px;
-    background: #E8F5EC;
+    background: #EEF2FF;
     border-radius: 8px;
     font-size: 14px;
     color: #34C759;
@@ -425,7 +425,7 @@
 }
 
 .success-note {
-    background: #E8F5EC;
+    background: #EEF2FF;
     color: #34C759;
 }
 

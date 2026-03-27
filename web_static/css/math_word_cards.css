@@ -9,7 +9,7 @@
     --text-secondary: #6E6E73;
     --text-tertiary: #A1A1A6;
     --accent-blue: #007AFF;
-    --accent-green: #006633;
+    --accent-green: #6366F1;
     --accent-purple: #AF52DE;
     --accent-orange: #FF9500;
     --accent-red: #FF3B30;
@@ -20,7 +20,7 @@
 body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
 
 /* Splash */
-.splash-screen { position: fixed; inset: 0; background: linear-gradient(135deg, #FFFFFF, #F5F5F7, #E8F5EC); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.6s; }
+.splash-screen { position: fixed; inset: 0; background: linear-gradient(135deg, #FFFFFF, #F5F5F7, #EEF2FF); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.6s; }
 .splash-screen.fade-out { opacity: 0; pointer-events: none; }
 .splash-content { text-align: center; }
 .splash-icon { font-size: 80px; margin-bottom: 20px; animation: pulse 2s infinite; }

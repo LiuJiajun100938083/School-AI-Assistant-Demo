@@ -804,7 +804,7 @@ async def classroom_ai_stream(
 
     from fastapi.responses import StreamingResponse
 
-    from llm.providers.ollama import get_ollama_provider
+    from llm.providers import get_provider
     from llm.rag.context import build_prompt_context
     from llm.prompts.templates import apply_thinking_mode
 
@@ -937,7 +937,7 @@ async def classroom_ai_stream(
 
             full_answer = []
             try:
-                provider = get_ollama_provider()
+                provider = get_provider()
 
                 # async_stream yield 元組 (type, content)
                 # 課堂模式關閉思考，但仍需解構元組

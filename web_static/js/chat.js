@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * AI 學習夥伴 — 聊天頁面前端核心模組 (chat.html)
+ * 校園AI助手 — 聊天頁面前端核心模組 (chat.html)
  * ====================================
  *
  * 架構：
@@ -1469,7 +1469,7 @@ const ChatApp = {
                 question: enhancedMessage,
                 subject: this.state.currentSubject,
                 use_api: false,
-                model: 'deepseek-chat',
+                model: 'qwen-plus',
                 conversation_id: this.state.currentConversationId,
                 enable_thinking: this.state.enableThinking
             };

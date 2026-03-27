@@ -4,9 +4,9 @@
  */
 
 :root {
-    --brand: #006633;
-    --brand-hover: #007A3D;
-    --brand-light: #E8F5EC;
+    --brand: #6366F1;
+    --brand-hover: #4F46E5;
+    --brand-light: #EEF2FF;
 
     --color-success: #34C759;
     --color-warning: #FF9500;
@@ -29,7 +29,7 @@
     --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.03), 0 4px 8px rgba(0, 0, 0, 0.04);
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
     --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.08);
-    --shadow-input-focus: 0 0 0 4px rgba(0, 102, 51, 0.08);
+    --shadow-input-focus: 0 0 0 4px rgba(99, 102, 241, 0.08);
 
     --radius-xs: 4px;
     --radius-sm: 8px;
@@ -1137,10 +1137,10 @@ body {
     background: rgba(255, 255, 255, 0.65);
 }
 .ipreview-tab.active {
-    background: var(--brand, #006633);
+    background: var(--brand, #6366F1);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }
 
 .interactive-preview-viewport {
@@ -1304,7 +1304,7 @@ body {
     display: inline-block;
     padding: 2px 10px;
     border-radius: 12px;
-    background: var(--brand, #006633);
+    background: var(--brand, #6366F1);
     color: white;
     font-size: 11px;
     font-weight: 600;
@@ -1349,8 +1349,8 @@ body {
     flex-shrink: 0;
 }
 .lesson-preview-pane-header.teacher {
-    color: var(--brand, #006633);
-    background: rgba(0, 102, 51, 0.06);
+    color: var(--brand, #6366F1);
+    background: rgba(99, 102, 241, 0.06);
 }
 .lesson-preview-pane-header svg {
     flex-shrink: 0;

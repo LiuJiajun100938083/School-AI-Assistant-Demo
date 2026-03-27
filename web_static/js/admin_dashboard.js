@@ -3569,10 +3569,20 @@ window.addEventListener('beforeunload', () => {
 async function loadCloudStatus() {
     const statusEl = document.getElementById('cloudConfigStatus');
     const modelEl = document.getElementById('cloudApiModel');
+    const keyInput = document.getElementById('cloudApiKey');
     try {
         const data = await AdminAPI.fetchWithAuth('/api/exam-creator/cloud-status');
         const info = data.data || data;
-        if (modelEl) modelEl.value = info.model || 'deepseek-reasoner';
+        if (modelEl) modelEl.value = info.model || 'qwen-plus';
+        // 顯示遮罩後的 API Key（不可複製）
+        if (keyInput) {
+            keyInput.value = '';
+            if (info.api_key_masked) {
+                keyInput.placeholder = info.api_key_masked;
+            } else {
+                keyInput.placeholder = '請輸入 API Key...';
+            }
+        }
         if (statusEl) {
             if (info.available) {
                 statusEl.textContent = 'API Key 已配置，雲端可用';
@@ -3594,11 +3604,7 @@ async function loadCloudStatus() {
     }
 }
 
-function toggleApiKeyVisibility() {
-    const input = document.getElementById('cloudApiKey');
-    if (!input) return;
-    input.type = input.type === 'password' ? 'text' : 'password';
-}
+// toggleApiKeyVisibility 已移除 — API Key 始終以密碼模式顯示，保存後僅在 placeholder 中顯示遮罩版本
 
 async function saveCloudConfig() {
     const msgEl = document.getElementById('cloudConfigMsg');

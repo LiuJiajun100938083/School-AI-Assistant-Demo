@@ -17,11 +17,11 @@
 }
 
 :root {
-    --brand: #006633;
-    --brand-hover: #005528;
-    --brand-light: #E8F5EC;
-    --brand-lighter: #F5FAF7;
-    --brand-border: #D0E5D8;
+    --brand: #6366F1;
+    --brand-hover: #4338CA;
+    --brand-light: #EEF2FF;
+    --brand-lighter: #F5F7FF;
+    --brand-border: #C7D2FE;
 
     --success: #34C759;
     --warning: #FF9500;
@@ -951,7 +951,7 @@ body {
 }
 
 .export-menu button:hover {
-    background: #E8F5EC;
+    background: #EEF2FF;
 }
 
 .export-menu button + button {
@@ -1603,7 +1603,7 @@ body {
 }
 
 .gaps-table td.gap-ok {
-    background: #E8F5EC;
+    background: #EEF2FF;
     color: var(--success);
     font-weight: bold;
 }

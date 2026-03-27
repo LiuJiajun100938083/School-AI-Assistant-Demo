@@ -20,7 +20,7 @@ from typing import List, Dict, Optional, Callable, AsyncGenerator
 from functools import partial
 
 from ..config import get_llm_config, get_current_model
-from ..providers.ollama import get_ollama_provider
+from ..providers import get_provider
 from ..prompts.templates import apply_thinking_mode
 from ..rag.retrieval import get_context_from_knowledge_base
 from ..rag.context import (
@@ -113,7 +113,7 @@ async def stream_ai_subject(
         # 6. 獲取 LLM 提供者並開始流式生成
         #    async_stream 使用 /api/chat + think 參數，Ollama 自動分離 thinking/answer，
         #    yield 元組 (type, content)，type 為 "thinking" 或 "answer"
-        provider = get_ollama_provider()
+        provider = get_provider()
         answer_parts = []
         thinking_parts = []
 

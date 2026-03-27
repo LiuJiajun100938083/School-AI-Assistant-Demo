@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(xargs grep:*)",
+      "Bash(grep -E \"\\\\.\\(sql|py\\)$\")",
+      "Bash(mysql --version)",
+      "Bash(\"C:/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" --version)",
+      "Bash(\"C:/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p12321 -e \"SELECT id, username, display_name, role, is_active FROM school_ai_assistant.users;\")",
+      "Bash(\"C:/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p12321 -e \"SELECT user, host FROM mysql.user WHERE user=''ai_assistant'';\")",
+      "Bash(python -c \"from app.main import app; print\\(''App loaded OK''\\)\")",
+      "Bash(\"C:/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p12321 -e \":*)",
+      "Bash(\"C:/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p12321 -e \"SELECT id, username, display_name, role, is_active FROM school_ai_demo.users;\")",
+      "Bash(timeout 15 python -m uvicorn app.main:app --host 0.0.0.0 --port 8002)",
+      "Bash(netstat -ano)",
+      "Bash(ls *.css)",
+      "Bash(for f:*)",
+      "Bash(do)",
+      "Bash(sed -i 's/#006633/#6366F1/gi' \"$f\")",
+      "Bash(sed -i 's/#007A3D/#4F46E5/gi' \"$f\")",
+      "Bash(sed -i 's/#005528/#4338CA/gi' \"$f\")",
+      "Bash(find C:Users15821School-AI-Assistant-Demo -type f \\\\\\(-iname .env* -o -iname *config*.json \\\\\\))",
+      "Bash(grep -rn \"requests\\\\|httpx\\\\|aiohttp\" C:Users15821School-AI-Assistant-Demo --include=*.py)",
+      "Bash(grep -n \"from openai\\\\|import openai\\\\|anthropic\" C:Users15821School-AI-Assistant-Demo/**/*.py)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\" -H \"Authorization: Bearer sk-d9426705419142ba8426bc571b82b161\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen3.5-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"hi\"\"}],\"\"max_tokens\"\":10}\")",
+      "Bash(curl -s -X POST \"https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\" -H \"Authorization: Bearer sk-d9426705419142ba8426bc571b82b161\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen3.5-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"hello\"\"}],\"\"max_tokens\"\":5}\")",
+      "Bash(curl -s -X POST \"https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions\" -H \"Authorization: Bearer sk-8c9e9f7a603941bcbb7c9405bd1b0686\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen3.5-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"hello\"\"}],\"\"max_tokens\"\":10}\")",
+      "Bash(curl -s -X POST \"https://ws-6p5nyqjuq7vxuo33.cn-hongkong.maas.aliyuncs.com/compatible-model/v1/chat/completions\" -H \"Authorization: Bearer sk-8c9e9f7a603941bcbb7c9405bd1b0686\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen3.5-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"hello\"\"}],\"\"max_tokens\"\":10}\")",
+      "Bash(curl -s --max-time 30 -X POST \"https://ws-6p5nyqjuq7vxuo33.cn-hongkong.maas.aliyuncs.com/compatible-model/v1/chat/completions\" -H \"Authorization: Bearer sk-8c9e9f7a603941bcbb7c9405bd1b0686\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen3.5-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"say hi\"\"}],\"\"max_tokens\"\":10}\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(curl -sv --max-time 15 -X POST \"https://ws-6p5nyqjuq7vxuo33.cn-hongkong.maas.aliyuncs.com/compatible-model/v1/chat/completions\" -H \"Authorization: Bearer sk-8c9e9f7a603941bcbb7c9405bd1b0686\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen3.5-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"hi\"\"}],\"\"max_tokens\"\":5}\")",
+      "Bash(curl -s --max-time 15 -X POST \"https://ws-6p5nyqjuq7vxuo33.cn-hongkong.maas.aliyuncs.com/compatible-mode/v1/chat/completions\" -H \"Authorization: Bearer sk-8c9e9f7a603941bcbb7c9405bd1b0686\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen3.5-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"say hi\"\"}],\"\"max_tokens\"\":10}\")",
+      "Bash(done)",
+      "Bash(curl -s --max-time 15 -X POST \"https://ws-6p5nyqjuq7vxuo33.cn-hongkong.maas.aliyuncs.com/compatible-mode/v1/chat/completions\" -H \"Authorization: Bearer sk-8c9e9f7a603941bcbb7c9405bd1b0686\" -H \"Content-Type: application/json\" -d \"{\"\"model\"\":\"\"qwen-plus\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"hello\"\"}],\"\"temperature\"\":0.6,\"\"max_tokens\"\":81920,\"\"stream\"\":false}\")",
+      "Bash(python -c \":*)",
+      "Bash(where mysql:*)",
+      "Read(//c/Program Files/MySQL/MySQL Server 8.0/bin/**)",
+      "Read(//c/xampp/mysql/bin/**)"
+    ]
+  }
+}

@@ -18,7 +18,7 @@ conn.commit()
 # (title, description, icon, color, node_size)
 nodes = [
     # Central node
-    ("ICT必修A 資訊處理", "培僑中學中五ICT必修部分A課程核心知識", "💻", "#1a237e", 60),
+    ("ICT必修A 資訊處理", "中五ICT必修部分A課程核心知識", "💻", "#1a237e", 60),
 
     # Chapter 1
     ("1. 資訊系統", "資訊系統的組成、數據與資訊、資訊處理步驟", "🖥️", "#1565c0", 50),

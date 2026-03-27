@@ -37,7 +37,7 @@ const ExamCreator = (() => {
         inputMethod: 'text',         // 'text' | 'image'
         uploadedFile: null,          // 圖片上傳 File object
         figureDescription: null,     // OCR 提取的圖形結構化描述
-        provider: 'local',           // 'local' | 'deepseek'
+        provider: 'local',           // 'local' | 'qwen'
         cloudAvailable: false,       // 雲端是否可用
         cloudReason: null,           // 不可用原因
     };
@@ -832,7 +832,7 @@ const ExamCreator = (() => {
     // ================================================================
 
     function setProvider(provider) {
-        if (provider === 'deepseek' && !state.cloudAvailable) return;
+        if ((provider === 'deepseek' || provider === 'qwen') && !state.cloudAvailable) return;
         state.provider = provider;
         document.querySelectorAll('#providerToggle .provider-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.provider === provider);

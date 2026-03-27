@@ -281,9 +281,16 @@
                     break;
                 }
                 case 'document': {
-                    const fileUrl = $.getFileUrl(content);
-                    if (fileUrl) {
-                        const isPdf = (content.mime_type || '').includes('pdf')
+                    // 优先使用 preview_path（后台转换的 PDF 预览版）
+                    const originalUrl = $.getFileUrl(content);
+                    const previewUrl = content.preview_path
+                        ? '/' + content.preview_path
+                        : null;
+                    const viewUrl = previewUrl || originalUrl;
+
+                    if (viewUrl) {
+                        const isPdf = !!previewUrl
+                            || (content.mime_type || '').includes('pdf')
                             || (content.file_name || content.file_path || '').toLowerCase().endsWith('.pdf');
                         const startPage = (anchor && (anchor.type === 'page' || anchor.type === 'page_range'))
                             ? (anchor.type === 'page' ? anchor.value : anchor.from)
@@ -291,14 +298,14 @@
 
                         if (isPdf && window.pdfjsLib) {
                             // Use PDF.js for cross-platform support (iPad / mobile)
-                            _renderPdfViewer(bodyEl, fileUrl, startPage, content);
+                            _renderPdfViewer(bodyEl, viewUrl, startPage, content);
                         } else {
-                            // Fallback: native iframe (desktop browsers with PDF plugin)
-                            let iframeUrl = fileUrl;
+                            // Fallback: native iframe + download button
+                            let iframeUrl = viewUrl;
                             if (startPage > 1) iframeUrl += '#page=' + startPage;
                             bodyEl.innerHTML = `<iframe class="alc-ebook-doc-iframe" src="${$.escapeHtml(iframeUrl)}" frameborder="0"></iframe>
                                 <div class="alc-ebook-doc-actions">
-                                    <a href="${$.escapeHtml(fileUrl)}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">下載文件</a>
+                                    <a href="${$.escapeHtml(originalUrl || viewUrl)}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">下載文件</a>
                                 </div>`;
                         }
                     } else {
@@ -718,10 +725,12 @@
         loadingEl.style.display = 'none';
 
         // Create placeholder divs for all pages (lazy rendering)
+        // Set minHeight so scroll area is correctly sized for lazy load detection
         for (let i = 1; i <= numPages; i++) {
             const pageDiv = document.createElement('div');
             pageDiv.className = 'alc-pdf-page';
             pageDiv.dataset.page = i;
+            pageDiv.style.minHeight = '800px';
             pagesContainer.appendChild(pageDiv);
         }
 
@@ -843,10 +852,24 @@
         // Expose goToPage for external anchor navigation (e.g. applyAnchor in knowledge map)
         _pdfGoToPage = goToPage;
 
-        // Initial render: first few pages + jump to start page
+        // Initial render: first few pages
         for (let i = 1; i <= Math.min(3, numPages); i++) {
             await renderPage(i);
         }
+
+        // After first page renders, use its height for all unrendered placeholders
+        const firstCanvas = pagesContainer.querySelector('.alc-pdf-page canvas');
+        if (firstCanvas) {
+            const actualHeight = firstCanvas.offsetHeight;
+            if (actualHeight > 0) {
+                pagesContainer.querySelectorAll('.alc-pdf-page').forEach(div => {
+                    if (!div.querySelector('canvas')) {
+                        div.style.minHeight = actualHeight + 'px';
+                    }
+                });
+            }
+        }
+
         if (startPage > 1) {
             // Wait for page layout to settle, then scroll
             setTimeout(() => goToPage(startPage), 100);

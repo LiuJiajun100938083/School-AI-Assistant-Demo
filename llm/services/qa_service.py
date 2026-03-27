@@ -8,7 +8,7 @@ import logging
 from typing import List, Dict, Tuple, Optional
 
 from ..config import get_llm_config, get_current_model, get_base_url
-from ..providers.ollama import get_ollama_provider
+from ..providers import get_provider
 from ..prompts.templates import apply_thinking_mode
 from ..rag.retrieval import get_context_from_knowledge_base
 from ..rag.context import (
@@ -63,7 +63,7 @@ def ask_ai_local(
 
     try:
         # 獲取 LLM 提供者
-        provider = get_ollama_provider()
+        provider = get_provider()
 
         # summary 模式（如抄襲分析）用低 temperature 提高一致性
         original_temp = None

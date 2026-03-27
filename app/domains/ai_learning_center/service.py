@@ -15,6 +15,7 @@ AI 学习中心服务层 - LearningCenterService
 import json
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Tuple
 
 from app.core.exceptions import (
@@ -332,6 +333,48 @@ class LearningCenterService:
                 (content_id,),
             )
         logger.info("内容排序已更新: %d 条", len(content_ids))
+
+    # ================================================================
+    # 文档预览转换
+    # ================================================================
+
+    def generate_preview(self, content_id: int, file_path: str) -> Optional[str]:
+        """
+        为指定内容生成 PDF 预览文件。
+
+        编排流程：
+            1. 调用 DocumentConverter.to_pdf() 执行文件转换
+            2. 将生成的 preview_path 写入 lc_contents 表
+
+        Args:
+            content_id: 内容记录 ID
+            file_path: 源文件路径（相对路径，如 uploads/learning_center/documents/xxx.docx）
+
+        Returns:
+            生成的 preview_path；失败返回 None（不抛异常，预览是增强功能）
+        """
+        try:
+            from app.infrastructure.document_converter import DocumentConverter
+
+            converter = DocumentConverter()
+            output_dir = str(Path(file_path).parent)
+            pdf_path = converter.to_pdf(file_path, output_dir)
+
+            if pdf_path:
+                self._contents.update(
+                    {"preview_path": pdf_path},
+                    "id = %s",
+                    (content_id,),
+                )
+                logger.info("预览 PDF 已生成: content_id=%s, path=%s", content_id, pdf_path)
+                return pdf_path
+
+            logger.warning("预览 PDF 生成失败: content_id=%s", content_id)
+            return None
+
+        except Exception as e:
+            logger.exception("生成预览 PDF 异常: content_id=%s, error=%s", content_id, e)
+            return None
 
     # ================================================================
     # 内容浏览（Public）
@@ -1143,7 +1186,7 @@ class LearningCenterService:
 
             from llm.rag.context import build_prompt_context
             from llm.prompts.templates import apply_thinking_mode
-            from llm.providers.ollama import get_ollama_provider
+            from llm.providers import get_provider
             from llm.parsers.thinking_parser import parse_llm_response
 
             loop = asyncio.get_running_loop()
@@ -1165,7 +1208,7 @@ class LearningCenterService:
             )
             thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
 
-            provider = get_ollama_provider()
+            provider = get_provider()
             raw_response = await loop.run_in_executor(
                 None, provider.invoke, thinking_prompt
             )
@@ -1213,7 +1256,7 @@ class LearningCenterService:
         from llm.rag.retrieval import get_context_for_content_with_pages
         from llm.rag.context import build_prompt_context
         from llm.prompts.templates import apply_thinking_mode
-        from llm.providers.ollama import get_ollama_provider
+        from llm.providers import get_provider
         from llm.parsers.thinking_parser import parse_llm_response
 
         # 1. 获取内容元数据
@@ -1296,7 +1339,7 @@ class LearningCenterService:
 
         thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
 
-        provider = get_ollama_provider()
+        provider = get_provider()
         raw_response = await loop.run_in_executor(
             None, provider.invoke, thinking_prompt
         )
@@ -1343,7 +1386,7 @@ class LearningCenterService:
 
         from llm.rag.context import build_prompt_context
         from llm.prompts.templates import apply_thinking_mode
-        from llm.providers.ollama import get_ollama_provider
+        from llm.providers import get_provider
 
         loop = asyncio.get_running_loop()
         full_answer_parts = []
@@ -1411,7 +1454,7 @@ class LearningCenterService:
 
         # 流式调用 LLM — async_stream yield 元組 (type, content)
         # type 為 "thinking" 或 "answer"
-        provider = get_ollama_provider()
+        provider = get_provider()
 
         async for token_type, token_content in provider.async_stream(thinking_prompt):
             if not token_content:

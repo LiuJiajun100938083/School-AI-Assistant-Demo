@@ -477,7 +477,7 @@
         try {
             await loadStats();
             await loadCategories();
-            switchTab('knowledge-map');
+            switchTab('map');
         } catch (error) {
             console.error('Initialization error:', error);
             showToast('加载失败，请刷新页面', 'error');

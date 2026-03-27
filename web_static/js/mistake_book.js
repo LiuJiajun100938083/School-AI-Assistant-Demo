@@ -97,7 +97,7 @@ const App = {
         dashboard: null,
         currentMistake: null,
         viewMode: localStorage.getItem('mb_viewMode') || 'list',
-        practiceProvider: 'local',       // 'local' | 'deepseek'
+        practiceProvider: 'local',       // 'local' | 'qwen'
         cloudAvailable: false,
         cloudReason: null,
     },
@@ -111,7 +111,7 @@ const App = {
 
     /** 切換練習生成 Provider */
     setPracticeProvider(provider) {
-        if (provider === 'deepseek' && !this.state.cloudAvailable) return;
+        if ((provider === 'deepseek' || provider === 'qwen') && !this.state.cloudAvailable) return;
         this.state.practiceProvider = provider;
         document.querySelectorAll('#practiceProviderToggle .mb-provider-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.provider === provider);
@@ -2046,7 +2046,7 @@ const Views = {
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V5.25a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 5.25v13.5a2.25 2.25 0 002.25 2.25z"/></svg>
                                     本地生成
                                 </button>
-                                <button class="mb-provider-btn" data-provider="deepseek" id="practiceCloudProviderBtn" onclick="App.setPracticeProvider('deepseek')">
+                                <button class="mb-provider-btn" data-provider="qwen" id="practiceCloudProviderBtn" onclick="App.setPracticeProvider('qwen')">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
                                     雲端生成
                                 </button>

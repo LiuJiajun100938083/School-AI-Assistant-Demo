@@ -1,11 +1,11 @@
 /* ========================================
-   培僑中學 AI 學習夥伴
+   校園AI助手
    SaaS Flat Dashboard UI v4.0
 
    設計核心：
    ✓ 純白內容區 + 淺灰側欄
    ✓ 1px 邊框代替陰影（Flat Design）
-   ✓ 綠色品牌主色 #006633
+   ✓ 綠色品牌主色 #6366F1
    ✓ 8px 間距網格
    ✓ 水平卡片佈局（圖標左 + 文字右）
    ✓ Sidebar + Main 雙欄結構
@@ -28,12 +28,12 @@ html {
 :root {
     color-scheme: light only;
     /* 品牌綠 */
-    --brand: #006633;
-    --brand-hover: #007A3D;
-    --brand-active: #005528;
-    --brand-light: #E8F5EC;
-    --brand-lighter: #F0F9F3;
-    --brand-border: #B8D4C0;
+    --brand: #6366F1;
+    --brand-hover: #4F46E5;
+    --brand-active: #4338CA;
+    --brand-light: #EEF2FF;
+    --brand-lighter: #F5F7FF;
+    --brand-border: #C7D2FE;
 
     /* 背景 - 純白系（無深色） */
     --bg-page: #F5F5F7;
@@ -55,11 +55,11 @@ html {
     --glass-shadow-inner: inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -1px 2px rgba(0, 0, 0, 0.02);
     --glass-highlight-opacity: 0.09;
     --glass-highlight-speed: 16s;
-    --glass-input-focus-glow: 0 0 0 4px rgba(0, 102, 51, 0.10), 0 0 12px rgba(0, 102, 51, 0.06);
+    --glass-input-focus-glow: 0 0 0 4px rgba(99, 102, 241, 0.10), 0 0 12px rgba(99, 102, 241, 0.06);
     --glass-input-bg-focus: rgba(255, 255, 255, 0.95);
-    --glass-btn-shadow: 0 2px 8px rgba(0, 102, 51, 0.18), 0 1px 3px rgba(0, 102, 51, 0.10);
-    --glass-btn-shadow-hover: 0 6px 20px rgba(0, 102, 51, 0.22), 0 2px 6px rgba(0, 102, 51, 0.12);
-    --glass-btn-shadow-active: 0 1px 4px rgba(0, 102, 51, 0.14);
+    --glass-btn-shadow: 0 2px 8px rgba(99, 102, 241, 0.18), 0 1px 3px rgba(99, 102, 241, 0.10);
+    --glass-btn-shadow-hover: 0 6px 20px rgba(99, 102, 241, 0.22), 0 2px 6px rgba(99, 102, 241, 0.12);
+    --glass-btn-shadow-active: 0 1px 4px rgba(99, 102, 241, 0.14);
 
     /* 文字 */
     --text-primary: #1D1D1F;
@@ -67,13 +67,13 @@ html {
     --text-tertiary: #A1A1A6;
     --text-placeholder: #C7C7CC;
     --text-on-brand: #FFFFFF;
-    --text-link: #006633;
+    --text-link: #6366F1;
 
     /* 邊框 */
     --border-light: rgba(0, 0, 0, 0.04);
     --border-default: rgba(0, 0, 0, 0.08);
     --border-strong: rgba(0, 0, 0, 0.12);
-    --border-focus: #006633;
+    --border-focus: #6366F1;
 
     /* 功能色 */
     --color-success: #34C759;
@@ -89,9 +89,9 @@ html {
     --shadow-xl: 0 4px 8px rgba(0, 0, 0, 0.02), 0 8px 16px rgba(0, 0, 0, 0.03), 0 16px 32px rgba(0, 0, 0, 0.04), 0 24px 48px rgba(0, 0, 0, 0.05);
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
     --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
-    --shadow-button: 0 1px 2px rgba(0, 102, 51, 0.08);
-    --shadow-button-hover: 0 4px 12px rgba(0, 102, 51, 0.15), 0 2px 4px rgba(0, 102, 51, 0.1);
-    --shadow-input-focus: 0 0 0 4px rgba(0, 102, 51, 0.08);
+    --shadow-button: 0 1px 2px rgba(99, 102, 241, 0.08);
+    --shadow-button-hover: 0 4px 12px rgba(99, 102, 241, 0.15), 0 2px 4px rgba(99, 102, 241, 0.1);
+    --shadow-input-focus: 0 0 0 4px rgba(99, 102, 241, 0.08);
     --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.08);
 
     /* 圓角 */
@@ -173,7 +173,7 @@ p, span, div, li, label {
 .splash-screen {
     position: fixed;
     inset: 0;
-    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    background: var(--splash-gradient, linear-gradient(160deg, #0F0A2A 0%, #1A1145 50%, #130D38 100%));
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -195,7 +195,7 @@ p, span, div, li, label {
 .splash-mascot {
     width: 120px;
     height: auto;
-    filter: drop-shadow(0 4px 20px rgba(0, 102, 51, 0.35));
+    filter: drop-shadow(0 4px 20px rgba(99, 102, 241, 0.35));
 }
 
 .splash-title {
@@ -230,7 +230,7 @@ p, span, div, li, label {
 .glass-panel {
     position: fixed;
     inset: 0;
-    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    background: var(--splash-gradient, linear-gradient(160deg, #0F0A2A 0%, #1A1145 50%, #130D38 100%));
     z-index: 9998;
     opacity: 0;
     pointer-events: none;

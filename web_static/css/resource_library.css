@@ -5,11 +5,11 @@
 
 :root {
     /* 品牌綠 */
-    --brand: #006633;
-    --brand-hover: #007A3D;
-    --brand-active: #005528;
-    --brand-light: #E8F5EC;
-    --brand-lighter: #F0F9F3;
+    --brand: #6366F1;
+    --brand-hover: #4F46E5;
+    --brand-active: #4338CA;
+    --brand-light: #EEF2FF;
+    --brand-lighter: #F5F7FF;
 
     /* 功能色 */
     --color-success: #34C759;
@@ -41,7 +41,7 @@
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
     --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
     --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.08);
-    --shadow-input-focus: 0 0 0 4px rgba(0, 102, 51, 0.08);
+    --shadow-input-focus: 0 0 0 4px rgba(99, 102, 241, 0.08);
 
     /* 圓角 */
     --radius-xs: 4px;
@@ -548,7 +548,7 @@ html, body {
 }
 
 .scope-badge.school {
-    background: rgba(0, 102, 51, 0.15);
+    background: rgba(99, 102, 241, 0.15);
     color: var(--brand);
 }
 

@@ -5,7 +5,7 @@
  *
  * 設計風格：Liquid Glass + Apple-Style 直式卡片
  * 佈局：Hero 精選 → Pill Chips 科目切換 → 卡片網格（無側邊欄）
- * 品牌綠 #006633 | Frosted Glass 毛玻璃效果
+ * 品牌綠 #6366F1 | Frosted Glass 毛玻璃效果
  *
  * ===================================================================================
  */
@@ -16,11 +16,11 @@
 
 :root {
     /* 品牌色 */
-    --brand: #006633;
-    --brand-hover: #007A3D;
-    --brand-active: #005528;
-    --brand-light: #E8F5EC;
-    --brand-lighter: #F0F9F3;
+    --brand: #6366F1;
+    --brand-hover: #4F46E5;
+    --brand-active: #4338CA;
+    --brand-light: #EEF2FF;
+    --brand-lighter: #F5F7FF;
 
     /* 背景色 */
     --bg-page: #F5F5F7;
@@ -46,7 +46,7 @@
     --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.02), 0 4px 8px rgba(0, 0, 0, 0.03), 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.04);
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
     --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
-    --shadow-input-focus: 0 0 0 4px rgba(0, 102, 51, 0.08);
+    --shadow-input-focus: 0 0 0 4px rgba(99, 102, 241, 0.08);
 
     /* 圆角 */
     --radius-sm: 8px;
@@ -137,8 +137,8 @@ body {
 /* Liquid Glass 背景：柔和漸層讓玻璃效果可見 */
 .game-center-container {
     background:
-        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0, 102, 51, 0.07) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(0, 102, 51, 0.05) 0%, transparent 50%),
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(99, 102, 241, 0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 30%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
         radial-gradient(ellipse 50% 60% at 50% 80%, rgba(37, 99, 235, 0.04) 0%, transparent 50%),
         linear-gradient(180deg, #F0F4F2 0%, var(--bg-page) 100%);
     background-attachment: fixed;
@@ -151,7 +151,7 @@ body {
 .splash-screen {
     position: fixed;
     inset: 0;
-    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    background: var(--splash-gradient, linear-gradient(160deg, #0F0A2A 0%, #1A1145 50%, #130D38 100%));
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -197,7 +197,7 @@ body {
 .glass-panel {
     position: fixed;
     inset: 0;
-    background: linear-gradient(160deg, #071A12 0%, #0C2A1C 50%, #0A2318 100%);
+    background: var(--splash-gradient, linear-gradient(160deg, #0F0A2A 0%, #1A1145 50%, #130D38 100%));
     z-index: 9998;
     opacity: 0;
     pointer-events: none;
@@ -304,7 +304,7 @@ body {
 .gc-search-box:focus-within {
     background: rgba(255, 255, 255, 0.6);
     border-color: var(--brand);
-    box-shadow: 0 0 0 4px rgba(0, 102, 51, 0.08);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
 }
 
 .gc-search-box input {
@@ -540,18 +540,18 @@ body {
 }
 
 .gc-pill.active {
-    background: rgba(0, 102, 51, 0.85);
+    background: rgba(99, 102, 241, 0.85);
     backdrop-filter: blur(12px) saturate(180%);
     -webkit-backdrop-filter: blur(12px) saturate(180%);
     color: #fff;
-    border-color: rgba(0, 102, 51, 0.3);
+    border-color: rgba(99, 102, 241, 0.3);
     font-weight: 600;
-    box-shadow: 0 2px 12px rgba(0, 102, 51, 0.2);
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.2);
 }
 
 .gc-pill.active:hover {
-    background: rgba(0, 102, 51, 0.92);
-    border-color: rgba(0, 102, 51, 0.4);
+    background: rgba(99, 102, 241, 0.92);
+    border-color: rgba(99, 102, 241, 0.4);
 }
 
 .gc-pill svg {
@@ -686,7 +686,7 @@ body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.06);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.06);
     z-index: 2;
 }
 
@@ -739,8 +739,8 @@ body {
 .game-difficulty {
     font-size: var(--type-micro);
     color: var(--brand);
-    background: rgba(0, 102, 51, 0.06);
-    border: 1px solid rgba(0, 102, 51, 0.1);
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.1);
     padding: 2px var(--space-2);
     border-radius: var(--radius-sm);
     display: inline-block;
@@ -852,11 +852,11 @@ body {
 }
 
 .game-badge.new {
-    background: rgba(0, 102, 51, 0.8);
+    background: rgba(99, 102, 241, 0.8);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: white;
-    border: 1px solid rgba(0, 102, 51, 0.3);
+    border: 1px solid rgba(99, 102, 241, 0.3);
     z-index: 2;
 }
 
@@ -870,10 +870,10 @@ body {
     right: var(--space-4);
     width: 34px;
     height: 34px;
-    background: rgba(0, 102, 51, 0.75);
+    background: rgba(99, 102, 241, 0.75);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(0, 102, 51, 0.3);
+    border: 1px solid rgba(99, 102, 241, 0.3);
     border-radius: 50%;
     display: flex;
     align-items: center;

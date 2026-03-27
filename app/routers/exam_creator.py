@@ -470,23 +470,27 @@ async def get_cloud_status(
         if not config.api_key:
             return success_response(data={
                 "available": False,
-                "model": config.api_model or "deepseek-chat",
-                "provider": "deepseek",
+                "model": config.api_model or "qwen-plus",
+                "provider": "qwen",
                 "reason": "missing_api_key",
+                "api_key_masked": None,
             })
 
+        key = config.api_key
+        masked = f"{key[:3]}****{key[-4:]}" if len(key) > 8 else "****"
         return success_response(data={
             "available": True,
-            "model": config.api_model or "deepseek-chat",
-            "provider": "deepseek",
+            "model": config.api_model or "qwen-plus",
+            "provider": "qwen",
             "reason": None,
+            "api_key_masked": masked,
         })
     except Exception as e:
         logger.warning("cloud-status check failed: %s", e)
         return success_response(data={
             "available": False,
             "model": None,
-            "provider": "deepseek",
+            "provider": "qwen",
             "reason": "config_error",
         })
 

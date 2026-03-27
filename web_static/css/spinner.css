@@ -18,7 +18,7 @@
     --_bar-w: 22px;
     --_bar-h: 4.5px;
     --_gap: 7px;
-    --_color: var(--brand, #006633);
+    --_color: var(--brand, #6366F1);
 
     position: relative;
     width: calc(var(--_bar-w) + var(--_gap) * 7 + 6px);

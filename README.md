@@ -1,4 +1,4 @@
-# PKMS AI Learning Buddy - AI 智慧學習夥伴
+# 校園AI助手 - Campus AI Assistant
 
 基於 FastAPI 的綜合教育平台，整合 AI 大語言模型能力，為師生提供個人化學習體驗。
 

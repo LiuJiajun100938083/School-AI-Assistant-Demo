@@ -26,16 +26,16 @@ class LLMConfig:
     # SVG 幾何圖 spec 提取專用模型
     svg_model: str = "qwen3.5:35b"
 
-    # API 模型配置 (DeepSeek 雲端)
-    api_model: str = "deepseek-reasoner"
-    api_base_url: str = "https://api.deepseek.com/v1"
+    # API 模型配置 (Qwen / DashScope 雲端)
+    api_model: str = "qwen-plus"
+    api_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     api_key: Optional[str] = None
 
     # 通用參數
     temperature: float = 0.6
     top_p: float = 0.95
     timeout: int = 300
-    max_tokens: int = 81920
+    max_tokens: int = 16384
     num_ctx: int = 131072
 
     # GPU 層數控制 (None = Ollama 自動分配，適合大 VRAM 機器)
@@ -50,8 +50,8 @@ class LLMConfig:
         "<|im_start|>", "<|im_end|>", "<|endoftext|>"
     ])
 
-    # 是否使用 API (False = 使用本地 Ollama)
-    use_api: bool = False
+    # 是否使用 API (True = 雲端 API, False = 本地 Ollama)
+    use_api: bool = True
 
 
 class LLMConfigManager:
@@ -97,17 +97,17 @@ class LLMConfigManager:
             local_model=os.getenv('LLM_LOCAL_MODEL', 'qwen3.5:35b'),
             local_base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
             svg_model=os.getenv('LLM_SVG_MODEL', 'qwen3.5:35b'),
-            api_model=os.getenv('LLM_API_MODEL', 'deepseek-reasoner'),
-            api_base_url=os.getenv('LLM_API_BASE_URL', 'https://api.deepseek.com/v1'),
+            api_model=os.getenv('LLM_API_MODEL', 'qwen-plus'),
+            api_base_url=os.getenv('LLM_API_BASE_URL', 'https://dashscope.aliyuncs.com/compatible-mode/v1'),
             api_key=self._decode_api_key(os.getenv('LLM_API_KEY')),
             temperature=float(os.getenv('LLM_TEMPERATURE', '0.6')),
             top_p=float(os.getenv('LLM_TOP_P', '0.95')),
             timeout=int(os.getenv('LLM_TIMEOUT', '120')),
-            max_tokens=int(os.getenv('LLM_MAX_TOKENS', '81920')),
+            max_tokens=int(os.getenv('LLM_MAX_TOKENS', '16384')),
             num_ctx=int(os.getenv('LLM_NUM_CTX', '131072')),
             num_gpu=int(os.getenv('LLM_NUM_GPU')) if os.getenv('LLM_NUM_GPU') else None,
             enable_thinking_mode=os.getenv('LLM_THINKING_MODE', 'true').lower() == 'true',
-            use_api=os.getenv('LLM_USE_API', 'false').lower() == 'true',
+            use_api=os.getenv('LLM_USE_API', 'true').lower() == 'true',
         )
 
         logger.info(f"LLM 配置已加載: model={config.local_model}, use_api={config.use_api}, num_gpu={config.num_gpu}")

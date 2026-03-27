@@ -1,8 +1,12 @@
 """
-Ollama Vision Client — API 通信層
+Vision Client — API 通信層
 =================================
-封裝對 Ollama qwen3-vl 模型的 HTTP 調用，
+封裝對 Qwen VL 雲端 API / Ollama 本地模型的 HTTP 調用，
 包括圖片預處理、base64 編碼、JSON/普通模式切換。
+
+支持兩種後端：
+- Qwen VL 雲端 (DashScope OpenAI-compatible) — 默認
+- Ollama 本地 — 回退
 """
 
 import os
@@ -19,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaVisionClient:
-    """Ollama Vision API 客戶端"""
+    """Vision API 客戶端（支持 Qwen VL 雲端 + Ollama 本地）"""
 
     def __init__(
         self,
@@ -27,11 +31,99 @@ class OllamaVisionClient:
         base_url: str = "http://localhost:11434",
         max_image_size: int = 4 * 1024 * 1024,
         timeout: int = 1200,
+        # Qwen VL 雲端配置
+        use_cloud: bool = False,
+        cloud_model: str = "qwen-vl-max",
+        cloud_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        cloud_api_key: str = "",
     ):
         self._vision_model = vision_model
         self._base_url = base_url
         self._max_image_size = max_image_size
         self._timeout = timeout
+        # 雲端配置
+        self._use_cloud = use_cloud
+        self._cloud_model = cloud_model
+        self._cloud_base_url = cloud_base_url
+        self._cloud_api_key = cloud_api_key
+
+    # ================================================================
+    #  Qwen VL 雲端 API 調用
+    # ================================================================
+
+    async def _call_cloud_vision(
+        self, image_path: str, prompt: str,
+        expect_json: bool = True,
+        system_prompt: str = "",
+    ) -> Optional[str]:
+        """
+        調用 Qwen VL 雲端 API（DashScope OpenAI-compatible）。
+        使用 multimodal content 格式傳遞圖片。
+        """
+        import httpx
+
+        t_start = time.monotonic()
+
+        image_b64 = encode_image_base64(image_path)
+        if not image_b64:
+            logger.error("圖片 base64 編碼失敗")
+            return None
+
+        # 判斷圖片格式
+        ext = os.path.splitext(image_path)[1].lower()
+        mime_map = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp"}
+        mime_type = mime_map.get(ext, "image/jpeg")
+
+        # 構建 multimodal messages
+        user_content = [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_b64}"}},
+        ]
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": user_content})
+
+        payload = {
+            "model": self._cloud_model,
+            "messages": messages,
+            "max_tokens": 8192,
+            "temperature": 0.1,
+        }
+        if expect_json:
+            payload["response_format"] = {"type": "json_object"}
+
+        headers = {
+            "Authorization": f"Bearer {self._cloud_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        http_timeout = httpx.Timeout(float(self._timeout), connect=30.0)
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self._cloud_base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                    timeout=http_timeout,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+            t_model = time.monotonic()
+            content = data["choices"][0]["message"].get("content", "")
+
+            logger.info(
+                "Qwen VL 雲端調用成功: model=%s, content_len=%d, latency=%.1fs",
+                self._cloud_model, len(content), t_model - t_start,
+            )
+            return content if content else None
+
+        except Exception as e:
+            logger.error("Qwen VL 雲端調用失敗: %s", e, exc_info=True)
+            return None
 
     # ================================================================
     #  普通模式調用
@@ -44,10 +136,14 @@ class OllamaVisionClient:
         expect_json: bool = True,
     ) -> Optional[str]:
         """
-        調用 Ollama qwen3-vl 模型（普通模式）。
-        使用 /api/chat 端點，通過 images 參數傳遞圖片。
-        經過 AI 調度器排隊，避免高並發雪崩。
+        調用視覺模型（普通模式）。
+        雲端模式：調用 Qwen VL API（DashScope）。
+        本地模式：調用 Ollama /api/chat 端點。
         """
+        # 雲端模式：直接調用 Qwen VL API
+        if self._use_cloud and self._cloud_api_key:
+            return await self._call_cloud_vision(image_path, prompt, expect_json=expect_json)
+
         try:
             import httpx
             from app.core.ai_gate import ai_gate
@@ -264,10 +360,34 @@ class OllamaVisionClient:
         weight: int = 2,     # Weight.VISION_SINGLE
     ) -> Optional[str]:
         """
-        調用 Ollama qwen3-vl 模型（強制 JSON 輸出模式）。
-        使用 format:"json" 強制 Ollama 約束解碼為合法 JSON。
-        經過 AI 調度器排隊，避免高並發雪崩。
+        調用視覺模型（強制 JSON 輸出模式）。
+        雲端模式：調用 Qwen VL API（DashScope）帶 response_format。
+        本地模式：使用 format:"json" 強制 Ollama 約束解碼為合法 JSON。
         """
+        # 雲端模式：直接調用 Qwen VL API（JSON 模式）
+        if self._use_cloud and self._cloud_api_key:
+            system_prompt = (
+                "You are a JSON-only OCR assistant. "
+                "Output EXACTLY one JSON object. "
+                "NEVER output reasoning, analysis, or natural language. "
+                "NEVER start with words like 'First', '首先', 'Let me', '我需要'. "
+                "NEVER describe what you see — directly output the structured JSON. "
+                "If uncertain about a field, use null or empty string, "
+                "but you MUST still output valid JSON."
+            )
+            result = await self._call_cloud_vision(
+                image_path, prompt, expect_json=True, system_prompt=system_prompt,
+            )
+            if result:
+                valid = json_utils.validate_vision_json(result)
+                if valid:
+                    return result
+                logger.warning(
+                    "Qwen VL 雲端 JSON 模式結果不符合 vision schema (len=%d)，丟棄",
+                    len(result),
+                )
+            return None
+
         try:
             import httpx
             from app.core.ai_gate import ai_gate

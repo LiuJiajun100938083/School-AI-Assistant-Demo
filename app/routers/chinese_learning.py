@@ -337,9 +337,9 @@ async def call_ai(
     username, role = user_info
 
     try:
-        from llm.providers.ollama import get_ollama_provider
+        from llm.providers import get_provider
 
-        provider = get_ollama_provider()
+        provider = get_provider()
         messages = [
             {"role": "system", "content": request.system_prompt},
             {"role": "user", "content": request.user_prompt}
@@ -415,9 +415,9 @@ async def complete_task_flow(
         raise HTTPException(status_code=400, detail=prompts.get("error"))
 
     try:
-        from llm.providers.ollama import get_ollama_provider
+        from llm.providers import get_provider
 
-        provider = get_ollama_provider()
+        provider = get_provider()
         messages = [
             {"role": "system", "content": prompts["system_prompt"]},
             {"role": "user", "content": prompts["user_prompt"]}

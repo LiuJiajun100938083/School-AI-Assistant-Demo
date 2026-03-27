@@ -135,6 +135,7 @@ from app.domains.subject.service import SubjectService
 from app.domains.user.service import UserService
 from app.domains.vision.service import VisionService
 from app.domains.ai_learning_center.service import LearningCenterService
+from app.domains.ai_learning_center.analysis_service import ContentAnalysisService
 from app.domains.school_learning_center.service import SchoolLearningCenterService
 from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
@@ -191,6 +192,7 @@ class ServiceContainer:
         self._mistake_book: Optional[MistakeBookService] = None
         self._vision: Optional[VisionService] = None
         self._learning_center: Optional[LearningCenterService] = None
+        self._content_analysis: Optional[ContentAnalysisService] = None
         self._school_learning_center: Optional[SchoolLearningCenterService] = None
         self._game_upload: Optional[GameUploadService] = None
         self._trade_game: Optional[TradeGameService] = None
@@ -374,6 +376,16 @@ class ServiceContainer:
                 settings=self._settings,
             )
         return self._learning_center
+
+    @property
+    def content_analysis(self) -> ContentAnalysisService:
+        """AI 内容分析服务（知识图谱 + 学习路径自动生成）"""
+        if self._content_analysis is None:
+            self._content_analysis = ContentAnalysisService(
+                learning_center_service=self.learning_center,
+                contents_repo=self._get_repo(LCContentRepository),
+            )
+        return self._content_analysis
 
     @property
     def school_learning_center(self) -> SchoolLearningCenterService:

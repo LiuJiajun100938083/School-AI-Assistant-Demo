@@ -1,5 +1,5 @@
 /* ========================================
-   培僑中學 AI 學習夥伴 — 聊天頁面樣式
+   校園AI助手 — 聊天頁面樣式
    Standalone Chat Page (chat.html)
 
    從 index.css 提取，僅包含聊天頁面所需的樣式
@@ -21,12 +21,12 @@ html {
 :root {
     color-scheme: light only;
     /* 品牌綠 */
-    --brand: #006633;
-    --brand-hover: #007A3D;
-    --brand-active: #005528;
-    --brand-light: #E8F5EC;
-    --brand-lighter: #F0F9F3;
-    --brand-border: #B8D4C0;
+    --brand: #6366F1;
+    --brand-hover: #4F46E5;
+    --brand-active: #4338CA;
+    --brand-light: #EEF2FF;
+    --brand-lighter: #F5F7FF;
+    --brand-border: #C7D2FE;
 
     /* 背景 - 純白系（無深色） */
     --bg-page: #F5F5F7;
@@ -48,11 +48,11 @@ html {
     --glass-shadow-inner: inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -1px 2px rgba(0, 0, 0, 0.02);
     --glass-highlight-opacity: 0.09;
     --glass-highlight-speed: 16s;
-    --glass-input-focus-glow: 0 0 0 4px rgba(0, 102, 51, 0.10), 0 0 12px rgba(0, 102, 51, 0.06);
+    --glass-input-focus-glow: 0 0 0 4px rgba(99, 102, 241, 0.10), 0 0 12px rgba(99, 102, 241, 0.06);
     --glass-input-bg-focus: rgba(255, 255, 255, 0.95);
-    --glass-btn-shadow: 0 2px 8px rgba(0, 102, 51, 0.18), 0 1px 3px rgba(0, 102, 51, 0.10);
-    --glass-btn-shadow-hover: 0 6px 20px rgba(0, 102, 51, 0.22), 0 2px 6px rgba(0, 102, 51, 0.12);
-    --glass-btn-shadow-active: 0 1px 4px rgba(0, 102, 51, 0.14);
+    --glass-btn-shadow: 0 2px 8px rgba(99, 102, 241, 0.18), 0 1px 3px rgba(99, 102, 241, 0.10);
+    --glass-btn-shadow-hover: 0 6px 20px rgba(99, 102, 241, 0.22), 0 2px 6px rgba(99, 102, 241, 0.12);
+    --glass-btn-shadow-active: 0 1px 4px rgba(99, 102, 241, 0.14);
 
     /* 文字 */
     --text-primary: #1D1D1F;
@@ -60,13 +60,13 @@ html {
     --text-tertiary: #A1A1A6;
     --text-placeholder: #C7C7CC;
     --text-on-brand: #FFFFFF;
-    --text-link: #006633;
+    --text-link: #6366F1;
 
     /* 邊框 */
     --border-light: rgba(0, 0, 0, 0.04);
     --border-default: rgba(0, 0, 0, 0.08);
     --border-strong: rgba(0, 0, 0, 0.12);
-    --border-focus: #006633;
+    --border-focus: #6366F1;
 
     /* 功能色 */
     --color-success: #34C759;
@@ -82,9 +82,9 @@ html {
     --shadow-xl: 0 4px 8px rgba(0, 0, 0, 0.02), 0 8px 16px rgba(0, 0, 0, 0.03), 0 16px 32px rgba(0, 0, 0, 0.04), 0 24px 48px rgba(0, 0, 0, 0.05);
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
     --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
-    --shadow-button: 0 1px 2px rgba(0, 102, 51, 0.08);
-    --shadow-button-hover: 0 4px 12px rgba(0, 102, 51, 0.15), 0 2px 4px rgba(0, 102, 51, 0.1);
-    --shadow-input-focus: 0 0 0 4px rgba(0, 102, 51, 0.08);
+    --shadow-button: 0 1px 2px rgba(99, 102, 241, 0.08);
+    --shadow-button-hover: 0 4px 12px rgba(99, 102, 241, 0.15), 0 2px 4px rgba(99, 102, 241, 0.1);
+    --shadow-input-focus: 0 0 0 4px rgba(99, 102, 241, 0.08);
     --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.08);
 
     /* 圓角 */
@@ -131,8 +131,8 @@ body {
     background: var(--bg-page);
     /* 微妙漸變底色，讓 glass 效果有層次可透 */
     background-image:
-        radial-gradient(ellipse at 20% 0%, rgba(0, 102, 51, 0.04) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 100%, rgba(0, 102, 51, 0.03) 0%, transparent 50%);
+        radial-gradient(ellipse at 20% 0%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
     color: var(--text-primary);
     line-height: 1.5;
     overflow: hidden; /* 阻止 iOS Safari/Chrome body 彈性滾動導致底部空白 */
@@ -345,7 +345,7 @@ p, span, div, li, label {
     font-size: 11px;
     font-weight: 700;
     color: var(--text-on-brand);
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }
 
 .user-details {
@@ -749,7 +749,7 @@ p, span, div, li, label {
     background: var(--brand);
     color: var(--text-on-brand);
     border-bottom-right-radius: var(--radius-xs);
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.15);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
 .message.assistant .message-bubble {
@@ -1022,19 +1022,19 @@ p, span, div, li, label {
     cursor: pointer;
     transition: all var(--duration-fast) var(--ease-out);
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(0, 102, 51, 0.2);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
     letter-spacing: 0.02em;
 }
 
 .send-button:hover {
     background: var(--brand-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(0, 102, 51, 0.28);
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.28);
 }
 
 .send-button:active {
     transform: scale(0.97);
-    box-shadow: 0 1px 4px rgba(0, 102, 51, 0.15);
+    box-shadow: 0 1px 4px rgba(99, 102, 241, 0.15);
 }
 
 .send-button:disabled {
@@ -1229,8 +1229,8 @@ p, span, div, li, label {
 }
 
 .subject-card:hover {
-    background: var(--brand-lighter, #F0F9F3);
-    border-color: var(--brand-border, #B8D4C0);
+    background: var(--brand-lighter, #F5F7FF);
+    border-color: var(--brand-border, #C7D2FE);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,102,51,0.08);
 }
@@ -1253,8 +1253,8 @@ p, span, div, li, label {
 }
 
 .subject-card.selected {
-    background: var(--brand-light, #E8F5EC);
-    border-color: var(--brand, #006633);
+    background: var(--brand-light, #EEF2FF);
+    border-color: var(--brand, #6366F1);
     box-shadow: 0 4px 12px rgba(0,102,51,0.12);
 }
 
@@ -1292,8 +1292,8 @@ p, span, div, li, label {
 }
 
 .new-chat-name-input:focus {
-    border-color: var(--brand, #006633);
-    box-shadow: 0 0 0 3px rgba(0, 102, 51, 0.1);
+    border-color: var(--brand, #6366F1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 .new-chat-name-input::placeholder {
@@ -1302,7 +1302,7 @@ p, span, div, li, label {
 
 .new-chat-confirm-btn {
     padding: 10px 24px;
-    background: var(--brand, #006633);
+    background: var(--brand, #6366F1);
     color: #fff;
     border: none;
     border-radius: var(--radius-md, 12px);
@@ -1312,11 +1312,11 @@ p, span, div, li, label {
     cursor: pointer;
     transition: all 0.15s ease;
     flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(0, 102, 51, 0.15);
+    box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);
 }
 
 .new-chat-confirm-btn:hover {
-    background: var(--brand-hover, #007A3D);
+    background: var(--brand-hover, #4F46E5);
     transform: translateY(-1px);
 }
 

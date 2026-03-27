@@ -551,11 +551,69 @@
                 $.loadedTabs.delete('resources');
                 if ($.currentTab === 'media') await $.loadMedia(1);
                 if ($.currentTab === 'resources') await $.loadResources();
+
+                // 对文档/文章类型启动 AI 分析轮询
+                if (contentType === 'document' || contentType === 'article') {
+                    const contentId = response.data && response.data.id;
+                    if (contentId) {
+                        $.showToast('AI 正在分析文档，自动生成知识图谱和学习路径...', 'info');
+                        _pollAnalysisStatus(contentId);
+                    }
+                }
             }
         } catch (error) {
             console.error('Upload error:', error);
             $.showToast(`${file.name} 上传失败`, 'error');
         }
+    }
+
+    /**
+     * 轮询 AI 分析状态，完成/失败后自动停止。
+     * @param {number} contentId - 内容 ID
+     */
+    function _pollAnalysisStatus(contentId) {
+        let elapsed = 0;
+        const INTERVAL = 5000;   // 5 秒
+        const TIMEOUT = 300000;  // 5 分钟超时
+
+        const timer = setInterval(async () => {
+            elapsed += INTERVAL;
+            if (elapsed > TIMEOUT) {
+                clearInterval(timer);
+                $.showToast('AI 分析超时，请稍后在管理面板查看状态', 'warning');
+                return;
+            }
+
+            try {
+                const resp = await $.api(`${ADMIN_API}/contents/${contentId}/analysis-status`);
+                if (!resp.success) return;
+
+                const status = resp.data.ai_analysis_status;
+                if (status === 'completed') {
+                    clearInterval(timer);
+                    $.showToast('AI 分析完成！已自动生成知识图谱和学习路径', 'success');
+                    // 标记需要重新加载，并主动刷新当前可见的 tab
+                    $.loadedTabs.delete('knowledgeMap');
+                    $.loadedTabs.delete('paths');
+                    // 如果知识地图模块已加载，主动刷新
+                    if ($.modules.knowledgeMap && $.modules.knowledgeMap.loadKnowledgeMap) {
+                        $.modules.knowledgeMap.loadKnowledgeMap();
+                    }
+                    // 如果学习路径模块已加载，主动刷新
+                    if ($.modules.paths && $.modules.paths.loadPaths) {
+                        $.modules.paths.loadPaths();
+                    }
+                } else if (status === 'failed') {
+                    clearInterval(timer);
+                    const errMsg = resp.data.ai_analysis_error || '未知错误';
+                    $.showToast(`AI 分析失败: ${errMsg}`, 'error');
+                }
+                // pending / processing → 继续轮询
+            } catch (e) {
+                // 网络错误不中断轮询
+                console.warn('Poll analysis status error:', e);
+            }
+        }, INTERVAL);
     }
 
     async function submitUploadContent() {

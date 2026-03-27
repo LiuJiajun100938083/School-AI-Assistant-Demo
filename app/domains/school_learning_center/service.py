@@ -746,7 +746,7 @@ class SchoolLearningCenterService:
 
         from llm.rag.context import build_prompt_context
         from llm.prompts.templates import apply_thinking_mode
-        from llm.providers.ollama import get_ollama_provider
+        from llm.providers import get_provider
 
         loop = asyncio.get_running_loop()
         full_answer_parts = []
@@ -826,7 +826,7 @@ class SchoolLearningCenterService:
 
         thinking_prompt = apply_thinking_mode(prompt, task_type="qa")
 
-        provider = get_ollama_provider()
+        provider = get_provider()
 
         async for token_type, token_content in provider.async_stream(thinking_prompt):
             if not token_content:

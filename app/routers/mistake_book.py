@@ -600,15 +600,15 @@ async def get_practice_cloud_status(
         if not config.api_key:
             return {"success": True, "data": {
                 "available": False,
-                "model": config.api_model or "deepseek-chat",
-                "provider": "deepseek",
+                "model": config.api_model or "qwen-plus",
+                "provider": "qwen",
                 "reason": "missing_api_key",
             }}
 
         return {"success": True, "data": {
             "available": True,
-            "model": config.api_model or "deepseek-chat",
-            "provider": "deepseek",
+            "model": config.api_model or "qwen-plus",
+            "provider": "qwen",
             "reason": None,
         }}
     except Exception as e:
@@ -616,7 +616,7 @@ async def get_practice_cloud_status(
         return {"success": True, "data": {
             "available": False,
             "model": None,
-            "provider": "deepseek",
+            "provider": "qwen",
             "reason": "config_error",
         }}
 

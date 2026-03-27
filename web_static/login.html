@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 — 培僑中學 學習夥伴</title>
+    <title>登入 — 校園AI助手</title>
     <link rel="stylesheet" href="/static/css/login.css">
+    <script src="/static/js/shared/theme.js"></script>
     <link rel="stylesheet" href="/static/css/spinner.css">
     <!-- Brand Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,10 +28,9 @@
     <!-- ====== 左側品牌面板 ====== -->
     <div class="login-brand-panel">
         <div class="brand-panel-content">
-            <img src="/static/images/ai_hourse.png" alt="AI 學習夥伴" class="brand-mascot">
             <div class="brand-welcome" data-i18n="login.welcome">歡迎回來</div>
-            <div class="brand-app-name" data-i18n="app.name">AI 學習夥伴</div>
-            <div class="brand-school" data-i18n="app.schoolFull">培僑中學AI學習系統</div>
+            <div class="brand-app-name" data-i18n="app.name">校園AI助手</div>
+            <div class="brand-school" data-i18n="app.schoolFull">校園AI助手系統</div>
 
             <!-- QR Code 區域 -->
             <div class="brand-qr-section">
@@ -48,21 +48,18 @@
         </div>
     </div>
 
-    <!-- 語言切換 -->
-    <button class="lang-toggle" onclick="i18n.toggle()" title="Switch Language">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-        </svg>
-        <span id="langLabel"></span>
-    </button>
-    <script>document.getElementById('langLabel').textContent = i18n.isZh ? 'EN' : '中';</script>
-
     <!-- ====== 右側登入表單 ====== -->
     <div class="login-form-panel">
         <div class="login-card">
+            <!-- 語言切換（右上角） -->
+            <button class="login-lang-toggle" onclick="i18n.toggle()" title="Switch Language">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <span id="langLabel"></span>
+            </button>
             <div class="login-header">
                 <div class="login-icon">
-                    <img src="/static/images/pkms_logo.png" alt="培僑中學" class="login-logo-img">
                 </div>
                 <div class="login-title" data-i18n="login.title">登入帳戶</div>
                 <div class="login-subtitle" data-i18n="login.subtitle">請輸入您的用戶名和密碼</div>
@@ -101,6 +98,20 @@
             <div id="loginLoading" class="login-loading">
                 <div class="loading-spinner"><span></span></div>
             </div>
+
+            <!-- 主题色切换 -->
+            <div class="theme-picker">
+                <button class="theme-dot" data-theme="indigo" style="--dot-color:#6366F1" onclick="theme.apply('indigo')" title="Indigo"></button>
+                <button class="theme-dot" data-theme="blue" style="--dot-color:#2563EB" onclick="theme.apply('blue')" title="Blue"></button>
+                <button class="theme-dot" data-theme="teal" style="--dot-color:#0D9488" onclick="theme.apply('teal')" title="Teal"></button>
+                <button class="theme-dot" data-theme="rose" style="--dot-color:#F43F5E" onclick="theme.apply('rose')" title="Rose"></button>
+                <button class="theme-dot" data-theme="amber" style="--dot-color:#F59E0B" onclick="theme.apply('amber')" title="Amber"></button>
+            </div>
+            <script>
+                document.querySelectorAll('.theme-dot').forEach(dot => {
+                    dot.classList.toggle('active', dot.dataset.theme === theme.current);
+                });
+            </script>
         </div>
     </div>
 
@@ -149,6 +160,7 @@
     document.title = i18n.t('login.pageTitle');
     document.documentElement.style.setProperty('--loading-text', `'${i18n.t('login.submitting')}'`);
     i18n.applyDOM();
+    document.getElementById('langLabel').textContent = i18n.isZh ? 'EN' : '中';
 </script>
 <script src="/static/js/shared/utils.js"></script>
 <script src="/static/js/shared/auth.js"></script>

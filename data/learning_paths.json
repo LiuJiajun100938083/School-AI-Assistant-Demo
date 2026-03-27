@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "AI 学习中心 - 学习路径集合",
-    "description": "基于培僑中学教学系统知识图谱设计的完整学习路径，涵盖考试系统、AI助手、混合式教学、Zoom集成和虚拟会议室",
+    "description": "基于教学系统知识图谱设计的完整学习路径，涵盖考试系统、AI助手、混合式教学、Zoom集成和虚拟会议室",
     "version": "1.0.0"
   },
   "clear_existing": true,

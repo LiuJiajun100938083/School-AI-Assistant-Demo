@@ -3,11 +3,11 @@ import os
 from urllib.parse import quote_plus
 
 # MySQL配置 - 修改这里！
-DB_HOST = '127.0.0.1'  # 改为127.0.0.1而不是localhost
+DB_HOST = '127.0.0.1'
 DB_PORT = 3306
-DB_NAME = 'school_ai_assistant'
-DB_USER = 'ai_assistant'
-DB_PASSWORD = 'SecurePass123!'
+DB_NAME = 'school_ai_demo'
+DB_USER = 'ai_demo'
+DB_PASSWORD = 'DemoPass123!'
 
 # 构建连接URL
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{quote_plus(DB_PASSWORD)}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"

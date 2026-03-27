@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI學習夥伴 - 教師管理後台</title>
+    <title>校園AI助手 - 教師管理後台</title>
+    <script src="/static/js/shared/theme.js"></script>
     <link rel="stylesheet" href="/static/css/admin_dashboard.css">
 </head>
 <body>
@@ -59,7 +60,7 @@
     <nav class="navbar">
         <div class="navbar-brand">
             <svg class="icon icon-brand"><use href="#i-graduation"/></svg>
-            <span>AI學習夥伴 - 教師管理後台</span>
+            <span>校園AI助手 - 教師管理後台</span>
         </div>
         <div class="navbar-user">
             <button class="btn btn-primary" data-action="backToMain">
@@ -210,7 +211,7 @@
                         <div style="margin-top: 40px; padding-top: 30px; border-top: 3px solid var(--primary);">
                             <div style="margin-bottom: 2rem;">
                                 <h3 style="display: inline-block; margin-right: 1rem; color: var(--primary);">
-                                    <svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-pencil"/></svg> 培僑中學通告範本庫
+                                    <svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-pencil"/></svg> 通告範本庫
                                 </h3>
                                 <span style="color: var(--text-secondary);">上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告</span>
                             </div>
@@ -521,7 +522,7 @@
                     <!-- LLM 雲端配置 -->
                     <div style="background:white;border-radius:12px;padding:1.5rem;margin-top:1rem;border:1px solid var(--border);">
                         <h4 style="margin:0 0 1rem;color:var(--text-secondary);">
-                            <svg class="icon" style="margin-right:4px"><use href="#i-cpu"/></svg> LLM 雲端生成配置 (DeepSeek)
+                            <svg class="icon" style="margin-right:4px"><use href="#i-cpu"/></svg> LLM 雲端生成配置 (Qwen)
                         </h4>
                         <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem;">
                             配置雲端 API Key 後，教師可在出卷頁面選擇「雲端生成」以獲得更高品質的題目。
@@ -529,18 +530,16 @@
                         <div style="display:grid;grid-template-columns:140px 1fr;gap:0.75rem 1rem;align-items:center;max-width:500px;">
                             <label style="font-weight:500;color:var(--text);">API Key</label>
                             <div style="display:flex;gap:0.5rem;">
-                                <input type="password" id="cloudApiKey" placeholder="sk-..."
+                                <input type="password" id="cloudApiKey" placeholder="請輸入 API Key..."
+                                    autocomplete="off" oncopy="return false" oncut="return false" onpaste="return true"
                                     style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;font-family:monospace;">
-                                <button type="button" onclick="toggleApiKeyVisibility()" title="顯示/隱藏"
-                                    style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--light);cursor:pointer;">
-                                    <svg class="icon" style="width:16px;height:16px"><use href="#i-lock"/></svg>
-                                </button>
                             </div>
                             <label style="font-weight:500;color:var(--text);">模型</label>
                             <select id="cloudApiModel"
                                 style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;background:white;color:var(--text);cursor:pointer;">
-                                <option value="deepseek-reasoner">deepseek-reasoner (推理模式，質量最高)</option>
-                                <option value="deepseek-chat">deepseek-chat (對話模式，速度較快)</option>
+                                <option value="qwen-plus">qwen-plus (均衡模式，推薦)</option>
+                                <option value="qwen-max">qwen-max (旗艦模型)</option>
+                                <option value="qwen-turbo">qwen-turbo (快速模式)</option>
                             </select>
                             <label style="font-weight:500;color:var(--text);">狀態</label>
                             <span id="cloudConfigStatus" style="font-size:0.9rem;color:var(--text-muted);">載入中...</span>
@@ -673,7 +672,7 @@
                     </div>
 
                     <!-- 擁堵狀態橫幅 -->
-                    <div id="aiCongestionBanner" style="padding:16px 20px;border-radius:10px;margin-bottom:1.5rem;font-size:1.1em;font-weight:600;text-align:center;background:#E8F5EC;color:#006633;">
+                    <div id="aiCongestionBanner" style="padding:16px 20px;border-radius:10px;margin-bottom:1.5rem;font-size:1.1em;font-weight:600;text-align:center;background:#EEF2FF;color:#6366F1;">
                         載入中...
                     </div>
 

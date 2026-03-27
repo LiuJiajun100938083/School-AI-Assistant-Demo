@@ -34,7 +34,7 @@ body {
 }
 
 .back-link {
-    color: #006633;
+    color: #6366F1;
     text-decoration: none;
     font-size: 14px;
     cursor: pointer;
@@ -42,7 +42,7 @@ body {
 }
 
 .back-link:hover {
-    color: #007A3D;
+    color: #4F46E5;
 }
 
 .header-title {
@@ -116,7 +116,7 @@ body {
     left: 0;
     right: 0;
     height: 2px;
-    background-color: #006633;
+    background-color: #6366F1;
 }
 
 .tab-content {
@@ -159,7 +159,7 @@ input[type="datetime-local"]:focus,
 textarea:focus,
 select:focus {
     outline: none;
-    border-color: #006633;
+    border-color: #6366F1;
 }
 
 textarea {
@@ -185,12 +185,12 @@ button {
 }
 
 .btn-primary {
-    background-color: #006633;
+    background-color: #6366F1;
     color: #FFFFFF;
 }
 
 .btn-primary:hover {
-    background-color: #007A3D;
+    background-color: #4F46E5;
 }
 
 .btn-primary:disabled {
@@ -388,7 +388,7 @@ tbody tr:last-child td {
 .stats-card-value {
     font-size: 28px;
     font-weight: 600;
-    color: #006633;
+    color: #6366F1;
 }
 
 /* Toast notifications */
@@ -481,7 +481,7 @@ tbody tr:last-child td {
     width: 14px;
     height: 14px;
     border: 2px solid #E5E5E5;
-    border-top-color: #006633;
+    border-top-color: #6366F1;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
 }
@@ -508,9 +508,9 @@ tbody tr:last-child td {
 }
 
 .pagination button.active {
-    background: #006633;
+    background: #6366F1;
     color: #FFFFFF;
-    border-color: #006633;
+    border-color: #6366F1;
 }
 
 .pagination button:disabled {

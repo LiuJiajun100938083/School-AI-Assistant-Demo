@@ -9,7 +9,7 @@
 }
 
 :root {
-    --brand-color: #006633;
+    --brand-color: #6366F1;
     --bg-color: #F5F5F7;
     --card-bg: #FFFFFF;
     --border-color: rgba(0, 0, 0, 0.08);
@@ -283,7 +283,7 @@ body {
 
 .task-category {
     display: inline-block;
-    background-color: rgba(0, 102, 51, 0.08);
+    background-color: rgba(99, 102, 241, 0.08);
     color: var(--brand-color);
     padding: 2px 8px;
     border-radius: 4px;
@@ -473,7 +473,7 @@ body {
     justify-content: center;
     width: 28px;
     height: 28px;
-    background-color: rgba(0, 102, 51, 0.1);
+    background-color: rgba(99, 102, 241, 0.1);
     border: none;
     border-radius: 6px;
     color: var(--brand-color);
@@ -484,7 +484,7 @@ body {
 }
 
 .task-item-link:hover {
-    background-color: rgba(0, 102, 51, 0.2);
+    background-color: rgba(99, 102, 241, 0.2);
 }
 
 .task-item-tag {
@@ -593,7 +593,7 @@ body {
 .spinner {
     width: 36px;
     height: 36px;
-    border: 3px solid rgba(0, 102, 51, 0.1);
+    border: 3px solid rgba(99, 102, 241, 0.1);
     border-top-color: var(--brand-color);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;

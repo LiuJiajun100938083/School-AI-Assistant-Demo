@@ -46,6 +46,31 @@ def _schedule_content_indexing(content_id: int, content_row: Dict) -> None:
         logger.exception("调度后台索引失败: content_id=%s", content_id)
 
 
+def _schedule_preview_conversion(content_id: int, file_path: str) -> None:
+    """后台将 Office 文档（DOCX 等）转为 PDF 预览，不阻塞上传请求。"""
+    try:
+        service = get_services().learning_center
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, service.generate_preview, content_id, file_path)
+        logger.info("PDF 预览转换已调度: content_id=%s", content_id)
+    except Exception:
+        logger.exception("调度 PDF 预览转换失败: content_id=%s", content_id)
+
+
+def _schedule_ai_analysis(content_id: int, content_meta: Dict) -> None:
+    """在后台线程中调度 AI 内容分析（生成知识图谱 + 学习路径），不阻塞上传请求。"""
+    try:
+        service = get_services().content_analysis
+        # 设置初始状态
+        service._update_status(content_id, "pending")
+
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, service.analyze, content_id, content_meta)
+        logger.info("AI 分析已调度: content_id=%s", content_id)
+    except Exception:
+        logger.exception("调度 AI 分析失败: content_id=%s", content_id)
+
+
 # ================================================================
 # 請求模型
 # ================================================================
@@ -782,14 +807,28 @@ async def upload_file(
             service._content_categories.link(content["id"], parsed_category_ids)
 
         # 后台异步建立 RAG 索引（不阻塞上传响应）
-        _schedule_content_indexing(content["id"], {
+        indexing_meta = {
             "content_type": content_type,
             "file_path": file_path,
             "file_name": file.filename,
             "mime_type": file.content_type,
             "article_content": None,
             "title": title,
-        })
+        }
+        _schedule_content_indexing(content["id"], indexing_meta)
+
+        # 后台 PDF 预览转换：仅对非 PDF 的文档类型
+        if content_type == "document" and not (file.filename or "").lower().endswith(".pdf"):
+            _schedule_preview_conversion(content["id"], file_path)
+
+        # 后台 AI 分析：仅对文档和文章类型自动生成知识图谱 + 学习路径
+        if content_type in ("document", "article"):
+            _schedule_ai_analysis(content["id"], {
+                **indexing_meta,
+                "subject_code": subject_code,
+                "grade_level": grade_level,
+                "created_by": admin_info[0],
+            })
 
         return success_response(data=content, message="文件已上傳")
     except AppException as e:
@@ -797,6 +836,63 @@ async def upload_file(
     except Exception as e:
         logger.exception("Error uploading file")
         return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ================================================================
+# 管理員端點 - AI 内容分析
+# ================================================================
+
+@router.get("/api/admin/learning-center/contents/{content_id}/analysis-status")
+async def get_analysis_status(
+    content_id: int,
+    _admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
+):
+    """查询内容的 AI 分析状态。"""
+    service = get_services().learning_center
+    content = service._contents.find_by_id(content_id)
+    if not content:
+        return error_response("NOT_FOUND", "内容不存在", status_code=404)
+
+    return success_response(data={
+        "content_id": content_id,
+        "ai_analysis_status": content.get("ai_analysis_status"),
+        "ai_analysis_error": content.get("ai_analysis_error"),
+        "ai_analysis_at": str(content["ai_analysis_at"]) if content.get("ai_analysis_at") else None,
+    })
+
+
+@router.post("/api/admin/learning-center/contents/{content_id}/analyze")
+async def trigger_analysis(
+    content_id: int,
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
+):
+    """手动触发/重新触发 AI 内容分析。"""
+    service = get_services().learning_center
+    content = service._contents.find_by_id(content_id)
+    if not content:
+        return error_response("NOT_FOUND", "内容不存在", status_code=404)
+
+    content_type = content.get("content_type", "")
+    if content_type not in ("document", "article"):
+        return error_response(
+            "INVALID_TYPE",
+            f"仅支持文档和文章类型的分析，当前类型: {content_type}",
+            status_code=400,
+        )
+
+    _schedule_ai_analysis(content_id, {
+        "content_type": content_type,
+        "file_path": content.get("file_path", ""),
+        "file_name": content.get("file_name", ""),
+        "mime_type": content.get("mime_type", ""),
+        "article_content": content.get("article_content"),
+        "title": content.get("title", ""),
+        "subject_code": content.get("subject_code"),
+        "grade_level": content.get("grade_level"),
+        "created_by": admin_info[0],
+    })
+
+    return success_response(message="AI 分析已重新触发")
 
 
 # ================================================================

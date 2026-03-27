@@ -7,11 +7,11 @@
 /* ---- 設計令牌 ---- */
 :root {
     /* 品牌色（僅用於強調，佔頁面 < 20%） */
-    --mb-brand: #006633;
-    --mb-brand-hover: #007A3D;
-    --mb-brand-light: #E8F5EC;
-    --mb-brand-lighter: #F0F9F3;
-    --mb-brand-border: #B8D4C0;
+    --mb-brand: #6366F1;
+    --mb-brand-hover: #4F46E5;
+    --mb-brand-light: #EEF2FF;
+    --mb-brand-lighter: #F5F7FF;
+    --mb-brand-border: #C7D2FE;
 
     /* 中性色（佔頁面 80%+） */
     --mb-bg: #F5F5F7;
@@ -1881,7 +1881,7 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: rgba(0, 102, 51, 0.08);
+    background: rgba(99, 102, 241, 0.08);
     color: var(--mb-brand);
     flex-shrink: 0;
 }
@@ -2181,7 +2181,7 @@
 
 .mb-graph-ai-summary {
     padding: 10px 14px;
-    background: rgba(0, 102, 51, 0.03);
+    background: rgba(99, 102, 241, 0.03);
     border-radius: var(--mb-radius-md);
     font-size: 14px;
     line-height: 1.7;
@@ -2239,7 +2239,7 @@
 .mb-graph-encourage {
     margin-top: 12px;
     padding: 10px 14px;
-    background: rgba(0, 102, 51, 0.03);
+    background: rgba(99, 102, 241, 0.03);
     border-radius: var(--mb-radius-md);
     font-size: 14px;
     color: var(--mb-brand);
@@ -2379,7 +2379,7 @@
 }
 
 .mb-weak-card__cat {
-    background: rgba(0, 102, 51, 0.06);
+    background: rgba(99, 102, 241, 0.06);
     color: var(--mb-brand);
     padding: 1px 6px;
     border-radius: var(--mb-radius-xs);
@@ -2409,7 +2409,7 @@
     margin-top: 8px;
     padding: 7px;
     background: transparent;
-    border: 1px solid rgba(0, 102, 51, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.12);
     border-radius: var(--mb-radius-sm);
     color: var(--mb-brand);
     font-size: 13px;
@@ -2421,8 +2421,8 @@
 }
 
 .mb-weak-card__ask:hover {
-    background: rgba(0, 102, 51, 0.04);
-    border-color: rgba(0, 102, 51, 0.25);
+    background: rgba(99, 102, 241, 0.04);
+    border-color: rgba(99, 102, 241, 0.25);
 }
 
 .mb-graph-improving-item {
@@ -2557,7 +2557,7 @@
     line-height: 1.8;
     color: var(--mb-text);
     padding: 12px 14px;
-    background: rgba(0, 102, 51, 0.02);
+    background: rgba(99, 102, 241, 0.02);
     border-radius: var(--mb-radius-md);
     border-left: 3px solid var(--mb-brand);
 }
@@ -2578,7 +2578,7 @@
 }
 
 .mb-qa-again:hover {
-    background: rgba(0, 102, 51, 0.04);
+    background: rgba(99, 102, 241, 0.04);
 }
 
 /* ============================================================
@@ -2599,7 +2599,7 @@
 }
 
 .mb-banner:hover {
-    background: rgba(0, 102, 51, 0.1);
+    background: rgba(99, 102, 241, 0.1);
 }
 
 .mb-banner__text {
@@ -3696,7 +3696,7 @@
     white-space: nowrap;
 }
 .mb-provider-btn.active {
-    background: #fff; color: var(--mb-brand, #006633);
+    background: #fff; color: var(--mb-brand, #6366F1);
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 .mb-provider-btn:disabled {

@@ -1,6 +1,6 @@
 -- ╔══════════════════════════════════════════════════════════════════════╗
--- ║          培僑中學 AI 學習助手 — 完整資料庫結構說明文檔              ║
--- ║          PKMS AI Learning Buddy — Database Schema Reference        ║
+-- ║          校園AI助手 — 完整資料庫結構說明文檔                        ║
+-- ║          Campus AI Assistant — Database Schema Reference            ║
 -- ║                                                                    ║
 -- ║  資料庫:  school_ai_assistant                                      ║
 -- ║  引擎:    MySQL 8.0 / InnoDB                                       ║

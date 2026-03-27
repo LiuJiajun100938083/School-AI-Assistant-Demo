@@ -1,6 +1,6 @@
 /**
  * 课堂即时运行 — Quiz / 排名 运行时样式
- * 沿用现有设计语言: 白底、#006633 绿色、圆角卡片、rgba(0,0,0,0.08) 边框
+ * 沿用现有设计语言: 白底、#6366F1 绿色、圆角卡片、rgba(0,0,0,0.08) 边框
  */
 
 /* ============================
@@ -90,13 +90,13 @@
 }
 
 .quiz-opt:hover {
-    border-color: #006633;
+    border-color: #6366F1;
     background: #F0FAF0;
 }
 
 .quiz-opt.selected {
-    border-color: #006633;
-    background: #E8F5EC;
+    border-color: #6366F1;
+    background: #EEF2FF;
     font-weight: 600;
 }
 
@@ -119,7 +119,7 @@
 
 .quiz-opt.reveal.correct {
     border-color: #34C759;
-    background: #E8F5EC;
+    background: #EEF2FF;
 }
 
 .quiz-opt.reveal.wrong {
@@ -162,7 +162,7 @@
 }
 
 .quiz-fill-input:focus {
-    border-color: #006633;
+    border-color: #6366F1;
 }
 
 .quiz-fill-input:disabled {
@@ -173,7 +173,7 @@
 .quiz-fill-confirm {
     width: 100%;
     padding: 12px;
-    background: #006633;
+    background: #6366F1;
     color: white;
     border: none;
     border-radius: 10px;
@@ -184,7 +184,7 @@
 }
 
 .quiz-fill-confirm:hover {
-    background: #005528;
+    background: #4338CA;
 }
 
 .quiz-fill-confirm:disabled {
@@ -202,7 +202,7 @@
 .quiz-fill-correct {
     padding: 14px 16px;
     border: 1px solid #34C759;
-    background: #E8F5EC;
+    background: #EEF2FF;
     border-radius: 10px;
     font-size: 15px;
     font-weight: 600;
@@ -218,7 +218,7 @@
 
 .quiz-fill-my.correct {
     border: 1px solid #34C759;
-    background: #E8F5EC;
+    background: #EEF2FF;
 }
 
 .quiz-fill-my.wrong {
@@ -283,8 +283,8 @@
 }
 
 .quiz-tv-phase.live {
-    background: #E8F5EC;
-    color: #006633;
+    background: #EEF2FF;
+    color: #6366F1;
 }
 
 .quiz-tv-phase.revealed {
@@ -352,7 +352,7 @@
 }
 
 .quiz-tv-opt.correct {
-    background: #E8F5EC;
+    background: #EEF2FF;
     border: 2px solid #34C759;
 }
 
@@ -418,7 +418,7 @@
     align-items: center;
     gap: 8px;
     padding: 24px;
-    background: #E8F5EC;
+    background: #EEF2FF;
     border-radius: 12px;
     border: 2px solid #34C759;
 }
@@ -432,7 +432,7 @@
 .quiz-tv-fill-answer {
     font-size: 24px;
     font-weight: 700;
-    color: #006633;
+    color: #6366F1;
 }
 
 /* ---- Counter ---- */
@@ -445,7 +445,7 @@
 .quiz-tv-counter-num {
     font-size: 36px;
     font-weight: 800;
-    color: #006633;
+    color: #6366F1;
     line-height: 1;
 }
 
@@ -493,8 +493,8 @@
 }
 
 .quiz-rank-row.is-me {
-    background: #E8F5EC;
-    border: 1px solid #006633;
+    background: #EEF2FF;
+    border: 1px solid #6366F1;
 }
 
 .quiz-rank-row.top-1 {
@@ -529,7 +529,7 @@
 
 .quiz-rank-score {
     font-weight: 600;
-    color: #006633;
+    color: #6366F1;
     font-size: 14px;
     white-space: nowrap;
 }

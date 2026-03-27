@@ -29,11 +29,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 class DatabaseSettings(BaseSettings):
     """数据库配置"""
-    db_host: str = Field(default="localhost", description="数据库主机")
+    db_host: str = Field(default="127.0.0.1", description="数据库主机")
     db_port: int = Field(default=3306, description="数据库端口")
-    db_user: str = Field(default="root", description="数据库用户")
-    db_password: str = Field(default="", description="数据库密码")
-    db_name: str = Field(default="school_ai_assistant", description="数据库名")
+    db_user: str = Field(default="ai_demo", description="数据库用户")
+    db_password: str = Field(default="DemoPass123!", description="数据库密码")
+    db_name: str = Field(default="school_ai_demo", description="数据库名")
     db_charset: str = Field(default="utf8mb4", description="字符集")
 
     # 连接池配置
@@ -129,9 +129,9 @@ class LLMSettings(BaseSettings):
     llm_local_model: str = Field(default="qwen3.5:35b", description="本地模型名称")
     llm_local_base_url: str = Field(default="http://localhost:11434", description="Ollama 服务地址")
 
-    # API 模型 (DeepSeek)
-    llm_api_model: str = Field(default="deepseek-chat", description="API 模型名称")
-    llm_api_base_url: str = Field(default="https://api.deepseek.com/v1")
+    # API 模型 (Qwen / DashScope)
+    llm_api_model: str = Field(default="qwen-plus", description="API 模型名称")
+    llm_api_base_url: str = Field(default="https://dashscope.aliyuncs.com/compatible-mode/v1")
     llm_api_key: Optional[str] = Field(default=None, description="API 密钥")
 
     # 推理参数
@@ -140,7 +140,7 @@ class LLMSettings(BaseSettings):
     llm_timeout: int = Field(default=120, description="推理超时(秒)")
     llm_max_tokens: int = Field(default=4096)
     llm_enable_thinking: bool = Field(default=True, description="启用思考模式")
-    llm_use_api: bool = Field(default=False, description="使用API而非本地模型")
+    llm_use_api: bool = Field(default=True, description="使用API而非本地模型")
 
     # 停止标记
     llm_stop_tokens: List[str] = Field(
@@ -237,7 +237,7 @@ class Settings(
         print(settings.llm_local_model) # 本地模型名称
     """
     # 应用信息
-    app_name: str = Field(default="多科目AI学习伙伴", description="应用名称")
+    app_name: str = Field(default="校园AI助手", description="应用名称")
     app_version: str = Field(default="2.0.0", description="应用版本")
     environment: str = Field(default="development", description="运行环境 (development/production)")
 

@@ -19,7 +19,7 @@ cur.execute("""
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
 """, (
     "2025-26中五ICT必修A 資訊處理",
-    "培僑中學中五ICT必修部分A完整教材，涵蓋資訊系統、數據控制、數據表示、多媒體、試算表、數據庫及SQL",
+    "中五ICT必修部分A完整教材，涵蓋資訊系統、數據控制、數據表示、多媒體、試算表、數據庫及SQL",
     "document",
     "uploads/school_learning_center/documents/ict_compulsory_a.pdf",
     "2025-26中五ICT必修A.pdf",
