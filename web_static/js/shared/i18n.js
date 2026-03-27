@@ -790,8 +790,8 @@ const i18n = (() => {
         en: {
             // --- Common ---
             'app.name': 'AI Learning Buddy',
-            'app.school': 'Pui Kiu College',
-            'app.schoolFull': 'Pui Kiu College AI Learning System',
+            'app.school': 'Pui Kiu Middle School',
+            'app.schoolFull': 'Pui Kiu Middle School AI Learning System',
             'common.cancel': 'Cancel',
             'common.confirm': 'OK',
             'common.loading': 'Loading...',
@@ -800,7 +800,7 @@ const i18n = (() => {
             'common.networkFailed': 'Network connection failed, please check your connection',
 
             // --- Login ---
-            'login.pageTitle': 'Login — Pui Kiu College Learning Buddy',
+            'login.pageTitle': 'Login — Pui Kiu Middle School Learning Buddy',
             'login.welcome': 'Welcome Back',
             'login.title': 'Sign In',
             'login.subtitle': 'Enter your username and password',
@@ -816,9 +816,9 @@ const i18n = (() => {
             'login.qrLabel': 'Scan to Login',
 
             // --- Home ---
-            'home.pageTitle': 'Pui Kiu College Learning Buddy',
+            'home.pageTitle': 'Pui Kiu Middle School Learning Buddy',
             'home.splashTitle': 'AI Learning Buddy',
-            'home.splashSubtitle': 'Pui Kiu College',
+            'home.splashSubtitle': 'Pui Kiu Middle School',
             'home.welcomeBack': 'Welcome Back',
             'home.welcomeUser': 'Welcome back, {{name}}',
             'home.subtitle': 'Choose an app below to get started',
@@ -934,7 +934,7 @@ const i18n = (() => {
             'gc.guest': 'Guest',
             'gc.emptyTitle': 'No Games Found',
             'gc.emptyDesc': 'Try different keywords or select another subject',
-            'gc.footerSchool': 'Pui Kiu College AI Learning Buddy',
+            'gc.footerSchool': 'Pui Kiu Middle School AI Learning Buddy',
             'gc.footerVersion': 'Game Center v3.0',
             'gc.shareTitle': 'Share Game',
             'gc.shareDesc': 'Generate a QR code with expiry — students can play without login',
@@ -961,7 +961,7 @@ const i18n = (() => {
             'gc.playCount': '🔥 {{count}} plays',
 
             // --- School Learning Center ---
-            'slc.pageTitle': 'School Learning Center - Pui Kiu College',
+            'slc.pageTitle': 'School Learning Center - Pui Kiu Middle School',
             'slc.headerTitle': 'School Learning Center',
             'slc.back': '← Back',
             'slc.tabResources': 'Resources',
@@ -1147,7 +1147,7 @@ const i18n = (() => {
             'slc.diffAdvLabel': 'Advanced',
 
             // --- AI Learning Center ---
-            'alc.pageTitle': 'AI Learning Center - Pui Kiu College',
+            'alc.pageTitle': 'AI Learning Center - Pui Kiu Middle School',
             'alc.headerTitle': 'AI Learning Center',
             'alc.backHome': 'Home',
             'alc.courses': 'Courses',
@@ -1434,7 +1434,7 @@ const i18n = (() => {
             'subject.loadFailed': 'Failed to load subjects',
 
             // --- AI Chat Page ---
-            'chat.pageTitle': 'AI Chat - Pui Kiu College',
+            'chat.pageTitle': 'AI Chat - Pui Kiu Middle School',
             'chat.backHome': 'Home',
             'chat.history': 'Chat History',
             'chat.newChat': '+ New Chat',
