@@ -45,18 +45,18 @@ const GCIcons = {
 
 const GameConfig = {
     subjects: {
-        all:       { name: '全部',       icon: 'star',       color: '#006633', order: 0 },
-        chinese:   { name: '中文',       icon: 'book',       color: '#DC2626', order: 1 },
-        math:      { name: '數學',       icon: 'calculator',  color: '#2563EB', order: 2 },
-        english:   { name: '英文',       icon: 'languages',   color: '#7C3AED', order: 3 },
-        history:   { name: '歷史',       icon: 'landmark',    color: '#D97706', order: 4 },
-        ict:       { name: 'ICT',        icon: 'monitor',     color: '#059669', order: 5 },
-        physics:   { name: '物理',       icon: 'zap',         color: '#EA580C', order: 6 },
-        chemistry: { name: '化學',       icon: 'flask',       color: '#0891B2', order: 7 },
-        biology:   { name: '生物',       icon: 'leaf',        color: '#16A34A', order: 8 },
-        ces:       { name: '公民與社會發展', icon: 'scale',   color: '#E11D48', order: 9 },
-        geography: { name: '地理',       icon: 'globe',       color: '#8B5CF6', order: 10 },
-        economics: { name: '經濟',       icon: 'coins',       color: '#0D9488', order: 11 }
+        all:       { name: '全部',       i18nKey: 'gc.subjectAll',       icon: 'star',       color: '#006633', order: 0 },
+        chinese:   { name: '中文',       i18nKey: 'gc.subjectChinese',   icon: 'book',       color: '#DC2626', order: 1 },
+        math:      { name: '數學',       i18nKey: 'gc.subjectMath',      icon: 'calculator',  color: '#2563EB', order: 2 },
+        english:   { name: '英文',       i18nKey: 'gc.subjectEnglish',   icon: 'languages',   color: '#7C3AED', order: 3 },
+        history:   { name: '歷史',       i18nKey: 'gc.subjectHistory',   icon: 'landmark',    color: '#D97706', order: 4 },
+        ict:       { name: 'ICT',        i18nKey: null,                   icon: 'monitor',     color: '#059669', order: 5 },
+        physics:   { name: '物理',       i18nKey: 'gc.subjectPhysics',   icon: 'zap',         color: '#EA580C', order: 6 },
+        chemistry: { name: '化學',       i18nKey: 'gc.subjectChemistry', icon: 'flask',       color: '#0891B2', order: 7 },
+        biology:   { name: '生物',       i18nKey: 'gc.subjectBiology',   icon: 'leaf',        color: '#16A34A', order: 8 },
+        ces:       { name: '公民與社會發展', i18nKey: 'gc.subjectCes',   icon: 'scale',   color: '#E11D48', order: 9 },
+        geography: { name: '地理',       i18nKey: 'gc.subjectGeography', icon: 'globe',       color: '#8B5CF6', order: 10 },
+        economics: { name: '經濟',       i18nKey: 'gc.subjectEconomics', icon: 'coins',       color: '#0D9488', order: 11 }
     },
 
     // Hero 漸變色背景
@@ -316,7 +316,7 @@ const GameCenterUI = {
             return `
                 <a class="gc-hero-card ${isPrimary ? 'gc-hero-card--primary' : ''}"
                    href="${game.url}" style="background: ${gradient};">
-                    <span class="gc-hero-badge">${game.badge || '精選'}</span>
+                    <span class="gc-hero-badge">${game.badge || i18n.t('gc.featured')}</span>
                     <div class="gc-hero-icon">${icon}</div>
                     <div class="gc-hero-title">${Utils.escapeHtml(game.name)}</div>
                     <div class="gc-hero-desc">${Utils.escapeHtml(game.description)}</div>
@@ -332,10 +332,11 @@ const GameCenterUI = {
     createPillHTML(key, config) {
         const isActive = key === 'all' ? 'active' : '';
         const icon = GCIcons[config.icon] || GCIcons.defaultIcon;
+        const label = config.i18nKey ? i18n.t(config.i18nKey) : config.name;
         return `
             <button class="gc-pill ${isActive}" data-subject="${key}">
                 ${icon}
-                <span>${config.name}</span>
+                <span>${label}</span>
             </button>
         `;
     },
@@ -347,15 +348,16 @@ const GameCenterUI = {
 
         const icon = this._getSubjectIcon(subjectKey);
         const color = this._getSubjectColor(subjectKey);
+        const subjectLabel = subjectConfig.i18nKey ? i18n.t(subjectConfig.i18nKey) : subjectConfig.name;
 
         return `
             <section class="gc-section game-section" data-subject="${subjectKey}">
                 <div class="section-header">
                     <h2 class="section-title" style="color: ${color}">
                         ${icon}
-                        ${subjectConfig.name}遊戲
+                        ${subjectLabel}
                     </h2>
-                    <span class="game-count">${games.length} 個遊戲</span>
+                    <span class="game-count">${games.length}</span>
                 </div>
                 <div class="games-grid">
                     ${games.map(game => this.createGameCardHTML(game, isAdmin, subjectKey)).join('')}
@@ -390,7 +392,7 @@ const GameCenterUI = {
                 <div class="gc-lb-header">
                     <span class="gc-lb-icon">${icon}</span>
                     <span class="gc-lb-title">${Utils.escapeHtml(title)}</span>
-                    <a href="${gameUrl}" class="gc-lb-play-btn">去挑戰 ▶</a>
+                    <a href="${gameUrl}" class="gc-lb-play-btn">${i18n.t('gc.heroPlay')} ▶</a>
                 </div>
                 <div class="gc-lb-body">${rowsHTML}</div>
             </div>
@@ -411,7 +413,7 @@ const GameCenterUI = {
             : '';
 
         const uploaderHTML = game.isFromDatabase && game.uploaderName
-            ? `<div class="game-uploader">上傳者：${Utils.escapeHtml(game.uploaderName)}</div>`
+            ? `<div class="game-uploader">${Utils.escapeHtml(game.uploaderName)}</div>`
             : '';
 
         const isTeacherOrAdmin = ['teacher', 'admin'].includes(GameCenterApp.state.userRole);
@@ -468,6 +470,12 @@ const GameCenterApp = {
 
     async init() {
         this._cacheElements();
+
+        // Apply i18n to static DOM elements and set page title
+        if (typeof i18n !== 'undefined') {
+            document.title = i18n.t('gc.pageTitle');
+            i18n.applyDOM();
+        }
 
         const info = await GameCenterAPI.loadUserInfo();
         if (info) {
@@ -620,7 +628,7 @@ const GameCenterApp = {
             // 設置 badge 為遊玩次數
             const featured = top3.map(g => ({
                 ...g,
-                badge: `🔥 ${g._plays} 次遊玩`
+                badge: i18n.t('gc.playCount', { count: g._plays })
             }));
             this.elements.heroSection.innerHTML = GameCenterUI.renderHero(featured);
             this.elements.heroSection.classList.add('active');
@@ -659,7 +667,7 @@ const GameCenterApp = {
     _updateUserDisplay() {
         const name = this.state.userInfo?.display_name
             || this.state.userInfo?.username
-            || '訪客';
+            || i18n.t('gc.guest');
         this.elements.userName.textContent = name;
         this.elements.userAvatar.textContent = name.charAt(0).toUpperCase();
 
@@ -887,7 +895,7 @@ const GameCenterApp = {
                 grid.innerHTML = games.map(g =>
                     GameCenterUI.createGameCardHTML(g, isAdmin, subject)
                 ).join('');
-                countEl.textContent = `${games.length} 個遊戲`;
+                countEl.textContent = `${games.length}`;
                 section.style.display = 'block';
             } else {
                 section.style.display = 'none';
@@ -917,7 +925,7 @@ const GameShareHelper = {
             return;
         }
 
-        document.getElementById('gcShareTitle').textContent = `分享：${gameName}`;
+        document.getElementById('gcShareTitle').textContent = `${i18n.t('gc.shareTitle')}：${gameName}`;
 
         document.querySelectorAll('#gcShareDurations .gc-dur-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.duration === '1h');
@@ -931,7 +939,7 @@ const GameShareHelper = {
         document.getElementById('gcShareResult').classList.remove('show');
         const genBtn = document.getElementById('gcShareGenBtn');
         genBtn.disabled = false;
-        genBtn.textContent = '生成二維碼';
+        genBtn.textContent = i18n.t('gc.generateQr');
         document.getElementById('gcShareQr').innerHTML = '';
         this.qrInstance = null;
 
@@ -949,7 +957,7 @@ const GameShareHelper = {
 
         const btn = document.getElementById('gcShareGenBtn');
         btn.disabled = true;
-        btn.textContent = '生成中...';
+        btn.textContent = i18n.t('common.loading');
 
         try {
             const token = localStorage.getItem('auth_token');
@@ -983,21 +991,22 @@ const GameShareHelper = {
                 });
 
                 const expiresAt = new Date(data.expires_at);
-                const labels = { '30m': '30 分鐘', '1h': '1 小時', '1d': '1 天', '1w': '1 週' };
+                const labels = { '30m': i18n.t('gc.dur30m'), '1h': i18n.t('gc.dur1h'), '1d': i18n.t('gc.dur1d'), '1w': i18n.t('gc.dur1w') };
+                const locale = i18n.isEn ? 'en-US' : 'zh-TW';
                 document.getElementById('gcShareExpires').textContent =
-                    `有效期：${labels[this.selectedDuration]} | 過期：${expiresAt.toLocaleString('zh-TW')}`;
+                    `${labels[this.selectedDuration]} | ${expiresAt.toLocaleString(locale)}`;
 
-                btn.textContent = '重新生成';
+                btn.textContent = i18n.t('gc.generateQr');
                 btn.disabled = false;
             } else {
-                UIModule.toast(result.message || '生成失敗', 'error');
-                btn.textContent = '生成二維碼';
+                UIModule.toast(result.message || i18n.t('common.requestFailed'), 'error');
+                btn.textContent = i18n.t('gc.generateQr');
                 btn.disabled = false;
             }
         } catch (err) {
-            console.error('生成分享链接失败:', err);
-            UIModule.toast('生成失敗，請重試', 'error');
-            btn.textContent = '生成二維碼';
+            console.error('Share link generation failed:', err);
+            UIModule.toast(i18n.t('common.requestFailed'), 'error');
+            btn.textContent = i18n.t('gc.generateQr');
             btn.disabled = false;
         }
     },
@@ -1008,7 +1017,7 @@ const GameShareHelper = {
         navigator.clipboard.writeText(input.value).then(() => {
             const btn = input.nextElementSibling;
             const orig = btn.textContent;
-            btn.textContent = '已複製';
+            btn.textContent = '✓';
             setTimeout(() => { btn.textContent = orig; }, 2000);
         }).catch(() => {
             document.execCommand('copy');

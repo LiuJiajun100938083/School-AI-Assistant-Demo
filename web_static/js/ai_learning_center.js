@@ -68,6 +68,17 @@
     // Module registry — sub-modules register themselves here
     const modules = {};
 
+    // ==================== I18N HELPER ====================
+    /**
+     * Shorthand for i18n.t() with fallback.
+     * Sub-modules access this via window.alc._t()
+     */
+    function _t(key, params) {
+        if (typeof i18n !== 'undefined' && i18n.t) return i18n.t(key, params);
+        // Return key as fallback (stripped of prefix)
+        return key;
+    }
+
     // ==================== UTILITY FUNCTIONS ====================
 
     /**
@@ -95,13 +106,13 @@
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.message || '请求失败');
+                throw new Error(data.message || _t('common.requestFailed'));
             }
 
             return data;
         } catch (error) {
             console.error('API Error:', error);
-            showToast(error.message || '网络错误，请重试', 'error');
+            showToast(error.message || _t('common.networkError'), 'error');
             throw error;
         }
     }
@@ -184,13 +195,13 @@
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.message || '上传失败');
+                throw new Error(data.message || _t('alc.uploadFailed'));
             }
 
             return data;
         } catch (error) {
             console.error('Upload Error:', error);
-            showToast(error.message || '网络错误，请重试', 'error');
+            showToast(error.message || _t('common.networkError'), 'error');
             throw error;
         }
     }
@@ -411,6 +422,9 @@
         getContentTypeIcon,
         flattenCategories,
 
+        // i18n helper
+        _t,
+
         // Module registry
         modules,
 
@@ -438,6 +452,12 @@
     // ==================== INITIALIZATION ====================
 
     async function init() {
+        // Apply i18n
+        if (typeof i18n !== 'undefined') {
+            document.title = i18n.t('alc.pageTitle');
+            i18n.applyDOM();
+        }
+
         // Check authentication
         token = localStorage.getItem('auth_token') || localStorage.getItem('token');
         if (!token) {
@@ -480,7 +500,7 @@
             switchTab('knowledge-map');
         } catch (error) {
             console.error('Initialization error:', error);
-            showToast('加载失败，请刷新页面', 'error');
+            showToast(_t('alc.loadFailed'), 'error');
         }
     }
 
@@ -642,7 +662,7 @@
                 }
             } catch (error) {
                 console.error(`Failed to load ${tabName}:`, error);
-                showToast(`加载${tabName}失败`, 'error');
+                showToast(_t('alc.loadTabFailed'), 'error');
             }
         }
     }
@@ -670,7 +690,7 @@
         const allBtn = document.createElement('button');
         allBtn.className = 'alc-category-tag alc-active';
         allBtn.setAttribute('data-category', '');
-        allBtn.textContent = '全部';
+        allBtn.textContent = _t('alc.all');
         allBtn.addEventListener('click', async () => {
             state.filters.categoryId = null;
             state.currentPage = 1;
@@ -789,13 +809,13 @@
                     videoEl.setAttribute('width', '100%');
                     videoEl.setAttribute('height', '100%');
                     videoEl.setAttribute('controls', '');
-                    videoEl.innerHTML = `<source src="${escapeHtml(fileUrl)}" type="video/mp4">\u60A8\u7684\u700F\u89BD\u5668\u4E0D\u652F\u6301\u8996\u983B\u64AD\u653E`;
+                    videoEl.innerHTML = `<source src="${escapeHtml(fileUrl)}" type="video/mp4">${_t('alc.videoNotSupported')}`;
                     videoContainer.appendChild(videoEl);
                 } else if (videoContainer) {
                     const errP = document.createElement('p');
                     errP.className = 'alc-error';
                     errP.style.cssText = 'color:#fff;text-align:center;padding:40px;';
-                    errP.textContent = '\u7121\u6CD5\u8F09\u5165\u8996\u983B';
+                    errP.textContent = _t('alc.videoLoadFailed');
                     videoContainer.appendChild(errP);
                 }
             }
@@ -807,7 +827,7 @@
                 videoEl.setAttribute('width', '100%');
                 videoEl.setAttribute('height', '100%');
                 videoEl.setAttribute('controls', '');
-                videoEl.innerHTML = `<source src="${escapeHtml(fileUrl)}" type="${escapeHtml(content.mime_type || 'video/mp4')}">\u60A8\u7684\u700F\u89BD\u5668\u4E0D\u652F\u6301\u8996\u983B\u64AD\u653E`;
+                videoEl.innerHTML = `<source src="${escapeHtml(fileUrl)}" type="${escapeHtml(content.mime_type || 'video/mp4')}">${_t('alc.videoNotSupported')}`;
                 videoContainer.appendChild(videoEl);
             } else if (videoContainer) {
                 const errP = document.createElement('p');
@@ -888,7 +908,7 @@
             modalBody.innerHTML = `
                 <h2>${escapeHtml(content.title)}</h2>
                 <p class="alc-article-meta">
-                    ${content.created_at ? `\u53D1\u5E03\u65F6\u95F4\uFF1A${content.created_at}` : ''}
+                    ${content.created_at ? `${_t('alc.publishedAt')}${content.created_at}` : ''}
                 </p>
                 <div class="alc-article-content">
                     ${escapeHtml(content.content || content.description || '')}

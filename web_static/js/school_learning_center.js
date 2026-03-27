@@ -33,6 +33,14 @@ window.slc = (() => {
     };
 
     const GRADES = ['中一', '中二', '中三', '中四', '中五', '中六'];
+    const GRADE_I18N_KEYS = ['slc.grade1', 'slc.grade2', 'slc.grade3', 'slc.grade4', 'slc.grade5', 'slc.grade6'];
+
+    /** Get display name for a grade (translated) */
+    function _gradeDisplay(grade) {
+        const idx = GRADES.indexOf(grade);
+        if (idx >= 0) return i18n.t(GRADE_I18N_KEYS[idx]);
+        return grade;
+    }
     const ADMIN_API = '/api/admin/school-learning-center';
 
     // ── SVG 圖標系統（取代所有 emoji）──
@@ -275,7 +283,7 @@ window.slc = (() => {
             const list = document.getElementById('subjectList');
             if (!list) return;
             if (!subjects.length) {
-                list.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">' + _icon('books', 28) + '</div><div>暫無科目資源</div></div>';
+                list.innerHTML = '<div class="slc-empty-state"><div class="slc-empty-state__icon">' + _icon('books', 28) + '</div><div>' + i18n.t('slc.noSubjectResources') + '</div></div>';
                 return;
             }
             list.innerHTML = subjects.map(s => `
@@ -292,11 +300,13 @@ window.slc = (() => {
         renderGradeBar() {
             const bar = document.getElementById('gradeBar');
             if (!bar) return;
-            const chips = ['全部', ...GRADES].map(g => {
-                const isAll = g === '全部';
+            const allLabel = i18n.t('slc.gradeAllFilter');
+            const chips = [null, ...GRADES].map(g => {
+                const isAll = g === null;
                 const active = isAll ? !state.currentGrade : state.currentGrade === g;
+                const display = isAll ? allLabel : _gradeDisplay(g);
                 return `<button class="slc-grade-chip ${active ? '--active' : ''}"
-                            onclick="slc.selectGrade(${isAll ? 'null' : `'${g}'`})">${g}</button>`;
+                            onclick="slc.selectGrade(${isAll ? 'null' : `'${g}'`})">${display}</button>`;
             }).join('');
             bar.innerHTML = chips;
         },
@@ -316,12 +326,12 @@ window.slc = (() => {
             const nav = document.getElementById('slcEbookDirectory');
             if (!nav) return;
             if (!items || !items.length) {
-                nav.innerHTML = '<p class="slc-ebook-nav-empty">該科目暫無教學資源</p>';
+                nav.innerHTML = '<p class="slc-ebook-nav-empty">' + i18n.t('slc.noResources') + '</p>';
                 return;
             }
 
             const typeIcon = { document: _icon('doc'), video_local: _icon('video'), video_external: _icon('link'), article: _icon('article'), image: _icon('image') };
-            const typeLabel = { document: '文檔', video_local: '本地視頻', video_external: '外部視頻', article: '文章', image: '圖片' };
+            const typeLabel = { document: i18n.t('slc.typeDocLabel'), video_local: i18n.t('slc.typeVideoLocalLabel'), video_external: i18n.t('slc.typeVideoExternalLabel'), article: i18n.t('slc.typeArticleLabel'), image: i18n.t('slc.typeImageLabel') };
 
             // 按類型分組
             const grouped = {};
@@ -376,7 +386,7 @@ window.slc = (() => {
 
         showResourceLoading() {
             const nav = document.getElementById('slcEbookDirectory');
-            if (nav) nav.innerHTML = '<p class="slc-ebook-nav-empty">加載中...</p>';
+            if (nav) nav.innerHTML = '<p class="slc-ebook-nav-empty">' + i18n.t('slc.loading') + '</p>';
         },
 
         // --- 知識圖譜 ---
@@ -397,7 +407,7 @@ window.slc = (() => {
             container.appendChild(tooltipEl);
 
             if (!mapData.nodes || !mapData.nodes.length) {
-                container.innerHTML = `<div class="slc-map-empty"><div class="slc-map-empty__icon">${_icon('map', 40)}</div><div>該科目暫無知識圖譜</div></div>`;
+                container.innerHTML = `<div class="slc-map-empty"><div class="slc-map-empty__icon">${_icon('map', 40)}</div><div>${i18n.t('slc.noKnowledgeMap')}</div></div>`;
                 return;
             }
 
@@ -661,8 +671,8 @@ window.slc = (() => {
                     <div class="slc-kg-tooltip-title">${_safeIcon(node.icon, 'bulb')} ${_escHtml(node.title)}</div>
                     ${desc ? `<div class="slc-kg-tooltip-desc">${_escHtml(desc)}${node.description && node.description.length > 80 ? '...' : ''}</div>` : ''}
                     <div class="slc-kg-tooltip-meta">
-                        ${contents.length > 0 ? `<span>${_icon('doc')} ${contents.length} 份資源</span>` : ''}
-                        <span>${_icon('arrow')} ${neighborCount} 個相關節點</span>
+                        ${contents.length > 0 ? `<span>${_icon('doc')} ${contents.length}${i18n.t('slc.resourceCount')}</span>` : ''}
+                        <span>${_icon('arrow')} ${neighborCount}${i18n.t('slc.relatedNodeCount')}</span>
                     </div>
                 `;
                 const rect = container.getBoundingClientRect();
@@ -729,11 +739,11 @@ window.slc = (() => {
                     const pg = c.anchor?.type === 'page' ? c.anchor.value : 0;
                     return `
                     <div class="slc-node-resource-item" onclick="slc.openContent(${c.content_id}, '${c.content_type || 'document'}', ${pg})">
-                        ${_icon('clip')} ${_escHtml(c.content_title || '資源')}
-                        ${pg ? `<span style="color:var(--slc-primary);font-size:12px">第${pg}頁</span>` : ''}
+                        ${_icon('clip')} ${_escHtml(c.content_title || i18n.t('slc.resource'))}
+                        ${pg ? `<span style="color:var(--slc-primary);font-size:12px">${i18n.t('slc.pageNum', {page: pg})}</span>` : ''}
                     </div>`;
                 }).join('')
-                : '<div style="font-size:13px;color:var(--slc-text-secondary)">暫無關聯資源</div>';
+                : `<div style="font-size:13px;color:var(--slc-text-secondary)">${i18n.t('slc.noRelatedResources')}</div>`;
 
             // Find learning paths that reference this node
             const relatedPaths = (state.paths || []).filter(p =>
@@ -744,7 +754,7 @@ window.slc = (() => {
                     <div class="slc-node-resource-item" onclick="slc.jumpToPath(${p.id})" style="cursor:pointer">
                         ${_icon('path')} ${_escHtml(p.title)}
                     </div>`).join('')
-                : '<div style="font-size:13px;color:var(--slc-text-secondary)">暫無相關路徑</div>';
+                : `<div style="font-size:13px;color:var(--slc-text-secondary)">${i18n.t('slc.noRelatedPaths')}</div>`;
 
             panel.innerHTML = `
                 <div class="slc-node-detail__header">
@@ -753,13 +763,13 @@ window.slc = (() => {
                     <button class="slc-node-detail__close" onclick="document.getElementById('nodeDetail').classList.remove('--visible')">${_icon('close', 16)}</button>
                 </div>
                 <div class="slc-node-detail__body">
-                    <div class="slc-node-detail__desc">${_escHtml(node.description || '暫無描述')}</div>
+                    <div class="slc-node-detail__desc">${_escHtml(node.description || i18n.t('slc.noDescription'))}</div>
                     <div class="slc-node-detail__resources">
-                        <h4>${_icon('clip')} 關聯資源</h4>
+                        <h4>${_icon('clip')} ${i18n.t('slc.relatedResources')}</h4>
                         ${resourcesHtml}
                     </div>
                     <div class="slc-node-detail__resources" style="margin-top:8px">
-                        <h4>${_icon('path')} 相關學習路徑</h4>
+                        <h4>${_icon('path')} ${i18n.t('slc.relatedPathsLabel')}</h4>
                         ${pathsHtml}
                     </div>
                 </div>
@@ -769,7 +779,7 @@ window.slc = (() => {
 
         showMapLoading() {
             const container = document.getElementById('knowledgeMapContainer');
-            if (container) container.innerHTML = '<div class="slc-loading"><div class="slc-loading__spinner"></div><div>加載知識圖譜...</div></div>';
+            if (container) container.innerHTML = '<div class="slc-loading"><div class="slc-loading__spinner"></div><div>' + i18n.t('slc.loadingMap') + '</div></div>';
         },
 
         // --- 學習路徑 ---
@@ -777,11 +787,11 @@ window.slc = (() => {
             const list = document.getElementById('pathList');
             if (!list) return;
             if (!paths.length) {
-                list.innerHTML = `<div class="slc-empty-state"><div class="slc-empty-state__icon">${_icon('map', 40)}</div><div class="slc-empty-state__text">該科目暫無學習路徑</div></div>`;
+                list.innerHTML = `<div class="slc-empty-state"><div class="slc-empty-state__icon">${_icon('map', 40)}</div><div class="slc-empty-state__text">${i18n.t('slc.noPaths')}</div></div>`;
                 return;
             }
             list.innerHTML = paths.map(p => {
-                const diffLabel = { beginner: '入門', intermediate: '進階', advanced: '高級' };
+                const diffLabel = { beginner: i18n.t('slc.diffBegLabel'), intermediate: i18n.t('slc.diffIntLabel'), advanced: i18n.t('slc.diffAdvLabel') };
                 const stepsCount = (p.steps || []).length;
                 return `
                 <div class="slc-path-card" data-path-id="${p.id}">
@@ -794,7 +804,7 @@ window.slc = (() => {
                         <div class="slc-path-card__meta">
                             <span class="slc-difficulty --${p.difficulty || 'beginner'}">${diffLabel[p.difficulty] || p.difficulty}</span>
                             <span class="slc-path-meta-item">${_icon('clock')} ${p.estimated_hours || 1}h</span>
-                            <span class="slc-path-meta-item">${_icon('steps')} ${stepsCount} 步</span>
+                            <span class="slc-path-meta-item">${_icon('steps')} ${stepsCount}${i18n.t('slc.steps')}</span>
                         </div>
                         <button class="slc-path-card__toggle" id="toggleBtn-${p.id}">▼</button>
                     </div>
@@ -808,20 +818,20 @@ window.slc = (() => {
             if (!container) return;
 
             if (!steps.length) {
-                container.innerHTML = '<div style="padding:16px;color:var(--slc-text-secondary)">暫無步驟</div>';
+                container.innerHTML = `<div style="padding:16px;color:var(--slc-text-secondary)">${i18n.t('slc.noSteps')}</div>`;
                 return;
             }
 
             container.innerHTML = `<div class="slc-step-timeline">${steps.map(s => {
                 const contentLink = s.content_id
                     ? `<a class="slc-step-item__link" onclick="event.stopPropagation(); slc.openContent(${s.content_id}, '${s.content_type || 'document'}', ${s.anchor?.type === 'page' ? s.anchor.value : 0})">
-                        ${_icon('clip')} ${_escHtml(s.content_title || '查看資源')}
-                        ${s.anchor?.type === 'page' ? ` (第${s.anchor.value}頁)` : ''}
+                        ${_icon('clip')} ${_escHtml(s.content_title || i18n.t('slc.viewResource'))}
+                        ${s.anchor?.type === 'page' ? ` (${i18n.t('slc.pageNum', {page: s.anchor.value})})` : ''}
                        </a>`
                     : '';
                 const nodeLink = s.node_id
                     ? `<a class="slc-step-item__link slc-step-item__link--node" onclick="event.stopPropagation(); slc.focusNode(${s.node_id})">
-                        ${_icon('node')} 查看知識點
+                        ${_icon('node')} ${i18n.t('slc.viewNode')}
                        </a>`
                     : '';
                 return `
@@ -835,7 +845,7 @@ window.slc = (() => {
 
         showPathLoading() {
             const list = document.getElementById('pathList');
-            if (list) list.innerHTML = '<div class="slc-loading"><div class="slc-loading__spinner"></div><div>加載學習路徑...</div></div>';
+            if (list) list.innerHTML = '<div class="slc-loading"><div class="slc-loading__spinner"></div><div>' + i18n.t('slc.loadingPaths') + '</div></div>';
         },
 
         // --- AI 聊天 ---
@@ -892,7 +902,7 @@ window.slc = (() => {
             const total = stats.total_contents || 0;
             const nodes = stats.total_nodes || 0;
             const paths = stats.total_paths || 0;
-            el.textContent = `${total} 資源 · ${nodes} 知識點 · ${paths} 路徑`;
+            el.textContent = `${total}${i18n.t('slc.statsResources')} · ${nodes}${i18n.t('slc.statsNodes')} · ${paths}${i18n.t('slc.statsPaths')}`;
         },
     };
 
@@ -918,7 +928,7 @@ window.slc = (() => {
             if (label) {
                 label.innerHTML = state.currentSubject
                     ? `${_safeIcon(state.currentSubject.icon, 'books')} ${_escHtml(state.currentSubject.subject_name)}`
-                    : '— 未選科目 —';
+                    : i18n.t('slc.noSubject');
             }
         },
 
@@ -926,7 +936,7 @@ window.slc = (() => {
             const el = document.getElementById('slcContentsList');
             if (!el) return;
             if (!items || !items.length) {
-                el.innerHTML = '<div class="slc-admin-empty">該科目暫無內容</div>';
+                el.innerHTML = `<div class="slc-admin-empty">${i18n.t('slc.noAdminContent')}</div>`;
                 return;
             }
             const typeLabel = { document: _icon('doc'), video_local: _icon('video'), video_external: _icon('link'), article: _icon('article'), image: _icon('image') };
@@ -934,10 +944,10 @@ window.slc = (() => {
                 <div class="slc-admin-list-item">
                     <div class="slc-admin-list-item__info">
                         <div class="slc-admin-list-item__title">${typeLabel[c.content_type] || _icon('doc')} ${_escHtml(c.title)}</div>
-                        <div class="slc-admin-list-item__meta">${c.grade_level || '通用'} · ${c.content_type} · ${_icon('eye')} ${c.view_count || 0}</div>
+                        <div class="slc-admin-list-item__meta">${c.grade_level ? _gradeDisplay(c.grade_level) : i18n.t('slc.general')} · ${c.content_type} · ${_icon('eye')} ${c.view_count || 0}</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
-                        <button class="slc-admin-btn --danger --sm" onclick="slc.deleteContent(${c.id}, '${_escHtml(c.title).replace(/'/g, "\\'")}')">刪除</button>
+                        <button class="slc-admin-btn --danger --sm" onclick="slc.deleteContent(${c.id}, '${_escHtml(c.title).replace(/'/g, "\\'")}')">${i18n.t('slc.delete')}</button>
                     </div>
                 </div>
             `).join('');
@@ -947,7 +957,7 @@ window.slc = (() => {
             const el = document.getElementById('slcNodesList');
             if (!el) return;
             if (!nodes || !nodes.length) {
-                el.innerHTML = '<div class="slc-admin-empty">暫無知識節點</div>';
+                el.innerHTML = `<div class="slc-admin-empty">${i18n.t('slc.noAdminNodes')}</div>`;
                 return;
             }
             el.innerHTML = nodes.map(n => `
@@ -957,7 +967,7 @@ window.slc = (() => {
                         <div class="slc-admin-list-item__meta">${_escHtml(n.description || '').substring(0, 50)}</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
-                        <button class="slc-admin-btn --danger --sm" onclick="slc.deleteNode(${n.id})">刪除</button>
+                        <button class="slc-admin-btn --danger --sm" onclick="slc.deleteNode(${n.id})">${i18n.t('slc.delete')}</button>
                     </div>
                 </div>
             `).join('');
@@ -972,7 +982,7 @@ window.slc = (() => {
             [source, target].forEach(sel => {
                 if (!sel) return;
                 const val = sel.value;
-                sel.innerHTML = '<option value="">選擇知識點</option>';
+                sel.innerHTML = `<option value="">${i18n.t('slc.selectNodeOption')}</option>`;
                 nodes.forEach(n => {
                     sel.innerHTML += `<option value="${n.id}">${_escHtml(n.title)}</option>`;
                 });
@@ -984,18 +994,18 @@ window.slc = (() => {
             const el = document.getElementById('slcPathsList');
             if (!el) return;
             if (!paths || !paths.length) {
-                el.innerHTML = '<div class="slc-admin-empty">暫無學習路徑</div>';
+                el.innerHTML = `<div class="slc-admin-empty">${i18n.t('slc.noAdminPaths')}</div>`;
                 return;
             }
-            const diffLabel = { beginner: '入門', intermediate: '進階', advanced: '高級' };
+            const diffLabel = { beginner: i18n.t('slc.diffBegLabel'), intermediate: i18n.t('slc.diffIntLabel'), advanced: i18n.t('slc.diffAdvLabel') };
             el.innerHTML = paths.map(p => `
                 <div class="slc-admin-list-item">
                     <div class="slc-admin-list-item__info">
                         <div class="slc-admin-list-item__title">${_safeIcon(p.icon, 'target')} ${_escHtml(p.title)}</div>
-                        <div class="slc-admin-list-item__meta">${diffLabel[p.difficulty] || p.difficulty} · ${p.estimated_hours || 1}h · ${(p.steps || []).length} 步</div>
+                        <div class="slc-admin-list-item__meta">${diffLabel[p.difficulty] || p.difficulty} · ${p.estimated_hours || 1}h · ${(p.steps || []).length}${i18n.t('slc.steps')}</div>
                     </div>
                     <div class="slc-admin-list-item__actions">
-                        <button class="slc-admin-btn --danger --sm" onclick="slc.deletePath(${p.id})">刪除</button>
+                        <button class="slc-admin-btn --danger --sm" onclick="slc.deletePath(${p.id})">${i18n.t('slc.delete')}</button>
                     </div>
                 </div>
             `).join('');
@@ -1381,7 +1391,7 @@ window.slc = (() => {
                 case 'document': {
                     const fileUrl = _getFileUrl(data);
                     if (!fileUrl) {
-                        bodyEl.innerHTML = '<p class="slc-ebook-error" style="padding:20px;">無法載入文件</p>';
+                        bodyEl.innerHTML = `<p class="slc-ebook-error" style="padding:20px;">${i18n.t('slc.cannotLoadFile')}</p>`;
                         break;
                     }
                     const isPdf = (data.mime_type || '').includes('pdf')
@@ -1394,7 +1404,7 @@ window.slc = (() => {
                         bodyEl.innerHTML = `
                             <iframe src="${_escHtml(fileUrl)}" style="width:100%;height:80vh;border:none;"></iframe>
                             <div style="text-align:center;margin-top:8px;">
-                                <a href="${_escHtml(fileUrl)}" download="${_escHtml(data.title || 'download')}" style="color:var(--slc-primary);">下載文件</a>
+                                <a href="${_escHtml(fileUrl)}" download="${_escHtml(data.title || 'download')}" style="color:var(--slc-primary);">${i18n.t('slc.downloadFile')}</a>
                             </div>`;
                     }
                     break;
@@ -1409,7 +1419,7 @@ window.slc = (() => {
                             </iframe>
                         </div>`;
                     } else {
-                        bodyEl.innerHTML = `<p>外部視頻連結：<a href="${_escHtml(data.external_url || '')}" target="_blank" rel="noopener">${_escHtml(data.external_url || '無連結')}</a></p>`;
+                        bodyEl.innerHTML = `<p>${i18n.t('slc.externalVideoLink')}<a href="${_escHtml(data.external_url || '')}" target="_blank" rel="noopener">${_escHtml(data.external_url || i18n.t('slc.noLink'))}</a></p>`;
                     }
                     break;
                 }
@@ -1418,10 +1428,10 @@ window.slc = (() => {
                     if (fileUrl) {
                         bodyEl.innerHTML = `<video class="slc-ebook-video" controls>
                             <source src="${_escHtml(fileUrl)}" type="${data.mime_type || 'video/mp4'}">
-                            瀏覽器不支持視頻播放
+                            ${i18n.t('slc.browserNoVideo')}
                         </video>`;
                     } else {
-                        bodyEl.innerHTML = '<p class="slc-ebook-error">無法載入視頻</p>';
+                        bodyEl.innerHTML = `<p class="slc-ebook-error">${i18n.t('slc.cannotLoadVideo')}</p>`;
                     }
                     break;
                 }
@@ -1432,7 +1442,7 @@ window.slc = (() => {
                         const clean = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
                         bodyEl.innerHTML = `<div class="slc-ebook-article">${clean}</div>`;
                     } else {
-                        bodyEl.innerHTML = `<div class="slc-ebook-article">${_escHtml(articleContent) || '<p>暫無內容</p>'}</div>`;
+                        bodyEl.innerHTML = `<div class="slc-ebook-article">${_escHtml(articleContent) || '<p>' + i18n.t('slc.noContent') + '</p>'}</div>`;
                     }
                     break;
                 }
@@ -1441,16 +1451,16 @@ window.slc = (() => {
                     if (fileUrl) {
                         bodyEl.innerHTML = `<img class="slc-ebook-image" src="${_escHtml(fileUrl)}" alt="${_escHtml(data.title || '')}" />`;
                     } else {
-                        bodyEl.innerHTML = '<p class="slc-ebook-error">無法載入圖片</p>';
+                        bodyEl.innerHTML = `<p class="slc-ebook-error">${i18n.t('slc.cannotLoadImage')}</p>`;
                     }
                     break;
                 }
                 default: {
                     const fileUrl = _getFileUrl(data);
                     if (fileUrl) {
-                        bodyEl.innerHTML = `<p>檔案：<a href="${_escHtml(fileUrl)}" target="_blank" rel="noopener">${_escHtml(data.title || '下載')}</a></p>`;
+                        bodyEl.innerHTML = `<p>${i18n.t('slc.file')}<a href="${_escHtml(fileUrl)}" target="_blank" rel="noopener">${_escHtml(data.title || i18n.t('slc.download'))}</a></p>`;
                     } else {
-                        bodyEl.innerHTML = `<div style="padding:20px;">${_escHtml(data.description || '暫無描述')}</div>`;
+                        bodyEl.innerHTML = `<div style="padding:20px;">${_escHtml(data.description || i18n.t('slc.noDescription'))}</div>`;
                     }
                 }
             }
@@ -1478,9 +1488,9 @@ window.slc = (() => {
             if (!win) return;
             const isVisible = win.classList.toggle('--visible');
             if (isVisible) {
-                const subjectName = state.currentSubject?.subject_name || '學習';
+                const subjectName = state.currentSubject?.subject_name || i18n.t('slc.learning');
                 if (!state.aiMessages.length) {
-                    UI.addAIMessage('assistant', `你好！我是 ${subjectName} 科目的 AI 助教，有什麼可以幫你的嗎？`);
+                    UI.addAIMessage('assistant', i18n.t('slc.aiWelcome', {subject: subjectName}));
                 }
                 document.getElementById('aiInput')?.focus();
             }
@@ -1493,7 +1503,7 @@ window.slc = (() => {
             const btn = document.getElementById('aiExpandBtn');
             if (btn) {
                 btn.innerHTML = isExpanded ? '&#9635;' : '&#9634;';
-                btn.title = isExpanded ? '縮小' : '放大';
+                btn.title = isExpanded ? i18n.t('slc.shrink') : i18n.t('slc.enlarge');
             }
         },
 
@@ -1566,7 +1576,7 @@ window.slc = (() => {
                         html = _linkifyPageReferences(html);
                         bubble.innerHTML = html;
                     } else {
-                        bubble.innerHTML = '抱歉，暫時無法回答此問題。';
+                        bubble.innerHTML = i18n.t('slc.aiNoAnswer');
                     }
                 }
 
@@ -1581,7 +1591,7 @@ window.slc = (() => {
             } catch (e) {
                 console.error('AI 回答錯誤:', e);
                 if (bubble) {
-                    bubble.innerHTML = 'AI 助教暫時無法回答，請稍後再試。';
+                    bubble.innerHTML = i18n.t('slc.aiError');
                 }
             }
 
@@ -1700,7 +1710,7 @@ window.slc = (() => {
         async submitContent() {
             const subjectCode = state.currentSubject?.subject_code;
             if (!subjectCode) {
-                AdminUI.showToast('請先選擇一個科目', 'error');
+                AdminUI.showToast(i18n.t('slc.selectSubjectFirst'), 'error');
                 return;
             }
 
@@ -1710,7 +1720,7 @@ window.slc = (() => {
             const grade = document.getElementById('slcContentGrade')?.value || '';
 
             if (!title) {
-                AdminUI.showToast('請輸入標題', 'error');
+                AdminUI.showToast(i18n.t('slc.enterTitle'), 'error');
                 return;
             }
 
@@ -1719,7 +1729,7 @@ window.slc = (() => {
                     const extUrl = document.getElementById('slcExternalUrl')?.value.trim();
                     const platform = document.getElementById('slcVideoPlatform')?.value || '';
                     if (!extUrl) {
-                        AdminUI.showToast('請輸入視頻連結', 'error');
+                        AdminUI.showToast(i18n.t('slc.enterVideoUrl'), 'error');
                         return;
                     }
                     const formData = new FormData();
@@ -1734,11 +1744,11 @@ window.slc = (() => {
 
                     const r = await API.adminUpload(formData);
                     if (r.success) {
-                        AdminUI.showToast('視頻連結上傳成功', 'success');
+                        AdminUI.showToast(i18n.t('slc.videoUploadSuccess'), 'success');
                         App._resetUploadForm();
                         App.loadCurrentTab();
                     } else {
-                        AdminUI.showToast(r.message || '上傳失敗', 'error');
+                        AdminUI.showToast(r.message || i18n.t('slc.uploadFailed'), 'error');
                     }
                 } else if (contentType === 'article') {
                     const articleContent = document.getElementById('slcArticleContent')?.value.trim() || '';
@@ -1750,16 +1760,16 @@ window.slc = (() => {
 
                     const r = await API.adminCreateContent(body);
                     if (r.success) {
-                        AdminUI.showToast('文章創建成功', 'success');
+                        AdminUI.showToast(i18n.t('slc.articleCreateSuccess'), 'success');
                         App._resetUploadForm();
                         App.loadCurrentTab();
                     } else {
-                        AdminUI.showToast(r.message || '創建失敗', 'error');
+                        AdminUI.showToast(r.message || i18n.t('slc.createFailed'), 'error');
                     }
                 } else {
                     // 文件上傳
                     if (!state.uploadFile) {
-                        AdminUI.showToast('請選擇文件', 'error');
+                        AdminUI.showToast(i18n.t('slc.selectFile'), 'error');
                         return;
                     }
                     const formData = new FormData();
@@ -1773,16 +1783,16 @@ window.slc = (() => {
 
                     const r = await API.adminUpload(formData);
                     if (r.success) {
-                        AdminUI.showToast(`${state.uploadFile.name} 上傳成功`, 'success');
+                        AdminUI.showToast(i18n.t('slc.uploadSuccess', {name: state.uploadFile.name}), 'success');
                         App._resetUploadForm();
                         App.loadCurrentTab();
                     } else {
-                        AdminUI.showToast(r.message || '上傳失敗', 'error');
+                        AdminUI.showToast(r.message || i18n.t('slc.uploadFailed'), 'error');
                     }
                 }
             } catch (e) {
                 console.error('上傳失敗:', e);
-                AdminUI.showToast('上傳失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.uploadFailed'), 'error');
             }
         },
 
@@ -1807,18 +1817,18 @@ window.slc = (() => {
         },
 
         async deleteContent(id, title) {
-            if (!confirm(`確定要刪除「${title}」嗎？`)) return;
+            if (!confirm(i18n.t('slc.confirmDelete', {title}))) return;
             try {
                 const r = await API.adminDeleteContent(id);
                 if (r.success) {
-                    AdminUI.showToast('已刪除', 'success');
+                    AdminUI.showToast(i18n.t('slc.deleted'), 'success');
                     App._loadAdminContents();
                     App.loadCurrentTab();
                 } else {
-                    AdminUI.showToast(r.message || '刪除失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.deleteFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('刪除失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.deleteFailed'), 'error');
             }
         },
 
@@ -1836,13 +1846,13 @@ window.slc = (() => {
 
         async submitNode() {
             const subjectCode = state.currentSubject?.subject_code;
-            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+            if (!subjectCode) { AdminUI.showToast(i18n.t('slc.selectSubject'), 'error'); return; }
 
             const title = document.getElementById('slcNodeTitle')?.value.trim();
             const desc = document.getElementById('slcNodeDesc')?.value.trim() || '';
             const grade = document.getElementById('slcNodeGrade')?.value || '';
 
-            if (!title) { AdminUI.showToast('請輸入知識點名稱', 'error'); return; }
+            if (!title) { AdminUI.showToast(i18n.t('slc.enterNodeName'), 'error'); return; }
 
             try {
                 const body = { title, description: desc, subject_code: subjectCode };
@@ -1850,16 +1860,16 @@ window.slc = (() => {
 
                 const r = await API.adminCreateNode(body);
                 if (r.success) {
-                    AdminUI.showToast('知識節點已創建', 'success');
+                    AdminUI.showToast(i18n.t('slc.nodeCreated'), 'success');
                     document.getElementById('slcNodeTitle').value = '';
                     document.getElementById('slcNodeDesc').value = '';
                     App._loadAdminNodes();
                     if (state.currentTab === 'map') App.loadCurrentTab();
                 } else {
-                    AdminUI.showToast(r.message || '創建失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.createFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('創建失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.createFailed'), 'error');
             }
         },
 
@@ -1868,7 +1878,7 @@ window.slc = (() => {
             const targetId = document.getElementById('slcEdgeTarget')?.value;
             const relType = document.getElementById('slcEdgeType')?.value.trim() || 'related';
 
-            if (!sourceId || !targetId) { AdminUI.showToast('請選擇來源和目標節點', 'error'); return; }
+            if (!sourceId || !targetId) { AdminUI.showToast(i18n.t('slc.selectSourceTarget'), 'error'); return; }
 
             try {
                 const body = {
@@ -1882,57 +1892,57 @@ window.slc = (() => {
 
                 const r = await API.adminCreateEdge(body);
                 if (r.success) {
-                    AdminUI.showToast('連接已建立', 'success');
+                    AdminUI.showToast(i18n.t('slc.connectionCreated'), 'success');
                     document.getElementById('slcEdgeType').value = 'related';
                     if (state.currentTab === 'map') App.loadCurrentTab();
                 } else {
-                    AdminUI.showToast(r.message || '建立連接失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.connectionFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('建立連接失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.connectionFailed'), 'error');
             }
         },
 
         async deleteNode(id) {
-            if (!confirm('確定要刪除此知識節點嗎？')) return;
+            if (!confirm(i18n.t('slc.confirmDeleteNode'))) return;
             try {
                 const r = await API.adminDeleteNode(id);
                 if (r.success) {
-                    AdminUI.showToast('節點已刪除', 'success');
+                    AdminUI.showToast(i18n.t('slc.nodeDeleted'), 'success');
                     App._loadAdminNodes();
                     if (state.currentTab === 'map') App.loadCurrentTab();
                 } else {
-                    AdminUI.showToast(r.message || '刪除失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.deleteFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('刪除失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.deleteFailed'), 'error');
             }
         },
 
         async submitBatchNodes() {
             const subjectCode = state.currentSubject?.subject_code;
-            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+            if (!subjectCode) { AdminUI.showToast(i18n.t('slc.selectSubject'), 'error'); return; }
 
             const jsonStr = document.getElementById('slcBatchNodeJson')?.value.trim();
             const grade = document.getElementById('slcBatchNodeGrade')?.value || '';
             const clearExisting = document.getElementById('slcBatchClear')?.checked || false;
             const resultEl = document.getElementById('slcBatchNodeResult');
 
-            if (!jsonStr) { AdminUI.showToast('請輸入 JSON 數據', 'error'); return; }
+            if (!jsonStr) { AdminUI.showToast(i18n.t('slc.enterJson'), 'error'); return; }
 
             let payload;
             try { payload = JSON.parse(jsonStr); } catch (e) {
-                AdminUI.showToast('JSON 格式無效', 'error');
-                if (resultEl) { resultEl.style.display = 'block'; resultEl.style.background = '#fce4ec'; resultEl.textContent = `JSON 解析失敗: ${e.message}`; }
+                AdminUI.showToast(i18n.t('slc.invalidJson'), 'error');
+                if (resultEl) { resultEl.style.display = 'block'; resultEl.style.background = '#fce4ec'; resultEl.textContent = i18n.t('slc.jsonParseFailed', {message: e.message}); }
                 return;
             }
 
             if (!payload.nodes || !Array.isArray(payload.nodes) || !payload.nodes.length) {
-                AdminUI.showToast('JSON 中必須包含 nodes 陣列', 'error');
+                AdminUI.showToast(i18n.t('slc.jsonNeedNodes'), 'error');
                 return;
             }
 
-            if (clearExisting && !confirm('確定清空該科目所有知識點嗎？')) return;
+            if (clearExisting && !confirm(i18n.t('slc.confirmClearNodes'))) return;
 
             payload.clear_existing = clearExisting;
             if (!payload.edges) payload.edges = [];
@@ -1946,17 +1956,17 @@ window.slc = (() => {
                     if (resultEl) {
                         resultEl.style.display = 'block';
                         resultEl.style.background = '#e8f5e9';
-                        resultEl.innerHTML = `<strong>✅ 導入完成</strong><br>建立 ${d.created_nodes || 0} 節點、${d.created_edges || 0} 連接`;
+                        resultEl.innerHTML = `<strong>✅ ${i18n.t('slc.importDone')}</strong><br>${i18n.t('slc.importNodes', {nodes: d.created_nodes || 0, edges: d.created_edges || 0})}`;
                     }
-                    AdminUI.showToast('批量導入成功', 'success');
+                    AdminUI.showToast(i18n.t('slc.batchImportSuccess'), 'success');
                     App._loadAdminNodes();
                     // Switch to knowledge map tab to show results
                     App.switchTab('map');
                 } else {
-                    AdminUI.showToast(r.message || '導入失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.importFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('導入失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.importFailed'), 'error');
             }
         },
 
@@ -1973,7 +1983,7 @@ window.slc = (() => {
 
         async submitPath() {
             const subjectCode = state.currentSubject?.subject_code;
-            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+            if (!subjectCode) { AdminUI.showToast(i18n.t('slc.selectSubject'), 'error'); return; }
 
             const title = document.getElementById('slcPathTitle')?.value.trim();
             const desc = document.getElementById('slcPathDesc')?.value.trim() || '';
@@ -1981,7 +1991,7 @@ window.slc = (() => {
             const hours = parseFloat(document.getElementById('slcPathHours')?.value) || 1;
             const grade = document.getElementById('slcPathGrade')?.value || '';
 
-            if (!title) { AdminUI.showToast('請輸入路徑標題', 'error'); return; }
+            if (!title) { AdminUI.showToast(i18n.t('slc.enterPathTitle'), 'error'); return; }
 
             try {
                 const body = { title, description: desc, difficulty, estimated_hours: hours, subject_code: subjectCode };
@@ -1989,56 +1999,56 @@ window.slc = (() => {
 
                 const r = await API.adminCreatePath(body);
                 if (r.success) {
-                    AdminUI.showToast('學習路徑已創建', 'success');
+                    AdminUI.showToast(i18n.t('slc.pathCreated'), 'success');
                     document.getElementById('slcPathTitle').value = '';
                     document.getElementById('slcPathDesc').value = '';
                     App._loadAdminPaths();
                     if (state.currentTab === 'paths') App.loadCurrentTab();
                 } else {
-                    AdminUI.showToast(r.message || '創建失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.createFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('創建失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.createFailed'), 'error');
             }
         },
 
         async deletePath(id) {
-            if (!confirm('確定要刪除此學習路徑嗎？')) return;
+            if (!confirm(i18n.t('slc.confirmDeletePath'))) return;
             try {
                 const r = await API.adminDeletePath(id);
                 if (r.success) {
-                    AdminUI.showToast('路徑已刪除', 'success');
+                    AdminUI.showToast(i18n.t('slc.pathDeleted'), 'success');
                     App._loadAdminPaths();
                     if (state.currentTab === 'paths') App.loadCurrentTab();
                 } else {
-                    AdminUI.showToast(r.message || '刪除失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.deleteFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('刪除失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.deleteFailed'), 'error');
             }
         },
 
         async submitBatchPaths() {
             const subjectCode = state.currentSubject?.subject_code;
-            if (!subjectCode) { AdminUI.showToast('請先選科目', 'error'); return; }
+            if (!subjectCode) { AdminUI.showToast(i18n.t('slc.selectSubject'), 'error'); return; }
 
             const jsonStr = document.getElementById('slcBatchPathJson')?.value.trim();
             const grade = document.getElementById('slcBatchPathGrade')?.value || '';
             const resultEl = document.getElementById('slcBatchPathResult');
 
-            if (!jsonStr) { AdminUI.showToast('請輸入 JSON 數據', 'error'); return; }
+            if (!jsonStr) { AdminUI.showToast(i18n.t('slc.enterJson'), 'error'); return; }
 
             let parsed;
             try { parsed = JSON.parse(jsonStr); } catch (e) {
-                AdminUI.showToast('JSON 格式無效', 'error');
-                if (resultEl) { resultEl.style.display = 'block'; resultEl.style.background = '#fce4ec'; resultEl.textContent = `JSON 解析失敗: ${e.message}`; }
+                AdminUI.showToast(i18n.t('slc.invalidJson'), 'error');
+                if (resultEl) { resultEl.style.display = 'block'; resultEl.style.background = '#fce4ec'; resultEl.textContent = i18n.t('slc.jsonParseFailed', {message: e.message}); }
                 return;
             }
 
             // Support both array and {paths:[...]} wrapper format
             const paths = Array.isArray(parsed) ? parsed : (parsed.paths || []);
             if (!paths.length) {
-                AdminUI.showToast('JSON 中未找到路徑數據（支持陣列或含 paths 欄位的對象）', 'error');
+                AdminUI.showToast(i18n.t('slc.jsonNoPathData'), 'error');
                 return;
             }
 
@@ -2052,17 +2062,17 @@ window.slc = (() => {
                     if (resultEl) {
                         resultEl.style.display = 'block';
                         resultEl.style.background = '#e8f5e9';
-                        resultEl.innerHTML = `<strong>✅ 導入完成</strong><br>建立 ${d.created_paths || d.created || 0} 條路徑`;
+                        resultEl.innerHTML = `<strong>✅ ${i18n.t('slc.importDone')}</strong><br>${i18n.t('slc.importPathsDone', {count: d.created_paths || d.created || 0})}`;
                     }
-                    AdminUI.showToast('批量導入成功', 'success');
+                    AdminUI.showToast(i18n.t('slc.batchImportSuccess'), 'success');
                     App._loadAdminPaths();
                     // Switch to paths tab to show results
                     App.switchTab('paths');
                 } else {
-                    AdminUI.showToast(r.message || '導入失敗', 'error');
+                    AdminUI.showToast(r.message || i18n.t('slc.importFailed'), 'error');
                 }
             } catch (e) {
-                AdminUI.showToast('導入失敗', 'error');
+                AdminUI.showToast(i18n.t('slc.importFailed'), 'error');
             }
         },
     };
@@ -2100,23 +2110,23 @@ window.slc = (() => {
         container.innerHTML = `
             <div class="slc-pdf-viewer">
                 <div class="slc-pdf-toolbar">
-                    <button class="slc-pdf-btn" data-action="prev" title="上一頁">◀</button>
+                    <button class="slc-pdf-btn" data-action="prev" title="${i18n.t('slc.prevPage')}">◀</button>
                     <span class="slc-pdf-page-info">
                         <input class="slc-pdf-page-input" type="number" min="1" value="1" />
                         <span>/ <span class="slc-pdf-total">-</span></span>
                     </span>
-                    <button class="slc-pdf-btn" data-action="next" title="下一頁">▶</button>
+                    <button class="slc-pdf-btn" data-action="next" title="${i18n.t('slc.nextPage')}">▶</button>
                     <span class="slc-pdf-separator"></span>
-                    <button class="slc-pdf-btn" data-action="zoomout" title="縮小">−</button>
+                    <button class="slc-pdf-btn" data-action="zoomout" title="${i18n.t('slc.zoomOut')}">−</button>
                     <span class="slc-pdf-zoom-label">100%</span>
-                    <button class="slc-pdf-btn" data-action="zoomin" title="放大">+</button>
+                    <button class="slc-pdf-btn" data-action="zoomin" title="${i18n.t('slc.zoomIn')}">+</button>
                     <span class="slc-pdf-separator"></span>
-                    <a href="${_escHtml(fileUrl)}" class="slc-pdf-btn" download="${_escHtml((content && content.title) || 'download')}" title="下載">${_icon('download', 16)}</a>
+                    <a href="${_escHtml(fileUrl)}" class="slc-pdf-btn" download="${_escHtml((content && content.title) || 'download')}" title="${i18n.t('slc.downloadFile')}">${_icon('download', 16)}</a>
                 </div>
                 <div class="slc-pdf-scroll-area">
                     <div class="slc-pdf-pages"></div>
                 </div>
-                <div class="slc-pdf-loading">載入 PDF 中...</div>
+                <div class="slc-pdf-loading">${i18n.t('slc.pdfLoading')}</div>
             </div>`;
 
         const viewer = container.querySelector('.slc-pdf-viewer');
@@ -2136,7 +2146,7 @@ window.slc = (() => {
             pdfDoc = await pdfjsLib.getDocument(fileUrl).promise;
         } catch (err) {
             console.error('[PDF.js] Failed to load:', err);
-            loadingEl.textContent = 'PDF 載入失敗';
+            loadingEl.textContent = i18n.t('slc.pdfLoadFailed');
             return;
         }
 
@@ -2315,7 +2325,7 @@ window.slc = (() => {
             (match, pages) => {
                 const firstPage = parseInt(pages.replace(/[、\u2013\-]/g, ',').split(',')[0], 10);
                 if (isNaN(firstPage)) return match;
-                return `<span class="slc-ai-page-ref" data-page="${firstPage}" title="跳轉到第${firstPage}頁">${match}</span>`;
+                return `<span class="slc-ai-page-ref" data-page="${firstPage}" title="${i18n.t('slc.jumpToPage', {page: firstPage})}">${match}</span>`;
             }
         );
     }
@@ -2326,9 +2336,9 @@ window.slc = (() => {
         if (!indicator) return;
         if (state.currentContentId && state.currentContentTitle) {
             indicator.innerHTML = `
-                <span class="slc-ai-content-context__label">${_icon('doc')} 正在查看：</span>
+                <span class="slc-ai-content-context__label">${_icon('doc')} ${i18n.t('slc.viewing')}</span>
                 <span class="slc-ai-content-context__title">${_escHtml(state.currentContentTitle)}</span>
-                <button class="slc-ai-content-context__clear" onclick="slc.clearContentContext()" title="取消關聯">${_icon('close', 12)}</button>
+                <button class="slc-ai-content-context__clear" onclick="slc.clearContentContext()" title="${i18n.t('slc.cancelLink')}">${_icon('close', 12)}</button>
             `;
             indicator.style.display = 'flex';
         } else {
@@ -2357,11 +2367,11 @@ window.slc = (() => {
         const refsDiv = document.createElement('div');
         refsDiv.className = 'slc-ai-page-refs';
         refsDiv.innerHTML = `
-            <div class="slc-ai-page-refs__label">${_icon('book')} 相關頁面：</div>
+            <div class="slc-ai-page-refs__label">${_icon('book')} ${i18n.t('slc.relatedPages')}</div>
             <div class="slc-ai-page-refs__buttons">
                 ${uniqueRefs.map(ref => {
                     const page = ref.page || ref.page_number;
-                    return `<button class="slc-ai-page-ref-btn" data-page="${page}" title="${_escHtml(ref.snippet || '')}">第 ${page} 頁</button>`;
+                    return `<button class="slc-ai-page-ref-btn" data-page="${page}" title="${_escHtml(ref.snippet || '')}">${i18n.t('slc.pageNum', {page})}</button>`;
                 }).join('')}
             </div>
         `;
@@ -2377,7 +2387,7 @@ window.slc = (() => {
         const nodesDiv = document.createElement('div');
         nodesDiv.className = 'slc-ai-related-nodes';
         nodesDiv.innerHTML = `
-            <div class="slc-ai-related-nodes__label">${_icon('link')} 相關知識點：</div>
+            <div class="slc-ai-related-nodes__label">${_icon('link')} ${i18n.t('slc.relatedNodesLabel')}</div>
             <div class="slc-ai-related-nodes__list">
                 ${nodes.map(n => `<button class="slc-ai-node-chip" data-node-id="${n.id}" title="${_escHtml(n.title)}">${_safeIcon(n.icon, 'pin')} ${_escHtml(n.title)}</button>`).join('')}
             </div>
@@ -2389,7 +2399,7 @@ window.slc = (() => {
     function _navigatePdfToPage(pageNum) {
         if (state.pdfGoToPage) {
             state.pdfGoToPage(pageNum);
-            AdminUI.showToast(`已跳轉到第 ${pageNum} 頁`, 'info');
+            AdminUI.showToast(i18n.t('slc.jumpedToPage', {page: pageNum}), 'info');
             return;
         }
         // Fallback: 嘗試找到 PDF 容器中的頁面元素（內嵌查看器）
@@ -2398,11 +2408,11 @@ window.slc = (() => {
             const target = container.querySelector(`[data-page="${pageNum}"]`);
             if (target) {
                 target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                AdminUI.showToast(`已跳轉到第 ${pageNum} 頁`, 'info');
+                AdminUI.showToast(i18n.t('slc.jumpedToPage', {page: pageNum}), 'info');
                 return;
             }
         }
-        AdminUI.showToast('請先打開 PDF 文檔', 'info');
+        AdminUI.showToast(i18n.t('slc.openPdfFirst'), 'info');
     }
 
     function _escHtml(str) {

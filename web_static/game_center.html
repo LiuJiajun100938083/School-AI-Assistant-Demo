@@ -17,8 +17,8 @@
                     <rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><path d="M15 10l2 2-2 2"/><path d="M17 10l2 2-2 2"/>
                 </svg>
             </div>
-            <div class="splash-title">遊戲中心</div>
-            <div class="splash-subtitle">寓教於樂，輕鬆學習</div>
+            <div class="splash-title" data-i18n="gc.splashTitle">遊戲中心</div>
+            <div class="splash-subtitle" data-i18n="gc.splashSubtitle">寓教於樂，輕鬆學習</div>
             <div class="splash-loader">
                 <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
             </div>
@@ -35,35 +35,35 @@
             <div class="gc-header-left">
                 <button class="gc-back-btn" id="backBtn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                    <span class="back-text">返回</span>
+                    <span class="back-text" data-i18n="gc.back">返回</span>
                 </button>
                 <div class="gc-logo">
                     <svg class="logo-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                         <rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><path d="M15 10l2 2-2 2"/>
                     </svg>
-                    <span class="logo-text">遊戲中心</span>
+                    <span class="logo-text" data-i18n="gc.headerTitle">遊戲中心</span>
                 </div>
             </div>
             <div class="gc-header-center">
                 <div class="gc-search-box">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" id="gameSearch" placeholder="搜尋遊戲..." autocomplete="off">
+                    <input type="text" id="gameSearch" data-i18n-placeholder="gc.searchPlaceholder" placeholder="搜尋遊戲..." autocomplete="off">
                 </div>
             </div>
             <div class="gc-header-right">
                 <div class="gc-teacher-actions" id="teacherActions" style="display:none;">
                     <a href="/my_games" class="gc-action-btn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        我的遊戲
+                        <span data-i18n="gc.myGames">我的遊戲</span>
                     </a>
                     <a href="/game_upload" class="gc-action-btn gc-action-primary">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        上傳
+                        <span data-i18n="gc.upload">上傳</span>
                     </a>
                 </div>
                 <div class="gc-user-info" id="userInfo">
                     <div class="gc-user-avatar" id="userAvatar">U</div>
-                    <span class="gc-user-name" id="userName">訪客</span>
+                    <span class="gc-user-name" id="userName" data-i18n="gc.guest">訪客</span>
                 </div>
             </div>
         </header>
@@ -87,17 +87,17 @@
             <!-- 空状态 -->
             <div class="gc-empty-state" id="emptyState" style="display: none;">
                 <svg class="empty-icon-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/></svg>
-                <div class="empty-title">未找到遊戲</div>
-                <div class="empty-desc">嘗試其他搜尋關鍵字或選擇不同科目</div>
+                <div class="empty-title" data-i18n="gc.emptyTitle">未找到遊戲</div>
+                <div class="empty-desc" data-i18n="gc.emptyDesc">嘗試其他搜尋關鍵字或選擇不同科目</div>
             </div>
         </main>
 
         <!-- 底部信息 -->
         <footer class="gc-footer">
             <div class="footer-content">
-                <span>培僑中學 AI學習夥伴</span>
+                <span data-i18n="gc.footerSchool">培僑中學 AI學習夥伴</span>
                 <span class="footer-divider">|</span>
-                <span>遊戲中心 v3.0</span>
+                <span data-i18n="gc.footerVersion">遊戲中心 v3.0</span>
             </div>
         </footer>
     </div>
@@ -106,25 +106,25 @@
     <div class="gc-share-overlay" id="gcShareModal" style="display:none;">
         <div class="gc-share-modal">
             <div class="gc-share-header">
-                <span class="gc-share-title" id="gcShareTitle">分享遊戲</span>
+                <span class="gc-share-title" id="gcShareTitle" data-i18n="gc.shareTitle">分享遊戲</span>
                 <button class="gc-share-close" onclick="GameShareHelper.close()">&times;</button>
             </div>
             <div class="gc-share-body">
-                <p class="gc-share-desc">選擇有效期後生成二維碼，學生掃碼即可直接玩遊戲（無需登入）</p>
+                <p class="gc-share-desc" data-i18n="gc.shareDesc">選擇有效期後生成二維碼，學生掃碼即可直接玩遊戲（無需登入）</p>
                 <div class="gc-share-durations" id="gcShareDurations">
-                    <button class="gc-dur-btn" data-duration="30m">30 分鐘</button>
-                    <button class="gc-dur-btn active" data-duration="1h">1 小時</button>
-                    <button class="gc-dur-btn" data-duration="1d">1 天</button>
-                    <button class="gc-dur-btn" data-duration="1w">1 週</button>
+                    <button class="gc-dur-btn" data-duration="30m" data-i18n="gc.dur30m">30 分鐘</button>
+                    <button class="gc-dur-btn active" data-duration="1h" data-i18n="gc.dur1h">1 小時</button>
+                    <button class="gc-dur-btn" data-duration="1d" data-i18n="gc.dur1d">1 天</button>
+                    <button class="gc-dur-btn" data-duration="1w" data-i18n="gc.dur1w">1 週</button>
                 </div>
-                <button class="gc-share-gen-btn" id="gcShareGenBtn" onclick="GameShareHelper.generate()">
+                <button class="gc-share-gen-btn" id="gcShareGenBtn" onclick="GameShareHelper.generate()" data-i18n="gc.generateQr">
                     生成二維碼
                 </button>
                 <div class="gc-share-result" id="gcShareResult">
                     <div class="gc-qr-box" id="gcShareQr"></div>
                     <div class="gc-share-url-row">
                         <input type="text" class="gc-share-url" id="gcShareUrl" readonly>
-                        <button class="gc-copy-btn" onclick="GameShareHelper.copyUrl()">複製</button>
+                        <button class="gc-copy-btn" onclick="GameShareHelper.copyUrl()" data-i18n="gc.copy">複製</button>
                     </div>
                     <div class="gc-share-expires" id="gcShareExpires"></div>
                 </div>
@@ -134,6 +134,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="/static/js/shared/utils.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/ui.js"></script>
     <script src="/static/js/shared/api.js"></script>

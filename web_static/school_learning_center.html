@@ -17,11 +17,11 @@
 
     <!-- ── Header ── -->
     <header class="slc-header">
-        <button class="slc-header__back" onclick="window.location.href='/'">← 返回</button>
+        <button class="slc-header__back" onclick="window.location.href='/'" data-i18n="slc.back">← 返回</button>
         <button class="slc-header__menu-btn" onclick="slc.toggleMobileSidebar()"><svg width="18" height="18" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-        <div class="slc-header__title"><svg width="18" height="18" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> 學校學習中心</div>
+        <div class="slc-header__title"><svg width="18" height="18" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> <span data-i18n="slc.headerTitle">學校學習中心</span></div>
         <div class="slc-header__stats" id="headerStats"></div>
-        <button class="slc-header__admin-btn" id="slcAdminToggle" style="display:none;" onclick="slc.toggleAdminPanel()" title="管理面板">
+        <button class="slc-header__admin-btn" id="slcAdminToggle" style="display:none;" onclick="slc.toggleAdminPanel()" data-i18n-title="slc.adminPanel" title="管理面板">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
     </header>
@@ -32,14 +32,14 @@
         <!-- 左側邊欄: 科目列表 -->
         <aside class="slc-sidebar" id="slcSidebar">
             <div class="slc-sidebar__header">
-                <span class="slc-sidebar__header-text"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> 學科</span>
-                <button class="slc-sidebar__toggle" id="slcSidebarCollapseBtn" title="收起/展開學科列表">◀</button>
+                <span class="slc-sidebar__header-text"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> <span data-i18n="slc.sidebarSubjects">學科</span></span>
+                <button class="slc-sidebar__toggle" id="slcSidebarCollapseBtn" data-i18n-title="slc.sidebarCollapse" title="收起/展開學科列表">◀</button>
             </div>
             <div class="slc-sidebar__grade" id="gradeBar"></div>
             <div class="slc-sidebar__list" id="subjectList">
                 <div class="slc-loading">
                     <div class="slc-loading__spinner"></div>
-                    <div>加載科目...</div>
+                    <div data-i18n="slc.loadingSubjects">加載科目...</div>
                 </div>
             </div>
         </aside>
@@ -49,9 +49,9 @@
 
             <!-- Tab 導航 -->
             <nav class="slc-tab-nav">
-                <button class="slc-tab-btn --active" data-tab="resources"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> 教學資源</button>
-                <button class="slc-tab-btn" data-tab="map"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> 知識圖譜</button>
-                <button class="slc-tab-btn" data-tab="paths"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg> 學習路徑</button>
+                <button class="slc-tab-btn --active" data-tab="resources"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> <span data-i18n="slc.tabResources">教學資源</span></button>
+                <button class="slc-tab-btn" data-tab="map"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> <span data-i18n="slc.tabMap">知識圖譜</span></button>
+                <button class="slc-tab-btn" data-tab="paths"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg> <span data-i18n="slc.tabPaths">學習路徑</span></button>
             </nav>
 
             <!-- Tab 內容面板 -->
@@ -61,18 +61,18 @@
                 <section id="tab-resources" class="slc-tab-panel --active">
                     <div class="slc-ebook" id="slcEbookContainer">
                         <!-- 側邊欄展開按鈕 -->
-                        <button class="slc-ebook-toggle" id="slcSidebarToggle" title="展開目錄">
+                        <button class="slc-ebook-toggle" id="slcSidebarToggle" data-i18n-title="slc.expandToc" title="展開目錄">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
                         </button>
 
                         <!-- 左側目錄欄（默認收起） -->
                         <aside class="slc-ebook-sidebar">
                             <div class="slc-ebook-sidebar-header">
-                                <h3 class="slc-ebook-sidebar-title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> 目錄</h3>
-                                <button class="slc-ebook-sidebar-close" id="slcSidebarClose" title="收起目錄"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                                <h3 class="slc-ebook-sidebar-title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> <span data-i18n="slc.tableOfContents">目錄</span></h3>
+                                <button class="slc-ebook-sidebar-close" id="slcSidebarClose" data-i18n-title="slc.closeToc" title="收起目錄"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                             </div>
                             <nav id="slcEbookDirectory" class="slc-ebook-nav">
-                                <p class="slc-ebook-nav-empty">加載中...</p>
+                                <p class="slc-ebook-nav-empty" data-i18n="slc.tocLoading">加載中...</p>
                             </nav>
                         </aside>
 
@@ -81,8 +81,8 @@
                             <!-- 預設歡迎頁 -->
                             <div id="slcEbookWelcome" class="slc-ebook-welcome">
                                 <div class="slc-ebook-welcome-icon">📖</div>
-                                <h3>從左側目錄選擇內容開始學習</h3>
-                                <p>點擊左側 ▶ 按鈕展開目錄</p>
+                                <h3 data-i18n="slc.welcomeTitle">從左側目錄選擇內容開始學習</h3>
+                                <p data-i18n="slc.welcomeHint">點擊左側 ▶ 按鈕展開目錄</p>
                             </div>
 
                             <!-- 內容查看器（動態填充） -->
@@ -104,7 +104,7 @@
                     <div class="slc-map-container" id="knowledgeMapContainer">
                         <div class="slc-loading">
                             <div class="slc-loading__spinner"></div>
-                            <div>加載知識圖譜...</div>
+                            <div data-i18n="slc.loadingMap">加載知識圖譜...</div>
                         </div>
                         <div class="slc-kg-tooltip" id="slcKgTooltip"></div>
                     </div>
@@ -115,7 +115,7 @@
                     <div class="slc-path-list" id="pathList">
                         <div class="slc-loading">
                             <div class="slc-loading__spinner"></div>
-                            <div>加載學習路徑...</div>
+                            <div data-i18n="slc.loadingPaths">加載學習路徑...</div>
                         </div>
                     </div>
                 </section>
@@ -129,17 +129,17 @@
 <div class="slc-admin-overlay" id="slcAdminOverlay" onclick="slc.toggleAdminPanel()"></div>
 <div class="slc-admin-panel" id="slcAdminPanel">
     <div class="slc-admin-panel__header">
-        <span><svg width="16" height="16" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> 內容管理</span>
-        <span class="slc-admin-panel__subject" id="adminSubjectLabel">— 未選科目 —</span>
+        <span><svg width="16" height="16" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> <span data-i18n="slc.contentManagement">內容管理</span></span>
+        <span class="slc-admin-panel__subject" id="adminSubjectLabel" data-i18n="slc.noSubject">— 未選科目 —</span>
         <button class="slc-admin-panel__close" onclick="slc.toggleAdminPanel()"><svg width="16" height="16" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
 
     <!-- 管理面板 Tab 導航 -->
     <div class="slc-admin-tabs">
-        <button class="slc-admin-tab --active" data-admin-tab="upload" onclick="slc.switchAdminTab('upload')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> 上傳內容</button>
-        <button class="slc-admin-tab" data-admin-tab="contents" onclick="slc.switchAdminTab('contents')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg> 內容管理</button>
-        <button class="slc-admin-tab" data-admin-tab="nodes" onclick="slc.switchAdminTab('nodes')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> 知識圖譜</button>
-        <button class="slc-admin-tab" data-admin-tab="paths" onclick="slc.switchAdminTab('paths')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg> 學習路徑</button>
+        <button class="slc-admin-tab --active" data-admin-tab="upload" onclick="slc.switchAdminTab('upload')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <span data-i18n="slc.adminUpload">上傳內容</span></button>
+        <button class="slc-admin-tab" data-admin-tab="contents" onclick="slc.switchAdminTab('contents')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg> <span data-i18n="slc.adminContents">內容管理</span></button>
+        <button class="slc-admin-tab" data-admin-tab="nodes" onclick="slc.switchAdminTab('nodes')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> <span data-i18n="slc.adminNodes">知識圖譜</span></button>
+        <button class="slc-admin-tab" data-admin-tab="paths" onclick="slc.switchAdminTab('paths')"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg> <span data-i18n="slc.adminPaths">學習路徑</span></button>
     </div>
 
     <div class="slc-admin-body">
@@ -147,67 +147,67 @@
         <!-- Tab: 上傳內容 -->
         <div class="slc-admin-tab-panel --active" id="adminTab-upload">
             <div class="slc-admin-form">
-                <label>標題 <span style="color:var(--slc-danger)">*</span></label>
-                <input type="text" id="slcContentTitle" class="slc-admin-input" placeholder="資源標題">
+                <label data-i18n="slc.labelTitle">標題 <span style="color:var(--slc-danger)">*</span></label>
+                <input type="text" id="slcContentTitle" class="slc-admin-input" data-i18n-placeholder="slc.labelTitle" placeholder="資源標題">
 
-                <label>描述</label>
-                <textarea id="slcContentDesc" class="slc-admin-input" rows="2" placeholder="簡短描述"></textarea>
+                <label data-i18n="slc.labelDesc">描述</label>
+                <textarea id="slcContentDesc" class="slc-admin-input" rows="2" data-i18n-placeholder="slc.labelDesc" placeholder="簡短描述"></textarea>
 
-                <label>內容類型 <span style="color:var(--slc-danger)">*</span></label>
+                <label data-i18n="slc.labelContentType">內容類型 <span style="color:var(--slc-danger)">*</span></label>
                 <select id="slcContentType" class="slc-admin-input" onchange="slc.onContentTypeChange()">
-                    <option value="document">文檔 (PDF/Word)</option>
-                    <option value="video_local">本地視頻</option>
-                    <option value="video_external">外部視頻連結</option>
-                    <option value="article">文章</option>
-                    <option value="image">圖片</option>
+                    <option value="document" data-i18n="slc.typeDocument">文檔 (PDF/Word)</option>
+                    <option value="video_local" data-i18n="slc.typeVideoLocal">本地視頻</option>
+                    <option value="video_external" data-i18n="slc.typeVideoExternal">外部視頻連結</option>
+                    <option value="article" data-i18n="slc.typeArticle">文章</option>
+                    <option value="image" data-i18n="slc.typeImage">圖片</option>
                 </select>
 
-                <label>年級</label>
+                <label data-i18n="slc.labelGrade">年級</label>
                 <select id="slcContentGrade" class="slc-admin-input">
-                    <option value="">通用（所有年級）</option>
-                    <option value="中一">中一</option>
-                    <option value="中二">中二</option>
-                    <option value="中三">中三</option>
-                    <option value="中四">中四</option>
-                    <option value="中五">中五</option>
-                    <option value="中六">中六</option>
+                    <option value="" data-i18n="slc.gradeAll">通用（所有年級）</option>
+                    <option value="中一" data-i18n="slc.grade1">中一</option>
+                    <option value="中二" data-i18n="slc.grade2">中二</option>
+                    <option value="中三" data-i18n="slc.grade3">中三</option>
+                    <option value="中四" data-i18n="slc.grade4">中四</option>
+                    <option value="中五" data-i18n="slc.grade5">中五</option>
+                    <option value="中六" data-i18n="slc.grade6">中六</option>
                 </select>
 
                 <!-- 文件上傳區 -->
                 <div id="slcFileDropZone" class="slc-admin-dropzone">
-                    <div><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> 拖放文件到此處 或 <span style="color:var(--slc-primary);cursor:pointer;text-decoration:underline;">點擊選擇</span></div>
+                    <div><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span data-i18n="slc.dropzoneText">拖放文件到此處 或</span> <span style="color:var(--slc-primary);cursor:pointer;text-decoration:underline;" data-i18n="slc.dropzoneClick">點擊選擇</span></div>
                     <div id="slcFileName" style="display:none;margin-top:8px;font-size:12px;color:var(--slc-primary);"></div>
                     <input type="file" id="slcFileInput" style="display:none;">
                 </div>
 
                 <!-- 外部視頻連結區（默認隱藏） -->
                 <div id="slcExternalVideoSection" style="display:none;">
-                    <label>視頻連結 <span style="color:var(--slc-danger)">*</span></label>
+                    <label data-i18n="slc.videoUrl">視頻連結 <span style="color:var(--slc-danger)">*</span></label>
                     <input type="text" id="slcExternalUrl" class="slc-admin-input" placeholder="https://www.youtube.com/watch?v=...">
-                    <label>視頻平台</label>
+                    <label data-i18n="slc.videoPlatform">視頻平台</label>
                     <select id="slcVideoPlatform" class="slc-admin-input">
-                        <option value="">自動識別</option>
+                        <option value="" data-i18n="slc.platformAuto">自動識別</option>
                         <option value="youtube">YouTube</option>
                         <option value="bilibili">Bilibili</option>
                         <option value="vimeo">Vimeo</option>
-                        <option value="other">其他</option>
+                        <option value="other" data-i18n="slc.platformOther">其他</option>
                     </select>
                 </div>
 
                 <!-- 文章內容區（默認隱藏） -->
                 <div id="slcArticleSection" style="display:none;">
-                    <label>文章內容 (Markdown)</label>
-                    <textarea id="slcArticleContent" class="slc-admin-input" rows="8" placeholder="支持 Markdown 語法..."></textarea>
+                    <label data-i18n="slc.articleContent">文章內容 (Markdown)</label>
+                    <textarea id="slcArticleContent" class="slc-admin-input" rows="8" data-i18n-placeholder="slc.articlePlaceholder" placeholder="支持 Markdown 語法..."></textarea>
                 </div>
 
-                <button class="slc-admin-btn --primary" onclick="slc.submitContent()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> 上傳</button>
+                <button class="slc-admin-btn --primary" onclick="slc.submitContent()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <span data-i18n="slc.uploadBtn">上傳</span></button>
             </div>
         </div>
 
         <!-- Tab: 內容管理 -->
         <div class="slc-admin-tab-panel" id="adminTab-contents">
             <div id="slcContentsList" class="slc-admin-list">
-                <div class="slc-loading"><div class="slc-loading__spinner"></div><div>加載中...</div></div>
+                <div class="slc-loading"><div class="slc-loading__spinner"></div><div data-i18n="slc.loading">加載中...</div></div>
             </div>
         </div>
 
@@ -215,63 +215,63 @@
         <div class="slc-admin-tab-panel" id="adminTab-nodes">
             <!-- 創建知識節點 -->
             <div class="slc-admin-form slc-admin-section">
-                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 新增知識節點</h4>
-                <label>名稱 <span style="color:var(--slc-danger)">*</span></label>
-                <input type="text" id="slcNodeTitle" class="slc-admin-input" placeholder="知識點名稱">
-                <label>描述</label>
-                <textarea id="slcNodeDesc" class="slc-admin-input" rows="2" placeholder="知識點描述"></textarea>
-                <label>年級</label>
+                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> <span data-i18n="slc.addNode">新增知識節點</span></h4>
+                <label data-i18n="slc.nodeName">名稱 <span style="color:var(--slc-danger)">*</span></label>
+                <input type="text" id="slcNodeTitle" class="slc-admin-input" data-i18n-placeholder="slc.nodeNamePlaceholder" placeholder="知識點名稱">
+                <label data-i18n="slc.nodeDesc">描述</label>
+                <textarea id="slcNodeDesc" class="slc-admin-input" rows="2" data-i18n-placeholder="slc.nodeDescPlaceholder" placeholder="知識點描述"></textarea>
+                <label data-i18n="slc.labelGrade">年級</label>
                 <select id="slcNodeGrade" class="slc-admin-input">
-                    <option value="">通用</option>
-                    <option value="中一">中一</option>
-                    <option value="中二">中二</option>
-                    <option value="中三">中三</option>
-                    <option value="中四">中四</option>
-                    <option value="中五">中五</option>
-                    <option value="中六">中六</option>
+                    <option value="" data-i18n="slc.gradeGeneral">通用</option>
+                    <option value="中一" data-i18n="slc.grade1">中一</option>
+                    <option value="中二" data-i18n="slc.grade2">中二</option>
+                    <option value="中三" data-i18n="slc.grade3">中三</option>
+                    <option value="中四" data-i18n="slc.grade4">中四</option>
+                    <option value="中五" data-i18n="slc.grade5">中五</option>
+                    <option value="中六" data-i18n="slc.grade6">中六</option>
                 </select>
-                <button class="slc-admin-btn --primary" onclick="slc.submitNode()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 創建節點</button>
+                <button class="slc-admin-btn --primary" onclick="slc.submitNode()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> <span data-i18n="slc.createNode">創建節點</span></button>
             </div>
 
             <!-- 創建連接 -->
             <div class="slc-admin-form slc-admin-section">
-                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> 連接知識節點</h4>
-                <label>來源節點</label>
-                <select id="slcEdgeSource" class="slc-admin-input"><option value="">選擇知識點</option></select>
-                <label>目標節點</label>
-                <select id="slcEdgeTarget" class="slc-admin-input"><option value="">選擇知識點</option></select>
-                <label>關係類型</label>
+                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> <span data-i18n="slc.connectNodes">連接知識節點</span></h4>
+                <label data-i18n="slc.sourceNode">來源節點</label>
+                <select id="slcEdgeSource" class="slc-admin-input"><option value="" data-i18n="slc.selectNode">選擇知識點</option></select>
+                <label data-i18n="slc.targetNode">目標節點</label>
+                <select id="slcEdgeTarget" class="slc-admin-input"><option value="" data-i18n="slc.selectNode">選擇知識點</option></select>
+                <label data-i18n="slc.relationType">關係類型</label>
                 <input type="text" id="slcEdgeType" class="slc-admin-input" placeholder="prerequisite / related" value="related">
-                <button class="slc-admin-btn --primary" onclick="slc.submitEdge()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> 建立連接</button>
+                <button class="slc-admin-btn --primary" onclick="slc.submitEdge()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> <span data-i18n="slc.createConnection">建立連接</span></button>
             </div>
 
             <!-- 批量導入 -->
             <div class="slc-admin-form">
-                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> 批量導入知識圖譜</h4>
-                <label>年級</label>
+                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> <span data-i18n="slc.batchImportMap">批量導入知識圖譜</span></h4>
+                <label data-i18n="slc.labelGrade">年級</label>
                 <select id="slcBatchNodeGrade" class="slc-admin-input">
-                    <option value="">通用</option>
-                    <option value="中一">中一</option>
-                    <option value="中二">中二</option>
-                    <option value="中三">中三</option>
-                    <option value="中四">中四</option>
-                    <option value="中五">中五</option>
-                    <option value="中六">中六</option>
+                    <option value="" data-i18n="slc.gradeGeneral">通用</option>
+                    <option value="中一" data-i18n="slc.grade1">中一</option>
+                    <option value="中二" data-i18n="slc.grade2">中二</option>
+                    <option value="中三" data-i18n="slc.grade3">中三</option>
+                    <option value="中四" data-i18n="slc.grade4">中四</option>
+                    <option value="中五" data-i18n="slc.grade5">中五</option>
+                    <option value="中六" data-i18n="slc.grade6">中六</option>
                 </select>
-                <label>JSON 數據</label>
+                <label data-i18n="slc.jsonData">JSON 數據</label>
                 <textarea id="slcBatchNodeJson" class="slc-admin-input" rows="6" placeholder='{"nodes":[{"title":"...","description":"..."}],"edges":[{"source":"...","target":"..."}]}'></textarea>
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
                     <input type="checkbox" id="slcBatchClear">
-                    <label for="slcBatchClear" style="font-size:12px;color:var(--slc-text-secondary);margin:0;">清空該科目現有知識圖譜</label>
+                    <label for="slcBatchClear" style="font-size:12px;color:var(--slc-text-secondary);margin:0;" data-i18n="slc.clearExisting">清空該科目現有知識圖譜</label>
                 </div>
-                <button class="slc-admin-btn --primary" onclick="slc.submitBatchNodes()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> 批量導入</button>
+                <button class="slc-admin-btn --primary" onclick="slc.submitBatchNodes()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> <span data-i18n="slc.batchImport">批量導入</span></button>
                 <div id="slcBatchNodeResult" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:13px;"></div>
             </div>
 
             <!-- 現有節點列表 -->
-            <h4 class="slc-admin-section__title" style="margin-top:var(--slc-space-md);"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> 現有知識節點</h4>
+            <h4 class="slc-admin-section__title" style="margin-top:var(--slc-space-md);"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> <span data-i18n="slc.existingNodes">現有知識節點</span></h4>
             <div id="slcNodesList" class="slc-admin-list">
-                <div style="color:var(--slc-text-secondary);font-size:13px;">切換到此 Tab 時自動加載</div>
+                <div style="color:var(--slc-text-secondary);font-size:13px;" data-i18n="slc.autoLoadHint">切換到此 Tab 時自動加載</div>
             </div>
         </div>
 
@@ -279,55 +279,55 @@
         <div class="slc-admin-tab-panel" id="adminTab-paths">
             <!-- 創建路徑 -->
             <div class="slc-admin-form slc-admin-section">
-                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 新增學習路徑</h4>
-                <label>路徑標題 <span style="color:var(--slc-danger)">*</span></label>
-                <input type="text" id="slcPathTitle" class="slc-admin-input" placeholder="學習路徑標題">
-                <label>描述</label>
-                <textarea id="slcPathDesc" class="slc-admin-input" rows="2" placeholder="路徑描述"></textarea>
-                <label>難度</label>
+                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> <span data-i18n="slc.addPath">新增學習路徑</span></h4>
+                <label data-i18n="slc.pathTitle">路徑標題 <span style="color:var(--slc-danger)">*</span></label>
+                <input type="text" id="slcPathTitle" class="slc-admin-input" data-i18n-placeholder="slc.pathTitlePlaceholder" placeholder="學習路徑標題">
+                <label data-i18n="slc.pathDesc">描述</label>
+                <textarea id="slcPathDesc" class="slc-admin-input" rows="2" data-i18n-placeholder="slc.pathDescPlaceholder" placeholder="路徑描述"></textarea>
+                <label data-i18n="slc.difficulty">難度</label>
                 <select id="slcPathDifficulty" class="slc-admin-input">
-                    <option value="beginner">入門</option>
-                    <option value="intermediate">進階</option>
-                    <option value="advanced">高級</option>
+                    <option value="beginner" data-i18n="slc.diffBeginner">入門</option>
+                    <option value="intermediate" data-i18n="slc.diffIntermediate">進階</option>
+                    <option value="advanced" data-i18n="slc.diffAdvanced">高級</option>
                 </select>
-                <label>預計時長（小時）</label>
+                <label data-i18n="slc.estHours">預計時長（小時）</label>
                 <input type="number" id="slcPathHours" class="slc-admin-input" value="1" min="0.5" step="0.5">
-                <label>年級</label>
+                <label data-i18n="slc.labelGrade">年級</label>
                 <select id="slcPathGrade" class="slc-admin-input">
-                    <option value="">通用</option>
-                    <option value="中一">中一</option>
-                    <option value="中二">中二</option>
-                    <option value="中三">中三</option>
-                    <option value="中四">中四</option>
-                    <option value="中五">中五</option>
-                    <option value="中六">中六</option>
+                    <option value="" data-i18n="slc.gradeGeneral">通用</option>
+                    <option value="中一" data-i18n="slc.grade1">中一</option>
+                    <option value="中二" data-i18n="slc.grade2">中二</option>
+                    <option value="中三" data-i18n="slc.grade3">中三</option>
+                    <option value="中四" data-i18n="slc.grade4">中四</option>
+                    <option value="中五" data-i18n="slc.grade5">中五</option>
+                    <option value="中六" data-i18n="slc.grade6">中六</option>
                 </select>
-                <button class="slc-admin-btn --primary" onclick="slc.submitPath()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> 創建路徑</button>
+                <button class="slc-admin-btn --primary" onclick="slc.submitPath()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> <span data-i18n="slc.createPath">創建路徑</span></button>
             </div>
 
             <!-- 批量導入路徑 -->
             <div class="slc-admin-form slc-admin-section">
-                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> 批量導入學習路徑</h4>
-                <label>年級</label>
+                <h4 class="slc-admin-section__title"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> <span data-i18n="slc.batchImportPaths">批量導入學習路徑</span></h4>
+                <label data-i18n="slc.labelGrade">年級</label>
                 <select id="slcBatchPathGrade" class="slc-admin-input">
-                    <option value="">通用</option>
-                    <option value="中一">中一</option>
-                    <option value="中二">中二</option>
-                    <option value="中三">中三</option>
-                    <option value="中四">中四</option>
-                    <option value="中五">中五</option>
-                    <option value="中六">中六</option>
+                    <option value="" data-i18n="slc.gradeGeneral">通用</option>
+                    <option value="中一" data-i18n="slc.grade1">中一</option>
+                    <option value="中二" data-i18n="slc.grade2">中二</option>
+                    <option value="中三" data-i18n="slc.grade3">中三</option>
+                    <option value="中四" data-i18n="slc.grade4">中四</option>
+                    <option value="中五" data-i18n="slc.grade5">中五</option>
+                    <option value="中六" data-i18n="slc.grade6">中六</option>
                 </select>
-                <label>JSON 數據</label>
+                <label data-i18n="slc.jsonData">JSON 數據</label>
                 <textarea id="slcBatchPathJson" class="slc-admin-input" rows="6" placeholder='[{"title":"...","difficulty":"beginner","steps":[{"title":"...","description":"..."}]}]'></textarea>
-                <button class="slc-admin-btn --primary" onclick="slc.submitBatchPaths()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> 批量導入路徑</button>
+                <button class="slc-admin-btn --primary" onclick="slc.submitBatchPaths()"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> <span data-i18n="slc.batchImportPathBtn">批量導入路徑</span></button>
                 <div id="slcBatchPathResult" style="display:none;margin-top:8px;padding:8px;border-radius:6px;font-size:13px;"></div>
             </div>
 
             <!-- 現有路徑列表 -->
-            <h4 class="slc-admin-section__title" style="margin-top:var(--slc-space-md);"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg> 現有學習路徑</h4>
+            <h4 class="slc-admin-section__title" style="margin-top:var(--slc-space-md);"><svg width="14" height="14" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9a9 9 0 0 0 9 9"/></svg> <span data-i18n="slc.existingPaths">現有學習路徑</span></h4>
             <div id="slcPathsList" class="slc-admin-list">
-                <div style="color:var(--slc-text-secondary);font-size:13px;">切換到此 Tab 時自動加載</div>
+                <div style="color:var(--slc-text-secondary);font-size:13px;" data-i18n="slc.autoLoadHint">切換到此 Tab 時自動加載</div>
             </div>
         </div>
 
@@ -335,7 +335,7 @@
 </div>
 
 <!-- ── AI 助教 FAB ── -->
-<button class="slc-ai-fab" id="aiFab" title="AI 助教"><svg width="22" height="22" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+<button class="slc-ai-fab" id="aiFab" data-i18n-title="slc.aiAssistant" title="AI 助教"><svg width="22" height="22" class="slc-icon" style="display:inline-block;vertical-align:middle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
 
 <!-- ── AI 聊天窗（ALC 風格：拖拽 + 展開 + 打字動畫 + 串流游標） ── -->
 <div class="slc-ai-window" id="aiWindow">
@@ -343,7 +343,7 @@
     <div class="slc-ai-window__header" id="aiWindowHeader">
         <span class="slc-ai-window__title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
-            AI 學習助教
+            <span data-i18n="slc.aiAssistant">AI 學習助教</span>
         </span>
         <div class="slc-ai-window__actions">
             <button class="slc-ai-window__action-btn" id="aiExpandBtn" title="放大/縮小">&#9634;</button>
@@ -358,7 +358,7 @@
     </div>
     <!-- 輸入區 -->
     <div class="slc-ai-window__input-area">
-        <textarea class="slc-ai-window__textarea" id="aiInput" placeholder="輸入問題..." rows="2"></textarea>
+        <textarea class="slc-ai-window__textarea" id="aiInput" data-i18n-placeholder="slc.aiInputPlaceholder" placeholder="輸入問題..." rows="2"></textarea>
         <button class="slc-ai-window__send-btn" id="aiSendBtn">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16027450 C3.34915502,0.9031770599 2.40734225,1.01428416 1.77946707,1.4855763 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.99701575 L3.03521743,10.4380088 C3.03521743,10.5951061 3.19218622,10.7522035 3.50612381,10.7522035 L16.6915026,11.5376905 C16.6915026,11.5376905 17.1624089,11.5376905 17.1624089,12.0089827 C17.1624089,12.4802748 16.6915026,12.4744748 16.6915026,12.4744748 Z"></path>
@@ -368,12 +368,19 @@
 </div>
 
 <!-- ── Scripts ── -->
+<script src="/static/js/shared/i18n.js"></script>
 <script src="/static/js/school_learning_center.js" charset="UTF-8"></script>
 <script>
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', window.slc._init);
+    document.addEventListener('DOMContentLoaded', function() {
+        window.slc._init();
+        i18n.applyDOM();
+        document.title = i18n.t('slc.pageTitle');
+    });
 } else {
     window.slc._init();
+    i18n.applyDOM();
+    document.title = i18n.t('slc.pageTitle');
 }
 </script>
 
