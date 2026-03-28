@@ -79,6 +79,8 @@ async function initialize() {
     }
 
     setupDOM();
+    // Apply i18n to DOM elements
+    if (typeof i18n !== 'undefined') i18n.applyDOM();
     // 注意：Fabric.js canvas 延遲到 PPT 第一頁加載成功後才初始化
     // 避免在 display:none 的元素上創建 canvas 導致尺寸為 0
     setupEventListeners();
@@ -95,7 +97,7 @@ function setupDOM() {
     }
     // Set initial slide status text
     const statusText = document.getElementById('slideStatusText');
-    if (statusText) statusText.textContent = '課堂尚未開始';
+    if (statusText) statusText.textContent = i18n.t('ct.classNotStarted');
 }
 
 function initializeCanvas() {
@@ -285,13 +287,13 @@ function changeOpacity(color, opacity) {
 // ==================== CANVAS OPERATIONS ====================
 function clearCanvas() {
     if (state.roomStatus === 'ended') {
-        UIModule.toast('課程已結束，無法清除', 'error');
+        UIModule.toast(i18n.t('ct.classEndedCannotClear'), 'error');
         return;
     }
 
     showConfirmModal(
-        '清除所有標註',
-        '確定要清除當前頁面的所有標註嗎？此操作無法撤銷。',
+        i18n.t('ct.clearAllAnnotations'),
+        i18n.t('ct.clearAnnotationsConfirm'),
         () => {
             state.canvas.clear();
             addHistorySnapshot();
@@ -391,7 +393,7 @@ async function loadPage(pageNumber) {
         };
         img.src = blobUrl;
     } catch (error) {
-        UIModule.toast(`加載頁面失敗: ${error.message}`, 'error');
+        UIModule.toast(i18n.t('ct.loadPageFailed', {msg: error.message}), 'error');
     }
 }
 
@@ -519,7 +521,7 @@ async function handleFileUpload(e) {
     if (!file) return;
 
     document.getElementById('uploadBtn').disabled = true;
-    UIModule.toast('正在上傳課件...', 'info');
+    UIModule.toast(i18n.t('ct.uploadingSlides'), 'info');
 
     try {
         const formData = new FormData();
@@ -533,13 +535,13 @@ async function handleFileUpload(e) {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '上傳失敗');
+            throw new Error(data.message || i18n.t('ct.uploadFailed'));
         }
 
-        UIModule.toast('課件上傳成功', 'success');
+        UIModule.toast(i18n.t('ct.uploadSuccess'), 'success');
         loadPPTFiles();
     } catch (error) {
-        UIModule.toast(`上傳失敗: ${error.message}`, 'error');
+        UIModule.toast(i18n.t('ct.uploadFailedMsg', {msg: error.message}), 'error');
     } finally {
         document.getElementById('uploadBtn').disabled = false;
         document.getElementById('pptFile').value = '';
@@ -556,7 +558,7 @@ async function loadPPTFiles() {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '獲取課件列表失敗');
+            throw new Error(data.message || i18n.t('ct.getSlidesFailed'));
         }
 
         // data.data = { room_id, total, files: [...] }
@@ -591,17 +593,17 @@ async function loadPPTFiles() {
             } else if (firstFile.process_status === 'pending' || firstFile.process_status === 'processing') {
                 // 正在處理，輪詢等待
                 document.getElementById('canvasPlaceholder').textContent =
-                    '課件正在處理中，請稍候...';
-                UIModule.toast('課件正在處理中，請稍候...', 'info');
+                    i18n.t('ct.slidesProcessing');
+                UIModule.toast(i18n.t('ct.slidesProcessing'), 'info');
                 pptPollTimer = setTimeout(loadPPTFiles, 3000);
             } else if (firstFile.process_status === 'failed') {
                 document.getElementById('canvasPlaceholder').textContent =
-                    '課件處理失敗，請重新上傳';
-                UIModule.toast('課件處理失敗，請重新上傳', 'error');
+                    i18n.t('ct.slidesProcessFailed');
+                UIModule.toast(i18n.t('ct.slidesProcessFailed'), 'error');
             }
         }
     } catch (error) {
-        UIModule.toast(`獲取課件列表失敗: ${error.message}`, 'error');
+        UIModule.toast(i18n.t('ct.getSlidesFailedMsg', {msg: error.message}), 'error');
     }
 }
 
@@ -617,7 +619,7 @@ async function loadThumbnails() {
         const thumb = document.createElement('div');
         thumb.className = 'thumbnail' + (i === 0 ? ' active' : '');
         const imgEl = document.createElement('img');
-        imgEl.alt = `頁面 ${i + 1}`;
+        imgEl.alt = i18n.t('ct.pageN', {n: i + 1});
         thumb.appendChild(imgEl);
         thumb.addEventListener('click', () => loadPage(i));
         container.appendChild(thumb);
@@ -653,12 +655,12 @@ async function loadThumbnailImage(imgEl, pageNumber) {
 // ==================== PUSH TO STUDENTS ====================
 async function pushToStudents() {
     if (state.roomStatus === 'ended') {
-        UIModule.toast('課程已結束，無法推送', 'error');
+        UIModule.toast(i18n.t('ct.classEndedCannotPush'), 'error');
         return;
     }
 
     if (state.roomStatus === 'paused') {
-        UIModule.toast('課程已暫停，請先繼續', 'error');
+        UIModule.toast(i18n.t('ct.classPausedResume'), 'error');
         return;
     }
 
@@ -675,7 +677,7 @@ async function pushToStudents() {
         } else if (lifecycle === 'prepared') {
             await lessonSlideAction('activate');
         } else {
-            UIModule.toast('此幻燈片已推送', 'info');
+            UIModule.toast(i18n.t('ct.slideAlreadyPushed'), 'info');
         }
         return;
     }
@@ -702,7 +704,7 @@ async function pushToStudents() {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '推送失敗');
+            throw new Error(data.message || i18n.t('ct.pushFailed'));
         }
 
         // WebSocket push
@@ -713,9 +715,9 @@ async function pushToStudents() {
             }));
         }
 
-        UIModule.toast('已推送給學生', 'success');
+        UIModule.toast(i18n.t('ct.pushedToStudents'), 'success');
     } catch (error) {
-        UIModule.toast(`推送失敗: ${error.message}`, 'error');
+        UIModule.toast(i18n.t('ct.pushFailedMsg', {msg: error.message}), 'error');
     }
 }
 
@@ -725,7 +727,7 @@ async function pushToStudents() {
  */
 async function pushLessonAnnotations() {
     if (!state.canvas || !state.lessonSlide) {
-        UIModule.toast('無法推送標註', 'error');
+        UIModule.toast(i18n.t('ct.cannotPushAnnotations'), 'error');
         return;
     }
     try {
@@ -744,11 +746,11 @@ async function pushLessonAnnotations() {
         });
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '推送失敗');
+            throw new Error(data.message || i18n.t('ct.pushFailed'));
         }
-        UIModule.toast('標註已推送給學生', 'success');
+        UIModule.toast(i18n.t('ct.annotationsPushed'), 'success');
     } catch (error) {
-        UIModule.toast(`推送標註失敗: ${error.message}`, 'error');
+        UIModule.toast(i18n.t('ct.pushAnnotationsFailedMsg', {msg: error.message}), 'error');
     }
 }
 
@@ -768,7 +770,7 @@ async function changeRoomStatus(newStatus) {
 
         const data = await response.json();
         if (!data.success) {
-            throw new Error(data.message || '狀態更新失敗');
+            throw new Error(data.message || i18n.t('ct.statusUpdateFailed'));
         }
 
         state.roomStatus = newStatus;
@@ -779,9 +781,9 @@ async function changeRoomStatus(newStatus) {
             document.getElementById('clearBtn').disabled = true;
         }
 
-        UIModule.toast(`課室狀態已更新為: ${getStatusLabel(newStatus)}`, 'success');
+        UIModule.toast(i18n.t('ct.statusUpdatedTo', {status: getStatusLabel(newStatus)}), 'success');
     } catch (error) {
-        UIModule.toast(`狀態更新失敗: ${error.message}`, 'error');
+        UIModule.toast(i18n.t('ct.statusUpdateFailedMsg', {msg: error.message}), 'error');
     }
 }
 
@@ -813,10 +815,10 @@ function updateRoomStatusUI() {
     // Update slide status text
     const statusText = document.getElementById('slideStatusText');
     if (statusText) {
-        if (state.roomStatus === 'draft') statusText.textContent = '課堂尚未開始';
-        else if (state.roomStatus === 'paused') statusText.textContent = '課堂已暫停';
-        else if (state.roomStatus === 'ended') statusText.textContent = '課堂已結束';
-        else if (!state.lessonMode) statusText.textContent = '請選擇課案';
+        if (state.roomStatus === 'draft') statusText.textContent = i18n.t('ct.classNotStarted');
+        else if (state.roomStatus === 'paused') statusText.textContent = i18n.t('ct.classPaused');
+        else if (state.roomStatus === 'ended') statusText.textContent = i18n.t('ct.classEnded');
+        else if (!state.lessonMode) statusText.textContent = i18n.t('ct.pleaseSelectLesson');
     }
 
     // Cascade: update lesson UI button states (disabled when not active)
@@ -825,10 +827,10 @@ function updateRoomStatusUI() {
 
 function getStatusLabel(status) {
     const labels = {
-        'draft': '草稿',
-        'active': '進行中',
-        'paused': '已暫停',
-        'ended': '已結束',
+        'draft': i18n.t('ct.statusDraft'),
+        'active': i18n.t('ct.statusActive'),
+        'paused': i18n.t('ct.statusPaused'),
+        'ended': i18n.t('ct.statusEnded'),
     };
     return labels[status] || status;
 }
@@ -859,10 +861,10 @@ function connectWebSocket() {
             const fatalCodes = ['ROOM_NOT_FOUND', 'ROOM_ACCESS_DENIED', 'CLASS_NOT_ALLOWED', 'FORBIDDEN', 'AUTH_ERROR'];
             if (fatalCodes.includes(msg.code)) {
                 wsFatalError = true;
-                UIModule.toast('錯誤: ' + msg.message, 'error');
+                UIModule.toast(i18n.t('ct.error') + ': ' + msg.message, 'error');
                 setTimeout(() => { window.location.href = '/classroom'; }, 3000);
             } else {
-                UIModule.toast(msg.message || '操作失敗', 'warning');
+                UIModule.toast(msg.message || i18n.t('ct.operationFailed'), 'warning');
             }
             return;
         }
@@ -875,10 +877,10 @@ function connectWebSocket() {
 
         wsRetryCount++;
         if (wsRetryCount > WS_MAX_RETRIES) {
-            UIModule.toast('無法連接到課室，請返回房間列表', 'error');
+            UIModule.toast(i18n.t('ct.cannotConnectRoom'), 'error');
             return;
         }
-        UIModule.toast(`連接已斷開，${wsRetryCount}/${WS_MAX_RETRIES} 次重試...`, 'error');
+        UIModule.toast(i18n.t('ct.connectionLostRetry', {current: wsRetryCount, max: WS_MAX_RETRIES}), 'error');
         setTimeout(connectWebSocket, 3000);
     };
 
@@ -891,7 +893,7 @@ function handleWebSocketMessage(message) {
     switch (message.type) {
         case 'connected':
             wsRetryCount = 0;
-            UIModule.toast('已連接到課室', 'info');
+            UIModule.toast(i18n.t('ct.connectedToRoom'), 'info');
             // 連接成功後從 API 獲取房間詳情（含 status）
             loadRoomInfo();
             break;
@@ -904,7 +906,7 @@ function handleWebSocketMessage(message) {
                 document.getElementById('studentCount').textContent =
                     message.online_count ?? message.active_count ?? state.students.size;
             }
-            UIModule.toast(`學生 ${message.display_name || message.student_username} 已加入`, 'info');
+            UIModule.toast(i18n.t('ct.studentJoined', {name: message.display_name || message.student_username}), 'info');
             break;
         case 'student_left':
             removeStudent(message.student_username);
@@ -912,7 +914,7 @@ function handleWebSocketMessage(message) {
                 document.getElementById('studentCount').textContent =
                     message.online_count ?? message.active_count ?? state.students.size;
             }
-            UIModule.toast(`學生 ${message.student_username} 已離開`, 'info');
+            UIModule.toast(i18n.t('ct.studentLeft', {name: message.student_username}), 'info');
             break;
         case 'room_status_changed':
             state.roomStatus = message.status || 'draft';
@@ -928,7 +930,7 @@ function handleWebSocketMessage(message) {
         case 'lesson_session_started':
             state.lessonSessionId = message.session_id;
             state.lessonMode = true;
-            UIModule.toast('課案已啟動', 'info');
+            UIModule.toast(i18n.t('ct.lessonStarted'), 'info');
             // Reload lesson state to get full session + slides
             checkLessonState();
             break;
@@ -944,12 +946,12 @@ function handleWebSocketMessage(message) {
             if (uploadSection) uploadSection.style.display = '';
             const $startBar = document.getElementById('lessonStartBar');
             if ($startBar) $startBar.style.display = '';
-            UIModule.toast('課案已結束', 'info');
+            UIModule.toast(i18n.t('ct.lessonEnded'), 'info');
             updateLessonUI();
             break;
         case 'student_responded':
             if (message.data) {
-                UIModule.toast(`學生 ${message.data.student_username} 已回應 (${message.data.total_responses} 人)`, 'info');
+                UIModule.toast(i18n.t('ct.studentResponded', {name: message.data.student_username, count: message.data.total_responses}), 'info');
                 // Live-update poll teacher view
                 if (message.data.response_type === 'poll_vote' && message.data.poll_results && state.lessonSlide) {
                     state.lessonSlide.results = message.data.poll_results;
@@ -1105,7 +1107,7 @@ async function enterLessonMode(planId) {
             if ($startBar) $startBar.style.display = 'none';
 
             // Update placeholder
-            document.getElementById('canvasPlaceholder').textContent = '選擇左側幻燈片開始';
+            document.getElementById('canvasPlaceholder').textContent = i18n.t('ct.selectSlideToStart');
 
             // Render current slide if exists
             updateLessonUI();
@@ -1206,12 +1208,12 @@ async function startLesson(planId) {
             // Navigate to first slide
             await lessonNavigate('next');
 
-            UIModule.toast('課案已啟動', 'success');
+            UIModule.toast(i18n.t('ct.lessonStarted'), 'success');
         } else {
-            UIModule.toast(json.message || '啟動失敗', 'error');
+            UIModule.toast(json.message || i18n.t('ct.startFailed'), 'error');
         }
     } catch (e) {
-        UIModule.toast('啟動課案失敗', 'error');
+        UIModule.toast(i18n.t('ct.startLessonFailed'), 'error');
     }
 }
 
@@ -1246,21 +1248,21 @@ async function endLesson() {
         // Reset main area
         document.getElementById('canvasArea').style.display = 'none';
         document.getElementById('canvasPlaceholder').style.display = 'block';
-        document.getElementById('canvasPlaceholder').textContent = '請選擇課案或上傳課件';
+        document.getElementById('canvasPlaceholder').textContent = i18n.t('ct.placeholderSelectOrUpload');
         document.getElementById('thumbnailsContainer').innerHTML = '';
 
         updateLessonUI();
-        UIModule.toast('課案已結束', 'success');
+        UIModule.toast(i18n.t('ct.lessonEnded'), 'success');
 
         // Prompt quiz export after lesson ends
         if (hasQuiz && sessionId) {
-            const doExport = await UIModule.confirm('本節課案包含測驗，是否導出成績為 Excel？');
+            const doExport = await UIModule.confirm(i18n.t('ct.exportQuizConfirm'));
             if (doExport) {
                 _downloadQuizExcel(sessionId);
             }
         }
     } catch (e) {
-        UIModule.toast('結束課案失敗', 'error');
+        UIModule.toast(i18n.t('ct.endLessonFailed'), 'error');
     }
 }
 
@@ -1280,9 +1282,9 @@ function _downloadQuizExcel(sessionId) {
         a.click();
         a.remove();
         URL.revokeObjectURL(a.href);
-        UIModule.toast('成績已導出', 'success');
+        UIModule.toast(i18n.t('ct.gradesExported'), 'success');
     }).catch(() => {
-        UIModule.toast('導出成績失敗', 'error');
+        UIModule.toast(i18n.t('ct.exportGradesFailed'), 'error');
     });
 }
 
@@ -1313,10 +1315,10 @@ async function lessonNavigate(action, slideId) {
             state.lessonSlideAnnotations = json.data.slide_annotations || null;
             updateLessonUI();
         } else {
-            UIModule.toast(json.message || '導航失敗', 'error');
+            UIModule.toast(json.message || i18n.t('ct.navigationFailed'), 'error');
         }
     } catch (e) {
-        UIModule.toast('導航失敗', 'error');
+        UIModule.toast(i18n.t('ct.navigationFailed'), 'error');
     }
 }
 
@@ -1346,10 +1348,10 @@ async function lessonSlideAction(action) {
             }
             updateLessonUI();
         } else {
-            UIModule.toast(json.message || '操作失敗', 'error');
+            UIModule.toast(json.message || i18n.t('ct.operationFailed'), 'error');
         }
     } catch (e) {
-        UIModule.toast('操作失敗', 'error');
+        UIModule.toast(i18n.t('ct.operationFailed'), 'error');
     }
 }
 
@@ -1381,10 +1383,10 @@ function updateLessonUI() {
     const $info = document.getElementById('lessonInfo');
     if ($info && slide) {
         const lifecycleLabels = {
-            prepared: '準備中', activated: '已激活', responding: '回應中',
-            closed: '已關閉', results_shown: '顯示結果', completed: '已完成',
+            prepared: i18n.t('ct.lcPrepared'), activated: i18n.t('ct.lcActivated'), responding: i18n.t('ct.lcResponding'),
+            closed: i18n.t('ct.lcClosed'), results_shown: i18n.t('ct.lcResultsShown'), completed: i18n.t('ct.lcCompleted'),
         };
-        $info.textContent = `第 ${(slide.slide_order || 0) + 1} 張: ${slide.title || slide.slide_type} [${lifecycleLabels[lifecycle] || lifecycle}]`;
+        $info.textContent = i18n.t('ct.slideInfo', {n: (slide.slide_order || 0) + 1, title: slide.title || slide.slide_type, status: lifecycleLabels[lifecycle] || lifecycle});
     }
 
     // Render current slide in main area
@@ -1469,19 +1471,19 @@ function updateLessonUI() {
     const statusText = document.getElementById('slideStatusText');
     if (statusText) {
         if (state.roomStatus === 'draft') {
-            statusText.textContent = '課堂尚未開始';
+            statusText.textContent = i18n.t('ct.classNotStarted');
         } else if (state.roomStatus === 'paused') {
-            statusText.textContent = '課堂已暫停';
+            statusText.textContent = i18n.t('ct.classPaused');
         } else if (state.roomStatus === 'ended') {
-            statusText.textContent = '課堂已結束';
+            statusText.textContent = i18n.t('ct.classEnded');
         } else if (slide) {
             const statusLabels = {
-                prepared: '尚未推送',
-                activated: '已展示給學生',
-                responding: '正在收集回應',
-                closed: '已關閉回應',
-                results_shown: '已顯示結果',
-                completed: '已完成',
+                prepared: i18n.t('ct.slideNotPushed'),
+                activated: i18n.t('ct.slideShownToStudents'),
+                responding: i18n.t('ct.collectingResponses'),
+                closed: i18n.t('ct.responsesClosed'),
+                results_shown: i18n.t('ct.resultsShown'),
+                completed: i18n.t('ct.lcCompleted'),
             };
             statusText.textContent = statusLabels[lifecycle] || lifecycle;
         }
@@ -1554,10 +1556,10 @@ function renderLessonGameSlide(slide, cfg, lifecycle) {
     placeholder.style.justifyContent = 'center';
     placeholder.style.flexDirection = 'column';
     const lifecycleLabels = {
-        prepared: '點擊「推送」推送給學生',
-        activated: '遊戲進行中...',
-        responding: '等待學生完成...',
-        completed: '已完成',
+        prepared: i18n.t('ct.gamePrepared'),
+        activated: i18n.t('ct.gameInProgress'),
+        responding: i18n.t('ct.gameWaitingStudents'),
+        completed: i18n.t('ct.lcCompleted'),
     };
     placeholder.innerHTML = `
         <div style="text-align:center;">
@@ -1573,7 +1575,7 @@ function renderLessonGameSlide(slide, cfg, lifecycle) {
  */
 function renderLessonGenericSlide(slide, cfg, lifecycle) {
     const typeLabels = {
-        quiz: '測驗', poll: '投票', quick_answer: '搶答', raise_hand: '舉手', link: '連結',
+        quiz: i18n.t('ct.typeQuiz'), poll: i18n.t('ct.typePoll'), quick_answer: i18n.t('ct.typeQuickAnswer'), raise_hand: i18n.t('ct.typeRaiseHand'), link: i18n.t('ct.typeLink'),
     };
     const iconName = SLIDE_TYPE_ICONS[slide.slide_type] || 'doc';
     document.getElementById('canvasArea').style.display = 'none';
@@ -1591,7 +1593,7 @@ function renderLessonGenericSlide(slide, cfg, lifecycle) {
             descHtml += `<p style="color:var(--text-tertiary);font-size:13px;margin-top:4px;">${Utils.escapeHtml(cfg.description)}</p>`;
         }
     } else {
-        descHtml = `<p style="color:var(--text-secondary);font-size:14px;max-width:300px;">${cfg.question_text || cfg.prompt_text || '使用右側控制按鈕管理此幻燈片'}</p>`;
+        descHtml = `<p style="color:var(--text-secondary);font-size:14px;max-width:300px;">${cfg.question_text || cfg.prompt_text || i18n.t('ct.useRightPanelControls')}</p>`;
     }
 
     placeholder.innerHTML = `
@@ -1627,7 +1629,7 @@ async function promptStartLesson() {
         roomPlans.forEach(function(p) { if (!seen.has(p.plan_id)) { seen.add(p.plan_id); p._isLocal = true; plans.push(p); } });
         allPlans.forEach(function(p) { if (!seen.has(p.plan_id)) { seen.add(p.plan_id); plans.push(p); } });
         if (plans.length === 0) {
-            UIModule.toast('尚無課案，請先到課堂列表的「課案編輯」創建', 'info');
+            UIModule.toast(i18n.t('ct.noLessonPlans'), 'info');
             return;
         }
 
@@ -1636,7 +1638,7 @@ async function promptStartLesson() {
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:9999;';
         const modal = document.createElement('div');
         modal.style.cssText = 'background:#fff;border-radius:12px;padding:20px;width:400px;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.12);';
-        modal.innerHTML = '<h3 style="margin:0 0 16px;font-size:16px;">選擇課案</h3>';
+        modal.innerHTML = `<h3 style="margin:0 0 16px;font-size:16px;">${i18n.t('ct.selectLesson')}</h3>`;
         const list = document.createElement('div');
         list.style.cssText = 'flex:1;overflow-y:auto;';
         plans.forEach(p => {
@@ -1644,10 +1646,10 @@ async function promptStartLesson() {
             item.style.cssText = 'padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;';
             item.onmouseover = () => { item.style.borderColor = '#006633'; item.style.background = '#E8F5EC'; };
             item.onmouseout = () => { item.style.borderColor = '#e0e0e0'; item.style.background = ''; };
-            const statusLabel = p.status === 'ready' ? ' (就緒)' : p.status === 'draft' ? ' (草稿)' : '';
+            const statusLabel = p.status === 'ready' ? ` (${i18n.t('ct.ready')})` : p.status === 'draft' ? ` (${i18n.t('ct.statusDraft')})` : '';
             const slideCount = p.total_slides || 0;
-            const sourceTag = p._isLocal ? '' : '<span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#E3F2FD;color:#1565C0;font-size:11px;margin-left:6px;">其他課室</span>';
-            item.innerHTML = `<div style="font-weight:600;font-size:14px;">${p.title}${statusLabel}${sourceTag}</div><div style="font-size:12px;color:#888;margin-top:4px;">${slideCount} 張幻燈片</div>`;
+            const sourceTag = p._isLocal ? '' : `<span style="display:inline-block;padding:2px 6px;border-radius:4px;background:#E3F2FD;color:#1565C0;font-size:11px;margin-left:6px;">${i18n.t('ct.otherRoom')}</span>`;
+            item.innerHTML = `<div style="font-weight:600;font-size:14px;">${p.title}${statusLabel}${sourceTag}</div><div style="font-size:12px;color:#888;margin-top:4px;">${i18n.t('ct.slideCount', {count: slideCount})}</div>`;
             item.addEventListener('click', async () => {
                 document.body.removeChild(overlay);
                 await startLesson(p.plan_id);
@@ -1656,7 +1658,7 @@ async function promptStartLesson() {
         });
         modal.appendChild(list);
         const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = '取消';
+        cancelBtn.textContent = i18n.t('ct.cancel');
         cancelBtn.style.cssText = 'margin-top:12px;padding:8px 16px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;';
         cancelBtn.addEventListener('click', () => document.body.removeChild(overlay));
         modal.appendChild(cancelBtn);
@@ -1664,7 +1666,7 @@ async function promptStartLesson() {
         overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
         document.body.appendChild(overlay);
     } catch (e) {
-        UIModule.toast('載入課案列表失敗', 'error');
+        UIModule.toast(i18n.t('ct.loadLessonListFailed'), 'error');
     }
 }
 
@@ -1703,7 +1705,7 @@ function renderStudents() {
 
     if (state.students.size === 0) {
         document.getElementById('studentCount').textContent = '0';
-        container.innerHTML = '<div class="empty-state">尚無學生連線</div>';
+        container.innerHTML = `<div class="empty-state">${i18n.t('ct.noStudents')}</div>`;
         return;
     }
 
@@ -1726,18 +1728,18 @@ function renderStudents() {
             addedDivider = true;
             const divider = document.createElement('div');
             divider.className = 'student-section-divider';
-            divider.innerHTML = `<span class="student-section-label">已離開 (${offlineCount})</span>`;
+            divider.innerHTML = `<span class="student-section-label">${i18n.t('ct.leftCount', {count: offlineCount})}</span>`;
             container.appendChild(divider);
         }
         const studentEl = document.createElement('div');
         studentEl.className = `student-item${student.online ? '' : ' offline'}`;
-        const initials = (student.name || '學').substring(0, 1).toUpperCase();
+        const initials = (student.name || i18n.t('ct.studentChar')).substring(0, 1).toUpperCase();
         studentEl.innerHTML = `
             <div class="status-indicator ${student.online ? '' : 'away'}"></div>
             <div class="student-avatar">${initials}</div>
             <div class="student-info">
-                <div class="student-name">${student.name || '未命名'}</div>
-                <div class="student-status">${student.online ? '在線' : '已離開'}</div>
+                <div class="student-name">${student.name || i18n.t('ct.unnamed')}</div>
+                <div class="student-status">${student.online ? i18n.t('ct.online') : i18n.t('ct.left')}</div>
             </div>
         `;
         container.appendChild(studentEl);
@@ -1844,7 +1846,7 @@ document.getElementById('fabricCanvas').addEventListener('click', (e) => {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        const text = prompt('輸入文字:');
+        const text = prompt(i18n.t('ct.enterText'));
         if (text) {
             const fabricText = new fabric.Text(text, {
                 left: x,

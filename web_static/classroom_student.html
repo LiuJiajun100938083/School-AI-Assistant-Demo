@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學生課堂</title>
+    <title data-i18n="cs.pageTitle">學生課堂</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <!-- Marked.js for markdown rendering -->
@@ -18,8 +18,8 @@
     <!-- Splash Screen -->
     <div class="splash-screen" id="splashScreen">
         <div class="splash-content">
-            <div class="splash-title">學生課堂</div>
-            <div class="splash-subtitle">CLASSROOM</div>
+            <div class="splash-title" data-i18n="cs.splashTitle">學生課堂</div>
+            <div class="splash-subtitle" data-i18n="cs.splashSubtitle">CLASSROOM</div>
             <div class="splash-loader">
                 <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
             </div>
@@ -31,16 +31,16 @@
         <!-- Top Bar (hidden — info moved to bottom) -->
         <div class="top-bar" style="display:none;">
             <div class="top-bar-left">
-                <div class="top-bar-title" id="roomTitle">課堂</div>
+                <div class="top-bar-title" id="roomTitle" data-i18n="cs.classroom">課堂</div>
                 <div class="top-bar-teacher" id="teacherName"></div>
             </div>
             <div class="top-bar-center">
                 <div class="page-info">
-                    <span id="pageNumber">第 0 頁</span>
+                    <span id="pageNumber" data-i18n="cs.pageZero">第 0 頁</span>
                 </div>
                 <div class="page-info">
                     <div class="status-indicator" id="statusIndicator"></div>
-                    <span class="status-label" id="statusLabel">已連接</span>
+                    <span class="status-label" id="statusLabel" data-i18n="cs.connected">已連接</span>
                 </div>
                 <div class="online-count">
                     <span>👥</span>
@@ -53,13 +53,13 @@
         <div class="main-content">
             <div class="page-display-container">
                 <div class="canvas-wrapper">
-                    <img id="pageImage" class="page-image" alt="PPT 頁面">
+                    <img id="pageImage" class="page-image" alt="PPT Page">
                     <canvas id="annotationCanvas" style="display: none;"></canvas>
                 </div>
                 <div id="loadingSpinner" style="display: none;">
                     <div class="loading-spinner"></div>
                 </div>
-                <div id="noPageMessage" class="no-page-message" style="display: none;">
+                <div id="noPageMessage" class="no-page-message" style="display: none;" data-i18n="cs.waitingForPage">
                     等待老師推送頁面...
                 </div>
             </div>
@@ -69,7 +69,7 @@
         <div class="bottom-bar" style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;gap:8px;">
             <button class="bottom-bar-button" id="backButton">
                 <span>←</span>
-                <span>返回房間列表</span>
+                <span data-i18n="cs.backToRoomList">返回房間列表</span>
             </button>
             <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6E6E73;">
                 <span id="bottomRoomTitle"></span>
@@ -82,7 +82,7 @@
                     <circle cx="14.5" cy="11.5" r="1"/>
                     <path d="M9.5 15a3.5 3.5 0 0 0 5 0"/>
                 </svg>
-                <span>AI 助手</span>
+                <span data-i18n="cs.aiAssistant">AI 助手</span>
             </button>
         </div>
     </div>
@@ -94,10 +94,10 @@
     <div class="ai-float" id="aiFloatingWindow" style="display: none;">
         <!-- Drag handle header -->
         <div class="ai-float-header" id="aiFloatHeader">
-            <span class="ai-float-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9.5" cy="11.5" r="1"/><circle cx="14.5" cy="11.5" r="1"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg> AI 課件助手</span>
+            <span class="ai-float-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9.5" cy="11.5" r="1"/><circle cx="14.5" cy="11.5" r="1"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg> <span data-i18n="cs.aiCoursewareAssistant">AI 課件助手</span></span>
             <div class="ai-float-actions">
-                <button class="ai-float-btn" id="aiFloatExpandBtn" title="放大">&#9634;</button>
-                <button class="ai-float-btn" id="aiFloatCloseBtn" title="關閉">&#10005;</button>
+                <button class="ai-float-btn" id="aiFloatExpandBtn" data-i18n-title="cs.expand" title="放大">&#9634;</button>
+                <button class="ai-float-btn" id="aiFloatCloseBtn" data-i18n-title="cs.close" title="關閉">&#10005;</button>
             </div>
         </div>
         <!-- Chat body -->
@@ -105,13 +105,13 @@
             <div class="ai-chat-content" id="aiChatContent">
                 <div class="ai-chat-welcome" id="aiChatWelcome">
                     <div class="ai-chat-welcome-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#006633" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z"/><circle cx="9.5" cy="11.5" r="1"/><circle cx="14.5" cy="11.5" r="1"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg></div>
-                    <div class="ai-chat-welcome-text">我是課堂 AI 助手，可以幫你理解當前課件內容。試試問我問題吧！</div>
+                    <div class="ai-chat-welcome-text" data-i18n="cs.aiWelcome">我是課堂 AI 助手，可以幫你理解當前課件內容。試試問我問題吧！</div>
                 </div>
             </div>
         </div>
         <!-- Input area -->
         <div class="ai-float-input-area">
-            <input type="text" class="ai-chat-input" id="aiChatInput" placeholder="對當前課件內容提問...">
+            <input type="text" class="ai-chat-input" id="aiChatInput" data-i18n-placeholder="cs.aiInputPlaceholder" placeholder="對當前課件內容提問...">
             <button class="ai-chat-send-button" id="aiChatSendButton">→</button>
         </div>
     </div>
@@ -119,8 +119,8 @@
     <!-- Overlay for Room Status Messages -->
     <div class="overlay" id="statusOverlay">
         <div class="overlay-message">
-            <div class="overlay-message-title" id="overlayTitle">課堂已結束</div>
-            <div class="overlay-message-text" id="overlayText">本課堂已由老師結束，請返回課堂列表。</div>
+            <div class="overlay-message-title" id="overlayTitle" data-i18n="cs.classEnded">課堂已結束</div>
+            <div class="overlay-message-text" id="overlayText" data-i18n="cs.classEndedText">本課堂已由老師結束，請返回課堂列表。</div>
         </div>
     </div>
 
@@ -128,6 +128,9 @@
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/ui.js"></script>
     <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n/classroom.js"></script>
     <script src="/static/js/shared/annotation_utils.js"></script>
     <script src="/static/js/shared/lesson_slide_renderers.js"></script>
     <script src="/static/js/shared/interactive_renderers.js"></script>

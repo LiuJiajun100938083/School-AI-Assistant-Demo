@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>培僑中學點名系統</title>
+    <title data-i18n="att.pageTitle">培僑中學點名系統</title>
     <!-- 引入 CSS -->
     <link rel="stylesheet" href="/static/css/attendance.css">
     <link rel="stylesheet" href="/static/css/spinner.css">
     <!-- GSAP 動畫引擎 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <!-- i18n 國際化 -->
+    <script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n/attendance.js"></script>
 </head>
 <body>
 <!-- 滑鼠聚光燈 -->
@@ -19,8 +23,8 @@
 <div class="splash-screen" id="splashScreen">
     <div class="splash-content">
         <div class="splash-icon">📋</div>
-        <div class="splash-title">點名系統</div>
-        <div class="splash-subtitle">晨讀 · 留堂 · 課外活動</div>
+        <div class="splash-title" data-i18n="att.splashTitle">點名系統</div>
+        <div class="splash-subtitle" data-i18n="att.splashSubtitle">晨讀 · 留堂 · 課外活動</div>
         <div class="splash-loader">
             <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
         </div>
@@ -32,12 +36,12 @@
 <!-- 頂部導航 -->
 <div class="header">
     <div class="header-left">
-        <button class="back-btn" onclick="window.location.href='/'">← 返回主頁</button>
-        <div class="header-title">📋 點名系統</div>
+        <button class="back-btn" onclick="window.location.href='/'"><span data-i18n="att.backHome">← 返回主頁</span></button>
+        <div class="header-title">📋 <span data-i18n="att.headerTitle">點名系統</span></div>
     </div>
     <div class="header-right">
         <!-- 學生數據已合併至後台用戶管理，不再需要單獨上傳 -->
-        <div class="user-info" id="userInfo">教師</div>
+        <div class="user-info" id="userInfo" data-i18n="att.teacher">教師</div>
     </div>
 </div>
 
@@ -53,18 +57,18 @@
     <!-- 左側面板 - 名單選擇 -->
     <div class="left-panel" id="leftPanel">
         <div class="panel-header">
-            <div class="panel-title">創建點名會話</div>
+            <div class="panel-title" data-i18n="att.createSession">創建點名會話</div>
 
             <!-- 類型選擇 -->
             <div class="type-selector">
                 <button class="type-btn morning active" data-type="morning" onclick="selectType('morning')">
-                    🌅 晨讀
+                    🌅 <span data-i18n="att.typeMorning">晨讀</span>
                 </button>
                 <button class="type-btn detention" data-type="detention" onclick="selectType('detention')">
-                    📚 留堂
+                    📚 <span data-i18n="att.typeDetention">留堂</span>
                 </button>
                 <button class="type-btn activity" data-type="activity" onclick="selectType('activity')">
-                    🎯 活動
+                    🎯 <span data-i18n="att.typeActivity">活動</span>
                 </button>
             </div>
 
@@ -86,61 +90,61 @@
         <!-- 選擇學生按鈕區域 - 晨讀/留堂模式不需要，為課外活動點名預留 -->
         <div class="filter-section" style="border-bottom: none; display: none;" id="studentSelectSection">
             <button class="select-student-btn" id="selectStudentBtn" onclick="openStudentSelectModal()">
-                👥 點擊選擇學生
+                👥 <span data-i18n="att.clickSelectStudent">點擊選擇學生</span>
             </button>
         </div>
         <!-- 課外活動配置區域 -->
         <div class="activity-config-section" id="activityConfigSection" style="display: none;">
             <div class="config-group">
-                <label class="config-label">活動名稱</label>
-                <input type="text" class="config-input" id="activityName" placeholder="例如：籃球隊訓練">
+                <label class="config-label" data-i18n="att.activityName">活動名稱</label>
+                <input type="text" class="config-input" id="activityName" placeholder="例如：籃球隊訓練" data-i18n-placeholder="att.activityNamePlaceholder">
             </div>
 
             <div class="config-row">
                 <div class="config-group half">
-                    <label class="config-label">應到時間</label>
+                    <label class="config-label" data-i18n="att.expectedTime">應到時間</label>
                     <input type="time" class="config-input" id="activityStartTime" value="16:00">
                 </div>
                 <div class="config-group half">
-                    <label class="config-label">遲到閾值(分鐘)</label>
+                    <label class="config-label" data-i18n="att.lateThreshold">遲到閾值(分鐘)</label>
                     <input type="number" class="config-input" id="activityLateThreshold" value="10" min="1" max="60">
                 </div>
             </div>
 
             <div class="config-row">
                 <div class="config-group half">
-                    <label class="config-label">結束時間</label>
+                    <label class="config-label" data-i18n="att.endTime">結束時間</label>
                     <input type="time" class="config-input" id="activityEndTime" value="17:30">
                 </div>
                 <div class="config-group half">
-                    <label class="config-label">早退閾值(分鐘)</label>
+                    <label class="config-label" data-i18n="att.earlyThreshold">早退閾值(分鐘)</label>
                     <input type="number" class="config-input" id="activityEarlyThreshold" value="10" min="1" max="60">
                 </div>
             </div>
 
             <!-- 固定組別選擇 -->
             <div class="config-group">
-                <label class="config-label">📌 快速固定名單</label>
+                <label class="config-label">📌 <span data-i18n="att.quickFixedList">快速固定名單</span></label>
                 <div class="activity-groups" id="activityGroupsList">
-                    <span class="no-groups-hint">暫無組別</span>
+                    <span class="no-groups-hint" data-i18n="att.noGroups">暫無組別</span>
                 </div>
             </div>
 
             <!-- 選擇學生按鈕 -->
             <button class="select-student-btn activity-select-btn" id="activitySelectStudentBtn"
                     onclick="openStudentSelectModal()">
-                👥 選擇學生(必選)
+                👥 <span data-i18n="att.selectStudentRequired">選擇學生(必選)</span>
             </button>
 
             <!-- 已選人數統計 -->
-            <div class="selected-count activity-selected-count" id="activitySelectedCount">
+            <div class="selected-count activity-selected-count" id="activitySelectedCount" data-i18n="att.selectedStudentsCount" data-i18n-html>
                 已選擇 <span id="activityStudentCount">0</span> 名學生
             </div>
         </div>
         <!-- 左側欄底部操作區 -->
         <div class="panel-footer">
             <!-- 已選人數統計 -->
-            <div class="selected-count" id="selectedCountSection" style="display:none;">
+            <div class="selected-count" id="selectedCountSection" style="display:none;" data-i18n="att.selectedStudentsCount2" data-i18n-html>
                 已選擇 <span id="selectedCount">0</span> 名學生
             </div>
 
@@ -152,7 +156,7 @@
                         <circle cx="12" cy="12" r="10"/>
                         <polyline points="12 6 12 12 16 14"/>
                     </svg>
-                    簽到紀錄
+                    <span data-i18n="att.attendanceRecords">簽到紀錄</span>
                 </button>
 
                 <!-- 儲存名單按鈕 -->
@@ -162,7 +166,7 @@
                         <polyline points="17 21 17 13 7 13 7 21"/>
                         <polyline points="7 3 7 8 15 8"/>
                     </svg>
-                    保存為固定名單
+                    <span data-i18n="att.saveAsFixedList">保存為固定名單</span>
                 </button>
 
                 <!-- 分隔線 -->
@@ -173,7 +177,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
-                    開始點名
+                    <span data-i18n="att.startSession">開始點名</span>
                 </button>
             </div>
         </div>
@@ -184,7 +188,7 @@
         <!-- 無會話提示 -->
         <div class="no-session" id="noSessionHint">
             <div class="no-session-icon">📋</div>
-            <div class="no-session-text">請在左側設置點名參數開始點名</div>
+            <div class="no-session-text" data-i18n="att.noSessionHint">請在左側設置點名參數開始點名</div>
         </div>
 
         <!-- 簽到區（會話開始後顯示） -->
@@ -196,15 +200,15 @@
                     <div class="live-date" id="liveDate">2025年1月15日 星期三</div>
                 </div>
 
-                <div class="scan-title" id="sessionTitle">晨讀點名進行中</div>
+                <div class="scan-title" id="sessionTitle" data-i18n="att.morningSessionTitle">晨讀點名進行中</div>
                 <div class="scan-input-container">
                     <input type="text" class="scan-input" id="cardInput"
-                           placeholder="請拍卡或輸入學號" autofocus>
-                    <button class="scan-btn" onclick="processCard()">✔ 簽到</button>
+                           placeholder="請拍卡或輸入學號" data-i18n-placeholder="att.cardInputPlaceholder" autofocus>
+                    <button class="scan-btn" onclick="processCard()">✔ <span data-i18n="att.checkIn">簽到</span></button>
                 </div>
 
                 <button class="manual-scan-btn" onclick="showManualScanModal()">
-                    🆔 無卡簽到8
+                    🆔 <span data-i18n="att.manualCheckIn">無卡簽到</span>
                 </button>
 
                 <div class="scan-result" id="scanResult">
@@ -219,38 +223,38 @@
                 <div class="records-header">
                     <!-- 🆕 新增：標題行包含排序和緊湊控制 -->
                     <div class="records-title-row">
-                        <div class="records-title">簽到紀錄</div>
+                        <div class="records-title" data-i18n="att.checkInRecords">簽到紀錄</div>
                         <div class="records-controls">
                             <button class="compact-toggle-btn" id="compactToggleBtn" onclick="toggleCompactMode()"
                                     title="切換緊湊/標準顯示">
                                 <span class="compact-icon">📋</span>
-                                <span class="compact-text">緊湊</span>
+                                <span class="compact-text" data-i18n="att.compact">緊湊</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="records-stats" id="morningStats">
-                        <span class="stat-item present">準時: <span id="statPresent">0</span></span>
-                        <span class="stat-item late">遲到: <span id="statLate">0</span></span>
-                        <span class="stat-item very-late">嚴重遲到: <span id="statVeryLate">0</span></span>
-                        <span class="stat-item absent">未到: <span id="statAbsent">0</span></span>
+                        <span class="stat-item present"><span data-i18n="att.statOnTime">準時</span>: <span id="statPresent">0</span></span>
+                        <span class="stat-item late"><span data-i18n="att.statLate">遲到</span>: <span id="statLate">0</span></span>
+                        <span class="stat-item very-late"><span data-i18n="att.statVeryLate">嚴重遲到</span>: <span id="statVeryLate">0</span></span>
+                        <span class="stat-item absent"><span data-i18n="att.statAbsent">未到</span>: <span id="statAbsent">0</span></span>
                     </div>
 
                     <div class="records-stats" id="detentionStats" style="display: none;">
-                        <span class="stat-item active">進行中: <span id="statActive">0</span></span>
-                        <span class="stat-item completed">已完成: <span id="statCompleted">0</span></span>
-                        <span class="stat-item incomplete">未完成: <span id="statIncomplete">0</span></span>
-                        <span class="stat-item absent">未簽到: <span id="statNotCheckedIn">0</span></span>
+                        <span class="stat-item active"><span data-i18n="att.statActive">進行中</span>: <span id="statActive">0</span></span>
+                        <span class="stat-item completed"><span data-i18n="att.statCompleted">已完成</span>: <span id="statCompleted">0</span></span>
+                        <span class="stat-item incomplete"><span data-i18n="att.statIncomplete">未完成</span>: <span id="statIncomplete">0</span></span>
+                        <span class="stat-item absent"><span data-i18n="att.statNotCheckedIn">未簽到</span>: <span id="statNotCheckedIn">0</span></span>
                     </div>
                     <!-- 課外活動統計 -->
                     <div class="records-stats" id="activityStats" style="display: none;">
-                        <span class="stat-item present">準時: <span id="activityStatOnTime">0</span></span>
-                        <span class="stat-item late">遲到: <span id="activityStatLate">0</span></span>
-                        <span class="stat-item absent">未到: <span id="activityStatAbsent">0</span></span>
+                        <span class="stat-item present"><span data-i18n="att.statOnTime">準時</span>: <span id="activityStatOnTime">0</span></span>
+                        <span class="stat-item late"><span data-i18n="att.statLate">遲到</span>: <span id="activityStatLate">0</span></span>
+                        <span class="stat-item absent"><span data-i18n="att.statAbsent">未到</span>: <span id="activityStatAbsent">0</span></span>
                         <span class="stat-item divider">|</span>
-                        <span class="stat-item completed">正常離開: <span id="activityStatNormal">0</span></span>
-                        <span class="stat-item early-leave">早退: <span id="activityStatEarly">0</span></span>
-                        <span class="stat-item still-here">仍在: <span id="activityStatStillHere">0</span></span>
+                        <span class="stat-item completed"><span data-i18n="att.statNormalLeave">正常離開</span>: <span id="activityStatNormal">0</span></span>
+                        <span class="stat-item early-leave"><span data-i18n="att.statEarlyLeave">早退</span>: <span id="activityStatEarly">0</span></span>
+                        <span class="stat-item still-here"><span data-i18n="att.statStillHere">仍在</span>: <span id="activityStatStillHere">0</span></span>
                     </div>
                 </div>
 
@@ -258,12 +262,12 @@
                     <table class="records-table" id="morningRecordsTable">
                         <thead>
                         <tr>
-                            <th class="sortable" onclick="sortMorningRecords('class')">班級</th>
-                            <th>姓名</th>
-                            <th class="sortable" onclick="sortMorningRecords('time')">簽到時間</th>
-                            <th class="sortable" onclick="sortMorningRecords('status')">狀態</th>
-                            <th class="hide-compact">遲到</th>
-                            <th class="hide-compact">需補時</th>
+                            <th class="sortable" onclick="sortMorningRecords('class')" data-i18n="att.thClass">班級</th>
+                            <th data-i18n="att.thName">姓名</th>
+                            <th class="sortable" onclick="sortMorningRecords('time')" data-i18n="att.thCheckInTime">簽到時間</th>
+                            <th class="sortable" onclick="sortMorningRecords('status')" data-i18n="att.thStatus">狀態</th>
+                            <th class="hide-compact" data-i18n="att.thLate">遲到</th>
+                            <th class="hide-compact" data-i18n="att.thMakeup">需補時</th>
                         </tr>
                         </thead>
                         <tbody id="recordsBody">
@@ -276,16 +280,16 @@
                     <table class="records-table detention" id="detentionRecordsTable" style="display: none;">
                         <thead>
                         <tr>
-                            <th class="sortable" onclick="sortDetentionRecords('class')">班級</th>
-                            <th>姓名</th>
-                            <th>原因</th>
-                            <th class="sortable" onclick="sortDetentionRecords('scanTime')">簽到</th>
-                            <th>簽退</th>
-                            <th>計畫</th>
-                            <th>預計結束時間</th>
-                            <th class="sortable" onclick="sortDetentionRecords('remaining')">剩餘/實際</th>
-                            <th>狀態</th>
-                            <th>操作</th>
+                            <th class="sortable" onclick="sortDetentionRecords('class')" data-i18n="att.thClass">班級</th>
+                            <th data-i18n="att.thName">姓名</th>
+                            <th data-i18n="att.thReason">原因</th>
+                            <th class="sortable" onclick="sortDetentionRecords('scanTime')" data-i18n="att.thCheckIn">簽到</th>
+                            <th data-i18n="att.thCheckOut">簽退</th>
+                            <th data-i18n="att.thPlan">計畫</th>
+                            <th data-i18n="att.thExpectedEndTime">預計結束時間</th>
+                            <th class="sortable" onclick="sortDetentionRecords('remaining')" data-i18n="att.thRemainingActual">剩餘/實際</th>
+                            <th data-i18n="att.thStatus">狀態</th>
+                            <th data-i18n="att.thAction">操作</th>
                         </tr>
                         </thead>
                         <tbody id="detentionRecordsBody">
@@ -298,13 +302,13 @@
                     <table class="records-table" id="activityRecordsTable" style="display: none;">
                         <thead>
                         <tr>
-                            <th class="sortable" onclick="sortActivityRecords('class')">班級學號</th>
-                            <th>姓名</th>
-                            <th class="sortable" onclick="sortActivityRecords('checkIn')">簽到時間</th>
-                            <th class="sortable" onclick="sortActivityRecords('checkOut')">簽退時間</th>
-                            <th>簽到狀態</th>
-                            <th>簽退狀態</th>
-                            <th class="hide-compact">操作</th>
+                            <th class="sortable" onclick="sortActivityRecords('class')" data-i18n="att.thClassNo">班級學號</th>
+                            <th data-i18n="att.thName">姓名</th>
+                            <th class="sortable" onclick="sortActivityRecords('checkIn')" data-i18n="att.thCheckInTime">簽到時間</th>
+                            <th class="sortable" onclick="sortActivityRecords('checkOut')" data-i18n="att.thCheckOutTime">簽退時間</th>
+                            <th data-i18n="att.thCheckInStatus">簽到狀態</th>
+                            <th data-i18n="att.thCheckOutStatus">簽退狀態</th>
+                            <th class="hide-compact" data-i18n="att.thAction">操作</th>
                         </tr>
                         </thead>
                         <tbody id="activityRecordsBody"></tbody>
@@ -322,7 +326,7 @@
                             <polyline points="7 10 12 15 17 10"/>
                             <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
-                        導出
+                        <span data-i18n="att.export">導出</span>
                     </button>
                 </div>
                 <button class="toolbar-btn end" onclick="endSession()">
@@ -332,7 +336,7 @@
                         <line x1="9" y1="9" x2="15" y2="15"/>
                         <line x1="15" y1="9" x2="9" y2="15"/>
                     </svg>
-                    結束點名
+                    <span data-i18n="att.endSession">結束點名</span>
                 </button>
             </div>
         </div>
@@ -343,28 +347,28 @@
 <div class="student-select-modal" id="studentSelectModal">
     <div class="student-select-content">
         <div class="student-select-header">
-            <div class="student-select-title">👥 選擇學生</div>
+            <div class="student-select-title">👥 <span data-i18n="att.selectStudent">選擇學生</span></div>
             <button class="student-select-close" onclick="closeStudentSelectModal()">×</button>
         </div>
 
         <div class="student-select-filters">
             <div class="filter-row">
                 <select class="filter-select" id="modalClassFilter" onchange="filterStudentsInModal()">
-                    <option value="">全部班級</option>
+                    <option value="" data-i18n="att.allClasses">全部班級</option>
                 </select>
                 <input type="text" class="filter-input" id="modalSearchInput"
-                       placeholder="搜尋姓名/學號" oninput="filterStudentsInModal()">
+                       placeholder="搜尋姓名/學號" data-i18n-placeholder="att.searchNameId" oninput="filterStudentsInModal()">
             </div>
             <div class="quick-select-btns" style="margin-top: 10px;">
-                <button class="quick-btn" onclick="modalShowAll()">全部</button>
-                <button class="quick-btn" onclick="modalSelectAll()">全選當前</button>
-                <button class="quick-btn" onclick="modalSelectNone()">清空</button>
-                <button class="quick-btn" onclick="modalFilterByGrade(1)">中一</button>
-                <button class="quick-btn" onclick="modalFilterByGrade(2)">中二</button>
-                <button class="quick-btn" onclick="modalFilterByGrade(3)">中三</button>
-                <button class="quick-btn" onclick="modalFilterByGrade(4)">中四</button>
-                <button class="quick-btn" onclick="modalFilterByGrade(5)">中五</button>
-                <button class="quick-btn" onclick="modalFilterByGrade(6)">中六</button>
+                <button class="quick-btn" onclick="modalShowAll()" data-i18n="att.all">全部</button>
+                <button class="quick-btn" onclick="modalSelectAll()" data-i18n="att.selectAllCurrent">全選當前</button>
+                <button class="quick-btn" onclick="modalSelectNone()" data-i18n="att.clear">清空</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(1)" data-i18n="att.grade1">中一</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(2)" data-i18n="att.grade2">中二</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(3)" data-i18n="att.grade3">中三</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(4)" data-i18n="att.grade4">中四</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(5)" data-i18n="att.grade5">中五</button>
+                <button class="quick-btn" onclick="modalFilterByGrade(6)" data-i18n="att.grade6">中六</button>
             </div>
         </div>
 
@@ -375,10 +379,10 @@
         </div>
 
         <div class="student-select-footer">
-            <div class="selected-count">已選擇: <span id="modalSelectedCount">0</span> 名學生</div>
+            <div class="selected-count"><span data-i18n="att.selected">已選擇</span>: <span id="modalSelectedCount">0</span> <span data-i18n="att.students">名學生</span></div>
             <div class="action-btns">
-                <button class="action-btn secondary" onclick="closeStudentSelectModal()">取消</button>
-                <button class="action-btn primary" onclick="confirmStudentSelection()">確認選擇</button>
+                <button class="action-btn secondary" onclick="closeStudentSelectModal()" data-i18n="att.cancel">取消</button>
+                <button class="action-btn primary" onclick="confirmStudentSelection()" data-i18n="att.confirmSelect">確認選擇</button>
             </div>
         </div>
     </div>
@@ -386,11 +390,11 @@
 <!-- 儲存固定名單模態框 -->
 <div class="modal-overlay" id="saveListModal">
     <div class="modal">
-        <div class="modal-title">💾 保存為固定名單</div>
-        <input type="text" class="modal-input" id="listNameInput" placeholder="輸入名單名稱（如：中一晨讀班）">
+        <div class="modal-title">💾 <span data-i18n="att.saveAsFixedList">保存為固定名單</span></div>
+        <input type="text" class="modal-input" id="listNameInput" placeholder="輸入名單名稱（如：中一晨讀班）" data-i18n-placeholder="att.listNamePlaceholder">
         <div class="modal-btns">
-            <button class="modal-btn cancel" onclick="closeSaveListModal()">取消</button>
-            <button class="modal-btn confirm" onclick="confirmSaveList()">保存</button>
+            <button class="modal-btn cancel" onclick="closeSaveListModal()" data-i18n="att.cancel">取消</button>
+            <button class="modal-btn confirm" onclick="confirmSaveList()" data-i18n="att.save">保存</button>
         </div>
     </div>
 </div>
@@ -400,12 +404,12 @@
 <!-- 編輯固定名單模態框 -->
 <div class="modal-overlay" id="editListModal">
     <div class="modal" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
-        <div class="modal-title">✏️ 編輯固定名單</div>
+        <div class="modal-title">✏️ <span data-i18n="att.editFixedList">編輯固定名單</span></div>
         <input type="hidden" id="editListId">
-        <input type="text" class="modal-input" id="editListName" placeholder="名單名稱" style="margin-bottom: 10px;">
+        <input type="text" class="modal-input" id="editListName" placeholder="名單名稱" data-i18n-placeholder="att.listName" style="margin-bottom: 10px;">
 
         <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 8px;">
-            名單成員 (<span id="editListCount">0</span>人)：
+            <span data-i18n="att.listMembers">名單成員</span> (<span id="editListCount">0</span><span data-i18n="att.people">人</span>)：
         </div>
 
         <div id="editListStudents"
@@ -415,16 +419,16 @@
 
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <select id="addStudentSelect" class="modal-input" style="flex: 1;">
-                <option value="">-- 選擇學生添加 --</option>
+                <option value="" data-i18n="att.selectStudentToAdd">-- 選擇學生添加 --</option>
             </select>
-            <button class="modal-btn confirm" onclick="addStudentToEditList()" style="width: auto; padding: 8px 15px;">
+            <button class="modal-btn confirm" onclick="addStudentToEditList()" style="width: auto; padding: 8px 15px;" data-i18n="att.add">
                 添加
             </button>
         </div>
 
         <div class="modal-btns">
-            <button class="modal-btn cancel" onclick="closeEditListModal()">取消</button>
-            <button class="modal-btn confirm" onclick="saveEditedList()">保存</button>
+            <button class="modal-btn cancel" onclick="closeEditListModal()" data-i18n="att.cancel">取消</button>
+            <button class="modal-btn confirm" onclick="saveEditedList()" data-i18n="att.save">保存</button>
         </div>
     </div>
 </div>
@@ -432,19 +436,19 @@
 <!-- 留堂節數選擇模態框 -->
 <div id="periodsModal" class="periods-modal">
     <div class="periods-modal-content">
-        <div class="periods-modal-title">選擇留堂時長</div>
-        <div id="periodsModalStudent" class="periods-modal-subtitle">學生姓名</div>
+        <div class="periods-modal-title" data-i18n="att.selectDuration">選擇留堂時長</div>
+        <div id="periodsModalStudent" class="periods-modal-subtitle" data-i18n="att.studentName">學生姓名</div>
 
         <!-- 🆕 原因選擇 -->
-        <div class="periods-section-title">選擇留堂原因</div>
+        <div class="periods-section-title" data-i18n="att.selectReason">選擇留堂原因</div>
         <div class="detention-reason-options">
-            <button class="reason-option-btn" id="reasonHomework" onclick="selectDetentionReason('homework')">
+            <button class="reason-option-btn" id="reasonHomework" onclick="selectDetentionReason('homework')" data-i18n="att.reasonHomework">
                 功課留堂
             </button>
-            <button class="reason-option-btn" id="reasonMorning" onclick="selectDetentionReason('morning')">
+            <button class="reason-option-btn" id="reasonMorning" onclick="selectDetentionReason('morning')" data-i18n="att.reasonMorning">
                 晨讀留堂
             </button>
-            <button class="reason-option-btn" id="reasonBoth" onclick="selectDetentionReason('both')">
+            <button class="reason-option-btn" id="reasonBoth" onclick="selectDetentionReason('both')" data-i18n="att.reasonBoth">
                 功課+晨讀
             </button>
         </div>
@@ -452,50 +456,50 @@
 
         <!-- 節數選擇（原因選擇後顯示） -->
         <div id="periodsSelectionArea" style="display: none;">
-            <div class="periods-section-title">按節數選擇</div>
+            <div class="periods-section-title" data-i18n="att.selectByPeriods">按節數選擇</div>
             <div id="periodsOptions" class="periods-options"></div>
 
            <!-- 分鐘數輸入（預設隱藏） -->
             <div id="minutesInputSection" style="display: none;">
-                <div class="periods-section-title" style="margin-top: 15px;">或輸入分鐘數</div>
+                <div class="periods-section-title" style="margin-top: 15px;" data-i18n="att.orEnterMinutes">或輸入分鐘數</div>
                 <div class="minutes-input-row">
                     <input type="number" id="periodsMinutesInput" class="minutes-input"
-                           placeholder="輸入分鐘數" min="1" max="180" value="0" oninput="updatePeriodsMinutesPreview()">
-                    <span class="minutes-label">分鐘</span>
+                           placeholder="輸入分鐘數" data-i18n-placeholder="att.enterMinutes" min="1" max="180" value="0" oninput="updatePeriodsMinutesPreview()">
+                    <span class="minutes-label" data-i18n="att.minutes">分鐘</span>
                     <button class="minutes-confirm-btn" id="periodsMinutesConfirmBtn"
-                            onclick="confirmPeriodsWithMinutes()" disabled>確認
+                            onclick="confirmPeriodsWithMinutes()" disabled data-i18n="att.confirm">確認
                     </button>
                 </div>
                 <div id="periodsMinutesPreview" class="minutes-preview"></div>
             </div>
 
             <button class="toggle-minutes-btn" onclick="toggleMinutesInput()">
-                ⏱️ 自訂分鐘數
+                ⏱️ <span data-i18n="att.customMinutes">自訂分鐘數</span>
             </button>
         </div>
 
-        <button class="periods-modal-cancel" onclick="closePeriodsModal()">取消</button>
+        <button class="periods-modal-cancel" onclick="closePeriodsModal()" data-i18n="att.cancel">取消</button>
     </div>
 </div>
 
 <!-- 留堂手動簽到節數選擇彈窗 -->
 <div id="manualPeriodsModal" class="periods-modal">
     <div class="periods-modal-content">
-        <iv class="periods-modal-title">選擇留堂時長</iv>
-        <div id="manualPeriodsModalStudent" class="periods-modal-subtitle">學生姓名</div>
-        <div class="periods-modal-hint">手動簽到 - 請選擇留堂時長</div>
+        <iv class="periods-modal-title" data-i18n="att.selectDuration">選擇留堂時長</iv>
+        <div id="manualPeriodsModalStudent" class="periods-modal-subtitle" data-i18n="att.studentName">學生姓名</div>
+        <div class="periods-modal-hint" data-i18n="att.manualSelectHint">手動簽到 - 請選擇留堂時長</div>
 
         <!-- 🆕 原因選擇 -->
-        <div class="periods-section-title">選擇留堂原因</div>
+        <div class="periods-section-title" data-i18n="att.selectReason">選擇留堂原因</div>
         <div class="detention-reason-options">
             <button class="reason-option-btn" id="manualReasonHomework"
-                    onclick="selectManualDetentionReason('homework')">
+                    onclick="selectManualDetentionReason('homework')" data-i18n="att.reasonHomework">
                 功課留堂
             </button>
-            <button class="reason-option-btn" id="manualReasonMorning" onclick="selectManualDetentionReason('morning')">
+            <button class="reason-option-btn" id="manualReasonMorning" onclick="selectManualDetentionReason('morning')" data-i18n="att.reasonMorning">
                 晨讀留堂
             </button>
-            <button class="reason-option-btn" id="manualReasonBoth" onclick="selectManualDetentionReason('both')">
+            <button class="reason-option-btn" id="manualReasonBoth" onclick="selectManualDetentionReason('both')" data-i18n="att.reasonBoth">
                 功課+晨讀
             </button>
         </div>
@@ -503,43 +507,43 @@
 
         <!-- 節數選擇（原因選擇後顯示） -->
         <div id="manualPeriodsSelectionArea" style="display: none;">
-            <div class="periods-section-title">按節數選擇</div>
+            <div class="periods-section-title" data-i18n="att.selectByPeriods">按節數選擇</div>
             <div id="manualPeriodsOptions" class="periods-options"></div>
 
             <!-- 分鐘數輸入（預設隱藏） -->
             <div id="manualMinutesInputSection" style="display: none;">
-                <div class="periods-section-title" style="margin-top: 15px;">或輸入分鐘數</div>
+                <div class="periods-section-title" style="margin-top: 15px;" data-i18n="att.orEnterMinutes">或輸入分鐘數</div>
                 <div class="minutes-input-row">
                     <input type="number" id="manualMinutesInput" class="minutes-input"
-                           placeholder="輸入分鐘數" min="1" max="180" value="0" oninput="updateManualMinutesPreview()">
-                    <span class="minutes-label">分鐘</span>
+                           placeholder="輸入分鐘數" data-i18n-placeholder="att.enterMinutes" min="1" max="180" value="0" oninput="updateManualMinutesPreview()">
+                    <span class="minutes-label" data-i18n="att.minutes">分鐘</span>
                     <button class="minutes-confirm-btn" id="manualMinutesConfirmBtn"
-                            onclick="confirmManualDetentionWithMinutes()" disabled>確認
+                            onclick="confirmManualDetentionWithMinutes()" disabled data-i18n="att.confirm">確認
                     </button>
                 </div>
                 <div id="manualMinutesPreview" class="minutes-preview"></div>
             </div>
 
             <button class="toggle-minutes-btn" onclick="toggleManualMinutesInput()">
-                ⏱️ 自訂分鐘數
+                ⏱️ <span data-i18n="att.customMinutes">自訂分鐘數</span>
             </button>
         </div>
 
-        <button class="periods-modal-cancel" onclick="closeManualPeriodsModal()">取消</button>
+        <button class="periods-modal-cancel" onclick="closeManualPeriodsModal()" data-i18n="att.cancel">取消</button>
     </div>
 </div>
 
 <!-- 修改留堂設定模態框 -->
 <div id="modifyModal" class="periods-modal">
     <div class="periods-modal-content" style="max-width: 420px;">
-        <div class="periods-modal-title">修改留堂設定</div>
-        <div id="modifyModalStudent" class="periods-modal-subtitle">學生姓名</div>
+        <div class="periods-modal-title" data-i18n="att.modifyDetention">修改留堂設定</div>
+        <div id="modifyModalStudent" class="periods-modal-subtitle" data-i18n="att.studentName">學生姓名</div>
 
         <!-- Tab 切換 -->
         <div class="modify-tabs">
-            <button id="tabPeriods" class="modify-tab active" onclick="switchModifyTab('periods')">按節數</button>
-            <button id="tabMinutes" class="modify-tab" onclick="switchModifyTab('minutes')">按分鐘</button>
-            <button id="tabEndTime" class="modify-tab" onclick="switchModifyTab('endTime')">指定時間</button>
+            <button id="tabPeriods" class="modify-tab active" onclick="switchModifyTab('periods')" data-i18n="att.byPeriods">按節數</button>
+            <button id="tabMinutes" class="modify-tab" onclick="switchModifyTab('minutes')" data-i18n="att.byMinutes">按分鐘</button>
+            <button id="tabEndTime" class="modify-tab" onclick="switchModifyTab('endTime')" data-i18n="att.byTime">指定時間</button>
         </div>
 
         <!-- 按節數修改 -->
@@ -552,16 +556,16 @@
         <!-- 按分鐘數修改 -->
         <div id="modifyMinutesPanel" class="modify-panel" style="display: none;">
             <div class="modify-time-row">
-                <span>簽到時間：</span>
+                <span data-i18n="att.checkInTimeLabel">簽到時間：</span>
                 <span id="modifyMinutesScanTime">--:--</span>
             </div>
             <div class="minutes-input-row" style="margin: 15px 0;">
                 <input type="number" id="modifyMinutesInput" class="minutes-input"
-                       placeholder="輸入分鐘數" min="1" max="180" oninput="updateModifyMinutesPreview()">
-                <span class="minutes-label">分鐘</span>
+                       placeholder="輸入分鐘數" data-i18n-placeholder="att.enterMinutes" min="1" max="180" oninput="updateModifyMinutesPreview()">
+                <span class="minutes-label" data-i18n="att.minutes">分鐘</span>
             </div>
             <div id="modifyMinutesPreview" class="minutes-preview"></div>
-            <button id="confirmMinutesBtn" class="modify-confirm-btn" onclick="confirmModifyMinutes()" disabled>
+            <button id="confirmMinutesBtn" class="modify-confirm-btn" onclick="confirmModifyMinutes()" disabled data-i18n="att.confirmModify">
                 確認修改
             </button>
         </div>
@@ -569,60 +573,60 @@
         <!-- 指定結束時間 -->
         <div id="modifyEndTimePanel" class="modify-panel" style="display: none;">
             <div class="modify-time-row">
-                <span>簽到時間：</span>
+                <span data-i18n="att.checkInTimeLabel">簽到時間：</span>
                 <span id="modifyScanTime">--:--</span>
             </div>
             <div class="modify-time-row">
-                <span>結束時間：</span>
+                <span data-i18n="att.endTimeLabel">結束時間：</span>
                 <input type="time" id="modifyEndTimeInput" class="modify-time-input" oninput="updateTimePreview()">
             </div>
             <div class="modify-time-row">
-                <span>預計留堂時長：</span>
-                <span id="timePreviewValue">-- 分鐘</span>
+                <span data-i18n="att.expectedDuration">預計留堂時長：</span>
+                <span id="timePreviewValue">-- <span data-i18n="att.minutes">分鐘</span></span>
             </div>
-            <button id="confirmTimeBtn" class="modify-confirm-btn" onclick="confirmModifyEndTime()" disabled>確認修改
+            <button id="confirmTimeBtn" class="modify-confirm-btn" onclick="confirmModifyEndTime()" disabled data-i18n="att.confirmModify">確認修改
             </button>
         </div>
 
-        <button class="periods-modal-cancel" onclick="closeModifyModal()">取消</button>
+        <button class="periods-modal-cancel" onclick="closeModifyModal()" data-i18n="att.cancel">取消</button>
     </div>
 </div>
 
 <!-- 結束點名確認彈窗 -->
 <div id="endSessionModal" class="end-session-modal">
     <div class="end-session-content">
-        <div class="end-session-title">結束點名</div>
+        <div class="end-session-title" data-i18n="att.endSession">結束點名</div>
 
         <div class="end-session-stats">
             <div class="end-stat-item present">
                 <div id="endStatPresent" class="end-stat-value">0</div>
-                <div class="end-stat-label">實到</div>
+                <div class="end-stat-label" data-i18n="att.statPresent">實到</div>
             </div>
             <div class="end-stat-item late">
                 <div id="endStatLate" class="end-stat-value">0</div>
-                <div class="end-stat-label">遲到</div>
+                <div class="end-stat-label" data-i18n="att.statLate">遲到</div>
             </div>
             <div class="end-stat-item absent">
                 <div id="endStatAbsent" class="end-stat-value">0</div>
-                <div class="end-stat-label">缺席</div>
+                <div class="end-stat-label" data-i18n="att.statAbsentLabel">缺席</div>
             </div>
         </div>
 
         <div class="end-session-notes">
-            <label>備註（可選）</label>
-            <textarea id="exportNotes" placeholder="輸入備註資訊..."></textarea>
+            <label data-i18n="att.notesOptional">備註（可選）</label>
+            <textarea id="exportNotes" placeholder="輸入備註資訊..." data-i18n-placeholder="att.notesPlaceholder"></textarea>
         </div>
 
         <label class="end-session-checkbox">
             <input type="checkbox" id="saveToServerCheckbox" checked>
-            <span>儲存到伺服器</span>
-            <span class="end-session-checkbox-hint">可在其他裝置下載</span>
+            <span data-i18n="att.saveToServer">儲存到伺服器</span>
+            <span class="end-session-checkbox-hint" data-i18n="att.downloadOnOtherDevices">可在其他裝置下載</span>
         </label>
 
         <div class="end-session-actions">
-            <button class="end-session-btn primary" onclick="confirmEndSession()">確認結束</button>
-            <button class="end-session-btn secondary" onclick="downloadOnlyEndSession()">僅下載到本機</button>
-            <button class="end-session-btn cancel" onclick="closeEndSessionModal()">取消</button>
+            <button class="end-session-btn primary" onclick="confirmEndSession()" data-i18n="att.confirmEnd">確認結束</button>
+            <button class="end-session-btn secondary" onclick="downloadOnlyEndSession()" data-i18n="att.downloadOnly">僅下載到本機</button>
+            <button class="end-session-btn cancel" onclick="closeEndSessionModal()" data-i18n="att.cancel">取消</button>
         </div>
     </div>
 </div>
@@ -631,7 +635,7 @@
 <div id="exportsPanel" class="exports-panel">
     <div class="exports-panel-content">
         <div class="exports-panel-header">
-            <div class="exports-panel-title">📁 點名紀錄</div>
+            <div class="exports-panel-title">📁 <span data-i18n="att.attendanceRecords">點名紀錄</span></div>
             <button class="exports-close-btn" onclick="closeExportsPanel()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -642,15 +646,15 @@
 
         <div class="exports-filter">
             <select id="exportsTypeFilter">
-                <option value="">全部類型</option>
-                <option value="morning">晨讀</option>
-                <option value="detention">留堂</option>
-                <option value="activity">課外活動</option>
+                <option value="" data-i18n="att.allTypes">全部類型</option>
+                <option value="morning" data-i18n="att.typeMorning">晨讀</option>
+                <option value="detention" data-i18n="att.typeDetention">留堂</option>
+                <option value="activity" data-i18n="att.typeActivityFull">課外活動</option>
             </select>
             <input type="date" id="exportsStartDate" placeholder="開始日期">
             <input type="date" id="exportsEndDate" placeholder="結束日期">
-            <button class="exports-filter-btn" onclick="filterExports()">篩選</button>
-            <button class="exports-filter-btn reset" onclick="resetExportsFilter()">重置</button>
+            <button class="exports-filter-btn" onclick="filterExports()" data-i18n="att.filter">篩選</button>
+            <button class="exports-filter-btn reset" onclick="resetExportsFilter()" data-i18n="att.reset">重置</button>
         </div>
 
         <div class="exports-list-container">
@@ -676,8 +680,8 @@
             <span class="notification-class-icon">🎓</span>
             <span id="notificationClassText">1A-01號</span>
         </div>
-        <div id="notificationStatus" class="notification-status present">準時簽到</div>
-        <div id="notificationTime" class="notification-time">簽到時間: 07:45:30</div>
+        <div id="notificationStatus" class="notification-status present" data-i18n="att.onTimeCheckIn">準時簽到</div>
+        <div id="notificationTime" class="notification-time" data-i18n="att.checkInTimeSample">簽到時間: 07:45:30</div>
         <div id="notificationExtra" class="notification-extra" style="display: none;"></div>
     </div>
 </div>
@@ -686,17 +690,17 @@
 <!-- 手動簽到模態框 -->
 <div class="manual-scan-modal" id="manualScanModal">
     <div class="manual-scan-content">
-        <div class="manual-scan-title">🆔 手動簽到</div>
+        <div class="manual-scan-title">🆔 <span data-i18n="att.manualCheckIn">手動簽到</span></div>
         <div class="manual-scan-form">
             <div class="form-group">
-                <label>選擇班級</label>
+                <label data-i18n="att.selectClass">選擇班級</label>
                 <select id="manualClassSelect" onchange="updateManualStudentPreview()">
-                    <option value="">-- 請選擇班級 --</option>
+                    <option value="" data-i18n="att.pleaseSelectClass">-- 請選擇班級 --</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>輸入學號 (班內編號)</label>
-                <input type="number" id="manualClassNumber" placeholder="例如: 1, 2, 3..."
+                <label data-i18n="att.enterClassNumber">輸入學號 (班內編號)</label>
+                <input type="number" id="manualClassNumber" placeholder="例如: 1, 2, 3..." data-i18n-placeholder="att.classNumberPlaceholder"
                        min="1" max="50" oninput="updateManualStudentPreview()">
             </div>
 
@@ -707,12 +711,12 @@
                 <div class="preview-class" id="previewClass"></div>
             </div>
             <div class="preview-not-found" id="previewNotFound" style="display: none;">
-                ❌ 未找到該學生
+                ❌ <span data-i18n="att.studentNotFound">未找到該學生</span>
             </div>
 
             <div class="manual-scan-actions">
-                <button class="btn-cancel" onclick="hideManualScanModal()">取消</button>
-                <button class="btn-confirm" id="confirmManualScan" onclick="confirmManualScan()" disabled>
+                <button class="btn-cancel" onclick="hideManualScanModal()" data-i18n="att.cancel">取消</button>
+                <button class="btn-confirm" id="confirmManualScan" onclick="confirmManualScan()" disabled data-i18n="att.confirmCheckIn">
                     確認簽到
                 </button>
             </div>
@@ -722,34 +726,34 @@
 <!-- 結束點名確認彈窗 -->
 <div id="endSessionModal" class="end-session-modal">
     <div class="end-session-content">
-        <div class="end-session-title">結束點名</div>
+        <div class="end-session-title" data-i18n="att.endSession">結束點名</div>
         <div class="end-session-stats">
             <div class="end-stat-item present">
                 <div id="endStatPresent" class="end-stat-value">0</div>
-                <div class="end-stat-label">實到</div>
+                <div class="end-stat-label" data-i18n="att.statPresent">實到</div>
             </div>
             <div class="end-stat-item late">
                 <div id="endStatLate" class="end-stat-value">0</div>
-                <div class="end-stat-label">遲到</div>
+                <div class="end-stat-label" data-i18n="att.statLate">遲到</div>
             </div>
             <div class="end-stat-item absent">
                 <div id="endStatAbsent" class="end-stat-value">0</div>
-                <div class="end-stat-label">缺席</div>
+                <div class="end-stat-label" data-i18n="att.statAbsentLabel">缺席</div>
             </div>
         </div>
         <div class="end-session-notes">
-            <label>備註（可選）</label>
-            <textarea id="exportNotes" placeholder="輸入備註資訊..."></textarea>
+            <label data-i18n="att.notesOptional">備註（可選）</label>
+            <textarea id="exportNotes" placeholder="輸入備註資訊..." data-i18n-placeholder="att.notesPlaceholder"></textarea>
         </div>
         <label class="end-session-checkbox">
             <input type="checkbox" id="saveToServerCheckbox" checked>
-            <span>儲存到伺服器</span>
-            <span class="end-session-checkbox-hint">可在其他裝置下載</span>
+            <span data-i18n="att.saveToServer">儲存到伺服器</span>
+            <span class="end-session-checkbox-hint" data-i18n="att.downloadOnOtherDevices">可在其他裝置下載</span>
         </label>
         <div class="end-session-actions">
-            <button class="end-session-btn primary" onclick="confirmEndSession()">確認結束</button>
-            <button class="end-session-btn secondary" onclick="downloadOnlyEndSession()">僅下載到本機</button>
-            <button class="end-session-btn cancel" onclick="closeEndSessionModal()">取消</button>
+            <button class="end-session-btn primary" onclick="confirmEndSession()" data-i18n="att.confirmEnd">確認結束</button>
+            <button class="end-session-btn secondary" onclick="downloadOnlyEndSession()" data-i18n="att.downloadOnly">僅下載到本機</button>
+            <button class="end-session-btn cancel" onclick="closeEndSessionModal()" data-i18n="att.cancel">取消</button>
         </div>
     </div>
 </div>
@@ -758,20 +762,20 @@
 <div id="exportsPanel" class="exports-panel">
     <div class="exports-panel-content">
         <div class="exports-panel-header">
-            <div class="exports-panel-title">📁 點名紀錄</div>
+            <div class="exports-panel-title">📁 <span data-i18n="att.attendanceRecords">點名紀錄</span></div>
             <button class="exports-close-btn" onclick="closeExportsPanel()">✕</button>
         </div>
         <div class="exports-filter">
             <select id="exportsTypeFilter">
-                <option value="">全部類型</option>
-                <option value="morning">晨讀</option>
-                <option value="detention">留堂</option>
-                <option value="activity">課外活動</option>
+                <option value="" data-i18n="att.allTypes">全部類型</option>
+                <option value="morning" data-i18n="att.typeMorning">晨讀</option>
+                <option value="detention" data-i18n="att.typeDetention">留堂</option>
+                <option value="activity" data-i18n="att.typeActivityFull">課外活動</option>
             </select>
             <input type="date" id="exportsStartDate">
             <input type="date" id="exportsEndDate">
-            <button class="exports-filter-btn" onclick="filterExports()">篩選</button>
-            <button class="exports-filter-btn reset" onclick="resetExportsFilter()">重置</button>
+            <button class="exports-filter-btn" onclick="filterExports()" data-i18n="att.filter">篩選</button>
+            <button class="exports-filter-btn reset" onclick="resetExportsFilter()" data-i18n="att.reset">重置</button>
         </div>
         <div class="exports-list-container">
             <div id="exportsList"></div>
@@ -785,28 +789,28 @@
 <!-- 離開確認彈窗 -->
 <div id="leaveConfirmModal" class="periods-modal">
     <div class="periods-modal-content" style="max-width: 380px;">
-        <div class="periods-modal-title" style="color: var(--accent-orange);">⚠️ 確認離開</div>
-        <div id="leaveConfirmStudent" class="periods-modal-subtitle">學生姓名</div>
+        <div class="periods-modal-title" style="color: var(--accent-orange);">⚠️ <span data-i18n="att.confirmLeave">確認離開</span></div>
+        <div id="leaveConfirmStudent" class="periods-modal-subtitle" data-i18n="att.studentName">學生姓名</div>
         <div class="leave-confirm-info">
             <div class="leave-info-row">
-                <span>簽到時間：</span>
+                <span data-i18n="att.checkInTimeLabel">簽到時間：</span>
                 <span id="leaveConfirmScanTime">--:--</span>
             </div>
             <div class="leave-info-row">
-                <span>計劃結束：</span>
+                <span data-i18n="att.plannedEnd">計劃結束：</span>
                 <span id="leaveConfirmPlannedEnd">--:--</span>
             </div>
             <div class="leave-info-row">
-                <span>已留時間：</span>
-                <span id="leaveConfirmActualTime">-- 分鐘</span>
+                <span data-i18n="att.timeSpent">已留時間：</span>
+                <span id="leaveConfirmActualTime">-- <span data-i18n="att.minutes">分鐘</span></span>
             </div>
             <div class="leave-info-row warning" id="leaveWarningRow" style="display: none;">
-                <span>⚠️ 未完成計劃時長</span>
+                <span>⚠️ <span data-i18n="att.notCompletedWarning">未完成計劃時長</span></span>
             </div>
         </div>
         <div class="leave-confirm-actions">
-            <button class="leave-confirm-btn cancel" onclick="closeLeaveConfirmModal()">取消</button>
-            <button class="leave-confirm-btn confirm" onclick="confirmLeave()">確認離開</button>
+            <button class="leave-confirm-btn cancel" onclick="closeLeaveConfirmModal()" data-i18n="att.cancel">取消</button>
+            <button class="leave-confirm-btn confirm" onclick="confirmLeave()" data-i18n="att.confirmLeave">確認離開</button>
         </div>
     </div>
 </div>
@@ -816,15 +820,15 @@
 <div class="activity-group-modal" id="activityGroupModal">
     <div class="activity-group-modal-content">
         <div class="activity-group-modal-header">
-            <div class="activity-group-modal-title">📌 管理固定組別</div>
+            <div class="activity-group-modal-title">📌 <span data-i18n="att.manageGroups">管理固定組別</span></div>
             <button class="modal-close-btn" onclick="closeActivityGroupModal()">✕</button>
         </div>
 
         <div class="activity-group-modal-body">
             <!-- 建立新組別 -->
             <div class="create-group-section">
-                <input type="text" class="group-name-input" id="newGroupName" placeholder="輸入組別名稱">
-                <button class="create-group-btn" onclick="createActivityGroup()">建立組別</button>
+                <input type="text" class="group-name-input" id="newGroupName" placeholder="輸入組別名稱" data-i18n-placeholder="att.groupNamePlaceholder">
+                <button class="create-group-btn" onclick="createActivityGroup()" data-i18n="att.createGroup">建立組別</button>
             </div>
 
             <!-- 現有組別列表 -->
@@ -834,7 +838,7 @@
         </div>
 
         <div class="activity-group-modal-footer">
-            <button class="modal-btn secondary" onclick="closeActivityGroupModal()">關閉</button>
+            <button class="modal-btn secondary" onclick="closeActivityGroupModal()" data-i18n="att.close">關閉</button>
         </div>
     </div>
 </div>
@@ -842,28 +846,28 @@
 <!-- 課外活動簽退確認彈窗 -->
 <div class="checkout-confirm-modal" id="checkoutConfirmModal">
     <div class="checkout-confirm-content">
-        <div class="checkout-confirm-title">🎯 確認簽退</div>
-        <div class="checkout-confirm-student" id="checkoutStudentName">學生姓名</div>
+        <div class="checkout-confirm-title">🎯 <span data-i18n="att.confirmCheckOut">確認簽退</span></div>
+        <div class="checkout-confirm-student" id="checkoutStudentName" data-i18n="att.studentName">學生姓名</div>
         <div class="checkout-confirm-info">
             <div class="checkout-info-row">
-                <span>簽到時間:</span>
+                <span data-i18n="att.checkInTimeColon">簽到時間:</span>
                 <span id="checkoutScanTime">--:--</span>
             </div>
             <div class="checkout-info-row">
-                <span>計劃結束:</span>
+                <span data-i18n="att.plannedEndColon">計劃結束:</span>
                 <span id="checkoutPlannedEnd">--:--</span>
             </div>
             <div class="checkout-info-row">
-                <span>當前時間:</span>
+                <span data-i18n="att.currentTime">當前時間:</span>
                 <span id="checkoutCurrentTime">--:--</span>
             </div>
             <div class="checkout-info-row warning" id="earlyLeaveWarning" style="display: none;">
-                <span>⚠️ 提前離開，將記錄為早退</span>
+                <span>⚠️ <span data-i18n="att.earlyLeaveWarning">提前離開，將記錄為早退</span></span>
             </div>
         </div>
         <div class="checkout-confirm-actions">
-            <button class="checkout-btn cancel" onclick="closeCheckoutConfirmModal()">取消</button>
-            <button class="checkout-btn confirm" onclick="confirmActivityCheckout()">確認簽退</button>
+            <button class="checkout-btn cancel" onclick="closeCheckoutConfirmModal()" data-i18n="att.cancel">取消</button>
+            <button class="checkout-btn confirm" onclick="confirmActivityCheckout()" data-i18n="att.confirmCheckOut">確認簽退</button>
         </div>
     </div>
 </div>
@@ -872,23 +876,23 @@
 <div class="activity-group-modal" id="activityGroupModal">
     <div class="activity-group-modal-content">
         <div class="activity-group-modal-header">
-            <div class="activity-group-modal-title">📌 管理固定組別</div>
+            <div class="activity-group-modal-title">📌 <span data-i18n="att.manageGroups">管理固定組別</span></div>
             <button class="modal-close-btn" onclick="closeActivityGroupModal()">✕</button>
         </div>
 
         <div class="activity-group-modal-body">
             <div class="create-group-section">
-                <input type="text" class="group-name-input" id="newGroupName" placeholder="輸入組別名稱">
-                <button class="create-group-btn" onclick="createActivityGroup()">建立組別</button>
+                <input type="text" class="group-name-input" id="newGroupName" placeholder="輸入組別名稱" data-i18n-placeholder="att.groupNamePlaceholder">
+                <button class="create-group-btn" onclick="createActivityGroup()" data-i18n="att.createGroup">建立組別</button>
             </div>
 
             <div class="groups-list" id="activityGroupsManageList">
-                <div class="no-groups-hint">暫無組別，請先選擇學生後建立</div>
+                <div class="no-groups-hint" data-i18n="att.noGroupsCreateHint">暫無組別，請先選擇學生後建立</div>
             </div>
         </div>
 
         <div class="activity-group-modal-footer">
-            <button class="modal-btn secondary" onclick="closeActivityGroupModal()">關閉</button>
+            <button class="modal-btn secondary" onclick="closeActivityGroupModal()" data-i18n="att.close">關閉</button>
         </div>
     </div>
 </div>

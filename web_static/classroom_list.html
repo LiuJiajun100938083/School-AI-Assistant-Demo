@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>課堂列表</title>
+    <title data-i18n="cl.pageTitle">課堂列表</title>
     <link rel="stylesheet" href="/static/css/classroom_list.css">
     <link rel="stylesheet" href="/static/css/spinner.css">
 </head>
@@ -11,8 +11,8 @@
     <!-- Splash Screen -->
     <div class="splash-screen" id="splashScreen">
         <div class="splash-content">
-            <div class="splash-title">課堂</div>
-            <div class="splash-subtitle">CLASSROOM</div>
+            <div class="splash-title" data-i18n="cl.classroom">課堂</div>
+            <div class="splash-subtitle" data-i18n="cl.classroomEn">CLASSROOM</div>
             <div class="splash-loader">
                 <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
             </div>
@@ -29,13 +29,13 @@
                         <path d="M19 12H5M12 19l-7-7 7-7"/>
                     </svg>
                 </button>
-                <h1 class="header-title">課堂</h1>
+                <h1 class="header-title" data-i18n="cl.classroom">課堂</h1>
             </div>
             <div class="user-info">
                 <div class="user-avatar" id="userAvatar">U</div>
                 <div>
                     <div class="user-name" id="userName">User</div>
-                    <span class="user-role" id="userRole">學生</span>
+                    <span class="user-role" id="userRole" data-i18n="cl.student">學生</span>
                 </div>
             </div>
         </div>
@@ -47,24 +47,24 @@
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="m21 21-4.35-4.35"></path>
                 </svg>
-                <input type="text" id="searchInput" placeholder="搜尋課堂...">
+                <input type="text" id="searchInput" placeholder="搜尋課堂..." data-i18n-placeholder="cl.searchPlaceholder">
             </div>
             <button class="resource-lib-btn" id="resourceLibBtn" style="display: none;" onclick="window.location.href='/classroom/resource-library'">
                 <svg viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/></svg>
-                資源庫
+                <span data-i18n="cl.resourceLib">資源庫</span>
             </button>
-            <button class="create-btn" id="createBtn" style="display: none;">+ 創建課堂</button>
+            <button class="create-btn" id="createBtn" style="display: none;" data-i18n="cl.createClassroom">+ 創建課堂</button>
         </div>
 
         <!-- Teacher Rooms Section -->
         <div class="rooms-section" id="teacherSection" style="display: none;">
-            <div class="section-title">我的課堂</div>
+            <div class="section-title" data-i18n="cl.myClassrooms">我的課堂</div>
             <div class="rooms-grid" id="teacherRooms"></div>
         </div>
 
         <!-- Student Rooms Section -->
         <div class="rooms-section" id="studentSection" style="display: none;">
-            <div class="section-title">可用課堂</div>
+            <div class="section-title" data-i18n="cl.availableClassrooms">可用課堂</div>
             <div class="rooms-grid" id="studentRooms"></div>
         </div>
     </div>
@@ -73,27 +73,27 @@
     <div class="modal-overlay" id="createRoomModal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">創建新課堂</h2>
+                <h2 class="modal-title" data-i18n="cl.createNewClassroom">創建新課堂</h2>
                 <button class="modal-close" id="closeCreateModal">&times;</button>
             </div>
             <form id="createRoomForm">
                 <div class="form-group">
-                    <label class="form-label">課堂名稱 *</label>
-                    <input type="text" class="form-input" id="roomTitle" placeholder="輸入課堂名稱" required>
+                    <label class="form-label" data-i18n="cl.classroomNameRequired">課堂名稱 *</label>
+                    <input type="text" class="form-input" id="roomTitle" placeholder="輸入課堂名稱" data-i18n-placeholder="cl.enterClassroomName" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">課堂描述</label>
-                    <textarea class="form-textarea" id="roomDescription" placeholder="輸入課堂描述（可選）"></textarea>
+                    <label class="form-label" data-i18n="cl.classroomDesc">課堂描述</label>
+                    <textarea class="form-textarea" id="roomDescription" placeholder="輸入課堂描述（可選）" data-i18n-placeholder="cl.enterClassroomDesc"></textarea>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">允許的班級</label>
+                    <label class="form-label" data-i18n="cl.allowedClasses">允許的班級</label>
                     <div class="class-picker" id="classPicker">
-                        <div class="class-picker-loading">載入班級中...</div>
+                        <div class="class-picker-loading" data-i18n="cl.loadingClasses">載入班級中...</div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" id="cancelCreateBtn">取消</button>
-                    <button type="submit" class="btn-submit" id="submitCreateBtn">創建</button>
+                    <button type="button" class="btn-cancel" id="cancelCreateBtn" data-i18n="cl.cancel">取消</button>
+                    <button type="submit" class="btn-submit" id="submitCreateBtn" data-i18n="cl.create">創建</button>
                 </div>
             </form>
         </div>
@@ -103,28 +103,28 @@
     <div class="modal-overlay" id="editRoomModal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="modal-title">編輯課堂</h2>
+                <h2 class="modal-title" data-i18n="cl.editClassroom">編輯課堂</h2>
                 <button class="modal-close" id="closeEditModal">&times;</button>
             </div>
             <form id="editRoomForm">
                 <input type="hidden" id="editRoomId">
                 <div class="form-group">
-                    <label class="form-label">課堂名稱 *</label>
-                    <input type="text" class="form-input" id="editRoomTitle" placeholder="輸入課堂名稱" required>
+                    <label class="form-label" data-i18n="cl.classroomNameRequired">課堂名稱 *</label>
+                    <input type="text" class="form-input" id="editRoomTitle" placeholder="輸入課堂名稱" data-i18n-placeholder="cl.enterClassroomName" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">課堂描述</label>
-                    <textarea class="form-textarea" id="editRoomDescription" placeholder="輸入課堂描述（可選）"></textarea>
+                    <label class="form-label" data-i18n="cl.classroomDesc">課堂描述</label>
+                    <textarea class="form-textarea" id="editRoomDescription" placeholder="輸入課堂描述（可選）" data-i18n-placeholder="cl.enterClassroomDesc"></textarea>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">允許的班級</label>
+                    <label class="form-label" data-i18n="cl.allowedClasses">允許的班級</label>
                     <div class="class-picker" id="editClassPicker">
-                        <div class="class-picker-loading">載入班級中...</div>
+                        <div class="class-picker-loading" data-i18n="cl.loadingClasses">載入班級中...</div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" id="cancelEditBtn">取消</button>
-                    <button type="submit" class="btn-submit" id="submitEditBtn">保存</button>
+                    <button type="button" class="btn-cancel" id="cancelEditBtn" data-i18n="cl.cancel">取消</button>
+                    <button type="submit" class="btn-submit" id="submitEditBtn" data-i18n="cl.save">保存</button>
                 </div>
             </form>
         </div>
@@ -134,6 +134,9 @@
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/ui.js"></script>
     <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n/classroom.js"></script>
     <script src="/static/js/classroom_list.js"></script>
 </body>
 </html>

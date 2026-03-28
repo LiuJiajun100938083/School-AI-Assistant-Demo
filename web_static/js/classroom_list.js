@@ -128,13 +128,13 @@ const ClassroomUI = {
         el.userAvatar.textContent = (user.name || 'U').substring(0, 1).toUpperCase();
 
         if (isTeacher) {
-            el.userRole.textContent = '教師';
+            el.userRole.textContent = i18n.t('cl.teacher');
             el.userRole.classList.add('teacher');
             el.createBtn.style.display = 'inline-block';
             el.resourceLibBtn.style.display = 'inline-flex';
             el.teacherSection.style.display = 'block';
         } else {
-            el.userRole.textContent = '學生';
+            el.userRole.textContent = i18n.t('cl.student');
             el.userRole.classList.add('student');
             el.createBtn.style.display = 'none';
             el.resourceLibBtn.style.display = 'none';
@@ -162,14 +162,14 @@ const ClassroomUI = {
     async _loadClassPicker() {
         const picker = this.elements.classPicker;
         if (!picker) return;
-        picker.innerHTML = '<div class="class-picker-loading">載入班級中...</div>';
+        picker.innerHTML = `<div class="class-picker-loading">${i18n.t('cl.loadingClasses')}</div>`;
 
         try {
             const result = await ClassroomAPI.fetchClasses();
             const grades = (result && result.success && result.data) ? result.data.grades : {};
             this._renderClassPickerInto(picker, grades, []);
         } catch (e) {
-            picker.innerHTML = '<div class="class-picker-loading">載入失敗</div>';
+            picker.innerHTML = `<div class="class-picker-loading">${i18n.t('cl.loadFailed')}</div>`;
         }
     },
 
@@ -187,7 +187,7 @@ const ClassroomUI = {
         let html = '';
         html += `<label class="cp-all-row">
             <input type="checkbox" data-cp-all="${uid}" ${isAllStudents ? 'checked' : ''}>
-            <span>所有學生（不限制班級）</span>
+            <span>${i18n.t('cl.allStudentsNoLimit')}</span>
         </label>`;
 
         const gradeKeys = Object.keys(grades);
@@ -260,13 +260,13 @@ const ClassroomUI = {
 
         // Load class picker with pre-selected classes
         const picker = el.editClassPicker;
-        picker.innerHTML = '<div class="class-picker-loading">載入班級中...</div>';
+        picker.innerHTML = `<div class="class-picker-loading">${i18n.t('cl.loadingClasses')}</div>`;
         try {
             const result = await ClassroomAPI.fetchClasses();
             const grades = (result && result.success && result.data) ? result.data.grades : {};
             this._renderClassPickerInto(picker, grades, room.allowed_classes || []);
         } catch (e) {
-            picker.innerHTML = '<div class="class-picker-loading">載入失敗</div>';
+            picker.innerHTML = `<div class="class-picker-loading">${i18n.t('cl.loadFailed')}</div>`;
         }
     },
 
@@ -287,8 +287,8 @@ const ClassroomUI = {
                             <path d="M26 46h12"/>
                             <path d="M20 12V8a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v4"/>
                         </svg>
-                        <div class="empty-state-text">暫無課堂</div>
-                        <div class="empty-state-hint">點擊「+ 創建課堂」開始你的教學之旅</div>
+                        <div class="empty-state-text">${i18n.t('cl.noClassrooms')}</div>
+                        <div class="empty-state-hint">${i18n.t('cl.noClassroomsHint')}</div>
                     </div>
                 </div>`;
             return;
@@ -304,7 +304,7 @@ const ClassroomUI = {
                 </div>
                 ${room.description ? `<p class="room-description">${Utils.escapeHtml(room.description)}</p>` : ''}
                 <div class="room-meta">
-                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${room.student_count || 0} 名學生</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${i18n.t('cl.studentCount', {count: room.student_count || 0})}</span>
                     <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${Utils.formatDate(room.created_at)}</span>
                 </div>
                 ${room.allowed_classes && room.allowed_classes.length > 0 ? `
@@ -313,11 +313,11 @@ const ClassroomUI = {
                     </div>` : ''}
                 <div class="room-actions">
                     ${room.room_status === 'ended'
-                        ? `<button class="room-action-btn primary" data-action="reopen" data-room-id="${room.room_id}">重新開啟</button>`
-                        : `<button class="room-action-btn primary" data-action="enter" data-room-id="${room.room_id}">進入課堂</button>`}
-                    <button class="room-action-btn" data-action="lesson-plans" data-room-id="${room.room_id}">課案編輯</button>
-                    <button class="room-action-btn" data-action="edit" data-room-id="${room.room_id}">編輯</button>
-                    <button class="room-action-btn danger" data-action="delete" data-room-id="${room.room_id}">刪除</button>
+                        ? `<button class="room-action-btn primary" data-action="reopen" data-room-id="${room.room_id}">${i18n.t('cl.reopen')}</button>`
+                        : `<button class="room-action-btn primary" data-action="enter" data-room-id="${room.room_id}">${i18n.t('cl.enterClassroom')}</button>`}
+                    <button class="room-action-btn" data-action="lesson-plans" data-room-id="${room.room_id}">${i18n.t('cl.lessonPlans')}</button>
+                    <button class="room-action-btn" data-action="edit" data-room-id="${room.room_id}">${i18n.t('cl.edit')}</button>
+                    <button class="room-action-btn danger" data-action="delete" data-room-id="${room.room_id}">${i18n.t('cl.delete')}</button>
                 </div>
             </div>`;
         }).join('');
@@ -335,8 +335,8 @@ const ClassroomUI = {
                             <path d="M60 18v20L32 52"/>
                             <circle cx="32" cy="34" r="4"/>
                         </svg>
-                        <div class="empty-state-text">暫無可用課堂</div>
-                        <div class="empty-state-hint">等待教師開啟課堂</div>
+                        <div class="empty-state-text">${i18n.t('cl.noAvailableClassrooms')}</div>
+                        <div class="empty-state-hint">${i18n.t('cl.waitingForTeacher')}</div>
                     </div>
                 </div>`;
             return;
@@ -352,7 +352,7 @@ const ClassroomUI = {
                 </div>
                 ${room.description ? `<p class="room-description">${Utils.escapeHtml(room.description)}</p>` : ''}
                 <div class="room-meta">
-                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${room.teacher_display_name || '教師'}</span>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${room.teacher_display_name || i18n.t('cl.teacher')}</span>
                     <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${Utils.formatDate(room.created_at)}</span>
                 </div>
                 ${room.allowed_classes && room.allowed_classes.length > 0 ? `
@@ -361,7 +361,7 @@ const ClassroomUI = {
                     </div>` : ''}
                 <div class="room-actions">
                     <button class="room-action-btn primary" data-action="join" data-room-id="${room.room_id}" ${room.room_status === 'paused' ? 'disabled' : ''}>
-                        ${room.room_status === 'paused' ? '課堂已暫停' : '加入課堂'}
+                        ${room.room_status === 'paused' ? i18n.t('cl.classroomPaused') : i18n.t('cl.joinClassroom')}
                     </button>
                 </div>
             </div>`;
@@ -369,15 +369,20 @@ const ClassroomUI = {
     },
 
     _statusText(status) {
-        const map = { draft: '草稿', active: '進行中', paused: '已暫停', ended: '已結束' };
+        const map = {
+            draft: i18n.t('cl.statusDraft'),
+            active: i18n.t('cl.statusActive'),
+            paused: i18n.t('cl.statusPaused'),
+            ended: i18n.t('cl.statusEnded')
+        };
         return map[status] || status;
     },
 
     _toggleStatusText(status) {
-        if (status === 'draft') return '啟動';
-        if (status === 'active') return '暫停';
-        if (status === 'paused') return '繼續';
-        return '狀態';
+        if (status === 'draft') return i18n.t('cl.actionStart');
+        if (status === 'active') return i18n.t('cl.actionPause');
+        if (status === 'paused') return i18n.t('cl.actionResume');
+        return i18n.t('cl.status');
     }
 };
 
@@ -415,12 +420,13 @@ const ClassroomApp = {
             this.state.isTeacher = ['teacher', 'admin'].includes(this.state.currentUser.role);
 
             ClassroomUI.updateUserInfo(this.state.currentUser, this.state.isTeacher);
+            i18n.applyDOM();
             this._bindEvents();
             await this._loadRooms();
             ClassroomUI.hideSplash();
         } catch (error) {
             console.error('Initialization error:', error);
-            UIModule.toast('初始化失敗，請重新刷新頁面', 'error');
+            UIModule.toast(i18n.t('cl.initFailed'), 'error');
             setTimeout(() => { window.location.href = '/'; }, 2000);
         }
     },
@@ -428,6 +434,7 @@ const ClassroomApp = {
     _bindEvents() {
         const el = ClassroomUI.elements;
 
+        el.backBtn.title = i18n.t('cl.back');
         el.backBtn.addEventListener('click', () => { window.location.href = '/'; });
         el.createBtn.addEventListener('click', () => { ClassroomUI.openCreateModal(); });
         el.closeCreateModal.addEventListener('click', () => ClassroomUI.closeModal());
@@ -485,14 +492,14 @@ const ClassroomApp = {
         try {
             const result = await ClassroomAPI.fetchRooms();
             if (!result || !result.success) {
-                UIModule.toast('加載課堂失敗', 'error');
+                UIModule.toast(i18n.t('cl.loadRoomsFailed'), 'error');
                 return;
             }
             this.state.rooms = result.data || [];
             this._filterAndRender();
         } catch (error) {
             console.error('Load rooms error:', error);
-            UIModule.toast('加載課堂出錯', 'error');
+            UIModule.toast(i18n.t('cl.loadRoomsError'), 'error');
         }
     },
 
@@ -517,7 +524,7 @@ const ClassroomApp = {
         e.preventDefault();
         const el = ClassroomUI.elements;
         el.submitCreateBtn.disabled = true;
-        el.submitCreateBtn.innerHTML = '<span class="spinner"></span> 創建中...';
+        el.submitCreateBtn.innerHTML = `<span class="spinner"></span> ${i18n.t('cl.creating')}`;
 
         try {
             const allowedClasses = ClassroomUI.getSelectedClasses();
@@ -529,38 +536,38 @@ const ClassroomApp = {
             });
 
             if (!result || !result.success) {
-                UIModule.toast(result?.message || '創建失敗', 'error');
+                UIModule.toast(result?.message || i18n.t('cl.createFailed'), 'error');
                 return;
             }
 
-            UIModule.toast('課堂創建成功', 'success');
+            UIModule.toast(i18n.t('cl.createSuccess'), 'success');
             ClassroomUI.closeModal();
             el.createRoomForm.reset();
             await this._loadRooms();
         } catch (error) {
             console.error('Create room error:', error);
-            UIModule.toast('創建課堂出錯', 'error');
+            UIModule.toast(i18n.t('cl.createError'), 'error');
         } finally {
             el.submitCreateBtn.disabled = false;
-            el.submitCreateBtn.textContent = '創建';
+            el.submitCreateBtn.textContent = i18n.t('cl.create');
         }
     },
 
     async _deleteRoom(roomId) {
-        const confirmed = await UIModule.confirm('確定要刪除這個課堂嗎？');
+        const confirmed = await UIModule.confirm(i18n.t('cl.confirmDelete'));
         if (!confirmed) return;
 
         try {
             const result = await ClassroomAPI.deleteRoom(roomId);
             if (!result || !result.success) {
-                UIModule.toast(result?.message || '刪除失敗', 'error');
+                UIModule.toast(result?.message || i18n.t('cl.deleteFailed'), 'error');
                 return;
             }
-            UIModule.toast('課堂已刪除', 'success');
+            UIModule.toast(i18n.t('cl.deleteSuccess'), 'success');
             await this._loadRooms();
         } catch (error) {
             console.error('Delete room error:', error);
-            UIModule.toast('刪除課堂出錯', 'error');
+            UIModule.toast(i18n.t('cl.deleteError'), 'error');
         }
     },
 
@@ -574,14 +581,14 @@ const ClassroomApp = {
         try {
             const result = await ClassroomAPI.updateRoomStatus(roomId, newStatus);
             if (!result || !result.success) {
-                UIModule.toast(result?.message || '更新失敗', 'error');
+                UIModule.toast(result?.message || i18n.t('cl.updateFailed'), 'error');
                 return;
             }
-            UIModule.toast('狀態已更新', 'success');
+            UIModule.toast(i18n.t('cl.statusUpdated'), 'success');
             await this._loadRooms();
         } catch (error) {
             console.error('Update status error:', error);
-            UIModule.toast('更新課堂出錯', 'error');
+            UIModule.toast(i18n.t('cl.updateError'), 'error');
         }
     },
 
@@ -589,16 +596,16 @@ const ClassroomApp = {
         try {
             const result = await ClassroomAPI.joinRoom(roomId);
             if (!result || !result.success) {
-                UIModule.toast(result?.message || '加入失敗', 'error');
+                UIModule.toast(result?.message || i18n.t('cl.joinFailed'), 'error');
                 return;
             }
-            UIModule.toast('加入課堂成功', 'success');
+            UIModule.toast(i18n.t('cl.joinSuccess'), 'success');
             setTimeout(() => {
                 window.location.href = `/classroom/student/${roomId}`;
             }, 500);
         } catch (error) {
             console.error('Join room error:', error);
-            UIModule.toast('加入課堂出錯', 'error');
+            UIModule.toast(i18n.t('cl.joinError'), 'error');
         }
     },
 
@@ -606,21 +613,21 @@ const ClassroomApp = {
         try {
             const result = await ClassroomAPI.updateRoomStatus(roomId, 'draft');
             if (!result || !result.success) {
-                UIModule.toast(result?.message || '重新開啟失敗', 'error');
+                UIModule.toast(result?.message || i18n.t('cl.reopenFailed'), 'error');
                 return;
             }
-            UIModule.toast('課堂已重新開啟', 'success');
+            UIModule.toast(i18n.t('cl.reopenSuccess'), 'success');
             await this._loadRooms();
         } catch (error) {
             console.error('Reopen room error:', error);
-            UIModule.toast('重新開啟課堂出錯', 'error');
+            UIModule.toast(i18n.t('cl.reopenError'), 'error');
         }
     },
 
     _openEditModal(roomId) {
         const room = this.state.rooms.find(r => r.room_id === roomId);
         if (!room) {
-            UIModule.toast('找不到課堂資料', 'error');
+            UIModule.toast(i18n.t('cl.roomNotFound'), 'error');
             return;
         }
         ClassroomUI.openEditModal(room);
@@ -630,7 +637,7 @@ const ClassroomApp = {
         e.preventDefault();
         const el = ClassroomUI.elements;
         el.submitEditBtn.disabled = true;
-        el.submitEditBtn.innerHTML = '<span class="spinner"></span> 保存中...';
+        el.submitEditBtn.innerHTML = `<span class="spinner"></span> ${i18n.t('cl.saving')}`;
 
         try {
             const roomId = el.editRoomId.value;
@@ -643,19 +650,19 @@ const ClassroomApp = {
             });
 
             if (!result || !result.success) {
-                UIModule.toast(result?.message || '保存失敗', 'error');
+                UIModule.toast(result?.message || i18n.t('cl.saveFailed'), 'error');
                 return;
             }
 
-            UIModule.toast('課堂已更新', 'success');
+            UIModule.toast(i18n.t('cl.updateSuccess'), 'success');
             ClassroomUI.closeEditModal();
             await this._loadRooms();
         } catch (error) {
             console.error('Edit room error:', error);
-            UIModule.toast('更新課堂出錯', 'error');
+            UIModule.toast(i18n.t('cl.updateError'), 'error');
         } finally {
             el.submitEditBtn.disabled = false;
-            el.submitEditBtn.textContent = '保存';
+            el.submitEditBtn.textContent = i18n.t('cl.save');
         }
     },
 
@@ -678,7 +685,7 @@ const ClassroomApp = {
             } else {
                 // Create a new plan bound to this classroom
                 const room = this.state.rooms.find(r => r.room_id === roomId);
-                const title = room ? `${room.title} 課案` : '新課案';
+                const title = room ? `${room.title} ${i18n.t('cl.lessonPlan')}` : i18n.t('cl.newLessonPlan');
                 const createRes = await fetch('/api/classroom/lesson-plans', {
                     method: 'POST',
                     headers: {
@@ -691,12 +698,12 @@ const ClassroomApp = {
                 if (createJson.success && createJson.data) {
                     window.location.href = `/classroom/lesson-editor/${createJson.data.plan_id}`;
                 } else {
-                    UIModule.toast(createJson.message || '創建課案失敗', 'error');
+                    UIModule.toast(createJson.message || i18n.t('cl.createLessonPlanFailed'), 'error');
                 }
             }
         } catch (e) {
             console.error('Open lesson plans error:', e);
-            UIModule.toast('打開課案失敗', 'error');
+            UIModule.toast(i18n.t('cl.openLessonPlanFailed'), 'error');
         }
     }
 };
