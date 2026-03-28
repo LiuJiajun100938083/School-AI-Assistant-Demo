@@ -1015,6 +1015,7 @@ window.slc = (() => {
     // ── App 邏輯 ──
     const App = {
         async init() {
+            if (typeof i18n !== 'undefined') i18n.applyDOM();
             console.log('[SLC] 學校學習中心初始化...');
 
             // 檢查登入

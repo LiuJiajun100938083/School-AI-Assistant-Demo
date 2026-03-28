@@ -725,6 +725,7 @@ const ChatApp = {
     /* ---------- 初始化 ---------- */
 
     async init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
         ChatUI.cacheElements();
         ChatUI.restoreSidebarState();
 

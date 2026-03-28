@@ -153,6 +153,7 @@ const App = {
     },
 
     async init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
         this.state.token = localStorage.getItem('auth_token');
         if (!this.state.token) {
             window.location.href = '/';

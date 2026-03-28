@@ -203,6 +203,7 @@ const ReportApp = {
     },
 
     init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
         ReportUI.cacheElements();
         this._bindEvents();
     },

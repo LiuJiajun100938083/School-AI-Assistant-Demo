@@ -77,6 +77,7 @@ const LoginUI = {
 const LoginApp = {
 
     async init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
         LoginUI.cacheElements();
         this._bindEvents();
 

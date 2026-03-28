@@ -696,6 +696,9 @@ let countdownInterval = null;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+    // 應用國際化
+    if (typeof i18n !== 'undefined') i18n.applyDOM();
+
     // 檢查認證
     if (!authToken) {
         window.location.href = '/';
