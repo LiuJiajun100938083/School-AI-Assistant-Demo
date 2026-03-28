@@ -27,6 +27,8 @@ const ImageGenApp = {
     /* ---------- 初始化 ---------- */
 
     init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
+
         this._els = {
             prompt:     document.getElementById('promptInput'),
             charCount:  document.getElementById('charCount'),
@@ -94,7 +96,7 @@ const ImageGenApp = {
             case 'idle':
                 this._els.genBtn.disabled = false;
                 this._els.prompt.disabled = false;
-                this._els.genBtn.textContent = '生成圖片';
+                this._els.genBtn.textContent = i18n.t('ig.generateBtn');
                 this._els.statusArea.style.display = 'none';
                 this._els.resultArea.style.display = 'none';
                 this._els.errorArea.style.display = 'none';
@@ -103,15 +105,15 @@ const ImageGenApp = {
             case 'submitting':
                 this._els.genBtn.disabled = true;
                 this._els.prompt.disabled = true;
-                this._els.genBtn.textContent = '提交中...';
+                this._els.genBtn.textContent = i18n.t('ig.submitting');
                 this._els.statusArea.style.display = 'flex';
-                this._els.statusText.textContent = '正在提交生成請求...';
+                this._els.statusText.textContent = i18n.t('ig.submittingStatus');
                 this._els.resultArea.style.display = 'none';
                 this._els.errorArea.style.display = 'none';
                 // 提交超時兜底（30 秒無 SSE → error）
                 this._submitTimeout = setTimeout(() => {
                     if (this._state === 'submitting') {
-                        this._transitionTo('error', { message: '連線異常，請重試' });
+                        this._transitionTo('error', { message: i18n.t('ig.connectionError') });
                     }
                 }, 30000);
                 break;
@@ -120,9 +122,9 @@ const ImageGenApp = {
                 if (this._submitTimeout) { clearTimeout(this._submitTimeout); this._submitTimeout = null; }
                 this._els.statusArea.style.display = 'flex';
                 const { position: pos, total, est_wait: est } = data || {};
-                let text = `圖片生成需求較多，已加入隊列（第 ${pos}/${total} 位`;
+                let text = i18n.t('ig.queueStatus', { pos, total });
                 if (est) text += `，${est}`;
-                text += '）';
+                text += ')';
                 // 淡入讓學生感知隊列在動
                 this._els.statusText.style.transition = 'opacity 0.3s';
                 this._els.statusText.style.opacity = '0.7';
@@ -135,7 +137,7 @@ const ImageGenApp = {
                 if (this._submitTimeout) { clearTimeout(this._submitTimeout); this._submitTimeout = null; }
                 this._els.statusArea.style.display = 'flex';
                 this._els.statusText.style.transition = '';
-                this._els.statusText.textContent = (data && data.message) || '正在生成圖片...';
+                this._els.statusText.textContent = (data && data.message) || i18n.t('ig.generating');
                 break;
 
             case 'progress': {
@@ -143,7 +145,7 @@ const ImageGenApp = {
                 const total = data.total || 0;
                 const pct = total > 0 ? Math.round((step / total) * 100) : 0;
                 this._els.statusText.textContent =
-                    total > 0 ? `生成中... ${pct}% (${step}/${total})` : '生成中...';
+                    total > 0 ? i18n.t('ig.progressPct', { pct, step, total }) : i18n.t('ig.progressFallback');
                 break;
             }
 
@@ -155,17 +157,17 @@ const ImageGenApp = {
                 this._els.statusArea.style.display = 'none';
                 this._els.genBtn.disabled = false;
                 this._els.prompt.disabled = false;
-                this._els.genBtn.textContent = '生成圖片';
+                this._els.genBtn.textContent = i18n.t('ig.generateBtn');
                 break;
 
             case 'error':
                 if (this._submitTimeout) { clearTimeout(this._submitTimeout); this._submitTimeout = null; }
-                this._els.errorText.textContent = (data && data.message) || '生成失敗，請稍後重試';
+                this._els.errorText.textContent = (data && data.message) || i18n.t('ig.errorDefault');
                 this._els.errorArea.style.display = 'block';
                 this._els.statusArea.style.display = 'none';
                 this._els.genBtn.disabled = false;
                 this._els.prompt.disabled = false;
-                this._els.genBtn.textContent = '生成圖片';
+                this._els.genBtn.textContent = i18n.t('ig.generateBtn');
                 break;
         }
     },
@@ -178,7 +180,7 @@ const ImageGenApp = {
 
         const prompt = this._els.prompt.value.trim();
         if (!prompt) {
-            this._transitionTo('error', { message: '請輸入圖片描述' });
+            this._transitionTo('error', { message: i18n.t('ig.errorEmptyPrompt') });
             return;
         }
 
@@ -196,7 +198,7 @@ const ImageGenApp = {
             });
 
             if (!resp.ok) {
-                let msg = '請求失敗';
+                let msg = i18n.t('ig.errorRequestFailed');
                 try {
                     const err = await resp.json();
                     msg = err.error?.message || err.detail || msg;
@@ -207,7 +209,7 @@ const ImageGenApp = {
             // 消費 SSE 流
             await this._consumeSSE(resp);
         } catch (err) {
-            this._transitionTo('error', { message: err.message || '生成失敗' });
+            this._transitionTo('error', { message: err.message || i18n.t('ig.errorGenFailed') });
         }
     },
 
