@@ -16,22 +16,47 @@
         </div>
     </header>
 
-    <!-- Chat Container -->
-    <div class="ng-container">
-        <div class="ng-messages" id="chatMessages"></div>
-
-        <div class="ng-input-area">
-            <div class="ng-input-wrapper">
-                <input type="text" class="ng-input" id="chatInput"
-                       placeholder="輸入您的回覆或粘貼通告內容..." data-i18n-placeholder="ng.inputPlaceholder" autocomplete="off">
-                <button class="ng-send-btn" id="sendButton" data-i18n="ng.sendBtn">發送</button>
-            </div>
-            <div class="ng-quick-actions" id="quickActions"></div>
-        </div>
+    <!-- 移動端 Tab 切換 -->
+    <div class="ng-mobile-tabs" id="mobileTabs">
+        <button class="active" data-panel="chat" data-i18n="ng.tabChat">💬 對話</button>
+        <button data-panel="preview" data-i18n="ng.tabPreview">📄 預覽</button>
     </div>
 
-    <!-- Export FAB -->
-    <button class="ng-export-btn" id="exportButton" data-i18n="ng.exportBtn">📄 導出Word文檔</button>
+    <!-- 分屏主佈局 -->
+    <div class="ng-layout">
+        <!-- 左側: AI 對話面板 -->
+        <div class="ng-panel ng-panel--chat" id="panelChat">
+            <div class="ng-messages" id="chatMessages"></div>
+            <div class="ng-input-area">
+                <div class="ng-input-wrapper">
+                    <input type="text" class="ng-input" id="chatInput"
+                           placeholder="輸入您的回覆或粘貼通告內容..."
+                           data-i18n-placeholder="ng.inputPlaceholder" autocomplete="off">
+                    <button class="ng-send-btn" id="sendButton" data-i18n="ng.sendBtn">發送</button>
+                </div>
+                <div class="ng-quick-actions" id="quickActions"></div>
+            </div>
+        </div>
+
+        <!-- 右側: 通告預覽 / 編輯面板 -->
+        <div class="ng-panel ng-panel--preview" id="panelPreview">
+            <div class="ng-preview-toolbar">
+                <span class="ng-preview-title" data-i18n="ng.previewTitle">📋 通告預覽</span>
+                <button class="ng-export-btn" id="exportButton" disabled data-i18n="ng.exportBtn">📄 導出 Word</button>
+            </div>
+
+            <!-- 空狀態 -->
+            <div class="ng-preview-empty" id="previewEmpty">
+                <div class="ng-preview-empty-icon">📋</div>
+                <p class="ng-preview-empty-text" data-i18n="ng.previewEmpty">AI 生成通告後將在此預覽</p>
+                <p class="ng-preview-empty-hint" data-i18n="ng.previewEmptyHint">在左側與 AI 對話以生成通告</p>
+            </div>
+
+            <!-- 可編輯預覽區 -->
+            <div class="ng-preview-editor" id="previewEditor" contenteditable="true" style="display:none"
+                 data-placeholder="通告內容將顯示在此處..."></div>
+        </div>
+    </div>
 
     <script src="/static/js/shared/utils.js"></script>
     <script src="/static/js/shared/auth.js"></script>

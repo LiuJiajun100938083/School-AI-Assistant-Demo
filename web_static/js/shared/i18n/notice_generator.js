@@ -7,7 +7,14 @@ i18n.addMessages({
         'ng.headerTitle': '智能通告助手',
         'ng.inputPlaceholder': '輸入您的回覆或粘貼通告內容...',
         'ng.sendBtn': '發送',
-        'ng.exportBtn': '📄 導出Word文檔',
+        'ng.exportBtn': '📄 導出 Word',
+        // Tab（移動端）
+        'ng.tabChat': '💬 對話',
+        'ng.tabPreview': '📄 預覽',
+        // 預覽面板
+        'ng.previewTitle': '📋 通告預覽',
+        'ng.previewEmpty': 'AI 生成通告後將在此預覽',
+        'ng.previewEmptyHint': '在左側與 AI 對話以生成通告',
         // 快捷動作 — 選擇類型
         'ng.typeActivity': '活動通告',
         'ng.typeExam': '考試通告',
@@ -21,12 +28,13 @@ i18n.addMessages({
         'ng.actionNew': '新建通告',
         'ng.actionEnd': '結束',
         // 消息
+        'ng.errorAuth': '登入已過期，請重新登入',
         'ng.errorConnection': '抱歉，連接出現問題。請刷新頁面重試。',
         'ng.errorProcess': '抱歉，處理您的消息時出現問題。',
+        'ng.errorRequestFailed': '請求失敗',
         'ng.toastCompleteFirst': '請先完成通告生成',
-        'ng.exportSuccess': '✅ Word文檔已成功導出！',
+        'ng.exportSuccess': '✅ Word 文檔已成功導出！',
         'ng.exportFailed': '導出失敗',
-        'ng.exportFailedApi': '導出失敗',
         'ng.filePrefix': '通告',
     },
     en: {
@@ -35,7 +43,14 @@ i18n.addMessages({
         'ng.headerTitle': 'Smart Notice Assistant',
         'ng.inputPlaceholder': 'Enter your reply or paste notice content...',
         'ng.sendBtn': 'Send',
-        'ng.exportBtn': '📄 Export Word Document',
+        'ng.exportBtn': '📄 Export Word',
+        // Tabs (mobile)
+        'ng.tabChat': '💬 Chat',
+        'ng.tabPreview': '📄 Preview',
+        // Preview panel
+        'ng.previewTitle': '📋 Notice Preview',
+        'ng.previewEmpty': 'Notice preview will appear here after AI generation',
+        'ng.previewEmptyHint': 'Chat with AI on the left to generate a notice',
         // Quick actions — select type
         'ng.typeActivity': 'Activity Notice',
         'ng.typeExam': 'Exam Notice',
@@ -49,12 +64,13 @@ i18n.addMessages({
         'ng.actionNew': 'New Notice',
         'ng.actionEnd': 'End',
         // Messages
+        'ng.errorAuth': 'Login expired, please log in again',
         'ng.errorConnection': 'Sorry, connection error. Please refresh and try again.',
         'ng.errorProcess': 'Sorry, an error occurred while processing your message.',
+        'ng.errorRequestFailed': 'Request failed',
         'ng.toastCompleteFirst': 'Please complete the notice generation first',
         'ng.exportSuccess': '✅ Word document exported successfully!',
         'ng.exportFailed': 'Export failed',
-        'ng.exportFailedApi': 'Export failed',
         'ng.filePrefix': 'Notice',
     }
 });

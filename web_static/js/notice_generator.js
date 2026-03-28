@@ -1,126 +1,174 @@
 /**
- * 智能通告助手 — 前端核心模組
- * =============================
+ * 智能通告助手 — 前端核心模組（分屏版）
+ * ==========================================
  *
- * 架構：
- *   NoticeAPI  — API 請求封裝
- *   NoticeUI   — DOM 渲染工具
- *   NoticeApp  — 主控制器
+ * 四層架構：
+ *   NoticeAPI   — HTTP 請求封裝（統一 auth / 錯誤 / 解包）
+ *   NoticeState — 狀態管理（stage 驅動的狀態機）
+ *   NoticeUI    — 純 DOM 渲染（對話面板 + 預覽面板 + 移動端 Tab）
+ *   NoticeApp   — 流程控制器（事件 → API → State → UI）
  *
- * 依賴共享模組: AuthModule, UIModule
- * 加載順序: shared/* → notice_generator.js
+ * 數據流：API Response → State.update() → UI render
+ * 依賴共享模組: AuthModule, UIModule, Utils, i18n
  */
 'use strict';
 
 /* ============================================================
-   API — 後端 API 封裝
+   API — 統一 HTTP 封裝
    ============================================================ */
 
 const NoticeAPI = {
 
-    async startConversation(sessionId, initialText = null) {
-        const resp = await fetch('/api/admin/notice/dialogue/start', {
-            method: 'POST',
+    /**
+     * 統一請求：auth header + 401 重定向 + success_response 解包 + 錯誤拋出
+     * @returns {Promise<Object>} 解包後的 data（即 success_response.data）
+     */
+    async _fetch(url, options = {}) {
+        const resp = await fetch(url, {
+            ...options,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AuthModule.getToken()}`
+                'Authorization': `Bearer ${AuthModule.getToken()}`,
+                ...(options.headers || {}),
             },
-            body: JSON.stringify({
-                session_id: sessionId,
-                initial_info: initialText
-            })
         });
-        return resp.json();
+
+        if (resp.status === 401) {
+            AuthModule.removeToken();
+            window.location.href = '/';
+            throw new Error(i18n.t('ng.errorAuth'));
+        }
+
+        // 導出端點返回二進制文件
+        if (resp.headers.get('content-type')?.includes('officedocument')) {
+            return resp.blob();
+        }
+
+        const json = await resp.json();
+        if (!resp.ok || json.success === false) {
+            throw new Error(json.data?.detail || json.message || i18n.t('ng.errorRequestFailed'));
+        }
+
+        // 解包 success_response 的 data 層
+        return json.data || json;
+    },
+
+    async startConversation(noticeType = null) {
+        return this._fetch('/api/admin/notice/dialogue/start', {
+            method: 'POST',
+            body: JSON.stringify({ notice_type: noticeType }),
+        });
     },
 
     async continueConversation(sessionId, userInput) {
-        const resp = await fetch('/api/admin/notice/dialogue/continue', {
+        return this._fetch('/api/admin/notice/dialogue/continue', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AuthModule.getToken()}`
-            },
-            body: JSON.stringify({
-                session_id: sessionId,
-                user_input: userInput
-            })
+            body: JSON.stringify({ session_id: sessionId, user_input: userInput }),
         });
-        return resp.json();
     },
 
     async exportWord(sessionId) {
-        const resp = await fetch('/api/admin/notice/dialogue/export', {
+        return this._fetch('/api/admin/notice/dialogue/export', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AuthModule.getToken()}`
-            },
-            body: JSON.stringify({ session_id: sessionId })
+            body: JSON.stringify({ session_id: sessionId }),
         });
-        if (!resp.ok) throw new Error(i18n.t('ng.exportFailedApi'));
-        return resp.blob();
-    }
+    },
 };
 
 /* ============================================================
-   UI — DOM 渲染工具
+   STATE — Stage 驅動的狀態機
+   ============================================================ */
+
+const NoticeState = {
+    sessionId: '',
+    stage: 'idle',          // idle | select_type | collecting_info | confirming | completed
+    progress: 0,
+    noticeContent: '',      // AI 生成的通告原文
+
+    /** 根據 API 響應統一更新狀態 */
+    update(data) {
+        if (data.session_id) this.sessionId = data.session_id;
+        if (data.stage)      this.stage = data.stage;
+        if (data.progress !== undefined) this.progress = data.progress;
+        if (data.content)    this.noticeContent = data.content;
+    },
+
+    /** stage 計算屬性：是否可導出 */
+    get isExportable() {
+        return this.stage === 'confirming' || this.stage === 'completed';
+    },
+
+    reset() {
+        this.sessionId = '';
+        this.stage = 'idle';
+        this.progress = 0;
+        this.noticeContent = '';
+    },
+};
+
+/* ============================================================
+   UI — 純 DOM 渲染
    ============================================================ */
 
 const NoticeUI = {
-
-    elements: {},
+    els: {},
 
     cacheElements() {
-        this.elements = {
-            chatMessages: document.getElementById('chatMessages'),
-            chatInput: document.getElementById('chatInput'),
-            sendButton: document.getElementById('sendButton'),
-            quickActions: document.getElementById('quickActions'),
-            progressBar: document.getElementById('progressBar'),
-            exportButton: document.getElementById('exportButton')
+        this.els = {
+            // 對話面板
+            chatMessages:  document.getElementById('chatMessages'),
+            chatInput:     document.getElementById('chatInput'),
+            sendButton:    document.getElementById('sendButton'),
+            quickActions:  document.getElementById('quickActions'),
+            // 預覽面板
+            previewEmpty:  document.getElementById('previewEmpty'),
+            previewEditor: document.getElementById('previewEditor'),
+            exportButton:  document.getElementById('exportButton'),
+            // Header
+            progressBar:   document.getElementById('progressBar'),
+            // 移動端 Tab
+            mobileTabs:    document.getElementById('mobileTabs'),
+            panelChat:     document.getElementById('panelChat'),
+            panelPreview:  document.getElementById('panelPreview'),
         };
     },
 
-    addAIMessage(message) {
-        const container = this.elements.chatMessages;
+    /* ---------- 對話面板 ---------- */
 
-        let messageHTML = message;
-        if (message.includes('=====')) {
-            const parts = message.split('=====');
+    addAIMessage(text) {
+        const container = this.els.chatMessages;
+        let html = text;
+        // 如果後端在 message 中嵌入了通告預覽（===== 分隔）
+        if (text.includes('=====')) {
+            const parts = text.split('=====');
             if (parts.length >= 3) {
-                messageHTML = parts[0] + '<div class="notice-preview">' +
-                    parts[1] + '</div>' + parts[2];
+                html = parts[0] + '<div class="notice-preview">' + parts[1] + '</div>' + parts[2];
             }
         }
-
         const div = document.createElement('div');
         div.className = 'message ai';
         div.innerHTML = `
             <div class="message-avatar">🤖</div>
-            <div class="message-content">${messageHTML}</div>
+            <div class="message-content">${html}</div>
         `;
-
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     },
 
-    addUserMessage(message) {
-        const container = this.elements.chatMessages;
-
+    addUserMessage(text) {
+        const container = this.els.chatMessages;
         const div = document.createElement('div');
         div.className = 'message user';
         div.innerHTML = `
             <div class="message-avatar">👤</div>
-            <div class="message-content">${Utils.escapeHtml(message)}</div>
+            <div class="message-content">${Utils.escapeHtml(text)}</div>
         `;
-
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     },
 
-    showTypingIndicator() {
-        const container = this.elements.chatMessages;
-
+    showTyping() {
+        const container = this.els.chatMessages;
         const div = document.createElement('div');
         div.className = 'message ai';
         div.id = 'typingIndicator';
@@ -134,165 +182,187 @@ const NoticeUI = {
                 </div>
             </div>
         `;
-
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     },
 
-    hideTypingIndicator() {
+    hideTyping() {
         document.getElementById('typingIndicator')?.remove();
     },
 
-    updateProgress(progress) {
-        this.elements.progressBar.style.width = progress + '%';
-    },
-
     updateQuickActions(stage, onAction) {
-        const container = this.elements.quickActions;
+        const container = this.els.quickActions;
         container.innerHTML = '';
 
-        let actions = [];
-        if (stage === 'select_type') {
-            actions = [
-                i18n.t('ng.typeActivity'),
-                i18n.t('ng.typeExam'),
-                i18n.t('ng.typeMeeting'),
-                i18n.t('ng.typeGeneral')
-            ];
-        } else if (stage === 'confirming') {
-            actions = [
-                i18n.t('ng.actionConfirm'),
-                i18n.t('ng.actionModify'),
-                i18n.t('ng.actionRegenerate')
-            ];
-        } else if (stage === 'completed') {
-            actions = [
-                i18n.t('ng.actionNew'),
-                i18n.t('ng.actionEnd')
-            ];
-        }
+        const actionMap = {
+            select_type: [
+                i18n.t('ng.typeActivity'), i18n.t('ng.typeExam'),
+                i18n.t('ng.typeMeeting'), i18n.t('ng.typeGeneral'),
+            ],
+            confirming: [
+                i18n.t('ng.actionConfirm'), i18n.t('ng.actionModify'),
+                i18n.t('ng.actionRegenerate'),
+            ],
+            completed: [
+                i18n.t('ng.actionNew'), i18n.t('ng.actionEnd'),
+            ],
+        };
 
-        actions.forEach(action => {
-            const button = document.createElement('button');
-            button.className = 'quick-action';
-            button.textContent = action;
-            button.addEventListener('click', () => onAction(action));
-            container.appendChild(button);
+        const actions = actionMap[stage] || [];
+        actions.forEach(label => {
+            const btn = document.createElement('button');
+            btn.className = 'quick-action';
+            btn.textContent = label;
+            btn.addEventListener('click', () => onAction(label));
+            container.appendChild(btn);
         });
     },
 
-    showExportButton() {
-        this.elements.exportButton.classList.add('show');
-    }
+    /* ---------- 預覽面板 ---------- */
+
+    updatePreview(content) {
+        this.els.previewEmpty.style.display = 'none';
+        this.els.previewEditor.style.display = 'block';
+        this.els.previewEditor.innerText = content;
+
+        // 移動端自動切換到預覽 Tab
+        if (window.innerWidth <= 768) {
+            this.switchTab('preview');
+        }
+    },
+
+    showPreviewEmpty() {
+        this.els.previewEmpty.style.display = 'flex';
+        this.els.previewEditor.style.display = 'none';
+    },
+
+    getPreviewContent() {
+        return this.els.previewEditor.innerText || '';
+    },
+
+    /* ---------- 共用 ---------- */
+
+    updateProgress(pct) {
+        this.els.progressBar.style.width = pct + '%';
+    },
+
+    setExportEnabled(enabled) {
+        this.els.exportButton.disabled = !enabled;
+    },
+
+    /* ---------- 移動端 Tab ---------- */
+
+    switchTab(tabName) {
+        if (!this.els.mobileTabs) return;
+
+        this.els.mobileTabs.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.panel === tabName);
+        });
+        this.els.panelChat.classList.toggle('ng-panel--hidden', tabName !== 'chat');
+        this.els.panelPreview.classList.toggle('ng-panel--hidden', tabName !== 'preview');
+    },
 };
 
 /* ============================================================
-   APP — 主控制器
+   APP — 流程控制器
    ============================================================ */
 
 const NoticeApp = {
 
-    state: {
-        sessionId: '',
-        canExport: false,
-        currentNoticeContent: ''
-    },
-
     async init() {
         if (typeof i18n !== 'undefined') i18n.applyDOM();
 
-        this.state.sessionId = 'session_' + Date.now() + '_' +
-            Math.random().toString(36).substr(2, 9);
-
         NoticeUI.cacheElements();
         this._bindEvents();
+
+        NoticeState.sessionId = 'session_' + Date.now() + '_' +
+            Math.random().toString(36).substr(2, 9);
+
         await this._startConversation();
     },
 
     _bindEvents() {
-        NoticeUI.elements.sendButton.addEventListener('click', () => {
-            this._sendMessage();
-        });
+        const { sendButton, chatInput, exportButton, mobileTabs } = NoticeUI.els;
 
-        NoticeUI.elements.chatInput.addEventListener('keypress', (e) => {
+        sendButton.addEventListener('click', () => this._sendMessage());
+
+        chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this._sendMessage();
             }
         });
 
-        NoticeUI.elements.exportButton.addEventListener('click', () => {
-            this._exportNotice();
-        });
+        exportButton.addEventListener('click', () => this._exportNotice());
+
+        // 移動端 Tab 切換
+        if (mobileTabs) {
+            mobileTabs.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-panel]');
+                if (btn) NoticeUI.switchTab(btn.dataset.panel);
+            });
+        }
     },
 
-    async _startConversation(initialText = null) {
-        try {
-            const data = await NoticeAPI.startConversation(
-                this.state.sessionId, initialText
-            );
-            NoticeUI.addAIMessage(data.message);
+    /* ---------- 對話流程 ---------- */
 
-            if (data.progress !== undefined) {
-                NoticeUI.updateProgress(data.progress);
-            }
-            if (data.can_export) {
-                this._enableExport(data.notice_content);
-            }
-        } catch {
+    async _startConversation() {
+        try {
+            const data = await NoticeAPI.startConversation();
+            NoticeState.update(data);
+            NoticeUI.addAIMessage(data.message);
+            NoticeUI.updateQuickActions(data.stage, (a) => this._handleQuickAction(a));
+            NoticeUI.updateProgress(NoticeState.progress);
+        } catch (err) {
             NoticeUI.addAIMessage(i18n.t('ng.errorConnection'));
         }
     },
 
     async _sendMessage() {
-        const input = NoticeUI.elements.chatInput;
-        const message = input.value.trim();
-        if (!message) return;
+        const input = NoticeUI.els.chatInput;
+        const text = input.value.trim();
+        if (!text) return;
 
-        NoticeUI.addUserMessage(message);
+        NoticeUI.addUserMessage(text);
         input.value = '';
-        NoticeUI.showTypingIndicator();
+        NoticeUI.showTyping();
 
         try {
-            const data = await NoticeAPI.continueConversation(
-                this.state.sessionId, message
-            );
+            const data = await NoticeAPI.continueConversation(NoticeState.sessionId, text);
+            NoticeUI.hideTyping();
+            NoticeState.update(data);
 
-            NoticeUI.hideTypingIndicator();
             NoticeUI.addAIMessage(data.message);
+            NoticeUI.updateProgress(NoticeState.progress);
+            NoticeUI.updateQuickActions(data.stage, (a) => this._handleQuickAction(a));
 
-            if (data.progress !== undefined) {
-                NoticeUI.updateProgress(data.progress);
+            // 當有通告內容時同步到右側預覽
+            if (data.content) {
+                NoticeUI.updatePreview(data.content);
             }
-            if (data.can_export) {
-                this._enableExport(data.notice_content);
-            }
+            NoticeUI.setExportEnabled(NoticeState.isExportable);
 
-            NoticeUI.updateQuickActions(data.stage, (action) => {
-                NoticeUI.elements.chatInput.value = action;
-                this._sendMessage();
-            });
-
-        } catch {
-            NoticeUI.hideTypingIndicator();
+        } catch (err) {
+            NoticeUI.hideTyping();
             NoticeUI.addAIMessage(i18n.t('ng.errorProcess'));
         }
     },
 
-    _enableExport(content) {
-        this.state.canExport = true;
-        this.state.currentNoticeContent = content;
-        NoticeUI.showExportButton();
+    _handleQuickAction(label) {
+        NoticeUI.els.chatInput.value = label;
+        this._sendMessage();
     },
 
+    /* ---------- 導出 ---------- */
+
     async _exportNotice() {
-        if (!this.state.canExport) {
+        if (!NoticeState.isExportable) {
             UIModule.toast(i18n.t('ng.toastCompleteFirst'), 'warning');
             return;
         }
 
         try {
-            const blob = await NoticeAPI.exportWord(this.state.sessionId);
+            const blob = await NoticeAPI.exportWord(NoticeState.sessionId);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -302,17 +372,15 @@ const NoticeApp = {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            NoticeUI.addAIMessage(i18n.t('ng.exportSuccess'));
-        } catch (error) {
-            UIModule.toast(i18n.t('ng.exportFailed') + ': ' + error.message, 'error');
+            UIModule.toast(i18n.t('ng.exportSuccess'), 'success');
+        } catch (err) {
+            UIModule.toast(i18n.t('ng.exportFailed') + ': ' + err.message, 'error');
         }
-    }
+    },
 };
 
 /* ============================================================
    入口
    ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    NoticeApp.init();
-});
+document.addEventListener('DOMContentLoaded', () => NoticeApp.init());
