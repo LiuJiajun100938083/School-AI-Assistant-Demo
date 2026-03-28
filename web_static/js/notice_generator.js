@@ -18,9 +18,6 @@
 
 const NoticeAPI = {
 
-    /**
-     * 開始對話
-     */
     async startConversation(sessionId, initialText = null) {
         const resp = await fetch('/api/admin/notice/dialogue/start', {
             method: 'POST',
@@ -36,9 +33,6 @@ const NoticeAPI = {
         return resp.json();
     },
 
-    /**
-     * 繼續對話
-     */
     async continueConversation(sessionId, userInput) {
         const resp = await fetch('/api/admin/notice/dialogue/continue', {
             method: 'POST',
@@ -54,9 +48,6 @@ const NoticeAPI = {
         return resp.json();
     },
 
-    /**
-     * 導出 Word 文檔
-     */
     async exportWord(sessionId) {
         const resp = await fetch('/api/admin/notice/dialogue/export', {
             method: 'POST',
@@ -66,7 +57,7 @@ const NoticeAPI = {
             },
             body: JSON.stringify({ session_id: sessionId })
         });
-        if (!resp.ok) throw new Error('導出失敗');
+        if (!resp.ok) throw new Error(i18n.t('ng.exportFailedApi'));
         return resp.blob();
     }
 };
@@ -162,11 +153,23 @@ const NoticeUI = {
 
         let actions = [];
         if (stage === 'select_type') {
-            actions = ['活動通告', '考試通告', '會議通告', '一般通告'];
+            actions = [
+                i18n.t('ng.typeActivity'),
+                i18n.t('ng.typeExam'),
+                i18n.t('ng.typeMeeting'),
+                i18n.t('ng.typeGeneral')
+            ];
         } else if (stage === 'confirming') {
-            actions = ['確認', '修改', '重新生成'];
+            actions = [
+                i18n.t('ng.actionConfirm'),
+                i18n.t('ng.actionModify'),
+                i18n.t('ng.actionRegenerate')
+            ];
         } else if (stage === 'completed') {
-            actions = ['新建通告', '結束'];
+            actions = [
+                i18n.t('ng.actionNew'),
+                i18n.t('ng.actionEnd')
+            ];
         }
 
         actions.forEach(action => {
@@ -196,6 +199,8 @@ const NoticeApp = {
     },
 
     async init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
+
         this.state.sessionId = 'session_' + Date.now() + '_' +
             Math.random().toString(36).substr(2, 9);
 
@@ -205,12 +210,10 @@ const NoticeApp = {
     },
 
     _bindEvents() {
-        // 發送按鈕
         NoticeUI.elements.sendButton.addEventListener('click', () => {
             this._sendMessage();
         });
 
-        // Enter 鍵發送
         NoticeUI.elements.chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -218,7 +221,6 @@ const NoticeApp = {
             }
         });
 
-        // 導出按鈕
         NoticeUI.elements.exportButton.addEventListener('click', () => {
             this._exportNotice();
         });
@@ -238,7 +240,7 @@ const NoticeApp = {
                 this._enableExport(data.notice_content);
             }
         } catch {
-            NoticeUI.addAIMessage('抱歉，連接出現問題。請刷新頁面重試。');
+            NoticeUI.addAIMessage(i18n.t('ng.errorConnection'));
         }
     },
 
@@ -273,7 +275,7 @@ const NoticeApp = {
 
         } catch {
             NoticeUI.hideTypingIndicator();
-            NoticeUI.addAIMessage('抱歉，處理您的消息時出現問題。');
+            NoticeUI.addAIMessage(i18n.t('ng.errorProcess'));
         }
     },
 
@@ -285,7 +287,7 @@ const NoticeApp = {
 
     async _exportNotice() {
         if (!this.state.canExport) {
-            UIModule.toast('請先完成通告生成', 'warning');
+            UIModule.toast(i18n.t('ng.toastCompleteFirst'), 'warning');
             return;
         }
 
@@ -294,15 +296,15 @@ const NoticeApp = {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `通告_${new Date().toISOString().split('T')[0]}.docx`;
+            a.download = `${i18n.t('ng.filePrefix')}_${new Date().toISOString().split('T')[0]}.docx`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            NoticeUI.addAIMessage('✅ Word文檔已成功導出！');
+            NoticeUI.addAIMessage(i18n.t('ng.exportSuccess'));
         } catch (error) {
-            UIModule.toast('導出失敗：' + error.message, 'error');
+            UIModule.toast(i18n.t('ng.exportFailed') + ': ' + error.message, 'error');
         }
     }
 };
