@@ -296,6 +296,12 @@ i18n.addMessages({
         'att.scanFailed': '掃描失敗',
         'att.scanFailedRetry': '掃描失敗，請重試',
         'att.confirmCheckin': '確認簽到',
+        'att.editBtn': '編輯',
+        'att.deleteBtn': '刪除',
+        'att.quickLoadFixedList': '📌 快速加載固定名單',
+        'att.startDatePlaceholder': '開始日期',
+        'att.endDatePlaceholder': '結束日期',
+        'att.toggleCompactTitle': '切換緊湊/標準顯示',
     },
     en: {
         // ===== HTML data-i18n static text =====
@@ -592,5 +598,11 @@ i18n.addMessages({
         'att.scanFailed': 'Scan failed',
         'att.scanFailedRetry': 'Scan failed, please retry',
         'att.confirmCheckin': 'Confirm Check-in',
+        'att.editBtn': 'Edit',
+        'att.deleteBtn': 'Delete',
+        'att.quickLoadFixedList': '📌 Quick Load Fixed List',
+        'att.startDatePlaceholder': 'Start date',
+        'att.endDatePlaceholder': 'End date',
+        'att.toggleCompactTitle': 'Toggle Compact/Standard View',
     }
 });

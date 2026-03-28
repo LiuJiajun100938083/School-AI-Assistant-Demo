@@ -910,8 +910,8 @@ function renderFixedLists() {
                             ${list.list_name} (${list.student_count}${i18n.t('att.people')})
                         </span>
                         <div class="fixed-list-item-actions">
-                            <button class="fixed-list-btn edit" onclick="event.stopPropagation(); editFixedList(${list.id}, '${list.list_name}')" title="編輯">✏️</button>
-                            <button class="fixed-list-btn delete" onclick="event.stopPropagation(); deleteFixedList(${list.id}, '${list.list_name}')" title="刪除">🗑️</button>
+                            <button class="fixed-list-btn edit" onclick="event.stopPropagation(); editFixedList(${list.id}, '${list.list_name}')" title="${i18n.t('att.editBtn')}">✏️</button>
+                            <button class="fixed-list-btn delete" onclick="event.stopPropagation(); deleteFixedList(${list.id}, '${list.list_name}')" title="${i18n.t('att.deleteBtn')}">🗑️</button>
                         </div>
                     </div>
                 </div>

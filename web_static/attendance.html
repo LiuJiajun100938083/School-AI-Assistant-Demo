@@ -226,7 +226,7 @@
                         <div class="records-title" data-i18n="att.checkInRecords">簽到紀錄</div>
                         <div class="records-controls">
                             <button class="compact-toggle-btn" id="compactToggleBtn" onclick="toggleCompactMode()"
-                                    title="切換緊湊/標準顯示">
+                                    title="切換緊湊/標準顯示" data-i18n-title="att.toggleCompactTitle">
                                 <span class="compact-icon">📋</span>
                                 <span class="compact-text" data-i18n="att.compact">緊湊</span>
                             </button>
@@ -651,8 +651,8 @@
                 <option value="detention" data-i18n="att.typeDetention">留堂</option>
                 <option value="activity" data-i18n="att.typeActivityFull">課外活動</option>
             </select>
-            <input type="date" id="exportsStartDate" placeholder="開始日期">
-            <input type="date" id="exportsEndDate" placeholder="結束日期">
+            <input type="date" id="exportsStartDate" placeholder="開始日期" data-i18n-placeholder="att.startDatePlaceholder">
+            <input type="date" id="exportsEndDate" placeholder="結束日期" data-i18n-placeholder="att.endDatePlaceholder">
             <button class="exports-filter-btn" onclick="filterExports()" data-i18n="att.filter">篩選</button>
             <button class="exports-filter-btn reset" onclick="resetExportsFilter()" data-i18n="att.reset">重置</button>
         </div>
