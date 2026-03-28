@@ -3,6 +3,7 @@
 i18n.addMessages({
     zh: {
         'ng.pageTitle': '智能通告助手',
+        'ng.back': '← 返回',
         'ng.headerTitle': '智能通告助手',
         'ng.inputPlaceholder': '輸入您的回覆或粘貼通告內容...',
         'ng.sendBtn': '發送',
@@ -30,6 +31,7 @@ i18n.addMessages({
     },
     en: {
         'ng.pageTitle': 'Smart Notice Assistant',
+        'ng.back': '← Back',
         'ng.headerTitle': 'Smart Notice Assistant',
         'ng.inputPlaceholder': 'Enter your reply or paste notice content...',
         'ng.sendBtn': 'Send',

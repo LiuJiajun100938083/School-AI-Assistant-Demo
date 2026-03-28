@@ -7,29 +7,31 @@
     <link rel="stylesheet" href="/static/css/notice_generator.css">
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="message-avatar">🤖</div>
-            <h2 data-i18n="ng.headerTitle">智能通告助手</h2>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressBar"></div>
-            </div>
+    <!-- Header -->
+    <header class="ng-header">
+        <a href="/" class="ng-header__back" data-i18n="ng.back">← 返回</a>
+        <h1 class="ng-header__title" data-i18n="ng.headerTitle">智能通告助手</h1>
+        <div class="ng-header__progress">
+            <div class="ng-header__progress-fill" id="progressBar"></div>
         </div>
+    </header>
 
-        <div class="chat-messages" id="chatMessages">
-        </div>
+    <!-- Chat Container -->
+    <div class="ng-container">
+        <div class="ng-messages" id="chatMessages"></div>
 
-        <div class="chat-input-container">
-            <div class="chat-input-wrapper">
-                <input type="text" class="chat-input" id="chatInput"
+        <div class="ng-input-area">
+            <div class="ng-input-wrapper">
+                <input type="text" class="ng-input" id="chatInput"
                        placeholder="輸入您的回覆或粘貼通告內容..." data-i18n-placeholder="ng.inputPlaceholder" autocomplete="off">
-                <button class="send-button" id="sendButton" data-i18n="ng.sendBtn">發送</button>
+                <button class="ng-send-btn" id="sendButton" data-i18n="ng.sendBtn">發送</button>
             </div>
-            <div class="quick-actions" id="quickActions"></div>
+            <div class="ng-quick-actions" id="quickActions"></div>
         </div>
     </div>
 
-    <button class="export-button" id="exportButton" data-i18n="ng.exportBtn">📄 導出Word文檔</button>
+    <!-- Export FAB -->
+    <button class="ng-export-btn" id="exportButton" data-i18n="ng.exportBtn">📄 導出Word文檔</button>
 
     <script src="/static/js/shared/utils.js"></script>
     <script src="/static/js/shared/auth.js"></script>
