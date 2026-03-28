@@ -223,12 +223,81 @@ const NoticeUI = {
     updatePreview(content) {
         this.els.previewEmpty.style.display = 'none';
         this.els.previewEditor.style.display = 'block';
-        this.els.previewEditor.innerText = content;
+        this.els.previewEditor.innerHTML = this._formatNoticeHTML(content);
 
         // 移動端自動切換到預覽 Tab
         if (window.innerWidth <= 768) {
             this.switchTab('preview');
         }
+    },
+
+    /**
+     * 將通告純文本轉換為格式化 HTML（模擬正式通告排版）
+     */
+    _formatNoticeHTML(text) {
+        const lines = text.split('\n');
+        let html = '';
+        let inList = false;
+
+        for (const line of lines) {
+            const s = line.trim();
+            if (!s) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += '<div style="height:0.5em"></div>';
+                continue;
+            }
+
+            // 清理 markdown bold
+            const clean = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            // 標題行
+            if (this._isNoticeTitleLine(s)) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="text-align:center;font-size:1.15em;font-weight:bold;margin:0.8em 0 0.5em">${clean}</div>`;
+            }
+            // 敬啟者
+            else if (s.startsWith('敬啟者') || s.startsWith('敬启者')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.5em 0">${clean}</div>`;
+            }
+            // 此致 / 簽名 / 日期
+            else if (s === '此致' || s.startsWith('學生家長') || s.startsWith('貴家長')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.3em 0">${clean}</div>`;
+            }
+            else if (s.includes('校長') && s.length < 30) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.3em 0;text-indent:1em">${clean}</div>`;
+            }
+            else if (/^二零/.test(s)) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.5em 0">${clean}</div>`;
+            }
+            // 結構化字段行 (日　期：、時間：、地點：)
+            else if (/^[日時地對費考活會注聯如]/.test(s) && /[：:]/.test(s.substring(0, 10))) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.2em 0 0.2em 2em">${clean}</div>`;
+            }
+            // 列表項 (1. / - / *)
+            else if (/^[\-\*]\s/.test(s) || /^\d+[\.\)]\s/.test(s)) {
+                if (!inList) { html += '<ul style="margin:0.3em 0 0.3em 2.5em">'; inList = true; }
+                const itemText = s.replace(/^[\-\*]\s+/, '').replace(/^\d+[\.\)]\s+/, '');
+                html += `<li>${itemText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</li>`;
+            }
+            // 普通正文
+            else {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.2em 0;text-indent:2em">${clean}</div>`;
+            }
+        }
+        if (inList) html += '</ul>';
+        return html;
+    },
+
+    _isNoticeTitleLine(text) {
+        if ((text.includes('通知') || text.includes('通告')) && text.length < 40) return true;
+        if (text.startsWith('【') && text.includes('】') && text.length < 40) return true;
+        return false;
     },
 
     showPreviewEmpty() {
@@ -237,7 +306,7 @@ const NoticeUI = {
     },
 
     getPreviewContent() {
-        return this.els.previewEditor.innerText || '';
+        return this.els.previewEditor.textContent || '';
     },
 
     /* ---------- 共用 ---------- */

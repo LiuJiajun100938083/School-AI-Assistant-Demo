@@ -425,9 +425,10 @@ class NoticeService:
                     "7. 日期行（中文日期格式，如「二零二五年三月二十八日」）\n"
                     "8. 不要添加 emoji 或非正式用语\n\n"
                     "请判断信息是否足够生成通告：\n"
-                    "- 如果信息充足，请直接生成通告全文，"
-                    "并在开头加上 [NOTICE_READY] 标记\n"
-                    "- 如果信息不足，请询问缺少的关键信息"
+                    "- 如果信息充足，请输出 [NOTICE_READY] 标记，"
+                    "然后【只输出通告全文，不要有任何对话性文字、解释或评论】。"
+                    "标记后第一行必须是通告标题，最后一行是日期行，中间不允许出现任何非通告内容。\n"
+                    "- 如果信息不足，请询问缺少的关键信息（此时不要加 [NOTICE_READY] 标记）"
                 )
 
                 response, _ = self._ask_ai_func(
@@ -508,7 +509,10 @@ class NoticeService:
                     f"用户修改要求: {user_input}\n\n"
                     "请根据要求修改通告内容（繁体中文），"
                     "保持香港学校通告的正式格式（敬啟者、此致、校長簽名等）。"
-                    "不要添加 emoji 或非正式用语。"
+                    "不要添加 emoji 或非正式用语。\n"
+                    "【重要】只输出修改后的完整通告全文，"
+                    "不要有任何对话性文字、解释或评论。"
+                    "第一行必须是通告标题，最后一行是日期行。"
                 )
 
                 response, _ = self._ask_ai_func(
@@ -620,11 +624,22 @@ class NoticeService:
     def _extract_notice_body(content: str) -> str:
         """从 AI 回复中提取纯通告正文，去除对话性文字"""
         lines = content.split('\n')
+
+        # AI 对话性关键词（用于过滤首尾废话）
+        chat_keywords = [
+            '希望', '如果需要', '随时', '隨時', '可以直接',
+            '复製', '複製', '告訴我', '告诉我', '幫你', '帮你',
+            '以下是', '為你生成', '为你生成', '已經', '已经',
+            '根據你', '根据你', '收到', '資訊', '资讯',
+            '準備好', '准备好', '需要調整', '需要调整',
+            '😊', '✨', '🎉', '📝', '✅', '💪', '📋',
+        ]
+
         # 找到通告正文的起始位置（标题行或「敬啟者」）
         start_idx = 0
         for i, line in enumerate(lines):
             stripped = line.strip()
-            if ('通知' in stripped or '通告' in stripped) and len(stripped) < 30:
+            if ('通知' in stripped or '通告' in stripped) and len(stripped) < 40:
                 start_idx = i
                 break
             if '敬啟者' in stripped or '敬启者' in stripped:
@@ -633,6 +648,9 @@ class NoticeService:
             if stripped.startswith('【') and '】' in stripped:
                 start_idx = i
                 break
+            # 跳过所有对话性开头
+            if any(kw in stripped for kw in chat_keywords):
+                continue
 
         # 找到通告正文的结束位置（日期行之后）
         end_idx = len(lines)
@@ -643,8 +661,8 @@ class NoticeService:
                 if '二零' in stripped or '校長' in stripped or '家長' in stripped:
                     end_idx = i + 1
                     break
-                # 如果是 AI 对话性结尾（如"希望..."、"如果需要..."），跳过
-                if any(kw in stripped for kw in ['希望', '如果需要', '随时', '隨時', '😊', '✨', '🎉', '📝']):
+                # 如果是 AI 对话性结尾，跳过
+                if any(kw in stripped for kw in chat_keywords):
                     continue
                 end_idx = i + 1
                 break

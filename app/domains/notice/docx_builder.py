@@ -51,9 +51,15 @@ def build_notice_docx(
     # 1. 選擇基底模板（帶校徽 header）
     doc = _load_base_template(notice_type)
 
-    # 2. 清空正文
-    for p in doc.paragraphs:
-        p._element.getparent().remove(p._element)
+    # 2. 清空正文（安全方式：逐一清除 run，保留文檔結構完整性）
+    body = doc.element.body
+    from docx.oxml.ns import qn
+    # 僅移除 body 直屬的段落元素，不動 header/footer/section
+    for p_elem in list(body.findall(qn('w:p'))):
+        body.remove(p_elem)
+    # 同時移除 body 裡的 table（模板表格）
+    for tbl_elem in list(body.findall(qn('w:tbl'))):
+        body.remove(tbl_elem)
 
     # 3. 解析 AI 生成的通告內容並寫入
     _write_notice_content(doc, content, title)
