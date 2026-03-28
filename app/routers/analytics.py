@@ -120,11 +120,13 @@ async def get_student_analysis(subject: str, request: Request):
     try:
         username, _ = _verify_request(request)
         force = request.query_params.get("force", "false").lower() == "true"
+        lang = _extract_lang(request)
 
         report = get_services().analytics.get_student_report(
             username=username,
             subject=subject,
             force_refresh=force,
+            lang=lang,
         )
         return success_response(report)
 
@@ -140,6 +142,7 @@ async def get_student_overall_analysis(request: Request):
     """获取学生跨学科综合分析"""
     try:
         username, _ = _verify_request(request)
+        lang = _extract_lang(request)
 
         # 获取所有学科
         subjects = get_services().subject.list_subjects(detailed=False)
@@ -150,7 +153,7 @@ async def get_student_overall_analysis(request: Request):
             code = subj["subject_code"]
             try:
                 report = get_services().analytics.get_student_report(
-                    username=username, subject=code,
+                    username=username, subject=code, lang=lang,
                 )
                 reports[code] = report
                 # 风险分数转换
@@ -389,3 +392,19 @@ def _verify_request(request: Request):
         raise AuthenticationError("未提供认证令牌")
     payload = get_services().auth.verify_token(token)
     return payload["username"], payload["role"]
+
+
+def _extract_lang(request: Request) -> str:
+    """
+    从请求中提取语言偏好。
+    优先级：query param ?lang= > Accept-Language header > 默认 zh
+    """
+    # 1) 显式 query param
+    lang = request.query_params.get("lang", "")
+    if lang in ("en", "zh"):
+        return lang
+    # 2) Accept-Language header
+    accept = request.headers.get("accept-language", "")
+    if accept.startswith("en"):
+        return "en"
+    return "zh"

@@ -15,41 +15,47 @@
     <header class="mb-header">
         <div class="mb-header__title">
             <span>📊</span>
-            <span>錯題分析 · 教師面板</span>
+            <span data-i18n="mbt.headerTitle">錯題分析 · 教師面板</span>
         </div>
         <div class="mb-header__actions">
-            <button class="mb-btn mb-btn--sm mb-btn--outline" onclick="location.href='/'">返回首頁</button>
+            <button class="mb-btn mb-btn--sm mb-btn--outline" onclick="location.href='/'" data-i18n="mbt.backHome">返回首頁</button>
         </div>
     </header>
 
     <!-- 篩選工具欄 -->
     <div class="mbt-toolbar" id="toolbar">
         <div class="mbt-toolbar__group">
-            <label class="mbt-toolbar__label">班級</label>
+            <label class="mbt-toolbar__label" data-i18n="mbt.classLabel">班級</label>
             <select class="mb-select mbt-toolbar__select" id="classSelect">
-                <option value="">選擇班級...</option>
+                <option value="" data-i18n="mbt.selectClass">選擇班級...</option>
             </select>
         </div>
         <div class="mbt-toolbar__group">
-            <label class="mbt-toolbar__label">科目</label>
+            <label class="mbt-toolbar__label" data-i18n="mbt.subjectLabel">科目</label>
             <select class="mb-select mbt-toolbar__select" id="subjectSelect">
-                <option value="">載入中...</option>
+                <option value="" data-i18n="mbt.loading">載入中...</option>
             </select>
         </div>
-        <button class="mb-btn mb-btn--primary mbt-toolbar__btn" onclick="TeacherApp.loadClassReport()">
+        <button class="mb-btn mb-btn--primary mbt-toolbar__btn" onclick="TeacherApp.loadClassReport()" data-i18n="mbt.viewReport">
             查看報告
         </button>
     </div>
 
     <!-- 主內容區：標籤切換 -->
     <div class="mbt-tabs" id="tabsBar">
-        <div class="mbt-tabs__item mbt-tabs__item--active" data-tab="class-report">班級概況</div>
-        <div class="mbt-tabs__item" data-tab="student-detail">學生詳情</div>
+        <div class="mbt-tabs__item mbt-tabs__item--active" data-tab="class-report" data-i18n="mbt.tabClassReport">班級概況</div>
+        <div class="mbt-tabs__item" data-tab="student-detail" data-i18n="mbt.tabStudentDetail">學生詳情</div>
     </div>
 
     <main id="mainContent"></main>
 </div>
 
+<script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/utils.js"></script>
+<script src="/static/js/shared/auth.js"></script>
+<script src="/static/js/shared/ui.js"></script>
+<script src="/static/js/shared/api.js"></script>
 <script src="/static/js/mistake_book_teacher.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => i18n.applyDOM());</script>
 </body>
 </html>

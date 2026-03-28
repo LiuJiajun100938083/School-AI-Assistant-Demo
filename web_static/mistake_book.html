@@ -30,7 +30,7 @@
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
-            <span id="headerTitle">錯題本</span>
+            <span id="headerTitle" data-i18n="mb.tabHome">錯題本</span>
         </div>
         <div class="mb-header__actions" id="headerActions"></div>
     </header>
@@ -49,7 +49,7 @@
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 </svg>
             </span>
-            <span class="mb-tab-bar__label">錯題本</span>
+            <span class="mb-tab-bar__label" data-i18n="mb.tabHome">錯題本</span>
         </div>
         <div class="mb-tab-bar__item" data-tab="learn">
             <span class="mb-tab-bar__icon">
@@ -57,7 +57,7 @@
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                 </svg>
             </span>
-            <span class="mb-tab-bar__label">學習</span>
+            <span class="mb-tab-bar__label" data-i18n="mb.tabLearn">學習</span>
             <span class="mb-tab-bar__badge" id="learnBadge" style="display:none"></span>
         </div>
         <div class="mb-tab-bar__item" data-tab="profile">
@@ -68,7 +68,7 @@
                     <line x1="6" y1="20" x2="6" y2="14"></line>
                 </svg>
             </span>
-            <span class="mb-tab-bar__label">我的</span>
+            <span class="mb-tab-bar__label" data-i18n="mb.tabProfile">我的</span>
         </div>
     </nav>
 
@@ -81,6 +81,12 @@
     <div class="mb-detail-panel" id="detailPanel"></div>
 </div>
 
+<script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/utils.js"></script>
+<script src="/static/js/shared/auth.js"></script>
+<script src="/static/js/shared/ui.js"></script>
+<script src="/static/js/shared/api.js"></script>
+<script>i18n.applyDOM();</script>
 <script src="/static/js/mistake_book.js"></script>
 </body>
 </html>

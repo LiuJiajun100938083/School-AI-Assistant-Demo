@@ -131,6 +131,7 @@ class AnalyticsService:
         subject: str,
         force_refresh: bool = False,
         max_cache_hours: int = DEFAULT_CACHE_HOURS,
+        lang: str = "zh",
     ) -> Dict[str, Any]:
         """
         获取学生学习分析报告
@@ -176,7 +177,7 @@ class AnalyticsService:
                 return report
 
         # 生成新报告
-        report = self._generate_student_report(username, subject)
+        report = self._generate_student_report(username, subject, lang=lang)
         report["from_cache"] = False
         return report
 
@@ -408,6 +409,7 @@ class AnalyticsService:
         self,
         username: str,
         subject: str,
+        lang: str = "zh",
     ) -> Dict[str, Any]:
         """使用 LLM 生成学生分析报告（多源数据增强版）"""
         if not self._ask_ai_func:
@@ -442,25 +444,46 @@ class AnalyticsService:
             username, subject, multi_source, all_messages,
         )
 
-        prompt = (
-            f"请对以下学生的 {subject} 学习情况进行全面分析。\n"
-            "请综合所有提供的数据维度（对话记录、知识掌握度、错题分布、练习成绩、"
-            "考勤等），给出有数据支撑的分析，引用具体数字。\n"
-            "对于薄弱知识点，请给出 3-5 条有针对性的学习建议。\n\n"
-            f"{context}\n\n"
-            "请返回以下字段（JSON 格式）：\n"
-            "{\n"
-            '  "knowledge_mastery": "知识掌握情况分析（引用具体掌握度百分比和薄弱点）",\n'
-            '  "learning_style": "学习风格描述（基于对话模式和学习时段）",\n'
-            '  "difficulty_level": "当前学习难度评估（基于错题类型和练习成绩）",\n'
-            '  "emotion_analysis": "学习情绪与态度分析",\n'
-            '  "suggestions": "3-5条具体改进建议（针对薄弱知识点和错题类型）",\n'
-            '  "progress": "学习进步趋势（基于练习成绩和掌握度变化）",\n'
-            '  "overall_assessment": "整体评价",\n'
-            '  "teacher_attention_points": "教师需关注的要点",\n'
-            '  "risk_level": "low/medium/high"\n'
-            "}"
-        )
+        if lang == "en":
+            prompt = (
+                f"Please provide a comprehensive analysis of the following student's {subject} learning performance.\n"
+                "Synthesize all data dimensions (conversation logs, knowledge mastery, mistake distribution, "
+                "practice scores, attendance, etc.) and support your analysis with specific numbers.\n"
+                "For weak knowledge areas, provide 3-5 targeted study recommendations.\n\n"
+                f"{context}\n\n"
+                "Please return the following fields in JSON format:\n"
+                "{\n"
+                '  "knowledge_mastery": "Analysis of knowledge mastery (cite specific mastery percentages and weak areas)",\n'
+                '  "learning_style": "Description of learning style (based on conversation patterns and study hours)",\n'
+                '  "difficulty_level": "Current learning difficulty assessment (based on mistake types and practice scores)",\n'
+                '  "emotion_analysis": "Analysis of learning attitude and motivation",\n'
+                '  "suggestions": "3-5 specific improvement suggestions (targeting weak knowledge areas and error types)",\n'
+                '  "progress": "Learning progress trend (based on practice scores and mastery changes)",\n'
+                '  "overall_assessment": "Overall evaluation",\n'
+                '  "teacher_attention_points": "Key points for teacher attention",\n'
+                '  "risk_level": "low/medium/high"\n'
+                "}\n\nIMPORTANT: ALL text fields MUST be written in English."
+            )
+        else:
+            prompt = (
+                f"请对以下学生的 {subject} 学习情况进行全面分析。\n"
+                "请综合所有提供的数据维度（对话记录、知识掌握度、错题分布、练习成绩、"
+                "考勤等），给出有数据支撑的分析，引用具体数字。\n"
+                "对于薄弱知识点，请给出 3-5 条有针对性的学习建议。\n\n"
+                f"{context}\n\n"
+                "请返回以下字段（JSON 格式）：\n"
+                "{\n"
+                '  "knowledge_mastery": "知识掌握情况分析（引用具体掌握度百分比和薄弱点）",\n'
+                '  "learning_style": "学习风格描述（基于对话模式和学习时段）",\n'
+                '  "difficulty_level": "当前学习难度评估（基于错题类型和练习成绩）",\n'
+                '  "emotion_analysis": "学习情绪与态度分析",\n'
+                '  "suggestions": "3-5条具体改进建议（针对薄弱知识点和错题类型）",\n'
+                '  "progress": "学习进步趋势（基于练习成绩和掌握度变化）",\n'
+                '  "overall_assessment": "整体评价",\n'
+                '  "teacher_attention_points": "教师需关注的要点",\n'
+                '  "risk_level": "low/medium/high"\n'
+                "}"
+            )
 
         # 4) 调用 LLM
         try:

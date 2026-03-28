@@ -118,7 +118,7 @@ const App = {
         });
         const hint = document.getElementById('practiceProviderHintText');
         if (hint) {
-            hint.textContent = provider === 'local' ? '速度穩定，校內可控' : '雲端 API，品質更高';
+            hint.textContent = provider === 'local' ? i18n.t('mb.localHint') : i18n.t('mb.cloudHint');
         }
     },
 
@@ -137,7 +137,7 @@ const App = {
             if (cloudBtn) {
                 cloudBtn.disabled = !this.state.cloudAvailable;
                 if (!this.state.cloudAvailable) {
-                    cloudBtn.title = info.reason === 'missing_api_key' ? '未配置雲端 API Key' : '雲端服務不可用';
+                    cloudBtn.title = info.reason === 'missing_api_key' ? i18n.t('mb.cloudUnavailableKey') : i18n.t('mb.cloudUnavailable');
                 }
             }
         } catch (e) {
@@ -191,9 +191,9 @@ const App = {
         } catch (e) {
             // 降級到默認三科
             this.state.subjects = [
-                { subject_code: 'chinese', display_name: '中文', ui_features: {} },
-                { subject_code: 'math', display_name: '數學', ui_features: { katex: true } },
-                { subject_code: 'english', display_name: '英文', ui_features: {} },
+                { subject_code: 'chinese', display_name: i18n.t('subject.chinese'), ui_features: {} },
+                { subject_code: 'math', display_name: i18n.t('subject.math'), ui_features: { katex: true } },
+                { subject_code: 'english', display_name: i18n.t('subject.english'), ui_features: {} },
             ];
         }
     },
@@ -206,9 +206,9 @@ const App = {
         });
 
         // Update header title
-        const titleMap = { home: '錯題本', learn: '學習', profile: '我的' };
+        const titleMap = { home: i18n.t('mb.tabHome'), learn: i18n.t('mb.tabLearn'), profile: i18n.t('mb.tabProfile') };
         const titleEl = document.getElementById('headerTitle');
-        if (titleEl) titleEl.textContent = titleMap[tab] || '錯題本';
+        if (titleEl) titleEl.textContent = titleMap[tab] || i18n.t('mb.tabHome');
 
         const main = document.getElementById('mainContent');
         main.innerHTML = UI.loading();
@@ -234,8 +234,8 @@ const App = {
         renderFn.call(Views, main).catch(err => {
             console.error('Render error:', err);
             main.innerHTML = `<div class="mb-empty">
-                <div class="mb-empty__text">載入失敗，請重試</div>
-                <button class="mb-btn mb-btn--primary" onclick="App.navigate('${tab}')" style="margin-top:12px">重新載入</button>
+                <div class="mb-empty__text">${i18n.t('mb.loadFailedRetry')}</div>
+                <button class="mb-btn mb-btn--primary" onclick="App.navigate('${tab}')" style="margin-top:12px">${i18n.t('mb.reload')}</button>
             </div>`;
         });
     },
@@ -306,7 +306,7 @@ const API = {
         } catch (err) {
             if (err.name === 'AbortError') {
                 console.error(`API Timeout [${url}]: ${timeoutMs}ms`);
-                UI.toast('請求超時，請重試', 'error');
+                UI.toast(i18n.t('mb.requestTimeout'), 'error');
             } else {
                 console.error(`API Error [${url}]:`, err);
                 UI.toast(err.message, 'error');
@@ -345,7 +345,7 @@ const API = {
             });
             return await res.json();
         } catch (err) {
-            UI.toast('上傳失敗: ' + err.message, 'error');
+            UI.toast(i18n.t('mb.uploadFailedMsg', {msg: err.message}), 'error');
             return null;
         }
     },
@@ -368,7 +368,7 @@ const API = {
     async askKnowledgeQA(pointCode, question) {
         return this._fetch('/api/mistakes/knowledge-qa', {
             method: 'POST',
-            body: JSON.stringify({ point_code: pointCode, question }),
+            body: JSON.stringify({ point_code: pointCode, question, lang: i18n.lang }),
         });
     },
     async getReviewQueue(subject, limit = 10) {
@@ -386,7 +386,7 @@ const API = {
         return this._fetch(`/api/mistakes/practice/mastery?subject=${encodeURIComponent(subject)}`);
     },
     async generatePractice(subject, count = 5, targetPoints = null, difficulty = null, provider = 'local') {
-        const body = { subject, question_count: count, session_type: 'targeted', provider };
+        const body = { subject, question_count: count, session_type: 'targeted', provider, lang: i18n.lang };
         if (targetPoints && targetPoints.length > 0) body.target_points = targetPoints;
         if (difficulty) body.difficulty = difficulty;
         return this._fetch('/api/mistakes/practice/generate', {
@@ -430,7 +430,7 @@ const API = {
             });
             return await res.json();
         } catch (err) {
-            UI.toast('識別失敗: ' + err.message, 'error');
+            UI.toast(i18n.t('mb.recognitionFailedMsg', {msg: err.message}), 'error');
             return null;
         }
     },
@@ -445,7 +445,7 @@ const API = {
 
 const UI = {
     loading() {
-        return '<div class="mb-loading"><div class="mb-loading__spinner"></div>載入中...</div>';
+        return `<div class="mb-loading"><div class="mb-loading__spinner"></div>${i18n.t('mb.loadingText')}</div>`;
     },
 
     empty(icon, text) {
@@ -456,7 +456,7 @@ const UI = {
         const current = App.state.currentSubject;
         const subjects = App.state.subjects || [];
         return `<div class="mb-subject-bar">
-            <button class="mb-subject-chip${current==='all'?' mb-subject-chip--active':''}" data-subject="all">全部</button>
+            <button class="mb-subject-chip${current==='all'?' mb-subject-chip--active':''}" data-subject="all">${i18n.t('mb.allCategory')}</button>
             ${subjects.map(s =>
                 `<button class="mb-subject-chip${current===s.subject_code?' mb-subject-chip--active':''}" data-subject="${s.subject_code}">${s.display_name}</button>`
             ).join('')}
@@ -478,32 +478,32 @@ const UI = {
 
     statusLabel(status) {
         const map = {
-            processing: 'Step 1/2: 識別中...',
-            analyzing: 'Step 2/2: 分析中...',
-            ocr_failed: '識別失敗',
-            analysis_failed: '分析失敗',
-            needs_review: '待確認',
-            pending_ocr: '待識別',
-            pending_review: '待確認',
-            analyzed: '已分析',
-            practicing: '練習中',
-            mastered: '已掌握',
+            processing: i18n.t('mb.statusProcessing'),
+            analyzing: i18n.t('mb.statusAnalyzing'),
+            ocr_failed: i18n.t('mb.statusOcrFailed'),
+            analysis_failed: i18n.t('mb.statusAnalysisFailed'),
+            needs_review: i18n.t('mb.statusNeedsReview'),
+            pending_ocr: i18n.t('mb.statusPendingOcr'),
+            pending_review: i18n.t('mb.statusPendingReview'),
+            analyzed: i18n.t('mb.statusAnalyzed'),
+            practicing: i18n.t('mb.statusPracticing'),
+            mastered: i18n.t('mb.statusMastered'),
         };
         return map[status] || status;
     },
 
     errorTypeLabel(type) {
         const map = {
-            concept_error: '概念錯誤',
-            calculation_error: '計算錯誤',
-            comprehension_gap: '理解偏差',
-            careless: '粗心大意',
-            expression_weak: '表達不足',
-            memory_error: '記憶錯誤',
-            logic_error: '邏輯錯誤',
-            method_error: '方法錯誤',
+            concept_error: i18n.t('mb.errConcept'),
+            calculation_error: i18n.t('mb.errCalculation'),
+            comprehension_gap: i18n.t('mb.errComprehension'),
+            careless: i18n.t('mb.errCareless'),
+            expression_weak: i18n.t('mb.errExpression'),
+            memory_error: i18n.t('mb.errMemory'),
+            logic_error: i18n.t('mb.errLogic'),
+            method_error: i18n.t('mb.errMethod'),
         };
-        return map[type] || type || '未分類';
+        return map[type] || type || i18n.t('mb.errUncategorized');
     },
 
     masteryClass(level) {
@@ -515,6 +515,7 @@ const UI = {
     formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
+        if (i18n.isEn) return `${d.getMonth() + 1}/${d.getDate()}`;
         return `${d.getMonth() + 1}月${d.getDate()}日`;
     },
 
@@ -754,12 +755,12 @@ const UI = {
                 const lines = fig.elements.filter(e => e.type === 'line_segment');
 
                 let desc = `<div class="mb-figure-desc">`;
-                desc += `<div class="mb-figure-desc__title">${Icons.image(14)} 幾何圖形</div>`;
+                desc += `<div class="mb-figure-desc__title">${Icons.image(14)} ${i18n.t('mb.geoFigureTitle')}</div>`;
                 if (points.length) {
-                    desc += `<div class="mb-figure-desc__item">點：${points.map(p => p.label).join('、')}</div>`;
+                    desc += `<div class="mb-figure-desc__item">${i18n.t('mb.geoPointsLabel', {items: points.map(p => p.label).join(i18n.isEn ? ', ' : '、')})}</div>`;
                 }
                 if (lines.length) {
-                    desc += `<div class="mb-figure-desc__item">直線：${lines.map(l => l.label || (l.from + l.to)).join('、')}</div>`;
+                    desc += `<div class="mb-figure-desc__item">${i18n.t('mb.geoLinesLabel', {items: lines.map(l => l.label || (l.from + l.to)).join(i18n.isEn ? ', ' : '、')})}</div>`;
                 }
                 desc += `</div>`;
                 figHtml = desc;
@@ -767,7 +768,7 @@ const UI = {
         } catch {
             // JSON 解析失敗，顯示簡潔摘要
             figHtml = `<div class="mb-figure-desc">
-                <div class="mb-figure-desc__title">${Icons.image(14)} 含幾何圖形</div>
+                <div class="mb-figure-desc__title">${Icons.image(14)} ${i18n.t('mb.geoWithFigure')}</div>
             </div>`;
         }
 
@@ -822,13 +823,13 @@ const UI = {
         }
         if (obj.correct_answer && !html.includes(obj.correct_answer.substring(0, 20))) {
             html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--mb-border)">
-                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">正確答案</div>
+                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">${i18n.t('mb.correctAnswerInline')}</div>
                 ${this.renderMath(this._truncateRepetitive(obj.correct_answer))}
             </div>`;
         }
         if (obj.improvement_tips && obj.improvement_tips.length) {
             html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--mb-border)">
-                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">改進建議</div>
+                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">${i18n.t('mb.improvementSuggestionLabel')}</div>
                 <ul style="margin:0;padding-left:16px;font-size:13px">${obj.improvement_tips.map(t => `<li>${this.renderMath(t)}</li>`).join('')}</ul>
             </div>`;
         }
@@ -852,7 +853,7 @@ const UI = {
         if (caMatch) {
             const answer = caMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
             html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--mb-border)">
-                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">正確答案</div>
+                <div style="font-size:12px;font-weight:600;color:var(--mb-text-secondary);margin-bottom:4px">${i18n.t('mb.correctAnswerInline')}</div>
                 ${this.renderMath(this._truncateRepetitive(answer))}
             </div>`;
         }
@@ -878,7 +879,7 @@ const UI = {
             const count = (rest.match(new RegExp(sample.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
             if (count >= 2) {
                 const firstEnd = text.indexOf(sample, mid) + winSize;
-                return text.substring(0, firstEnd).trimEnd() + '\n\n（分析內容過長，已截斷）';
+                return text.substring(0, firstEnd).trimEnd() + '\n\n' + i18n.t('mb.analysisTruncated');
             }
         }
 
@@ -938,7 +939,7 @@ const UI = {
     extractErrorSummary(m) {
         const typeLabel = this.errorTypeLabel(m.error_type);
         const raw = this.extractRawAnalysis(m);
-        if (!raw) return typeLabel !== '未分類' ? typeLabel : '';
+        if (!raw) return typeLabel !== i18n.t('mb.errUncategorized') ? typeLabel : '';
 
         // 取第一句（到句號/驚嘆號/換行，最多 80 字）
         const sentenceMatch = raw.match(/^(.{1,80}?)[。！\n]/);
@@ -947,8 +948,8 @@ const UI = {
         // 答案正確（A 級，無 error_type）→ 直接顯示第一句（通常是正向評價）
         if (!m.error_type) return sentence;
 
-        if (typeLabel && typeLabel !== '未分類') {
-            return `${typeLabel}：${sentence}`;
+        if (typeLabel && typeLabel !== i18n.t('mb.errUncategorized')) {
+            return `${typeLabel}${i18n.isEn ? ': ' : '：'}${sentence}`;
         }
         return sentence;
     },
@@ -1055,18 +1056,18 @@ const GeoDisplay = {
         const t = rel.type || '';
         const e = (rel.entities || []).map(x => this.stripPrefix(x));
         const source = rel.source || '';
-        const suffix = source === 'inferred' ? '（推斷）' : '';
+        const suffix = source === 'inferred' ? i18n.t('mb.geoInferred') : '';
 
         const formatters = {
             parallel:      () => e.join(' ∥ '),
-            perpendicular: () => e.join(' ⊥ ') + (rel.at ? `，交於 ${this.stripPrefix(rel.at)}` : ''),
-            collinear:     () => (rel.points || []).map(p => this.stripPrefix(p)).join('、') + ' 共線',
-            midpoint:      () => `${this.stripPrefix(rel.subject || '?')} 是 ${this.stripPrefix(rel.of || '?')} 中點`,
-            on_segment:    () => `${this.stripPrefix(rel.subject || '?')} 在 ${this.stripPrefix(rel.target || '?')} 上`,
-            bisector:      () => `${this.stripPrefix(rel.subject || '?')} 平分 ${this.stripPrefix(rel.target || '?')}`,
+            perpendicular: () => e.join(' ⊥ ') + (rel.at ? i18n.t('mb.geoIntersectAt', {point: this.stripPrefix(rel.at)}) : ''),
+            collinear:     () => i18n.t('mb.geoCollinearDesc', {points: (rel.points || []).map(p => this.stripPrefix(p)).join(i18n.isEn ? ', ' : '、')}),
+            midpoint:      () => i18n.t('mb.geoIsMidpoint', {subject: this.stripPrefix(rel.subject || '?'), of: this.stripPrefix(rel.of || '?')}),
+            on_segment:    () => i18n.t('mb.geoOnSegment', {subject: this.stripPrefix(rel.subject || '?'), target: this.stripPrefix(rel.target || '?')}),
+            bisector:      () => i18n.t('mb.geoBisects', {subject: this.stripPrefix(rel.subject || '?'), target: this.stripPrefix(rel.target || '?')}),
             congruent:     () => e.join(' ≅ '),
             similar:       () => e.join(' ∼ '),
-            tangent:       () => `${e[0] || '?'} 切 ${e[1] || '?'}` + (rel.at ? `，切點 ${this.stripPrefix(rel.at)}` : ''),
+            tangent:       () => i18n.t('mb.geoTangent', {a: e[0] || '?', b: e[1] || '?'}) + (rel.at ? i18n.t('mb.geoTangentAt', {point: this.stripPrefix(rel.at)}) : ''),
             equal:         () => {
                 const items = rel.items || [];
                 if (items.length >= 2) return `${this.stripPrefix(items[0].ref)} = ${this.stripPrefix(items[1].ref)}`;
@@ -1125,7 +1126,7 @@ const GeoDisplay = {
         const prop = m.property || '';
         const value = m.value != null ? String(m.value) : '';
         const source = m.source || '';
-        const suffix = source === 'inferred' ? '（推斷）' : '';
+        const suffix = source === 'inferred' ? i18n.t('mb.geoInferred') : '';
         if (prop === 'degrees') {
             return `∠${target} = ${value}${String(value).endsWith('°') ? '' : '°'}${suffix}`;
         } else if (prop === 'length') {
@@ -1165,45 +1166,45 @@ const GeoDisplay = {
             const src = item.source || '';
             const isInferred = src === 'inferred';
             const cls = isInferred ? ' class="mb-figure-desc__inferred"' : '';
-            const tag = isInferred ? '<span class="mb-figure-desc__inferred-tag">（推斷）</span>' : '';
+            const tag = isInferred ? `<span class="mb-figure-desc__inferred-tag">${i18n.t('mb.geoInferred')}</span>` : '';
             return `<div${cls}>${UI.escapeHtml(fn(item))}${tag}</div>`;
         }).join('');
 
         // 解題優先順序：平行 → 比例 → 量測 → 垂直 → 共線 → 其他
         if (parallel.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">平行</div>
+                <div class="mb-figure-desc__layer-title">${i18n.t('mb.geoLayerParallel')}</div>
                 ${makeItems(parallel, r => this.describeRelationship(r))}
             </div>`);
         }
         if (ratios.length || measFact.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">量測</div>
+                <div class="mb-figure-desc__layer-title">${i18n.t('mb.geoLayerMeasure')}</div>
                 ${makeItems(ratios, r => this.describeRelationship(r))}
                 ${makeItems(measFact, m => this.describeMeasurement(m))}
             </div>`);
         }
         if (perp.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">垂直</div>
+                <div class="mb-figure-desc__layer-title">${i18n.t('mb.geoLayerPerp')}</div>
                 ${makeItems(perp, r => this.describeRelationship(r))}
             </div>`);
         }
         if (collinear.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">共線</div>
+                <div class="mb-figure-desc__layer-title">${i18n.t('mb.geoLayerCollinear')}</div>
                 ${makeItems(collinear, r => this.describeRelationship(r))}
             </div>`);
         }
         if (others.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">其他關係</div>
+                <div class="mb-figure-desc__layer-title">${i18n.t('mb.geoLayerOther')}</div>
                 ${makeItems(others, r => this.describeRelationship(r))}
             </div>`);
         }
         if (measInferred.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">推斷</div>
+                <div class="mb-figure-desc__layer-title">${i18n.t('mb.geoLayerInferred')}</div>
                 ${makeItems(measInferred, m => this.describeMeasurement(m))}
             </div>`);
         }
@@ -1212,15 +1213,15 @@ const GeoDisplay = {
         const goals = task.goals || [];
         if (known.length || goals.length) {
             sections.push(`<div class="mb-figure-desc__layer">
-                <div class="mb-figure-desc__layer-title">題目條件</div>
-                ${known.length ? `<div><strong>已知：</strong>${known.map(k => UI.renderMath(k)).join('；')}</div>` : ''}
-                ${goals.length ? `<div><strong>求：</strong>${goals.map(g => `<span class="mb-figure-desc__goal">${UI.renderMath(g)}</span>`).join('、')}</div>` : ''}
+                <div class="mb-figure-desc__layer-title">${i18n.t('mb.geoLayerCondition')}</div>
+                ${known.length ? `<div><strong>${i18n.t('mb.geoKnown')}</strong>${known.map(k => UI.renderMath(k)).join(i18n.isEn ? '; ' : '；')}</div>` : ''}
+                ${goals.length ? `<div><strong>${i18n.t('mb.geoGoals')}</strong>${goals.map(g => `<span class="mb-figure-desc__goal">${UI.renderMath(g)}</span>`).join('、')}</div>` : ''}
             </div>`);
         }
 
         if (!sections.length) return null;
         return `<div class="mb-figure-desc">
-            <div class="mb-figure-desc__title">幾何圖形描述</div>
+            <div class="mb-figure-desc__title">${i18n.t('mb.geoFigureDetail')}</div>
             ${sections.join('')}
         </div>`;
     }
@@ -1263,43 +1264,43 @@ const Views = {
         const showCategoryBar = subject !== 'all' && cats.length >= 2;
         const categoryBarHtml = showCategoryBar ? `
                 <div class="mb-category-bar" id="categoryBar">
-                    <button class="mb-category-chip${category === 'all' ? ' mb-category-chip--active' : ''}" data-category="all">全部</button>
+                    <button class="mb-category-chip${category === 'all' ? ' mb-category-chip--active' : ''}" data-category="all">${i18n.t('mb.allCategory')}</button>
                     ${cats.map(c => `<button class="mb-category-chip${category === c.value ? ' mb-category-chip--active' : ''}" data-category="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</button>`).join('')}
                 </div>` : '';
 
         container.innerHTML = `
             ${reviewDue > 0 ? `
             <div class="mb-banner" onclick="App.navigate('learn')">
-                <div class="mb-banner__text">${Icons.repeat(14)} <strong>${reviewDue}</strong> 題待複習</div>
-                <div class="mb-banner__action">開始 ${Icons.arrowR(14)}</div>
+                <div class="mb-banner__text">${Icons.repeat(14)} <strong>${i18n.t('mb.reviewDue', {count: reviewDue})}</strong></div>
+                <div class="mb-banner__action">${i18n.t('mb.reviewStart')} ${Icons.arrowR(14)}</div>
             </div>` : ''}
 
             <div class="mb-quick-actions">
                 <div class="mb-quick-action" onclick="Upload.open('photo')">
                     <div class="mb-quick-action__icon">${Icons.camera(20)}</div>
                     <div class="mb-quick-action__text">
-                        <div class="mb-quick-action__label">拍照上傳</div>
-                        <div class="mb-quick-action__desc">拍題目和答案</div>
+                        <div class="mb-quick-action__label">${i18n.t('mb.photoUpload')}</div>
+                        <div class="mb-quick-action__desc">${i18n.t('mb.photoUploadDesc')}</div>
                     </div>
                 </div>
                 <div class="mb-quick-action" onclick="Upload.open('manual')">
                     <div class="mb-quick-action__icon">${Icons.edit(20)}</div>
                     <div class="mb-quick-action__text">
-                        <div class="mb-quick-action__label">手動添加</div>
-                        <div class="mb-quick-action__desc">打字輸入錯題</div>
+                        <div class="mb-quick-action__label">${i18n.t('mb.manualAdd')}</div>
+                        <div class="mb-quick-action__desc">${i18n.t('mb.manualAddDesc')}</div>
                     </div>
                 </div>
             </div>
 
             <div class="mb-list-section">
                 <div class="mb-list-section__header">
-                    <span class="mb-list-section__title">最近錯題</span>
+                    <span class="mb-list-section__title">${i18n.t('mb.recentMistakes')}</span>
                     <div class="mb-view-toggle">
                         <button class="mb-view-toggle__btn${App.state.viewMode === 'list' ? ' mb-view-toggle__btn--active' : ''}"
-                                data-view="list" title="列表視圖">${Icons.listView(16)}</button>
+                                data-view="list" title="${i18n.t('mb.listView')}">${Icons.listView(16)}</button>
                         <button class="mb-view-toggle__btn${App.state.viewMode === 'grid' ? ' mb-view-toggle__btn--active' : ''}"
-                                data-view="grid" title="網格視圖">${Icons.gridView(16)}</button>
-                        <span class="mb-list-section__count">${list.total} 題</span>
+                                data-view="grid" title="${i18n.t('mb.gridView')}">${Icons.gridView(16)}</button>
+                        <span class="mb-list-section__count">${i18n.t('mb.items', {count: list.total})}</span>
                     </div>
                 </div>
                 ${categoryBarHtml}
@@ -1332,14 +1333,14 @@ const Views = {
 
     /** 取消正在識別的錯題 */
     async cancelRecognition(mistakeId) {
-        if (!confirm('確定取消識別？')) return;
+        if (!confirm(i18n.t('mb.cancelConfirm'))) return;
         try {
             await API.cancelRecognition(mistakeId);
-            UI.toast('已取消識別');
+            UI.toast(i18n.t('mb.cancelled'));
             this._stopProcessingPoll();
             await this.refreshMistakeList();
         } catch (e) {
-            UI.toast('取消失敗', 'error');
+            UI.toast(i18n.t('mb.cancelFailed'), 'error');
         }
     },
 
@@ -1351,7 +1352,7 @@ const Views = {
             if (res?.data?.items) {
                 this._renderMistakeList(res.data.items);
                 const countEl = document.querySelector('.mb-list-section__count');
-                if (countEl) countEl.textContent = `${res.data.total} 題`;
+                if (countEl) countEl.textContent = i18n.t('mb.items', {count: res.data.total});
             }
         } catch (e) {
             console.error('refreshMistakeList error:', e);
@@ -1365,8 +1366,8 @@ const Views = {
         if (!items.length) {
             const cat = App.state.currentCategory;
             const msg = cat !== 'all'
-                ? `目前沒有「${cat}」分類的錯題`
-                : '還沒有錯題，點擊上方「拍照上傳」開始吧';
+                ? i18n.t('mb.noCategoryMistakes', {cat})
+                : i18n.t('mb.noMistakes');
             listEl.innerHTML = UI.empty('', msg);
             this._stopProcessingPoll();
             return;
@@ -1391,13 +1392,13 @@ const Views = {
         let html = '<div class="mb-list-container">';
         items.forEach(m => {
             const isProcessing = m.status === 'processing' || m.status === 'analyzing';
-            const progressMsg = m.status === 'analyzing' ? 'AI 正在解題分析中...' : 'AI 正在識別中...';
+            const progressMsg = m.status === 'analyzing' ? i18n.t('mb.aiAnalyzing') : i18n.t('mb.aiRecognizing');
             const question = isProcessing
                 ? `<span class="mb-processing-pulse">${progressMsg}</span>
                    <span class="mb-processing-wait"></span>
                    <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
-                           onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button>`
-                : (m.manual_question_text || m.ocr_question_text || '（未識別）');
+                           onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">${i18n.t('mb.cancel')}</button>`
+                : (m.manual_question_text || m.ocr_question_text || i18n.t('mb.unrecognized'));
             const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
             const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
             html += `
@@ -1411,7 +1412,7 @@ const Views = {
                         <div class="mb-mistake-item__question">${isProcessing ? question : UI.renderMath(question)}</div>
                         <div class="mb-mistake-item__footer">
                             ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
-                            ${m.mastery_level > 0 ? `<span>掌握 ${m.mastery_level}%</span>` : ''}
+                            ${m.mastery_level > 0 ? `<span>${i18n.t('mb.mastery', {pct: m.mastery_level})}</span>` : ''}
                             <span>${UI.statusLabel(m.status)}</span>
                         </div>
                     </div>
@@ -1427,9 +1428,9 @@ const Views = {
         let html = '<div class="mb-grid-container">';
         items.forEach(m => {
             const isProcessing = m.status === 'processing' || m.status === 'analyzing';
-            const progressMsg = m.status === 'analyzing' ? '分析中' : '識別中';
-            const progressMsgLong = m.status === 'analyzing' ? 'AI 正在解題分析中...' : 'AI 正在識別中...';
-            const question = m.manual_question_text || m.ocr_question_text || '（未識別）';
+            const progressMsg = m.status === 'analyzing' ? i18n.t('mb.analyzingShort') : i18n.t('mb.recognizingShort');
+            const progressMsgLong = m.status === 'analyzing' ? i18n.t('mb.aiAnalyzing') : i18n.t('mb.aiRecognizing');
+            const question = m.manual_question_text || m.ocr_question_text || i18n.t('mb.unrecognized');
             const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
             const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
             const imgSrc = m.original_image_path
@@ -1449,7 +1450,7 @@ const Views = {
                         ${isProcessing ? `<div class="mb-grid-card__processing"><span class="mb-processing-pulse">${progressMsg}</span>
                             <span class="mb-processing-wait"></span>
                             <button class="mb-btn mb-btn--danger mb-btn--sm mb-cancel-btn"
-                                    onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">取消</button></div>` : ''}
+                                    onclick="event.stopPropagation();Views.cancelRecognition('${m.mistake_id}')">${i18n.t('mb.cancel')}</button></div>` : ''}
                     </div>
                     <div class="mb-grid-card__body">
                         <div class="mb-grid-card__meta">
@@ -1520,11 +1521,11 @@ const Views = {
             const avgDur = data.avg_duration || 0;
             let hint = document.getElementById('mbQueueHint');
             if (queued > 0 || running > 0) {
-                const _fmt = (s) => s >= 60 ? `${Math.floor(s/60)}分${s%60?Math.round(s%60)+'秒':''}` : `${Math.round(s)}秒`;
-                let msg = `AI 隊列：${running} 個任務執行中`;
+                const _fmt = (s) => s >= 60 ? i18n.t('mb.timeMinSec', {min: Math.floor(s/60), sec: s%60 ? Math.round(s%60) : ''}) : i18n.t('mb.timeSec', {sec: Math.round(s)});
+                let msg = i18n.t('mb.queueRunning', {running});
                 if (queued > 0) {
-                    msg += `，${queued} 個排隊等待`;
-                    if (estWait > 0) msg += `（預計 ${_fmt(estWait)}）`;
+                    msg += `，${i18n.t('mb.queueWaiting', {queued})}`;
+                    if (estWait > 0) msg += i18n.t('mb.queueEst', {time: _fmt(estWait)});
                 }
                 if (!hint) {
                     hint = document.createElement('div');
@@ -1541,7 +1542,7 @@ const Views = {
             // 更新每張處理中卡片的等待提示
             document.querySelectorAll('.mb-processing-wait').forEach(el => {
                 if (avgDur > 0) {
-                    el.textContent = `平均耗時 ${Math.round(avgDur)}秒`;
+                    el.textContent = i18n.t('mb.avgDuration', {sec: Math.round(avgDur)});
                 }
             });
         } catch (e) { /* ignore */ }
@@ -1555,7 +1556,7 @@ const Views = {
 
         const res = await API.getMistakeDetail(mistakeId);
         if (!res || !res.data) {
-            panel.innerHTML = UI.empty('', '載入失敗');
+            panel.innerHTML = UI.empty('', i18n.t('mb.loadFailed'));
             return;
         }
 
@@ -1568,20 +1569,20 @@ const Views = {
                 <header class="mb-header">
                     <div class="mb-header__title">
                         <a href="javascript:void(0)" onclick="Views.closeDetail()">${Icons.chevronL(18)}</a>
-                        <span>確認識別結果</span>
+                        <span>${i18n.t('mb.confirmOcrTitle')}</span>
                     </div>
                 </header>
                 <div class="mb-detail-section" style="padding:16px">
                     <div style="font-size:13px;color:var(--mb-warning);margin-bottom:12px">
-                        OCR 識別信心度較低，請確認或修正以下內容
+                        ${i18n.t('mb.ocrLowConfidence')}
                     </div>
-                    <div class="mb-ocr-confirm__label">題目（可修正）</div>
+                    <div class="mb-ocr-confirm__label">${i18n.t('mb.questionLabel')}</div>
                     <textarea class="mb-ocr-confirm__textarea" id="reviewQuestion">${UI.escapeHtml(m.ocr_question_text || '')}</textarea>
-                    <div class="mb-ocr-confirm__label" style="margin-top:8px">我的答案（可修正）</div>
+                    <div class="mb-ocr-confirm__label" style="margin-top:8px">${i18n.t('mb.answerLabel')}</div>
                     <textarea class="mb-ocr-confirm__textarea" id="reviewAnswer">${UI.escapeHtml(m.ocr_answer_text || '')}</textarea>
                     <button class="mb-btn mb-btn--primary mb-btn--full" style="margin-top:12px"
                             onclick="Views._confirmReview('${m.mistake_id}')">
-                        確認並分析
+                        ${i18n.t('mb.confirmAndAnalyze')}
                     </button>
                 </div>
             `;
@@ -1607,7 +1608,7 @@ const Views = {
             <header class="mb-header">
                 <div class="mb-header__title">
                     <a href="javascript:void(0)" onclick="Views.closeDetail()">${Icons.chevronL(18)}</a>
-                    <span>錯題詳情</span>
+                    <span>${i18n.t('mb.detailTitle')}</span>
                 </div>
                 <div class="mb-header__actions">
                     <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
@@ -1619,7 +1620,7 @@ const Views = {
                 if (structuredHtml) return `<div class="mb-detail-section">${structuredHtml}</div>`;
                 if (m.figure_description_readable) return `<div class="mb-detail-section">
                     <div class="mb-figure-desc">
-                        <div class="mb-figure-desc__title">📐 幾何圖形描述</div>
+                        <div class="mb-figure-desc__title">📐 ${i18n.t('mb.geoFigureDesc')}</div>
                         <div class="mb-figure-desc__item">${UI.renderMath(m.figure_description_readable)}</div>
                     </div>
                 </div>`;
@@ -1627,26 +1628,26 @@ const Views = {
             })()}
 
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.bookOpen(16)} 題目</div>
+                <div class="mb-detail-section__title">${Icons.bookOpen(16)} ${i18n.t('mb.questionSection')}</div>
                 <div class="mb-detail-section__body">${UI.formatQuestion(m.question_text || '')}</div>
             </div>
 
             ${hasSummary ? `
             <div class="mb-summary-card${!m.error_type && errorSummary ? ' mb-summary-card--correct' : ''}">
-                <div class="mb-summary-card__header">${m.error_type ? '錯因摘要' : '分析摘要'}</div>
+                <div class="mb-summary-card__header">${m.error_type ? i18n.t('mb.errorSummary') : i18n.t('mb.analysisSummary')}</div>
                 ${errorSummary ? `
                 <div class="mb-summary-card__row">
-                    <div class="mb-summary-card__label">${m.error_type ? '主要錯因' : '評估'}</div>
+                    <div class="mb-summary-card__label">${m.error_type ? i18n.t('mb.mainError') : i18n.t('mb.assessment')}</div>
                     <div class="mb-summary-card__value ${m.error_type ? 'mb-summary-card__value--error' : 'mb-summary-card__value--correct'}">${UI.renderMath(errorSummary)}</div>
                 </div>` : ''}
                 ${keyInsight ? `
                 <div class="mb-summary-card__row">
-                    <div class="mb-summary-card__label">核心考點</div>
+                    <div class="mb-summary-card__label">${i18n.t('mb.corePoint')}</div>
                     <div class="mb-summary-card__value">${UI.renderMath(keyInsight)}</div>
                 </div>` : ''}
                 ${firstTip ? `
                 <div class="mb-summary-card__row">
-                    <div class="mb-summary-card__label">改進要點</div>
+                    <div class="mb-summary-card__label">${i18n.t('mb.improvementTip')}</div>
                     <div class="mb-summary-card__value mb-summary-card__value--tip">${UI.renderMath(firstTip)}</div>
                 </div>` : ''}
             </div>` : ''}
@@ -1654,19 +1655,19 @@ const Views = {
             ${hasCompare ? `
             <div class="mb-collapse mb-collapse--open">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
-                    <span class="mb-collapse__title">思路對比</span>
+                    <span class="mb-collapse__title">${i18n.t('mb.compareTitle')}</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
                     <div class="mb-compare-grid">
                         ${studentBullets.length ? `
                         <div class="mb-compare-section">
-                            <div class="mb-compare-label">我的做法</div>
+                            <div class="mb-compare-label">${i18n.t('mb.myApproach')}</div>
                             <ul class="mb-compare-list">${studentBullets.map(b => `<li>${UI.renderMath(b)}</li>`).join('')}</ul>
                         </div>` : ''}
                         ${correctBullets.length ? `
                         <div class="mb-compare-section">
-                            <div class="mb-compare-label mb-compare-label--correct">正確做法</div>
+                            <div class="mb-compare-label mb-compare-label--correct">${i18n.t('mb.correctApproach')}</div>
                             <ul class="mb-compare-list">${correctBullets.map(b => `<li>${UI.renderMath(b)}</li>`).join('')}</ul>
                         </div>` : ''}
                     </div>
@@ -1676,11 +1677,11 @@ const Views = {
             ${m.correct_answer ? `
             <div class="mb-collapse mb-collapse--open">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
-                    <span class="mb-collapse__title">參考解法</span>
+                    <span class="mb-collapse__title">${i18n.t('mb.referenceSolution')}</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
-                    <div class="mb-step-intro">以下為此題完整解題步驟</div>
+                    <div class="mb-step-intro">${i18n.t('mb.solutionIntro')}</div>
                     <div class="mb-step-layout">${UI.renderMath(m.correct_answer)}</div>
                 </div>
             </div>` : ''}
@@ -1688,7 +1689,7 @@ const Views = {
             ${rawAnalysis ? `
             <div class="mb-collapse mb-collapse--open">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
-                    <span class="mb-collapse__title">詳細分析</span>
+                    <span class="mb-collapse__title">${i18n.t('mb.detailedAnalysis')}</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
@@ -1701,7 +1702,7 @@ const Views = {
                                    wrap.querySelector('.mb-analysis-truncated').style.display='none';
                                    wrap.querySelector('.mb-analysis-full').style.display='block';
                                    this.remove();
-                               ">顯示完整分析</span>`
+                               ">${i18n.t('mb.showFullAnalysis')}</span>`
                             : UI.renderMath(rawAnalysis)
                         }
                     </div>
@@ -1711,12 +1712,12 @@ const Views = {
 
             ${kps.length ? `
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.target(16)} 關聯知識點</div>
+                <div class="mb-detail-section__title">${Icons.target(16)} ${i18n.t('mb.relatedKnowledge')}</div>
                 <div>${kps.map(kp => `<span class="mb-kp-tag mb-kp-tag--medium">${UI.escapeHtml(kp.point_name)}</span>`).join('')}</div>
             </div>` : ''}
 
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.barChart(16)} 掌握狀態</div>
+                <div class="mb-detail-section__title">${Icons.barChart(16)} ${i18n.t('mb.masteryStatus')}</div>
                 <div style="display:flex;align-items:center;gap:12px">
                     <span style="font-size:24px;font-weight:700;letter-spacing:-0.02em">${m.mastery_level || 0}%</span>
                     <div style="flex:1">
@@ -1727,17 +1728,17 @@ const Views = {
                     </div>
                 </div>
                 <div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:8px">
-                    已複習 ${m.review_count || 0} 次
-                    ${m.next_review_at ? ` · 下次複習 ${UI.formatDate(m.next_review_at)}` : ''}
+                    ${i18n.t('mb.reviewCount', {count: m.review_count || 0})}
+                    ${m.next_review_at ? ` · ${i18n.t('mb.nextReview', {date: UI.formatDate(m.next_review_at)})}` : ''}
                 </div>
             </div>
 
             ${m.original_image_path ? `
             <div class="mb-detail-section">
-                <div class="mb-detail-section__title">${Icons.image(16)} 原始照片${m.extra_image_paths ? ' (' + (JSON.parse(m.extra_image_paths).length + 1) + ' 張)' : ''}</div>
+                <div class="mb-detail-section__title">${Icons.image(16)} ${i18n.t('mb.originalPhoto')}${m.extra_image_paths ? ' ' + i18n.t('mb.photoCount', {count: JSON.parse(m.extra_image_paths).length + 1}) : ''}</div>
                 <div style="display:flex;flex-wrap:wrap;gap:8px">
                     <img src="/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}"
-                         style="max-width:100%;border-radius:8px;cursor:pointer" alt="照片 1"
+                         style="max-width:100%;border-radius:8px;cursor:pointer" alt="${i18n.isEn ? 'Photo 1' : '照片 1'}"
                          onclick="window.open(this.src,'_blank')"
                          onerror="this.style.display='none'">
                     ${(() => {
@@ -1746,7 +1747,7 @@ const Views = {
                             const extras = JSON.parse(m.extra_image_paths);
                             return extras.map((p, i) =>
                                 '<img src="/uploads/mistakes/' + (p.split('uploads/mistakes/')[1] || '') + '"'
-                                + ' style="max-width:100%;border-radius:8px;cursor:pointer" alt="照片 ' + (i + 2) + '"'
+                                + ' style="max-width:100%;border-radius:8px;cursor:pointer" alt="' + (i18n.isEn ? 'Photo ' : '照片 ') + (i + 2) + '"'
                                 + ' onclick="window.open(this.src,\'_blank\')"'
                                 + ' onerror="this.style.display=\'none\'">'
                             ).join('');
@@ -1757,8 +1758,8 @@ const Views = {
 
             <div style="padding:20px;text-align:center">
                 <button class="mb-btn mb-btn--danger mb-btn--sm"
-                        onclick="if(confirm('確定刪除？')){API.deleteMistake('${m.mistake_id}').then(()=>{Views.closeDetail();App.navigate('home')})}">
-                    ${Icons.trash(14)} 刪除此錯題
+                        onclick="if(confirm(i18n.t('mb.deleteConfirm'))){API.deleteMistake('${m.mistake_id}').then(()=>{Views.closeDetail();App.navigate('home')})}">
+                    ${Icons.trash(14)} ${i18n.t('mb.deleteMistake')}
                 </button>
             </div>
         `;
@@ -1771,10 +1772,10 @@ const Views = {
     async _confirmReview(mistakeId) {
         const q = document.getElementById('reviewQuestion')?.value?.trim();
         const a = document.getElementById('reviewAnswer')?.value?.trim();
-        if (!q || !a) { UI.toast('請填寫題目和答案', 'error'); return; }
+        if (!q || !a) { UI.toast(i18n.t('mb.fillRequired'), 'error'); return; }
 
         const panel = document.getElementById('detailPanel');
-        panel.innerHTML = UI.loading('AI 分析中，預計需要 30-60 秒...');
+        panel.innerHTML = UI.loading(i18n.t('mb.aiAnalyzingTime'));
 
         try {
             const res = await fetch(`/api/mistakes/${mistakeId}/confirm`, {
@@ -1784,15 +1785,15 @@ const Views = {
             });
             const data = await res.json();
             if (res.ok && data.success) {
-                UI.toast('分析完成！', 'success');
+                UI.toast(i18n.t('mb.analysisComplete'), 'success');
                 this.closeDetail();
                 App.navigate('home');
             } else {
-                UI.toast(`分析失敗: ${data.detail || '未知錯誤'}`, 'error');
+                UI.toast(i18n.t('mb.analysisFailed', {msg: data.detail || i18n.t('mb.unknownError')}), 'error');
                 this.openDetail(mistakeId); // reload
             }
         } catch (err) {
-            UI.toast(`網絡錯誤: ${err.message}`, 'error');
+            UI.toast(i18n.t('mb.networkError', {msg: err.message}), 'error');
             this.openDetail(mistakeId);
         }
     },
@@ -1818,9 +1819,9 @@ const Views = {
         container.innerHTML = `
             <div class="mb-segmented-control">
                 <button class="mb-segmented-control__item${mode === 'practice' ? ' mb-segmented-control__item--active' : ''}"
-                        data-mode="practice">練習</button>
+                        data-mode="practice">${i18n.t('mb.practice')}</button>
                 <button class="mb-segmented-control__item${mode === 'review' ? ' mb-segmented-control__item--active' : ''}"
-                        data-mode="review">復習${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
+                        data-mode="review">${i18n.t('mb.review')}${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
             </div>
             <div id="learnContent"></div>
         `;
@@ -1851,8 +1852,8 @@ const Views = {
             } else {
                 content.innerHTML = `<div class="mb-empty-state">
                     <div class="mb-empty-state__icon">${Icons.check(40)}</div>
-                    <div class="mb-empty-state__title">今日複習已完成</div>
-                    <div class="mb-empty-state__desc">沒有需要複習的錯題，去練習提升吧</div>
+                    <div class="mb-empty-state__title">${i18n.t('mb.reviewComplete')}</div>
+                    <div class="mb-empty-state__desc">${i18n.t('mb.reviewCompleteDesc')}</div>
                 </div>`;
             }
         } else {
@@ -1867,7 +1868,7 @@ const Views = {
         const items = res?.data?.items || [];
 
         if (!items.length) {
-            container.innerHTML = UI.empty('', '太棒了！今天沒有需要複習的錯題。');
+            container.innerHTML = UI.empty('', i18n.t('mb.reviewAllDone'));
             return;
         }
 
@@ -1881,7 +1882,7 @@ const Views = {
         const idx = App.state._reviewIdx;
 
         if (idx >= items.length) {
-            container.innerHTML = UI.empty('', `今天的複習完成了！共複習了 ${items.length} 題。`);
+            container.innerHTML = UI.empty('', i18n.t('mb.reviewFinished', {count: items.length}));
             return;
         }
 
@@ -1899,22 +1900,22 @@ const Views = {
             </div>
 
             <div class="mb-review-card" id="reviewCard" onclick="document.getElementById('reviewCard').classList.add('mb-review-card--revealed')">
-                <div style="font-size:15px;line-height:1.65">${UI.renderMath(m.question_text || '（未識別）')}</div>
+                <div style="font-size:15px;line-height:1.65">${UI.renderMath(m.question_text || i18n.t('mb.unrecognized'))}</div>
                 <div class="mb-review-card__answer">
-                    <div style="font-size:13px;color:var(--mb-text-secondary);margin-bottom:8px">點擊下方按鈕記錄複習結果</div>
+                    <div style="font-size:13px;color:var(--mb-text-secondary);margin-bottom:8px">${i18n.t('mb.clickToReveal')}</div>
                     ${m.correct_answer ? `<div style="font-size:14px;line-height:1.6">${UI.renderMath(m.correct_answer)}</div>` : ''}
                 </div>
             </div>
 
             <div class="mb-review-actions">
                 <button class="mb-review-btn mb-review-btn--forgot" onclick="Views._submitReview('${m.mistake_id}','forgot')">
-                    忘記了
+                    ${i18n.t('mb.forgot')}
                 </button>
                 <button class="mb-review-btn mb-review-btn--partial" onclick="Views._submitReview('${m.mistake_id}','partial')">
-                    想起部分
+                    ${i18n.t('mb.partial')}
                 </button>
                 <button class="mb-review-btn mb-review-btn--remembered" onclick="Views._submitReview('${m.mistake_id}','remembered')">
-                    記住了
+                    ${i18n.t('mb.remembered')}
                 </button>
             </div>
         `;
@@ -1948,8 +1949,8 @@ const Views = {
             container.innerHTML = `
                 <div class="mb-glass-setup">
                     <div class="mb-glass-setup__icon mb-glass-animate">${Icons.target(28)}</div>
-                    <div class="mb-glass-setup__title mb-glass-animate" style="animation-delay:50ms">AI 智能練習</div>
-                    <div class="mb-glass-setup__desc mb-glass-animate" style="animation-delay:80ms">選擇一個科目開始練習</div>
+                    <div class="mb-glass-setup__title mb-glass-animate" style="animation-delay:50ms">${i18n.t('mb.aiPractice')}</div>
+                    <div class="mb-glass-setup__desc mb-glass-animate" style="animation-delay:80ms">${i18n.t('mb.selectSubjectStart')}</div>
                     <div class="mb-glass-subject-grid" id="practiceSubjectGrid"></div>
                 </div>
             `;
@@ -1981,9 +1982,9 @@ const Views = {
                         <circle cx="20" cy="20" r="16" fill="none" stroke="var(--mb-brand)" stroke-width="3"
                                 stroke-dasharray="28 72" stroke-linecap="round" class="mb-progress-panel__arc"/>
                     </svg>
-                    <span style="font-size:14px;font-weight:500" id="pendingCardText">練習題正在生成中...</span>
+                    <span style="font-size:14px;font-weight:500" id="pendingCardText">${i18n.t('mb.pendingGenerating')}</span>
                 </div>
-                <div style="font-size:12px;color:var(--mb-text-tertiary)">生成完成後可直接開始答題</div>
+                <div style="font-size:12px;color:var(--mb-text-tertiary)">${i18n.t('mb.pendingReady')}</div>
             </div>
         ` : '';
 
@@ -1995,69 +1996,69 @@ const Views = {
                 <!-- 左欄：練習歷史 -->
                 <div class="mb-practice-layout__history">
                     <div id="practiceHistoryArea">
-                        <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入中...</div>
+                        <div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">${i18n.t('common.loading')}</div>
                     </div>
                 </div>
                 <!-- 右欄：出題設定 -->
                 <div class="mb-practice-layout__setup">
                     <div class="mb-glass-setup">
-                        <div class="mb-glass-setup__title">${Icons.sparkles(16)} 新練習</div>
+                        <div class="mb-glass-setup__title">${Icons.sparkles(16)} ${i18n.t('mb.newPractice')}</div>
                         <div class="mb-practice-setup__points" id="practicePointsArea">
                             <div class="mb-practice-setup__label" style="text-align:left;margin-bottom:8px">
-                                知識點
-                                <span style="font-weight:400;color:var(--mb-text-tertiary)">（不選則智能推薦）</span>
+                                ${i18n.t('mb.knowledgePoints')}
+                                <span style="font-weight:400;color:var(--mb-text-tertiary)">${i18n.t('mb.knowledgePointsHint')}</span>
                             </div>
                             <div id="practicePointsList" style="text-align:left;margin-bottom:8px">
                                 <div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
-                                    載入知識點中...
+                                    ${i18n.t('mb.loadingPoints')}
                                 </div>
                             </div>
                             <div id="practicePointsActions" style="display:none;text-align:left;margin-bottom:12px;gap:8px;display:flex;flex-wrap:wrap">
-                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectWeak()">只選薄弱</button>
-                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectAll()">全選</button>
-                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceClearAll()">清空</button>
+                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectWeak()">${i18n.t('mb.selectWeakOnly')}</button>
+                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceSelectAll()">${i18n.t('mb.selectAll')}</button>
+                                <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views._practiceClearAll()">${i18n.t('mb.clearAll')}</button>
                             </div>
                             <div id="practicePointsWarning" style="display:none;font-size:12px;color:var(--mb-warning);margin-bottom:8px"></div>
                         </div>
                         <div class="mb-practice-setup__row">
                             <div class="mb-practice-setup__form" style="flex:1">
-                                <label class="mb-practice-setup__label">題數</label>
+                                <label class="mb-practice-setup__label">${i18n.t('mb.questionCount')}</label>
                                 <select class="mb-select" id="practiceCount" onchange="Views._updatePracticePlanPreview()">
-                                    <option value="3">3 題</option>
-                                    <option value="5" selected>5 題</option>
-                                    <option value="10">10 題</option>
+                                    <option value="3">${i18n.t('mb.items', {count: 3})}</option>
+                                    <option value="5" selected>${i18n.t('mb.items', {count: 5})}</option>
+                                    <option value="10">${i18n.t('mb.items', {count: 10})}</option>
                                 </select>
                             </div>
                             <div class="mb-practice-setup__form" style="flex:1">
-                                <label class="mb-practice-setup__label">難度</label>
+                                <label class="mb-practice-setup__label">${i18n.t('mb.difficulty')}</label>
                                 <select class="mb-select" id="practiceDifficulty" onchange="Views._updatePracticePlanPreview()">
-                                    <option value="" selected>自動</option>
-                                    <option value="1">基礎</option>
-                                    <option value="3">中等</option>
-                                    <option value="5">進階</option>
+                                    <option value="" selected>${i18n.t('mb.difficultyAuto')}</option>
+                                    <option value="1">${i18n.t('mb.difficultyBasic')}</option>
+                                    <option value="3">${i18n.t('mb.difficultyMedium')}</option>
+                                    <option value="5">${i18n.t('mb.difficultyAdvanced')}</option>
                                 </select>
                             </div>
                         </div>
                         <div id="practicePlanPreview" style="display:none;margin-bottom:12px;padding:10px;border-radius:10px;background:rgba(0,0,0,0.02);text-align:left;font-size:12px;color:var(--mb-text-secondary)"></div>
                         <div class="mb-practice-setup__form">
-                            <label class="mb-practice-setup__label">生成方式</label>
+                            <label class="mb-practice-setup__label">${i18n.t('mb.generationMethod')}</label>
                             <div class="mb-provider-toggle" id="practiceProviderToggle">
                                 <button class="mb-provider-btn active" data-provider="local" onclick="App.setPracticeProvider('local')">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V5.25a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 5.25v13.5a2.25 2.25 0 002.25 2.25z"/></svg>
-                                    本地生成
+                                    ${i18n.t('mb.localGenerate')}
                                 </button>
                                 <button class="mb-provider-btn" data-provider="deepseek" id="practiceCloudProviderBtn" onclick="App.setPracticeProvider('deepseek')">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
-                                    雲端生成
+                                    ${i18n.t('mb.cloudGenerate')}
                                 </button>
                             </div>
                             <div class="mb-provider-hint" id="practiceProviderHint">
-                                <span id="practiceProviderHintText">速度穩定，校內可控</span>
+                                <span id="practiceProviderHintText">${i18n.t('mb.localHint')}</span>
                             </div>
                         </div>
                         <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Views._startPractice('${subject}')"
                                 id="startPracticeBtn">
-                            開始練習
+                            ${i18n.t('mb.startPractice')}
                         </button>
                     </div>
                 </div>
@@ -2117,9 +2118,9 @@ const Views = {
                     card.style.cursor = 'pointer';
                     card.innerHTML = `
                         <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">
-                            <span style="font-size:14px;font-weight:500;color:var(--mb-brand)">練習已生成，點擊開始</span>
+                            <span style="font-size:14px;font-weight:500;color:var(--mb-brand)">${i18n.t('mb.practiceReady')}</span>
                         </div>
-                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${res.data.total_questions} 題</div>
+                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${i18n.t('mb.items', {count: res.data.total_questions})}</div>
                     `;
                     card.onclick = () => {
                         App.state._practiceSession = res.data;
@@ -2143,7 +2144,7 @@ const Views = {
                 if (card) {
                     card.innerHTML = `
                         <div style="font-size:14px;color:var(--mb-error);margin-bottom:4px">
-                            題目生成失敗${res.data.retryable ? '，請重新嘗試' : ''}
+                            ${res.data.retryable ? i18n.t('mb.generationFailedRetry') : i18n.t('mb.generationFailed')}
                         </div>
                         <div style="font-size:12px;color:var(--mb-text-tertiary)">${res.data.error_message || ''}</div>
                     `;
@@ -2166,7 +2167,7 @@ const Views = {
         if (!setup) return;
         const showing = setup.style.display !== 'none';
         setup.style.display = showing ? 'none' : '';
-        if (btn) btn.textContent = showing ? '開始新練習' : '收起';
+        if (btn) btn.textContent = showing ? i18n.t('mb.startNewPractice') : i18n.t('mb.collapse');
         if (!showing) {
             // 展開時加載知識點
             const subject = App.state.currentSubject;
@@ -2183,17 +2184,17 @@ const Views = {
             const items = res?.data?.items || [];
             if (!items.length) {
                 area.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
-                    還沒有練習記錄，開始你的第一次練習吧！
+                    ${i18n.t('mb.noHistory')}
                 </div>`;
                 return;
             }
             const errorTypeLabels = {
-                careless: '粗心', concept: '概念', calculation: '計算',
-                method: '方法', format: '格式', incomplete: '不完整', irrelevant: '無關',
+                careless: i18n.t('mb.errCarelessShort'), concept: i18n.t('mb.errConceptShort'), calculation: i18n.t('mb.errCalculationShort'),
+                method: i18n.t('mb.errMethodShort'), format: i18n.t('mb.errFormatShort'), incomplete: i18n.t('mb.errIncompleteShort'), irrelevant: i18n.t('mb.errIrrelevantShort'),
             };
             let html = `<div class="mb-history-header">
-                <span>${Icons.clock(14)} 練習歷史</span>
-                <span class="mb-history-count">${items.length} 筆</span>
+                <span>${Icons.clock(14)} ${i18n.t('mb.practiceHistory')}</span>
+                <span class="mb-history-count">${i18n.t('mb.historyCount', {count: items.length})}</span>
             </div>
             <div class="mb-history-list">`;
             items.forEach((s, idx) => {
@@ -2203,17 +2204,17 @@ const Views = {
                 const scoreColor = s.score >= 80 ? 'var(--mb-success)' : s.score >= 60 ? 'var(--mb-warning)' : 'var(--mb-danger)';
                 const errLabel = s.primary_error_type ? (errorTypeLabels[s.primary_error_type] || s.primary_error_type) : '';
                 const detail = s.wrong_count > 0
-                    ? `錯 ${s.wrong_count}${errLabel ? ' · ' + errLabel : ''}`
-                    : '<span style="color:var(--mb-success)">全對</span>';
+                    ? `${i18n.t('mb.wrong', {count: s.wrong_count})}${errLabel ? ' · ' + errLabel : ''}`
+                    : `<span style="color:var(--mb-success)">${i18n.t('mb.allCorrect')}</span>`;
                 html += `<div class="mb-history-row" data-session-id="${s.session_id}" style="animation-delay:${idx * 25}ms">
                     <div class="mb-history-row__main">
                         <span class="mb-history-row__date">${date}</span>
-                        <span class="mb-history-row__count">${s.total_questions} 題</span>
+                        <span class="mb-history-row__count">${i18n.t('mb.items', {count: s.total_questions})}</span>
                         <span class="mb-history-row__detail">${detail}</span>
                     </div>
                     <div class="mb-history-row__actions">
                         <span class="mb-history-row__score" style="color:${scoreColor}">${Math.round(s.score)}</span>
-                        <button class="mb-history-row__del" data-del-session="${s.session_id}" title="刪除">${Icons.x(12)}</button>
+                        <button class="mb-history-row__del" data-del-session="${s.session_id}" title="${i18n.t('mb.deleteTitle')}">${Icons.x(12)}</button>
                     </div>
                 </div>`;
             });
@@ -2234,12 +2235,12 @@ const Views = {
                 if (item) Views._openPracticeDetail(item.dataset.sessionId);
             });
         } catch (e) {
-            area.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">載入歷史失敗</div>`;
+            area.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">${i18n.t('mb.loadHistoryFailed')}</div>`;
         }
     },
 
     async _confirmDeletePractice(sessionId, rowEl) {
-        if (!confirm('確定要刪除這筆練習記錄嗎？')) return;
+        if (!confirm(i18n.t('mb.deletePracticeConfirm'))) return;
         try {
             const resp = await fetch(`/api/mistakes/practice/${sessionId}`, {
                 method: 'DELETE',
@@ -2251,12 +2252,12 @@ const Views = {
                 rowEl.style.opacity = '0';
                 rowEl.style.transform = 'translateX(20px)';
                 setTimeout(() => rowEl.remove(), 200);
-                UI.toast('已刪除', 'success');
+                UI.toast(i18n.t('mb.deleted'), 'success');
             } else {
-                UI.toast(data.message || '刪除失敗', 'error');
+                UI.toast(data.message || i18n.t('mb.deleteFailed'), 'error');
             }
         } catch (e) {
-            UI.toast('刪除失敗', 'error');
+            UI.toast(i18n.t('mb.deleteFailed'), 'error');
         }
     },
 
@@ -2270,7 +2271,7 @@ const Views = {
             if (!res?.data) throw new Error('no data');
             this._renderPracticeSessionDetail(container, res.data);
         } catch (e) {
-            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">載入詳情失敗</div>`;
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">${i18n.t('mb.loadDetailFailed')}</div>`;
         }
     },
 
@@ -2281,26 +2282,26 @@ const Views = {
             D: 'var(--mb-danger)', E: '#c0392b', F: '#7f1d1d',
         };
         const errorTypeLabels = {
-            careless: '粗心', concept: '概念錯誤', calculation: '計算錯誤',
-            method: '方法錯誤', format: '格式問題', incomplete: '不完整', irrelevant: '無關',
+            careless: i18n.t('mb.errCarelessShort'), concept: i18n.t('mb.errConceptFull'), calculation: i18n.t('mb.errCalculationFull'),
+            method: i18n.t('mb.errMethodFull'), format: i18n.t('mb.errFormatFull'), incomplete: i18n.t('mb.errIncompleteShort'), irrelevant: i18n.t('mb.errIrrelevantShort'),
         };
         const wrongCount = detail.total_questions - detail.correct_count;
 
         let html = `<div style="padding:12px 16px">
             <button class="mb-btn mb-btn--ghost mb-btn--sm" onclick="Views.renderPractice(document.getElementById('learnContent'))">
-                ${Icons.chevronL(14)} 返回
+                ${Icons.chevronL(14)} ${i18n.t('mb.back')}
             </button>
         </div>
         <div class="mb-glass-score mb-glass-animate--scale">
             <div class="mb-glass-score__value">${Math.round(detail.score)}</div>
             <div class="mb-glass-score__label">
-                答對 ${detail.correct_count} / ${detail.total_questions} 題
+                ${i18n.t('mb.correctCount', {correct: detail.correct_count, total: detail.total_questions})}
             </div>
         </div>`;
 
         if (detail.ai_feedback) {
             html += `<div class="mb-glass-feedback mb-glass-animate" style="animation-delay:80ms">
-                <div class="mb-glass-feedback__title">${Icons.sparkles(14)} AI 總評</div>
+                <div class="mb-glass-feedback__title">${Icons.sparkles(14)} ${i18n.t('mb.aiFeedback')}</div>
                 <div class="mb-glass-feedback__body">${UI.escapeHtml(detail.ai_feedback)}</div>
             </div>`;
         }
@@ -2316,15 +2317,15 @@ const Views = {
                     <div class="mb-glass-result__status mb-glass-result__status--${statusClass}">
                         ${q.is_correct ? Icons.check(14) : Icons.x(14)}
                     </div>
-                    <span class="mb-glass-result__title">第 ${i + 1} 題</span>
+                    <span class="mb-glass-result__title">${i18n.t('mb.questionN', {n: i + 1})}</span>
                     ${levelBadge}
                 </div>
                 <div style="font-size:13px;margin-bottom:4px">${UI.renderMath(q.question || '')}</div>
-                <div style="font-size:13px;margin-bottom:4px"><strong>你的答案：</strong>${UI.renderMath(q.student_answer || '（未作答）')}</div>
+                <div style="font-size:13px;margin-bottom:4px"><strong>${i18n.t('mb.yourAnswer')}</strong>${UI.renderMath(q.student_answer || i18n.t('mb.unanswered'))}</div>
                 ${q.error_analysis ? `<div class="mb-glass-result__analysis">${Icons.zap(12)} <span>${UI.escapeHtml(q.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</span></div>` : ''}
                 ${!q.is_correct ? `<details style="margin-top:8px">
-                    <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">正確答案與解析</summary>
-                    <div style="font-size:13px;margin-top:6px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(q.correct_answer || '')}</div>
+                    <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">${i18n.t('mb.correctAnswerDetail')}</summary>
+                    <div style="font-size:13px;margin-top:6px;color:var(--mb-success)"><strong>${i18n.t('mb.correctAnswerLabel')}</strong>${UI.renderMath(q.correct_answer || '')}</div>
                     ${q.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(q.explanation)}</div>` : ''}
                 </details>` : ''}
             </div>`;
@@ -2332,9 +2333,9 @@ const Views = {
 
         // 底部按鈕
         html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap" class="mb-glass-animate" style="animation-delay:${120 + (detail.questions || []).length * 50 + 50}ms">
-            ${wrongCount > 0 ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${detail.session_id}')">重做原錯題 (${wrongCount}題)</button>
-            <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${detail.session_id}')">同類再練</button>` : ''}
-            <button class="mb-btn mb-btn--primary" onclick="Views.renderPractice(document.getElementById('learnContent'))">返回列表</button>
+            ${wrongCount > 0 ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${detail.session_id}')">${i18n.t('mb.redoWrong', {count: wrongCount})}</button>
+            <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${detail.session_id}')">${i18n.t('mb.similarPractice')}</button>` : ''}
+            <button class="mb-btn mb-btn--primary" onclick="Views.renderPractice(document.getElementById('learnContent'))">${i18n.t('mb.backToList')}</button>
         </div>`;
 
         container.innerHTML = html;
@@ -2343,35 +2344,35 @@ const Views = {
     async _redoWrong(sessionId) {
         const container = document.getElementById('learnContent');
         if (!container) return;
-        container.innerHTML = UI.loading('正在準備重練...');
+        container.innerHTML = UI.loading(i18n.t('mb.preparing'));
         try {
             const res = await API.redoWrongQuestions(sessionId);
             if (!res?.success || !res.data?.questions) {
-                container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary)">${res?.message || '無法重練'}</div>`;
+                container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary)">${res?.message || i18n.t('mb.cannotRedo')}</div>`;
                 return;
             }
             // 進入答題頁
             App.state._practiceSession = res.data;
             this._renderPracticeQuestions(container, res.data);
         } catch (e) {
-            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">操作失敗</div>`;
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">${i18n.t('mb.operationFailed')}</div>`;
         }
     },
 
     async _similarPractice(sessionId) {
         const container = document.getElementById('learnContent');
         if (!container) return;
-        container.innerHTML = UI.loading('正在生成同類題目...');
+        container.innerHTML = UI.loading(i18n.t('mb.generatingSimilar'));
         try {
             const res = await API.similarPractice(sessionId);
             if (!res?.success || !res.data?.questions) {
-                container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary)">${res?.message || '無法生成'}</div>`;
+                container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-text-tertiary)">${res?.message || i18n.t('mb.cannotGenerate')}</div>`;
                 return;
             }
             App.state._practiceSession = res.data;
             this._renderPracticeQuestions(container, res.data);
         } catch (e) {
-            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">操作失敗</div>`;
+            container.innerHTML = `<div style="padding:20px;text-align:center;color:var(--mb-danger)">${i18n.t('mb.operationFailed')}</div>`;
         }
     },
 
@@ -2398,7 +2399,7 @@ const Views = {
 
             if (!res || !res.data || res.data.length === 0) {
                 listEl.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
-                    暫無知識點數據，仍可直接開始練習
+                    ${i18n.t('mb.noPointsData')}
                 </div>`;
                 return;
             }
@@ -2409,17 +2410,17 @@ const Views = {
         } catch (e) {
             if (e.name === 'AbortError') return;
             listEl.innerHTML = `<div style="padding:12px;text-align:center;color:var(--mb-text-tertiary);font-size:13px">
-                掌握度數據暫不可用，仍可直接開始練習
+                ${i18n.t('mb.masteryUnavailable')}
             </div>`;
         }
     },
 
     _renderPracticePointsList(container, data) {
         const statusLabels = {
-            weak: { text: '薄弱', bg: 'rgba(255,59,48,0.08)', color: 'var(--mb-danger, #e74c3c)' },
-            consolidating: { text: '待鞏固', bg: 'rgba(255,149,0,0.08)', color: 'var(--mb-warning, #f39c12)' },
-            mastered: { text: '已掌握', bg: 'rgba(52,199,89,0.08)', color: 'var(--mb-success, #27ae60)' },
-            unknown: { text: '暫無數據', bg: 'rgba(0,0,0,0.03)', color: 'var(--mb-text-tertiary)' },
+            weak: { text: i18n.t('mb.statusWeak'), bg: 'rgba(255,59,48,0.08)', color: 'var(--mb-danger, #e74c3c)' },
+            consolidating: { text: i18n.t('mb.statusConsolidating'), bg: 'rgba(255,149,0,0.08)', color: 'var(--mb-warning, #f39c12)' },
+            mastered: { text: i18n.t('mb.statusMasteredKp'), bg: 'rgba(52,199,89,0.08)', color: 'var(--mb-success, #27ae60)' },
+            unknown: { text: i18n.t('mb.statusUnknown'), bg: 'rgba(0,0,0,0.03)', color: 'var(--mb-text-tertiary)' },
         };
 
         const html = data.map((pt, i) => {
@@ -2458,7 +2459,7 @@ const Views = {
         if (warningEl) {
             if (checked.length > 8) {
                 warningEl.style.display = 'block';
-                warningEl.textContent = `已選 ${checked.length} 個知識點，建議一次聚焦不超過 5 個`;
+                warningEl.textContent = i18n.t('mb.pointsWarning', {count: checked.length});
             } else {
                 warningEl.style.display = 'none';
             }
@@ -2497,11 +2498,11 @@ const Views = {
         const count = document.getElementById('practiceCount')?.value || 5;
         const diffEl = document.getElementById('practiceDifficulty');
         const diffVal = diffEl?.value;
-        const diffLabel = diffVal ? diffEl.options[diffEl.selectedIndex].text : '自動匹配';
+        const diffLabel = diffVal ? diffEl.options[diffEl.selectedIndex].text : i18n.t('mb.diffAutoMatch');
 
         if (selected.length === 0) {
             previewEl.style.display = 'block';
-            previewEl.innerHTML = `將由系統根據薄弱點智能推薦知識點 · ${count} 題 · 難度：${diffLabel}`;
+            previewEl.innerHTML = i18n.t('mb.smartRecommend', {count, diff: diffLabel});
             return;
         }
 
@@ -2511,7 +2512,7 @@ const Views = {
         });
 
         previewEl.style.display = 'block';
-        previewEl.innerHTML = `${pointNames.join('、')} · ${count} 題 · 難度：${diffLabel}`;
+        previewEl.innerHTML = i18n.t('mb.smartPreview', {points: pointNames.join(i18n.isEn ? ', ' : '、'), count, diff: diffLabel});
     },
 
     _practiceProgressTimer: null,
@@ -2531,21 +2532,21 @@ const Views = {
         };
 
         const stages = [
-            { icon: _ico.search, text: '正在分析薄弱知識點...', duration: 3000 },
-            { icon: _ico.chart,  text: '正在匹配難度等級...', duration: 3000 },
-            { icon: _ico.brain,  text: 'AI 正在構思題目...', duration: 8000 },
-            { icon: _ico.pen,    text: '正在生成第 1 題...', duration: 6000 },
-            { icon: _ico.pen,    text: '正在生成第 2 題...', duration: 6000 },
-            { icon: _ico.pen,    text: '正在生成第 3 題...', duration: 6000 },
-            { icon: _ico.ruler,  text: '正在繪製幾何圖形...', duration: 8000 },
-            { icon: _ico.check,  text: '正在檢查題目品質...', duration: 5000 },
-            { icon: _ico.target, text: '即將完成，請稍候...', duration: 10000 },
+            { icon: _ico.search, text: i18n.t('mb.analyzingWeakPoints'), duration: 3000 },
+            { icon: _ico.chart,  text: i18n.t('mb.matchingDifficulty'), duration: 3000 },
+            { icon: _ico.brain,  text: i18n.t('mb.aiThinking'), duration: 8000 },
+            { icon: _ico.pen,    text: i18n.t('mb.generatingQ', {n: 1}), duration: 6000 },
+            { icon: _ico.pen,    text: i18n.t('mb.generatingQ', {n: 2}), duration: 6000 },
+            { icon: _ico.pen,    text: i18n.t('mb.generatingQ', {n: 3}), duration: 6000 },
+            { icon: _ico.ruler,  text: i18n.t('mb.drawingGeo'), duration: 8000 },
+            { icon: _ico.check,  text: i18n.t('mb.checkingQuality'), duration: 5000 },
+            { icon: _ico.target, text: i18n.t('mb.almostDone'), duration: 10000 },
         ];
 
         // Adjust middle stages based on question count
         if (count > 3) {
             for (let i = 4; i <= Math.min(count, 7); i++) {
-                stages.splice(3 + (i - 1), 0, { icon: _ico.pen, text: `正在生成第 ${i} 題...`, duration: 5000 });
+                stages.splice(3 + (i - 1), 0, { icon: _ico.pen, text: i18n.t('mb.generatingQ', {n: i}), duration: 5000 });
             }
         }
 
@@ -2568,15 +2569,15 @@ const Views = {
                     <div class="mb-progress-panel__bar" id="practiceProgressBar"></div>
                 </div>
                 <div class="mb-progress-panel__time" id="practiceProgressTime">
-                    預計需要 ${estSeconds} 秒，請耐心等待
+                    ${i18n.t('mb.estTime', {sec: estSeconds})}
                 </div>
                 <div class="mb-progress-panel__tip">
-                    AI 正在為你出題，題目越多所需時間越長
+                    ${i18n.t('mb.aiGeneratingTip')}
                 </div>
                 <button class="mb-btn mb-btn--ghost mb-btn--sm" id="practiceBackgroundBtn"
                         style="margin-top:16px;display:none"
                         onclick="Views._goBackgroundPractice()">
-                    稍後回來查看
+                    ${i18n.t('mb.checkLater')}
                 </button>
             </div>
         `;
@@ -2597,9 +2598,9 @@ const Views = {
             const remaining = Math.max(0, estSeconds - Math.floor(elapsed / 1000));
             const timeEl = document.getElementById('practiceProgressTime');
             if (timeEl && remaining > 0) {
-                timeEl.textContent = `預計還需 ${remaining} 秒`;
+                timeEl.textContent = i18n.t('mb.estRemaining', {sec: remaining});
             } else if (timeEl) {
-                timeEl.textContent = '即將完成...';
+                timeEl.textContent = i18n.t('mb.finishing');
             }
 
             // Advance stage
@@ -2723,7 +2724,7 @@ const Views = {
             this._hidePracticeProgress();
             this._clearPendingSession();
 
-            const msg = res.data.error_message || '題目生成失敗';
+            const msg = res.data.error_message || i18n.t('mb.generationFailed');
             UI.toast(msg, 'error');
             const target = document.getElementById('learnContent') || document.getElementById('mainContent');
             if (target) this.renderPractice(target);
@@ -2758,7 +2759,7 @@ const Views = {
 
         if (!res || !res.data) {
             btn.disabled = false;
-            UI.toast('生成請求失敗，請重試', 'error');
+            UI.toast(i18n.t('mb.practiceGenFailedRetry'), 'error');
             return;
         }
 
@@ -2768,7 +2769,7 @@ const Views = {
         this._savePendingSession(sessionId, subject);
         App.state._pendingPracticeSession = { session_id: sessionId, subject };
 
-        UI.toast('練習題已開始生成，請稍候', 'success');
+        UI.toast(i18n.t('mb.practiceGenStarted'), 'success');
 
         // 回到練習列表 → pendingPracticeCard 自動出現 + 自動輪詢
         const target = document.getElementById('learnContent') || document.getElementById('mainContent');
@@ -2783,10 +2784,10 @@ const Views = {
     _renderPracticeQuestions(container, session) {
         const questions = session.questions || [];
         const recommendedInfo = session._recommendedInfo || '';
-        const diffLabel = session.difficulty ? `難度 ${session.difficulty}/5` : '';
+        const diffLabel = session.difficulty ? i18n.t('mb.difficultyLevel', {level: session.difficulty}) : '';
         this._practiceInputStates = {};
 
-        let headerInfo = `${UI.subjectLabel(session.subject)} · ${questions.length} 題`;
+        let headerInfo = `${UI.subjectLabel(session.subject)} · ${i18n.t('mb.items', {count: questions.length})}`;
         if (diffLabel) headerInfo += ` · ${diffLabel}`;
 
         let html = `<div class="mb-practice">
@@ -2796,7 +2797,7 @@ const Views = {
 
         if (recommendedInfo) {
             html += `<div class="mb-glass-card mb-glass-animate" style="text-align:center;font-size:12px;color:var(--mb-text-tertiary);padding:10px 14px;animation-delay:40ms">
-                ${Icons.sparkles(12)} 系統推薦知識點：${UI.escapeHtml(recommendedInfo)}
+                ${Icons.sparkles(12)} ${i18n.t('mb.systemRecommendPoints', {info: UI.escapeHtml(recommendedInfo)})}
             </div>`;
         }
 
@@ -2818,7 +2819,7 @@ const Views = {
 
             html += `
                 <div class="mb-glass-question mb-glass-animate" style="animation-delay:${80 + i * 50}ms">
-                    <div class="mb-practice__question-number">第 ${q.index || i + 1} 題</div>
+                    <div class="mb-practice__question-number">${i18n.t('mb.questionN', {n: q.index || i + 1})}</div>
                     <div class="mb-practice__question-text">${UI.renderMath(q.question)}</div>
                     ${diagramHtml}
                     ${isMultiChoice ? `<div style="margin-top:12px">${q.options.map((opt, oi) =>
@@ -2828,12 +2829,12 @@ const Views = {
                     ).join('')}</div>` : `
                     <div class="mb-hw" id="hw_wrap_${i}">
                         <div class="mb-glass-modes">
-                            <button class="mb-glass-mode-btn mb-glass-mode-btn--active" data-mode="keyboard" onclick="Views._switchInputMode(${i},'keyboard')" title="鍵盤">${Icons.keyboard(14)} 鍵盤</button>
-                            <button class="mb-glass-mode-btn" data-mode="handwrite" onclick="Views._switchInputMode(${i},'handwrite')" title="手寫">${Icons.pencil(14)} 手寫</button>
-                            <button class="mb-glass-mode-btn" data-mode="photo" onclick="Views._switchInputMode(${i},'photo')" title="拍照">${Icons.camera(14)} 拍照</button>
+                            <button class="mb-glass-mode-btn mb-glass-mode-btn--active" data-mode="keyboard" onclick="Views._switchInputMode(${i},'keyboard')" title="${i18n.t('mb.keyboard')}">${Icons.keyboard(14)} ${i18n.t('mb.keyboard')}</button>
+                            <button class="mb-glass-mode-btn" data-mode="handwrite" onclick="Views._switchInputMode(${i},'handwrite')" title="${i18n.t('mb.handwrite')}">${Icons.pencil(14)} ${i18n.t('mb.handwrite')}</button>
+                            <button class="mb-glass-mode-btn" data-mode="photo" onclick="Views._switchInputMode(${i},'photo')" title="${i18n.t('mb.photo')}">${Icons.camera(14)} ${i18n.t('mb.photo')}</button>
                         </div>
                         <div class="mb-hw__panel" id="hw_panel_${i}">
-                            <textarea class="mb-practice__answer-input" id="answer_${i}" placeholder="在此輸入你的答案..."></textarea>
+                            <textarea class="mb-practice__answer-input" id="answer_${i}" placeholder="${i18n.t('mb.answerInputPlaceholder')}"></textarea>
                         </div>
                     </div>`}
                 </div>
@@ -2841,7 +2842,7 @@ const Views = {
         });
 
         html += `<button class="mb-btn mb-btn--primary mb-btn--full mb-glass-animate" onclick="Views._submitAllPractice()" style="animation-delay:${80 + questions.length * 50 + 50}ms">
-                    提交答案
+                    ${i18n.t('mb.submitAnswer')}
                  </button></div>`;
 
         container.innerHTML = html;
@@ -2881,7 +2882,7 @@ const Views = {
         if (mode === 'keyboard') {
             const val = state.textareaValue || '';
             // 先放 textarea
-            panel.innerHTML = `<textarea class="mb-practice__answer-input mb-practice__answer-input--auto" id="answer_${idx}" placeholder="在此輸入你的答案..."></textarea>`;
+            panel.innerHTML = `<textarea class="mb-practice__answer-input mb-practice__answer-input--auto" id="answer_${idx}" placeholder="${i18n.t('mb.answerInputPlaceholder')}"></textarea>`;
             const ta = document.getElementById(`answer_${idx}`);
             if (ta) {
                 ta.value = val; // 用 .value 設置，避免 HTML 轉義問題
@@ -2930,7 +2931,7 @@ const Views = {
         // panel 內只放一個提示 + textarea（回到鍵盤模式時會被替換）
         const state = this._practiceInputStates[idx];
         panel.innerHTML = `
-            <textarea class="mb-practice__answer-input mb-hw__result-ta" id="answer_${idx}" placeholder="識別結果將顯示在這裡，也可手動輸入...">${UI.escapeHtml(state.textareaValue || '')}</textarea>
+            <textarea class="mb-practice__answer-input mb-hw__result-ta" id="answer_${idx}" placeholder="${i18n.t('mb.recognitionResultPlaceholder')}">${UI.escapeHtml(state.textareaValue || '')}</textarea>
         `;
         this._openHandwriteModal(idx);
     },
@@ -2949,7 +2950,7 @@ const Views = {
         overlay.innerHTML = `
             <div class="mb-hw__fullscreen">
                 <div class="mb-hw__fullscreen-header">
-                    <span class="mb-hw__fullscreen-title">第 ${(q && q.index) || idx + 1} 題 · 手寫輸入</span>
+                    <span class="mb-hw__fullscreen-title">${i18n.t('mb.handwriteTitle', {n: (q && q.index) || idx + 1})}</span>
                     <button class="mb-hw__fullscreen-close" id="hw_modal_close_${idx}">✕</button>
                 </div>
                 <div class="mb-hw__fullscreen-question">${UI.renderMath(questionText)}</div>
@@ -2962,14 +2963,14 @@ const Views = {
                 </div>
                 <div class="mb-hw__fullscreen-toolbar">
                     <div class="mb-hw__pen-toggle" id="hw_pen_toggle_${idx}">
-                        <button class="mb-hw__pen-btn ${state.pencilMode ? '' : 'mb-hw__pen-btn--active'}" data-pen="finger" onclick="Views._setPencilMode(${idx}, false)">👆 手指</button>
+                        <button class="mb-hw__pen-btn ${state.pencilMode ? '' : 'mb-hw__pen-btn--active'}" data-pen="finger" onclick="Views._setPencilMode(${idx}, false)">👆 ${i18n.t('mb.finger')}</button>
                         <button class="mb-hw__pen-btn ${state.pencilMode ? 'mb-hw__pen-btn--active' : ''}" data-pen="pencil" onclick="Views._setPencilMode(${idx}, true)">✏️ Pencil</button>
                     </div>
                     <button class="mb-hw__tool-btn" onclick="Views._hwUndo(${idx})">↩</button>
                     <button class="mb-hw__tool-btn" onclick="Views._hwClear(${idx})">🗑</button>
                     <button class="mb-hw__tool-btn" onclick="Views._hwResetZoom(${idx})">⊙</button>
                     <button class="mb-hw__tool-btn mb-hw__tool-btn--primary mb-hw__tool-btn--lg" id="hw_recognize_${idx}" onclick="Views._hwRecognize(${idx})">
-                        識別
+                        ${i18n.t('mb.recognize')}
                     </button>
                 </div>
             </div>
@@ -3328,14 +3329,14 @@ const Views = {
         const state = this._practiceInputStates[idx];
         if (!state || state.loading) return;
         if (state.strokes.length === 0) {
-            UI.toast('請先書寫內容', 'warning');
+            UI.toast(i18n.t('mb.writeFirst'), 'warning');
             return;
         }
 
         const canvas = document.getElementById(`hw_canvas_${idx}`);
         const blob = await this._hwGetCroppedBlob(canvas, state.strokes);
         if (!blob) {
-            UI.toast('畫布為空', 'warning');
+            UI.toast(i18n.t('mb.canvasEmpty'), 'warning');
             return;
         }
 
@@ -3351,7 +3352,7 @@ const Views = {
                         `<img src="${state.imagePreview}" class="mb-hw__photo-preview">` :
                         `<div style="padding:24px;text-align:center;color:var(--mb-text-tertiary)">
                             <div style="font-size:28px;margin-bottom:8px">📷</div>
-                            <div style="font-size:13px">點擊拍照或選擇照片</div>
+                            <div style="font-size:13px">${i18n.t('mb.clickToPhoto')}</div>
                         </div>`
                     }
                 </div>
@@ -3360,11 +3361,11 @@ const Views = {
                 <div class="mb-hw__toolbar" style="margin-top:8px">
                     <button class="mb-hw__tool-btn mb-hw__tool-btn--primary" id="hw_recognize_${idx}" onclick="Views._hwPhotoRecognize(${idx})"
                             ${state.imagePreview ? '' : 'disabled'}>
-                        識別
+                        ${i18n.t('mb.recognize')}
                     </button>
                 </div>
             </div>
-            <textarea class="mb-practice__answer-input mb-hw__result-ta" id="answer_${idx}" placeholder="識別結果將顯示在這裡，也可手動輸入...">${UI.escapeHtml(state.textareaValue || '')}</textarea>
+            <textarea class="mb-practice__answer-input mb-hw__result-ta" id="answer_${idx}" placeholder="${i18n.t('mb.recognitionResultPlaceholder')}">${UI.escapeHtml(state.textareaValue || '')}</textarea>
         `;
     },
 
@@ -3399,20 +3400,20 @@ const Views = {
 
         // 禁用識別按鈕
         const btn = document.getElementById(`hw_recognize_${idx}`);
-        if (btn) { btn.disabled = true; btn.textContent = '識別中...'; }
+        if (btn) { btn.disabled = true; btn.textContent = i18n.t('mb.recognizing'); }
 
         const _warnings = {
-            empty_result: '未能識別到內容',
-            very_short_abnormal: '識別結果可能不完整',
-            garbled_text: '部分內容無法識別',
-            possible_truncation: '部分內容可能未被識別',
-            unclear_math_symbols: '公式部分可能不準確',
+            empty_result: i18n.t('mb.ocrEmptyResult'),
+            very_short_abnormal: i18n.t('mb.ocrShortResult'),
+            garbled_text: i18n.t('mb.ocrGarbled'),
+            possible_truncation: i18n.t('mb.ocrTruncated'),
+            unclear_math_symbols: i18n.t('mb.ocrUnclearMath'),
         };
 
         try {
             const res = await API.recognizeHandwriting(blob, session.subject, mode);
             if (!res || !res.success || !res.data) {
-                UI.toast('識別失敗，請重試', 'error');
+                UI.toast(i18n.t('mb.recognitionFailedRetry'), 'error');
                 return;
             }
 
@@ -3425,7 +3426,7 @@ const Views = {
             }
 
             if (!text) {
-                UI.toast('未能識別到內容', 'warning');
+                UI.toast(i18n.t('mb.ocrEmptyResult'), 'warning');
                 return;
             }
 
@@ -3448,10 +3449,10 @@ const Views = {
             }
 
         } catch (e) {
-            UI.toast('識別失敗: ' + e.message, 'error');
+            UI.toast(i18n.t('mb.recognitionFailedMsg', {msg: e.message}), 'error');
         } finally {
             state.loading = false;
-            if (btn) { btn.disabled = false; btn.textContent = '識別'; }
+            if (btn) { btn.disabled = false; btn.textContent = i18n.t('mb.recognize'); }
         }
     },
 
@@ -3462,21 +3463,21 @@ const Views = {
         const defaultBtn = existing.length <= 5 ? 'replace' : 'append';
         overlay.innerHTML = `
             <div class="mb-hw__dialog">
-                <div class="mb-hw__dialog-title">識別結果</div>
+                <div class="mb-hw__dialog-title">${i18n.t('mb.recognitionResult')}</div>
                 <div class="mb-hw__dialog-section">
-                    <div class="mb-hw__dialog-label">原有內容</div>
+                    <div class="mb-hw__dialog-label">${i18n.t('mb.originalContent')}</div>
                     <div class="mb-hw__dialog-text">${UI.escapeHtml(existing)}</div>
                 </div>
                 <div class="mb-hw__dialog-section">
-                    <div class="mb-hw__dialog-label">識別內容</div>
+                    <div class="mb-hw__dialog-label">${i18n.t('mb.recognizedContent')}</div>
                     <div class="mb-hw__dialog-text">${UI.escapeHtml(recognized)}</div>
                 </div>
                 <div class="mb-hw__dialog-actions">
                     <button class="mb-btn mb-btn--sm ${defaultBtn === 'replace' ? 'mb-btn--primary' : 'mb-btn--ghost'}"
-                            id="hwDialogReplace">覆蓋</button>
+                            id="hwDialogReplace">${i18n.t('mb.overwrite')}</button>
                     <button class="mb-btn mb-btn--sm ${defaultBtn === 'append' ? 'mb-btn--primary' : 'mb-btn--ghost'}"
-                            id="hwDialogAppend">追加</button>
-                    <button class="mb-btn mb-btn--sm mb-btn--ghost" id="hwDialogCancel">取消</button>
+                            id="hwDialogAppend">${i18n.t('mb.appendText')}</button>
+                    <button class="mb-btn mb-btn--sm mb-btn--ghost" id="hwDialogCancel">${i18n.t('mb.cancel')}</button>
                 </div>
             </div>
         `;
@@ -3517,7 +3518,7 @@ const Views = {
 
         const res = await API.submitPractice(session.session_id, answers);
         if (!res || !res.data) {
-            container.innerHTML = UI.empty('', '提交失敗，請重試');
+            container.innerHTML = UI.empty('', i18n.t('mb.submitFailedRetry'));
             return;
         }
 
@@ -3533,20 +3534,20 @@ const Views = {
             D: 'var(--mb-danger)', E: '#c0392b', F: '#7f1d1d',
         };
         const errorTypeLabels = {
-            careless: '粗心', concept: '概念錯誤', calculation: '計算錯誤',
-            method: '方法錯誤', format: '格式問題', incomplete: '不完整', irrelevant: '無關',
+            careless: i18n.t('mb.errCarelessShort'), concept: i18n.t('mb.errConceptFull'), calculation: i18n.t('mb.errCalculationFull'),
+            method: i18n.t('mb.errMethodFull'), format: i18n.t('mb.errFormatFull'), incomplete: i18n.t('mb.errIncompleteShort'), irrelevant: i18n.t('mb.errIrrelevantShort'),
         };
 
         let html = `<div class="mb-glass-score mb-glass-animate--scale">
             <div class="mb-glass-score__value">${Math.round(result.score)}</div>
             <div class="mb-glass-score__label">
-                答對 ${result.correct_count} / ${result.total_questions} 題
+                ${i18n.t('mb.correctCount', {correct: result.correct_count, total: result.total_questions})}
             </div>
         </div>`;
 
         if (result.ai_feedback) {
             html += `<div class="mb-glass-feedback mb-glass-animate" style="animation-delay:80ms">
-                <div class="mb-glass-feedback__title">${Icons.sparkles(14)} AI 反饋</div>
+                <div class="mb-glass-feedback__title">${Icons.sparkles(14)} ${i18n.t('mb.aiFeedbackTitle')}</div>
                 <div class="mb-glass-feedback__body">${UI.escapeHtml(result.ai_feedback)}</div>
             </div>`;
         }
@@ -3562,23 +3563,23 @@ const Views = {
                     <div class="mb-glass-result__status mb-glass-result__status--${statusClass}">
                         ${r.is_correct ? Icons.check(14) : Icons.x(14)}
                     </div>
-                    <span class="mb-glass-result__title">第 ${i + 1} 題</span>
+                    <span class="mb-glass-result__title">${i18n.t('mb.questionN', {n: i + 1})}</span>
                     ${levelBadge}
                 </div>
-                <div style="font-size:13px;margin-bottom:4px"><strong>你的答案：</strong>${UI.renderMath(r.student_answer || '（未作答）')}</div>
+                <div style="font-size:13px;margin-bottom:4px"><strong>${i18n.t('mb.yourAnswer')}</strong>${UI.renderMath(r.student_answer || i18n.t('mb.unanswered'))}</div>
                 ${r.error_analysis ? `<div class="mb-glass-result__analysis">${Icons.zap(12)} <span>${UI.escapeHtml(r.error_analysis)}${errLabel ? ` <span style="color:var(--mb-text-tertiary)">· ${errLabel}</span>` : ''}</span></div>` : ''}
                 ${!r.is_correct ? `<details style="margin-top:8px">
-                    <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">正確答案與解析</summary>
-                    <div style="font-size:13px;margin-top:6px;color:var(--mb-success)"><strong>正確答案：</strong>${UI.renderMath(r.correct_answer || '')}</div>
+                    <summary style="font-size:12px;color:var(--mb-text-tertiary);cursor:pointer">${i18n.t('mb.correctAnswerDetail')}</summary>
+                    <div style="font-size:13px;margin-top:6px;color:var(--mb-success)"><strong>${i18n.t('mb.correctAnswerLabel')}</strong>${UI.renderMath(r.correct_answer || '')}</div>
                     ${r.explanation ? `<div style="font-size:12px;color:var(--mb-text-secondary);margin-top:4px">${UI.renderMath(r.explanation)}</div>` : ''}
                 </details>` : ''}
             </div>`;
         });
 
         html += `<div style="padding:20px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap" class="mb-glass-animate" style="animation-delay:${120 + results.length * 50 + 50}ms">
-            ${wrongCount > 0 && result.session_id ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${result.session_id}')">重做原錯題 (${wrongCount}題)</button>
-            <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${result.session_id}')">同類再練</button>` : ''}
-            <button class="mb-btn mb-btn--primary" onclick="App.state._learnMode='practice';App.navigate('learn')">返回練習</button>
+            ${wrongCount > 0 && result.session_id ? `<button class="mb-btn mb-btn--secondary" onclick="Views._redoWrong('${result.session_id}')">${i18n.t('mb.redoWrong', {count: wrongCount})}</button>
+            <button class="mb-btn mb-btn--secondary" onclick="Views._similarPractice('${result.session_id}')">${i18n.t('mb.similarPractice')}</button>` : ''}
+            <button class="mb-btn mb-btn--primary" onclick="App.state._learnMode='practice';App.navigate('learn')">${i18n.t('mb.backToPractice')}</button>
         </div>`;
 
         container.innerHTML = html;
@@ -3604,15 +3605,15 @@ const Views = {
             <div class="mb-stat-row">
                 <div class="mb-stat-block">
                     <div class="mb-stat-block__value">${totalMistakes}</div>
-                    <div class="mb-stat-block__label">總錯題</div>
+                    <div class="mb-stat-block__label">${i18n.t('mb.totalMistakes')}</div>
                 </div>
                 <div class="mb-stat-block">
                     <div class="mb-stat-block__value">${avgMastery}%</div>
-                    <div class="mb-stat-block__label">平均掌握</div>
+                    <div class="mb-stat-block__label">${i18n.t('mb.avgMastery')}</div>
                 </div>
                 <div class="mb-stat-block">
-                    <div class="mb-stat-block__value">${reviewStreak}<span class="mb-stat-block__unit">天</span></div>
-                    <div class="mb-stat-block__label">連續複習</div>
+                    <div class="mb-stat-block__value">${reviewStreak}<span class="mb-stat-block__unit">${i18n.t('mb.streakDays')}</span></div>
+                    <div class="mb-stat-block__label">${i18n.t('mb.reviewStreak')}</div>
                 </div>
             </div>
 
@@ -3632,7 +3633,7 @@ const Views = {
                 analysisDiv.innerHTML = UI.loading();
                 if (chip.dataset.subject === 'all') {
                     analysisDiv.innerHTML = `<div class="mb-empty-state">
-                        <div class="mb-empty-state__desc">選擇一個科目查看詳細分析報告</div>
+                        <div class="mb-empty-state__desc">${i18n.t('mb.selectSubjectAnalysis')}</div>
                     </div>`;
                 } else {
                     this.renderAnalysis(analysisDiv);
@@ -3644,7 +3645,7 @@ const Views = {
         const analysisDiv = document.getElementById('profileAnalysis');
         if (App.state.currentSubject === 'all') {
             analysisDiv.innerHTML = `<div class="mb-empty-state">
-                <div class="mb-empty-state__desc">選擇一個科目查看詳細分析報告</div>
+                <div class="mb-empty-state__desc">${i18n.t('mb.selectSubjectAnalysis')}</div>
             </div>`;
         } else {
             this.renderAnalysis(analysisDiv);
@@ -3656,7 +3657,7 @@ const Views = {
         const subject = App.state.currentSubject;
         if (subject === 'all') {
             container.innerHTML = `<div class="mb-empty-state">
-                <div class="mb-empty-state__desc">選擇一個科目查看詳細分析報告</div>
+                <div class="mb-empty-state__desc">${i18n.t('mb.selectSubjectAnalysis')}</div>
             </div>`;
             return;
         }
@@ -3703,7 +3704,7 @@ const Views = {
 
         if (weakDisplay.length) {
             html += `<div class="mb-weak-list">
-                <div class="mb-weak-list__title">最需攻克</div>`;
+                <div class="mb-weak-list__title">${i18n.t('mb.mostNeeded')}</div>`;
             const pathMap = {};
             weakPaths.forEach(wp => { pathMap[wp.weak_point] = wp; });
 
@@ -3715,7 +3716,7 @@ const Views = {
                 <div class="mb-weak-item" data-point-code="${UI.escapeHtml(w.point_code)}" data-point-name="${UI.escapeHtml(name)}" data-action="ask-kp">
                     <div class="mb-weak-item__info">
                         <div class="mb-weak-item__name">${UI.escapeHtml(name)}</div>
-                        <div class="mb-weak-item__meta">${w.category ? UI.escapeHtml(w.category) + ' · ' : ''}錯 ${w.total_mistakes || 0} 題</div>
+                        <div class="mb-weak-item__meta">${w.category ? UI.escapeHtml(w.category) + ' · ' : ''}${i18n.t('mb.mistakeCount', {count: w.total_mistakes || 0})}</div>
                     </div>
                     <div class="mb-weak-item__level">
                         <div class="mb-weak-item__percent mb-weak-item__percent--${UI.masteryClass(w.mastery_level)}">${w.mastery_level}%</div>
@@ -3735,7 +3736,7 @@ const Views = {
             html += `
             <div class="mb-collapse" id="collapseRadar">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
-                    <span class="mb-collapse__title">${Icons.target(16)} 掌握度總覽</span>
+                    <span class="mb-collapse__title">${Icons.target(16)} ${i18n.t('mb.masteryOverview')}</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
@@ -3743,8 +3744,8 @@ const Views = {
                         <canvas id="radarChart" width="320" height="320"></canvas>
                     </div>
                     <div class="mb-graph-legend">
-                        <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--current"></span>目前</span>
-                        <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--prev"></span>上次</span>
+                        <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--current"></span>${i18n.t('mb.currentLabel')}</span>
+                        <span class="mb-graph-legend__item"><span class="mb-graph-legend__dot mb-graph-legend__dot--prev"></span>${i18n.t('mb.prevLabel')}</span>
                     </div>
                 </div>
             </div>`;
@@ -3755,7 +3756,7 @@ const Views = {
             html += `
             <div class="mb-collapse" id="collapseTrend">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
-                    <span class="mb-collapse__title">${Icons.barChart(16)} 近期趨勢</span>
+                    <span class="mb-collapse__title">${Icons.barChart(16)} ${i18n.t('mb.recentTrend')}</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
@@ -3772,7 +3773,7 @@ const Views = {
             html += `
             <div class="mb-collapse" id="collapseRecs">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
-                    <span class="mb-collapse__title">${Icons.zap(16)} 改進建議</span>
+                    <span class="mb-collapse__title">${Icons.zap(16)} ${i18n.t('mb.improvements')}</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
@@ -3787,7 +3788,7 @@ const Views = {
             html += `
             <div class="mb-collapse" id="collapseTree">
                 <div class="mb-collapse__trigger" onclick="this.parentElement.classList.toggle('mb-collapse--open')">
-                    <span class="mb-collapse__title">${Icons.bookOpen(16)} 知識點全覽</span>
+                    <span class="mb-collapse__title">${Icons.bookOpen(16)} ${i18n.t('mb.knowledgeOverview')}</span>
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
@@ -3803,14 +3804,14 @@ const Views = {
         <div class="mb-qa-overlay" id="qaOverlay" style="display:none">
             <div class="mb-qa-panel">
                 <div class="mb-qa-panel__header">
-                    <span id="qaTitle">提問</span>
+                    <span id="qaTitle">${i18n.t('mb.askQuestion')}</span>
                     <button class="mb-qa-panel__close" id="qaClose">${Icons.x(14)}</button>
                 </div>
                 <div class="mb-qa-panel__body" id="qaBody">
                     <div class="mb-qa-presets" id="qaPresets"></div>
                     <div class="mb-qa-custom">
-                        <input type="text" class="mb-qa-input" id="qaInput" placeholder="輸入你的問題...">
-                        <button class="mb-btn mb-btn--primary mb-btn--sm" id="qaSend">發送</button>
+                        <input type="text" class="mb-qa-input" id="qaInput" placeholder="${i18n.t('mb.inputQuestion')}">
+                        <button class="mb-btn mb-btn--primary mb-btn--sm" id="qaSend">${i18n.t('mb.send')}</button>
                     </div>
                     <div class="mb-qa-answer" id="qaAnswer" style="display:none"></div>
                 </div>
@@ -3851,7 +3852,7 @@ const Views = {
                 labels: cats,
                 datasets: [
                     {
-                        label: '目前掌握度',
+                        label: i18n.t('mb.currentMastery'),
                         data: radar.mastery || [],
                         backgroundColor: 'rgba(0, 102, 51, 0.1)',
                         borderColor: '#006633',
@@ -3860,7 +3861,7 @@ const Views = {
                         pointRadius: 3,
                     },
                     {
-                        label: '上次',
+                        label: i18n.t('mb.prevMastery'),
                         data: radar.prev_mastery || [],
                         backgroundColor: 'rgba(180, 180, 180, 0.05)',
                         borderColor: '#ccc',
@@ -3947,7 +3948,7 @@ const Views = {
                         <span class="mb-kp-tag mb-kp-tag--${cls}">${mastery}%</span>
                         <span class="${trendCls}">${trendIcon}</span>
                     ` : '<span class="mb-tree-node__na">—</span>'}
-                    ${node.mistake_count > 0 ? `<span class="mb-tree-node__mistakes">錯${node.mistake_count}</span>` : ''}
+                    ${node.mistake_count > 0 ? `<span class="mb-tree-node__mistakes">${i18n.t('mb.mistakeCountTree', {count: node.mistake_count})}</span>` : ''}
                 </span>
             </div>`;
 
@@ -4015,16 +4016,16 @@ const Views = {
 
     _openQA(pointCode, pointName) {
         const overlay = document.getElementById('qaOverlay');
-        document.getElementById('qaTitle').textContent = `提問：${pointName}`;
+        document.getElementById('qaTitle').textContent = i18n.t('mb.askAbout', {name: pointName});
         overlay.dataset.pointCode = pointCode;
         overlay.dataset.pointName = pointName;
 
         const presets = document.getElementById('qaPresets');
         presets.innerHTML = [
-            '這個知識點的核心概念是什麼？',
-            '可以舉個簡單例子解釋嗎？',
-            '我要怎麼改善這個知識點？',
-            '有什麼常見錯誤需要注意？',
+            i18n.t('mb.qaHint1'),
+            i18n.t('mb.qaHint2'),
+            i18n.t('mb.qaHint3'),
+            i18n.t('mb.qaHint4'),
         ].map(q => `<button class="mb-qa-preset-btn" data-question="${UI.escapeHtml(q)}">${UI.escapeHtml(q)}</button>`).join('');
 
         presets.querySelectorAll('.mb-qa-preset-btn').forEach(btn => {
@@ -4050,7 +4051,7 @@ const Views = {
 
         const pointCode = overlay.dataset.pointCode;
         answerDiv.style.display = 'block';
-        answerDiv.innerHTML = `<div class="mb-qa-loading">AI 老師思考中...</div>`;
+        answerDiv.innerHTML = `<div class="mb-qa-loading">${i18n.t('mb.aiThinkingMsg')}</div>`;
         document.getElementById('qaPresets').style.display = 'none';
 
         const res = await API.askKnowledgeQA(pointCode, question);
@@ -4060,12 +4061,12 @@ const Views = {
             answer = answer.replace(/<\/?think>/gi, '').trim();
 
             answerDiv.innerHTML = `
-                <div class="mb-qa-q">你問：${UI.escapeHtml(question)}</div>
+                <div class="mb-qa-q">${i18n.t('mb.youAsked', {q: UI.escapeHtml(question)})}</div>
                 <div class="mb-qa-a">${UI.renderMath(answer)}</div>
-                <button class="mb-qa-again" onclick="document.getElementById('qaPresets').style.display='';document.getElementById('qaAnswer').style.display='none';document.getElementById('qaInput').value='';">繼續提問</button>
+                <button class="mb-qa-again" onclick="document.getElementById('qaPresets').style.display='';document.getElementById('qaAnswer').style.display='none';document.getElementById('qaInput').value='';">${i18n.t('mb.continueAsk')}</button>
             `;
         } else {
-            answerDiv.innerHTML = `<div class="mb-qa-a">抱歉，暫時無法回答，請稍後再試。</div>`;
+            answerDiv.innerHTML = `<div class="mb-qa-a">${i18n.t('mb.aiUnavailable')}</div>`;
         }
     },
 };
@@ -4094,10 +4095,10 @@ const Upload = {
 
     _renderPhotoUpload(container) {
         container.innerHTML = `
-            <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">拍照上傳錯題</h3>
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">${i18n.t('mb.uploadPhotoTitle')}</h3>
 
             <div style="margin-bottom:12px">
-                <label class="mb-ocr-confirm__label">科目</label>
+                <label class="mb-ocr-confirm__label">${i18n.t('mb.subjectLabel')}</label>
                 <select class="mb-select" id="uploadSubject">
                     ${(App.state.subjects || []).map(s =>
                         `<option value="${s.subject_code}">${s.display_name}</option>`
@@ -4106,21 +4107,21 @@ const Upload = {
             </div>
 
             <div style="margin-bottom:12px">
-                <label class="mb-ocr-confirm__label">題目類型</label>
+                <label class="mb-ocr-confirm__label">${i18n.t('mb.categoryLabel')}</label>
                 <select class="mb-select" id="uploadCategory"></select>
             </div>
 
             <div class="mb-upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                 <div class="mb-upload-zone__icon">${Icons.camera(40)}</div>
-                <div class="mb-upload-zone__text">點擊選擇照片或拖拽到此處</div>
-                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:4px">支持多張照片，JPG、PNG、HEIC，每張最大 10MB</div>
+                <div class="mb-upload-zone__text">${i18n.t('mb.clickOrDrag')}</div>
+                <div style="font-size:12px;color:var(--mb-text-tertiary);margin-top:4px">${i18n.t('mb.fileHint')}</div>
             </div>
             <input type="file" id="fileInput" accept="image/*,.heic,.heif" multiple style="display:none">
 
             <div id="uploadPreview" style="display:none;margin-top:12px">
                 <div id="previewGrid" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
                 <div id="previewFallback" style="display:none;padding:16px;background:var(--mb-brand-lighter);border-radius:8px;color:var(--mb-brand);font-size:13px;text-align:center;margin-top:8px">
-                    部分照片為 HEIC 格式無法預覽，上傳後會自動轉換
+                    ${i18n.t('mb.heicNote')}
                 </div>
             </div>
 
@@ -4128,7 +4129,7 @@ const Upload = {
 
             <button class="mb-btn mb-btn--primary mb-btn--full" id="uploadBtn" style="margin-top:16px;display:none"
                     onclick="Upload._doUpload()">
-                上傳並識別
+                ${i18n.t('mb.uploadAndRecognize')}
             </button>
         `;
 
@@ -4137,7 +4138,7 @@ const Upload = {
         const uploadCategoryEl = document.getElementById('uploadCategory');
         const _updateUploadCategories = () => {
             const subj = (App.state.subjects || []).find(s => s.subject_code === uploadSubjectEl.value);
-            const cats = (subj && subj.categories) || [{value:'其他', label:'其他'}];
+            const cats = (subj && subj.categories) || [{value: i18n.t('mb.categoryOther'), label: i18n.t('mb.categoryOther')}];
             uploadCategoryEl.innerHTML = cats.map(c =>
                 `<option value="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</option>`
             ).join('');
@@ -4224,7 +4225,7 @@ const Upload = {
 
         const btn = document.getElementById('uploadBtn');
         btn.disabled = true;
-        btn.textContent = '上傳中...';
+        btn.textContent = i18n.t('mb.uploading');
 
         const formData = new FormData();
         this._selectedFiles.forEach(f => formData.append('images', f));
@@ -4235,7 +4236,7 @@ const Upload = {
 
         if (res && res.success) {
             // Background processing — return immediately
-            UI.toast('已上傳，AI 正在背景識別分析...', 'info');
+            UI.toast(i18n.t('mb.uploaded'), 'info');
             this.close();
 
             // 直接在現有列表中插入「處理中」卡片，不重新加載整個頁面
@@ -4254,9 +4255,9 @@ const Upload = {
                         <div class="mb-mistake-item__content">
                             <div class="mb-mistake-item__top">
                                 <span class="mb-mistake-item__subject">${UI.subjectLabel(subject)}</span>
-                                <span class="mb-mistake-item__date">剛剛</span>
+                                <span class="mb-mistake-item__date">${i18n.t('mb.justNow')}</span>
                             </div>
-                            <div class="mb-mistake-item__question"><span class="mb-processing-pulse">AI 正在識別分析中...</span></div>
+                            <div class="mb-mistake-item__question"><span class="mb-processing-pulse">${i18n.t('mb.aiRecognizingBg')}</span></div>
                         </div>
                     </div>
                 `;
@@ -4266,7 +4267,7 @@ const Upload = {
                 const countEl = listEl.closest('.mb-list-section')?.querySelector('.mb-list-section__count');
                 if (countEl) {
                     const oldCount = parseInt(countEl.textContent) || 0;
-                    countEl.textContent = `${oldCount + 1} 題`;
+                    countEl.textContent = i18n.t('mb.items', {count: oldCount + 1});
                 }
 
                 // 啟動輪詢，等待後台處理完成後自動刷新
@@ -4276,9 +4277,9 @@ const Upload = {
                 App.navigate('home');
             }
         } else {
-            const errMsg = (res && res.detail) || '上傳失敗，請重試';
+            const errMsg = (res && res.detail) || i18n.t('mb.uploadFailed');
             btn.disabled = false;
-            btn.textContent = '上傳並識別';
+            btn.textContent = i18n.t('mb.uploadAndRecognize');
             UI.toast(errMsg, 'error');
         }
     },
@@ -4291,7 +4292,7 @@ const Upload = {
         const answer   = aEl ? aEl.value.trim() : (this._lastAnswer || '');
 
         if (!question || !answer) {
-            UI.toast('請填寫題目和答案', 'error');
+            UI.toast(i18n.t('mb.fillRequired'), 'error');
             return;
         }
 
@@ -4300,7 +4301,7 @@ const Upload = {
         this._lastAnswer = answer;
 
         const ocrDiv = document.getElementById('ocrResult');
-        ocrDiv.innerHTML = '<div class="mb-loading"><div class="mb-loading__spinner"></div>AI 分析中，預計需要 30-60 秒...</div>';
+        ocrDiv.innerHTML = `<div class="mb-loading"><div class="mb-loading__spinner"></div>${i18n.t('mb.aiAnalyzingTime')}</div>`;
 
         try {
             const controller = new AbortController();
@@ -4321,16 +4322,16 @@ const Upload = {
             const data = await res.json();
 
             if (res.ok && data.success) {
-                UI.toast('分析完成！', 'success');
+                UI.toast(i18n.t('mb.analysisComplete'), 'success');
                 this.close();
                 App.navigate('home');
             } else {
-                this._renderConfirmError(ocrDiv, mistakeId, `分析失敗: ${data.detail || '未知錯誤'}`);
+                this._renderConfirmError(ocrDiv, mistakeId, i18n.t('mb.analysisFailed', {msg: data.detail || i18n.t('mb.unknownError')}));
             }
         } catch (err) {
             const msg = err.name === 'AbortError'
-                ? '分析超時（3分鐘）'
-                : `網絡錯誤: ${err.message}`;
+                ? i18n.t('mb.analysisTimeout')
+                : i18n.t('mb.networkError', {msg: err.message});
             this._renderConfirmError(ocrDiv, mistakeId, msg);
         }
     },
@@ -4346,7 +4347,7 @@ const Upload = {
         const btn = document.getElementById('uploadBtn');
         btn.style.display = 'block';
         btn.disabled = false;
-        btn.textContent = '上傳並識別';
+        btn.textContent = i18n.t('mb.uploadAndRecognize');
     },
 
     /**
@@ -4359,11 +4360,11 @@ const Upload = {
                 <div class="mb-ocr-fail__msg">${UI.escapeHtml(message)}</div>
                 <button class="mb-btn mb-btn--primary mb-btn--full"
                         onclick="Upload._confirmOCR('${mistakeId}')">
-                    ${Icons.repeat(14)} 重新分析
+                    ${Icons.repeat(14)} ${i18n.t('mb.retryAnalysis')}
                 </button>
                 <button class="mb-btn mb-btn--full" style="margin-top:8px"
                         onclick="Upload._retryUpload()">
-                    重新上傳照片
+                    ${i18n.t('mb.retryUpload')}
                 </button>
             </div>
         `;
@@ -4371,10 +4372,10 @@ const Upload = {
 
     _renderManualInput(container) {
         container.innerHTML = `
-            <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">手動添加錯題</h3>
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:16px">${i18n.t('mb.manualAddTitle')}</h3>
 
             <div style="margin-bottom:12px">
-                <label class="mb-ocr-confirm__label">科目</label>
+                <label class="mb-ocr-confirm__label">${i18n.t('mb.subjectLabel')}</label>
                 <select class="mb-select" id="manualSubject">
                     ${(App.state.subjects || []).map(s =>
                         `<option value="${s.subject_code}">${s.display_name}</option>`
@@ -4383,22 +4384,22 @@ const Upload = {
             </div>
 
             <div style="margin-bottom:12px">
-                <label class="mb-ocr-confirm__label">題目類型</label>
+                <label class="mb-ocr-confirm__label">${i18n.t('mb.categoryLabel')}</label>
                 <select class="mb-select" id="manualCategory"></select>
             </div>
 
             <div style="margin-bottom:12px">
-                <label class="mb-ocr-confirm__label">題目</label>
-                <textarea class="mb-ocr-confirm__textarea" id="manualQuestion" placeholder="輸入題目內容"></textarea>
+                <label class="mb-ocr-confirm__label">${i18n.t('mb.questionSection')}</label>
+                <textarea class="mb-ocr-confirm__textarea" id="manualQuestion" placeholder="${i18n.t('mb.questionPlaceholder')}"></textarea>
             </div>
 
             <div style="margin-bottom:12px">
-                <label class="mb-ocr-confirm__label">我的（錯誤）答案</label>
-                <textarea class="mb-ocr-confirm__textarea" id="manualAnswer" placeholder="輸入你寫的答案"></textarea>
+                <label class="mb-ocr-confirm__label">${i18n.t('mb.myWrongAnswer')}</label>
+                <textarea class="mb-ocr-confirm__textarea" id="manualAnswer" placeholder="${i18n.t('mb.answerPlaceholder')}"></textarea>
             </div>
 
             <button class="mb-btn mb-btn--primary mb-btn--full" onclick="Upload._submitManual()">
-                添加並分析
+                ${i18n.t('mb.addAndAnalyze')}
             </button>
         `;
 
@@ -4407,7 +4408,7 @@ const Upload = {
         const manualCategoryEl = document.getElementById('manualCategory');
         const _updateManualCategories = () => {
             const subj = (App.state.subjects || []).find(s => s.subject_code === manualSubjectEl.value);
-            const cats = (subj && subj.categories) || [{value:'其他', label:'其他'}];
+            const cats = (subj && subj.categories) || [{value: i18n.t('mb.categoryOther'), label: i18n.t('mb.categoryOther')}];
             manualCategoryEl.innerHTML = cats.map(c =>
                 `<option value="${UI.escapeHtml(c.value)}">${UI.escapeHtml(c.label)}</option>`
             ).join('');
@@ -4423,7 +4424,7 @@ const Upload = {
         const answer = document.getElementById('manualAnswer').value.trim();
 
         if (!category || !question || !answer) {
-            UI.toast('請填寫所有字段', 'error');
+            UI.toast(i18n.t('mb.fillAllFields'), 'error');
             return;
         }
 
@@ -4431,9 +4432,9 @@ const Upload = {
 
         if (res && res.success) {
             const mistakeId = res.data.mistake_id;
-            UI.toast('已添加，AI 分析中...', 'info');
+            UI.toast(i18n.t('mb.added'), 'info');
             await API.confirmOCR(mistakeId, question, answer);
-            UI.toast('分析完成！', 'success');
+            UI.toast(i18n.t('mb.analysisComplete'), 'success');
             this.close();
             App.navigate('home');
         }
@@ -4454,12 +4455,12 @@ const Upload = {
                 container.innerHTML = structuredFallback;
             } else {
                 container.innerHTML = `<div class="mb-figure-desc">
-                    <div class="mb-figure-desc__title">幾何圖形描述 ${fWarn || ''}</div>
+                    <div class="mb-figure-desc__title">${i18n.t('mb.geoFigureDetail')} ${fWarn || ''}</div>
                     <div class="mb-figure-desc__item" style="color:#888;">
-                        已檢測到幾何圖形，結構化解析失敗。您仍可手動編輯題目文字。
+                        ${i18n.t('mb.geoParseFailNote')}
                     </div>
                     <details style="margin-top:4px;font-size:12px;color:#aaa;">
-                        <summary>開發者：查看原始資料</summary>
+                        <summary>${i18n.t('mb.geoRawData')}</summary>
                         <pre style="white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;background:#f5f5f5;padding:8px;border-radius:4px;font-size:11px;">${UI.escapeHtml(String(figJsonStr))}</pre>
                     </details>
                 </div>`;
@@ -4517,8 +4518,8 @@ const Upload = {
         const primaryObjs = objects.filter(o => o.type === 'point' || o.type === 'circle' || referencedIds.has(o.id));
         const secondaryObjs = objects.filter(o => o.type !== 'point' && o.type !== 'circle' && !referencedIds.has(o.id));
 
-        const typeMap = { point: '點', segment: '線段', line: '直線', ray: '射線',
-            angle: '角', circle: '圓', triangle: '△', polygon: '多邊形', line_segment: '線段' };
+        const typeMap = { point: i18n.t('mb.geoTypePoint'), segment: i18n.t('mb.geoTypeSegment'), line: i18n.t('mb.geoTypeLine'), ray: i18n.t('mb.geoTypeRay'),
+            angle: i18n.t('mb.geoTypeAngle'), circle: i18n.t('mb.geoTypeCircle'), triangle: i18n.t('mb.geoTypeTriangle'), polygon: i18n.t('mb.geoTypePolygon'), line_segment: i18n.t('mb.geoTypeSegment') };
 
         const objTags = primaryObjs.map(o => {
             const label = GeoDisplay.stripPrefix(o.label || o.id || '');
@@ -4544,14 +4545,14 @@ const Upload = {
                 : '';
             const source = m.source || '';
             const inferTag = source === 'inferred'
-                ? '<span class="mb-figure-desc__inferred-tag">（推斷）</span>' : '';
+                ? `<span class="mb-figure-desc__inferred-tag">${i18n.t('mb.geoInferred')}</span>` : '';
             return `<div class="mb-figure-editor__kv${source === 'inferred' ? ' mb-figure-desc__inferred' : ''}" data-meas-idx="${i}">
                 <span class="mb-figure-editor__kv-label">${UI.escapeHtml(target)}${prop && prop !== 'length' ? ' ' + prop : ''}</span>
                 <span class="mb-figure-editor__kv-eq">=</span>
                 <input class="mb-figure-editor__kv-input" type="text" value="${UI.escapeHtml(value)}" data-field="value">
                 ${source ? `<span class="mb-figure-editor__source">${source}</span>` : ''}
                 ${inferTag}
-                <button class="mb-figure-editor__del" onclick="Upload._removeMeasurement(${i})" title="刪除">×</button>
+                <button class="mb-figure-editor__del" onclick="Upload._removeMeasurement(${i})" title="${i18n.t('mb.deleteTitle')}">×</button>
             </div>`;
         };
 
@@ -4566,7 +4567,7 @@ const Upload = {
             return `<div class="mb-figure-editor__rel${inferClass}" data-rel-idx="${i}">
                 <span class="mb-figure-editor__rel-text">${UI.escapeHtml(desc)}</span>
                 ${source ? `<span class="mb-figure-editor__source">${source}</span>` : ''}
-                <button class="mb-figure-editor__del" onclick="Upload._removeRelationship(${i})" title="刪除">×</button>
+                <button class="mb-figure-editor__del" onclick="Upload._removeRelationship(${i})" title="${i18n.t('mb.deleteTitle')}">×</button>
             </div>`;
         }).join('');
 
@@ -4577,69 +4578,69 @@ const Upload = {
         ).join('');
         const known = (task.known_conditions || []).map(k =>
             UI.escapeHtml(GeoDisplay.cleanLatex(k))
-        ).join('；');
+        ).join(i18n.isEn ? '; ' : '；');
 
         // ---- raw JSON 折疊面板（僅供開發調試）----
         const rawJsonStr = JSON.stringify(fig, null, 2);
 
         container.innerHTML = `
             <div class="mb-figure-editor">
-                <div class="mb-figure-editor__header">幾何信息（可編輯） ${fWarn || ''}</div>
+                <div class="mb-figure-editor__header">${i18n.t('mb.geoEditorTitle')} ${fWarn || ''}</div>
 
                 ${objTags ? `<div class="mb-figure-editor__section">
-                    <div class="mb-figure-editor__section-title">幾何對象</div>
+                    <div class="mb-figure-editor__section-title">${i18n.t('mb.geoObjectsTitle')}</div>
                     <div class="mb-figure-editor__tags">${objTags}</div>
                     ${secondaryTags ? `<div class="mb-figure-editor__tags-toggle">
-                        <button class="mb-figure-editor__toggle-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'; this.textContent=this.textContent==='顯示全部對象'?'收起':'顯示全部對象'">顯示全部對象</button>
+                        <button class="mb-figure-editor__toggle-btn" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'flex':'none'; this.textContent=this.nextElementSibling.style.display==='none'?i18n.t('mb.geoShowAllObjects'):i18n.t('mb.geoCollapseObjects')">${i18n.t('mb.geoShowAllObjects')}</button>
                         <div class="mb-figure-editor__tags" style="display:none">${secondaryTags}</div>
                     </div>` : ''}
                 </div>` : ''}
 
                 ${relRows ? `<div class="mb-figure-editor__section">
-                    <div class="mb-figure-editor__section-title">關係</div>
+                    <div class="mb-figure-editor__section-title">${i18n.t('mb.geoRelationsTitle')}</div>
                     <div id="figRelationships">${relRows}</div>
                 </div>` : ''}
 
                 ${measRows ? `<div class="mb-figure-editor__section">
-                    <div class="mb-figure-editor__section-title">量測</div>
+                    <div class="mb-figure-editor__section-title">${i18n.t('mb.geoMeasurementsTitle')}</div>
                     <div id="figMeasurements">${measRows}</div>
                 </div>` : ''}
 
                 ${inferredRows ? `<div class="mb-figure-editor__section">
-                    <div class="mb-figure-editor__section-title">推斷</div>
+                    <div class="mb-figure-editor__section-title">${i18n.t('mb.geoInferredTitle')}</div>
                     ${inferredRows}
                 </div>` : ''}
 
                 <div class="mb-figure-editor__section">
-                    <button class="mb-figure-editor__add" onclick="Upload._showAddRelation()">+ 新增關係</button>
+                    <button class="mb-figure-editor__add" onclick="Upload._showAddRelation()">${i18n.t('mb.geoAddRelation')}</button>
                     <div id="figAddRelPanel" style="display:none">
                         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
                             <select id="figNewRelType" class="mb-figure-editor__select">
-                                <option value="parallel">平行 //</option>
-                                <option value="perpendicular">垂直 ⊥</option>
-                                <option value="midpoint">中點</option>
-                                <option value="congruent">全等 ≅</option>
-                                <option value="similar">相似 ∼</option>
-                                <option value="collinear">共線</option>
-                                <option value="ratio">比例</option>
-                                <option value="on_segment">在…上</option>
-                                <option value="bisector">平分</option>
+                                <option value="parallel">${i18n.t('mb.geoParallel')}</option>
+                                <option value="perpendicular">${i18n.t('mb.geoPerpendicular')}</option>
+                                <option value="midpoint">${i18n.t('mb.geoMidpointType')}</option>
+                                <option value="congruent">${i18n.t('mb.geoCongruent')}</option>
+                                <option value="similar">${i18n.t('mb.geoSimilar')}</option>
+                                <option value="collinear">${i18n.t('mb.geoCollinearType')}</option>
+                                <option value="ratio">${i18n.t('mb.geoRatio')}</option>
+                                <option value="on_segment">${i18n.t('mb.geoOnSegmentType')}</option>
+                                <option value="bisector">${i18n.t('mb.geoBisectorType')}</option>
                             </select>
-                            <input id="figNewRelA" class="mb-figure-editor__input" placeholder="對象1 (如 S_AB)" style="width:80px">
-                            <input id="figNewRelB" class="mb-figure-editor__input" placeholder="對象2 (如 S_CD)" style="width:80px">
-                            <button class="mb-btn mb-btn--sm mb-btn--primary" onclick="Upload._addRelation()">添加</button>
+                            <input id="figNewRelA" class="mb-figure-editor__input" placeholder="${i18n.t('mb.geoObject1Placeholder')}" style="width:80px">
+                            <input id="figNewRelB" class="mb-figure-editor__input" placeholder="${i18n.t('mb.geoObject2Placeholder')}" style="width:80px">
+                            <button class="mb-btn mb-btn--sm mb-btn--primary" onclick="Upload._addRelation()">${i18n.t('mb.geoAddBtn')}</button>
                         </div>
                     </div>
                 </div>
 
                 ${known || goals ? `<div class="mb-figure-editor__section">
-                    <div class="mb-figure-editor__section-title">任務</div>
-                    ${known ? `<div style="font-size:12px;color:var(--mb-text-secondary)">已知：${known}</div>` : ''}
-                    ${goals ? `<div style="font-size:12px;margin-top:4px">求：${goals}</div>` : ''}
+                    <div class="mb-figure-editor__section-title">${i18n.t('mb.geoTaskTitle')}</div>
+                    ${known ? `<div style="font-size:12px;color:var(--mb-text-secondary)">${i18n.t('mb.geoKnown')}${known}</div>` : ''}
+                    ${goals ? `<div style="font-size:12px;margin-top:4px">${i18n.t('mb.geoGoals')}${goals}</div>` : ''}
                 </div>` : ''}
 
                 <div class="mb-figure-editor__section">
-                    <button class="mb-figure-editor__toggle-btn" onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none';this.textContent=p.style.display==='none'?'查看原始 JSON':'收起 JSON'">查看原始 JSON</button>
+                    <button class="mb-figure-editor__toggle-btn" onclick="const p=this.nextElementSibling;p.style.display=p.style.display==='none'?'block':'none';this.textContent=p.style.display==='none'?i18n.t('mb.geoViewRawJson'):i18n.t('mb.geoCollapseJson')">${i18n.t('mb.geoViewRawJson')}</button>
                     <pre style="display:none;font-size:11px;line-height:1.4;max-height:200px;overflow:auto;background:rgba(0,0,0,0.03);padding:8px;border-radius:4px;margin-top:4px;white-space:pre-wrap;word-break:break-all">${UI.escapeHtml(rawJsonStr)}</pre>
                 </div>
             </div>
@@ -4682,7 +4683,7 @@ const Upload = {
         const a = document.getElementById('figNewRelA').value.trim();
         const b = document.getElementById('figNewRelB').value.trim();
 
-        if (!a) { UI.toast('請填寫對象1', 'error'); return; }
+        if (!a) { UI.toast(i18n.t('mb.geoFillObject1'), 'error'); return; }
 
         const directedTypes = ['midpoint', 'on_segment', 'bisector'];
         let newRel;
@@ -4691,7 +4692,7 @@ const Upload = {
             newRel = { type, points: [a, b].filter(Boolean), source: 'question_text' };
         } else if (type === 'ratio') {
             // 對象1 填 ref (如 S_DI)，對象2 填比例值 (如 3:2)
-            if (!b) { UI.toast('請填寫比例值 (如 3:2)', 'error'); return; }
+            if (!b) { UI.toast(i18n.t('mb.geoFillRatio'), 'error'); return; }
             const parts = b.split(':').map(s => parseInt(s.trim()));
             const value = parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])
                 ? { left: parts[0], right: parts[1] } : b;
@@ -4699,7 +4700,7 @@ const Upload = {
         } else if (directedTypes.includes(type)) {
             newRel = { type, subject: a, [type === 'midpoint' ? 'of' : 'target']: b, source: 'question_text' };
         } else {
-            if (!b) { UI.toast('請填寫對象2', 'error'); return; }
+            if (!b) { UI.toast(i18n.t('mb.geoFillObject2'), 'error'); return; }
             newRel = { type, entities: [a, b], source: 'question_text' };
         }
 
