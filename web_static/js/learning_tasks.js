@@ -76,17 +76,19 @@ const TasksAPI = {
 
 const TasksUI = {
 
-    TAG_LABELS: {
-        video: '視頻', doc: '文檔', cert: '認證',
-        practice: '練習', website: '網站'
+    get TAG_LABELS() {
+        return {
+            video: i18n.t('lt.tagVideo'), doc: i18n.t('lt.tagDoc'), cert: i18n.t('lt.tagCert'),
+            practice: i18n.t('lt.tagPractice'), website: i18n.t('lt.tagWebsite')
+        };
     },
 
     renderTasks(tasks, currentStatus) {
         const taskList = document.getElementById('taskList');
 
         if (!tasks || tasks.length === 0) {
-            const emptyText = currentStatus === 'completed' ? '尚無已完成任務' :
-                              currentStatus === 'pending' ? '尚無待完成任務' : '尚無任務';
+            const emptyText = currentStatus === 'completed' ? i18n.t('lt.emptyCompleted') :
+                              currentStatus === 'pending' ? i18n.t('lt.emptyPending') : i18n.t('lt.emptyAll');
             taskList.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">📋</div>
@@ -112,7 +114,7 @@ const TasksUI = {
                 </div>
                 <div class="task-progress-section">
                     <div class="task-progress-text">
-                        ${task.completed_items}/${task.total_items} 已完成
+                        ${task.completed_items}/${task.total_items} ${i18n.t('lt.completed')}
                     </div>
                     <div class="progress-bar-container">
                         <div class="progress-bar-fill" style="width: ${task.total_items > 0 ? (task.completed_items / task.total_items * 100) : 0}%"></div>
@@ -127,7 +129,7 @@ const TasksUI = {
                     </div>
                     <div class="completion-badge" id="badge-${task.id}">
                         <span class="completion-checkmark">✓</span>
-                        <span>全部完成</span>
+                        <span>${i18n.t('lt.allDone')}</span>
                     </div>
                 </div>
             </div>
@@ -154,7 +156,7 @@ const TasksUI = {
                     ${item.tag ? `<span class="task-item-tag ${item.tag}">${this.TAG_LABELS[item.tag] || item.tag}</span>` : ''}
                     ${item.link_url ? `
                         <a href="${Utils.escapeHtml(item.link_url)}" target="_blank" rel="noopener noreferrer"
-                           class="task-item-link" title="${Utils.escapeHtml(item.link_label || '打開連結')}">↗</a>` : ''}
+                           class="task-item-link" title="${Utils.escapeHtml(item.link_label || i18n.t('lt.openLink'))}">↗</a>` : ''}
                 </div>
             </div>
         `).join('');
@@ -201,7 +203,7 @@ const TasksUI = {
         const progressText = card.querySelector('.task-progress-text');
 
         if (progressBar) progressBar.style.width = percent + '%';
-        if (progressText) progressText.textContent = `${completedItems}/${totalItems} 已完成`;
+        if (progressText) progressText.textContent = `${completedItems}/${totalItems} ${i18n.t('lt.completed')}`;
     },
 
     playCelebration(element) {
@@ -240,7 +242,7 @@ const TasksUI = {
 
     _formatDate(dateStr) {
         const date = new Date(dateStr);
-        return date.toLocaleDateString('zh-HK', {
+        return date.toLocaleDateString(i18n.isEn ? 'en-US' : 'zh-HK', {
             month: '2-digit', day: '2-digit',
             hour: '2-digit', minute: '2-digit'
         });
@@ -261,6 +263,7 @@ const TasksApp = {
     },
 
     async init() {
+        i18n.applyDOM();
         this._bindEvents();
         await this._loadTasks();
         await this._loadProgress();
@@ -306,7 +309,7 @@ const TasksApp = {
     async _loadTasks(status = '') {
         const result = await TasksAPI.fetchTasks(status);
         if (!result) {
-            TasksUI.showError('API 請求失敗，請重試');
+            TasksUI.showError(i18n.t('lt.errorApi'));
             return;
         }
         if (result.success) {
@@ -314,7 +317,7 @@ const TasksApp = {
             TasksUI.updateTaskCounts(this.state.tasks);
             TasksUI.renderTasks(this.state.tasks, this.state.currentStatus);
         } else {
-            TasksUI.showError('加載任務失敗');
+            TasksUI.showError(i18n.t('lt.errorLoad'));
         }
     },
 
@@ -363,7 +366,7 @@ const TasksApp = {
             // Revert on failure
             checkbox.checked = !checkbox.checked;
             itemElement.classList.toggle('completed');
-            UIModule.toast('更新失敗，請重試', 'error');
+            UIModule.toast(i18n.t('lt.errorUpdate'), 'error');
             return;
         }
 
