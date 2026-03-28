@@ -132,13 +132,15 @@ def create_app() -> FastAPI:
             from app.services import get_services
             from llm.services.qa_service import ask_ai_subject
             from llm.services.streaming import stream_ai_subject
+            from app.domains.notice.docx_builder import build_notice_docx
 
             services = get_services()
             services.inject_ai_functions(
                 ask_ai=ask_ai_subject,
                 ask_ai_stream=stream_ai_subject,
+                build_document=build_notice_docx,
             )
-            logger.info("AI 函数已注入服务容器 (ask_ai + stream)")
+            logger.info("AI 函数已注入服务容器 (ask_ai + stream + build_document)")
         except Exception as e:
             logger.warning("AI 函数注入失败（AI 对话功能将不可用）: %s", e)
 

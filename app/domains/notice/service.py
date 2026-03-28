@@ -239,7 +239,11 @@ class NoticeService:
         if self._build_document:
             try:
                 file_path = self._build_document(
-                    session_id, final_title, content, ref_no,
+                    session_id=session_id,
+                    title=final_title,
+                    content=content,
+                    ref_no=ref_no,
+                    notice_type=session.get("notice_type", "general"),
                 )
                 return {"file_path": file_path, "filename": f"{final_title}.docx"}
             except Exception as e:
@@ -434,8 +438,9 @@ class NoticeService:
                 )
 
                 if "[NOTICE_READY]" in response:
-                    # 信息足够，生成通知
-                    content = response.replace("[NOTICE_READY]", "").strip()
+                    # 信息足够，提取纯通告内容（去除 AI 对话性文字）
+                    content = response.split("[NOTICE_READY]", 1)[-1].strip()
+                    content = self._extract_notice_body(content)
                     content = self._clean_notice_content(content)
                     session["generated_content"] = content
                     session["stage"] = STAGE_CONFIRMING
@@ -610,6 +615,45 @@ class NoticeService:
             fields["location"] = place_match.group(1)
 
         return fields
+
+    @staticmethod
+    def _extract_notice_body(content: str) -> str:
+        """从 AI 回复中提取纯通告正文，去除对话性文字"""
+        lines = content.split('\n')
+        # 找到通告正文的起始位置（标题行或「敬啟者」）
+        start_idx = 0
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if ('通知' in stripped or '通告' in stripped) and len(stripped) < 30:
+                start_idx = i
+                break
+            if '敬啟者' in stripped or '敬启者' in stripped:
+                start_idx = i
+                break
+            if stripped.startswith('【') and '】' in stripped:
+                start_idx = i
+                break
+
+        # 找到通告正文的结束位置（日期行之后）
+        end_idx = len(lines)
+        for i in range(len(lines) - 1, start_idx, -1):
+            stripped = lines[i].strip()
+            if stripped:
+                # 如果是日期行或签名行，这是正文的最后一行
+                if '二零' in stripped or '校長' in stripped or '家長' in stripped:
+                    end_idx = i + 1
+                    break
+                # 如果是 AI 对话性结尾（如"希望..."、"如果需要..."），跳过
+                if any(kw in stripped for kw in ['希望', '如果需要', '随时', '隨時', '😊', '✨', '🎉', '📝']):
+                    continue
+                end_idx = i + 1
+                break
+
+        # 去除 markdown 分隔线 (---) 包裹
+        result_lines = lines[start_idx:end_idx]
+        result_lines = [l for l in result_lines if l.strip() not in ('---', '===', '***', '```')]
+
+        return '\n'.join(result_lines).strip()
 
     @staticmethod
     def _clean_notice_content(content: str) -> str:
