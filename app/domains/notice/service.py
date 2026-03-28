@@ -438,10 +438,21 @@ class NoticeService:
                     conversation_history=[],
                 )
 
-                if "[NOTICE_READY]" in response:
+                # 判断是否包含完整通告内容
+                has_marker = "[NOTICE_READY]" in response
+                # 后备检测：即使没有标记，检查是否包含通告特征
+                has_notice_pattern = (
+                    ('敬啟者' in response or '敬启者' in response)
+                    and ('此致' in response)
+                )
+
+                if has_marker or has_notice_pattern:
                     # 信息足够，提取纯通告内容（去除 AI 对话性文字）
-                    content = response.split("[NOTICE_READY]", 1)[-1].strip()
-                    content = self._extract_notice_body(content)
+                    if has_marker:
+                        raw = response.split("[NOTICE_READY]", 1)[-1].strip()
+                    else:
+                        raw = response
+                    content = self._extract_notice_body(raw)
                     content = self._clean_notice_content(content)
                     session["generated_content"] = content
                     session["stage"] = STAGE_CONFIRMING
@@ -522,7 +533,8 @@ class NoticeService:
                     conversation_history=[],
                 )
 
-                content = self._clean_notice_content(response)
+                content = self._extract_notice_body(response)
+                content = self._clean_notice_content(content)
                 session["generated_content"] = content
 
                 return {
