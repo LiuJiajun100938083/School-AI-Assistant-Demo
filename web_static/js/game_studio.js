@@ -389,20 +389,41 @@ const GameStudio = (() => {
         if (btn) btn.disabled = !state.code.trim();
     }
 
-    /** 生成班級 checkbox（中一~中六 × A~D） */
-    function _generateClassCheckboxes() {
+    /** 從數據庫加載班級列表並生成 checkbox */
+    async function _generateClassCheckboxes() {
         const container = document.getElementById('classCheckboxes');
-        if (!container) return;
-        const grades = ['中一', '中二', '中三', '中四', '中五', '中六'];
-        const classes = ['A', 'B', 'C', 'D'];
-        let html = '';
-        for (const g of grades) {
-            for (const c of classes) {
-                const val = `${g}${c}`;
-                html += `<label><input type="checkbox" name="visible_to" value="${val}"> ${val}</label>`;
+        const section = document.getElementById('classSelectSection');
+        if (!container || !section) return;
+
+        try {
+            const token = localStorage.getItem('auth_token');
+            const resp = await fetch('/api/classroom/classes', {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            // API 返回 {success, data: {grades: {"中一": ["A","B",...], ...}}}
+            const grades = data.data?.grades || data.grades || {};
+            const allClasses = [];
+            for (const [grade, classList] of Object.entries(grades)) {
+                for (const cls of classList) {
+                    allClasses.push(`${grade}${cls}`);
+                }
             }
+
+            if (allClasses.length === 0) {
+                // 數據庫沒有班級，隱藏班級選擇區
+                section.dataset.noClasses = 'true';
+                return;
+            }
+
+            container.innerHTML = allClasses.map(c =>
+                `<label><input type="checkbox" name="visible_to" value="${c}"> ${c}</label>`
+            ).join('');
+        } catch {
+            // 靜默失敗，班級選擇不可用
         }
-        container.innerHTML = html;
     }
 
     function _escapeHtml(text) {
@@ -479,8 +500,8 @@ const GameStudio = (() => {
                 visControl.querySelectorAll('.gs-visibility__btn').forEach(b => b.classList.remove('gs-visibility__btn--active'));
                 btn.classList.add('gs-visibility__btn--active');
                 if (visHint) visHint.textContent = VIS_HINTS[btn.dataset.value] || '';
-                // 公開時顯示班級選擇
-                if (classSection) {
+                // 公開時顯示班級選擇（僅數據庫有班級時）
+                if (classSection && classSection.dataset.noClasses !== 'true') {
                     classSection.style.display = btn.dataset.value === 'public' ? 'block' : 'none';
                 }
             });
