@@ -6,6 +6,9 @@
     <title>遊戲工作室 - 校園AI助手</title>
     <script src="/static/js/shared/theme.js"></script>
     <link rel="stylesheet" href="/static/css/game_upload.css">
+    <!-- 代碼高亮 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
     <div class="gs-page">
@@ -119,6 +122,30 @@
                         <label><input type="checkbox" name="difficulty" value="中五"> 中五</label>
                         <label><input type="checkbox" name="difficulty" value="中六"> 中六</label>
                     </div>
+
+                    <label class="gs-form__label">搜索標籤</label>
+                    <input type="text" id="modalGameTags" class="gs-form__input" placeholder="用逗號分隔（如：歷史,策略,互動）">
+
+                    <!-- 可見性設定 -->
+                    <div class="gs-form__divider"></div>
+                    <label class="gs-form__label">👁️ 可見性設定</label>
+
+                    <div class="gs-form__toggle">
+                        <label class="gs-toggle">
+                            <input type="checkbox" id="modalTeacherOnly">
+                            <span class="gs-toggle__slider"></span>
+                        </label>
+                        <span>僅教師/管理員可見</span>
+                    </div>
+
+                    <div class="gs-form__toggle" id="modalPublicSection">
+                        <label class="gs-toggle">
+                            <input type="checkbox" id="modalIsPublic">
+                            <span class="gs-toggle__slider"></span>
+                        </label>
+                        <span id="modalVisibilityLabel">僅自己可見</span>
+                    </div>
+                    <div class="gs-form__hint">公開後學生可以在遊戲中心看到並遊玩</div>
                 </div>
                 <div class="gs-modal__footer">
                     <button id="modalCancelBtn" class="gs-btn gs-btn--secondary">取消</button>

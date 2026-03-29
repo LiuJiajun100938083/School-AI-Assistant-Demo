@@ -164,6 +164,66 @@ body {
     font-style: italic;
 }
 
+/* 代碼塊（深色背景 + 語法高亮） */
+.gs-code-block {
+    margin: 8px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #1e1e2e;
+    border: 1px solid #313244;
+}
+.gs-code-block__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: #181825;
+    border-bottom: 1px solid #313244;
+}
+.gs-code-block__lang {
+    font-size: 11px;
+    font-weight: 600;
+    color: #a6adc8;
+    letter-spacing: 0.5px;
+}
+.gs-code-block__copy {
+    border: none;
+    background: transparent;
+    color: #a6adc8;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+.gs-code-block__copy:hover {
+    background: #313244;
+    color: #cdd6f4;
+}
+.gs-code-block pre {
+    margin: 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.gs-code-block code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    tab-size: 2;
+}
+/* AI 消息中的代碼塊寬度佔滿 */
+.gs-msg--ai .gs-code-block {
+    margin-left: -14px;
+    margin-right: -14px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+}
+.gs-msg--ai {
+    max-width: 95%;
+}
+
 /* Chat Input */
 .gs-chat__input {
     display: flex;
@@ -398,6 +458,60 @@ body {
     color: var(--gs-brand);
 }
 .gs-form__checkboxes input { display: none; }
+
+/* 分隔線 */
+.gs-form__divider {
+    height: 1px;
+    background: var(--gs-border);
+    margin: 18px 0 6px;
+}
+
+/* Toggle 開關 */
+.gs-form__toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    font-size: 14px;
+}
+.gs-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+.gs-toggle input { display: none; }
+.gs-toggle__slider {
+    position: absolute;
+    inset: 0;
+    background: #d1d5db;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.gs-toggle__slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.gs-toggle input:checked + .gs-toggle__slider {
+    background: var(--gs-brand);
+}
+.gs-toggle input:checked + .gs-toggle__slider::after {
+    transform: translateX(20px);
+}
+.gs-form__hint {
+    font-size: 12px;
+    color: var(--gs-text-tertiary);
+    margin: 4px 0 0 54px;
+}
 
 /* ── Buttons ── */
 .gs-btn {

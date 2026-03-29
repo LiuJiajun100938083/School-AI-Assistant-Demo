@@ -200,6 +200,47 @@ const GameStudio = (() => {
     // 組件：ChatPanel 渲染
     // ════════════════════════════════════════════════════
 
+    /**
+     * 格式化聊天消息內容：
+     * - 檢測 ```html ... ``` 代碼塊 → 深色背景 + 語法高亮
+     * - 普通文本 → 換行處理
+     */
+    function _formatMessageContent(text) {
+        if (!text) return '';
+        // 分割代碼塊和普通文本
+        const parts = text.split(/(```[\s\S]*?```)/g);
+        return parts.map(part => {
+            if (part.startsWith('```')) {
+                // 提取語言和代碼
+                const match = part.match(/^```(\w*)\n?([\s\S]*?)```$/);
+                if (match) {
+                    const lang = match[1] || 'html';
+                    const code = match[2].trim();
+                    // 用 highlight.js 高亮
+                    let highlighted;
+                    if (typeof hljs !== 'undefined') {
+                        try {
+                            highlighted = hljs.highlight(code, { language: lang }).value;
+                        } catch {
+                            highlighted = _escapeHtml(code);
+                        }
+                    } else {
+                        highlighted = _escapeHtml(code);
+                    }
+                    return `<div class="gs-code-block">
+                        <div class="gs-code-block__header">
+                            <span class="gs-code-block__lang">${lang.toUpperCase()}</span>
+                            <button class="gs-code-block__copy" onclick="navigator.clipboard.writeText(this.closest('.gs-code-block').querySelector('code').textContent)">📋 複製</button>
+                        </div>
+                        <pre><code class="hljs language-${lang}">${highlighted}</code></pre>
+                    </div>`;
+                }
+            }
+            // 普通文本
+            return _escapeHtml(part).replace(/\n/g, '<br>');
+        }).join('');
+    }
+
     function _renderMessages() {
         const container = document.getElementById('chatMessages');
         container.innerHTML = state.messages.map((m, i) => {
@@ -207,9 +248,10 @@ const GameStudio = (() => {
                       : m.role === 'assistant' ? 'gs-msg--ai'
                       : 'gs-msg--system';
             const label = m.role === 'user' ? '你' : m.role === 'assistant' ? 'AI' : '系統';
+            const body = _formatMessageContent(m.content) || (state.generating && i === state.messages.length - 1 ? '<span class="gs-typing">思考中...</span>' : '');
             return `<div class="gs-msg ${cls}">
                 <span class="gs-msg__label">${label}</span>
-                <div class="gs-msg__body">${_escapeHtml(m.content) || (state.generating && i === state.messages.length - 1 ? '<span class="gs-typing">思考中...</span>' : '')}</div>
+                <div class="gs-msg__body">${body}</div>
             </div>`;
         }).join('');
         container.scrollTop = container.scrollHeight;
@@ -221,7 +263,7 @@ const GameStudio = (() => {
         if (last) {
             const body = last.querySelector('.gs-msg__body');
             const lastMsg = state.messages[state.messages.length - 1];
-            body.innerHTML = _escapeHtml(lastMsg.content).replace(/\n/g, '<br>');
+            body.innerHTML = _formatMessageContent(lastMsg.content);
         }
         document.getElementById('chatMessages').scrollTop = 999999;
     }
@@ -266,10 +308,18 @@ const GameStudio = (() => {
         const grades = [];
         modal.querySelectorAll('input[name="difficulty"]:checked').forEach(cb => grades.push(cb.value));
         formData.append('difficulty', JSON.stringify(grades));
-        formData.append('tags', JSON.stringify([]));
-        formData.append('is_public', 'false');
+
+        // 標籤
+        const tagsRaw = (modal.querySelector('#modalGameTags')?.value || '').trim();
+        const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
+        formData.append('tags', JSON.stringify(tags));
+
+        // 可見性
+        const teacherOnly = modal.querySelector('#modalTeacherOnly')?.checked || false;
+        const isPublic = modal.querySelector('#modalIsPublic')?.checked || false;
+        formData.append('teacher_only', teacherOnly.toString());
+        formData.append('is_public', isPublic.toString());
         formData.append('visible_to', '[]');
-        formData.append('teacher_only', 'false');
 
         try {
             const url = state.editUUID ? `/api/games/${state.editUUID}` : '/api/games/upload';
@@ -395,6 +445,22 @@ const GameStudio = (() => {
                 opt.classList.add('selected');
             });
         });
+
+        // 可見性 toggle 聯動
+        const teacherOnlyCb = document.getElementById('modalTeacherOnly');
+        const publicSection = document.getElementById('modalPublicSection');
+        const publicCb = document.getElementById('modalIsPublic');
+        const visLabel = document.getElementById('modalVisibilityLabel');
+        if (teacherOnlyCb && publicSection) {
+            teacherOnlyCb.addEventListener('change', () => {
+                publicSection.style.display = teacherOnlyCb.checked ? 'none' : 'flex';
+            });
+        }
+        if (publicCb && visLabel) {
+            publicCb.addEventListener('change', () => {
+                visLabel.textContent = publicCb.checked ? '所有學生可見' : '僅自己可見';
+            });
+        }
 
         // Dirty check — 離開提示
         window.addEventListener('beforeunload', (e) => {
