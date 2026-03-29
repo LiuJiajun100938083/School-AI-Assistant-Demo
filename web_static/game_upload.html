@@ -128,24 +128,13 @@
 
                     <!-- 可見性設定 -->
                     <div class="gs-form__divider"></div>
-                    <label class="gs-form__label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> 可見性設定</label>
-
-                    <div class="gs-form__toggle">
-                        <label class="gs-toggle">
-                            <input type="checkbox" id="modalTeacherOnly">
-                            <span class="gs-toggle__slider"></span>
-                        </label>
-                        <span>僅教師/管理員可見</span>
+                    <label class="gs-form__label">可見性</label>
+                    <div class="gs-visibility" id="visibilityControl">
+                        <button type="button" class="gs-visibility__btn gs-visibility__btn--active" data-value="private">僅自己可見</button>
+                        <button type="button" class="gs-visibility__btn" data-value="public">公開給學生</button>
+                        <button type="button" class="gs-visibility__btn" data-value="teacher">僅教師可見</button>
                     </div>
-
-                    <div class="gs-form__toggle" id="modalPublicSection">
-                        <label class="gs-toggle">
-                            <input type="checkbox" id="modalIsPublic">
-                            <span class="gs-toggle__slider"></span>
-                        </label>
-                        <span id="modalVisibilityLabel">僅自己可見</span>
-                    </div>
-                    <div class="gs-form__hint">公開後學生可以在遊戲中心看到並遊玩</div>
+                    <div class="gs-form__hint" id="visibilityHint">只有你自己能看到這個遊戲</div>
                 </div>
                 <div class="gs-modal__footer">
                     <button id="modalCancelBtn" class="gs-btn gs-btn--secondary">取消</button>

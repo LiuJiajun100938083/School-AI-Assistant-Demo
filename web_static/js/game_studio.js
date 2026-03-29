@@ -314,11 +314,10 @@ const GameStudio = (() => {
         const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
         formData.append('tags', JSON.stringify(tags));
 
-        // 可見性
-        const teacherOnly = modal.querySelector('#modalTeacherOnly')?.checked || false;
-        const isPublic = modal.querySelector('#modalIsPublic')?.checked || false;
-        formData.append('teacher_only', teacherOnly.toString());
-        formData.append('is_public', isPublic.toString());
+        // 可見性（分段按鈕）
+        const visValue = modal.querySelector('.gs-visibility__btn--active')?.dataset.value || 'private';
+        formData.append('is_public', (visValue === 'public').toString());
+        formData.append('teacher_only', (visValue === 'teacher').toString());
         formData.append('visible_to', '[]');
 
         try {
@@ -446,19 +445,21 @@ const GameStudio = (() => {
             });
         });
 
-        // 可見性 toggle 聯動
-        const teacherOnlyCb = document.getElementById('modalTeacherOnly');
-        const publicSection = document.getElementById('modalPublicSection');
-        const publicCb = document.getElementById('modalIsPublic');
-        const visLabel = document.getElementById('modalVisibilityLabel');
-        if (teacherOnlyCb && publicSection) {
-            teacherOnlyCb.addEventListener('change', () => {
-                publicSection.style.display = teacherOnlyCb.checked ? 'none' : 'flex';
-            });
-        }
-        if (publicCb && visLabel) {
-            publicCb.addEventListener('change', () => {
-                visLabel.textContent = publicCb.checked ? '所有學生可見' : '僅自己可見';
+        // 可見性分段按鈕
+        const visControl = document.getElementById('visibilityControl');
+        const visHint = document.getElementById('visibilityHint');
+        const VIS_HINTS = {
+            private: '只有你自己能看到這個遊戲',
+            public: '所有學生可以在遊戲中心看到並遊玩',
+            teacher: '只有教師和管理員可以看到',
+        };
+        if (visControl) {
+            visControl.addEventListener('click', (e) => {
+                const btn = e.target.closest('.gs-visibility__btn');
+                if (!btn) return;
+                visControl.querySelectorAll('.gs-visibility__btn').forEach(b => b.classList.remove('gs-visibility__btn--active'));
+                btn.classList.add('gs-visibility__btn--active');
+                if (visHint) visHint.textContent = VIS_HINTS[btn.dataset.value] || '';
             });
         }
 
