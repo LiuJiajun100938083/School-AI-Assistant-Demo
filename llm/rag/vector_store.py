@@ -33,12 +33,12 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 
 def get_embedding():
-    """獲取 embedding 實例（延遲加載）"""
+    """獲取 embedding 實例（延遲加載）。已切換為 Qwen text-embedding-v4 API。"""
     global _embedding
     if _embedding is None:
-        from langchain_huggingface import HuggingFaceEmbeddings
-        _embedding = HuggingFaceEmbeddings(model_name='GanymedeNil/text2vec-large-chinese')
-        logger.info("✅ Embedding 模型加載完成")
+        from app.infrastructure.ai_pipeline.embedding import QwenLangChainEmbeddings
+        _embedding = QwenLangChainEmbeddings()
+        logger.info("✅ Embedding 已切換為 Qwen text-embedding-v4")
     return _embedding
 
 

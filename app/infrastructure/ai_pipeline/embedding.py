@@ -77,3 +77,53 @@ class QwenEmbeddingProvider(EmbeddingProvider):
 
 # 單例：業務代碼直接 import 使用，不需要手動實例化
 default_embedding_provider: EmbeddingProvider = QwenEmbeddingProvider()
+
+
+# ==================== LangChain 兼容包裝 ====================
+
+class QwenLangChainEmbeddings:
+    """
+    LangChain Embeddings 接口的同步實現，供 ChromaDB 使用。
+
+    LangChain 的 Chroma 在索引和查詢時都會調用此類：
+    - embed_documents(): 索引文檔 chunk 時批量調用
+    - embed_query(): 查詢時單個調用
+
+    使用同步 httpx（非 async），避免在 LangChain 內部出現 event loop 衝突。
+    """
+
+    MODEL = "text-embedding-v4"
+    DIMENSIONS = 1024
+
+    def _call_api(self, texts: list) -> list:
+        import httpx
+        from app.config.settings import get_settings
+
+        cfg = get_settings().llm
+        if not cfg.api_key:
+            raise RuntimeError("LLM_API_KEY 未配置，無法調用 Embedding API")
+
+        with httpx.Client(timeout=60) as client:
+            resp = client.post(
+                f"{cfg.api_base_url}/embeddings",
+                headers={
+                    "Authorization": f"Bearer {cfg.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.MODEL,
+                    "input": texts,
+                    "dimensions": self.DIMENSIONS,
+                },
+            )
+            resp.raise_for_status()
+            items = sorted(resp.json()["data"], key=lambda x: x["index"])
+            return [item["embedding"] for item in items]
+
+    def embed_documents(self, texts: list) -> list:
+        """批量向量化文檔（LangChain 索引時調用）"""
+        return self._call_api(texts)
+
+    def embed_query(self, text: str) -> list:
+        """單個查詢向量化（LangChain 檢索時調用）"""
+        return self._call_api([text])[0]
