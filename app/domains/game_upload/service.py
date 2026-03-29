@@ -819,7 +819,13 @@ class GameUploadService:
                             continue
 
         except httpx.HTTPStatusError as e:
-            logger.error("AI 遊戲生成 HTTP 錯誤: %s %s", e.response.status_code, e.response.text[:200])
+            # 流式響應下 .text 不可直接訪問，需先 aread()
+            try:
+                await e.response.aread()
+                body_preview = e.response.text[:200]
+            except Exception:
+                body_preview = "(unable to read body)"
+            logger.error("AI 遊戲生成 HTTP 錯誤: %s %s", e.response.status_code, body_preview)
             yield self._sse_event("error", {"message": f"AI 服務返回錯誤 ({e.response.status_code})"})
             return
         except Exception as e:
