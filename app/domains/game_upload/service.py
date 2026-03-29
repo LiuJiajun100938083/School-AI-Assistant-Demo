@@ -788,11 +788,11 @@ class GameUploadService:
                 "Authorization": f"Bearer {config.api_key}",
                 "Content-Type": "application/json",
             }
+            # deepseek-reasoner 不支持 temperature/top_p 等參數
             payload = {
                 "model": GAME_GENERATION_MODEL,
                 "messages": messages,
                 "max_tokens": GAME_GENERATION_MAX_TOKENS,
-                "temperature": 0.7,
                 "stream": True,
             }
 
@@ -818,6 +818,10 @@ class GameUploadService:
                         try:
                             chunk = json.loads(data_str)
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            # deepseek-reasoner: reasoning_content 先到，content 後到
+                            reasoning = delta.get("reasoning_content", "")
+                            if reasoning:
+                                yield self._sse_event("thinking", {"content": reasoning})
                             content = delta.get("content", "")
                             if content:
                                 full_response += content

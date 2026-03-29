@@ -34,6 +34,8 @@ const GameStudio = (() => {
     let _progressTimer = null;
     let _progressValue = 0;
     let _streamBuffer = '';
+    let _thinkingBuffer = '';  // 推理過程累積文字
+    let _thinkingEl = null;   // 推理過程 DOM 元素
     let _progressEl = null;
 
     // ════════════════════════════════════════════════════
@@ -73,6 +75,27 @@ const GameStudio = (() => {
 
     function _showProgress() {
         _progressValue = 5;
+        _thinkingBuffer = '';
+
+        // 創建推理過程氣泡（可折疊）
+        _thinkingEl = document.createElement('div');
+        _thinkingEl.className = 'gs-msg gs-msg--ai gs-thinking-msg';
+        _thinkingEl.id = 'thinkingBubble';
+        _thinkingEl.style.display = 'none';
+        _thinkingEl.innerHTML = `
+            <span class="gs-msg__label">AI</span>
+            <div class="gs-msg__body">
+                <div class="gs-thinking__header" id="thinkingToggle">
+                    <span class="gs-thinking__icon">🧠</span>
+                    <span>深度推理中...</span>
+                    <span class="gs-thinking__indicator" id="thinkingIndicator">▾</span>
+                </div>
+                <div class="gs-thinking__content" id="thinkingContent">
+                    <pre id="thinkingPre"></pre>
+                </div>
+            </div>`;
+
+        // 創建進度條氣泡
         _progressEl = document.createElement('div');
         _progressEl.className = 'gs-msg gs-msg--ai';
         _progressEl.id = 'genProgress';
@@ -81,19 +104,32 @@ const GameStudio = (() => {
             <div class="gs-msg__body">
                 <div class="gs-progress__label">
                     <span>正在生成遊戲...</span>
-                    <span>預計約 20 秒</span>
+                    <span>預計約 30-60 秒</span>
                 </div>
                 <div class="gs-progress__bar-track">
                     <div class="gs-progress__bar-fill" id="progressFill" style="width:5%"></div>
                 </div>
-                <div class="gs-progress__hint">AI 正在構建遊戲邏輯與介面</div>
+                <div class="gs-progress__hint">AI 正在深度推理並構建遊戲</div>
                 <div class="gs-progress__code"><pre id="progressCodePre"></pre></div>
             </div>`;
         const container = document.getElementById('chatMessages');
         if (container) {
+            container.appendChild(_thinkingEl);
             container.appendChild(_progressEl);
             container.scrollTop = container.scrollHeight;
         }
+        // 折疊/展開推理過程
+        _thinkingEl.querySelector('#thinkingToggle')?.addEventListener('click', () => {
+            const content = _thinkingEl.querySelector('#thinkingContent');
+            const indicator = _thinkingEl.querySelector('#thinkingIndicator');
+            if (content.classList.contains('gs-thinking__content--collapsed')) {
+                content.classList.remove('gs-thinking__content--collapsed');
+                indicator.textContent = '▾';
+            } else {
+                content.classList.add('gs-thinking__content--collapsed');
+                indicator.textContent = '▸';
+            }
+        });
         clearInterval(_progressTimer);
         _progressTimer = setInterval(() => {
             _progressValue = Math.min(_progressValue + 2, 92);
@@ -114,6 +150,35 @@ const GameStudio = (() => {
             _progressEl.remove();
             _progressEl = null;
         }
+        // 推理完成：折疊推理氣泡，更新標題
+        if (_thinkingEl && _thinkingBuffer) {
+            const header = _thinkingEl.querySelector('.gs-thinking__header span:nth-child(2)');
+            if (header) header.textContent = '深度推理過程';
+            const content = _thinkingEl.querySelector('#thinkingContent');
+            if (content) content.classList.add('gs-thinking__content--collapsed');
+            const indicator = _thinkingEl.querySelector('#thinkingIndicator');
+            if (indicator) indicator.textContent = '▸';
+            _thinkingEl = null;
+        } else if (_thinkingEl) {
+            _thinkingEl.remove();
+            _thinkingEl = null;
+        }
+    }
+
+    function _updateThinking(text) {
+        if (!_thinkingEl) return;
+        _thinkingEl.style.display = '';
+        const pre = _thinkingEl.querySelector('#thinkingPre');
+        if (!pre) return;
+        // 顯示最後 30 行
+        const lines = text.split('\n');
+        pre.textContent = lines.slice(-30).join('\n');
+        // 自動滾動到底部
+        const content = _thinkingEl.querySelector('#thinkingContent');
+        if (content) content.scrollTop = content.scrollHeight;
+        // 也滾動聊天區域
+        const container = document.getElementById('chatMessages');
+        if (container) container.scrollTop = container.scrollHeight;
     }
 
     function _updateProgressCode(text) {
@@ -177,12 +242,17 @@ const GameStudio = (() => {
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
 
+                let currentEventType = '';
                 for (const line of lines) {
-                    if (line.startsWith('event: ')) continue;
+                    if (line.startsWith('event: ')) {
+                        currentEventType = line.slice(7).trim();
+                        continue;
+                    }
                     if (line.startsWith('data: ')) {
                         const dataStr = line.slice(6).trim();
                         if (dataStr === '[DONE]') continue;
-                        _handleSSEData(dataStr);
+                        _handleSSEData(dataStr, currentEventType);
+                        currentEventType = '';
                     }
                 }
             }
@@ -201,7 +271,7 @@ const GameStudio = (() => {
         }
     }
 
-    function _handleSSEData(dataStr) {
+    function _handleSSEData(dataStr, eventType) {
         try {
             const data = JSON.parse(dataStr);
 
@@ -210,9 +280,15 @@ const GameStudio = (() => {
                 return;
             }
             if (data.content !== undefined) {
-                // chunk event — 更新進度條中的代碼預覽
-                _streamBuffer += data.content;
-                _updateProgressCode(_streamBuffer);
+                if (eventType === 'thinking') {
+                    // thinking event — 推理過程
+                    _thinkingBuffer += data.content;
+                    _updateThinking(_thinkingBuffer);
+                } else {
+                    // chunk event — 代碼生成內容
+                    _streamBuffer += data.content;
+                    _updateProgressCode(_streamBuffer);
+                }
             }
             if (data.html !== undefined) {
                 // code event — 提取到的 HTML，更新預覽
@@ -334,6 +410,7 @@ const GameStudio = (() => {
                 <div class="gs-msg__body">${body}</div>
             </div>`;
         }).join('');
+        if (_thinkingEl) container.appendChild(_thinkingEl);
         if (_progressEl) container.appendChild(_progressEl);
         container.scrollTop = container.scrollHeight;
     }
