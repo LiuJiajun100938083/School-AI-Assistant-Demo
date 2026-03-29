@@ -3086,15 +3086,77 @@
 .mb-compare-list .katex { font-size: 1em; }
 .mb-compare-list .katex-display { margin: 4px 0; overflow-x: auto; }
 
-/* 參考解法排版 */
+/* ── 參考解法排版 ── */
 .mb-step-layout {
     font-size: 14px;
-    line-height: 1.8;
+    line-height: 1.85;
+}
+.mb-step-layout p {
+    margin: 6px 0;
+    padding: 2px 0 2px 4px;
+    border-left: 2px solid transparent;
+    transition: border-color 0.15s;
+}
+.mb-step-layout p:has(.katex) {
+    padding: 4px 0 4px 12px;
+    border-left-color: var(--mb-brand-light, #e0e0ff);
 }
 .mb-step-layout .katex-display {
     margin: 16px 0;
     padding: 12px 0;
     overflow-x: auto;
+}
+
+/* (a) (b) 小題標記 */
+.mb-step-subpart {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--mb-brand, #6366f1);
+    margin: 20px 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--mb-border, #e5e5e5);
+}
+.mb-step-subpart:first-child {
+    margin-top: 0;
+}
+
+/* 結論行高亮 */
+.mb-step-conclusion {
+    background: var(--mb-brand-light, #f5f3ff);
+    border-left: 3px solid var(--mb-brand, #6366f1);
+    border-radius: 0 6px 6px 0;
+    padding: 8px 14px;
+    margin: 10px 0;
+    font-weight: 500;
+}
+
+/* ── 詳細分析排版 ── */
+.mb-analysis-content {
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--mb-text, #1d1d1f);
+}
+.mb-analysis-content p {
+    margin: 8px 0;
+}
+
+/* 分析中的錯誤指出 — 紅色左邊框 */
+.mb-analysis-error {
+    border-left: 3px solid #ef4444;
+    padding: 6px 12px;
+    margin: 8px 0;
+    border-radius: 0 6px 6px 0;
+    background: #fef2f2;
+}
+
+/* 分析中的正確肯定 — 綠色左邊框 */
+.mb-analysis-correct {
+    border-left: 3px solid #22c55e;
+    padding: 6px 12px;
+    margin: 8px 0;
+    border-radius: 0 6px 6px 0;
+    background: #f0fdf4;
 }
 .mb-step-intro {
     font-size: 12px;

@@ -818,6 +818,69 @@ const UI = {
     },
 
     /**
+     * 參考解法結構化 — 自動分步、小題分隔、結論高亮
+     * 在 renderMath 之前調用，輸入純文本，輸出帶結構標記的文本。
+     */
+    formatSolution(text) {
+        if (!text) return '';
+        const lines = text.split('\n');
+        const result = [];
+        // 小題標記正則：(a) (b) (i) (ii) 或 a) b) 或中文（一）（二）
+        const subpartRe = /^(\(?[a-z]\)|\(?[ivx]+\)|\（[一二三四五六七八九十]+\）)/i;
+        // 結論關鍵詞
+        const conclusionKeywords = /^[∴∵]|^(因此|所以|故(?!障)|即|得|∴\s)|^\$?\\therefore/;
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) { result.push(''); continue; }
+
+            // 檢測小題標記
+            if (subpartRe.test(trimmed)) {
+                const match = trimmed.match(subpartRe);
+                result.push(`\n<span class="mb-step-subpart">${match[0]}</span>${trimmed.slice(match[0].length)}`);
+                continue;
+            }
+
+            // 檢測結論行
+            if (conclusionKeywords.test(trimmed)) {
+                result.push(`<div class="mb-step-conclusion">${trimmed}</div>`);
+                continue;
+            }
+
+            result.push(trimmed);
+        }
+        return result.join('\n');
+    },
+
+    /**
+     * 詳細分析結構化 — 段落分隔、錯誤/正確標注
+     * 在 renderMath 之前調用。
+     */
+    formatAnalysis(text) {
+        if (!text) return '';
+        const lines = text.split('\n');
+        const result = [];
+        // 錯誤指出關鍵詞
+        const errorRe = /錯誤|出錯|不正確|不合理|偏差|失誤|混淆|誤[用解算]|概念錯|計算錯|error|incorrect|wrong|mistake/i;
+        // 正確肯定關鍵詞
+        const correctRe = /正確|完全正確|做得好|很好|correctly|well done|correct/i;
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) { result.push(''); continue; }
+
+            if (errorRe.test(trimmed)) {
+                result.push(`<div class="mb-analysis-error">${trimmed}</div>`);
+            } else if (correctRe.test(trimmed)) {
+                result.push(`<div class="mb-analysis-correct">${trimmed}</div>`);
+            } else {
+                result.push(trimmed);
+            }
+        }
+        return result.join('\n');
+    },
+
+    /**
      * 渲染 Markdown 文字（支持 **粗體**、### 標題 等）
      * 若 marked 不可用則退回 escapeHtml + <br>
      */
@@ -1844,7 +1907,7 @@ const Views = {
                 </div>
                 <div class="mb-collapse__body">
                     <div class="mb-step-intro">${i18n.t('mb.solutionIntro')}</div>
-                    <div class="mb-step-layout">${UI.renderMath(m.correct_answer)}</div>
+                    <div class="mb-step-layout">${UI.renderMath(UI.formatSolution(m.correct_answer))}</div>
                 </div>
             </div>` : ''}
 
@@ -1855,17 +1918,17 @@ const Views = {
                     <span class="mb-collapse__arrow">${Icons.chevronR(16)}</span>
                 </div>
                 <div class="mb-collapse__body">
-                    <div id="${analysisId}">
+                    <div id="${analysisId}" class="mb-analysis-content">
                         ${analysisNeedsTruncate
-                            ? `<div class="mb-analysis-truncated">${UI.renderMath(analysisTruncated)}…</div>
-                               <div class="mb-analysis-full" style="display:none">${UI.renderMath(rawAnalysis)}</div>
+                            ? `<div class="mb-analysis-truncated">${UI.renderMath(UI.formatAnalysis(analysisTruncated))}…</div>
+                               <div class="mb-analysis-full" style="display:none">${UI.renderMath(UI.formatAnalysis(rawAnalysis))}</div>
                                <span class="mb-analysis-expand" onclick="
                                    var wrap = this.parentElement;
                                    wrap.querySelector('.mb-analysis-truncated').style.display='none';
                                    wrap.querySelector('.mb-analysis-full').style.display='block';
                                    this.remove();
                                ">${i18n.t('mb.showFullAnalysis')}</span>`
-                            : UI.renderMath(rawAnalysis)
+                            : UI.renderMath(UI.formatAnalysis(rawAnalysis))
                         }
                     </div>
                     ${m.error_type ? `<div style="margin-top:10px"><span class="mb-kp-tag mb-kp-tag--weak">${UI.errorTypeLabel(m.error_type)}</span></div>` : ''}
