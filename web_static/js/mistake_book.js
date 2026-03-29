@@ -559,16 +559,21 @@ const UI = {
         // 修復未用 $ 包裹的裸露 LaTeX（AI 有時漏掉 $ 分隔符）
         // 分割文本為 $...$ 內和外的片段，只對外部片段修復
         const _wrapBareLatex = (plainText) => {
-            // Pass 1: 含 \ 命令的片段（擴展完整清單）
+            // Pass 1: 含 \ 命令的片段（支持花括號嵌套）
             plainText = plainText.replace(
-                /([A-Za-z_]\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar|neq|leq|geq|pm|mp|approx|equiv|sim|le|ge|ne|lt|gt|infty|sum|prod|int|lim|log|ln|sin|cos|tan|left|right|quad|qquad|over|not|in|forall|exists|subset|cup|cap|to|rightarrow|leftarrow|angle|triangle|cong|circ|parallel|perp|therefore|because|degree|overline|underline|widehat|widetilde|stackrel|overset|implies|Rightarrow|Leftarrow|longrightarrow|iff|sim|simeq|propto)\b[^$\n,，。；]*/g,
+                /([A-Za-z_][A-Za-z_0-9]*\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar|neq|leq|geq|pm|mp|approx|equiv|sim|le|ge|ne|lt|gt|infty|sum|prod|int|lim|log|ln|sin|cos|tan|left|right|quad|qquad|over|not|in|forall|exists|subset|cup|cap|to|rightarrow|leftarrow|angle|triangle|cong|circ|parallel|perp|therefore|because|degree|overline|underline|widehat|widetilde|stackrel|overset|implies|Rightarrow|Leftarrow|longrightarrow|iff|sim|simeq|propto)\b(?:\{[^}]*\})*[^$\n,，。；]*/g,
                 match => `$${match.trim()}$`
             );
             // Pass 2: 含上標 ^ 的數學片段（如 x^2, 6x^2, (-1)^2）
-            plainText = plainText.replace(
-                /[(\d\-]*[a-zA-Z)]+\s*\^\s*(?:\{[^}]+\}|\d+)/g,
-                match => match.includes('$') ? match : `$${match.trim()}$`
-            );
+            // 先分割出 $...$ 區段，只對非 $ 區段做替換，避免破壞 Pass 1 的結果
+            const p2parts = plainText.split(/(\$[^$]*\$)/);
+            plainText = p2parts.map(seg => {
+                if (seg.startsWith('$') && seg.endsWith('$')) return seg; // 已在 $ 內，跳過
+                return seg.replace(
+                    /[(\d\-]*[a-zA-Z)]+\s*\^\s*(?:\{[^}]+\}|\d+)/g,
+                    m => `$${m.trim()}$`
+                );
+            }).join('');
             return plainText;
         };
 
