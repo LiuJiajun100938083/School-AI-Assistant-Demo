@@ -22,12 +22,20 @@ from fastapi import UploadFile
 from app.domains.game_upload.exceptions import (
     GameAccessDeniedError,
     GameFileTooLargeError,
+    GameGenerationError,
     GameNotFoundError,
     InvalidFileTypeError,
     InvalidSubjectError,
+    LLMNotConfiguredError,
 )
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.game_upload.schemas import GameCreateRequest, GameUpdateRequest
+from llm.prompts.game_generation import (
+    GAME_GENERATION_MAX_TOKENS,
+    GAME_GENERATION_MODEL,
+    GAME_GENERATION_SYSTEM_PROMPT,
+    GAMEPLAY_SEPARATOR,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -741,3 +749,152 @@ class GameUploadService:
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(processed_content)
         return file_path.stat().st_size
+
+    # ==================== AI 遊戲生成 ====================
+
+    async def generate_game_stream(self, user_prompt: str, history: list):
+        """
+        AI 生成遊戲代碼（SSE 異步生成器）
+
+        數據流：構建消息 → 調用 LLM streaming → 收集回覆 → 提取 HTML → yield SSE 事件
+
+        Args:
+            user_prompt: 用戶描述
+            history: 對話歷史 [{"role": "user/assistant/system", "content": "..."}]
+
+        Yields:
+            str: SSE 格式的事件行（event: type\\ndata: {...}\\n\\n）
+        """
+        import httpx
+        from llm.config import get_llm_config
+
+        config = get_llm_config()
+        if not config.api_key:
+            yield self._sse_event("error", {"message": "AI API 未配置，請聯繫管理員"})
+            return
+
+        # 構建消息列表
+        messages = [{"role": "system", "content": GAME_GENERATION_SYSTEM_PROMPT}]
+        messages.extend(self._trim_history(history))
+        messages.append({"role": "user", "content": user_prompt})
+
+        yield self._sse_event("status", {"phase": "generating"})
+
+        # 流式調用 LLM API（復用 config 的 api_base_url + api_key，模型使用遊戲生成專用）
+        full_response = ""
+        try:
+            url = f"{config.api_base_url}/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {config.api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": GAME_GENERATION_MODEL,
+                "messages": messages,
+                "max_tokens": GAME_GENERATION_MAX_TOKENS,
+                "temperature": 0.7,
+                "stream": True,
+            }
+
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST", url, json=payload, headers=headers,
+                    timeout=httpx.Timeout(300, connect=10),
+                ) as resp:
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data_str)
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                full_response += content
+                                yield self._sse_event("chunk", {"content": content})
+                        except json.JSONDecodeError:
+                            continue
+
+        except httpx.HTTPStatusError as e:
+            logger.error("AI 遊戲生成 HTTP 錯誤: %s %s", e.response.status_code, e.response.text[:200])
+            yield self._sse_event("error", {"message": f"AI 服務返回錯誤 ({e.response.status_code})"})
+            return
+        except Exception as e:
+            logger.error("AI 遊戲生成失敗: %s", e)
+            yield self._sse_event("error", {"message": f"生成失敗：{str(e)}"})
+            return
+
+        # 提取 HTML 代碼
+        yield self._sse_event("status", {"phase": "extracting"})
+        html = self._extract_html(full_response)
+
+        if html:
+            yield self._sse_event("code", {"html": html})
+            gameplay = self._extract_gameplay(full_response)
+            if gameplay:
+                yield self._sse_event("instructions", {"text": gameplay})
+        else:
+            yield self._sse_event("error", {"message": "未檢測到有效 HTML 代碼，請嘗試更明確的描述"})
+
+        yield self._sse_event("done", {})
+
+    @staticmethod
+    def _sse_event(event_type: str, data: dict) -> str:
+        """格式化 SSE 事件"""
+        return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    @staticmethod
+    def _extract_html(raw: str) -> Optional[str]:
+        """
+        從 AI 回覆中提取可用 HTML。
+
+        優先級：
+        1. ```html fenced block
+        2. <!DOCTYPE html> ... </html>
+        3. <html> ... </html>
+        4. 含 <body>/<script> → 包裝為最小 HTML
+        """
+        # 1. fenced block
+        m = re.search(r'```html\s*([\s\S]*?)```', raw)
+        if m:
+            return m.group(1).strip()
+
+        # 2. <!DOCTYPE html> ... </html>
+        m = re.search(r'(<!DOCTYPE\s+html>[\s\S]*?</html>)', raw, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+
+        # 3. <html> ... </html>
+        m = re.search(r'(<html[\s\S]*?</html>)', raw, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+
+        # 4. 含 body/script → 最小包裝
+        if '<body' in raw.lower() or '<script' in raw.lower():
+            return f'<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n{raw}\n</html>'
+
+        return None
+
+    @staticmethod
+    def _extract_gameplay(raw: str) -> Optional[str]:
+        """從 AI 回覆中提取分隔符後的玩法介紹"""
+        idx = raw.find(GAMEPLAY_SEPARATOR)
+        if idx == -1:
+            return None
+        return raw[idx + len(GAMEPLAY_SEPARATOR):].strip()
+
+    @staticmethod
+    def _trim_history(history: list, max_rounds: int = 6) -> list:
+        """
+        截斷對話歷史，避免 token 膨脹。
+
+        保留最近 max_rounds 輪對話，超出部分用摘要替代。
+        """
+        if len(history) <= max_rounds * 2:
+            return history
+        recent = history[-(max_rounds * 2):]
+        summary = {"role": "system", "content": "（前幾輪對話已省略，用戶在迭代修改一個 HTML 教育遊戲）"}
+        return [summary] + recent

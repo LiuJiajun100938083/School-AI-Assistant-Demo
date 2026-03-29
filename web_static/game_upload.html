@@ -3,243 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>上傳遊戲 - AI學習夥伴</title>
+    <title>遊戲工作室 - AI學習夥伴</title>
     <link rel="stylesheet" href="/static/css/index.css">
-    <link rel="stylesheet" href="/static/css/game_upload.css">
+    <link rel="stylesheet" href="/static/css/game_studio.css">
+    <!-- 代碼高亮 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
-    <div class="upload-page">
-        <!-- 顶部导航 -->
-        <header class="upload-header">
-            <div class="header-left">
-                <a href="/" class="back-btn">
-                    <span>←</span>
-                    <span>返回</span>
-                </a>
-                <span class="page-title">🎮 上傳遊戲</span>
+    <div class="gs-page">
+        <!-- ── Header ── -->
+        <header class="gs-header">
+            <div class="gs-header__left">
+                <a href="/" class="gs-header__back"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> 返回</a>
+                <span class="gs-header__title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-3px"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><line x1="14" y1="12" x2="14" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg> 遊戲工作室</span>
+            </div>
+            <div class="gs-header__tabs">
+                <button class="gs-tab gs-tab--active" data-mode="chat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> AI 對話</button>
+                <button class="gs-tab" data-mode="code"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> 代碼編輯</button>
             </div>
         </header>
 
-        <!-- 主内容 -->
-        <main class="upload-main">
-            <div id="messageBox" class="message"></div>
-
-            <form id="uploadForm" class="form-card">
-                <!-- 基本資訊 -->
-                <div class="form-section">
-                    <h2 class="section-title">
-                        <span class="icon">📝</span>
-                        基本資訊
-                    </h2>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">
-                                遊戲名稱 <span class="required">*</span>
-                            </label>
-                            <input type="text" id="gameName" class="form-input" placeholder="輸入遊戲名稱" required maxlength="100">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">英文名稱</label>
-                            <input type="text" id="gameNameEn" class="form-input" placeholder="English Name (Optional)" maxlength="100">
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">
-                            遊戲描述 <span class="required">*</span>
-                        </label>
-                        <textarea id="gameDesc" class="form-textarea" placeholder="簡短描述這個遊戲的內容和學習目標" required maxlength="500"></textarea>
-                        <div class="form-hint">最多500字</div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">
-                                學科分類 <span class="required">*</span>
-                            </label>
-                            <select id="gameSubject" class="form-select" required>
-                                <option value="">請選擇學科</option>
-                                <option value="chinese">📖 中文</option>
-                                <option value="math">📐 數學</option>
-                                <option value="english">🔤 英文</option>
-                                <option value="history">📜 歷史</option>
-                                <option value="ict">💻 ICT</option>
-                                <option value="physics">⚡ 物理</option>
-                                <option value="chemistry">🧪 化學</option>
-                                <option value="biology">🧬 生物</option>
-                                <option value="ces">🏛️ 公民</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">顯示圖標</label>
-                            <div class="icon-selector" id="iconSelector">
-                                <div class="icon-option selected" data-icon="🎮">🎮</div>
-                                <div class="icon-option" data-icon="🎯">🎯</div>
-                                <div class="icon-option" data-icon="🧩">🧩</div>
-                                <div class="icon-option" data-icon="🎲">🎲</div>
-                                <div class="icon-option" data-icon="🏆">🏆</div>
-                                <div class="icon-option" data-icon="⭐">⭐</div>
-                                <div class="icon-option" data-icon="🚀">🚀</div>
-                                <div class="icon-option" data-icon="💡">💡</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">適用年級</label>
-                        <div class="checkbox-group" id="difficultyGroup">
-                            <label class="checkbox-label checked">
-                                <input type="checkbox" name="difficulty" value="中一" checked>
-                                中一
-                            </label>
-                            <label class="checkbox-label checked">
-                                <input type="checkbox" name="difficulty" value="中二" checked>
-                                中二
-                            </label>
-                            <label class="checkbox-label checked">
-                                <input type="checkbox" name="difficulty" value="中三" checked>
-                                中三
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="difficulty" value="中四">
-                                中四
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="difficulty" value="中五">
-                                中五
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="difficulty" value="中六">
-                                中六
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">搜索標籤</label>
-                        <input type="text" id="gameTags" class="form-input" placeholder="輸入標籤，用逗號分隔（如：歷史,策略,互動）">
-                        <div class="form-hint">方便學生搜索找到這個遊戲</div>
-                    </div>
-                </div>
-
-                <!-- AI 提示詞 -->
-                <div class="form-section">
-                    <h2 class="section-title">
-                        <span class="icon">🤖</span>
-                        AI 生成提示詞
-                    </h2>
-                    <p class="form-hint" style="margin-bottom: var(--space-3);">
-                        將以下提示詞複製給 AI（如 ChatGPT、Claude），即可生成符合系統要求的遊戲代碼：
-                    </p>
-                    <div class="prompt-box">
-                        <div class="prompt-content" id="aiPrompt">請生成一個完整的單一 HTML 文件教育小遊戲。要求：所有 CSS 和 JavaScript 必須內嵌在該 HTML 文件中，不要創建多個文件。如需使用前端框架（如 React、Vue、Three.js、Tailwind CSS 等），請通過 CDN 連結引入。</div>
-                        <button type="button" class="copy-btn" id="copyPromptBtn" title="複製提示詞">
-                            <span class="copy-icon">📋</span>
-                            <span class="copy-text">複製</span>
+        <!-- ── 分屏主區域 ── -->
+        <div class="gs-panels">
+            <!-- 左側面板 -->
+            <div class="gs-panels__left">
+                <!-- AI 對話模式 -->
+                <div class="gs-chat" id="chatPanel">
+                    <div class="gs-chat__messages" id="chatMessages"></div>
+                    <div class="gs-chat__input">
+                        <textarea id="chatInput" placeholder="描述你想做的教育遊戲..." rows="2"></textarea>
+                        <button id="chatSendBtn" class="gs-chat__send" title="發送">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                        </button>
+                        <button id="chatStopBtn" class="gs-chat__stop" style="display:none" title="停止生成">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
                         </button>
                     </div>
-                    <p class="form-hint" style="margin-top: var(--space-2);">
-                        💡 提示：可在此基礎上加入您的遊戲主題和教學目標
-                    </p>
                 </div>
 
-                <!-- 遊戲內容 -->
-                <div class="form-section">
-                    <h2 class="section-title">
-                        <span class="icon">📄</span>
-                        遊戲內容
-                    </h2>
+                <!-- 代碼編輯模式 -->
+                <div class="gs-editor" id="editorPanel" style="display:none">
+                    <textarea id="codeEditor" class="gs-editor__code" placeholder="在此編輯 HTML 代碼..." spellcheck="false"></textarea>
+                </div>
+            </div>
 
-                    <div class="upload-tabs">
-                        <button type="button" class="upload-tab active" data-tab="file">📁 上傳檔案</button>
-                        <button type="button" class="upload-tab" data-tab="code">💻 貼上代碼</button>
+            <!-- 分隔條 -->
+            <div class="gs-panels__divider"></div>
+
+            <!-- 右側預覽 -->
+            <div class="gs-panels__right">
+                <div class="gs-preview__header"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg> 即時預覽</div>
+                <div class="gs-preview__body">
+                    <div class="gs-preview__empty" id="previewEmpty">
+                        <div class="gs-preview__empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/><line x1="14" y1="12" x2="14" y2="12.01"/><line x1="18" y1="12" x2="18" y2="12.01"/></svg></div>
+                        <div class="gs-preview__empty-text">尚未生成遊戲</div>
+                        <div class="gs-preview__empty-hint">在左側描述你的遊戲需求，AI 會為你生成</div>
+                    </div>
+                    <iframe id="previewFrame" class="gs-preview__frame" sandbox="allow-scripts" referrerpolicy="no-referrer" style="display:none"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 底部操作欄 ── -->
+        <footer class="gs-footer">
+            <button id="applyBtn" class="gs-footer__btn" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg> 滿意，填寫信息並上傳</button>
+        </footer>
+
+        <!-- ── 上傳信息 Modal ── -->
+        <div class="gs-modal" id="uploadModal">
+            <div class="gs-modal__overlay" onclick="GameStudio.closeUploadModal()"></div>
+            <div class="gs-modal__card">
+                <div class="gs-modal__header">
+                    <h3>填寫遊戲信息</h3>
+                    <button class="gs-modal__close" onclick="GameStudio.closeUploadModal()">×</button>
+                </div>
+                <div class="gs-modal__body">
+                    <div id="modalError" class="gs-modal__error" style="display:none"></div>
+
+                    <label class="gs-form__label">遊戲名稱 <span style="color:#ef4444">*</span></label>
+                    <input type="text" id="modalGameName" class="gs-form__input" placeholder="輸入遊戲名稱" maxlength="100">
+
+                    <label class="gs-form__label">遊戲描述 <span style="color:#ef4444">*</span></label>
+                    <textarea id="modalGameDesc" class="gs-form__textarea" placeholder="簡短描述遊戲的內容和學習目標" maxlength="500"></textarea>
+
+                    <label class="gs-form__label">學科分類 <span style="color:#ef4444">*</span></label>
+                    <select id="modalGameSubject" class="gs-form__select">
+                        <option value="">請選擇學科</option>
+                        <option value="chinese">中文</option>
+                        <option value="math">數學</option>
+                        <option value="english">英文</option>
+                        <option value="history">歷史</option>
+                        <option value="ict">ICT</option>
+                        <option value="physics">物理</option>
+                        <option value="chemistry">化學</option>
+                        <option value="biology">生物</option>
+                        <option value="ces">公民</option>
+                    </select>
+
+                    <label class="gs-form__label">顯示圖標</label>
+                    <div class="gs-form__icons">
+                        <div class="icon-option selected" data-icon="gamepad" title="遊戲手柄"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="10" y1="12" x2="10" y2="12.01"/></svg></div>
+                        <div class="icon-option" data-icon="target" title="目標"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+                        <div class="icon-option" data-icon="puzzle" title="拼圖"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/></svg></div>
+                        <div class="icon-option" data-icon="dice" title="骰子"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="8" cy="8" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/><circle cx="12" cy="12" r="1"/></svg></div>
+                        <div class="icon-option" data-icon="trophy" title="獎盃"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
+                        <div class="icon-option" data-icon="star" title="星星"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+                        <div class="icon-option" data-icon="rocket" title="火箭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></div>
+                        <div class="icon-option" data-icon="lightbulb" title="燈泡"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></div>
                     </div>
 
-                    <!-- 文件上传 -->
-                    <div class="upload-content active" id="fileUpload">
-                        <div class="file-drop-zone" id="dropZone">
-                            <div class="icon">📄</div>
-                            <div class="text">拖曳 HTML 檔案到此處，或點擊選擇檔案</div>
-                            <div class="hint">支援 .html 檔案，最大 5MB</div>
-                        </div>
-                        <input type="file" id="fileInput" class="file-input" accept=".html,.htm">
-                        <div id="fileSelected" class="file-selected" style="display: none;">
-                            <span class="name" id="fileName"></span>
-                            <span class="size" id="fileSize"></span>
-                            <button type="button" class="remove" id="removeFile">×</button>
-                        </div>
+                    <label class="gs-form__label">適用年級</label>
+                    <div class="gs-form__checkboxes">
+                        <label><input type="checkbox" name="difficulty" value="中一" checked> 中一</label>
+                        <label><input type="checkbox" name="difficulty" value="中二" checked> 中二</label>
+                        <label><input type="checkbox" name="difficulty" value="中三" checked> 中三</label>
+                        <label><input type="checkbox" name="difficulty" value="中四"> 中四</label>
+                        <label><input type="checkbox" name="difficulty" value="中五"> 中五</label>
+                        <label><input type="checkbox" name="difficulty" value="中六"> 中六</label>
                     </div>
 
-                    <!-- 代码粘贴 -->
-                    <div class="upload-content" id="codeUpload">
-                        <textarea id="htmlCode" class="code-editor" placeholder="<!DOCTYPE html>
-<html>
-<head>
-    <title>My Game</title>
-</head>
-<body>
-    <!-- 在這裡貼上您的遊戲代碼 -->
-</body>
-</html>"></textarea>
+                    <label class="gs-form__label">搜索標籤</label>
+                    <input type="text" id="modalGameTags" class="gs-form__input" placeholder="用逗號分隔（如：歷史,策略,互動）">
+
+                    <!-- 可見性設定 -->
+                    <div class="gs-form__divider"></div>
+                    <label class="gs-form__label">可見性</label>
+                    <div class="gs-visibility" id="visibilityControl">
+                        <button type="button" class="gs-visibility__btn gs-visibility__btn--active" data-value="private">僅自己可見</button>
+                        <button type="button" class="gs-visibility__btn" data-value="public">公開給學生</button>
+                        <button type="button" class="gs-visibility__btn" data-value="teacher">僅教師可見</button>
+                    </div>
+                    <div class="gs-form__hint" id="visibilityHint">只有你自己能看到這個遊戲</div>
+
+                    <!-- 班級選擇（僅公開時顯示） -->
+                    <div class="gs-class-select" id="classSelectSection" style="display:none">
+                        <label class="gs-form__label">可見班級 <span style="color:var(--gs-text-tertiary);font-weight:400">（不選 = 所有班級）</span></label>
+                        <div class="gs-form__checkboxes" id="classCheckboxes">
+                            <!-- JS 動態生成 -->
+                        </div>
                     </div>
                 </div>
-
-                <!-- 可見性設定 -->
-                <div class="form-section">
-                    <h2 class="section-title">
-                        <span class="icon">👁️</span>
-                        可見性設定
-                    </h2>
-
-                    <!-- 仅教师可见开关 -->
-                    <div class="visibility-toggle" style="margin-bottom: 12px;">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="teacherOnly">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="visibility-label" id="teacherOnlyLabel">僅教師/管理員可見</span>
-                    </div>
-                    <div class="form-hint" style="margin-top: var(--space-1); margin-bottom: 16px;">
-                        開啟後只有教師和管理員能看到此遊戲，學生不可見
-                    </div>
-
-                    <!-- 学生可见开关 -->
-                    <div id="studentVisibilitySection">
-                        <div class="visibility-toggle">
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="isPublic">
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <span class="visibility-label" id="visibilityLabel">僅自己可見</span>
-                        </div>
-                        <div class="form-hint" style="margin-top: var(--space-2);">
-                            公開後學生可以在遊戲中心看到並遊玩這個遊戲
-                        </div>
-
-                        <!-- 班级限制 -->
-                        <div id="classRestrictionSection" style="display: none; margin-top: 16px;">
-                            <label class="form-label">可見班級（不選=所有班級可見）</label>
-                            <div class="checkbox-group" id="classGroup" style="display: flex; flex-wrap: wrap; gap: 6px;">
-                                <!-- 动态生成班级复选框 -->
-                            </div>
-                        </div>
-                    </div>
+                <div class="gs-modal__footer">
+                    <button id="modalCancelBtn" class="gs-btn gs-btn--secondary">取消</button>
+                    <button id="modalSubmitBtn" class="gs-btn gs-btn--primary">上傳遊戲</button>
                 </div>
-
-                <!-- 提交按钮 -->
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary">取消</button>
-                    <button type="submit" class="btn btn-primary" id="submitBtn">上傳遊戲</button>
-                </div>
-            </form>
-        </main>
+            </div>
+        </div>
     </div>
 
     <script src="/static/js/shared/utils.js"></script>
     <script src="/static/js/shared/auth.js"></script>
-    <script src="/static/js/shared/ui.js"></script>
     <script src="/static/js/shared/api.js"></script>
-    <script src="/static/js/game_upload.js"></script>
+    <script src="/static/js/game_studio.js"></script>
 </body>
 </html>

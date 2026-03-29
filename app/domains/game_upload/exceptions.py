@@ -87,3 +87,25 @@ class InvalidFileTypeError(GameUploadError):
             message=message,
             status_code=400,
         )
+
+
+class GameGenerationError(GameUploadError):
+    """AI 游戏生成失败 (500)"""
+
+    def __init__(self, message: str = "AI 遊戲生成失敗"):
+        super().__init__(
+            code="GAME_GENERATION_ERROR",
+            message=message,
+            status_code=500,
+        )
+
+
+class LLMNotConfiguredError(GameUploadError):
+    """LLM API 未配置 (503)"""
+
+    def __init__(self):
+        super().__init__(
+            code="LLM_NOT_CONFIGURED",
+            message="AI API 未配置，請聯繫管理員",
+            status_code=503,
+        )
