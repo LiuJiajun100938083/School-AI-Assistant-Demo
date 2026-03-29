@@ -478,7 +478,7 @@ const GameStudio = (() => {
             }
 
             state.dirty = false;
-            window.location.href = '/static/my_games.html';
+            window.location.href = '/my_games';
         } catch (e) {
             _showModalError(e.message || '提交失敗');
         }
