@@ -86,7 +86,6 @@ const GameStudio = (() => {
             <span class="gs-msg__label">AI</span>
             <div class="gs-msg__body">
                 <div class="gs-thinking__header" id="thinkingToggle">
-                    <span class="gs-thinking__icon">🧠</span>
                     <span>深度推理中...</span>
                     <span class="gs-thinking__indicator" id="thinkingIndicator">▾</span>
                 </div>

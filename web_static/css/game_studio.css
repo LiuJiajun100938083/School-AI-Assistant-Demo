@@ -333,9 +333,6 @@
 .gs-thinking__header:hover {
     color: var(--gs-text);
 }
-.gs-thinking__icon {
-    font-size: 14px;
-}
 .gs-thinking__indicator {
     font-size: 11px;
     transition: transform 0.15s;
