@@ -2,7 +2,7 @@
 import sys, io, re
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-HTML_PATH = r"C:\Users\15821\PKMS_aiLearningBuddy\web_static\ai_learning_center.html"
+HTML_PATH = r"C:\Users\15821\School-AI-Assistant-Demo\web_static\ai_learning_center.html"
 with open(HTML_PATH, "r", encoding="utf-8") as f:
     html = f.read()
 

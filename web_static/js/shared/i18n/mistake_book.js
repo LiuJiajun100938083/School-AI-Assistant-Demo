@@ -3,7 +3,7 @@
 i18n.addMessages({
     zh: {
         // --- 學習分析報告 ---
-        'report.pageTitle': '學習分析報告 - 培僑中學',
+        'report.pageTitle': '學習分析報告 - 校園AI助手',
         'report.title': '學習分析報告',
         'report.back': '返回主頁',
         'report.allSubjects': '全部學科',
@@ -410,7 +410,7 @@ i18n.addMessages({
     },
     en: {
         // --- Learning Analysis Report ---
-        'report.pageTitle': 'Learning Analysis Report - Pui Kiu',
+        'report.pageTitle': 'Learning Analysis Report - School AI Assistant',
         'report.title': 'Learning Analysis Report',
         'report.back': 'Back to Home',
         'report.allSubjects': 'All Subjects',

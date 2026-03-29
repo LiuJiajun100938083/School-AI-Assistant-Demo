@@ -2,7 +2,7 @@
 // Keys: ig.*
 i18n.addMessages({
     zh: {
-        'ig.pageTitle': 'AI 圖片生成 - 培僑中學',
+        'ig.pageTitle': 'AI 圖片生成 - 校園AI助手',
         'ig.back': '← 返回',
         'ig.headerTitle': 'AI 圖片生成',
         'ig.promptLabel': '描述你想生成的圖片',
@@ -26,7 +26,7 @@ i18n.addMessages({
         'ig.errorGenFailed': '生成失敗',
     },
     en: {
-        'ig.pageTitle': 'AI Image Generation - Pui Kiu Middle School',
+        'ig.pageTitle': 'AI Image Generation - School AI Assistant',
         'ig.back': '← Back',
         'ig.headerTitle': 'AI Image Generation',
         'ig.promptLabel': 'Describe the image you want to generate',

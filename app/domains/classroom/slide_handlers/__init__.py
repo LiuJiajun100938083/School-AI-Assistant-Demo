@@ -13,7 +13,9 @@ from .interactive_handler import InteractiveSlideHandler
 from .link_handler import LinkSlideHandler
 from .poll_handler import PollSlideHandler
 from .ppt_handler import PPTSlideHandler
+from .quick_answer_handler import QuickAnswerSlideHandler
 from .quiz_handler import QuizSlideHandler
+from .raise_hand_handler import RaiseHandSlideHandler
 
 # 单例 handler 实例 (handler 无状态，可安全复用)
 _HANDLER_REGISTRY: dict[str, SlideHandler] = {
@@ -23,6 +25,8 @@ _HANDLER_REGISTRY: dict[str, SlideHandler] = {
     "poll": PollSlideHandler(),
     "link": LinkSlideHandler(),
     "interactive": InteractiveSlideHandler(),
+    "quick_answer": QuickAnswerSlideHandler(),
+    "raise_hand": RaiseHandSlideHandler(),
 }
 
 
@@ -49,4 +53,6 @@ __all__ = [
     "PollSlideHandler",
     "LinkSlideHandler",
     "InteractiveSlideHandler",
+    "QuickAnswerSlideHandler",
+    "RaiseHandSlideHandler",
 ]

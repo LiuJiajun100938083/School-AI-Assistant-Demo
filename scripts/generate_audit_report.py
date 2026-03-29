@@ -125,7 +125,7 @@ for _ in range(6):
 
 title = doc.add_paragraph()
 title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = title.add_run("PKMS_aiLearningBuddy")
+run = title.add_run("School-AI-Assistant-Demo")
 run.bold = True
 run.font.size = Pt(28)
 run.font.color.rgb = RGBColor(0x00, 0x66, 0x33)
@@ -701,7 +701,7 @@ run.font.color.rgb = RGBColor(0xA1, 0xA1, 0xA6)
 # SAVE
 # ================================================================
 
-output_path = r"C:\Users\15821\PKMS_aiLearningBuddy\docs\架构审查报告_2026-02-23.docx"
+output_path = r"C:\Users\15821\School-AI-Assistant-Demo\docs\架构审查报告_2026-02-23.docx"
 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 doc.save(output_path)
 print(f"Report saved to: {output_path}")

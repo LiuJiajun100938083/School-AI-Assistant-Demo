@@ -3,7 +3,7 @@
 i18n.addMessages({
     zh: {
         // --- 學校學習中心 ---
-        'slc.pageTitle': '學校學習中心 - 培僑中學',
+        'slc.pageTitle': '學校學習中心 - 校園AI助手',
         'slc.headerTitle': '學校學習中心',
         'slc.back': '← 返回',
         'slc.tabResources': '教學資源',
@@ -189,7 +189,7 @@ i18n.addMessages({
         'slc.diffAdvLabel': '高級',
 
         // --- AI 學習中心 ---
-        'alc.pageTitle': 'AI 學習中心 - 培僑中學',
+        'alc.pageTitle': 'AI 學習中心 - 校園AI助手',
         'alc.headerTitle': 'AI 學習中心',
         'alc.backHome': '返回首頁',
         'alc.courses': '課程',
@@ -467,7 +467,7 @@ i18n.addMessages({
     },
     en: {
         // --- School Learning Center ---
-        'slc.pageTitle': 'School Learning Center - Pui Kiu Middle School',
+        'slc.pageTitle': 'School Learning Center - School AI Assistant',
         'slc.headerTitle': 'School Learning Center',
         'slc.back': '← Back',
         'slc.tabResources': 'Resources',
@@ -653,7 +653,7 @@ i18n.addMessages({
         'slc.diffAdvLabel': 'Advanced',
 
         // --- AI Learning Center ---
-        'alc.pageTitle': 'AI Learning Center - Pui Kiu Middle School',
+        'alc.pageTitle': 'AI Learning Center - School AI Assistant',
         'alc.headerTitle': 'AI Learning Center',
         'alc.backHome': 'Home',
         'alc.courses': 'Courses',

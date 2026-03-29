@@ -105,7 +105,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=your_password
-DB_NAME=pkms
+DB_NAME=school_ai_demo
 JWT_SECRET=your_jwt_secret
 OLLAMA_BASE_URL=http://localhost:11434
 ```

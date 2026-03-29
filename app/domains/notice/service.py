@@ -409,7 +409,7 @@ class NoticeService:
                     )
 
                 prompt = (
-                    f"你正在帮助用户生成一份{session['notice_type']}类型的香港培僑中學通告。\n"
+                    f"你正在帮助用户生成一份{session['notice_type']}类型的学校通告。\n"
                     f"已收集的信息: {context}\n"
                     f"对话历史:\n{history_text}\n\n"
                     f"用户最新输入: {user_input}\n\n"

@@ -4,8 +4,8 @@ i18n.addMessages({
     zh: {
         // --- 通用 ---
         'app.name': 'AI 學習夥伴',
-        'app.school': '培僑中學',
-        'app.schoolFull': '培僑中學AI學習系統',
+        'app.school': '',
+        'app.schoolFull': '校園AI助手系統',
         'common.cancel': '取消',
         'common.confirm': '確定',
         'common.loading': '加載中...',
@@ -14,7 +14,7 @@ i18n.addMessages({
         'common.networkFailed': '網絡連接失敗，請檢查網絡',
 
         // --- 登入頁 ---
-        'login.pageTitle': '登入 — 培僑中學 學習夥伴',
+        'login.pageTitle': '登入 — 校園AI助手',
         'login.welcome': '歡迎回來',
         'login.title': '登入帳戶',
         'login.subtitle': '請輸入您的用戶名和密碼',
@@ -30,9 +30,9 @@ i18n.addMessages({
         'login.qrLabel': '掃碼登入',
 
         // --- 首頁 ---
-        'home.pageTitle': '培僑中學 學習夥伴',
+        'home.pageTitle': '校園AI助手',
         'home.splashTitle': 'AI 學習夥伴',
-        'home.splashSubtitle': '培僑中學',
+        'home.splashSubtitle': '校園AI助手',
         'home.welcomeBack': '歡迎回來',
         'home.welcomeUser': '歡迎回來，{{name}}',
         'home.subtitle': '選擇下方應用開始使用',
@@ -144,8 +144,8 @@ i18n.addMessages({
     en: {
         // --- Common ---
         'app.name': 'AI Learning Buddy',
-        'app.school': 'Pui Kiu Middle School',
-        'app.schoolFull': 'Pui Kiu Middle School AI Learning System',
+        'app.school': '',
+        'app.schoolFull': 'School AI Assistant System',
         'common.cancel': 'Cancel',
         'common.confirm': 'OK',
         'common.loading': 'Loading...',
@@ -154,7 +154,7 @@ i18n.addMessages({
         'common.networkFailed': 'Network connection failed, please check your connection',
 
         // --- Login ---
-        'login.pageTitle': 'Login — Pui Kiu Middle School Learning Buddy',
+        'login.pageTitle': 'Login — School AI Assistant',
         'login.welcome': 'Welcome Back',
         'login.title': 'Sign In',
         'login.subtitle': 'Enter your username and password',
@@ -170,9 +170,9 @@ i18n.addMessages({
         'login.qrLabel': 'Scan to Login',
 
         // --- Home ---
-        'home.pageTitle': 'Pui Kiu Middle School Learning Buddy',
+        'home.pageTitle': 'School AI Assistant',
         'home.splashTitle': 'AI Learning Buddy',
-        'home.splashSubtitle': 'Pui Kiu Middle School',
+        'home.splashSubtitle': 'School AI Assistant',
         'home.welcomeBack': 'Welcome Back',
         'home.welcomeUser': 'Welcome back, {{name}}',
         'home.subtitle': 'Choose an app below to get started',

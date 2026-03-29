@@ -3,7 +3,7 @@
 i18n.addMessages({
     zh: {
         // --- AI 對話頁 ---
-        'chat.pageTitle': 'AI 學習對話 - 培僑中學',
+        'chat.pageTitle': 'AI 學習對話 - 校園AI助手',
         'chat.backHome': '返回首頁',
         'chat.history': '對話歷史',
         'chat.newChat': '+ 新對話',
@@ -127,7 +127,7 @@ i18n.addMessages({
     },
     en: {
         // --- AI Chat Page ---
-        'chat.pageTitle': 'AI Chat - Pui Kiu Middle School',
+        'chat.pageTitle': 'AI Chat - School AI Assistant',
         'chat.backHome': 'Home',
         'chat.history': 'Chat History',
         'chat.newChat': '+ New Chat',
