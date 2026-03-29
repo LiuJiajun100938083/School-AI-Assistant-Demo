@@ -561,7 +561,7 @@ const UI = {
         const _wrapBareLatex = (plainText) => {
             // Pass 1: 含 \ 命令的片段（擴展完整清單）
             plainText = plainText.replace(
-                /([A-Za-z_]\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar|neq|leq|geq|pm|mp|approx|equiv|sim|le|ge|ne|lt|gt|infty|sum|prod|int|lim|log|ln|sin|cos|tan|left|right|quad|qquad|over|not|in|forall|exists|subset|cup|cap|to|rightarrow|leftarrow|angle|triangle|cong|circ|parallel|perp|therefore|because|degree|overline|underline|widehat|widetilde|stackrel|overset)\b[^$\n,，。；]*/g,
+                /([A-Za-z_]\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar|neq|leq|geq|pm|mp|approx|equiv|sim|le|ge|ne|lt|gt|infty|sum|prod|int|lim|log|ln|sin|cos|tan|left|right|quad|qquad|over|not|in|forall|exists|subset|cup|cap|to|rightarrow|leftarrow|angle|triangle|cong|circ|parallel|perp|therefore|because|degree|overline|underline|widehat|widetilde|stackrel|overset|implies|Rightarrow|Leftarrow|longrightarrow|iff|sim|simeq|propto)\b[^$\n,，。；]*/g,
                 match => `$${match.trim()}$`
             );
             // Pass 2: 含上標 ^ 的數學片段（如 x^2, 6x^2, (-1)^2）

@@ -559,7 +559,7 @@ careless / concept / calculation / method / format / incomplete / irrelevant
 {{
   "correctness_level": "A / B / C / D / E / F",
   "is_correct": true,
-  "correct_answer": "完整的正確解法（逐步展示，使用 LaTeX 表示數學公式。如涉及幾何，請引用圖中具體元素）",
+  "correct_answer": "完整的正確解法。要求：(1) 逐步展示，每步獨佔一行；(2) 所有數學公式必須用 $...$ 包裹（行內）或 $$...$$ 包裹（獨立行）；(3) 如涉及幾何，引用圖中具體元素；(4) 不要寫過長的文字段落，保持簡潔清晰",
   "error_type": "null / concept_error / calculation_error / careless / expression_weak / memory_error / logic_error / method_error",
   "first_error_step": "第一個出錯的步驟描述（A/B/C 級填 null）",
   "error_analysis": "分析內容（繁體中文）。A/B/C 級：先肯定正確之處，再指出可改進的地方。D/E/F 級：指出哪一步出了問題。如涉及幾何圖形，結合圖中元素和關係解釋",
@@ -573,6 +573,8 @@ careless / concept / calculation / method / format / incomplete / irrelevant
 
 注意：
 - 用繁體中文分析，數學公式用 LaTeX
+- **所有 LaTeX 公式必須用 $ 包裹**，例如 $\\angle ACB = 90^\\circ$，$\\triangle ABC \\cong \\triangle DEF$，$\\frac{{a}}{{b}}$。絕不能出現裸露的 LaTeX 命令
+- **correct_answer 必須逐步展示，每步獨佔一行**（用 \\n 分行），不要寫成一大段文字。保持簡潔，只寫解題步驟，不要加入自我對話或驗證討論
 - **如果學生的最終答案正確（A/B/C 級），is_correct 必須為 true，error_type 按上表填寫（A 級填 null）**
 - **嚴禁在答案正確的情況下標記 concept_error 或 calculation_error**
 - 如果學生有作答且答案錯誤（D/E/F 級），定位到第一個出錯的步驟
