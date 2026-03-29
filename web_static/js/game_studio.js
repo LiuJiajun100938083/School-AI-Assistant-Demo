@@ -403,12 +403,13 @@ const GameStudio = (() => {
             if (!resp.ok) return;
             const data = await resp.json();
 
-            // API 返回 {success, data: {grades: {"中一": ["A","B",...], ...}}}
+            // API 返回 {success, data: {grades: {"中一": [{class_code, class_name}, ...], ...}}}
             const grades = data.data?.grades || data.grades || {};
             const allClasses = [];
             for (const [grade, classList] of Object.entries(grades)) {
                 for (const cls of classList) {
-                    allClasses.push(`${grade}${cls}`);
+                    const name = typeof cls === 'string' ? cls : (cls.class_name || cls.class_code || '');
+                    if (name) allClasses.push(name);
                 }
             }
 
