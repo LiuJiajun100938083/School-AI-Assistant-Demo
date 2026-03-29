@@ -444,6 +444,282 @@ const API = {
    UI — DOM 工具函數
    ============================================================ */
 
+/* ============================================================
+   MathRenderer — LaTeX + Markdown 渲染管道
+   職責分離：每個函數只做一件事，數據流清晰可追蹤。
+   擴展方式：加新 LaTeX 命令只改 LATEX_COMMANDS 數組。
+   ============================================================ */
+const MathRenderer = (() => {
+    'use strict';
+
+    // ── 配置：LaTeX 命令白名單（加新命令只改這裡） ──
+    const LATEX_COMMANDS = [
+        // 希臘字母
+        'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta',
+        'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma',
+        'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega',
+        'Gamma', 'Delta', 'Theta', 'Lambda', 'Xi', 'Pi', 'Sigma', 'Phi', 'Psi', 'Omega',
+        // 運算符
+        'times', 'cdot', 'cdots', 'ldots', 'pm', 'mp', 'div',
+        'frac', 'dfrac', 'tfrac', 'sqrt', 'cbrt',
+        'sum', 'prod', 'int', 'iint', 'oint', 'lim',
+        // 關係符
+        'leq', 'le', 'geq', 'ge', 'neq', 'ne', 'lt', 'gt',
+        'approx', 'equiv', 'sim', 'simeq', 'cong', 'propto',
+        // 幾何
+        'angle', 'measuredangle', 'triangle', 'parallel', 'perp', 'circ', 'degree',
+        // 邏輯
+        'therefore', 'because', 'implies', 'iff',
+        'forall', 'exists', 'not', 'in', 'notin', 'subset', 'cup', 'cap',
+        // 格式 / 裝飾
+        'text', 'mathrm', 'mathbf', 'mathit', 'mathcal',
+        'overline', 'underline', 'widehat', 'widetilde',
+        'vec', 'hat', 'bar', 'dot', 'ddot', 'tilde',
+        'overbrace', 'underbrace',
+        'left', 'right', 'big', 'Big', 'bigg', 'Bigg',
+        'quad', 'qquad', 'over',
+        'stackrel', 'overset', 'underset',
+        // 箭頭
+        'to', 'rightarrow', 'leftarrow', 'Rightarrow', 'Leftarrow',
+        'longrightarrow', 'longleftarrow', 'leftrightarrow', 'Leftrightarrow',
+        'mapsto',
+        // 其他
+        'infty', 'partial', 'nabla',
+        'log', 'ln', 'exp', 'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
+        'arcsin', 'arccos', 'arctan',
+        'min', 'max', 'sup', 'inf', 'det', 'gcd',
+    ];
+    const _cmdPattern = LATEX_COMMANDS.join('|');
+
+    // ── SVG DOMPurify 白名單 ──
+    const SVG_PURIFY_CONFIG = typeof DOMPurify !== 'undefined' ? {
+        ADD_TAGS: ['svg', 'g', 'line', 'circle', 'rect', 'polygon', 'polyline', 'path', 'text'],
+        ADD_ATTR: ['viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
+                   'cx', 'cy', 'r', 'points', 'd', 'fill', 'stroke', 'stroke-width',
+                   'stroke-dasharray', 'transform', 'font-size', 'font-weight',
+                   'text-anchor', 'dominant-baseline', 'opacity', 'xmlns'],
+        FORBID_TAGS: ['script', 'style', 'foreignObject', 'image', 'img', 'iframe', 'object', 'embed', 'a'],
+    } : null;
+
+    // ================================================================
+    // Phase 1: 全文預處理（與 $ 無關的修復）
+    // ================================================================
+
+    /** 修復 JSON 解析損壞的轉義字符（\times→TAB+"imes" 等） */
+    function _fixEscapes(text) {
+        text = text.replace(/\t([a-zA-Z]{2,})/g, '\\t$1');   // \times, \text, \theta, \tan
+        text = text.replace(/\x08([a-zA-Z]{2,})/g, '\\b$1'); // \bar, \binom, \begin, \beta
+        text = text.replace(/\f([a-zA-Z]{2,})/g, '\\f$1');   // \frac, \forall
+        text = text.replace(/\r([a-zA-Z]{2,})/g, '\\r$1');   // \right, \rangle, \rho
+        return text;
+    }
+
+    /** 保護 SVG / <think> 等塊 → 占位符，返回 {text, blocks} */
+    function _protectBlocks(text) {
+        text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
+        const blocks = [];
+        text = text.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+            blocks.push(match);
+            return `SVGBLKPH${blocks.length - 1}ENDPH`;
+        });
+        return { text, blocks };
+    }
+
+    /** 字面 \\n → 真換行（保護 \nabla \neg 等 LaTeX 命令） */
+    function _normalizeLiterals(text) {
+        // 純文本表格轉 Markdown
+        text = UI._convertPlainTextTable(text);
+        // OCR 模型常輸出字面 \n 而非真正換行符
+        text = text.replace(/\\n(?!abla|e[gq]|ew|ot|otin|u(?![a-z])|i(?![a-z]))/g, '\n');
+        return text;
+    }
+
+    // ================================================================
+    // Phase 2: 統一 Tokenize（一次分割，貫穿後續所有步驟）
+    // ================================================================
+
+    /**
+     * 將文本一次性分割為結構化 token[]。
+     * 後續所有處理都基於 token.type 決定行為，不再重複分割。
+     *
+     * @returns {Array<{type: 'latex'|'text', content: string, displayMode: boolean}>}
+     */
+    function _tokenize(text) {
+        const tokens = [];
+        // 匹配順序：\begin{} → $$ → $ （優先長匹配）
+        const re = /\\begin\{([^}]+)\}[\s\S]*?\\end\{\1\}|\$\$[\s\S]*?\$\$|\$[^$\n]+?\$/g;
+        let lastIdx = 0;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            // 前面的純文本
+            if (m.index > lastIdx) {
+                tokens.push({ type: 'text', content: text.substring(lastIdx, m.index), displayMode: false });
+            }
+            // LaTeX 塊
+            const raw = m[0];
+            let content, displayMode;
+            if (raw.startsWith('\\begin{')) {
+                content = raw;
+                displayMode = true;
+            } else if (raw.startsWith('$$')) {
+                content = raw.slice(2, -2);
+                displayMode = true;
+            } else {
+                content = raw.slice(1, -1);
+                displayMode = false;
+            }
+            tokens.push({ type: 'latex', content, displayMode });
+            lastIdx = m.index + raw.length;
+        }
+        // 尾部純文本
+        if (lastIdx < text.length) {
+            tokens.push({ type: 'text', content: text.substring(lastIdx), displayMode: false });
+        }
+        return tokens;
+    }
+
+    // ================================================================
+    // Phase 3: 處理純文本 Token（僅作用於 type=text）
+    // ================================================================
+
+    /** 構建裸 LaTeX 命令匹配正則（從 LATEX_COMMANDS 動態生成） */
+    const _bareLatexRe = new RegExp(
+        '([A-Za-z_][A-Za-z_0-9]*\\s*=\\s*)?' +  // 可選前綴：VAR =
+        '(\\d[\\d.,]*\\s*)?' +                     // 可選數字前綴
+        '\\\\(' + _cmdPattern + ')\\b' +           // \command
+        '(?:\\{[^}]*\\})*' +                       // 花括號參數 {..}{..}
+        '[^$\\n,，。；]*',                          // 尾部延伸（不跨 $ 或換行）
+        'g'
+    );
+
+    /** 上標匹配（x^2, (-1)^2 等） */
+    const _superscriptRe = /[(\d\-]*[a-zA-Z)]+\s*\^\s*(?:\{[^}]+\}|\d+)/g;
+
+    /**
+     * 處理一個純文本 token：
+     * 1. ^\circ → °（安全，因為保證不在 $ 內）
+     * 2. 裸 LaTeX 命令包裹 $
+     * 3. 上標表達式包裹 $
+     * 4. 新產生的 $...$ 再次 tokenize
+     *
+     * @returns {Array<token>} 可能返回多個 token（text + latex 混合）
+     */
+    function _processTextToken(token) {
+        let t = token.content;
+
+        // Step 1: 純文本中的 ^\circ → °（不影響 $ 內的 LaTeX）
+        t = t.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
+        t = t.replace(/\^\\circ(?![a-zA-Z])/g, '°');
+
+        // Step 2: 裸 LaTeX 命令包裹 $
+        t = t.replace(_bareLatexRe, m => `$${m.trim()}$`);
+
+        // Step 3: 上標表達式包裹 $（在 Step 2 之後，需避開已包裹的）
+        t = t.split(/(\$[^$]*\$)/).map(seg => {
+            if (seg.startsWith('$') && seg.endsWith('$')) return seg;
+            return seg.replace(_superscriptRe, m => `$${m.trim()}$`);
+        }).join('');
+
+        // Step 4: 如果產生了新的 $...$，再次 tokenize
+        if (t.includes('$')) {
+            return _tokenize(t);
+        }
+        return [{ type: 'text', content: t, displayMode: false }];
+    }
+
+    // ================================================================
+    // Phase 4: 渲染 Token → HTML
+    // ================================================================
+
+    /** 渲染單個 LaTeX token 為 HTML */
+    function _renderKatex(latex, displayMode) {
+        if (typeof katex === 'undefined') return UI.escapeHtml(latex);
+        try {
+            let fixed = latex.trim()
+                .replace(/\\begin\{tabular\}/g, '\\begin{array}')
+                .replace(/\\end\{tabular\}/g, '\\end{array}');
+            return katex.renderToString(fixed, {
+                throwOnError: false,
+                displayMode,
+                trust: true,
+            });
+        } catch {
+            return UI.escapeHtml(latex);
+        }
+    }
+
+    /**
+     * 將 token[] 渲染為最終 HTML。
+     * LaTeX token → KaTeX 占位符 → Markdown 渲染 → 還原占位符
+     */
+    function _renderTokens(tokens) {
+        if (typeof katex === 'undefined') {
+            return UI._renderMarkdown(tokens.map(t => t.content).join(''));
+        }
+
+        const placeholders = [];
+        let mdText = '';
+        for (const token of tokens) {
+            if (token.type === 'latex') {
+                const ph = `KATEXPH${placeholders.length}ENDPH`;
+                placeholders.push(_renderKatex(token.content, token.displayMode));
+                mdText += ph;
+            } else {
+                mdText += token.content;
+            }
+        }
+
+        let html = UI._renderMarkdown(mdText);
+        placeholders.forEach((rendered, i) => {
+            html = html.replace(`KATEXPH${i}ENDPH`, rendered);
+        });
+        return html;
+    }
+
+    // ================================================================
+    // Phase 5: 還原保護塊
+    // ================================================================
+
+    function _restoreBlocks(html, blocks) {
+        blocks.forEach((svg, i) => {
+            const safe = SVG_PURIFY_CONFIG
+                ? DOMPurify.sanitize(svg, SVG_PURIFY_CONFIG)
+                : UI.escapeHtml(svg);
+            html = html.replace(`SVGBLKPH${i}ENDPH`, safe);
+        });
+        return html;
+    }
+
+    // ================================================================
+    // 公開入口
+    // ================================================================
+
+    return {
+        render(text) {
+            // Phase 1: 全文預處理
+            text = _fixEscapes(text);
+            const { text: cleaned, blocks } = _protectBlocks(text);
+            text = _normalizeLiterals(cleaned);
+
+            // Phase 2: 統一 Tokenize
+            let tokens = _tokenize(text);
+
+            // Phase 3: 處理純文本 Token（裸 LaTeX 包裹、°C 修復）
+            tokens = tokens.flatMap(token =>
+                token.type === 'text' ? _processTextToken(token) : [token]
+            );
+
+            // Phase 4: 渲染 → HTML
+            let html = _renderTokens(tokens);
+
+            // Phase 5: 還原保護塊
+            html = _restoreBlocks(html, blocks);
+
+            return html;
+        },
+    };
+})();
+
 const UI = {
     loading() {
         return `<div class="mb-loading"><div class="mb-loading__spinner"></div>${i18n.t('mb.loadingText')}</div>`;
@@ -526,143 +802,19 @@ const UI = {
         return div.innerHTML;
     },
 
+    /**
+     * renderMath — 混合文本的 LaTeX + Markdown 渲染管道
+     *
+     * 架構：職責分離 + 管道化，每個階段只做一件事，互不干擾。
+     *
+     * Pipeline:
+     *   fixEscapes → protectBlocks → normalizeLiterals
+     *   → tokenize → processTextTokens → renderTokens
+     *   → restoreBlocks → HTML
+     */
     renderMath(text) {
         if (!text) return '';
-
-        // 修復已存 DB 中被 JSON 解析損壞的 LaTeX（\times→TAB+"imes" 等）
-        text = text.replace(/\t([a-zA-Z]{2,})/g, '\\t$1');   // \times, \text, \theta, \tan
-        text = text.replace(/\x08([a-zA-Z]{2,})/g, '\\b$1'); // \bar, \binom, \begin, \beta
-        text = text.replace(/\f([a-zA-Z]{2,})/g, '\\f$1');   // \frac, \forall
-        text = text.replace(/\r([a-zA-Z]{2,})/g, '\\r$1');   // \right, \rangle, \rho
-
-        text = text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<\/?think>/gi, '').trim();
-
-        // 保護 SVG 塊不被後續 LaTeX/Markdown 處理干擾
-        const svgBlocks = [];
-        text = text.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
-            svgBlocks.push(match);
-            return `SVGPH${svgBlocks.length - 1}ENDSVGPH`;
-        });
-
-        // 檢測純文本表格（空格分隔列）並轉為 Markdown 表格
-        text = UI._convertPlainTextTable(text);
-
-        // OCR 模型常輸出字面 \n 而非真正換行符，轉換之
-        // 保護已知 LaTeX \n* 命令（\nabla \neg \neq \newline \ni \not \notin \nu）
-        text = text.replace(/\\n(?!abla|e[gq]|ew|ot|otin|u(?![a-z])|i(?![a-z]))/g, '\n');
-
-        // 修復 AI 生成的無效 LaTeX：\text{^\circ C} → °C（僅對 $ 外部文本）
-        // 注意：不能在 $...$ 內部替換，否則會破壞 KaTeX 渲染
-        text = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/).map(seg => {
-            if (seg.startsWith('$')) return seg;
-            seg = seg.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
-            seg = seg.replace(/\^\\circ(?![a-zA-Z])/g, '°');
-            return seg;
-        }).join('');
-
-        // 修復未用 $ 包裹的裸露 LaTeX（AI 有時漏掉 $ 分隔符）
-        // 分割文本為 $...$ 內和外的片段，只對外部片段修復
-        const _wrapBareLatex = (plainText) => {
-            // Pass 1: 含 \ 命令的片段（支持花括號嵌套）
-            plainText = plainText.replace(
-                /([A-Za-z_][A-Za-z_0-9]*\s*=\s*)?(\d[\d.,]*\s*)?\\(text|frac|sqrt|Delta|Omega|theta|alpha|beta|gamma|omega|mu|pi|times|cdot|vec|hat|bar|neq|leq|geq|pm|mp|approx|equiv|sim|le|ge|ne|lt|gt|infty|sum|prod|int|lim|log|ln|sin|cos|tan|left|right|quad|qquad|over|not|in|forall|exists|subset|cup|cap|to|rightarrow|leftarrow|angle|triangle|cong|circ|parallel|perp|therefore|because|degree|overline|underline|widehat|widetilde|stackrel|overset|implies|Rightarrow|Leftarrow|longrightarrow|iff|sim|simeq|propto)\b(?:\{[^}]*\})*[^$\n,，。；]*/g,
-                match => `$${match.trim()}$`
-            );
-            // Pass 2: 含上標 ^ 的數學片段（如 x^2, 6x^2, (-1)^2）
-            // 先分割出 $...$ 區段，只對非 $ 區段做替換，避免破壞 Pass 1 的結果
-            const p2parts = plainText.split(/(\$[^$]*\$)/);
-            plainText = p2parts.map(seg => {
-                if (seg.startsWith('$') && seg.endsWith('$')) return seg; // 已在 $ 內，跳過
-                return seg.replace(
-                    /[(\d\-]*[a-zA-Z)]+\s*\^\s*(?:\{[^}]+\}|\d+)/g,
-                    m => `$${m.trim()}$`
-                );
-            }).join('');
-            return plainText;
-        };
-
-        const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/);
-        text = parts.map(part => {
-            if (part.startsWith('$')) return part;
-            return _wrapBareLatex(part);
-        }).join('');
-
-        if (typeof katex === 'undefined') {
-            return UI._renderMarkdown(text);
-        }
-
-        const renderKatex = (latex, displayMode) => {
-            try {
-                // KaTeX 不支援 tabular，轉為 array
-                let fixed = latex.trim()
-                    .replace(/\\begin\{tabular\}/g, '\\begin{array}')
-                    .replace(/\\end\{tabular\}/g, '\\end{array}');
-                return katex.renderToString(fixed, {
-                    throwOnError: false,
-                    displayMode,
-                    trust: true,
-                });
-            } catch {
-                return UI.escapeHtml(latex);
-            }
-        };
-
-        const matches = [];
-        const patterns = [
-            { re: /\\begin\{([^}]+)\}([\s\S]*?)\\end\{\1\}/g, display: true,  extract: m => m[0] },
-            { re: /\$\$([\s\S]*?)\$\$/g,                      display: true,  extract: m => m[1] },
-            { re: /\$([^$]+?)\$/g,                             display: false, extract: m => m[1] },
-        ];
-
-        for (const p of patterns) {
-            const re = new RegExp(p.re.source, p.re.flags);
-            let m;
-            while ((m = re.exec(text)) !== null) {
-                matches.push({ start: m.index, end: m.index + m[0].length, latex: p.extract(m), display: p.display });
-            }
-        }
-
-        matches.sort((a, b) => a.start - b.start);
-        const filtered = [];
-        let lastEnd = 0;
-        for (const m of matches) {
-            if (m.start >= lastEnd) { filtered.push(m); lastEnd = m.end; }
-        }
-
-        // 用占位符替換 LaTeX 區段，渲染 Markdown 後再還原
-        const placeholders = [];
-        let mdText = '';
-        let pos = 0;
-        for (const m of filtered) {
-            if (m.start > pos) mdText += text.substring(pos, m.start);
-            const ph = `KATEXPH${placeholders.length}ENDPH`;
-            placeholders.push(renderKatex(m.latex, m.display));
-            mdText += ph;
-            pos = m.end;
-        }
-        if (pos < text.length) mdText += text.substring(pos);
-
-        // 渲染 Markdown（含 XSS 防護），然後還原 KaTeX 占位符
-        let result = UI._renderMarkdown(mdText);
-        placeholders.forEach((html, i) => {
-            result = result.replace(`KATEXPH${i}ENDPH`, html);
-        });
-
-        // 還原 SVG 塊（先單獨 sanitize 每個 SVG）
-        const svgPurifyConfig = typeof DOMPurify !== 'undefined' ? {
-            ADD_TAGS: ['svg', 'g', 'line', 'circle', 'rect', 'polygon', 'polyline', 'path', 'text'],
-            ADD_ATTR: ['viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
-                       'cx', 'cy', 'r', 'points', 'd', 'fill', 'stroke', 'stroke-width',
-                       'stroke-dasharray', 'transform', 'font-size', 'font-weight',
-                       'text-anchor', 'dominant-baseline', 'opacity', 'xmlns'],
-            FORBID_TAGS: ['script', 'style', 'foreignObject', 'image', 'img', 'iframe', 'object', 'embed', 'a'],
-        } : null;
-        svgBlocks.forEach((svg, i) => {
-            const safe = svgPurifyConfig ? DOMPurify.sanitize(svg, svgPurifyConfig) : UI.escapeHtml(svg);
-            result = result.replace(`SVGPH${i}ENDSVGPH`, safe);
-        });
-
-        return result;
+        return MathRenderer.render(text);
     },
 
     /**
