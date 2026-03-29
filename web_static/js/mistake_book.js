@@ -1440,7 +1440,7 @@ const Views = {
             const onclick = isProcessing ? '' : `onclick="Views.openDetail('${m.mistake_id}')"`;
             const cursorStyle = isProcessing ? 'style="cursor:default;opacity:0.7"' : '';
             const imgSrc = m.original_image_path
-                ? `/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}`
+                ? `/uploads/mistakes/${m.original_image_path.replace(/\\/g, '/').split('uploads/mistakes/')[1] || ''}`
                 : '';
 
             html += `
@@ -1743,7 +1743,7 @@ const Views = {
             <div class="mb-detail-section">
                 <div class="mb-detail-section__title">${Icons.image(16)} ${i18n.t('mb.originalPhoto')}${m.extra_image_paths ? ' ' + i18n.t('mb.photoCount', {count: JSON.parse(m.extra_image_paths).length + 1}) : ''}</div>
                 <div style="display:flex;flex-wrap:wrap;gap:8px">
-                    <img src="/uploads/mistakes/${m.original_image_path.split('uploads/mistakes/')[1] || ''}"
+                    <img src="/uploads/mistakes/${m.original_image_path.replace(/\\/g, '/').split('uploads/mistakes/')[1] || ''}"
                          style="max-width:100%;border-radius:8px;cursor:pointer" alt="${i18n.isEn ? 'Photo 1' : '照片 1'}"
                          onclick="window.open(this.src,'_blank')"
                          onerror="this.style.display='none'">
