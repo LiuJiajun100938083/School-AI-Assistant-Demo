@@ -686,15 +686,13 @@ const MyGamesPage = {
 
     async checkAuth() {
         const token = localStorage.getItem('auth_token');
-        const role = localStorage.getItem('user_role');
-
-        if (!token || !['teacher', 'admin'].includes(role)) {
+        if (!token) {
             alert('只有教師和管理員可以訪問此頁面');
             window.location.href = '/';
             return;
         }
 
-        // 获取用户信息
+        // 获取用户信息（從 API 驗證角色，不依賴 localStorage）
         try {
             const response = await fetch('/api/user/info', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -703,9 +701,19 @@ const MyGamesPage = {
             if (data.success && data.data) {
                 this.userId = data.data.id;
                 this.userRole = data.data.role;
+                if (!['teacher', 'admin'].includes(this.userRole)) {
+                    alert('只有教師和管理員可以訪問此頁面');
+                    window.location.href = '/';
+                    return;
+                }
+            } else {
+                window.location.href = '/login';
+                return;
             }
         } catch (error) {
             console.error('获取用户信息失败', error);
+            window.location.href = '/login';
+            return;
         }
     },
 
