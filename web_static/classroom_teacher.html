@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教學控制台</title>
+    <title data-i18n="ct.pageTitle">教學控制台</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="/static/js/shared/theme.js"></script>
@@ -93,35 +93,35 @@
     <!-- ===== TOP BAR ===== -->
     <header class="topbar">
         <div class="topbar-left">
-            <button class="topbar-btn" id="backToListBtn" title="返回課堂列表">
+            <button class="topbar-btn" id="backToListBtn" data-i18n-title="ct.backToList" title="返回課堂列表">
                 <svg class="icon"><use href="#icon-arrow-left"/></svg>
             </button>
             <div class="topbar-divider"></div>
-            <span class="topbar-title" id="topbarTitle">課堂</span>
-            <span class="room-status draft" id="roomStatus">草稿</span>
+            <span class="topbar-title" id="topbarTitle" data-i18n="ct.classroom">課堂</span>
+            <span class="room-status draft" id="roomStatus" data-i18n="ct.statusDraft">草稿</span>
         </div>
 
         <div class="topbar-center">
-            <button class="topbar-btn" id="prevBtn" title="上一頁">
+            <button class="topbar-btn" id="prevBtn" data-i18n-title="ct.prevPage" title="上一頁">
                 <svg class="icon"><use href="#icon-chevron-left"/></svg>
             </button>
             <span class="page-indicator">
-                第 <span id="currentPage">-</span> / <span id="totalPages">-</span> 張
+                <span data-i18n="ct.pagePrefix">第</span> <span id="currentPage">-</span> / <span id="totalPages">-</span> <span data-i18n="ct.pageSuffix">張</span>
             </span>
             <span class="slide-type-pill" id="slideTypePill"></span>
-            <button class="topbar-btn" id="nextBtn" title="下一頁">
+            <button class="topbar-btn" id="nextBtn" data-i18n-title="ct.nextPage" title="下一頁">
                 <svg class="icon"><use href="#icon-chevron-right"/></svg>
             </button>
         </div>
 
         <div class="topbar-right">
-            <button class="cta-btn" id="pushBtn" title="推送給學生">
+            <button class="cta-btn" id="pushBtn" data-i18n-title="ct.pushToStudents" title="推送給學生">
                 <svg class="icon"><use href="#icon-send"/></svg>
-                <span>推送給學生</span>
+                <span data-i18n="ct.pushToStudents">推送給學生</span>
             </button>
             <div class="topbar-divider"></div>
             <div class="dropdown-wrapper" id="dropdownWrapper">
-                <button class="topbar-btn" id="moreBtn" title="更多操作">
+                <button class="topbar-btn" id="moreBtn" data-i18n-title="ct.moreActions" title="更多操作">
                     <svg class="icon"><use href="#icon-more"/></svg>
                 </button>
                 <div class="dropdown-menu" id="moreMenu">
@@ -129,15 +129,15 @@
                     <button class="dropdown-item" id="selectLessonItem" onclick="promptStartLesson()">
                         <svg class="icon"><use href="#icon-list"/></svg>
                         <span class="dropdown-item-content">
-                            <span class="dropdown-item-label">選擇課案</span>
-                            <span class="dropdown-item-desc">開始一節新課案</span>
+                            <span class="dropdown-item-label" data-i18n="ct.selectLesson">選擇課案</span>
+                            <span class="dropdown-item-desc" data-i18n="ct.selectLessonDesc">開始一節新課案</span>
                         </span>
                     </button>
                     <button class="dropdown-item" id="endLessonItem" onclick="endLesson()" style="display:none;">
                         <svg class="icon"><use href="#icon-square"/></svg>
                         <span class="dropdown-item-content">
-                            <span class="dropdown-item-label">結束本節課案</span>
-                            <span class="dropdown-item-desc">停止當前課案，可選下一節</span>
+                            <span class="dropdown-item-label" data-i18n="ct.endLesson">結束本節課案</span>
+                            <span class="dropdown-item-desc" data-i18n="ct.endLessonDesc">停止當前課案，可選下一節</span>
                         </span>
                     </button>
                     <div class="dropdown-divider" id="lessonDivider"></div>
@@ -145,15 +145,15 @@
                     <button class="dropdown-item" id="pauseBtn" style="display:none;">
                         <svg class="icon"><use href="#icon-pause"/></svg>
                         <span class="dropdown-item-content">
-                            <span class="dropdown-item-label">暫停課堂</span>
-                            <span class="dropdown-item-desc">學生暫時無法操作</span>
+                            <span class="dropdown-item-label" data-i18n="ct.pauseClass">暫停課堂</span>
+                            <span class="dropdown-item-desc" data-i18n="ct.pauseClassDesc">學生暫時無法操作</span>
                         </span>
                     </button>
                     <button class="dropdown-item" id="resumeBtn" style="display:none;">
                         <svg class="icon"><use href="#icon-play"/></svg>
                         <span class="dropdown-item-content">
-                            <span class="dropdown-item-label">繼續課堂</span>
-                            <span class="dropdown-item-desc">恢復課堂互動</span>
+                            <span class="dropdown-item-label" data-i18n="ct.resumeClass">繼續課堂</span>
+                            <span class="dropdown-item-desc" data-i18n="ct.resumeClassDesc">恢復課堂互動</span>
                         </span>
                     </button>
                     <div class="dropdown-divider" id="statusDivider"></div>
@@ -161,8 +161,8 @@
                     <button class="dropdown-item danger" id="endClassBtn">
                         <svg class="icon"><use href="#icon-square"/></svg>
                         <span class="dropdown-item-content">
-                            <span class="dropdown-item-label">下課</span>
-                            <span class="dropdown-item-desc">結束課堂，學生將被移出</span>
+                            <span class="dropdown-item-label" data-i18n="ct.endClass">下課</span>
+                            <span class="dropdown-item-desc" data-i18n="ct.endClassDesc">結束課堂，學生將被移出</span>
                         </span>
                     </button>
                 </div>
@@ -178,7 +178,7 @@
             <div class="upload-section">
                 <button class="upload-btn" id="uploadBtn">
                     <svg class="icon"><use href="#icon-upload"/></svg>
-                    <span>上傳課件</span>
+                    <span data-i18n="ct.uploadSlides">上傳課件</span>
                 </button>
                 <input type="file" id="pptFile" accept=".pptx" style="display:none;">
             </div>
@@ -193,7 +193,7 @@
                 <canvas id="fabricCanvas"></canvas>
             </div>
             <!-- Placeholder -->
-            <div class="canvas-placeholder" id="canvasPlaceholder">
+            <div class="canvas-placeholder" id="canvasPlaceholder" data-i18n="ct.placeholderSelectOrUpload">
                 請選擇課案或上傳課件
             </div>
 
@@ -201,48 +201,48 @@
             <div class="annotation-bar" id="annotationBar">
                 <!-- Tools group: icon + label -->
                 <div class="anno-group">
-                    <button class="tool-btn" id="penBtn" title="畫筆">
+                    <button class="tool-btn" id="penBtn" data-i18n-title="ct.toolPen" title="畫筆">
                         <svg class="icon"><use href="#icon-pen"/></svg>
-                        <span class="anno-label">畫筆</span>
+                        <span class="anno-label" data-i18n="ct.toolPen">畫筆</span>
                     </button>
-                    <button class="tool-btn" id="highlighterBtn" title="螢光筆">
+                    <button class="tool-btn" id="highlighterBtn" data-i18n-title="ct.toolHighlighter" title="螢光筆">
                         <svg class="icon"><use href="#icon-highlighter"/></svg>
-                        <span class="anno-label">螢光</span>
+                        <span class="anno-label" data-i18n="ct.toolHighlighterShort">螢光</span>
                     </button>
-                    <button class="tool-btn" id="eraserBtn" title="橡皮擦">
+                    <button class="tool-btn" id="eraserBtn" data-i18n-title="ct.toolEraser" title="橡皮擦">
                         <svg class="icon"><use href="#icon-eraser"/></svg>
-                        <span class="anno-label">橡皮</span>
+                        <span class="anno-label" data-i18n="ct.toolEraserShort">橡皮</span>
                     </button>
-                    <button class="tool-btn" id="textBtn" title="文字">
+                    <button class="tool-btn" id="textBtn" data-i18n-title="ct.toolText" title="文字">
                         <svg class="icon"><use href="#icon-type"/></svg>
-                        <span class="anno-label">文字</span>
+                        <span class="anno-label" data-i18n="ct.toolText">文字</span>
                     </button>
                 </div>
                 <div class="anno-sep"></div>
                 <!-- Style group: icon-only -->
                 <div class="anno-group">
                     <div class="color-picker-group">
-                        <div class="color-swatch active" data-color="#000000" style="background:#000000;" title="黑色"></div>
-                        <div class="color-swatch" data-color="#ff3b30" style="background:#ff3b30;" title="紅色"></div>
-                        <div class="color-swatch" data-color="#0071e3" style="background:#0071e3;" title="藍色"></div>
-                        <div class="color-swatch" data-color="#34c759" style="background:#34c759;" title="綠色"></div>
-                        <div class="color-swatch" data-color="#ff9500" style="background:#ff9500;" title="橙色"></div>
-                        <div class="color-swatch" data-color="#a855f7" style="background:#a855f7;" title="紫色"></div>
+                        <div class="color-swatch active" data-color="#000000" style="background:#000000;" data-i18n-title="ct.colorBlack" title="黑色"></div>
+                        <div class="color-swatch" data-color="#ff3b30" style="background:#ff3b30;" data-i18n-title="ct.colorRed" title="紅色"></div>
+                        <div class="color-swatch" data-color="#0071e3" style="background:#0071e3;" data-i18n-title="ct.colorBlue" title="藍色"></div>
+                        <div class="color-swatch" data-color="#34c759" style="background:#34c759;" data-i18n-title="ct.colorGreen" title="綠色"></div>
+                        <div class="color-swatch" data-color="#ff9500" style="background:#ff9500;" data-i18n-title="ct.colorOrange" title="橙色"></div>
+                        <div class="color-swatch" data-color="#a855f7" style="background:#a855f7;" data-i18n-title="ct.colorPurple" title="紫色"></div>
                     </div>
                     <div class="width-control">
-                        <input type="range" id="lineWidthSlider" min="1" max="10" value="2" title="筆寬">
+                        <input type="range" id="lineWidthSlider" min="1" max="10" value="2" data-i18n-title="ct.lineWidth" title="筆寬">
                     </div>
                 </div>
                 <div class="anno-sep"></div>
                 <!-- Edit group: icon-only -->
                 <div class="anno-group">
-                    <button class="anno-action-btn" id="undoBtn" title="撤銷">
+                    <button class="anno-action-btn" id="undoBtn" data-i18n-title="ct.undo" title="撤銷">
                         <svg class="icon"><use href="#icon-undo"/></svg>
                     </button>
-                    <button class="anno-action-btn" id="redoBtn" title="重做">
+                    <button class="anno-action-btn" id="redoBtn" data-i18n-title="ct.redo" title="重做">
                         <svg class="icon"><use href="#icon-redo"/></svg>
                     </button>
-                    <button class="anno-action-btn" id="clearBtn" title="清除標註">
+                    <button class="anno-action-btn" id="clearBtn" data-i18n-title="ct.clearAnnotations" title="清除標註">
                         <svg class="icon"><use href="#icon-trash"/></svg>
                     </button>
                 </div>
@@ -254,56 +254,56 @@
             <!-- A. Status Summary -->
             <div class="panel-section panel-status">
                 <div class="status-line">
-                    <span class="status-dim">課室</span>
+                    <span class="status-dim" data-i18n="ct.room">課室</span>
                     <span class="status-val" id="roomId">-</span>
                 </div>
                 <div class="status-line">
-                    <span class="status-dim">講師</span>
+                    <span class="status-dim" data-i18n="ct.teacher">講師</span>
                     <span class="status-val" id="teacherName">-</span>
                 </div>
                 <div class="status-line">
-                    <span class="status-dim">在線</span>
+                    <span class="status-dim" data-i18n="ct.online">在線</span>
                     <span class="online-dot"></span>
-                    <span class="status-val"><span id="studentCount">0</span> 人</span>
+                    <span class="status-val"><span id="studentCount">0</span> <span data-i18n="ct.personUnit">人</span></span>
                 </div>
             </div>
 
             <!-- B. Slide Operations -->
             <div class="panel-section panel-actions">
-                <div class="panel-section-title">操作</div>
-                <div class="slide-status-text" id="slideStatusText">課堂尚未開始</div>
+                <div class="panel-section-title" data-i18n="ct.actions">操作</div>
+                <div class="slide-status-text" id="slideStatusText" data-i18n="ct.classNotStarted">課堂尚未開始</div>
                 <div class="lesson-info-text" id="lessonInfo"></div>
 
                 <!-- Draft: Start class CTA -->
                 <button class="ctrl-btn primary full-width" id="startClassBtn">
-                    <svg class="icon"><use href="#icon-play"/></svg> 開始上課
+                    <svg class="icon"><use href="#icon-play"/></svg> <span data-i18n="ct.startClass">開始上課</span>
                 </button>
 
                 <!-- No active lesson: Select lesson -->
                 <div id="lessonStartBar">
                     <button class="ctrl-btn outline full-width" id="startLessonBtn" onclick="promptStartLesson()">
-                        <svg class="icon"><use href="#icon-list"/></svg> 選擇課案
+                        <svg class="icon"><use href="#icon-list"/></svg> <span data-i18n="ct.selectLesson">選擇課案</span>
                     </button>
                 </div>
 
                 <!-- Active lesson: Slide control buttons -->
                 <div id="lessonControlBar" style="display:none;" class="lesson-action-group">
-                    <button class="ctrl-btn primary full-width" id="lessonActivateBtn" onclick="lessonSlideAction('activate')">推送</button>
-                    <button class="ctrl-btn outline full-width" id="openResponsesBtn" onclick="lessonSlideAction('open_responses')">開放回應</button>
-                    <button class="ctrl-btn outline full-width" id="closeResponsesBtn" onclick="lessonSlideAction('close_responses')">關閉回應</button>
-                    <button class="ctrl-btn outline full-width" id="quizRevealBtn" onclick="lessonSlideAction('quiz_reveal')" style="display:none;">揭示答案</button>
-                    <button class="ctrl-btn outline full-width" id="quizNextBtn" onclick="lessonSlideAction('quiz_next')" style="display:none;">下一題</button>
-                    <button class="ctrl-btn outline full-width" id="showResultsBtn" onclick="lessonSlideAction('show_results')" style="display:none;">顯示結果</button>
-                    <button class="ctrl-btn outline full-width" id="interactiveLockBtn" onclick="lessonSlideAction('interactive_lock')" style="display:none;">🔒 鎖定學生</button>
-                    <button class="ctrl-btn outline full-width" id="interactiveUnlockBtn" onclick="lessonSlideAction('interactive_unlock')" style="display:none;">🔓 解鎖學生</button>
+                    <button class="ctrl-btn primary full-width" id="lessonActivateBtn" onclick="lessonSlideAction('activate')" data-i18n="ct.push">推送</button>
+                    <button class="ctrl-btn outline full-width" id="openResponsesBtn" onclick="lessonSlideAction('open_responses')" data-i18n="ct.openResponses">開放回應</button>
+                    <button class="ctrl-btn outline full-width" id="closeResponsesBtn" onclick="lessonSlideAction('close_responses')" data-i18n="ct.closeResponses">關閉回應</button>
+                    <button class="ctrl-btn outline full-width" id="quizRevealBtn" onclick="lessonSlideAction('quiz_reveal')" style="display:none;" data-i18n="ct.revealAnswer">揭示答案</button>
+                    <button class="ctrl-btn outline full-width" id="quizNextBtn" onclick="lessonSlideAction('quiz_next')" style="display:none;" data-i18n="ct.nextQuestion">下一題</button>
+                    <button class="ctrl-btn outline full-width" id="showResultsBtn" onclick="lessonSlideAction('show_results')" style="display:none;" data-i18n="ct.showResults">顯示結果</button>
+                    <button class="ctrl-btn outline full-width" id="interactiveLockBtn" onclick="lessonSlideAction('interactive_lock')" style="display:none;" data-i18n="ct.lockStudents">🔒 鎖定學生</button>
+                    <button class="ctrl-btn outline full-width" id="interactiveUnlockBtn" onclick="lessonSlideAction('interactive_unlock')" style="display:none;" data-i18n="ct.unlockStudents">🔓 解鎖學生</button>
                 </div>
             </div>
 
             <!-- D. Online Students -->
             <div class="panel-section panel-students">
-                <div class="panel-section-title">學生</div>
+                <div class="panel-section-title" data-i18n="ct.students">學生</div>
                 <div class="students-container" id="studentsList">
-                    <div class="empty-state">尚無學生連線</div>
+                    <div class="empty-state" data-i18n="ct.noStudents">尚無學生連線</div>
                 </div>
             </div>
         </aside>
@@ -314,11 +314,11 @@
 <!-- ===== Confirm Modal ===== -->
 <div class="modal" id="confirmModal">
     <div class="modal-content">
-        <div class="modal-title" id="confirmTitle">確認操作</div>
-        <div class="modal-body" id="confirmBody">確認執行此操作嗎？</div>
+        <div class="modal-title" id="confirmTitle" data-i18n="ct.confirmAction">確認操作</div>
+        <div class="modal-body" id="confirmBody" data-i18n="ct.confirmActionBody">確認執行此操作嗎？</div>
         <div class="modal-buttons">
-            <button class="modal-btn" id="confirmCancel">取消</button>
-            <button class="modal-btn primary" id="confirmOk">確認</button>
+            <button class="modal-btn" id="confirmCancel" data-i18n="ct.cancel">取消</button>
+            <button class="modal-btn primary" id="confirmOk" data-i18n="ct.confirm">確認</button>
         </div>
     </div>
 </div>
@@ -327,6 +327,9 @@
 <script src="/static/js/shared/auth.js"></script>
 <script src="/static/js/shared/ui.js"></script>
 <script src="/static/js/shared/api.js"></script>
+<script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n/classroom.js"></script>
 <script src="/static/js/shared/annotation_utils.js"></script>
 <script src="/static/js/shared/lesson_slide_renderers.js"></script>
 <script src="/static/js/shared/interactive_renderers.js"></script>

@@ -132,7 +132,7 @@ const ClassroomStudentUI = {
         }
         const teacherName = data.teacher_display_name || data.teacher_name || '';
         if (teacherName) {
-            document.getElementById('teacherName').textContent = `教師: ${teacherName}`;
+            document.getElementById('teacherName').textContent = i18n.t('cs.teacher', { name: teacherName });
         }
     },
 
@@ -140,7 +140,7 @@ const ClassroomStudentUI = {
      * Update the page number display.
      */
     updatePageNumber(pageNumber) {
-        document.getElementById('pageNumber').textContent = `第 ${pageNumber} 頁`;
+        document.getElementById('pageNumber').textContent = i18n.t('cs.pageNum', { num: pageNumber });
     },
 
     /**
@@ -159,10 +159,10 @@ const ClassroomStudentUI = {
 
         if (connected) {
             indicator.classList.remove('disconnected');
-            label.textContent = '已連接';
+            label.textContent = i18n.t('cs.connected');
         } else {
             indicator.classList.add('disconnected');
-            label.textContent = '已斷開';
+            label.textContent = i18n.t('cs.disconnected');
         }
     },
 
@@ -184,15 +184,15 @@ const ClassroomStudentUI = {
 
     showRoomEndedOverlay() {
         const overlay = document.getElementById('statusOverlay');
-        document.getElementById('overlayTitle').textContent = '課堂已結束';
-        document.getElementById('overlayText').textContent = '本課堂已由老師結束，請返回課堂列表。';
+        document.getElementById('overlayTitle').textContent = i18n.t('cs.classEnded');
+        document.getElementById('overlayText').textContent = i18n.t('cs.classEndedText');
         overlay.classList.add('visible');
     },
 
     showRoomClosedOverlay() {
         const overlay = document.getElementById('statusOverlay');
-        document.getElementById('overlayTitle').textContent = '房間已關閉';
-        document.getElementById('overlayText').textContent = '課堂房間已關閉，頁面將在 3 秒後跳轉。';
+        document.getElementById('overlayTitle').textContent = i18n.t('cs.roomClosed');
+        document.getElementById('overlayText').textContent = i18n.t('cs.roomClosedText');
         overlay.classList.add('visible');
 
         setTimeout(() => {
@@ -215,8 +215,8 @@ const ClassroomStudentUI = {
         if (wrapper) {
             wrapper.innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#6E6E73;">
-                    <h2>課案已結束</h2>
-                    <p>等待老師下一步指示</p>
+                    <h2>${i18n.t('cs.lessonEnded')}</h2>
+                    <p>${i18n.t('cs.waitingForTeacherNext')}</p>
                 </div>
             `;
         }
@@ -336,6 +336,9 @@ const ClassroomStudentApp = {
 
     async init() {
         try {
+            // Apply i18n to static DOM elements
+            i18n.applyDOM();
+
             // Extract room ID from URL
             const pathParts = window.location.pathname.split('/');
             this.state.roomId = pathParts[pathParts.length - 1];
@@ -351,11 +354,11 @@ const ClassroomStudentApp = {
                     this.state.userInfo.name = userData.display_name || userData.username;
                 }
             } catch (e) {
-                console.warn('獲取用戶資訊失敗:', e);
+                console.warn('Failed to get user info:', e);
             }
 
             if (!this.state.roomId || !this.state.token) {
-                UIModule.toast('缺少必要資訊，請重新登錄', 'error');
+                UIModule.toast(i18n.t('cs.missingInfo'), 'error');
                 setTimeout(() => {
                     window.location.href = '/';
                 }, 2000);
@@ -406,7 +409,7 @@ const ClassroomStudentApp = {
 
         } catch (error) {
             console.error('Init error:', error);
-            UIModule.toast('初始化失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('cs.initFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -420,12 +423,12 @@ const ClassroomStudentApp = {
                 ClassroomStudentUI.updateRoomInfo(result.data);
                 return true;
             } else {
-                UIModule.toast(result.message || '加入課堂失敗', 'error');
+                UIModule.toast(result.message || i18n.t('cs.joinFailed'), 'error');
                 return false;
             }
         } catch (error) {
             console.error('Join room error:', error);
-            UIModule.toast('加入課堂失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('cs.joinFailed') + ': ' + error.message, 'error');
             return false;
         }
     },
@@ -437,7 +440,7 @@ const ClassroomStudentApp = {
                 ClassroomStudentUI.updateRoomInfo(result.data);
             }
         } catch (error) {
-            console.error('獲取房間資訊失敗:', error);
+            console.error('Failed to load room details:', error);
         }
     },
 
@@ -471,11 +474,11 @@ const ClassroomStudentApp = {
                     const fatalCodes = ['ROOM_NOT_FOUND', 'ROOM_ACCESS_DENIED', 'CLASS_NOT_ALLOWED', 'FORBIDDEN', 'AUTH_ERROR'];
                     if (fatalCodes.includes(msg.code)) {
                         this.state.fatalError = true;
-                        UIModule.toast('錯誤: ' + msg.message, 'error');
+                        UIModule.toast(i18n.t('cs.error') + ': ' + msg.message, 'error');
                         setTimeout(() => { window.location.href = '/classroom'; }, 3000);
                     } else {
                         // Business logic errors (duplicate vote, not accepting, etc.) → toast only
-                        UIModule.toast(msg.message || '操作失敗', 'warning');
+                        UIModule.toast(msg.message || i18n.t('cs.operationFailed'), 'warning');
                     }
                     return;
                 }
@@ -539,7 +542,7 @@ const ClassroomStudentApp = {
                     break;
 
                 case 'no_push':
-                    console.log('暫無推送');
+                    console.log('No push available');
                     break;
 
                 case 'pong':
@@ -553,7 +556,7 @@ const ClassroomStudentApp = {
                     break;
 
                 case 'error':
-                    UIModule.toast(message.message || '伺服器錯誤', 'error');
+                    UIModule.toast(message.message || i18n.t('cs.serverError'), 'error');
                     break;
 
                 // ===== Lesson Plan Mode =====
@@ -561,7 +564,7 @@ const ClassroomStudentApp = {
                     this._handleLessonState(message);
                     break;
                 case 'lesson_session_started':
-                    UIModule.toast('課案已開始', 'info');
+                    UIModule.toast(i18n.t('cs.lessonStarted'), 'info');
                     this._sendWSMessage({ type: 'get_lesson_state' });
                     break;
                 case 'lesson_session_ended':
@@ -578,7 +581,7 @@ const ClassroomStudentApp = {
                     this._handleAnnotationsUpdate(message);
                     break;
                 case 'response_ack':
-                    UIModule.toast('回應已提交', 'success');
+                    UIModule.toast(i18n.t('cs.responseSubmitted'), 'success');
                     break;
 
                 // ===== Quiz Per-Question Flow =====
@@ -600,7 +603,7 @@ const ClassroomStudentApp = {
                     const interactiveRenderer = LessonSlideRenderers.get('interactive');
                     if (interactiveRenderer && message.data) {
                         interactiveRenderer.setLocked(message.data.locked);
-                        UIModule.toast(message.data.locked ? '老師已暫停操作' : '老師已解鎖操作', 'info');
+                        UIModule.toast(message.data.locked ? i18n.t('cs.teacherLocked') : i18n.t('cs.teacherUnlocked'), 'info');
                     }
                     break;
                 }
@@ -625,7 +628,7 @@ const ClassroomStudentApp = {
 
         this.state.reconnectAttempts++;
         if (this.state.reconnectAttempts > 5) {
-            UIModule.toast('無法連接到課室，請返回房間列表', 'error');
+            UIModule.toast(i18n.t('cs.cannotConnect'), 'error');
             return;
         }
         const delay = Math.min(
@@ -725,13 +728,13 @@ const ClassroomStudentApp = {
             if (this.state.pushVersion !== myVersion) return;
 
             // Notify AI panel about page change
-            this._renderAISystemMessage(`老師已翻到第 ${page_number} 頁`);
+            this._renderAISystemMessage(i18n.t('cs.teacherFlippedTo', { num: page_number }));
 
-            UIModule.toast(`已接收到第 ${page_number} 頁`, 'success');
+            UIModule.toast(i18n.t('cs.receivedPage', { num: page_number }), 'success');
 
         } catch (error) {
             console.error('Error handling page push:', error);
-            UIModule.toast('加載頁面失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('cs.loadPageFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -855,7 +858,7 @@ const ClassroomStudentApp = {
             wrapper.style.height = '';
             wrapper.style.display = '';
             wrapper.innerHTML = `
-                <img id="pageImage" class="page-image" alt="PPT 頁面">
+                <img id="pageImage" class="page-image" alt="PPT Page">
                 <canvas id="annotationCanvas" style="display: none;"></canvas>
             `;
             // Re-init fabric canvas on the restored annotation canvas
@@ -886,10 +889,10 @@ const ClassroomStudentApp = {
             }
 
             ClassroomStudentUI.updatePageNumber(pageNumber);
-            UIModule.toast(`已接收到第 ${pageNumber} 頁`, 'success');
+            UIModule.toast(i18n.t('cs.receivedPage', { num: pageNumber }), 'success');
         } catch (error) {
             console.error('Error rendering lesson PPT:', error);
-            UIModule.toast('加載頁面失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('cs.loadPageFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -916,7 +919,7 @@ const ClassroomStudentApp = {
                 <div style="width:100%;height:100%;display:flex;flex-direction:column;">
                     <div style="padding:8px 16px;background:#f5f5f7;border-bottom:1px solid rgba(0,0,0,0.08);display:flex;justify-content:space-between;align-items:center;">
                         <span style="font-weight:600;">${Utils.escapeHtml(gameName)}</span>
-                        ${timeLimit > 0 ? `<span style="color:#6E6E73;font-size:13px;">${timeLimit} 秒</span>` : ''}
+                        ${timeLimit > 0 ? `<span style="color:#6E6E73;font-size:13px;">${i18n.t('cs.seconds', { num: timeLimit })}</span>` : ''}
                     </div>
                     <iframe
                         src="${Utils.escapeHtml(gameUrl)}"
@@ -964,7 +967,7 @@ const ClassroomStudentApp = {
 
         if (questions.length === 0) {
             ClassroomStudentUI.showSlideContent(
-                '<div style="text-align:center;padding:40px;"><h3>測驗</h3><p>無題目</p></div>'
+                `<div style="text-align:center;padding:40px;"><h3>${i18n.t('cs.quiz')}</h3><p>${i18n.t('cs.noQuestions')}</p></div>`
             );
             return;
         }
@@ -999,7 +1002,7 @@ const ClassroomStudentApp = {
             });
         } else if (phase === 'reveal') {
             // Reconnect during reveal — show waiting
-            renderer.renderStudentWaiting(wrapper, '等待老師繼續...');
+            renderer.renderStudentWaiting(wrapper, i18n.t('cs.waitingForTeacher'));
         }
     },
 
@@ -1239,7 +1242,7 @@ const ClassroomStudentApp = {
 
         switch (status) {
             case 'paused':
-                UIModule.toast('課堂已暫停', 'warning');
+                UIModule.toast(i18n.t('cs.classPaused'), 'warning');
                 break;
             case 'ended':
                 ClassroomStudentUI.showRoomEndedOverlay();
@@ -1275,7 +1278,7 @@ const ClassroomStudentApp = {
         expandBtn.addEventListener('click', () => {
             const isExpanded = win.classList.toggle('ai-float--expanded');
             expandBtn.innerHTML = isExpanded ? '&#9635;' : '&#9634;';
-            expandBtn.title = isExpanded ? '縮小' : '放大';
+            expandBtn.title = isExpanded ? i18n.t('cs.shrink') : i18n.t('cs.expand');
         });
 
         // Send button
@@ -1386,7 +1389,7 @@ const ClassroomStudentApp = {
 
         // Check if there is a current page
         if (!this.state.currentFileId || !this.state.currentPageNumber) {
-            UIModule.toast('等待老師推送頁面後再提問', 'warning');
+            UIModule.toast(i18n.t('cs.waitPageBeforeAsk'), 'warning');
             return;
         }
 
@@ -1463,7 +1466,7 @@ const ClassroomStudentApp = {
                                 this._renderMarkdown(aiBubbleContent, rawText);
                                 this._scrollAIChatToBottom();
                             } else if (eventType === 'error') {
-                                aiBubbleContent.textContent = data.message || 'AI 回覆出錯';
+                                aiBubbleContent.textContent = data.message || i18n.t('cs.aiReplyError');
                                 aiBubbleContent.style.color = 'var(--color-danger)';
                             }
                         } catch (e) {
@@ -1481,7 +1484,7 @@ const ClassroomStudentApp = {
         } catch (error) {
             console.error('AI stream error:', error);
             this._removeAITypingIndicator();
-            this._renderAIErrorMessage('AI 服務暫時不可用，請稍後再試');
+            this._renderAIErrorMessage(i18n.t('cs.aiServiceUnavailable'));
         } finally {
             this.state.aiIsStreaming = false;
             input.disabled = false;

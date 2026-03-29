@@ -24,9 +24,10 @@ const ReportAPI = {
      * @param {AbortSignal} signal - 可選取消信號
      */
     async getAnalysis(subject, signal) {
+        const langParam = `lang=${i18n.lang || 'zh'}`;
         const url = subject === 'all'
-            ? '/api/student/overall-analysis'
-            : `/api/student/analysis/${encodeURIComponent(subject)}`;
+            ? `/api/student/overall-analysis?${langParam}`
+            : `/api/student/analysis/${encodeURIComponent(subject)}?${langParam}`;
 
         const resp = await fetch(url, {
             method: 'GET',
@@ -86,15 +87,15 @@ const ReportUI = {
 
     /** 學科信息映射 — SVG icon ID */
     subjectInfo: {
-        'ict':       { name: 'ICT',  icon: 'icon-monitor' },
-        'ces':       { name: 'CES',  icon: 'icon-building' },
-        'history':   { name: '歷史', icon: 'icon-scroll' },
-        'chinese':   { name: '中文', icon: 'icon-book' },
-        'english':   { name: '英文', icon: 'icon-globe' },
-        'math':      { name: '數學', icon: 'icon-calculator' },
-        'physics':   { name: '物理', icon: 'icon-atom' },
-        'chemistry': { name: '化學', icon: 'icon-flask' },
-        'biology':   { name: '生物', icon: 'icon-dna' }
+        'ict':       { get name() { return 'ICT'; },  icon: 'icon-monitor' },
+        'ces':       { get name() { return 'CES'; },  icon: 'icon-building' },
+        'history':   { get name() { return i18n.t('subject.history'); }, icon: 'icon-scroll' },
+        'chinese':   { get name() { return i18n.t('subject.chinese'); }, icon: 'icon-book' },
+        'english':   { get name() { return i18n.t('subject.english'); }, icon: 'icon-globe' },
+        'math':      { get name() { return i18n.t('subject.math'); }, icon: 'icon-calculator' },
+        'physics':   { get name() { return i18n.t('subject.physics'); }, icon: 'icon-atom' },
+        'chemistry': { get name() { return i18n.t('subject.chemistry'); }, icon: 'icon-flask' },
+        'biology':   { get name() { return i18n.t('subject.biology'); }, icon: 'icon-dna' }
     },
 
     /** 報告各節的圖標映射 */
@@ -144,8 +145,8 @@ const ReportUI = {
     renderOverallReport(data) {
         this.elements.reportContent.innerHTML = `
             <div class="report-section">
-                <h3>${this._sectionIconHtml('icon-chart-bar')} 總體學習概覽</h3>
-                <p>已分析 ${data.subjects_analyzed || 0} 個學科，整體風險等級：${data.overall_risk_level || '未知'}</p>
+                <h3>${this._sectionIconHtml('icon-chart-bar')} ${i18n.t('report.overviewTitle')}</h3>
+                <p>${i18n.t('report.subjectsAnalyzed', {count: data.subjects_analyzed || 0, level: data.overall_risk_level || i18n.t('report.riskUnknown')})}</p>
             </div>
             <div class="subject-grid">
                 ${this._generateSubjectCards(data.subject_reports || {})}
@@ -158,18 +159,18 @@ const ReportUI = {
      */
     renderSubjectReport(data) {
         const sections = [
-            { key: 'knowledge_mastery', title: '知識掌握情況' },
-            { key: 'learning_style',    title: '學習風格分析' },
-            { key: 'difficulty_level',  title: '學習困難分析' },
-            { key: 'emotion_analysis',  title: '情感狀態分析' },
-            { key: 'progress',          title: '學習進度評估' },
-            { key: 'suggestions',       title: '個性化學習建議' }
+            { key: 'knowledge_mastery', title: i18n.t('report.knowledgeMastery') },
+            { key: 'learning_style',    title: i18n.t('report.learningStyle') },
+            { key: 'difficulty_level',  title: i18n.t('report.difficultyLevel') },
+            { key: 'emotion_analysis',  title: i18n.t('report.emotionAnalysis') },
+            { key: 'progress',          title: i18n.t('report.progress') },
+            { key: 'suggestions',       title: i18n.t('report.suggestions') }
         ];
 
         this.elements.reportContent.innerHTML = sections.map(s => `
             <div class="report-section">
                 <h3>${this._sectionIconHtml(this.sectionIcons[s.key])} ${s.title}</h3>
-                <p>${data[s.key] || '暫無數據'}</p>
+                <p>${data[s.key] || i18n.t('report.noData')}</p>
             </div>
         `).join('');
     },
@@ -182,7 +183,7 @@ const ReportUI = {
                     <div class="subject-icon">${this._svgIcon(info.icon)}</div>
                     <div class="subject-name">${info.name}</div>
                     <div class="subject-hint">
-                        ${data.has_data ? '點擊查看詳情' : '暫無數據'}
+                        ${data.has_data ? i18n.t('report.clickDetail') : i18n.t('report.noData')}
                     </div>
                 </div>
             `;
@@ -202,6 +203,7 @@ const ReportApp = {
     },
 
     init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
         ReportUI.cacheElements();
         this._bindEvents();
     },
@@ -236,7 +238,7 @@ const ReportApp = {
 
     async startAnalysis() {
         if (this.state.isAnalyzing) {
-            UIModule.toast('分析正在進行中，請稍候...', 'warning');
+            UIModule.toast(i18n.t('report.toastAnalyzing'), 'warning');
             return;
         }
 
@@ -247,7 +249,7 @@ const ReportApp = {
         this.state.abortController = new AbortController();
 
         ReportUI.showAnalyzing();
-        UIModule.toast(`正在生成${subjectName}的學習報告...`, 'info');
+        UIModule.toast(i18n.t('report.toastGenerating', {name: subjectName}), 'info');
 
         try {
             const data = await ReportAPI.getAnalysis(
@@ -262,14 +264,14 @@ const ReportApp = {
             }
 
             ReportUI.showResult();
-            UIModule.toast('分析報告生成成功！', 'success');
+            UIModule.toast(i18n.t('report.toastSuccess'), 'success');
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                UIModule.toast('分析已中斷', 'info');
+                UIModule.toast(i18n.t('report.toastCancelled'), 'info');
             } else {
                 console.error('分析失敗:', error);
-                UIModule.toast(`分析失敗：${error.message || '請稍後重試'}`, 'error');
+                UIModule.toast(i18n.t('report.toastFailed', {msg: error.message || i18n.t('report.toastRetry')}), 'error');
             }
             ReportUI.showWelcome();
         } finally {
@@ -292,7 +294,7 @@ const ReportApp = {
 
         ReportUI.resetButtons();
         ReportUI.showWelcome();
-        UIModule.toast('分析已中斷', 'info');
+        UIModule.toast(i18n.t('report.toastCancelled'), 'info');
     }
 };
 

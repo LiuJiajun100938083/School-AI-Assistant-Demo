@@ -1,0 +1,266 @@
+// i18n/learning_task_admin.js — Learning Task Admin translations
+// Keys: lta.*
+i18n.addMessages({
+    zh: {
+        // --- 頁面 ---
+        'lta.pageTitle': '學習任務管理 - 管理後台',
+        'lta.back': '← 返回管理後台',
+        'lta.headerTitle': '學習任務管理',
+        'lta.statDraft': '草稿',
+        'lta.statPublished': '已發布',
+
+        // --- 標籤頁 ---
+        'lta.tabCreate': '創建任務',
+        'lta.tabList': '任務列表',
+        'lta.tabPublish': '發布設定',
+        'lta.tabStats': '完成統計',
+
+        // --- 創建任務表單 ---
+        'lta.formTitle': '任務標題',
+        'lta.formDescription': '簡短描述',
+        'lta.formCategory': '分類',
+        'lta.formPriority': '優先級',
+        'lta.formDeadline': '截止日期',
+        'lta.formSubItems': '子項',
+        'lta.addSubItem': '➕ 添加子項',
+        'lta.saveDraft': '保存草稿',
+        'lta.update': '更新',
+
+        // --- 分類選項 ---
+        'lta.catGeneral': '普通',
+        'lta.catHomework': '功課',
+        'lta.catReading': '閱讀',
+        'lta.catTraining': '培訓',
+        'lta.catCertification': '認證',
+
+        // --- 優先級選項 ---
+        'lta.priorityNormal': '普通',
+        'lta.priorityImportant': '重要',
+        'lta.priorityUrgent': '緊急',
+
+        // --- 子項表單 ---
+        'lta.subTitle': '標題',
+        'lta.subTag': '標籤',
+        'lta.subDescription': '描述',
+        'lta.subLinkUrl': '連結URL',
+        'lta.subLinkLabel': '連結標籤',
+        'lta.tagVideo': '影片',
+        'lta.tagDoc': '文檔',
+        'lta.tagCert': '認證',
+        'lta.tagPractice': '練習',
+        'lta.tagWebsite': '網站',
+
+        // --- 任務列表 ---
+        'lta.filterAll': '全部',
+        'lta.filterDraft': '草稿',
+        'lta.filterPublished': '已發布',
+        'lta.filterArchived': '已歸檔',
+        'lta.statusDraft': '草稿',
+        'lta.statusPublished': '已發布',
+        'lta.statusArchived': '已歸檔',
+        'lta.emptyList': '暫無任務',
+        'lta.btnEdit': '編輯',
+        'lta.btnPublish': '發布',
+        'lta.btnStats': '統計',
+        'lta.btnArchive': '歸檔',
+        'lta.listCategory': '分類',
+        'lta.listPriority': '優先級',
+        'lta.listCreatedAt': '創建日期',
+        'lta.listTarget': '目標',
+        'lta.listRecipients': '接收',
+
+        // --- 發布設定 ---
+        'lta.selectTask': '選擇任務',
+        'lta.selectTaskPlaceholder': '-- 請選擇任務 --',
+        'lta.targetAudience': '目標受眾',
+        'lta.targetAll': '所有人（全校）',
+        'lta.targetAllTeachers': '所有教師',
+        'lta.targetAllStudents': '所有學生',
+        'lta.targetTeacher': '指定教師',
+        'lta.targetStudent': '指定學生',
+        'lta.targetClass': '指定班級',
+        'lta.confirmPublish': '確認發布',
+        'lta.subItemCount': '子項: {{count}} 個',
+        'lta.previewAll': '將發布給 全校 人',
+        'lta.previewAllTeachers': '將發布給 所有教師',
+        'lta.previewAllStudents': '將發布給 所有學生',
+        'lta.previewTeacher': '將發布給 教師: {{name}}',
+        'lta.previewStudent': '將發布給 學生: {{name}}',
+        'lta.previewClass': '將發布給 班級: {{name}}',
+
+        // --- 完成統計 ---
+        'lta.selectPublishedTask': '選擇已發布任務',
+        'lta.statsRecipients': '接收人數',
+        'lta.statsCompleted': '已完成',
+        'lta.statsRate': '完成率',
+        'lta.thUsername': '用戶名',
+        'lta.thDisplayName': '顯示名稱',
+        'lta.thRole': '角色',
+        'lta.thClass': '班級',
+        'lta.thCompletedItems': '完成項目 ↕',
+        'lta.thCompletionRate': '完成率 ↕',
+        'lta.emptyStats': '暫無數據',
+
+        // --- 確認彈窗 ---
+        'lta.modalTitle': '確認操作',
+        'lta.modalCancel': '取消',
+        'lta.modalConfirm': '確認',
+
+        // --- 目標類型標籤 ---
+        'lta.targetLabelAll': '全校',
+        'lta.targetLabelAllTeachers': '所有教師',
+        'lta.targetLabelAllStudents': '所有學生',
+        'lta.targetLabelTeacher': '教師: {{value}}',
+        'lta.targetLabelStudent': '學生: {{value}}',
+        'lta.targetLabelClass': '班級: {{value}}',
+
+        // --- Toast 消息 ---
+        'lta.toastTitleRequired': '請填寫任務標題',
+        'lta.toastSaveFailed': '保存失敗',
+        'lta.toastTaskUpdated': '任務已更新',
+        'lta.toastTaskSaved': '任務已保存',
+        'lta.toastLoadListFailed': '加載列表失敗',
+        'lta.toastLoadTaskFailed': '加載任務失敗',
+        'lta.toastArchiveConfirm': '確認歸檔此任務嗎？',
+        'lta.toastArchiveFailed': '歸檔失敗',
+        'lta.toastArchived': '任務已歸檔',
+        'lta.toastLoadDetailFailed': '加載任務詳情失敗',
+        'lta.toastSelectTaskAndTarget': '請選擇任務和目標受眾',
+        'lta.toastPublishFailed': '發布失敗',
+        'lta.toastPublished': '任務已發布給 {{count}} 人',
+        'lta.toastPublishConfirm': '確認發布此任務嗎？',
+        'lta.toastLoadStatsFailed': '加載統計失敗',
+        'lta.toastLoadTargetsFailed': '加載目標失敗',
+    },
+    en: {
+        // --- Page ---
+        'lta.pageTitle': 'Learning Task Management - Admin',
+        'lta.back': '← Back to Admin',
+        'lta.headerTitle': 'Learning Task Management',
+        'lta.statDraft': 'Drafts',
+        'lta.statPublished': 'Published',
+
+        // --- Tabs ---
+        'lta.tabCreate': 'Create Task',
+        'lta.tabList': 'Task List',
+        'lta.tabPublish': 'Publish Settings',
+        'lta.tabStats': 'Completion Stats',
+
+        // --- Create Task Form ---
+        'lta.formTitle': 'Task Title',
+        'lta.formDescription': 'Brief Description',
+        'lta.formCategory': 'Category',
+        'lta.formPriority': 'Priority',
+        'lta.formDeadline': 'Deadline',
+        'lta.formSubItems': 'Sub-items',
+        'lta.addSubItem': '➕ Add Sub-item',
+        'lta.saveDraft': 'Save Draft',
+        'lta.update': 'Update',
+
+        // --- Category Options ---
+        'lta.catGeneral': 'General',
+        'lta.catHomework': 'Homework',
+        'lta.catReading': 'Reading',
+        'lta.catTraining': 'Training',
+        'lta.catCertification': 'Certification',
+
+        // --- Priority Options ---
+        'lta.priorityNormal': 'Normal',
+        'lta.priorityImportant': 'Important',
+        'lta.priorityUrgent': 'Urgent',
+
+        // --- Sub-item Form ---
+        'lta.subTitle': 'Title',
+        'lta.subTag': 'Tag',
+        'lta.subDescription': 'Description',
+        'lta.subLinkUrl': 'Link URL',
+        'lta.subLinkLabel': 'Link Label',
+        'lta.tagVideo': 'Video',
+        'lta.tagDoc': 'Document',
+        'lta.tagCert': 'Certification',
+        'lta.tagPractice': 'Practice',
+        'lta.tagWebsite': 'Website',
+
+        // --- Task List ---
+        'lta.filterAll': 'All',
+        'lta.filterDraft': 'Draft',
+        'lta.filterPublished': 'Published',
+        'lta.filterArchived': 'Archived',
+        'lta.statusDraft': 'Draft',
+        'lta.statusPublished': 'Published',
+        'lta.statusArchived': 'Archived',
+        'lta.emptyList': 'No tasks yet',
+        'lta.btnEdit': 'Edit',
+        'lta.btnPublish': 'Publish',
+        'lta.btnStats': 'Stats',
+        'lta.btnArchive': 'Archive',
+        'lta.listCategory': 'Category',
+        'lta.listPriority': 'Priority',
+        'lta.listCreatedAt': 'Created',
+        'lta.listTarget': 'Target',
+        'lta.listRecipients': 'Recipients',
+
+        // --- Publish Settings ---
+        'lta.selectTask': 'Select Task',
+        'lta.selectTaskPlaceholder': '-- Select a task --',
+        'lta.targetAudience': 'Target Audience',
+        'lta.targetAll': 'Everyone (Whole School)',
+        'lta.targetAllTeachers': 'All Teachers',
+        'lta.targetAllStudents': 'All Students',
+        'lta.targetTeacher': 'Specific Teacher',
+        'lta.targetStudent': 'Specific Student',
+        'lta.targetClass': 'Specific Class',
+        'lta.confirmPublish': 'Confirm Publish',
+        'lta.subItemCount': 'Sub-items: {{count}}',
+        'lta.previewAll': 'Will publish to the whole school',
+        'lta.previewAllTeachers': 'Will publish to all teachers',
+        'lta.previewAllStudents': 'Will publish to all students',
+        'lta.previewTeacher': 'Will publish to teacher: {{name}}',
+        'lta.previewStudent': 'Will publish to student: {{name}}',
+        'lta.previewClass': 'Will publish to class: {{name}}',
+
+        // --- Completion Stats ---
+        'lta.selectPublishedTask': 'Select Published Task',
+        'lta.statsRecipients': 'Recipients',
+        'lta.statsCompleted': 'Completed',
+        'lta.statsRate': 'Completion Rate',
+        'lta.thUsername': 'Username',
+        'lta.thDisplayName': 'Display Name',
+        'lta.thRole': 'Role',
+        'lta.thClass': 'Class',
+        'lta.thCompletedItems': 'Completed Items ↕',
+        'lta.thCompletionRate': 'Completion Rate ↕',
+        'lta.emptyStats': 'No data available',
+
+        // --- Confirm Modal ---
+        'lta.modalTitle': 'Confirm Action',
+        'lta.modalCancel': 'Cancel',
+        'lta.modalConfirm': 'Confirm',
+
+        // --- Target Type Labels ---
+        'lta.targetLabelAll': 'Whole School',
+        'lta.targetLabelAllTeachers': 'All Teachers',
+        'lta.targetLabelAllStudents': 'All Students',
+        'lta.targetLabelTeacher': 'Teacher: {{value}}',
+        'lta.targetLabelStudent': 'Student: {{value}}',
+        'lta.targetLabelClass': 'Class: {{value}}',
+
+        // --- Toast Messages ---
+        'lta.toastTitleRequired': 'Please enter a task title',
+        'lta.toastSaveFailed': 'Save failed',
+        'lta.toastTaskUpdated': 'Task updated',
+        'lta.toastTaskSaved': 'Task saved',
+        'lta.toastLoadListFailed': 'Failed to load task list',
+        'lta.toastLoadTaskFailed': 'Failed to load task',
+        'lta.toastArchiveConfirm': 'Are you sure you want to archive this task?',
+        'lta.toastArchiveFailed': 'Archive failed',
+        'lta.toastArchived': 'Task archived',
+        'lta.toastLoadDetailFailed': 'Failed to load task details',
+        'lta.toastSelectTaskAndTarget': 'Please select a task and target audience',
+        'lta.toastPublishFailed': 'Publish failed',
+        'lta.toastPublished': 'Task published to {{count}} recipients',
+        'lta.toastPublishConfirm': 'Are you sure you want to publish this task?',
+        'lta.toastLoadStatsFailed': 'Failed to load statistics',
+        'lta.toastLoadTargetsFailed': 'Failed to load targets',
+    }
+});

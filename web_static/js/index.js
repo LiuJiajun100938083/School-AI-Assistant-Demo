@@ -371,6 +371,7 @@ const HomeApp = {
     },
 
     async init() {
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
         HomeUI.cacheElements();
 
         this.state.authToken = AuthModule.getToken();

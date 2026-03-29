@@ -35,7 +35,12 @@
       "Bash(python -c \":*)",
       "Bash(where mysql:*)",
       "Read(//c/Program Files/MySQL/MySQL Server 8.0/bin/**)",
-      "Read(//c/xampp/mysql/bin/**)"
+      "Read(//c/xampp/mysql/bin/**)",
+      "Bash(git remote:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(git add:*)"
     ]
   }
 }

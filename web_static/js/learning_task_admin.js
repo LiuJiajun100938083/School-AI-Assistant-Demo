@@ -120,29 +120,29 @@ const TaskAdminUI = {
             <div class="sub-item">
                 <div class="sub-item-content">
                     <div>
-                        <label style="display:block;margin-bottom:4px;font-size:13px;">標題</label>
+                        <label style="display:block;margin-bottom:4px;font-size:13px;">${i18n.t('lta.subTitle')}</label>
                         <input type="text" value="${Utils.escapeHtml(item.title)}" data-sub-id="${item.id}" data-field="title">
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:4px;font-size:13px;">標籤</label>
+                        <label style="display:block;margin-bottom:4px;font-size:13px;">${i18n.t('lta.subTag')}</label>
                         <select data-sub-id="${item.id}" data-field="tag">
-                            <option value="video" ${item.tag === 'video' ? 'selected' : ''}>影片</option>
-                            <option value="doc" ${item.tag === 'doc' ? 'selected' : ''}>文檔</option>
-                            <option value="cert" ${item.tag === 'cert' ? 'selected' : ''}>認證</option>
-                            <option value="practice" ${item.tag === 'practice' ? 'selected' : ''}>練習</option>
-                            <option value="website" ${item.tag === 'website' ? 'selected' : ''}>網站</option>
+                            <option value="video" ${item.tag === 'video' ? 'selected' : ''}>${i18n.t('lta.tagVideo')}</option>
+                            <option value="doc" ${item.tag === 'doc' ? 'selected' : ''}>${i18n.t('lta.tagDoc')}</option>
+                            <option value="cert" ${item.tag === 'cert' ? 'selected' : ''}>${i18n.t('lta.tagCert')}</option>
+                            <option value="practice" ${item.tag === 'practice' ? 'selected' : ''}>${i18n.t('lta.tagPractice')}</option>
+                            <option value="website" ${item.tag === 'website' ? 'selected' : ''}>${i18n.t('lta.tagWebsite')}</option>
                         </select>
                     </div>
                     <div class="sub-item-full">
-                        <label style="display:block;margin-bottom:4px;font-size:13px;">描述</label>
+                        <label style="display:block;margin-bottom:4px;font-size:13px;">${i18n.t('lta.subDescription')}</label>
                         <textarea data-sub-id="${item.id}" data-field="description" style="min-height:60px;">${Utils.escapeHtml(item.description)}</textarea>
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:4px;font-size:13px;">連結URL</label>
+                        <label style="display:block;margin-bottom:4px;font-size:13px;">${i18n.t('lta.subLinkUrl')}</label>
                         <input type="text" placeholder="https://..." value="${Utils.escapeHtml(item.link_url)}" data-sub-id="${item.id}" data-field="link_url">
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:4px;font-size:13px;">連結標籤</label>
+                        <label style="display:block;margin-bottom:4px;font-size:13px;">${i18n.t('lta.subLinkLabel')}</label>
                         <input type="text" value="${Utils.escapeHtml(item.link_label)}" data-sub-id="${item.id}" data-field="link_label">
                     </div>
                 </div>
@@ -158,13 +158,13 @@ const TaskAdminUI = {
     renderTaskList(tasks) {
         const container = this.elements.taskListContainer;
         if (tasks.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:#666666;">暫無任務</div>';
+            container.innerHTML = `<div style="text-align:center;padding:40px;color:#666666;">${i18n.t('lta.emptyList')}</div>`;
             return;
         }
 
         container.innerHTML = tasks.map(task => {
             const statusClass = task.status === 'draft' ? 'draft' : task.status === 'published' ? 'published' : 'archived';
-            const statusText = task.status === 'draft' ? '草稿' : task.status === 'published' ? '已發布' : '已歸檔';
+            const statusText = task.status === 'draft' ? i18n.t('lta.statusDraft') : task.status === 'published' ? i18n.t('lta.statusPublished') : i18n.t('lta.statusArchived');
             const completed = task.completed_count || 0;
             const total = task.total_recipients || 0;
             const targetLabel = this._formatTargetType(task.target_type, task.target_value);
@@ -176,15 +176,15 @@ const TaskAdminUI = {
                         ${Utils.escapeHtml(task.title)}
                     </div>
                     <div style="font-size:13px;color:#666666;margin-bottom:12px;">
-                        分類: ${task.category} | 優先級: ${task.priority} | 創建日期: ${new Date(task.created_at).toLocaleDateString('zh-HK')}
-                        ${targetLabel ? `| 目標: ${targetLabel}` : ''}
-                        ${total > 0 ? `| 接收: ${completed}/${total}` : ''}
+                        ${i18n.t('lta.listCategory')}: ${task.category} | ${i18n.t('lta.listPriority')}: ${task.priority} | ${i18n.t('lta.listCreatedAt')}: ${new Date(task.created_at).toLocaleDateString(i18n.isEn ? 'en-US' : 'zh-HK')}
+                        ${targetLabel ? `| ${i18n.t('lta.listTarget')}: ${targetLabel}` : ''}
+                        ${total > 0 ? `| ${i18n.t('lta.listRecipients')}: ${completed}/${total}` : ''}
                     </div>
                     <div class="card-actions">
-                        ${task.status === 'draft' ? `<button class="btn-secondary btn-small" data-action="edit" data-task-id="${task.id}">編輯</button>` : ''}
-                        <button class="btn-secondary btn-small" data-action="publish" data-task-id="${task.id}">發布</button>
-                        <button class="btn-secondary btn-small" data-action="stats" data-task-id="${task.id}">統計</button>
-                        <button class="btn-danger btn-small" data-action="archive" data-task-id="${task.id}">歸檔</button>
+                        ${task.status === 'draft' ? `<button class="btn-secondary btn-small" data-action="edit" data-task-id="${task.id}">${i18n.t('lta.btnEdit')}</button>` : ''}
+                        <button class="btn-secondary btn-small" data-action="publish" data-task-id="${task.id}">${i18n.t('lta.btnPublish')}</button>
+                        <button class="btn-secondary btn-small" data-action="stats" data-task-id="${task.id}">${i18n.t('lta.btnStats')}</button>
+                        <button class="btn-danger btn-small" data-action="archive" data-task-id="${task.id}">${i18n.t('lta.btnArchive')}</button>
                     </div>
                 </div>
             `;
@@ -204,7 +204,7 @@ const TaskAdminUI = {
     renderStatsTable(users, sortBy) {
         const tbody = this.elements.statsTableBody;
         if (!users || users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;">暫無數據</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#666;">${i18n.t('lta.emptyStats')}</td></tr>`;
             return;
         }
 
@@ -241,8 +241,12 @@ const TaskAdminUI = {
 
     _formatTargetType(type, value) {
         const labels = {
-            'all': '全校', 'all_teachers': '所有教師', 'all_students': '所有學生',
-            'teacher': `教師: ${value || ''}`, 'student': `學生: ${value || ''}`, 'class': `班級: ${value || ''}`
+            'all': i18n.t('lta.targetLabelAll'),
+            'all_teachers': i18n.t('lta.targetLabelAllTeachers'),
+            'all_students': i18n.t('lta.targetLabelAllStudents'),
+            'teacher': i18n.t('lta.targetLabelTeacher', { value: value || '' }),
+            'student': i18n.t('lta.targetLabelStudent', { value: value || '' }),
+            'class': i18n.t('lta.targetLabelClass', { value: value || '' })
         };
         return labels[type] || '';
     }
@@ -268,6 +272,7 @@ const TaskAdminApp = {
 
     init() {
         TaskAdminUI.cacheElements();
+        i18n.applyDOM();
         this._bindEvents();
         this._updateStats();
         TaskAdminUI.renderSubItems(this.state.subItems);
@@ -406,7 +411,7 @@ const TaskAdminApp = {
         const el = TaskAdminUI.elements;
 
         if (!el.taskTitle.value.trim()) {
-            UIModule.toast('請填寫任務標題', 'error');
+            UIModule.toast(i18n.t('lta.toastTitleRequired'), 'error');
             return;
         }
 
@@ -433,19 +438,19 @@ const TaskAdminApp = {
 
             if (!response || !response.ok) {
                 const error = await response?.json();
-                UIModule.toast(error?.detail || '保存失敗', 'error');
+                UIModule.toast(error?.detail || i18n.t('lta.toastSaveFailed'), 'error');
                 return;
             }
 
-            UIModule.toast(this.state.editingTaskId ? '任務已更新' : '任務已保存', 'success');
+            UIModule.toast(this.state.editingTaskId ? i18n.t('lta.toastTaskUpdated') : i18n.t('lta.toastTaskSaved'), 'success');
             this._resetTaskForm();
             this._loadTaskList();
             this._updateStats();
         } catch (error) {
-            UIModule.toast('保存失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastSaveFailed') + ': ' + error.message, 'error');
         } finally {
             el.submitBtn.disabled = false;
-            el.submitBtn.textContent = this.state.editingTaskId ? '更新' : '保存草稿';
+            el.submitBtn.textContent = this.state.editingTaskId ? i18n.t('lta.update') : i18n.t('lta.saveDraft');
         }
     },
 
@@ -454,7 +459,7 @@ const TaskAdminApp = {
         this.state.editingTaskId = null;
         this.state.subItems = [];
         TaskAdminUI.renderSubItems(this.state.subItems);
-        TaskAdminUI.elements.submitBtn.textContent = '保存草稿';
+        TaskAdminUI.elements.submitBtn.textContent = i18n.t('lta.saveDraft');
     },
 
     /* ---------- Task List ---------- */
@@ -473,7 +478,7 @@ const TaskAdminApp = {
             TaskAdminUI.renderTaskList(this.state.tasks);
             TaskAdminUI.renderPagination(this.state.currentPage, this.state.totalPages);
         } catch (error) {
-            UIModule.toast('加載列表失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastLoadListFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -498,11 +503,11 @@ const TaskAdminApp = {
                 link_url: item.link_url, link_label: item.link_label, tag: item.tag
             }));
             TaskAdminUI.renderSubItems(this.state.subItems);
-            el.submitBtn.textContent = '更新';
+            el.submitBtn.textContent = i18n.t('lta.update');
             this._switchTab('create');
             document.querySelector('.container').scrollIntoView({ behavior: 'smooth' });
         } catch (error) {
-            UIModule.toast('加載任務失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastLoadTaskFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -510,15 +515,15 @@ const TaskAdminApp = {
         this.state.confirmAction = async () => {
             try {
                 const response = await TaskAdminAPI.deleteTask(taskId);
-                if (!response || !response.ok) { UIModule.toast('歸檔失敗', 'error'); return; }
-                UIModule.toast('任務已歸檔', 'success');
+                if (!response || !response.ok) { UIModule.toast(i18n.t('lta.toastArchiveFailed'), 'error'); return; }
+                UIModule.toast(i18n.t('lta.toastArchived'), 'success');
                 this._loadTaskList();
                 this._updateStats();
             } catch (error) {
-                UIModule.toast('歸檔失敗: ' + error.message, 'error');
+                UIModule.toast(i18n.t('lta.toastArchiveFailed') + ': ' + error.message, 'error');
             }
         };
-        this._openConfirmModal('確認歸檔此任務嗎？');
+        this._openConfirmModal(i18n.t('lta.toastArchiveConfirm'));
     },
 
     /* ---------- Publish Tab ---------- */
@@ -540,7 +545,7 @@ const TaskAdminApp = {
             if (!response || !response.ok) return;
             const data = await response.json();
             const select = TaskAdminUI.elements.publishTaskSelect;
-            select.innerHTML = '<option value="">-- 請選擇任務 --</option>';
+            select.innerHTML = `<option value="">${i18n.t('lta.selectTaskPlaceholder')}</option>`;
             data.data.forEach(task => {
                 const opt = document.createElement('option');
                 opt.value = task.id;
@@ -548,7 +553,7 @@ const TaskAdminApp = {
                 select.appendChild(opt);
             });
         } catch (error) {
-            UIModule.toast('加載任務失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastLoadTaskFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -567,7 +572,7 @@ const TaskAdminApp = {
             TaskAdminUI.populateSelect('classSelect', (targets.classes || []).map(c =>
                 ({ value: c, label: c })));
         } catch (error) {
-            UIModule.toast('加載目標失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastLoadTargetsFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -584,11 +589,11 @@ const TaskAdminApp = {
 
             TaskAdminUI.elements.previewTitle.textContent = task.title;
             TaskAdminUI.elements.previewDescription.textContent = task.description || '';
-            TaskAdminUI.elements.previewItemCount.textContent = `子項: ${(task.items || []).length} 個`;
+            TaskAdminUI.elements.previewItemCount.textContent = i18n.t('lta.subItemCount', { count: (task.items || []).length });
             preview.style.display = 'block';
             this._updatePublishPreview();
         } catch (error) {
-            UIModule.toast('加載任務詳情失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastLoadDetailFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -604,19 +609,19 @@ const TaskAdminApp = {
         const type = document.querySelector('input[name="targetType"]:checked')?.value;
         const el = TaskAdminUI.elements;
         let text = '';
-        if (type === 'all') text = '將發布給 全校 人';
-        else if (type === 'all_teachers') text = '將發布給 所有教師';
-        else if (type === 'all_students') text = '將發布給 所有學生';
-        else if (type === 'teacher') text = `將發布給 教師: ${el.teacherSelect.options[el.teacherSelect.selectedIndex]?.text || ''}`;
-        else if (type === 'student') text = `將發布給 學生: ${el.studentSelect.options[el.studentSelect.selectedIndex]?.text || ''}`;
-        else if (type === 'class') text = `將發布給 班級: ${el.classSelect.options[el.classSelect.selectedIndex]?.text || ''}`;
+        if (type === 'all') text = i18n.t('lta.previewAll');
+        else if (type === 'all_teachers') text = i18n.t('lta.previewAllTeachers');
+        else if (type === 'all_students') text = i18n.t('lta.previewAllStudents');
+        else if (type === 'teacher') text = i18n.t('lta.previewTeacher', { name: el.teacherSelect.options[el.teacherSelect.selectedIndex]?.text || '' });
+        else if (type === 'student') text = i18n.t('lta.previewStudent', { name: el.studentSelect.options[el.studentSelect.selectedIndex]?.text || '' });
+        else if (type === 'class') text = i18n.t('lta.previewClass', { name: el.classSelect.options[el.classSelect.selectedIndex]?.text || '' });
         el.publishPreview.textContent = text;
     },
 
     async _confirmPublish() {
         const taskId = TaskAdminUI.elements.publishTaskSelect.value;
         const type = document.querySelector('input[name="targetType"]:checked')?.value;
-        if (!taskId || !type) { UIModule.toast('請選擇任務和目標受眾', 'error'); return; }
+        if (!taskId || !type) { UIModule.toast(i18n.t('lta.toastSelectTaskAndTarget'), 'error'); return; }
 
         let targetValue = null;
         if (type === 'teacher') targetValue = TaskAdminUI.elements.teacherSelect.value;
@@ -628,21 +633,21 @@ const TaskAdminApp = {
                 const response = await TaskAdminAPI.publishTask(taskId, { target_type: type, target_value: targetValue });
                 if (!response || !response.ok) {
                     const errData = await response?.json().catch(() => null);
-                    UIModule.toast(errData?.detail || '發布失敗', 'error');
+                    UIModule.toast(errData?.detail || i18n.t('lta.toastPublishFailed'), 'error');
                     return;
                 }
                 const pubResult = await response.json();
-                UIModule.toast(`任務已發布給 ${pubResult?.data?.recipient_count || 0} 人`, 'success');
+                UIModule.toast(i18n.t('lta.toastPublished', { count: pubResult?.data?.recipient_count || 0 }), 'success');
                 TaskAdminUI.elements.publishTaskSelect.value = '';
                 TaskAdminUI.elements.publishTaskPreview.style.display = 'none';
                 this._loadPublishTasks();
                 this._loadTaskList();
                 this._updateStats();
             } catch (error) {
-                UIModule.toast('發布失敗: ' + error.message, 'error');
+                UIModule.toast(i18n.t('lta.toastPublishFailed') + ': ' + error.message, 'error');
             }
         };
-        this._openConfirmModal(`確認發布此任務嗎？${TaskAdminUI.elements.publishPreview.textContent}`);
+        this._openConfirmModal(`${i18n.t('lta.toastPublishConfirm')} ${TaskAdminUI.elements.publishPreview.textContent}`);
     },
 
     /* ---------- Stats Tab ---------- */
@@ -664,7 +669,7 @@ const TaskAdminApp = {
             if (!response || !response.ok) return;
             const data = await response.json();
             const select = TaskAdminUI.elements.statsTaskSelect;
-            select.innerHTML = '<option value="">-- 請選擇任務 --</option>';
+            select.innerHTML = `<option value="">${i18n.t('lta.selectTaskPlaceholder')}</option>`;
             data.data.forEach(task => {
                 const opt = document.createElement('option');
                 opt.value = task.id;
@@ -672,7 +677,7 @@ const TaskAdminApp = {
                 select.appendChild(opt);
             });
         } catch (error) {
-            UIModule.toast('加載任務失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastLoadTaskFailed') + ': ' + error.message, 'error');
         }
     },
 
@@ -697,7 +702,7 @@ const TaskAdminApp = {
             TaskAdminUI.renderStatsTable(stats.user_details || [], this.state.statsSortBy);
             TaskAdminUI.elements.statsContainer.style.display = 'block';
         } catch (error) {
-            UIModule.toast('加載統計失敗: ' + error.message, 'error');
+            UIModule.toast(i18n.t('lta.toastLoadStatsFailed') + ': ' + error.message, 'error');
         }
     },
 

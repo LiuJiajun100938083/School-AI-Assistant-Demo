@@ -239,7 +239,11 @@ class NoticeService:
         if self._build_document:
             try:
                 file_path = self._build_document(
-                    session_id, final_title, content, ref_no,
+                    session_id=session_id,
+                    title=final_title,
+                    content=content,
+                    ref_no=ref_no,
+                    notice_type=session.get("notice_type", "general"),
                 )
                 return {"file_path": file_path, "filename": f"{final_title}.docx"}
             except Exception as e:
@@ -395,15 +399,36 @@ class NoticeService:
                     for h in session["conversation_history"][-6:]
                 )
 
+                # 加载同类型模板作为格式参考
+                sample_text = self._load_sample_template(session["notice_type"])
+                template_ref = ""
+                if sample_text:
+                    template_ref = (
+                        f"\n\n【格式参考 — 请严格模仿以下学校通告的格式和语气】\n"
+                        f"---\n{sample_text}\n---\n"
+                    )
+
                 prompt = (
-                    f"你正在帮助用户生成一份{session['notice_type']}类型的学校通知。\n"
+                    f"你正在帮助用户生成一份{session['notice_type']}类型的香港培僑中學通告。\n"
                     f"已收集的信息: {context}\n"
                     f"对话历史:\n{history_text}\n\n"
                     f"用户最新输入: {user_input}\n\n"
-                    "请判断信息是否足够生成通知：\n"
-                    "- 如果信息充足，请直接生成通知全文（繁体中文），"
-                    "并在开头加上 [NOTICE_READY] 标记\n"
-                    "- 如果信息不足，请询问缺少的关键信息"
+                    f"{template_ref}\n"
+                    "【格式要求】\n"
+                    "通告必须严格遵循香港学校通告格式（繁体中文）：\n"
+                    "1. 标题行（如「XX通知」或「XX通告」）\n"
+                    "2. 「敬啟者：」开头\n"
+                    "3. 正文（使用正式书面语，段落清晰）\n"
+                    "4. 关键信息以列表呈现（日期、时间、地点、对象等）\n"
+                    "5. 结尾：「此致」+ 换行 + 「學生家長」或「貴家長」\n"
+                    "6. 签名：「校長 伍煥杰先生」\n"
+                    "7. 日期行（中文日期格式，如「二零二五年三月二十八日」）\n"
+                    "8. 不要添加 emoji 或非正式用语\n\n"
+                    "请判断信息是否足够生成通告：\n"
+                    "- 如果信息充足，请输出 [NOTICE_READY] 标记，"
+                    "然后【只输出通告全文，不要有任何对话性文字、解释或评论】。"
+                    "标记后第一行必须是通告标题，最后一行是日期行，中间不允许出现任何非通告内容。\n"
+                    "- 如果信息不足，请询问缺少的关键信息（此时不要加 [NOTICE_READY] 标记）"
                 )
 
                 response, _ = self._ask_ai_func(
@@ -413,9 +438,21 @@ class NoticeService:
                     conversation_history=[],
                 )
 
-                if "[NOTICE_READY]" in response:
-                    # 信息足够，生成通知
-                    content = response.replace("[NOTICE_READY]", "").strip()
+                # 判断是否包含完整通告内容
+                has_marker = "[NOTICE_READY]" in response
+                # 后备检测：即使没有标记，检查是否包含通告特征
+                has_notice_pattern = (
+                    ('敬啟者' in response or '敬启者' in response)
+                    and ('此致' in response)
+                )
+
+                if has_marker or has_notice_pattern:
+                    # 信息足够，提取纯通告内容（去除 AI 对话性文字）
+                    if has_marker:
+                        raw = response.split("[NOTICE_READY]", 1)[-1].strip()
+                    else:
+                        raw = response
+                    content = self._extract_notice_body(raw)
                     content = self._clean_notice_content(content)
                     session["generated_content"] = content
                     session["stage"] = STAGE_CONFIRMING
@@ -478,10 +515,15 @@ class NoticeService:
         if self._ask_ai_func:
             try:
                 prompt = (
-                    f"用户对以下通知内容不满意，要求修改：\n\n"
-                    f"当前通知内容:\n{session.get('generated_content', '')}\n\n"
+                    f"用户对以下学校通告内容不满意，要求修改：\n\n"
+                    f"当前通告内容:\n{session.get('generated_content', '')}\n\n"
                     f"用户修改要求: {user_input}\n\n"
-                    "请根据要求修改通知内容（繁体中文）。"
+                    "请根据要求修改通告内容（繁体中文），"
+                    "保持香港学校通告的正式格式（敬啟者、此致、校長簽名等）。"
+                    "不要添加 emoji 或非正式用语。\n"
+                    "【重要】只输出修改后的完整通告全文，"
+                    "不要有任何对话性文字、解释或评论。"
+                    "第一行必须是通告标题，最后一行是日期行。"
                 )
 
                 response, _ = self._ask_ai_func(
@@ -491,7 +533,8 @@ class NoticeService:
                     conversation_history=[],
                 )
 
-                content = self._clean_notice_content(response)
+                content = self._extract_notice_body(response)
+                content = self._clean_notice_content(content)
                 session["generated_content"] = content
 
                 return {
@@ -511,6 +554,28 @@ class NoticeService:
             "message": "请描述您需要修改的部分。",
             "progress": 95,
         }
+
+    @staticmethod
+    def _load_sample_template(notice_type: str) -> str:
+        """从模板目录读取同类型的样本通告作为格式参考"""
+        samples_dir = os.path.join("notice_templates", "samples", notice_type)
+        if not os.path.isdir(samples_dir):
+            # 回退到 general
+            samples_dir = os.path.join("notice_templates", "samples", "general")
+        if not os.path.isdir(samples_dir):
+            return ""
+
+        # 取第一个 .docx 文件
+        for fname in sorted(os.listdir(samples_dir)):
+            if fname.endswith(".docx"):
+                try:
+                    from docx import Document as DocxDocument
+                    doc = DocxDocument(os.path.join(samples_dir, fname))
+                    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+                    return "\n".join(paragraphs[:30])  # 限制长度
+                except Exception as e:
+                    logger.warning("读取模板样本失败 (%s): %s", fname, e)
+        return ""
 
     @staticmethod
     def _get_collecting_prompt(notice_type: str) -> str:
@@ -566,6 +631,59 @@ class NoticeService:
             fields["location"] = place_match.group(1)
 
         return fields
+
+    @staticmethod
+    def _extract_notice_body(content: str) -> str:
+        """从 AI 回复中提取纯通告正文，去除对话性文字"""
+        lines = content.split('\n')
+
+        # AI 对话性关键词（用于过滤首尾废话）
+        chat_keywords = [
+            '希望', '如果需要', '随时', '隨時', '可以直接',
+            '复製', '複製', '告訴我', '告诉我', '幫你', '帮你',
+            '以下是', '為你生成', '为你生成', '已經', '已经',
+            '根據你', '根据你', '收到', '資訊', '资讯',
+            '準備好', '准备好', '需要調整', '需要调整',
+            '😊', '✨', '🎉', '📝', '✅', '💪', '📋',
+        ]
+
+        # 找到通告正文的起始位置（标题行或「敬啟者」）
+        start_idx = 0
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if ('通知' in stripped or '通告' in stripped) and len(stripped) < 40:
+                start_idx = i
+                break
+            if '敬啟者' in stripped or '敬启者' in stripped:
+                start_idx = i
+                break
+            if stripped.startswith('【') and '】' in stripped:
+                start_idx = i
+                break
+            # 跳过所有对话性开头
+            if any(kw in stripped for kw in chat_keywords):
+                continue
+
+        # 找到通告正文的结束位置（日期行之后）
+        end_idx = len(lines)
+        for i in range(len(lines) - 1, start_idx, -1):
+            stripped = lines[i].strip()
+            if stripped:
+                # 如果是日期行或签名行，这是正文的最后一行
+                if '二零' in stripped or '校長' in stripped or '家長' in stripped:
+                    end_idx = i + 1
+                    break
+                # 如果是 AI 对话性结尾，跳过
+                if any(kw in stripped for kw in chat_keywords):
+                    continue
+                end_idx = i + 1
+                break
+
+        # 去除 markdown 分隔线 (---) 包裹
+        result_lines = lines[start_idx:end_idx]
+        result_lines = [l for l in result_lines if l.strip() not in ('---', '===', '***', '```')]
+
+        return '\n'.join(result_lines).strip()
 
     @staticmethod
     def _clean_notice_content(content: str) -> str:

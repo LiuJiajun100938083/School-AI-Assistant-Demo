@@ -6,6 +6,7 @@
     'use strict';
 
     const $ = window.alc;
+    const _t = $._t;
 
     // ==================== ADMIN PANEL ====================
 
@@ -194,14 +195,14 @@
         const listEl = $.getElement('adminContentsList');
         if (!listEl) return;
 
-        listEl.innerHTML = '<p style="padding:16px;color:var(--text-tertiary);">載入中...</p>';
+        listEl.innerHTML = `<p style="padding:16px;color:var(--text-tertiary);">${_t('alc.loading')}</p>`;
 
         try {
             const response = await $.api(`${$.API_BASE}/contents?page=1&page_size=200`);
             if (response.success) {
                 const contents = response.data?.items || response.data || [];
                 if (contents.length === 0) {
-                    listEl.innerHTML = '<p style="padding:16px;color:var(--text-tertiary);">暫無內容</p>';
+                    listEl.innerHTML = `<p style="padding:16px;color:var(--text-tertiary);">${_t('alc.noContents')}</p>`;
                     return;
                 }
 
@@ -213,7 +214,7 @@
                 listEl.innerHTML = contents.map(content => {
                     const typeIcon = $.getContentTypeIcon(content.content_type);
                     const catName = content.category_id && catMap[content.category_id]
-                        ? catMap[content.category_id] : '未分類';
+                        ? catMap[content.category_id] : _t('alc.uncategorized');
                     return `<div class="alc-admin-list-item" data-content-id="${content.id}">
                         <div class="alc-admin-list-item-info">
                             <span style="margin-right:6px;">${typeIcon}</span>
@@ -221,37 +222,37 @@
                             <span style="margin-left:8px;font-size:12px;color:var(--text-tertiary);">[${catName}]</span>
                         </div>
                         <div class="alc-admin-list-item-actions">
-                            <button class="alc-btn alc-btn--small alc-btn--secondary" onclick="window._alcEditContent(${content.id})">編輯</button>
-                            <button class="alc-btn alc-btn--small alc-btn--danger" onclick="window._alcDeleteContent(${content.id}, '${$.escapeHtml(content.title).replace(/'/g, "\\'")}')">刪除</button>
+                            <button class="alc-btn alc-btn--small alc-btn--secondary" onclick="window._alcEditContent(${content.id})">${_t('alc.edit')}</button>
+                            <button class="alc-btn alc-btn--small alc-btn--danger" onclick="window._alcDeleteContent(${content.id}, '${$.escapeHtml(content.title).replace(/'/g, "\\'")}')">${_t('alc.delete')}</button>
                         </div>
                     </div>`;
                 }).join('');
             }
         } catch (error) {
             console.error('Failed to load admin contents:', error);
-            listEl.innerHTML = '<p style="padding:16px;color:red;">載入失敗</p>';
+            listEl.innerHTML = `<p style="padding:16px;color:red;">${_t('alc.loadFailedShort')}</p>`;
         }
     }
 
     // Expose content management functions globally for onclick handlers
     window._alcDeleteContent = async function(contentId, title) {
-        if (!confirm(`確定要刪除「${title}」嗎？此操作無法撤銷。`)) return;
+        if (!confirm(_t('alc.confirmDeleteContent', { title: title }))) return;
 
         try {
             const response = await $.api(`${ADMIN_API}/contents/${contentId}`, {
                 method: 'DELETE'
             });
             if (response.success) {
-                $.showToast('內容已刪除', 'success');
+                $.showToast(_t('alc.contentDeleted'), 'success');
                 loadAdminContents();
                 // Also refresh ebook sidebar
                 $.loadMedia();
             } else {
-                $.showToast(response.message || '刪除失敗', 'error');
+                $.showToast(response.message || _t('alc.deleteFailed'), 'error');
             }
         } catch (error) {
             console.error('Failed to delete content:', error);
-            $.showToast('刪除失敗', 'error');
+            $.showToast(_t('alc.deleteFailed'), 'error');
         }
     };
 
@@ -273,29 +274,29 @@
             overlay.style.zIndex = '3000';
             overlay.innerHTML = `
                 <div class="alc-modal-content alc-confirm-dialog" style="max-width:480px;">
-                    <h3>編輯內容</h3>
+                    <h3>${_t('alc.editContent')}</h3>
                     <div class="alc-admin-form">
-                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">標題</label>
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">${_t('alc.titleLabel')}</label>
                         <input type="text" id="_editTitle" class="alc-form-input" value="${$.escapeHtml(content.title)}" />
-                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">描述</label>
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">${_t('alc.descLabel')}</label>
                         <textarea id="_editDesc" class="alc-form-input" rows="3">${$.escapeHtml(content.description || '')}</textarea>
-                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">內容類型</label>
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">${_t('alc.contentTypeLabel')}</label>
                         <select id="_editType" class="alc-form-input">
-                            <option value="video_local" ${content.content_type === 'video_local' ? 'selected' : ''}>本地視頻</option>
-                            <option value="video_external" ${content.content_type === 'video_external' ? 'selected' : ''}>視頻連結</option>
-                            <option value="document" ${content.content_type === 'document' ? 'selected' : ''}>文件</option>
-                            <option value="image" ${content.content_type === 'image' ? 'selected' : ''}>圖片</option>
-                            <option value="article" ${content.content_type === 'article' ? 'selected' : ''}>文章</option>
+                            <option value="video_local" ${content.content_type === 'video_local' ? 'selected' : ''}>${_t('alc.typeVideoLocal')}</option>
+                            <option value="video_external" ${content.content_type === 'video_external' ? 'selected' : ''}>${_t('alc.typeVideoExternal')}</option>
+                            <option value="document" ${content.content_type === 'document' ? 'selected' : ''}>${_t('alc.typeDocument')}</option>
+                            <option value="image" ${content.content_type === 'image' ? 'selected' : ''}>${_t('alc.typeImage')}</option>
+                            <option value="article" ${content.content_type === 'article' ? 'selected' : ''}>${_t('alc.typeArticle')}</option>
                         </select>
-                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">分類</label>
+                        <label style="font-size:13px;font-weight:600;color:var(--text-secondary);">${_t('alc.categoryLabel')}</label>
                         <select id="_editCategory" class="alc-form-input">
-                            <option value="">不選擇分類</option>
+                            <option value="">${_t('alc.noCategoryOption')}</option>
                             ${catOptions}
                         </select>
                     </div>
                     <div class="alc-dialog-actions" style="margin-top:12px;">
-                        <button id="_editCancel" class="alc-btn alc-btn--secondary">取消</button>
-                        <button id="_editSave" class="alc-btn alc-btn--primary">保存</button>
+                        <button id="_editCancel" class="alc-btn alc-btn--secondary">${_t('common.cancel')}</button>
+                        <button id="_editSave" class="alc-btn alc-btn--primary">${_t('alc.save')}</button>
                     </div>
                 </div>`;
             document.body.appendChild(overlay);
@@ -329,22 +330,22 @@
                     });
 
                     if (updateResponse.success) {
-                        $.showToast('內容已更新', 'success');
+                        $.showToast(_t('alc.contentUpdated'), 'success');
                         overlay.remove();
                         loadAdminContents();
                         $.loadedTabs.delete('media');
                         $.loadMedia();
                     } else {
-                        $.showToast(updateResponse.message || '更新失敗', 'error');
+                        $.showToast(updateResponse.message || _t('alc.updateFailed'), 'error');
                     }
                 } catch (error) {
                     console.error('Failed to update content:', error);
-                    $.showToast('更新失敗', 'error');
+                    $.showToast(_t('alc.updateFailed'), 'error');
                 }
             });
         } catch (error) {
             console.error('Failed to edit content:', error);
-            $.showToast('載入內容失敗', 'error');
+            $.showToast(_t('alc.contentLoadFailed'), 'error');
         }
     };
 
@@ -375,7 +376,7 @@
         selects.forEach(select => {
             if (!select) return;
             const currentVal = select.value;
-            select.innerHTML = '<option value="">選擇分類</option>';
+            select.innerHTML = `<option value="">${_t('alc.selectCategoryPlaceholder')}</option>`;
             flatCategories.forEach(cat => {
                 select.innerHTML += `<option value="${cat.id}">${$.escapeHtml(cat.name)}</option>`;
             });
@@ -400,7 +401,7 @@
         const flatCats = flattenCategories($.state.categories);
 
         if (flatCats.length === 0) {
-            listEl.innerHTML = '<p class="alc-empty">暂无分类</p>';
+            listEl.innerHTML = `<p class="alc-empty">${_t('alc.noCategories')}</p>`;
             return;
         }
 
@@ -411,8 +412,8 @@
                     <span style="color:#888;font-size:0.85em;margin-left:8px;">${$.escapeHtml(cat.description || '')}</span>
                 </div>
                 <div>
-                    <button class="alc-btn alc-btn--secondary" style="font-size:0.8em;padding:4px 10px;" onclick="window.lcLearningCenter.editCategory(${cat.id})">编辑</button>
-                    <button class="alc-btn" style="font-size:0.8em;padding:4px 10px;background:#ff3b30;color:#fff;" onclick="window.lcLearningCenter.deleteCategory(${cat.id})">删除</button>
+                    <button class="alc-btn alc-btn--secondary" style="font-size:0.8em;padding:4px 10px;" onclick="window.lcLearningCenter.editCategory(${cat.id})">${_t('alc.edit')}</button>
+                    <button class="alc-btn" style="font-size:0.8em;padding:4px 10px;background:#ff3b30;color:#fff;" onclick="window.lcLearningCenter.deleteCategory(${cat.id})">${_t('alc.delete')}</button>
                 </div>
             </div>
         `).join('');
@@ -426,7 +427,7 @@
         const icon = iconInput ? iconInput.value.trim() : '';
 
         if (!name) {
-            $.showToast('请输入分类名称', 'error');
+            $.showToast(_t('alc.enterCategoryName'), 'error');
             return;
         }
 
@@ -441,7 +442,7 @@
             }
 
             if (response.success) {
-                $.showToast(editingId ? '分类更新成功' : '分类创建成功', 'success');
+                $.showToast(editingId ? _t('alc.categoryUpdateSuccess') : _t('alc.categoryCreateSuccess'), 'success');
                 if (nameInput) { nameInput.value = ''; nameInput.removeAttribute('data-editing-id'); }
                 if (iconInput) iconInput.value = '';
                 await loadAdminCategories();
@@ -472,12 +473,12 @@
     }
 
     async function deleteCategory(categoryId) {
-        if (!confirm('确定要删除该分类吗？')) return;
+        if (!confirm(_t('alc.confirmDeleteCategory'))) return;
 
         try {
             const response = await $.apiDelete(`${ADMIN_API}/categories/${categoryId}`);
             if (response.success) {
-                $.showToast('分类删除成功', 'success');
+                $.showToast(_t('alc.categoryDeleteSuccess'), 'success');
                 await loadAdminCategories();
                 await $.loadCategories();
             }
@@ -543,7 +544,7 @@
         try {
             const response = await $.apiUpload(`${ADMIN_API}/upload`, formData);
             if (response.success) {
-                $.showToast(`${file.name} 上传成功`, 'success');
+                $.showToast(`${file.name} ${_t('alc.uploadSuccess')}`, 'success');
                 if (titleInput) titleInput.value = '';
                 if (descInput) descInput.value = '';
                 // Refresh content lists
@@ -563,7 +564,7 @@
             }
         } catch (error) {
             console.error('Upload error:', error);
-            $.showToast(`${file.name} 上传失败`, 'error');
+            $.showToast(`${file.name} ${_t('alc.uploadFailed')}`, 'error');
         }
     }
 
@@ -632,11 +633,11 @@
         const gradeLevel = gradeSelect ? gradeSelect.value : '';
 
         if (!title) {
-            $.showToast('請輸入標題', 'error');
+            $.showToast(_t('alc.enterTitle'), 'error');
             return;
         }
         if (!contentType) {
-            $.showToast('請選擇內容類型', 'error');
+            $.showToast(_t('alc.selectContentTypeError'), 'error');
             return;
         }
 
@@ -648,7 +649,7 @@
             const videoPlatform = platformSelect ? platformSelect.value : '';
 
             if (!externalUrl) {
-                $.showToast('請輸入視頻連結', 'error');
+                $.showToast(_t('alc.enterVideoUrl'), 'error');
                 return;
             }
 
@@ -666,7 +667,7 @@
 
                 const response = await $.apiUpload(`${ADMIN_API}/upload`, formData);
                 if (response.success) {
-                    $.showToast('視頻連結上傳成功', 'success');
+                    $.showToast(_t('alc.videoLinkUploadSuccess'), 'success');
                     if (titleInput) titleInput.value = '';
                     if (descInput) descInput.value = '';
                     if (urlInput) urlInput.value = '';
@@ -676,7 +677,7 @@
                 }
             } catch (error) {
                 console.error('Video link submit error:', error);
-                $.showToast('視頻連結上傳失敗', 'error');
+                $.showToast(_t('alc.videoLinkUploadFailed'), 'error');
             }
             return;
         }
@@ -694,7 +695,7 @@
 
             const response = await $.apiPost(`${ADMIN_API}/contents`, body);
             if (response.success) {
-                $.showToast('內容創建成功', 'success');
+                $.showToast(_t('alc.contentCreateSuccess'), 'success');
                 if (titleInput) titleInput.value = '';
                 if (descInput) descInput.value = '';
                 $.loadedTabs.delete('media');
@@ -729,7 +730,7 @@
         [sourceSelect, targetSelect].forEach(select => {
             if (!select) return;
             const val = select.value;
-            select.innerHTML = '<option value="">選擇知識點</option>';
+            select.innerHTML = `<option value="">${_t('alc.selectNodePlaceholder')}</option>`;
             $.state.nodes.forEach(node => {
                 select.innerHTML += `<option value="${node.id}">${$.escapeHtml(node.title)}</option>`;
             });
@@ -742,7 +743,7 @@
         if (!listEl) return;
 
         if ($.state.nodes.length === 0) {
-            listEl.innerHTML = '<p class="alc-empty">暂无知识节点</p>';
+            listEl.innerHTML = `<p class="alc-empty">${_t('alc.noNodes')}</p>`;
             return;
         }
 
@@ -753,8 +754,8 @@
                     <span style="color:#888;font-size:0.85em;margin-left:8px;">${$.escapeHtml(node.description || '')}</span>
                 </div>
                 <div>
-                    <button class="alc-btn alc-btn--secondary" style="font-size:0.8em;padding:4px 10px;" onclick="window.lcLearningCenter.editNode(${node.id})">编辑</button>
-                    <button class="alc-btn" style="font-size:0.8em;padding:4px 10px;background:#ff3b30;color:#fff;" onclick="window.lcLearningCenter.deleteNode(${node.id})">删除</button>
+                    <button class="alc-btn alc-btn--secondary" style="font-size:0.8em;padding:4px 10px;" onclick="window.lcLearningCenter.editNode(${node.id})">${_t('alc.edit')}</button>
+                    <button class="alc-btn" style="font-size:0.8em;padding:4px 10px;background:#ff3b30;color:#fff;" onclick="window.lcLearningCenter.deleteNode(${node.id})">${_t('alc.delete')}</button>
                 </div>
             </div>
         `).join('');
@@ -774,7 +775,7 @@
         const gradeLevel = gradeSelect ? gradeSelect.value : '';
 
         if (!title) {
-            $.showToast('请输入知识点名称', 'error');
+            $.showToast(_t('alc.enterNodeName'), 'error');
             return;
         }
 
@@ -793,7 +794,7 @@
             }
 
             if (response.success) {
-                $.showToast(editingId ? '知识点更新成功' : '知识点创建成功', 'success');
+                $.showToast(editingId ? _t('alc.nodeUpdateSuccess') : _t('alc.nodeCreateSuccess'), 'success');
                 if (nameInput) { nameInput.value = ''; nameInput.removeAttribute('data-editing-id'); }
                 if (descInput) descInput.value = '';
                 await loadAdminNodes();
@@ -814,7 +815,7 @@
         const relationType = typeInput ? typeInput.value.trim() : 'related';
 
         if (!sourceId || !targetId) {
-            $.showToast('请选择来源和目标知识点', 'error');
+            $.showToast(_t('alc.selectSourceAndTarget'), 'error');
             return;
         }
 
@@ -833,7 +834,7 @@
             const response = await $.apiPost(`${ADMIN_API}/knowledge-edges`, edgeBody);
 
             if (response.success) {
-                $.showToast('知识点连接成功', 'success');
+                $.showToast(_t('alc.edgeCreateSuccess'), 'success');
                 if (typeInput) typeInput.value = '';
                 await loadAdminNodes();
                 $.loadedTabs.delete('map');
@@ -886,7 +887,7 @@
         if (!file) return;
 
         if (!file.name.endsWith('.json')) {
-            $.showToast('請選擇 .json 格式的文件', 'error');
+            $.showToast(_t('alc.selectJsonFile'), 'error');
             return;
         }
 
@@ -902,7 +903,7 @@
             if (jsonInput) jsonInput.value = e.target.result;
         };
         reader.onerror = function () {
-            $.showToast('文件讀取失敗', 'error');
+            $.showToast(_t('alc.fileReadFailed'), 'error');
         };
         reader.readAsText(file);
     }
@@ -977,7 +978,7 @@
 
         const rawJson = jsonInput ? jsonInput.value.trim() : '';
         if (!rawJson) {
-            $.showToast('請輸入或上傳 JSON 數據', 'error');
+            $.showToast(_t('alc.enterOrUploadJson'), 'error');
             return;
         }
 
@@ -986,10 +987,10 @@
         try {
             payload = JSON.parse(rawJson);
         } catch (e) {
-            $.showToast('JSON 格式無效，請檢查語法', 'error');
+            $.showToast(_t('alc.invalidJson'), 'error');
             if (resultEl) {
                 resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
-                resultEl.textContent = `JSON 解析失敗：${e.message}`;
+                resultEl.textContent = `${_t('alc.jsonParseFailed')}：${e.message}`;
                 resultEl.style.display = 'block';
             }
             return;
@@ -997,14 +998,14 @@
 
         // 2. 基本結構校驗
         if (!payload.nodes || !Array.isArray(payload.nodes) || payload.nodes.length === 0) {
-            $.showToast('JSON 中必須包含非空的 nodes 陣列', 'error');
+            $.showToast(_t('alc.requireNodesArray'), 'error');
             return;
         }
 
         // 3. 確認清空操作（如果勾選）
         const clearExisting = clearCheckbox ? clearCheckbox.checked : false;
         if (clearExisting) {
-            if (!confirm('⚠️ 您確定要清空所有現有知識點嗎？此操作無法撤銷！')) {
+            if (!confirm(_t('alc.confirmClearNodes'))) {
                 return;
             }
         }
@@ -1043,11 +1044,11 @@
                     ? 'alc-batch-import-result--partial'
                     : 'alc-batch-import-result--success';
 
-                let html = `<strong>✅ 導入完成</strong><br>`;
-                html += `建立 ${nodeCount} 個知識點、${edgeCount} 條連接`;
-                if (skipped > 0) html += `（跳過 ${skipped} 條邊）`;
+                let html = `<strong>✅ ${_t('alc.importComplete')}</strong><br>`;
+                html += _t('alc.importCreatedNodesEdges', { nodes: nodeCount, edges: edgeCount });
+                if (skipped > 0) html += `（${_t('alc.skippedEdges', { count: skipped })}）`;
                 if (hasErrors) {
-                    html += `<br><br><strong>⚠️ 部分警告：</strong><br>`;
+                    html += `<br><br><strong>⚠️ ${_t('alc.partialWarnings')}：</strong><br>`;
                     html += errors.map(e => `• ${e}`).join('<br>');
                 }
 
@@ -1057,7 +1058,7 @@
                     resultEl.style.display = 'block';
                 }
 
-                $.showToast(`成功導入 ${nodeCount} 個知識點`, 'success');
+                $.showToast(_t('alc.importSuccess', { count: nodeCount }), 'success');
 
                 // 6. 刷新相關數據
                 await loadAdminNodes();
@@ -1067,7 +1068,7 @@
             console.error('Batch import error:', error);
             if (resultEl) {
                 resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
-                resultEl.textContent = `導入失敗：${error.message || '未知錯誤'}`;
+                resultEl.textContent = `${_t('alc.importFailed')}：${error.message || _t('alc.unknownError')}`;
                 resultEl.style.display = 'block';
             }
         } finally {
@@ -1112,7 +1113,7 @@
     function readPathImportFile(file) {
         if (!file) return;
         if (!file.name.endsWith('.json')) {
-            $.showToast('請選擇 .json 格式的文件', 'error');
+            $.showToast(_t('alc.selectJsonFile'), 'error');
             return;
         }
 
@@ -1128,7 +1129,7 @@
             if (jsonInput) jsonInput.value = e.target.result;
         };
         reader.onerror = function () {
-            $.showToast('文件讀取失敗', 'error');
+            $.showToast(_t('alc.fileReadFailed'), 'error');
         };
         reader.readAsText(file);
     }
@@ -1195,7 +1196,7 @@
 
         const rawJson = jsonInput ? jsonInput.value.trim() : '';
         if (!rawJson) {
-            $.showToast('請輸入或上傳 JSON 數據', 'error');
+            $.showToast(_t('alc.enterOrUploadJson'), 'error');
             return;
         }
 
@@ -1204,10 +1205,10 @@
         try {
             payload = JSON.parse(rawJson);
         } catch (e) {
-            $.showToast('JSON 格式無效，請檢查語法', 'error');
+            $.showToast(_t('alc.invalidJson'), 'error');
             if (resultEl) {
                 resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
-                resultEl.textContent = `JSON 解析失敗：${e.message}`;
+                resultEl.textContent = `${_t('alc.jsonParseFailed')}：${e.message}`;
                 resultEl.style.display = 'block';
             }
             return;
@@ -1215,14 +1216,14 @@
 
         // 2. 結構校驗
         if (!payload.paths || !Array.isArray(payload.paths) || payload.paths.length === 0) {
-            $.showToast('JSON 中必須包含非空的 paths 陣列', 'error');
+            $.showToast(_t('alc.requirePathsArray'), 'error');
             return;
         }
 
         // 3. 確認清空操作
         const clearExisting = clearCheckbox ? clearCheckbox.checked : false;
         if (clearExisting) {
-            if (!confirm('⚠️ 您確定要清空所有現有學習路徑嗎？此操作無法撤銷！')) {
+            if (!confirm(_t('alc.confirmClearPaths'))) {
                 return;
             }
         }
@@ -1260,10 +1261,10 @@
                     ? 'alc-batch-import-result--partial'
                     : 'alc-batch-import-result--success';
 
-                let html = `<strong>✅ 導入完成</strong><br>`;
-                html += `建立 ${created} 條學習路徑、共 ${totalSteps} 個步驟`;
+                let html = `<strong>✅ ${_t('alc.importComplete')}</strong><br>`;
+                html += _t('alc.importCreatedPaths', { paths: created, steps: totalSteps });
                 if (hasErrors) {
-                    html += `<br><br><strong>⚠️ 部分警告：</strong><br>`;
+                    html += `<br><br><strong>⚠️ ${_t('alc.partialWarnings')}：</strong><br>`;
                     html += errors.map(e => `• ${e}`).join('<br>');
                 }
 
@@ -1273,7 +1274,7 @@
                     resultEl.style.display = 'block';
                 }
 
-                $.showToast(`成功導入 ${created} 條學習路徑`, 'success');
+                $.showToast(_t('alc.importPathsSuccess', { count: created }), 'success');
 
                 // 刷新路徑列表
                 await loadAdminPaths();
@@ -1283,7 +1284,7 @@
             console.error('Path import error:', error);
             if (resultEl) {
                 resultEl.className = 'alc-batch-import-result alc-batch-import-result--error';
-                resultEl.textContent = `導入失敗：${error.message || '未知錯誤'}`;
+                resultEl.textContent = `${_t('alc.importFailed')}：${error.message || _t('alc.unknownError')}`;
                 resultEl.style.display = 'block';
             }
         } finally {
@@ -1309,11 +1310,11 @@
     }
 
     async function deleteNode(nodeId) {
-        if (!confirm('确定要删除该节点吗？')) return;
+        if (!confirm(_t('alc.confirmDeleteNode'))) return;
         try {
             const response = await $.apiDelete(`${ADMIN_API}/knowledge-nodes/${nodeId}`);
             if (response.success) {
-                $.showToast('节点删除成功', 'success');
+                $.showToast(_t('alc.nodeDeleteSuccess'), 'success');
                 await loadAdminNodes();
                 $.loadedTabs.delete('map');
             }
@@ -1345,7 +1346,7 @@
         if (!listEl) return;
 
         if ($.state.paths.length === 0) {
-            listEl.innerHTML = '<p class="alc-empty">暂无学习路径</p>';
+            listEl.innerHTML = `<p class="alc-empty">${_t('alc.noPaths')}</p>`;
             return;
         }
 
@@ -1356,8 +1357,8 @@
                     <span style="color:#888;font-size:0.85em;margin-left:8px;">${$.escapeHtml(path.difficulty || '')} · ${path.estimated_hours || 0}h</span>
                 </div>
                 <div>
-                    <button class="alc-btn alc-btn--secondary" style="font-size:0.8em;padding:4px 10px;" onclick="window.lcLearningCenter.editPath(${path.id})">编辑</button>
-                    <button class="alc-btn" style="font-size:0.8em;padding:4px 10px;background:#ff3b30;color:#fff;" onclick="window.lcLearningCenter.deletePath(${path.id})">删除</button>
+                    <button class="alc-btn alc-btn--secondary" style="font-size:0.8em;padding:4px 10px;" onclick="window.lcLearningCenter.editPath(${path.id})">${_t('alc.edit')}</button>
+                    <button class="alc-btn" style="font-size:0.8em;padding:4px 10px;background:#ff3b30;color:#fff;" onclick="window.lcLearningCenter.deletePath(${path.id})">${_t('alc.delete')}</button>
                 </div>
             </div>
         `).join('');
@@ -1379,7 +1380,7 @@
         const gradeLevel = gradeSelect ? gradeSelect.value : '';
 
         if (!title) {
-            $.showToast('请输入路径名称', 'error');
+            $.showToast(_t('alc.enterPathName'), 'error');
             return;
         }
 
@@ -1397,7 +1398,7 @@
             }
 
             if (response.success) {
-                $.showToast(editingId ? '路径更新成功' : '路径创建成功', 'success');
+                $.showToast(editingId ? _t('alc.pathUpdateSuccess') : _t('alc.pathCreateSuccess'), 'success');
                 if (nameInput) { nameInput.value = ''; nameInput.removeAttribute('data-editing-id'); }
                 if (descInput) descInput.value = '';
                 if (durationInput) durationInput.value = '';
@@ -1431,12 +1432,12 @@
     }
 
     async function deletePath(pathId) {
-        if (!confirm('确定要删除该路径吗？')) return;
+        if (!confirm(_t('alc.confirmDeletePath'))) return;
 
         try {
             const response = await $.apiDelete(`${ADMIN_API}/paths/${pathId}`);
             if (response.success) {
-                $.showToast('路径删除成功', 'success');
+                $.showToast(_t('alc.pathDeleteSuccess'), 'success');
                 await loadAdminPaths();
                 $.loadedTabs.delete('paths');
             }

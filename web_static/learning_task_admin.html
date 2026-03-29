@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習任務管理 - 管理後台</title>
+    <title data-i18n="lta.pageTitle">學習任務管理 - 管理後台</title>
     <script src="/static/js/shared/theme.js"></script>
     <link rel="stylesheet" href="/static/css/learning_task_admin.css">
 </head>
@@ -11,16 +11,16 @@
     <!-- Header -->
     <div class="header">
         <div class="header-left">
-            <a class="back-link">← 返回管理後台</a>
-            <h1 class="header-title">學習任務管理</h1>
+            <a class="back-link" data-i18n="lta.back">← 返回管理後台</a>
+            <h1 class="header-title" data-i18n="lta.headerTitle">學習任務管理</h1>
         </div>
         <div class="header-stats">
             <div class="stat-item">
-                <span class="stat-label">草稿</span>
+                <span class="stat-label" data-i18n="lta.statDraft">草稿</span>
                 <span class="stat-value" id="stat-draft">0</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">已發布</span>
+                <span class="stat-label" data-i18n="lta.statPublished">已發布</span>
                 <span class="stat-value" id="stat-published">0</span>
             </div>
         </div>
@@ -30,10 +30,10 @@
     <div class="container">
         <!-- Tabs Navigation -->
         <div class="tabs">
-            <button class="tab-button active" data-tab="create">創建任務</button>
-            <button class="tab-button" data-tab="list">任務列表</button>
-            <button class="tab-button" data-tab="publish">發布設定</button>
-            <button class="tab-button" data-tab="stats">完成統計</button>
+            <button class="tab-button active" data-tab="create" data-i18n="lta.tabCreate">創建任務</button>
+            <button class="tab-button" data-tab="list" data-i18n="lta.tabList">任務列表</button>
+            <button class="tab-button" data-tab="publish" data-i18n="lta.tabPublish">發布設定</button>
+            <button class="tab-button" data-tab="stats" data-i18n="lta.tabStats">完成統計</button>
         </div>
 
         <!-- Tab 1: 創建任務 -->
@@ -41,44 +41,44 @@
             <div class="card">
                 <form id="taskForm">
                     <div class="form-group">
-                        <label class="required">任務標題</label>
+                        <label class="required" data-i18n="lta.formTitle">任務標題</label>
                         <input type="text" id="taskTitle" required>
                     </div>
                     <div class="form-group">
-                        <label>簡短描述</label>
+                        <label data-i18n="lta.formDescription">簡短描述</label>
                         <textarea id="taskDescription"></textarea>
                     </div>
                     <div class="form-group">
-                        <label>分類</label>
+                        <label data-i18n="lta.formCategory">分類</label>
                         <select id="taskCategory">
-                            <option value="general">普通</option>
-                            <option value="homework">功課</option>
-                            <option value="reading">閱讀</option>
-                            <option value="training">培訓</option>
-                            <option value="certification">認證</option>
+                            <option value="general" data-i18n="lta.catGeneral">普通</option>
+                            <option value="homework" data-i18n="lta.catHomework">功課</option>
+                            <option value="reading" data-i18n="lta.catReading">閱讀</option>
+                            <option value="training" data-i18n="lta.catTraining">培訓</option>
+                            <option value="certification" data-i18n="lta.catCertification">認證</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>優先級</label>
+                        <label data-i18n="lta.formPriority">優先級</label>
                         <select id="taskPriority">
-                            <option value="1">普通</option>
-                            <option value="2">重要</option>
-                            <option value="3">緊急</option>
+                            <option value="1" data-i18n="lta.priorityNormal">普通</option>
+                            <option value="2" data-i18n="lta.priorityImportant">重要</option>
+                            <option value="3" data-i18n="lta.priorityUrgent">緊急</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>截止日期</label>
+                        <label data-i18n="lta.formDeadline">截止日期</label>
                         <input type="datetime-local" id="taskDeadline">
                     </div>
                     <div class="form-group">
-                        <label>子項</label>
+                        <label data-i18n="lta.formSubItems">子項</label>
                         <div class="sub-items-container" id="subItemsContainer"></div>
-                        <button type="button" class="btn-secondary btn-small add-item-btn">
+                        <button type="button" class="btn-secondary btn-small add-item-btn" data-i18n="lta.addSubItem">
                             ➕ 添加子項
                         </button>
                     </div>
                     <div class="form-group">
-                        <button type="submit" class="btn-primary" id="submitBtn">保存草稿</button>
+                        <button type="submit" class="btn-primary" id="submitBtn" data-i18n="lta.saveDraft">保存草稿</button>
                     </div>
                 </form>
             </div>
@@ -88,10 +88,10 @@
         <div id="list" class="tab-content">
             <div class="filter-bar">
                 <select id="statusFilter">
-                    <option value="">全部</option>
-                    <option value="draft">草稿</option>
-                    <option value="published">已發布</option>
-                    <option value="archived">已歸檔</option>
+                    <option value="" data-i18n="lta.filterAll">全部</option>
+                    <option value="draft" data-i18n="lta.filterDraft">草稿</option>
+                    <option value="published" data-i18n="lta.filterPublished">已發布</option>
+                    <option value="archived" data-i18n="lta.filterArchived">已歸檔</option>
                 </select>
             </div>
             <div id="taskListContainer"></div>
@@ -102,9 +102,9 @@
         <div id="publish" class="tab-content">
             <div class="card">
                 <div class="form-group">
-                    <label>選擇任務</label>
+                    <label data-i18n="lta.selectTask">選擇任務</label>
                     <select id="publishTaskSelect">
-                        <option value="">-- 請選擇任務 --</option>
+                        <option value="" data-i18n="lta.selectTaskPlaceholder">-- 請選擇任務 --</option>
                     </select>
                 </div>
 
@@ -118,33 +118,33 @@
                     </div>
 
                     <div class="form-group">
-                        <label>目標受眾</label>
+                        <label data-i18n="lta.targetAudience">目標受眾</label>
                         <div style="display: grid; gap: 12px;">
                             <div>
                                 <input type="radio" id="targetAll" name="targetType" value="all">
-                                <label for="targetAll" style="display: inline; margin: 0;">所有人（全校）</label>
+                                <label for="targetAll" style="display: inline; margin: 0;" data-i18n="lta.targetAll">所有人（全校）</label>
                             </div>
                             <div>
                                 <input type="radio" id="targetAllTeachers" name="targetType" value="all_teachers">
-                                <label for="targetAllTeachers" style="display: inline; margin: 0;">所有教師</label>
+                                <label for="targetAllTeachers" style="display: inline; margin: 0;" data-i18n="lta.targetAllTeachers">所有教師</label>
                             </div>
                             <div>
                                 <input type="radio" id="targetAllStudents" name="targetType" value="all_students">
-                                <label for="targetAllStudents" style="display: inline; margin: 0;">所有學生</label>
+                                <label for="targetAllStudents" style="display: inline; margin: 0;" data-i18n="lta.targetAllStudents">所有學生</label>
                             </div>
                             <div>
                                 <input type="radio" id="targetTeacher" name="targetType" value="teacher">
-                                <label for="targetTeacher" style="display: inline; margin: 0;">指定教師</label>
+                                <label for="targetTeacher" style="display: inline; margin: 0;" data-i18n="lta.targetTeacher">指定教師</label>
                                 <select id="teacherSelect" style="display: none; margin-left: 12px; width: 200px;"></select>
                             </div>
                             <div>
                                 <input type="radio" id="targetStudent" name="targetType" value="student">
-                                <label for="targetStudent" style="display: inline; margin: 0;">指定學生</label>
+                                <label for="targetStudent" style="display: inline; margin: 0;" data-i18n="lta.targetStudent">指定學生</label>
                                 <select id="studentSelect" style="display: none; margin-left: 12px; width: 200px;"></select>
                             </div>
                             <div>
                                 <input type="radio" id="targetClass" name="targetType" value="class">
-                                <label for="targetClass" style="display: inline; margin: 0;">指定班級</label>
+                                <label for="targetClass" style="display: inline; margin: 0;" data-i18n="lta.targetClass">指定班級</label>
                                 <select id="classSelect" style="display: none; margin-left: 12px; width: 200px;"></select>
                             </div>
                         </div>
@@ -155,7 +155,7 @@
                     </div>
 
                     <div class="form-group">
-                        <button type="button" class="btn-primary" data-action="confirm-publish">確認發布</button>
+                        <button type="button" class="btn-primary" data-action="confirm-publish" data-i18n="lta.confirmPublish">確認發布</button>
                     </div>
                 </div>
             </div>
@@ -165,24 +165,24 @@
         <div id="stats" class="tab-content">
             <div class="card">
                 <div class="form-group">
-                    <label>選擇已發布任務</label>
+                    <label data-i18n="lta.selectPublishedTask">選擇已發布任務</label>
                     <select id="statsTaskSelect">
-                        <option value="">-- 請選擇任務 --</option>
+                        <option value="" data-i18n="lta.selectTaskPlaceholder">-- 請選擇任務 --</option>
                     </select>
                 </div>
 
                 <div id="statsContainer" style="display: none;">
                     <div class="stats-grid">
                         <div class="stats-card">
-                            <div class="stats-card-label">接收人數</div>
+                            <div class="stats-card-label" data-i18n="lta.statsRecipients">接收人數</div>
                             <div class="stats-card-value" id="statsRecipients">0</div>
                         </div>
                         <div class="stats-card">
-                            <div class="stats-card-label">已完成</div>
+                            <div class="stats-card-label" data-i18n="lta.statsCompleted">已完成</div>
                             <div class="stats-card-value" id="statsCompleted">0</div>
                         </div>
                         <div class="stats-card">
-                            <div class="stats-card-label">完成率</div>
+                            <div class="stats-card-label" data-i18n="lta.statsRate">完成率</div>
                             <div class="stats-card-value" id="statsRate">0%</div>
                         </div>
                     </div>
@@ -191,12 +191,12 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>用戶名</th>
-                                    <th>顯示名稱</th>
-                                    <th>角色</th>
-                                    <th>班級</th>
-                                    <th data-sort="completed_items" style="cursor:pointer;">完成項目 ↕</th>
-                                    <th data-sort="rate" style="cursor:pointer;">完成率 ↕</th>
+                                    <th data-i18n="lta.thUsername">用戶名</th>
+                                    <th data-i18n="lta.thDisplayName">顯示名稱</th>
+                                    <th data-i18n="lta.thRole">角色</th>
+                                    <th data-i18n="lta.thClass">班級</th>
+                                    <th data-sort="completed_items" style="cursor:pointer;" data-i18n="lta.thCompletedItems">完成項目 ↕</th>
+                                    <th data-sort="rate" style="cursor:pointer;" data-i18n="lta.thCompletionRate">完成率 ↕</th>
                                 </tr>
                             </thead>
                             <tbody id="statsTableBody">
@@ -211,11 +211,11 @@
     <!-- Confirm Modal -->
     <div id="confirmModal" class="modal">
         <div class="modal-content">
-            <div class="modal-title">確認操作</div>
+            <div class="modal-title" data-i18n="lta.modalTitle">確認操作</div>
             <div class="modal-body" id="confirmMessage"></div>
             <div class="modal-actions">
-                <button class="btn-secondary" data-action="close-modal">取消</button>
-                <button class="btn-primary" data-action="execute-confirm">確認</button>
+                <button class="btn-secondary" data-action="close-modal" data-i18n="lta.modalCancel">取消</button>
+                <button class="btn-primary" data-action="execute-confirm" data-i18n="lta.modalConfirm">確認</button>
             </div>
         </div>
     </div>
@@ -224,6 +224,8 @@
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/ui.js"></script>
     <script src="/static/js/shared/api.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/learning_task_admin.js"></script>
     <script src="/static/js/learning_task_admin.js"></script>
 </body>
 </html>

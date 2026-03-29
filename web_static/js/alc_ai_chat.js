@@ -6,6 +6,7 @@
     'use strict';
 
     const $ = window.alc;
+    const _t = $._t;
 
     // ==================== AI ASSISTANT ====================
 
@@ -79,11 +80,11 @@
             indicator.innerHTML = `
                 <span class="alc-ai-context-icon">&#128214;</span>
                 <span class="alc-ai-context-text">
-                    当前阅读：<strong>${$.escapeHtml($.state.currentContentTitle)}</strong>
+                    ${_t('alc.currentReading')}：<strong>${$.escapeHtml($.state.currentContentTitle)}</strong>
                 </span>
                 <button class="alc-ai-context-clear"
                         onclick="window.lcLearningCenter.clearAiContext()"
-                        title="清除上下文">&#10005;</button>
+                        title="${_t('alc.clearContext')}">&#10005;</button>
             `;
         } else {
             indicator.style.display = 'none';
@@ -130,7 +131,7 @@
         const btn = document.getElementById('aiFloatExpandBtn');
         if (btn) {
             btn.innerHTML = isExpanded ? '&#9635;' : '&#9634;';
-            btn.title = isExpanded ? '缩小' : '放大';
+            btn.title = isExpanded ? _t('alc.shrink') : _t('alc.expand');
         }
     }
 
@@ -221,7 +222,7 @@
     async function sendAiQuestion() {
         const inputBox = $.getElement('aiInputBox');
         if (!inputBox || !inputBox.value.trim()) {
-            $.showToast('请输入问题', 'warning');
+            $.showToast(_t('alc.enterQuestion'), 'warning');
             return;
         }
 
@@ -307,7 +308,7 @@
             } else if (fullAnswer) {
                 contentEl.innerHTML = `<p>${$.escapeHtml(fullAnswer).replace(/\n/g, '<br>')}</p>`;
             } else {
-                contentEl.innerHTML = '<p>暂无回答</p>';
+                contentEl.innerHTML = `<p>${_t('alc.noAnswer')}</p>`;
             }
 
             // 页码快捷导航按钮
@@ -319,10 +320,10 @@
                 const sortedPages = Array.from(allPages).sort((a, b) => a - b);
                 if (sortedPages.length > 0) {
                     const btnsHtml = sortedPages.map(p =>
-                        `<button class="alc-page-ref-btn" data-page="${p}" title="跳转到第${p}页">第${p}页</button>`
+                        `<button class="alc-page-ref-btn" data-page="${p}" title="${_t('alc.jumpToPage', { page: p })}">${_t('alc.pageN', { page: p })}</button>`
                     ).join('');
                     contentEl.insertAdjacentHTML('beforeend',
-                        `<div class="alc-page-refs-bar"><span class="alc-page-refs-label">相关页码：</span>${btnsHtml}</div>`
+                        `<div class="alc-page-refs-bar"><span class="alc-page-refs-label">${_t('alc.relatedPages')}：</span>${btnsHtml}</div>`
                     );
                 }
             }
@@ -337,12 +338,12 @@
                 ).join('');
                 contentEl.insertAdjacentHTML('beforeend',
                     `<div class="alc-kg-nodes-bar">` +
-                    `<span class="alc-kg-nodes-label">📍 相关知识点：</span>${chipsHtml}</div>`
+                    `<span class="alc-kg-nodes-label">📍 ${_t('alc.relatedKnowledgeNodes')}：</span>${chipsHtml}</div>`
                 );
             }
 
         } catch (error) {
-            contentEl.innerHTML = '<p>发送失败，请重试</p>';
+            contentEl.innerHTML = `<p>${_t('alc.sendFailed')}</p>`;
             console.error('AI ask error:', error);
         }
 
@@ -380,7 +381,7 @@
             const sourcesHtml = sources.map(s =>
                 `<a href="${$.escapeHtml(s.url)}" target="_blank" class="alc-source-link">${$.escapeHtml(s.title)}</a>`
             ).join('');
-            contentEl.insertAdjacentHTML('beforeend', `<div class="alc-ai-sources"><p>参考资料：</p>${sourcesHtml}</div>`);
+            contentEl.insertAdjacentHTML('beforeend', `<div class="alc-ai-sources"><p>${_t('alc.referenceMaterials')}：</p>${sourcesHtml}</div>`);
         }
 
         // 页码快捷导航按钮
@@ -392,10 +393,10 @@
             const sortedPages = Array.from(allPages).sort((a, b) => a - b);
 
             const btnsHtml = sortedPages.map(p =>
-                `<button class="alc-page-ref-btn" data-page="${p}" title="跳转到第${p}页">第${p}页</button>`
+                `<button class="alc-page-ref-btn" data-page="${p}" title="${_t('alc.jumpToPage', { page: p })}">${_t('alc.pageN', { page: p })}</button>`
             ).join('');
             contentEl.insertAdjacentHTML('beforeend',
-                `<div class="alc-page-refs-bar"><span class="alc-page-refs-label">相关页码：</span>${btnsHtml}</div>`
+                `<div class="alc-page-refs-bar"><span class="alc-page-refs-label">${_t('alc.relatedPages')}：</span>${btnsHtml}</div>`
             );
         }
 
@@ -409,7 +410,7 @@
             ).join('');
             contentEl.insertAdjacentHTML('beforeend',
                 `<div class="alc-kg-nodes-bar">` +
-                `<span class="alc-kg-nodes-label">📍 相关知识点：</span>${chipsHtml}</div>`
+                `<span class="alc-kg-nodes-label">📍 ${_t('alc.relatedKnowledgeNodes')}：</span>${chipsHtml}</div>`
             );
         }
 
@@ -431,7 +432,7 @@
                 // 取第一个页码作为跳转目标
                 const firstPage = parseInt(pages.replace(/[、\u2013\-]/g, ',').split(',')[0], 10);
                 if (isNaN(firstPage)) return match;
-                return `<span class="alc-page-ref" data-page="${firstPage}" title="跳转到第${firstPage}页">${match}</span>`;
+                return `<span class="alc-page-ref" data-page="${firstPage}" title="${_t('alc.jumpToPage', { page: firstPage })}">${match}</span>`;
             }
         );
     }
@@ -444,14 +445,14 @@
         // 优先使用 PDF.js viewer 的 goToPage（iPad/Safari 兼容）
         if ($.modules.media && $.modules.media.pdfGoToPage) {
             $.modules.media.pdfGoToPage(page);
-            $.showToast(`已跳转到第 ${page} 页`, 'info');
+            $.showToast(_t('alc.jumpedToPage', { page: page }), 'info');
             return;
         }
 
         // Fallback: iframe 方式（桌面浏览器原生 PDF 插件）
         const iframe = document.querySelector('.alc-ebook-doc-iframe');
         if (!iframe) {
-            console.warn('未找到 PDF viewer，无法跳转页码');
+            console.warn(_t('alc.pdfViewerNotFound'));
             return;
         }
 
@@ -465,7 +466,7 @@
             iframe.src = newSrc;
         }
 
-        $.showToast(`已跳转到第 ${page} 页`, 'info');
+        $.showToast(_t('alc.jumpedToPage', { page: page }), 'info');
     }
 
     // Register module functions

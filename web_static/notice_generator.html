@@ -3,42 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能通告助手</title>
+    <title data-i18n="ng.pageTitle">智能通告助手</title>
     <script src="/static/js/shared/theme.js"></script>
     <link rel="stylesheet" href="/static/css/notice_generator.css">
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="message-avatar">🤖</div>
-            <h2>智能通告助手</h2>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressBar"></div>
+    <!-- Header -->
+    <header class="ng-header">
+        <a href="/" class="ng-header__back" data-i18n="ng.back">← 返回</a>
+        <h1 class="ng-header__title" data-i18n="ng.headerTitle">智能通告助手</h1>
+        <div class="ng-header__progress">
+            <div class="ng-header__progress-fill" id="progressBar"></div>
+        </div>
+    </header>
+
+    <!-- 移動端 Tab 切換 -->
+    <div class="ng-mobile-tabs" id="mobileTabs">
+        <button class="active" data-panel="chat" data-i18n="ng.tabChat">💬 對話</button>
+        <button data-panel="preview" data-i18n="ng.tabPreview">📄 預覽</button>
+    </div>
+
+    <!-- 分屏主佈局 -->
+    <div class="ng-layout">
+        <!-- 左側: AI 對話面板 -->
+        <div class="ng-panel ng-panel--chat" id="panelChat">
+            <div class="ng-messages" id="chatMessages"></div>
+            <div class="ng-input-area">
+                <div class="ng-input-wrapper">
+                    <input type="text" class="ng-input" id="chatInput"
+                           placeholder="輸入您的回覆或粘貼通告內容..."
+                           data-i18n-placeholder="ng.inputPlaceholder" autocomplete="off">
+                    <button class="ng-send-btn" id="sendButton" data-i18n="ng.sendBtn">發送</button>
+                </div>
+                <div class="ng-quick-actions" id="quickActions"></div>
             </div>
         </div>
 
-        <div class="chat-messages" id="chatMessages">
-            <!-- 消息將動態添加 -->
-        </div>
-
-        <div class="chat-input-container">
-            <div class="chat-input-wrapper">
-                <input type="text" class="chat-input" id="chatInput"
-                       placeholder="輸入您的回覆或粘貼通告內容..." autocomplete="off">
-                <button class="send-button" id="sendButton">發送</button>
+        <!-- 右側: 通告預覽 / 編輯面板 -->
+        <div class="ng-panel ng-panel--preview" id="panelPreview">
+            <div class="ng-preview-toolbar">
+                <span class="ng-preview-title" data-i18n="ng.previewTitle">📋 通告預覽</span>
+                <button class="ng-export-btn" id="exportButton" disabled data-i18n="ng.exportBtn">📄 導出 Word</button>
             </div>
-            <div class="quick-actions" id="quickActions"></div>
+
+            <!-- 空狀態 -->
+            <div class="ng-preview-empty" id="previewEmpty">
+                <div class="ng-preview-empty-icon">📋</div>
+                <p class="ng-preview-empty-text" data-i18n="ng.previewEmpty">AI 生成通告後將在此預覽</p>
+                <p class="ng-preview-empty-hint" data-i18n="ng.previewEmptyHint">在左側與 AI 對話以生成通告</p>
+            </div>
+
+            <!-- 可編輯預覽區 -->
+            <div class="ng-preview-editor" id="previewEditor" contenteditable="true" style="display:none"
+                 data-placeholder="通告內容將顯示在此處..."></div>
         </div>
     </div>
 
-    <button class="export-button" id="exportButton">📄 導出Word文檔</button>
-
-    <!-- 共享工具模組 -->
     <script src="/static/js/shared/utils.js"></script>
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/ui.js"></script>
     <script src="/static/js/shared/api.js"></script>
-    <!-- 頁面邏輯 -->
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/notice_generator.js"></script>
     <script src="/static/js/notice_generator.js"></script>
 </body>
 </html>

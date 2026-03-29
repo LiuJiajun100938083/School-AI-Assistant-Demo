@@ -23,18 +23,18 @@
     <!-- 固定頂部導航欄 -->
     <header class="alc-header">
         <div class="alc-header__left">
-            <a href="/" class="alc-back-button" title="返回首頁">
+            <a href="/" class="alc-back-button" data-i18n-title="alc.backHome" title="返回首頁">
                 <span class="alc-back-icon">←</span>
-                <span class="alc-back-text">返回首頁</span>
+                <span class="alc-back-text" data-i18n="alc.backHome">返回首頁</span>
             </a>
         </div>
 
         <div class="alc-header__center">
-            <h1 class="alc-page-title">AI 學習中心</h1>
+            <h1 class="alc-page-title" data-i18n="alc.headerTitle">AI 學習中心</h1>
             <div class="alc-header-stats">
-                <span class="alc-header-stat"><strong id="statCourses">0</strong> 課程</span>
-                <span class="alc-header-stat"><strong id="statVideos">0</strong> 視頻</span>
-                <span class="alc-header-stat"><strong id="statDocs">0</strong> 文件</span>
+                <span class="alc-header-stat"><strong id="statCourses">0</strong> <span data-i18n="alc.courses">課程</span></span>
+                <span class="alc-header-stat"><strong id="statVideos">0</strong> <span data-i18n="alc.videos">視頻</span></span>
+                <span class="alc-header-stat"><strong id="statDocs">0</strong> <span data-i18n="alc.documents">文件</span></span>
             </div>
         </div>
 
@@ -44,6 +44,7 @@
                     type="text"
                     id="globalSearchInput"
                     class="alc-search-input"
+                    data-i18n-placeholder="alc.searchPlaceholder"
                     placeholder="搜尋課程、視頻、文件..."
                     autocomplete="off"
                 >
@@ -54,7 +55,7 @@
                     </svg>
                 </button>
             </div>
-            <button id="adminToggleBtn" class="alc-admin-toggle" title="管理面板" style="display: none;">
+            <button id="adminToggleBtn" class="alc-admin-toggle" data-i18n-title="alc.adminTitle" title="管理面板" style="display: none;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
         </div>
@@ -67,38 +68,38 @@
         <nav class="alc-tab-navigation">
             <button class="alc-tab-button" data-tab="map">
                 <svg class="alc-tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                <span class="alc-tab-label">知識地圖</span>
+                <span class="alc-tab-label" data-i18n="alc.tabMap">知識地圖</span>
             </button>
             <button class="alc-tab-button" data-tab="paths">
                 <svg class="alc-tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-                <span class="alc-tab-label">學習路徑</span>
+                <span class="alc-tab-label" data-i18n="alc.tabPaths">學習路徑</span>
             </button>
             <button class="alc-tab-button alc-tab-button--active" data-tab="media">
                 <svg class="alc-tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                <span class="alc-tab-label">教學資料</span>
+                <span class="alc-tab-label" data-i18n="alc.tabMedia">教學資料</span>
             </button>
             <button class="alc-tab-button" id="aiFloatingToggleBtn" data-action="toggleAiWindow">
                 <svg class="alc-tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
-                <span class="alc-tab-label">AI 助教</span>
+                <span class="alc-tab-label" data-i18n="alc.tabAiAssistant">AI 助教</span>
             </button>
             <button class="alc-tab-button" data-tab="resources">
                 <svg class="alc-tab-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                <span class="alc-tab-label">資源庫</span>
+                <span class="alc-tab-label" data-i18n="alc.tabResources">資源庫</span>
             </button>
 
             <!-- 模式切換器 -->
             <div class="alc-mode-switcher">
-                <button class="alc-mode-btn alc-mode-btn--active" data-mode="reading" title="閱讀模式">
+                <button class="alc-mode-btn alc-mode-btn--active" data-mode="reading" data-i18n-title="alc.modeReading" title="閱讀模式">
                     <svg class="alc-mode-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                    <span>閱讀</span>
+                    <span data-i18n="alc.modeReading">閱讀</span>
                 </button>
-                <button class="alc-mode-btn" data-mode="edit" title="編輯模式">
+                <button class="alc-mode-btn" data-mode="edit" data-i18n-title="alc.modeEdit" title="編輯模式">
                     <svg class="alc-mode-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    <span>編輯</span>
+                    <span data-i18n="alc.modeEdit">編輯</span>
                 </button>
-                <button class="alc-mode-btn" data-mode="manage" title="管理模式">
+                <button class="alc-mode-btn" data-mode="manage" data-i18n-title="alc.modeManage" title="管理模式">
                     <svg class="alc-mode-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    <span>管理</span>
+                    <span data-i18n="alc.modeManage">管理</span>
                 </button>
             </div>
         </nav>
@@ -115,12 +116,12 @@
                             <circle cx="11" cy="11" r="8"></circle>
                             <path d="m21 21-4.35-4.35"></path>
                         </svg>
-                        <input id="mapSearchInput" type="text" class="alc-map-search-input" placeholder="搜索节点..." />
+                        <input id="mapSearchInput" type="text" class="alc-map-search-input" data-i18n-placeholder="alc.searchNodes" placeholder="搜索节点..." />
                     </div>
 
                     <!-- 控制條 -->
                     <div class="alc-map-controls">
-                        <button id="mapZoomInBtn" class="alc-control-btn" title="放大">
+                        <button id="mapZoomInBtn" class="alc-control-btn" data-i18n-title="alc.zoomIn" title="放大">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <path d="m21 21-4.35-4.35"></path>
@@ -128,14 +129,14 @@
                                 <line x1="8" y1="11" x2="14" y2="11"></line>
                             </svg>
                         </button>
-                        <button id="mapZoomOutBtn" class="alc-control-btn" title="縮小">
+                        <button id="mapZoomOutBtn" class="alc-control-btn" data-i18n-title="alc.zoomOut" title="縮小">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <path d="m21 21-4.35-4.35"></path>
                                 <line x1="8" y1="11" x2="14" y2="11"></line>
                             </svg>
                         </button>
-                        <button id="mapResetBtn" class="alc-control-btn" title="重置">
+                        <button id="mapResetBtn" class="alc-control-btn" data-i18n-title="alc.reset" title="重置">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
                                 <path d="M21 3v5h-5"></path>
@@ -143,18 +144,18 @@
                                 <path d="M3 21v-5h5"></path>
                             </svg>
                         </button>
-                        <button id="mapFullscreenBtn" class="alc-control-btn" title="全屏">
+                        <button id="mapFullscreenBtn" class="alc-control-btn" data-i18n-title="alc.fullscreen" title="全屏">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                             </svg>
                         </button>
-                        <button id="mapModeToggle" class="alc-control-btn alc-mode-toggle" title="切换探索模式">
+                        <button id="mapModeToggle" class="alc-control-btn alc-mode-toggle" data-i18n-title="alc.toggleExplore" title="切换探索模式">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="3"></circle>
                                 <path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07-2.83 2.83M9.76 14.24l-2.83 2.83m0-10.14 2.83 2.83m4.48 4.48 2.83 2.83"></path>
                             </svg>
                         </button>
-                        <button id="mapLayoutToggle" class="alc-control-btn alc-layout-toggle" title="切换树形布局">
+                        <button id="mapLayoutToggle" class="alc-control-btn alc-layout-toggle" data-i18n-title="alc.toggleTree" title="切换树形布局">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="4" r="2"></circle>
                                 <circle cx="6" cy="12" r="2"></circle>
@@ -179,29 +180,29 @@
                     <!-- 載入狀態 -->
                     <div id="mapLoadingState" class="alc-loading-state">
                         <div class="alc-loading-spinner"></div>
-                        <p>載入知識地圖中...</p>
+                        <p data-i18n="alc.loadingMap">載入知識地圖中...</p>
                     </div>
 
                     <!-- 空狀態 -->
                     <div id="mapEmptyState" class="alc-empty-state" style="display: none;">
                         <div class="alc-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></div>
-                        <p class="alc-empty-title">暫無知識地圖數據</p>
-                        <p class="alc-empty-desc">管理員正在準備內容</p>
+                        <p class="alc-empty-title" data-i18n="alc.emptyMap">暫無知識地圖數據</p>
+                        <p class="alc-empty-desc" data-i18n="alc.emptyMapDesc">管理員正在準備內容</p>
                     </div>
                 </div>
 
                 <!-- 右側詳情面板 -->
                 <aside id="nodeDetailPanel" class="alc-node-detail-panel">
                     <div class="alc-panel-header">
-                        <h3 id="nodeDetailTitle">選擇知識點</h3>
+                        <h3 id="nodeDetailTitle" data-i18n="alc.selectNode">選擇知識點</h3>
                         <button id="nodeDetailCloseBtn" class="alc-close-btn">✕</button>
                     </div>
                     <div class="alc-panel-content">
                         <div id="nodeDetailContent" class="alc-node-detail-content">
-                            <p class="alc-placeholder">點擊知識地圖上的節點查看詳細信息</p>
+                            <p class="alc-placeholder" data-i18n="alc.clickNodeInfo">點擊知識地圖上的節點查看詳細信息</p>
                         </div>
                         <div id="nodeLinkedContents" class="alc-linked-contents">
-                            <h4>相關資料</h4>
+                            <h4 data-i18n="alc.relatedMaterials">相關資料</h4>
                             <div id="linkedContentsList" class="alc-linked-list"></div>
                         </div>
                     </div>
@@ -213,19 +214,19 @@
                 <div class="alc-paths-section">
                     <!-- 篩選和排序 -->
                     <div class="alc-paths-header">
-                        <h3>推薦學習路徑</h3>
+                        <h3 data-i18n="alc.recommendedPaths">推薦學習路徑</h3>
                         <div class="alc-paths-controls">
                             <select id="pathDifficultyFilter" class="alc-filter-select">
-                                <option value="">全部難度</option>
-                                <option value="beginner">初級</option>
-                                <option value="intermediate">中級</option>
-                                <option value="advanced">高級</option>
+                                <option value="" data-i18n="alc.allDifficulty">全部難度</option>
+                                <option value="beginner" data-i18n="alc.diffBeginner">初級</option>
+                                <option value="intermediate" data-i18n="alc.diffIntermediate">中級</option>
+                                <option value="advanced" data-i18n="alc.diffAdvanced">高級</option>
                             </select>
                             <select id="pathSubjectFilter" class="alc-filter-select">
-                                <option value="">全部科目</option>
-                                <option value="math">數學</option>
-                                <option value="science">科學</option>
-                                <option value="language">語言</option>
+                                <option value="" data-i18n="alc.allSubjects">全部科目</option>
+                                <option value="math" data-i18n="alc.subjectMath">數學</option>
+                                <option value="science" data-i18n="alc.subjectScience">科學</option>
+                                <option value="language" data-i18n="alc.subjectLanguage">語言</option>
                             </select>
                         </div>
                     </div>
@@ -250,7 +251,7 @@
                                 <div id="pathTimeline" class="alc-timeline">
                                     <!-- 動態生成步驟 -->
                                 </div>
-                                <button id="startPathBtn" class="alc-btn alc-btn--primary">開始學習</button>
+                                <button id="startPathBtn" class="alc-btn alc-btn--primary" data-i18n="alc.startLearning">開始學習</button>
                             </div>
                         </div>
                     </div>
@@ -258,14 +259,14 @@
                     <!-- 載入狀態 -->
                     <div id="pathsLoadingState" class="alc-loading-state" style="display: none;">
                         <div class="alc-loading-spinner"></div>
-                        <p>載入學習路徑中...</p>
+                        <p data-i18n="alc.loadingPaths">載入學習路徑中...</p>
                     </div>
 
                     <!-- 空狀態 -->
                     <div id="pathsEmptyState" class="alc-empty-state" style="display: none;">
                         <div class="alc-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
-                        <p class="alc-empty-title">暫無學習路徑</p>
-                        <p class="alc-empty-desc">管理員正在設計路徑</p>
+                        <p class="alc-empty-title" data-i18n="alc.emptyPaths">暫無學習路徑</p>
+                        <p class="alc-empty-desc" data-i18n="alc.emptyPathsDesc">管理員正在設計路徑</p>
                     </div>
                 </div>
             </section>
@@ -274,7 +275,7 @@
             <section id="tabMedia" class="alc-tab-panel alc-tab-panel--active">
                 <div class="alc-ebook" id="ebookContainer">
                     <!-- 側邊欄展開按鈕 -->
-                    <button class="alc-sidebar-toggle" id="sidebarToggleBtn" title="展開目錄">
+                    <button class="alc-sidebar-toggle" id="sidebarToggleBtn" data-i18n-title="alc.expandToc" title="展開目錄">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M9 18l6-6-6-6"/>
                         </svg>
@@ -283,8 +284,8 @@
                     <!-- 左側目錄欄（默認收起） -->
                     <aside class="alc-ebook-sidebar">
                         <div class="alc-ebook-sidebar-header">
-                            <h3 class="alc-ebook-sidebar-title">目錄</h3>
-                            <button class="alc-sidebar-close-btn" id="sidebarCloseBtn" title="收起目錄">✕</button>
+                            <h3 class="alc-ebook-sidebar-title" data-i18n="alc.tocTitle">目錄</h3>
+                            <button class="alc-sidebar-close-btn" id="sidebarCloseBtn" data-i18n-title="alc.closeToc" title="收起目錄">✕</button>
                         </div>
                         <nav id="ebookDirectory" class="alc-ebook-nav">
                             <!-- 動態生成目錄樹 -->
@@ -296,8 +297,8 @@
                         <!-- 預設歡迎頁 -->
                         <div id="ebookWelcome" class="alc-ebook-welcome">
                             <div class="alc-ebook-welcome-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
-                            <h3>從左側目錄選擇內容開始學習</h3>
-                            <p>或使用搜尋功能查找資料</p>
+                            <h3 data-i18n="alc.welcomeTitle">從左側目錄選擇內容開始學習</h3>
+                            <p data-i18n="alc.welcomeHint">或使用搜尋功能查找資料</p>
                         </div>
 
                         <!-- 內容查看器（動態填充） -->
@@ -314,14 +315,14 @@
                         <!-- 載入狀態 -->
                         <div id="mediaLoadingState" class="alc-loading-state" style="display: none;">
                             <div class="alc-loading-spinner"></div>
-                            <p>載入中...</p>
+                            <p data-i18n="alc.loadingMedia">載入中...</p>
                         </div>
 
                         <!-- 空狀態 -->
                         <div id="mediaEmptyState" class="alc-empty-state" style="display: none;">
                             <div class="alc-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
-                            <p class="alc-empty-title">暫無教學資料</p>
-                            <p class="alc-empty-desc">管理員正在準備內容</p>
+                            <p class="alc-empty-title" data-i18n="alc.emptyMedia">暫無教學資料</p>
+                            <p class="alc-empty-desc" data-i18n="alc.emptyMediaDesc">管理員正在準備內容</p>
                         </div>
                     </main>
                 </div>
@@ -335,7 +336,7 @@
                     <div class="alc-resources-layout">
                         <!-- 左側分類樹 -->
                         <aside class="alc-resource-sidebar">
-                            <h3 class="alc-sidebar-title">分類</h3>
+                            <h3 class="alc-sidebar-title" data-i18n="alc.categoryTitle">分類</h3>
                             <nav id="resourceTree" class="alc-resource-tree">
                                 <!-- 動態生成分類樹 -->
                             </nav>
@@ -344,12 +345,12 @@
                         <!-- 右側內容列表 -->
                         <main class="alc-resource-main">
                             <div class="alc-resource-header">
-                                <h3 id="resourceCategoryTitle">全部資源</h3>
+                                <h3 id="resourceCategoryTitle" data-i18n="alc.allResources">全部資源</h3>
                                 <div class="alc-resource-sorting">
                                     <select id="resourceSortSelect" class="alc-sort-select">
-                                        <option value="newest">最新</option>
-                                        <option value="popular">最熱門</option>
-                                        <option value="name">按名稱</option>
+                                        <option value="newest" data-i18n="alc.sortNewest">最新</option>
+                                        <option value="popular" data-i18n="alc.sortPopular">最熱門</option>
+                                        <option value="name" data-i18n="alc.sortByName">按名稱</option>
                                     </select>
                                 </div>
                             </div>
@@ -361,14 +362,14 @@
                             <!-- 載入狀態 -->
                             <div id="resourcesLoadingState" class="alc-loading-state" style="display: none;">
                                 <div class="alc-loading-spinner"></div>
-                                <p>載入資源中...</p>
+                                <p data-i18n="alc.loadingResources">載入資源中...</p>
                             </div>
 
                             <!-- 空狀態 -->
                             <div id="resourcesEmptyState" class="alc-empty-state" style="display: none;">
                                 <div class="alc-empty-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-                                <p class="alc-empty-title">此分類暫無資源</p>
-                                <p class="alc-empty-desc">請選擇其他分類</p>
+                                <p class="alc-empty-title" data-i18n="alc.emptyCategory">此分類暫無資源</p>
+                                <p class="alc-empty-desc" data-i18n="alc.emptyCategoryDesc">請選擇其他分類</p>
                             </div>
                         </main>
                     </div>
@@ -389,25 +390,25 @@
         <!-- 滑出面板 -->
         <aside id="adminSlidePanel" class="alc-admin-slide-panel">
             <div class="alc-admin-header">
-                <h2>管理面板</h2>
+                <h2 data-i18n="alc.adminTitle">管理面板</h2>
                 <button id="adminClosePanelBtn" class="alc-close-btn">✕</button>
             </div>
 
             <!-- 管理員選項卡 -->
             <div class="alc-admin-tabs">
-                <button class="alc-admin-tab-btn alc-admin-tab-btn--active" data-admin-tab="categories">
+                <button class="alc-admin-tab-btn alc-admin-tab-btn--active" data-admin-tab="categories" data-i18n="alc.adminCategories">
                     分類管理
                 </button>
-                <button class="alc-admin-tab-btn" data-admin-tab="upload">
+                <button class="alc-admin-tab-btn" data-admin-tab="upload" data-i18n="alc.adminUpload">
                     內容上傳
                 </button>
-                <button class="alc-admin-tab-btn" data-admin-tab="contents">
+                <button class="alc-admin-tab-btn" data-admin-tab="contents" data-i18n="alc.adminContents">
                     內容管理
                 </button>
-                <button class="alc-admin-tab-btn" data-admin-tab="nodes">
+                <button class="alc-admin-tab-btn" data-admin-tab="nodes" data-i18n="alc.adminNodes">
                     知識點管理
                 </button>
-                <button class="alc-admin-tab-btn" data-admin-tab="paths">
+                <button class="alc-admin-tab-btn" data-admin-tab="paths" data-i18n="alc.adminPathsMgmt">
                     學習路徑管理
                 </button>
             </div>
@@ -418,10 +419,10 @@
                 <!-- 分類管理 -->
                 <div id="adminTabCategories" class="alc-admin-tab-content alc-admin-tab-content--active">
                     <div class="alc-admin-form">
-                        <h3>新建分類</h3>
-                        <input type="text" id="categoryNameInput" class="alc-form-input" placeholder="分類名稱" />
-                        <input type="text" id="categoryIconInput" class="alc-form-input" placeholder="分類圖標（如：📚）" />
-                        <button id="createCategoryBtn" class="alc-btn alc-btn--primary">建立分類</button>
+                        <h3 data-i18n="alc.newCategory">新建分類</h3>
+                        <input type="text" id="categoryNameInput" class="alc-form-input" data-i18n-placeholder="alc.categoryNamePlaceholder" placeholder="分類名稱" />
+                        <input type="text" id="categoryIconInput" class="alc-form-input" data-i18n-placeholder="alc.categoryIconPlaceholder" placeholder="分類圖標（如：📚）" />
+                        <button id="createCategoryBtn" class="alc-btn alc-btn--primary" data-i18n="alc.createCategory">建立分類</button>
                     </div>
                     <div id="categoriesList" class="alc-admin-list">
                         <!-- 動態生成 -->
@@ -431,48 +432,48 @@
                 <!-- 內容上傳 -->
                 <div id="adminTabUpload" class="alc-admin-tab-content">
                     <div class="alc-admin-form">
-                        <h3>上傳新內容</h3>
-                        <input type="text" id="contentTitleInput" class="alc-form-input" placeholder="標題" />
+                        <h3 data-i18n="alc.uploadNew">上傳新內容</h3>
+                        <input type="text" id="contentTitleInput" class="alc-form-input" data-i18n-placeholder="alc.titlePlaceholder" placeholder="標題" />
                         <select id="contentTypeSelect" class="alc-form-input">
-                            <option value="">選擇內容類型</option>
-                            <option value="video_local">本地視頻</option>
-                            <option value="video_external">視頻連結 (YouTube / Bilibili)</option>
-                            <option value="document">文件</option>
-                            <option value="image">圖片</option>
-                            <option value="article">文章</option>
+                            <option value="" data-i18n="alc.selectContentType">選擇內容類型</option>
+                            <option value="video_local" data-i18n="alc.typeVideoLocal">本地視頻</option>
+                            <option value="video_external" data-i18n="alc.typeVideoExternal">視頻連結 (YouTube / Bilibili)</option>
+                            <option value="document" data-i18n="alc.typeDocument">文件</option>
+                            <option value="image" data-i18n="alc.typeImage">圖片</option>
+                            <option value="article" data-i18n="alc.typeArticle">文章</option>
                         </select>
                         <select id="contentCategorySelect" class="alc-form-input">
-                            <option value="">選擇分類</option>
+                            <option value="" data-i18n="alc.selectCategory">選擇分類</option>
                         </select>
                         <select id="contentSubjectSelect" class="alc-form-input">
-                            <option value="">選擇科目（可選）</option>
+                            <option value="" data-i18n="alc.selectSubject">選擇科目（可選）</option>
                         </select>
                         <select id="contentGradeSelect" class="alc-form-input">
-                            <option value="">選擇年級（可選）</option>
-                            <option value="中一">中一</option>
-                            <option value="中二">中二</option>
-                            <option value="中三">中三</option>
-                            <option value="中四">中四</option>
-                            <option value="中五">中五</option>
-                            <option value="中六">中六</option>
+                            <option value="" data-i18n="alc.selectGrade">選擇年級（可選）</option>
+                            <option value="中一" data-i18n="alc.grade1">中一</option>
+                            <option value="中二" data-i18n="alc.grade2">中二</option>
+                            <option value="中三" data-i18n="alc.grade3">中三</option>
+                            <option value="中四" data-i18n="alc.grade4">中四</option>
+                            <option value="中五" data-i18n="alc.grade5">中五</option>
+                            <option value="中六" data-i18n="alc.grade6">中六</option>
                         </select>
                         <!-- 外部視頻連結輸入（僅 video_external 時顯示） -->
                         <div id="externalVideoSection" style="display: none;">
-                            <input type="text" id="externalVideoUrlInput" class="alc-form-input" placeholder="輸入視頻連結，如 https://www.youtube.com/watch?v=... 或 https://www.bilibili.com/video/BV..." />
+                            <input type="text" id="externalVideoUrlInput" class="alc-form-input" data-i18n-placeholder="alc.videoUrlPlaceholder" placeholder="輸入視頻連結，如 https://www.youtube.com/watch?v=... 或 https://www.bilibili.com/video/BV..." />
                             <select id="videoPlatformSelect" class="alc-form-input">
-                                <option value="">自動檢測平台</option>
+                                <option value="" data-i18n="alc.platformAuto">自動檢測平台</option>
                                 <option value="youtube">YouTube</option>
                                 <option value="bilibili">Bilibili</option>
-                                <option value="other">其他</option>
+                                <option value="other" data-i18n="alc.platformOther">其他</option>
                             </select>
                         </div>
                         <!-- 文件上傳區（非 video_external 時顯示） -->
                         <div class="alc-drag-drop-zone" id="dragDropZone">
-                            <p>拖放文件到此處或點擊選擇</p>
+                            <p data-i18n="alc.dragDropText">拖放文件到此處或點擊選擇</p>
                             <input type="file" id="contentFileInput" class="alc-file-input" />
                         </div>
-                        <textarea id="contentDescInput" class="alc-form-input" placeholder="描述" rows="4"></textarea>
-                        <button id="uploadContentBtn" class="alc-btn alc-btn--primary">上傳</button>
+                        <textarea id="contentDescInput" class="alc-form-input" data-i18n-placeholder="alc.descPlaceholder" placeholder="描述" rows="4"></textarea>
+                        <button id="uploadContentBtn" class="alc-btn alc-btn--primary" data-i18n="alc.uploadBtn">上傳</button>
                     </div>
                 </div>
 
@@ -487,73 +488,73 @@
                 <div id="adminTabNodes" class="alc-admin-tab-content">
                     <!-- 批量導入入口 -->
                     <div class="alc-admin-form">
-                        <h3>批量導入</h3>
-                        <p class="alc-form-hint">通過 JSON 一次性匯入多個知識點和連接關係</p>
-                        <button id="openBatchImportBtn" class="alc-btn alc-btn--secondary">📥 批量導入知識圖譜</button>
+                        <h3 data-i18n="alc.batchImportNodes">批量導入</h3>
+                        <p class="alc-form-hint" data-i18n="alc.batchImportNodesHint">通過 JSON 一次性匯入多個知識點和連接關係</p>
+                        <button id="openBatchImportBtn" class="alc-btn alc-btn--secondary" data-i18n="alc.batchImportBtn">📥 批量導入知識圖譜</button>
                     </div>
                     <div class="alc-admin-form">
-                        <h3>新建知識點</h3>
-                        <input type="text" id="nodeNameInput" class="alc-form-input" placeholder="知識點名稱" />
+                        <h3 data-i18n="alc.newNode">新建知識點</h3>
+                        <input type="text" id="nodeNameInput" class="alc-form-input" data-i18n-placeholder="alc.nodeNamePlaceholder" placeholder="知識點名稱" />
                         <select id="nodeCategorySelect" class="alc-form-input">
-                            <option value="">選擇分類</option>
+                            <option value="" data-i18n="alc.selectCategory">選擇分類</option>
                         </select>
                         <select id="nodeSubjectSelect" class="alc-form-input">
-                            <option value="">選擇科目（可選）</option>
+                            <option value="" data-i18n="alc.selectSubject">選擇科目（可選）</option>
                         </select>
                         <select id="nodeGradeSelect" class="alc-form-input">
-                            <option value="">選擇年級（可選）</option>
-                            <option value="中一">中一</option>
-                            <option value="中二">中二</option>
-                            <option value="中三">中三</option>
-                            <option value="中四">中四</option>
-                            <option value="中五">中五</option>
-                            <option value="中六">中六</option>
+                            <option value="" data-i18n="alc.selectGrade">選擇年級（可選）</option>
+                            <option value="中一" data-i18n="alc.grade1">中一</option>
+                            <option value="中二" data-i18n="alc.grade2">中二</option>
+                            <option value="中三" data-i18n="alc.grade3">中三</option>
+                            <option value="中四" data-i18n="alc.grade4">中四</option>
+                            <option value="中五" data-i18n="alc.grade5">中五</option>
+                            <option value="中六" data-i18n="alc.grade6">中六</option>
                         </select>
-                        <textarea id="nodeDescInput" class="alc-form-input" placeholder="描述" rows="3"></textarea>
-                        <button id="createNodeBtn" class="alc-btn alc-btn--primary">建立知識點</button>
+                        <textarea id="nodeDescInput" class="alc-form-input" data-i18n-placeholder="alc.nodeDescPlaceholder" placeholder="描述" rows="3"></textarea>
+                        <button id="createNodeBtn" class="alc-btn alc-btn--primary" data-i18n="alc.createNode">建立知識點</button>
                     </div>
                     <div id="nodesList" class="alc-admin-list">
                         <!-- 動態生成 -->
                     </div>
                     <div class="alc-admin-form">
-                        <h3>連接知識點</h3>
+                        <h3 data-i18n="alc.connectNodes">連接知識點</h3>
                         <select id="edgeSourceNodeSelect" class="alc-form-input">
-                            <option value="">選擇來源知識點</option>
+                            <option value="" data-i18n="alc.selectSourceNode">選擇來源知識點</option>
                         </select>
                         <select id="edgeTargetNodeSelect" class="alc-form-input">
-                            <option value="">選擇目標知識點</option>
+                            <option value="" data-i18n="alc.selectTargetNode">選擇目標知識點</option>
                         </select>
-                        <input type="text" id="edgeTypeInput" class="alc-form-input" placeholder="連接類型（如：前置、延伸）" />
-                        <button id="createEdgeBtn" class="alc-btn alc-btn--primary">連接</button>
+                        <input type="text" id="edgeTypeInput" class="alc-form-input" data-i18n-placeholder="alc.edgeTypePlaceholder" placeholder="連接類型（如：前置、延伸）" />
+                        <button id="createEdgeBtn" class="alc-btn alc-btn--primary" data-i18n="alc.connectBtn">連接</button>
                     </div>
                 </div>
 
                 <!-- 學習路徑管理 -->
                 <div id="adminTabPaths" class="alc-admin-tab-content">
                     <div class="alc-admin-form">
-                        <h3>新建學習路徑</h3>
-                        <input type="text" id="pathNameInput" class="alc-form-input" placeholder="路徑名稱" />
-                        <textarea id="pathDescInput" class="alc-form-input" placeholder="路徑描述" rows="3"></textarea>
+                        <h3 data-i18n="alc.newPath">新建學習路徑</h3>
+                        <input type="text" id="pathNameInput" class="alc-form-input" data-i18n-placeholder="alc.pathNamePlaceholder" placeholder="路徑名稱" />
+                        <textarea id="pathDescInput" class="alc-form-input" data-i18n-placeholder="alc.pathDescPlaceholder" placeholder="路徑描述" rows="3"></textarea>
                         <select id="pathDifficultySelect" class="alc-form-input">
-                            <option value="beginner">初級</option>
-                            <option value="intermediate">中級</option>
-                            <option value="advanced">高級</option>
+                            <option value="beginner" data-i18n="alc.diffBeginner">初級</option>
+                            <option value="intermediate" data-i18n="alc.diffIntermediate">中級</option>
+                            <option value="advanced" data-i18n="alc.diffAdvanced">高級</option>
                         </select>
                         <select id="pathSubjectSelect" class="alc-form-input">
-                            <option value="">選擇科目（可選）</option>
+                            <option value="" data-i18n="alc.selectSubject">選擇科目（可選）</option>
                         </select>
                         <select id="pathGradeSelect" class="alc-form-input">
-                            <option value="">選擇年級（可選）</option>
-                            <option value="中一">中一</option>
-                            <option value="中二">中二</option>
-                            <option value="中三">中三</option>
-                            <option value="中四">中四</option>
-                            <option value="中五">中五</option>
-                            <option value="中六">中六</option>
+                            <option value="" data-i18n="alc.selectGrade">選擇年級（可選）</option>
+                            <option value="中一" data-i18n="alc.grade1">中一</option>
+                            <option value="中二" data-i18n="alc.grade2">中二</option>
+                            <option value="中三" data-i18n="alc.grade3">中三</option>
+                            <option value="中四" data-i18n="alc.grade4">中四</option>
+                            <option value="中五" data-i18n="alc.grade5">中五</option>
+                            <option value="中六" data-i18n="alc.grade6">中六</option>
                         </select>
-                        <input type="number" id="pathDurationInput" class="alc-form-input" placeholder="預期時長（小時）" />
-                        <button id="createPathBtn" class="alc-btn alc-btn--primary">建立路徑</button>
-                        <button id="importPathsBtn" class="alc-btn alc-btn--secondary" style="margin-top:8px;">📥 導入學習路徑 JSON</button>
+                        <input type="number" id="pathDurationInput" class="alc-form-input" data-i18n-placeholder="alc.pathDurationPlaceholder" placeholder="預期時長（小時）" />
+                        <button id="createPathBtn" class="alc-btn alc-btn--primary" data-i18n="alc.createPath">建立路徑</button>
+                        <button id="importPathsBtn" class="alc-btn alc-btn--secondary" style="margin-top:8px;" data-i18n="alc.importPathsBtn">📥 導入學習路徑 JSON</button>
                     </div>
                     <div id="pathsList" class="alc-admin-list">
                         <!-- 動態生成 -->
@@ -640,16 +641,16 @@
         <div class="alc-modal-content alc-batch-import-dialog">
             <button class="alc-modal-close" id="pathImportCloseBtn" aria-label="關閉">&times;</button>
             <div class="alc-modal-info">
-                <h3>📥 批量導入學習路徑</h3>
-                <p>上傳 JSON 文件一次性創建多條學習路徑和步驟。步驟會自動匹配知識節點和教程文檔。</p>
+                <h3 data-i18n="alc.batchImportPathsTitle">📥 批量導入學習路徑</h3>
+                <p data-i18n="alc.batchImportPathsDesc">上傳 JSON 文件一次性創建多條學習路徑和步驟。步驟會自動匹配知識節點和教程文檔。</p>
             </div>
             <div class="alc-batch-import-body">
                 <div class="alc-drag-drop-zone" id="pathImportDropZone">
-                    <p>📄 拖放 JSON 文件到此處，或點擊選擇</p>
+                    <p data-i18n="alc.dropJsonHint">📄 拖放 JSON 文件到此處，或點擊選擇</p>
                     <input type="file" id="pathImportFileInput" class="alc-file-input" accept=".json" />
                 </div>
                 <p id="pathImportFileName" class="alc-form-hint" style="display: none;"></p>
-                <label class="alc-form-label" for="pathImportJsonInput">或直接貼上 JSON</label>
+                <label class="alc-form-label" for="pathImportJsonInput" data-i18n="alc.pasteJsonLabel">或直接貼上 JSON</label>
                 <textarea
                     id="pathImportJsonInput"
                     class="alc-form-input alc-batch-import-textarea"
@@ -660,27 +661,27 @@
                 <!-- 科目/年級選擇 -->
                 <div style="display:flex;gap:8px;margin-top:8px;">
                     <select id="pathImportSubjectSelect" class="alc-form-input" style="flex:1;">
-                        <option value="">選擇科目（可選）</option>
+                        <option value="" data-i18n="alc.selectSubject">選擇科目（可選）</option>
                     </select>
                     <select id="pathImportGradeSelect" class="alc-form-input" style="flex:1;">
-                        <option value="">選擇年級（可選）</option>
-                        <option value="中一">中一</option>
-                        <option value="中二">中二</option>
-                        <option value="中三">中三</option>
-                        <option value="中四">中四</option>
-                        <option value="中五">中五</option>
-                        <option value="中六">中六</option>
+                        <option value="" data-i18n="alc.selectGrade">選擇年級（可選）</option>
+                        <option value="中一" data-i18n="alc.grade1">中一</option>
+                        <option value="中二" data-i18n="alc.grade2">中二</option>
+                        <option value="中三" data-i18n="alc.grade3">中三</option>
+                        <option value="中四" data-i18n="alc.grade4">中四</option>
+                        <option value="中五" data-i18n="alc.grade5">中五</option>
+                        <option value="中六" data-i18n="alc.grade6">中六</option>
                     </select>
                 </div>
                 <label class="alc-batch-import-checkbox">
                     <input type="checkbox" id="pathImportClearExisting" />
-                    <span>導入前清空現有學習路徑（⚠️ 不可撤銷）</span>
+                    <span data-i18n="alc.clearPathsWarning">導入前清空現有學習路徑（⚠️ 不可撤銷）</span>
                 </label>
                 <div id="pathImportResult" class="alc-batch-import-result" style="display: none;"></div>
             </div>
             <div class="alc-dialog-actions alc-batch-import-actions">
-                <button id="pathImportCancelBtn" class="alc-btn alc-btn--secondary">取消</button>
-                <button id="pathImportSubmitBtn" class="alc-btn alc-btn--primary">確認導入</button>
+                <button id="pathImportCancelBtn" class="alc-btn alc-btn--secondary" data-i18n="alc.cancelBtn">取消</button>
+                <button id="pathImportSubmitBtn" class="alc-btn alc-btn--primary" data-i18n="alc.confirmImport">確認導入</button>
             </div>
         </div>
     </div>
@@ -690,20 +691,20 @@
         <div class="alc-modal-content alc-batch-import-dialog">
             <button class="alc-modal-close" id="batchImportCloseBtn" aria-label="關閉">&times;</button>
             <div class="alc-modal-info">
-                <h3>📥 批量導入知識圖譜</h3>
-                <p>通過 JSON 格式一次性創建多個知識點和連接關係。節點間透過 <code>temp_id</code> 互相引用。</p>
+                <h3 data-i18n="alc.batchImportNodesTitle">📥 批量導入知識圖譜</h3>
+                <p data-i18n="alc.batchImportNodesDesc">通過 JSON 格式一次性創建多個知識點和連接關係。</p>
             </div>
 
             <div class="alc-batch-import-body">
                 <!-- JSON 文件上傳區 -->
                 <div class="alc-drag-drop-zone" id="batchImportDropZone">
-                    <p>📄 拖放 JSON 文件到此處，或點擊選擇</p>
+                    <p data-i18n="alc.dropJsonHint">📄 拖放 JSON 文件到此處，或點擊選擇</p>
                     <input type="file" id="batchImportFileInput" class="alc-file-input" accept=".json" />
                 </div>
                 <p id="batchImportFileName" class="alc-form-hint" style="display: none;"></p>
 
                 <!-- JSON 文本編輯區 -->
-                <label class="alc-form-label" for="batchImportJsonInput">或直接貼上 JSON</label>
+                <label class="alc-form-label" for="batchImportJsonInput" data-i18n="alc.pasteJsonLabel">或直接貼上 JSON</label>
                 <textarea
                     id="batchImportJsonInput"
                     class="alc-form-input alc-batch-import-textarea"
@@ -723,23 +724,23 @@
                 <!-- 科目/年級選擇 -->
                 <div style="display:flex;gap:8px;margin-top:8px;">
                     <select id="batchImportSubjectSelect" class="alc-form-input" style="flex:1;">
-                        <option value="">選擇科目（可選）</option>
+                        <option value="" data-i18n="alc.selectSubject">選擇科目（可選）</option>
                     </select>
                     <select id="batchImportGradeSelect" class="alc-form-input" style="flex:1;">
-                        <option value="">選擇年級（可選）</option>
-                        <option value="中一">中一</option>
-                        <option value="中二">中二</option>
-                        <option value="中三">中三</option>
-                        <option value="中四">中四</option>
-                        <option value="中五">中五</option>
-                        <option value="中六">中六</option>
+                        <option value="" data-i18n="alc.selectGrade">選擇年級（可選）</option>
+                        <option value="中一" data-i18n="alc.grade1">中一</option>
+                        <option value="中二" data-i18n="alc.grade2">中二</option>
+                        <option value="中三" data-i18n="alc.grade3">中三</option>
+                        <option value="中四" data-i18n="alc.grade4">中四</option>
+                        <option value="中五" data-i18n="alc.grade5">中五</option>
+                        <option value="中六" data-i18n="alc.grade6">中六</option>
                     </select>
                 </div>
 
                 <!-- 選項 -->
                 <label class="alc-batch-import-checkbox">
                     <input type="checkbox" id="batchImportClearExisting" />
-                    <span>導入前清空現有知識點（⚠️ 不可撤銷）</span>
+                    <span data-i18n="alc.clearNodesWarning">導入前清空現有知識點（⚠️ 不可撤銷）</span>
                 </label>
 
                 <!-- 導入結果 -->
@@ -747,8 +748,8 @@
             </div>
 
             <div class="alc-dialog-actions alc-batch-import-actions">
-                <button id="batchImportCancelBtn" class="alc-btn alc-btn--secondary">取消</button>
-                <button id="batchImportSubmitBtn" class="alc-btn alc-btn--primary">確認導入</button>
+                <button id="batchImportCancelBtn" class="alc-btn alc-btn--secondary" data-i18n="alc.cancelBtn">取消</button>
+                <button id="batchImportSubmitBtn" class="alc-btn alc-btn--primary" data-i18n="alc.confirmImport">確認導入</button>
             </div>
         </div>
     </div>
@@ -761,7 +762,7 @@
     <div class="alc-ai-float-header" id="aiFloatHeader">
         <span class="alc-ai-float-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
-            AI 助教
+            <span data-i18n="alc.tabAiAssistant">AI 助教</span>
         </span>
         <div class="alc-ai-float-actions">
             <button class="alc-ai-float-btn" id="aiFloatExpandBtn" data-action="toggleAiWindowSize" title="放大/缩小">&#9634;</button>
@@ -798,6 +799,10 @@
     </div>
 </div>
 
+<!-- i18n support -->
+<script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n/learning_center.js"></script>
 <!-- Main entry: shared state, utilities, init -->
 <script src="/static/js/ai_learning_center.js" charset="UTF-8"></script>
 <!-- Sub-modules (order: knowledge map → media → admin → ai chat) -->
@@ -808,9 +813,13 @@
 <!-- Bootstrap init after all modules are registered -->
 <script>
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', window.alc._init);
+    document.addEventListener('DOMContentLoaded', function() {
+        window.alc._init();
+        if (typeof i18n !== 'undefined') { document.title = i18n.t('alc.pageTitle'); i18n.applyDOM(); }
+    });
 } else {
     window.alc._init();
+    if (typeof i18n !== 'undefined') { document.title = i18n.t('alc.pageTitle'); i18n.applyDOM(); }
 }
 </script>
 </body>

@@ -1,20 +1,24 @@
 /**
- * i18n.js - 輕量國際化模組
+ * i18n.js - Modular i18n core engine
  *
- * 用法：
- *   i18n.t('login.title')          → 根據當前語言返回對應文字
- *   i18n.t('welcome.back', {name}) → 支援插值 {{name}}
- *   i18n.setLang('en')             → 切換語言並刷新頁面
- *   i18n.lang                      → 當前語言代碼
+ * Architecture:
+ *   i18n.js        — Core engine: t(), addMessages(), setLang(), toggle(), applyDOM()
+ *   i18n/*.js      — Per-module translation packs, loaded only by pages that need them
+ *
+ * Usage:
+ *   <script src="/static/js/shared/i18n.js"></script>
+ *   <script src="/static/js/shared/i18n/common.js"></script>
+ *   <script src="/static/js/shared/i18n/chat.js"></script>
+ *
+ *   i18n.t('chat.welcome')
+ *   i18n.t('chat.greeting', {name: 'Alice'})
+ *   i18n.setLang('en')
  */
-
 'use strict';
 
 const i18n = (() => {
     const STORAGE_KEY = 'app-lang';
     const DEFAULT_LANG = 'zh';
-
-    /* ========== 翻譯字典 ========== */
 
     const messages = {
         zh: {
@@ -551,11 +555,17 @@ const i18n = (() => {
     let _lang = localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG;
 
     /**
-     * 取得翻譯文字
-     * @param {string} key - 翻譯鍵，如 'login.title'
-     * @param {Object} [params] - 插值參數，如 {name: '小明'}
-     * @returns {string}
+     * Register translation keys for a module.
+     * Called by each i18n/*.js pack file.
+     * @param {Object} pack - { zh: { key: value }, en: { key: value } }
      */
+    function addMessages(pack) {
+        for (const lang of Object.keys(pack)) {
+            if (!messages[lang]) messages[lang] = {};
+            Object.assign(messages[lang], pack[lang]);
+        }
+    }
+
     function t(key, params) {
         const dict = messages[_lang] || messages[DEFAULT_LANG];
         let text = dict[key] || messages[DEFAULT_LANG][key] || key;
@@ -567,32 +577,24 @@ const i18n = (() => {
         return text;
     }
 
-    /**
-     * 設定語言並刷新頁面
-     * @param {string} lang - 'zh' 或 'en'
-     */
     function setLang(lang) {
-        if (!messages[lang]) return;
+        if (lang !== 'zh' && lang !== 'en') return;
         _lang = lang;
         localStorage.setItem(STORAGE_KEY, lang);
         location.reload();
     }
 
-    /**
-     * 切換語言（zh ↔ en）
-     */
     function toggle() {
         setLang(_lang === 'zh' ? 'en' : 'zh');
     }
 
-    /**
-     * 自動翻譯帶有 data-i18n 屬性的 DOM 元素
-     * <span data-i18n="login.title"></span>
-     * <input data-i18n-placeholder="login.usernamePlaceholder">
-     */
     function applyDOM(root = document) {
         root.querySelectorAll('[data-i18n]').forEach(el => {
-            el.textContent = t(el.dataset.i18n);
+            if (el.hasAttribute('data-i18n-html')) {
+                el.innerHTML = t(el.dataset.i18n);
+            } else {
+                el.textContent = t(el.dataset.i18n);
+            }
         });
         root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
             el.placeholder = t(el.dataset.i18nPlaceholder);
@@ -604,12 +606,13 @@ const i18n = (() => {
 
     return {
         t,
+        addMessages,
         setLang,
         toggle,
         applyDOM,
         get lang() { return _lang; },
         get isEn() { return _lang === 'en'; },
         get isZh() { return _lang === 'zh'; },
-        messages,
+        messages,   // exposed for backward compatibility
     };
 })();

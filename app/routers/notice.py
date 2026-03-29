@@ -61,7 +61,7 @@ async def continue_notice_dialogue(request: Request):
         body = await request.json()
 
         session_id = body.get("session_id", "")
-        user_input = body.get("message", "")
+        user_input = body.get("user_input") or body.get("message", "")
 
         if not session_id:
             return error_response("VALIDATION_ERROR", "请提供 session_id", status_code=400)

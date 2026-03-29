@@ -7,6 +7,7 @@
 
     // Get shared state & utilities from main module
     const $ = window.alc;
+    const _t = $._t;
 
     // ==================== KNOWLEDGE MAP (D3.js) ====================
 
@@ -845,7 +846,7 @@
             const toggleBtn = $.getElement('mapModeToggle');
             if (toggleBtn) {
                 toggleBtn.classList.toggle('active', explore);
-                toggleBtn.title = explore ? '切换概览模式' : '切换探索模式';
+                toggleBtn.title = explore ? _t('alc.switchOverview') : _t('alc.switchExplore');
             }
         }
 
@@ -1106,36 +1107,36 @@
         if (!container) return;
 
         container.innerHTML = `
-            <div class="alc-map-legend-title">图例</div>
+            <div class="alc-map-legend-title">${_t('alc.legendTitle')}</div>
             <div class="alc-map-legend-section">
                 <div class="alc-map-legend-item">
                     <span class="alc-map-legend-dot" style="width:16px;height:16px;background:#6200EA;"></span>
-                    <span>根节点</span>
+                    <span>${_t('alc.rootNode')}</span>
                 </div>
                 <div class="alc-map-legend-item">
                     <span class="alc-map-legend-dot" style="width:11px;height:11px;background:#7C4DFF;"></span>
-                    <span>一级节点</span>
+                    <span>${_t('alc.level1Node')}</span>
                 </div>
                 <div class="alc-map-legend-item">
                     <span class="alc-map-legend-dot" style="width:7px;height:7px;background:#B388FF;"></span>
-                    <span>二级节点</span>
+                    <span>${_t('alc.level2Node')}</span>
                 </div>
             </div>
             <div class="alc-map-legend-section">
                 <div class="alc-map-legend-item">
                     <span class="alc-map-legend-line" style="background:#ccc;"></span>
-                    <span>包含</span>
+                    <span>${_t('alc.edgeContains')}</span>
                 </div>
                 <div class="alc-map-legend-item">
                     <span class="alc-map-legend-line" style="background:#006633;border-style:dashed;"></span>
-                    <span>前置</span>
+                    <span>${_t('alc.edgePrerequisite')}</span>
                 </div>
                 <div class="alc-map-legend-item">
                     <span class="alc-map-legend-line" style="background:#0066cc;border-style:dashed;"></span>
-                    <span>关联</span>
+                    <span>${_t('alc.edgeRelated')}</span>
                 </div>
             </div>
-            <div class="alc-map-legend-hint">双击展开/收起 · 默认展示一级结构</div>
+            <div class="alc-map-legend-hint">${_t('alc.legendHint')}</div>
         `;
     }
 
@@ -1164,7 +1165,7 @@
                 const anchorAttr = contents[0].anchor
                     ? ` data-anchor="${JSON.stringify(contents[0].anchor).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"`
                     : '';
-                return `<button class="kg-tooltip-btn kg-tooltip-nav-btn" data-content-id="${cId}"${anchorAttr}>进入教程</button>`;
+                return `<button class="kg-tooltip-btn kg-tooltip-nav-btn" data-content-id="${cId}"${anchorAttr}>${_t('alc.enterTutorial')}</button>`;
             })()
             : '';
 
@@ -1172,14 +1173,14 @@
             <div class="kg-tooltip-title">${node.icon || '\uD83D\uDCCC'} ${$.escapeHtml(node.title)}</div>
             ${desc ? `<div class="kg-tooltip-desc">${$.escapeHtml(desc)}${node.description && node.description.length > 80 ? '...' : ''}</div>` : ''}
             <div class="kg-tooltip-meta">
-                ${contentCount > 0 ? `<span>\uD83D\uDCC4 ${contentCount} 份教程</span>` : ''}
-                <span>\u2197 ${neighborCount} 个相关节点</span>
+                ${contentCount > 0 ? `<span>\uD83D\uDCC4 ${_t('alc.tutorialCount', { count: contentCount })}</span>` : ''}
+                <span>\u2197 ${_t('alc.relatedNodeCount', { count: neighborCount })}</span>
             </div>
             <div class="kg-tooltip-actions">
                 ${quickJumpHtml}
                 <button class="kg-tooltip-btn kg-tooltip-btn--secondary"
                     onclick="window.lcLearningCenter.showNodeDetail(window.lcLearningCenter.getNode('${node.id}'))">
-                    查看详情
+                    ${_t('alc.viewDetails')}
                 </button>
             </div>
         `;
@@ -1245,7 +1246,7 @@
         );
 
         if (matches.length === 0) {
-            $.showToast('未找到匹配的节点', 'warning');
+            $.showToast(_t('alc.noMatchingNodes'), 'warning');
             return;
         }
 
@@ -1320,7 +1321,7 @@
             }
         }
 
-        $.showToast(`找到 ${matches.length} 个匹配节点`, 'success');
+        $.showToast(_t('alc.foundNodes', { count: matches.length }), 'success');
     }
 
     function initMapSearch(childrenMap, nodeMap, nodeGroups, hierLinks, crossLinks, crossEdgeLabels, zoom, svg, updateDescendantBadges, rebuildSimulationFn) {
@@ -1408,7 +1409,7 @@
         if (!btn) return;
         const isTree = _layoutMode === 'tree';
         btn.classList.toggle('active', isTree);
-        btn.title = isTree ? '切换放射状布局' : '切换树形布局';
+        btn.title = isTree ? _t('alc.switchRadial') : _t('alc.switchTree');
     }
 
     /**
@@ -1438,7 +1439,7 @@
             }
         }, 700);
 
-        $.showToast(_layoutMode === 'tree' ? '已切换为树形布局' : '已切换为放射状布局', 'info');
+        $.showToast(_layoutMode === 'tree' ? _t('alc.switchedTree') : _t('alc.switchedRadial'), 'info');
     }
 
     function showNodeDetail(node) {
@@ -1465,13 +1466,13 @@
                     <div class="alc-nd__content-card" data-content-id="${c.content_id}"${anchorAttr} role="button" tabindex="0">
                         <span class="alc-nd__content-icon">${icon}</span>
                         <div class="alc-nd__content-meta">
-                            <span class="alc-nd__content-name">${$.escapeHtml(c.content_title || '未命名内容')}</span>
+                            <span class="alc-nd__content-name">${$.escapeHtml(c.content_title || _t('alc.unnamed'))}</span>
                             ${anchorHint ? `<span class="alc-nd__content-hint">${anchorHint}</span>` : ''}
                         </div>
                         <span class="alc-nd__content-arrow">&rsaquo;</span>
                     </div>`;
             }).join('')
-            : '<p class="alc-nd__empty">暂无关联教程</p>';
+            : `<p class="alc-nd__empty">${_t('alc.noRelatedTutorials')}</p>`;
 
         // Build related nodes HTML
         const relatedNodesHtml = relatedEdges.length > 0
@@ -1487,7 +1488,7 @@
                         ${$.escapeHtml(relatedNode.title)}
                     </button>`;
             }).join('')
-            : '<p class="alc-nd__empty">暂无相关节点</p>';
+            : `<p class="alc-nd__empty">${_t('alc.noRelatedNodes')}</p>`;
 
         // Render panel
         const nodeColor = node.color || '#006633';
@@ -1500,14 +1501,14 @@
                 </div>
                 <div class="alc-nd__body">
                     <div class="alc-nd__section">
-                        <p class="alc-nd__desc">${$.escapeHtml(node.description || '暂无描述')}</p>
+                        <p class="alc-nd__desc">${$.escapeHtml(node.description || _t('alc.noDescription'))}</p>
                     </div>
 
                     <hr class="alc-nd__divider">
 
                     <div class="alc-nd__section">
                         <h4 class="alc-nd__section-label">
-                            关联教程
+                            ${_t('alc.relatedTutorials')}
                             ${contents.length > 0 ? `<span class="alc-nd__count">${contents.length}</span>` : ''}
                         </h4>
                         <div class="alc-nd__content-list">${contentLinksHtml}</div>
@@ -1517,7 +1518,7 @@
 
                     <div class="alc-nd__section">
                         <h4 class="alc-nd__section-label">
-                            关联节点
+                            ${_t('alc.relatedNodes')}
                             ${relatedEdges.length > 0 ? `<span class="alc-nd__count">${relatedEdges.length}</span>` : ''}
                         </h4>
                         <div class="alc-nd__rel-list">${relatedNodesHtml}</div>
@@ -1563,15 +1564,15 @@
     function formatAnchorHint(anchor) {
         if (!anchor) return '';
         switch (anchor.type) {
-            case 'page': return `\u2192 第 ${anchor.value} 页`;
-            case 'page_range': return `\u2192 第 ${anchor.from}-${anchor.to} 页`;
+            case 'page': return `\u2192 ${_t('alc.anchorPage', { page: anchor.value })}`;
+            case 'page_range': return `\u2192 ${_t('alc.anchorPageRange', { from: anchor.from, to: anchor.to })}`;
             case 'heading': return `\u2192 ${anchor.value}`;
             case 'timestamp': {
                 const min = Math.floor(anchor.value / 60);
                 const sec = anchor.value % 60;
                 return `\u2192 ${min}:${String(sec).padStart(2, '0')}`;
             }
-            case 'keyword': return `\u2192 搜索: ${anchor.value}`;
+            case 'keyword': return `\u2192 ${_t('alc.searchKeyword')}: ${anchor.value}`;
             default: return '';
         }
     }
@@ -1743,7 +1744,7 @@
 
         const targetNode = nodeMap.get(nodeId) || nodeMap.get(Number(nodeId)) || nodeMap.get(String(nodeId));
         if (!targetNode) {
-            $.showToast('未找到该知识节点', 'warning');
+            $.showToast(_t('alc.nodeNotFound'), 'warning');
             return;
         }
 

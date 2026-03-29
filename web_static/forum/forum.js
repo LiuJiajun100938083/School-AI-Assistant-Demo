@@ -28,6 +28,11 @@ class ForumApp {
         // 獲取用戶資訊
         await this.loadUserInfo();
 
+        // 套用 i18n DOM 翻譯
+        if (typeof i18n !== 'undefined' && i18n.applyDOM) {
+            i18n.applyDOM();
+        }
+
         // 載入數據
         await Promise.all([
             this.loadPosts(),
@@ -45,7 +50,7 @@ class ForumApp {
     async loadUserInfo() {
         try {
             // 從localStorage獲取用戶資訊
-            const username = localStorage.getItem('username') || '用戶';
+            const username = localStorage.getItem('username') || i18n.t('forum.defaultUser');
             const role = localStorage.getItem('user_role') || 'student';
 
             this.currentUser = username;
@@ -54,7 +59,7 @@ class ForumApp {
             // 更新UI
             document.getElementById('currentUser').textContent = username;
             const roleBadge = document.getElementById('userRole');
-            roleBadge.textContent = role === 'teacher' ? '老師' : role === 'admin' ? '管理員' : '學生';
+            roleBadge.textContent = role === 'teacher' ? i18n.t('forum.roleTeacher') : role === 'admin' ? i18n.t('forum.roleAdmin') : i18n.t('forum.roleStudent');
             if (role === 'teacher' || role === 'admin') {
                 roleBadge.classList.add('teacher');
             }
@@ -95,12 +100,12 @@ class ForumApp {
         if (response.status === 401) {
             localStorage.removeItem('auth_token');
             window.location.href = '/';
-            throw new Error('認證失效');
+            throw new Error(i18n.t('forum.authExpired'));
         }
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({ detail: '請求失敗' }));
-            throw new Error(error.detail || '請求失敗');
+            const error = await response.json().catch(() => ({ detail: i18n.t('forum.requestFailed') }));
+            throw new Error(error.detail || i18n.t('forum.requestFailed'));
         }
 
         return response.json();
@@ -135,7 +140,7 @@ class ForumApp {
         } catch (error) {
             console.error('載入主題失敗:', error);
             this.showLoading(false);
-            this.showError('載入失敗: ' + error.message);
+            this.showError(i18n.t('forum.loadFailed') + ': ' + error.message);
         }
     }
 
@@ -156,21 +161,21 @@ class ForumApp {
 
     renderPostCard(post) {
         const typeLabels = {
-            'discussion': '💬 討論',
-            'question': '❓ 問題',
-            'announcement': '📢 公告'
+            'discussion': '💬 ' + i18n.t('forum.typeDiscussion'),
+            'question': '❓ ' + i18n.t('forum.typeQuestion'),
+            'announcement': '📢 ' + i18n.t('forum.typeAnnouncement')
         };
 
         const badges = [];
 
         // 置頂標記
         if (post.is_pinned) {
-            badges.push('<span class="badge badge-pinned">📌 置頂</span>');
+            badges.push(`<span class="badge badge-pinned">📌 ${i18n.t('forum.pinned')}</span>`);
         }
 
         // 私有標記
         if (post.visibility === 'private') {
-            badges.push('<span class="badge badge-private">🔒 僅教師</span>');
+            badges.push(`<span class="badge badge-private">🔒 ${i18n.t('forum.teacherOnly')}</span>`);
         }
 
         // 類型標記
@@ -178,17 +183,17 @@ class ForumApp {
 
         // 已解決標記
         if (post.is_resolved) {
-            badges.push('<span class="badge badge-resolved">✓ 已解決</span>');
+            badges.push(`<span class="badge badge-resolved">✓ ${i18n.t('forum.resolved')}</span>`);
         }
 
         // 教師回覆標記
         if (post.has_instructor_response) {
-            badges.push('<span class="badge badge-instructor">👨‍🏫 教師已回覆</span>');
+            badges.push(`<span class="badge badge-instructor">👨‍🏫 ${i18n.t('forum.instructorReplied')}</span>`);
         }
 
         // 作者顯示
         const authorClass = post.author.role === 'teacher' || post.author.role === 'admin' ? 'teacher' : '';
-        const authorBadge = post.author.role === 'teacher' ? '<span class="badge badge-teacher">老師</span>' : '';
+        const authorBadge = post.author.role === 'teacher' ? `<span class="badge badge-teacher">${i18n.t('forum.roleTeacher')}</span>` : '';
 
         // 標籤
         const tagsHtml = post.tags.map(tag =>
@@ -234,7 +239,7 @@ class ForumApp {
 
         // 上一頁
         html += `<button class="pagination-btn" ${pagination.has_prev ? '' : 'disabled'}
-                         onclick="forumApp.goToPage(${pagination.page - 1})">上一頁</button>`;
+                         onclick="forumApp.goToPage(${pagination.page - 1})">${i18n.t('forum.prevPage')}</button>`;
 
         // 頁碼
         const maxPages = 5;
@@ -252,10 +257,10 @@ class ForumApp {
 
         // 下一頁
         html += `<button class="pagination-btn" ${pagination.has_next ? '' : 'disabled'}
-                         onclick="forumApp.goToPage(${pagination.page + 1})">下一頁</button>`;
+                         onclick="forumApp.goToPage(${pagination.page + 1})">${i18n.t('forum.nextPage')}</button>`;
 
         // 資訊
-        html += `<span class="pagination-info">共 ${pagination.total_items} 條</span>`;
+        html += `<span class="pagination-info">${i18n.t('forum.totalItems', {count: pagination.total_items})}</span>`;
 
         container.innerHTML = html;
     }
@@ -275,7 +280,7 @@ class ForumApp {
         const container = document.getElementById('tagsList');
 
         if (!tags || tags.length === 0) {
-            container.innerHTML = '<span class="text-muted">暫無標籤</span>';
+            container.innerHTML = `<span class="text-muted">${i18n.t('forum.noTags')}</span>`;
             return;
         }
 
@@ -299,7 +304,7 @@ class ForumApp {
         const container = document.getElementById('trendingList');
 
         if (!posts || posts.length === 0) {
-            container.innerHTML = '<div class="text-muted">暫無熱門討論</div>';
+            container.innerHTML = `<div class="text-muted">${i18n.t('forum.noTrending')}</div>`;
             return;
         }
 
@@ -344,7 +349,7 @@ class ForumApp {
             const list = document.getElementById('notificationList');
 
             if (!result.items || result.items.length === 0) {
-                list.innerHTML = '<div class="notification-item">暫無通知</div>';
+                list.innerHTML = `<div class="notification-item">${i18n.t('forum.noNotifications')}</div>`;
             } else {
                 list.innerHTML = result.items.map(n => `
                     <div class="notification-item ${n.is_read ? '' : 'unread'}"
@@ -424,7 +429,7 @@ class ForumApp {
         const query = document.getElementById('searchInput').value.trim();
 
         if (query.length < 2) {
-            this.showError('請輸入至少2個字元');
+            this.showError(i18n.t('forum.searchMinChars'));
             return;
         }
 
@@ -446,7 +451,7 @@ class ForumApp {
         } catch (error) {
             console.error('搜尋失敗:', error);
             this.showLoading(false);
-            this.showError('搜尋失敗: ' + error.message);
+            this.showError(i18n.t('forum.searchFailed') + ': ' + error.message);
         }
     }
 
@@ -492,10 +497,10 @@ class ForumApp {
 
             this.hideNewPostModal();
             this.loadPosts();
-            this.showSuccess('發佈成功！');
+            this.showSuccess(i18n.t('forum.publishSuccess'));
         } catch (error) {
             console.error('發佈失敗:', error);
-            this.showError('發佈失敗: ' + error.message);
+            this.showError(i18n.t('forum.publishFailed') + ': ' + error.message);
         }
     }
 
@@ -515,31 +520,31 @@ class ForumApp {
             this.currentPostId = postId;
         } catch (error) {
             console.error('載入主題詳情失敗:', error);
-            this.showError('載入失敗: ' + error.message);
+            this.showError(i18n.t('forum.loadFailed') + ': ' + error.message);
         }
     }
 
     renderPostDetail(post) {
         const typeLabels = {
-            'discussion': '💬 討論',
-            'question': '❓ 問題',
-            'announcement': '📢 公告'
+            'discussion': '💬 ' + i18n.t('forum.typeDiscussion'),
+            'question': '❓ ' + i18n.t('forum.typeQuestion'),
+            'announcement': '📢 ' + i18n.t('forum.typeAnnouncement')
         };
 
         // 元數據
         const metaItems = [
-            `<span>${post.author.is_anonymous ? '匿名用戶' : post.author.display_name}</span>`,
-            post.author.role === 'teacher' ? '<span class="badge badge-teacher">老師</span>' : '',
+            `<span>${post.author.is_anonymous ? i18n.t('forum.anonymousUser') : post.author.display_name}</span>`,
+            post.author.role === 'teacher' ? `<span class="badge badge-teacher">${i18n.t('forum.roleTeacher')}</span>` : '',
             `<span>${this.formatTime(post.created_at)}</span>`,
             `<span class="badge badge-type ${post.post_type}">${typeLabels[post.post_type]}</span>`
         ];
 
         if (post.visibility === 'private') {
-            metaItems.push('<span class="badge badge-private">🔒 僅教師可見</span>');
+            metaItems.push(`<span class="badge badge-private">🔒 ${i18n.t('forum.teacherOnlyVisible')}</span>`);
         }
 
         if (post.is_resolved) {
-            metaItems.push('<span class="badge badge-resolved">✓ 已解決</span>');
+            metaItems.push(`<span class="badge badge-resolved">✓ ${i18n.t('forum.resolved')}</span>`);
         }
 
         // 回覆列表
@@ -548,16 +553,16 @@ class ForumApp {
         // 回覆表單（如果未鎖定）
         const replyFormHtml = post.can_reply ? `
             <div class="reply-form">
-                <textarea id="replyContent" placeholder="寫下您的回覆... (支援Markdown)"></textarea>
+                <textarea id="replyContent" placeholder="${i18n.t('forum.replyPlaceholder')}"></textarea>
                 <div class="reply-form-actions">
                     <label class="checkbox-label">
                         <input type="checkbox" id="replyAnonymous">
-                        <span>匿名回覆</span>
+                        <span>${i18n.t('forum.anonymousReply')}</span>
                     </label>
-                    <button class="btn-primary" onclick="forumApp.submitReply()">發表回覆</button>
+                    <button class="btn-primary" onclick="forumApp.submitReply()">${i18n.t('forum.submitReply')}</button>
                 </div>
             </div>
-        ` : '<p class="text-muted">該主題已被鎖定，無法回覆</p>';
+        ` : `<p class="text-muted">${i18n.t('forum.topicLocked')}</p>`;
 
         return `
             <div class="post-detail-header">
@@ -587,25 +592,25 @@ class ForumApp {
 
                 ${this.canEditPost(post) ? `
                     <button class="action-btn edit-btn" onclick="forumApp.editPost(${post.post_id})">
-                        ✏️ 編輯
+                        ✏️ ${i18n.t('forum.edit')}
                     </button>
                 ` : ''}
                 ${this.canDeletePost(post) ? `
                     <button class="action-btn delete-btn" onclick="forumApp.deletePost(${post.post_id})">
-                        🗑️ 刪除
+                        🗑️ ${i18n.t('forum.delete')}
                     </button>
                 ` : ''}
             </div>
 
             <div class="replies-section">
                 <div class="replies-header">
-                    <h3>回覆 (${post.reply_count})</h3>
+                    <h3>${i18n.t('forum.replies')} (${post.reply_count})</h3>
                 </div>
 
                 ${replyFormHtml}
 
                 <div class="replies-list">
-                    ${repliesHtml || '<p class="text-muted">暫無回覆</p>'}
+                    ${repliesHtml || `<p class="text-muted">${i18n.t('forum.noReplies')}</p>`}
                 </div>
             </div>
         `;
@@ -616,17 +621,17 @@ class ForumApp {
 
         const badges = [];
         if (reply.is_instructor_response) {
-            badges.push('<span class="badge badge-teacher">老師</span>');
+            badges.push(`<span class="badge badge-teacher">${i18n.t('forum.roleTeacher')}</span>`);
         }
         if (reply.is_accepted_answer) {
-            badges.push('<span class="badge badge-resolved">✓ 採納答案</span>');
+            badges.push(`<span class="badge badge-resolved">✓ ${i18n.t('forum.acceptedAnswer')}</span>`);
         }
 
         return `
             <div class="reply-item ${reply.is_instructor_response ? 'instructor' : ''} ${reply.is_accepted_answer ? 'accepted' : ''}">
                 <div class="reply-header">
                     <div class="reply-author">
-                        <span class="${authorClass}">${reply.author.is_anonymous ? '匿名用戶' : reply.author.display_name}</span>
+                        <span class="${authorClass}">${reply.author.is_anonymous ? i18n.t('forum.anonymousUser') : reply.author.display_name}</span>
                         ${badges.join('')}
                     </div>
                     <span class="post-time">${this.formatTime(reply.created_at)}</span>
@@ -642,12 +647,12 @@ class ForumApp {
 
                     ${this.canEditReply(reply) ? `
                         <button class="action-btn edit-btn" onclick="forumApp.editReply(${reply.reply_id})">
-                            ✏️ 編輯
+                            ✏️ ${i18n.t('forum.edit')}
                         </button>
                     ` : ''}
                     ${this.canDeleteReply(reply) ? `
                         <button class="action-btn delete-btn" onclick="forumApp.deleteReply(${reply.reply_id})">
-                            🗑️ 刪除
+                            🗑️ ${i18n.t('forum.delete')}
                         </button>
                     ` : ''}
                 </div>
@@ -673,7 +678,7 @@ class ForumApp {
             this.showPostDetail(postId);
         } catch (error) {
             console.error('投票失敗:', error);
-            this.showError('投票失敗: ' + error.message);
+            this.showError(i18n.t('forum.voteFailed') + ': ' + error.message);
         }
     }
 
@@ -690,7 +695,7 @@ class ForumApp {
             }
         } catch (error) {
             console.error('投票失敗:', error);
-            this.showError('投票失敗: ' + error.message);
+            this.showError(i18n.t('forum.voteFailed') + ': ' + error.message);
         }
     }
 
@@ -701,7 +706,7 @@ class ForumApp {
         const isAnonymous = document.getElementById('replyAnonymous').checked;
 
         if (!content) {
-            this.showError('請輸入回覆內容');
+            this.showError(i18n.t('forum.enterReplyContent'));
             return;
         }
 
@@ -721,10 +726,10 @@ class ForumApp {
             document.getElementById('replyContent').value = '';
             document.getElementById('replyAnonymous').checked = false;
 
-            this.showSuccess('回覆成功！');
+            this.showSuccess(i18n.t('forum.replySuccess'));
         } catch (error) {
             console.error('回覆失敗:', error);
-            this.showError('回覆失敗: ' + error.message);
+            this.showError(i18n.t('forum.replyFailed') + ': ' + error.message);
         }
     }
 
@@ -813,7 +818,7 @@ class ForumApp {
         // 獲取當前帖子數據
         const post = this.currentPostData;
         if (!post) {
-            this.showError('無法獲取帖子數據');
+            this.showError(i18n.t('forum.cannotGetPostData'));
             return;
         }
 
@@ -848,12 +853,12 @@ class ForumApp {
         const visibility = document.getElementById('editVisibility')?.value || 'public';
 
         if (!title) {
-            this.showError('請輸入標題');
+            this.showError(i18n.t('forum.enterTitle'));
             return;
         }
 
         if (!content) {
-            this.showError('請輸入內容');
+            this.showError(i18n.t('forum.enterContent'));
             return;
         }
 
@@ -872,15 +877,15 @@ class ForumApp {
 
             this.hideEditPostModal();
             this.showPostDetail(postId);
-            this.showSuccess('帖子更新成功！');
+            this.showSuccess(i18n.t('forum.postUpdateSuccess'));
         } catch (error) {
             console.error('更新失敗:', error);
-            this.showError('更新失敗: ' + error.message);
+            this.showError(i18n.t('forum.updateFailed') + ': ' + error.message);
         }
     }
 
     async deletePost(postId) {
-        if (!confirm('確定要刪除這個帖子嗎？此操作不可撤銷。')) {
+        if (!confirm(i18n.t('forum.confirmDeletePost'))) {
             return;
         }
 
@@ -891,10 +896,10 @@ class ForumApp {
 
             this.hidePostDetail();
             this.loadPosts();
-            this.showSuccess('帖子已刪除');
+            this.showSuccess(i18n.t('forum.postDeleted'));
         } catch (error) {
             console.error('刪除失敗:', error);
-            this.showError('刪除失敗: ' + error.message);
+            this.showError(i18n.t('forum.deleteFailed') + ': ' + error.message);
         }
     }
 
@@ -904,7 +909,7 @@ class ForumApp {
         // 查找評論數據
         const reply = this.currentPostData?.replies?.find(r => r.reply_id === replyId);
         if (!reply) {
-            this.showError('無法獲取評論數據');
+            this.showError(i18n.t('forum.cannotGetReplyData'));
             return;
         }
 
@@ -925,7 +930,7 @@ class ForumApp {
         const content = document.getElementById('editReplyContent').value.trim();
 
         if (!content) {
-            this.showError('請輸入內容');
+            this.showError(i18n.t('forum.enterContent'));
             return;
         }
 
@@ -939,15 +944,15 @@ class ForumApp {
             if (this.currentPostId) {
                 this.showPostDetail(this.currentPostId);
             }
-            this.showSuccess('評論更新成功！');
+            this.showSuccess(i18n.t('forum.replyUpdateSuccess'));
         } catch (error) {
             console.error('更新失敗:', error);
-            this.showError('更新失敗: ' + error.message);
+            this.showError(i18n.t('forum.updateFailed') + ': ' + error.message);
         }
     }
 
     async deleteReply(replyId) {
-        if (!confirm('確定要刪除這條評論嗎？此操作不可撤銷。')) {
+        if (!confirm(i18n.t('forum.confirmDeleteReply'))) {
             return;
         }
 
@@ -959,10 +964,10 @@ class ForumApp {
             if (this.currentPostId) {
                 this.showPostDetail(this.currentPostId);
             }
-            this.showSuccess('評論已刪除');
+            this.showSuccess(i18n.t('forum.replyDeleted'));
         } catch (error) {
             console.error('刪除失敗:', error);
-            this.showError('刪除失敗: ' + error.message);
+            this.showError(i18n.t('forum.deleteFailed') + ': ' + error.message);
         }
     }
 
@@ -973,7 +978,7 @@ class ForumApp {
     }
 
     showError(message) {
-        alert('錯誤: ' + message);
+        alert(i18n.t('forum.error') + ': ' + message);
     }
 
     showSuccess(message) {
@@ -994,12 +999,13 @@ class ForumApp {
         const now = new Date();
         const diff = Math.floor((now - date) / 1000);
 
-        if (diff < 60) return '剛剛';
-        if (diff < 3600) return Math.floor(diff / 60) + ' 分鐘前';
-        if (diff < 86400) return Math.floor(diff / 3600) + ' 小時前';
-        if (diff < 604800) return Math.floor(diff / 86400) + ' 天前';
+        if (diff < 60) return i18n.t('forum.justNow');
+        if (diff < 3600) return i18n.t('forum.minutesAgo', {n: Math.floor(diff / 60)});
+        if (diff < 86400) return i18n.t('forum.hoursAgo', {n: Math.floor(diff / 3600)});
+        if (diff < 604800) return i18n.t('forum.daysAgo', {n: Math.floor(diff / 86400)});
 
-        return date.toLocaleDateString('zh-TW', {
+        const locale = i18n.isEn ? 'en-US' : 'zh-TW';
+        return date.toLocaleDateString(locale, {
             year: 'numeric',
             month: 'short',
             day: 'numeric'

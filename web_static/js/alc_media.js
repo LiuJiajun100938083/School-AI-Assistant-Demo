@@ -6,6 +6,7 @@
     'use strict';
 
     const $ = window.alc;
+    const _t = $._t;
 
     // ==================== MEDIA LIBRARY ====================
 
@@ -61,7 +62,7 @@
         if (!nav) return;
 
         if ($.state.contents.length === 0) {
-            nav.innerHTML = '<p class="alc-ebook-nav-empty">暫無內容</p>';
+            nav.innerHTML = `<p class="alc-ebook-nav-empty">${_t('alc.noContent')}</p>`;
             return;
         }
 
@@ -103,8 +104,8 @@
                     <span class="alc-ebook-item-icon">${typeIcon}</span>
                     <span class="alc-ebook-item-title">${$.escapeHtml(content.title)}</span>
                     <span class="alc-ebook-item-reorder">
-                        <button class="alc-reorder-btn" data-dir="up" title="上移">&#9650;</button>
-                        <button class="alc-reorder-btn" data-dir="down" title="下移">&#9660;</button>
+                        <button class="alc-reorder-btn" data-dir="up" title="${_t('alc.moveUp')}">&#9650;</button>
+                        <button class="alc-reorder-btn" data-dir="down" title="${_t('alc.moveDown')}">&#9660;</button>
                     </span>
                 </li>`;
             });
@@ -118,7 +119,7 @@
                 <div class="alc-ebook-folder-header">
                     <span class="alc-ebook-folder-arrow">▾</span>
                     <span class="alc-ebook-folder-icon">📎</span>
-                    <span class="alc-ebook-folder-name">其他資料</span>
+                    <span class="alc-ebook-folder-name">${_t('alc.otherMaterials')}</span>
                 </div>
                 <ul class="alc-ebook-folder-items">`;
 
@@ -128,8 +129,8 @@
                     <span class="alc-ebook-item-icon">${typeIcon}</span>
                     <span class="alc-ebook-item-title">${$.escapeHtml(content.title)}</span>
                     <span class="alc-ebook-item-reorder">
-                        <button class="alc-reorder-btn" data-dir="up" title="上移">&#9650;</button>
-                        <button class="alc-reorder-btn" data-dir="down" title="下移">&#9660;</button>
+                        <button class="alc-reorder-btn" data-dir="up" title="${_t('alc.moveUp')}">&#9650;</button>
+                        <button class="alc-reorder-btn" data-dir="down" title="${_t('alc.moveDown')}">&#9660;</button>
                     </span>
                 </li>`;
             });
@@ -145,8 +146,8 @@
                     <span class="alc-ebook-item-icon">${typeIcon}</span>
                     <span class="alc-ebook-item-title">${$.escapeHtml(content.title)}</span>
                     <span class="alc-ebook-item-reorder">
-                        <button class="alc-reorder-btn" data-dir="up" title="上移">&#9650;</button>
-                        <button class="alc-reorder-btn" data-dir="down" title="下移">&#9660;</button>
+                        <button class="alc-reorder-btn" data-dir="up" title="${_t('alc.moveUp')}">&#9650;</button>
+                        <button class="alc-reorder-btn" data-dir="down" title="${_t('alc.moveDown')}">&#9660;</button>
                     </span>
                 </li>`;
             });
@@ -204,7 +205,7 @@
         try {
             await $.apiPut(`${$.ADMIN_API}/contents/reorder`, { content_ids: contentIds });
         } catch (error) {
-            console.error('排序保存失败:', error);
+            console.error(_t('alc.orderSaveFailed') + ':', error);
         }
     }
 
@@ -249,10 +250,10 @@
                     if (fileUrl) {
                         bodyEl.innerHTML = `<video class="alc-ebook-video" controls>
                             <source src="${$.escapeHtml(fileUrl)}" type="${$.escapeHtml(content.mime_type || 'video/mp4')}">
-                            您的瀏覽器不支持視頻播放
+                            ${_t('alc.videoNotSupported')}
                         </video>`;
                     } else {
-                        bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入視頻</p>';
+                        bodyEl.innerHTML = `<p class="alc-ebook-error">${_t('alc.videoLoadFailed')}</p>`;
                     }
                     break;
                 }
@@ -267,7 +268,7 @@
                         </div>`;
                     } else {
                         // Fallback: show link
-                        bodyEl.innerHTML = `<p>外部視頻連結：<a href="${$.escapeHtml(content.external_url || '')}" target="_blank" rel="noopener">${$.escapeHtml(content.external_url || '無連結')}</a></p>`;
+                        bodyEl.innerHTML = `<p>${_t('alc.externalVideoLink')}：<a href="${$.escapeHtml(content.external_url || '')}" target="_blank" rel="noopener">${$.escapeHtml(content.external_url || _t('alc.noLink'))}</a></p>`;
                     }
                     break;
                 }
@@ -276,7 +277,7 @@
                     if (fileUrl) {
                         bodyEl.innerHTML = `<img class="alc-ebook-image" src="${$.escapeHtml(fileUrl)}" alt="${$.escapeHtml(content.title || '')}" />`;
                     } else {
-                        bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入圖片</p>';
+                        bodyEl.innerHTML = `<p class="alc-ebook-error">${_t('alc.imageLoadFailed')}</p>`;
                     }
                     break;
                 }
@@ -305,11 +306,11 @@
                             if (startPage > 1) iframeUrl += '#page=' + startPage;
                             bodyEl.innerHTML = `<iframe class="alc-ebook-doc-iframe" src="${$.escapeHtml(iframeUrl)}" frameborder="0"></iframe>
                                 <div class="alc-ebook-doc-actions">
-                                    <a href="${$.escapeHtml(originalUrl || viewUrl)}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">下載文件</a>
+                                    <a href="${$.escapeHtml(originalUrl || fileUrl || viewUrl)}" class="alc-btn alc-btn--primary" download="${$.escapeHtml(content.title || 'download')}">${_t('alc.downloadFile')}</a>
                                 </div>`;
                         }
                     } else {
-                        bodyEl.innerHTML = '<p class="alc-ebook-error">無法載入文件</p>';
+                        bodyEl.innerHTML = `<p class="alc-ebook-error">${_t('alc.docLoadFailed')}</p>`;
                     }
                     break;
                 }
@@ -318,16 +319,16 @@
                     if (typeof marked !== 'undefined' && articleContent) {
                         bodyEl.innerHTML = `<div class="alc-ebook-article">${DOMPurify.sanitize(marked.parse(articleContent))}</div>`;
                     } else {
-                        bodyEl.innerHTML = `<div class="alc-ebook-article">${$.escapeHtml(articleContent) || '<p>暫無內容</p>'}</div>`;
+                        bodyEl.innerHTML = `<div class="alc-ebook-article">${$.escapeHtml(articleContent) || '<p>' + _t('alc.noArticleContent') + '</p>'}</div>`;
                     }
                     break;
                 }
                 default: {
                     const fileUrl = $.getFileUrl(content);
                     if (fileUrl) {
-                        bodyEl.innerHTML = `<p>檔案：<a href="${$.escapeHtml(fileUrl)}" target="_blank" rel="noopener">${$.escapeHtml(content.title || '下載')}</a></p>`;
+                        bodyEl.innerHTML = `<p>${_t('alc.fileLabel')}：<a href="${$.escapeHtml(fileUrl)}" target="_blank" rel="noopener">${$.escapeHtml(content.title || _t('alc.download'))}</a></p>`;
                     } else {
-                        bodyEl.innerHTML = '<p>無法顯示此內容</p>';
+                        bodyEl.innerHTML = `<p>${_t('alc.cannotDisplayContent')}</p>`;
                     }
                 }
             }
@@ -378,11 +379,11 @@
         if (!grid) return;
 
         if ($.state.paths.length === 0) {
-            grid.innerHTML = '<div class="alc-empty-state">暂无学习路径</div>';
+            grid.innerHTML = `<div class="alc-empty-state">${_t('alc.noPaths')}</div>`;
             return;
         }
 
-        const difficultyMap = { beginner: '入门', intermediate: '中级', advanced: '高级' };
+        const difficultyMap = { beginner: _t('alc.difficultyBeginner'), intermediate: _t('alc.difficultyIntermediate'), advanced: _t('alc.difficultyAdvanced') };
         const iconMap = { beginner: '🌱', intermediate: '📘', advanced: '🚀' };
         const colorMap = {
             beginner: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
@@ -406,8 +407,8 @@
                             ${$.escapeHtml(path.description)}
                         </p>
                         <div class="alc-path-meta">
-                            <span class="alc-duration-badge">📚 ${steps} 步骤</span>
-                            <span class="alc-duration-badge">⏱️ ${hours} 小时</span>
+                            <span class="alc-duration-badge">📚 ${steps} ${_t('alc.steps')}</span>
+                            <span class="alc-duration-badge">⏱️ ${hours} ${_t('alc.hours')}</span>
                         </div>
                     </div>
                 </div>
@@ -423,7 +424,7 @@
                 const overlay = $.getElement('pathDetailOverlay');
                 if (!overlay) return;
 
-                const difficultyMap = { beginner: '入门', intermediate: '中级', advanced: '高级' };
+                const difficultyMap = { beginner: _t('alc.difficultyBeginner'), intermediate: _t('alc.difficultyIntermediate'), advanced: _t('alc.difficultyAdvanced') };
                 const iconMap = { beginner: '🌱', intermediate: '📘', advanced: '🚀' };
                 const diff = path.difficulty || 'beginner';
 
@@ -441,8 +442,8 @@
                     diffEl.className = `alc-difficulty-badge ${diff}`;
                     diffEl.textContent = `${iconMap[diff] || ''} ${difficultyMap[diff] || diff}`;
                 }
-                if (durEl) durEl.textContent = `⏱️ ${path.estimated_hours || 0} 小时`;
-                if (progEl) progEl.textContent = `📚 ${(path.steps || []).length} 步骤`;
+                if (durEl) durEl.textContent = `⏱️ ${path.estimated_hours || 0} ${_t('alc.hours')}`;
+                if (progEl) progEl.textContent = `📚 ${(path.steps || []).length} ${_t('alc.steps')}`;
 
                 // 渲染时间线步骤
                 if (timelineEl) {
@@ -456,8 +457,8 @@
                             // Build anchor hint (e.g. "→ 第 5-10 页")
                             let anchorHint = '';
                             if (anchor) {
-                                if (anchor.type === 'page') anchorHint = ` → 第 ${anchor.value} 页`;
-                                else if (anchor.type === 'page_range') anchorHint = ` → 第 ${anchor.from}-${anchor.to} 页`;
+                                if (anchor.type === 'page') anchorHint = ` → ${_t('alc.anchorPage', { page: anchor.value })}`;
+                                else if (anchor.type === 'page_range') anchorHint = ` → ${_t('alc.anchorPageRange', { from: anchor.from, to: anchor.to })}`;
                                 else if (anchor.type === 'heading') anchorHint = ` → ${anchor.value}`;
                                 else if (anchor.type === 'timestamp') {
                                     const min = Math.floor(anchor.value / 60);
@@ -468,24 +469,24 @@
 
                             if (hasContent) {
                                 // Use data attributes to avoid JSON-in-onclick quoting issues
-                                const contentTitle = step.content_title ? $.escapeHtml(step.content_title) : '文档';
+                                const contentTitle = step.content_title ? $.escapeHtml(step.content_title) : _t('alc.document');
                                 const btnLabel = `📄 ${contentTitle}${anchorHint}`;
                                 const anchorAttr = anchor ? ` data-anchor="${JSON.stringify(anchor).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"` : '';
                                 actions.push(`<button class="alc-step-action-btn alc-step-nav-btn" data-content-id="${step.content_id}"${anchorAttr}>${btnLabel}</button>`);
                             }
                             if (hasNode) {
-                                actions.push(`<button class="alc-step-action-btn alc-step-action-btn--node" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToKnowledgeNode(${step.node_id})">🔗 知识节点</button>`);
+                                actions.push(`<button class="alc-step-action-btn alc-step-action-btn--node" onclick="event.stopPropagation(); window.lcLearningCenter.hidePathDetail(); window.lcLearningCenter.navigateToKnowledgeNode(${step.node_id})">🔗 ${_t('alc.knowledgeNode')}</button>`);
                             }
                             return `
                                 <li>
-                                    <strong>步骤 ${index + 1}：${$.escapeHtml(step.title)}</strong>
+                                    <strong>${_t('alc.stepN', { n: index + 1 })}：${$.escapeHtml(step.title)}</strong>
                                     <span>${$.escapeHtml(step.description)}</span>
                                     ${actions.length > 0 ? `<div class="alc-step-actions">${actions.join('')}</div>` : ''}
                                 </li>
                             `;
                         }).join('');
                     } else {
-                        timelineEl.innerHTML = '<li><span>暂无步骤</span></li>';
+                        timelineEl.innerHTML = `<li><span>${_t('alc.noSteps')}</span></li>`;
                     }
                 }
 
@@ -508,7 +509,7 @@
             }
         } catch (error) {
             console.error('Failed to load path detail:', error);
-            $.showToast('加载路径详情失败', 'error');
+            $.showToast(_t('alc.loadPathDetailFailed'), 'error');
         }
     }
 
@@ -579,7 +580,7 @@
         if (!listEl) return;
 
         if ($.state.contents.length === 0) {
-            listEl.innerHTML = '<div class="alc-empty-state">暂无资源</div>';
+            listEl.innerHTML = `<div class="alc-empty-state">${_t('alc.noResources')}</div>`;
             return;
         }
 
@@ -596,7 +597,7 @@
                             <span class="alc-file-size">${$.formatFileSize(content.file_size || 0)}</span>
                         </div>
                         <button class="alc-btn alc-btn-sm" onclick="window.lcLearningCenter.downloadResource('${content.id}')">
-                            下载
+                            ${_t('alc.download')}
                         </button>
                     </div>
                 `).join('')}
@@ -607,7 +608,7 @@
     function renderResourceListByCategory(container, categoryId) {
         const categoryContents = $.state.contents.filter(c => c.category_id === categoryId);
         if (categoryContents.length === 0) {
-            container.innerHTML = '<p class="alc-empty">该分类暂无资源</p>';
+            container.innerHTML = `<p class="alc-empty">${_t('alc.noCategoryResources')}</p>`;
             return;
         }
 
@@ -615,7 +616,7 @@
             <div class="alc-resource-item alc-resource-item-tree">
                 <span>${$.escapeHtml(content.title)}</span>
                 <button class="alc-btn alc-btn-sm" onclick="window.lcLearningCenter.downloadResource('${content.id}')">
-                    下载
+                    ${_t('alc.download')}
                 </button>
             </div>
         `).join('');
@@ -634,9 +635,9 @@
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    $.showToast('下載開始', 'success');
+                    $.showToast(_t('alc.downloadStarted'), 'success');
                 } else {
-                    $.showToast('此內容無可下載文件', 'warning');
+                    $.showToast(_t('alc.noDownloadableFile'), 'warning');
                 }
             }
         } catch (error) {
@@ -677,23 +678,23 @@
         container.innerHTML = `
             <div class="alc-pdf-viewer">
                 <div class="alc-pdf-toolbar">
-                    <button class="alc-pdf-btn" data-action="prev" title="上一页">◀</button>
+                    <button class="alc-pdf-btn" data-action="prev" title="${_t('alc.prevPage')}">◀</button>
                     <span class="alc-pdf-page-info">
                         <input class="alc-pdf-page-input" type="number" min="1" value="1" />
                         <span>/ <span class="alc-pdf-total">-</span></span>
                     </span>
-                    <button class="alc-pdf-btn" data-action="next" title="下一页">▶</button>
+                    <button class="alc-pdf-btn" data-action="next" title="${_t('alc.nextPage')}">▶</button>
                     <span class="alc-pdf-separator"></span>
-                    <button class="alc-pdf-btn" data-action="zoomout" title="缩小">−</button>
+                    <button class="alc-pdf-btn" data-action="zoomout" title="${_t('alc.zoomOut')}">−</button>
                     <span class="alc-pdf-zoom-label">100%</span>
-                    <button class="alc-pdf-btn" data-action="zoomin" title="放大">+</button>
+                    <button class="alc-pdf-btn" data-action="zoomin" title="${_t('alc.zoomIn')}">+</button>
                     <span class="alc-pdf-separator"></span>
-                    <a href="${$.escapeHtml(fileUrl)}" class="alc-pdf-btn" download="${$.escapeHtml(content.title || 'download')}" title="下載">⬇</a>
+                    <a href="${$.escapeHtml(fileUrl)}" class="alc-pdf-btn" download="${$.escapeHtml(content.title || 'download')}" title="${_t('alc.download')}">⬇</a>
                 </div>
                 <div class="alc-pdf-scroll-area">
                     <div class="alc-pdf-pages"></div>
                 </div>
-                <div class="alc-pdf-loading">載入 PDF 中...</div>
+                <div class="alc-pdf-loading">${_t('alc.pdfLoading')}</div>
             </div>`;
 
         const viewer = container.querySelector('.alc-pdf-viewer');
@@ -714,7 +715,7 @@
             _activePdfDoc = pdfDoc;
         } catch (err) {
             console.error('[PDF.js] Failed to load:', err);
-            loadingEl.textContent = 'PDF 載入失敗';
+            loadingEl.textContent = _t('alc.pdfLoadFailed');
             return;
         }
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI 圖片生成 - 校園AI助手</title>
+    <title data-i18n="ig.pageTitle">AI 圖片生成 - 培僑中學</title>
     <style>
         :root {
             --brand: #6366F1;
@@ -200,28 +200,28 @@
 </head>
 <body>
     <header class="ig-header">
-        <a href="/" class="ig-header__back">&larr; 返回</a>
-        <h1 class="ig-header__title">AI 圖片生成</h1>
+        <a href="/" class="ig-header__back" data-i18n="ig.back">&larr; 返回</a>
+        <h1 class="ig-header__title" data-i18n="ig.headerTitle">AI 圖片生成</h1>
     </header>
 
     <main class="ig-main">
         <!-- Input -->
         <div class="ig-card">
-            <label class="ig-label" for="promptInput">描述你想生成的圖片</label>
+            <label class="ig-label" for="promptInput" data-i18n="ig.promptLabel">描述你想生成的圖片</label>
             <textarea id="promptInput" class="ig-textarea"
-                placeholder="例如：一隻可愛的柴犬戴著畢業帽..."
+                placeholder="例如：一隻可愛的柴犬戴著畢業帽..." data-i18n-placeholder="ig.promptPlaceholder"
                 maxlength="500" rows="3"></textarea>
-            <p class="ig-hint">按 Ctrl+Enter 快速生成</p>
+            <p class="ig-hint" data-i18n="ig.hintCtrlEnter">按 Ctrl+Enter 快速生成</p>
             <div class="ig-input-footer">
                 <span id="charCount" class="ig-char-count">0 / 500</span>
-                <button id="generateBtn" class="ig-btn-primary">生成圖片</button>
+                <button id="generateBtn" class="ig-btn-primary" data-i18n="ig.generateBtn">生成圖片</button>
             </div>
         </div>
 
         <!-- Status -->
         <div id="statusArea" class="ig-status" style="display:none">
             <div class="ig-spinner"></div>
-            <span id="statusText" class="ig-status__text">排隊中...</span>
+            <span id="statusText" class="ig-status__text" data-i18n="ig.queuing">排隊中...</span>
         </div>
 
         <!-- Error -->
@@ -231,16 +231,18 @@
 
         <!-- Result -->
         <div id="resultArea" class="ig-result" style="display:none">
-            <img id="resultImage" class="ig-result__image" alt="AI 生成的圖片">
+            <img id="resultImage" class="ig-result__image" alt="AI 生成的圖片" data-i18n-title="ig.imageAlt">
             <div class="ig-result__actions">
-                <button id="downloadBtn" class="ig-btn-secondary">&#128190; 下載圖片</button>
-                <button id="newGenBtn" class="ig-btn-secondary">&#128260; 重新生成</button>
+                <button id="downloadBtn" class="ig-btn-secondary" data-i18n="ig.downloadBtn">&#128190; 下載圖片</button>
+                <button id="newGenBtn" class="ig-btn-secondary" data-i18n="ig.regenerateBtn">&#128260; 重新生成</button>
             </div>
         </div>
     </main>
 
     <script src="/static/js/shared/utils.js"></script>
     <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/image_gen.js"></script>
     <script src="/static/js/image_gen.js"></script>
 </body>
 </html>

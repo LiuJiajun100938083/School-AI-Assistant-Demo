@@ -1,135 +1,174 @@
 /**
- * 智能通告助手 — 前端核心模組
- * =============================
+ * 智能通告助手 — 前端核心模組（分屏版）
+ * ==========================================
  *
- * 架構：
- *   NoticeAPI  — API 請求封裝
- *   NoticeUI   — DOM 渲染工具
- *   NoticeApp  — 主控制器
+ * 四層架構：
+ *   NoticeAPI   — HTTP 請求封裝（統一 auth / 錯誤 / 解包）
+ *   NoticeState — 狀態管理（stage 驅動的狀態機）
+ *   NoticeUI    — 純 DOM 渲染（對話面板 + 預覽面板 + 移動端 Tab）
+ *   NoticeApp   — 流程控制器（事件 → API → State → UI）
  *
- * 依賴共享模組: AuthModule, UIModule
- * 加載順序: shared/* → notice_generator.js
+ * 數據流：API Response → State.update() → UI render
+ * 依賴共享模組: AuthModule, UIModule, Utils, i18n
  */
 'use strict';
 
 /* ============================================================
-   API — 後端 API 封裝
+   API — 統一 HTTP 封裝
    ============================================================ */
 
 const NoticeAPI = {
 
     /**
-     * 開始對話
+     * 統一請求：auth header + 401 重定向 + success_response 解包 + 錯誤拋出
+     * @returns {Promise<Object>} 解包後的 data（即 success_response.data）
      */
-    async startConversation(sessionId, initialText = null) {
-        const resp = await fetch('/api/admin/notice/dialogue/start', {
-            method: 'POST',
+    async _fetch(url, options = {}) {
+        const resp = await fetch(url, {
+            ...options,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AuthModule.getToken()}`
+                'Authorization': `Bearer ${AuthModule.getToken()}`,
+                ...(options.headers || {}),
             },
-            body: JSON.stringify({
-                session_id: sessionId,
-                initial_info: initialText
-            })
         });
-        return resp.json();
+
+        if (resp.status === 401) {
+            AuthModule.removeToken();
+            window.location.href = '/';
+            throw new Error(i18n.t('ng.errorAuth'));
+        }
+
+        // 導出端點返回二進制文件
+        if (resp.headers.get('content-type')?.includes('officedocument')) {
+            return resp.blob();
+        }
+
+        const json = await resp.json();
+        if (!resp.ok || json.success === false) {
+            throw new Error(json.data?.detail || json.message || i18n.t('ng.errorRequestFailed'));
+        }
+
+        // 解包 success_response 的 data 層
+        return json.data || json;
     },
 
-    /**
-     * 繼續對話
-     */
+    async startConversation(noticeType = null) {
+        return this._fetch('/api/admin/notice/dialogue/start', {
+            method: 'POST',
+            body: JSON.stringify({ notice_type: noticeType }),
+        });
+    },
+
     async continueConversation(sessionId, userInput) {
-        const resp = await fetch('/api/admin/notice/dialogue/continue', {
+        return this._fetch('/api/admin/notice/dialogue/continue', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AuthModule.getToken()}`
-            },
-            body: JSON.stringify({
-                session_id: sessionId,
-                user_input: userInput
-            })
+            body: JSON.stringify({ session_id: sessionId, user_input: userInput }),
         });
-        return resp.json();
     },
 
-    /**
-     * 導出 Word 文檔
-     */
     async exportWord(sessionId) {
-        const resp = await fetch('/api/admin/notice/dialogue/export', {
+        return this._fetch('/api/admin/notice/dialogue/export', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${AuthModule.getToken()}`
-            },
-            body: JSON.stringify({ session_id: sessionId })
+            body: JSON.stringify({ session_id: sessionId }),
         });
-        if (!resp.ok) throw new Error('導出失敗');
-        return resp.blob();
-    }
+    },
 };
 
 /* ============================================================
-   UI — DOM 渲染工具
+   STATE — Stage 驅動的狀態機
+   ============================================================ */
+
+const NoticeState = {
+    sessionId: '',
+    stage: 'idle',          // idle | select_type | collecting_info | confirming | completed
+    progress: 0,
+    noticeContent: '',      // AI 生成的通告原文
+
+    /** 根據 API 響應統一更新狀態 */
+    update(data) {
+        if (data.session_id) this.sessionId = data.session_id;
+        if (data.stage)      this.stage = data.stage;
+        if (data.progress !== undefined) this.progress = data.progress;
+        if (data.content)    this.noticeContent = data.content;
+    },
+
+    /** stage 計算屬性：是否可導出 */
+    get isExportable() {
+        return this.stage === 'confirming' || this.stage === 'completed';
+    },
+
+    reset() {
+        this.sessionId = '';
+        this.stage = 'idle';
+        this.progress = 0;
+        this.noticeContent = '';
+    },
+};
+
+/* ============================================================
+   UI — 純 DOM 渲染
    ============================================================ */
 
 const NoticeUI = {
-
-    elements: {},
+    els: {},
 
     cacheElements() {
-        this.elements = {
-            chatMessages: document.getElementById('chatMessages'),
-            chatInput: document.getElementById('chatInput'),
-            sendButton: document.getElementById('sendButton'),
-            quickActions: document.getElementById('quickActions'),
-            progressBar: document.getElementById('progressBar'),
-            exportButton: document.getElementById('exportButton')
+        this.els = {
+            // 對話面板
+            chatMessages:  document.getElementById('chatMessages'),
+            chatInput:     document.getElementById('chatInput'),
+            sendButton:    document.getElementById('sendButton'),
+            quickActions:  document.getElementById('quickActions'),
+            // 預覽面板
+            previewEmpty:  document.getElementById('previewEmpty'),
+            previewEditor: document.getElementById('previewEditor'),
+            exportButton:  document.getElementById('exportButton'),
+            // Header
+            progressBar:   document.getElementById('progressBar'),
+            // 移動端 Tab
+            mobileTabs:    document.getElementById('mobileTabs'),
+            panelChat:     document.getElementById('panelChat'),
+            panelPreview:  document.getElementById('panelPreview'),
         };
     },
 
-    addAIMessage(message) {
-        const container = this.elements.chatMessages;
+    /* ---------- 對話面板 ---------- */
 
-        let messageHTML = message;
-        if (message.includes('=====')) {
-            const parts = message.split('=====');
+    addAIMessage(text) {
+        const container = this.els.chatMessages;
+        let html = text;
+        // 如果後端在 message 中嵌入了通告預覽（===== 分隔）
+        if (text.includes('=====')) {
+            const parts = text.split('=====');
             if (parts.length >= 3) {
-                messageHTML = parts[0] + '<div class="notice-preview">' +
-                    parts[1] + '</div>' + parts[2];
+                html = parts[0] + '<div class="notice-preview">' + parts[1] + '</div>' + parts[2];
             }
         }
-
         const div = document.createElement('div');
         div.className = 'message ai';
         div.innerHTML = `
             <div class="message-avatar">🤖</div>
-            <div class="message-content">${messageHTML}</div>
+            <div class="message-content">${html}</div>
         `;
-
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     },
 
-    addUserMessage(message) {
-        const container = this.elements.chatMessages;
-
+    addUserMessage(text) {
+        const container = this.els.chatMessages;
         const div = document.createElement('div');
         div.className = 'message user';
         div.innerHTML = `
             <div class="message-avatar">👤</div>
-            <div class="message-content">${Utils.escapeHtml(message)}</div>
+            <div class="message-content">${Utils.escapeHtml(text)}</div>
         `;
-
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     },
 
-    showTypingIndicator() {
-        const container = this.elements.chatMessages;
-
+    showTyping() {
+        const container = this.els.chatMessages;
         const div = document.createElement('div');
         div.className = 'message ai';
         div.id = 'typingIndicator';
@@ -143,174 +182,274 @@ const NoticeUI = {
                 </div>
             </div>
         `;
-
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     },
 
-    hideTypingIndicator() {
+    hideTyping() {
         document.getElementById('typingIndicator')?.remove();
     },
 
-    updateProgress(progress) {
-        this.elements.progressBar.style.width = progress + '%';
-    },
-
     updateQuickActions(stage, onAction) {
-        const container = this.elements.quickActions;
+        const container = this.els.quickActions;
         container.innerHTML = '';
 
-        let actions = [];
-        if (stage === 'select_type') {
-            actions = ['活動通告', '考試通告', '會議通告', '一般通告'];
-        } else if (stage === 'confirming') {
-            actions = ['確認', '修改', '重新生成'];
-        } else if (stage === 'completed') {
-            actions = ['新建通告', '結束'];
-        }
+        const actionMap = {
+            select_type: [
+                i18n.t('ng.typeActivity'), i18n.t('ng.typeExam'),
+                i18n.t('ng.typeMeeting'), i18n.t('ng.typeGeneral'),
+            ],
+            confirming: [
+                i18n.t('ng.actionConfirm'), i18n.t('ng.actionModify'),
+                i18n.t('ng.actionRegenerate'),
+            ],
+            completed: [
+                i18n.t('ng.actionNew'), i18n.t('ng.actionEnd'),
+            ],
+        };
 
-        actions.forEach(action => {
-            const button = document.createElement('button');
-            button.className = 'quick-action';
-            button.textContent = action;
-            button.addEventListener('click', () => onAction(action));
-            container.appendChild(button);
+        const actions = actionMap[stage] || [];
+        actions.forEach(label => {
+            const btn = document.createElement('button');
+            btn.className = 'quick-action';
+            btn.textContent = label;
+            btn.addEventListener('click', () => onAction(label));
+            container.appendChild(btn);
         });
     },
 
-    showExportButton() {
-        this.elements.exportButton.classList.add('show');
-    }
+    /* ---------- 預覽面板 ---------- */
+
+    updatePreview(content) {
+        this.els.previewEmpty.style.display = 'none';
+        this.els.previewEditor.style.display = 'block';
+        this.els.previewEditor.innerHTML = this._formatNoticeHTML(content);
+
+        // 移動端自動切換到預覽 Tab
+        if (window.innerWidth <= 768) {
+            this.switchTab('preview');
+        }
+    },
+
+    /**
+     * 將通告純文本轉換為格式化 HTML（模擬正式通告排版）
+     */
+    _formatNoticeHTML(text) {
+        const lines = text.split('\n');
+        let html = '';
+        let inList = false;
+
+        for (const line of lines) {
+            const s = line.trim();
+            if (!s) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += '<div style="height:0.5em"></div>';
+                continue;
+            }
+
+            // 清理 markdown bold
+            const clean = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            // 標題行
+            if (this._isNoticeTitleLine(s)) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="text-align:center;font-size:1.15em;font-weight:bold;margin:0.8em 0 0.5em">${clean}</div>`;
+            }
+            // 敬啟者
+            else if (s.startsWith('敬啟者') || s.startsWith('敬启者')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.5em 0">${clean}</div>`;
+            }
+            // 此致 / 簽名 / 日期
+            else if (s === '此致' || s.startsWith('學生家長') || s.startsWith('貴家長')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.3em 0">${clean}</div>`;
+            }
+            else if (s.includes('校長') && s.length < 30) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.3em 0;text-indent:1em">${clean}</div>`;
+            }
+            else if (/^二零/.test(s)) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.5em 0">${clean}</div>`;
+            }
+            // 結構化字段行 (日　期：、時間：、地點：)
+            else if (/^[日時地對費考活會注聯如]/.test(s) && /[：:]/.test(s.substring(0, 10))) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.2em 0 0.2em 2em">${clean}</div>`;
+            }
+            // 列表項 (1. / - / *)
+            else if (/^[\-\*]\s/.test(s) || /^\d+[\.\)]\s/.test(s)) {
+                if (!inList) { html += '<ul style="margin:0.3em 0 0.3em 2.5em">'; inList = true; }
+                const itemText = s.replace(/^[\-\*]\s+/, '').replace(/^\d+[\.\)]\s+/, '');
+                html += `<li>${itemText.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</li>`;
+            }
+            // 普通正文
+            else {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<div style="margin:0.2em 0;text-indent:2em">${clean}</div>`;
+            }
+        }
+        if (inList) html += '</ul>';
+        return html;
+    },
+
+    _isNoticeTitleLine(text) {
+        if ((text.includes('通知') || text.includes('通告')) && text.length < 40) return true;
+        if (text.startsWith('【') && text.includes('】') && text.length < 40) return true;
+        return false;
+    },
+
+    showPreviewEmpty() {
+        this.els.previewEmpty.style.display = 'flex';
+        this.els.previewEditor.style.display = 'none';
+    },
+
+    getPreviewContent() {
+        return this.els.previewEditor.textContent || '';
+    },
+
+    /* ---------- 共用 ---------- */
+
+    updateProgress(pct) {
+        this.els.progressBar.style.width = pct + '%';
+    },
+
+    setExportEnabled(enabled) {
+        this.els.exportButton.disabled = !enabled;
+    },
+
+    /* ---------- 移動端 Tab ---------- */
+
+    switchTab(tabName) {
+        if (!this.els.mobileTabs) return;
+
+        this.els.mobileTabs.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.panel === tabName);
+        });
+        this.els.panelChat.classList.toggle('ng-panel--hidden', tabName !== 'chat');
+        this.els.panelPreview.classList.toggle('ng-panel--hidden', tabName !== 'preview');
+    },
 };
 
 /* ============================================================
-   APP — 主控制器
+   APP — 流程控制器
    ============================================================ */
 
 const NoticeApp = {
 
-    state: {
-        sessionId: '',
-        canExport: false,
-        currentNoticeContent: ''
-    },
-
     async init() {
-        this.state.sessionId = 'session_' + Date.now() + '_' +
-            Math.random().toString(36).substr(2, 9);
+        if (typeof i18n !== 'undefined') i18n.applyDOM();
 
         NoticeUI.cacheElements();
         this._bindEvents();
+
+        NoticeState.sessionId = 'session_' + Date.now() + '_' +
+            Math.random().toString(36).substr(2, 9);
+
         await this._startConversation();
     },
 
     _bindEvents() {
-        // 發送按鈕
-        NoticeUI.elements.sendButton.addEventListener('click', () => {
-            this._sendMessage();
-        });
+        const { sendButton, chatInput, exportButton, mobileTabs } = NoticeUI.els;
 
-        // Enter 鍵發送
-        NoticeUI.elements.chatInput.addEventListener('keypress', (e) => {
+        sendButton.addEventListener('click', () => this._sendMessage());
+
+        chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this._sendMessage();
             }
         });
 
-        // 導出按鈕
-        NoticeUI.elements.exportButton.addEventListener('click', () => {
-            this._exportNotice();
-        });
+        exportButton.addEventListener('click', () => this._exportNotice());
+
+        // 移動端 Tab 切換
+        if (mobileTabs) {
+            mobileTabs.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-panel]');
+                if (btn) NoticeUI.switchTab(btn.dataset.panel);
+            });
+        }
     },
 
-    async _startConversation(initialText = null) {
-        try {
-            const data = await NoticeAPI.startConversation(
-                this.state.sessionId, initialText
-            );
-            NoticeUI.addAIMessage(data.message);
+    /* ---------- 對話流程 ---------- */
 
-            if (data.progress !== undefined) {
-                NoticeUI.updateProgress(data.progress);
-            }
-            if (data.can_export) {
-                this._enableExport(data.notice_content);
-            }
-        } catch {
-            NoticeUI.addAIMessage('抱歉，連接出現問題。請刷新頁面重試。');
+    async _startConversation() {
+        try {
+            const data = await NoticeAPI.startConversation();
+            NoticeState.update(data);
+            NoticeUI.addAIMessage(data.message);
+            NoticeUI.updateQuickActions(data.stage, (a) => this._handleQuickAction(a));
+            NoticeUI.updateProgress(NoticeState.progress);
+        } catch (err) {
+            NoticeUI.addAIMessage(i18n.t('ng.errorConnection'));
         }
     },
 
     async _sendMessage() {
-        const input = NoticeUI.elements.chatInput;
-        const message = input.value.trim();
-        if (!message) return;
+        const input = NoticeUI.els.chatInput;
+        const text = input.value.trim();
+        if (!text) return;
 
-        NoticeUI.addUserMessage(message);
+        NoticeUI.addUserMessage(text);
         input.value = '';
-        NoticeUI.showTypingIndicator();
+        NoticeUI.showTyping();
 
         try {
-            const data = await NoticeAPI.continueConversation(
-                this.state.sessionId, message
-            );
+            const data = await NoticeAPI.continueConversation(NoticeState.sessionId, text);
+            NoticeUI.hideTyping();
+            NoticeState.update(data);
 
-            NoticeUI.hideTypingIndicator();
             NoticeUI.addAIMessage(data.message);
+            NoticeUI.updateProgress(NoticeState.progress);
+            NoticeUI.updateQuickActions(data.stage, (a) => this._handleQuickAction(a));
 
-            if (data.progress !== undefined) {
-                NoticeUI.updateProgress(data.progress);
+            // 當有通告內容時同步到右側預覽
+            if (data.content) {
+                NoticeUI.updatePreview(data.content);
             }
-            if (data.can_export) {
-                this._enableExport(data.notice_content);
-            }
+            NoticeUI.setExportEnabled(NoticeState.isExportable);
 
-            NoticeUI.updateQuickActions(data.stage, (action) => {
-                NoticeUI.elements.chatInput.value = action;
-                this._sendMessage();
-            });
-
-        } catch {
-            NoticeUI.hideTypingIndicator();
-            NoticeUI.addAIMessage('抱歉，處理您的消息時出現問題。');
+        } catch (err) {
+            NoticeUI.hideTyping();
+            NoticeUI.addAIMessage(i18n.t('ng.errorProcess'));
         }
     },
 
-    _enableExport(content) {
-        this.state.canExport = true;
-        this.state.currentNoticeContent = content;
-        NoticeUI.showExportButton();
+    _handleQuickAction(label) {
+        NoticeUI.els.chatInput.value = label;
+        this._sendMessage();
     },
 
+    /* ---------- 導出 ---------- */
+
     async _exportNotice() {
-        if (!this.state.canExport) {
-            UIModule.toast('請先完成通告生成', 'warning');
+        if (!NoticeState.isExportable) {
+            UIModule.toast(i18n.t('ng.toastCompleteFirst'), 'warning');
             return;
         }
 
         try {
-            const blob = await NoticeAPI.exportWord(this.state.sessionId);
+            const blob = await NoticeAPI.exportWord(NoticeState.sessionId);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `通告_${new Date().toISOString().split('T')[0]}.docx`;
+            a.download = `${i18n.t('ng.filePrefix')}_${new Date().toISOString().split('T')[0]}.docx`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            NoticeUI.addAIMessage('✅ Word文檔已成功導出！');
-        } catch (error) {
-            UIModule.toast('導出失敗：' + error.message, 'error');
+            UIModule.toast(i18n.t('ng.exportSuccess'), 'success');
+        } catch (err) {
+            UIModule.toast(i18n.t('ng.exportFailed') + ': ' + err.message, 'error');
         }
-    }
+    },
 };
 
 /* ============================================================
    入口
    ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    NoticeApp.init();
-});
+document.addEventListener('DOMContentLoaded', () => NoticeApp.init());
