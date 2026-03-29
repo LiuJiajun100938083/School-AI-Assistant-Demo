@@ -314,11 +314,13 @@ const GameStudio = (() => {
         const tags = tagsRaw ? tagsRaw.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
         formData.append('tags', JSON.stringify(tags));
 
-        // 可見性（分段按鈕）
+        // 可見性（分段按鈕 + 班級選擇）
         const visValue = modal.querySelector('.gs-visibility__btn--active')?.dataset.value || 'private';
         formData.append('is_public', (visValue === 'public').toString());
         formData.append('teacher_only', (visValue === 'teacher').toString());
-        formData.append('visible_to', '[]');
+        const visibleTo = [];
+        modal.querySelectorAll('input[name="visible_to"]:checked').forEach(cb => visibleTo.push(cb.value));
+        formData.append('visible_to', JSON.stringify(visibleTo));
 
         try {
             const url = state.editUUID ? `/api/games/${state.editUUID}` : '/api/games/upload';
@@ -387,6 +389,22 @@ const GameStudio = (() => {
         if (btn) btn.disabled = !state.code.trim();
     }
 
+    /** 生成班級 checkbox（中一~中六 × A~D） */
+    function _generateClassCheckboxes() {
+        const container = document.getElementById('classCheckboxes');
+        if (!container) return;
+        const grades = ['中一', '中二', '中三', '中四', '中五', '中六'];
+        const classes = ['A', 'B', 'C', 'D'];
+        let html = '';
+        for (const g of grades) {
+            for (const c of classes) {
+                const val = `${g}${c}`;
+                html += `<label><input type="checkbox" name="visible_to" value="${val}"> ${val}</label>`;
+            }
+        }
+        container.innerHTML = html;
+    }
+
     function _escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -445,9 +463,10 @@ const GameStudio = (() => {
             });
         });
 
-        // 可見性分段按鈕
+        // 可見性分段按鈕 + 班級選擇聯動
         const visControl = document.getElementById('visibilityControl');
         const visHint = document.getElementById('visibilityHint');
+        const classSection = document.getElementById('classSelectSection');
         const VIS_HINTS = {
             private: '只有你自己能看到這個遊戲',
             public: '所有學生可以在遊戲中心看到並遊玩',
@@ -460,8 +479,14 @@ const GameStudio = (() => {
                 visControl.querySelectorAll('.gs-visibility__btn').forEach(b => b.classList.remove('gs-visibility__btn--active'));
                 btn.classList.add('gs-visibility__btn--active');
                 if (visHint) visHint.textContent = VIS_HINTS[btn.dataset.value] || '';
+                // 公開時顯示班級選擇
+                if (classSection) {
+                    classSection.style.display = btn.dataset.value === 'public' ? 'block' : 'none';
+                }
             });
         }
+        // 生成班級 checkbox（中一到中六 × A-D）
+        _generateClassCheckboxes();
 
         // Dirty check — 離開提示
         window.addEventListener('beforeunload', (e) => {

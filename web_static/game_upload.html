@@ -135,6 +135,14 @@
                         <button type="button" class="gs-visibility__btn" data-value="teacher">僅教師可見</button>
                     </div>
                     <div class="gs-form__hint" id="visibilityHint">只有你自己能看到這個遊戲</div>
+
+                    <!-- 班級選擇（僅公開時顯示） -->
+                    <div class="gs-class-select" id="classSelectSection" style="display:none">
+                        <label class="gs-form__label">可見班級 <span style="color:var(--gs-text-tertiary);font-weight:400">（不選 = 所有班級）</span></label>
+                        <div class="gs-form__checkboxes" id="classCheckboxes">
+                            <!-- JS 動態生成 -->
+                        </div>
+                    </div>
                 </div>
                 <div class="gs-modal__footer">
                     <button id="modalCancelBtn" class="gs-btn gs-btn--secondary">取消</button>

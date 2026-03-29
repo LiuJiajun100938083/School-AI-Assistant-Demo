@@ -508,6 +508,19 @@ body {
     margin: 6px 0 0;
 }
 
+/* 班級選擇區（公開時展開） */
+.gs-class-select {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--gs-bg);
+    border-radius: 10px;
+    animation: gs-slideDown 0.2s ease;
+}
+@keyframes gs-slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Buttons ── */
 .gs-btn {
     padding: 10px 20px;
