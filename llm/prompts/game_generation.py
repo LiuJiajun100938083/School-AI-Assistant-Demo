@@ -10,8 +10,8 @@ AI 教育遊戲生成 — Prompt 與模型配置
 # 遊戲生成專用模型（代碼生成能力強、速度快）
 GAME_GENERATION_MODEL = "deepseek-chat"
 
-# 遊戲生成的最大 token 數
-GAME_GENERATION_MAX_TOKENS = 16384
+# 遊戲生成的最大 token 數（deepseek-chat 上限 8192）
+GAME_GENERATION_MAX_TOKENS = 8192
 
 # AI 回覆中玩法介紹的分隔符
 GAMEPLAY_SEPARATOR = "---GAMEPLAY---"
