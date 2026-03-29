@@ -215,6 +215,7 @@ async def _call_qwen(
         "max_tokens": num_predict,
         "temperature": temperature,
         "response_format": {"type": "json_object"},
+        "stream": True,
     }
 
     headers = {
@@ -223,20 +224,32 @@ async def _call_qwen(
     }
 
     http_timeout = httpx.Timeout(timeout, connect=10.0)
+    content = ""
 
     async with _cloud_semaphore:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            async with client.stream(
+                "POST",
                 f"{base_url}/chat/completions",
                 json=payload,
                 headers=headers,
                 timeout=http_timeout,
-            )
-            response.raise_for_status()
-            data = response.json()
-
-    message = data["choices"][0]["message"]
-    content = message.get("content", "")
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data_str = line[6:].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data_str)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        c = delta.get("content", "")
+                        if c:
+                            content += c
+                    except json.JSONDecodeError:
+                        continue
 
     logger.info(
         "LLM 調用成功: provider=qwen, model=%s, content_len=%d",
