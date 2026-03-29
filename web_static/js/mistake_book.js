@@ -1682,7 +1682,7 @@ const Views = {
                             <span class="mb-mistake-item__subject">${UI.subjectLabel(m.subject)}</span>
                             <span class="mb-grid-card__date">${UI.formatDate(m.created_at)}</span>
                         </div>
-                        <div class="mb-grid-card__question">${isProcessing ? progressMsgLong : UI.escapeHtml(question)}</div>
+                        <div class="mb-grid-card__question">${isProcessing ? progressMsgLong : UI.renderMath(question)}</div>
                         ${m.error_type ? `<span class="mb-mistake-item__tag">${UI.errorTypeLabel(m.error_type)}</span>` : ''}
                     </div>
                 </div>
