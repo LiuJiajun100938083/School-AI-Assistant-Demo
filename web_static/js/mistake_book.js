@@ -551,10 +551,14 @@ const UI = {
         // 保護已知 LaTeX \n* 命令（\nabla \neg \neq \newline \ni \not \notin \nu）
         text = text.replace(/\\n(?!abla|e[gq]|ew|ot|otin|u(?![a-z])|i(?![a-z]))/g, '\n');
 
-        // 修復 AI 生成的無效 LaTeX：\text{^\circ C} → °C
-        text = text.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
-        // 獨立的 ^\circ → °
-        text = text.replace(/\^\\circ(?![a-zA-Z])/g, '°');
+        // 修復 AI 生成的無效 LaTeX：\text{^\circ C} → °C（僅對 $ 外部文本）
+        // 注意：不能在 $...$ 內部替換，否則會破壞 KaTeX 渲染
+        text = text.split(/(\$\$[\s\S]*?\$\$|\$[^$\n]+?\$)/).map(seg => {
+            if (seg.startsWith('$')) return seg;
+            seg = seg.replace(/\\text\{\s*\^?\s*\\circ\s*([^}]*)\}/g, '°$1');
+            seg = seg.replace(/\^\\circ(?![a-zA-Z])/g, '°');
+            return seg;
+        }).join('');
 
         // 修復未用 $ 包裹的裸露 LaTeX（AI 有時漏掉 $ 分隔符）
         // 分割文本為 $...$ 內和外的片段，只對外部片段修復
