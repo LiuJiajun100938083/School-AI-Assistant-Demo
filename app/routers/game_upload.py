@@ -16,6 +16,7 @@ import logging
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import get_current_user
 from app.domains.game_upload.schemas import GameCreateRequest, GameUpdateRequest
@@ -48,6 +49,39 @@ def _get_service():
 # ==================================================================================
 #                                   端点
 # ==================================================================================
+
+@game_router.post("/ai/stream")
+async def stream_generate_game(
+    request: Request,
+    current_user: Dict = Depends(get_current_user),
+):
+    """
+    AI 生成遊戲代碼（SSE 流式返回）
+
+    只做請求接收和響應返回，業務邏輯委託 Service。
+
+    Body:
+        prompt: str — 用戶描述
+        history: list — 對話歷史 [{"role": "user/assistant", "content": "..."}]
+    """
+    user = _extract_user(current_user)
+    if user['role'] not in ('teacher', 'admin'):
+        raise HTTPException(403, "只有教師和管理員可以使用 AI 生成")
+
+    body = await request.json()
+    prompt = body.get("prompt", "").strip()
+    history = body.get("history", [])
+
+    if not prompt:
+        raise HTTPException(400, "請輸入遊戲描述")
+
+    service = _get_service()
+    return StreamingResponse(
+        service.generate_game_stream(prompt, history),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
 
 @game_router.post("/upload")
 async def upload_game(

@@ -39,6 +39,32 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_EXTENSIONS = {'.html', '.htm'}
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent.parent / 'web_static' / 'uploaded_games'
 
+# AI 遊戲生成 System Prompt（配置化，不寫死在路由）
+GAME_GENERATION_SYSTEM_PROMPT = """你是一個專業的教育遊戲開發助手。你的任務是根據用戶描述生成完整的單文件 HTML 教育遊戲。
+
+## 輸出要求
+1. 必須是完整的單一 HTML 文件，包含 <!DOCTYPE html> 到 </html>
+2. 所有 CSS 和 JavaScript 必須內嵌（inline）在該 HTML 文件中
+3. 如需使用前端框架，通過 CDN 引入（React、Vue、Tailwind CSS、Three.js、Phaser 等）
+4. 遊戲必須在 iframe 中可獨立運行
+5. 使用中文界面（繁體中文優先）
+
+## 設計原則
+- 視覺風格簡潔現代，圓角卡片 + 漸變色
+- 適配手機和桌面（響應式）
+- 有明確的學習目標和教育價值
+- 包含計分或進度追蹤
+- 操作直覺，學生無需說明即可上手
+
+## 安全限制
+- 不要使用 fetch/XHR 請求外部 API
+- 不要操作 window.top 或 window.parent
+- 不要使用 localStorage/sessionStorage
+
+## 輸出格式
+直接輸出完整 HTML 代碼，用 ```html 包裹。不要輸出解釋或說明，只輸出代碼。
+如果用戶要求修改，輸出完整的修改後代碼（不要只輸出片段）。"""
+
 
 class GameUploadService:
     """游戏上传业务服务"""
@@ -734,6 +760,132 @@ class GameUploadService:
             )
 
         return "\n".join(polyfill_lines)
+
+    # ==================== AI 遊戲生成 ====================
+
+    async def generate_game_stream(self, user_prompt: str, history: list):
+        """
+        AI 生成遊戲代碼（SSE 異步生成器）
+
+        數據流：構建 prompt → 調用 LLM streaming → 收集回覆 → 提取 HTML → yield SSE 事件
+
+        Yields:
+            str: SSE 格式的事件行（event: type\ndata: {...}\n\n）
+        """
+        import httpx
+        from llm.config import get_llm_config
+
+        config = get_llm_config()
+        if not config.api_key:
+            yield self._sse_event("error", {"message": "AI API 未配置"})
+            return
+
+        # 構建消息列表
+        messages = [{"role": "system", "content": GAME_GENERATION_SYSTEM_PROMPT}]
+        messages.extend(self._trim_history(history))
+        messages.append({"role": "user", "content": user_prompt})
+
+        yield self._sse_event("status", {"phase": "generating"})
+
+        # 流式調用 API
+        full_response = ""
+        try:
+            url = f"{config.api_base_url}/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {config.api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": config.api_model,
+                "messages": messages,
+                "max_tokens": 16384,
+                "temperature": 0.7,
+                "stream": True,
+            }
+
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST", url, json=payload, headers=headers,
+                    timeout=httpx.Timeout(300, connect=10),
+                ) as resp:
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data_str)
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                full_response += content
+                                yield self._sse_event("chunk", {"content": content})
+                        except json.JSONDecodeError:
+                            continue
+
+        except Exception as e:
+            logger.error("AI 遊戲生成失敗: %s", e)
+            yield self._sse_event("error", {"message": f"生成失敗：{str(e)}"})
+            return
+
+        # 提取 HTML
+        yield self._sse_event("status", {"phase": "extracting"})
+        html = self._extract_html(full_response)
+
+        if html:
+            yield self._sse_event("code", {"html": html})
+        else:
+            yield self._sse_event("error", {"message": "未檢測到有效 HTML 代碼，請嘗試更明確的描述"})
+
+        yield self._sse_event("done", {})
+
+    @staticmethod
+    def _sse_event(event_type: str, data: dict) -> str:
+        """格式化 SSE 事件"""
+        return f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    @staticmethod
+    def _extract_html(raw: str) -> Optional[str]:
+        """
+        從 AI 回覆中提取可用 HTML。
+
+        優先級：
+        1. ```html fenced block
+        2. <!DOCTYPE html> ... </html>
+        3. <html> ... </html>
+        4. 含 <body>/<script> → 包裝為最小 HTML
+        """
+        # 1. fenced block
+        m = re.search(r'```html\s*([\s\S]*?)```', raw)
+        if m:
+            return m.group(1).strip()
+
+        # 2. <!DOCTYPE html> ... </html>
+        m = re.search(r'(<!DOCTYPE\s+html>[\s\S]*?</html>)', raw, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+
+        # 3. <html> ... </html>
+        m = re.search(r'(<html[\s\S]*?</html>)', raw, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+
+        # 4. 含 body/script → 最小包裝
+        if '<body' in raw.lower() or '<script' in raw.lower():
+            return f'<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n{raw}\n</html>'
+
+        return None
+
+    @staticmethod
+    def _trim_history(history: list, max_rounds: int = 6) -> list:
+        """截斷對話歷史，避免 token 膨脹"""
+        if len(history) <= max_rounds * 2:
+            return history
+        recent = history[-(max_rounds * 2):]
+        summary = {"role": "system", "content": "（前幾輪對話已省略，用戶在迭代修改一個 HTML 教育遊戲）"}
+        return [summary] + recent
 
     def _save_html_file(self, file_path: Path, content: str) -> int:
         """保存 HTML 文件并返回文件大小"""

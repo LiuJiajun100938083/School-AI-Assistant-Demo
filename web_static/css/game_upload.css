@@ -1,521 +1,422 @@
-/**
- * 上傳遊戲 — 頁面專用樣式
- * 延續 index.css 設計系統
- */
+/* ============================================================
+   Game Studio — 遊戲工作室分屏樣式
+   ============================================================ */
 
-/* 页面容器 */
-.upload-page {
-    min-height: 100vh;
-    background: var(--bg-page);
+:root {
+    --gs-brand: #6366f1;
+    --gs-brand-light: #eef2ff;
+    --gs-bg: #f5f5f7;
+    --gs-card: #ffffff;
+    --gs-border: #e5e7eb;
+    --gs-text: #1d1d1f;
+    --gs-text-secondary: #6b7280;
+    --gs-text-tertiary: #9ca3af;
+    --gs-radius: 12px;
+    --gs-header-h: 52px;
+    --gs-footer-h: 56px;
 }
 
-/* 顶部导航 */
-.upload-header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--gs-bg);
+    color: var(--gs-text);
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* ── Page Layout ── */
+.gs-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ── Header ── */
+.gs-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-4) var(--space-6);
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-light);
-    box-shadow: var(--shadow-sm);
+    height: var(--gs-header-h);
+    padding: 0 16px;
+    background: var(--gs-card);
+    border-bottom: 1px solid var(--gs-border);
+    flex-shrink: 0;
 }
-
-.header-left {
+.gs-header__left {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: 12px;
 }
-
-.back-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    background: var(--bg-page);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
-    color: var(--text-primary);
+.gs-header__back {
+    color: var(--gs-brand);
+    text-decoration: none;
     font-size: 14px;
     font-weight: 500;
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
-    text-decoration: none;
 }
-
-.back-btn:hover {
-    background: var(--bg-card);
-    border-color: var(--border-strong);
-}
-
-.page-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--brand);
-}
-
-/* 主内容区 */
-.upload-main {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: var(--space-8) var(--space-6);
-}
-
-/* 表单卡片 */
-.form-card {
-    background: var(--bg-card);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-card);
-    overflow: hidden;
-}
-
-.form-section {
-    padding: var(--space-6);
-    border-bottom: 1px solid var(--border-light);
-}
-
-.form-section:last-child {
-    border-bottom: none;
-}
-
-.section-title {
+.gs-header__title {
     font-size: 16px;
     font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: var(--space-4);
+}
+.gs-header__tabs {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
+    gap: 4px;
+    background: var(--gs-bg);
+    border-radius: 8px;
+    padding: 3px;
 }
-
-.section-title .icon {
-    font-size: 18px;
-}
-
-/* 表单元素 */
-.form-group {
-    margin-bottom: var(--space-5);
-}
-
-.form-group:last-child {
-    margin-bottom: 0;
-}
-
-.form-label {
-    display: block;
-    font-size: 14px;
+.gs-tab {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 13px;
     font-weight: 500;
-    color: var(--text-primary);
-    margin-bottom: var(--space-2);
+    color: var(--gs-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.gs-tab--active {
+    background: var(--gs-card);
+    color: var(--gs-brand);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-.form-label .required {
-    color: var(--color-error);
+/* ── Split Panels ── */
+.gs-panels {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+.gs-panels__left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-right: 1px solid var(--gs-border);
+}
+.gs-panels__divider {
+    width: 0;
+}
+.gs-panels__right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--gs-bg);
 }
 
-.form-hint {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    margin-top: var(--space-1);
+/* ── Chat Panel ── */
+.gs-chat {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.gs-chat__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.gs-msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+.gs-msg__label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    opacity: 0.6;
+}
+.gs-msg--user {
+    align-self: flex-end;
+    background: var(--gs-brand);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+.gs-msg--user .gs-msg__label { color: rgba(255,255,255,0.7); }
+.gs-msg--ai {
+    align-self: flex-start;
+    background: var(--gs-card);
+    border: 1px solid var(--gs-border);
+    border-bottom-left-radius: 4px;
+}
+.gs-msg--system {
+    align-self: center;
+    background: var(--gs-brand-light);
+    color: var(--gs-brand);
+    font-size: 13px;
+    text-align: center;
+    border-radius: 8px;
+    padding: 8px 16px;
+}
+.gs-msg--system .gs-msg__label { display: none; }
+.gs-typing {
+    color: var(--gs-text-tertiary);
+    font-style: italic;
 }
 
-.form-input,
-.form-select,
-.form-textarea {
-    width: 100%;
-    padding: var(--space-3) var(--space-4);
-    background: var(--bg-page);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
+/* Chat Input */
+.gs-chat__input {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--gs-border);
+    background: var(--gs-card);
+}
+.gs-chat__input textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--gs-border);
+    border-radius: 10px;
+    padding: 10px 14px;
     font-size: 14px;
     font-family: inherit;
-    color: var(--text-primary);
-    transition: all var(--duration-base) var(--ease-out);
-}
-
-.form-input:focus,
-.form-select:focus,
-.form-textarea:focus {
+    line-height: 1.5;
     outline: none;
-    border-color: var(--brand);
-    background: var(--bg-card);
-    box-shadow: var(--shadow-input-focus);
+    transition: border-color 0.15s;
+    max-height: 120px;
 }
-
-.form-textarea {
-    min-height: 100px;
-    resize: vertical;
+.gs-chat__input textarea:focus {
+    border-color: var(--gs-brand);
 }
-
-.form-input::placeholder,
-.form-textarea::placeholder {
-    color: var(--text-placeholder);
-}
-
-/* 行内表单 */
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
-}
-
-@media (max-width: 600px) {
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-/* 图标选择器 */
-.icon-selector {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-}
-
-.icon-option {
-    width: 44px;
-    height: 44px;
+.gs-chat__send,
+.gs-chat__stop {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-page);
-    border: 2px solid var(--border-default);
-    border-radius: var(--radius-md);
-    font-size: 20px;
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
+    flex-shrink: 0;
+    transition: opacity 0.15s;
 }
-
-.icon-option:hover {
-    border-color: var(--border-strong);
-    transform: scale(1.05);
-}
-
-.icon-option.selected {
-    border-color: var(--brand);
-    background: var(--brand-lighter);
-}
-
-/* 年级选择 */
-.checkbox-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    background: var(--bg-page);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
-}
-
-.checkbox-label:hover {
-    border-color: var(--border-strong);
-}
-
-.checkbox-label.checked {
-    background: var(--brand-lighter);
-    border-color: var(--brand);
-    color: var(--brand);
-}
-
-.checkbox-label input {
-    display: none;
-}
-
-/* 上传区域 */
-.upload-tabs {
-    display: flex;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
-}
-
-.upload-tab {
-    padding: var(--space-2) var(--space-4);
-    background: transparent;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
-}
-
-.upload-tab:hover {
-    border-color: var(--border-strong);
-    color: var(--text-primary);
-}
-
-.upload-tab.active {
-    background: var(--brand);
-    border-color: var(--brand);
+.gs-chat__send {
+    background: var(--gs-brand);
     color: white;
 }
-
-.upload-content {
-    display: none;
+.gs-chat__stop {
+    background: #ef4444;
+    color: white;
 }
+.gs-chat__send:hover, .gs-chat__stop:hover { opacity: 0.85; }
 
-.upload-content.active {
-    display: block;
-}
-
-/* 文件上传区 */
-.file-drop-zone {
-    border: 2px dashed var(--border-default);
-    border-radius: var(--radius-lg);
-    padding: var(--space-8);
-    text-align: center;
-    transition: all var(--duration-base) var(--ease-out);
-    cursor: pointer;
-}
-
-.file-drop-zone:hover,
-.file-drop-zone.dragover {
-    border-color: var(--brand);
-    background: var(--brand-lighter);
-}
-
-.file-drop-zone .icon {
-    font-size: 48px;
-    margin-bottom: var(--space-4);
-}
-
-.file-drop-zone .text {
-    font-size: 15px;
-    color: var(--text-secondary);
-    margin-bottom: var(--space-2);
-}
-
-.file-drop-zone .hint {
-    font-size: 13px;
-    color: var(--text-tertiary);
-}
-
-.file-input {
-    display: none;
-}
-
-.file-selected {
+/* ── Code Editor ── */
+.gs-editor {
     display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    background: var(--brand-lighter);
-    border-radius: var(--radius-md);
-    margin-top: var(--space-3);
+    flex-direction: column;
+    height: 100%;
 }
-
-.file-selected .name {
+.gs-editor__code {
     flex: 1;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--brand);
-}
-
-.file-selected .size {
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-.file-selected .remove {
-    padding: var(--space-1) var(--space-2);
-    background: transparent;
+    width: 100%;
+    resize: none;
     border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    font-size: 16px;
-}
-
-/* 代码编辑器 */
-.code-editor {
-    font-family: var(--font-mono);
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 13px;
-    min-height: 300px;
-    background: #1e1e1e;
-    color: #d4d4d4;
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
+    line-height: 1.6;
+    tab-size: 2;
+    outline: none;
+    background: #1e1e2e;
+    color: #cdd6f4;
 }
 
-/* 可见性切换 */
-.visibility-toggle {
+/* ── Preview Panel ── */
+.gs-preview__header {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gs-text-secondary);
+    border-bottom: 1px solid var(--gs-border);
+    background: var(--gs-card);
+}
+.gs-preview__body {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+.gs-preview__frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+.gs-preview__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+    color: var(--gs-text-tertiary);
+}
+.gs-preview__empty-icon { font-size: 48px; opacity: 0.3; }
+.gs-preview__empty-text { font-size: 16px; font-weight: 500; }
+.gs-preview__empty-hint { font-size: 13px; }
+
+/* ── Footer ── */
+.gs-footer {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    justify-content: center;
+    height: var(--gs-footer-h);
+    padding: 0 16px;
+    background: var(--gs-card);
+    border-top: 1px solid var(--gs-border);
+    flex-shrink: 0;
 }
-
-.toggle-switch {
-    position: relative;
-    width: 50px;
-    height: 28px;
+.gs-footer__btn {
+    padding: 10px 32px;
+    background: var(--gs-brand);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
 }
+.gs-footer__btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.gs-footer__btn:not(:disabled):hover { opacity: 0.85; }
 
-.toggle-switch input {
+/* ── Modal ── */
+.gs-modal {
     display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
 }
-
-.toggle-slider {
+.gs-modal--open { display: flex; align-items: center; justify-content: center; }
+.gs-modal__overlay {
     position: absolute;
     inset: 0;
-    background: var(--border-strong);
-    border-radius: var(--radius-full);
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
+    background: rgba(0,0,0,0.4);
 }
-
-.toggle-slider::before {
-    content: '';
-    position: absolute;
-    width: 22px;
-    height: 22px;
-    left: 3px;
-    top: 3px;
-    background: white;
-    border-radius: 50%;
-    transition: all var(--duration-base) var(--ease-out);
-    box-shadow: var(--shadow-sm);
-}
-
-.toggle-switch input:checked + .toggle-slider {
-    background: var(--brand);
-}
-
-.toggle-switch input:checked + .toggle-slider::before {
-    transform: translateX(22px);
-}
-
-.visibility-label {
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-.visibility-label.public {
-    color: var(--brand);
-    font-weight: 500;
-}
-
-/* 提交按钮 */
-.form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--space-3);
-    padding: var(--space-6);
-    background: var(--bg-page);
-}
-
-.btn {
-    padding: var(--space-3) var(--space-6);
-    border-radius: var(--radius-full);
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
-    border: none;
-}
-
-.btn-secondary {
-    background: var(--bg-card);
-    border: 1px solid var(--border-default);
-    color: var(--text-primary);
-}
-
-.btn-secondary:hover {
-    border-color: var(--border-strong);
-}
-
-.btn-primary {
-    background: var(--brand);
-    color: white;
-}
-
-.btn-primary:hover {
-    background: var(--brand-hover);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-button-hover);
-}
-
-.btn-primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* 消息提示 */
-.message {
-    padding: var(--space-4);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-4);
-    display: none;
-}
-
-.message.success {
-    background: var(--brand-lighter);
-    color: var(--brand);
-    display: block;
-}
-
-.message.error {
-    background: #FEE2E2;
-    color: var(--color-error);
-    display: block;
-}
-
-/* AI 提示詞框 */
-.prompt-box {
+.gs-modal__card {
     position: relative;
-    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
-    border: 1px solid var(--brand-lighter);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    padding-right: 80px;
+    background: var(--gs-card);
+    border-radius: 16px;
+    width: min(520px, 90vw);
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
-
-.prompt-content {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--text-primary);
-    word-break: break-word;
-}
-
-.copy-btn {
-    position: absolute;
-    right: var(--space-3);
-    top: 50%;
-    transform: translateY(-50%);
+.gs-modal__header {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
-    background: var(--brand);
-    border: none;
-    border-radius: var(--radius-full);
-    color: white;
+    justify-content: space-between;
+    padding: 20px 24px 12px;
+}
+.gs-modal__header h3 { font-size: 18px; font-weight: 600; }
+.gs-modal__close {
+    width: 32px; height: 32px;
+    border: none; background: var(--gs-bg);
+    border-radius: 8px; font-size: 18px;
+    cursor: pointer; color: var(--gs-text-secondary);
+}
+.gs-modal__body { padding: 0 24px 16px; }
+.gs-modal__footer {
+    display: flex; gap: 8px; justify-content: flex-end;
+    padding: 12px 24px 20px;
+    border-top: 1px solid var(--gs-border);
+}
+.gs-modal__error {
+    background: #fef2f2; color: #dc2626;
+    padding: 10px 14px; border-radius: 8px;
+    font-size: 13px; margin-bottom: 12px;
+}
+
+/* ── Form Elements ── */
+.gs-form__label {
+    display: block;
     font-size: 13px;
+    font-weight: 600;
+    margin: 14px 0 6px;
+    color: var(--gs-text);
+}
+.gs-form__input,
+.gs-form__textarea,
+.gs-form__select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--gs-border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.gs-form__input:focus,
+.gs-form__textarea:focus,
+.gs-form__select:focus {
+    border-color: var(--gs-brand);
+}
+.gs-form__textarea { resize: vertical; min-height: 80px; }
+.gs-form__icons {
+    display: flex; gap: 6px; flex-wrap: wrap;
+}
+.gs-form__icons .icon-option {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid transparent;
+    border-radius: 8px; cursor: pointer;
+    font-size: 20px; transition: all 0.15s;
+}
+.gs-form__icons .icon-option:hover { background: var(--gs-bg); }
+.gs-form__icons .icon-option.selected {
+    border-color: var(--gs-brand);
+    background: var(--gs-brand-light);
+}
+.gs-form__checkboxes {
+    display: flex; gap: 8px; flex-wrap: wrap;
+}
+.gs-form__checkboxes label {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 13px; cursor: pointer;
+    padding: 4px 10px;
+    border: 1px solid var(--gs-border);
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+.gs-form__checkboxes label:has(input:checked) {
+    background: var(--gs-brand-light);
+    border-color: var(--gs-brand);
+    color: var(--gs-brand);
+}
+.gs-form__checkboxes input { display: none; }
+
+/* ── Buttons ── */
+.gs-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--duration-base) var(--ease-out);
+    transition: opacity 0.15s;
 }
+.gs-btn--primary { background: var(--gs-brand); color: white; }
+.gs-btn--secondary { background: var(--gs-bg); color: var(--gs-text); }
+.gs-btn:hover { opacity: 0.85; }
 
-.copy-btn:hover {
-    background: var(--brand-hover);
-    transform: translateY(-50%) scale(1.02);
-}
-
-.copy-btn.copied {
-    background: #10B981;
-}
-
-.copy-btn .copy-icon {
-    font-size: 14px;
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .gs-panels { flex-direction: column; }
+    .gs-panels__left { flex: none; height: 50%; border-right: none; border-bottom: 1px solid var(--gs-border); }
+    .gs-panels__right { flex: none; height: 50%; }
+    .gs-panels__divider { display: none; }
 }
