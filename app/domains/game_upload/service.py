@@ -801,7 +801,14 @@ class GameUploadService:
                     "POST", url, json=payload, headers=headers,
                     timeout=httpx.Timeout(300, connect=10),
                 ) as resp:
-                    resp.raise_for_status()
+                    # 在 context 內檢查狀態碼，這樣可以讀取錯誤響應體
+                    if resp.status_code >= 400:
+                        await resp.aread()
+                        body_preview = resp.text[:300] if resp.text else "(empty)"
+                        logger.error("AI 遊戲生成 HTTP 錯誤: %s %s", resp.status_code, body_preview)
+                        yield self._sse_event("error", {"message": f"AI 服務返回錯誤 ({resp.status_code}): {body_preview[:100]}"})
+                        return
+
                     async for line in resp.aiter_lines():
                         if not line.startswith("data: "):
                             continue
@@ -818,16 +825,6 @@ class GameUploadService:
                         except json.JSONDecodeError:
                             continue
 
-        except httpx.HTTPStatusError as e:
-            # 流式響應下 .text 不可直接訪問，需先 aread()
-            try:
-                await e.response.aread()
-                body_preview = e.response.text[:200]
-            except Exception:
-                body_preview = "(unable to read body)"
-            logger.error("AI 遊戲生成 HTTP 錯誤: %s %s", e.response.status_code, body_preview)
-            yield self._sse_event("error", {"message": f"AI 服務返回錯誤 ({e.response.status_code})"})
-            return
         except Exception as e:
             logger.error("AI 遊戲生成失敗: %s", e)
             yield self._sse_event("error", {"message": f"生成失敗：{str(e)}"})
