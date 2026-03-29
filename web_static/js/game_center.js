@@ -371,7 +371,11 @@ const GameCenterUI = {
     createLeaderboardHTML(title, icon, entries, gameUrl) {
         if (!entries || entries.length === 0) return '';
 
-        const RANK_ICONS = ['🥇', '🥈', '🥉'];
+        const RANK_ICONS = [
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="#FFD700" stroke="#B8860B" stroke-width="1.5"><circle cx="12" cy="9" r="7"/><text x="12" y="12" text-anchor="middle" fill="#B8860B" font-size="10" font-weight="bold">1</text><path d="M8 16l-2 6h12l-2-6" fill="#FFD700" stroke="#B8860B"/></svg>',
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="#C0C0C0" stroke="#808080" stroke-width="1.5"><circle cx="12" cy="9" r="7"/><text x="12" y="12" text-anchor="middle" fill="#808080" font-size="10" font-weight="bold">2</text><path d="M8 16l-2 6h12l-2-6" fill="#C0C0C0" stroke="#808080"/></svg>',
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="#CD7F32" stroke="#8B5A2B" stroke-width="1.5"><circle cx="12" cy="9" r="7"/><text x="12" y="12" text-anchor="middle" fill="#8B5A2B" font-size="10" font-weight="bold">3</text><path d="M8 16l-2 6h12l-2-6" fill="#CD7F32" stroke="#8B5A2B"/></svg>',
+        ];
         const RESULT_MAP = { completed: '任期屆滿', bankrupt: '破產', redline: '國安紅線' };
 
         const rowsHTML = entries.map((e, i) => {

@@ -38,7 +38,7 @@ i18n.addMessages({
         'gc.play': '開始遊戲',
         'gc.featured': '精選遊戲',
         'gc.heroPlay': '立即遊玩',
-        'gc.playCount': '🔥 {{count}} 次遊玩',
+        'gc.playCount': '{{count}} 次遊玩',
     },
     en: {
         // --- Game Center ---
@@ -77,6 +77,6 @@ i18n.addMessages({
         'gc.play': 'Play Now',
         'gc.featured': 'Featured Games',
         'gc.heroPlay': 'Play Now',
-        'gc.playCount': '🔥 {{count}} plays',
+        'gc.playCount': '{{count}} plays',
     }
 });
