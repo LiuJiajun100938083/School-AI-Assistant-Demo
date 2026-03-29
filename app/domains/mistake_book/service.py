@@ -27,6 +27,11 @@ from app.domains.mistake_book.repository import (
     ReviewLogRepository,
     StudentMasteryRepository,
 )
+from app.infrastructure.ai_pipeline.embedding import (
+    QwenEmbeddingProvider,
+    default_embedding_provider,
+)
+from app.infrastructure.utils.vector_math import cosine_similarity
 from app.domains.mistake_book.exceptions import (
     AnalysisFailedError,
     MistakeNotFoundError,
@@ -917,6 +922,9 @@ class MistakeBookService:
             (mistake_id,),
         )
 
+        # 生成 Embedding（不阻塞主流程，失敗只記錄日誌）
+        await self._embed_mistake(mistake_id, confirmed_question)
+
         return {
             "mistake_id": mistake_id,
             "is_correct": analysis.get("is_correct", False),
@@ -928,6 +936,52 @@ class MistakeBookService:
             "knowledge_points": self._links.get_points_for_mistake(mistake_id),
             "next_review_at": next_review.isoformat(),
         }
+
+    async def _embed_mistake(self, mistake_id: str, question_text: str) -> None:
+        """
+        為錯題生成向量並存庫。
+        失敗時標記 embedding_status=failed，不影響主流程。
+        """
+        try:
+            vector = await default_embedding_provider.embed(question_text)
+            self._mistakes.save_embedding(mistake_id, vector, QwenEmbeddingProvider.MODEL)
+            logger.info("embedding 生成成功 mistake_id=%s", mistake_id)
+        except Exception as exc:
+            self._mistakes.mark_embedding_failed(mistake_id)
+            logger.warning("embedding 生成失敗 mistake_id=%s: %s", mistake_id, exc)
+
+    async def find_similar_mistakes(
+        self,
+        mistake_id: str,
+        student_username: str,
+        top_k: int = 5,
+    ) -> List[Dict]:
+        """
+        找出與指定錯題最相似的歷史錯題（基於 cosine 相似度）。
+        目標錯題尚未向量化時返回空列表。
+        """
+        target = self._mistakes.find_by_mistake_id(mistake_id)
+        if not target or target.get("embedding_status") != "done":
+            return []
+
+        target_vec = json.loads(target["embedding_vector"])
+        all_rows = self._mistakes.find_all_embeddings(student_username)
+
+        scored = []
+        for row in all_rows:
+            if row["mistake_id"] == mistake_id:
+                continue
+            sim = cosine_similarity(target_vec, row["embedding_vector"])
+            scored.append({
+                "mistake_id": row["mistake_id"],
+                "question_text": row.get("ocr_question_text", ""),
+                "subject": row.get("subject", ""),
+                "category": row.get("category", ""),
+                "similarity": round(sim, 4),
+            })
+
+        scored.sort(key=lambda x: x["similarity"], reverse=True)
+        return scored[:top_k]
 
     def add_manual_mistake(
         self,

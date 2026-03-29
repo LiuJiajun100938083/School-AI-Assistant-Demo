@@ -229,6 +229,41 @@ class MistakeRepository(BaseRepository):
         sql += "GROUP BY subject, error_type ORDER BY cnt DESC"
         return self.raw_query(sql, tuple(params))
 
+    # ---- Embedding 相關 ----
+
+    def save_embedding(self, mistake_id: str, vector: list, model: str) -> None:
+        """存儲向量，並將狀態標記為 done"""
+        self.update(
+            {
+                "embedding_vector": json.dumps(vector),
+                "embedding_model": model,
+                "embedding_status": "done",
+            },
+            "mistake_id = %s",
+            (mistake_id,),
+        )
+
+    def mark_embedding_failed(self, mistake_id: str) -> None:
+        """向量化失敗時標記狀態，便於排查"""
+        self.update(
+            {"embedding_status": "failed"},
+            "mistake_id = %s",
+            (mistake_id,),
+        )
+
+    def find_all_embeddings(self, student_username: str) -> List[Dict]:
+        """返回該學生所有已向量化的錯題（不含向量本身的 JSON 解析，由調用方決定）"""
+        rows = self.raw_query(
+            "SELECT mistake_id, embedding_vector, ocr_question_text, subject, category "
+            "FROM student_mistakes "
+            "WHERE student_username = %s AND embedding_status = 'done' AND is_deleted = FALSE",
+            (student_username,),
+        )
+        for row in rows:
+            if row.get("embedding_vector"):
+                row["embedding_vector"] = json.loads(row["embedding_vector"])
+        return rows
+
 
 class MistakeKnowledgeLinkRepository(BaseRepository):
     """錯題-知識點關聯 Repository"""

@@ -840,6 +840,21 @@ async def list_knowledge_points(
     return {"success": True, "data": points}
 
 
+@router.get("/api/mistakes/{mistake_id}/similar")
+async def get_similar_mistakes(
+    mistake_id: str,
+    top_k: int = Query(default=5, ge=1, le=20),
+    current_user=Depends(get_current_user),
+):
+    """返回與指定錯題最相似的 top-K 歷史錯題（基於 Qwen embedding 余弦相似度）"""
+    service = get_services().mistake_book
+    loop = asyncio.get_event_loop()
+    results = await service.find_similar_mistakes(
+        mistake_id, current_user["username"], top_k
+    )
+    return {"similar": results}
+
+
 @router.post("/api/admin/knowledge-points/seed")
 async def seed_knowledge_points(
     admin_info: Tuple[str, str] = Depends(require_admin),
