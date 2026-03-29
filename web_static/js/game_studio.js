@@ -230,7 +230,7 @@ const GameStudio = (() => {
                     return `<div class="gs-code-block">
                         <div class="gs-code-block__header">
                             <span class="gs-code-block__lang">${lang.toUpperCase()}</span>
-                            <button class="gs-code-block__copy" onclick="navigator.clipboard.writeText(this.closest('.gs-code-block').querySelector('code').textContent)">📋 複製</button>
+                            <button class="gs-code-block__copy" onclick="navigator.clipboard.writeText(this.closest('.gs-code-block').querySelector('code').textContent)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-1px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> 複製</button>
                         </div>
                         <pre><code class="hljs language-${lang}">${highlighted}</code></pre>
                     </div>`;
@@ -302,7 +302,7 @@ const GameStudio = (() => {
         formData.append('description', desc);
         formData.append('subject', subject);
         formData.append('html_content', state.code);
-        formData.append('icon', modal.querySelector('.icon-option.selected')?.dataset.icon || '🎮');
+        formData.append('icon', modal.querySelector('.icon-option.selected')?.dataset.icon || 'gamepad');
 
         // 收集年級
         const grades = [];

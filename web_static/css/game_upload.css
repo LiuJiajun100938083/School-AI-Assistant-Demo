@@ -430,11 +430,15 @@ body {
     display: flex; gap: 6px; flex-wrap: wrap;
 }
 .gs-form__icons .icon-option {
-    width: 36px; height: 36px;
+    width: 40px; height: 40px;
     display: flex; align-items: center; justify-content: center;
     border: 2px solid transparent;
     border-radius: 8px; cursor: pointer;
-    font-size: 20px; transition: all 0.15s;
+    transition: all 0.15s;
+    color: var(--gs-text-secondary);
+}
+.gs-form__icons .icon-option svg {
+    width: 22px; height: 22px;
 }
 .gs-form__icons .icon-option:hover { background: var(--gs-bg); }
 .gs-form__icons .icon-option.selected {
