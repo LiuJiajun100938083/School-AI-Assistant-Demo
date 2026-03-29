@@ -62,8 +62,11 @@ GAME_GENERATION_SYSTEM_PROMPT = """你是一個專業的教育遊戲開發助手
 - 不要使用 localStorage/sessionStorage
 
 ## 輸出格式
-直接輸出完整 HTML 代碼，用 ```html 包裹。不要輸出解釋或說明，只輸出代碼。
-如果用戶要求修改，輸出完整的修改後代碼（不要只輸出片段）。"""
+先輸出完整 HTML 代碼，用 ```html 包裹。
+然後另起一行輸出以下分隔符（必須準確輸出這一行，不加空格）：
+---GAMEPLAY---
+再輸出 3-5 點玩法介紹（• 開頭，說明遊戲目標和操作方法）。
+如果用戶要求修改，同樣輸出完整修改後代碼 + 新的玩法介紹。"""
 
 
 class GameUploadService:
@@ -836,6 +839,9 @@ class GameUploadService:
 
         if html:
             yield self._sse_event("code", {"html": html})
+            gameplay = self._extract_gameplay(full_response)
+            if gameplay:
+                yield self._sse_event("instructions", {"text": gameplay})
         else:
             yield self._sse_event("error", {"message": "未檢測到有效 HTML 代碼，請嘗試更明確的描述"})
 
@@ -877,6 +883,14 @@ class GameUploadService:
             return f'<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n{raw}\n</html>'
 
         return None
+
+    @staticmethod
+    def _extract_gameplay(raw: str) -> Optional[str]:
+        """從 AI 回覆中提取 ---GAMEPLAY--- 分隔符後的玩法介紹"""
+        idx = raw.find('---GAMEPLAY---')
+        if idx == -1:
+            return None
+        return raw[idx + len('---GAMEPLAY---'):].strip()
 
     @staticmethod
     def _trim_history(history: list, max_rounds: int = 6) -> list:

@@ -26,6 +26,10 @@ const GameStudio = (() => {
     };
 
     let _abortController = null;
+    let _progressTimer = null;
+    let _progressValue = 0;
+    let _streamBuffer = '';  // 串流累積文字（用於進度條代碼預覽）
+    let _progressEl = null;  // 進度條 DOM 元素（掛在 chatMessages 內）
 
     // ════════════════════════════════════════════════════
     // 狀態修改方法（所有 UI 變更都走這裡）
@@ -63,6 +67,60 @@ const GameStudio = (() => {
     // 核心業務：AI 生成
     // ════════════════════════════════════════════════════
 
+    function _showProgress() {
+        _progressValue = 5;
+        _progressEl = document.createElement('div');
+        _progressEl.className = 'gs-msg gs-msg--ai';
+        _progressEl.id = 'genProgress';
+        _progressEl.innerHTML = `
+            <span class="gs-msg__label">AI</span>
+            <div class="gs-msg__body">
+                <div class="gs-progress__label">
+                    <span>正在生成遊戲...</span>
+                    <span>預計約 20 秒</span>
+                </div>
+                <div class="gs-progress__bar-track">
+                    <div class="gs-progress__bar-fill" id="progressFill" style="width:5%"></div>
+                </div>
+                <div class="gs-progress__hint">AI 正在構建遊戲邏輯與介面</div>
+                <div class="gs-progress__code"><pre id="progressCodePre"></pre></div>
+            </div>`;
+        const container = document.getElementById('chatMessages');
+        if (container) {
+            container.appendChild(_progressEl);
+            container.scrollTop = container.scrollHeight;
+        }
+        clearInterval(_progressTimer);
+        _progressTimer = setInterval(() => {
+            _progressValue = Math.min(_progressValue + 2, 92);
+            const fill = document.getElementById('progressFill');
+            if (fill) fill.style.width = _progressValue + '%';
+        }, 1000);
+    }
+
+    function _hideProgress(success = true) {
+        clearInterval(_progressTimer);
+        _progressTimer = null;
+        if (!_progressEl) return;
+        if (success) {
+            const fill = _progressEl.querySelector('#progressFill');
+            if (fill) fill.style.width = '100%';
+            setTimeout(() => { _progressEl?.remove(); _progressEl = null; }, 500);
+        } else {
+            _progressEl.remove();
+            _progressEl = null;
+        }
+    }
+
+    function _updateProgressCode(text) {
+        if (!_progressEl) return;
+        const pre = _progressEl.querySelector('#progressCodePre');
+        if (!pre) return;
+        // 只顯示最後 18 行，讓底部永遠是最新的
+        const lines = text.split('\n');
+        pre.textContent = lines.slice(-18).join('\n');
+    }
+
     async function sendToAI(prompt) {
         if (!prompt.trim()) return;
 
@@ -73,10 +131,12 @@ const GameStudio = (() => {
 
         _abortController = new AbortController();
         state.generating = true;
+        state._gotInstructions = false;
+        _streamBuffer = '';
         _updateUI();
+        _showProgress();
 
         addMessage('user', prompt);
-        addMessage('assistant', '');  // 佔位，流式填充
 
         const token = localStorage.getItem('auth_token');
         const history = _buildHistory();
@@ -123,7 +183,11 @@ const GameStudio = (() => {
             }
 
         } catch (e) {
-            if (e.name === 'AbortError') return;
+            if (e.name === 'AbortError') {
+                _hideProgress(false);
+                return;
+            }
+            _hideProgress(false);
             addMessage('system', `生成失敗：${e.message}`);
         } finally {
             state.generating = false;
@@ -143,20 +207,31 @@ const GameStudio = (() => {
                 return;
             }
             if (data.content !== undefined) {
-                // chunk event — 追加到最後一條 assistant 消息
-                const lastMsg = state.messages[state.messages.length - 1];
-                if (lastMsg && lastMsg.role === 'assistant') {
-                    lastMsg.content += data.content;
-                    _renderLastMessage();
-                }
+                // chunk event — 更新進度條中的代碼預覽（不再單獨顯示 AI 氣泡）
+                _streamBuffer += data.content;
+                _updateProgressCode(_streamBuffer);
             }
             if (data.html !== undefined) {
-                // code event — 提取到的 HTML
+                // code event — 提取到的 HTML，更新預覽
                 setCode(data.html);
             }
-            if (data.message !== undefined && !data.content && !data.html && !data.phase) {
+            if (data.text !== undefined) {
+                // instructions event — 生成完成，顯示玩法介紹氣泡
+                state._gotInstructions = true;
+                _hideProgress(true);
+                addMessage('assistant', data.text);
+            }
+            if (data.message !== undefined && !data.content && !data.html && !data.phase && !data.text) {
                 // error event
+                _hideProgress(false);
                 addMessage('system', data.message);
+            }
+            // done event — 空對象 {}
+            if (Object.keys(data).length === 0) {
+                _hideProgress(true);
+                if (!state._gotInstructions && state.code) {
+                    addMessage('assistant', '遊戲已生成！請在右側查看預覽，滿意後點擊下方按鈕填寫資料並上傳。');
+                }
             }
         } catch {
             // 非 JSON，忽略
@@ -165,10 +240,22 @@ const GameStudio = (() => {
 
     function _buildHistory() {
         // 只取 user/assistant 消息，跳過 system
-        return state.messages
+        const history = state.messages
             .filter(m => m.role === 'user' || m.role === 'assistant')
             .filter(m => m.content.trim())
             .slice(-12);  // 最近 6 輪
+
+        // 如果已有生成代碼，注入為 system 上下文，讓 AI 基於此代碼修改
+        if (state.code) {
+            return [
+                {
+                    role: 'system',
+                    content: `當前遊戲代碼（請根據用戶要求修改此代碼，輸出完整修改後代碼 + 玩法介紹）：\n\`\`\`html\n${state.code}\n\`\`\``
+                },
+                ...history
+            ];
+        }
+        return history;
     }
 
     function stopGeneration() {
@@ -243,17 +330,19 @@ const GameStudio = (() => {
 
     function _renderMessages() {
         const container = document.getElementById('chatMessages');
-        container.innerHTML = state.messages.map((m, i) => {
+        container.innerHTML = state.messages.map(m => {
             const cls = m.role === 'user' ? 'gs-msg--user'
                       : m.role === 'assistant' ? 'gs-msg--ai'
                       : 'gs-msg--system';
             const label = m.role === 'user' ? '你' : m.role === 'assistant' ? 'AI' : '系統';
-            const body = _formatMessageContent(m.content) || (state.generating && i === state.messages.length - 1 ? '<span class="gs-typing">思考中...</span>' : '');
+            const body = _formatMessageContent(m.content);
             return `<div class="gs-msg ${cls}">
                 <span class="gs-msg__label">${label}</span>
                 <div class="gs-msg__body">${body}</div>
             </div>`;
         }).join('');
+        // 如果正在生成，把進度條氣泡重新掛到末尾（innerHTML 會清掉它）
+        if (_progressEl) container.appendChild(_progressEl);
         container.scrollTop = container.scrollHeight;
     }
 

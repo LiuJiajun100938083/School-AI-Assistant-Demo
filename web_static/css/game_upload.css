@@ -535,6 +535,72 @@ body {
 .gs-btn--secondary { background: var(--gs-bg); color: var(--gs-text); }
 .gs-btn:hover { opacity: 0.85; }
 
+/* ── Generation Progress Bar（在 AI 氣泡內） ── */
+#genProgress {
+    width: 88%;   /* 固定寬度，不隨代碼內容撐開 */
+}
+#genProgress .gs-msg__body {
+    width: 100%;
+    box-sizing: border-box;
+}
+.gs-progress__label {
+    font-size: 12px;
+    color: var(--gs-text-secondary);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.gs-progress__label span:first-child {
+    font-weight: 600;
+    color: var(--gs-brand);
+}
+.gs-progress__bar-track {
+    height: 6px;
+    background: var(--gs-bg);
+    border-radius: 99px;
+    overflow: hidden;
+}
+.gs-progress__bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a5b4fc);
+    border-radius: 99px;
+    transition: width 0.8s ease;
+    animation: gs-breathe 2s ease-in-out infinite;
+}
+@keyframes gs-breathe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+.gs-progress__hint {
+    font-size: 11px;
+    color: var(--gs-text-tertiary);
+    margin-top: 7px;
+}
+.gs-progress__code {
+    margin-top: 10px;
+    background: #1e1e2e;
+    border-radius: 8px;
+    padding: 10px 12px;
+    max-height: 110px;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 35%, black 75%);
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 35%, black 75%);
+}
+.gs-progress__code pre {
+    margin: 0;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #cdd6f4;
+    white-space: pre-wrap;   /* 超出寬度自動折行，不撐開氣泡 */
+    word-break: break-all;
+    overflow-x: hidden;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .gs-panels { flex-direction: column; }
