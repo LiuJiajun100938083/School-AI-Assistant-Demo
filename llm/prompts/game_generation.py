@@ -35,9 +35,27 @@ GAME_GENERATION_SYSTEM_PROMPT = """\
 - 操作直覺，學生無需說明即可上手
 
 ## 安全限制
-- 不要使用 fetch/XHR 請求外部 API
+- 不要使用 fetch/XHR 請求外部 API（但可以使用平台提供的 window.GameBridge）
 - 不要操作 window.top 或 window.parent
 - 不要使用 localStorage/sessionStorage
+
+## 分數提交（重要）
+平台會自動注入 window.GameBridge 物件，遊戲無需自行定義或引入。
+當遊戲有計分功能時，請在適當時機（遊戲結束、關卡完成等）調用：
+
+  GameBridge.submitScore(分數, 額外數據)
+  - 分數：整數（0-999999）
+  - 額外數據：可選物件，如 {level: 3, time: 120, accuracy: 0.85}
+  - 返回 Promise
+
+調用示例：
+  GameBridge.submitScore(1500, {level: 3, time: 90})
+    .then(function(res) { /* res.data.is_new_best */ });
+
+排行榜查詢（可用於在遊戲內顯示排行榜）：
+  GameBridge.getLeaderboard(10).then(function(res) { /* res.data = [{rank, student_name, score}] */ });
+
+注意：GameBridge 由平台自動提供，不要自行定義或 import。
 
 ## 輸出格式
 先輸出完整 HTML 代碼，用 ```html 包裹。

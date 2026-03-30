@@ -134,13 +134,15 @@ class GameUploadService:
     # ==================== 游戏热度 ====================
 
     def get_game_popularity(self) -> Dict[str, int]:
-        """统计各内置游戏的总游玩次数"""
+        """统计各游戏的总游玩次数（内置 + 自定义上传）"""
         game_tables = {
             'farm_game': 'farm_game_scores',
             'trade_game': 'trade_game_scores',
             'chemistry_2048': 'chem2048_scores',
         }
         result = {}
+
+        # 内置游戏
         for game_id, table in game_tables.items():
             try:
                 row = self._repo.raw_query_one(
@@ -149,6 +151,17 @@ class GameUploadService:
                 result[game_id] = row['cnt'] if row else 0
             except Exception:
                 result[game_id] = 0
+
+        # 自定义上传游戏（通用计分表）
+        try:
+            custom_rows = self._repo.raw_query(
+                "SELECT game_uuid, COUNT(*) as cnt FROM game_scores GROUP BY game_uuid"
+            )
+            for row in custom_rows:
+                result[row['game_uuid']] = row['cnt']
+        except Exception:
+            pass  # game_scores 表可能尚未建立
+
         return result
 
     # ==================== 查询游戏 ====================

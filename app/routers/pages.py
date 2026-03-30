@@ -585,6 +585,9 @@ async def serve_uploaded_game(game_uuid: str, raw: str = None):
         else:
             html_content = back_button_html + html_content
 
+        # 注入 GameBridge SDK（平台计分桥接，自动提供 window.GameBridge）
+        html_content = _inject_game_bridge_sdk(html_content, game_uuid)
+
         # 注入 lucide-react 图标 polyfill（修复缺失图标导致的 ReferenceError）
         html_content = _inject_lucide_polyfills(html_content)
 
@@ -596,6 +599,71 @@ async def serve_uploaded_game(game_uuid: str, raw: str = None):
 
     logger.warning(f"上传游戏文件不存在: {file_path}")
     return HTMLResponse(content="<h1>游戏未找到</h1>", status_code=404)
+
+
+# ============================================================
+# GameBridge SDK 注入（平台计分桥接）
+# ============================================================
+
+def _inject_game_bridge_sdk(html_content: str, game_uuid: str) -> str:
+    """在游戏 HTML 中注入 GameBridge SDK，提供 window.GameBridge API。"""
+    sdk_script = f"""
+<!-- GameBridge SDK（平台自动注入） -->
+<script>
+(function(){{
+  var uuid = "{game_uuid}";
+  function _headers() {{
+    var h = {{'Content-Type': 'application/json'}};
+    try {{
+      var t = localStorage.getItem('auth_token') || localStorage.getItem('token');
+      if (t) h['Authorization'] = 'Bearer ' + t;
+    }} catch(e) {{}}
+    return h;
+  }}
+  window.GameBridge = {{
+    submitScore: function(score, extraData) {{
+      return fetch('/api/game-scores/' + uuid + '/submit', {{
+        method: 'POST', headers: _headers(),
+        body: JSON.stringify({{ score: Math.round(score), extra_data: extraData || null }})
+      }}).then(function(r) {{ return r.json(); }});
+    }},
+    getLeaderboard: function(limit) {{
+      return fetch('/api/game-scores/' + uuid + '/leaderboard?limit=' + (limit || 10))
+        .then(function(r) {{ return r.json(); }});
+    }},
+    getMyScores: function() {{
+      return fetch('/api/game-scores/' + uuid + '/my-scores', {{ headers: _headers() }})
+        .then(function(r) {{ return r.json(); }});
+    }},
+    getSettings: function() {{
+      return fetch('/api/game-scores/' + uuid + '/settings')
+        .then(function(r) {{ return r.json(); }});
+    }}
+  }};
+}})();
+</script>
+"""
+    # 注入到 </head> 前（优先）或 <body> 后
+    if "</head>" in html_content.lower():
+        html_content = re.sub(
+            r"(</head>)",
+            sdk_script + r"\1",
+            html_content,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    elif "<body" in html_content.lower():
+        html_content = re.sub(
+            r"(<body[^>]*>)",
+            r"\1" + sdk_script,
+            html_content,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    else:
+        html_content = sdk_script + html_content
+
+    return html_content
 
 
 # lucide-react icon → emoji 映射（在 serve 时动态注入，修复已上传游戏的缺失图标）

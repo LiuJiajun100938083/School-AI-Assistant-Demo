@@ -97,6 +97,7 @@ from app.domains.resource_library.repository import (
 from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.farm_game.repository import FarmGameRepository
+from app.domains.game_score.repository import GameScoreRepository
 from app.domains.chem2048.repository import Chem2048Repository
 from app.domains.class_diary.repository import (
     ClassDiaryEntryRepository,
@@ -139,6 +140,7 @@ from app.domains.school_learning_center.service import SchoolLearningCenterServi
 from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
 from app.domains.farm_game.service import FarmGameService
+from app.domains.game_score.service import GameScoreService
 from app.domains.chem2048.service import Chem2048Service
 from app.domains.assignment.service import AssignmentService
 from app.domains.assignment.plagiarism_service import PlagiarismService
@@ -195,6 +197,7 @@ class ServiceContainer:
         self._game_upload: Optional[GameUploadService] = None
         self._trade_game: Optional[TradeGameService] = None
         self._farm_game: Optional[FarmGameService] = None
+        self._game_score: Optional[GameScoreService] = None
         self._chem2048: Optional[Chem2048Service] = None
         self._assignment: Optional[AssignmentService] = None
         self._plagiarism: Optional[PlagiarismService] = None
@@ -416,6 +419,16 @@ class ServiceContainer:
                 score_repo=self._get_repo(FarmGameRepository),
             )
         return self._farm_game
+
+    @property
+    def game_score(self) -> GameScoreService:
+        """自定義遊戲計分服務"""
+        if self._game_score is None:
+            self._game_score = GameScoreService(
+                score_repo=self._get_repo(GameScoreRepository),
+                game_repo=self._get_repo(GameUploadRepository),
+            )
+        return self._game_score
 
     @property
     def chem2048(self) -> Chem2048Service:
