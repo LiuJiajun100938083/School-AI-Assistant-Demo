@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 考卷出題</title>
+    <title data-i18n="ec.pageTitle">AI 考卷出題</title>
     <link rel="stylesheet" href="/static/css/exam_creator.css">
     <!-- KaTeX -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsxgraph@1.9.2/distrib/jsxgraph.css">
     <script src="https://cdn.jsdelivr.net/npm/jsxgraph@1.9.2/distrib/jsxgraphcore.js"></script>
     <script src="/static/js/shared/jsxgraph_renderer.js"></script>
+    <!-- i18n -->
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/exam_creator.js"></script>
 </head>
 <body>
 
@@ -22,13 +26,14 @@
     <!-- Top Bar -->
     <header class="topbar">
         <div class="topbar-left">
-            <a href="/" class="topbar-back" title="返回首頁">
+            <a href="/" class="topbar-back" data-i18n-title="ec.backTitle" title="返回首頁">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </a>
             <div class="topbar-divider"></div>
-            <h1 class="topbar-title">AI 考卷出題</h1>
+            <h1 class="topbar-title" data-i18n="ec.headerTitle">AI 考卷出題</h1>
         </div>
         <div class="topbar-actions">
+            <button class="lang-toggle-btn" onclick="i18n.toggle()" style="padding:4px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;margin-right:8px;">中/EN</button>
             <span class="user-badge" id="userBadge"></span>
         </div>
     </header>
@@ -39,34 +44,34 @@
         <aside class="config-panel" id="configPanel">
             <!-- Mode Toggle -->
             <div class="mode-toggle" id="modeToggle">
-                <button class="mode-btn active" data-mode="generate" onclick="ExamCreator.switchMode('generate')">AI 出題</button>
-                <button class="mode-btn" data-mode="similar" onclick="ExamCreator.switchMode('similar')">相似題生成</button>
-                <button class="mode-btn" data-mode="describe" onclick="ExamCreator.switchMode('describe')">描述出題</button>
+                <button class="mode-btn active" data-mode="generate" onclick="ExamCreator.switchMode('generate')" data-i18n="ec.modeAI">AI 出題</button>
+                <button class="mode-btn" data-mode="similar" onclick="ExamCreator.switchMode('similar')" data-i18n="ec.modeSimilar">相似題生成</button>
+                <button class="mode-btn" data-mode="describe" onclick="ExamCreator.switchMode('describe')" data-i18n="ec.modeDescribe">描述出題</button>
             </div>
 
             <!-- ========== Generate Mode Config ========== -->
             <div id="generateConfig">
-            <h2 class="panel-title">出題設定</h2>
+            <h2 class="panel-title" data-i18n="ec.panelTitle">出題設定</h2>
 
             <!-- Subject -->
             <div class="form-group">
-                <label>科目</label>
+                <label data-i18n="ec.labelSubject">科目</label>
                 <select id="subjectSelect">
-                    <option value="math">數學</option>
+                    <option value="math" data-i18n="subject.math">數學</option>
                 </select>
             </div>
 
             <!-- Knowledge Points -->
             <div class="form-group">
-                <label>知識點 <small class="text-muted" id="pointsCount">(載入中...)</small></label>
+                <label><span data-i18n="ec.labelKnowledge">知識點</span> <small class="text-muted" id="pointsCount" data-i18n="ec.hintLoading">(載入中...)</small></label>
                 <div class="points-list" id="pointsList">
-                    <div class="loading-text">載入知識點...</div>
+                    <div class="loading-text" data-i18n="ec.loadingKnowledge">載入知識點...</div>
                 </div>
             </div>
 
             <!-- Question Count -->
             <div class="form-group">
-                <label>題目數量</label>
+                <label data-i18n="ec.labelCount">題目數量</label>
                 <div class="range-group">
                     <input type="range" id="questionCount" min="1" max="5" value="5">
                     <span class="range-value" id="questionCountVal">5</span>
@@ -75,7 +80,7 @@
 
             <!-- Difficulty -->
             <div class="form-group">
-                <label>難度</label>
+                <label data-i18n="ec.labelDifficulty">難度</label>
                 <div class="difficulty-selector">
                     <button class="diff-btn" data-diff="1">1</button>
                     <button class="diff-btn" data-diff="2">2</button>
@@ -87,109 +92,109 @@
 
             <!-- Question Types -->
             <div class="form-group">
-                <label>題型</label>
+                <label data-i18n="ec.labelType">題型</label>
                 <div class="checkbox-group">
-                    <label class="checkbox-label"><input type="checkbox" value="multiple_choice"> 選擇題</label>
-                    <label class="checkbox-label"><input type="checkbox" value="short_answer" checked> 簡答題</label>
-                    <label class="checkbox-label"><input type="checkbox" value="long_answer"> 解答題</label>
-                    <label class="checkbox-label"><input type="checkbox" value="fill_blank"> 填空題</label>
+                    <label class="checkbox-label"><input type="checkbox" value="multiple_choice"> <span data-i18n="ec.typeChoice">選擇題</span></label>
+                    <label class="checkbox-label"><input type="checkbox" value="short_answer" checked> <span data-i18n="ec.typeShort">簡答題</span></label>
+                    <label class="checkbox-label"><input type="checkbox" value="long_answer"> <span data-i18n="ec.typeLong">解答題</span></label>
+                    <label class="checkbox-label"><input type="checkbox" value="fill_blank"> <span data-i18n="ec.typeFill">填空題</span></label>
                 </div>
             </div>
 
             <!-- Total Marks -->
             <div class="form-group">
-                <label>總分 <small class="text-muted">(選填)</small></label>
-                <input type="number" id="totalMarks" placeholder="自動分配" min="1" max="500">
+                <label><span data-i18n="ec.labelTotalMarks">總分</span> <small class="text-muted" data-i18n="ec.hintOptional">(選填)</small></label>
+                <input type="number" id="totalMarks" data-i18n-placeholder="ec.phAutoAllocate" placeholder="自動分配" min="1" max="500">
             </div>
 
             <!-- Exam Context -->
             <div class="form-group">
-                <label>考試場景 <small class="text-muted">(選填)</small></label>
-                <input type="text" id="examContext" placeholder="如：期中考試、單元測驗" maxlength="200">
+                <label><span data-i18n="ec.labelScenario">考試場景</span> <small class="text-muted" data-i18n="ec.hintOptional">(選填)</small></label>
+                <input type="text" id="examContext" data-i18n-placeholder="ec.phScenario" placeholder="如：期中考試、單元測驗" maxlength="200">
             </div>
 
             <!-- Provider Toggle -->
             <div class="form-group" id="providerToggleGroup">
-                <label>生成方式</label>
+                <label data-i18n="ec.labelProvider">生成方式</label>
                 <div class="provider-toggle" id="providerToggle">
                     <button class="provider-btn active" data-provider="local" onclick="ExamCreator.setProvider('local')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V5.25a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 5.25v13.5a2.25 2.25 0 002.25 2.25z"/></svg>
-                        本地生成
+                        <span data-i18n="ec.providerLocal">本地生成</span>
                     </button>
                     <button class="provider-btn" data-provider="deepseek" id="cloudProviderBtn" onclick="ExamCreator.setProvider('deepseek')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/></svg>
-                        雲端生成
+                        <span data-i18n="ec.providerCloud">雲端生成</span>
                     </button>
                 </div>
                 <div class="provider-hint" id="providerHint">
-                    <span id="providerHintText">速度穩定，校內可控</span>
+                    <span id="providerHintText" data-i18n="ec.providerLocalHint">速度穩定，校內可控</span>
                 </div>
             </div>
 
             <!-- Generate Button -->
             <button class="btn-generate" id="generateBtn" onclick="ExamCreator.generate()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                AI 生成試卷
+                <span data-i18n="ec.btnGenerate">AI 生成試卷</span>
             </button>
 
             <!-- History Button -->
             <button class="btn-history" id="historyBtn" onclick="ExamCreator.showHistory()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-                出題歷史
+                <span data-i18n="ec.btnHistory">出題歷史</span>
             </button>
             </div><!-- /generateConfig -->
 
             <!-- ========== Similar Mode Config (hidden by default) ========== -->
             <div id="similarConfig" style="display:none;">
-                <h2 class="panel-title">相似題生成</h2>
+                <h2 class="panel-title" data-i18n="ec.modeSimilar">相似題生成</h2>
 
                 <!-- Subject -->
                 <div class="form-group">
-                    <label>科目</label>
+                    <label data-i18n="ec.labelSubject">科目</label>
                     <select id="similarSubject">
-                        <option value="math">數學</option>
-                        <option value="physics">物理</option>
+                        <option value="math" data-i18n="subject.math">數學</option>
+                        <option value="physics" data-i18n="subject.physics">物理</option>
                     </select>
                 </div>
 
                 <!-- Input Method Toggle -->
                 <div class="form-group">
-                    <label>輸入方式</label>
+                    <label data-i18n="ec.labelInputMethod">輸入方式</label>
                     <div class="input-method-toggle">
-                        <button class="method-btn active" data-method="text" onclick="ExamCreator.switchInputMethod('text')">文字輸入</button>
-                        <button class="method-btn" data-method="image" onclick="ExamCreator.switchInputMethod('image')">圖片上傳</button>
+                        <button class="method-btn active" data-method="text" onclick="ExamCreator.switchInputMethod('text')" data-i18n="ec.sourceText">文字輸入</button>
+                        <button class="method-btn" data-method="image" onclick="ExamCreator.switchInputMethod('image')" data-i18n="ec.sourceImage">圖片上傳</button>
                     </div>
                 </div>
 
                 <!-- Text Input -->
                 <div class="form-group" id="similarTextInput">
-                    <label>原題內容 <small class="text-muted">(支援 LaTeX)</small></label>
-                    <textarea id="similarQuestionText" rows="6" placeholder="輸入或貼上原始題目文字...&#10;數學公式用 $...$ 或 $$...$$ 包裹"></textarea>
+                    <label><span data-i18n="ec.editQuestion">原題內容</span> <small class="text-muted" data-i18n="ec.hintLatex">(支援 LaTeX)</small></label>
+                    <textarea id="similarQuestionText" rows="6" data-i18n-placeholder="ec.phSimilarInput" placeholder="輸入或貼上原始題目文字...&#10;數學公式用 $...$ 或 $$...$$ 包裹"></textarea>
                 </div>
 
                 <!-- Image Upload -->
                 <div class="form-group" id="similarImageInput" style="display:none;">
-                    <label>上傳題目圖片</label>
+                    <label data-i18n="ec.labelSubject">上傳題目圖片</label>
                     <div class="upload-zone" id="uploadZone">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                             <polyline points="17 8 12 3 7 8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <p>拖曳圖片至此處或 <span class="upload-link">點擊上傳</span></p>
-                        <small class="text-muted">支援 JPG, PNG, HEIC（最大 10MB）</small>
+                        <p><span data-i18n="ec.uploadDrag">拖曳圖片至此處或</span> <span class="upload-link" data-i18n="ec.uploadClick">點擊上傳</span></p>
+                        <small class="text-muted" data-i18n="ec.uploadFormats">支援 JPG, PNG, HEIC（最大 10MB）</small>
                         <input type="file" id="similarImageFile" accept="image/*,.heic,.heif" style="display:none;">
                     </div>
                     <div class="upload-preview" id="uploadPreview" style="display:none;">
                         <img id="previewImg" alt="preview">
-                        <button class="btn-remove-preview" onclick="ExamCreator.removeUploadedImage()">✕ 移除</button>
+                        <button class="btn-remove-preview" onclick="ExamCreator.removeUploadedImage()" data-i18n="ec.uploadRemove">✕ 移除</button>
                     </div>
-                    <small class="text-muted" style="margin-top:4px;display:block;">點擊「生成相似題」後將自動識別圖片文字並生成</small>
+                    <small class="text-muted" style="margin-top:4px;display:block;" data-i18n="ec.uploadAutoOCR">點擊「生成相似題」後將自動識別圖片文字並生成</small>
                 </div>
 
                 <!-- Count -->
                 <div class="form-group">
-                    <label>生成數量</label>
+                    <label data-i18n="ec.labelGenCount">生成數量</label>
                     <div class="range-group">
                         <input type="range" id="similarCount" min="1" max="5" value="3">
                         <span class="range-value" id="similarCountVal">3</span>
@@ -199,40 +204,40 @@
                 <!-- Generate Button -->
                 <button class="btn-generate" id="similarGenerateBtn" onclick="ExamCreator.generateSimilar()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    生成相似題
+                    <span data-i18n="ec.btnSimilar">生成相似題</span>
                 </button>
 
                 <!-- History Button -->
                 <button class="btn-history" onclick="ExamCreator.showHistory()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-                    出題歷史
+                    <span data-i18n="ec.btnHistory">出題歷史</span>
                 </button>
             </div><!-- /similarConfig -->
 
             <!-- ========== Describe Mode Config (hidden by default) ========== -->
             <div id="describeConfig" style="display:none;">
-                <h2 class="panel-title">描述出題</h2>
+                <h2 class="panel-title" data-i18n="ec.modeDescribe">描述出題</h2>
 
                 <!-- Subject -->
                 <div class="form-group">
-                    <label>科目</label>
+                    <label data-i18n="ec.labelSubject">科目</label>
                     <select id="describeSubject">
-                        <option value="math">數學</option>
-                        <option value="physics">物理</option>
+                        <option value="math" data-i18n="subject.math">數學</option>
+                        <option value="physics" data-i18n="subject.physics">物理</option>
                     </select>
                 </div>
 
                 <!-- Description Input -->
                 <div class="form-group">
-                    <label>題目描述 <small class="text-muted">(描述想要的題目類型和條件)</small></label>
-                    <textarea id="describeText" rows="6" placeholder="描述你想要的題目，例如：&#10;• 圓O半徑5，弦AB長8，求弦心距&#10;• 直角三角形ABC，斜邊c=10，一直角邊a=6&#10;• 平行四邊形面積相關，難度3" maxlength="1000"></textarea>
+                    <label><span data-i18n="ec.labelDescription">題目描述</span> <small class="text-muted" data-i18n="ec.hintOptional">(描述想要的題目類型和條件)</small></label>
+                    <textarea id="describeText" rows="6" data-i18n-placeholder="ec.phDescribeInput" placeholder="描述你想要的題目，例如：&#10;• 圓O半徑5，弦AB長8，求弦心距&#10;• 直角三角形ABC，斜邊c=10，一直角邊a=6&#10;• 平行四邊形面積相關，難度3" maxlength="1000"></textarea>
                 </div>
 
                 <!-- Geometry Preview -->
                 <div class="form-group" id="describeGeoGroup">
                     <button class="btn-generate-geo" id="describeGeoBtn" onclick="ExamCreator.generateGeometry()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                        預覽幾何圖形
+                        <span data-i18n="ec.btnPreviewGeo">預覽幾何圖形</span>
                     </button>
                     <div id="geoPreview" style="display:none;">
                         <div id="geoPreviewBoard" style="width:280px;height:240px;margin:8px auto;"></div>
@@ -241,7 +246,7 @@
 
                 <!-- Count -->
                 <div class="form-group">
-                    <label>題目數量</label>
+                    <label data-i18n="ec.labelCount">題目數量</label>
                     <div class="range-group">
                         <input type="range" id="describeCount" min="1" max="5" value="3">
                         <span class="range-value" id="describeCountVal">3</span>
@@ -250,7 +255,7 @@
 
                 <!-- Difficulty -->
                 <div class="form-group">
-                    <label>難度</label>
+                    <label data-i18n="ec.labelDifficulty">難度</label>
                     <div class="difficulty-selector" id="describeDiffSelector">
                         <button class="diff-btn" data-diff="1">1</button>
                         <button class="diff-btn" data-diff="2">2</button>
@@ -263,13 +268,13 @@
                 <!-- Generate Button -->
                 <button class="btn-generate" id="describeGenerateBtn" onclick="ExamCreator.generateFromDescription()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    描述生成題目
+                    <span data-i18n="ec.btnDescribe">描述生成題目</span>
                 </button>
 
                 <!-- History Button -->
                 <button class="btn-history" onclick="ExamCreator.showHistory()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-                    出題歷史
+                    <span data-i18n="ec.btnHistory">出題歷史</span>
                 </button>
             </div><!-- /describeConfig -->
         </aside>
@@ -281,24 +286,24 @@
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
                     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                 </svg>
-                <h3>選擇知識點開始出題</h3>
-                <p>在左側配置出題參數，AI 將自動生成符合 DSE 風格的試卷</p>
+                <h3 data-i18n="ec.emptyTitle">選擇知識點開始出題</h3>
+                <p data-i18n="ec.emptyDesc">在左側配置出題參數，AI 將自動生成符合 DSE 風格的試卷</p>
             </div>
 
             <!-- Generating State (kept for direct polling fallback) -->
             <div class="generating-state" id="generatingState" style="display:none;">
                 <div class="spinner"></div>
-                <h3>AI 正在逐題出題...</h3>
-                <p>正在生成 <span id="genCount"></span> 道題目，每題獨立生成以確保品質</p>
+                <h3 data-i18n="ec.generating">AI 正在逐題出題...</h3>
+                <p><span data-i18n="ec.generatingDesc">正在生成 <span id="genCount"></span> 道題目，每題獨立生成以確保品質</span></p>
                 <div class="progress-container" style="margin:16px auto;max-width:320px;">
                     <div style="background:#e2e8f0;border-radius:8px;height:8px;overflow:hidden;">
                         <div id="progressBarFill" style="background:#3b82f6;height:100%;width:0%;transition:width 0.5s ease;border-radius:8px;"></div>
                     </div>
-                    <p id="progressText" style="margin-top:8px;font-size:15px;font-weight:500;color:#475569;">
+                    <p id="progressText" style="margin-top:8px;font-size:15px;font-weight:500;color:#475569;" data-i18n="ec.generatingReady">
                         準備中...
                     </p>
                 </div>
-                <p class="text-muted">每題約 10-20 秒</p>
+                <p class="text-muted" data-i18n="ec.generatingTime">每題約 10-20 秒</p>
             </div>
 
             <!-- Error State -->
@@ -306,20 +311,20 @@
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5">
                     <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
                 </svg>
-                <h3>生成失敗</h3>
+                <h3 data-i18n="ec.errorTitle">生成失敗</h3>
                 <p id="errorMessage"></p>
-                <button class="btn-retry" onclick="ExamCreator.retry()">重新嘗試</button>
+                <button class="btn-retry" onclick="ExamCreator.retry()" data-i18n="ec.errorRetry">重新嘗試</button>
             </div>
 
             <!-- Questions List (kept for legacy/direct view) -->
             <div class="questions-container" id="questionsContainer" style="display:none;">
                 <div class="questions-header">
-                    <h2>生成結果</h2>
+                    <h2 data-i18n="ec.resultsTitle">生成結果</h2>
                     <div class="questions-actions">
                         <span class="total-marks-badge" id="totalMarksBadge"></span>
                         <button class="btn-print" onclick="ExamCreator.printExam()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                            打印試卷
+                            <span data-i18n="ec.btnPrint">打印試卷</span>
                         </button>
                     </div>
                 </div>
@@ -329,15 +334,15 @@
             <!-- History View -->
             <div id="historyView" style="display:none;">
                 <div class="history-header">
-                    <h2>出題歷史</h2>
+                    <h2 data-i18n="ec.historyTitle">出題歷史</h2>
                 </div>
                 <div id="historyList"></div>
                 <div id="historyEmpty" class="empty-state" style="display:none;">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
                         <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/>
                     </svg>
-                    <h3>還沒有出過題目</h3>
-                    <p>點擊左側「AI 生成試卷」開始第一份試卷</p>
+                    <h3 data-i18n="ec.historyEmptyTitle">還沒有出過題目</h3>
+                    <p data-i18n="ec.historyEmptyDesc">點擊左側「AI 生成試卷」開始第一份試卷</p>
                 </div>
             </div>
 
@@ -346,13 +351,13 @@
                 <div class="detail-header">
                     <button class="btn-back" onclick="ExamCreator.showHistory()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-                        返回歷史
+                        <span data-i18n="ec.historyBack">返回歷史</span>
                     </button>
                     <div class="questions-actions">
                         <span class="total-marks-badge" id="detailMarksBadge"></span>
                         <button class="btn-print" onclick="ExamCreator.printExam()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                            打印試卷
+                            <span data-i18n="ec.btnPrint">打印試卷</span>
                         </button>
                     </div>
                 </div>
@@ -366,41 +371,41 @@
 <div class="modal-overlay" id="editModal" style="display:none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>編輯題目</h3>
+            <h3 data-i18n="ec.editTitle">編輯題目</h3>
             <button class="modal-close" onclick="ExamCreator.closeEditModal()">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label>題目</label>
+                <label data-i18n="ec.editQuestion">題目</label>
                 <textarea id="editQuestion" rows="5"></textarea>
             </div>
             <div class="form-group">
-                <label>答案</label>
+                <label data-i18n="ec.editAnswer">答案</label>
                 <textarea id="editAnswer" rows="4"></textarea>
             </div>
             <div class="form-group">
-                <label>評分準則</label>
+                <label data-i18n="ec.editRubric">評分準則</label>
                 <textarea id="editMarking" rows="3"></textarea>
             </div>
             <div class="form-group inline-group">
                 <div>
-                    <label>配分</label>
+                    <label data-i18n="ec.editMarks">配分</label>
                     <input type="number" id="editPoints" min="1" max="100">
                 </div>
                 <div>
-                    <label>題型</label>
+                    <label data-i18n="ec.editType">題型</label>
                     <select id="editType">
-                        <option value="short_answer">簡答題</option>
-                        <option value="multiple_choice">選擇題</option>
-                        <option value="long_answer">解答題</option>
-                        <option value="fill_blank">填空題</option>
+                        <option value="short_answer" data-i18n="ec.typeShort">簡答題</option>
+                        <option value="multiple_choice" data-i18n="ec.typeChoice">選擇題</option>
+                        <option value="long_answer" data-i18n="ec.typeLong">解答題</option>
+                        <option value="fill_blank" data-i18n="ec.typeFill">填空題</option>
                     </select>
                 </div>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn-secondary" onclick="ExamCreator.closeEditModal()">取消</button>
-            <button class="btn-primary" onclick="ExamCreator.saveEdit()">保存</button>
+            <button class="btn-secondary" onclick="ExamCreator.closeEditModal()" data-i18n="ec.editCancel">取消</button>
+            <button class="btn-primary" onclick="ExamCreator.saveEdit()" data-i18n="ec.editSave">保存</button>
         </div>
     </div>
 </div>
@@ -413,5 +418,14 @@
 <script src="/static/js/shared/ui.js"></script>
 <script src="/static/js/shared/api.js"></script>
 <script src="/static/js/exam_creator.js"></script>
+<script>
+    // Apply i18n translations after DOM load
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof i18n !== 'undefined' && i18n.applyDOM) {
+            i18n.applyDOM();
+            document.title = i18n.t('ec.pageTitle');
+        }
+    });
+</script>
 </body>
 </html>

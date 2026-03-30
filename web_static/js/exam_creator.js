@@ -214,14 +214,14 @@ const ExamCreator = (() => {
         renderKnowledgePoints(points) {
             const container = UI.$('pointsList');
             if (!points.length) {
-                container.innerHTML = '<div class="loading-text">暫無知識點數據</div>';
+                container.innerHTML = `<div class="loading-text">${i18n.t('ec.noKnowledge')}</div>`;
                 return;
             }
 
             // Group by category
             const groups = {};
             points.forEach(p => {
-                const cat = p.category || '其他';
+                const cat = p.category || i18n.t('ec.categoryOther');
                 if (!groups[cat]) groups[cat] = [];
                 groups[cat].push(p);
             });
@@ -238,7 +238,7 @@ const ExamCreator = (() => {
                 });
             }
             container.innerHTML = html;
-            UI.$('pointsCount').textContent = `(${points.length} 個)`;
+            UI.$('pointsCount').textContent = `(${i18n.t('ec.pointsCount', {count: points.length})})`;
         },
 
         /**
@@ -250,20 +250,20 @@ const ExamCreator = (() => {
             const container = UI.$(containerId);
             if (!container) return;
             if (!questions || !questions.length) {
-                container.innerHTML = '<div class="loading-text">無題目</div>';
+                container.innerHTML = `<div class="loading-text">${i18n.t('ec.noQuestion')}</div>`;
                 return;
             }
 
             let html = '';
             const typeLabels = {
-                multiple_choice: '選擇題', short_answer: '簡答題',
-                long_answer: '解答題', fill_blank: '填空題',
+                multiple_choice: i18n.t('ec.typeChoice'), short_answer: i18n.t('ec.typeShort'),
+                long_answer: i18n.t('ec.typeLong'), fill_blank: i18n.t('ec.typeFill'),
             };
 
             const pendingJsx = [];
 
             questions.forEach((q, i) => {
-                const typeLabel = typeLabels[q.question_type] || q.question_type || '題目';
+                const typeLabel = typeLabels[q.question_type] || q.question_type || i18n.t('ec.typeFallback');
                 const points = q.points || 0;
 
                 // JSXGraph 優先，SVG 其次
@@ -279,7 +279,7 @@ const ExamCreator = (() => {
                 const questionHtml = UI.renderMath(q.question || '');
                 const answerHtml = UI.renderMath(q.correct_answer || '');
                 const markingHtml = q.marking_scheme
-                    ? `<div class="marking-scheme"><strong>評分準則：</strong>${UI.renderMath(q.marking_scheme)}</div>`
+                    ? `<div class="marking-scheme"><strong>${i18n.t('ec.rubricLabel')}</strong>${UI.renderMath(q.marking_scheme)}</div>`
                     : '';
 
                 // Options for MC
@@ -298,17 +298,17 @@ const ExamCreator = (() => {
                     <div class="question-card-header">
                         <div class="question-meta">
                             <span class="question-number">Q${q.index || i + 1}</span>
-                            <span class="question-points-badge">${points} 分</span>
+                            <span class="question-points-badge">${i18n.t('ec.marksBadge', {points})}</span>
                             <span class="question-type-badge">${typeLabel}</span>
                         </div>
                         <div class="question-card-actions">
-                            <button class="card-action-btn" title="編輯" onclick="ExamCreator.openEditModal(${i})">
+                            <button class="card-action-btn" title="${i18n.t('ec.tipEdit')}" onclick="ExamCreator.openEditModal(${i})">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             </button>
-                            <button class="card-action-btn" title="重新生成" onclick="ExamCreator.regenerate(${i})">
+                            <button class="card-action-btn" title="${i18n.t('ec.tipRegen')}" onclick="ExamCreator.regenerate(${i})">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
                             </button>
-                            <button class="card-action-btn" title="導出 Word" onclick="ExamCreator.exportDocx(${i})">
+                            <button class="card-action-btn" title="${i18n.t('ec.tipExport')}" onclick="ExamCreator.exportDocx(${i})">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                             </button>
                         </div>
@@ -319,7 +319,7 @@ const ExamCreator = (() => {
                         ${optionsHtml}
                     </div>
                     <button class="answer-toggle" onclick="this.nextElementSibling.classList.toggle('show')">
-                        顯示/隱藏答案
+                        ${i18n.t('ec.toggleAnswer')}
                     </button>
                     <div class="answer-content">
                         <div>${answerHtml}</div>
@@ -386,13 +386,13 @@ const ExamCreator = (() => {
     // History — 歷史列表視圖
     // ================================================================
 
-    const SUBJECT_LABELS = { math: '數學', physics: '物理' };
-    const MODE_LABELS = { generate: 'AI 出題', similar: '相似題' };
-    const SOURCE_TYPE_LABELS = { text: '文字輸入', image: '圖片 OCR' };
+    const SUBJECT_LABELS = { math: () => i18n.t('subject.math'), physics: () => i18n.t('subject.physics') };
+    const MODE_LABELS = { generate: () => i18n.t('ec.modeLabelAI'), similar: () => i18n.t('ec.modeLabelSimilar') };
+    const SOURCE_TYPE_LABELS = { text: () => i18n.t('ec.sourceText'), image: () => i18n.t('ec.sourceImage') };
     const STATUS_CONFIG = {
-        generating:        { label: '生成中', cls: 'status-badge--generating' },
-        generated:         { label: '已完成', cls: 'status-badge--generated' },
-        generation_failed: { label: '失敗',   cls: 'status-badge--failed' },
+        generating:        { label: () => i18n.t('ec.statusGenerating'), cls: 'status-badge--generating' },
+        generated:         { label: () => i18n.t('ec.statusDone'), cls: 'status-badge--generated' },
+        generation_failed: { label: () => i18n.t('ec.statusFailed'),   cls: 'status-badge--failed' },
     };
 
     async function loadHistory() {
@@ -400,7 +400,7 @@ const ExamCreator = (() => {
         const emptyEl = UI.$('historyEmpty');
         if (!listEl) return;
 
-        listEl.innerHTML = '<div class="loading-text" style="text-align:center;padding:40px;color:#9ca3af;">載入歷史...</div>';
+        listEl.innerHTML = `<div class="loading-text" style="text-align:center;padding:40px;color:#9ca3af;">${i18n.t('ec.loadingHistory')}</div>`;
         if (emptyEl) emptyEl.style.display = 'none';
 
         try {
@@ -423,7 +423,7 @@ const ExamCreator = (() => {
             if (generating.length > 0) startHistoryPolling();
         } catch (e) {
             console.error('loadHistory failed:', e);
-            listEl.innerHTML = '<div class="loading-text" style="text-align:center;padding:40px;color:#ef4444;">載入失敗</div>';
+            listEl.innerHTML = `<div class="loading-text" style="text-align:center;padding:40px;color:#ef4444;">${i18n.t('ec.loadHistoryFail')}</div>`;
         }
     }
 
@@ -432,16 +432,20 @@ const ExamCreator = (() => {
 
         let html = '';
         items.forEach(item => {
-            const subjectLabel = SUBJECT_LABELS[item.subject] || item.subject || '未知';
-            const statusCfg = STATUS_CONFIG[item.status] || { label: item.status, cls: '' };
+            const _subjectFn = SUBJECT_LABELS[item.subject];
+            const subjectLabel = _subjectFn ? _subjectFn() : (item.subject || i18n.t('ec.subjectUnknown'));
+            const _statusCfg = STATUS_CONFIG[item.status];
+            const statusCfg = _statusCfg ? { label: _statusCfg.label(), cls: _statusCfg.cls } : { label: item.status, cls: '' };
             const dateStr = formatDate(item.created_at, true);
             const count = item.question_count || 0;
             const difficulty = item.difficulty || '-';
             const isClickable = item.status === 'generated';
 
             // Mode badge
-            const modeLabel = MODE_LABELS[item.mode] || MODE_LABELS.generate;
-            const sourceLabel = item.source_type ? SOURCE_TYPE_LABELS[item.source_type] : '';
+            const _modeFn = MODE_LABELS[item.mode] || MODE_LABELS.generate;
+            const modeLabel = _modeFn();
+            const _srcFn = item.source_type ? SOURCE_TYPE_LABELS[item.source_type] : null;
+            const sourceLabel = _srcFn ? _srcFn() : '';
             const modeBadgeText = sourceLabel ? `${modeLabel} · ${sourceLabel}` : modeLabel;
             const modeBadgeCls = item.mode === 'similar' ? 'mode-badge mode-badge--similar' : 'mode-badge';
 
@@ -465,15 +469,15 @@ const ExamCreator = (() => {
                         <span class="history-card__sep">·</span>
                         <span class="history-card__subject">${subjectLabel}</span>
                         <span class="history-card__sep">·</span>
-                        <span>${count} 題</span>
+                        <span>${i18n.t('ec.questionsCount', {count})}</span>
                         <span class="history-card__sep">·</span>
-                        <span>難度 ${difficulty}</span>
+                        <span>${i18n.t('ec.difficultyLabel', {diff: difficulty})}</span>
                         ${pointsText ? `<span class="history-card__sep">·</span><span class="history-card__points">${pointsText}</span>` : ''}
                     </div>
                     <div class="history-card__right">
                         <span class="status-badge ${statusCfg.cls}">${statusCfg.label}</span>
                         ${item.status !== 'generating' ? `
-                            <button class="btn-delete" title="刪除" onclick="event.stopPropagation(); ExamCreator.deleteSession('${item.session_id}')">
+                            <button class="btn-delete" title="${i18n.t('ec.tipDelete')}" onclick="event.stopPropagation(); ExamCreator.deleteSession('${item.session_id}')">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                             </button>` : ''}
                     </div>
@@ -491,7 +495,8 @@ const ExamCreator = (() => {
 
         const badge = card.querySelector('.status-badge');
         if (badge) {
-            const cfg = STATUS_CONFIG[newStatus] || { label: newStatus, cls: '' };
+            const _cfg = STATUS_CONFIG[newStatus];
+            const cfg = _cfg ? { label: _cfg.label(), cls: _cfg.cls } : { label: newStatus, cls: '' };
             badge.className = `status-badge ${cfg.cls}`;
             badge.textContent = cfg.label;
         }
@@ -503,7 +508,7 @@ const ExamCreator = (() => {
             const rightEl = card.querySelector('.history-card__right');
             if (rightEl && !rightEl.querySelector('.btn-delete')) {
                 rightEl.insertAdjacentHTML('beforeend', `
-                    <button class="btn-delete" title="刪除" onclick="event.stopPropagation(); ExamCreator.deleteSession('${sessionId}')">
+                    <button class="btn-delete" title="${i18n.t('ec.tipDelete')}" onclick="event.stopPropagation(); ExamCreator.deleteSession('${sessionId}')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                     </button>`);
             }
@@ -543,12 +548,12 @@ const ExamCreator = (() => {
                     updateCardStatus(sid, 'generated');
                     state.historyGeneratingIds = state.historyGeneratingIds.filter(id => id !== sid);
                     clearPendingSession();
-                    if (window.UIModule) UIModule.toast('試卷生成完成！', 'success');
+                    if (window.UIModule) UIModule.toast(i18n.t('ec.toastGenDone'), 'success');
                 } else if (status === 'generation_failed') {
                     updateCardStatus(sid, 'generation_failed');
                     state.historyGeneratingIds = state.historyGeneratingIds.filter(id => id !== sid);
                     clearPendingSession();
-                    if (window.UIModule) UIModule.toast('試卷生成失敗', 'error');
+                    if (window.UIModule) UIModule.toast(i18n.t('ec.toastGenFail'), 'error');
                 }
             } catch (e) {
                 console.warn('Poll generating item failed:', sid, e);
@@ -568,12 +573,12 @@ const ExamCreator = (() => {
 
         // 加載中
         const listEl = UI.$('detailQuestionsList');
-        if (listEl) listEl.innerHTML = '<div class="loading-text" style="text-align:center;padding:40px;">載入題目...</div>';
+        if (listEl) listEl.innerHTML = `<div class="loading-text" style="text-align:center;padding:40px;">${i18n.t('ec.toastLoadingQ')}</div>`;
 
         try {
             const resp = await API.getStatus(sessionId);
             if (!resp.success || !resp.data || !resp.data.questions) {
-                if (listEl) listEl.innerHTML = '<div class="loading-text" style="color:#ef4444;">無法載入題目</div>';
+                if (listEl) listEl.innerHTML = `<div class="loading-text" style="color:#ef4444;">${i18n.t('ec.toastLoadQFail')}</div>`;
                 return;
             }
 
@@ -583,13 +588,13 @@ const ExamCreator = (() => {
             // 更新總分
             const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
             const badge = UI.$('detailMarksBadge');
-            if (badge) badge.textContent = `總分 ${totalMarks} 分`;
+            if (badge) badge.textContent = i18n.t('ec.totalMarks', {marks: totalMarks});
 
             // 渲染題目
             Views.renderQuestionsInto('detailQuestionsList', state.questions);
         } catch (e) {
             console.error('showDetail failed:', e);
-            if (listEl) listEl.innerHTML = '<div class="loading-text" style="color:#ef4444;">載入失敗</div>';
+            if (listEl) listEl.innerHTML = `<div class="loading-text" style="color:#ef4444;">${i18n.t('ec.toastLoadFail')}</div>`;
         }
     }
 
@@ -660,7 +665,7 @@ const ExamCreator = (() => {
 
     function handleImageFile(file) {
         if (file.size > 10 * 1024 * 1024) {
-            if (window.UIModule) UIModule.toast('圖片大小超過 10MB 限制', 'warning');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.imageTooLarge'), 'warning');
             return;
         }
         state.uploadedFile = file;
@@ -700,12 +705,12 @@ const ExamCreator = (() => {
         const count = parseInt(UI.$('similarCount')?.value) || 3;
 
         const btn = UI.$('similarGenerateBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '正在處理...'; }
+        if (btn) { btn.disabled = true; btn.textContent = i18n.t('ec.processing'); }
 
         try {
             // 如果圖片模式且有上傳圖片，先 OCR 識別
             if (state.inputMethod === 'image' && state.uploadedFile) {
-                if (window.UIModule) UIModule.toast('正在識別圖片文字...', 'info');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.ocrProcessing'), 'info');
                 const formData = new FormData();
                 formData.append('image', state.uploadedFile);
                 formData.append('subject', subject);
@@ -723,13 +728,13 @@ const ExamCreator = (() => {
                         if (window.UIModule) UIModule.toast(ocrResp.data.warning, 'warning');
                     }
                 } else {
-                    if (window.UIModule) UIModule.toast(ocrResp.message || 'OCR 識別失敗，請手動輸入題目文字', 'error');
+                    if (window.UIModule) UIModule.toast(ocrResp.message || i18n.t('ec.ocrFail'), 'error');
                     return;
                 }
             }
 
             if (!questionText || questionText.length < 5) {
-                if (window.UIModule) UIModule.toast('請輸入至少 5 個字的題目文字', 'warning');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.validMinTextQ'), 'warning');
                 return;
             }
 
@@ -748,24 +753,24 @@ const ExamCreator = (() => {
             if (resp.success && resp.data) {
                 state.sessionId = resp.data.session_id;
                 savePendingSession(resp.data.session_id);
-                if (window.UIModule) UIModule.toast('相似題生成任務已啟動', 'success');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.similarStarted'), 'success');
                 // 顯示生成進度
                 const genCountEl = UI.$('genCount');
                 if (genCountEl) genCountEl.textContent = count;
                 showView('generating');
                 startPolling(count);
             } else {
-                if (window.UIModule) UIModule.toast('啟動失敗：' + (resp.message || ''), 'error');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.startFail') + (resp.message || ''), 'error');
             }
         } catch (e) {
             console.error('generateSimilar failed:', e);
-            if (window.UIModule) UIModule.toast('請求失敗', 'error');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.requestFail'), 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = `
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    生成相似題`;
+                    ${i18n.t('ec.btnSimilar')}`;
             }
         }
     }
@@ -780,7 +785,7 @@ const ExamCreator = (() => {
         const count = parseInt(UI.$('describeCount')?.value) || 3;
 
         if (!descText || descText.length < 5) {
-            if (window.UIModule) UIModule.toast('請輸入至少 5 個字的題目描述', 'warning');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.validMinTextD'), 'warning');
             return;
         }
 
@@ -790,7 +795,7 @@ const ExamCreator = (() => {
         if (activeBtn) difficulty = parseInt(activeBtn.dataset.diff) || 3;
 
         const btn = UI.$('describeGenerateBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '正在提交...'; }
+        if (btn) { btn.disabled = true; btn.textContent = i18n.t('ec.submitting'); }
 
         try {
             // 複用 AI 出題 API，description 作為 exam_context + geometry_description
@@ -807,23 +812,23 @@ const ExamCreator = (() => {
             if (resp.success && resp.data) {
                 state.sessionId = resp.data.session_id;
                 savePendingSession(resp.data.session_id);
-                if (window.UIModule) UIModule.toast('描述出題任務已啟動', 'success');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.describeStarted'), 'success');
                 const genCountEl = UI.$('genCount');
                 if (genCountEl) genCountEl.textContent = count;
                 showView('generating');
                 startPolling(count);
             } else {
-                if (window.UIModule) UIModule.toast('啟動失敗：' + (resp.message || ''), 'error');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.startFail') + (resp.message || ''), 'error');
             }
         } catch (e) {
             console.error('generateFromDescription failed:', e);
-            if (window.UIModule) UIModule.toast('請求失敗', 'error');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.requestFail'), 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = `
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    描述生成題目`;
+                    ${i18n.t('ec.btnDescribe')}`;
             }
         }
     }
@@ -841,8 +846,8 @@ const ExamCreator = (() => {
         const hint = UI.$('providerHintText');
         if (hint) {
             hint.textContent = provider === 'local'
-                ? '速度穩定，校內可控'
-                : '質量更高，需聯網';
+                ? i18n.t('ec.providerLocalHint')
+                : i18n.t('ec.providerCloudHint');
         }
     }
 
@@ -861,8 +866,8 @@ const ExamCreator = (() => {
                 if (!info.available) {
                     cloudBtn.disabled = true;
                     cloudBtn.title = info.reason === 'missing_api_key'
-                        ? '未配置 API Key（請聯繫管理員）'
-                        : '雲端不可用';
+                        ? i18n.t('ec.noApiKey')
+                        : i18n.t('ec.cloudUnavailable');
                     cloudBtn.style.opacity = '0.5';
                     cloudBtn.style.cursor = 'not-allowed';
                 } else {
@@ -977,18 +982,18 @@ const ExamCreator = (() => {
     }
 
     async function loadKnowledgePoints(subject) {
-        UI.$('pointsList').innerHTML = '<div class="loading-text">載入知識點...</div>';
+        UI.$('pointsList').innerHTML = `<div class="loading-text">${i18n.t('ec.loadingKnowledge')}</div>`;
         try {
             const resp = await API.getKnowledgePoints(subject);
             if (resp.success && resp.data) {
                 state.knowledgePoints = resp.data;
                 Views.renderKnowledgePoints(resp.data);
             } else {
-                UI.$('pointsList').innerHTML = '<div class="loading-text">載入失敗</div>';
+                UI.$('pointsList').innerHTML = `<div class="loading-text">${i18n.t('ec.loadKnowledgeFail')}</div>`;
             }
         } catch (e) {
             console.error('Failed to load knowledge points:', e);
-            UI.$('pointsList').innerHTML = '<div class="loading-text">載入失敗</div>';
+            UI.$('pointsList').innerHTML = `<div class="loading-text">${i18n.t('ec.loadKnowledgeFail')}</div>`;
         }
     }
 
@@ -1005,12 +1010,12 @@ const ExamCreator = (() => {
     async function generateGeometry() {
         const desc = (UI.$('describeText')?.value || '').trim();
         if (!desc) {
-            if (window.UIModule) UIModule.toast('請輸入幾何描述', 'warning');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.geoPlease'), 'warning');
             return;
         }
 
         const btn = UI.$('describeGeoBtn');
-        if (btn) { btn.disabled = true; btn.textContent = '生成中...'; }
+        if (btn) { btn.disabled = true; btn.textContent = i18n.t('ec.geoGenerating'); }
 
         try {
             const resp = await fetch('/api/exam-creator/generate-geometry', {
@@ -1031,19 +1036,19 @@ const ExamCreator = (() => {
                     } catch (_) {}
                     JSXGraphRenderer.render('geoPreviewBoard', result.data);
                 }
-                if (window.UIModule) UIModule.toast('幾何圖形已生成', 'success');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.geoDone'), 'success');
             } else {
-                if (window.UIModule) UIModule.toast(result.message || '生成失敗', 'error');
+                if (window.UIModule) UIModule.toast(result.message || i18n.t('ec.errorTitle'), 'error');
             }
         } catch (e) {
             console.error('generateGeometry failed:', e);
-            if (window.UIModule) UIModule.toast('請求失敗', 'error');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.requestFail'), 'error');
         } finally {
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = `
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                    預覽幾何圖形`;
+                    ${i18n.t('ec.btnPreviewGeo')}`;
             }
         }
     }
@@ -1068,23 +1073,22 @@ const ExamCreator = (() => {
 
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
-                if (window.UIModule) UIModule.toast(err.message || 'DOCX 導出失敗', 'error');
+                if (window.UIModule) UIModule.toast(err.message || i18n.t('ec.exportFail'), 'error');
                 return;
             }
 
-            // 觸發下載
             const blob = await resp.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `題目${index + 1}.docx`;
+            a.download = i18n.t('ec.exportFilename', {index: index + 1});
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (e) {
             console.error('exportDocx failed:', e);
-            if (window.UIModule) UIModule.toast('導出失敗', 'error');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.exportError'), 'error');
         }
     }
 
@@ -1113,7 +1117,7 @@ const ExamCreator = (() => {
         // Disable button
         const btn = UI.$('generateBtn');
         btn.disabled = true;
-        btn.textContent = '正在提交...';
+        btn.textContent = i18n.t('ec.submitting');
 
         try {
             const resp = await API.generate({
@@ -1131,7 +1135,7 @@ const ExamCreator = (() => {
             if (resp.success && resp.data) {
                 state.sessionId = resp.data.session_id;
                 savePendingSession(resp.data.session_id);
-                if (window.UIModule) UIModule.toast('試卷已開始生成', 'success');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.examStarted'), 'success');
                 // 顯示生成進度
                 const count = parseInt(UI.$('questionCount').value) || 5;
                 const genCountEl = UI.$('genCount');
@@ -1140,23 +1144,23 @@ const ExamCreator = (() => {
                 startPolling(count);
             } else {
                 if (window.UIModule) {
-                    UIModule.toast('啟動失敗：' + (resp.message || '未知錯誤'), 'error');
+                    UIModule.toast(i18n.t('ec.startFail') + (resp.message || ''), 'error');
                 } else {
-                    alert('啟動失敗：' + (resp.message || '未知錯誤'));
+                    alert(i18n.t('ec.startFail') + (resp.message || ''));
                 }
             }
         } catch (e) {
             console.error('Generate failed:', e);
             if (window.UIModule) {
-                UIModule.toast('請求失敗，請檢查網路連線', 'error');
+                UIModule.toast(i18n.t('ec.networkError'), 'error');
             } else {
-                alert('請求失敗，請檢查網路連線');
+                alert(i18n.t('ec.networkError'));
             }
         } finally {
             btn.disabled = false;
             btn.innerHTML = `
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                AI 生成試卷`;
+                ${i18n.t('ec.btnGenerate')}`;
         }
     }
 
@@ -1170,7 +1174,7 @@ const ExamCreator = (() => {
             const bar = UI.$('progressBarFill');
             const text = UI.$('progressText');
             if (bar) bar.style.width = pct + '%';
-            if (text) text.textContent = `已完成 ${completed} / ${total} 題`;
+            if (text) text.textContent = i18n.t('ec.progressDone', {done: completed, total});
         }
 
         function poll() {
@@ -1193,13 +1197,13 @@ const ExamCreator = (() => {
                         // 更新總分
                         const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
                         const badge = UI.$('detailMarksBadge');
-                        if (badge) badge.textContent = `總分 ${totalMarks} 分`;
+                        if (badge) badge.textContent = i18n.t('ec.totalMarks', {marks: totalMarks});
                         Views.renderQuestionsInto('detailQuestionsList', state.questions);
-                        if (window.UIModule) UIModule.toast('題目生成完成！', 'success');
+                        if (window.UIModule) UIModule.toast(i18n.t('ec.allDone'), 'success');
                     }, 500);
                 } else if (data.status === 'generation_failed') {
                     clearPendingSession();
-                    UI.$('errorMessage').textContent = data.error_message || '生成過程出錯';
+                    UI.$('errorMessage').textContent = data.error_message || i18n.t('ec.genError');
                     Views.showState('errorState');
                 } else {
                     const completed = data.completed_count || 0;
@@ -1234,9 +1238,9 @@ const ExamCreator = (() => {
 
     async function deleteSession(sessionId) {
         if (!window.UIModule) {
-            if (!confirm('確定要刪除這份試卷嗎？')) return;
+            if (!confirm(i18n.t('ec.confirmDelete'))) return;
         } else {
-            const ok = await UIModule.confirm('確定要刪除這份試卷嗎？');
+            const ok = await UIModule.confirm(i18n.t('ec.confirmDelete'));
             if (!ok) return;
         }
 
@@ -1255,13 +1259,13 @@ const ExamCreator = (() => {
                     card.style.transform = 'translateX(20px)';
                     setTimeout(() => card.remove(), 300);
                 }
-                if (window.UIModule) UIModule.toast('已刪除', 'info');
+                if (window.UIModule) UIModule.toast(i18n.t('ec.deleted'), 'info');
             } else {
-                if (window.UIModule) UIModule.toast(result.message || '刪除失敗', 'error');
+                if (window.UIModule) UIModule.toast(result.message || i18n.t('ec.deleteFail'), 'error');
             }
         } catch (e) {
             console.error('Delete failed:', e);
-            if (window.UIModule) UIModule.toast('刪除失敗', 'error');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.deleteFail'), 'error');
         }
     }
 
@@ -1308,16 +1312,16 @@ const ExamCreator = (() => {
                 const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
                 const badgeId = state.view === 'detail' ? 'detailMarksBadge' : 'totalMarksBadge';
                 const badge = UI.$(badgeId);
-                if (badge) badge.textContent = `總分 ${totalMarks} 分`;
+                if (badge) badge.textContent = i18n.t('ec.totalMarks', {marks: totalMarks});
                 closeEditModal();
             } else {
-                if (window.UIModule) UIModule.toast('保存失敗：' + (resp.message || ''), 'error');
-                else alert('保存失敗：' + (resp.message || ''));
+                if (window.UIModule) UIModule.toast(i18n.t('ec.saveFail') + '：' + (resp.message || ''), 'error');
+                else alert(i18n.t('ec.saveFail') + '：' + (resp.message || ''));
             }
         } catch (e) {
             console.error('Save edit failed:', e);
-            if (window.UIModule) UIModule.toast('保存失敗', 'error');
-            else alert('保存失敗');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.saveFail'), 'error');
+            else alert(i18n.t('ec.saveFail'));
         }
     }
 
@@ -1336,16 +1340,16 @@ const ExamCreator = (() => {
                 const totalMarks = state.questions.reduce((sum, q) => sum + (q.points || 0), 0);
                 const badgeId = state.view === 'detail' ? 'detailMarksBadge' : 'totalMarksBadge';
                 const badge = UI.$(badgeId);
-                if (badge) badge.textContent = `總分 ${totalMarks} 分`;
+                if (badge) badge.textContent = i18n.t('ec.totalMarks', {marks: totalMarks});
             } else {
-                if (window.UIModule) UIModule.toast('重新生成失敗：' + (resp.message || ''), 'error');
-                else alert('重新生成失敗：' + (resp.message || ''));
+                if (window.UIModule) UIModule.toast(i18n.t('ec.regenFail') + '：' + (resp.message || ''), 'error');
+                else alert(i18n.t('ec.regenFail') + '：' + (resp.message || ''));
                 if (card) card.classList.remove('regenerating');
             }
         } catch (e) {
             console.error('Regenerate failed:', e);
-            if (window.UIModule) UIModule.toast('重新生成失敗', 'error');
-            else alert('重新生成失敗');
+            if (window.UIModule) UIModule.toast(i18n.t('ec.regenFail'), 'error');
+            else alert(i18n.t('ec.regenFail'));
             if (card) card.classList.remove('regenerating');
         }
     }
