@@ -774,6 +774,19 @@ const GameCenterApp = {
             this._handleSubjectChange(pill);
         });
 
+        // Pill chips 橫向滾動：檢測是否滾到底，控制右側漸隱遮罩
+        const pillsWrapper = this.elements.subjectPills.closest('.gc-pills-wrapper');
+        if (pillsWrapper) {
+            const checkScrollEnd = () => {
+                const el = this.elements.subjectPills;
+                const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8;
+                pillsWrapper.classList.toggle('scrolled-end', atEnd);
+            };
+            this.elements.subjectPills.addEventListener('scroll', checkScrollEnd, { passive: true });
+            // 初次檢查（科目少時不需要遮罩）
+            setTimeout(checkScrollEnd, 100);
+        }
+
         // 搜索
         if (this.elements.searchInput) {
             const debouncedSearch = Utils.debounce((value) => {
