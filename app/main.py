@@ -46,6 +46,63 @@ from app.infrastructure.database.pool import close_database_pool
 logger = logging.getLogger(__name__)
 
 
+# ====================================================================== #
+#  啟動安全自檢                                                           #
+# ====================================================================== #
+
+def _secure_key_files(settings) -> None:
+    """
+    檢查並修復密鑰文件權限為 600（僅所有者可讀寫）。
+
+    Phase 1 安全加固：啟動時補救措施。
+    生產環境應通過 CI/CD 或部署腳本保證密鑰權限。
+
+    - 只在 Linux/macOS 上執行（Windows chmod 語義不同）
+    - 跳過符號連結（避免意外修改目標文件）
+    - 完整日誌記錄每個文件的處理結果
+    """
+    import platform
+    import stat
+    from pathlib import Path
+
+    if platform.system() == "Windows":
+        logger.info("[安全自檢] Windows 環境，跳過密鑰權限檢查（請用 ACL 管理）")
+        return
+
+    key_files = [
+        settings.private_key_file if hasattr(settings, "private_key_file") else "private_key.pem",
+        settings.encryption_key_file if hasattr(settings, "encryption_key_file") else ".encryption_key",
+        "jwt_secret.key",
+    ]
+    base_dir = Path(settings.base_dir) if hasattr(settings, "base_dir") else Path(".")
+
+    for filename in key_files:
+        path = base_dir / filename
+        if not path.exists():
+            logger.debug("[安全自檢] 密鑰文件不存在，跳過: %s", filename)
+            continue
+
+        if path.is_symlink():
+            logger.warning("[安全自檢] 密鑰文件是符號連結，跳過自動修復: %s", filename)
+            continue
+
+        if not path.is_file():
+            logger.warning("[安全自檢] 密鑰路徑不是普通文件，跳過: %s", filename)
+            continue
+
+        mode = stat.S_IMODE(path.stat().st_mode)
+        if mode != 0o600:
+            try:
+                path.chmod(0o600)
+                logger.warning(
+                    "[安全自檢] 已修復密鑰文件權限: %s (%04o → 0600)", filename, mode
+                )
+            except OSError as e:
+                logger.error("[安全自檢] 修復密鑰文件權限失敗: %s → %s", filename, e)
+        else:
+            logger.info("[安全自檢] 密鑰文件權限正常: %s (0600)", filename)
+
+
 def create_app() -> FastAPI:
     """
     应用工厂函数
@@ -76,6 +133,14 @@ def create_app() -> FastAPI:
     )
 
     # 4. 注册中间件
+    # 全局 API 限流（Phase 1：單進程內存版）
+    if settings.rate_limit_enabled:
+        from app.core.rate_limiter import RateLimitMiddleware
+        app.add_middleware(
+            RateLimitMiddleware,
+            rules=settings.rate_limit_rules,
+            enabled=True,
+        )
     # CORS
     app.add_middleware(
         CORSMiddleware,
@@ -104,6 +169,9 @@ def create_app() -> FastAPI:
         logger.info(f"  环境: {settings.environment}")
         logger.info(f"  端口: {settings.server_port}")
         logger.info("=" * 60)
+
+        # 密钥文件权限自检（Phase 1 安全加固）
+        _secure_key_files(settings)
 
         # 初始化数据库连接池
         try:

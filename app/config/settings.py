@@ -203,6 +203,18 @@ class ServerSettings(BaseSettings):
     cors_allow_methods: List[str] = Field(default=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
     cors_allow_headers: List[str] = Field(default=["*"])
 
+    # 全局 API 限流（Phase 1：單進程內存版，workers=1 有效）
+    # 規則按順序匹配，命中第一條即停止。pattern 為正則表達式。
+    rate_limit_enabled: bool = Field(default=True, description="是否啟用全局 API 限流")
+    rate_limit_rules: list = Field(default=[
+        {"pattern": "^/api/(login|register|secure-login)", "max_requests": 10, "window": 60},
+        {"pattern": "^/api/games/ai/", "max_requests": 5, "window": 60},
+        {"pattern": "^/api/games/upload", "max_requests": 10, "window": 60},
+        {"pattern": "^/api/mistakes/practice", "max_requests": 10, "window": 60},
+        {"pattern": "^/api/admin/", "max_requests": 60, "window": 60},
+        {"pattern": "^/api/", "max_requests": 60, "window": 60},
+    ], description="限流規則列表（先具體後通用，命中即停）")
+
     # Ngrok (可选)
     ngrok_domain: Optional[str] = Field(default=None)
 
