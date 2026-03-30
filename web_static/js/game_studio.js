@@ -382,6 +382,14 @@ const GameStudio = (() => {
 
     function _formatMessageContent(text) {
         if (!text) return '';
+
+        // 有 marked + DOMPurify 時使用 markdown 渲染
+        if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+            const raw = marked.parse(text, { breaks: true, gfm: true });
+            return DOMPurify.sanitize(raw);
+        }
+
+        // 降級：手動處理代碼塊 + 轉義
         const parts = text.split(/(```[\s\S]*?```)/g);
         return parts.map(part => {
             if (part.startsWith('```')) {
