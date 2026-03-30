@@ -205,6 +205,22 @@ const GameStudio = (() => {
 
         addMessage('user', prompt);
 
+        // 收縮歡迎提示（首次發送時觸發動畫）
+        if (!state._welcomeCollapsed) {
+            state._welcomeCollapsed = true;
+            const el = document.getElementById('gsWelcome');
+            if (el) {
+                const details = el.querySelector('.gs-welcome__details');
+                if (details) {
+                    details.style.maxHeight = details.scrollHeight + 'px';
+                    requestAnimationFrame(() => {
+                        el.classList.add('gs-welcome--collapsed');
+                        details.style.maxHeight = '0';
+                    });
+                }
+            }
+        }
+
         // 使用 AuthModule 獲取 token（復用項目認證基礎設施）
         const token = typeof AuthModule !== 'undefined'
             ? AuthModule.getToken()
@@ -398,12 +414,25 @@ const GameStudio = (() => {
 
     function _renderMessages() {
         const container = document.getElementById('chatMessages');
-        container.innerHTML = state.messages.map(m => {
+        container.innerHTML = state.messages.map((m, idx) => {
             const cls = m.role === 'user' ? 'gs-msg--user'
                       : m.role === 'assistant' ? 'gs-msg--ai'
                       : 'gs-msg--system';
             const label = m.role === 'user' ? '你' : m.role === 'assistant' ? 'AI' : '系統';
             const body = _formatMessageContent(m.content);
+
+            // 歡迎消息：首條 system 消息，支持收縮
+            if (idx === 0 && m.role === 'system' && !state.editUUID) {
+                const lines = m.content.split('\n');
+                const title = _escapeHtml(lines[0]);
+                const details = _formatMessageContent(lines.slice(1).join('\n'));
+                const collapsed = state._welcomeCollapsed ? ' gs-welcome--collapsed' : '';
+                return `<div class="gs-msg ${cls} gs-welcome${collapsed}" id="gsWelcome">
+                    <div class="gs-welcome__title">${title}</div>
+                    <div class="gs-welcome__details">${details}</div>
+                </div>`;
+            }
+
             return `<div class="gs-msg ${cls}">
                 <span class="gs-msg__label">${label}</span>
                 <div class="gs-msg__body">${body}</div>

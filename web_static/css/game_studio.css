@@ -158,6 +158,32 @@
 }
 .gs-msg--system .gs-msg__label { display: none; }
 
+/* 歡迎消息收縮動畫 */
+.gs-welcome {
+    text-align: left;
+    max-width: 90%;
+}
+.gs-welcome__title {
+    font-weight: 600;
+    text-align: center;
+}
+.gs-welcome__details {
+    margin-top: 8px;
+    text-align: left;
+    overflow: hidden;
+    transition: max-height 0.4s ease, opacity 0.3s ease, margin-top 0.3s ease;
+    opacity: 1;
+}
+.gs-welcome--collapsed .gs-welcome__details {
+    max-height: 0 !important;
+    opacity: 0;
+    margin-top: 0;
+}
+.gs-welcome--collapsed {
+    text-align: center;
+    max-width: fit-content;
+}
+
 /* 代碼塊（深色背景 + 語法高亮） */
 .gs-code-block {
     margin: 8px 0;
