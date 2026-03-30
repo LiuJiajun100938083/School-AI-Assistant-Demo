@@ -173,9 +173,29 @@ GameBridge.getLeaderboard(10).then(function(res) {
 });
 ```
 
-### 重要提醒
-- GameBridge 由平台自動注入，你不需要定義它，不需要 import 它，直接用 window.GameBridge 即可
-- 如果遊戲不需要計分，以上所有步驟全部跳過，一行 GameBridge 代碼都不要寫
+### 常見錯誤（必須避免）
+
+1. 不要自己定義 GameBridge
+   GameBridge 由平台自動注入，不需要定義它，不需要 import 它。
+   絕對不要寫 `window.GameBridge = window.GameBridge || { ... }` 這種 fallback 模擬代碼。
+   如果 GameBridge 不存在，說明遊戲不在平台上運行，跳過計分即可：
+   ```js
+   if (typeof GameBridge !== 'undefined') {
+     GameBridge.submitScore(score, data);
+   }
+   ```
+
+2. 不要在 HTML 裡寫假的排行榜數據
+   排行榜區域的初始 HTML 應該是空的或顯示「載入中...」，由 JS 動態從 getLeaderboard() 獲取真實數據填充。
+   絕對不要在 HTML 裡硬編碼「王小明 95分」這種假數據。
+
+3. 根據次數限制控制「重新開始」按鈕
+   - 如果只能玩一次（allow_multiple_plays=false）→ 不要顯示「重新開始」或「再試一次」按鈕
+   - 如果有次數上限且已用完 → 不要顯示重玩按鈕
+   - 只有在還有剩餘次數時，才顯示重玩按鈕
+   不要讓學生能重玩卻無法提交分數，這會造成困惑。
+
+4. 如果遊戲不需要計分，以上所有步驟全部跳過，一行 GameBridge 代碼都不要寫
 
 ## 輸出格式
 先輸出完整 HTML 代碼，用 ```html 包裹。
