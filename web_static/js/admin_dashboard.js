@@ -3673,13 +3673,13 @@ function renderAiUsageRecent(records) {
         chat: '聊天',
     };
 
-    let html = '<table style="width:100%;border-collapse:collapse;">';
+    let html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">';
     html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
-    html += '<th style="text-align:left;padding:6px 4px;">時間</th>';
-    html += '<th style="text-align:left;padding:6px 4px;">用途</th>';
-    html += '<th style="text-align:left;padding:6px 4px;">模型</th>';
-    html += '<th style="text-align:right;padding:6px 4px;">Tokens</th>';
-    html += '<th style="text-align:right;padding:6px 4px;">耗時</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:25%;">時間</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:22%;">用途</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:22%;">模型</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:18%;">Tokens</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:13%;">耗時</th>';
     html += '</tr></thead><tbody>';
 
     records.forEach(r => {
