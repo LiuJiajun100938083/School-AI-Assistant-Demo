@@ -98,6 +98,7 @@ from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.farm_game.repository import FarmGameRepository
 from app.domains.game_score.repository import GameScoreRepository
+from app.domains.llm_usage.repository import LlmUsageRepository
 from app.domains.chem2048.repository import Chem2048Repository
 from app.domains.class_diary.repository import (
     ClassDiaryEntryRepository,
@@ -141,6 +142,7 @@ from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
 from app.domains.farm_game.service import FarmGameService
 from app.domains.game_score.service import GameScoreService
+from app.domains.llm_usage.service import LlmUsageService
 from app.domains.chem2048.service import Chem2048Service
 from app.domains.assignment.service import AssignmentService
 from app.domains.assignment.plagiarism_service import PlagiarismService
@@ -198,6 +200,7 @@ class ServiceContainer:
         self._trade_game: Optional[TradeGameService] = None
         self._farm_game: Optional[FarmGameService] = None
         self._game_score: Optional[GameScoreService] = None
+        self._llm_usage: Optional[LlmUsageService] = None
         self._chem2048: Optional[Chem2048Service] = None
         self._assignment: Optional[AssignmentService] = None
         self._plagiarism: Optional[PlagiarismService] = None
@@ -429,6 +432,15 @@ class ServiceContainer:
                 game_repo=self._get_repo(GameUploadRepository),
             )
         return self._game_score
+
+    @property
+    def llm_usage(self) -> LlmUsageService:
+        """LLM API 使用量追蹤服務"""
+        if self._llm_usage is None:
+            self._llm_usage = LlmUsageService(
+                repo=self._get_repo(LlmUsageRepository),
+            )
+        return self._llm_usage
 
     @property
     def chem2048(self) -> Chem2048Service:

@@ -609,6 +609,13 @@ def _register_optional_routers(app: FastAPI) -> None:
     except Exception as e:
         logger.warning("自定義遊戲計分系統初始化失敗: %s", e)
 
+    # 初始化 LLM API 使用量追蹤系統
+    try:
+        from app.services.container import get_services
+        get_services().llm_usage.init_system()
+    except Exception as e:
+        logger.warning("LLM API 使用量系統初始化失敗: %s", e)
+
     # 初始化化學 2048 系統
     try:
         from app.routers.chem2048 import init_chem2048_system

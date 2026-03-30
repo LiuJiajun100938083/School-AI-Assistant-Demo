@@ -795,6 +795,10 @@ class GameUploadService:
 
         # 流式調用 LLM API（復用 config 的 api_base_url + api_key，模型使用遊戲生成專用）
         full_response = ""
+        stream_usage = {}
+        import time as _time
+        _stream_start = _time.time()
+
         try:
             url = f"{config.api_base_url}/chat/completions"
             headers = {
@@ -807,6 +811,7 @@ class GameUploadService:
                 "messages": messages,
                 "max_tokens": GAME_GENERATION_MAX_TOKENS,
                 "stream": True,
+                "stream_options": {"include_usage": True},
             }
 
             async with httpx.AsyncClient() as client:
@@ -830,6 +835,12 @@ class GameUploadService:
                             break
                         try:
                             chunk = json.loads(data_str)
+
+                            # 捕獲流式回應中的 usage（通常在最後一個 chunk）
+                            chunk_usage = chunk.get("usage")
+                            if chunk_usage:
+                                stream_usage = chunk_usage
+
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
                             # deepseek-reasoner: reasoning_content 先到，content 後到
                             reasoning = delta.get("reasoning_content", "")
@@ -846,6 +857,20 @@ class GameUploadService:
             logger.error("AI 遊戲生成失敗: %s", e)
             yield self._sse_event("error", {"message": f"生成失敗：{str(e)}"})
             return
+
+        # 非阻塞記錄流式調用的 token 使用量
+        if stream_usage:
+            try:
+                import asyncio
+                from app.services.container import get_services
+                duration_ms = int((_time.time() - _stream_start) * 1000)
+                asyncio.create_task(get_services().llm_usage.record_async(
+                    user_id=None, provider="deepseek",
+                    model=GAME_GENERATION_MODEL, purpose="game_gen",
+                    usage_dict=stream_usage, duration_ms=duration_ms,
+                ))
+            except Exception as e:
+                logger.warning("記錄遊戲生成 token usage 失敗: %s", e)
 
         # 提取 HTML 代碼
         yield self._sse_event("status", {"phase": "extracting"})

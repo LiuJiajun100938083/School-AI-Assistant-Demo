@@ -1517,10 +1517,20 @@ class MistakeBookService:
             )
             prompt += f"\n\n[seed={seed}] 請確保每次出題的數值、情境、設問方式都不同。"
             from app.infrastructure.ai_pipeline.llm_caller import call_llm_json
-            raw = await call_llm_json(
+            raw, usage = await call_llm_json(
                 prompt, provider=provider, temperature=0.8,
                 gate_task="practice_generation",
             )
+
+            # 非阻塞記錄 token 使用量
+            if usage:
+                import asyncio
+                from app.services.container import get_services
+                asyncio.create_task(get_services().llm_usage.record_async(
+                    user_id=None, provider=provider, model=usage.get("model", "deepseek-reasoner"),
+                    purpose="practice_gen", usage_dict=usage,
+                ))
+
             questions_data = self._parse_json_response(raw)
             questions = questions_data.get("questions", [])
 

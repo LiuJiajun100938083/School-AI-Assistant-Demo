@@ -1570,6 +1570,7 @@ const AdminApp = {
             this.loadBlockedAccounts();
         } else if (tabName === 'aimonitor') {
             this.startAiMonitor();
+            loadAiUsageStats();  // 載入 Token 使用量面板
         } else if (tabName === 'settings') {
             loadCloudStatus();
         } else if (tabName === 'syslogs') {
@@ -3535,6 +3536,172 @@ ${report.teacher_attention_points || '暫無'}
         banner.innerHTML = html;
     }
 };
+
+/* ============================================================
+   API Token 使用量監控
+   ============================================================ */
+
+let _aiUsageChartInstance = null;
+
+async function loadAiUsageStats() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    try {
+        // 並行載入 summary + daily + recent
+        const [summaryRes, dailyRes, recentRes] = await Promise.all([
+            fetch('/api/admin/ai-usage/summary', { headers }).then(r => r.json()),
+            fetch('/api/admin/ai-usage/daily?days=30', { headers }).then(r => r.json()),
+            fetch('/api/admin/ai-usage/recent?limit=30', { headers }).then(r => r.json()),
+        ]);
+
+        // 渲染 summary 卡片
+        if (summaryRes.success) {
+            const d = summaryRes.data;
+            document.getElementById('aiUsageTotalTokens').textContent = (d.total_tokens || 0).toLocaleString();
+            document.getElementById('aiUsagePromptTokens').textContent = (d.prompt_tokens || 0).toLocaleString();
+            document.getElementById('aiUsageCompletionTokens').textContent = (d.completion_tokens || 0).toLocaleString();
+            document.getElementById('aiUsageCallCount').textContent = (d.call_count || 0).toLocaleString();
+            document.getElementById('aiUsageCost').textContent = '$' + (d.estimated_cost_usd || 0).toFixed(4);
+        }
+
+        // 渲染 Chart.js 折線圖
+        if (dailyRes.success && dailyRes.data) {
+            renderAiUsageChart(dailyRes.data);
+        }
+
+        // 渲染最近調用記錄
+        if (recentRes.success && recentRes.data) {
+            renderAiUsageRecent(recentRes.data);
+        }
+    } catch (err) {
+        console.error('載入 AI usage 失敗:', err);
+    }
+}
+
+function renderAiUsageChart(dailyData) {
+    const canvas = document.getElementById('aiUsageChart');
+    if (!canvas) return;
+
+    // 銷毀舊圖表
+    if (_aiUsageChartInstance) {
+        _aiUsageChartInstance.destroy();
+        _aiUsageChartInstance = null;
+    }
+
+    if (!dailyData.length) {
+        canvas.parentElement.querySelector('h4').textContent = '近 30 天 Token 用量（暫無數據）';
+        return;
+    }
+
+    const labels = dailyData.map(d => d.date);
+    const totals = dailyData.map(d => d.total_tokens || 0);
+    const prompts = dailyData.map(d => d.prompt_tokens || 0);
+    const completions = dailyData.map(d => d.completion_tokens || 0);
+
+    _aiUsageChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: '總 Tokens',
+                    data: totals,
+                    borderColor: '#006633',
+                    backgroundColor: 'rgba(0, 102, 51, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    borderWidth: 2,
+                    pointRadius: 2,
+                },
+                {
+                    label: 'Input',
+                    data: prompts,
+                    borderColor: '#4facfe',
+                    borderWidth: 1.5,
+                    tension: 0.3,
+                    pointRadius: 1,
+                    borderDash: [4, 2],
+                },
+                {
+                    label: 'Output',
+                    data: completions,
+                    borderColor: '#f093fb',
+                    borderWidth: 1.5,
+                    tension: 0.3,
+                    pointRadius: 1,
+                    borderDash: [4, 2],
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { grid: { display: false } },
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v },
+                },
+            },
+            plugins: {
+                legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} tokens`,
+                    },
+                },
+            },
+        },
+    });
+}
+
+function renderAiUsageRecent(records) {
+    const container = document.getElementById('aiUsageRecent');
+    if (!records.length) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-tertiary);">暫無調用記錄</div>';
+        return;
+    }
+
+    const PURPOSE_LABELS = {
+        game_gen: '遊戲生成',
+        exam_gen: '試卷生成',
+        practice_gen: '練習生成',
+        analysis: 'AI 分析',
+        chat: '聊天',
+    };
+
+    let html = '<table style="width:100%;border-collapse:collapse;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
+    html += '<th style="text-align:left;padding:6px 4px;">時間</th>';
+    html += '<th style="text-align:left;padding:6px 4px;">用途</th>';
+    html += '<th style="text-align:left;padding:6px 4px;">模型</th>';
+    html += '<th style="text-align:right;padding:6px 4px;">Tokens</th>';
+    html += '<th style="text-align:right;padding:6px 4px;">耗時</th>';
+    html += '</tr></thead><tbody>';
+
+    records.forEach(r => {
+        const time = r.created_at ? r.created_at.replace('T', ' ').substring(5, 16) : '--';
+        const purpose = PURPOSE_LABELS[r.purpose] || r.purpose || '--';
+        const model = (r.model || '--').replace('deepseek-', '');
+        const tokens = (r.total_tokens || 0).toLocaleString();
+        const duration = r.duration_ms ? (r.duration_ms / 1000).toFixed(1) + 's' : '--';
+
+        html += `<tr style="border-bottom:1px solid var(--border-light);">`;
+        html += `<td style="padding:6px 4px;">${time}</td>`;
+        html += `<td style="padding:6px 4px;">${purpose}</td>`;
+        html += `<td style="padding:6px 4px;">${model}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;font-weight:600;">${tokens}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;">${duration}</td>`;
+        html += `</tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
 
 /* ============================================================
    BOOTSTRAP

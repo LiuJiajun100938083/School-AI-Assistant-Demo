@@ -350,3 +350,69 @@ def _verify_request(request: Request):
         raise AuthenticationError("未提供认证令牌")
     payload = get_services().auth.verify_token(token)
     return payload["username"], payload["role"]
+
+
+def _verify_admin(request: Request):
+    """驗證 admin 權限"""
+    username, role = _verify_request(request)
+    if role != "admin":
+        from app.core.exceptions import AuthorizationError
+        raise AuthorizationError("admin")
+    return username, role
+
+
+# ====================================================================== #
+#  LLM API Token 使用量監控                                                #
+# ====================================================================== #
+
+@router.get("/api/admin/ai-usage/summary")
+async def get_ai_usage_summary(request: Request):
+    """今日 API token 使用量統計"""
+    try:
+        _verify_admin(request)
+        data = get_services().llm_usage.get_summary()
+        return success_response(data, "查詢成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        import traceback
+        logger.error("查詢 AI usage summary 失敗:\n%s", traceback.format_exc())
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/admin/ai-usage/daily")
+async def get_ai_usage_daily(request: Request, days: int = 30):
+    """每日 token 用量聚合（Chart.js 用）"""
+    try:
+        _verify_admin(request)
+        if days < 1 or days > 365:
+            days = 30
+        import asyncio
+        data = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: get_services().llm_usage.get_daily_chart(days)
+        )
+        return success_response(data, "查詢成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("查詢 AI usage daily 失敗: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/admin/ai-usage/recent")
+async def get_ai_usage_recent(request: Request, limit: int = 50):
+    """最近 N 條 API 調用記錄"""
+    try:
+        _verify_admin(request)
+        if limit < 1 or limit > 200:
+            limit = 50
+        import asyncio
+        data = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: get_services().llm_usage.get_recent(limit)
+        )
+        return success_response(data, "查詢成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("查詢 AI usage recent 失敗: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)

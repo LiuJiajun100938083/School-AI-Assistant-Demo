@@ -446,7 +446,7 @@ class ExamCreatorService:
         questions = None
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
-            raw = await call_llm_json(
+            raw, usage = await call_llm_json(
                 prompt,
                 provider=provider,
                 temperature=0.7 + (attempt - 1) * 0.1,  # 重試時稍高溫度
@@ -455,6 +455,15 @@ class ExamCreatorService:
                 gate_weight=Weight.ANALYSIS,
                 num_predict=8192,  # 單題含完整解答+評分標準，中文 ≈1 token/字
             )
+
+            # 非阻塞記錄 token 使用量
+            if usage:
+                import asyncio
+                from app.services.container import get_services
+                asyncio.create_task(get_services().llm_usage.record_async(
+                    user_id=None, provider=provider, model=usage.get("model", "deepseek-reasoner"),
+                    purpose="exam_gen", usage_dict=usage,
+                ))
 
             if not raw or not raw.strip():
                 logger.warning(
