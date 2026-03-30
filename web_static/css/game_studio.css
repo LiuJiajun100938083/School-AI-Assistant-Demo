@@ -535,15 +535,39 @@
     margin: 18px 0 6px;
 }
 
-/* 可見性分段按鈕 */
+/* 可見性分段按鈕 — Apple 玻璃風格 */
 .gs-visibility {
+    position: relative;
     display: flex;
-    background: var(--gs-bg);
+    background: rgba(120, 120, 128, 0.12);
     border-radius: 10px;
     padding: 3px;
-    gap: 3px;
+    gap: 0;
 }
+
+/* 滑動指示器（玻璃質感） */
+.gs-visibility__indicator {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: calc(100% - 6px);
+    width: calc(33.333% - 2px);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.08),
+        0 3px 8px rgba(0, 0, 0, 0.05),
+        inset 0 0.5px 0 rgba(255, 255, 255, 0.8);
+    transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    pointer-events: none;
+    z-index: 0;
+}
+
 .gs-visibility__btn {
+    position: relative;
+    z-index: 1;
     flex: 1;
     padding: 8px 4px;
     border: none;
@@ -553,19 +577,35 @@
     font-weight: 500;
     color: var(--gs-text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: color 0.25s ease;
     white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
+
 .gs-visibility__btn:hover {
     color: var(--gs-text);
 }
+
 .gs-visibility__btn--active {
-    background: var(--gs-brand);
-    color: white;
-    box-shadow: 0 2px 6px rgba(0, 102, 51, 0.3);
+    color: var(--gs-text);
+    font-weight: 600;
+    background: transparent;
 }
-.gs-visibility__btn--active:hover {
-    color: white;
+
+.gs-visibility__btn:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+}
+
+/* 指示器位置 — 按 data-active-index 控制 */
+.gs-visibility[data-active-index="0"] .gs-visibility__indicator { transform: translateX(0); }
+.gs-visibility[data-active-index="1"] .gs-visibility__indicator { transform: translateX(100%); }
+.gs-visibility[data-active-index="2"] .gs-visibility__indicator { transform: translateX(200%); }
+
+@media (prefers-reduced-motion: reduce) {
+    .gs-visibility__indicator { transition: none; }
+    .gs-visibility__btn:active { transform: none; }
 }
 .gs-form__hint {
     font-size: 12px;

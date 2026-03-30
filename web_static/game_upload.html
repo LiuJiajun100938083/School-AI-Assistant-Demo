@@ -132,10 +132,11 @@
                     <!-- 可見性設定 -->
                     <div class="gs-form__divider"></div>
                     <label class="gs-form__label">可見性</label>
-                    <div class="gs-visibility" id="visibilityControl">
-                        <button type="button" class="gs-visibility__btn gs-visibility__btn--active" data-value="private">僅自己可見</button>
-                        <button type="button" class="gs-visibility__btn" data-value="public">公開給學生</button>
-                        <button type="button" class="gs-visibility__btn" data-value="teacher">僅教師可見</button>
+                    <div class="gs-visibility" id="visibilityControl" data-active-index="0">
+                        <div class="gs-visibility__indicator"></div>
+                        <button type="button" class="gs-visibility__btn gs-visibility__btn--active" data-value="private" data-index="0">僅自己可見</button>
+                        <button type="button" class="gs-visibility__btn" data-value="public" data-index="1">公開給學生</button>
+                        <button type="button" class="gs-visibility__btn" data-value="teacher" data-index="2">僅教師可見</button>
                     </div>
                     <div class="gs-form__hint" id="visibilityHint">只有你自己能看到這個遊戲</div>
 

@@ -664,6 +664,7 @@ const GameStudio = (() => {
                 if (!btn) return;
                 visControl.querySelectorAll('.gs-visibility__btn').forEach(b => b.classList.remove('gs-visibility__btn--active'));
                 btn.classList.add('gs-visibility__btn--active');
+                visControl.dataset.activeIndex = btn.dataset.index || '0';
                 if (visHint) visHint.textContent = VIS_HINTS[btn.dataset.value] || '';
                 if (classSection && classSection.dataset.noClasses !== 'true') {
                     classSection.style.display = btn.dataset.value === 'public' ? 'block' : 'none';
