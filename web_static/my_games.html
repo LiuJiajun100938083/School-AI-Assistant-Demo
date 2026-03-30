@@ -586,15 +586,7 @@
             <div class="filter-bar">
                 <select class="filter-select" id="subjectFilter">
                     <option value="all">全部學科</option>
-                    <option value="chinese">中文</option>
-                    <option value="math">數學</option>
-                    <option value="english">英文</option>
-                    <option value="history">歷史</option>
-                    <option value="ict">ICT</option>
-                    <option value="physics">物理</option>
-                    <option value="chemistry">化學</option>
-                    <option value="biology">生物</option>
-                    <option value="ces">公民</option>
+                    <!-- 由 JS 動態載入 -->
                 </select>
                 <select class="filter-select" id="visibilityFilter">
                     <option value="all">全部狀態</option>
@@ -706,8 +698,35 @@ const MyGamesPage = {
 
     async init() {
         await this.checkAuth();
+        await this.loadSubjects();
         await this.loadGames();
         this.bindEvents();
+    },
+
+    async loadSubjects() {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const resp = await fetch('/api/subjects', {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
+            const data = await resp.json();
+            if (data.subjects) {
+                const select = document.getElementById('subjectFilter');
+                const subjects = Object.values(data.subjects);
+                subjects.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+                for (const s of subjects) {
+                    // 更新 subjectNames 映射
+                    this.subjectNames[s.code] = s.name;
+                    // 添加篩選選項
+                    const opt = document.createElement('option');
+                    opt.value = s.code;
+                    opt.textContent = s.name;
+                    select.appendChild(opt);
+                }
+            }
+        } catch (err) {
+            console.warn('載入學科列表失敗:', err);
+        }
     },
 
     async checkAuth() {

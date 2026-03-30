@@ -599,6 +599,45 @@ const GameStudio = (() => {
     }
 
     // ════════════════════════════════════════════════════
+    // 動態載入學科列表
+    // ════════════════════════════════════════════════════
+
+    async function _loadSubjects() {
+        const select = document.getElementById('modalGameSubject');
+        if (!select) return;
+
+        try {
+            const token = typeof AuthModule !== 'undefined'
+                ? AuthModule.getToken()
+                : localStorage.getItem('auth_token');
+            const resp = await fetch('/api/subjects', {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            });
+            const data = await resp.json();
+
+            if (data.subjects) {
+                // 保留第一個 placeholder option
+                const placeholder = select.querySelector('option[value=""]');
+                select.innerHTML = '';
+                if (placeholder) select.appendChild(placeholder);
+
+                // 按 code 排序後填充
+                const subjects = Object.values(data.subjects);
+                subjects.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+                for (const s of subjects) {
+                    const opt = document.createElement('option');
+                    opt.value = s.code;
+                    opt.textContent = s.name;
+                    select.appendChild(opt);
+                }
+            }
+        } catch (err) {
+            console.warn('載入學科列表失敗，使用預設列表:', err);
+            // 失敗時保持 HTML 中的靜態選項作為降級
+        }
+    }
+
+    // ════════════════════════════════════════════════════
     // 初始化
     // ════════════════════════════════════════════════════
 
@@ -640,6 +679,9 @@ const GameStudio = (() => {
         document.getElementById('applyBtn')?.addEventListener('click', openUploadModal);
         document.getElementById('modalCancelBtn')?.addEventListener('click', closeUploadModal);
         document.getElementById('modalSubmitBtn')?.addEventListener('click', submitGame);
+
+        // 動態載入學科列表
+        _loadSubjects();
 
         // Icon 選擇器
         document.querySelectorAll('#uploadModal .icon-option').forEach(opt => {
