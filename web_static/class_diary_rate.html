@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>課堂評級</title>
+    <title data-i18n="cdr.pageTitle">課堂評級</title>
     <link rel="stylesheet" href="/static/css/class_diary_rate.css">
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/class_diary_rate.js"></script>
 </head>
 <body>
 
@@ -19,21 +22,24 @@
 <div class="no-permission" id="noPermission" style="display:none;">
     <div>
         <div class="block-icon">X</div>
-        <h2>僅限教師使用</h2>
-        <p>課堂評級表單僅供教師及管理員填寫。<br>如有疑問，請聯繫管理員。</p>
+        <h2 data-i18n="cdr.noPermTitle">僅限教師使用</h2>
+        <p data-i18n="cdr.noPermDesc" data-i18n-html>課堂評級表單僅供教師及管理員填寫。<br>如有疑問，請聯繫管理員。</p>
     </div>
 </div>
 
 <!-- Page Header -->
 <div class="page-header">
-    <h1>課堂評級</h1>
-    <div class="subtitle" id="headerInfo">載入中...</div>
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h1 data-i18n="cdr.pageTitle">課堂評級</h1>
+        <button class="lang-toggle-btn" onclick="i18n.toggle()" style="padding:4px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;">中/EN</button>
+    </div>
+    <div class="subtitle" id="headerInfo" data-i18n="cdr.loading">載入中...</div>
     <div class="mode-toggle" id="modeToggle" onclick="toggleQuickMode()">
         <span class="mode-toggle-bg" id="modeToggleBg"></span>
-        <span class="mode-toggle-item" id="modeLabelQuick">快速模式</span>
-        <span class="mode-toggle-item" id="modeLabelFull">完整模式</span>
+        <span class="mode-toggle-item" id="modeLabelQuick" data-i18n="cdr.quickMode">快速模式</span>
+        <span class="mode-toggle-item" id="modeLabelFull" data-i18n="cdr.fullMode">完整模式</span>
     </div>
-    <div class="mode-toggle-hint" id="quickModeHint">需要記錄考勤或行為？切換至完整模式</div>
+    <div class="mode-toggle-hint" id="quickModeHint" data-i18n="cdr.modeHint">需要記錄考勤或行為？切換至完整模式</div>
 </div>
 
 <!-- Main Content -->
@@ -41,81 +47,81 @@
 
     <!-- Edit Mode Bar -->
     <div class="edit-mode-bar" id="editModeBar">
-        <span class="edit-mode-text" id="editModeText">正在編輯記錄</span>
-        <button class="btn-cancel-edit" onclick="cancelEdit()">取消編輯</button>
+        <span class="edit-mode-text" id="editModeText" data-i18n="cdr.editingRecord">正在編輯記錄</span>
+        <button class="btn-cancel-edit" onclick="cancelEdit()" data-i18n="cdr.cancelEdit">取消編輯</button>
     </div>
 
     <!-- Period & Subject Card -->
     <div class="card">
-        <div class="card-title">課堂信息</div>
+        <div class="card-title" data-i18n="cdr.classInfo">課堂信息</div>
 
         <div class="form-group">
-            <label class="form-label">班級 <span class="required">*</span></label>
+            <label class="form-label"><span data-i18n="cdr.class">班級</span> <span class="required">*</span></label>
             <select class="form-select" id="classSelect">
-                <option value="">選擇班級</option>
+                <option value="" data-i18n="cdr.selectClass">選擇班級</option>
             </select>
         </div>
 
         <div class="form-group">
-            <label class="form-label">節數類型</label>
+            <label class="form-label" data-i18n="cdr.periodType">節數類型</label>
             <div class="period-toggle">
-                <button class="period-btn active" data-count="1" onclick="setPeriodCount(1)">一節課</button>
-                <button class="period-btn" data-count="2" onclick="setPeriodCount(2)">兩節課</button>
+                <button class="period-btn active" data-count="1" onclick="setPeriodCount(1)" data-i18n="cdr.onePeriod">一節課</button>
+                <button class="period-btn" data-count="2" onclick="setPeriodCount(2)" data-i18n="cdr.twoPeriods">兩節課</button>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="form-label">節數 <span class="required">*</span></label>
+            <label class="form-label"><span data-i18n="cdr.period">節數</span> <span class="required">*</span></label>
             <div class="period-selects">
                 <select class="form-select" id="periodStart">
-                    <option value="">選擇節數</option>
-                    <option value="0">早會</option>
-                    <option value="1">第一節</option>
-                    <option value="2">第二節</option>
-                    <option value="3">第三節</option>
-                    <option value="4">第四節</option>
-                    <option value="5">第五節</option>
-                    <option value="6">第六節</option>
-                    <option value="7">第七節</option>
-                    <option value="8">第八節</option>
-                    <option value="9">第九節</option>
+                    <option value="" data-i18n="cdr.selectPeriod">選擇節數</option>
+                    <option value="0" data-i18n="cdr.period0">早會</option>
+                    <option value="1" data-i18n="cdr.period1">第一節</option>
+                    <option value="2" data-i18n="cdr.period2">第二節</option>
+                    <option value="3" data-i18n="cdr.period3">第三節</option>
+                    <option value="4" data-i18n="cdr.period4">第四節</option>
+                    <option value="5" data-i18n="cdr.period5">第五節</option>
+                    <option value="6" data-i18n="cdr.period6">第六節</option>
+                    <option value="7" data-i18n="cdr.period7">第七節</option>
+                    <option value="8" data-i18n="cdr.period8">第八節</option>
+                    <option value="9" data-i18n="cdr.period9">第九節</option>
                 </select>
                 <span class="separator" id="periodSeparator" style="display:none;">→</span>
                 <select class="form-select" id="periodEnd" style="display:none;">
-                    <option value="">結束節數</option>
+                    <option value="" data-i18n="cdr.endPeriod">結束節數</option>
                 </select>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="form-label">科目 <span class="required">*</span></label>
+            <label class="form-label"><span data-i18n="cdr.subject">科目</span> <span class="required">*</span></label>
             <select class="form-select" id="subject">
-                <option value="">請選擇科目</option>
-                <option value="中文">中文</option>
-                <option value="英文">英文</option>
-                <option value="數學">數學</option>
-                <option value="公民與社會發展">公民與社會發展</option>
-                <option value="歷史">歷史</option>
-                <option value="中史">中史</option>
-                <option value="地理">地理</option>
-                <option value="經濟">經濟</option>
-                <option value="物理">物理</option>
-                <option value="化學">化學</option>
-                <option value="生物">生物</option>
-                <option value="ICT">ICT</option>
-                <option value="B1">B1</option>
-                <option value="B2">B2</option>
+                <option value="" data-i18n="cdr.selectSubject">請選擇科目</option>
+                <option value="中文" data-i18n="cdr.subjectChinese">中文</option>
+                <option value="英文" data-i18n="cdr.subjectEnglish">英文</option>
+                <option value="數學" data-i18n="cdr.subjectMath">數學</option>
+                <option value="公民與社會發展" data-i18n="cdr.subjectCivics">公民與社會發展</option>
+                <option value="歷史" data-i18n="cdr.subjectHistory">歷史</option>
+                <option value="中史" data-i18n="cdr.subjectChiHistory">中史</option>
+                <option value="地理" data-i18n="cdr.subjectGeography">地理</option>
+                <option value="經濟" data-i18n="cdr.subjectEconomics">經濟</option>
+                <option value="物理" data-i18n="cdr.subjectPhysics">物理</option>
+                <option value="化學" data-i18n="cdr.subjectChemistry">化學</option>
+                <option value="生物" data-i18n="cdr.subjectBiology">生物</option>
+                <option value="ICT" data-i18n="cdr.subjectICT">ICT</option>
+                <option value="B1" data-i18n="cdr.subjectB1">B1</option>
+                <option value="B2" data-i18n="cdr.subjectB2">B2</option>
             </select>
         </div>
     </div>
 
     <!-- Rating Card -->
     <div class="card">
-        <div class="card-title">課堂評級</div>
+        <div class="card-title" data-i18n="cdr.classRating">課堂評級</div>
 
         <div class="star-rating-group">
             <div class="star-rating">
-                <div class="rating-label">紀律 <span class="required">*</span></div>
+                <div class="rating-label"><span data-i18n="cdr.discipline">紀律</span> <span class="required">*</span></div>
                 <div class="stars" id="disciplineStars" data-field="discipline">
                     <span class="star" data-value="1">★</span>
                     <span class="star" data-value="2">★</span>
@@ -123,11 +129,11 @@
                     <span class="star" data-value="4">★</span>
                     <span class="star" data-value="5">★</span>
                 </div>
-                <div class="star-value" id="disciplineValue">未評分</div>
+                <div class="star-value" id="disciplineValue" data-i18n="cdr.notRated">未評分</div>
             </div>
 
             <div class="star-rating">
-                <div class="rating-label">整潔 <span class="required">*</span></div>
+                <div class="rating-label"><span data-i18n="cdr.cleanliness">整潔</span> <span class="required">*</span></div>
                 <div class="stars" id="cleanlinessStars" data-field="cleanliness">
                     <span class="star" data-value="1">★</span>
                     <span class="star" data-value="2">★</span>
@@ -135,7 +141,7 @@
                     <span class="star" data-value="4">★</span>
                     <span class="star" data-value="5">★</span>
                 </div>
-                <div class="star-value" id="cleanlinessValue">未評分</div>
+                <div class="star-value" id="cleanlinessValue" data-i18n="cdr.notRated">未評分</div>
             </div>
         </div>
     </div>
@@ -143,43 +149,43 @@
     <!-- Attendance Card (collapsible) -->
     <div class="card">
         <div class="card-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleCardSection('attendanceBody')">
-            <span>考勤記錄</span>
+            <span data-i18n="cdr.attendance">考勤記錄</span>
             <span class="card-toggle-arrow" id="attendanceArrow" style="font-size:0.9rem; transition:transform 0.2s;">▶</span>
         </div>
         <div id="attendanceBody" style="display:none;">
 
         <div class="form-group">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">缺席學生</label>
+                <label class="form-label" style="margin-bottom:0;" data-i18n="cdr.absentStudents">缺席學生</label>
                 <select class="form-select" id="absentClassSelect" style="width:auto; min-width:80px; padding:4px 8px; font-size:0.85rem;">
-                    <option value="">本班</option>
+                    <option value="" data-i18n="cdr.thisClass">本班</option>
                 </select>
             </div>
             <div class="picker-wrap" id="wrap-absentStudents">
                 <button type="button" class="picker-toggle" onclick="togglePicker('absentStudents')">
-                    <span class="picker-toggle-text">點擊選擇學生</span>
+                    <span class="picker-toggle-text" data-i18n="cdr.clickToSelect">點擊選擇學生</span>
                     <span class="picker-toggle-arrow">▾</span>
                 </button>
                 <div class="student-picker collapsed" id="picker-absentStudents"></div>
             </div>
-            <textarea class="form-textarea" id="absentStudents" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+            <textarea class="form-textarea" id="absentStudents" data-i18n-placeholder="cdr.studentPickerPh" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
         </div>
 
         <div class="form-group">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">遲到學生</label>
+                <label class="form-label" style="margin-bottom:0;" data-i18n="cdr.lateStudents">遲到學生</label>
                 <select class="form-select" id="lateClassSelect" style="width:auto; min-width:80px; padding:4px 8px; font-size:0.85rem;">
-                    <option value="">本班</option>
+                    <option value="" data-i18n="cdr.thisClass">本班</option>
                 </select>
             </div>
             <div class="picker-wrap" id="wrap-lateStudents">
                 <button type="button" class="picker-toggle" onclick="togglePicker('lateStudents')">
-                    <span class="picker-toggle-text">點擊選擇學生</span>
+                    <span class="picker-toggle-text" data-i18n="cdr.clickToSelect">點擊選擇學生</span>
                     <span class="picker-toggle-arrow">▾</span>
                 </button>
                 <div class="student-picker collapsed" id="picker-lateStudents"></div>
             </div>
-            <textarea class="form-textarea" id="lateStudents" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
+            <textarea class="form-textarea" id="lateStudents" data-i18n-placeholder="cdr.studentPickerPh" placeholder="已選學生會顯示在此，也可手動輸入" rows="2"></textarea>
         </div>
         </div><!-- /attendanceBody -->
     </div>
@@ -187,7 +193,7 @@
     <!-- Commendation & Violations Card (collapsible) — Reason-First Flow -->
     <div class="card">
         <div class="card-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleCardSection('commendBody')">
-            <span>嘉許與違規</span>
+            <span data-i18n="cdr.behaviorTitle">嘉許與違規</span>
             <span class="card-toggle-arrow" id="commendArrow" style="font-size:0.9rem; transition:transform 0.2s;">▶</span>
         </div>
         <div id="commendBody" style="display:none;">
@@ -195,23 +201,23 @@
         <!-- Tab Bar -->
         <div class="behavior-tabs">
             <button type="button" class="behavior-tab active" data-category="praise" onclick="switchBehaviorTab('praise')">
-                表揚 <span class="tab-badge" id="badge-praise" style="display:none;">0</span>
+                <span data-i18n="cdr.praise">表揚</span> <span class="tab-badge" id="badge-praise" style="display:none;">0</span>
             </button>
             <button type="button" class="behavior-tab" data-category="classroom" onclick="switchBehaviorTab('classroom')">
-                課堂違規 <span class="tab-badge" id="badge-classroom" style="display:none;">0</span>
+                <span data-i18n="cdr.violation">課堂違規</span> <span class="tab-badge" id="badge-classroom" style="display:none;">0</span>
             </button>
             <button type="button" class="behavior-tab" data-category="appearance" onclick="switchBehaviorTab('appearance')">
-                儀表 <span class="tab-badge" id="badge-appearance" style="display:none;">0</span>
+                <span data-i18n="cdr.appearance">儀表</span> <span class="tab-badge" id="badge-appearance" style="display:none;">0</span>
             </button>
             <button type="button" class="behavior-tab" data-category="medical" onclick="switchBehaviorTab('medical')">
-                醫務室 <span class="tab-badge" id="badge-medical" style="display:none;">0</span>
+                <span data-i18n="cdr.medical">醫務室</span> <span class="tab-badge" id="badge-medical" style="display:none;">0</span>
             </button>
         </div>
 
         <!-- Hint Banner -->
         <div class="behavior-hint" id="behaviorHint">
             <span class="hint-icon">→</span>
-            <span class="hint-text">請先選擇原因，再點選學生姓名</span>
+            <span class="hint-text" data-i18n="cdr.behaviorHint">請先選擇原因，再點選學生姓名</span>
         </div>
 
         <!-- Reason Chips -->
@@ -220,13 +226,13 @@
         <!-- Student Picker (hidden until reason selected) -->
         <div class="behavior-student-section collapsed" id="behaviorStudentSection">
             <div class="selected-reason-bar" id="selectedReasonBar">
-                <span>已選原因：<strong id="selectedReasonText"></strong></span>
-                <button type="button" class="btn-cancel-reason" onclick="cancelReasonSelection()">取消</button>
+                <span><span data-i18n="cdr.selectedReason">已選原因</span>：<strong id="selectedReasonText"></strong></span>
+                <button type="button" class="btn-cancel-reason" onclick="cancelReasonSelection()" data-i18n="cdr.cancel">取消</button>
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <label class="form-label" style="margin-bottom:0;">選擇學生</label>
+                <label class="form-label" style="margin-bottom:0;" data-i18n="cdr.selectStudent">選擇學生</label>
                 <select class="form-select" id="behaviorClassSelect" style="width:auto; min-width:80px; padding:4px 8px; font-size:0.85rem;">
-                    <option value="">本班</option>
+                    <option value="" data-i18n="cdr.thisClass">本班</option>
                 </select>
             </div>
             <div class="student-picker" id="behaviorStudentPicker"></div>
@@ -246,7 +252,7 @@
 
     <!-- Existing Records -->
     <div class="existing-records" id="existingRecords" style="display:none;">
-        <div class="section-title">今日已提交記錄</div>
+        <div class="section-title" data-i18n="cdr.existingRecords">今日已提交記錄</div>
         <div id="recordsList"></div>
     </div>
 
@@ -254,17 +260,17 @@
 
 <!-- Submit Button (Fixed at bottom) -->
 <div class="submit-section">
-    <button class="btn-submit" id="submitBtn" onclick="submitForm()">提交評級</button>
+    <button class="btn-submit" id="submitBtn" onclick="submitForm()" data-i18n="cdr.submit">提交評級</button>
 </div>
 
 <!-- Success Toast -->
 <div class="toast" id="successToast">
     <div class="toast-icon toast-icon-success"></div>
-    <div class="toast-msg">提交成功！</div>
-    <div class="toast-sub">評級記錄已保存</div>
+    <div class="toast-msg" data-i18n="cdr.submitSuccess">提交成功！</div>
+    <div class="toast-sub" data-i18n="cdr.submitSaved">評級記錄已保存</div>
     <div class="toast-actions">
-        <button class="btn-toast primary" onclick="continueRating()">繼續填寫下一節</button>
-        <button class="btn-toast secondary" onclick="closeToast()">完成</button>
+        <button class="btn-toast primary" onclick="continueRating()" data-i18n="cdr.continueNext">繼續填寫下一節</button>
+        <button class="btn-toast secondary" onclick="closeToast()" data-i18n="cdr.done">完成</button>
     </div>
 </div>
 
@@ -275,5 +281,6 @@
 
 <script src="/static/js/shared/auth.js"></script>
 <script src="/static/js/class_diary_rate.js"></script>
+<script>i18n.applyDOM();</script>
 </body>
 </html>

@@ -52,6 +52,18 @@ const PICKER_FIELDS = [
     'lateStudents',
 ];
 
+/**
+ * 取得節數標籤陣列（i18n）
+ */
+function getPeriodLabels() {
+    return [
+        i18n.t('cdr.period0'), i18n.t('cdr.period1'), i18n.t('cdr.period2'),
+        i18n.t('cdr.period3'), i18n.t('cdr.period4'), i18n.t('cdr.period5'),
+        i18n.t('cdr.period6'), i18n.t('cdr.period7'), i18n.t('cdr.period8'),
+        i18n.t('cdr.period9'),
+    ];
+}
+
 /* ============================================================
    初始化
    ============================================================ */
@@ -87,8 +99,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 設置日期信息
     const today = new Date();
-    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-    const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日 星期${weekdays[today.getDay()]}`;
+    const weekdays = i18n.t('cdr.weekdays').split(',');
+    const dateStr = i18n.t('cdr.dateFormat', {
+        year: today.getFullYear(),
+        month: today.getMonth() + 1,
+        day: today.getDate(),
+        weekday: weekdays[today.getDay()],
+    });
 
     // 載入行為原因代碼（靜默，不阻塞）
     loadReasonCodes();
@@ -165,7 +182,7 @@ async function loadClasses(urlClass, dateStr) {
             });
         }
     } catch (err) {
-        console.warn('載入班級列表失敗:', err);
+        console.warn(i18n.t('cdr.loadClassFail'), err);
     }
 
     // 預選 URL 中的班級（QR 碼掃入）
@@ -216,7 +233,7 @@ function populateAllClassSelects() {
     Object.values(FIELD_CLASS_SELECTS).forEach(selectId => {
         const select = document.getElementById(selectId);
         if (!select) return;
-        select.innerHTML = '<option value="">本班</option>';
+        select.innerHTML = `<option value="">${i18n.t('cdr.thisClass')}</option>`;
         sameGrade.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.class_code;
@@ -227,7 +244,7 @@ function populateAllClassSelects() {
     // 行為記錄班級選擇器
     const behaviorSelect = document.getElementById('behaviorClassSelect');
     if (behaviorSelect) {
-        behaviorSelect.innerHTML = '<option value="">本班</option>';
+        behaviorSelect.innerHTML = `<option value="">${i18n.t('cdr.thisClass')}</option>`;
         sameGrade.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.class_code;
@@ -247,7 +264,7 @@ async function loadFieldStudents(fieldId, classCode) {
             renderFieldPicker(fieldId);
         }
     } catch (err) {
-        console.warn(`載入 ${fieldId} 班級學生失敗:`, err);
+        console.warn(i18n.t('cdr.loadFieldStudentFail', { fieldId }), err);
     }
 }
 
@@ -275,7 +292,7 @@ function renderFieldPicker(fieldId) {
 function updateHeaderInfo(dateStr) {
     const header = document.getElementById('headerInfo');
     if (state.classCode) {
-        header.textContent = `${state.classCode} 班 ─ ${dateStr}`;
+        header.textContent = i18n.t('cdr.classDateHeader', { classCode: state.classCode, dateStr });
     } else {
         header.textContent = dateStr;
     }
@@ -394,11 +411,11 @@ document.getElementById('periodStart').addEventListener('change', () => {
 function updateEndOptions() {
     const start = parseInt(document.getElementById('periodStart').value);
     const endSelect = document.getElementById('periodEnd');
-    endSelect.innerHTML = '<option value="">結束節數</option>';
+    endSelect.innerHTML = `<option value="">${i18n.t('cdr.endPeriod')}</option>`;
 
     if (isNaN(start)) return;
 
-    const labels = ['早會', '第一節', '第二節', '第三節', '第四節', '第五節', '第六節', '第七節', '第八節', '第九節'];
+    const labels = getPeriodLabels();
     // 結束節可以是 start 或 start+1（兩節連堂）
     for (let i = start; i <= Math.min(start + 1, 9); i++) {
         const opt = document.createElement('option');
@@ -440,7 +457,7 @@ function setStarRating(field, value) {
     if (field === 'discipline') state.disciplineRating = value;
     else state.cleanlinessRating = value;
 
-    const labels = ['', '1 - 很差', '2 - 較差', '3 - 一般', '4 - 良好', '5 - 優秀'];
+    const labels = ['', i18n.t('cdr.rating1'), i18n.t('cdr.rating2'), i18n.t('cdr.rating3'), i18n.t('cdr.rating4'), i18n.t('cdr.rating5')];
     document.getElementById(valueId).textContent = labels[value];
 
     document.getElementById(containerId).querySelectorAll('.star').forEach(star => {
@@ -469,7 +486,7 @@ async function loadStudents() {
             if (behaviorState.selectedReason) renderBehaviorStudents();
         }
     } catch (err) {
-        console.warn('載入學生列表失敗:', err);
+        console.warn(i18n.t('cdr.loadStudentFail'), err);
     }
 }
 
@@ -535,11 +552,11 @@ function updateToggleText(fieldId) {
     const textEl = wrap.querySelector('.picker-toggle-text');
 
     if (count > 0) {
-        textEl.innerHTML = `已選 <span class="picker-badge">${count}</span> 位學生`;
+        textEl.innerHTML = i18n.t('cdr.selectedCount', { count }) ;
     } else {
         textEl.textContent = classStudents.length > 0
-            ? `從 ${classStudents.length} 位學生中選擇`
-            : '點擊選擇學生';
+            ? i18n.t('cdr.selectFromCount', { count: classStudents.length })
+            : i18n.t('cdr.clickToSelect');
     }
 }
 
@@ -614,7 +631,7 @@ async function submitForm() {
         if (state._submitStartTime && Date.now() - state._submitStartTime > 15000) {
             state.isSubmitting = false;
             showLoading(false);
-            showValidationError('submitBtn', '提交逾時，請重試');
+            showValidationError('submitBtn', i18n.t('cdr.submitTimeout'));
         }
         return;
     }
@@ -623,7 +640,7 @@ async function submitForm() {
 
     // 驗證必填
     if (!state.classCode) {
-        showValidationError('classSelect', '請選擇班級');
+        showValidationError('classSelect', i18n.t('cdr.validSelectClass'));
         return;
     }
 
@@ -631,19 +648,19 @@ async function submitForm() {
     const subject = document.getElementById('subject').value.trim();
 
     if (!periodStart && periodStart !== '0') {
-        showValidationError('periodStart', '請選擇節數');
+        showValidationError('periodStart', i18n.t('cdr.validSelectPeriod'));
         return;
     }
     if (!subject) {
-        showValidationError('subject', '請選擇科目');
+        showValidationError('subject', i18n.t('cdr.validSelectSubject'));
         return;
     }
     if (state.disciplineRating === 0) {
-        showValidationError('disciplineStars', '請評選紀律評級');
+        showValidationError('disciplineStars', i18n.t('cdr.validRateDiscipline'));
         return;
     }
     if (state.cleanlinessRating === 0) {
-        showValidationError('cleanlinessStars', '請評選整潔評級');
+        showValidationError('cleanlinessStars', i18n.t('cdr.validRateCleanliness'));
         return;
     }
 
@@ -652,7 +669,7 @@ async function submitForm() {
     if (state.periodCount === 2) {
         periodEnd = parseInt(document.getElementById('periodEnd').value);
         if (isNaN(periodEnd)) {
-            showValidationError('periodEnd', '請選擇結束節數');
+            showValidationError('periodEnd', i18n.t('cdr.validSelectEndPeriod'));
             return;
         }
     } else {
@@ -688,11 +705,11 @@ async function submitForm() {
         if (overlap) {
             // 直接載入重疊的記錄進入編輯模式，而非僅顯示錯誤
             loadRecordForEdit(overlap.id);
-            const periodLabels = ['早會','第一節','第二節','第三節','第四節','第五節','第六節','第七節','第八節','第九節'];
+            const periodLabels = getPeriodLabels();
             const overlapText = overlap.period_start === overlap.period_end
                 ? periodLabels[overlap.period_start]
                 : `${periodLabels[overlap.period_start]}-${periodLabels[overlap.period_end]}`;
-            UIModule.toast(`已載入 ${overlapText}「${overlap.subject}」的記錄，可直接修改後提交`, 'info');
+            UIModule.toast(i18n.t('cdr.overlapToast', { period: overlapText, subject: overlap.subject }), 'info');
             return;
         }
     }
@@ -736,15 +753,15 @@ async function submitForm() {
             showSuccessToast();
             loadExistingRecords();
         } else if (data.error?.code === 'PERIOD_OVERLAP') {
-            showValidationError('periodStart', data.error.message || '該時段已有記錄');
+            showValidationError('periodStart', data.error.message || i18n.t('cdr.periodOverlapLoaded'));
         } else if (resp.status === 404 && isEditing) {
-            showValidationError('periodStart', '此記錄已不存在，請重新提交');
+            showValidationError('periodStart', i18n.t('cdr.recordNotExist'));
             cancelEdit();
         } else {
-            showValidationError('submitBtn', '提交失敗：' + (data.detail || data.error?.message || '未知錯誤'));
+            showValidationError('submitBtn', i18n.t('cdr.submitFail', { msg: data.detail || data.error?.message || i18n.t('cdr.unknownError') }));
         }
     } catch (err) {
-        showValidationError('submitBtn', '網絡錯誤：' + err.message);
+        showValidationError('submitBtn', i18n.t('cdr.networkError', { msg: err.message }));
     } finally {
         state.isSubmitting = false;
         state._submitStartTime = null;
@@ -774,7 +791,7 @@ async function loadExistingRecords() {
             }
         }
     } catch (err) {
-        console.error('載入記錄失敗:', err);
+        console.error(i18n.t('cdr.loadRecordFail'), err);
     }
 }
 
@@ -783,7 +800,7 @@ function renderExistingRecords(records) {
     const list = document.getElementById('recordsList');
     container.style.display = '';
 
-    const periodLabels = ['早會', '第一節', '第二節', '第三節', '第四節', '第五節', '第六節', '第七節', '第八節', '第九節'];
+    const periodLabels = getPeriodLabels();
 
     list.innerHTML = records.map(r => {
         const periodText = r.period_start === r.period_end
@@ -797,12 +814,12 @@ function renderExistingRecords(records) {
                     <span class="record-subject">${escapeHtml(r.subject)}</span>
                 </div>
                 <div class="record-ratings">
-                    <span>紀律 ${'★'.repeat(r.discipline_rating)}${'☆'.repeat(5 - r.discipline_rating)}</span>
-                    <span>整潔 ${'★'.repeat(r.cleanliness_rating)}${'☆'.repeat(5 - r.cleanliness_rating)}</span>
+                    <span>${i18n.t('cdr.discipline')} ${'★'.repeat(r.discipline_rating)}${'☆'.repeat(5 - r.discipline_rating)}</span>
+                    <span>${i18n.t('cdr.cleanliness')} ${'★'.repeat(r.cleanliness_rating)}${'☆'.repeat(5 - r.cleanliness_rating)}</span>
                 </div>
                 <div class="record-actions">
-                    <button class="btn-record-edit" onclick="loadRecordForEdit(${r.id})">編輯</button>
-                    <button class="btn-record-delete" onclick="deleteRecord(${r.id})">刪除</button>
+                    <button class="btn-record-edit" onclick="loadRecordForEdit(${r.id})">${i18n.t('cdr.editBtn')}</button>
+                    <button class="btn-record-delete" onclick="deleteRecord(${r.id})">${i18n.t('cdr.deleteBtn')}</button>
                 </div>
             </div>
         `;
@@ -866,7 +883,7 @@ function continueRating() {
         document.getElementById('periodStart').value = nextPeriod;
     } else {
         document.getElementById('periodStart').value = '';
-        document.getElementById('periodEnd').innerHTML = '<option value="">結束節數</option>';
+        document.getElementById('periodEnd').innerHTML = `<option value="">${i18n.t('cdr.endPeriod')}</option>`;
     }
 
     // 保留科目
@@ -904,8 +921,8 @@ function applyQuickModeUI() {
 
     if (hint) {
         hint.textContent = state.quickMode
-            ? '需要記錄考勤或行為？切換至完整模式'
-            : '只需評分？切換至快速模式';
+            ? i18n.t('cdr.modeHint')
+            : i18n.t('cdr.modeHintFull');
     }
     // 考勤和行為卡片的父元素（第 3、4 張 .card）
     const cards = document.querySelectorAll('#mainContent > .card');
@@ -980,7 +997,7 @@ async function loadReasonCodes() {
             _buildReasonLookup();
         }
     } catch (err) {
-        console.warn('載入 reason codes 失敗，使用內建預設:', err);
+        console.warn(i18n.t('cdr.loadReasonFail'), err);
     }
 }
 
@@ -992,10 +1009,10 @@ const CATEGORY_FIELD_MAP = {
 };
 
 const CATEGORY_LABELS = {
-    praise: '表揚',
-    classroom: '課堂違規',
-    appearance: '儀表違規',
-    medical: '醫務室',
+    praise: 'cdr.categoryPraise',
+    classroom: 'cdr.categoryClassroom',
+    appearance: 'cdr.categoryAppearance',
+    medical: 'cdr.categoryMedical',
 };
 
 const behaviorState = {
@@ -1155,10 +1172,10 @@ function updateBehaviorHint() {
         hint.classList.add('active-' + category);
         hint.querySelector('.hint-icon').textContent = '→';
         hint.querySelector('.hint-text').textContent =
-            `已選原因「${behaviorState.selectedReason}」，請點選相關學生`;
+            i18n.t('cdr.behaviorHintSelected', { reason: behaviorState.selectedReason });
     } else {
         hint.querySelector('.hint-icon').textContent = '→';
-        hint.querySelector('.hint-text').textContent = '請先選擇原因，再點選學生姓名';
+        hint.querySelector('.hint-text').textContent = i18n.t('cdr.behaviorHint');
     }
 }
 
@@ -1197,7 +1214,7 @@ function updateBehaviorSummary() {
         const assignments = behaviorState.assignments[cat];
         if (assignments.length === 0) return;
 
-        html += `<div class="summary-category-label ${cat}">${CATEGORY_LABELS[cat]}:</div>`;
+        html += `<div class="summary-category-label ${cat}">${i18n.t(CATEGORY_LABELS[cat])}:</div>`;
         assignments.forEach(a => {
             const studentTags = a.students.map(s =>
                 `<span class="summary-student-tag">${escapeHtmlBehavior(s)}<span class="summary-remove" onclick="removeBehaviorStudent('${cat}','${escapeAttr(a.reason)}','${escapeAttr(s)}')">&times;</span></span>`
@@ -1206,7 +1223,7 @@ function updateBehaviorSummary() {
             html += `<div class="summary-item">
                 <span class="summary-reason" onclick="jumpToReason('${cat}','${escapeAttr(a.reason)}')">${escapeHtmlBehavior(a.reason)}:</span>
                 <span class="summary-students">${studentTags}</span>
-                <span class="summary-delete-reason" onclick="removeBehaviorReason('${cat}','${escapeAttr(a.reason)}')">[刪除]</span>
+                <span class="summary-delete-reason" onclick="removeBehaviorReason('${cat}','${escapeAttr(a.reason)}')">${i18n.t('cdr.summaryDelete')}</span>
             </div>`;
         });
     });
@@ -1281,7 +1298,7 @@ async function loadBehaviorStudents(classCode) {
             if (behaviorState.selectedReason) renderBehaviorStudents();
         }
     } catch (err) {
-        console.warn('載入行為學生列表失敗:', err);
+        console.warn(i18n.t('cdr.loadBehaviorStudentFail'), err);
     }
 }
 
@@ -1387,15 +1404,15 @@ function editRecord(record) {
     restoreBehaviorFromRecord(record);
 
     // 更新提交按鈕文字
-    document.getElementById('submitBtn').textContent = '更新記錄';
+    document.getElementById('submitBtn').textContent = i18n.t('cdr.updateRecord');
 
     // 顯示編輯模式提示
-    const periodLabels = ['早會','第一節','第二節','第三節','第四節','第五節','第六節','第七節','第八節','第九節'];
+    const periodLabels = getPeriodLabels();
     const periodText = record.period_start === record.period_end
         ? periodLabels[record.period_start]
         : `${periodLabels[record.period_start]}-${periodLabels[record.period_end]}`;
     const bar = document.getElementById('editModeBar');
-    document.getElementById('editModeText').textContent = `正在編輯 ${periodText} - ${record.subject}`;
+    document.getElementById('editModeText').textContent = i18n.t('cdr.editingPeriod', { period: periodText, subject: record.subject });
     bar.classList.add('show');
 }
 
@@ -1424,7 +1441,7 @@ function cancelEdit() {
     resetBehaviorState();
 
     // 重置提交按鈕
-    document.getElementById('submitBtn').textContent = '提交評級';
+    document.getElementById('submitBtn').textContent = i18n.t('cdr.submit');
 
     // 隱藏編輯模式提示
     document.getElementById('editModeBar').classList.remove('show');
@@ -1511,7 +1528,7 @@ function restoreBehaviorFromRecord(record) {
  * 刪除記錄
  */
 async function deleteRecord(entryId) {
-    if (!confirm('確定要刪除此記錄嗎？此操作無法撤銷。')) return;
+    if (!confirm(i18n.t('cdr.confirmDelete'))) return;
 
     try {
         const token = AuthModule.getToken();
@@ -1528,9 +1545,9 @@ async function deleteRecord(entryId) {
             }
             loadExistingRecords();
         } else {
-            alert('刪除失敗：' + (data.error?.message || data.detail || '未知錯誤'));
+            alert(i18n.t('cdr.deleteFail', { msg: data.error?.message || data.detail || i18n.t('cdr.unknownError') }));
         }
     } catch (err) {
-        alert('刪除失敗：' + err.message);
+        alert(i18n.t('cdr.deleteFail', { msg: err.message }));
     }
 }
