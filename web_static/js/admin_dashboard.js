@@ -3549,12 +3549,14 @@ async function loadAiUsageStats() {
     const headers = { 'Authorization': `Bearer ${token}` };
 
     try {
-        // 並行載入 summary + daily + recent
+        // 並行載入 summary + daily + recent + by-user
         const [summaryRes, dailyRes, recentRes] = await Promise.all([
             fetch('/api/admin/ai-usage/summary', { headers }).then(r => r.json()),
             fetch('/api/admin/ai-usage/daily?days=30', { headers }).then(r => r.json()),
             fetch('/api/admin/ai-usage/recent?limit=30', { headers }).then(r => r.json()),
         ]);
+        // 同時觸發用戶排行（不阻塞主流程）
+        loadAiUsageByUser();
 
         // 渲染 summary 卡片
         if (summaryRes.success) {
@@ -3658,6 +3660,67 @@ function renderAiUsageChart(dailyData) {
     });
 }
 
+async function loadAiUsageByUser() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const days = document.getElementById('aiUsageByUserDays')?.value || 7;
+    try {
+        const res = await fetch(`/api/admin/ai-usage/by-user?days=${days}`, { headers }).then(r => r.json());
+        if (res.success && res.data) {
+            renderAiUsageByUser(res.data);
+        }
+    } catch (err) {
+        console.error('載入用戶使用量排行失敗:', err);
+    }
+}
+
+function renderAiUsageByUser(records) {
+    const container = document.getElementById('aiUsageByUser');
+    if (!container) return;
+    if (!records.length) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-tertiary);">暫無數據</div>';
+        return;
+    }
+
+    const ROLE_LABELS = { student: '學生', teacher: '教師', admin: '管理員' };
+    const maxTokens = records[0]?.total_tokens || 1;
+
+    let html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
+    html += '<th style="text-align:left;padding:6px 4px;width:8%;">#</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:22%;">用戶</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:12%;">角色</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:18%;">Tokens</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:12%;">調用</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:13%;">費用</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:15%;"></th>';
+    html += '</tr></thead><tbody>';
+
+    records.forEach((r, i) => {
+        const name = r.display_name || r.username || '未知';
+        const role = ROLE_LABELS[r.role] || r.role || '--';
+        const tokens = (r.total_tokens || 0).toLocaleString();
+        const calls = (r.call_count || 0).toLocaleString();
+        const cost = '$' + (r.estimated_cost_usd || 0).toFixed(4);
+        const pct = Math.round((r.total_tokens || 0) / maxTokens * 100);
+        const barColor = i === 0 ? 'var(--brand)' : i < 3 ? '#4facfe' : 'var(--border)';
+
+        html += `<tr style="border-bottom:1px solid var(--border-light);">`;
+        html += `<td style="padding:6px 4px;font-weight:600;color:${i < 3 ? 'var(--brand)' : 'var(--text-tertiary)'};">${i + 1}</td>`;
+        html += `<td style="padding:6px 4px;font-weight:500;">${name}</td>`;
+        html += `<td style="padding:6px 4px;">${role}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;font-weight:600;">${tokens}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;">${calls}</td>`;
+        html += `<td style="padding:6px 4px;text-align:right;">${cost}</td>`;
+        html += `<td style="padding:6px 4px;"><div style="height:6px;border-radius:3px;background:var(--bg-page);"><div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};"></div></div></td>`;
+        html += `</tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
 function renderAiUsageRecent(records) {
     const container = document.getElementById('aiUsageRecent');
     if (!records.length) {
@@ -3675,15 +3738,17 @@ function renderAiUsageRecent(records) {
 
     let html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">';
     html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
-    html += '<th style="text-align:left;padding:6px 4px;width:25%;">時間</th>';
-    html += '<th style="text-align:left;padding:6px 4px;width:22%;">用途</th>';
-    html += '<th style="text-align:left;padding:6px 4px;width:22%;">模型</th>';
-    html += '<th style="text-align:right;padding:6px 4px;width:18%;">Tokens</th>';
-    html += '<th style="text-align:right;padding:6px 4px;width:13%;">耗時</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:20%;">時間</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">用戶</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:18%;">用途</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">模型</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:16%;">Tokens</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:12%;">耗時</th>';
     html += '</tr></thead><tbody>';
 
     records.forEach(r => {
         const time = r.created_at ? r.created_at.replace('T', ' ').substring(5, 16) : '--';
+        const user = r.display_name || r.username || '--';
         const purpose = PURPOSE_LABELS[r.purpose] || r.purpose || '--';
         const model = (r.model || '--').replace('deepseek-', '');
         const tokens = (r.total_tokens || 0).toLocaleString();
@@ -3691,6 +3756,7 @@ function renderAiUsageRecent(records) {
 
         html += `<tr style="border-bottom:1px solid var(--border-light);">`;
         html += `<td style="padding:6px 4px;">${time}</td>`;
+        html += `<td style="padding:6px 4px;">${user}</td>`;
         html += `<td style="padding:6px 4px;">${purpose}</td>`;
         html += `<td style="padding:6px 4px;">${model}</td>`;
         html += `<td style="padding:6px 4px;text-align:right;font-weight:600;">${tokens}</td>`;

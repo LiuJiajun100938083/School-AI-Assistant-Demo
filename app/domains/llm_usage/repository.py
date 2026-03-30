@@ -120,8 +120,33 @@ class LlmUsageRepository(BaseRepository):
         )
 
     def get_recent(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """最近 N 條調用記錄"""
+        """最近 N 條調用記錄（含用戶名）"""
         return self.raw_query(
-            "SELECT * FROM llm_api_usage ORDER BY created_at DESC LIMIT %s",
+            "SELECT a.*, u.display_name, u.username "
+            "FROM llm_api_usage a "
+            "LEFT JOIN users u ON a.user_id = u.id "
+            "ORDER BY a.created_at DESC LIMIT %s",
             (limit,),
+        )
+
+    def get_usage_by_user(self, days: int = 30) -> List[Dict[str, Any]]:
+        """按用戶聚合統計（最近 N 天）"""
+        return self.raw_query(
+            "SELECT "
+            "  a.user_id, "
+            "  COALESCE(u.display_name, u.username, '未知') AS display_name, "
+            "  u.username, "
+            "  u.role, "
+            "  SUM(a.prompt_tokens) AS prompt_tokens, "
+            "  SUM(a.completion_tokens) AS completion_tokens, "
+            "  SUM(a.total_tokens) AS total_tokens, "
+            "  COUNT(*) AS call_count, "
+            "  MAX(a.created_at) AS last_call_at "
+            "FROM llm_api_usage a "
+            "LEFT JOIN users u ON a.user_id = u.id "
+            "WHERE a.created_at >= DATE_SUB(CURDATE(), INTERVAL %s DAY) "
+            "  AND a.user_id IS NOT NULL "
+            "GROUP BY a.user_id, u.display_name, u.username, u.role "
+            "ORDER BY total_tokens DESC",
+            (days,),
         )

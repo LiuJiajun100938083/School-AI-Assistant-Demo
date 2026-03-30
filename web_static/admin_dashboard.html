@@ -803,6 +803,24 @@
                             </div>
                         </div>
 
+                        <!-- 用戶使用量排行 -->
+                        <div style="border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:1.5rem;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                <h4 style="margin:0;font-size:0.95em;">
+                                    <svg class="icon icon-sm" style="stroke:var(--brand)"><use href="#i-user"/></svg>
+                                    用戶使用量排行
+                                </h4>
+                                <select id="aiUsageByUserDays" onchange="loadAiUsageByUser()" style="padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-page);font-size:0.8em;">
+                                    <option value="1">今日</option>
+                                    <option value="7" selected>近 7 天</option>
+                                    <option value="30">近 30 天</option>
+                                </select>
+                            </div>
+                            <div id="aiUsageByUser" style="max-height:360px;overflow-y:auto;font-size:0.85em;color:var(--text-secondary);">
+                                點擊「刷新」載入數據
+                            </div>
+                        </div>
+
                         <!-- 最近調用記錄 -->
                         <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
                             <h4 style="margin:0 0 12px;font-size:0.95em;">最近 API 調用</h4>

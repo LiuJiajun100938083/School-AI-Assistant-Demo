@@ -164,3 +164,21 @@ class LlmUsageService:
             if hasattr(row.get("created_at"), "strftime"):
                 row["created_at"] = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
         return rows
+
+    def get_usage_by_user(self, days: int = 30) -> List[Dict[str, Any]]:
+        """按用戶聚合統計"""
+        rows = self._repo.get_usage_by_user(days)
+        for row in rows:
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens", "call_count"):
+                if key in row and row[key] is not None:
+                    row[key] = int(row[key])
+            if hasattr(row.get("last_call_at"), "strftime"):
+                row["last_call_at"] = row["last_call_at"].strftime("%Y-%m-%d %H:%M:%S")
+            # 估算費用
+            pricing = DEFAULT_PRICING
+            cost = (
+                float(row.get("prompt_tokens", 0)) * pricing["input"] / 1_000_000
+                + float(row.get("completion_tokens", 0)) * pricing["output"] / 1_000_000
+            )
+            row["estimated_cost_usd"] = round(cost, 4)
+        return rows

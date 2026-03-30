@@ -399,6 +399,25 @@ async def get_ai_usage_daily(request: Request, days: int = 30):
         return error_response("SERVER_ERROR", str(e), status_code=500)
 
 
+@router.get("/api/admin/ai-usage/by-user")
+async def get_ai_usage_by_user(request: Request, days: int = 30):
+    """按用戶聚合 API 使用量排行"""
+    try:
+        _verify_admin(request)
+        if days < 1 or days > 365:
+            days = 30
+        import asyncio
+        data = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: get_services().llm_usage.get_usage_by_user(days)
+        )
+        return success_response(data, "查詢成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("查詢 AI usage by-user 失敗: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
 @router.get("/api/admin/ai-usage/recent")
 async def get_ai_usage_recent(request: Request, limit: int = 50):
     """最近 N 條 API 調用記錄"""
