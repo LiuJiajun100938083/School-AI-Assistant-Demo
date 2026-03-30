@@ -800,6 +800,7 @@ const ExamCreator = (() => {
                 difficulty,
                 exam_context: descText,
                 geometry_description: descText,
+                language: localStorage.getItem('app-lang') || 'zh',
                 provider: state.provider,
             });
 
@@ -1123,6 +1124,7 @@ const ExamCreator = (() => {
                 question_types: questionTypes.length ? questionTypes : null,
                 exam_context: examContext,
                 total_marks: totalMarks,
+                language: localStorage.getItem('app-lang') || 'zh',
                 provider: state.provider,
             });
 

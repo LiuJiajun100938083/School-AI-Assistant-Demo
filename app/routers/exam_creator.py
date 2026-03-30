@@ -58,6 +58,7 @@ async def start_exam_generation(
             question_types=req.question_types,
             exam_context=exam_context,
             total_marks=req.total_marks,
+            language=req.language,
             provider=req.provider,
         )
     except ValueError as e:
@@ -76,6 +77,7 @@ async def start_exam_generation(
             question_types=bg_context.get("question_types"),
             exam_context=bg_context.get("exam_context", ""),
             total_marks=bg_context.get("total_marks"),
+            language=bg_context.get("language", "zh"),
             provider=bg_context.get("provider", "local"),
         )
 

@@ -136,6 +136,7 @@ class ExamCreatorService:
         question_types: Optional[List[str]] = None,
         exam_context: str = "",
         total_marks: Optional[int] = None,
+        language: str = "zh",
         provider: str = "local",
     ) -> Dict:
         """
@@ -198,6 +199,7 @@ class ExamCreatorService:
                 "question_types": question_types,
                 "exam_context": exam_context,
                 "total_marks": total_marks,
+                "language": language,
                 "provider": provider,
             },
         }
@@ -220,6 +222,7 @@ class ExamCreatorService:
         question_types: Optional[List[str]] = None,
         exam_context: str = "",
         total_marks: Optional[int] = None,
+        language: str = "zh",
         provider: str = "local",
     ) -> None:
         """
@@ -281,6 +284,7 @@ class ExamCreatorService:
                             marks=q_marks,
                             previous_questions=generated_questions,  # 快照：前幾批的結果
                             subject=subject,
+                            language=language,
                             provider=provider,
                         )
                     )
@@ -382,6 +386,7 @@ class ExamCreatorService:
         marks: Optional[int],
         previous_questions: List[Dict],
         subject: str,
+        language: str = "zh",
         provider: str = "local",
     ) -> Optional[Dict]:
         """
@@ -418,6 +423,14 @@ class ExamCreatorService:
             exam_context=exam_context,
             total_marks=None,  # 單題不用總分
         )
+
+        # 語言要求
+        if language == "en":
+            prompt += (
+                "\n\n## Language Requirement\n"
+                "ALL question text, options, correct_answer, and marking_scheme "
+                "MUST be written in English. Do NOT use Chinese in any JSON field value."
+            )
 
         # 附加配分要求
         if marks:
