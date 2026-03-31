@@ -66,6 +66,17 @@ i18n.addMessages({
         'adm.stat.convCount':          '對話總數',
         'adm.stat.convSub':            '累計對話',
 
+        // ── User table JS dynamic keys (adm.user.* 單數) ────
+        'adm.user.roleAdmin':          '管理員',
+        'adm.user.roleTeacher':        '教師',
+        'adm.user.roleStudent':        '學生',
+        'adm.user.statusActive':       '✓ 活躍',
+        'adm.user.statusDisabled':     '✗ 停用',
+        'adm.user.neverLogin':         '从未登录',
+        'adm.user.editBtn':            '編輯',
+        'adm.user.resetPwdBtn':        '重置密碼',
+        'adm.user.deleteBtn':          '刪除',
+
         // ── Subject management ──────────────────────────────
         'adm.subject.title':           '學科管理',
         'adm.subject.addNew':          '添加新學科',
@@ -1005,6 +1016,17 @@ i18n.addMessages({
         'adm.stat.studentSub':         'Active users',
         'adm.stat.convCount':          'Total Conversations',
         'adm.stat.convSub':            'Cumulative conversations',
+
+        // ── User table JS dynamic keys (adm.user.* singular) ─
+        'adm.user.roleAdmin':          'Admin',
+        'adm.user.roleTeacher':        'Teacher',
+        'adm.user.roleStudent':        'Student',
+        'adm.user.statusActive':       'Active',
+        'adm.user.statusDisabled':     'Disabled',
+        'adm.user.neverLogin':         'Never logged in',
+        'adm.user.editBtn':            'Edit',
+        'adm.user.resetPwdBtn':        'Reset Password',
+        'adm.user.deleteBtn':          'Delete',
 
         // ── Subject management ──────────────────────────────
         'adm.subject.title':           'Subject Management',
