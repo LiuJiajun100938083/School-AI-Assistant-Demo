@@ -158,32 +158,27 @@
         let lastY = 0;
         let rafPending = false;
 
-        // ---- 拖拽 ----
-        if (header) {
-            header.addEventListener('mousedown', (e) => {
-                if (e.target.closest('button')) return;
-                e.preventDefault();
+        // ---- 拖拽（支持 mouse + touch） ----
+        function startDrag(clientX, clientY) {
+            const rect = win.getBoundingClientRect();
+            win.style.left = rect.left + 'px';
+            win.style.top = rect.top + 'px';
+            win.style.right = 'auto';
+            win.style.bottom = 'auto';
 
-                const rect = win.getBoundingClientRect();
-                win.style.left = rect.left + 'px';
-                win.style.top = rect.top + 'px';
-                win.style.right = 'auto';
-                win.style.bottom = 'auto';
-
-                dragState = {
-                    offsetX: e.clientX - rect.left,
-                    offsetY: e.clientY - rect.top,
-                };
-                win.style.transition = 'none';
-                win.classList.add('alc-ai-float--interacting');
-                document.body.style.userSelect = 'none';
-            });
+            dragState = {
+                offsetX: clientX - rect.left,
+                offsetY: clientY - rect.top,
+            };
+            win.style.transition = 'none';
+            win.classList.add('alc-ai-float--interacting');
+            document.body.style.userSelect = 'none';
         }
 
-        document.addEventListener('mousemove', (e) => {
+        function moveDrag(clientX, clientY) {
             if (!dragState) return;
-            lastX = e.clientX;
-            lastY = e.clientY;
+            lastX = clientX;
+            lastY = clientY;
 
             if (rafPending) return;
             rafPending = true;
@@ -194,15 +189,48 @@
                     win.style.top = Math.max(0, Math.min(lastY - dragState.offsetY, window.innerHeight - win.offsetHeight)) + 'px';
                 }
             });
-        });
+        }
 
-        document.addEventListener('mouseup', () => {
+        function endDrag() {
             if (!dragState) return;
             dragState = null;
             win.style.transition = '';
             win.classList.remove('alc-ai-float--interacting');
             document.body.style.userSelect = '';
-        });
+        }
+
+        if (header) {
+            // Mouse
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.closest('button')) return;
+                e.preventDefault();
+                startDrag(e.clientX, e.clientY);
+            });
+
+            // Touch
+            header.addEventListener('touchstart', (e) => {
+                if (e.target.closest('button')) return;
+                const touch = e.touches[0];
+                startDrag(touch.clientX, touch.clientY);
+            }, { passive: true });
+        }
+
+        // Mouse move/up
+        document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+        document.addEventListener('mouseup', endDrag);
+
+        // Touch move/end
+        document.addEventListener('touchmove', (e) => {
+            if (!dragState) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            moveDrag(touch.clientX, touch.clientY);
+        }, { passive: false });
+        document.addEventListener('touchend', endDrag);
+        document.addEventListener('touchcancel', endDrag);
+
+        // 安全網：如果頁面失去焦點，確保拖拽狀態被清除
+        window.addEventListener('blur', endDrag);
     }
 
     /**
