@@ -15,6 +15,7 @@ private_key.pem
 jwt_secret.key
 .env
 .env.*
+!.env.docker.example
 *.key
 !public_key.pem
 .encryption_key

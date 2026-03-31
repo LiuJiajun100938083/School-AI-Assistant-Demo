@@ -1,0 +1,32 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pkms-ai-buddy
+    restart: unless-stopped
+    init: true                          # proper signal forwarding & zombie reaping
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env.docker
+    volumes:
+      # ── Persistent data directories ──
+      - ./uploads:/app/uploads
+      - ./Knowledge_base:/app/Knowledge_base
+      - ./vector_db:/app/vector_db
+      - ./user_data:/app/user_data
+      - ./logs:/app/logs
+      - ./user_backups:/app/user_backups
+      - ./security_backups:/app/security_backups
+      # ── HuggingFace model cache (avoid re-download on rebuild) ──
+      - hf_cache:/app/.cache/huggingface
+    environment:
+      - HF_HOME=/app/.cache/huggingface
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+
+volumes:
+  hf_cache:
