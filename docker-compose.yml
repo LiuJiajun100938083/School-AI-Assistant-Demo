@@ -11,6 +11,11 @@ services:
     env_file:
       - .env.docker
     volumes:
+      # ── Source code (git pull 后立刻生效，无需 rebuild) ──
+      - ./app:/app/app:ro
+      - ./llm:/app/llm:ro
+      - ./forum_system:/app/forum_system:ro
+      - ./web_static:/app/web_static:ro
       # ── Persistent data directories ──
       - ./uploads:/app/uploads
       - ./Knowledge_base:/app/Knowledge_base
