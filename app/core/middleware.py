@@ -11,12 +11,14 @@
 """
 
 import logging
+import os
 import time
+from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.exceptions import AppException
@@ -189,3 +191,39 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             )
 
         return response
+
+
+# ── Maintenance Mode ────────────────────────────────────────
+
+class MaintenanceModeMiddleware(BaseHTTPMiddleware):
+    """
+    维护模式中间件。
+    当环境变量 MAINTENANCE_MODE=true 时，拦截所有请求并返回 503 维护页面。
+    白名单路径（如 /health）不受影响。
+    """
+
+    WHITELIST = {"/health", "/api/pool-status"}
+
+    def __init__(self, app, maintenance_html_path: str = None):
+        super().__init__(app)
+        # 预加载维护页面 HTML
+        if maintenance_html_path is None:
+            maintenance_html_path = str(
+                Path(__file__).resolve().parent.parent.parent
+                / "web_static" / "maintenance.html"
+            )
+        try:
+            with open(maintenance_html_path, "r", encoding="utf-8") as f:
+                self._html = f.read()
+        except FileNotFoundError:
+            self._html = "<h1>System under maintenance</h1>"
+            logger.warning("maintenance.html not found at %s", maintenance_html_path)
+
+    @staticmethod
+    def is_enabled() -> bool:
+        return os.environ.get("MAINTENANCE_MODE", "").lower() in ("true", "1", "yes")
+
+    async def dispatch(self, request: Request, call_next: Callable):
+        if self.is_enabled() and request.url.path not in self.WHITELIST:
+            return HTMLResponse(content=self._html, status_code=503)
+        return await call_next(request)
