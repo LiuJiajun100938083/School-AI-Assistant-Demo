@@ -498,7 +498,7 @@ class ExamCreatorService:
             from app.services.container import get_services
             from llm.config import get_llm_config as _get_llm_cfg
             _cfg = _get_llm_cfg()
-            _model = usage.get("model") if usage else (_cfg.api_model if provider == "deepseek" else _cfg.local_model)
+            _model = _cfg.api_model if provider == "deepseek" else _cfg.local_model
             asyncio.create_task(get_services().llm_usage.record_async(
                 user_id=None, provider=provider, model=_model,
                 purpose="exam_gen", usage_dict=usage or {},
