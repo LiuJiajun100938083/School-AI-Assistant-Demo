@@ -10,6 +10,36 @@ i18n.addMessages({
         'adm.page.roleTeacher':        '教師',
         'adm.page.version':            'v3.0',
 
+        // ── Navbar (HTML data-i18n keys) ────────────────────
+        'adm.navbar.brand':            'AI學習夥伴 - 教師管理後台',
+        'adm.navbar.backToMain':       '返回主系統',
+        'adm.navbar.admin':            '管理員',
+        'adm.navbar.roleBadge':        '管理員',
+
+        // ── Overview stat cards (HTML data-i18n keys) ───────
+        'adm.stats.totalSubjects':     '學科總數',
+        'adm.stats.configuredSubjects':'已配置的學科',
+        'adm.stats.totalDocs':         '文檔總數',
+        'adm.stats.knowledgeDocs':     '知識庫文檔',
+        'adm.stats.totalStudents':     '學生總數',
+        'adm.stats.activeUsers':       '活躍用戶',
+        'adm.stats.totalConversations':'對話總數',
+        'adm.stats.cumulativeConversations':'累計對話',
+
+        // ── Common buttons / labels ─────────────────────────
+        'adm.common.refresh':          '刷新',
+        'adm.common.add':              '添加',
+        'adm.common.cancel':           '取消',
+        'adm.common.save':             '保存',
+        'adm.common.saveChanges':      '保存更改',
+        'adm.common.delete':           '刪除',
+        'adm.common.clear':            '清除',
+        'adm.common.reset':            '重置',
+        'adm.common.all':              '全部',
+        'adm.common.loading':          '載入中...',
+        'adm.common.yes':              '是',
+        'adm.common.no':               '否',
+
         // ── Sidebar navigation ──────────────────────────────
         'adm.sidebar.groupTeaching':   '教學管理',
         'adm.sidebar.groupSystem':     '系統管理',
@@ -749,6 +779,36 @@ i18n.addMessages({
         'adm.page.roleAdmin':          'Admin',
         'adm.page.roleTeacher':        'Teacher',
         'adm.page.version':            'v3.0',
+
+        // ── Navbar (HTML data-i18n keys) ────────────────────
+        'adm.navbar.brand':            'AI Learning Buddy - Teacher Admin',
+        'adm.navbar.backToMain':       'Back to Main',
+        'adm.navbar.admin':            'Admin',
+        'adm.navbar.roleBadge':        'Admin',
+
+        // ── Overview stat cards (HTML data-i18n keys) ───────
+        'adm.stats.totalSubjects':     'Total Subjects',
+        'adm.stats.configuredSubjects':'Configured subjects',
+        'adm.stats.totalDocs':         'Total Documents',
+        'adm.stats.knowledgeDocs':     'Knowledge base docs',
+        'adm.stats.totalStudents':     'Total Students',
+        'adm.stats.activeUsers':       'Active users',
+        'adm.stats.totalConversations':'Total Conversations',
+        'adm.stats.cumulativeConversations':'Cumulative conversations',
+
+        // ── Common buttons / labels ─────────────────────────
+        'adm.common.refresh':          'Refresh',
+        'adm.common.add':              'Add',
+        'adm.common.cancel':           'Cancel',
+        'adm.common.save':             'Save',
+        'adm.common.saveChanges':      'Save Changes',
+        'adm.common.delete':           'Delete',
+        'adm.common.clear':            'Clear',
+        'adm.common.reset':            'Reset',
+        'adm.common.all':              'All',
+        'adm.common.loading':          'Loading...',
+        'adm.common.yes':              'Yes',
+        'adm.common.no':               'No',
 
         // ── Sidebar navigation ──────────────────────────────
         'adm.sidebar.groupTeaching':   'Teaching',
