@@ -866,6 +866,13 @@ i18n.addMessages({
         'adm.classdiary.reportTitle':    '每日報告接收人',
         'adm.classdiary.reportDesc':     '被選中的教師訪問課室日誌 Review 頁面時，會看到 AI 生成的每日總結和異常信息。系統每天下午 4 點自動生成報告。',
         'adm.classdiary.manualGenerate': '手動生成今日報告',
+        'adm.classdiary.classCodePlaceholder': '班級代碼 (如 1A)',
+        'adm.classdiary.classNamePlaceholder': '班級名稱 (如 中一A班)',
+        'adm.classdiary.gradeplaceholder':     '年級 (如 中一)',
+        // JS uses camelCase adm.classDiary.*
+        'adm.classDiary.classTeacher':   '班主任',
+        'adm.classDiary.viceTeacher':    '副班主任',
+        'adm.classDiary.downloadPNG':    '下載 PNG',
 
         // ── Modal ───────────────────────────────────────────
         'adm.modal.confirmDelete':       '確認刪除',
@@ -1829,6 +1836,12 @@ i18n.addMessages({
         'adm.classdiary.reportTitle':    'Daily Report Recipients',
         'adm.classdiary.reportDesc':     'Selected teachers will see AI-generated daily summaries. Reports auto-generate at 4 PM.',
         'adm.classdiary.manualGenerate': 'Generate Today Report',
+        'adm.classdiary.classCodePlaceholder': 'Class code (e.g. 1A)',
+        'adm.classdiary.classNamePlaceholder': 'Class name (e.g. Form 1A)',
+        'adm.classdiary.gradeplaceholder':     'Grade (e.g. Form 1)',
+        'adm.classDiary.classTeacher':   'Class Teacher',
+        'adm.classDiary.viceTeacher':    'Vice Class Teacher',
+        'adm.classDiary.downloadPNG':    'Download PNG',
 
         // ── Modal ───────────────────────────────────────────
         'adm.modal.confirmDelete':       'Confirm Delete',
