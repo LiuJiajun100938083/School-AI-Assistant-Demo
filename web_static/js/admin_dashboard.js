@@ -1245,15 +1245,20 @@ const AdminApp = {
         aiMonitorTimer: null,
         aiMonitorReqSeq: 0,
         aiMonitorLastData: null,
-        aiMonitorFetching: false
+        aiMonitorFetching: false,
+        // Tab 緩存：已載入過的 tab 不重複請求
+        _tabLoaded: {}
     },
 
     /* ---------- 初始化 ---------- */
     init() {
-        this.loadAdminInfo();
-        this.loadSubjects();
-        this.loadStatistics();
-        this.loadStudentsSummary();
+        // 並行載入初始數據（不互相依賴）
+        Promise.all([
+            this.loadAdminInfo(),
+            this.loadSubjects(),
+            this.loadStatistics(),
+        ]).catch(e => console.error('Init load error:', e));
+        // StudentsSummary 較慢，延遲到切 tab 時再載入
         if (window.location.hash === '#knowledge') {
             this.loadNoticeTemplates();
         }
@@ -1549,34 +1554,44 @@ const AdminApp = {
         document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
         document.getElementById(`${tabName}-tab`).classList.add('active');
 
-        if (tabName === 'analysis') {
-            this.loadStudentAnalysis();
-            this.loadStudentsSummary();
-        } else if (tabName === 'knowledge') {
-            this.loadKnowledgeTab();
-            setTimeout(() => this.initDragDropUpload(), 120);
-            setTimeout(() => this.enhanceNoticeChat(), 120);
-        } else if (tabName === 'prompts') {
-            this.loadPromptsTab();
-        } else if (tabName === 'users') {
-            this.loadUsers();
-        } else if (tabName === 'notice') {
-            if (!this.state.noticeSessionId) {
-                this.initNoticeGenerator();
+        // 需要每次刷新的 tab（實時數據）
+        const alwaysRefresh = ['aimonitor', 'syslogs', 'blocked'];
+        const cached = this.state._tabLoaded[tabName] && !alwaysRefresh.includes(tabName);
+
+        if (!cached) {
+            if (tabName === 'analysis') {
+                this.loadStudentAnalysis();
+                this.loadStudentsSummary();
+            } else if (tabName === 'knowledge') {
+                this.loadKnowledgeTab();
+                setTimeout(() => this.initDragDropUpload(), 120);
+                setTimeout(() => this.enhanceNoticeChat(), 120);
+            } else if (tabName === 'prompts') {
+                this.loadPromptsTab();
+            } else if (tabName === 'users') {
+                this.loadUsers();
+            } else if (tabName === 'notice') {
+                if (!this.state.noticeSessionId) {
+                    this.initNoticeGenerator();
+                }
+            } else if (tabName === 'appmgr') {
+                this.loadAppsConfig();
+            } else if (tabName === 'classdiary') {
+                this.loadClassDiaryTab();
+            } else if (tabName === 'blocked') {
+                this.loadBlockedAccounts();
+            } else if (tabName === 'aimonitor') {
+                this.startAiMonitor();
+                loadAiUsageStats();
+            } else if (tabName === 'settings') {
+                loadCloudStatus();
+            } else if (tabName === 'syslogs') {
+                this.loadSystemLogs();
             }
-        } else if (tabName === 'appmgr') {
-            this.loadAppsConfig();
-        } else if (tabName === 'classdiary') {
-            this.loadClassDiaryTab();
-        } else if (tabName === 'blocked') {
-            this.loadBlockedAccounts();
+            this.state._tabLoaded[tabName] = true;
         } else if (tabName === 'aimonitor') {
+            // AI 監控需要重啟輪詢
             this.startAiMonitor();
-            loadAiUsageStats();  // 載入 Token 使用量面板
-        } else if (tabName === 'settings') {
-            loadCloudStatus();
-        } else if (tabName === 'syslogs') {
-            this.loadSystemLogs();
         }
     },
 
