@@ -216,7 +216,15 @@
         }
 
         // Mouse move/up
-        document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState) return;
+            // 安全檢查：如果鼠標已經鬆開（在頁面外鬆開時 mouseup 不會觸發）
+            if (e.buttons === 0) {
+                endDrag();
+                return;
+            }
+            moveDrag(e.clientX, e.clientY);
+        });
         document.addEventListener('mouseup', endDrag);
 
         // Touch move/end
