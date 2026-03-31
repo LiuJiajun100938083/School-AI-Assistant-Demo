@@ -77,6 +77,18 @@ i18n.addMessages({
         'adm.user.resetPwdBtn':        '重置密碼',
         'adm.user.deleteBtn':          '刪除',
 
+        // ── App management (role / category labels) ────────
+        'adm.app.roleStudent':         '學生',
+        'adm.app.roleTeacher':         '教師',
+        'adm.app.roleAdmin':           '管理員',
+        'adm.app.catLearning':         '學習',
+        'adm.app.catCommunity':        '社區',
+        'adm.app.catTeaching':         '教學',
+        'adm.app.catAdmin':            '管理',
+        'adm.app.catOther':            '其他',
+        'adm.app.moveUp':             '上移',
+        'adm.app.moveDown':           '下移',
+
         // ── Subject management ──────────────────────────────
         'adm.subject.title':           '學科管理',
         'adm.subject.addNew':          '添加新學科',
@@ -1027,6 +1039,18 @@ i18n.addMessages({
         'adm.user.editBtn':            'Edit',
         'adm.user.resetPwdBtn':        'Reset Password',
         'adm.user.deleteBtn':          'Delete',
+
+        // ── App management (role / category labels) ────────
+        'adm.app.roleStudent':         'Student',
+        'adm.app.roleTeacher':         'Teacher',
+        'adm.app.roleAdmin':           'Admin',
+        'adm.app.catLearning':         'Learning',
+        'adm.app.catCommunity':        'Community',
+        'adm.app.catTeaching':         'Teaching',
+        'adm.app.catAdmin':            'Admin',
+        'adm.app.catOther':            'Other',
+        'adm.app.moveUp':             'Move Up',
+        'adm.app.moveDown':           'Move Down',
 
         // ── Subject management ──────────────────────────────
         'adm.subject.title':           'Subject Management',
