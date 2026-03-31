@@ -144,18 +144,42 @@ class ExamCreatorService:
 
         去重保護：同一教師不重複建 generating session。
         """
-        # 去重檢查
+        # 去重檢查（帶超時保護：超過 10 分鐘的 generating session 視為已失敗）
         existing = self._sessions.find_generating_by_teacher(teacher_username)
         if existing:
-            logger.info(
-                "複用已有 generating session %s for teacher %s",
-                existing["session_id"], teacher_username,
-            )
-            return {
-                "session_id": existing["session_id"],
-                "status": "generating",
-                "reused": True,
-            }
+            from datetime import datetime, timedelta
+            created_at = existing.get("created_at")
+            stale = False
+            if created_at:
+                if isinstance(created_at, str):
+                    try:
+                        created_at = datetime.fromisoformat(created_at)
+                    except (ValueError, TypeError):
+                        stale = True
+                if isinstance(created_at, datetime) and datetime.now() - created_at > timedelta(minutes=10):
+                    stale = True
+
+            if stale:
+                # 超時 session → 標記為失敗，允許重新生成
+                logger.warning(
+                    "Generating session %s 已超時（>10min），標記為失敗",
+                    existing["session_id"],
+                )
+                self._sessions.update(
+                    {"status": "generation_failed", "error_code": "TIMEOUT", "error_message": "生成超時（超過10分鐘）"},
+                    "session_id = %s AND status = 'generating'",
+                    (existing["session_id"],),
+                )
+            else:
+                logger.info(
+                    "複用已有 generating session %s for teacher %s",
+                    existing["session_id"], teacher_username,
+                )
+                return {
+                    "session_id": existing["session_id"],
+                    "status": "generating",
+                    "reused": True,
+                }
 
         # 解析知識點
         points_data = self._resolve_knowledge_points(subject, target_points)
@@ -469,14 +493,16 @@ class ExamCreatorService:
                 num_predict=8192,  # 單題含完整解答+評分標準，中文 ≈1 token/字
             )
 
-            # 非阻塞記錄 token 使用量
-            if usage:
-                import asyncio
-                from app.services.container import get_services
-                asyncio.create_task(get_services().llm_usage.record_async(
-                    user_id=None, provider=provider, model=usage.get("model", "deepseek-reasoner"),
-                    purpose="exam_gen", usage_dict=usage,
-                ))
+            # 非阻塞記錄 API 調用（無論是否有 token 數據都記錄）
+            import asyncio
+            from app.services.container import get_services
+            from llm.config import get_llm_config as _get_llm_cfg
+            _cfg = _get_llm_cfg()
+            _model = usage.get("model") if usage else (_cfg.api_model if provider == "deepseek" else _cfg.local_model)
+            asyncio.create_task(get_services().llm_usage.record_async(
+                user_id=None, provider=provider, model=_model,
+                purpose="exam_gen", usage_dict=usage or {},
+            ))
 
             if not raw or not raw.strip():
                 logger.warning(

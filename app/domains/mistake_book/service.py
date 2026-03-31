@@ -1522,14 +1522,16 @@ class MistakeBookService:
                 gate_task="practice_generation",
             )
 
-            # 非阻塞記錄 token 使用量
-            if usage:
-                import asyncio
-                from app.services.container import get_services
-                asyncio.create_task(get_services().llm_usage.record_async(
-                    user_id=None, provider=provider, model=usage.get("model", "deepseek-reasoner"),
-                    purpose="practice_gen", usage_dict=usage,
-                ))
+            # 非阻塞記錄 API 調用（無論是否有 token 數據都記錄）
+            import asyncio
+            from app.services.container import get_services
+            from llm.config import get_llm_config as _get_llm_cfg
+            _cfg = _get_llm_cfg()
+            _model = usage.get("model") if usage else (_cfg.api_model if provider == "deepseek" else _cfg.local_model)
+            asyncio.create_task(get_services().llm_usage.record_async(
+                user_id=None, provider=provider, model=_model,
+                purpose="practice_gen", usage_dict=usage or {},
+            ))
 
             questions_data = self._parse_json_response(raw)
             questions = questions_data.get("questions", [])
