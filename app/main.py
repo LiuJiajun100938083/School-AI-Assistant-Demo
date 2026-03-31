@@ -133,6 +133,9 @@ def create_app() -> FastAPI:
     )
 
     # 4. 注册中间件
+    # 域名跳转（旧域名 → 新域名）
+    from app.core.middleware import DomainRedirectMiddleware
+    app.add_middleware(DomainRedirectMiddleware)
     # 维护模式（MAINTENANCE_MODE=true 时拦截所有请求）
     from app.core.middleware import MaintenanceModeMiddleware
     app.add_middleware(MaintenanceModeMiddleware)

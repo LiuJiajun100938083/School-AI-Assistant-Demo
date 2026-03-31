@@ -18,7 +18,7 @@ from typing import Callable
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.exceptions import AppException
@@ -226,4 +226,37 @@ class MaintenanceModeMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable):
         if self.is_enabled() and request.url.path not in self.WHITELIST:
             return HTMLResponse(content=self._html, status_code=503)
+        return await call_next(request)
+
+
+# ── Domain Redirect ────────────────────────────────────────
+
+class DomainRedirectMiddleware(BaseHTTPMiddleware):
+    """
+    域名跳转中间件。
+    当用户访问旧域名时，自动 301 跳转到新域名，保留路径和参数。
+    """
+
+    def __init__(self, app):
+        super().__init__(app)
+        self._redirect_map = {}
+        redirect_config = os.environ.get("DOMAIN_REDIRECTS", "")
+        # 格式: "旧域名1>新域名1,旧域名2>新域名2"
+        for pair in redirect_config.split(","):
+            pair = pair.strip()
+            if ">" in pair:
+                old, new = pair.split(">", 1)
+                self._redirect_map[old.strip().lower()] = new.strip()
+        if self._redirect_map:
+            logger.info("域名跳转已配置: %s", self._redirect_map)
+
+    async def dispatch(self, request: Request, call_next: Callable):
+        if self._redirect_map:
+            host = (request.headers.get("host") or "").split(":")[0].lower()
+            if host in self._redirect_map:
+                new_domain = self._redirect_map[host]
+                new_url = f"https://{new_domain}{request.url.path}"
+                if request.url.query:
+                    new_url += f"?{request.url.query}"
+                return RedirectResponse(url=new_url, status_code=301)
         return await call_next(request)
