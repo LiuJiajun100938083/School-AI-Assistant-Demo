@@ -900,6 +900,18 @@ i18n.addMessages({
         'adm.syslogs.rows200':           '200 條',
         'adm.syslogs.rows500':           '500 條',
         'adm.syslogs.clickRefresh':      '點擊刷新載入日誌...',
+        'adm.syslogs.searchPlaceholder': '搜尋用戶名 / IP / 事件...',
+        'adm.syslogs.loadFailedPrefix':  '載入日誌失敗：',
+        'adm.syslogs.loadBlockedFailed': '載入封鎖列表失敗：{{msg}}',
+        // JS code uses adm.logs.* prefix
+        'adm.logs.thTime':              '時間',
+        'adm.logs.thLevel':             '級別',
+        'adm.logs.thEvent':             '事件',
+        'adm.logs.thUser':              '用戶',
+        'adm.logs.thIP':                'IP',
+        'adm.logs.thDetails':           '詳情',
+        'adm.logs.empty':               '暫無日誌記錄',
+        'adm.logs.totalRecords':        '共 {{count}} 條記錄',
 
         // ── AI Monitor ──────────────────────────────────────
         'adm.aimonitor.title':          'AI 調度監控',
@@ -1879,6 +1891,17 @@ i18n.addMessages({
         'adm.syslogs.rows200':           '200 rows',
         'adm.syslogs.rows500':           '500 rows',
         'adm.syslogs.clickRefresh':      'Click refresh to load logs...',
+        'adm.syslogs.searchPlaceholder': 'Search username / IP / event...',
+        'adm.syslogs.loadFailedPrefix':  'Failed to load logs: ',
+        'adm.syslogs.loadBlockedFailed': 'Failed to load block list: {{msg}}',
+        'adm.logs.thTime':              'Time',
+        'adm.logs.thLevel':             'Level',
+        'adm.logs.thEvent':             'Event',
+        'adm.logs.thUser':              'User',
+        'adm.logs.thIP':                'IP',
+        'adm.logs.thDetails':           'Details',
+        'adm.logs.empty':               'No log records',
+        'adm.logs.totalRecords':        '{{count}} records',
 
         // ── AI Monitor ──────────────────────────────────────
         'adm.aimonitor.title':          'AI Scheduling Monitor',
