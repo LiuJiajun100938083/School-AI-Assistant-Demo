@@ -40,7 +40,7 @@ RUN rm -rf .venv .git .idea __pycache__ china_economy_game \
 # Ensure data directories exist and are writable by appuser
 RUN mkdir -p uploads uploads/ppt uploads/assignments uploads/learning_center \
         uploads/school_learning_center user_data user_backups security_backups \
-        logs vector_db Knowledge_base \
+        logs vector_db Knowledge_base .cache/huggingface \
     && chown -R appuser:appuser /app
 
 USER appuser
