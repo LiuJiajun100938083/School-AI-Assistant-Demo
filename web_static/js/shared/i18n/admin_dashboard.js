@@ -477,6 +477,21 @@ i18n.addMessages({
         'adm.settings.testUnavail':    '雲端不可用: {{reason}}',
         'adm.settings.testFail':       '測試失敗: {{msg}}',
 
+        // ── Cloud LLM config (JS-only keys) ────────────────
+        'adm.cloud.apiKeyConfigured':  'API Key 已配置，雲端可用',
+        'adm.cloud.missingApiKey':     '未配置 API Key',
+        'adm.cloud.configError':       '配置錯誤',
+        'adm.cloud.unavailable':       '雲端不可用',
+        'adm.cloud.loadFailed':        '載入狀態失敗',
+        'adm.cloud.enterKeyOrModel':   '請輸入 API Key 或選擇模型',
+        'adm.cloud.saved':             '配置已保存',
+        'adm.cloud.saveFailedPrefix':  '保存失敗: ',
+        'adm.cloud.testing':           '測試中...',
+        'adm.cloud.testOK':            '連接正常，雲端 API 可用',
+        'adm.cloud.testFailedNoKey':   '尚未配置 API Key',
+        'adm.cloud.testFailedPrefix':  '雲端不可用: ',
+        'adm.cloud.testError':         '測試失敗: {{msg}}',
+
         // ── App management ──────────────────────────────────
         'adm.appmgr.title':            '首頁應用管理',
         'adm.appmgr.btnReset':         '重置為預設',
@@ -1469,6 +1484,21 @@ i18n.addMessages({
         'adm.settings.testOk':         'Connection OK, cloud API available',
         'adm.settings.testUnavail':    'Cloud unavailable: {{reason}}',
         'adm.settings.testFail':       'Test failed: {{msg}}',
+
+        // ── Cloud LLM config (JS-only keys) ────────────────
+        'adm.cloud.apiKeyConfigured':  'API Key configured, cloud available',
+        'adm.cloud.missingApiKey':     'API Key not configured',
+        'adm.cloud.configError':       'Configuration error',
+        'adm.cloud.unavailable':       'Cloud unavailable',
+        'adm.cloud.loadFailed':        'Failed to load status',
+        'adm.cloud.enterKeyOrModel':   'Please enter an API Key or select a model',
+        'adm.cloud.saved':             'Configuration saved',
+        'adm.cloud.saveFailedPrefix':  'Save failed: ',
+        'adm.cloud.testing':           'Testing...',
+        'adm.cloud.testOK':            'Connection OK, cloud API available',
+        'adm.cloud.testFailedNoKey':   'API Key not configured',
+        'adm.cloud.testFailedPrefix':  'Cloud unavailable: ',
+        'adm.cloud.testError':         'Test failed: {{msg}}',
 
         // ── App management ──────────────────────────────────
         'adm.appmgr.title':            'Home App Management',
