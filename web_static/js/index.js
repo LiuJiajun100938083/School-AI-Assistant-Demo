@@ -554,7 +554,7 @@ const HomeApp = {
             el.passwordError.textContent = i18n.t('password.emptyFields');
             return;
         }
-        if (newPassword.length < 4) {
+        if (newPassword.length < 8) {
             el.passwordError.textContent = i18n.t('password.tooShort');
             return;
         }
@@ -569,6 +569,9 @@ const HomeApp = {
             if (response.ok && result.success) {
                 alert(i18n.t('password.success'));
                 HomeUI.hideChangePasswordModal();
+                AuthModule.clearAll();
+                window.location.href = '/login';
+                return;
             } else {
                 el.passwordError.textContent = result.detail || i18n.t('password.failed');
             }
