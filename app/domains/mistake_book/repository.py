@@ -292,8 +292,8 @@ class MistakeKnowledgeLinkRepository(BaseRepository):
         sql = (
             "SELECT kp.point_code, kp.point_name, kp.category, kp.subject, "
             "COUNT(DISTINCT mkl.mistake_id) as mistake_count, "
-            "COALESCE(skm.mastery_level, 30) as mastery_level, "
-            "COALESCE(skm.trend, 'unknown') as trend "
+            "MIN(COALESCE(skm.mastery_level, 30)) as mastery_level, "
+            "MIN(COALESCE(skm.trend, 'unknown')) as trend "
             "FROM mistake_knowledge_links mkl "
             "JOIN student_mistakes sm ON mkl.mistake_id = sm.mistake_id "
             "JOIN knowledge_points kp ON mkl.point_code = kp.point_code "
@@ -308,7 +308,7 @@ class MistakeKnowledgeLinkRepository(BaseRepository):
             params.append(subject)
 
         sql += (
-            "GROUP BY kp.point_code, kp.point_name, kp.category, kp.subject, skm.mastery_level, skm.trend "
+            "GROUP BY kp.point_code, kp.point_name, kp.category, kp.subject "
             "ORDER BY mastery_level ASC, mistake_count DESC "
             f"LIMIT {limit}"
         )

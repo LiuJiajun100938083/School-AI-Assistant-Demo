@@ -120,6 +120,10 @@ class UserService:
             "active_students": self._repo.count_active_students(),
         }
 
+    def get_users_by_class(self, class_name: str) -> List[Dict[str, Any]]:
+        """获取指定班级的所有活跃学生"""
+        return self._repo.get_students_by_class(class_name)
+
     # ------------------------------------------------------------------ #
     #                          创建操作                                    #
     # ------------------------------------------------------------------ #
