@@ -128,8 +128,8 @@ const TeacherApp = {
 
     async _loadClasses() {
         const res = await TeacherAPI.getClasses();
-        if (res && res.data) {
-            const classes = res.data;
+        if (res && res.classes) {
+            const classes = res.classes;
             this.state.classes = classes;
 
             const select = document.getElementById('classSelect');
@@ -220,7 +220,7 @@ const TeacherAPI = {
     },
 
     async getClasses() {
-        return this._fetch('/api/users/classes');
+        return this._fetch('/api/teacher/classes');
     },
 
     async getClassReport(className, subject) {
