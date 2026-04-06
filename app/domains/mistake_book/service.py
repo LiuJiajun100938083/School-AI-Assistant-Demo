@@ -1091,7 +1091,7 @@ class MistakeBookService:
         return True
 
     def cancel_processing(self, mistake_id: str, username: str) -> bool:
-        """取消正在處理的錯題（將 processing → cancelled）"""
+        """取消正在處理/分析中的錯題（將 processing/analyzing → cancelled）"""
         mistake = self._mistakes.find_by_mistake_id(mistake_id)
         if not mistake or mistake["student_username"] != username:
             raise MistakeNotFoundError(mistake_id)
@@ -1099,13 +1099,14 @@ class MistakeBookService:
         status = mistake["status"]
         if status == "cancelled":
             return True  # 冪等：已取消 → 成功
-        if status != "processing":
-            raise ValueError(f"只能取消 processing 狀態的錯題，當前狀態: {status}")
+        if status not in ("processing", "analyzing"):
+            raise ValueError(f"只能取消 processing/analyzing 狀態的錯題，當前狀態: {status}")
 
         self._mistakes.update(
             {"status": "cancelled"},
             "mistake_id = %s", (mistake_id,),
         )
+        logger.info("用戶取消錯題處理: %s (原狀態: %s)", mistake_id, status)
         return True
 
     def _check_still_processing(self, mistake_id: str) -> bool:
