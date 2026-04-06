@@ -40,14 +40,11 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.mistake_book import router as mistake_book_router
     from app.routers.ai_learning_center import router as ai_learning_center_router
     from app.routers.teacher_class import router as teacher_class_router
-    from app.routers.china_game import router as china_game_router
     from app.routers.game_upload import game_router as game_upload_router
     from app.routers.learning_modes import router as learning_modes_router
     from app.routers.chinese_learning import router as chinese_learning_router
     from app.routers.attendance import router as attendance_router
     from app.routers.school_learning_center import router as school_learning_center_router
-    from app.routers.trade_game import trade_game_router
-    from app.routers.farm_game import farm_game_router
     from app.routers.chem2048 import chem2048_router
     from app.routers.assignment import router as assignment_router
     from app.routers.class_diary import router as class_diary_router
@@ -69,14 +66,11 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(mistake_book_router)
     app.include_router(ai_learning_center_router)
     app.include_router(teacher_class_router)
-    app.include_router(china_game_router)
     app.include_router(game_upload_router)
     app.include_router(learning_modes_router)
     app.include_router(chinese_learning_router)
     app.include_router(attendance_router)
     app.include_router(school_learning_center_router)
-    app.include_router(trade_game_router)
-    app.include_router(farm_game_router)
     app.include_router(chem2048_router)
     app.include_router(assignment_router)
     app.include_router(class_diary_router)
@@ -84,7 +78,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(resource_library_router)
     app.include_router(exam_creator_router)
 
-    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, assignment, class_diary, image_gen")
+    logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, chem2048, assignment, class_diary, image_gen")
 
     # ====== 2. 数据库迁移 ====== #
     _run_schema_migrations()
@@ -585,20 +579,6 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_game_upload_system()
     except Exception as e:
         logger.warning("游戏上传系统初始化失败: %s", e)
-
-    # 初始化全球貿易大亨系統
-    try:
-        from app.routers.trade_game import init_trade_game_system
-        init_trade_game_system()
-    except Exception as e:
-        logger.warning("全球貿易大亨系統初始化失敗: %s", e)
-
-    # 初始化神州菜園經營家系統
-    try:
-        from app.routers.farm_game import init_farm_game_system
-        init_farm_game_system()
-    except Exception as e:
-        logger.warning("神州菜園經營家系統初始化失敗: %s", e)
 
     # 初始化化學 2048 系統
     try:

@@ -69,100 +69,11 @@ const GameConfig = {
     ],
 
     games: {
-        chinese: [
-            {
-                id: 'chinese_reading_games',
-                name: '閱讀理解訓練',
-                nameEn: 'Reading Comprehension',
-                icon: 'book',
-                description: '15種閱讀理解遊戲，覆蓋理解、表達、結構、思維、元認知',
-                url: '/chinese_learning',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['閱讀', '理解', '表達', '思維'],
-                badge: null,
-                roles: ['student', 'teacher', 'admin']
-            },
-            {
-                id: 'classical_chinese',
-                name: '文言文訓練',
-                nameEn: 'Classical Chinese',
-                icon: 'book',
-                description: '文言文閱讀理解與翻譯練習',
-                url: '/learning_mode/classical',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['文言文', '翻譯', '古文'],
-                badge: null,
-                roles: ['student', 'teacher', 'admin']
-            },
-            {
-                id: 'chinese_writing',
-                name: '作文輔導',
-                nameEn: 'Writing Guide',
-                icon: 'book',
-                description: 'AI引導式作文訓練，蘇格拉底式提問',
-                url: '/learning_mode/writing',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['寫作', '作文', '引導'],
-                badge: null,
-                roles: ['student', 'teacher', 'admin']
-            }
-        ],
-        math: [
-            {
-                id: 'math_word_cards',
-                name: '數學詞彙寶庫',
-                nameEn: 'Math Word Vault',
-                icon: 'calculator',
-                description: '掌握數學英文術語，從定義到題目語境全面訓練',
-                url: '/games/math_word_cards',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['詞彙', '英文術語', '定義', '語境'],
-                badge: '新',
-                roles: ['student', 'teacher', 'admin']
-            }
-        ],
-        english: [
-            {
-                id: 'english_writing_helper',
-                name: '英文寫作助手',
-                nameEn: 'Writing Helper',
-                icon: 'languages',
-                description: 'AI輔助英文寫作訓練',
-                url: '/learning_mode/english_writing',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['寫作', '作文'],
-                badge: null,
-                roles: ['student', 'teacher', 'admin']
-            }
-        ],
-        history: [
-            {
-                id: 'ming_dynasty',
-                name: '大明風雲：布衣天子之路',
-                nameEn: 'Rise of Ming Dynasty',
-                icon: 'landmark',
-                description: '扮演朱元璋，體驗從乞丐到皇帝的傳奇人生',
-                url: '/static/ming-dynasty-game.html',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['明朝', '朱元璋', '歷史人物', '角色扮演'],
-                badge: '新',
-                roles: ['student', 'teacher', 'admin']
-            }
-        ],
-        ict: [
-            {
-                id: 'swift_code_game',
-                name: 'SwiftUI 代碼學堂',
-                nameEn: 'SwiftUI Code Academy',
-                icon: 'monitor',
-                description: '看圖選代碼 + 拖拽拼代碼，從零開始理解 SwiftUI 界面編程',
-                url: '/swift-code-game',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['編程', 'SwiftUI', '代碼', '拖拽', 'iOS'],
-                badge: '新',
-                roles: ['student', 'teacher', 'admin']
-            }
-        ],
+        chinese: [],
+        math: [],
+        english: [],
+        history: [],
+        ict: [],
         physics: [],
         chemistry: [
             {
@@ -179,46 +90,7 @@ const GameConfig = {
             }
         ],
         biology: [],
-        ces: [
-            {
-                id: 'china_economy',
-                name: '中國經濟發展桌遊',
-                nameEn: 'China Economy Game',
-                icon: 'scale',
-                description: '體驗改革開放經濟發展歷程，了解中國經濟騰飛的奧秘',
-                url: '/china_economy_game',
-                difficulty: ['中一', '中二', '中三'],
-                tags: ['經濟', '改革開放', '公民', '策略'],
-                badge: null,
-                roles: ['student', 'teacher', 'admin']
-            },
-            {
-                id: 'trade_game',
-                name: '中三 — 全球貿易大亨',
-                nameEn: 'Global Trade Tycoon',
-                icon: 'globe',
-                description: '模擬國際貿易：比較優勢、供需法則與經濟安全',
-                url: '/trade-game',
-                difficulty: ['中三'],
-                tags: ['貿易', '經濟', '國際', '策略', '公民'],
-                badge: null,
-                roles: ['student', 'teacher', 'admin'],
-                allowedClasses: ['3A', '3B', '3C', '3D', '3S']
-            },
-            {
-                id: 'farm_game',
-                name: '中二 — 神州菜園經營家',
-                nameEn: 'Farm Security Tycoon',
-                icon: 'leaf',
-                description: '經營菜園守護糧食安全：戰爭貿易戰、種子主權與耕地紅線',
-                url: '/farm-game',
-                difficulty: ['中二'],
-                tags: ['糧食安全', '農業', '國安', '策略', '公民'],
-                badge: '新',
-                roles: ['student', 'teacher', 'admin'],
-                allowedClasses: ['2A', '2B', '2C', '2D', '2S']
-            }
-        ]
+        ces: []
     }
 };
 
@@ -257,18 +129,9 @@ const GameCenterAPI = {
         catch { return null; }
     },
 
-    async loadFarmLeaderboard(limit = 10) {
+    async loadChem2048Leaderboard(limit = 10) {
         try {
-            const data = await APIClient.get('/api/farm-game/scores/leaderboard', { limit });
-            return (data?.success && data.data) ? data.data : null;
-        } catch { return null; }
-    },
-
-    async loadTradeLeaderboard(difficulty = null, limit = 10) {
-        try {
-            const params = { limit };
-            if (difficulty) params.difficulty = difficulty;
-            const data = await APIClient.get('/api/trade-game/scores/leaderboard', params);
+            const data = await APIClient.get('/api/chem2048/scores/leaderboard', { limit });
             return (data?.success && data.data) ? data.data : null;
         } catch { return null; }
     }
@@ -861,20 +724,20 @@ const GameCenterApp = {
     },
 
     async _loadLeaderboards() {
-        const farmData = await GameCenterAPI.loadFarmLeaderboard(10);
-        const cesSection = this.elements.gamesContainer.querySelector('.game-section[data-subject="ces"]');
-        if (!cesSection) return;
+        const chemData = await GameCenterAPI.loadChem2048Leaderboard(10);
+        const chemSection = this.elements.gamesContainer.querySelector('.game-section[data-subject="chemistry"]');
+        if (!chemSection) return;
 
-        const farmHtml = GameCenterUI.createLeaderboardHTML('神州菜園經營家 排行榜', '🥬', farmData, '/farm-game');
-        if (!farmHtml) return;
+        const chemHtml = GameCenterUI.createLeaderboardHTML('化學元素 2048 排行榜', '🧪', chemData, '/chemistry-2048');
+        if (!chemHtml) return;
 
-        let container = cesSection.querySelector('.gc-leaderboards');
+        let container = chemSection.querySelector('.gc-leaderboards');
         if (!container) {
             container = document.createElement('div');
             container.className = 'gc-leaderboards';
-            cesSection.appendChild(container);
+            chemSection.appendChild(container);
         }
-        container.innerHTML = farmHtml;
+        container.innerHTML = chemHtml;
     },
 
     _filterGames() {

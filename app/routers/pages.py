@@ -12,8 +12,7 @@
 - GET  /mistake-book         - 学生AI智能错题本
 - GET  /mistake-book/teacher - 教师错题分析面板
 - GET  /games                - 游戏中心
-- GET  /games/math_word_cards - 数学词卡
-- GET  /china_economy_game   - 经济发展游戏
+- GET  /chemistry-2048       - 化学元素2048
 - GET  /game_upload          - 游戏上传
 - GET  /my_games             - 我的游戏
 - GET  /play/{token}          - 分享游戏（无需登入）
@@ -235,40 +234,10 @@ async def game_center():
     return _serve_page("game_center.html")
 
 
-@router.get("/games/math_word_cards")
-async def math_word_cards():
-    """数学词卡游戏"""
-    return _serve_page("math_word_cards.html")
-
-
-@router.get("/china_economy_game")
-async def china_economy_game():
-    """中国经济发展游戏"""
-    return _serve_page("china_economy_game.html")
-
-
-@router.get("/trade-game")
-async def trade_game():
-    """全球貿易大亨"""
-    return _serve_page("trade_game.html")
-
-
-@router.get("/farm-game")
-async def farm_game():
-    """神州菜園經營家"""
-    return _serve_page("farm_game.html")
-
-
 @router.get("/chemistry-2048")
 async def chemistry_2048():
     """化學元素 2048"""
     return _serve_page("chemistry_2048.html")
-
-
-@router.get("/swift-code-game")
-async def swift_code_game():
-    """SwiftUI 代碼學堂"""
-    return _serve_page("swift_code_game.html")
 
 
 @router.get("/assignment")
