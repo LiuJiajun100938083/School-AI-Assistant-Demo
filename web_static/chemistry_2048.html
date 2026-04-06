@@ -457,6 +457,10 @@
         <button class="btn btn-start-big" onclick="startGame()">Start Challenge / 開始挑戰</button>
         <div id="welcome-leaderboard" class="welcome-lb">
             <h3>Ranking / 排行榜</h3>
+            <div class="lb-tabs" id="welcome-lb-tabs">
+                <button class="lb-tab lb-tab--active" data-group="form3" onclick="switchWelcomeLbTab('form3')">Form 3 / 中三</button>
+                <button class="lb-tab" data-group="open" onclick="switchWelcomeLbTab('open')">Open / 公開組</button>
+            </div>
             <div id="welcome-lb-body" class="welcome-lb-body">
                 <div class="lb-empty">Loading...</div>
             </div>
@@ -1109,6 +1113,15 @@
             const body = document.getElementById('welcome-lb-body');
             if (!body) return;
             await fetchAndRenderLeaderboard(body, 10, 'form3');
+        }
+
+        function switchWelcomeLbTab(group) {
+            document.querySelectorAll('#welcome-lb-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.group === group);
+            });
+            const body = document.getElementById('welcome-lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 10, group);
         }
 
         function escapeHtml(str) {
