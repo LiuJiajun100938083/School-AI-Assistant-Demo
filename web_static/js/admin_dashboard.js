@@ -2269,7 +2269,7 @@ ${report.teacher_attention_points || i18n.t('adm.export.none')}
             AdminUI.renderUsersTable(this.state.allUsers);
         } catch (error) {
             console.error('載入用戶失敗:', error);
-            alert(i18n.t('adm.userMgmt.loadFailed'));
+            alert(i18n.t('adm.user.loadFail'));
         }
     },
 
@@ -2304,7 +2304,7 @@ ${report.teacher_attention_points || i18n.t('adm.export.none')}
     },
 
     showAddUserModal() {
-        document.getElementById('userModalTitle').textContent = i18n.t('adm.userMgmt.addTitle');
+        document.getElementById('userModalTitle').textContent = i18n.t('adm.modal.addUserTitle');
         document.getElementById('userForm').reset();
         document.getElementById('editUserId').value = '';
         document.getElementById('userUsername').disabled = false;
@@ -2315,7 +2315,7 @@ ${report.teacher_attention_points || i18n.t('adm.export.none')}
     editUser(username) {
         const user = this.state.allUsers.find(u => u.username === username);
         if (!user) return;
-        document.getElementById('userModalTitle').textContent = i18n.t('adm.userMgmt.editTitle');
+        document.getElementById('userModalTitle').textContent = i18n.t('adm.modal.editUserTitle');
         document.getElementById('editUserId').value = username;
         document.getElementById('userUsername').value = username;
         document.getElementById('userUsername').disabled = true;
@@ -2352,39 +2352,39 @@ ${report.teacher_attention_points || i18n.t('adm.export.none')}
         };
         if (!isEdit) {
             userData.password = document.getElementById('userPassword').value;
-            if (!userData.password) { alert(i18n.t('adm.userMgmt.enterPassword')); return; }
+            if (!userData.password) { alert(i18n.t('adm.modal.enterPassword')); return; }
         } else if (document.getElementById('userPassword').value) {
             userData.password = document.getElementById('userPassword').value;
         }
         try {
             if (isEdit) {
                 await AdminAPI.updateUser(editUserId, userData);
-                alert(i18n.t('adm.userMgmt.updateSuccess'));
+                alert(i18n.t('adm.modal.userUpdateSuccess'));
             } else {
                 await AdminAPI.createUser(userData);
-                alert(i18n.t('adm.userMgmt.addSuccess'));
+                alert(i18n.t('adm.modal.userAddSuccess'));
             }
             this.closeUserModal();
             this.loadUsers(true);
         } catch (error) {
-            alert(i18n.t('adm.userMgmt.operationFailed', {msg: error.message}));
+            alert(i18n.t('adm.modal.operationFail', {msg: error.message}));
         }
     },
 
     async resetUserPassword(username) {
-        const newPassword = prompt(i18n.t('adm.userMgmt.resetPwdPrompt', {name: username}));
+        const newPassword = prompt(i18n.t('adm.user.resetPwdPrompt', {username}));
         if (!newPassword) return;
         try {
             await AdminAPI.resetUserPassword(username, newPassword);
-            alert(i18n.t('adm.userMgmt.resetPwdSuccess'));
+            alert(i18n.t('adm.user.resetPwdSuccess'));
         } catch (error) {
-            alert(i18n.t('adm.userMgmt.resetPwdFailed', {msg: error.message}));
+            alert(i18n.t('adm.user.resetPwdFail', {msg: error.message}));
         }
     },
 
     deleteUser(username) {
         this.state.userToDelete = username;
-        document.getElementById('deleteConfirmMessage').textContent = i18n.t('adm.userMgmt.deleteConfirm', {name: username});
+        document.getElementById('deleteConfirmMessage').textContent = i18n.t('adm.modal.deleteMessage', {username});
         document.getElementById('deleteConfirmModal').style.display = 'flex';
     },
 
@@ -2392,11 +2392,11 @@ ${report.teacher_attention_points || i18n.t('adm.export.none')}
         if (!this.state.userToDelete) return;
         try {
             await AdminAPI.deleteUser(this.state.userToDelete);
-            alert(i18n.t('adm.userMgmt.deleteSuccess'));
+            alert(i18n.t('adm.modal.userDeleteSuccess'));
             this.closeDeleteConfirm();
             this.loadUsers(true);
         } catch (error) {
-            alert(i18n.t('adm.userMgmt.deleteFailed', {msg: error.message}));
+            alert(i18n.t('adm.modal.userDeleteFail', {msg: error.message}));
         }
     },
 

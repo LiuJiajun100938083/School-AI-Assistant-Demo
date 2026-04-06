@@ -66,6 +66,12 @@ i18n.addMessages({
         'adm.stat.convCount':          '對話總數',
         'adm.stat.convSub':            '累計對話',
 
+        // ── API fallback errors ─────────────────────────────
+        'adm.api.addFailed':           '添加失敗',
+        'adm.api.updateFailed':        '更新失敗',
+        'adm.api.resetFailed':         '重置失敗',
+        'adm.api.deleteFailed':        '刪除失敗',
+
         // ── User table JS dynamic keys (adm.user.* 單數) ────
         'adm.user.roleAdmin':          '管理員',
         'adm.user.roleTeacher':        '教師',
@@ -1073,6 +1079,12 @@ i18n.addMessages({
         'adm.stat.studentSub':         'Active users',
         'adm.stat.convCount':          'Total Conversations',
         'adm.stat.convSub':            'Cumulative conversations',
+
+        // ── API fallback errors ─────────────────────────────
+        'adm.api.addFailed':           'Add failed',
+        'adm.api.updateFailed':        'Update failed',
+        'adm.api.resetFailed':         'Reset failed',
+        'adm.api.deleteFailed':        'Delete failed',
 
         // ── User table JS dynamic keys (adm.user.* singular) ─
         'adm.user.roleAdmin':          'Admin',

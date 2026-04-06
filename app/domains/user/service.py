@@ -361,7 +361,7 @@ class UserService:
         allowed_fields = {
             "display_name", "english_name", "card_id",
             "email", "class_name", "class_number",
-            "role", "status", "is_active",
+            "role", "status", "is_active", "notes",
         }
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
         if not update_data:
