@@ -1211,7 +1211,7 @@
 
         let _aiRunning = false;
         let _aiTimer = null;
-        const _AI_DELAY = 200; // ms between moves
+        let _AI_DELAY = 50; // ms between moves (adjustable via speed buttons)
 
         // ── Snake weight matrices (4 rotations) for 5×5 board ──
         const _snakeWeights = (() => {
@@ -1340,33 +1340,87 @@
             _aiRunning ? stopAI() : startAI();
         }
 
+        const _AI_SPEEDS = [
+            { label: '1x',   delay: 200 },
+            { label: '2x',   delay: 100 },
+            { label: '5x',   delay: 40  },
+            { label: '10x',  delay: 15  },
+            { label: 'MAX',  delay: 0   },
+        ];
+        let _aiSpeedIdx = 2; // default 5x
+
+        function _showAIPanel() {
+            let panel = document.getElementById('ai-ctrl-panel');
+            if (panel) { panel.style.display = 'flex'; return; }
+            panel = document.createElement('div');
+            panel.id = 'ai-ctrl-panel';
+            panel.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(30,30,30,0.92);padding:8px 16px;border-radius:24px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+            panel.innerHTML = `
+                <span style="color:#27ae60;font-weight:700;font-size:13px;margin-right:4px;">AI</span>
+                ${_AI_SPEEDS.map((s, i) =>
+                    `<button onclick="_setAISpeed(${i})" class="ai-spd-btn" data-idx="${i}"
+                        style="padding:4px 10px;border:1px solid rgba(255,255,255,0.2);border-radius:12px;
+                        background:${i === _aiSpeedIdx ? '#27ae60' : 'transparent'};
+                        color:${i === _aiSpeedIdx ? '#fff' : '#aaa'};font-size:12px;font-weight:600;
+                        cursor:pointer;transition:all 0.1s;">${s.label}</button>`
+                ).join('')}
+                <button onclick="stopAI()" style="padding:4px 12px;border:1px solid rgba(255,80,80,0.4);border-radius:12px;background:transparent;color:#ff5050;font-size:12px;font-weight:600;cursor:pointer;margin-left:4px;">STOP</button>
+            `;
+            document.body.appendChild(panel);
+        }
+
+        function _hideAIPanel() {
+            const panel = document.getElementById('ai-ctrl-panel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        function _setAISpeed(idx) {
+            _aiSpeedIdx = idx;
+            _AI_DELAY = _AI_SPEEDS[idx].delay;
+            document.querySelectorAll('.ai-spd-btn').forEach(b => {
+                const i = parseInt(b.dataset.idx);
+                b.style.background = i === idx ? '#27ae60' : 'transparent';
+                b.style.color = i === idx ? '#fff' : '#aaa';
+            });
+        }
+
         function startAI() {
             if (_aiRunning) return;
             _aiRunning = true;
-            console.log('%c[AI] 🤖 Auto-play activated', 'color:#27ae60;font-weight:bold;font-size:14px');
+            _AI_DELAY = _AI_SPEEDS[_aiSpeedIdx].delay;
+            console.log('%c[AI] Auto-play activated (speed: ' + _AI_SPEEDS[_aiSpeedIdx].label + ')', 'color:#27ae60;font-weight:bold;font-size:14px');
             const bEl = document.getElementById('game-board');
             if (bEl) bEl.style.boxShadow = '0 0 20px rgba(39,174,96,0.6)';
+            _showAIPanel();
             _aiStep();
         }
 
         function stopAI() {
             _aiRunning = false;
-            if (_aiTimer) { clearTimeout(_aiTimer); _aiTimer = null; }
-            console.log('%c[AI] ⏹ Auto-play stopped', 'color:#e74c3c;font-weight:bold;font-size:14px');
+            if (_aiTimer) { clearTimeout(_aiTimer); cancelAnimationFrame(_aiTimer); _aiTimer = null; }
+            console.log('%c[AI] Auto-play stopped', 'color:#e74c3c;font-weight:bold;font-size:14px');
             const bEl = document.getElementById('game-board');
             if (bEl) bEl.style.boxShadow = '';
+            _hideAIPanel();
         }
 
         function _aiStep() {
             if (!_aiRunning || !isGameActive) { stopAI(); return; }
             if (gameOverEl.style.display === 'flex') { stopAI(); return; }
-            if (isAnimating) { _aiTimer = setTimeout(_aiStep, 50); return; }
+            if (isAnimating) {
+                _aiTimer = _AI_DELAY === 0 ? requestAnimationFrame(_aiStep) : setTimeout(_aiStep, 10);
+                return;
+            }
 
             const dir = _aiBestMove();
             if (!dir) { stopAI(); return; }
 
             handleInput(dir);
-            _aiTimer = setTimeout(_aiStep, _AI_DELAY);
+            if (_AI_DELAY === 0) {
+                _aiTimer = requestAnimationFrame(_aiStep);
+            } else {
+                _aiTimer = setTimeout(_aiStep, _AI_DELAY);
+            }
         }
 
         // ============================================================
