@@ -92,14 +92,34 @@ class Chem2048Repository(BaseRepository):
         )
         return rows[0] if rows else None
 
-    def get_leaderboard(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_leaderboard(
+        self,
+        limit: int = 50,
+        class_filter: list = None,
+        exclude_classes: list = None,
+    ) -> List[Dict[str, Any]]:
         """
         獲取排行榜（每位學生取最高分，按 score 降序）
 
-        使用子查詢找出每位學生的最高分記錄。
-        若同一學生有多筆相同最高分，取最新一筆（MAX(id)）避免重複。
+        Args:
+            limit: 返回條數
+            class_filter: 僅包含這些班級（例如 ['3A','3B']）
+            exclude_classes: 排除這些班級
         """
-        sql = """
+        # 構建班級篩選條件
+        where_clause = ""
+        params: list = []
+
+        if class_filter:
+            placeholders = ",".join(["%s"] * len(class_filter))
+            where_clause = f"WHERE t.class_name IN ({placeholders})"
+            params.extend(class_filter)
+        elif exclude_classes:
+            placeholders = ",".join(["%s"] * len(exclude_classes))
+            where_clause = f"WHERE (t.class_name NOT IN ({placeholders}) OR t.class_name IS NULL OR t.class_name = '')"
+            params.extend(exclude_classes)
+
+        sql = f"""
             SELECT t.id, t.student_name, t.class_name,
                    t.score, t.highest_tile, t.highest_element,
                    t.highest_element_no, t.total_moves, t.tips_used, t.played_at
@@ -114,10 +134,12 @@ class Chem2048Repository(BaseRepository):
                 ) m ON s.student_id = m.student_id AND s.score = m.max_score
                 GROUP BY s.student_id
             ) best ON t.id = best.best_id
+            {where_clause}
             ORDER BY t.score DESC
             LIMIT %s
         """
-        return self.raw_query(sql, (limit,))
+        params.append(limit)
+        return self.raw_query(sql, tuple(params))
 
     def get_all_scores(
         self,

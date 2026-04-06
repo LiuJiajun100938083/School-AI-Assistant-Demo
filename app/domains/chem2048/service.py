@@ -117,12 +117,27 @@ class Chem2048Service:
     # 公開查詢
     # ============================================================
 
-    def get_leaderboard(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """獲取排行榜"""
-        rows = self._repo.get_leaderboard(limit)
+    def get_leaderboard(
+        self,
+        limit: int = 50,
+        class_filter: list = None,
+        exclude_classes: list = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        獲取排行榜
+
+        Args:
+            limit: 返回條數
+            class_filter: 僅包含這些班級
+            exclude_classes: 排除這些班級
+        """
+        rows = self._repo.get_leaderboard(
+            limit,
+            class_filter=class_filter,
+            exclude_classes=exclude_classes,
+        )
         for idx, row in enumerate(rows, 1):
             row["rank"] = idx
-            # 補充中文元素名
             row["element_zh"] = ELEMENT_NAMES.get(row.get("highest_element", ""), "")
         return rows
 

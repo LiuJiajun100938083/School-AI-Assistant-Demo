@@ -335,6 +335,14 @@
             border-bottom: 1px solid #eee4da;
         }
         .lb-header h2 { margin: 0; font-size: 22px; color: #776e65; }
+        .lb-tabs { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+        .lb-tab {
+            padding: 6px 18px; border: 1px solid #cdc1b4; border-radius: 20px;
+            background: #fff; color: #776e65; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .lb-tab:hover { background: #f2e8db; }
+        .lb-tab--active { background: #776e65; color: #fff; border-color: #776e65; }
         .lb-close {
             position: absolute;
             top: 12px; right: 16px;
@@ -513,6 +521,10 @@
             <button class="lb-close" onclick="closeLeaderboard()">&times;</button>
             <div class="lb-header">
                 <h2>Ranking / 排行榜</h2>
+                <div class="lb-tabs" id="lb-tabs">
+                    <button class="lb-tab lb-tab--active" data-group="form3" onclick="switchLeaderboardTab('form3')">Form 3 / 中三</button>
+                    <button class="lb-tab" data-group="open" onclick="switchLeaderboardTab('open')">Open / 公開組</button>
+                </div>
             </div>
             <div class="lb-body" id="lb-body">
                 <div class="lb-empty">Loading...</div>
@@ -1049,17 +1061,30 @@
             return html;
         }
 
-        async function fetchAndRenderLeaderboard(targetEl, limit) {
+        let currentLbGroup = 'form3'; // 默認顯示中三排名
+
+        async function fetchAndRenderLeaderboard(targetEl, limit, group) {
             if (!isLoggedIn) {
                 targetEl.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
                 return;
             }
-            const res = await apiCall('GET', `/api/chem2048/scores/leaderboard?limit=${limit}`);
+            const groupParam = group ? `&group=${group}` : '';
+            const res = await apiCall('GET', `/api/chem2048/scores/leaderboard?limit=${limit}${groupParam}`);
             if (!res || !res.data || res.data.length === 0) {
                 targetEl.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
                 return;
             }
             targetEl.innerHTML = renderLeaderboardHtml(res.data);
+        }
+
+        function switchLeaderboardTab(group) {
+            currentLbGroup = group;
+            document.querySelectorAll('.lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.group === group);
+            });
+            const body = document.getElementById('lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 50, group);
         }
 
         async function showLeaderboard() {
@@ -1068,7 +1093,11 @@
             overlay.classList.add('open');
             isLeaderboardOpen = true;
             body.innerHTML = '<div class="lb-empty">Loading...</div>';
-            await fetchAndRenderLeaderboard(body, 50);
+            // 重置 tab 狀態
+            document.querySelectorAll('.lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.group === currentLbGroup);
+            });
+            await fetchAndRenderLeaderboard(body, 50, currentLbGroup);
         }
 
         function closeLeaderboard() {
@@ -1079,7 +1108,7 @@
         async function loadWelcomeLeaderboard() {
             const body = document.getElementById('welcome-lb-body');
             if (!body) return;
-            await fetchAndRenderLeaderboard(body, 10);
+            await fetchAndRenderLeaderboard(body, 10, 'form3');
         }
 
         function escapeHtml(str) {
