@@ -14,8 +14,9 @@
 5. score 上界：寬鬆的合理上界（每步最多 highest_tile × 4）
 6. total_moves 下界：達到 2^N 至少需要的合併次數 ≈ 2^(N-2)
 7. 不設分數硬上限，容許 AI 高分
-8. mode 欄位：simple 模式上限為元素 20 (Ca, 2^20)；hard 模式可達 2^53
-   (JS Number safe integer 上限)
+8. mode 欄位：simple 模式上限為元素 20 (Ca, 2^20)；hard 模式可達整張
+   週期表（元素 118, Og, 2^118）。Python int 為任意精度，所有比較/乘
+   法都是精確的；前端透過 BigInt 表示，傳輸時用字串避免 JSON 序列化。
 """
 
 from typing import Literal, Optional
@@ -23,20 +24,24 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-# Hard 模式上限 — JS Number.MAX_SAFE_INTEGER 對應 2^53
-_MAX_TILE = 1 << 53
+# Hard 模式上限 — Og (元素 118)，2^118 ≈ 3.3 × 10^35
+_MAX_TILE = 1 << 118
 # Simple 模式上限 — 元素 20 (Ca)
 _SIMPLE_MAX_NO = 20
 
 
 class Chem2048SubmitRequest(BaseModel):
-    """提交成績請求"""
+    """提交成績請求
+
+    score 與 highest_tile 都可以接受 JSON 字串（前端 BigInt → 字串），
+    Pydantic v2 預設會自動把 "123" 解析成 Python int（任意精度）。
+    """
     mode: Literal["simple", "hard"] = Field(default="simple", description="遊戲難度模式")
-    score: int = Field(ge=0, description="遊戲分數")
-    highest_tile: int = Field(ge=2, le=_MAX_TILE, description="最高方塊值 (如 2048)")
-    highest_element: str = Field(max_length=10, description="最高元素符號 (如 Na)")
-    highest_element_no: int = Field(ge=1, le=118, description="最高元素序號 (如 11)")
-    total_moves: int = Field(ge=0, le=10_000_000, default=0, description="總移動次數")
+    score: int = Field(ge=0, description="遊戲分數（接受 int 或數字字串）")
+    highest_tile: int = Field(ge=2, le=_MAX_TILE, description="最高方塊值")
+    highest_element: str = Field(max_length=10, description="最高元素符號")
+    highest_element_no: int = Field(ge=1, le=118, description="最高元素序號")
+    total_moves: int = Field(ge=0, default=0, description="總移動次數（無上限，hard 模式可極大）")
     tips_used: int = Field(ge=0, le=100, default=0, description="使用提示次數")
 
     @field_validator("highest_tile")
@@ -86,10 +91,10 @@ class Chem2048SubmitRequest(BaseModel):
                     f"score ({self.score}) 超過 {self.total_moves} 步可能產生的最大分 {max_score}"
                 )
 
-        # 4. 合併次數下界：非常寬鬆 —— 至少需要 tile/64 步
-        #    （實際 5×5 棋盤可以連鎖合併，遠少於 2^(N-1) 步即可達成）
-        if n >= 6:
-            min_moves = tile >> 6  # tile / 64
+        # 4. 合併次數下界：每步至多 spawn 一個 4，所以總值上限 = 4 × moves
+        #    達到 2^N 必須累積 ≥ 2^N 的總值，故 moves >= tile/4
+        if n >= 4:
+            min_moves = tile >> 2  # tile / 4
             if self.total_moves > 0 and self.total_moves < min_moves:
                 raise ValueError(
                     f"total_moves ({self.total_moves}) 少於達到 {tile} 的理論最小步數 {min_moves}"

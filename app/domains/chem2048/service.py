@@ -104,15 +104,20 @@ class Chem2048Service:
         _last_submit_ts[student_id] = now
 
         previous_best = self._repo.get_student_best_score(student_id)
-        previous_best_score = previous_best["score"] if previous_best else None
+        # previous_best_score 從 DB 取出時是 Decimal；用 int() 統一轉成 Python int
+        previous_best_score = (
+            int(previous_best["score"]) if previous_best and previous_best.get("score") is not None
+            else None
+        )
 
+        # data["score"] / data["highest_tile"] 是 Pydantic 解析後的 Python int（任意精度）
         record = {
             "student_id": student_id,
             "student_name": student_name,
             "class_name": class_name,
             "mode": data.get("mode", "simple"),
-            "score": data["score"],
-            "highest_tile": data["highest_tile"],
+            "score": int(data["score"]),
+            "highest_tile": int(data["highest_tile"]),
             "highest_element": data["highest_element"],
             "highest_element_no": data["highest_element_no"],
             "total_moves": data.get("total_moves", 0),
@@ -121,20 +126,23 @@ class Chem2048Service:
 
         new_id = self._repo.create_score(record)
 
+        current_score = int(data["score"])
         is_new_best = (
             previous_best_score is None
-            or data["score"] > previous_best_score
+            or current_score > previous_best_score
         )
 
+        # %d 對任意大小 Python int 都安全
         logger.info(
             "化學 2048 成績已記錄: student_id=%d, score=%d, element=%s, is_new_best=%s",
-            student_id, data["score"], data["highest_element"], is_new_best,
+            student_id, current_score, data["highest_element"], is_new_best,
         )
         return {
             "id": new_id,
             "message": "新紀錄！" if is_new_best else "成績已記錄",
             "is_new_best": is_new_best,
-            "previous_best": previous_best_score,
+            # 字串避免 JSON 序列化巨大整數時掉精度
+            "previous_best": str(previous_best_score) if previous_best_score is not None else None,
         }
 
     # ============================================================
@@ -166,6 +174,11 @@ class Chem2048Service:
         for idx, row in enumerate(rows, 1):
             row["rank"] = idx
             row["element_zh"] = ELEMENT_NAMES.get(row.get("highest_element", ""), "")
+            # ★ 把 Decimal/int 轉成字串避免 JSON 序列化巨大整數時失精
+            if row.get("score") is not None:
+                row["score"] = str(int(row["score"]))
+            if row.get("highest_tile") is not None:
+                row["highest_tile"] = str(int(row["highest_tile"]))
         return rows
 
     # ============================================================

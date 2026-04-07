@@ -27,7 +27,10 @@ class Chem2048Repository(BaseRepository):
     # ============================================================
 
     def init_table(self) -> None:
-        """初始化 chem2048_scores 表（冪等）"""
+        """初始化 chem2048_scores 表（冪等）
+
+        分數欄位使用 DECIMAL(50,0)，可容納至 10^50（遠超 Og 元素 118 的 2^118 ≈ 3.3×10^35）
+        """
         create_sql = """
         CREATE TABLE IF NOT EXISTS chem2048_scores (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -35,11 +38,11 @@ class Chem2048Repository(BaseRepository):
             student_name VARCHAR(100) NOT NULL COMMENT '顯示名稱',
             class_name VARCHAR(50) DEFAULT '' COMMENT '班級',
             mode VARCHAR(16) NOT NULL DEFAULT 'simple' COMMENT '難度模式 (simple/hard)',
-            score BIGINT NOT NULL COMMENT '遊戲分數',
-            highest_tile BIGINT NOT NULL COMMENT '最高方塊值 (如 2048)',
+            score DECIMAL(50,0) NOT NULL COMMENT '遊戲分數（容納 BigInt）',
+            highest_tile DECIMAL(50,0) NOT NULL COMMENT '最高方塊值（容納 BigInt）',
             highest_element VARCHAR(10) NOT NULL COMMENT '最高元素符號 (如 Na)',
             highest_element_no INT NOT NULL COMMENT '最高元素序號 (如 11)',
-            total_moves INT DEFAULT 0 COMMENT '總移動次數',
+            total_moves BIGINT DEFAULT 0 COMMENT '總移動次數',
             tips_used INT DEFAULT 0 COMMENT '使用提示次數',
             played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_student (student_id),
@@ -62,12 +65,15 @@ class Chem2048Repository(BaseRepository):
                 logger.info("chem2048_scores 已添加 mode 欄位")
             except Exception:
                 pass  # 欄位已存在
+            # BIGINT → DECIMAL(50,0) 無損升級（既有資料完全保留）
             try:
                 cursor.execute(
                     "ALTER TABLE chem2048_scores "
-                    "MODIFY COLUMN score BIGINT NOT NULL, "
-                    "MODIFY COLUMN highest_tile BIGINT NOT NULL"
+                    "MODIFY COLUMN score DECIMAL(50,0) NOT NULL, "
+                    "MODIFY COLUMN highest_tile DECIMAL(50,0) NOT NULL, "
+                    "MODIFY COLUMN total_moves BIGINT DEFAULT 0"
                 )
+                logger.info("chem2048_scores 數值欄位已升級為 DECIMAL(50,0)")
             except Exception:
                 pass
             try:
