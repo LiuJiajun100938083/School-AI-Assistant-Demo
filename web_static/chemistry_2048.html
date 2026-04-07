@@ -556,6 +556,8 @@
                     }
                 }
             } catch (_) { /* not logged in */ }
+            // Retry any previously-failed score submissions
+            if (isLoggedIn) _flushPendingScores();
             // Load leaderboard on welcome screen
             loadWelcomeLeaderboard();
         }
@@ -968,6 +970,48 @@
         // ============================================================
         //  Game Over & Score Submission
         // ============================================================
+        async function _submitScorePayload(payload, tag) {
+            // Direct fetch with explicit error handling (bypass apiCall's silent null returns)
+            try {
+                if (typeof AuthModule === 'undefined') throw new Error('AuthModule missing');
+                const token = AuthModule.getToken && AuthModule.getToken();
+                if (!token) throw new Error('no token (not logged in?)');
+                const resp = await fetch('/api/chem2048/scores', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+                const text = await resp.text();
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${text.slice(0, 200)}`);
+                let data;
+                try { data = JSON.parse(text); } catch { throw new Error('bad JSON: ' + text.slice(0, 200)); }
+                if (!data.success) throw new Error('server said not success: ' + JSON.stringify(data).slice(0, 200));
+                console.log(`%c[chem2048] ${tag} submitted: score=${payload.score}`, 'color:#27ae60;font-weight:bold', data.data);
+                return data;
+            } catch (err) {
+                console.error(`%c[chem2048] ${tag} FAILED: ${err.message}`, 'color:#e74c3c;font-weight:bold', payload);
+                return null;
+            }
+        }
+
+        async function _flushPendingScores() {
+            let pending = [];
+            try { pending = JSON.parse(localStorage.getItem('chem2048_pending') || '[]'); } catch (_) {}
+            if (!pending.length) return;
+            const remaining = [];
+            for (const p of pending) {
+                const r = await _submitScorePayload(p, 'retry');
+                if (!r) remaining.push(p);
+            }
+            localStorage.setItem('chem2048_pending', JSON.stringify(remaining));
+            if (pending.length > remaining.length) {
+                showToast(`Flushed ${pending.length - remaining.length} pending score(s)`, 'success');
+            }
+        }
+
         async function onGameOver() {
             const highestTile = getHighestTile();
             const elData = elements[highestTile] || elements[2];
@@ -977,24 +1021,34 @@
                 `Moves: ${totalMoves}`;
             gameOverEl.style.display = 'flex';
 
-            // Submit score
-            if (isLoggedIn) {
-                const res = await apiCall('POST', '/api/chem2048/scores', {
-                    score: score,
-                    highest_tile: highestTile,
-                    highest_element: elData.symbol,
-                    highest_element_no: elData.no,
-                    total_moves: totalMoves,
-                    tips_used: tipsUsed,
-                });
-                if (res && res.data) {
-                    const msg = res.data.is_new_best
-                        ? `New Record! / 新紀錄！ 🎉`
-                        : `Score submitted / 成績已記錄 ✓`;
-                    showToast(msg, res.data.is_new_best ? 'success' : 'info');
-                } else {
-                    showToast('Score save failed / 成績保存失敗', 'error');
-                }
+            if (!isLoggedIn) {
+                console.warn('[chem2048] game over but not logged in — score NOT submitted');
+                showToast('Not logged in — score not saved', 'error');
+                return;
+            }
+
+            const payload = {
+                score: score,
+                highest_tile: highestTile,
+                highest_element: elData.symbol,
+                highest_element_no: elData.no,
+                total_moves: totalMoves,
+                tips_used: tipsUsed,
+            };
+
+            const res = await _submitScorePayload(payload, 'game-over');
+            if (res && res.data) {
+                const msg = res.data.is_new_best
+                    ? `New Record! / 新紀錄！ 🎉`
+                    : `Score submitted / 成績已記錄 ✓`;
+                showToast(msg, res.data.is_new_best ? 'success' : 'info');
+            } else {
+                // Queue for retry next page load
+                let pending = [];
+                try { pending = JSON.parse(localStorage.getItem('chem2048_pending') || '[]'); } catch (_) {}
+                pending.push(payload);
+                localStorage.setItem('chem2048_pending', JSON.stringify(pending));
+                showToast('Save failed — will retry next time', 'error');
             }
         }
 
