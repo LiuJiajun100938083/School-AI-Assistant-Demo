@@ -1236,25 +1236,13 @@
             let emptyCount = 0;
             let smoothness = 0;
             let mono = 0;
-            let maxVal = 0, maxR = 0, maxC = 0;
-            let mergePotential = 0;
 
             for (let r = 0; r < 5; r++) {
                 for (let c = 0; c < 5; c++) {
-                    const cell = b[r][c];
-                    if (cell === 0) { emptyCount++; continue; }
-                    if (cell > maxVal) { maxVal = cell; maxR = r; maxC = c; }
-                    const v = Math.log2(cell);
-                    if (c < 4 && b[r][c + 1]) {
-                        const v2 = Math.log2(b[r][c + 1]);
-                        smoothness -= Math.abs(v - v2);
-                        if (cell === b[r][c + 1]) mergePotential += v;
-                    }
-                    if (r < 4 && b[r + 1][c]) {
-                        const v2 = Math.log2(b[r + 1][c]);
-                        smoothness -= Math.abs(v - v2);
-                        if (cell === b[r + 1][c]) mergePotential += v;
-                    }
+                    if (b[r][c] === 0) { emptyCount++; continue; }
+                    const v = Math.log2(b[r][c]);
+                    if (c < 4 && b[r][c + 1]) smoothness -= Math.abs(v - Math.log2(b[r][c + 1]));
+                    if (r < 4 && b[r + 1][c]) smoothness -= Math.abs(v - Math.log2(b[r + 1][c]));
                 }
             }
 
@@ -1276,7 +1264,7 @@
                 mono += Math.max(inc, dec);
             }
 
-            // Snake pattern using RAW tile values — exponential reward for growing big tiles
+            // Snake pattern (best of 4 rotations) — RAW values for exponential growth incentive
             let bestSnake = -Infinity;
             for (const w of _snakeWeights) {
                 let s = 0;
@@ -1286,18 +1274,10 @@
                 if (s > bestSnake) bestSnake = s;
             }
 
-            // Max-tile-in-corner: scale with maxVal so it stays relevant vs snake
-            const isCorner = (maxR === 0 || maxR === 4) && (maxC === 0 || maxC === 4);
-            const cornerBonus = isCorner ? maxVal * 2.0 : -maxVal * 1.5;
-
-            // Other heuristics scaled to be comparable to snake at the relevant magnitudes
-            // (snake dominates absolute scale; these provide tie-breaking gradients)
             return bestSnake
-                + cornerBonus
-                + maxVal * (2.7 * Math.log2(emptyCount + 1)
-                          + 0.1 * smoothness
-                          + 1.0 * mono
-                          + 0.5 * mergePotential);
+                + 2.7 * Math.log2(emptyCount + 1)
+                + 0.1 * smoothness
+                + 1.0 * mono;
         }
 
         function _expectimax(b, depth, isPlayer) {
@@ -1313,7 +1293,7 @@
                     const s = _expectimax(res.newBoard, depth - 1, false);
                     if (s > best) best = s;
                 }
-                return anyMoved ? best : _evalBoard(b) - 1000;
+                return anyMoved ? best : _evalBoard(b) - 1e15;
             } else {
                 // Chance node — full enumeration with proper probability weighting
                 const empty = [];
@@ -1323,7 +1303,7 @@
                 if (!empty.length) return _evalBoard(b);
 
                 // To control branching, sample a subset of empty cells
-                const sampleN = depth >= 3 ? 4 : 6;
+                const sampleN = depth >= 4 ? 2 : depth >= 3 ? 3 : 5;
                 let cells = empty;
                 if (empty.length > sampleN) {
                     const shuffled = [...empty];
@@ -1349,9 +1329,10 @@
         }
 
         function _adaptiveDepth(emptyCount) {
-            // depth 2 fast and matches original; depth 3 only when board is tight
-            if (emptyCount >= 4) return 2;
-            return 3;
+            // Deeper search significantly improves max-tile reach
+            if (emptyCount >= 8) return 3;
+            if (emptyCount >= 3) return 4;
+            return 5;
         }
 
         function _aiBestMove() {
