@@ -545,7 +545,8 @@ p, span, div, li, label {
     transition: background 0.2s ease, color 0.2s ease, transform 0.12s ease;
     user-select: none;
     -webkit-user-select: none;
-    will-change: transform, background-color;
+    /* No persistent will-change here — would promote text to GPU layer
+       and remove sub-pixel font antialiasing, making text blurry. */
 }
 
 /* Vertical accent bar (left edge) — animates in for active state */
@@ -582,7 +583,7 @@ p, span, div, li, label {
     background: var(--brand-light);
     color: var(--brand);
     font-weight: 600;
-    transform: translateX(0);
+    transform: none;  /* not translateX(0) — identity transform still creates a layer */
     animation: homeSidebarPressFlash 0.4s ease-out;
 }
 
@@ -594,11 +595,11 @@ p, span, div, li, label {
 .home-sidebar__item--active:hover {
     background: var(--brand-light);
     color: var(--brand);
-    transform: translateX(0);
+    transform: none;
 }
 
 .home-sidebar__item--active:active {
-    transform: translateX(0) scale(0.98);
+    transform: scale(0.98);
 }
 
 @keyframes homeSidebarPressFlash {
@@ -621,7 +622,8 @@ p, span, div, li, label {
 .home-group--animate-in {
     animation: homeGroupSlideFadeIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: var(--home-stagger-delay, 0ms);
-    will-change: opacity, transform;
+    /* No persistent will-change — animation alone is enough to GPU-promote
+       temporarily; persistent will-change degrades font antialiasing. */
 }
 .home-group--animate-in .home-app-card {
     animation: homeAppCardRise 0.32s ease-out both;

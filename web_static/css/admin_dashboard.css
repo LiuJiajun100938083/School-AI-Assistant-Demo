@@ -1069,10 +1069,11 @@ body {
     100% { background-color: transparent; }
 }
 
-/* ── Tab pane: directional slide + fade ── */
-.tab-pane {
-    will-change: opacity, transform;
-}
+/* ── Tab pane: directional slide + fade ──
+   NOTE: do NOT use persistent will-change here — it promotes text to a GPU
+   layer permanently which removes sub-pixel font antialiasing and makes
+   text look blurry on non-Retina displays. The animation itself is enough
+   to trigger temporary GPU layering. */
 .tab-pane.active {
     display: block;
     animation: tabSlideFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1099,11 +1100,12 @@ body {
 .stat-card:nth-child(3) { animation-delay: 0.1s; }
 .stat-card:nth-child(4) { animation-delay: 0.15s; }
 
-/* ── Sidebar item: smooth state transition + press feedback + accent bar ── */
+/* ── Sidebar item: smooth state transition + press feedback + accent bar ──
+   NOTE: avoid persistent will-change on text-bearing elements — it forces
+   GPU layer and breaks sub-pixel font antialiasing. */
 .admin-sidebar__item {
     position: relative;
     transition: background 0.2s ease, color 0.2s ease, transform 0.12s ease;
-    will-change: transform, background-color;
 }
 
 /* The vertical accent bar (left edge) — animates in for active state */
@@ -1140,7 +1142,7 @@ body {
     background: var(--brand-light);
     color: var(--brand);
     font-weight: 600;
-    transform: translateX(0);
+    transform: none;  /* not translateX(0) — that still creates a layer */
     animation: sidebarPressFlash 0.4s ease-out;
 }
 
@@ -1150,12 +1152,12 @@ body {
 }
 
 .admin-sidebar__item--active:hover {
-    transform: translateX(0);
+    transform: none;
     background: var(--brand-light);
 }
 
 .admin-sidebar__item--active:active {
-    transform: translateX(0) scale(0.98);
+    transform: scale(0.98);
 }
 
 /* ── Reduced motion: respect user preference (CRITICAL accessibility) ── */
