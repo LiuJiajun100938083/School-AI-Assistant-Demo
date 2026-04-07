@@ -1214,8 +1214,7 @@
         let _AI_DELAY = 50; // ms between moves (adjustable via speed buttons)
 
         // ── Snake weight matrices (4 rotations) for 5×5 board ──
-        // Quadratic gradient (rank²) — strongly favours the snake chain without
-        // exploding to 4^24 magnitudes. Combined with log2(value) in eval.
+        // Quadratic gradient (rank²). Combined with log2(value) in eval.
         const _snakeWeights = (() => {
             const ranks = [
                 [25, 24, 23, 22, 21],
@@ -1232,6 +1231,21 @@
             return [base, r1, r2, r3];
         })();
 
+        // ── Snake paths: cell coords ordered from highest weight to lowest, per rotation ──
+        // Used for snake-path monotonicity and merge-position weighting.
+        const _snakePaths = _snakeWeights.map(w => {
+            const cells = [];
+            for (let r = 0; r < 5; r++)
+                for (let c = 0; c < 5; c++)
+                    cells.push({ r, c, w: w[r][c] });
+            cells.sort((a, b) => b.w - a.w);
+            return cells.map(({ r, c }) => [r, c]);
+        });
+
+        // ── Locked snake direction (set per top-level _aiBestMove call) ──
+        // Eliminates the "freely picks best of 4 rotations every eval" instability.
+        let _lockedSnakeIdx = 0;
+
         // ── Transposition table (cleared per top-level call) ──
         let _ttable = new Map();
         const _TT_MAX = 200000;
@@ -1245,11 +1259,13 @@
         }
 
         function _evalBoard(b) {
+            const w = _snakeWeights[_lockedSnakeIdx];
+            const path = _snakePaths[_lockedSnakeIdx];
+
             let emptyCount = 0;
             let smoothness = 0;
-            let mono = 0;
             let maxVal = 0, maxR = 0, maxC = 0;
-            let mergePotential = 0;
+            let snakeScore = 0;
 
             for (let r = 0; r < 5; r++) {
                 for (let c = 0; c < 5; c++) {
@@ -1257,60 +1273,58 @@
                     if (cell === 0) { emptyCount++; continue; }
                     if (cell > maxVal) { maxVal = cell; maxR = r; maxC = c; }
                     const v = Math.log2(cell);
-                    if (c < 4 && b[r][c + 1]) {
-                        const v2 = Math.log2(b[r][c + 1]);
-                        smoothness -= Math.abs(v - v2);
-                        if (cell === b[r][c + 1]) mergePotential += v;
+                    snakeScore += v * w[r][c];      // locked snake (no max-of-4)
+                    if (c < 4 && b[r][c + 1]) smoothness -= Math.abs(v - Math.log2(b[r][c + 1]));
+                    if (r < 4 && b[r + 1][c]) smoothness -= Math.abs(v - Math.log2(b[r + 1][c]));
+                }
+            }
+
+            // ── Snake-path monotonicity ──
+            // Walk the path from highest-rank cell down. Penalize ascents along the path
+            // (skip empties — they break the chain naturally).
+            let snakeMono = 0;
+            let prevLog = Infinity;
+            let mergeWeighted = 0;
+            for (let i = 0; i < 25; i++) {
+                const [r, c] = path[i];
+                const cell = b[r][c];
+                if (!cell) { prevLog = Infinity; continue; }
+                const v = Math.log2(cell);
+                if (v > prevLog) snakeMono -= (v - prevLog) * 2.0;  // ascent = bad
+                // Adjacent equal tiles along the path → strong merge candidate
+                if (i + 1 < 25) {
+                    const [nr, nc] = path[i + 1];
+                    if (b[nr][nc] === cell) {
+                        // weight by tile size (squared) and position (front of path)
+                        mergeWeighted += v * v * (25 - i);
                     }
-                    if (r < 4 && b[r + 1][c]) {
-                        const v2 = Math.log2(b[r + 1][c]);
-                        smoothness -= Math.abs(v - v2);
-                        if (cell === b[r + 1][c]) mergePotential += v;
-                    }
                 }
+                prevLog = v;
             }
 
-            // Monotonicity (rows + cols, best of inc/dec)
-            for (let r = 0; r < 5; r++) {
-                let inc = 0, dec = 0;
-                for (let c = 0; c < 4; c++) {
-                    const a = Math.log2(b[r][c] || 1), n = Math.log2(b[r][c + 1] || 1);
-                    if (a > n) dec += n - a; else inc += a - n;
-                }
-                mono += Math.max(inc, dec);
-            }
-            for (let c = 0; c < 5; c++) {
-                let inc = 0, dec = 0;
-                for (let r = 0; r < 4; r++) {
-                    const a = Math.log2(b[r][c] || 1), n = Math.log2(b[r + 1][c] || 1);
-                    if (a > n) dec += n - a; else inc += a - n;
-                }
-                mono += Math.max(inc, dec);
-            }
+            // ── Phase-aware empty bonus ──
+            // Empty cells become exponentially more valuable as the board fills up.
+            let emptyWeight;
+            if (emptyCount >= 8)      emptyWeight = 2.5;
+            else if (emptyCount >= 4) emptyWeight = 6.0;
+            else                      emptyWeight = 14.0;
+            const emptyScore = emptyCount <= 3
+                ? emptyWeight * emptyCount                      // linear in danger zone
+                : emptyWeight * Math.log2(emptyCount + 1);
 
-            // Snake pattern: log2(value) × LINEAR weight (range 1..25)
-            // Snake stays the leader, but no longer dictates by 14 orders of magnitude
-            let bestSnake = -Infinity;
-            for (const w of _snakeWeights) {
-                let s = 0;
-                for (let r = 0; r < 5; r++)
-                    for (let c = 0; c < 5; c++)
-                        if (b[r][c]) s += Math.log2(b[r][c]) * w[r][c];
-                if (s > bestSnake) bestSnake = s;
-            }
-
-            // Explicit corner reward / penalty for the max tile (small, snake handles most of it)
+            // ── Corner lock: max tile must be in the locked snake's head corner ──
+            const headR = path[0][0], headC = path[0][1];
             const log2Max = maxVal ? Math.log2(maxVal) : 0;
-            const isCorner = (maxR === 0 || maxR === 4) && (maxC === 0 || maxC === 4);
-            const cornerBonus = isCorner ? log2Max * 3.0 : -log2Max * 2.5;
+            const headBonus = (maxR === headR && maxC === headC)
+                ? log2Max * 4.0
+                : -log2Max * 3.0;
 
-            // Snake (×4) leads strongly; other features can swing close decisions
-            return 4.0 * bestSnake
-                 + 8.0 * Math.log2(emptyCount + 1)
+            return 4.0 * snakeScore
+                 + emptyScore
                  + 0.4 * smoothness
-                 + 2.0 * mono
-                 + 0.75 * mergePotential
-                 + cornerBonus;
+                 + 3.0 * snakeMono
+                 + 0.5 * mergeWeighted
+                 + headBonus;
         }
 
         function _expectimax(b, depth, isPlayer) {
@@ -1391,14 +1405,51 @@
             return 5;
         }
 
+        function _pickLockedSnake(b) {
+            // Pick the rotation whose head corner currently holds the largest tile mass
+            // (tie-break by raw snake score). Then stick with it for this whole search.
+            let bestI = 0, bestS = -Infinity;
+            for (let i = 0; i < _snakeWeights.length; i++) {
+                const w = _snakeWeights[i];
+                let s = 0;
+                for (let r = 0; r < 5; r++)
+                    for (let c = 0; c < 5; c++)
+                        if (b[r][c]) s += Math.log2(b[r][c]) * w[r][c];
+                if (s > bestS) { bestS = s; bestI = i; }
+            }
+            return bestI;
+        }
+
         function _aiBestMove() {
-            // Clear transposition table when it grows too big
-            if (_ttable.size > _TT_MAX / 2) _ttable.clear();
+            // Locked snake direction must be re-evaluated each move (with hysteresis to
+            // prevent oscillation): only switch if a different rotation is clearly better.
+            const newIdx = _pickLockedSnake(board);
+            if (newIdx !== _lockedSnakeIdx) {
+                // Compare current vs new on this board; require >5% improvement to switch
+                const score = (idx) => {
+                    const w = _snakeWeights[idx];
+                    let s = 0;
+                    for (let r = 0; r < 5; r++)
+                        for (let c = 0; c < 5; c++)
+                            if (board[r][c]) s += Math.log2(board[r][c]) * w[r][c];
+                    return s;
+                };
+                if (score(newIdx) > score(_lockedSnakeIdx) * 1.05) {
+                    _lockedSnakeIdx = newIdx;
+                }
+            }
+
+            // TT entries depend on locked direction → safest to clear each move
+            _ttable.clear();
 
             let emptyCount = 0;
+            let maxVal = 0;
             for (let r = 0; r < 5; r++)
-                for (let c = 0; c < 5; c++)
+                for (let c = 0; c < 5; c++) {
                     if (board[r][c] === 0) emptyCount++;
+                    if (board[r][c] > maxVal) maxVal = board[r][c];
+                }
+
             const depth = _adaptiveDepth(emptyCount);
 
             let bestDir = null, bestScore = -Infinity;
