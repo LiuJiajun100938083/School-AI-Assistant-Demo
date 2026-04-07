@@ -1214,17 +1214,16 @@
         let _AI_DELAY = 50; // ms between moves (adjustable via speed buttons)
 
         // ── Snake weight matrices (4 rotations) for 5×5 board ──
+        // Hand-tuned linear gradient (1..25) instead of 4^idx — keeps snake leading
+        // but doesn't drown out the other heuristics by 14 orders of magnitude.
         const _snakeWeights = (() => {
-            const base = [];
-            for (let r = 0; r < 5; r++) {
-                const row = [];
-                for (let c = 0; c < 5; c++) {
-                    const idx = r % 2 === 0 ? r * 5 + (4 - c) : r * 5 + c;
-                    row.push(Math.pow(4, 24 - idx));
-                }
-                base.push(row);
-            }
-            // Generate 4 rotations
+            const base = [
+                [25, 24, 23, 22, 21],
+                [16, 17, 18, 19, 20],
+                [15, 14, 13, 12, 11],
+                [ 6,  7,  8,  9, 10],
+                [ 5,  4,  3,  2,  1],
+            ];
             const rotate90 = m => m[0].map((_, c) => m.map(r => r[c]).reverse());
             const r1 = rotate90(base);
             const r2 = rotate90(r1);
@@ -1232,17 +1231,41 @@
             return [base, r1, r2, r3];
         })();
 
+        // ── Transposition table (cleared per top-level call) ──
+        let _ttable = new Map();
+        const _TT_MAX = 200000;
+
+        function _serialize(b) {
+            let s = '';
+            for (let r = 0; r < 5; r++)
+                for (let c = 0; c < 5; c++)
+                    s += (b[r][c] ? Math.log2(b[r][c]).toString(36) : '_');
+            return s;
+        }
+
         function _evalBoard(b) {
             let emptyCount = 0;
             let smoothness = 0;
             let mono = 0;
+            let maxVal = 0, maxR = 0, maxC = 0;
+            let mergePotential = 0;
 
             for (let r = 0; r < 5; r++) {
                 for (let c = 0; c < 5; c++) {
-                    if (b[r][c] === 0) { emptyCount++; continue; }
-                    const v = Math.log2(b[r][c]);
-                    if (c < 4 && b[r][c + 1]) smoothness -= Math.abs(v - Math.log2(b[r][c + 1]));
-                    if (r < 4 && b[r + 1][c]) smoothness -= Math.abs(v - Math.log2(b[r + 1][c]));
+                    const cell = b[r][c];
+                    if (cell === 0) { emptyCount++; continue; }
+                    if (cell > maxVal) { maxVal = cell; maxR = r; maxC = c; }
+                    const v = Math.log2(cell);
+                    if (c < 4 && b[r][c + 1]) {
+                        const v2 = Math.log2(b[r][c + 1]);
+                        smoothness -= Math.abs(v - v2);
+                        if (cell === b[r][c + 1]) mergePotential += v;
+                    }
+                    if (r < 4 && b[r + 1][c]) {
+                        const v2 = Math.log2(b[r + 1][c]);
+                        smoothness -= Math.abs(v - v2);
+                        if (cell === b[r + 1][c]) mergePotential += v;
+                    }
                 }
             }
 
@@ -1264,24 +1287,40 @@
                 mono += Math.max(inc, dec);
             }
 
-            // Snake pattern (best of 4 rotations) — RAW values for exponential growth incentive
+            // Snake pattern: log2(value) × LINEAR weight (range 1..25)
+            // Snake stays the leader, but no longer dictates by 14 orders of magnitude
             let bestSnake = -Infinity;
             for (const w of _snakeWeights) {
                 let s = 0;
                 for (let r = 0; r < 5; r++)
                     for (let c = 0; c < 5; c++)
-                        s += b[r][c] * w[r][c];
+                        if (b[r][c]) s += Math.log2(b[r][c]) * w[r][c];
                 if (s > bestSnake) bestSnake = s;
             }
 
-            return bestSnake
-                + 2.7 * Math.log2(emptyCount + 1)
-                + 0.1 * smoothness
-                + 1.0 * mono;
+            // Explicit corner reward / penalty for the max tile
+            const log2Max = maxVal ? Math.log2(maxVal) : 0;
+            const isCorner = (maxR === 0 || maxR === 4) && (maxC === 0 || maxC === 4);
+            const cornerBonus = isCorner ? log2Max * 5.0 : -log2Max * 4.0;
+
+            // Weights tuned so snake leads (~3-5×) but other features can break ties
+            return 4.0 * bestSnake
+                 + 8.0 * Math.log2(emptyCount + 1)
+                 + 0.4 * smoothness
+                 + 2.0 * mono
+                 + 1.5 * mergePotential
+                 + cornerBonus;
         }
 
         function _expectimax(b, depth, isPlayer) {
             if (depth <= 0) return _evalBoard(b);
+
+            // Transposition table lookup
+            const key = _serialize(b) + (isPlayer ? '|P' : '|C') + depth;
+            const cached = _ttable.get(key);
+            if (cached !== undefined) return cached;
+
+            let result;
 
             if (isPlayer) {
                 let best = -Infinity;
@@ -1293,49 +1332,63 @@
                     const s = _expectimax(res.newBoard, depth - 1, false);
                     if (s > best) best = s;
                 }
-                return anyMoved ? best : _evalBoard(b) - 1e15;
+                // Dead end: large finite negative (−Infinity would poison chance averaging)
+                result = anyMoved ? best : -1e9;
             } else {
-                // Chance node — full enumeration with proper probability weighting
+                // Chance node: deterministic ranking — focus on cells adjacent to
+                // big tiles (most disruptive to the snake chain)
                 const empty = [];
                 for (let r = 0; r < 5; r++)
                     for (let c = 0; c < 5; c++)
                         if (b[r][c] === 0) empty.push({ r, c });
-                if (!empty.length) return _evalBoard(b);
 
-                // To control branching, sample a subset of empty cells
-                const sampleN = depth >= 4 ? 2 : depth >= 3 ? 3 : 5;
-                let cells = empty;
-                if (empty.length > sampleN) {
-                    const shuffled = [...empty];
-                    for (let i = shuffled.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                if (!empty.length) {
+                    result = _evalBoard(b);
+                } else {
+                    // Sample size grows with depth budget
+                    const sampleN = depth >= 4 ? 2 : depth >= 3 ? 3 : 5;
+                    let cells = empty;
+                    if (empty.length > sampleN) {
+                        // Rank by neighbour-criticality (sum of log2 neighbour values)
+                        const ranked = empty.map(({ r, c }) => {
+                            let risk = 0;
+                            if (r > 0 && b[r - 1][c]) risk += Math.log2(b[r - 1][c]);
+                            if (r < 4 && b[r + 1][c]) risk += Math.log2(b[r + 1][c]);
+                            if (c > 0 && b[r][c - 1]) risk += Math.log2(b[r][c - 1]);
+                            if (c < 4 && b[r][c + 1]) risk += Math.log2(b[r][c + 1]);
+                            return { r, c, risk };
+                        });
+                        ranked.sort((a, b) => b.risk - a.risk);
+                        cells = ranked.slice(0, sampleN);
                     }
-                    cells = shuffled.slice(0, sampleN);
-                }
 
-                let total = 0;
-                let weightSum = 0;
-                for (const cell of cells) {
-                    for (const [val, prob] of [[2, 0.9], [4, 0.1]]) {
-                        const nb = b.map(r => [...r]);
-                        nb[cell.r][cell.c] = val;
-                        total += prob * _expectimax(nb, depth - 1, true);
-                        weightSum += prob;
+                    let total = 0, weightSum = 0;
+                    for (const cell of cells) {
+                        for (const [val, prob] of [[2, 0.9], [4, 0.1]]) {
+                            const nb = b.map(r => [...r]);
+                            nb[cell.r][cell.c] = val;
+                            total += prob * _expectimax(nb, depth - 1, true);
+                            weightSum += prob;
+                        }
                     }
+                    result = total / weightSum;
                 }
-                return total / weightSum;
             }
+
+            if (_ttable.size < _TT_MAX) _ttable.set(key, result);
+            return result;
         }
 
         function _adaptiveDepth(emptyCount) {
-            // Deeper search significantly improves max-tile reach
-            if (emptyCount >= 8) return 3;
-            if (emptyCount >= 3) return 4;
-            return 5;
+            // Tuned for playable real-time speed (~100ms/move late game even with TT)
+            if (emptyCount >= 6) return 3;
+            return 4;
         }
 
         function _aiBestMove() {
+            // Clear transposition table when it grows too big
+            if (_ttable.size > _TT_MAX / 2) _ttable.clear();
+
             let emptyCount = 0;
             for (let r = 0; r < 5; r++)
                 for (let c = 0; c < 5; c++)
