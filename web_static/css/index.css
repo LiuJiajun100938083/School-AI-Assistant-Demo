@@ -126,7 +126,7 @@ html {
     --font-mono: 'SF Mono', Monaco, Menlo, Consolas, monospace;
 
     /* SaaS Flat — 佈局 */
-    --header-h: 48px;
+    --header-h: 60px;
     --sidebar-w: 220px;
 }
 
@@ -473,8 +473,10 @@ p, span, div, li, label {
 }
 
 .home-header__logo {
-    width: 28px;
-    height: auto;
+    /* Logo aspect ratio is ~2.7:1, so size by height to fill the header nicely */
+    height: 36px;
+    width: auto;
+    image-rendering: -webkit-optimize-contrast;
 }
 
 .home-header__brand {
