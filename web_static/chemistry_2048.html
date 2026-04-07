@@ -1214,16 +1214,17 @@
         let _AI_DELAY = 50; // ms between moves (adjustable via speed buttons)
 
         // ── Snake weight matrices (4 rotations) for 5×5 board ──
-        // Hand-tuned linear gradient (1..25) instead of 4^idx — keeps snake leading
-        // but doesn't drown out the other heuristics by 14 orders of magnitude.
+        // Quadratic gradient (rank²) — strongly favours the snake chain without
+        // exploding to 4^24 magnitudes. Combined with log2(value) in eval.
         const _snakeWeights = (() => {
-            const base = [
+            const ranks = [
                 [25, 24, 23, 22, 21],
                 [16, 17, 18, 19, 20],
                 [15, 14, 13, 12, 11],
                 [ 6,  7,  8,  9, 10],
                 [ 5,  4,  3,  2,  1],
             ];
+            const base = ranks.map(row => row.map(r => r * r));
             const rotate90 = m => m[0].map((_, c) => m.map(r => r[c]).reverse());
             const r1 = rotate90(base);
             const r2 = rotate90(r1);
@@ -1298,25 +1299,25 @@
                 if (s > bestSnake) bestSnake = s;
             }
 
-            // Explicit corner reward / penalty for the max tile
+            // Explicit corner reward / penalty for the max tile (small, snake handles most of it)
             const log2Max = maxVal ? Math.log2(maxVal) : 0;
             const isCorner = (maxR === 0 || maxR === 4) && (maxC === 0 || maxC === 4);
-            const cornerBonus = isCorner ? log2Max * 5.0 : -log2Max * 4.0;
+            const cornerBonus = isCorner ? log2Max * 3.0 : -log2Max * 2.5;
 
-            // Weights tuned so snake leads (~3-5×) but other features can break ties
+            // Snake (×4) leads strongly; other features can swing close decisions
             return 4.0 * bestSnake
                  + 8.0 * Math.log2(emptyCount + 1)
                  + 0.4 * smoothness
                  + 2.0 * mono
-                 + 1.5 * mergePotential
+                 + 0.75 * mergePotential
                  + cornerBonus;
         }
 
         function _expectimax(b, depth, isPlayer) {
             if (depth <= 0) return _evalBoard(b);
 
-            // Transposition table lookup
-            const key = _serialize(b) + (isPlayer ? '|P' : '|C') + depth;
+            // Transposition table lookup (key has explicit separators — no ambiguity)
+            const key = (isPlayer ? 'P' : 'C') + depth + '|' + _serialize(b);
             const cached = _ttable.get(key);
             if (cached !== undefined) return cached;
 
@@ -1345,11 +1346,13 @@
                 if (!empty.length) {
                     result = _evalBoard(b);
                 } else {
-                    // Sample size grows with depth budget
-                    const sampleN = depth >= 4 ? 2 : depth >= 3 ? 3 : 5;
-                    let cells = empty;
-                    if (empty.length > sampleN) {
-                        // Rank by neighbour-criticality (sum of log2 neighbour values)
+                    let cells;
+                    if (empty.length <= 6) {
+                        // Few empties → enumerate ALL for true expectation
+                        cells = empty;
+                    } else {
+                        // Many empties → mixed sampling: covers worst/avg/best spawn locations
+                        // (purely top-N danger sampling biases the estimate pessimistically)
                         const ranked = empty.map(({ r, c }) => {
                             let risk = 0;
                             if (r > 0 && b[r - 1][c]) risk += Math.log2(b[r - 1][c]);
@@ -1359,7 +1362,9 @@
                             return { r, c, risk };
                         });
                         ranked.sort((a, b) => b.risk - a.risk);
-                        cells = ranked.slice(0, sampleN);
+                        const N = ranked.length;
+                        // 2 most dangerous + 1 middle + 1 safest = covers spectrum
+                        cells = [ranked[0], ranked[1], ranked[Math.floor(N / 2)], ranked[N - 1]];
                     }
 
                     let total = 0, weightSum = 0;
@@ -1380,9 +1385,10 @@
         }
 
         function _adaptiveDepth(emptyCount) {
-            // Tuned for playable real-time speed (~100ms/move late game even with TT)
-            if (emptyCount >= 6) return 3;
-            return 4;
+            // Horizon matters more than eval in late game — keep depth 5 for tight boards
+            if (emptyCount >= 8) return 3;
+            if (emptyCount >= 3) return 4;
+            return 5;
         }
 
         function _aiBestMove() {
