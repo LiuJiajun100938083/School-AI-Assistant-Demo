@@ -11,12 +11,20 @@
 """
 
 import logging
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
+from fastapi import HTTPException
 
 from app.domains.chem2048.repository import Chem2048Repository
 
 logger = logging.getLogger(__name__)
+
+# ── 速率限制：每位學生 5 秒內只能提交一次 ──
+# 防止腳本連刷。正常遊戲最快也要幾十秒。
+_MIN_SUBMIT_INTERVAL_SEC = 5.0
+_last_submit_ts: Dict[int, float] = {}
 
 # Excel 導出的列配置
 EXPORT_COLUMNS = [
@@ -80,6 +88,21 @@ class Chem2048Service:
         Returns:
             {"id": int, "message": str, "is_new_best": bool}
         """
+        # 速率限制：防止腳本連刷
+        now = time.monotonic()
+        last = _last_submit_ts.get(student_id, 0.0)
+        if now - last < _MIN_SUBMIT_INTERVAL_SEC:
+            wait_sec = _MIN_SUBMIT_INTERVAL_SEC - (now - last)
+            logger.warning(
+                "化學 2048 提交過於頻繁: student_id=%d, wait=%.1fs",
+                student_id, wait_sec,
+            )
+            raise HTTPException(
+                status_code=429,
+                detail=f"提交過於頻繁，請等待 {wait_sec:.1f} 秒",
+            )
+        _last_submit_ts[student_id] = now
+
         previous_best = self._repo.get_student_best_score(student_id)
         previous_best_score = previous_best["score"] if previous_best else None
 
