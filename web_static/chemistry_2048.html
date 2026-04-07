@@ -200,7 +200,7 @@
             will-change: left, top, transform;
         }
         .tile-sliding {
-            transition: left 0.13s ease-in-out, top 0.13s ease-in-out;
+            transition: left var(--slide-dur, 0.13s) ease-in-out, top var(--slide-dur, 0.13s) ease-in-out;
         }
         .tile-new {
             animation: tile-appear 0.15s ease-out;
@@ -629,7 +629,7 @@
         // ============================================================
         let tileElements = new Map(); // "r-c" -> {el, value}
         let isAnimating = false;
-        const SLIDE_MS = 130;
+        let SLIDE_MS = 130;
         const boardEl_ref = document.getElementById('game-board');
 
         function getCellRect(row, col) {
@@ -1374,13 +1374,19 @@
         }
 
         const _AI_SPEEDS = [
-            { label: '1x',   delay: 200 },
-            { label: '2x',   delay: 100 },
-            { label: '5x',   delay: 40  },
-            { label: '10x',  delay: 15  },
-            { label: 'MAX',  delay: 0   },
+            { label: '1x',   delay: 200, slide: 130 },
+            { label: '2x',   delay: 100, slide: 80  },
+            { label: '5x',   delay: 40,  slide: 40  },
+            { label: '10x',  delay: 15,  slide: 20  },
+            { label: 'MAX',  delay: 0,   slide: 0   },
         ];
+        const _DEFAULT_SLIDE_MS = 130;
         let _aiSpeedIdx = 2; // default 5x
+
+        function _applySlideMs(ms) {
+            SLIDE_MS = ms;
+            document.documentElement.style.setProperty('--slide-dur', (ms / 1000) + 's');
+        }
 
         function _showAIPanel() {
             let panel = document.getElementById('ai-ctrl-panel');
@@ -1410,6 +1416,7 @@
         function _setAISpeed(idx) {
             _aiSpeedIdx = idx;
             _AI_DELAY = _AI_SPEEDS[idx].delay;
+            _applySlideMs(_AI_SPEEDS[idx].slide);
             document.querySelectorAll('.ai-spd-btn').forEach(b => {
                 const i = parseInt(b.dataset.idx);
                 b.style.background = i === idx ? '#27ae60' : 'transparent';
@@ -1421,6 +1428,7 @@
             if (_aiRunning) return;
             _aiRunning = true;
             _AI_DELAY = _AI_SPEEDS[_aiSpeedIdx].delay;
+            _applySlideMs(_AI_SPEEDS[_aiSpeedIdx].slide);
             console.log('%c[AI] Auto-play activated (speed: ' + _AI_SPEEDS[_aiSpeedIdx].label + ')', 'color:#27ae60;font-weight:bold;font-size:14px');
             const bEl = document.getElementById('game-board');
             if (bEl) bEl.style.boxShadow = '0 0 20px rgba(39,174,96,0.6)';
@@ -1430,6 +1438,7 @@
 
         function stopAI() {
             _aiRunning = false;
+            _applySlideMs(_DEFAULT_SLIDE_MS);
             if (_aiTimer) { clearTimeout(_aiTimer); cancelAnimationFrame(_aiTimer); _aiTimer = null; }
             console.log('%c[AI] Auto-play stopped', 'color:#e74c3c;font-weight:bold;font-size:14px');
             const bEl = document.getElementById('game-board');
@@ -1441,7 +1450,7 @@
             if (!_aiRunning || !isGameActive) { stopAI(); return; }
             if (gameOverEl.style.display === 'flex') { stopAI(); return; }
             if (isAnimating) {
-                _aiTimer = _AI_DELAY === 0 ? requestAnimationFrame(_aiStep) : setTimeout(_aiStep, 10);
+                _aiTimer = setTimeout(_aiStep, _AI_DELAY === 0 ? 0 : 10);
                 return;
             }
 
@@ -1449,11 +1458,7 @@
             if (!dir) { stopAI(); return; }
 
             handleInput(dir);
-            if (_AI_DELAY === 0) {
-                _aiTimer = requestAnimationFrame(_aiStep);
-            } else {
-                _aiTimer = setTimeout(_aiStep, _AI_DELAY);
-            }
+            _aiTimer = setTimeout(_aiStep, _AI_DELAY);
         }
 
         // ============================================================
