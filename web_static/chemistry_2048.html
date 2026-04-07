@@ -1330,7 +1330,7 @@
             for (const dir of ['Up', 'Down', 'Left', 'Right']) {
                 const res = processMove(board, dir, false);
                 if (!res.moved) continue;
-                const s = _expectimax(res.newBoard, 2, false);
+                const s = _expectimax(res.newBoard, 3, false);
                 if (s > bestScore) { bestScore = s; bestDir = dir; }
             }
             return bestDir;
