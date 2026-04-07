@@ -82,6 +82,7 @@ async def submit_score(
     loop = asyncio.get_event_loop()
 
     score_data = {
+        "mode": data.mode,
         "score": data.score,
         "highest_tile": data.highest_tile,
         "highest_element": data.highest_element,
@@ -132,6 +133,7 @@ async def check_played(
 async def get_leaderboard(
     limit: int = Query(50, ge=1, le=200, description="返回條數"),
     group: Optional[str] = Query(None, description="分組: form3=中三, open=其他所有人"),
+    mode: Optional[str] = Query(None, description="難度: simple / hard / 不傳=全部"),
     current_user: Dict = Depends(get_current_user),
 ):
     """
@@ -141,6 +143,11 @@ async def get_leaderboard(
     - form3: 僅中三學生 (3A/3B/3C/3D/3S)
     - open: 除中三以外的所有人
     - 不傳: 全部混合排行
+
+    mode 參數：
+    - simple: 簡單模式（前 20 元素）
+    - hard:   困難模式（全週期表）
+    - 不傳:   全部混合
     """
     loop = asyncio.get_event_loop()
 
@@ -152,12 +159,17 @@ async def get_leaderboard(
     elif group == "open":
         exclude_classes = sorted(FORM3_CLASSES)
 
+    # 驗證 mode 值
+    if mode is not None and mode not in ("simple", "hard"):
+        mode = None
+
     data = await loop.run_in_executor(
         None,
         lambda: _get_service().get_leaderboard(
             limit,
             class_filter=class_filter,
             exclude_classes=exclude_classes,
+            mode=mode,
         ),
     )
 

@@ -7,31 +7,36 @@
 
 防作弊策略：
 1. 基礎範圍/類型檢查（Field）
-2. highest_tile 必須是 2 的冪次（2..2^20）
+2. highest_tile 必須是 2 的冪次
 3. highest_element_no 必須 = log2(highest_tile)（元素序號與方塊值必須對應）
 4. score 下界：數學上達到 2^N 至少需要 (N-2) × 2^N 分（忽略 4-spawn
    機率校正）——低於此值一定是造假
 5. score 上界：寬鬆的合理上界（每步最多 highest_tile × 4）
-6. total_moves 下界：達到 2^N 至少需要的合併次數 ≈ 2^(N-1) - 1
+6. total_moves 下界：達到 2^N 至少需要的合併次數 ≈ 2^(N-2)
 7. 不設分數硬上限，容許 AI 高分
+8. mode 欄位：simple 模式上限為元素 20 (Ca, 2^20)；hard 模式可達 2^53
+   (JS Number safe integer 上限)
 """
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-# 最多支援到 Ca (2^20)
-_MAX_TILE = 1 << 20
+# Hard 模式上限 — JS Number.MAX_SAFE_INTEGER 對應 2^53
+_MAX_TILE = 1 << 53
+# Simple 模式上限 — 元素 20 (Ca)
+_SIMPLE_MAX_NO = 20
 
 
 class Chem2048SubmitRequest(BaseModel):
     """提交成績請求"""
+    mode: Literal["simple", "hard"] = Field(default="simple", description="遊戲難度模式")
     score: int = Field(ge=0, description="遊戲分數")
     highest_tile: int = Field(ge=2, le=_MAX_TILE, description="最高方塊值 (如 2048)")
     highest_element: str = Field(max_length=10, description="最高元素符號 (如 Na)")
-    highest_element_no: int = Field(ge=1, le=20, description="最高元素序號 (如 11)")
-    total_moves: int = Field(ge=0, le=200_000, default=0, description="總移動次數")
+    highest_element_no: int = Field(ge=1, le=118, description="最高元素序號 (如 11)")
+    total_moves: int = Field(ge=0, le=10_000_000, default=0, description="總移動次數")
     tips_used: int = Field(ge=0, le=100, default=0, description="使用提示次數")
 
     @field_validator("highest_tile")
@@ -47,6 +52,13 @@ class Chem2048SubmitRequest(BaseModel):
         """跨欄位一致性檢查（防 F12 亂填）"""
         tile = self.highest_tile
         n = tile.bit_length() - 1  # log2(tile), e.g. 2048 → 11
+
+        # 0. Simple 模式不得超過元素 20 (Ca)
+        if self.mode == "simple" and self.highest_element_no > _SIMPLE_MAX_NO:
+            raise ValueError(
+                f"Simple 模式不得超過元素 {_SIMPLE_MAX_NO} (Ca)，"
+                f"如需挑戰更高元素請切換 Hard 模式"
+            )
 
         # 1. element_no 必須對應 highest_tile
         if self.highest_element_no != n:
@@ -74,9 +86,10 @@ class Chem2048SubmitRequest(BaseModel):
                     f"score ({self.score}) 超過 {self.total_moves} 步可能產生的最大分 {max_score}"
                 )
 
-        # 4. 合併次數下界：寬鬆 —— 達到 2^N 至少 2^(N-2) 次合併
-        if n >= 3:
-            min_moves = 1 << (n - 2)
+        # 4. 合併次數下界：非常寬鬆 —— 至少需要 tile/64 步
+        #    （實際 5×5 棋盤可以連鎖合併，遠少於 2^(N-1) 步即可達成）
+        if n >= 6:
+            min_moves = tile >> 6  # tile / 64
             if self.total_moves > 0 and self.total_moves < min_moves:
                 raise ValueError(
                     f"total_moves ({self.total_moves}) 少於達到 {tile} 的理論最小步數 {min_moves}"

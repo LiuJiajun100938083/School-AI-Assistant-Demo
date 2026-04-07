@@ -110,6 +110,7 @@ class Chem2048Service:
             "student_id": student_id,
             "student_name": student_name,
             "class_name": class_name,
+            "mode": data.get("mode", "simple"),
             "score": data["score"],
             "highest_tile": data["highest_tile"],
             "highest_element": data["highest_element"],
@@ -145,6 +146,7 @@ class Chem2048Service:
         limit: int = 50,
         class_filter: list = None,
         exclude_classes: list = None,
+        mode: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         獲取排行榜
@@ -153,11 +155,13 @@ class Chem2048Service:
             limit: 返回條數
             class_filter: 僅包含這些班級
             exclude_classes: 排除這些班級
+            mode: 難度模式 ('simple' / 'hard')
         """
         rows = self._repo.get_leaderboard(
             limit,
             class_filter=class_filter,
             exclude_classes=exclude_classes,
+            mode=mode,
         )
         for idx, row in enumerate(rows, 1):
             row["rank"] = idx

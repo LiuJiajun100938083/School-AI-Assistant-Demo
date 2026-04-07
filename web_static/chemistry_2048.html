@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chemistry 2048 | 化學元素 2048</title>
     <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/chem2048_elements.js"></script>
     <style>
         :root {
             --bg-color: #faf8ef;
@@ -93,6 +94,129 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Game wrapper: game + info panel side-by-side on wide screens --- */
+        #game-wrapper {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 820px;
+        }
+        @media (max-width: 900px) {
+            #game-wrapper {
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+            }
+        }
+
+        /* --- Element Info Panel --- */
+        #element-info-panel {
+            width: 320px;
+            background: #faf8ef;
+            border: 2px solid #cdc1b4;
+            border-radius: 12px;
+            padding: 16px 18px;
+            font-size: 13px;
+            color: #776e65;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            box-sizing: border-box;
+        }
+        @media (max-width: 900px) {
+            #element-info-panel { width: 100%; max-width: 450px; }
+        }
+        #element-info-panel h3 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            text-align: center;
+            color: #8f7a66;
+            border-bottom: 1px solid #e8e0d0;
+            padding-bottom: 8px;
+        }
+        .info-tile {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 90px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            color: #f9f6f2;
+            position: relative;
+        }
+        .info-tile .tile-no {
+            position: absolute; top: 6px; left: 8px;
+            font-size: 12px; opacity: 0.85;
+        }
+        .info-tile .tile-symbol {
+            font-size: 38px; font-weight: bold; line-height: 1;
+        }
+        .info-name {
+            text-align: center; font-weight: bold;
+            font-size: 17px; margin-bottom: 4px; color: #5e4d3b;
+        }
+        .info-name-en {
+            text-align: center; font-size: 13px; opacity: 0.7;
+            margin-bottom: 10px;
+        }
+        .info-category {
+            display: inline-block;
+            padding: 3px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 600; color: #fff;
+            margin: 0 auto 12px; text-align: center;
+        }
+        .info-cat-wrap { text-align: center; margin-bottom: 12px; }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 12px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+        .info-grid .lbl { color: #a89c8d; }
+        .info-grid .val { color: #5e4d3b; font-weight: 600; text-align: right; }
+        .info-section {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #e0d6c2;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .info-section .ttl {
+            font-weight: bold; color: #8f7a66; margin-bottom: 3px;
+        }
+        .info-section .body {
+            color: #5e4d3b;
+        }
+        .info-empty {
+            text-align: center; color: #a89c8d;
+            padding: 30px 10px; font-style: italic;
+        }
+
+        /* --- Difficulty selector (welcome screen) --- */
+        .difficulty-selector {
+            display: flex; gap: 10px; margin-bottom: 16px;
+            justify-content: center;
+        }
+        .diff-btn {
+            padding: 10px 24px;
+            border: 2px solid #cdc1b4;
+            border-radius: 24px;
+            background: #fff;
+            color: #776e65;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .diff-btn:hover { background: #f2e8db; }
+        .diff-btn.active {
+            background: #8f7a66; color: #fff; border-color: #8f7a66;
+        }
+        .diff-label {
+            text-align: center;
+            font-size: 13px;
+            color: #8f7a66;
+            margin: 0 0 16px;
         }
 
         /* --- Main Game Container --- */
@@ -454,9 +578,18 @@
             挑戰達到第 20 個元素：鈣 (Ca)！為了容納巨大的數值 (1,048,576)，這是一張 5x5 的加大網格。祝你好運！
         </div>
         <div id="welcome-user" class="welcome-user hidden"></div>
+        <div class="diff-label">Choose difficulty / 選擇難度</div>
+        <div class="difficulty-selector">
+            <button class="diff-btn active" data-diff="simple" onclick="setDifficulty('simple')">Simple / 簡單<br><small style="font-weight:400;opacity:0.85">前 20 元素 H~Ca</small></button>
+            <button class="diff-btn" data-diff="hard" onclick="setDifficulty('hard')">Hard / 困難<br><small style="font-weight:400;opacity:0.85">完整週期表 118 元素</small></button>
+        </div>
         <button class="btn btn-start-big" onclick="startGame()">Start Challenge / 開始挑戰</button>
         <div id="welcome-leaderboard" class="welcome-lb">
             <h3>Ranking / 排行榜</h3>
+            <div class="lb-tabs" id="welcome-mode-tabs" style="margin-bottom:6px;">
+                <button class="lb-tab lb-tab--active" data-mode="simple" onclick="switchWelcomeMode('simple')">Simple / 簡單</button>
+                <button class="lb-tab" data-mode="hard" onclick="switchWelcomeMode('hard')">Hard / 困難</button>
+            </div>
             <div class="lb-tabs" id="welcome-lb-tabs">
                 <button class="lb-tab lb-tab--active" data-group="form3" onclick="switchWelcomeLbTab('form3')">Form 3 / 中三</button>
                 <button class="lb-tab" data-group="open" onclick="switchWelcomeLbTab('open')">Open / 公開組</button>
@@ -467,7 +600,8 @@
         </div>
     </div>
 
-    <div id="game-container" class="hidden">
+    <div id="game-wrapper" class="hidden">
+    <div id="game-container">
         <div class="mode-selector">
             <button id="btn-pc" class="mode-btn active" onclick="setMode('pc')">PC / 電腦</button>
             <button id="btn-ipad" class="mode-btn" onclick="setMode('ipad')">iPad / 平板</button>
@@ -519,12 +653,24 @@
         </div>
     </div>
 
+    <aside id="element-info-panel">
+        <h3>Highest Element / 目前最高元素</h3>
+        <div id="info-panel-body">
+            <div class="info-empty">Start the game to see element info.<br>開始遊戲查看元素資訊。</div>
+        </div>
+    </aside>
+    </div><!-- /#game-wrapper -->
+
     <!-- Leaderboard Modal -->
     <div class="lb-overlay" id="lb-overlay" onclick="if(event.target===this)closeLeaderboard()">
         <div class="lb-modal" style="position:relative;">
             <button class="lb-close" onclick="closeLeaderboard()">&times;</button>
             <div class="lb-header">
                 <h2>Ranking / 排行榜</h2>
+                <div class="lb-tabs" id="lb-mode-tabs" style="margin-bottom:6px;">
+                    <button class="lb-tab lb-tab--active" data-mode="simple" onclick="switchLbMode('simple')">Simple / 簡單</button>
+                    <button class="lb-tab" data-mode="hard" onclick="switchLbMode('hard')">Hard / 困難</button>
+                </div>
                 <div class="lb-tabs" id="lb-tabs">
                     <button class="lb-tab lb-tab--active" data-group="form3" onclick="switchLeaderboardTab('form3')">Form 3 / 中三</button>
                     <button class="lb-tab" data-group="open" onclick="switchLeaderboardTab('open')">Open / 公開組</button>
@@ -579,30 +725,40 @@
         }
 
         // ============================================================
-        //  Elements data
+        //  Elements data — derived from window.PERIODIC_ELEMENTS
+        //  (loaded from /static/chem2048_elements.js)
         // ============================================================
-        const elements = {
-            2: { no: 1, symbol: "H", en: "Hydrogen", zh: "氫", bg: "#eee4da", color: "#776e65" },
-            4: { no: 2, symbol: "He", en: "Helium", zh: "氦", bg: "#ede0c8", color: "#776e65" },
-            8: { no: 3, symbol: "Li", en: "Lithium", zh: "鋰", bg: "#f2b179", color: "#f9f6f2" },
-            16: { no: 4, symbol: "Be", en: "Beryllium", zh: "鈹", bg: "#f59563", color: "#f9f6f2" },
-            32: { no: 5, symbol: "B", en: "Boron", zh: "硼", bg: "#f67c5f", color: "#f9f6f2" },
-            64: { no: 6, symbol: "C", en: "Carbon", zh: "碳", bg: "#f65e3b", color: "#f9f6f2" },
-            128: { no: 7, symbol: "N", en: "Nitrogen", zh: "氮", bg: "#edcf72", color: "#f9f6f2" },
-            256: { no: 8, symbol: "O", en: "Oxygen", zh: "氧", bg: "#edcc61", color: "#f9f6f2" },
-            512: { no: 9, symbol: "F", en: "Fluorine", zh: "氟", bg: "#edc850", color: "#f9f6f2" },
-            1024: { no: 10, symbol: "Ne", en: "Neon", zh: "氖", bg: "#edc53f", color: "#f9f6f2" },
-            2048: { no: 11, symbol: "Na", en: "Sodium", zh: "鈉", bg: "#edc22e", color: "#f9f6f2" },
-            4096: { no: 12, symbol: "Mg", en: "Magnesium", zh: "鎂", bg: "#3c3a32", color: "#f9f6f2" },
-            8192: { no: 13, symbol: "Al", en: "Aluminum", zh: "鋁", bg: "#5fa3cc", color: "#f9f6f2" },
-            16384: { no: 14, symbol: "Si", en: "Silicon", zh: "矽", bg: "#4a8a99", color: "#f9f6f2" },
-            32768: { no: 15, symbol: "P", en: "Phosphorus", zh: "磷", bg: "#7bb38d", color: "#f9f6f2" },
-            65536: { no: 16, symbol: "S", en: "Sulfur", zh: "硫", bg: "#a8c256", color: "#f9f6f2" },
-            131072: { no: 17, symbol: "Cl", en: "Chlorine", zh: "氯", bg: "#8a9e40", color: "#f9f6f2" },
-            262144: { no: 18, symbol: "Ar", en: "Argon", zh: "氬", bg: "#a37ebd", color: "#f9f6f2" },
-            524288: { no: 19, symbol: "K", en: "Potassium", zh: "鉀", bg: "#8f57a6", color: "#f9f6f2" },
-            1048576: { no: 20, symbol: "Ca", en: "Calcium", zh: "鈣", bg: "#5c336e", color: "#f9f6f2" }
-        };
+        // Build a tile-value → element-info map for quick lookup.
+        // For element no=N, the tile value is 2^N. JS Number is precise up
+        // to N=53; beyond that we still register them but they're never
+        // generated by the game.
+        const elements = {};
+        if (window.PERIODIC_ELEMENTS) {
+            for (const el of window.PERIODIC_ELEMENTS) {
+                const tile = Math.pow(2, el.no);
+                elements[tile] = el;
+            }
+        } else {
+            console.error('[chem2048] PERIODIC_ELEMENTS not loaded — game will not work');
+        }
+        // Highest defined tile (used as fallback for createTileEl)
+        const _MAX_DEFINED_TILE = Math.pow(2, 118);
+
+        // ── Difficulty mode state ─────────────────────────────────
+        let currentDifficulty = 'simple';  // 'simple' or 'hard'
+        try {
+            const saved = localStorage.getItem('chem2048_difficulty');
+            if (saved === 'simple' || saved === 'hard') currentDifficulty = saved;
+        } catch (_) {}
+
+        function setDifficulty(diff) {
+            if (diff !== 'simple' && diff !== 'hard') return;
+            currentDifficulty = diff;
+            try { localStorage.setItem('chem2048_difficulty', diff); } catch (_) {}
+            document.querySelectorAll('.diff-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.diff === diff);
+            });
+        }
 
         // ============================================================
         //  Game state
@@ -640,7 +796,7 @@
         }
 
         function createTileEl(value, row, col) {
-            const elData = elements[value] || elements[1048576];
+            const elData = elements[value] || elements[Math.pow(2, 20)];
             const rect = getCellRect(row, col);
             const el = document.createElement('div');
             el.classList.add('tile');
@@ -655,6 +811,90 @@
         function clearAllTiles() {
             for (const [, t] of tileElements) t.el.remove();
             tileElements.clear();
+        }
+
+        // ── Element Info Panel ────────────────────────────────────
+        const STATE_LABEL = { solid: '固體', liquid: '液體', gas: '氣體', unknown: '未知' };
+        const CAT_LABEL_ZH = {
+            nonmetal: '非金屬', noble_gas: '稀有氣體', alkali_metal: '鹼金屬',
+            alkaline_earth: '鹼土金屬', metalloid: '類金屬', post_transition: '後過渡金屬',
+            transition_metal: '過渡金屬', lanthanide: '鑭系元素', actinide: '錒系元素',
+            halogen: '鹵素', unknown: '未知',
+        };
+        const CAT_LABEL_EN = {
+            nonmetal: 'Nonmetal', noble_gas: 'Noble gas', alkali_metal: 'Alkali metal',
+            alkaline_earth: 'Alkaline earth', metalloid: 'Metalloid', post_transition: 'Post-transition',
+            transition_metal: 'Transition metal', lanthanide: 'Lanthanide', actinide: 'Actinide',
+            halogen: 'Halogen', unknown: 'Unknown',
+        };
+
+        function getCurrentMaxElement() {
+            let maxV = 0;
+            for (let r = 0; r < boardSize; r++)
+                for (let c = 0; c < boardSize; c++)
+                    if (board[r][c] > maxV) maxV = board[r][c];
+            return maxV ? elements[maxV] : null;
+        }
+
+        function _fmtNum(v, suffix) {
+            if (v === null || v === undefined) return '—';
+            return v.toLocaleString() + (suffix || '');
+        }
+
+        function updateElementInfoPanel() {
+            const body = document.getElementById('info-panel-body');
+            if (!body) return;
+            const el = getCurrentMaxElement();
+            if (!el) {
+                body.innerHTML = '<div class="info-empty">Start the game to see element info.<br>開始遊戲查看元素資訊。</div>';
+                return;
+            }
+            const catColor = (window.PERIODIC_CAT_COLORS && window.PERIODIC_CAT_COLORS[el.category])
+                ? window.PERIODIC_CAT_COLORS[el.category].bg : '#8f7a66';
+            const stateZh = STATE_LABEL[el.state_at_stp] || '—';
+            const en2c = (v) => isFinite(v) ? (v - 273.15).toFixed(0) + '°C' : '—';
+            const groupStr = el.group !== null && el.group !== undefined ? el.group : '—';
+
+            const usesBlock = (el.uses_zh || el.uses_en) ? `
+                <div class="info-section">
+                    <div class="ttl">Uses / 用途</div>
+                    <div class="body">${escapeHtml(el.uses_zh || '')}${el.uses_en ? '<br><i style="opacity:0.7">' + escapeHtml(el.uses_en) + '</i>' : ''}</div>
+                </div>` : '';
+            const funBlock = el.fun_fact_zh ? `
+                <div class="info-section">
+                    <div class="ttl">Fun Fact / 冷知識</div>
+                    <div class="body">${escapeHtml(el.fun_fact_zh)}</div>
+                </div>` : '';
+            const discBlock = (el.discovery_year || el.discoverer) ? `
+                <div class="info-section">
+                    <div class="ttl">Discovery / 發現</div>
+                    <div class="body">${el.discovery_year ? el.discovery_year + (el.discoverer ? ' — ' : '') : ''}${escapeHtml(el.discoverer || '')}</div>
+                </div>` : '';
+
+            body.innerHTML = `
+                <div class="info-tile" style="background:${el.bg};color:${el.color};">
+                    <span class="tile-no">${el.no}</span>
+                    <span class="tile-symbol">${escapeHtml(el.symbol)}</span>
+                </div>
+                <div class="info-name">${escapeHtml(el.zh)} ${escapeHtml(el.symbol)}</div>
+                <div class="info-name-en">${escapeHtml(el.en)}</div>
+                <div class="info-cat-wrap">
+                    <span class="info-category" style="background:${catColor};">${CAT_LABEL_ZH[el.category] || ''} / ${CAT_LABEL_EN[el.category] || ''}</span>
+                </div>
+                <div class="info-grid">
+                    <div class="lbl">Period 週期</div><div class="val">${el.period}</div>
+                    <div class="lbl">Group 族</div><div class="val">${groupStr}</div>
+                    <div class="lbl">Atomic 原子量</div><div class="val">${_fmtNum(el.atomic_weight)}</div>
+                    <div class="lbl">EN 電負度</div><div class="val">${el.electronegativity != null ? el.electronegativity : '—'}</div>
+                    <div class="lbl">M.P. 熔點</div><div class="val">${en2c(el.melting_pt)}</div>
+                    <div class="lbl">B.P. 沸點</div><div class="val">${en2c(el.boiling_pt)}</div>
+                    <div class="lbl">State 狀態</div><div class="val">${stateZh}</div>
+                </div>
+                ${el.electron_config ? `<div class="info-section"><div class="ttl">Config 電子組態</div><div class="body" style="font-family:monospace;">${escapeHtml(el.electron_config)}</div></div>` : ''}
+                ${usesBlock}
+                ${funBlock}
+                ${discBlock}
+            `;
         }
 
         function repositionAllTiles() {
@@ -740,8 +980,12 @@
             const playerName = (currentUser && currentUser.display_name) || "Guest / 訪客";
             document.getElementById('display-name').innerText = `Player: ${playerName}`;
             document.getElementById('welcome-screen').classList.add('hidden');
-            document.getElementById('game-container').classList.remove('hidden');
+            document.getElementById('game-wrapper').classList.remove('hidden');
             isGameActive = true;
+            // Restore difficulty selector active state from saved value
+            document.querySelectorAll('.diff-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.diff === currentDifficulty);
+            });
 
             // Load personal best from server
             if (isLoggedIn) {
@@ -789,6 +1033,7 @@
             addRandomTile();
             addRandomTile();
             renderBoard(true);
+            updateElementInfoPanel();
         }
 
         function addRandomTile() {
@@ -961,6 +1206,7 @@
 
             tipDisplay.style.opacity = 0;
             isAnimating = false;
+            updateElementInfoPanel();
 
             if (checkGameOver()) {
                 onGameOver();
@@ -1028,6 +1274,7 @@
             }
 
             const payload = {
+                mode: currentDifficulty,
                 score: score,
                 highest_tile: highestTile,
                 highest_element: elData.symbol,
@@ -1119,15 +1366,20 @@
             return html;
         }
 
-        let currentLbGroup = 'form3'; // 默認顯示中三排名
+        let currentLbGroup = 'form3';      // form3 | open
+        let currentLbMode = 'simple';      // simple | hard
+        let currentWelcomeMode = 'simple'; // welcome screen mode tab
 
-        async function fetchAndRenderLeaderboard(targetEl, limit, group) {
+        async function fetchAndRenderLeaderboard(targetEl, limit, group, mode) {
             if (!isLoggedIn) {
                 targetEl.innerHTML = '<div class="lb-login-hint">Please login to view the leaderboard.<br>請登入查看排行榜。</div>';
                 return;
             }
-            const groupParam = group ? `&group=${group}` : '';
-            const res = await apiCall('GET', `/api/chem2048/scores/leaderboard?limit=${limit}${groupParam}`);
+            const params = [];
+            if (group) params.push('group=' + encodeURIComponent(group));
+            if (mode) params.push('mode=' + encodeURIComponent(mode));
+            const qs = params.length ? '&' + params.join('&') : '';
+            const res = await apiCall('GET', `/api/chem2048/scores/leaderboard?limit=${limit}${qs}`);
             if (!res || !res.data || res.data.length === 0) {
                 targetEl.innerHTML = '<div class="lb-empty">No scores yet! Be the first!<br>暫無成績，成為第一位！</div>';
                 return;
@@ -1137,12 +1389,22 @@
 
         function switchLeaderboardTab(group) {
             currentLbGroup = group;
-            document.querySelectorAll('.lb-tab').forEach(t => {
+            document.querySelectorAll('#lb-tabs .lb-tab').forEach(t => {
                 t.classList.toggle('lb-tab--active', t.dataset.group === group);
             });
             const body = document.getElementById('lb-body');
             body.innerHTML = '<div class="lb-empty">Loading...</div>';
-            fetchAndRenderLeaderboard(body, 50, group);
+            fetchAndRenderLeaderboard(body, 50, group, currentLbMode);
+        }
+
+        function switchLbMode(mode) {
+            currentLbMode = mode;
+            document.querySelectorAll('#lb-mode-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.mode === mode);
+            });
+            const body = document.getElementById('lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 50, currentLbGroup, mode);
         }
 
         async function showLeaderboard() {
@@ -1151,11 +1413,15 @@
             overlay.classList.add('open');
             isLeaderboardOpen = true;
             body.innerHTML = '<div class="lb-empty">Loading...</div>';
-            // 重置 tab 狀態
-            document.querySelectorAll('.lb-tab').forEach(t => {
+            // 預設顯示玩家當前難度的榜
+            currentLbMode = currentDifficulty;
+            document.querySelectorAll('#lb-mode-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.mode === currentLbMode);
+            });
+            document.querySelectorAll('#lb-tabs .lb-tab').forEach(t => {
                 t.classList.toggle('lb-tab--active', t.dataset.group === currentLbGroup);
             });
-            await fetchAndRenderLeaderboard(body, 50, currentLbGroup);
+            await fetchAndRenderLeaderboard(body, 50, currentLbGroup, currentLbMode);
         }
 
         function closeLeaderboard() {
@@ -1166,7 +1432,7 @@
         async function loadWelcomeLeaderboard() {
             const body = document.getElementById('welcome-lb-body');
             if (!body) return;
-            await fetchAndRenderLeaderboard(body, 10, 'form3');
+            await fetchAndRenderLeaderboard(body, 10, 'form3', currentWelcomeMode);
         }
 
         function switchWelcomeLbTab(group) {
@@ -1175,7 +1441,20 @@
             });
             const body = document.getElementById('welcome-lb-body');
             body.innerHTML = '<div class="lb-empty">Loading...</div>';
-            fetchAndRenderLeaderboard(body, 10, group);
+            fetchAndRenderLeaderboard(body, 10, group, currentWelcomeMode);
+        }
+
+        function switchWelcomeMode(mode) {
+            currentWelcomeMode = mode;
+            document.querySelectorAll('#welcome-mode-tabs .lb-tab').forEach(t => {
+                t.classList.toggle('lb-tab--active', t.dataset.mode === mode);
+            });
+            // current group selection
+            const activeGroupBtn = document.querySelector('#welcome-lb-tabs .lb-tab--active');
+            const grp = activeGroupBtn ? activeGroupBtn.dataset.group : 'form3';
+            const body = document.getElementById('welcome-lb-body');
+            body.innerHTML = '<div class="lb-empty">Loading...</div>';
+            fetchAndRenderLeaderboard(body, 10, grp, mode);
         }
 
         function escapeHtml(str) {

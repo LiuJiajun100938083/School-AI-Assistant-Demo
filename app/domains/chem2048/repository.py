@@ -34,8 +34,9 @@ class Chem2048Repository(BaseRepository):
             student_id INT NOT NULL COMMENT '用戶ID (users.id)',
             student_name VARCHAR(100) NOT NULL COMMENT '顯示名稱',
             class_name VARCHAR(50) DEFAULT '' COMMENT '班級',
-            score INT NOT NULL COMMENT '遊戲分數',
-            highest_tile INT NOT NULL COMMENT '最高方塊值 (如 2048)',
+            mode VARCHAR(16) NOT NULL DEFAULT 'simple' COMMENT '難度模式 (simple/hard)',
+            score BIGINT NOT NULL COMMENT '遊戲分數',
+            highest_tile BIGINT NOT NULL COMMENT '最高方塊值 (如 2048)',
             highest_element VARCHAR(10) NOT NULL COMMENT '最高元素符號 (如 Na)',
             highest_element_no INT NOT NULL COMMENT '最高元素序號 (如 11)',
             total_moves INT DEFAULT 0 COMMENT '總移動次數',
@@ -44,13 +45,37 @@ class Chem2048Repository(BaseRepository):
             INDEX idx_student (student_id),
             INDEX idx_class (class_name),
             INDEX idx_played (played_at),
-            INDEX idx_score (score DESC)
+            INDEX idx_score (score DESC),
+            INDEX idx_mode_score (mode, score DESC)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         COMMENT='化學 2048 遊戲成績'
         """
         with self.transaction() as conn:
             cursor = conn.cursor()
             cursor.execute(create_sql)
+            # 後向相容：對舊版表執行 ALTER 添加 mode 欄位 / 升級數值欄位類型
+            try:
+                cursor.execute(
+                    "ALTER TABLE chem2048_scores "
+                    "ADD COLUMN mode VARCHAR(16) NOT NULL DEFAULT 'simple' AFTER class_name"
+                )
+                logger.info("chem2048_scores 已添加 mode 欄位")
+            except Exception:
+                pass  # 欄位已存在
+            try:
+                cursor.execute(
+                    "ALTER TABLE chem2048_scores "
+                    "MODIFY COLUMN score BIGINT NOT NULL, "
+                    "MODIFY COLUMN highest_tile BIGINT NOT NULL"
+                )
+            except Exception:
+                pass
+            try:
+                cursor.execute(
+                    "ALTER TABLE chem2048_scores ADD INDEX idx_mode_score (mode, score DESC)"
+                )
+            except Exception:
+                pass  # 索引已存在
 
         logger.info("chem2048_scores 表初始化成功")
 
@@ -97,6 +122,7 @@ class Chem2048Repository(BaseRepository):
         limit: int = 50,
         class_filter: list = None,
         exclude_classes: list = None,
+        mode: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         獲取排行榜（每位學生取最高分，按 score 降序）
@@ -105,22 +131,39 @@ class Chem2048Repository(BaseRepository):
             limit: 返回條數
             class_filter: 僅包含這些班級（例如 ['3A','3B']）
             exclude_classes: 排除這些班級
+            mode: 難度模式 ('simple' 或 'hard')，None 表示不過濾
         """
-        # 構建班級篩選條件
-        where_clause = ""
-        params: list = []
+        # 內層子查詢的 mode 條件
+        mode_filter_inner = ""
+        mode_params: list = []
+        if mode:
+            mode_filter_inner = "WHERE mode = %s"
+            mode_params = [mode]
+
+        # 外層 WHERE：班級 + mode（避免和子查詢的最高分混亂，外層也加 mode）
+        outer_conds: list = []
+        outer_params: list = []
+
+        if mode:
+            outer_conds.append("t.mode = %s")
+            outer_params.append(mode)
 
         if class_filter:
             placeholders = ",".join(["%s"] * len(class_filter))
-            where_clause = f"WHERE t.class_name IN ({placeholders})"
-            params.extend(class_filter)
+            outer_conds.append(f"t.class_name IN ({placeholders})")
+            outer_params.extend(class_filter)
         elif exclude_classes:
             placeholders = ",".join(["%s"] * len(exclude_classes))
-            where_clause = f"WHERE (t.class_name NOT IN ({placeholders}) OR t.class_name IS NULL OR t.class_name = '')"
-            params.extend(exclude_classes)
+            outer_conds.append(
+                f"(t.class_name NOT IN ({placeholders}) "
+                f"OR t.class_name IS NULL OR t.class_name = '')"
+            )
+            outer_params.extend(exclude_classes)
+
+        where_clause = ("WHERE " + " AND ".join(outer_conds)) if outer_conds else ""
 
         sql = f"""
-            SELECT t.id, t.student_name, t.class_name,
+            SELECT t.id, t.student_name, t.class_name, t.mode,
                    t.score, t.highest_tile, t.highest_element,
                    t.highest_element_no, t.total_moves, t.tips_used, t.played_at
             FROM chem2048_scores t
@@ -130,15 +173,18 @@ class Chem2048Repository(BaseRepository):
                 INNER JOIN (
                     SELECT student_id, MAX(score) AS max_score
                     FROM chem2048_scores
+                    {mode_filter_inner}
                     GROUP BY student_id
                 ) m ON s.student_id = m.student_id AND s.score = m.max_score
+                {mode_filter_inner}
                 GROUP BY s.student_id
             ) best ON t.id = best.best_id
             {where_clause}
             ORDER BY t.score DESC
             LIMIT %s
         """
-        params.append(limit)
+        # 兩個 mode_filter_inner 各用一份 mode_params
+        params = mode_params + mode_params + outer_params + [limit]
         return self.raw_query(sql, tuple(params))
 
     def get_all_scores(
