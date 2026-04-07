@@ -1214,16 +1214,17 @@
         let _AI_DELAY = 50; // ms between moves (adjustable via speed buttons)
 
         // ── Snake weight matrices (4 rotations) for 5×5 board ──
-        // Quadratic gradient (rank²). Combined with log2(value) in eval.
         const _snakeWeights = (() => {
-            const ranks = [
-                [25, 24, 23, 22, 21],
-                [16, 17, 18, 19, 20],
-                [15, 14, 13, 12, 11],
-                [ 6,  7,  8,  9, 10],
-                [ 5,  4,  3,  2,  1],
-            ];
-            const base = ranks.map(row => row.map(r => r * r));
+            const base = [];
+            for (let r = 0; r < 5; r++) {
+                const row = [];
+                for (let c = 0; c < 5; c++) {
+                    const idx = r % 2 === 0 ? r * 5 + (4 - c) : r * 5 + c;
+                    row.push(Math.pow(4, 24 - idx));
+                }
+                base.push(row);
+            }
+            // Generate 4 rotations
             const rotate90 = m => m[0].map((_, c) => m.map(r => r[c]).reverse());
             const r1 = rotate90(base);
             const r2 = rotate90(r1);
@@ -1231,56 +1232,18 @@
             return [base, r1, r2, r3];
         })();
 
-        // ── Snake paths: cell coords ordered from highest weight to lowest, per rotation ──
-        // Used for snake-path monotonicity and merge-position weighting.
-        const _snakePaths = _snakeWeights.map(w => {
-            const cells = [];
-            for (let r = 0; r < 5; r++)
-                for (let c = 0; c < 5; c++)
-                    cells.push({ r, c, w: w[r][c] });
-            cells.sort((a, b) => b.w - a.w);
-            return cells.map(({ r, c }) => [r, c]);
-        });
-
-        // ── Locked snake direction (set per top-level _aiBestMove call) ──
-        // Eliminates the "freely picks best of 4 rotations every eval" instability.
-        let _lockedSnakeIdx = 0;
-
-        // ── Transposition table (cleared per top-level call) ──
-        let _ttable = new Map();
-        const _TT_MAX = 200000;
-
-        function _serialize(b) {
-            let s = '';
-            for (let r = 0; r < 5; r++)
-                for (let c = 0; c < 5; c++)
-                    s += (b[r][c] ? Math.log2(b[r][c]).toString(36) : '_');
-            return s;
-        }
-
         function _evalBoard(b) {
             let emptyCount = 0;
             let smoothness = 0;
             let mono = 0;
-            let maxVal = 0, maxR = 0, maxC = 0;
-            let mergePotential = 0;
 
+            // Empty cells + smoothness
             for (let r = 0; r < 5; r++) {
                 for (let c = 0; c < 5; c++) {
-                    const cell = b[r][c];
-                    if (cell === 0) { emptyCount++; continue; }
-                    if (cell > maxVal) { maxVal = cell; maxR = r; maxC = c; }
-                    const v = Math.log2(cell);
-                    if (c < 4 && b[r][c + 1]) {
-                        const v2 = Math.log2(b[r][c + 1]);
-                        smoothness -= Math.abs(v - v2);
-                        if (cell === b[r][c + 1]) mergePotential += v;
-                    }
-                    if (r < 4 && b[r + 1][c]) {
-                        const v2 = Math.log2(b[r + 1][c]);
-                        smoothness -= Math.abs(v - v2);
-                        if (cell === b[r + 1][c]) mergePotential += v;
-                    }
+                    if (b[r][c] === 0) { emptyCount++; continue; }
+                    const v = Math.log2(b[r][c] || 1);
+                    if (c < 4 && b[r][c + 1]) smoothness -= Math.abs(v - Math.log2(b[r][c + 1]));
+                    if (r < 4 && b[r + 1][c]) smoothness -= Math.abs(v - Math.log2(b[r + 1][c]));
                 }
             }
 
@@ -1302,47 +1265,34 @@
                 mono += Math.max(inc, dec);
             }
 
-            // Snake pattern: log2(value) × rank² weight, best of 4 rotations
+            // Snake pattern (best of 4 rotations)
             let bestSnake = -Infinity;
             for (const w of _snakeWeights) {
                 let s = 0;
                 for (let r = 0; r < 5; r++)
                     for (let c = 0; c < 5; c++)
-                        if (b[r][c]) s += Math.log2(b[r][c]) * w[r][c];
+                        s += b[r][c] * w[r][c];
                 if (s > bestSnake) bestSnake = s;
             }
 
-            // Corner reward / penalty for max tile
-            const log2Max = maxVal ? Math.log2(maxVal) : 0;
-            const isCorner = (maxR === 0 || maxR === 4) && (maxC === 0 || maxC === 4);
-            const cornerBonus = isCorner ? log2Max * 3.0 : -log2Max * 2.5;
+            return bestSnake
+                + 2.7 * Math.log2(emptyCount + 1)
+                + 0.1 * smoothness
+                + 1.0 * mono;
+        }
 
-            // ── Phase-aware empty bonus (the only kept idea from review #3) ──
-            let emptyWeight;
-            if (emptyCount >= 8)      emptyWeight = 2.5;
-            else if (emptyCount >= 4) emptyWeight = 6.0;
-            else                      emptyWeight = 14.0;
-            const emptyScore = emptyCount <= 3
-                ? emptyWeight * emptyCount
-                : emptyWeight * Math.log2(emptyCount + 1);
-
-            return 4.0 * bestSnake
-                 + emptyScore
-                 + 0.4 * smoothness
-                 + 2.0 * mono
-                 + 0.75 * mergePotential
-                 + cornerBonus;
+        function _sampleArray(arr, n) {
+            if (arr.length <= n) return arr;
+            const shuffled = [...arr];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled.slice(0, n);
         }
 
         function _expectimax(b, depth, isPlayer) {
-            if (depth <= 0) return _evalBoard(b);
-
-            // Transposition table lookup (key has explicit separators — no ambiguity)
-            const key = (isPlayer ? 'P' : 'C') + depth + '|' + _serialize(b);
-            const cached = _ttable.get(key);
-            if (cached !== undefined) return cached;
-
-            let result;
+            if (depth === 0) return _evalBoard(b);
 
             if (isPlayer) {
                 let best = -Infinity;
@@ -1351,81 +1301,36 @@
                     const res = processMove(b, dir, false);
                     if (!res.moved) continue;
                     anyMoved = true;
-                    const s = _expectimax(res.newBoard, depth - 1, false);
-                    if (s > best) best = s;
+                    best = Math.max(best, _expectimax(res.newBoard, depth - 1, false));
                 }
-                // Dead end: large finite negative (−Infinity would poison chance averaging)
-                result = anyMoved ? best : -1e9;
+                return anyMoved ? best : _evalBoard(b);
             } else {
-                // Chance node: deterministic ranking — focus on cells adjacent to
-                // big tiles (most disruptive to the snake chain)
+                // Chance node
                 const empty = [];
                 for (let r = 0; r < 5; r++)
                     for (let c = 0; c < 5; c++)
                         if (b[r][c] === 0) empty.push({ r, c });
+                if (!empty.length) return _evalBoard(b);
 
-                if (!empty.length) {
-                    result = _evalBoard(b);
-                } else {
-                    let cells;
-                    if (empty.length <= 6) {
-                        // Few empties → enumerate ALL for true expectation
-                        cells = empty;
-                    } else {
-                        // Many empties → mixed sampling: covers worst/avg/best spawn locations
-                        // (purely top-N danger sampling biases the estimate pessimistically)
-                        const ranked = empty.map(({ r, c }) => {
-                            let risk = 0;
-                            if (r > 0 && b[r - 1][c]) risk += Math.log2(b[r - 1][c]);
-                            if (r < 4 && b[r + 1][c]) risk += Math.log2(b[r + 1][c]);
-                            if (c > 0 && b[r][c - 1]) risk += Math.log2(b[r][c - 1]);
-                            if (c < 4 && b[r][c + 1]) risk += Math.log2(b[r][c + 1]);
-                            return { r, c, risk };
-                        });
-                        ranked.sort((a, b) => b.risk - a.risk);
-                        const N = ranked.length;
-                        // 2 most dangerous + 1 middle + 1 safest = covers spectrum
-                        cells = [ranked[0], ranked[1], ranked[Math.floor(N / 2)], ranked[N - 1]];
+                const cells = _sampleArray(empty, 6);
+                let total = 0;
+                for (const cell of cells) {
+                    for (const [val, prob] of [[2, 0.9], [4, 0.1]]) {
+                        const nb = b.map(r => [...r]);
+                        nb[cell.r][cell.c] = val;
+                        total += prob * _expectimax(nb, depth - 1, true);
                     }
-
-                    let total = 0, weightSum = 0;
-                    for (const cell of cells) {
-                        for (const [val, prob] of [[2, 0.9], [4, 0.1]]) {
-                            const nb = b.map(r => [...r]);
-                            nb[cell.r][cell.c] = val;
-                            total += prob * _expectimax(nb, depth - 1, true);
-                            weightSum += prob;
-                        }
-                    }
-                    result = total / weightSum;
                 }
+                return total / cells.length;
             }
-
-            if (_ttable.size < _TT_MAX) _ttable.set(key, result);
-            return result;
-        }
-
-        function _adaptiveDepth(emptyCount) {
-            // Horizon matters more than eval in late game — keep depth 5 for tight boards
-            if (emptyCount >= 8) return 3;
-            if (emptyCount >= 3) return 4;
-            return 5;
         }
 
         function _aiBestMove() {
-            if (_ttable.size > _TT_MAX / 2) _ttable.clear();
-
-            let emptyCount = 0;
-            for (let r = 0; r < 5; r++)
-                for (let c = 0; c < 5; c++)
-                    if (board[r][c] === 0) emptyCount++;
-            const depth = _adaptiveDepth(emptyCount);
-
             let bestDir = null, bestScore = -Infinity;
             for (const dir of ['Up', 'Down', 'Left', 'Right']) {
                 const res = processMove(board, dir, false);
                 if (!res.moved) continue;
-                const s = _expectimax(res.newBoard, depth, false);
+                const s = _expectimax(res.newBoard, 2, false);
                 if (s > bestScore) { bestScore = s; bestDir = dir; }
             }
             return bestDir;
