@@ -28,6 +28,7 @@ services:
       - hf_cache:/app/.cache/huggingface
     environment:
       - HF_HOME=/app/.cache/huggingface
+      - TZ=Asia/Hong_Kong
     deploy:
       resources:
         limits:

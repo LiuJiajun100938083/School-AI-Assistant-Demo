@@ -21,8 +21,12 @@ FROM python:3.13-slim
 
 # Minimal runtime libs (Pillow, PyMuPDF, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libglib2.0-0 libsm6 libxext6 libxrender-dev \
+        libglib2.0-0 libsm6 libxext6 libxrender-dev tzdata \
+    && ln -snf /usr/share/zoneinfo/Asia/Hong_Kong /etc/localtime \
+    && echo "Asia/Hong_Kong" > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
+
+ENV TZ=Asia/Hong_Kong
 
 # Copy pre-built packages from builder
 COPY --from=builder /install /usr/local
