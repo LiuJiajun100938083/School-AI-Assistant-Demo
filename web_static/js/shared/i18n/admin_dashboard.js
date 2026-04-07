@@ -308,6 +308,15 @@ i18n.addMessages({
         'adm.summary.previewStatus':   '预习狀態: {{status}}',
         'adm.summary.classInfo':       '班级: {{name}}',
         'adm.summary.updateTime':      '更新: {{time}}',
+        'adm.summary.loading':         '載入學生摘要...',
+        'adm.student.previewStatus':   '预习狀態: {{status}}',
+        'adm.student.classLabel':      '班级: {{name}}',
+        'adm.student.updateLabel':     '更新: {{time}}',
+        'adm.analysis.searchStudent':  '搜索學生姓名...',
+        'adm.analysis.loadingList':    '載入學生列表...',
+        'adm.filter.allSubjects':      '所有學科',
+        'adm.noticeChat.realtimePreview':   '即時預覽',
+        'adm.noticeChat.previewPlaceholder':'編輯通知內容後將在此處顯示預覽',
 
         // ── Export analysis ─────────────────────────────────
         'adm.export.title':            '學生學習分析報告',
@@ -1322,6 +1331,15 @@ i18n.addMessages({
         'adm.summary.previewStatus':   'Preview Status: {{status}}',
         'adm.summary.classInfo':       'Class: {{name}}',
         'adm.summary.updateTime':      'Updated: {{time}}',
+        'adm.summary.loading':         'Loading student summary...',
+        'adm.student.previewStatus':   'Preview Status: {{status}}',
+        'adm.student.classLabel':      'Class: {{name}}',
+        'adm.student.updateLabel':     'Updated: {{time}}',
+        'adm.analysis.searchStudent':  'Search student name...',
+        'adm.analysis.loadingList':    'Loading student list...',
+        'adm.filter.allSubjects':      'All Subjects',
+        'adm.noticeChat.realtimePreview':   'Real-time Preview',
+        'adm.noticeChat.previewPlaceholder':'Notice preview will appear here as you edit',
 
         // ── Export analysis ─────────────────────────────────
         'adm.export.title':            'Student Learning Analysis Report',
