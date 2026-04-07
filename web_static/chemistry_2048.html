@@ -1236,14 +1236,25 @@
             let emptyCount = 0;
             let smoothness = 0;
             let mono = 0;
+            let maxVal = 0, maxR = 0, maxC = 0;
+            let mergePotential = 0;
 
-            // Empty cells + smoothness
             for (let r = 0; r < 5; r++) {
                 for (let c = 0; c < 5; c++) {
-                    if (b[r][c] === 0) { emptyCount++; continue; }
-                    const v = Math.log2(b[r][c] || 1);
-                    if (c < 4 && b[r][c + 1]) smoothness -= Math.abs(v - Math.log2(b[r][c + 1]));
-                    if (r < 4 && b[r + 1][c]) smoothness -= Math.abs(v - Math.log2(b[r + 1][c]));
+                    const cell = b[r][c];
+                    if (cell === 0) { emptyCount++; continue; }
+                    if (cell > maxVal) { maxVal = cell; maxR = r; maxC = c; }
+                    const v = Math.log2(cell);
+                    if (c < 4 && b[r][c + 1]) {
+                        const v2 = Math.log2(b[r][c + 1]);
+                        smoothness -= Math.abs(v - v2);
+                        if (cell === b[r][c + 1]) mergePotential += v;
+                    }
+                    if (r < 4 && b[r + 1][c]) {
+                        const v2 = Math.log2(b[r + 1][c]);
+                        smoothness -= Math.abs(v - v2);
+                        if (cell === b[r + 1][c]) mergePotential += v;
+                    }
                 }
             }
 
@@ -1265,34 +1276,30 @@
                 mono += Math.max(inc, dec);
             }
 
-            // Snake pattern (best of 4 rotations)
+            // Snake pattern using log2 (so high tiles don't dominate everything else)
             let bestSnake = -Infinity;
             for (const w of _snakeWeights) {
                 let s = 0;
                 for (let r = 0; r < 5; r++)
                     for (let c = 0; c < 5; c++)
-                        s += b[r][c] * w[r][c];
+                        if (b[r][c]) s += Math.log2(b[r][c]) * w[r][c];
                 if (s > bestSnake) bestSnake = s;
             }
 
-            return bestSnake
-                + 2.7 * Math.log2(emptyCount + 1)
-                + 0.1 * smoothness
-                + 1.0 * mono;
-        }
+            // Max-tile-in-corner: hard reward / penalty
+            const isCorner = (maxR === 0 || maxR === 4) && (maxC === 0 || maxC === 4);
+            const cornerBonus = isCorner ? Math.log2(maxVal) * 4.0 : -Math.log2(maxVal) * 3.0;
 
-        function _sampleArray(arr, n) {
-            if (arr.length <= n) return arr;
-            const shuffled = [...arr];
-            for (let i = shuffled.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-            }
-            return shuffled.slice(0, n);
+            return 0.15 * bestSnake
+                + 3.5 * Math.log2(emptyCount + 1)
+                + 0.15 * smoothness
+                + 1.2 * mono
+                + cornerBonus
+                + 0.7 * mergePotential;
         }
 
         function _expectimax(b, depth, isPlayer) {
-            if (depth === 0) return _evalBoard(b);
+            if (depth <= 0) return _evalBoard(b);
 
             if (isPlayer) {
                 let best = -Infinity;
@@ -1301,36 +1308,62 @@
                     const res = processMove(b, dir, false);
                     if (!res.moved) continue;
                     anyMoved = true;
-                    best = Math.max(best, _expectimax(res.newBoard, depth - 1, false));
+                    const s = _expectimax(res.newBoard, depth - 1, false);
+                    if (s > best) best = s;
                 }
-                return anyMoved ? best : _evalBoard(b);
+                return anyMoved ? best : _evalBoard(b) - 1000;
             } else {
-                // Chance node
+                // Chance node — full enumeration with proper probability weighting
                 const empty = [];
                 for (let r = 0; r < 5; r++)
                     for (let c = 0; c < 5; c++)
                         if (b[r][c] === 0) empty.push({ r, c });
                 if (!empty.length) return _evalBoard(b);
 
-                const cells = _sampleArray(empty, 6);
+                // To control branching, sample a subset of empty cells
+                const sampleN = depth >= 3 ? 4 : 6;
+                let cells = empty;
+                if (empty.length > sampleN) {
+                    const shuffled = [...empty];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    cells = shuffled.slice(0, sampleN);
+                }
+
                 let total = 0;
+                let weightSum = 0;
                 for (const cell of cells) {
                     for (const [val, prob] of [[2, 0.9], [4, 0.1]]) {
                         const nb = b.map(r => [...r]);
                         nb[cell.r][cell.c] = val;
                         total += prob * _expectimax(nb, depth - 1, true);
+                        weightSum += prob;
                     }
                 }
-                return total / cells.length;
+                return total / weightSum;
             }
         }
 
+        function _adaptiveDepth(emptyCount) {
+            // depth 2 fast and matches original; depth 3 only when board is tight
+            if (emptyCount >= 4) return 2;
+            return 3;
+        }
+
         function _aiBestMove() {
+            let emptyCount = 0;
+            for (let r = 0; r < 5; r++)
+                for (let c = 0; c < 5; c++)
+                    if (board[r][c] === 0) emptyCount++;
+            const depth = _adaptiveDepth(emptyCount);
+
             let bestDir = null, bestScore = -Infinity;
             for (const dir of ['Up', 'Down', 'Left', 'Right']) {
                 const res = processMove(board, dir, false);
                 if (!res.moved) continue;
-                const s = _expectimax(res.newBoard, 2, false);
+                const s = _expectimax(res.newBoard, depth, false);
                 if (s > bestScore) { bestScore = s; bestDir = dir; }
             }
             return bestDir;
