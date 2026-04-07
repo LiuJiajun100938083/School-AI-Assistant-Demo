@@ -1276,26 +1276,28 @@
                 mono += Math.max(inc, dec);
             }
 
-            // Snake pattern using log2 (so high tiles don't dominate everything else)
+            // Snake pattern using RAW tile values — exponential reward for growing big tiles
             let bestSnake = -Infinity;
             for (const w of _snakeWeights) {
                 let s = 0;
                 for (let r = 0; r < 5; r++)
                     for (let c = 0; c < 5; c++)
-                        if (b[r][c]) s += Math.log2(b[r][c]) * w[r][c];
+                        s += b[r][c] * w[r][c];
                 if (s > bestSnake) bestSnake = s;
             }
 
-            // Max-tile-in-corner: hard reward / penalty
+            // Max-tile-in-corner: scale with maxVal so it stays relevant vs snake
             const isCorner = (maxR === 0 || maxR === 4) && (maxC === 0 || maxC === 4);
-            const cornerBonus = isCorner ? Math.log2(maxVal) * 4.0 : -Math.log2(maxVal) * 3.0;
+            const cornerBonus = isCorner ? maxVal * 2.0 : -maxVal * 1.5;
 
-            return 0.15 * bestSnake
-                + 3.5 * Math.log2(emptyCount + 1)
-                + 0.15 * smoothness
-                + 1.2 * mono
+            // Other heuristics scaled to be comparable to snake at the relevant magnitudes
+            // (snake dominates absolute scale; these provide tie-breaking gradients)
+            return bestSnake
                 + cornerBonus
-                + 0.7 * mergePotential;
+                + maxVal * (2.7 * Math.log2(emptyCount + 1)
+                          + 0.1 * smoothness
+                          + 1.0 * mono
+                          + 0.5 * mergePotential);
         }
 
         function _expectimax(b, depth, isPlayer) {
