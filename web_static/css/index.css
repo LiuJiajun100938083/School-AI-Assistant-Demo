@@ -532,6 +532,7 @@ p, span, div, li, label {
 }
 
 .home-sidebar__item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--space-3);
@@ -541,25 +542,109 @@ p, span, div, li, label {
     font-weight: 500;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: background var(--duration-fast), color var(--duration-fast);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.12s ease;
     user-select: none;
     -webkit-user-select: none;
+    will-change: transform, background-color;
+}
+
+/* Vertical accent bar (left edge) — animates in for active state */
+.home-sidebar__item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--brand);
+    transform-origin: center;
+    transform: scaleY(0);
+    opacity: 0;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.22s ease-out;
+    pointer-events: none;
 }
 
 .home-sidebar__item:hover {
     background: rgba(0, 0, 0, 0.04);
     color: var(--text-primary);
+    transform: translateX(3px);
+}
+
+/* Press feedback */
+.home-sidebar__item:active {
+    transform: translateX(3px) scale(0.98);
+    transition-duration: 0.08s;
 }
 
 .home-sidebar__item--active {
     background: var(--brand-light);
     color: var(--brand);
     font-weight: 600;
+    transform: translateX(0);
+    animation: homeSidebarPressFlash 0.4s ease-out;
+}
+
+.home-sidebar__item--active::before {
+    transform: scaleY(1);
+    opacity: 1;
 }
 
 .home-sidebar__item--active:hover {
     background: var(--brand-light);
     color: var(--brand);
+    transform: translateX(0);
+}
+
+.home-sidebar__item--active:active {
+    transform: translateX(0) scale(0.98);
+}
+
+@keyframes homeSidebarPressFlash {
+    0%   { background-color: var(--brand-light); }
+    50%  { background-color: rgba(0, 102, 51, 0.18); }
+    100% { background-color: var(--brand-light); }
+}
+
+/* ── Category-change content animation ──
+   Triggered each time _filterByCategory toggles which groups are visible.
+   JS adds .home-group--animate-in (and pre-removes/forces reflow) to retrigger. */
+@keyframes homeGroupSlideFadeIn {
+    from { opacity: 0; transform: translate3d(14px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes homeAppCardRise {
+    from { opacity: 0; transform: translate3d(0, 8px, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.home-group--animate-in {
+    animation: homeGroupSlideFadeIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--home-stagger-delay, 0ms);
+    will-change: opacity, transform;
+}
+.home-group--animate-in .home-app-card {
+    animation: homeAppCardRise 0.32s ease-out both;
+}
+.home-group--animate-in .home-app-card:nth-child(1)  { animation-delay: calc(var(--home-stagger-delay, 0ms) + 0.04s); }
+.home-group--animate-in .home-app-card:nth-child(2)  { animation-delay: calc(var(--home-stagger-delay, 0ms) + 0.07s); }
+.home-group--animate-in .home-app-card:nth-child(3)  { animation-delay: calc(var(--home-stagger-delay, 0ms) + 0.10s); }
+.home-group--animate-in .home-app-card:nth-child(4)  { animation-delay: calc(var(--home-stagger-delay, 0ms) + 0.13s); }
+.home-group--animate-in .home-app-card:nth-child(5)  { animation-delay: calc(var(--home-stagger-delay, 0ms) + 0.16s); }
+.home-group--animate-in .home-app-card:nth-child(6)  { animation-delay: calc(var(--home-stagger-delay, 0ms) + 0.19s); }
+.home-group--animate-in .home-app-card:nth-child(n+7){ animation-delay: calc(var(--home-stagger-delay, 0ms) + 0.22s); }
+
+/* Reduced motion support (CRITICAL accessibility) */
+@media (prefers-reduced-motion: reduce) {
+    .home-sidebar__item,
+    .home-sidebar__item::before,
+    .home-sidebar__item--active,
+    .home-group--animate-in,
+    .home-group--animate-in .home-app-card {
+        animation: none !important;
+        transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease !important;
+        transform: none !important;
+    }
 }
 
 .home-sidebar__item-icon {

@@ -491,13 +491,28 @@ const HomeApp = {
 
     _filterByCategory(cat) {
         const groups = document.querySelectorAll('.home-group');
+        const visible = [];
         groups.forEach(group => {
-            if (cat === 'all') {
-                group.style.display = '';
-            } else {
-                group.style.display = group.dataset.category === cat ? '' : 'none';
-            }
+            const show = (cat === 'all') || (group.dataset.category === cat);
+            group.style.display = show ? '' : 'none';
+            if (show) visible.push(group);
+            // remove animation class so we can re-trigger
+            group.classList.remove('home-group--animate-in');
         });
+
+        // Force reflow once to reset animations, then re-add the class with stagger
+        // (use requestAnimationFrame so layout settles before animations start)
+        if (visible.length > 0) {
+            // Trigger reflow on first visible
+            // eslint-disable-next-line no-unused-expressions
+            void visible[0].offsetWidth;
+            requestAnimationFrame(() => {
+                visible.forEach((g, i) => {
+                    g.style.setProperty('--home-stagger-delay', (i * 60) + 'ms');
+                    g.classList.add('home-group--animate-in');
+                });
+            });
+        }
     },
 
     /* ---------- 認證 ---------- */
