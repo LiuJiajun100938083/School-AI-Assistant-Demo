@@ -292,6 +292,14 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("啟動每日報告定時任務失敗: %s", e)
 
+        # 啟動每日學生風險快取刷新（每天 03:00 + 啟動時立刻跑）
+        try:
+            import asyncio as _aio
+            _aio.create_task(_daily_risk_refresh_scheduler())
+            logger.info("學生風險快取定時刷新已啟動 (每天 03:00)")
+        except Exception as e:
+            logger.warning("啟動風險快取定時任務失敗: %s", e)
+
         # AI 看門狗：自動回收超時任務
         try:
             from app.core.ai_gate import start_watchdog
@@ -410,6 +418,59 @@ async def _daily_report_scheduler():
         except Exception as e:
             logger.exception("每日報告定時任務異常，60 秒後重試")
             await asyncio.sleep(60)
+
+
+async def _daily_risk_refresh_scheduler():
+    """
+    每日 03:00 自動刷新所有學生的風險快取（student_risk_cache 表）。
+    啟動時也立刻跑一次，避免冷啟動時教師看到空白或舊資料。
+    """
+    import asyncio
+    from datetime import datetime, timedelta
+
+    # ① 啟動立即跑一次（在背景，不阻塞 startup）
+    try:
+        logger.info("首次刷新學生風險快取（背景執行）...")
+        await asyncio.to_thread(_run_risk_refresh)
+    except Exception as e:
+        logger.warning("首次刷新學生風險快取失敗: %s", e)
+
+    # ② 每日 03:00 循環
+    while True:
+        try:
+            now = datetime.now()
+            target = now.replace(hour=3, minute=0, second=0, microsecond=0)
+            if now >= target:
+                target += timedelta(days=1)
+
+            wait_seconds = (target - now).total_seconds()
+            logger.info(
+                "學生風險快取下次刷新: %s (%.0f 秒後)",
+                target.strftime("%Y-%m-%d %H:%M"),
+                wait_seconds,
+            )
+            await asyncio.sleep(wait_seconds)
+
+            logger.info("定時任務觸發：刷新學生風險快取")
+            await asyncio.to_thread(_run_risk_refresh)
+
+        except asyncio.CancelledError:
+            logger.info("學生風險快取定時任務已取消")
+            break
+        except Exception:
+            logger.exception("學生風險快取定時任務異常，60 秒後重試")
+            await asyncio.sleep(60)
+
+
+def _run_risk_refresh():
+    """在線程池中執行同步的風險刷新"""
+    try:
+        from app.services import get_services
+        services = get_services()
+        result = services.risk_cache.refresh_all()
+        logger.info("學生風險快取刷新完成: %s", result)
+    except Exception as e:
+        logger.exception("學生風險快取刷新失敗: %s", e)
 
 
 def _run_daily_report(report_date: str):

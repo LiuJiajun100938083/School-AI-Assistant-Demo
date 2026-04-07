@@ -385,19 +385,20 @@
                             <button class="export-btn" data-action="exportAnalysis"><svg class="icon icon-sm icon-white"><use href="#i-download"/></svg> <span data-i18n="adm.analysis.exportReport">匯出報告</span></button>
                         </div>
                     </div>
-                    <div class="students-summary-wrapper">
+                    <div class="students-summary-wrapper" id="atRiskDashboard">
                         <div class="students-summary-header">
-                            <h4 style="color: var(--primary); margin: 0; display: flex; align-items: center; gap: 8px;">
-                                <svg class="icon" style="stroke:var(--primary)"><use href="#i-receipt"/></svg> <span data-i18n="adm.analysis.summaryOverview">學生摘要總览（最近更新）</span>
+                            <h4 style="color: var(--danger); margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <svg class="icon" style="stroke:var(--danger)"><use href="#i-alert-triangle"/></svg> <span data-i18n="adm.atRisk.title">全校高風險 Top 10</span>
                             </h4>
-                            <div>
-                                <button class="refresh-btn" data-action="loadStudentsSummary"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> <span data-i18n="adm.analysis.refreshSummary">刷新摘要</span></button>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span id="riskLastRefresh" class="muted-small" data-i18n="adm.atRisk.refreshNote">每日 03:00 自動更新</span>
+                                <button class="refresh-btn" data-action="forceRefreshRisk"><svg class="icon icon-sm icon-white"><use href="#i-refresh"/></svg> <span data-i18n="adm.atRisk.forceRefresh">立即重算</span></button>
                             </div>
                         </div>
                         <div id="studentsSummaryList" class="students-summary-grid">
                             <div class="loading-spinner" style="grid-column: 1 / -1;">
                                 <div class="spinner"></div>
-                                <p data-i18n="adm.analysis.loadingSummary">載入學生摘要...</p>
+                                <p data-i18n="adm.atRisk.loading">載入高風險清單...</p>
                             </div>
                         </div>
                     </div>

@@ -39,6 +39,8 @@ from app.domains.classroom.repository import (
     PPTPageRepository,
 )
 from app.domains.analytics.repository import AnalyticsRepository
+from app.domains.analytics.risk_cache_repository import RiskCacheRepository
+from app.domains.analytics.risk_cache_service import RiskCacheService
 from app.domains.attendance.repository import (
     ActivityGroupRepository,
     ActivitySessionRepository,
@@ -209,6 +211,7 @@ class ServiceContainer:
         self._lesson: Optional[LessonService] = None
         self._resource_library: Optional[ResourceLibraryService] = None
         self._exam_creator: Optional[ExamCreatorService] = None
+        self._risk_cache: Optional[RiskCacheService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -318,6 +321,25 @@ class ServiceContainer:
                 settings=self._settings,
             )
         return self._analytics
+
+    @property
+    def risk_cache(self) -> RiskCacheService:
+        """学生风险快取服务（每日 03:00 自动刷新）"""
+        if self._risk_cache is None:
+            risk_repo = self._get_repo(RiskCacheRepository)
+            # 啟動時確保表存在
+            try:
+                risk_repo.init_table()
+            except Exception as e:
+                logger.warning("student_risk_cache 表初始化失敗: %s", e)
+            self._risk_cache = RiskCacheService(
+                repository=risk_repo,
+                user_service=self.user,
+                analytics_service=self.analytics,
+                conv_repo=self._get_repo(ConversationRepository),
+                msg_repo=self._get_repo(MessageRepository),
+            )
+        return self._risk_cache
 
     @property
     def subject(self) -> SubjectService:

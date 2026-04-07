@@ -1243,6 +1243,16 @@ i18n.addMessages({
         'adm.users.cardIdPlaceholder':   '請輸入身分證字號',
         'adm.users.classNumberPlaceholder':'請輸入班號',
         'adm.users.englishNamePlaceholder':'請輸入英文姓名',
+
+        // ── 學生風險快取（每日 03:00 自動更新） ─────────────
+        'adm.atRisk.title':              '全校高風險 Top 10',
+        'adm.atRisk.refreshNote':        '每日 03:00 自動更新',
+        'adm.atRisk.lastRefresh':        '最後更新: {{time}}',
+        'adm.atRisk.forceRefresh':       '立即重算',
+        'adm.atRisk.loading':            '載入高風險清單...',
+        'adm.atRisk.refreshSuccess':     '風險快取已更新',
+        'adm.atRisk.refreshFailed':      '更新失敗，請稍後再試',
+        'adm.analysis.pickClassFirst':   '請先在上方下拉選擇班級',
     },
     en: {
         // ── Page level ──────────────────────────────────────
@@ -2481,5 +2491,15 @@ i18n.addMessages({
         'adm.users.cardIdPlaceholder':   'Enter ID number',
         'adm.users.classNumberPlaceholder':'Enter class number',
         'adm.users.englishNamePlaceholder':'Enter English name',
+
+        // ── Student risk cache (auto-refreshed daily at 03:00) ─
+        'adm.atRisk.title':              'Top 10 At-Risk Students',
+        'adm.atRisk.refreshNote':        'Auto-refreshed daily at 03:00',
+        'adm.atRisk.lastRefresh':        'Last refreshed: {{time}}',
+        'adm.atRisk.forceRefresh':       'Refresh Now',
+        'adm.atRisk.loading':            'Loading at-risk list...',
+        'adm.atRisk.refreshSuccess':     'Risk cache updated',
+        'adm.atRisk.refreshFailed':      'Refresh failed, please retry',
+        'adm.analysis.pickClassFirst':   'Please pick a class above to view its students',
     }
 });

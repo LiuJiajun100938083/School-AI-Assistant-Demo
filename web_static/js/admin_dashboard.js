@@ -285,11 +285,35 @@ const AdminAPI = {
         return resp.json();
     },
 
-    async fetchStudentsSummary() {
-        const resp = await fetch('/api/teacher/students/summary', {
+    async fetchStudentsSummary(className) {
+        // class_name optional — backend reads from student_risk_cache
+        const url = className
+            ? '/api/teacher/students/summary?class_name=' + encodeURIComponent(className)
+            : '/api/teacher/students/summary';
+        const resp = await fetch(url, {
             headers: AuthModule.getAuthHeaders()
         });
         if (!resp.ok) throw new Error(i18n.t('adm.api.networkError'));
+        return resp.json();
+    },
+
+    async fetchTopAtRisk(limit) {
+        const resp = await fetch('/api/teacher/students/at_risk?limit=' + (limit || 10), {
+            headers: AuthModule.getAuthHeaders()
+        });
+        if (!resp.ok) throw new Error(i18n.t('adm.api.networkError'));
+        return resp.json();
+    },
+
+    async forceRefreshRisk() {
+        const resp = await fetch('/api/teacher/students/risk/refresh', {
+            method: 'POST',
+            headers: AuthModule.getAuthHeaders()
+        });
+        if (!resp.ok) {
+            const text = await resp.text();
+            throw new Error(text || i18n.t('adm.api.networkError'));
+        }
         return resp.json();
     },
 
@@ -1355,6 +1379,9 @@ const AdminApp = {
         document.querySelectorAll('[data-action="loadStudentsSummary"]').forEach(btn => {
             btn.addEventListener('click', () => this.loadStudentsSummary());
         });
+        document.querySelectorAll('[data-action="forceRefreshRisk"]').forEach(btn => {
+            btn.addEventListener('click', () => this.forceRefreshRisk());
+        });
 
         // Blocked accounts
         document.querySelectorAll('[data-action="refreshBlocked"]').forEach(btn => {
@@ -1366,7 +1393,20 @@ const AdminApp = {
 
         // Filters
         const classFilter = document.getElementById('classFilter');
-        if (classFilter) classFilter.addEventListener('change', () => this.filterStudents());
+        if (classFilter) {
+            // Class change → load that class from cache (the new flow)
+            classFilter.addEventListener('change', (e) => {
+                const cls = e.target.value;
+                if (cls) {
+                    this.loadClassStudents(cls);
+                } else {
+                    document.getElementById('studentList').innerHTML =
+                        '<div class="empty-state"><p>' + i18n.t('adm.analysis.pickClassFirst') + '</p></div>';
+                    this.state.allStudents = [];
+                    this.updateStudentStats([]);
+                }
+            });
+        }
         const subjectFilter = document.getElementById('subjectFilter');
         if (subjectFilter) subjectFilter.addEventListener('change', () => this.filterStudents());
         const studentSearch = document.getElementById('studentSearch');
@@ -2018,19 +2058,99 @@ const AdminApp = {
         }
     },
 
-    /* ---------- 學生分析 ---------- */
+    /* ---------- 學生分析 ----------
+       新流程（風險快取版）：
+       1. 上方「全校高風險 Top 10」立即從快取讀（<10ms）
+       2. 為了讓班級下拉有選項，仍然 fetch user list（一次性，不跑風險計算）
+       3. 預設選教師自己的班；若沒有，提示「請先選擇班級」
+       4. 選班級後，從 cache 拉該班學生（瞬間）
+       「立即重算」按鈕呼叫 forceRefreshRisk，跑 ~5-10 秒。
+    */
     async loadStudentAnalysis() {
         console.log('[Analysis] 開始載入學生分析數據...');
-        document.getElementById('studentList').innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>' + i18n.t('adm.analysis.loadingList') + '</p></div>';
+
+        // ① 載入「全校高風險 Top 10」（從快取，瞬間）
+        this.loadStudentsSummary();  // 即 fetchTopAtRisk + render
+
+        // ② 為了班級下拉，仍需要拿一次用戶列表（不再跑風險）
+        document.getElementById('studentList').innerHTML =
+            '<div class="loading-spinner"><div class="spinner"></div><p>' + i18n.t('adm.analysis.loadingList') + '</p></div>';
         try {
             const data = await AdminAPI.fetchUsers();
             this.state.allStudents = (data.users || []).filter(user => user.role === 'student');
             this.updateClassFilter();
+
+            // ③ 預設選教師自己的班（如果有）
+            const myClass = (this.state.currentUser && this.state.currentUser.class_name) || '';
+            const classFilter = document.getElementById('classFilter');
+            if (myClass && [...classFilter.options].some(o => o.value === myClass)) {
+                classFilter.value = myClass;
+                await this.loadClassStudents(myClass);
+            } else {
+                // 沒有預設班 → 顯示「請先選擇班級」
+                document.getElementById('studentList').innerHTML =
+                    '<div class="empty-state"><p>' + i18n.t('adm.analysis.pickClassFirst') + '</p></div>';
+                this.updateStudentStats([]);
+            }
+        } catch (error) {
+            console.error('[Analysis] 載入學生數據失敗:', error);
+            document.getElementById('studentList').innerHTML =
+                '<div class="empty-state"><p>' + i18n.t('adm.analysis.loadFailed') + '</p></div>';
+        }
+    },
+
+    // 從風險快取讀某班學生並渲染左側列表
+    async loadClassStudents(className) {
+        document.getElementById('studentList').innerHTML =
+            '<div class="loading-spinner"><div class="spinner"></div><p>' + i18n.t('adm.analysis.loadingList') + '</p></div>';
+        try {
+            const data = await AdminAPI.fetchStudentsSummary(className);
+            // 把 cache 回應接到既有的 state.allStudents 結構
+            // cache row 已含 risk_level / risk_score / overall_summary
+            this.state.allStudents = (data.students || []).map(s => ({
+                username: s.student_id,
+                display_name: s.display_name,
+                class_name: s.class_name,
+                role: 'student',
+                risk_level: s.risk_level,
+                risk_score: s.risk_score,
+                overall_summary: s.overall_summary,
+                last_active: s.last_active,
+            }));
+            // 把 risk_level 注入 studentReports state，讓 renderStudentList 能著色
+            this.state.allStudents.forEach(s => {
+                if (!this.state.studentReports) this.state.studentReports = {};
+                this.state.studentReports[s.username] = { risk_level: s.risk_level || 'unknown' };
+            });
             AdminUI.renderStudentList(this.state.allStudents);
             this.updateStudentStats(this.state.allStudents);
         } catch (error) {
-            console.error('[Analysis] 載入學生數據失敗:', error);
-            document.getElementById('studentList').innerHTML = '<div class="empty-state"><p>' + i18n.t('adm.analysis.loadFailed') + '</p></div>';
+            console.error('[Analysis] 載入該班學生失敗:', error);
+            document.getElementById('studentList').innerHTML =
+                '<div class="empty-state"><p>' + i18n.t('adm.analysis.loadFailed') + '</p></div>';
+        }
+    },
+
+    // 強制重算所有學生風險（耗時 5-10 秒，但給按鈕的人用）
+    async forceRefreshRisk() {
+        const btns = document.querySelectorAll('[data-action="forceRefreshRisk"]');
+        btns.forEach(b => { b.disabled = true; });
+        try {
+            await AdminAPI.forceRefreshRisk();
+            // 重新載入兩個區塊
+            await this.loadStudentsSummary();
+            const cls = (document.getElementById('classFilter') || {}).value || '';
+            if (cls) await this.loadClassStudents(cls);
+            if (typeof showToast === 'function') {
+                showToast(i18n.t('adm.atRisk.refreshSuccess'), 'success');
+            }
+        } catch (e) {
+            console.error('forceRefreshRisk failed:', e);
+            if (typeof showToast === 'function') {
+                showToast(i18n.t('adm.atRisk.refreshFailed'), 'error');
+            }
+        } finally {
+            btns.forEach(b => { b.disabled = false; });
         }
     },
 
@@ -2207,16 +2327,25 @@ ${report.teacher_attention_points || i18n.t('adm.export.none')}
         URL.revokeObjectURL(url);
     },
 
-    /* ---------- 學生摘要 ---------- */
+    /* ---------- 全校高風險 Top 10（從快取讀） ---------- */
     async loadStudentsSummary() {
         const container = document.getElementById('studentsSummaryList');
         if (!container) return;
-        container.innerHTML = '<div class="loading-spinner" style="grid-column: 1 / -1;"><div class="spinner"></div><p>' + i18n.t('adm.summary.loading') + '</p></div>';
+        container.innerHTML = '<div class="loading-spinner" style="grid-column: 1 / -1;"><div class="spinner"></div><p>' + i18n.t('adm.atRisk.loading') + '</p></div>';
         try {
-            const data = await AdminAPI.fetchStudentsSummary();
+            const data = await AdminAPI.fetchTopAtRisk(10);
             AdminUI.displayStudentsSummary(data.students || []);
+            // 更新「最後刷新時間」標籤
+            const stamp = document.getElementById('riskLastRefresh');
+            if (stamp) {
+                if (data.last_refresh) {
+                    stamp.textContent = i18n.t('adm.atRisk.lastRefresh', {time: data.last_refresh});
+                } else {
+                    stamp.textContent = i18n.t('adm.atRisk.refreshNote');
+                }
+            }
         } catch (error) {
-            console.error('載入學生摘要失敗:', error);
+            console.error('載入高風險清單失敗:', error);
             container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">' + i18n.t('adm.summary.loadFailed') + '</div>';
         }
     },

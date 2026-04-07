@@ -16,7 +16,7 @@
 """
 
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Request
 
@@ -322,38 +322,143 @@ async def get_teacher_classes(request: Request):
 
 
 @router.get("/api/teacher/students/summary")
-async def get_teacher_students_summary(request: Request):
-    """教师获取学生摘要列表"""
+async def get_teacher_students_summary(
+    request: Request,
+    class_name: Optional[str] = None,
+):
+    """
+    教师获取学生摘要列表（從 student_risk_cache 表讀取）
+
+    Query params:
+        class_name: 可選班級篩選；不傳則回傳全校（用於管理員）
+
+    每位學生的 risk_level/summary 由背景任務每日 03:00 預先計算寫入快取，
+    這個端點只讀快取表，<10ms 完成。教師按「刷新數據」按鈕會呼叫
+    /risk/refresh 強制重跑。
+    """
     try:
         _, role = _verify_request(request)
         if role not in ("admin", "teacher"):
             from app.core.exceptions import AuthorizationError
             raise AuthorizationError("需要教师或管理员权限")
 
-        # 获取所有学生
-        students = get_services().user.list_users(role="student")
-        student_summaries = []
-        for student in students:
-            summary = {
-                "student_id": student.get("username", ""),
-                "display_name": student.get("display_name", student.get("username", "")),
-                "class_name": student.get("class_name", ""),
-                "risk_level": "unknown",
-                "overall_summary": "",
-                "preview_status": "",
-                "last_updated": student.get("last_login", ""),
-            }
-            # 尝试获取风险评估
-            try:
-                risk = get_services().analytics.assess_student_risk(student["username"])
-                if isinstance(risk, dict):
-                    summary["risk_level"] = risk.get("risk_level", "unknown")
-                    summary["overall_summary"] = risk.get("summary", "")
-            except Exception:
-                pass
-            student_summaries.append(summary)
+        result = get_services().risk_cache.get_summary_by_class(class_name)
+        # 對齊舊回應格式：每筆 row 加上 display_name 欄位（cache 用 student_name）
+        students = []
+        for r in result.get("students", []):
+            students.append({
+                "student_id": r.get("student_id", ""),
+                "display_name": r.get("student_name", ""),
+                "class_name": r.get("class_name", ""),
+                "risk_level": r.get("risk_level", "unknown"),
+                "risk_score": r.get("risk_score", 0),
+                "risk_factors": r.get("risk_factors", []),
+                "overall_summary": r.get("overall_summary", ""),
+                "preview_status": r.get("preview_status", ""),
+                "total_conversations": r.get("total_conversations", 0),
+                "total_messages": r.get("total_messages", 0),
+                "last_active": r.get("last_active"),
+                "last_updated": r.get("updated_at"),
+            })
+        return {
+            "students": students,
+            "count": result.get("count", 0),
+            "last_refresh": result.get("last_refresh"),
+        }
 
-        return {"students": student_summaries}
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/teacher/students/at_risk")
+async def get_teacher_top_at_risk(
+    request: Request,
+    limit: int = 10,
+):
+    """
+    取全校風險最高的學生 Top N（從快取讀，<10ms）
+
+    Query params:
+        limit: 1-50，預設 10
+    """
+    try:
+        _, role = _verify_request(request)
+        if role not in ("admin", "teacher"):
+            from app.core.exceptions import AuthorizationError
+            raise AuthorizationError("需要教师或管理员权限")
+
+        if limit < 1:
+            limit = 1
+        if limit > 50:
+            limit = 50
+
+        result = get_services().risk_cache.get_top_at_risk(limit)
+        students = []
+        for r in result.get("students", []):
+            students.append({
+                "student_id": r.get("student_id", ""),
+                "display_name": r.get("student_name", ""),
+                "class_name": r.get("class_name", ""),
+                "risk_level": r.get("risk_level", "unknown"),
+                "risk_score": r.get("risk_score", 0),
+                "risk_factors": r.get("risk_factors", []),
+                "overall_summary": r.get("overall_summary", ""),
+                "total_conversations": r.get("total_conversations", 0),
+                "last_active": r.get("last_active"),
+                "last_updated": r.get("updated_at"),
+            })
+        return {
+            "students": students,
+            "count": result.get("count", 0),
+            "last_refresh": result.get("last_refresh"),
+        }
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# 強制刷新的速率限制（每位用戶 60 秒一次）
+_force_refresh_last_ts: Dict[str, float] = {}
+_FORCE_REFRESH_COOLDOWN = 60.0
+
+
+@router.post("/api/teacher/students/risk/refresh")
+async def force_refresh_student_risk(request: Request):
+    """
+    強制立即重新計算所有學生的風險快取（教師按「刷新數據」按鈕用）。
+
+    通常每天 03:00 會自動跑；這個端點是給教師需要立刻看到最新資料時用。
+    每位用戶 60 秒只能呼叫一次（rate limit）。
+    """
+    try:
+        username, role = _verify_request(request)
+        if role not in ("admin", "teacher"):
+            from app.core.exceptions import AuthorizationError
+            raise AuthorizationError("需要教师或管理员权限")
+
+        # Rate limit
+        import time as _time
+        now = _time.monotonic()
+        last = _force_refresh_last_ts.get(username, 0.0)
+        if now - last < _FORCE_REFRESH_COOLDOWN:
+            wait = _FORCE_REFRESH_COOLDOWN - (now - last)
+            return error_response(
+                "RATE_LIMIT",
+                f"請等待 {wait:.0f} 秒後再試",
+                status_code=429,
+            )
+        _force_refresh_last_ts[username] = now
+
+        # 在 threadpool 跑（refresh_all 是同步、IO 重）
+        import asyncio as _aio
+        result = await _aio.to_thread(
+            lambda: get_services().risk_cache.refresh_all()
+        )
+        return {"success": True, "data": result}
 
     except AppException as e:
         return error_response(e.code, e.message, status_code=e.status_code)
