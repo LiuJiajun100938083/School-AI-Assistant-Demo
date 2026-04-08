@@ -267,22 +267,34 @@
             const action = btn.dataset.action;
             try {
                 if (action === 'like') {
-                    await api(`/posts/${p.id}/reaction`, { method: 'POST', body: '{}' });
+                    const r = await api(`/posts/${p.id}/reaction`, { method: 'POST', body: '{}' });
+                    if (r) {
+                        p.like_count = r.count;
+                        p.liked_by_me = r.added;
+                        store._emit();
+                    }
                 } else if (action === 'toggle-comments') {
                     el.querySelector('.cb-comments').classList.toggle('open');
                 } else if (action === 'send-comment') {
                     const input = el.querySelector('[data-comment-input]');
                     const body = input.value.trim();
                     if (!body) return;
-                    await api(`/posts/${p.id}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
+                    const c = await api(`/posts/${p.id}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
+                    if (c) {
+                        p.comments = (p.comments || []).concat([c]);
+                        store._emit();
+                    }
                     input.value = '';
                 } else if (action === 'approve') {
-                    await api(`/posts/${p.id}/state`, { method: 'POST', body: JSON.stringify({ event: 'approve' }) });
+                    const updated = await api(`/posts/${p.id}/state`, { method: 'POST', body: JSON.stringify({ event: 'approve' }) });
+                    if (updated) store.upsertPost(updated);
                 } else if (action === 'reject') {
-                    await api(`/posts/${p.id}/state`, { method: 'POST', body: JSON.stringify({ event: 'reject' }) });
+                    const updated = await api(`/posts/${p.id}/state`, { method: 'POST', body: JSON.stringify({ event: 'reject' }) });
+                    if (updated) store.upsertPost(updated);
                 } else if (action === 'delete') {
                     if (!confirm(i18n.t('cb.confirmDelete'))) return;
                     await api(`/posts/${p.id}`, { method: 'DELETE' });
+                    store.removePost(p.id);
                 }
             } catch (err) { alert(err.message); }
         });
@@ -463,7 +475,8 @@
             $('#pSubmit').disabled = true;
             $('#pSubmit').textContent = i18n.t('cb.publishing');
             try {
-                await api('/posts', { method: 'POST', body: JSON.stringify(payload) });
+                const post = await api('/posts', { method: 'POST', body: JSON.stringify(payload) });
+                if (post) store.upsertPost(post);
                 closePostModal();
             } catch (err) { alert(err.message); }
             finally {
@@ -494,7 +507,8 @@
                     .split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
             }
             try {
-                await api('/sections', { method: 'POST', body: JSON.stringify(payload) });
+                const sec = await api('/sections', { method: 'POST', body: JSON.stringify(payload) });
+                if (sec) store.upsertSection(sec);
                 closeSectionModal();
             } catch (err) { alert(err.message); }
         });
