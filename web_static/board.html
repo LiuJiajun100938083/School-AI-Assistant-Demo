@@ -21,9 +21,13 @@
         </div>
         <div class="cb-header__right">
             <span id="presence" class="cb-presence"><span class="dot"></span><span id="presenceCount">1</span></span>
-            <button id="btnActivity" class="cb-btn cb-btn--ghost" title="活動記錄">📜</button>
+            <button id="btnActivity" class="cb-btn cb-btn--ghost" title="活動記錄" aria-label="activity">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
             <div class="cb-menu">
-                <button id="btnMenu" class="cb-btn cb-btn--ghost" title="更多">⋯</button>
+                <button id="btnMenu" class="cb-btn cb-btn--ghost" title="更多" aria-label="menu">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                </button>
                 <div id="menuDropdown" class="cb-menu__dropdown">
                     <button data-action="export-json" data-i18n="cb.exportJson">匯出 JSON</button>
                     <button data-action="export-xlsx" data-i18n="cb.exportXlsx">匯出 Excel</button>

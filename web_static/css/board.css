@@ -519,15 +519,42 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
 .cb-post__actions button {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 8px 12px;           /* iPad touch target ≥ 44x28 */
-    min-height: 32px;
+    gap: 6px;
+    padding: 8px 12px;
+    min-height: 40px;
+    min-width: 40px;
     border: none;
     background: transparent;
     color: var(--cb-text-2);
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+.cb-post__actions button svg { flex-shrink: 0; }
+.cb-post__actions button:hover { background: var(--cb-bg); color: var(--cb-text); }
+.cb-post__actions button.liked {
+    color: #e11d48;
+}
+.cb-post__actions button.liked svg { fill: #e11d48; stroke: #e11d48; }
+.cb-post__actions button.active {
+    color: var(--cb-brand);
+    background: var(--cb-brand-light);
+}
+.cb-post__actions button.cb-btn--danger:hover {
+    color: #b91c1c;
+    background: #fef2f2;
+}
+.cb-post__actions button[data-action="approve"],
+.cb-post__actions button[data-action="reject"] {
+    border: 1px solid var(--cb-border);
+}
+.cb-post__actions button[data-action="approve"]:hover {
+    background: var(--cb-brand-light); color: var(--cb-brand); border-color: var(--cb-brand);
+}
+.cb-post__actions button[data-action="reject"]:hover {
+    background: #fef2f2; color: #b91c1c; border-color: #fecaca;
 }
 .cb-post__actions button:hover { background: var(--cb-bg); color: var(--cb-text); }
 .cb-post__actions .liked { color: #e11d48; }
@@ -945,15 +972,22 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
 }
 .cb-react-picker.open { display: flex; }
 .cb-react-picker button {
-    border: none;
-    background: transparent;
-    padding: 4px 8px;
-    font-size: 20px;
+    border: 1px solid var(--cb-border);
+    background: var(--cb-card);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--cb-text);
     cursor: pointer;
-    border-radius: 8px;
-    transition: transform 0.12s ease;
+    border-radius: 999px;
+    transition: all 0.12s ease;
+    white-space: nowrap;
 }
-.cb-react-picker button:hover { transform: scale(1.25); background: var(--cb-bg); }
+.cb-react-picker button:hover {
+    background: var(--cb-brand-light);
+    color: var(--cb-brand);
+    border-color: var(--cb-brand);
+}
 .cb-react-wrap { position: relative; display: inline-flex; }
 .cb-reactions {
     display: flex;

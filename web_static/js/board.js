@@ -238,13 +238,25 @@
         $('#btnAddSection').style.display = state.layout === 'shelf' ? 'inline-flex' : 'none';
     }
 
+    // ── Inline SVG icons (stroke: currentColor) ──
+    const ICON = {
+        like:     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+        comment:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+        link:     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+        pin:      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg>',
+        edit:     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+        trash:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>',
+        check:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+        cross:    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    };
+
     const REACTIONS = [
-        { kind: 'like',  emoji: '❤' },
-        { kind: 'heart', emoji: '💖' },
-        { kind: 'thumb', emoji: '👍' },
-        { kind: 'star',  emoji: '⭐' },
-        { kind: 'clap',  emoji: '👏' },
-        { kind: 'laugh', emoji: '😂' },
+        { kind: 'like',   label: '讚' },
+        { kind: 'heart',  label: '愛心' },
+        { kind: 'thumb',  label: '讚好' },
+        { kind: 'star',   label: '星' },
+        { kind: 'clap',   label: '鼓掌' },
+        { kind: 'laugh',  label: '哈' },
     ];
 
     function renderPostInner(p) {
@@ -267,13 +279,14 @@
             : '';
 
         const moderateBtns = (p.status === 'pending')
-            ? `<button data-action="approve">✓ ${i18n.t('cb.approve')}</button><button data-action="reject">✕ ${i18n.t('cb.reject')}</button>`
+            ? `<button data-action="approve">${ICON.check}<span>${i18n.t('cb.approve')}</span></button>`
+            + `<button data-action="reject">${ICON.cross}<span>${i18n.t('cb.reject')}</span></button>`
             : '';
 
         const likeCount = p.like_count || 0;
         const likedClass = p.liked_by_me ? 'liked' : '';
-        const pickerEmojis = REACTIONS.map(r =>
-            `<button data-reaction="${r.kind}">${r.emoji}</button>`
+        const pickerBtns = REACTIONS.map(r =>
+            `<button data-reaction="${r.kind}">${esc(r.label)}</button>`
         ).join('');
 
         const comments = (p.comments || []);
@@ -291,16 +304,22 @@
             ${tags}
             <div class="cb-post__actions">
                 <div class="cb-react-wrap">
-                    <button data-action="like" class="${likedClass}">❤ <span>${likeCount}</span></button>
-                    <div class="cb-react-picker">${pickerEmojis}</div>
+                    <button data-action="like" class="${likedClass}" title="${esc(i18n.t('cb.like'))}">
+                        ${ICON.like}<span>${likeCount}</span>
+                    </button>
+                    <div class="cb-react-picker">${pickerBtns}</div>
                 </div>
-                <button data-action="toggle-comments">💬 ${commentCount}</button>
-                <button data-action="copy-link" title="${esc(i18n.t('cb.copyLink'))}">🔗</button>
+                <button data-action="toggle-comments" title="${esc(i18n.t('cb.comment'))}">
+                    ${ICON.comment}<span>${commentCount}</span>
+                </button>
+                <button data-action="copy-link" title="${esc(i18n.t('cb.copyLink'))}">
+                    ${ICON.link}
+                </button>
                 <span class="spacer"></span>
                 ${moderateBtns}
-                <button data-action="edit" title="${esc(i18n.t('cb.edit'))}">✎</button>
-                <button data-action="pin" title="${esc(p.pinned ? i18n.t('cb.unpin') : i18n.t('cb.pin'))}">📌</button>
-                <button data-action="delete" class="cb-btn--danger">🗑</button>
+                <button data-action="edit" title="${esc(i18n.t('cb.edit'))}">${ICON.edit}</button>
+                <button data-action="pin" title="${esc(p.pinned ? i18n.t('cb.unpin') : i18n.t('cb.pin'))}" class="${p.pinned ? 'active' : ''}">${ICON.pin}</button>
+                <button data-action="delete" class="cb-btn--danger" title="${esc(i18n.t('cb.delete'))}">${ICON.trash}</button>
             </div>
             <div class="cb-comments">
                 ${commentBody}
