@@ -35,9 +35,11 @@ class BoardCreate(BaseModel):
     icon: str = Field("📌", max_length=8)
     layout: str = Field(LAYOUT_GRID)
     background: str = Field("", max_length=200)
+    theme: str = Field("", max_length=40)
     visibility: str = Field(VISIBILITY_CLASS)
     moderation: bool = False
     class_name: str = Field("", max_length=50)
+    template_id: Optional[str] = None
 
     @field_validator("layout")
     @classmethod
@@ -60,6 +62,7 @@ class BoardUpdate(BaseModel):
     icon: Optional[str] = Field(None, max_length=8)
     layout: Optional[str] = None
     background: Optional[str] = Field(None, max_length=200)
+    theme: Optional[str] = Field(None, max_length=40)
     visibility: Optional[str] = None
     moderation: Optional[bool] = None
 
@@ -120,8 +123,11 @@ class PostCreate(BaseModel):
     title: str = Field("", max_length=MAX_TITLE_LEN)
     body: str = Field("", max_length=MAX_POST_BODY_LEN)
     media_url: str = Field("", max_length=500)
+    media: Optional[List[Dict[str, Any]]] = None
     link_url: str = Field("", max_length=500)
     color: str = Field("", max_length=20)
+    tags: List[str] = Field(default_factory=list)
+    is_anonymous: bool = False
     # canvas only
     canvas_x: Optional[int] = None
     canvas_y: Optional[int] = None
@@ -140,8 +146,12 @@ class PostUpdate(BaseModel):
     title: Optional[str] = Field(None, max_length=MAX_TITLE_LEN)
     body: Optional[str] = Field(None, max_length=MAX_POST_BODY_LEN)
     media_url: Optional[str] = Field(None, max_length=500)
+    media: Optional[List[Dict[str, Any]]] = None
     link_url: Optional[str] = Field(None, max_length=500)
     color: Optional[str] = Field(None, max_length=20)
+    tags: Optional[List[str]] = None
+    is_anonymous: Optional[bool] = None
+    pinned: Optional[bool] = None
 
 
 class PostMove(BaseModel):
@@ -175,6 +185,11 @@ class ReactionToggle(BaseModel):
 
 class CommentCreate(BaseModel):
     body: str = Field(..., min_length=1, max_length=MAX_COMMENT_LEN)
+    parent_id: Optional[int] = None
+
+
+class BoardCloneRequest(BaseModel):
+    title: Optional[str] = Field(None, max_length=MAX_TITLE_LEN)
 
 
 # ============================================================

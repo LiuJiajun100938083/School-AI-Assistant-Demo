@@ -52,6 +52,7 @@ class CollabBoardRepository(BaseRepository):
             icon VARCHAR(16) DEFAULT '📌',
             layout ENUM('grid','shelf','canvas') DEFAULT 'grid',
             background VARCHAR(200) DEFAULT '',
+            theme VARCHAR(40) DEFAULT '',
             visibility ENUM('private','class','public') DEFAULT 'class',
             moderation BOOLEAN DEFAULT FALSE,
             class_name VARCHAR(50) DEFAULT '',
@@ -86,13 +87,17 @@ class CollabBoardRepository(BaseRepository):
             board_id INT NOT NULL,
             section_id INT NULL,
             author_id INT NOT NULL,
-            kind ENUM('text','image','link','file') DEFAULT 'text',
+            kind ENUM('text','image','link','file','video','youtube') DEFAULT 'text',
             title VARCHAR(200) DEFAULT '',
             body TEXT,
             media_url VARCHAR(500) DEFAULT '',
+            media JSON,
             link_url VARCHAR(500) DEFAULT '',
             link_meta JSON,
             color VARCHAR(20) DEFAULT '',
+            tags JSON,
+            is_anonymous BOOLEAN DEFAULT FALSE,
+            pinned BOOLEAN DEFAULT FALSE,
             canvas_x INT NULL,
             canvas_y INT NULL,
             canvas_w INT NULL,
@@ -104,7 +109,8 @@ class CollabBoardRepository(BaseRepository):
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_board_status (board_id, status),
             INDEX idx_author (author_id),
-            INDEX idx_section (section_id)
+            INDEX idx_section (section_id),
+            INDEX idx_pinned (board_id, pinned)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """
 
@@ -124,17 +130,68 @@ class CollabBoardRepository(BaseRepository):
             id INT AUTO_INCREMENT PRIMARY KEY,
             post_id INT NOT NULL,
             author_id INT NOT NULL,
+            parent_id INT NULL,
             body TEXT NOT NULL,
+            mentions JSON,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_post (post_id)
+            INDEX idx_post (post_id),
+            INDEX idx_parent (parent_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """
 
+        activity_sql = """
+        CREATE TABLE IF NOT EXISTS collab_board_activity (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            board_id INT NOT NULL,
+            actor_id INT NOT NULL,
+            event_type VARCHAR(40) NOT NULL,
+            target_id INT NULL,
+            meta JSON,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_board_time (board_id, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """
+
+        # ALTER 腳本 — 舊 deployment 兼容
+        alter_sqls = [
+            ("collab_boards", "theme", "ALTER TABLE collab_boards ADD COLUMN theme VARCHAR(40) DEFAULT '' AFTER background"),
+            ("collab_board_posts", "media", "ALTER TABLE collab_board_posts ADD COLUMN media JSON AFTER media_url"),
+            ("collab_board_posts", "tags", "ALTER TABLE collab_board_posts ADD COLUMN tags JSON AFTER color"),
+            ("collab_board_posts", "is_anonymous", "ALTER TABLE collab_board_posts ADD COLUMN is_anonymous BOOLEAN DEFAULT FALSE AFTER tags"),
+            ("collab_board_posts", "pinned", "ALTER TABLE collab_board_posts ADD COLUMN pinned BOOLEAN DEFAULT FALSE AFTER is_anonymous"),
+            ("collab_board_comments", "parent_id", "ALTER TABLE collab_board_comments ADD COLUMN parent_id INT NULL AFTER author_id"),
+            ("collab_board_comments", "mentions", "ALTER TABLE collab_board_comments ADD COLUMN mentions JSON AFTER body"),
+        ]
+        # kind ENUM 需要 MODIFY 而非 ADD
+        alter_kind_sql = (
+            "ALTER TABLE collab_board_posts MODIFY COLUMN kind "
+            "ENUM('text','image','link','file','video','youtube') DEFAULT 'text'"
+        )
+
         with self.transaction() as conn:
             cursor = conn.cursor()
-            for sql in (boards_sql, sections_sql, posts_sql, reactions_sql, comments_sql):
+            for sql in (boards_sql, sections_sql, posts_sql, reactions_sql, comments_sql, activity_sql):
                 cursor.execute(sql)
-        logger.info("collab_board 5 張表初始化成功")
+            # 為舊表補欄位
+            for table, col, alter in alter_sqls:
+                cursor.execute(
+                    "SELECT COUNT(*) AS cnt FROM information_schema.columns "
+                    "WHERE table_schema = DATABASE() AND table_name = %s AND column_name = %s",
+                    (table, col),
+                )
+                row = cursor.fetchone()
+                if row and row.get("cnt", 0) == 0:
+                    try:
+                        cursor.execute(alter)
+                        logger.info("collab_board 補欄位: %s.%s", table, col)
+                    except Exception as e:  # noqa: BLE001
+                        logger.warning("collab_board 補欄位失敗 %s.%s: %s", table, col, e)
+            # 升級 kind ENUM (冪等)
+            try:
+                cursor.execute(alter_kind_sql)
+            except Exception as e:  # noqa: BLE001
+                logger.debug("collab_board_posts.kind enum 更新略過: %s", e)
+        logger.info("collab_board 表初始化成功")
 
     # ============================================================
     # Board
@@ -279,8 +336,9 @@ class CollabBoardRepository(BaseRepository):
 
     def create_post(self, data: Dict[str, Any]) -> int:
         payload = dict(data)
-        if "link_meta" in payload and payload["link_meta"] is not None:
-            payload["link_meta"] = _dumps(payload["link_meta"])
+        for k in ("link_meta", "media", "tags"):
+            if k in payload and payload[k] is not None:
+                payload[k] = _dumps(payload[k])
         with self.transaction() as conn:
             cursor = conn.cursor()
             cols = ", ".join(payload.keys())
@@ -293,25 +351,23 @@ class CollabBoardRepository(BaseRepository):
             row = cursor.fetchone()
             return row["id"] if row else 0
 
+    def _decode_post(self, r: Dict[str, Any]) -> Dict[str, Any]:
+        r["link_meta"] = _loads(r.get("link_meta"))
+        r["media"] = _loads(r.get("media")) or []
+        r["tags"] = _loads(r.get("tags")) or []
+        return r
+
     def get_post(self, post_id: int) -> Optional[Dict[str, Any]]:
         rows = self.pool.execute(
             "SELECT * FROM collab_board_posts WHERE id=%s LIMIT 1", (post_id,)
         )
-        if not rows:
-            return None
-        r = rows[0]
-        r["link_meta"] = _loads(r.get("link_meta"))
-        return r
+        return self._decode_post(rows[0]) if rows else None
 
     def get_post_by_uuid(self, uuid: str) -> Optional[Dict[str, Any]]:
         rows = self.pool.execute(
             "SELECT * FROM collab_board_posts WHERE uuid=%s LIMIT 1", (uuid,)
         )
-        if not rows:
-            return None
-        r = rows[0]
-        r["link_meta"] = _loads(r.get("link_meta"))
-        return r
+        return self._decode_post(rows[0]) if rows else None
 
     def list_posts(
         self,
@@ -341,22 +397,37 @@ class CollabBoardRepository(BaseRepository):
             "ORDER BY order_index ASC, id ASC LIMIT 2000"
         )
         rows = self.pool.execute(sql, tuple(params)) or []
-        for r in rows:
-            r["link_meta"] = _loads(r.get("link_meta"))
-        return rows
+        return [self._decode_post(r) for r in rows]
 
     def update_post(self, post_id: int, updates: Dict[str, Any]) -> int:
         if not updates:
             return 0
         data = dict(updates)
-        if "link_meta" in data:
-            data["link_meta"] = _dumps(data["link_meta"]) if data["link_meta"] is not None else None
+        for k in ("link_meta", "media", "tags"):
+            if k in data:
+                data[k] = _dumps(data[k]) if data[k] is not None else None
         set_clause = ", ".join(f"{k}=%s" for k in data.keys())
         values = list(data.values()) + [post_id]
         return self.pool.execute_write(
             f"UPDATE collab_board_posts SET {set_clause} WHERE id=%s",
             tuple(values),
         )
+
+    def delete_all_posts(self, board_id: int) -> int:
+        with self.transaction() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE c FROM collab_board_comments c "
+                "JOIN collab_board_posts p ON p.id = c.post_id WHERE p.board_id=%s",
+                (board_id,),
+            )
+            cursor.execute(
+                "DELETE r FROM collab_board_reactions r "
+                "JOIN collab_board_posts p ON p.id = r.post_id WHERE p.board_id=%s",
+                (board_id,),
+            )
+            cursor.execute("DELETE FROM collab_board_posts WHERE board_id=%s", (board_id,))
+            return cursor.rowcount
 
     def delete_post(self, post_id: int) -> int:
         # 硬刪 + 聯動刪 reaction/comment
@@ -426,12 +497,20 @@ class CollabBoardRepository(BaseRepository):
     # Comment
     # ============================================================
 
-    def add_comment(self, post_id: int, author_id: int, body: str) -> int:
+    def add_comment(
+        self,
+        post_id: int,
+        author_id: int,
+        body: str,
+        parent_id: Optional[int] = None,
+        mentions: Optional[List[str]] = None,
+    ) -> int:
         with self.transaction() as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT INTO collab_board_comments (post_id, author_id, body) VALUES (%s, %s, %s)",
-                (post_id, author_id, body),
+                "INSERT INTO collab_board_comments (post_id, author_id, parent_id, body, mentions) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (post_id, author_id, parent_id, body, _dumps(mentions or [])),
             )
             cursor.execute("SELECT LAST_INSERT_ID() as id")
             row = cursor.fetchone()
@@ -468,8 +547,43 @@ class CollabBoardRepository(BaseRepository):
         ) or []
         result: Dict[int, List[Dict[str, Any]]] = {}
         for r in rows:
+            r["mentions"] = _loads(r.get("mentions")) or []
             result.setdefault(r["post_id"], []).append(r)
         return result
+
+    # ============================================================
+    # Activity log
+    # ============================================================
+
+    def log_activity(
+        self,
+        board_id: int,
+        actor_id: int,
+        event_type: str,
+        target_id: Optional[int] = None,
+        meta: Optional[Dict[str, Any]] = None,
+    ) -> int:
+        return self.pool.execute_write(
+            "INSERT INTO collab_board_activity (board_id, actor_id, event_type, target_id, meta) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            (board_id, actor_id, event_type, target_id, _dumps(meta or {})),
+        )
+
+    def list_activity(self, board_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+        rows = self.pool.execute(
+            """
+            SELECT a.*, COALESCE(u.display_name, u.username) as actor_name
+            FROM collab_board_activity a
+            LEFT JOIN users u ON u.id = a.actor_id
+            WHERE a.board_id = %s
+            ORDER BY a.created_at DESC
+            LIMIT %s
+            """,
+            (board_id, limit),
+        ) or []
+        for r in rows:
+            r["meta"] = _loads(r.get("meta")) or {}
+        return rows
 
     # ============================================================
     # Author name batch lookup

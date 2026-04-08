@@ -14,6 +14,7 @@ from fastapi import APIRouter, Body, Depends, File, Query, UploadFile, WebSocket
 
 from app.core.dependencies import get_current_user, get_jwt_manager
 from app.domains.collab_board.schemas import (
+    BoardCloneRequest,
     BoardCreate,
     BoardUpdate,
     CommentCreate,
@@ -223,6 +224,82 @@ async def delete_comment(
 # ============================================================
 # File upload
 # ============================================================
+
+@router.post("/{board_uuid}/posts/{post_id}/pin")
+async def pin_post(
+    board_uuid: str,
+    post_id: int,
+    pinned: bool = Body(True, embed=True),
+    user: Dict = Depends(get_current_user),
+):
+    post = await asyncio.get_event_loop().run_in_executor(
+        None, _svc().pin_post, user, board_uuid, post_id, pinned
+    )
+    return _ok(post)
+
+
+@router.post("/{board_uuid}/clone")
+async def clone_board(
+    board_uuid: str,
+    data: BoardCloneRequest = Body(default_factory=BoardCloneRequest),
+    user: Dict = Depends(get_current_user),
+):
+    board = await asyncio.get_event_loop().run_in_executor(
+        None, _svc().clone_board, user, board_uuid, data
+    )
+    return _ok(board, "佈告板已複製")
+
+
+@router.post("/{board_uuid}/clear")
+async def clear_all_posts(
+    board_uuid: str, user: Dict = Depends(get_current_user)
+):
+    n = await asyncio.get_event_loop().run_in_executor(
+        None, _svc().clear_all_posts, user, board_uuid
+    )
+    return _ok({"removed": n}, f"已清空 {n} 則貼文")
+
+
+@router.get("/{board_uuid}/activity")
+async def list_activity(
+    board_uuid: str,
+    limit: int = 100,
+    user: Dict = Depends(get_current_user),
+):
+    rows = await asyncio.get_event_loop().run_in_executor(
+        None, _svc().list_activity, user, board_uuid, limit
+    )
+    return _ok(rows)
+
+
+@router.get("/{board_uuid}/export")
+async def export_board(
+    board_uuid: str,
+    fmt: str = Query("json"),
+    user: Dict = Depends(get_current_user),
+):
+    from fastapi.responses import Response
+    result = await asyncio.get_event_loop().run_in_executor(
+        None, _svc().export_board, user, board_uuid, fmt
+    )
+    return Response(
+        content=result["content"],
+        media_type=result["content_type"],
+        headers={
+            "Content-Disposition": f'attachment; filename="{result["filename"]}"'
+        },
+    )
+
+
+@router.get("/templates/list")
+async def list_templates():
+    return _ok(_svc().list_templates())
+
+
+@router.get("/themes/list")
+async def list_themes():
+    return _ok(_svc().list_themes())
+
 
 @router.post("/{board_uuid}/uploads")
 async def upload_file(

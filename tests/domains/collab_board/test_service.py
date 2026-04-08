@@ -178,12 +178,24 @@ class FakeRepo:
         return out
 
     # ---- Comment ----
-    def add_comment(self, pid, author_id, body):
+    def add_comment(self, pid, author_id, body, parent_id=None, mentions=None):
         self.cid += 1
         self.comments[self.cid] = {
-            "id": self.cid, "post_id": pid, "author_id": author_id, "body": body,
+            "id": self.cid, "post_id": pid, "author_id": author_id,
+            "parent_id": parent_id, "body": body, "mentions": mentions or [],
         }
         return self.cid
+
+    def log_activity(self, board_id, actor_id, event_type, target_id=None, meta=None):
+        return 1
+
+    def list_activity(self, board_id, limit=100):
+        return []
+
+    def delete_all_posts(self, board_id):
+        before = len(self.posts)
+        self.posts = {k: v for k, v in self.posts.items() if v["board_id"] != board_id}
+        return before - len(self.posts)
 
     def list_comments(self, pid):
         return [c for c in self.comments.values() if c["post_id"] == pid]

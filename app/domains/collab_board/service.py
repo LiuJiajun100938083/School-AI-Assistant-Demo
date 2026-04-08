@@ -17,14 +17,20 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import UploadFile
 
-from app.domains.collab_board import policy, post_state
+from app.domains.collab_board import mention_parser, policy, post_state, templates_seed
+from app.domains.collab_board.board_themes import list_themes
 from app.domains.collab_board.broadcaster import BoardBroadcaster
 from app.domains.collab_board.constants import (
     LAYOUT_CANVAS,
+    MAX_TAGS_PER_POST,
+    MAX_TAG_LEN,
     POST_LINK,
+    POST_YOUTUBE,
     REACTION_LIKE,
     SECTION_GROUP,
 )
+from app.domains.collab_board.exporters import SUPPORTED_FORMATS, get_exporter
+from app.domains.collab_board.link_parsers import classify_url
 from app.domains.collab_board.exceptions import (
     BoardAccessDeniedError,
     BoardNotFoundError,
@@ -36,6 +42,7 @@ from app.domains.collab_board.link_meta import LinkMetaProvider
 from app.domains.collab_board.post_state import PostStatus
 from app.domains.collab_board.repository import CollabBoardRepository
 from app.domains.collab_board.schemas import (
+    BoardCloneRequest,
     BoardCreate,
     BoardUpdate,
     CommentCreate,
@@ -78,20 +85,68 @@ class CollabBoardService:
     def create_board(self, user: Dict[str, Any], data: BoardCreate) -> Dict[str, Any]:
         if user.get("role") not in ("teacher", "admin"):
             raise BoardAccessDeniedError("僅教師與管理員可建立佈告板")
+
+        # 若指定 template,以 template 為預設,使用者輸入覆蓋
+        tmpl = None
+        if data.template_id:
+            tmpl = templates_seed.get_template(data.template_id)
+
+        layout = data.layout or (tmpl.get("layout") if tmpl else "grid")
+        theme = data.theme or (tmpl.get("theme") if tmpl else "")
+
         board_uuid = str(uuid_lib.uuid4())
         self._repo.create_board({
             "uuid": board_uuid,
             "title": data.title,
             "description": data.description,
             "icon": data.icon,
-            "layout": data.layout,
+            "layout": layout,
             "background": data.background,
+            "theme": theme,
             "visibility": data.visibility,
             "moderation": data.moderation,
             "class_name": data.class_name or user.get("class_name", "") or "",
             "owner_id": user["id"],
         })
+        board = self._repo.get_board_by_uuid(board_uuid) or {}
+
+        # seed template 內容
+        if tmpl:
+            self._seed_from_template(board, tmpl, user)
+
+        self._log(board["id"], user, "board.created", meta={"title": data.title})
         return self._repo.get_board_by_uuid(board_uuid) or {}
+
+    def _seed_from_template(
+        self, board: Dict[str, Any], tmpl: Dict[str, Any], user: Dict[str, Any]
+    ) -> None:
+        """把 template 的 sections / posts 寫入新建板"""
+        sec_map: Dict[int, int] = {}  # template idx → real section id
+        for idx, s in enumerate(tmpl.get("sections") or []):
+            sid = self._repo.create_section(board["id"], {
+                "name": s["name"],
+                "kind": s.get("kind", "column"),
+                "group_members": s.get("group_members") or [],
+                "order_index": s.get("order_index", idx),
+            })
+            sec_map[idx] = sid
+        for p in tmpl.get("posts") or []:
+            self._repo.create_post({
+                "uuid": str(uuid_lib.uuid4()),
+                "board_id": board["id"],
+                "author_id": user["id"],
+                "kind": p.get("kind", "text"),
+                "title": p.get("title", ""),
+                "body": p.get("body", ""),
+                "media_url": p.get("media_url", ""),
+                "link_url": p.get("link_url", ""),
+                "color": p.get("color", ""),
+                "canvas_x": p.get("canvas_x"),
+                "canvas_y": p.get("canvas_y"),
+                "canvas_w": p.get("canvas_w"),
+                "canvas_h": p.get("canvas_h"),
+                "status": "approved",
+            })
 
     def list_boards(self, user: Dict[str, Any], include_archived: bool = False) -> List[Dict[str, Any]]:
         return self._repo.list_boards_for_user(
@@ -121,12 +176,18 @@ class CollabBoardService:
         names = self._repo.author_names(author_ids)
 
         # 附加計算欄位
+        is_mod = policy.can_moderate(board, user)
         for p in posts:
             reac = reactions.get(p["id"], {"count": 0, "user_ids": []})
             p["like_count"] = reac["count"]
             p["liked_by_me"] = user["id"] in reac["user_ids"]
             p["comments"] = comments.get(p["id"], [])
-            p["author_name"] = names.get(p["author_id"], "")
+            # 匿名貼文:對非作者/非 moderator 隱藏作者名字
+            if p.get("is_anonymous") and p["author_id"] != user["id"] and not is_mod:
+                p["author_name"] = "匿名"
+                p["author_id"] = 0
+            else:
+                p["author_name"] = names.get(p["author_id"], "")
 
         return {
             "board": board,
@@ -211,8 +272,23 @@ class CollabBoardService:
         )
 
         link_meta = None
+        kind = data.kind
         if data.kind == POST_LINK and data.link_url:
-            link_meta = self._link_meta.fetch(data.link_url).to_dict()
+            # 先用純函式分類,YouTube/Vimeo 升級為 youtube kind
+            classified = classify_url(data.link_url)
+            if classified.kind in ("youtube", "vimeo"):
+                kind = POST_YOUTUBE
+                link_meta = {
+                    "url": data.link_url,
+                    "embed_url": classified.embed_url,
+                    "image": classified.thumbnail,
+                    "provider": classified.provider,
+                    "title": data.title or classified.provider,
+                }
+            else:
+                link_meta = self._link_meta.fetch(data.link_url).to_dict()
+
+        tags = self._sanitize_tags(data.tags)
 
         post_uuid = str(uuid_lib.uuid4())
         payload = {
@@ -220,13 +296,16 @@ class CollabBoardService:
             "board_id": board["id"],
             "section_id": data.section_id,
             "author_id": user["id"],
-            "kind": data.kind,
+            "kind": kind,
             "title": data.title,
             "body": data.body,
             "media_url": data.media_url,
+            "media": data.media or None,
             "link_url": data.link_url,
             "link_meta": link_meta,
             "color": data.color,
+            "tags": tags,
+            "is_anonymous": bool(data.is_anonymous),
             "canvas_x": data.canvas_x,
             "canvas_y": data.canvas_y,
             "canvas_w": data.canvas_w,
@@ -321,9 +400,15 @@ class CollabBoardService:
         board = self._require_board(board_uuid)
         post = self._require_post(post_id, board["id"])
         policy.ensure_can_view(board, user)
-        cid = self._repo.add_comment(post_id, user["id"], data.body)
+        mentions = mention_parser.extract_mentions(data.body)
+        cid = self._repo.add_comment(
+            post_id, user["id"], data.body,
+            parent_id=data.parent_id,
+            mentions=mentions,
+        )
         comment = self._repo.get_comment(cid) or {}
         comment["author_name"] = (user.get("display_name") or user.get("username") or "")
+        comment["mentions"] = mentions
         self._publish(board_uuid, "comment.added", {"post_id": post_id, "comment": comment})
         return comment
 
@@ -372,6 +457,158 @@ class CollabBoardService:
         if post is None or post["board_id"] != board_id:
             raise PostNotFoundError(post_id)
         return post
+
+    # ============================================================
+    # Pin / Clone / Clear / Templates / Themes / Export / Activity
+    # ============================================================
+
+    def pin_post(
+        self, user: Dict[str, Any], board_uuid: str, post_id: int, pinned: bool
+    ) -> Dict[str, Any]:
+        board = self._require_board(board_uuid)
+        policy.ensure_can_moderate(board, user)
+        post = self._require_post(post_id, board["id"])
+        self._repo.update_post(post_id, {"pinned": bool(pinned)})
+        updated = self._repo.get_post(post_id) or {}
+        self._log(board["id"], user, "post.pinned" if pinned else "post.unpinned", target_id=post_id)
+        self._publish(board_uuid, "post.updated", {"post": updated})
+        return updated
+
+    def clone_board(
+        self, user: Dict[str, Any], board_uuid: str, data: BoardCloneRequest
+    ) -> Dict[str, Any]:
+        src = self._require_board(board_uuid)
+        policy.ensure_can_view(src, user)
+        if user.get("role") not in ("teacher", "admin"):
+            raise BoardAccessDeniedError("僅教師與管理員可複製佈告板")
+
+        new_uuid = str(uuid_lib.uuid4())
+        self._repo.create_board({
+            "uuid": new_uuid,
+            "title": data.title or (src.get("title", "") + " (副本)"),
+            "description": src.get("description", ""),
+            "icon": src.get("icon", "📌"),
+            "layout": src.get("layout", "grid"),
+            "background": src.get("background", ""),
+            "theme": src.get("theme", ""),
+            "visibility": "private",  # 副本預設私人,使用者再改
+            "moderation": bool(src.get("moderation")),
+            "class_name": user.get("class_name", "") or "",
+            "owner_id": user["id"],
+        })
+        new_board = self._repo.get_board_by_uuid(new_uuid) or {}
+
+        # 複製 sections
+        old_sections = self._repo.list_sections(src["id"])
+        sec_map: Dict[int, int] = {}
+        for s in old_sections:
+            nsid = self._repo.create_section(new_board["id"], {
+                "name": s["name"],
+                "kind": s.get("kind", "column"),
+                "group_members": s.get("group_members") or [],
+                "order_index": s.get("order_index", 0),
+            })
+            sec_map[s["id"]] = nsid
+
+        # 複製 posts (僅 approved,不含 reactions/comments)
+        old_posts = self._repo.list_posts(src["id"])
+        for p in old_posts:
+            if p.get("status") != "approved":
+                continue
+            self._repo.create_post({
+                "uuid": str(uuid_lib.uuid4()),
+                "board_id": new_board["id"],
+                "section_id": sec_map.get(p.get("section_id")) if p.get("section_id") else None,
+                "author_id": user["id"],
+                "kind": p.get("kind", "text"),
+                "title": p.get("title", ""),
+                "body": p.get("body", ""),
+                "media_url": p.get("media_url", ""),
+                "media": p.get("media"),
+                "link_url": p.get("link_url", ""),
+                "link_meta": p.get("link_meta"),
+                "color": p.get("color", ""),
+                "tags": p.get("tags"),
+                "canvas_x": p.get("canvas_x"),
+                "canvas_y": p.get("canvas_y"),
+                "canvas_w": p.get("canvas_w"),
+                "canvas_h": p.get("canvas_h"),
+                "order_index": p.get("order_index", 0),
+                "status": "approved",
+            })
+
+        self._log(new_board["id"], user, "board.cloned", meta={"source": board_uuid})
+        return self._repo.get_board_by_uuid(new_uuid) or {}
+
+    def clear_all_posts(self, user: Dict[str, Any], board_uuid: str) -> int:
+        board = self._require_board(board_uuid)
+        policy.ensure_can_moderate(board, user)
+        n = self._repo.delete_all_posts(board["id"])
+        self._log(board["id"], user, "board.cleared", meta={"count": n})
+        self._publish(board_uuid, "board.cleared", {"count": n})
+        return n
+
+    def list_templates(self) -> List[Dict[str, Any]]:
+        return templates_seed.list_templates()
+
+    def list_themes(self) -> List[Dict[str, Any]]:
+        return list_themes()
+
+    def list_activity(
+        self, user: Dict[str, Any], board_uuid: str, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        board = self._require_board(board_uuid)
+        policy.ensure_can_view(board, user)
+        return self._repo.list_activity(board["id"], limit=limit)
+
+    def export_board(
+        self, user: Dict[str, Any], board_uuid: str, fmt: str
+    ) -> Dict[str, Any]:
+        board = self._require_board(board_uuid)
+        policy.ensure_can_view(board, user)
+        if fmt not in SUPPORTED_FORMATS:
+            raise ValueError(f"unsupported format: {fmt}")
+        detail = self.get_board_detail(user, board_uuid)
+        exporter = get_exporter(fmt)
+        content = exporter.export(detail)
+        return {
+            "content": content,
+            "content_type": exporter.content_type,
+            "filename": f"{board.get('title') or 'board'}.{exporter.extension}",
+        }
+
+    # ============================================================
+    # 內部小工具
+    # ============================================================
+
+    def _sanitize_tags(self, tags: Optional[List[str]]) -> List[str]:
+        if not tags:
+            return []
+        out: List[str] = []
+        seen = set()
+        for t in tags:
+            t = (t or "").strip()[:MAX_TAG_LEN]
+            if not t or t.lower() in seen:
+                continue
+            seen.add(t.lower())
+            out.append(t)
+            if len(out) >= MAX_TAGS_PER_POST:
+                break
+        return out
+
+    def _log(
+        self,
+        board_id: int,
+        user: Dict[str, Any],
+        event_type: str,
+        *,
+        target_id: Optional[int] = None,
+        meta: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        try:
+            self._repo.log_activity(board_id, user["id"], event_type, target_id, meta)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("activity log 失敗: %s", e)
 
     def _publish(self, board_uuid: str, event_type: str, payload: Dict[str, Any]) -> None:
         """Fire-and-forget 廣播。
