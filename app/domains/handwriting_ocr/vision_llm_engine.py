@@ -22,25 +22,23 @@ logger = logging.getLogger(__name__)
 
 
 class VisionLLMEngine(HandwritingOCREngine):
-    """Adapter: VisionService → HandwritingOCREngine."""
+    """Adapter: VisionService → HandwritingOCREngine.
+
+    Dispatches to the language-specific dictation method on each call,
+    so a single instance handles both English and Chinese.
+    """
 
     name = "vision_llm"
     supports = frozenset({"en", "zh"})
 
-    def __init__(self, vision_service, language: str = "en"):
-        """
-        Args:
-            vision_service: app.domains.vision.service.VisionService
-            language: which dictation method to invoke ('en' or 'zh').
-                One VisionLLMEngine instance is dedicated to one language so
-                the registry can hold separate adapters per language.
-        """
+    def __init__(self, vision_service):
         self._vision = vision_service
-        self._language = language
 
-    async def recognize_image(self, image_path: str) -> HandwritingOCRResult:
+    async def recognize_image(
+        self, image_path: str, language: str = "en",
+    ) -> HandwritingOCRResult:
         try:
-            if self._language == "zh":
+            if language == "zh":
                 result = await self._vision.recognize_chinese_dictation(image_path)
             else:
                 result = await self._vision.recognize_english_dictation(image_path)
@@ -76,5 +74,5 @@ class VisionLLMEngine(HandwritingOCREngine):
             lines=lines,
             confidence=confidence,
             engine=self.name,
-            metadata={"language": self._language},
+            metadata={"language": language},
         )

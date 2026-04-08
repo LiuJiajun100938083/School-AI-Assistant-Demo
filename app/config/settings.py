@@ -177,6 +177,51 @@ class LLMSettings(BaseSettings):
         default=2, description="AI 話題審核最大並發數"
     )
 
+    # === Dictation OCR / Grader ===
+    # Forensic OCR provider per language. Names must match keys registered in
+    # `services.container.ServiceContainer.handwriting_ocr_registry`.
+    ocr_provider_en: str = Field(
+        default="vision_llm",
+        description="英文默書 OCR provider: 'trocr_local' | 'vision_llm'",
+    )
+    ocr_provider_zh: str = Field(
+        default="vision_llm",
+        description="中文默書 OCR provider: 'vision_llm' (paddle 待加)",
+    )
+    trocr_model: str = Field(
+        default="microsoft/trocr-large-handwritten",
+        description="HuggingFace TrOCR model id",
+    )
+    trocr_device: str = Field(
+        default="auto",
+        description="auto | cpu | cuda",
+    )
+    trocr_max_lines: int = Field(
+        default=64, description="單張圖最多辨識的行數",
+    )
+    trocr_warmup_on_start: bool = Field(
+        default=False, description="容器啟動時預載 TrOCR 模型",
+    )
+    doctr_detection_arch: str = Field(
+        default="db_resnet50", description="doctr 行偵測模型架構",
+    )
+
+    # LLM grading layer (post-OCR judgement)
+    dictation_grader_enabled: bool = Field(
+        default=True, description="啟用 LLM 判分層",
+    )
+    dictation_grader_timeout_sec: int = Field(
+        default=30, description="LLM 判分逾時 (秒)",
+    )
+    dictation_grader_min_confidence: float = Field(
+        default=0.6,
+        description="LLM 判分信心 < 此值 → submission needs_review",
+    )
+    dictation_ocr_min_confidence: float = Field(
+        default=0.5,
+        description="OCR 整體信心 < 此值 → submission needs_review",
+    )
+
 
 class ServerSettings(BaseSettings):
     """服务器配置"""

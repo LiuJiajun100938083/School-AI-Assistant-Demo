@@ -79,7 +79,7 @@ class HandwritingOCRRegistry:
             engine = self._engines.get(name)
             if engine is None:
                 continue
-            result = await engine.recognize_image(image_path)
+            result = await engine.recognize_image(image_path, language=language)
             if result.success and result.text:
                 if name != chain[0]:
                     logger.info(

@@ -39,8 +39,18 @@ class HandwritingOCREngine(ABC):
     supports: frozenset = frozenset()  # languages, e.g. frozenset({"en"})
 
     @abstractmethod
-    async def recognize_image(self, image_path: str) -> HandwritingOCRResult:
-        """Transcribe a single image. MUST never raise."""
+    async def recognize_image(
+        self, image_path: str, language: str = "en",
+    ) -> HandwritingOCRResult:
+        """Transcribe a single image. MUST never raise.
+
+        Args:
+            image_path: filesystem path to a JPG/PNG/HEIC
+            language: hint to the engine (engine MAY use it to pick a model
+                      or prompt; engine MAY ignore if it only supports one
+                      language). If `language not in self.supports`, the
+                      engine should still try its best or return success=False.
+        """
         ...
 
     async def warm_up(self) -> None:

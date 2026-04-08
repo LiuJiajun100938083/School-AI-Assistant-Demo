@@ -154,6 +154,9 @@ from app.domains.dictation.repository import (
     DictationSubmissionRepository,
 )
 from app.domains.dictation.service import DictationService
+from app.domains.handwriting_ocr.base import HandwritingOCREngine
+from app.domains.handwriting_ocr.registry import HandwritingOCRRegistry
+from app.domains.handwriting_ocr.vision_llm_engine import VisionLLMEngine
 from app.domains.class_diary.service import ClassDiaryService
 from app.domains.image_gen.service import ImageGenService
 from app.domains.resource_library.service import ResourceLibraryService
@@ -219,6 +222,7 @@ class ServiceContainer:
         self._exam_creator: Optional[ExamCreatorService] = None
         self._risk_cache: Optional[RiskCacheService] = None
         self._dictation: Optional[DictationService] = None
+        self._handwriting_ocr_registry: Optional[HandwritingOCRRegistry] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -553,13 +557,38 @@ class ServiceContainer:
         return self._vision
 
     @property
+    def handwriting_ocr_registry(self) -> HandwritingOCRRegistry:
+        """OCR provider registry — language → engine + fallback chain.
+
+        構造規則:
+          - 永遠註冊 vision_llm (雙語通用) 作為最終 fallback
+          - settings.ocr_provider_* 指向其他名稱時在此額外註冊
+            (e.g. trocr_local 在 phase 3 加)
+        """
+        if self._handwriting_ocr_registry is None:
+            engines: dict[str, HandwritingOCREngine] = {
+                "vision_llm": VisionLLMEngine(self.vision),
+            }
+            llm_settings = self._settings.llm
+            primary = {
+                "en": llm_settings.ocr_provider_en or "vision_llm",
+                "zh": llm_settings.ocr_provider_zh or "vision_llm",
+            }
+            self._handwriting_ocr_registry = HandwritingOCRRegistry(
+                engines=engines,
+                primary_by_language=primary,
+            )
+        return self._handwriting_ocr_registry
+
+    @property
     def dictation(self) -> DictationService:
-        """英文默書服務"""
+        """默書服務"""
         if self._dictation is None:
             self._dictation = DictationService(
                 dictation_repo=self._get_repo(DictationRepository),
                 submission_repo=self._get_repo(DictationSubmissionRepository),
                 file_repo=self._get_repo(DictationSubmissionFileRepository),
+                handwriting_ocr_registry=self.handwriting_ocr_registry,
                 vision_service=self.vision,
                 user_repo=self._get_repo(UserRepository),
             )

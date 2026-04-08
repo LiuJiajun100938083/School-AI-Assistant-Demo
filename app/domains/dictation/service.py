@@ -49,6 +49,7 @@ from app.domains.dictation.repository import (
     DictationSubmissionFileRepository,
     DictationSubmissionRepository,
 )
+from app.domains.handwriting_ocr.registry import HandwritingOCRRegistry
 from app.domains.vision.schemas import RecognitionSubject, RecognitionTask
 from app.domains.vision.service import VisionService
 
@@ -56,19 +57,29 @@ logger = logging.getLogger(__name__)
 
 
 class DictationService:
-    """英文默書業務層"""
+    """默書業務層 — 串流程,不做 OCR 細節也不做判分細節。"""
 
     def __init__(
         self,
         dictation_repo: DictationRepository,
         submission_repo: DictationSubmissionRepository,
         file_repo: DictationSubmissionFileRepository,
+        handwriting_ocr_registry: HandwritingOCRRegistry,
         vision_service: VisionService,
         user_repo=None,
     ):
+        """
+        Args:
+            handwriting_ocr_registry: 學生提交圖 → forensic OCR
+                (這條 path 必須嚴禁糾錯)
+            vision_service: 老師上傳的「參考原文」抽取使用
+                (這條 path 是印刷體文字,用 LLM 通用 OCR 是 OK 的;
+                 它與學生 forensic 路徑徹底分離)
+        """
         self._dict_repo = dictation_repo
         self._sub_repo = submission_repo
         self._file_repo = file_repo
+        self._ocr_registry = handwriting_ocr_registry
         self._vision = vision_service
         self._user_repo = user_repo
 
@@ -449,88 +460,125 @@ class DictationService:
     # ================================================================
 
     async def _process_submission_ocr(self, submission_id: int) -> None:
-        """執行單份 submission 的 OCR + 比對 + 落庫。
+        """背景任務:OCR → 比對 → 落庫 → status 轉移。
 
-        這裡是唯一一處呼叫 VisionService 的點；未來若要換 provider
-        或加 cache，只改這個方法。
+        這個方法只做四件事的串接,每件事是一個私有 helper:
+          1. _load_submission_context()  載入 submission/dictation/files
+          2. _ocr_pages()                呼叫 registry 跑 OCR (含 fallback)
+          3. compare_dictation()          純函數機械 diff
+          4. _save_ocr_result()           落庫 + 狀態轉移
         """
         try:
-            submission = self._sub_repo.find_by_id(submission_id)
-            if not submission:
-                logger.warning("OCR 任務找不到 submission #%d", submission_id)
-                return
+            ctx = self._load_submission_context(submission_id)
+            if ctx is None:
+                return  # already logged + status set
 
-            dictation = self._dict_repo.find_by_id(submission["dictation_id"])
-            if not dictation:
-                logger.warning("OCR 任務找不到 dictation #%d", submission["dictation_id"])
-                return
-
-            files = self._file_repo.find_by_submission(submission_id)
-            if not files:
-                self._mark_failed(submission_id, "沒有上傳圖片")
-                return
-
+            submission, dictation, files = ctx
             language = dictation.get("language") or detect_language(
                 dictation.get("reference_text") or ""
             )
             mode = dictation.get("mode") or Mode.PARAGRAPH
 
-            # 逐張 OCR，合併 answer_text
-            ocr_pieces: List[str] = []
-            base_dir = Path(__file__).resolve().parent.parent.parent.parent
-            for f in files:
-                image_path = str(base_dir / f["file_path"])
-                result = await self._run_ocr(image_path, language)
-                text = (result.answer_text or result.raw_text or "").strip()
-                if text:
-                    ocr_pieces.append(text)
-
-            merged_ocr = "\n".join(ocr_pieces).strip()
-            if not merged_ocr:
+            ocr_text, ocr_engine, ocr_conf = await self._ocr_pages(files, language)
+            if not ocr_text:
                 self._mark_failed(submission_id, "OCR 未辨識到任何文字")
                 return
 
             diff = compare_dictation(
                 reference=dictation["reference_text"],
-                ocr=merged_ocr,
+                ocr=ocr_text,
                 language=language,
                 mode=mode,
             )
 
-            self._sub_repo.update(
-                data={
-                    "status": SubmissionStatus.GRADED.value,
-                    "ocr_text": merged_ocr,
-                    "diff_result": json.dumps(diff, ensure_ascii=False),
-                    "score": diff["accuracy"],
-                    "correct_count": diff["correct_count"],
-                    "wrong_count": diff["wrong_count"],
-                    "missing_count": diff["missing_count"],
-                    "extra_count": diff["extra_count"],
-                    "graded_at": datetime.now(),
-                },
-                where="id = %s",
-                params=(submission_id,),
+            self._save_ocr_result(
+                submission_id=submission_id,
+                ocr_text=ocr_text,
+                ocr_engine=ocr_engine,
+                ocr_confidence=ocr_conf,
+                diff=diff,
             )
             logger.info(
-                "默書 submission #%d OCR 完成 accuracy=%.1f%%",
-                submission_id, diff["accuracy"],
+                "默書 submission #%d OCR 完成 engine=%s accuracy=%.1f%%",
+                submission_id, ocr_engine, diff["accuracy"],
             )
 
-        except Exception as e:  # 兜底：任何錯誤都要把狀態落地，避免卡在 processing
+        except Exception as e:  # 兜底:任何錯誤都要把狀態落地,避免卡在 processing
             logger.exception("默書 OCR 處理失敗 submission=%s", submission_id)
             self._mark_failed(submission_id, f"OCR 失敗: {e}")
 
-    async def _run_ocr(self, image_path: str, language: str = Language.ENGLISH):
-        """所有 OCR 呼叫收口在這裡 — 未來換 provider 只改此處。
+    def _load_submission_context(self, submission_id: int):
+        """載入 submission + dictation + files,失敗時 log + 標記並回 None"""
+        submission = self._sub_repo.find_by_id(submission_id)
+        if not submission:
+            logger.warning("OCR 任務找不到 submission #%d", submission_id)
+            return None
+        dictation = self._dict_repo.find_by_id(submission["dictation_id"])
+        if not dictation:
+            logger.warning("OCR 任務找不到 dictation #%d", submission["dictation_id"])
+            return None
+        files = self._file_repo.find_by_submission(submission_id)
+        if not files:
+            self._mark_failed(submission_id, "沒有上傳圖片")
+            return None
+        return submission, dictation, files
 
-        全部用 dictation forensic 模式,嚴禁自動糾錯/補字/改字。
-          - zh → recognize_chinese_dictation
-          - en → recognize_english_dictation
+    async def _ocr_pages(
+        self, files: List[Dict[str, Any]], language: str,
+    ) -> tuple[str, str, float]:
+        """逐張呼叫 registry,合併文字。回傳 (text, engine_name, mean_confidence)。"""
+        base_dir = Path(__file__).resolve().parent.parent.parent.parent
+        pieces: List[str] = []
+        engines_used: List[str] = []
+        confidences: List[float] = []
+
+        for f in files:
+            image_path = str(base_dir / f["file_path"])
+            result = await self._ocr_registry.recognize_with_fallback(
+                image_path, language,
+            )
+            if result.success and result.text:
+                pieces.append(result.text)
+                engines_used.append(result.engine)
+                confidences.append(result.confidence or 0.0)
+
+        merged = "\n".join(pieces).strip()
+        engine_name = engines_used[0] if engines_used else "none"
+        mean_conf = (
+            sum(confidences) / len(confidences) if confidences else 0.0
+        )
+        return merged, engine_name, mean_conf
+
+    def _save_ocr_result(
+        self,
+        *,
+        submission_id: int,
+        ocr_text: str,
+        ocr_engine: str,
+        ocr_confidence: float,
+        diff: Dict[str, Any],
+    ) -> None:
+        """落庫:OCR 結果 + diff,並轉狀態為 graded。
+
+        ocr_engine / ocr_confidence 在 phase 4 新欄位加入後才會落庫;
+        目前先當參數收下,維持流程一致性。
         """
-        if language == Language.CHINESE:
-            return await self._vision.recognize_chinese_dictation(image_path)
-        return await self._vision.recognize_english_dictation(image_path)
+        del ocr_engine, ocr_confidence  # phase 4 才寫入 DB
+        self._sub_repo.update(
+            data={
+                "status": SubmissionStatus.GRADED.value,
+                "ocr_text": ocr_text,
+                "diff_result": json.dumps(diff, ensure_ascii=False),
+                "score": diff["accuracy"],
+                "correct_count": diff["correct_count"],
+                "wrong_count": diff["wrong_count"],
+                "missing_count": diff["missing_count"],
+                "extra_count": diff["extra_count"],
+                "graded_at": datetime.now(),
+            },
+            where="id = %s",
+            params=(submission_id,),
+        )
 
     def _mark_failed(self, submission_id: int, reason: str) -> None:
         self._sub_repo.update(
