@@ -165,6 +165,12 @@ from app.domains.image_gen.service import ImageGenService
 from app.domains.resource_library.service import ResourceLibraryService
 from app.domains.exam_creator.repository import ExamGenerationSessionRepository
 from app.domains.exam_creator.service import ExamCreatorService
+from app.domains.collab_board.repository import CollabBoardRepository
+from app.domains.collab_board.service import CollabBoardService
+from app.domains.collab_board.broadcaster import BoardBroadcaster
+from app.domains.collab_board.link_meta import HttpLinkMetaProvider
+from app.domains.collab_board.uploader import BoardFileUploader
+from app.domains.collab_board.constants import DEFAULT_UPLOAD_DIR as COLLAB_BOARD_UPLOAD_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -228,6 +234,8 @@ class ServiceContainer:
         self._handwriting_ocr_registry: Optional[HandwritingOCRRegistry] = None
         self._dictation_grader: Optional[DictationGrader] = None
         self._ask_ai_func: Optional[Any] = None
+        self._collab_board: Optional[CollabBoardService] = None
+        self._collab_board_broadcaster: Optional[BoardBroadcaster] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -433,6 +441,26 @@ class ServiceContainer:
                 settings=self._settings,
             )
         return self._school_learning_center
+
+    @property
+    def collab_board_broadcaster(self) -> BoardBroadcaster:
+        """協作佈告板 WebSocket 廣播器（單例）"""
+        if self._collab_board_broadcaster is None:
+            max_conn = getattr(self._settings, "websocket_max_connections", 100) or 100
+            self._collab_board_broadcaster = BoardBroadcaster(max_connections=max_conn)
+        return self._collab_board_broadcaster
+
+    @property
+    def collab_board(self) -> CollabBoardService:
+        """協作佈告板服務"""
+        if self._collab_board is None:
+            self._collab_board = CollabBoardService(
+                repo=self._get_repo(CollabBoardRepository),
+                broadcaster=self.collab_board_broadcaster,
+                link_meta=HttpLinkMetaProvider(timeout=5),
+                uploader=BoardFileUploader(upload_dir=COLLAB_BOARD_UPLOAD_DIR),
+            )
+        return self._collab_board
 
     @property
     def game_upload(self) -> GameUploadService:

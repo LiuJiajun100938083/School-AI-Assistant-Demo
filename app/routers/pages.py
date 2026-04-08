@@ -88,6 +88,18 @@ async def chat_page():
     return _serve_page("chat.html")
 
 
+@router.get("/boards")
+async def boards_list_page():
+    """協作佈告板 — 列表頁"""
+    return _serve_page("boards.html")
+
+
+@router.get("/boards/{board_uuid}")
+async def board_workspace_page(board_uuid: str):
+    """協作佈告板 — 工作區（前端讀 URL 中的 uuid）"""
+    return _serve_page("board.html")
+
+
 @router.get("/student-report")
 async def student_report():
     """学生分析报告页"""

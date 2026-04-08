@@ -56,6 +56,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.resource_library import router as resource_library_router
     from app.routers.exam_creator import router as exam_creator_router
     from app.routers.dictation import router as dictation_router
+    from app.routers.collab_board import router as collab_board_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -87,6 +88,14 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(resource_library_router)
     app.include_router(exam_creator_router)
     app.include_router(dictation_router)
+    app.include_router(collab_board_router)
+
+    # 協作佈告板：啟動時初始化表
+    try:
+        from app.services.container import get_services
+        get_services().collab_board.init_system()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("collab_board init 失敗(可忽略,下次請求觸發): %s", e)
 
     logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, assignment, class_diary, image_gen")
 

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="cb.pageTitle">協作佈告板</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/board.css">
+    <!-- markdown -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+</head>
+<body>
+    <header class="cb-header">
+        <div class="cb-header__left">
+            <a href="/boards" class="cb-header__back">← <span data-i18n="cb.back">返回</span></a>
+            <span class="cb-header__title" id="hdrTitle"><span class="emoji">📌</span><span id="hdrTitleText">…</span></span>
+        </div>
+        <div class="cb-header__right">
+            <span id="presence" class="cb-presence"><span class="dot"></span><span id="presenceCount">1</span></span>
+            <button id="btnNewPost" class="cb-btn cb-btn--primary" data-i18n="cb.newPost">發貼</button>
+        </div>
+    </header>
+
+    <section class="cb-workspace">
+        <div class="cb-workspace__toolbar">
+            <div id="infoBar" class="cb-workspace__info"></div>
+            <div class="spacer"></div>
+            <div id="layoutSwitch" class="cb-layout-switch">
+                <button data-layout="grid"  data-i18n="cb.layoutGrid">瀑布流</button>
+                <button data-layout="shelf" data-i18n="cb.layoutShelf">分欄</button>
+                <button data-layout="canvas" data-i18n="cb.layoutCanvas">畫布</button>
+            </div>
+            <button id="btnAddSection" class="cb-btn" style="display:none" data-i18n="cb.addSection">新增分欄</button>
+        </div>
+        <div id="boardBody" class="cb-workspace__body">
+            <div class="cb-empty"><div class="cb-empty__icon">⏳</div></div>
+        </div>
+    </section>
+
+    <!-- Post editor modal -->
+    <div id="postModal" class="cb-modal">
+        <div class="cb-modal__card">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.newPost">發貼</span>
+                <button class="cb-modal__close" onclick="closePostModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div class="cb-type-tabs" id="typeTabs">
+                    <button class="cb-type-tab active" data-kind="text" data-i18n="cb.postTypeText">文字</button>
+                    <button class="cb-type-tab" data-kind="image" data-i18n="cb.postTypeImage">圖片</button>
+                    <button class="cb-type-tab" data-kind="link" data-i18n="cb.postTypeLink">連結</button>
+                    <button class="cb-type-tab" data-kind="file" data-i18n="cb.postTypeFile">檔案</button>
+                </div>
+                <div class="cb-field">
+                    <input type="text" id="pTitle" data-i18n-placeholder="cb.postTitlePh">
+                </div>
+                <div class="cb-field" id="pBodyWrap">
+                    <textarea id="pBody" data-i18n-placeholder="cb.postBodyPh"></textarea>
+                </div>
+                <div class="cb-field" id="pLinkWrap" style="display:none">
+                    <input type="text" id="pLink" data-i18n-placeholder="cb.postLinkPh">
+                </div>
+                <div class="cb-field" id="pFileWrap" style="display:none">
+                    <input type="file" id="pFile">
+                    <div id="pFileStatus" style="font-size:12px;color:var(--cb-text-2)"></div>
+                </div>
+                <div class="cb-field" id="pSectionWrap" style="display:none">
+                    <label class="cb-field__label">分欄</label>
+                    <select id="pSection"></select>
+                </div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closePostModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="pSubmit" data-i18n="cb.publish">發布</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section editor modal -->
+    <div id="sectionModal" class="cb-modal">
+        <div class="cb-modal__card">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.addSection">新增分欄</span>
+                <button class="cb-modal__close" onclick="closeSectionModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div class="cb-field">
+                    <input type="text" id="sName" data-i18n-placeholder="cb.sectionNamePh">
+                </div>
+                <div class="cb-field">
+                    <select id="sKind">
+                        <option value="column" data-i18n="cb.sectionKindColumn">一般分欄</option>
+                        <option value="group" data-i18n="cb.sectionKindGroup">分組</option>
+                    </select>
+                </div>
+                <div class="cb-field" id="sGroupWrap" style="display:none">
+                    <input type="text" id="sGroupMembers" data-i18n-placeholder="cb.sectionGroupMembersPh">
+                </div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closeSectionModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="sSubmit" data-i18n="cb.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/board.js"></script>
+    <script src="/static/js/board.js"></script>
+</body>
+</html>
