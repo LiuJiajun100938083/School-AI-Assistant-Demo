@@ -111,6 +111,7 @@
     //  ws
     // ────────────────────────────────────────────────
     let _ws = null;
+    const _myDragging = new Set();
     function connectWs() {
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const url = `${proto}//${location.host}/api/boards/${BOARD_UUID}/ws?token=${encodeURIComponent(token())}`;
@@ -155,6 +156,7 @@
                 p.order_index = np.order_index;
             }
             if (store.state.layout === 'canvas') {
+                if (_myDragging.has(np.id)) return;  // 自己正在拖,不要被 echo 打擾
                 const el = document.querySelector(`.cb-post[data-id="${np.id}"]`);
                 if (el) {
                     el.style.transition = 'left 0.15s linear, top 0.15s linear';
@@ -167,13 +169,13 @@
         } else if (type === 'post.created' || type === 'post.updated' || type === 'post.state_changed') {
             store.upsertPost(payload.post);
         } else if (type === 'post.dragging') {
-            // 拖拽過程即時滑動 — 直接動 DOM,不走 store,不重繪
+            // 跳過自己正在拖拽的 post,否則 echo 回來的 transition 會拖慢本機滑鼠
+            if (_myDragging.has(payload.id)) return;
             const el = document.querySelector(`.cb-post[data-id="${payload.id}"]`);
-            if (el && payload.by !== store.state.me) {
+            if (el) {
                 el.style.transition = 'left 0.12s linear, top 0.12s linear';
                 el.style.left = payload.x + 'px';
                 el.style.top = payload.y + 'px';
-                // 同步進 store,避免下次重繪重置
                 const p = store.state.posts.find(x => x.id === payload.id);
                 if (p) { p.canvas_x = payload.x; p.canvas_y = payload.y; }
             }
@@ -404,6 +406,7 @@
         el.addEventListener('pointerdown', (e) => {
             if (e.target.closest('button, input, a')) return;
             dragging = true;
+            _myDragging.add(p.id);
             el.classList.add('dragging');
             el.style.transition = 'none';  // 自己拖拽無延遲
             el.setPointerCapture(e.pointerId);
@@ -424,7 +427,7 @@
                 wsSend({ type: 'post.dragging', payload: { id: p.id, x: Math.round(nx), y: Math.round(ny) } });
             }
         });
-        el.addEventListener('pointerup', async (e) => {
+        const endDrag = async (e) => {
             if (!dragging) return;
             dragging = false;
             el.classList.remove('dragging');
@@ -438,7 +441,11 @@
                     body: JSON.stringify({ canvas_x: nx, canvas_y: ny }),
                 });
             } catch (err) { console.warn(err); }
-        });
+            // 稍後才解除 myDragging,讓自己的 post.moved echo 也被忽略
+            setTimeout(() => _myDragging.delete(p.id), 200);
+        };
+        el.addEventListener('pointerup', endDrag);
+        el.addEventListener('pointercancel', endDrag);
     }
 
     function sortedPosts(posts) {
