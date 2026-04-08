@@ -384,10 +384,14 @@
     function renderCanvas(state) {
         const body = $('#boardBody');
         body.className = 'cb-workspace__body';
+        const isTouch = matchMedia('(hover: none)').matches;
+        const hintText = isTouch
+            ? '拖曳空白處平移　·　雙指縮放'
+            : '拖曳空白處平移　·　⌘/Ctrl+滾輪縮放';
         body.innerHTML = `
             <div class="cb-canvas-viewport" id="cbViewport">
                 <div class="cb-canvas" id="cbCanvas"></div>
-                <div class="cb-canvas-hint">拖曳空白處平移　·　Ctrl+滾輪縮放</div>
+                <div class="cb-canvas-hint">${hintText}</div>
                 <div class="cb-zoom-indicator" id="cbZoom">100%</div>
             </div>`;
         const canvas = $('#cbCanvas');
@@ -411,28 +415,88 @@
         attachZoomHandlers(viewport, canvas);
     }
 
+    function _setZoom(viewport, canvas, newZoom, cx, cy) {
+        const rect = viewport.getBoundingClientRect();
+        const mx = cx - rect.left + viewport.scrollLeft;
+        const my = cy - rect.top + viewport.scrollTop;
+        const prev = _zoom;
+        _zoom = Math.max(0.25, Math.min(2, newZoom));
+        canvas.style.transform = `scale(${_zoom})`;
+        const ratio = _zoom / prev;
+        viewport.scrollLeft = mx * ratio - (cx - rect.left);
+        viewport.scrollTop = my * ratio - (cy - rect.top);
+        const ind = $('#cbZoom');
+        if (ind) ind.textContent = Math.round(_zoom * 100) + '%';
+    }
+
     function attachPanHandlers(viewport) {
+        // 多指追蹤: 單指拖空白 → 平移;雙指 → pinch 縮放
+        const pointers = new Map();
         let panning = false;
         let sx = 0, sy = 0, sl = 0, st = 0;
+        let pinchDist = 0, pinchCx = 0, pinchCy = 0, pinchBaseZoom = 1;
+        const canvas = viewport.querySelector('.cb-canvas');
+
+        const midPoint = () => {
+            const arr = Array.from(pointers.values());
+            return {
+                x: (arr[0].x + arr[1].x) / 2,
+                y: (arr[0].y + arr[1].y) / 2,
+                d: Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y),
+            };
+        };
+
         viewport.addEventListener('pointerdown', (e) => {
-            // 只在空白處按下才平移;點到貼文走 post 的 drag
             if (e.target.closest('.cb-post')) return;
-            panning = true;
-            viewport.classList.add('panning');
+            pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             viewport.setPointerCapture(e.pointerId);
-            sx = e.clientX; sy = e.clientY;
-            sl = viewport.scrollLeft; st = viewport.scrollTop;
+
+            if (pointers.size === 1) {
+                panning = true;
+                viewport.classList.add('panning');
+                sx = e.clientX; sy = e.clientY;
+                sl = viewport.scrollLeft; st = viewport.scrollTop;
+            } else if (pointers.size === 2) {
+                panning = false;  // pinch 時暫停 pan
+                const m = midPoint();
+                pinchDist = m.d;
+                pinchCx = m.x; pinchCy = m.y;
+                pinchBaseZoom = _zoom;
+            }
             e.preventDefault();
         });
+
         viewport.addEventListener('pointermove', (e) => {
-            if (!panning) return;
-            viewport.scrollLeft = sl - (e.clientX - sx);
-            viewport.scrollTop = st - (e.clientY - sy);
+            if (!pointers.has(e.pointerId)) return;
+            pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+            if (pointers.size === 2) {
+                const m = midPoint();
+                if (pinchDist > 0) {
+                    const nz = pinchBaseZoom * (m.d / pinchDist);
+                    _setZoom(viewport, canvas, nz, m.x, m.y);
+                }
+                return;
+            }
+            if (panning && pointers.size === 1) {
+                viewport.scrollLeft = sl - (e.clientX - sx);
+                viewport.scrollTop = st - (e.clientY - sy);
+            }
         });
-        const end = () => {
-            if (!panning) return;
-            panning = false;
-            viewport.classList.remove('panning');
+
+        const end = (e) => {
+            pointers.delete(e.pointerId);
+            if (pointers.size < 2) pinchDist = 0;
+            if (pointers.size === 0) {
+                panning = false;
+                viewport.classList.remove('panning');
+            } else if (pointers.size === 1) {
+                // 雙指放開剩一指 → 恢復 pan
+                const only = Array.from(pointers.values())[0];
+                sx = only.x; sy = only.y;
+                sl = viewport.scrollLeft; st = viewport.scrollTop;
+                panning = true;
+            }
         };
         viewport.addEventListener('pointerup', end);
         viewport.addEventListener('pointercancel', end);
@@ -440,21 +504,12 @@
     }
 
     function attachZoomHandlers(viewport, canvas) {
+        // Mac trackpad 捏合會產生 ctrlKey + wheel;一般滾輪需 Ctrl/Cmd
         viewport.addEventListener('wheel', (e) => {
             if (!(e.ctrlKey || e.metaKey)) return;
             e.preventDefault();
-            const rect = viewport.getBoundingClientRect();
-            const mx = e.clientX - rect.left + viewport.scrollLeft;
-            const my = e.clientY - rect.top + viewport.scrollTop;
-            const prev = _zoom;
-            _zoom = Math.max(0.25, Math.min(2, _zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
-            canvas.style.transform = `scale(${_zoom})`;
-            // 以游標為中心縮放:調整 scroll 使焦點不動
-            const ratio = _zoom / prev;
-            viewport.scrollLeft = mx * ratio - (e.clientX - rect.left);
-            viewport.scrollTop = my * ratio - (e.clientY - rect.top);
-            const ind = $('#cbZoom');
-            if (ind) ind.textContent = Math.round(_zoom * 100) + '%';
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            _setZoom(viewport, canvas, _zoom * factor, e.clientX, e.clientY);
         }, { passive: false });
     }
 
@@ -651,6 +706,35 @@
     }
 
     // ────────────────────────────────────────────────
+    //  鍵盤快捷鍵 (Mac)
+    // ────────────────────────────────────────────────
+    function initKeyboard() {
+        document.addEventListener('keydown', (e) => {
+            // Esc 關閉任何開著的 modal
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.cb-modal.open').forEach(m => m.classList.remove('open'));
+            }
+            // N 新貼文 (無 modifier)
+            if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                const active = document.activeElement;
+                if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+                const btn = $('#btnNewPost');
+                if (btn) btn.click();
+            }
+            // Cmd/Ctrl + 0 重置縮放
+            if ((e.metaKey || e.ctrlKey) && e.key === '0' && store.state.layout === 'canvas') {
+                e.preventDefault();
+                const viewport = $('#cbViewport');
+                const canvas = $('#cbCanvas');
+                if (viewport && canvas) {
+                    const rect = viewport.getBoundingClientRect();
+                    _setZoom(viewport, canvas, 1, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                }
+            }
+        });
+    }
+
+    // ────────────────────────────────────────────────
     //  init
     // ────────────────────────────────────────────────
     async function init() {
@@ -658,6 +742,7 @@
         initPostModal();
         initSectionModal();
         initLayoutSwitch();
+        initKeyboard();
         store.subscribe(render);
 
         try {

@@ -26,10 +26,41 @@ html, body {
     background: var(--cb-bg);
     color: var(--cb-text);
     -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+}
+html, body {
+    /* iPad 全屏模式: 佔滿 viewport,不留 safari 滾動空間 */
+    height: 100%;
+    overflow: hidden;
+    touch-action: manipulation;  /* 禁用雙擊縮放 */
 }
 
 a { color: inherit; text-decoration: none; }
-button { font-family: inherit; }
+button {
+    font-family: inherit;
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚焦時放大 */ }
+
+/* safe area (iPad 全屏 + 瀏海機型) */
+.cb-header {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-top: env(safe-area-inset-top);
+}
+.cb-workspace__body {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-bottom: env(safe-area-inset-bottom);
+}
+.cb-list {
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+}
 
 /* ═══════════════════════════════════════════════════════
    Shared header
@@ -79,7 +110,8 @@ button { font-family: inherit; }
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
+    padding: 10px 16px;           /* iPad: 更大觸控區域 */
+    min-height: 40px;
     border: 1px solid var(--cb-border);
     border-radius: 8px;
     background: var(--cb-card);
@@ -87,6 +119,7 @@ button { font-family: inherit; }
     font-size: 14px;
     cursor: pointer;
     transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
 }
 .cb-btn:hover { background: var(--cb-bg); }
 .cb-btn--primary {
@@ -289,6 +322,9 @@ button { font-family: inherit; }
     overflow: auto;
     border-radius: var(--cb-radius);
     cursor: grab;
+    touch-action: none;               /* iPad: 接管所有 touch 手勢 */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 .cb-canvas-viewport.panning { cursor: grabbing; }
 .cb-canvas {
@@ -307,6 +343,8 @@ button { font-family: inherit; }
     width: 240px;
     cursor: grab;
     user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
 }
 .cb-canvas .cb-post.dragging { cursor: grabbing; z-index: 100; }
 
@@ -336,6 +374,48 @@ button { font-family: inherit; }
     pointer-events: none;
     z-index: 10;
     font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════
+   響應式 (iPad 豎屏 / 手機)
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+    .cb-list { padding: 20px 16px; }
+    .cb-list__title { font-size: 24px; }
+    .cb-list__grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+    }
+    .cb-card { padding: 14px; }
+    .cb-workspace__toolbar {
+        padding: 10px 16px;
+        gap: 8px;
+    }
+    .cb-workspace__toolbar .spacer { flex-basis: 100%; height: 0; }
+    .cb-layout-switch button { padding: 8px 14px; font-size: 13px; }
+    .cb-header { padding: 0 14px; height: 52px; }
+    .cb-header__title { font-size: 15px; }
+    .cb-shelf__col { flex: 0 0 260px; }
+    .cb-grid { column-gap: 12px; }
+    .cb-post { padding: 10px; margin-bottom: 12px; }
+
+    /* Modal 在窄屏變全屏 */
+    .cb-modal { padding: 0; align-items: flex-end; }
+    .cb-modal__card {
+        max-width: 100%;
+        max-height: 92vh;
+        border-radius: 16px 16px 0 0;
+    }
+    .cb-modal__head { padding: 14px 16px; }
+    .cb-modal__body { padding: 16px; }
+    .cb-modal__foot { padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+}
+
+/* 手指點擊的 hover 去效化 */
+@media (hover: none) {
+    .cb-card:hover { transform: none; }
+    .cb-btn:hover { background: var(--cb-card); }
+    .cb-btn--primary:hover { background: var(--cb-brand); }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -440,11 +520,12 @@ button { font-family: inherit; }
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 4px 8px;
+    padding: 8px 12px;           /* iPad touch target ≥ 44x28 */
+    min-height: 32px;
     border: none;
     background: transparent;
     color: var(--cb-text-2);
-    font-size: 12px;
+    font-size: 13px;
     cursor: pointer;
     border-radius: 6px;
 }
