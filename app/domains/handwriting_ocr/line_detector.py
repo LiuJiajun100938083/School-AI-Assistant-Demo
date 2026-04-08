@@ -31,14 +31,15 @@ logger = logging.getLogger(__name__)
 
 def detect_text_lines(
     image_path: str,
-    min_line_height_px: int = 16,
+    min_line_height_px: int = 24,
     pad_y_ratio: float = 0.18,
     pad_x_px: int = 8,
     # gates — tuned to avoid hallucinated TrOCR outputs
     ink_row_threshold_ratio: float = 0.04,   # row needs ≥4% width as ink
     min_band_aspect_ratio: float = 1.2,      # band width/height ≥ 1.2
-    min_band_fill_ratio: float = 0.012,      # ≥1.2% of band area must be ink
+    min_band_fill_ratio: float = 0.015,      # ≥1.5% of band area must be ink
     min_horizontal_extent_ratio: float = 0.04,  # ink must span ≥4% of width
+    min_components_per_band: int = 2,        # band must have ≥N ink blobs
 ):
     """Find horizontal text lines in an image using row-projection.
 
@@ -83,12 +84,24 @@ def detect_text_lines(
             blockSize=35, C=18,  # higher C → less sensitive to noise
         )
 
+        # ── Remove horizontal printed rules (lined notebook paper) ──
+        # A printed horizontal line is, by definition, a long thin horizontal
+        # feature. MORPH_OPEN with a wide-but-1-tall kernel keeps only
+        # features that are at least that wide horizontally — i.e., the rules.
+        # Then we subtract them from the binary image. Handwritten letters
+        # have vertical strokes so they don't survive the opening — they
+        # remain in the subtracted result.
+        rule_width = max(40, w // 25)  # ~4% of page width
+        rule_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (rule_width, 1))
+        rules_only = cv2.morphologyEx(bw, cv2.MORPH_OPEN, rule_kernel)
+        bw = cv2.subtract(bw, rules_only)
+
         # Slight horizontal closing to bridge inter-letter gaps
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 1))
         bw = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, kernel)
 
         # Light denoise: remove tiny isolated specks (paper texture, dust)
-        denoise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        denoise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, denoise_kernel)
 
         # Row sum: how much ink is in each row
@@ -168,6 +181,25 @@ def detect_text_lines(
                 logger.debug(
                     "line_detector: drop band y=%d-%d fill=%.4f < %.4f",
                     y0, y1, fill, min_band_fill_ratio,
+                )
+                continue
+
+            # Gate 4: connected components inside the band must look like
+            # multiple ink blobs (letters/strokes), not one continuous bar.
+            # A printed rule that survived the rule removal is one wide blob.
+            # Real handwriting fragments into many small blobs.
+            n_components, _, stats, _ = cv2.connectedComponentsWithStats(
+                band_bw, connectivity=8,
+            )
+            # stats[0] is background; count non-trivial foreground components
+            real_components = sum(
+                1 for i in range(1, n_components)
+                if stats[i, cv2.CC_STAT_AREA] >= 8  # ignore tiny specks
+            )
+            if real_components < min_components_per_band:
+                logger.debug(
+                    "line_detector: drop band y=%d-%d components=%d < %d",
+                    y0, y1, real_components, min_components_per_band,
                 )
                 continue
 
