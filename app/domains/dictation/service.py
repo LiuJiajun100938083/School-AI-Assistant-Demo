@@ -49,6 +49,7 @@ from app.domains.dictation.repository import (
     DictationSubmissionFileRepository,
     DictationSubmissionRepository,
 )
+from app.domains.dictation.grader import DictationGrader, GradingResult
 from app.domains.handwriting_ocr.registry import HandwritingOCRRegistry
 from app.domains.vision.schemas import RecognitionSubject, RecognitionTask
 from app.domains.vision.service import VisionService
@@ -67,6 +68,8 @@ class DictationService:
         handwriting_ocr_registry: HandwritingOCRRegistry,
         vision_service: VisionService,
         user_repo=None,
+        grader_provider=None,
+        settings=None,
     ):
         """
         Args:
@@ -75,6 +78,11 @@ class DictationService:
             vision_service: 老師上傳的「參考原文」抽取使用
                 (這條 path 是印刷體文字,用 LLM 通用 OCR 是 OK 的;
                  它與學生 forensic 路徑徹底分離)
+            grader_provider: 0-arg callable 回傳 DictationGrader | None。
+                用 callable 而非直接傳 grader 是因為 grader 依賴 ask_ai,
+                而 ask_ai 在 inject_ai_functions() 時才注入,可能晚於
+                DictationService 構造。每次呼叫時拿最新狀態。
+            settings: app 全域設定,讀取 grader / OCR 信心閾值
         """
         self._dict_repo = dictation_repo
         self._sub_repo = submission_repo
@@ -82,6 +90,8 @@ class DictationService:
         self._ocr_registry = handwriting_ocr_registry
         self._vision = vision_service
         self._user_repo = user_repo
+        self._grader_provider = grader_provider or (lambda: None)
+        self._settings = settings
 
         # 確保上傳資料夾存在
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -491,16 +501,26 @@ class DictationService:
                 mode=mode,
             )
 
+            grading = await self._maybe_grade(
+                reference=dictation["reference_text"],
+                ocr_text=ocr_text,
+                diff=diff,
+                language=language,
+                mode=mode,
+            )
+
             self._save_ocr_result(
                 submission_id=submission_id,
                 ocr_text=ocr_text,
                 ocr_engine=ocr_engine,
                 ocr_confidence=ocr_conf,
                 diff=diff,
+                grading=grading,
             )
             logger.info(
-                "默書 submission #%d OCR 完成 engine=%s accuracy=%.1f%%",
+                "默書 submission #%d OCR 完成 engine=%s accuracy=%.1f%% grader=%s",
                 submission_id, ocr_engine, diff["accuracy"],
+                "ok" if (grading and grading.success) else "skipped",
             )
 
         except Exception as e:  # 兜底:任何錯誤都要把狀態落地,避免卡在 processing
@@ -549,6 +569,31 @@ class DictationService:
         )
         return merged, engine_name, mean_conf
 
+    async def _maybe_grade(
+        self,
+        *,
+        reference: str,
+        ocr_text: str,
+        diff: Dict[str, Any],
+        language: str,
+        mode: str,
+    ) -> Optional[GradingResult]:
+        """選擇性呼叫 LLM grader,失敗回 None,service 自動降級為 difflib 分數。"""
+        grader = self._grader_provider() if self._grader_provider else None
+        if grader is None:
+            return None
+        try:
+            return await grader.grade(
+                reference=reference,
+                student_text=ocr_text,
+                diff=diff,
+                language=language,
+                mode=mode,
+            )
+        except Exception as e:
+            logger.warning("dictation grader error (will fall back to diff): %s", e)
+            return None
+
     def _save_ocr_result(
         self,
         *,
@@ -557,19 +602,33 @@ class DictationService:
         ocr_engine: str,
         ocr_confidence: float,
         diff: Dict[str, Any],
+        grading: Optional[GradingResult],
     ) -> None:
-        """落庫:OCR 結果 + diff,並轉狀態為 graded。
+        """落庫:OCR 結果 + diff + LLM 判分,並轉狀態為 graded。
 
-        ocr_engine / ocr_confidence 在 phase 4 新欄位加入後才會落庫;
-        目前先當參數收下,維持流程一致性。
+        分數規則:有 grader 結果用 grader.score,否則用 difflib accuracy。
         """
-        del ocr_engine, ocr_confidence  # phase 4 才寫入 DB
+        from app.domains.dictation.grader import DictationGrader as _DG
+
+        if grading and grading.success:
+            score = grading.score
+            grading_dict = _DG.grading_to_dict(grading)
+        else:
+            score = diff["accuracy"]
+            grading_dict = None
+
         self._sub_repo.update(
             data={
                 "status": SubmissionStatus.GRADED.value,
                 "ocr_text": ocr_text,
+                "ocr_engine": ocr_engine,
+                "ocr_confidence": round(ocr_confidence, 3),
                 "diff_result": json.dumps(diff, ensure_ascii=False),
-                "score": diff["accuracy"],
+                "llm_grading": (
+                    json.dumps(grading_dict, ensure_ascii=False)
+                    if grading_dict else None
+                ),
+                "score": score,
                 "correct_count": diff["correct_count"],
                 "wrong_count": diff["wrong_count"],
                 "missing_count": diff["missing_count"],
@@ -630,7 +689,7 @@ class DictationService:
         dictation = self._dict_repo.find_by_id(submission["dictation_id"])
         files = self._file_repo.find_by_submission(submission_id)
 
-        # 解析 diff_result
+        # 解析 diff_result + llm_grading
         diff = None
         if submission.get("diff_result"):
             try:
@@ -638,10 +697,22 @@ class DictationService:
             except Exception:
                 diff = None
 
+        grading = None
+        if submission.get("llm_grading"):
+            try:
+                grading = json.loads(submission["llm_grading"])
+            except Exception:
+                grading = None
+
         result = dict(submission)
         result["diff_result"] = diff
+        result["llm_grading"] = grading
         result["files"] = files
         result["dictation_title"] = dictation["title"] if dictation else ""
+        # 把語言/模式 surface 出來給前端
+        if dictation:
+            result["language"] = dictation.get("language") or "en"
+            result["mode"] = dictation.get("mode") or "paragraph"
         # 學生端:只有批改完成才回傳原文
         if dictation:
             if reveal_reference and submission["status"] == SubmissionStatus.GRADED.value:

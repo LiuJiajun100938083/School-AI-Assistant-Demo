@@ -610,6 +610,41 @@ def _run_schema_migrations() -> None:
                     logger.info("数据库迁移: dictations 表已新增 %s 列", col)
             except Exception:
                 pass
+
+        # dictation_submissions 加 OCR engine + 信心 + LLM 判分欄位
+        for col, sql in [
+            ("ocr_engine",
+             "ALTER TABLE dictation_submissions ADD COLUMN ocr_engine "
+             "VARCHAR(32) DEFAULT NULL COMMENT '哪個 OCR provider'"),
+            ("ocr_confidence",
+             "ALTER TABLE dictation_submissions ADD COLUMN ocr_confidence "
+             "DECIMAL(4,3) DEFAULT NULL COMMENT 'OCR 整體信心 0..1'"),
+            ("llm_grading",
+             "ALTER TABLE dictation_submissions ADD COLUMN llm_grading "
+             "JSON DEFAULT NULL COMMENT 'GradingResult JSON'"),
+        ]:
+            try:
+                cols = pool.execute(
+                    f"SHOW COLUMNS FROM dictation_submissions LIKE '{col}'"
+                )
+                if not cols:
+                    pool.execute(sql, ())
+                    logger.info(
+                        "数据库迁移: dictation_submissions 表已新增 %s 列", col,
+                    )
+            except Exception:
+                pass
+
+        # 把 status ENUM 擴張到包含 needs_review (Phase 5 用)
+        try:
+            pool.execute(
+                "ALTER TABLE dictation_submissions MODIFY COLUMN status "
+                "ENUM('submitted','ocr_processing','graded','ocr_failed','needs_review') "
+                "DEFAULT 'submitted'",
+                (),
+            )
+        except Exception:
+            pass
         pool.execute("""
             CREATE TABLE IF NOT EXISTS dictation_submissions (
                 id               INT AUTO_INCREMENT PRIMARY KEY,

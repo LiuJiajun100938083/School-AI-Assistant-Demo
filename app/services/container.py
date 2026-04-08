@@ -25,7 +25,7 @@
 
 import logging
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 from app.config.settings import Settings, get_settings
 from app.core.security import JWTManager
@@ -153,6 +153,7 @@ from app.domains.dictation.repository import (
     DictationSubmissionFileRepository,
     DictationSubmissionRepository,
 )
+from app.domains.dictation.grader import DictationGrader
 from app.domains.dictation.service import DictationService
 from app.domains.handwriting_ocr.base import HandwritingOCREngine
 from app.domains.handwriting_ocr.registry import HandwritingOCRRegistry
@@ -225,6 +226,8 @@ class ServiceContainer:
         self._risk_cache: Optional[RiskCacheService] = None
         self._dictation: Optional[DictationService] = None
         self._handwriting_ocr_registry: Optional[HandwritingOCRRegistry] = None
+        self._dictation_grader: Optional[DictationGrader] = None
+        self._ask_ai_func: Optional[Any] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -613,6 +616,26 @@ class ServiceContainer:
         return self._handwriting_ocr_registry
 
     @property
+    def dictation_grader(self) -> Optional[DictationGrader]:
+        """LLM 判分層 — 透過 inject_ai_functions(ask_ai=...) 啟用。
+
+        若 settings.dictation_grader_enabled=False 或 ask_ai 尚未注入,
+        回 None,DictationService 會降級為純 difflib 機械分數。
+        """
+        llm_settings = self._settings.llm
+        if not llm_settings.dictation_grader_enabled:
+            return None
+        if self._dictation_grader is not None:
+            return self._dictation_grader
+        if self._ask_ai_func is None:
+            return None
+        self._dictation_grader = DictationGrader(
+            ask_ai=self._ask_ai_func,
+            timeout_sec=llm_settings.dictation_grader_timeout_sec,
+        )
+        return self._dictation_grader
+
+    @property
     def dictation(self) -> DictationService:
         """默書服務"""
         if self._dictation is None:
@@ -623,6 +646,8 @@ class ServiceContainer:
                 handwriting_ocr_registry=self.handwriting_ocr_registry,
                 vision_service=self.vision,
                 user_repo=self._get_repo(UserRepository),
+                grader_provider=lambda: self.dictation_grader,
+                settings=self._settings,
             )
         return self._dictation
 
@@ -652,6 +677,10 @@ class ServiceContainer:
                 ...
             )
         """
+        # 保存 ask_ai callable,供 dictation_grader 等延遲構造的服務使用
+        if ask_ai is not None:
+            self._ask_ai_func = ask_ai
+
         # ChatService
         if ask_ai or ask_ai_stream or vector_search:
             self.chat.set_ai_functions(
