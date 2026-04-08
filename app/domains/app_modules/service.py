@@ -214,6 +214,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "collab_board",
+        "name": "協作佈告板",
+        "icon": "📌",
+        "description": "班級互動牆 / 分組作業協作板",
+        "url": "/boards",
+        "roles": ["student", "teacher", "admin"],
+        "enabled": True,
+        "order": 4,
+        "category": "community",
+    },
+    {
         "id": "admin_dashboard",
         "name": "管理後台",
         "icon": "⚙️",
