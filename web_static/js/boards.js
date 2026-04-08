@@ -5,7 +5,12 @@
 (function () {
     'use strict';
 
-    const token = () => localStorage.getItem('token') || '';
+    const token = () => {
+        if (typeof AuthModule !== 'undefined' && AuthModule.getToken) return AuthModule.getToken() || '';
+        return localStorage.getItem('auth_token')
+            || localStorage.getItem('token')
+            || '';
+    };
 
     async function api(path, opts = {}) {
         const headers = Object.assign(

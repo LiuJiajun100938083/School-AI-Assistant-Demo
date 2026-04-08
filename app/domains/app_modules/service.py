@@ -216,7 +216,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
     {
         "id": "collab_board",
         "name": "協作佈告板",
-        "icon": "📌",
+        "icon": "",
         "description": "班級互動牆 / 分組作業協作板",
         "url": "/boards",
         "roles": ["student", "teacher", "admin"],
@@ -269,11 +269,28 @@ class AppModulesService:
                 ]
                 if new_mods:
                     self._modules.extend(new_mods)
-                    self._save()
                     logger.info(
                         "已合并 %d 个新增默认模块: %s",
                         len(new_mods), [m["id"] for m in new_mods],
                     )
+
+                # 同步代码驱动的展示字段 (icon/name/description/url/category)
+                # 使用者自訂的 enabled/order/roles 保留
+                SYNC_FIELDS = ("icon", "name", "description", "url", "category")
+                default_map = {m["id"]: m for m in DEFAULT_APP_MODULES}
+                changed = 0
+                for m in self._modules:
+                    d = default_map.get(m.get("id"))
+                    if not d:
+                        continue
+                    for k in SYNC_FIELDS:
+                        if k in d and m.get(k) != d[k]:
+                            m[k] = d[k]
+                            changed += 1
+                if new_mods or changed:
+                    self._save()
+                    if changed:
+                        logger.info("已同步 %d 个展示字段到默认值", changed)
             else:
                 self._modules = deepcopy(DEFAULT_APP_MODULES)
                 self._save()
