@@ -1060,6 +1060,212 @@
     }
 
     // ────────────────────────────────────────────────
+    //  管理分組 (drag & drop)
+    // ────────────────────────────────────────────────
+    const groups = {
+        students: [],       // [{id, display_name, class_number}]
+        assignments: {},    // { sectionId | 'unassigned': [studentId, ...] }
+        columns: [],        // [{id, name, isNew?}]   id='unassigned' 為未分組
+        dirty: false,
+    };
+
+    window.closeGroupsModal = () => $('#groupsModal').classList.remove('open');
+
+    async function openGroupsModal() {
+        // 只有 moderator 可用(後端也會 403)
+        const modal = $('#groupsModal');
+        modal.classList.add('open');
+        $('#groupsBoard').innerHTML = '<div class="cb-empty">⏳</div>';
+        try {
+            const students = await api('/class-students');
+            groups.students = students || [];
+            // 收集現有 group sections
+            groups.columns = [{ id: 'unassigned', name: i18n.t('cb.unassigned') }];
+            groups.assignments = { unassigned: [] };
+            const assigned = new Set();
+            for (const s of store.state.sections) {
+                if (s.kind === 'group') {
+                    groups.columns.push({ id: String(s.id), name: s.name });
+                    const members = (s.group_members || []).map(Number);
+                    groups.assignments[String(s.id)] = members;
+                    members.forEach(id => assigned.add(id));
+                }
+            }
+            // 未分組 = 全體 - 已分組
+            groups.assignments.unassigned = groups.students
+                .map(s => s.id)
+                .filter(id => !assigned.has(id));
+            groups.dirty = false;
+            renderGroupsBoard();
+        } catch (e) {
+            $('#groupsBoard').innerHTML = `<div class="cb-empty">⚠️ ${esc(e.message)}</div>`;
+        }
+    }
+
+    function renderGroupsBoard() {
+        const board = $('#groupsBoard');
+        if (!groups.students.length) {
+            board.innerHTML = `<div class="cb-empty">${i18n.t('cb.noStudents')}</div>`;
+            return;
+        }
+        const studentMap = new Map(groups.students.map(s => [s.id, s]));
+        board.innerHTML = groups.columns.map(col => {
+            const ids = groups.assignments[col.id] || [];
+            const isUnassigned = col.id === 'unassigned';
+            const header = isUnassigned
+                ? `<div class="cb-group-col__head"><span>${esc(col.name)}</span><span class="count">${ids.length}</span></div>`
+                : `<div class="cb-group-col__head">
+                     <input type="text" class="cb-group-col__name-input" value="${esc(col.name)}" data-col="${esc(col.id)}">
+                     <span class="count">${ids.length}</span>
+                     ${col.isNew ? `<button class="del" data-del="${esc(col.id)}" title="刪除">×</button>` : ''}
+                   </div>`;
+            const chips = ids.map(sid => {
+                const s = studentMap.get(sid);
+                if (!s) return '';
+                return `<div class="cb-student-chip" draggable="true" data-sid="${s.id}" data-col="${esc(col.id)}">
+                    <span class="num">${esc(s.class_number || '')}</span>
+                    <span class="name">${esc(s.display_name)}</span>
+                </div>`;
+            }).join('');
+            return `<div class="cb-group-col ${isUnassigned ? 'cb-group-col--unassigned' : ''}" data-col="${esc(col.id)}">
+                ${header}
+                <div class="cb-group-col__body">${chips}</div>
+            </div>`;
+        }).join('');
+        attachGroupDnd(board);
+    }
+
+    function attachGroupDnd(board) {
+        let draggingSid = null;
+        let fromCol = null;
+
+        board.querySelectorAll('.cb-student-chip').forEach(chip => {
+            chip.addEventListener('dragstart', (e) => {
+                draggingSid = parseInt(chip.dataset.sid, 10);
+                fromCol = chip.dataset.col;
+                chip.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', String(draggingSid));
+            });
+            chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+        });
+
+        board.querySelectorAll('.cb-group-col').forEach(col => {
+            col.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                col.classList.add('drag-over');
+            });
+            col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+            col.addEventListener('drop', (e) => {
+                e.preventDefault();
+                col.classList.remove('drag-over');
+                const sid = draggingSid || parseInt(e.dataTransfer.getData('text/plain'), 10);
+                if (!sid) return;
+                const toCol = col.dataset.col;
+                if (toCol === fromCol) return;
+                // 從原 column 移除
+                for (const k of Object.keys(groups.assignments)) {
+                    groups.assignments[k] = (groups.assignments[k] || []).filter(id => id !== sid);
+                }
+                // 加入目標
+                if (!groups.assignments[toCol]) groups.assignments[toCol] = [];
+                groups.assignments[toCol].push(sid);
+                groups.dirty = true;
+                renderGroupsBoard();
+            });
+        });
+
+        // Tap 學生 → 快速加到下一個非未分組的欄(適合 iPad 點擊流)
+        // 這裡略: drag 已夠用
+
+        // 組名編輯
+        board.querySelectorAll('.cb-group-col__name-input').forEach(inp => {
+            inp.addEventListener('change', () => {
+                const col = groups.columns.find(c => c.id === inp.dataset.col);
+                if (col) { col.name = inp.value.trim() || col.name; groups.dirty = true; }
+            });
+        });
+
+        // 刪除新建的空組
+        board.querySelectorAll('.del[data-del]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.del;
+                // 把成員移回 unassigned
+                const moving = groups.assignments[id] || [];
+                groups.assignments.unassigned = (groups.assignments.unassigned || []).concat(moving);
+                delete groups.assignments[id];
+                groups.columns = groups.columns.filter(c => c.id !== id);
+                groups.dirty = true;
+                renderGroupsBoard();
+            });
+        });
+    }
+
+    function initGroupsModal() {
+        const btn = $('#btnManageGroups');
+        if (btn) btn.addEventListener('click', openGroupsModal);
+
+        $('#btnAddGroup').addEventListener('click', () => {
+            const name = $('#newGroupName').value.trim() || `組 ${groups.columns.length}`;
+            // 新建本地 column,id 使用臨時 "new-X",儲存時呼叫 POST /sections 建立真的 section
+            const tmpId = 'new-' + Date.now();
+            groups.columns.push({ id: tmpId, name, isNew: true });
+            groups.assignments[tmpId] = [];
+            $('#newGroupName').value = '';
+            groups.dirty = true;
+            renderGroupsBoard();
+        });
+
+        $('#btnSaveGroups').addEventListener('click', async () => {
+            $('#btnSaveGroups').disabled = true;
+            try {
+                // 1. 新建 isNew column → POST /sections,拿到真正 id
+                for (const col of groups.columns) {
+                    if (col.isNew) {
+                        const payload = {
+                            name: col.name,
+                            kind: 'group',
+                            group_members: groups.assignments[col.id] || [],
+                            order_index: store.state.sections.length,
+                        };
+                        const sec = await api('/sections', { method: 'POST', body: JSON.stringify(payload) });
+                        if (sec && sec.id) {
+                            // 把本地 tmp id 換成真 id (以便後續流程一致)
+                            groups.assignments[String(sec.id)] = groups.assignments[col.id];
+                            delete groups.assignments[col.id];
+                            col.id = String(sec.id);
+                            col.isNew = false;
+                            store.upsertSection(sec);
+                        }
+                    }
+                }
+                // 2. 批量儲存現有 group sections 的成員
+                const payload = {};
+                for (const col of groups.columns) {
+                    if (col.id !== 'unassigned') {
+                        payload[col.id] = groups.assignments[col.id] || [];
+                    }
+                }
+                await api('/group-assignments', { method: 'POST', body: JSON.stringify(payload) });
+                // 3. 同步 store
+                store.state.sections.forEach(s => {
+                    const key = String(s.id);
+                    if (payload[key]) s.group_members = payload[key];
+                });
+                store._emit();
+                groups.dirty = false;
+                alert(i18n.t('cb.groupSaved'));
+                closeGroupsModal();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                $('#btnSaveGroups').disabled = false;
+            }
+        });
+    }
+
+    // ────────────────────────────────────────────────
     //  Toolbar: search / sort / tag filter / menu / activity
     // ────────────────────────────────────────────────
     function initToolbar() {
@@ -1210,6 +1416,7 @@
         initSectionModal();
         initLayoutSwitch();
         initToolbar();
+        initGroupsModal();
         initKeyboard();
         store.subscribe(render);
 

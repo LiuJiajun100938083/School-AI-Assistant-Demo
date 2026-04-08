@@ -292,13 +292,85 @@ async def export_board(
 
 
 @router.get("/templates/list")
-async def list_templates():
+async def list_templates(user: Dict = Depends(get_current_user)):
     return _ok(_svc().list_templates())
 
 
 @router.get("/themes/list")
-async def list_themes():
+async def list_themes(user: Dict = Depends(get_current_user)):
     return _ok(_svc().list_themes())
+
+
+@router.get("/{board_uuid}/class-students")
+async def list_class_students(
+    board_uuid: str,
+    user: Dict = Depends(get_current_user),
+):
+    """取得此板所屬班級的學生列表,供分組編輯器選擇"""
+    loop = asyncio.get_event_loop()
+    svc = _svc()
+
+    def _load():
+        from app.services.container import get_services
+        board = svc._repo.get_board_by_uuid(board_uuid)  # noqa: SLF001
+        if not board:
+            return []
+        from app.domains.collab_board import policy as _policy
+        _policy.ensure_can_moderate(board, user)
+        user_repo = get_services().user._repo  # noqa: SLF001
+        cls = board.get("class_name") or ""
+        if not cls:
+            return []
+        return user_repo.get_students_by_class(cls)
+
+    students = await loop.run_in_executor(None, _load)
+    return _ok([
+        {
+            "id": s.get("id"),
+            "username": s.get("username"),
+            "display_name": s.get("display_name") or s.get("username"),
+            "class_number": s.get("class_number"),
+        }
+        for s in students
+    ])
+
+
+@router.post("/{board_uuid}/group-assignments")
+async def save_group_assignments(
+    board_uuid: str,
+    assignments: Dict[str, list] = Body(...),
+    user: Dict = Depends(get_current_user),
+):
+    """
+    批量儲存各組成員。
+
+    assignments: { "<section_id>": [user_id, ...], ... }
+    """
+    loop = asyncio.get_event_loop()
+    svc = _svc()
+
+    def _save():
+        from app.domains.collab_board import policy as _policy
+        board = svc._repo.get_board_by_uuid(board_uuid)  # noqa: SLF001
+        if not board:
+            return 0
+        _policy.ensure_can_moderate(board, user)
+        n = 0
+        for sid_str, member_ids in (assignments or {}).items():
+            try:
+                sid = int(sid_str)
+            except ValueError:
+                continue
+            sec = svc._repo.get_section(sid)  # noqa: SLF001
+            if not sec or sec["board_id"] != board["id"]:
+                continue
+            svc._repo.update_section(sid, {"group_members": [int(x) for x in member_ids]})  # noqa: SLF001
+            n += 1
+        svc._log(board["id"], user, "board.groups_updated", meta={"sections": n})  # noqa: SLF001
+        return n
+
+    n = await loop.run_in_executor(None, _save)
+    return _ok({"updated": n}, f"已更新 {n} 個分組")
 
 
 @router.post("/{board_uuid}/uploads")

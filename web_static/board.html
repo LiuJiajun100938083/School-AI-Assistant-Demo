@@ -63,6 +63,7 @@
                 <button data-layout="canvas" data-i18n="cb.layoutCanvas">畫布</button>
             </div>
             <button id="btnAddSection" class="cb-btn" style="display:none" data-i18n="cb.addSection">新增分欄</button>
+            <button id="btnManageGroups" class="cb-btn" data-i18n="cb.manageGroups">管理分組</button>
         </div>
         <div id="boardBody" class="cb-workspace__body">
             <div class="cb-empty"><div class="cb-empty__icon">⏳</div></div>
@@ -144,6 +145,28 @@
             <div class="cb-modal__foot">
                 <button class="cb-btn" onclick="closeSectionModal()" data-i18n="cb.cancel">取消</button>
                 <button class="cb-btn cb-btn--primary" id="sSubmit" data-i18n="cb.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Groups modal -->
+    <div id="groupsModal" class="cb-modal">
+        <div class="cb-modal__card cb-modal__card--xl">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.manageGroups">管理分組</span>
+                <button class="cb-modal__close" onclick="closeGroupsModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div style="font-size:12px;color:var(--cb-text-2)" data-i18n="cb.dragHint">拖動學生到組別</div>
+                <div id="groupsBoard" class="cb-groups-board"></div>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                    <input type="text" id="newGroupName" class="cb-search" data-i18n-placeholder="cb.groupName" style="flex:1">
+                    <button id="btnAddGroup" class="cb-btn" data-i18n="cb.addGroup">新增組</button>
+                </div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closeGroupsModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="btnSaveGroups" data-i18n="cb.saveGroups">儲存分組</button>
             </div>
         </div>
     </div>

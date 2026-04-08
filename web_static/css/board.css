@@ -1096,6 +1096,118 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
 }
 .cb-theme-swatch.active { border-color: var(--cb-brand); box-shadow: 0 0 0 2px var(--cb-brand-light); }
 
+/* ── 管理分組 modal ── */
+.cb-modal__card--xl {
+    max-width: 1100px !important;
+    width: 95vw;
+}
+.cb-groups-board {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 12px 4px;
+    min-height: 360px;
+    background: var(--cb-bg);
+    border-radius: 10px;
+}
+.cb-group-col {
+    flex: 0 0 240px;
+    background: var(--cb-card);
+    border: 2px dashed var(--cb-border);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 320px;
+    max-height: 60vh;
+    transition: all 0.15s ease;
+}
+.cb-group-col.drag-over {
+    border-color: var(--cb-brand);
+    background: var(--cb-brand-light);
+}
+.cb-group-col--unassigned {
+    background: #f9fafb;
+    border-style: solid;
+    border-color: var(--cb-border);
+}
+.cb-group-col__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--cb-border);
+}
+.cb-group-col__head .count {
+    color: var(--cb-text-3);
+    font-weight: 400;
+    font-size: 12px;
+    margin-left: auto;
+}
+.cb-group-col__head .del {
+    border: none;
+    background: transparent;
+    color: var(--cb-text-3);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.cb-group-col__head .del:hover { color: #b91c1c; background: #fef2f2; }
+.cb-group-col__name-input {
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--cb-text);
+    outline: none;
+    width: 100%;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+.cb-group-col__name-input:focus { background: var(--cb-bg); }
+.cb-group-col__body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.cb-student-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--cb-card);
+    border: 1px solid var(--cb-border);
+    border-radius: 8px;
+    cursor: grab;
+    font-size: 13px;
+    user-select: none;
+    touch-action: none;
+    transition: all 0.1s ease;
+}
+.cb-student-chip:hover { border-color: var(--cb-brand-light); box-shadow: var(--cb-shadow); }
+.cb-student-chip.dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+}
+.cb-student-chip .num {
+    display: inline-block;
+    min-width: 24px;
+    padding: 1px 6px;
+    background: var(--cb-bg);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--cb-text-2);
+    text-align: center;
+}
+.cb-student-chip .name { flex: 1; }
+
 /* ── 列印 ── */
 @media print {
     .cb-header, .cb-workspace__toolbar, .cb-menu, .cb-drawer, .cb-post__actions, .cb-react-picker, .cb-modal {
