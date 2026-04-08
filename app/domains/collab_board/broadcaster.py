@@ -19,8 +19,25 @@ class BoardBroadcaster:
         self._users: Dict[WebSocket, Dict[str, Any]] = {}
         self._lock = asyncio.Lock()
         self._max = max_connections
+        self._main_loop: asyncio.AbstractEventLoop | None = None
+
+    def _capture_loop(self) -> None:
+        """在 async 上下文被呼叫時記錄主 event loop,供 worker thread 跨線程投遞"""
+        if self._main_loop is None:
+            try:
+                self._main_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+
+    def publish_threadsafe(self, board_uuid: str, event: Dict[str, Any]) -> None:
+        """從 worker thread 安全地觸發廣播"""
+        loop = self._main_loop
+        if loop is None or not loop.is_running():
+            return
+        asyncio.run_coroutine_threadsafe(self.publish(board_uuid, event), loop)
 
     async def connect(self, board_uuid: str, ws: WebSocket, user: Dict[str, Any]) -> None:
+        self._capture_loop()
         async with self._lock:
             room = self._rooms.setdefault(board_uuid, set())
             if len(room) >= self._max:

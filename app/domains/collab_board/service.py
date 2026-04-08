@@ -374,13 +374,17 @@ class CollabBoardService:
         return post
 
     def _publish(self, board_uuid: str, event_type: str, payload: Dict[str, Any]) -> None:
-        """Fire-and-forget 廣播；service 方法是同步的，這裡用 asyncio.create_task 投遞"""
+        """Fire-and-forget 廣播。
+
+        Service 方法通常經 run_in_executor 執行在 worker thread 中,
+        無法直接 create_task。透過 broadcaster.publish_threadsafe 跨線程
+        投遞到主 event loop。若主 loop 尚未被捕捉(例如初始化階段),
+        靜默忽略。
+        """
+        event = {"type": event_type, "payload": payload}
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(self._broadcaster.publish(
-                    board_uuid, {"type": event_type, "payload": payload}
-                ))
+            running = asyncio.get_running_loop()
+            running.create_task(self._broadcaster.publish(board_uuid, event))
         except RuntimeError:
-            # 不在 async 上下文（例如 init 階段），忽略
-            pass
+            # 當前線程無 running loop — 用線程安全路徑
+            self._broadcaster.publish_threadsafe(board_uuid, event)

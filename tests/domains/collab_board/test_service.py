@@ -213,6 +213,9 @@ class FakeBroadcaster:
     async def publish(self, board_uuid, event):
         self.events.append((board_uuid, event))
 
+    def publish_threadsafe(self, board_uuid, event):
+        self.events.append((board_uuid, event))
+
 
 class FakeLinkMeta:
     def fetch(self, url):
