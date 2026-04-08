@@ -14,7 +14,7 @@
         <button class="back-btn" onclick="window.location.href='/'">
             <span data-i18n="dict.page.backHome">← 返回首頁</span>
         </button>
-        <div class="header-title">✍️ <span data-i18n="dict.page.title">英文默書</span></div>
+        <div class="header-title"><span data-i18n="dict.page.title">默書</span></div>
         <div class="header-right">
             <select id="langSwitch" class="lang-switch">
                 <option value="zh">中文</option>
@@ -81,17 +81,14 @@
                 <div class="type-picker" id="f_type_picker">
                     <button type="button" class="type-card active" data-type="en_paragraph"
                             onclick="app.selectType('en_paragraph')">
-                        <span class="type-icon">📖</span>
                         <span class="type-name" data-i18n="dict.create.typeEnPara">英文課文/段落</span>
                     </button>
                     <button type="button" class="type-card" data-type="en_word_list"
                             onclick="app.selectType('en_word_list')">
-                        <span class="type-icon">🔤</span>
                         <span class="type-name" data-i18n="dict.create.typeEnWord">英文單字</span>
                     </button>
                     <button type="button" class="type-card" data-type="zh_paragraph"
                             onclick="app.selectType('zh_paragraph')">
-                        <span class="type-icon">📜</span>
                         <span class="type-name" data-i18n="dict.create.typeZhPara">中文課文</span>
                     </button>
                 </div>
@@ -100,10 +97,10 @@
                 <div class="type-hint" id="f_type_hint" data-i18n="dict.create.paraHint">輸入完整段落/課文</div>
                 <div class="reference-actions">
                     <button type="button" class="chip-btn" onclick="document.getElementById('refFileInput').click()">
-                        📄 <span data-i18n="dict.create.uploadFile">上傳文件</span>
+                        <span data-i18n="dict.create.uploadFile">上傳文件</span>
                     </button>
                     <button type="button" class="chip-btn" onclick="document.getElementById('refPhotoInput').click()">
-                        📷 <span data-i18n="dict.create.takePhoto">拍照辨識</span>
+                        <span data-i18n="dict.create.takePhoto">拍照辨識</span>
                     </button>
                     <span class="chip-hint" id="refExtractHint"></span>
                 </div>

@@ -416,22 +416,22 @@ class DictationApp {
     async extractReferenceFromFile(file) {
         if (!file) return;
         const hint = document.getElementById('refExtractHint');
-        hint.textContent = '⏳ ' + i18n.t('dict.create.extracting');
+        hint.textContent = i18n.t('dict.create.extracting');
         try {
             const fd = new FormData();
             fd.append('file', file);
             const resp = await DictationAPI.extractText(fd);
             const text = resp.data && resp.data.text || '';
             if (!text) {
-                hint.textContent = '⚠ ' + i18n.t('dict.create.extractFail');
+                hint.textContent = i18n.t('dict.create.extractFail');
                 return;
             }
             const ta = document.getElementById('f_reference');
             // 若已有內容,追加;否則直接填入
             ta.value = ta.value ? (ta.value + '\n' + text) : text;
-            hint.textContent = `✓ ${resp.data.length} ${i18n.t('dict.create.charsExtracted')}`;
+            hint.textContent = `${resp.data.length} ${i18n.t('dict.create.charsExtracted')}`;
         } catch (e) {
-            hint.textContent = '⚠ ' + (e.message || i18n.t('dict.create.extractFail'));
+            hint.textContent = e.message || i18n.t('dict.create.extractFail');
         } finally {
             // reset inputs so same file can be re-selected later
             document.getElementById('refFileInput').value = '';
@@ -569,13 +569,13 @@ class DictationApp {
             if (isWordList) {
                 diffHtml = `<div class="word-grid">${(diff.items || []).map(it => {
                     if (it.status === 'correct')
-                        return `<div class="word-card correct"><span class="word-status">✓</span><span class="word-text">${this._esc(it.ref)}</span></div>`;
+                        return `<div class="word-card correct"><span class="word-text">${this._esc(it.ref)}</span></div>`;
                     if (it.status === 'wrong')
-                        return `<div class="word-card wrong"><span class="word-status">✗</span><span class="word-text">${this._esc(it.ref)}</span><span class="word-ocr">${this._esc(it.ocr)}</span></div>`;
+                        return `<div class="word-card wrong"><span class="word-text">${this._esc(it.ref)}</span><span class="word-ocr">${this._esc(it.ocr)}</span></div>`;
                     if (it.status === 'missing')
-                        return `<div class="word-card missing"><span class="word-status">—</span><span class="word-text">${this._esc(it.ref)}</span></div>`;
+                        return `<div class="word-card missing"><span class="word-text">${this._esc(it.ref)}</span></div>`;
                     if (it.status === 'extra')
-                        return `<div class="word-card extra"><span class="word-status">+</span><span class="word-text">${this._esc(it.ocr)}</span></div>`;
+                        return `<div class="word-card extra"><span class="word-text">${this._esc(it.ocr)}</span></div>`;
                     return '';
                 }).join('')}</div>`;
             } else {

@@ -194,7 +194,7 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
     {
         "id": "dictation",
         "name": "默書",
-        "icon": "✍️",
+        "icon": "",
         "description": "中英雙語默書:老師上傳原文,學生拍照上交,AI 自動比對批改",
         "url": "/dictation",
         "roles": ["student", "teacher", "admin"],
