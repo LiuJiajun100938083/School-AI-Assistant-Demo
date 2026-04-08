@@ -416,6 +416,7 @@
         });
         el.addEventListener('pointermove', (e) => {
             if (!dragging) return;
+            el.style.transition = 'none';  // 每幀冪等重置,抵擋任何 echo 造成的 stale transition
             const nx = origX + e.clientX - startX;
             const ny = origY + e.clientY - startY;
             el.style.left = nx + 'px';
@@ -430,6 +431,7 @@
         const endDrag = async (e) => {
             if (!dragging) return;
             dragging = false;
+            _myDragging.delete(p.id);
             el.classList.remove('dragging');
             const nx = parseInt(el.style.left, 10);
             const ny = parseInt(el.style.top, 10);
@@ -441,8 +443,6 @@
                     body: JSON.stringify({ canvas_x: nx, canvas_y: ny }),
                 });
             } catch (err) { console.warn(err); }
-            // 稍後才解除 myDragging,讓自己的 post.moved echo 也被忽略
-            setTimeout(() => _myDragging.delete(p.id), 200);
         };
         el.addEventListener('pointerup', endDrag);
         el.addEventListener('pointercancel', endDrag);
