@@ -311,17 +311,22 @@ async def list_class_students(
     svc = _svc()
 
     def _load():
-        from app.services.container import get_services
         board = svc._repo.get_board_by_uuid(board_uuid)  # noqa: SLF001
         if not board:
             return []
         from app.domains.collab_board import policy as _policy
         _policy.ensure_can_moderate(board, user)
-        user_repo = get_services().user._repo  # noqa: SLF001
         cls = board.get("class_name") or ""
         if not cls:
             return []
-        return user_repo.get_students_by_class(cls)
+        # 直接查所需欄位 (UserRepository.get_students_by_class 沒選 id)
+        return get_database_pool().execute(
+            "SELECT id, username, display_name, class_number "
+            "FROM users "
+            "WHERE role='student' AND is_active=TRUE AND class_name=%s "
+            "ORDER BY class_number ASC, display_name ASC",
+            (cls,),
+        ) or []
 
     students = await loop.run_in_executor(None, _load)
     return _ok([
