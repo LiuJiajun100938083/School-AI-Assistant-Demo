@@ -687,6 +687,8 @@ class DictationApp {
                 <h4>${i18n.t('dict.result.diffView')}</h4>
                 ${diffHtml}
 
+                ${this._buildErrorContextSection(diff)}
+
                 ${aiBlock}
 
                 ${s.reference_text ? `<h4>${i18n.t('dict.result.refView')}</h4><pre class="reference-box">${this._esc(s.reference_text)}</pre>` : ''}
@@ -775,6 +777,123 @@ class DictationApp {
             ocr_failed:      'ocrFailed',
             needs_review:    'needsReview',
         }[status] || 'submitted';
+    }
+
+    // ── 中文「錯字一覽」─────────────────────────────
+    // 只在 zh + paragraph 模式顯示。把錯字按句分組,
+    // 每張卡顯示「句子 + 應寫 X / 學生寫 Y」。
+    _buildErrorContextSection(diff) {
+        if (!diff || diff.language !== 'zh' || diff.mode !== 'paragraph') return '';
+        if (!Array.isArray(diff.sentences) || !Array.isArray(diff.items)) return '';
+
+        const errors = diff.items.filter(it =>
+            it.status === 'wrong' || it.status === 'missing' || it.status === 'extra'
+        );
+        const title = i18n.t('dict.result.errorList.title');
+        const disclaimer = `<div class="error-context-disclaimer">${i18n.t('dict.result.errorList.disclaimer')}</div>`;
+
+        if (!errors.length) {
+            return `
+                <h4>${title}</h4>
+                <div class="error-list-empty">${i18n.t('dict.result.errorList.none')}</div>
+                ${disclaimer}
+            `;
+        }
+
+        // 按 sentence 分組 (extra 沒有 ref index → 歸到最後一句)
+        const groups = new Map();  // sentence_idx → {sentence, errors[]}
+        for (const err of errors) {
+            const sIdx = this._findSentenceIdx(diff.sentences, err.index);
+            if (!groups.has(sIdx)) {
+                groups.set(sIdx, { sentence: diff.sentences[sIdx], errors: [] });
+            }
+            groups.get(sIdx).errors.push(err);
+        }
+
+        // 排序 (按 sentence 順序)
+        const sortedGroups = Array.from(groups.entries())
+            .sort((a, b) => a[0] - b[0])
+            .map(e => e[1]);
+
+        const cardsHtml = sortedGroups.map(g => this._renderErrorCard(g)).join('');
+        return `
+            <h4>${title}</h4>
+            <div class="error-context-list">${cardsHtml}</div>
+            ${disclaimer}
+        `;
+    }
+
+    _findSentenceIdx(sentences, tokenIdx) {
+        for (let i = 0; i < sentences.length; i++) {
+            if (tokenIdx >= sentences[i].start_idx && tokenIdx < sentences[i].end_idx) {
+                return i;
+            }
+        }
+        return Math.max(0, sentences.length - 1);
+    }
+
+    _renderErrorCard(group) {
+        const sentenceHtml = this._highlightInSentence(group.sentence, group.errors);
+        const rows = group.errors.map(e => {
+            // missing → ref 存在,ocr 為 null
+            // extra → ocr 存在,ref 為 null
+            // wrong → 兩邊都有
+            if (e.status === 'missing') {
+                return `
+                    <div class="error-context-row">
+                        <span class="ec-label">${i18n.t('dict.result.errorList.missing')}</span>
+                        <span class="ec-char correct">${this._esc(e.ref || '')}</span>
+                    </div>
+                `;
+            }
+            if (e.status === 'extra') {
+                return `
+                    <div class="error-context-row">
+                        <span class="ec-label">${i18n.t('dict.result.errorList.extra')}</span>
+                        <span class="ec-char wrong">${this._esc(e.ocr || '')}</span>
+                    </div>
+                `;
+            }
+            // wrong
+            return `
+                <div class="error-context-row">
+                    <span class="ec-label">${i18n.t('dict.result.errorList.shouldBe')}</span>
+                    <span class="ec-char correct">${this._esc(e.ref || '')}</span>
+                    <span class="ec-arrow">→</span>
+                    <span class="ec-label">${i18n.t('dict.result.errorList.studentWrote')}</span>
+                    <span class="ec-char wrong">${this._esc(e.ocr || '—')}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="error-context-card">
+                <div class="error-context-sentence">${sentenceHtml}</div>
+                <div class="error-context-rows">${rows}</div>
+            </div>
+        `;
+    }
+
+    _highlightInSentence(sentence, errors) {
+        // sentence.text 是該句的純 CJK 字元連接 (見 _split_chinese_sentences)
+        // sentence.start_idx 是該句首字在 ref_tokens 中的 index
+        // 把句子裡發生 wrong/missing 的位置(以 ref index 計)用 mark 包起來
+        const wrongOffsets = new Set();
+        for (const e of errors) {
+            if (e.status === 'extra') continue;  // extra 沒有 ref 位置
+            if (typeof e.index !== 'number') continue;
+            const offset = e.index - sentence.start_idx;
+            if (offset >= 0 && offset < sentence.text.length) {
+                wrongOffsets.add(offset);
+            }
+        }
+        const chars = Array.from(sentence.text);
+        return chars.map((c, i) => {
+            if (wrongOffsets.has(i)) {
+                return `<mark class="err-pos">${this._esc(c)}</mark>`;
+            }
+            return this._esc(c);
+        }).join('');
     }
 }
 

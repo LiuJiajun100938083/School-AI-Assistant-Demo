@@ -791,6 +791,95 @@ body.role-teacher .student-only { display: none !important; }
     color: var(--text-primary);
 }
 
+/* ── 錯字一覽 (中文 paragraph 模式) ─────────────── */
+.error-context-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+}
+.error-context-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    border-left: 3px solid var(--color-error);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+}
+.error-context-sentence {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-bottom: var(--space-3);
+    line-height: 1.8;
+    font-family: "PingFang TC", "PingFang SC", "Microsoft JhengHei", serif;
+    word-break: break-all;
+}
+.error-context-sentence mark.err-pos {
+    background: #FFE5E5;
+    color: var(--color-error);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+}
+.error-context-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.error-context-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 14px;
+    flex-wrap: wrap;
+}
+.ec-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.ec-char {
+    font-size: 24px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: var(--radius-sm);
+    font-family: "PingFang TC", "PingFang SC", "Microsoft JhengHei", serif;
+    line-height: 1.2;
+}
+.ec-char.correct {
+    background: var(--brand-lighter);
+    color: var(--brand);
+    border: 1px solid var(--brand-border);
+}
+.ec-char.wrong {
+    background: #FFF5F5;
+    color: var(--color-error);
+    border: 1px solid rgba(255, 59, 48, 0.3);
+}
+.ec-arrow {
+    color: var(--text-tertiary);
+    font-size: 18px;
+}
+.error-list-empty {
+    padding: var(--space-5) var(--space-4);
+    text-align: center;
+    color: var(--brand);
+    background: var(--brand-lighter);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--brand-border);
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: var(--space-2);
+}
+.error-context-disclaimer {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: var(--space-3);
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--border-default);
+    line-height: 1.5;
+}
+
 /* ── needs_review banner / engine badge / AI feedback ─── */
 .review-banner {
     background: #FFF7E6;
