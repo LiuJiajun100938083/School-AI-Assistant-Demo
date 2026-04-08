@@ -116,33 +116,81 @@ class PdfExporter:
     content_type: str = "application/pdf"
     extension: str = "pdf"
 
+    _cjk_font_registered: bool = False
+
+    def _register_cjk(self) -> str:
+        """註冊 Adobe Asian CID 字型(reportlab 內建,無需外部字體檔案)
+
+        回傳註冊後的 font name;失敗則回傳 'Helvetica'。
+        """
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+        if not self._cjk_font_registered:
+            try:
+                pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+                self._cjk_font_registered = True
+            except Exception as e:  # noqa: BLE001
+                logger.warning("CJK font register failed: %s", e)
+                return "Helvetica"
+        return "STSong-Light"
+
+    def _escape_xml(self, text: str) -> str:
+        """reportlab Paragraph 用 mini-HTML,需 escape & < > 否則當 tag 失敗"""
+        return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
     def export(self, detail: Dict[str, Any]) -> bytes:
         try:
             from reportlab.lib.pagesizes import A4
-            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
             from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
         except ImportError:
             logger.warning("reportlab 未安裝,pdf 匯出回退為純文字")
             return self._fallback_text(detail)
 
+        font_name = self._register_cjk()
+
         buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=A4, title=detail.get("board", {}).get("title", "Board"))
-        styles = getSampleStyleSheet()
+        doc = SimpleDocTemplate(
+            buf, pagesize=A4,
+            title=detail.get("board", {}).get("title", "Board"),
+        )
+        base = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            "CJKTitle", parent=base["Title"], fontName=font_name, fontSize=20, leading=26,
+        )
+        heading_style = ParagraphStyle(
+            "CJKHeading", parent=base["Heading3"], fontName=font_name, fontSize=14, leading=20,
+        )
+        body_style = ParagraphStyle(
+            "CJKBody", parent=base["Normal"], fontName=font_name, fontSize=11, leading=16,
+        )
+        meta_style = ParagraphStyle(
+            "CJKMeta", parent=base["Normal"], fontName=font_name, fontSize=9,
+            leading=12, textColor="#6b7280",
+        )
+
         story = []
         board = detail.get("board", {})
-        story.append(Paragraph(f"<b>{board.get('title','')}</b>", styles["Title"]))
+        story.append(Paragraph(self._escape_xml(board.get("title", "")), title_style))
         if board.get("description"):
-            story.append(Paragraph(board["description"], styles["Normal"]))
-        story.append(Spacer(1, 12))
+            story.append(Paragraph(self._escape_xml(board["description"]), meta_style))
+        story.append(Spacer(1, 14))
 
         for p in detail.get("posts", []):
-            title = p.get("title") or ""
-            author = p.get("author_name") or ""
-            body = (p.get("body") or "").replace("\n", "<br/>")
-            story.append(Paragraph(f"<b>{title}</b> — {author}", styles["Heading3"]))
+            title = self._escape_xml(p.get("title") or "")
+            author = self._escape_xml(p.get("author_name") or "")
+            body = self._escape_xml(p.get("body") or "").replace("\n", "<br/>")
+            like = p.get("like_count", 0)
+            header = f"<b>{title}</b> · {author} · ♥ {like}" if title else f"{author} · ♥ {like}"
+            story.append(Paragraph(header, heading_style))
             if body:
-                story.append(Paragraph(body, styles["Normal"]))
-            story.append(Spacer(1, 8))
+                story.append(Paragraph(body, body_style))
+            # 評論
+            for c in (p.get("comments") or []):
+                c_author = self._escape_xml(c.get("author_name") or "")
+                c_body = self._escape_xml(c.get("body") or "")
+                story.append(Paragraph(f"&nbsp;&nbsp;↳ <b>{c_author}</b>: {c_body}", meta_style))
+            story.append(Spacer(1, 10))
         doc.build(story)
         return buf.getvalue()
 

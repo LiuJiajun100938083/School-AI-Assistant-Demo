@@ -50,6 +50,7 @@ python-pptx==1.0.2
 PyPDF2==3.0.1
 PyMuPDF==1.25.5
 openpyxl==3.1.2
+reportlab==4.2.5
 
 # NOTE: PyQt6 removed — desktop-only, not needed for server
 
