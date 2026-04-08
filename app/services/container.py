@@ -574,7 +574,7 @@ class ServiceContainer:
             engines: dict[str, HandwritingOCREngine] = {
                 "vision_llm": VisionLLMEngine(self.vision),
             }
-            llm_settings = self._settings.llm
+            llm_settings = self._settings  # Settings class flat-inherits LLMSettings fields
 
             requested = {llm_settings.ocr_provider_en, llm_settings.ocr_provider_zh}
             if "trocr_local" in requested:
@@ -622,7 +622,7 @@ class ServiceContainer:
         若 settings.dictation_grader_enabled=False 或 ask_ai 尚未注入,
         回 None,DictationService 會降級為純 difflib 機械分數。
         """
-        llm_settings = self._settings.llm
+        llm_settings = self._settings  # Settings class flat-inherits LLMSettings fields
         if not llm_settings.dictation_grader_enabled:
             return None
         if self._dictation_grader is not None:

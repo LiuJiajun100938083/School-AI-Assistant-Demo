@@ -659,7 +659,7 @@ class DictationService:
         if self._settings is None:
             return SubmissionStatus.GRADED
 
-        llm_settings = self._settings.llm
+        llm_settings = self._settings  # Settings flat-inherits LLMSettings
         if ocr_confidence < llm_settings.dictation_ocr_min_confidence:
             return SubmissionStatus.NEEDS_REVIEW
         if (
