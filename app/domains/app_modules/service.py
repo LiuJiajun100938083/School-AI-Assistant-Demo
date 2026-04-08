@@ -238,12 +238,31 @@ class AppModulesService:
         self._load()
 
     def _load(self) -> None:
-        """从文件加载配置，如不存在则使用默认配置"""
+        """从文件加载配置，如不存在则使用默认配置。
+
+        载入后会与 DEFAULT_APP_MODULES 合并：
+          - 若 JSON 缺少某个默认模块 id，自动追加
+          - 既有用户自订配置 (enabled/order/roles 等) 不会被覆写
+        这样新增模组(如 dictation)推送代码后，重启即可自动出现在首页。
+        """
         try:
             if os.path.exists(self._config_path):
                 with open(self._config_path, "r", encoding="utf-8") as f:
                     self._modules = json.load(f)
                 logger.info("应用模块配置已加载: %s", self._config_path)
+                # 合并新增的默认模块
+                existing_ids = {m.get("id") for m in self._modules}
+                new_mods = [
+                    deepcopy(m) for m in DEFAULT_APP_MODULES
+                    if m.get("id") not in existing_ids
+                ]
+                if new_mods:
+                    self._modules.extend(new_mods)
+                    self._save()
+                    logger.info(
+                        "已合并 %d 个新增默认模块: %s",
+                        len(new_mods), [m["id"] for m in new_mods],
+                    )
             else:
                 self._modules = deepcopy(DEFAULT_APP_MODULES)
                 self._save()
