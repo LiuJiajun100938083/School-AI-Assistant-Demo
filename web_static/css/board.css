@@ -1131,6 +1131,10 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
     background: #f9fafb;
     border-style: solid;
     border-color: var(--cb-border);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    box-shadow: 4px 0 12px -4px rgba(0,0,0,0.08);
 }
 .cb-group-col__head {
     display: flex;
