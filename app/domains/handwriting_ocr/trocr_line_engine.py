@@ -1,15 +1,15 @@
-"""TrOCR + doctr line-detection engine for English handwriting.
+"""TrOCR + OpenCV line-detection engine for English handwriting.
 
 Single responsibility: convert a handwritten English image into a literal
 plain-text transcription, with no language-model autocorrection.
 
 Pipeline:
   1. Preprocess image (HEIC/EXIF/resize) via shared preprocess_for_ocr
-  2. Detect text-line bounding boxes via doctr db_resnet50
-  3. Sort boxes into reading order (pure function box_sorter)
-  4. Crop each line and run TrOCR (greedy decoding, num_beams=1)
-  5. Join lines with newlines
-  6. Return HandwritingOCRResult
+  2. Detect text-line crops via OpenCV horizontal projection
+     (line_detector.detect_text_lines — no deep model, no extra deps)
+  3. Run TrOCR on each crop (greedy decoding, num_beams=1)
+  4. Join lines with newlines
+  5. Return HandwritingOCRResult
 
 Why greedy decoding (num_beams=1, do_sample=False, length_penalty=1.0):
   Beam search aggregates token-level scores across the whole sequence,
@@ -17,11 +17,17 @@ Why greedy decoding (num_beams=1, do_sample=False, length_penalty=1.0):
   argmax at every step in isolation, so the model can't reach back to
   smooth a misspelling into a real word.
 
+Why OpenCV instead of doctr:
+  doctr 1.0 needs numpy>=2 (we pin numpy 1.26.4); doctr 0.x backtracks
+  to broken shapely versions. Classical row-projection on adaptive-
+  thresholded handwriting works very well for the dictation use case
+  (students write on lined paper with clear spacing).
+
 Lazy loading:
-  All heavy model objects (TrOCR processor/model + doctr predictor) are
-  loaded inside an asyncio.Lock on first call. Subsequent calls reuse
-  the same instances. Container can call warm_up() at startup to avoid
-  paying the latency on the first user request.
+  TrOCR processor/model is loaded inside an asyncio.Lock on first call.
+  Subsequent calls reuse the same instances. Container can call
+  warm_up() at startup to avoid paying the latency on the first user
+  request.
 """
 
 from __future__ import annotations
@@ -35,14 +41,14 @@ from app.domains.handwriting_ocr.base import (
     HandwritingOCREngine,
     HandwritingOCRResult,
 )
-from app.domains.handwriting_ocr.box_sorter import group_boxes_by_line
+from app.domains.handwriting_ocr.line_detector import detect_text_lines
 from app.domains.handwriting_ocr.preprocess import preprocess_for_ocr
 
 logger = logging.getLogger(__name__)
 
 
 class TrocrLineEngine(HandwritingOCREngine):
-    """English handwriting OCR via doctr line detection + TrOCR."""
+    """English handwriting OCR via OpenCV line detection + TrOCR."""
 
     name = "trocr_local"
     supports = frozenset({"en"})
@@ -60,7 +66,6 @@ class TrocrLineEngine(HandwritingOCREngine):
         self._processor = None
         self._model = None
         self._device = None
-        self._detector = None
         self._init_lock = asyncio.Lock()
 
     # ---------- public API ----------
@@ -89,7 +94,7 @@ class TrocrLineEngine(HandwritingOCREngine):
             jpg = await preprocess_for_ocr(image_path)
 
             line_crops = await asyncio.get_event_loop().run_in_executor(
-                None, self._detect_and_crop_lines, jpg,
+                None, detect_text_lines, jpg,
             )
             if not line_crops:
                 # Detection found nothing → try recognizing the whole image
@@ -142,15 +147,14 @@ class TrocrLineEngine(HandwritingOCREngine):
     # ---------- model loading ----------
 
     async def _ensure_loaded(self) -> None:
-        if self._model is not None and self._detector is not None:
+        if self._model is not None:
             return
         async with self._init_lock:
-            if self._model is not None and self._detector is not None:
+            if self._model is not None:
                 return
             await asyncio.get_event_loop().run_in_executor(None, self._load_sync)
 
     def _load_sync(self) -> None:
-        import torch
         from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
         device = self._resolve_device()
@@ -166,15 +170,6 @@ class TrocrLineEngine(HandwritingOCREngine):
         self._model = model
         self._device = device
 
-        logger.info("loading doctr detection model db_resnet50")
-        try:
-            from doctr.models import detection_predictor
-            detector = detection_predictor(arch="db_resnet50", pretrained=True)
-        except Exception as e:
-            logger.error("doctr detection_predictor failed to load: %s", e)
-            raise
-        self._detector = detector
-
     def _resolve_device(self) -> str:
         import torch
         pref = (self._device_pref or "auto").lower()
@@ -186,88 +181,6 @@ class TrocrLineEngine(HandwritingOCREngine):
         if torch.cuda.is_available():
             return "cuda"
         return "cpu"
-
-    # ---------- detection + cropping ----------
-
-    def _detect_and_crop_lines(self, jpg_path: str):
-        """Run doctr detection and return list of cropped PIL.Image lines."""
-        import numpy as np
-        from PIL import Image
-
-        pil = Image.open(jpg_path).convert("RGB")
-        img = np.array(pil)
-        h, w = img.shape[:2]
-
-        # doctr expects a list of images; output is per-image dict with 'words' (or 'lines')
-        try:
-            outputs = self._detector([img])
-        except Exception as e:
-            logger.warning("doctr detection error on %s: %s", jpg_path, e)
-            return []
-
-        boxes_norm = self._extract_boxes(outputs)
-        if not boxes_norm:
-            return []
-
-        # Convert normalized [0..1] coords to pixels
-        boxes_px = []
-        for b in boxes_norm:
-            xmin = max(0.0, b[0]) * w
-            ymin = max(0.0, b[1]) * h
-            xmax = min(1.0, b[2]) * w
-            ymax = min(1.0, b[3]) * h
-            if xmax - xmin > 4 and ymax - ymin > 4:
-                boxes_px.append((xmin, ymin, xmax, ymax))
-
-        # Group into lines and merge each line into one wide crop
-        line_groups = group_boxes_by_line(boxes_px)
-
-        crops: List[Image.Image] = []
-        for group in line_groups:
-            xmin = min(b[0] for b in group)
-            ymin = min(b[1] for b in group)
-            xmax = max(b[2] for b in group)
-            ymax = max(b[3] for b in group)
-            # Padding helps TrOCR see the whole stroke
-            pad_x = (xmax - xmin) * 0.02 + 4
-            pad_y = (ymax - ymin) * 0.10 + 4
-            crop = pil.crop((
-                max(0, int(xmin - pad_x)),
-                max(0, int(ymin - pad_y)),
-                min(w, int(xmax + pad_x)),
-                min(h, int(ymax + pad_y)),
-            ))
-            crops.append(crop)
-        return crops
-
-    @staticmethod
-    def _extract_boxes(doctr_outputs):
-        """Pull (xmin, ymin, xmax, ymax) tuples from a doctr predictor result.
-
-        doctr's API has changed across versions. We try the most common
-        shapes and fall back to an empty list if none match.
-        """
-        boxes = []
-        try:
-            # New-style: list of np.ndarray of shape (N, 5) [xmin, ymin, xmax, ymax, prob]
-            arr = doctr_outputs[0] if isinstance(doctr_outputs, list) else doctr_outputs
-            if hasattr(arr, "shape") and arr.shape[-1] >= 4:
-                for row in arr:
-                    boxes.append((float(row[0]), float(row[1]), float(row[2]), float(row[3])))
-                return boxes
-        except Exception:
-            pass
-        try:
-            # Dict-style: {"words": np.ndarray}
-            d = doctr_outputs[0] if isinstance(doctr_outputs, list) else doctr_outputs
-            if isinstance(d, dict):
-                arr = d.get("words") or d.get("lines") or d.get("boxes")
-                if arr is not None:
-                    for row in arr:
-                        boxes.append((float(row[0]), float(row[1]), float(row[2]), float(row[3])))
-        except Exception:
-            pass
-        return boxes
 
     # ---------- recognition ----------
 

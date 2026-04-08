@@ -4,6 +4,11 @@ Single responsibility: take a list of detected boxes and return them in
 natural reading order (top-to-bottom, left-to-right within each line).
 
 No IO, no model dependencies — purely list/tuple math, easy to unit test.
+
+Currently unused by trocr_line_engine (which uses simple horizontal
+projection in line_detector.py). Kept here because it's the right
+utility for any future engine that returns word-level bounding boxes
+(e.g. PaddleOCR, Tesseract layout, etc.).
 """
 
 from __future__ import annotations

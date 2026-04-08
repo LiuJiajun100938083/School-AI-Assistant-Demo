@@ -28,11 +28,11 @@ transformers==4.48.3
 # PyTorch CPU-only (no CUDA, saves ~1.5GB)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.1.2
-# 默書 forensic OCR (TrOCR + doctr line detection)
-# 釘 doctr 0.10.0 — 最後一個完整相容 numpy 1.x 的版本
-# 1.0+ 要求 numpy>=2 與此專案 numpy==1.26.4 衝突,會導致 pip backtrack
-# 退到 shapely 2.0.4 (Python 3.13 無 wheel,build 失敗)
-python-doctr[torch]==0.10.0
+# 默書 forensic OCR (TrOCR + OpenCV line detection)
+# 不用 python-doctr — 1.0+ 要求 numpy>=2,跟專案 numpy==1.26.4 衝突,
+# 而 0.x 版本 backtrack 會帶到無 wheel 的 shapely 老版本。
+# 改用 opencv-python-headless 做簡易水平投影切行,輕量無依賴衝突。
+opencv-python-headless>=4.8,<5
 openai==1.61.0
 
 # HTTP requests

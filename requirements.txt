@@ -26,9 +26,8 @@ sentence-transformers==3.4.1
 chromadb==0.6.3
 transformers==4.48.3
 torch>=2.1.2
-# 默書 forensic OCR (TrOCR + doctr line detection)
-# 釘 0.10.0 — 與 numpy 1.26.4 相容,避免 pip backtrack 到無法建構的 shapely
-python-doctr[torch]==0.10.0
+# 默書 forensic OCR (TrOCR + OpenCV line detection)
+opencv-python-headless>=4.8,<5
 openai==1.61.0
 
 # HTTP requests
