@@ -34,12 +34,14 @@ class SubmissionStatus(str, Enum):
     """學生提交的處理狀態。
 
     狀態流:
-      submitted → ocr_processing → graded
-                                ↘ ocr_failed (可重新 OCR)
+      submitted → ocr_processing ─┬─▶ graded
+                                  ├─▶ needs_review  (信心不足,需老師複核)
+                                  └─▶ ocr_failed    (可重新 OCR)
     """
     SUBMITTED = "submitted"
     OCR_PROCESSING = "ocr_processing"
     GRADED = "graded"
+    NEEDS_REVIEW = "needs_review"
     OCR_FAILED = "ocr_failed"
 
 

@@ -604,7 +604,7 @@ class DictationService:
         diff: Dict[str, Any],
         grading: Optional[GradingResult],
     ) -> None:
-        """落庫:OCR 結果 + diff + LLM 判分,並轉狀態為 graded。
+        """落庫:OCR 結果 + diff + LLM 判分,並由 _decide_final_status 決定狀態。
 
         分數規則:有 grader 結果用 grader.score,否則用 difflib accuracy。
         """
@@ -617,9 +617,13 @@ class DictationService:
             score = diff["accuracy"]
             grading_dict = None
 
+        final_status = self._decide_final_status(
+            ocr_confidence=ocr_confidence, grading=grading,
+        )
+
         self._sub_repo.update(
             data={
-                "status": SubmissionStatus.GRADED.value,
+                "status": final_status.value,
                 "ocr_text": ocr_text,
                 "ocr_engine": ocr_engine,
                 "ocr_confidence": round(ocr_confidence, 3),
@@ -638,6 +642,33 @@ class DictationService:
             where="id = %s",
             params=(submission_id,),
         )
+
+    def _decide_final_status(
+        self,
+        *,
+        ocr_confidence: float,
+        grading: Optional[GradingResult],
+    ) -> SubmissionStatus:
+        """根據 OCR / grader 信心判斷最終狀態。
+
+        - OCR 信心 < settings.dictation_ocr_min_confidence → needs_review
+        - grader 存在但失敗 → graded (我們已 fallback 到 difflib 分數,信任機械結果)
+        - grader 成功但信心 < settings.dictation_grader_min_confidence → needs_review
+        - 否則 → graded
+        """
+        if self._settings is None:
+            return SubmissionStatus.GRADED
+
+        llm_settings = self._settings.llm
+        if ocr_confidence < llm_settings.dictation_ocr_min_confidence:
+            return SubmissionStatus.NEEDS_REVIEW
+        if (
+            grading is not None
+            and grading.success
+            and grading.confidence < llm_settings.dictation_grader_min_confidence
+        ):
+            return SubmissionStatus.NEEDS_REVIEW
+        return SubmissionStatus.GRADED
 
     def _mark_failed(self, submission_id: int, reason: str) -> None:
         self._sub_repo.update(
