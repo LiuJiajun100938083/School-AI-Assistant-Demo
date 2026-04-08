@@ -146,7 +146,19 @@
 }
 .gs-msg--ai {
     max-width: 95%;
+    overflow-wrap: anywhere;
 }
+/* markdown 內容不溢出氣泡 */
+.gs-msg__body { min-width: 0; }
+.gs-msg__body ul,
+.gs-msg__body ol {
+    padding-left: 20px;
+    margin: 6px 0;
+}
+.gs-msg__body li { margin: 2px 0; }
+.gs-msg__body p { margin: 6px 0; }
+.gs-msg__body p:first-child { margin-top: 0; }
+.gs-msg__body p:last-child { margin-bottom: 0; }
 .gs-msg--system {
     align-self: center;
     background: var(--gs-brand-light);
