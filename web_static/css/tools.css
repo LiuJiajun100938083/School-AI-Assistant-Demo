@@ -204,6 +204,9 @@ button { font-family: inherit; -webkit-appearance: none; }
 
 /* ── Drop zone ── */
 .tools-drop {
+    display: block;                  /* label 預設 inline,會被包成細長條 */
+    width: 100%;
+    box-sizing: border-box;
     border: 2px dashed var(--tools-border);
     border-radius: 12px;
     padding: 40px 20px;
@@ -212,6 +215,9 @@ button { font-family: inherit; -webkit-appearance: none; }
     cursor: pointer;
     transition: all 0.15s ease;
     background: var(--tools-bg);
+}
+.tools-drop > div {
+    margin: 4px 0;
 }
 .tools-drop:hover,
 .tools-drop.drag-over {
