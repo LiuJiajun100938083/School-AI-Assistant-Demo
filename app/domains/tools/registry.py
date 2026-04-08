@@ -37,6 +37,15 @@ TOOLS: List[ToolSpec] = [
         page_url="/tools/pdf-merge",
         needs_backend=True,
     ),
+    ToolSpec(
+        id="tool_countdown",
+        name_zh="倒數計時器",
+        name_en="Countdown Timer",
+        description_zh="課堂計時大字顯示,支援全螢幕投影",
+        description_en="Classroom countdown with large display",
+        page_url="/tools/countdown",
+        needs_backend=False,
+    ),
 ]
 
 

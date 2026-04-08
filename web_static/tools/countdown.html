@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title data-i18n="tools.cd.title">倒數計時器</title>
+
+    <!-- 專案 design tokens + 本頁專屬樣式 -->
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+    <link rel="stylesheet" href="/static/css/tools_countdown.css">
+
+    <!-- 大字顯示專用字體:DM Sans (UI) + 大字用 tabular-nums system stack -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+</head>
+<body class="cd-body">
+    <!-- ── Header (idle 時顯示,全屏時隱藏) ── -->
+    <header class="cd-header" id="cdHeader">
+        <a href="/" class="cd-header__back" aria-label="返回">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span data-i18n="tools.back">返回</span>
+        </a>
+        <span class="cd-header__title" data-i18n="tools.cd.title">倒數計時器</span>
+        <button id="cdFullscreen" class="cd-iconbtn" aria-label="全螢幕" title="F">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+    </header>
+
+    <!-- ── 主舞台 ── -->
+    <main class="cd-stage" id="cdStage">
+
+        <!-- 時間顯示區 (hero) -->
+        <div class="cd-display" id="cdDisplay">
+            <!-- 狀態標籤 (running/paused/finished) -->
+            <div class="cd-statebadge" id="cdStateBadge"></div>
+
+            <!-- 進度圓環 + 巨大數字 -->
+            <div class="cd-ring-wrap">
+                <svg class="cd-ring" viewBox="0 0 400 400" aria-hidden="true">
+                    <circle class="cd-ring__track" cx="200" cy="200" r="184" />
+                    <circle class="cd-ring__progress" id="cdRingProgress" cx="200" cy="200" r="184" />
+                </svg>
+                <div class="cd-time" id="cdTime" aria-live="polite">00:00</div>
+            </div>
+
+            <!-- 剩餘比例 / 目標時長 小字 -->
+            <div class="cd-meta">
+                <span id="cdTarget" class="cd-meta__target">—</span>
+            </div>
+        </div>
+
+        <!-- 控制區 -->
+        <section class="cd-controls" id="cdControls">
+            <!-- Preset 快速選擇 -->
+            <div class="cd-presets" id="cdPresets">
+                <button data-sec="60"   class="cd-preset">1 <small data-i18n="tools.cd.min">分</small></button>
+                <button data-sec="180"  class="cd-preset">3 <small data-i18n="tools.cd.min">分</small></button>
+                <button data-sec="300"  class="cd-preset">5 <small data-i18n="tools.cd.min">分</small></button>
+                <button data-sec="600"  class="cd-preset">10 <small data-i18n="tools.cd.min">分</small></button>
+                <button data-sec="900"  class="cd-preset">15 <small data-i18n="tools.cd.min">分</small></button>
+                <button data-sec="1200" class="cd-preset">20 <small data-i18n="tools.cd.min">分</small></button>
+                <button data-sec="1800" class="cd-preset">30 <small data-i18n="tools.cd.min">分</small></button>
+                <button data-sec="2700" class="cd-preset">45 <small data-i18n="tools.cd.min">分</small></button>
+            </div>
+
+            <!-- 自訂輸入 -->
+            <div class="cd-custom">
+                <div class="cd-custom__field">
+                    <input type="number" id="cdInHH" class="cd-custom__input" min="0" max="23" value="0" inputmode="numeric" aria-label="hours">
+                    <span class="cd-custom__label" data-i18n="tools.cd.hour">時</span>
+                </div>
+                <span class="cd-custom__sep">:</span>
+                <div class="cd-custom__field">
+                    <input type="number" id="cdInMM" class="cd-custom__input" min="0" max="59" value="5" inputmode="numeric" aria-label="minutes">
+                    <span class="cd-custom__label" data-i18n="tools.cd.min">分</span>
+                </div>
+                <span class="cd-custom__sep">:</span>
+                <div class="cd-custom__field">
+                    <input type="number" id="cdInSS" class="cd-custom__input" min="0" max="59" value="0" inputmode="numeric" aria-label="seconds">
+                    <span class="cd-custom__label" data-i18n="tools.cd.sec">秒</span>
+                </div>
+                <button id="cdSetCustom" class="cd-btn cd-btn--ghost" data-i18n="tools.cd.setCustom">設定</button>
+            </div>
+
+            <!-- 主控按鈕 -->
+            <div class="cd-actions">
+                <button id="cdStart" class="cd-btn cd-btn--primary cd-btn--lg">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <span data-i18n="tools.cd.start">開始</span>
+                </button>
+                <button id="cdPause" class="cd-btn cd-btn--warning cd-btn--lg" style="display:none">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                    <span data-i18n="tools.cd.pause">暫停</span>
+                </button>
+                <button id="cdResume" class="cd-btn cd-btn--primary cd-btn--lg" style="display:none">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <span data-i18n="tools.cd.resume">繼續</span>
+                </button>
+                <button id="cdReset" class="cd-btn cd-btn--lg">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 10 9 10"/></svg>
+                    <span data-i18n="tools.cd.reset">重設</span>
+                </button>
+                <button id="cdMute" class="cd-btn" aria-pressed="false">
+                    <svg id="cdMuteIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                    <span data-i18n="tools.cd.sound">音效</span>
+                </button>
+            </div>
+
+            <!-- 鍵盤提示 -->
+            <div class="cd-hint">
+                <kbd>Space</kbd> <span data-i18n="tools.cd.hintStart">開始 / 暫停</span>
+                <span class="cd-hint__sep">·</span>
+                <kbd>R</kbd> <span data-i18n="tools.cd.hintReset">重設</span>
+                <span class="cd-hint__sep">·</span>
+                <kbd>F</kbd> <span data-i18n="tools.cd.hintFull">全螢幕</span>
+            </div>
+        </section>
+    </main>
+
+    <!-- ── 時間到 overlay ── -->
+    <div class="cd-done" id="cdDone" hidden>
+        <div class="cd-done__content">
+            <div class="cd-done__icon">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="16 12 12 16 8 12"/>
+                    <line x1="12" y1="8" x2="12" y2="16"/>
+                </svg>
+            </div>
+            <div class="cd-done__title" data-i18n="tools.cd.done">時間到</div>
+            <button class="cd-btn cd-btn--primary cd-btn--lg" onclick="document.getElementById('cdDone').hidden=true">
+                <span data-i18n="tools.cd.dismiss">知道了</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/tools.js"></script>
+    <script src="/static/js/tools_common.js"></script>
+    <script src="/static/js/tools_countdown.js"></script>
+</body>
+</html>

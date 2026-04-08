@@ -119,6 +119,11 @@ async def tool_pdf_merge_page():
     return _serve_page("tools/pdf_merge.html")
 
 
+@router.get("/tools/countdown")
+async def tool_countdown_page():
+    return _serve_page("tools/countdown.html")
+
+
 @router.get("/student-report")
 async def student_report():
     """学生分析报告页"""
