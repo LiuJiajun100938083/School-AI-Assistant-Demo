@@ -380,11 +380,21 @@
     }
 
     // ── Canvas ──
+    let _zoom = 1;
     function renderCanvas(state) {
         const body = $('#boardBody');
         body.className = 'cb-workspace__body';
-        body.innerHTML = '<div class="cb-canvas" id="cbCanvas"></div>';
+        body.innerHTML = `
+            <div class="cb-canvas-viewport" id="cbViewport">
+                <div class="cb-canvas" id="cbCanvas"></div>
+                <div class="cb-canvas-hint">拖曳空白處平移　·　Ctrl+滾輪縮放</div>
+                <div class="cb-zoom-indicator" id="cbZoom">100%</div>
+            </div>`;
         const canvas = $('#cbCanvas');
+        const viewport = $('#cbViewport');
+        canvas.style.transform = `scale(${_zoom})`;
+        $('#cbZoom').textContent = Math.round(_zoom * 100) + '%';
+
         sortedPosts(state.posts).forEach((p, i) => {
             const el = makePostEl(p);
             const x = p.canvas_x != null ? p.canvas_x : (40 + (i % 5) * 260);
@@ -396,6 +406,56 @@
             attachDragHandlers(el, p);
             canvas.appendChild(el);
         });
+
+        attachPanHandlers(viewport);
+        attachZoomHandlers(viewport, canvas);
+    }
+
+    function attachPanHandlers(viewport) {
+        let panning = false;
+        let sx = 0, sy = 0, sl = 0, st = 0;
+        viewport.addEventListener('pointerdown', (e) => {
+            // 只在空白處按下才平移;點到貼文走 post 的 drag
+            if (e.target.closest('.cb-post')) return;
+            panning = true;
+            viewport.classList.add('panning');
+            viewport.setPointerCapture(e.pointerId);
+            sx = e.clientX; sy = e.clientY;
+            sl = viewport.scrollLeft; st = viewport.scrollTop;
+            e.preventDefault();
+        });
+        viewport.addEventListener('pointermove', (e) => {
+            if (!panning) return;
+            viewport.scrollLeft = sl - (e.clientX - sx);
+            viewport.scrollTop = st - (e.clientY - sy);
+        });
+        const end = () => {
+            if (!panning) return;
+            panning = false;
+            viewport.classList.remove('panning');
+        };
+        viewport.addEventListener('pointerup', end);
+        viewport.addEventListener('pointercancel', end);
+        viewport.addEventListener('pointerleave', end);
+    }
+
+    function attachZoomHandlers(viewport, canvas) {
+        viewport.addEventListener('wheel', (e) => {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            e.preventDefault();
+            const rect = viewport.getBoundingClientRect();
+            const mx = e.clientX - rect.left + viewport.scrollLeft;
+            const my = e.clientY - rect.top + viewport.scrollTop;
+            const prev = _zoom;
+            _zoom = Math.max(0.25, Math.min(2, _zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+            canvas.style.transform = `scale(${_zoom})`;
+            // 以游標為中心縮放:調整 scroll 使焦點不動
+            const ratio = _zoom / prev;
+            viewport.scrollLeft = mx * ratio - (e.clientX - rect.left);
+            viewport.scrollTop = my * ratio - (e.clientY - rect.top);
+            const ind = $('#cbZoom');
+            if (ind) ind.textContent = Math.round(_zoom * 100) + '%';
+        }, { passive: false });
     }
 
     function attachDragHandlers(el, p) {
@@ -417,8 +477,8 @@
         el.addEventListener('pointermove', (e) => {
             if (!dragging) return;
             el.style.transition = 'none';  // 每幀冪等重置,抵擋任何 echo 造成的 stale transition
-            const nx = origX + e.clientX - startX;
-            const ny = origY + e.clientY - startY;
+            const nx = origX + (e.clientX - startX) / _zoom;
+            const ny = origY + (e.clientY - startY) / _zoom;
             el.style.left = nx + 'px';
             el.style.top = ny + 'px';
             // throttled WS 廣播 — 他人即時滑動
