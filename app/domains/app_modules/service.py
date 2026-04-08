@@ -192,6 +192,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "dictation",
+        "name": "英文默書",
+        "icon": "✍️",
+        "description": "老師上傳原文,學生拍照上交,AI 自動比對批改",
+        "url": "/dictation",
+        "roles": ["student", "teacher", "admin"],
+        "enabled": True,
+        "order": 14,
+        "category": "teaching",
+    },
+    {
         "id": "exam_creator",
         "name": "AI 出題輔助器",
         "icon": "",

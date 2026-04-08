@@ -277,6 +277,12 @@ async def assignment_page():
     return _serve_page("assignment.html")
 
 
+@router.get("/dictation")
+async def dictation_page():
+    """英文默書頁"""
+    return _serve_page("dictation.html")
+
+
 @router.get("/exam-creator")
 async def exam_creator_page():
     """AI 考卷出題"""

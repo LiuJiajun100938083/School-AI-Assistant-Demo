@@ -148,6 +148,12 @@ from app.domains.llm_usage.service import LlmUsageService
 from app.domains.chem2048.service import Chem2048Service
 from app.domains.assignment.service import AssignmentService
 from app.domains.assignment.plagiarism_service import PlagiarismService
+from app.domains.dictation.repository import (
+    DictationRepository,
+    DictationSubmissionFileRepository,
+    DictationSubmissionRepository,
+)
+from app.domains.dictation.service import DictationService
 from app.domains.class_diary.service import ClassDiaryService
 from app.domains.image_gen.service import ImageGenService
 from app.domains.resource_library.service import ResourceLibraryService
@@ -212,6 +218,7 @@ class ServiceContainer:
         self._resource_library: Optional[ResourceLibraryService] = None
         self._exam_creator: Optional[ExamCreatorService] = None
         self._risk_cache: Optional[RiskCacheService] = None
+        self._dictation: Optional[DictationService] = None
 
     # ================================================================== #
     #  Service 属性（延迟初始化）                                           #
@@ -544,6 +551,18 @@ class ServiceContainer:
         if self._vision is None:
             self._vision = VisionService()
         return self._vision
+
+    @property
+    def dictation(self) -> DictationService:
+        """英文默書服務"""
+        if self._dictation is None:
+            self._dictation = DictationService(
+                dictation_repo=self._get_repo(DictationRepository),
+                submission_repo=self._get_repo(DictationSubmissionRepository),
+                file_repo=self._get_repo(DictationSubmissionFileRepository),
+                vision_service=self.vision,
+            )
+        return self._dictation
 
     # ================================================================== #
     #  外部依赖注入                                                        #

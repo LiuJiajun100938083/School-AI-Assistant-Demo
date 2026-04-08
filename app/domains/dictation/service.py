@@ -1,0 +1,545 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+英文默書模組 Service
+====================
+業務層（含權限、狀態流、背景 OCR 任務），不直接碰 SQL、
+不直接拼 HTTP 回應；SQL 走 repository，輸入輸出用 dict / schema。
+
+狀態機:
+    submission.status:
+        submitted → ocr_processing → graded
+                                  ↘ ocr_failed (可 re-ocr)
+
+背景任務:
+    submit_dictation() 會 schedule _process_submission_ocr()；
+    用 asyncio.create_task，單機單 worker 情境下足夠；
+    若未來要放多 worker / queue，只改這一個 schedule 點。
+"""
+
+import asyncio
+import json
+import logging
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from fastapi import UploadFile
+
+from app.core.exceptions import (
+    AuthorizationError,
+    NotFoundError,
+    ValidationError,
+)
+from app.domains.dictation.comparator import compare_dictation
+from app.domains.dictation.constants import (
+    MAX_FILE_SIZE,
+    MAX_FILES_PER_SUBMISSION,
+    SUPPORTED_IMAGE_EXTS,
+    UPLOAD_DIR,
+    DictationStatus,
+    SubmissionStatus,
+)
+from app.domains.dictation.repository import (
+    DictationRepository,
+    DictationSubmissionFileRepository,
+    DictationSubmissionRepository,
+)
+from app.domains.vision.service import VisionService
+
+logger = logging.getLogger(__name__)
+
+
+class DictationService:
+    """英文默書業務層"""
+
+    def __init__(
+        self,
+        dictation_repo: DictationRepository,
+        submission_repo: DictationSubmissionRepository,
+        file_repo: DictationSubmissionFileRepository,
+        vision_service: VisionService,
+    ):
+        self._dict_repo = dictation_repo
+        self._sub_repo = submission_repo
+        self._file_repo = file_repo
+        self._vision = vision_service
+
+        # 確保上傳資料夾存在
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ================================================================
+    # 老師端：CRUD
+    # ================================================================
+
+    def create_dictation(
+        self,
+        teacher_id: int,
+        teacher_name: str,
+        title: str,
+        reference_text: str,
+        description: str = "",
+        target_type: str = "all",
+        target_value: str = "",
+        deadline: Optional[datetime] = None,
+        allow_late: bool = False,
+    ) -> Dict[str, Any]:
+        """建立默書草稿"""
+        if not title.strip():
+            raise ValidationError("標題不能為空")
+        if not reference_text.strip():
+            raise ValidationError("默書原文不能為空")
+
+        dictation_id = self._dict_repo.insert_get_id({
+            "title": title.strip(),
+            "description": description or "",
+            "reference_text": reference_text.strip(),
+            "created_by": teacher_id,
+            "created_by_name": teacher_name,
+            "target_type": target_type,
+            "target_value": target_value or "",
+            "status": DictationStatus.DRAFT.value,
+            "deadline": deadline,
+            "allow_late": 1 if allow_late else 0,
+        })
+        logger.info("老師 %s 建立默書 #%d: %s", teacher_name, dictation_id, title)
+        return self.get_dictation_detail(dictation_id)
+
+    def update_dictation(
+        self, dictation_id: int, teacher_id: int, data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        self._get_dictation_or_raise(dictation_id, owner_id=teacher_id)
+        update_data = {k: v for k, v in data.items() if v is not None}
+        if not update_data:
+            return self.get_dictation_detail(dictation_id)
+
+        if "allow_late" in update_data:
+            update_data["allow_late"] = 1 if update_data["allow_late"] else 0
+
+        self._dict_repo.update(
+            data=update_data, where="id = %s", params=(dictation_id,),
+        )
+        return self.get_dictation_detail(dictation_id)
+
+    def publish_dictation(self, dictation_id: int, teacher_id: int) -> Dict[str, Any]:
+        self._get_dictation_or_raise(dictation_id, owner_id=teacher_id)
+        self._dict_repo.update(
+            data={
+                "status": DictationStatus.PUBLISHED.value,
+                "published_at": datetime.now(),
+            },
+            where="id = %s",
+            params=(dictation_id,),
+        )
+        return self.get_dictation_detail(dictation_id)
+
+    def close_dictation(self, dictation_id: int, teacher_id: int) -> Dict[str, Any]:
+        self._get_dictation_or_raise(dictation_id, owner_id=teacher_id)
+        self._dict_repo.update(
+            data={"status": DictationStatus.CLOSED.value},
+            where="id = %s",
+            params=(dictation_id,),
+        )
+        return self.get_dictation_detail(dictation_id)
+
+    def delete_dictation(self, dictation_id: int, teacher_id: int) -> bool:
+        self._get_dictation_or_raise(dictation_id, owner_id=teacher_id)
+        self._dict_repo.soft_delete_by_id(dictation_id)
+        return True
+
+    def list_teacher_dictations(
+        self, teacher_id: int, status: str = "",
+        page: int = 1, page_size: int = 20,
+    ) -> Dict[str, Any]:
+        return self._dict_repo.find_active(
+            status=status,
+            created_by=teacher_id,
+            page=page,
+            page_size=page_size,
+        )
+
+    def get_dictation_detail(
+        self, dictation_id: int, include_reference: bool = True,
+    ) -> Dict[str, Any]:
+        row = self._dict_repo.find_by_id(dictation_id)
+        if not row or row.get("is_deleted"):
+            raise NotFoundError("默書不存在")
+
+        if not include_reference:
+            row = dict(row)
+            row["reference_text"] = ""
+
+        # 附上提交統計
+        stats = self._dict_repo.raw_query_one(
+            "SELECT COUNT(*) AS total, "
+            "SUM(CASE WHEN status = 'graded' THEN 1 ELSE 0 END) AS graded "
+            "FROM dictation_submissions WHERE dictation_id = %s",
+            (dictation_id,),
+        ) or {}
+        row["submission_total"] = int(stats.get("total") or 0)
+        row["submission_graded"] = int(stats.get("graded") or 0)
+        return row
+
+    # ================================================================
+    # 學生端：列表與提交
+    # ================================================================
+
+    def list_student_dictations(
+        self, student_id: int, student_class: str = "", student_username: str = "",
+    ) -> List[Dict[str, Any]]:
+        items = self._dict_repo.find_published_for_student(
+            student_id=student_id,
+            student_class=student_class,
+            student_username=student_username,
+        )
+        # 附上該生的 submission 狀態
+        for it in items:
+            sub = self._sub_repo.find_by_dictation_student(it["id"], student_id)
+            it["my_submission"] = _minimal_submission(sub) if sub else None
+            # 學生列表不回傳 reference_text（避免洩題）
+            it["reference_text"] = ""
+        return items
+
+    async def submit_dictation(
+        self,
+        dictation_id: int,
+        student: Dict[str, Any],
+        files: List[UploadFile],
+    ) -> Dict[str, Any]:
+        """學生提交默書 (拍照上傳)。
+
+        步驟:
+            1. 權限/狀態/截止日期檢查
+            2. 儲存檔案
+            3. 建立/覆寫 submission 記錄 (狀態 ocr_processing)
+            4. 背景啟動 OCR + 比對任務
+            5. 立即回傳 submission (前端可 poll 狀態)
+        """
+        dictation = self._get_dictation_or_raise(dictation_id)
+
+        if dictation["status"] != DictationStatus.PUBLISHED.value:
+            raise ValidationError("該默書尚未發布或已關閉")
+
+        # 截止日期檢查
+        if dictation.get("deadline") and not dictation.get("allow_late"):
+            deadline = dictation["deadline"]
+            if isinstance(deadline, str):
+                deadline = datetime.fromisoformat(deadline)
+            if datetime.now() > deadline:
+                raise ValidationError("已過截止日期")
+
+        if not files:
+            raise ValidationError("至少需上傳一張圖片")
+        if len(files) > MAX_FILES_PER_SUBMISSION:
+            raise ValidationError(
+                f"最多只能上傳 {MAX_FILES_PER_SUBMISSION} 張圖片",
+            )
+
+        student_id = student["id"]
+
+        # 若已有提交，刪舊檔記錄 & 重置欄位
+        existing = self._sub_repo.find_by_dictation_student(
+            dictation_id, student_id,
+        )
+        if existing:
+            submission_id = existing["id"]
+            self._sub_repo.update(
+                data={
+                    "status": SubmissionStatus.OCR_PROCESSING.value,
+                    "ocr_text": None,
+                    "diff_result": None,
+                    "score": None,
+                    "correct_count": None,
+                    "wrong_count": None,
+                    "missing_count": None,
+                    "extra_count": None,
+                    "teacher_feedback": None,
+                    "submitted_at": datetime.now(),
+                    "graded_at": None,
+                },
+                where="id = %s",
+                params=(submission_id,),
+            )
+            self._file_repo.delete_by_submission(submission_id)
+        else:
+            submission_id = self._sub_repo.insert_get_id({
+                "dictation_id": dictation_id,
+                "student_id": student_id,
+                "student_name": student.get("display_name", ""),
+                "username": student.get("username", ""),
+                "class_name": student.get("class_name", ""),
+                "status": SubmissionStatus.OCR_PROCESSING.value,
+                "submitted_at": datetime.now(),
+            })
+
+        # 儲存檔案（依序 await）
+        saved_files: List[Dict[str, Any]] = []
+        for page_order, f in enumerate(files):
+            saved = await self._save_upload_file(submission_id, f, page_order)
+            saved_files.append(saved)
+
+        logger.info(
+            "學生 %s 提交默書 #%d (%d 張圖)",
+            student.get("username"), dictation_id, len(saved_files),
+        )
+
+        # 背景啟動 OCR 任務 (fire-and-forget)
+        asyncio.create_task(self._process_submission_ocr(submission_id))
+
+        return self.get_submission_detail(
+            submission_id, viewer_is_student=True, reveal_reference=False,
+        )
+
+    async def _save_upload_file(
+        self, submission_id: int, file: UploadFile, page_order: int,
+    ) -> Dict[str, Any]:
+        original_name = file.filename or "unnamed"
+        ext = Path(original_name).suffix.lower()
+        if ext not in SUPPORTED_IMAGE_EXTS:
+            raise ValidationError(f"不支援的圖片格式: {ext}")
+
+        content = await file.read()
+        size = len(content)
+        if size > MAX_FILE_SIZE:
+            raise ValidationError(
+                f"檔案過大 (上限 {MAX_FILE_SIZE // 1024 // 1024}MB)",
+            )
+
+        stored_name = f"{uuid.uuid4().hex}{ext}"
+        path = UPLOAD_DIR / stored_name
+        with open(path, "wb") as fh:
+            fh.write(content)
+
+        file_id = self._file_repo.insert_get_id({
+            "submission_id": submission_id,
+            "original_name": original_name,
+            "stored_name": stored_name,
+            "file_path": f"uploads/dictation/{stored_name}",
+            "file_size": size,
+            "page_order": page_order,
+        })
+        return {
+            "id": file_id,
+            "original_name": original_name,
+            "stored_name": stored_name,
+            "file_path": f"uploads/dictation/{stored_name}",
+            "file_size": size,
+            "page_order": page_order,
+        }
+
+    # ================================================================
+    # 核心流程：背景 OCR + 比對
+    # ================================================================
+
+    async def _process_submission_ocr(self, submission_id: int) -> None:
+        """執行單份 submission 的 OCR + 比對 + 落庫。
+
+        這裡是唯一一處呼叫 VisionService 的點；未來若要換 provider
+        或加 cache，只改這個方法。
+        """
+        try:
+            submission = self._sub_repo.find_by_id(submission_id)
+            if not submission:
+                logger.warning("OCR 任務找不到 submission #%d", submission_id)
+                return
+
+            dictation = self._dict_repo.find_by_id(submission["dictation_id"])
+            if not dictation:
+                logger.warning("OCR 任務找不到 dictation #%d", submission["dictation_id"])
+                return
+
+            files = self._file_repo.find_by_submission(submission_id)
+            if not files:
+                self._mark_failed(submission_id, "沒有上傳圖片")
+                return
+
+            # 逐張 OCR，合併 answer_text
+            ocr_pieces: List[str] = []
+            base_dir = Path(__file__).resolve().parent.parent.parent.parent
+            for f in files:
+                image_path = str(base_dir / f["file_path"])
+                result = await self._run_ocr(image_path)
+                text = (result.answer_text or result.raw_text or "").strip()
+                if text:
+                    ocr_pieces.append(text)
+
+            merged_ocr = "\n".join(ocr_pieces).strip()
+            if not merged_ocr:
+                self._mark_failed(submission_id, "OCR 未辨識到任何文字")
+                return
+
+            diff = compare_dictation(
+                reference=dictation["reference_text"],
+                ocr=merged_ocr,
+            )
+
+            self._sub_repo.update(
+                data={
+                    "status": SubmissionStatus.GRADED.value,
+                    "ocr_text": merged_ocr,
+                    "diff_result": json.dumps(diff, ensure_ascii=False),
+                    "score": diff["accuracy"],
+                    "correct_count": diff["correct_count"],
+                    "wrong_count": diff["wrong_count"],
+                    "missing_count": diff["missing_count"],
+                    "extra_count": diff["extra_count"],
+                    "graded_at": datetime.now(),
+                },
+                where="id = %s",
+                params=(submission_id,),
+            )
+            logger.info(
+                "默書 submission #%d OCR 完成 accuracy=%.1f%%",
+                submission_id, diff["accuracy"],
+            )
+
+        except Exception as e:  # 兜底：任何錯誤都要把狀態落地，避免卡在 processing
+            logger.exception("默書 OCR 處理失敗 submission=%s", submission_id)
+            self._mark_failed(submission_id, f"OCR 失敗: {e}")
+
+    async def _run_ocr(self, image_path: str):
+        """所有 OCR 呼叫收口在這裡 — 未來換 provider 只改此處。"""
+        return await self._vision.recognize_english_dictation(image_path)
+
+    def _mark_failed(self, submission_id: int, reason: str) -> None:
+        self._sub_repo.update(
+            data={
+                "status": SubmissionStatus.OCR_FAILED.value,
+                "teacher_feedback": reason,
+            },
+            where="id = %s",
+            params=(submission_id,),
+        )
+
+    async def reprocess_submission(self, submission_id: int, teacher_id: int) -> Dict[str, Any]:
+        submission = self._sub_repo.find_by_id(submission_id)
+        if not submission:
+            raise NotFoundError("提交不存在")
+        self._get_dictation_or_raise(submission["dictation_id"], owner_id=teacher_id)
+
+        self._sub_repo.update(
+            data={"status": SubmissionStatus.OCR_PROCESSING.value},
+            where="id = %s",
+            params=(submission_id,),
+        )
+        asyncio.create_task(self._process_submission_ocr(submission_id))
+        return self.get_submission_detail(submission_id, viewer_is_student=False)
+
+    # ================================================================
+    # 查詢：提交
+    # ================================================================
+
+    def list_submissions(self, dictation_id: int, teacher_id: int) -> List[Dict[str, Any]]:
+        self._get_dictation_or_raise(dictation_id, owner_id=teacher_id)
+        rows = self._sub_repo.find_by_dictation(dictation_id)
+        # 去掉 diff_result JSON 字串以減輕列表負擔
+        for r in rows:
+            r.pop("diff_result", None)
+            r.pop("ocr_text", None)
+        return rows
+
+    def get_submission_detail(
+        self,
+        submission_id: int,
+        viewer_is_student: bool = False,
+        reveal_reference: bool = True,
+    ) -> Dict[str, Any]:
+        submission = self._sub_repo.find_by_id(submission_id)
+        if not submission:
+            raise NotFoundError("提交不存在")
+
+        dictation = self._dict_repo.find_by_id(submission["dictation_id"])
+        files = self._file_repo.find_by_submission(submission_id)
+
+        # 解析 diff_result
+        diff = None
+        if submission.get("diff_result"):
+            try:
+                diff = json.loads(submission["diff_result"])
+            except Exception:
+                diff = None
+
+        result = dict(submission)
+        result["diff_result"] = diff
+        result["files"] = files
+        result["dictation_title"] = dictation["title"] if dictation else ""
+        # 學生端:只有批改完成才回傳原文
+        if dictation:
+            if reveal_reference and submission["status"] == SubmissionStatus.GRADED.value:
+                result["reference_text"] = dictation["reference_text"]
+            elif not viewer_is_student:
+                result["reference_text"] = dictation["reference_text"]
+            else:
+                result["reference_text"] = ""
+        return result
+
+    def override_submission(
+        self, submission_id: int, teacher_id: int, payload: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        submission = self._sub_repo.find_by_id(submission_id)
+        if not submission:
+            raise NotFoundError("提交不存在")
+        dictation = self._get_dictation_or_raise(
+            submission["dictation_id"], owner_id=teacher_id,
+        )
+
+        update: Dict[str, Any] = {}
+
+        # 如果老師手動修正 OCR,重新比對
+        if payload.get("manual_ocr_text") is not None:
+            new_ocr = payload["manual_ocr_text"]
+            diff = compare_dictation(dictation["reference_text"], new_ocr)
+            update.update({
+                "ocr_text": new_ocr,
+                "diff_result": json.dumps(diff, ensure_ascii=False),
+                "correct_count": diff["correct_count"],
+                "wrong_count": diff["wrong_count"],
+                "missing_count": diff["missing_count"],
+                "extra_count": diff["extra_count"],
+                "score": diff["accuracy"],
+                "status": SubmissionStatus.GRADED.value,
+                "graded_at": datetime.now(),
+            })
+
+        if payload.get("score") is not None:
+            update["score"] = float(payload["score"])
+        if payload.get("teacher_feedback") is not None:
+            update["teacher_feedback"] = payload["teacher_feedback"]
+
+        if not update:
+            return self.get_submission_detail(submission_id)
+
+        self._sub_repo.update(
+            data=update, where="id = %s", params=(submission_id,),
+        )
+        return self.get_submission_detail(submission_id)
+
+    # ================================================================
+    # 私有工具
+    # ================================================================
+
+    def _get_dictation_or_raise(
+        self, dictation_id: int, owner_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        row = self._dict_repo.find_by_id(dictation_id)
+        if not row or row.get("is_deleted"):
+            raise NotFoundError("默書不存在")
+        if owner_id is not None and row.get("created_by") != owner_id:
+            raise AuthorizationError("只有默書建立者可以操作")
+        return row
+
+
+# ─── module-level helper (純函式,無依賴) ────────────────────
+def _minimal_submission(sub: Dict[str, Any]) -> Dict[str, Any]:
+    """用於學生列表頁的精簡 submission 表示。"""
+    return {
+        "id": sub.get("id"),
+        "status": sub.get("status"),
+        "score": sub.get("score"),
+        "correct_count": sub.get("correct_count"),
+        "wrong_count": sub.get("wrong_count"),
+        "missing_count": sub.get("missing_count"),
+        "extra_count": sub.get("extra_count"),
+        "submitted_at": sub.get("submitted_at"),
+    }

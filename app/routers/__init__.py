@@ -55,6 +55,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.image_gen import router as image_gen_router
     from app.routers.resource_library import router as resource_library_router
     from app.routers.exam_creator import router as exam_creator_router
+    from app.routers.dictation import router as dictation_router
 
     app.include_router(auth_router)
     app.include_router(user_router)
@@ -85,6 +86,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(image_gen_router)
     app.include_router(resource_library_router)
     app.include_router(exam_creator_router)
+    app.include_router(dictation_router)
 
     logger.info("核心路由已注册: auth, user, chat, classroom, analytics, subject, notice, system, pages, app_modules, learning_task, mistake_book, ai_learning_center, teacher_class, china_game, game_upload, learning_modes, chinese_learning, attendance, school_learning_center, trade_game, assignment, class_diary, image_gen")
 
@@ -568,7 +570,67 @@ def _run_schema_migrations() -> None:
             if "doesn't exist" not in str(ps_e):
                 logger.warning("practice_sessions 遷移跳過: %s", ps_e)
 
-        logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表)")
+        # ─── 英文默書表 ─────────────────────────────
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS dictations (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                title           VARCHAR(255) NOT NULL,
+                description     TEXT,
+                reference_text  MEDIUMTEXT NOT NULL         COMMENT '默書原文',
+                created_by      INT                         COMMENT '教師 user id',
+                created_by_name VARCHAR(100),
+                target_type     ENUM('all','class','student') DEFAULT 'all',
+                target_value    VARCHAR(255)                DEFAULT '',
+                status          ENUM('draft','published','closed') DEFAULT 'draft',
+                deadline        DATETIME                    DEFAULT NULL,
+                allow_late      TINYINT(1)                  DEFAULT 0,
+                published_at    DATETIME                    DEFAULT NULL,
+                is_deleted      TINYINT(1)                  DEFAULT 0,
+                created_at      DATETIME                    DEFAULT CURRENT_TIMESTAMP,
+                updated_at      DATETIME                    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_created_by (created_by),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS dictation_submissions (
+                id               INT AUTO_INCREMENT PRIMARY KEY,
+                dictation_id     INT NOT NULL,
+                student_id       INT NOT NULL,
+                student_name     VARCHAR(100)                DEFAULT '',
+                username         VARCHAR(100)                DEFAULT '',
+                class_name       VARCHAR(100)                DEFAULT '',
+                status           ENUM('submitted','ocr_processing','graded','ocr_failed') DEFAULT 'submitted',
+                ocr_text         MEDIUMTEXT                  DEFAULT NULL,
+                diff_result      JSON                        DEFAULT NULL,
+                score            DECIMAL(5,2)                DEFAULT NULL,
+                correct_count    INT                         DEFAULT NULL,
+                wrong_count      INT                         DEFAULT NULL,
+                missing_count    INT                         DEFAULT NULL,
+                extra_count      INT                         DEFAULT NULL,
+                teacher_feedback TEXT                        DEFAULT NULL,
+                submitted_at     DATETIME                    DEFAULT CURRENT_TIMESTAMP,
+                graded_at        DATETIME                    DEFAULT NULL,
+                UNIQUE KEY uk_dict_student (dictation_id, student_id),
+                INDEX idx_dictation (dictation_id),
+                INDEX idx_student (student_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS dictation_submission_files (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                submission_id INT NOT NULL,
+                original_name VARCHAR(255),
+                stored_name   VARCHAR(255),
+                file_path     VARCHAR(500),
+                file_size     INT                DEFAULT 0,
+                page_order    INT                DEFAULT 0,
+                uploaded_at   DATETIME           DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_submission (submission_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表 + 英文默書表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
 
