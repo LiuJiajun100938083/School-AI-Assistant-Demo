@@ -239,7 +239,7 @@ class CollabBoardService:
         post["liked_by_me"] = False
         post["comments"] = []
         names = self._repo.author_names([user["id"]])
-        post["author_name"] = names.get(user["id"], user.get("username", ""))
+        post["author_name"] = names.get(user["id"], (user.get("display_name") or user.get("username") or ""))
         self._publish(board_uuid, "post.created", {"post": post})
         return post
 
@@ -323,7 +323,7 @@ class CollabBoardService:
         policy.ensure_can_view(board, user)
         cid = self._repo.add_comment(post_id, user["id"], data.body)
         comment = self._repo.get_comment(cid) or {}
-        comment["author_name"] = user.get("username", "")
+        comment["author_name"] = (user.get("display_name") or user.get("username") or "")
         self._publish(board_uuid, "comment.added", {"post_id": post_id, "comment": comment})
         return comment
 

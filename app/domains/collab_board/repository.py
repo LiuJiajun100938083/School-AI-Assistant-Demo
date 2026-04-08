@@ -457,7 +457,7 @@ class CollabBoardRepository(BaseRepository):
     def comments_for_board(self, board_id: int) -> Dict[int, List[Dict[str, Any]]]:
         rows = self.pool.execute(
             """
-            SELECT c.*, u.username as author_name
+            SELECT c.*, COALESCE(u.display_name, u.username) as author_name
             FROM collab_board_comments c
             JOIN collab_board_posts p ON p.id = c.post_id
             LEFT JOIN users u ON u.id = c.author_id
@@ -476,11 +476,15 @@ class CollabBoardRepository(BaseRepository):
     # ============================================================
 
     def author_names(self, user_ids: List[int]) -> Dict[int, str]:
+        """回傳 {id: 顯示名}。優先 display_name,無則 fallback username。"""
         if not user_ids:
             return {}
         placeholders = ", ".join(["%s"] * len(user_ids))
         rows = self.pool.execute(
-            f"SELECT id, username FROM users WHERE id IN ({placeholders})",
+            f"SELECT id, username, display_name FROM users WHERE id IN ({placeholders})",
             tuple(user_ids),
         ) or []
-        return {r["id"]: r["username"] for r in rows}
+        return {
+            r["id"]: (r.get("display_name") or r.get("username") or "")
+            for r in rows
+        }
