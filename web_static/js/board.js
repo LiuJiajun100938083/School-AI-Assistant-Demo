@@ -69,7 +69,11 @@
             posts: [],
             onlineCount: 1,
             layout: 'grid',
-            me: null, // filled from posts
+            me: null,
+            sort: 'order_index',
+            query: '',
+            tagFilter: '',
+            expanded: new Set(),  // post id 展開狀態
         },
         _subs: new Set(),
         subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
@@ -234,51 +238,68 @@
         $('#btnAddSection').style.display = state.layout === 'shelf' ? 'inline-flex' : 'none';
     }
 
+    const REACTIONS = [
+        { kind: 'like',  emoji: '❤' },
+        { kind: 'heart', emoji: '💖' },
+        { kind: 'thumb', emoji: '👍' },
+        { kind: 'star',  emoji: '⭐' },
+        { kind: 'clap',  emoji: '👏' },
+        { kind: 'laugh', emoji: '😂' },
+    ];
+
     function renderPostInner(p) {
-        const liked = p.liked_by_me ? 'liked' : '';
-        const count = p.like_count || 0;
         const pending = p.status === 'pending' ? `<span class="cb-badge-pending">${i18n.t('cb.pendingBadge')}</span>` : '';
+        const pin = p.pinned ? `<span class="cb-badge-pin">📌 ${i18n.t('cb.pinned')}</span>` : '';
         const author = esc(p.author_name || i18n.t('cb.anonymous'));
 
-        let media = '';
-        if (p.kind === 'image' && p.media_url) {
-            media = `<div class="cb-post__media"><img src="${esc(p.media_url)}" loading="lazy"></div>`;
-        } else if (p.kind === 'file' && p.media_url) {
-            media = `<a class="cb-post__file" href="${esc(p.media_url)}" target="_blank">📎 ${esc(p.title || 'file')}</a>`;
-        } else if (p.kind === 'link' && p.link_url) {
-            const m = p.link_meta || {};
-            const thumb = m.image ? `<img class="cb-post__link-thumb" src="${esc(m.image)}">` : '';
-            media = `
-                <a class="cb-post__link" href="${esc(p.link_url)}" target="_blank" rel="noopener">
-                    ${thumb}
-                    <div class="cb-post__link-meta">
-                        <div class="cb-post__link-title">${esc(m.title || p.link_url)}</div>
-                        <div class="cb-post__link-desc">${esc(m.description || '')}</div>
-                    </div>
-                </a>`;
-        }
-
+        const media = _renderMedia(p);
         const title = p.title ? `<div class="cb-post__title">${esc(p.title)}</div>` : '';
-        const body = p.body ? `<div class="cb-post__body">${mdRender(p.body)}</div>` : '';
+        const expanded = store.state.expanded.has(p.id);
+        const longBody = (p.body || '').length > 280;
+        const bodyClass = (longBody && !expanded) ? 'cb-post__body collapsed' : 'cb-post__body';
+        const body = p.body
+            ? `<div class="${bodyClass}">${mdRender(p.body)}</div>` +
+              (longBody ? `<button class="cb-post__expand" data-action="toggle-expand">${expanded ? i18n.t('cb.collapse') : i18n.t('cb.expand')}</button>` : '')
+            : '';
+
+        const tags = (p.tags && p.tags.length)
+            ? `<div class="cb-post__tags">${p.tags.map(t => `<span class="cb-post__tag">#${esc(t)}</span>`).join('')}</div>`
+            : '';
+
         const moderateBtns = (p.status === 'pending')
             ? `<button data-action="approve">✓ ${i18n.t('cb.approve')}</button><button data-action="reject">✕ ${i18n.t('cb.reject')}</button>`
             : '';
-        const commentBody = (p.comments || []).map(c => `
-            <div class="cb-comment">
-                <span class="cb-comment__author">${esc(c.author_name || '')}:</span>
-                <span class="cb-comment__body">${esc(c.body)}</span>
-            </div>`).join('');
+
+        const likeCount = p.like_count || 0;
+        const likedClass = p.liked_by_me ? 'liked' : '';
+        const pickerEmojis = REACTIONS.map(r =>
+            `<button data-reaction="${r.kind}">${r.emoji}</button>`
+        ).join('');
+
+        const comments = (p.comments || []);
+        const commentCount = comments.length;
+        const commentBody = _renderComments(comments);
 
         return `
-            <div class="cb-post__head"><span class="cb-post__author">${author}</span>${pending}</div>
+            <div class="cb-post__head">
+                <span class="cb-post__author">${author}</span>
+                ${pin}${pending}
+            </div>
             ${title}
             ${body}
             ${media}
+            ${tags}
             <div class="cb-post__actions">
-                <button data-action="like" class="${liked}">❤ <span>${count}</span></button>
-                <button data-action="toggle-comments">💬 ${(p.comments || []).length}</button>
+                <div class="cb-react-wrap">
+                    <button data-action="like" class="${likedClass}">❤ <span>${likeCount}</span></button>
+                    <div class="cb-react-picker">${pickerEmojis}</div>
+                </div>
+                <button data-action="toggle-comments">💬 ${commentCount}</button>
+                <button data-action="copy-link" title="${esc(i18n.t('cb.copyLink'))}">🔗</button>
                 <span class="spacer"></span>
                 ${moderateBtns}
+                <button data-action="edit" title="${esc(i18n.t('cb.edit'))}">✎</button>
+                <button data-action="pin" title="${esc(p.pinned ? i18n.t('cb.unpin') : i18n.t('cb.pin'))}">📌</button>
                 <button data-action="delete" class="cb-btn--danger">🗑</button>
             </div>
             <div class="cb-comments">
@@ -288,6 +309,76 @@
                     <button class="cb-btn cb-btn--sm cb-btn--primary" data-action="send-comment">${esc(i18n.t('cb.send'))}</button>
                 </div>
             </div>`;
+    }
+
+    function _renderMedia(p) {
+        // 優先多媒體陣列
+        if (p.media && p.media.length) {
+            const imgs = p.media.filter(m => (m.mime || '').startsWith('image/'));
+            if (imgs.length) {
+                const n = imgs.length;
+                const shown = imgs.slice(0, 4);
+                const clsN = Math.min(n, 4);
+                const moreAttr = n > 4 ? `data-more="+${n - 4}"` : '';
+                const moreClass = n > 4 ? ' cb-post__album--more' : '';
+                return `<div class="cb-post__album cb-post__album--${clsN}${moreClass}" ${moreAttr}>` +
+                    shown.map(m => `<img src="${esc(m.url)}" loading="lazy">`).join('') +
+                    `</div>`;
+            }
+            // 檔案列表
+            return shown_files(p.media);
+        }
+        if (p.kind === 'youtube' && p.link_meta && p.link_meta.embed_url) {
+            return `<div class="cb-post__embed"><iframe src="${esc(p.link_meta.embed_url)}" allowfullscreen loading="lazy"></iframe></div>`;
+        }
+        if (p.kind === 'image' && p.media_url) {
+            return `<div class="cb-post__media"><img src="${esc(p.media_url)}" loading="lazy"></div>`;
+        }
+        if (p.kind === 'video' && p.media_url) {
+            return `<video src="${esc(p.media_url)}" controls style="width:100%;border-radius:8px"></video>`;
+        }
+        if (p.kind === 'file' && p.media_url) {
+            return `<a class="cb-post__file" href="${esc(p.media_url)}" target="_blank">📎 ${esc(p.title || 'file')}</a>`;
+        }
+        if (p.kind === 'link' && p.link_url) {
+            const m = p.link_meta || {};
+            const thumb = m.image ? `<img class="cb-post__link-thumb" src="${esc(m.image)}">` : '';
+            return `
+                <a class="cb-post__link" href="${esc(p.link_url)}" target="_blank" rel="noopener">
+                    ${thumb}
+                    <div class="cb-post__link-meta">
+                        <div class="cb-post__link-title">${esc(m.title || p.link_url)}</div>
+                        <div class="cb-post__link-desc">${esc(m.description || '')}</div>
+                    </div>
+                </a>`;
+        }
+        return '';
+    }
+    function shown_files(media) {
+        return media.map(m => `<a class="cb-post__file" href="${esc(m.url)}" target="_blank">📎 ${esc(m.original_name || m.url)}</a>`).join('');
+    }
+
+    // 嵌套評論 (parent_id)
+    function _renderComments(comments) {
+        if (!comments.length) return '';
+        const byParent = new Map();
+        for (const c of comments) {
+            const key = c.parent_id || 0;
+            if (!byParent.has(key)) byParent.set(key, []);
+            byParent.get(key).push(c);
+        }
+        const renderOne = (c, depth) => {
+            const cls = 'cb-comment' + (depth > 0 ? ' cb-comment--reply' : '');
+            const children = (byParent.get(c.id) || []).map(ch => renderOne(ch, depth + 1)).join('');
+            return `
+                <div class="${cls}" data-cid="${c.id}">
+                    <span class="cb-comment__author">${esc(c.author_name || '')}:</span>
+                    <span class="cb-comment__body">${esc(c.body)}</span>
+                    <button class="cb-post__expand" data-action="reply" data-cid="${c.id}">${esc(i18n.t('cb.reply'))}</button>
+                </div>
+                ${children}`;
+        };
+        return (byParent.get(0) || []).map(c => renderOne(c, 0)).join('');
     }
 
     function makePostEl(p) {
@@ -301,6 +392,38 @@
     }
 
     function attachPostHandlers(el, p) {
+        // 點讚長按 → 顯示 reaction picker
+        const likeBtn = el.querySelector('button[data-action="like"]');
+        const picker = el.querySelector('.cb-react-picker');
+        let longPressTimer;
+        if (likeBtn && picker) {
+            const openPicker = () => picker.classList.add('open');
+            const closePicker = () => picker.classList.remove('open');
+            likeBtn.addEventListener('pointerdown', () => {
+                longPressTimer = setTimeout(openPicker, 400);
+            });
+            ['pointerup', 'pointerleave', 'pointercancel'].forEach(evt =>
+                likeBtn.addEventListener(evt, () => clearTimeout(longPressTimer))
+            );
+            picker.addEventListener('pointerleave', closePicker);
+            picker.querySelectorAll('button[data-reaction]').forEach(b => {
+                b.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    closePicker();
+                    try {
+                        const r = await api(`/posts/${p.id}/reaction`, {
+                            method: 'POST', body: JSON.stringify({ kind: b.dataset.reaction }),
+                        });
+                        if (r) {
+                            p.like_count = r.count;
+                            p.liked_by_me = r.added;
+                            store._emit();
+                        }
+                    } catch (err) { alert(err.message); }
+                });
+            });
+        }
+
         el.addEventListener('click', async (e) => {
             const btn = e.target.closest('button[data-action]');
             if (!btn) return;
@@ -320,12 +443,22 @@
                     const input = el.querySelector('[data-comment-input]');
                     const body = input.value.trim();
                     if (!body) return;
-                    const c = await api(`/posts/${p.id}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
+                    const parent_id = input.dataset.parent ? parseInt(input.dataset.parent, 10) : undefined;
+                    const payload = parent_id ? { body, parent_id } : { body };
+                    const c = await api(`/posts/${p.id}/comments`, { method: 'POST', body: JSON.stringify(payload) });
                     if (c) {
                         p.comments = (p.comments || []).concat([c]);
                         store._emit();
                     }
                     input.value = '';
+                    delete input.dataset.parent;
+                    input.placeholder = i18n.t('cb.commentPh');
+                } else if (action === 'reply') {
+                    const input = el.querySelector('[data-comment-input]');
+                    input.dataset.parent = btn.dataset.cid;
+                    input.placeholder = '↳ ' + i18n.t('cb.reply');
+                    input.focus();
+                    el.querySelector('.cb-comments').classList.add('open');
                 } else if (action === 'approve') {
                     const updated = await api(`/posts/${p.id}/state`, { method: 'POST', body: JSON.stringify({ event: 'approve' }) });
                     if (updated) store.upsertPost(updated);
@@ -336,9 +469,52 @@
                     if (!confirm(i18n.t('cb.confirmDelete'))) return;
                     await api(`/posts/${p.id}`, { method: 'DELETE' });
                     store.removePost(p.id);
+                } else if (action === 'pin') {
+                    const updated = await api(`/posts/${p.id}/pin`, {
+                        method: 'POST', body: JSON.stringify({ pinned: !p.pinned }),
+                    });
+                    if (updated) store.upsertPost(updated);
+                } else if (action === 'copy-link') {
+                    const url = `${location.origin}${location.pathname}#post=${p.id}`;
+                    try {
+                        await navigator.clipboard.writeText(url);
+                        btn.textContent = '✓';
+                        setTimeout(() => btn.textContent = '🔗', 1500);
+                    } catch {
+                        prompt(i18n.t('cb.copyLink'), url);
+                    }
+                } else if (action === 'toggle-expand') {
+                    if (store.state.expanded.has(p.id)) store.state.expanded.delete(p.id);
+                    else store.state.expanded.add(p.id);
+                    store._emit();
+                } else if (action === 'edit') {
+                    openEditPost(p);
                 }
             } catch (err) { alert(err.message); }
         });
+    }
+
+    // ── 編輯貼文 modal (重用 postModal) ──
+    let _editingPostId = null;
+    function openEditPost(p) {
+        _editingPostId = p.id;
+        $('#pTitle').value = p.title || '';
+        $('#pBody').value = p.body || '';
+        $('#pLink').value = p.link_url || '';
+        $('#pAnonymous').checked = !!p.is_anonymous;
+        // restore tags chips
+        _currentTags = [...(p.tags || [])];
+        renderTagChips();
+        // kind tabs: 定位到對應 type (text/image/link/file)
+        const targetKind = (p.kind === 'youtube') ? 'link' : p.kind;
+        $$('#typeTabs .cb-type-tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.kind === targetKind);
+        });
+        currentKind = targetKind;
+        $('#pBodyWrap').style.display = (currentKind === 'text') ? '' : 'none';
+        $('#pLinkWrap').style.display = (currentKind === 'link') ? '' : 'none';
+        $('#pFileWrap').style.display = (currentKind === 'image' || currentKind === 'file') ? '' : 'none';
+        $('#postModal').classList.add('open');
     }
 
     // ── Grid ──
@@ -347,12 +523,13 @@
         body.className = 'cb-workspace__body';
         body.innerHTML = '<div class="cb-grid" id="cbGrid"></div>';
         const grid = $('#cbGrid');
-        const posts = sortedPosts(state.posts);
+        const posts = viewedPosts(state);
         if (!posts.length) {
             body.innerHTML = `<div class="cb-empty"><div class="cb-empty__icon">📭</div><div class="cb-empty__title">${i18n.t('cb.noPosts')}</div></div>`;
             return;
         }
         posts.forEach(p => grid.appendChild(makePostEl(p)));
+        scrollToDeepLink();
     }
 
     // ── Shelf ──
@@ -362,6 +539,7 @@
         const sections = (state.sections.length ? state.sections : [{ id: 0, name: '#', kind: 'column' }]);
         body.innerHTML = `<div class="cb-shelf" id="cbShelf"></div>`;
         const shelf = $('#cbShelf');
+        const posts = viewedPosts(state);
         sections.forEach(sec => {
             const col = document.createElement('div');
             col.className = 'cb-shelf__col';
@@ -372,11 +550,12 @@
                 </div>
                 <div class="cb-shelf__col-body" data-sid="${sec.id}"></div>`;
             const bodyEl = col.querySelector('.cb-shelf__col-body');
-            sortedPosts(state.posts)
+            posts
                 .filter(p => (p.section_id || 0) === sec.id)
                 .forEach(p => bodyEl.appendChild(makePostEl(p)));
             shelf.appendChild(col);
         });
+        scrollToDeepLink();
     }
 
     // ── Canvas ──
@@ -567,13 +746,93 @@
         return [...posts].sort((a, b) => (a.order_index || 0) - (b.order_index || 0) || a.id - b.id);
     }
 
+    // Apply sort / search / tag filter (frontend pure, mirrors backend sort_filter.py)
+    function viewedPosts(state) {
+        let out = [...state.posts];
+        // search
+        const q = (state.query || '').trim().toLowerCase();
+        if (q) {
+            out = out.filter(p => {
+                const hay = ((p.title || '') + ' ' + (p.body || '') + ' ' + (p.author_name || '')).toLowerCase();
+                return hay.includes(q);
+            });
+        }
+        // tag
+        if (state.tagFilter) {
+            const tf = state.tagFilter.toLowerCase();
+            out = out.filter(p => (p.tags || []).some(t => (t || '').toLowerCase() === tf));
+        }
+        // sort
+        const pinned = out.filter(p => p.pinned);
+        const normal = out.filter(p => !p.pinned);
+        const cmp = _cmpBySort(state.sort);
+        pinned.sort(cmp);
+        normal.sort(cmp);
+        return pinned.concat(normal);
+    }
+    function _cmpBySort(mode) {
+        switch (mode) {
+            case 'latest':
+                return (a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''));
+            case 'oldest':
+                return (a, b) => String(a.created_at || '').localeCompare(String(b.created_at || ''));
+            case 'most_liked':
+                return (a, b) => (b.like_count || 0) - (a.like_count || 0);
+            case 'author':
+                return (a, b) => (a.author_name || '').localeCompare(b.author_name || '');
+            case 'order_index':
+            default:
+                return (a, b) => (a.order_index || 0) - (b.order_index || 0) || a.id - b.id;
+        }
+    }
+
+    // 深連結: URL hash #post=123 → 滾到並高亮
+    function scrollToDeepLink() {
+        const m = (location.hash || '').match(/post=(\d+)/);
+        if (!m) return;
+        const id = parseInt(m[1], 10);
+        setTimeout(() => {
+            const el = document.querySelector(`.cb-post[data-id="${id}"]`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.style.transition = 'box-shadow 0.4s';
+                el.style.boxShadow = '0 0 0 3px var(--cb-brand)';
+                setTimeout(() => { el.style.boxShadow = ''; }, 2000);
+            }
+        }, 100);
+    }
+
     function render(state) {
         renderHeader(state);
+        refreshTagFilterOptions(state);
         if (!state.board) return;
         const layout = state.layout;
         if (layout === 'grid') renderGrid(state);
         else if (layout === 'shelf') renderShelf(state);
         else if (layout === 'canvas') renderCanvas(state);
+        // 套用 theme 背景到 workspace body
+        applyThemeBackground(state);
+    }
+
+    async function applyThemeBackground(state) {
+        const themeId = state.board && state.board.theme;
+        if (!themeId) return;
+        if (!applyThemeBackground._cache) applyThemeBackground._cache = {};
+        let list = applyThemeBackground._cache.list;
+        if (!list) {
+            try {
+                const res = await fetch('/api/boards/themes/list', {
+                    headers: { 'Authorization': 'Bearer ' + token() },
+                });
+                const body = await res.json();
+                list = (body && body.data) || [];
+            } catch { list = []; }
+            applyThemeBackground._cache.list = list;
+        }
+        const t = list.find(x => x.id === themeId);
+        if (!t) return;
+        const wrap = $('#boardBody');
+        if (wrap) wrap.style.background = t.background;
     }
 
     // ────────────────────────────────────────────────
@@ -581,11 +840,36 @@
     // ────────────────────────────────────────────────
     let currentKind = 'text';
     let uploadedUrl = '';
-    window.closePostModal = () => $('#postModal').classList.remove('open');
+    let uploadedMedia = [];  // 多圖: [{url, mime, original_name}]
+    let _currentTags = [];
+    window.closePostModal = () => {
+        $('#postModal').classList.remove('open');
+        _editingPostId = null;
+    };
     window.closeSectionModal = () => $('#sectionModal').classList.remove('open');
+    window.closeActivity = () => $('#activityDrawer').classList.remove('open');
+
+    function renderTagChips() {
+        const wrap = $('#pTagsWrap');
+        if (!wrap) return;
+        wrap.querySelectorAll('.cb-tag-chip').forEach(n => n.remove());
+        const input = $('#pTagInput');
+        _currentTags.forEach((t, i) => {
+            const chip = document.createElement('span');
+            chip.className = 'cb-tag-chip';
+            chip.innerHTML = `${esc(t)} <button type="button" data-idx="${i}">×</button>`;
+            chip.querySelector('button').addEventListener('click', (e) => {
+                e.stopPropagation();
+                _currentTags.splice(parseInt(e.target.dataset.idx, 10), 1);
+                renderTagChips();
+            });
+            wrap.insertBefore(chip, input);
+        });
+    }
 
     function initPostModal() {
         $('#btnNewPost').addEventListener('click', () => {
+            _editingPostId = null;
             // fill sections dropdown
             const sel = $('#pSection');
             const secs = store.state.sections;
@@ -597,12 +881,32 @@
                 $('#pSectionWrap').style.display = 'none';
             }
             uploadedUrl = '';
+            uploadedMedia = [];
+            _currentTags = [];
+            renderTagChips();
             $('#pFileStatus').textContent = '';
             $('#pTitle').value = '';
             $('#pBody').value = '';
             $('#pLink').value = '';
             $('#pFile').value = '';
+            $('#pAnonymous').checked = false;
             $('#postModal').classList.add('open');
+        });
+
+        // Tag input: Enter 新增
+        $('#pTagInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const v = e.target.value.trim().replace(/,/g, '');
+                if (v && !_currentTags.includes(v) && _currentTags.length < 8) {
+                    _currentTags.push(v);
+                    renderTagChips();
+                }
+                e.target.value = '';
+            } else if (e.key === 'Backspace' && !e.target.value && _currentTags.length) {
+                _currentTags.pop();
+                renderTagChips();
+            }
         });
         $$('#typeTabs .cb-type-tab').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -614,16 +918,28 @@
                 $('#pFileWrap').style.display = (currentKind === 'image' || currentKind === 'file') ? '' : 'none';
             });
         });
+        // multi-file support via repeated upload calls
+        $('#pFile').multiple = true;
         $('#pFile').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            $('#pFileStatus').textContent = '⏳ ' + file.name;
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            $('#pFileStatus').textContent = '⏳ ' + files.map(f => f.name).join(', ');
+            uploadedMedia = [];
+            uploadedUrl = '';
             try {
-                const fd = new FormData();
-                fd.append('file', file);
-                const result = await api('/uploads', { method: 'POST', body: fd });
-                uploadedUrl = result.url;
-                $('#pFileStatus').textContent = '✓ ' + file.name;
+                for (const file of files) {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const r = await api('/uploads', { method: 'POST', body: fd });
+                    uploadedMedia.push({
+                        url: r.url,
+                        mime: r.mime || '',
+                        original_name: r.original_name || file.name,
+                        size: r.size || 0,
+                    });
+                }
+                if (uploadedMedia.length === 1) uploadedUrl = uploadedMedia[0].url;
+                $('#pFileStatus').textContent = `✓ ${uploadedMedia.length} ${files.length > 1 ? 'files' : ''}`;
             } catch (err) {
                 $('#pFileStatus').textContent = '✕ ' + err.message;
             }
@@ -635,7 +951,12 @@
                 body: $('#pBody').value.trim(),
                 link_url: currentKind === 'link' ? $('#pLink').value.trim() : '',
                 media_url: (currentKind === 'image' || currentKind === 'file') ? uploadedUrl : '',
+                tags: [..._currentTags],
+                is_anonymous: $('#pAnonymous').checked,
             };
+            if ((currentKind === 'image' || currentKind === 'file') && uploadedMedia.length > 1) {
+                payload.media = uploadedMedia;
+            }
             const sid = $('#pSection').value;
             if (sid) payload.section_id = parseInt(sid, 10);
             if (currentKind === 'text' && !payload.body && !payload.title) {
@@ -644,14 +965,28 @@
             if (currentKind === 'link' && !payload.link_url) {
                 alert(i18n.t('cb.postLinkPh')); return;
             }
-            if ((currentKind === 'image' || currentKind === 'file') && !payload.media_url) {
+            if ((currentKind === 'image' || currentKind === 'file') && !payload.media_url && !payload.media && !_editingPostId) {
                 alert(i18n.t('cb.postFileBtn')); return;
             }
             $('#pSubmit').disabled = true;
             $('#pSubmit').textContent = i18n.t('cb.publishing');
             try {
-                const post = await api('/posts', { method: 'POST', body: JSON.stringify(payload) });
-                if (post) store.upsertPost(post);
+                if (_editingPostId) {
+                    const updates = {
+                        title: payload.title,
+                        body: payload.body,
+                        link_url: payload.link_url,
+                        tags: payload.tags,
+                        is_anonymous: payload.is_anonymous,
+                    };
+                    if (payload.media_url) updates.media_url = payload.media_url;
+                    if (payload.media) updates.media = payload.media;
+                    const updated = await api(`/posts/${_editingPostId}`, { method: 'PATCH', body: JSON.stringify(updates) });
+                    if (updated) store.upsertPost(updated);
+                } else {
+                    const post = await api('/posts', { method: 'POST', body: JSON.stringify(payload) });
+                    if (post) store.upsertPost(post);
+                }
                 closePostModal();
             } catch (err) { alert(err.message); }
             finally {
@@ -706,6 +1041,119 @@
     }
 
     // ────────────────────────────────────────────────
+    //  Toolbar: search / sort / tag filter / menu / activity
+    // ────────────────────────────────────────────────
+    function initToolbar() {
+        // search
+        const searchInput = $('#searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                store.set({ query: e.target.value });
+            });
+        }
+        // sort
+        const sortSelect = $('#sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                store.set({ sort: e.target.value });
+            });
+        }
+        // tag filter
+        const tagFilter = $('#tagFilter');
+        if (tagFilter) {
+            tagFilter.addEventListener('change', (e) => {
+                store.set({ tagFilter: e.target.value });
+            });
+        }
+
+        // menu (⋯)
+        const menu = $('#btnMenu');
+        const dropdown = $('#menuDropdown');
+        if (menu && dropdown) {
+            menu.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.parentElement.classList.toggle('open');
+            });
+            document.addEventListener('click', () => {
+                menu.parentElement.classList.remove('open');
+            });
+            dropdown.addEventListener('click', async (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                try {
+                    if (action.startsWith('export-')) {
+                        const fmt = action.split('-')[1];
+                        downloadExport(fmt);
+                    } else if (action === 'print') {
+                        window.print();
+                    } else if (action === 'remake') {
+                        const newBoard = await api('/clone', { method: 'POST', body: '{}' });
+                        if (newBoard && newBoard.uuid) {
+                            location.href = '/boards/' + newBoard.uuid;
+                        }
+                    } else if (action === 'clear-all') {
+                        if (!confirm(i18n.t('cb.clearAllConfirm'))) return;
+                        await api('/clear', { method: 'POST' });
+                        store.set({ posts: [] });
+                    }
+                } catch (err) { alert(err.message); }
+                menu.parentElement.classList.remove('open');
+            });
+        }
+
+        // activity drawer
+        const actBtn = $('#btnActivity');
+        if (actBtn) {
+            actBtn.addEventListener('click', async () => {
+                $('#activityDrawer').classList.add('open');
+                try {
+                    const rows = await api('/activity?limit=100');
+                    $('#activityList').innerHTML = (rows || []).map(r => `
+                        <div class="cb-activity-item">
+                            <div><span class="actor">${esc(r.actor_name || '')}</span> · ${esc(r.event_type)}</div>
+                            <div class="time">${esc(String(r.created_at || ''))}</div>
+                        </div>`).join('') || '<div class="cb-empty">—</div>';
+                } catch (e) {
+                    $('#activityList').innerHTML = '<div class="cb-empty">' + esc(e.message) + '</div>';
+                }
+            });
+        }
+
+        // hash change → re-scroll
+        window.addEventListener('hashchange', scrollToDeepLink);
+    }
+
+    async function downloadExport(fmt) {
+        const url = `/api/boards/${BOARD_UUID}/export?fmt=${fmt}`;
+        try {
+            const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token() } });
+            if (!res.ok) throw new Error('export failed');
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            const dlUrl = URL.createObjectURL(blob);
+            a.href = dlUrl;
+            a.download = (store.state.board?.title || 'board') + '.' + fmt;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(dlUrl), 1000);
+        } catch (err) { alert(err.message); }
+    }
+
+    function refreshTagFilterOptions(state) {
+        const sel = $('#tagFilter');
+        if (!sel) return;
+        const allTags = new Set();
+        state.posts.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
+        const current = sel.value;
+        const opts = [`<option value="">${esc(i18n.t('cb.tagFilterAll'))}</option>`]
+            .concat([...allTags].sort().map(t => `<option value="${esc(t)}">${esc(t)}</option>`));
+        sel.innerHTML = opts.join('');
+        if ([...allTags].includes(current)) sel.value = current;
+    }
+
+    // ────────────────────────────────────────────────
     //  鍵盤快捷鍵 (Mac)
     // ────────────────────────────────────────────────
     function initKeyboard() {
@@ -742,6 +1190,7 @@
         initPostModal();
         initSectionModal();
         initLayoutSwitch();
+        initToolbar();
         initKeyboard();
         store.subscribe(render);
 

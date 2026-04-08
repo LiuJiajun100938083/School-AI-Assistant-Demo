@@ -21,6 +21,19 @@
         </div>
         <div class="cb-header__right">
             <span id="presence" class="cb-presence"><span class="dot"></span><span id="presenceCount">1</span></span>
+            <button id="btnActivity" class="cb-btn cb-btn--ghost" title="活動記錄">📜</button>
+            <div class="cb-menu">
+                <button id="btnMenu" class="cb-btn cb-btn--ghost" title="更多">⋯</button>
+                <div id="menuDropdown" class="cb-menu__dropdown">
+                    <button data-action="export-json" data-i18n="cb.exportJson">匯出 JSON</button>
+                    <button data-action="export-xlsx" data-i18n="cb.exportXlsx">匯出 Excel</button>
+                    <button data-action="export-pdf" data-i18n="cb.exportPdf">匯出 PDF</button>
+                    <button data-action="print" data-i18n="cb.print">列印</button>
+                    <div class="cb-menu__sep"></div>
+                    <button data-action="remake" data-i18n="cb.remake">複製此板</button>
+                    <button data-action="clear-all" class="danger" data-i18n="cb.clearAll">清空所有貼文</button>
+                </div>
+            </div>
             <button id="btnNewPost" class="cb-btn cb-btn--primary" data-i18n="cb.newPost">發貼</button>
         </div>
     </header>
@@ -28,6 +41,17 @@
     <section class="cb-workspace">
         <div class="cb-workspace__toolbar">
             <div id="infoBar" class="cb-workspace__info"></div>
+            <input id="searchInput" class="cb-search" type="search" data-i18n-placeholder="cb.searchPh">
+            <select id="sortSelect" class="cb-select">
+                <option value="order_index" data-i18n="cb.sortDefault">預設</option>
+                <option value="latest" data-i18n="cb.sortLatest">最新</option>
+                <option value="oldest" data-i18n="cb.sortOldest">最舊</option>
+                <option value="most_liked" data-i18n="cb.sortLiked">最多讚</option>
+                <option value="author" data-i18n="cb.sortAuthor">作者</option>
+            </select>
+            <select id="tagFilter" class="cb-select">
+                <option value="" data-i18n="cb.tagFilterAll">全部標籤</option>
+            </select>
             <div class="spacer"></div>
             <div id="layoutSwitch" class="cb-layout-switch">
                 <button data-layout="grid"  data-i18n="cb.layoutGrid">瀑布流</button>
@@ -72,6 +96,18 @@
                     <label class="cb-field__label">分欄</label>
                     <select id="pSection"></select>
                 </div>
+                <div class="cb-field">
+                    <label class="cb-field__label">標籤</label>
+                    <div id="pTagsWrap" class="cb-tags-input">
+                        <input type="text" id="pTagInput" data-i18n-placeholder="cb.tagsPh">
+                    </div>
+                </div>
+                <div class="cb-field">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cb-text-2)">
+                        <input type="checkbox" id="pAnonymous">
+                        <span data-i18n="cb.isAnonymous">匿名發表</span>
+                    </label>
+                </div>
             </div>
             <div class="cb-modal__foot">
                 <button class="cb-btn" onclick="closePostModal()" data-i18n="cb.cancel">取消</button>
@@ -107,6 +143,15 @@
             </div>
         </div>
     </div>
+
+    <!-- Activity drawer -->
+    <aside id="activityDrawer" class="cb-drawer">
+        <div class="cb-drawer__head">
+            <span data-i18n="cb.activity">活動記錄</span>
+            <button class="cb-modal__close" onclick="closeActivity()">×</button>
+        </div>
+        <div id="activityList" class="cb-drawer__body"></div>
+    </aside>
 
     <script src="/static/js/shared/auth.js"></script>
     <script src="/static/js/shared/i18n.js"></script>

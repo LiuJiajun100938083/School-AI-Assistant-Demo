@@ -82,10 +82,50 @@
 
     // ------ modal ------
     let selectedClass = '';
+    let selectedTemplate = 'blank';
+    let selectedTheme = 'default';
     window.closeModal = () => document.getElementById('createModal').classList.remove('open');
     async function openModal() {
         document.getElementById('createModal').classList.add('open');
-        await loadClassButtons();
+        await Promise.all([loadClassButtons(), loadTemplates(), loadThemes()]);
+    }
+
+    async function loadTemplates() {
+        const wrap = document.getElementById('fTemplates');
+        try {
+            const items = await api('/templates/list');
+            wrap.innerHTML = items.map(t => `
+                <div class="cb-template ${t.id === selectedTemplate ? 'active' : ''}" data-id="${t.id}">
+                    <div class="cb-template__name">${escapeHtml(t.name)}</div>
+                    <div class="cb-template__desc">${escapeHtml(t.description || '')}</div>
+                </div>`).join('');
+            wrap.querySelectorAll('.cb-template').forEach(el => {
+                el.addEventListener('click', () => {
+                    selectedTemplate = el.dataset.id;
+                    wrap.querySelectorAll('.cb-template').forEach(x => x.classList.remove('active'));
+                    el.classList.add('active');
+                });
+            });
+        } catch (e) { wrap.innerHTML = ''; }
+    }
+
+    async function loadThemes() {
+        const wrap = document.getElementById('fThemes');
+        try {
+            const items = await api('/themes/list');
+            wrap.innerHTML = items.map(t => `
+                <div class="cb-theme-swatch ${t.id === selectedTheme ? 'active' : ''}"
+                     data-id="${t.id}" style="background:${t.background}">
+                    ${escapeHtml(t.name)}
+                </div>`).join('');
+            wrap.querySelectorAll('.cb-theme-swatch').forEach(el => {
+                el.addEventListener('click', () => {
+                    selectedTheme = el.dataset.id;
+                    wrap.querySelectorAll('.cb-theme-swatch').forEach(x => x.classList.remove('active'));
+                    el.classList.add('active');
+                });
+            });
+        } catch (e) { wrap.innerHTML = ''; }
     }
 
     async function loadClassButtons() {
@@ -121,6 +161,8 @@
             visibility: document.getElementById('fVisibility').value,
             class_name: selectedClass,
             moderation: document.getElementById('fModeration').checked,
+            template_id: selectedTemplate,
+            theme: selectedTheme,
         };
         if (!payload.title) { alert(i18n.t('cb.formTitlePh')); return; }
         try {
