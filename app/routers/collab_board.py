@@ -6,6 +6,7 @@
 """
 
 import asyncio
+import json
 import logging
 from typing import Any, Dict, Optional
 
@@ -290,10 +291,24 @@ async def board_ws(websocket: WebSocket, board_uuid: str, token: Optional[str] =
     await broadcaster.connect(board_uuid, websocket, user_row)
     try:
         while True:
-            # 保持連線，被動接收（目前只用作服務端廣播；未來可加客戶端心跳）
             msg = await websocket.receive_text()
             if msg == "ping":
                 await websocket.send_json({"type": "pong"})
+                continue
+            # 處理客戶端 inbound 事件（拖拽過程實時廣播，不落盤）
+            try:
+                ev = json.loads(msg)
+            except Exception:
+                continue
+            if not isinstance(ev, dict):
+                continue
+            if ev.get("type") == "post.dragging":
+                payload = ev.get("payload") or {}
+                payload["by"] = user_row.get("id")
+                await broadcaster.publish(
+                    board_uuid,
+                    {"type": "post.dragging", "payload": payload},
+                )
     except WebSocketDisconnect:
         pass
     finally:

@@ -110,26 +110,31 @@
     // ────────────────────────────────────────────────
     //  ws
     // ────────────────────────────────────────────────
+    let _ws = null;
     function connectWs() {
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const url = `${proto}//${location.host}/api/boards/${BOARD_UUID}/ws?token=${encodeURIComponent(token())}`;
-        let ws;
         try {
-            ws = new WebSocket(url);
+            _ws = new WebSocket(url);
         } catch (e) {
             console.warn('WS init failed', e);
             return;
         }
-        ws.addEventListener('message', (e) => {
+        _ws.addEventListener('message', (e) => {
             try {
                 const ev = JSON.parse(e.data);
                 handleWsEvent(ev);
             } catch {}
         });
-        ws.addEventListener('close', () => {
-            // 簡單重連
+        _ws.addEventListener('close', () => {
+            _ws = null;
             setTimeout(connectWs, 3000);
         });
+    }
+    function wsSend(obj) {
+        if (_ws && _ws.readyState === 1) {
+            try { _ws.send(JSON.stringify(obj)); } catch {}
+        }
     }
     function handleWsEvent(ev) {
         const { type, payload } = ev || {};
@@ -138,6 +143,17 @@
             store.set({ onlineCount: (payload.users || []).length || 1 });
         } else if (type === 'post.created' || type === 'post.updated' || type === 'post.moved' || type === 'post.state_changed') {
             store.upsertPost(payload.post);
+        } else if (type === 'post.dragging') {
+            // 拖拽過程即時滑動 — 直接動 DOM,不走 store,不重繪
+            const el = document.querySelector(`.cb-post[data-id="${payload.id}"]`);
+            if (el && payload.by !== store.state.me) {
+                el.style.transition = 'left 0.12s linear, top 0.12s linear';
+                el.style.left = payload.x + 'px';
+                el.style.top = payload.y + 'px';
+                // 同步進 store,避免下次重繪重置
+                const p = store.state.posts.find(x => x.id === payload.id);
+                if (p) { p.canvas_x = payload.x; p.canvas_y = payload.y; }
+            }
         } else if (type === 'post.deleted') {
             store.removePost(payload.id);
         } else if (type === 'reaction.changed') {
@@ -359,10 +375,14 @@
 
     function attachDragHandlers(el, p) {
         let startX, startY, origX, origY, dragging = false;
+        let lastSend = 0;
+        const THROTTLE = 40; // ~25 fps
+
         el.addEventListener('pointerdown', (e) => {
             if (e.target.closest('button, input, a')) return;
             dragging = true;
             el.classList.add('dragging');
+            el.style.transition = 'none';  // 自己拖拽無延遲
             el.setPointerCapture(e.pointerId);
             startX = e.clientX; startY = e.clientY;
             origX = parseFloat(el.style.left) || 0;
@@ -370,8 +390,16 @@
         });
         el.addEventListener('pointermove', (e) => {
             if (!dragging) return;
-            el.style.left = (origX + e.clientX - startX) + 'px';
-            el.style.top = (origY + e.clientY - startY) + 'px';
+            const nx = origX + e.clientX - startX;
+            const ny = origY + e.clientY - startY;
+            el.style.left = nx + 'px';
+            el.style.top = ny + 'px';
+            // throttled WS 廣播 — 他人即時滑動
+            const now = Date.now();
+            if (now - lastSend >= THROTTLE) {
+                lastSend = now;
+                wsSend({ type: 'post.dragging', payload: { id: p.id, x: Math.round(nx), y: Math.round(ny) } });
+            }
         });
         el.addEventListener('pointerup', async (e) => {
             if (!dragging) return;
@@ -379,6 +407,8 @@
             el.classList.remove('dragging');
             const nx = parseInt(el.style.left, 10);
             const ny = parseInt(el.style.top, 10);
+            // 最後一幀確保同步
+            wsSend({ type: 'post.dragging', payload: { id: p.id, x: nx, y: ny } });
             try {
                 await api(`/posts/${p.id}/move`, {
                     method: 'POST',
