@@ -12,8 +12,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Body, Depends, File, Query, UploadFile, WebSocket, WebSocketDisconnect
 
-from app.core.dependencies import get_current_user
-from app.core.security import JWTManager
+from app.core.dependencies import get_current_user, get_jwt_manager
 from app.domains.collab_board.schemas import (
     BoardCreate,
     BoardUpdate,
@@ -258,10 +257,17 @@ async def board_ws(websocket: WebSocket, board_uuid: str, token: Optional[str] =
             return
 
     try:
-        jwt_mgr = JWTManager()
-        payload = jwt_mgr.decode_token(token or "")
+        from app.core.dependencies import _jwt_manager as _global_jwt
+        if _global_jwt is None:
+            from app.config.settings import get_settings
+            from app.core.dependencies import init_jwt_manager
+            init_jwt_manager(get_settings())
+            from app.core.dependencies import _jwt_manager as _global_jwt  # noqa
+        from app.core import dependencies as _deps
+        payload = _deps._jwt_manager.decode_token(token or "")
         username = payload.get("username")
-    except Exception:
+    except Exception as e:
+        logger.warning("WS auth failed: %s", e)
         await websocket.close(code=1008, reason="Invalid token")
         return
 
