@@ -70,6 +70,30 @@ async def create_dictation(
     return success_response(data=result, message="默書創建成功")
 
 
+@router.get("/api/dictation/teacher/targets")
+async def get_targets(
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """回傳可佈置的班級與學生清單 (給建立 modal 的 class picker 用)"""
+    services = get_services()
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(
+        None, lambda: services.dictation.get_available_targets(),
+    )
+    return success_response(data=data)
+
+
+@router.post("/api/dictation/teacher/extract-text")
+async def extract_reference_text(
+    file: UploadFile = File(...),
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """從上傳的文件 (txt/md/pdf/docx/pptx) 或圖片 (jpg/png) 抽取純文字"""
+    services = get_services()
+    data = await services.dictation.extract_reference_text(file)
+    return success_response(data=data, message="已抽取")
+
+
 @router.get("/api/dictation/teacher")
 async def list_teacher_dictations(
     status: str = Query("", description="draft | published | closed"),

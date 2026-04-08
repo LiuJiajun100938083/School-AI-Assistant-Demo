@@ -78,15 +78,28 @@
                 <textarea id="f_description" rows="2" data-i18n-placeholder="dict.create.descriptionPh"></textarea>
 
                 <label data-i18n="dict.create.reference">默書原文</label>
+                <div class="reference-actions">
+                    <button type="button" class="chip-btn" onclick="document.getElementById('refFileInput').click()">
+                        📄 <span data-i18n="dict.create.uploadFile">上傳文件</span>
+                    </button>
+                    <button type="button" class="chip-btn" onclick="document.getElementById('refPhotoInput').click()">
+                        📷 <span data-i18n="dict.create.takePhoto">拍照辨識</span>
+                    </button>
+                    <span class="chip-hint" id="refExtractHint"></span>
+                </div>
+                <input type="file" id="refFileInput" accept=".txt,.md,.pdf,.docx,.pptx" style="display:none;"
+                       onchange="app.extractReferenceFromFile(this.files[0])">
+                <input type="file" id="refPhotoInput" accept="image/*" capture="environment" style="display:none;"
+                       onchange="app.extractReferenceFromFile(this.files[0])">
                 <textarea id="f_reference" rows="6" data-i18n-placeholder="dict.create.referencePh"></textarea>
 
                 <label data-i18n="dict.create.target">對象</label>
-                <select id="f_target_type">
+                <select id="f_target_type" onchange="app.onTargetTypeChange()">
                     <option value="all" data-i18n="dict.create.targetAll">全部學生</option>
                     <option value="class" data-i18n="dict.create.targetClass">指定班級</option>
                     <option value="student" data-i18n="dict.create.targetStudent">指定學生</option>
                 </select>
-                <input type="text" id="f_target_value" data-i18n-placeholder="dict.create.targetValuePh">
+                <div id="f_target_picker" class="target-picker"></div>
 
                 <label data-i18n="dict.create.deadline">截止時間 (選填)</label>
                 <input type="datetime-local" id="f_deadline">

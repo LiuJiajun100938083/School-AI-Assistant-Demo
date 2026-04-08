@@ -46,6 +46,7 @@ from app.domains.dictation.repository import (
     DictationSubmissionFileRepository,
     DictationSubmissionRepository,
 )
+from app.domains.vision.schemas import RecognitionSubject, RecognitionTask
 from app.domains.vision.service import VisionService
 
 logger = logging.getLogger(__name__)
@@ -60,14 +61,110 @@ class DictationService:
         submission_repo: DictationSubmissionRepository,
         file_repo: DictationSubmissionFileRepository,
         vision_service: VisionService,
+        user_repo=None,
     ):
         self._dict_repo = dictation_repo
         self._sub_repo = submission_repo
         self._file_repo = file_repo
         self._vision = vision_service
+        self._user_repo = user_repo
 
         # 確保上傳資料夾存在
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    # ================================================================
+    # 佈置目標 (班級 / 學生清單)
+    # ================================================================
+
+    def get_available_targets(self) -> Dict[str, Any]:
+        """回傳可佈置的班級與學生清單,供前端 picker 使用。"""
+        if not self._user_repo:
+            return {"classes": [], "students": []}
+
+        rows = self._user_repo.raw_query(
+            "SELECT DISTINCT class_name FROM users "
+            "WHERE class_name IS NOT NULL AND class_name != '' "
+            "ORDER BY class_name"
+        )
+        classes = [r["class_name"] for r in rows]
+
+        students = self._user_repo.find_all(
+            where="role = 'student' AND is_active = 1",
+            columns="id, username, display_name, class_name",
+            order_by="class_name ASC, username ASC",
+        )
+        return {"classes": classes, "students": students}
+
+    # ================================================================
+    # 文件 / 照片 → 原文文字
+    # ================================================================
+
+    async def extract_reference_text(self, file: UploadFile) -> Dict[str, Any]:
+        """從老師上傳的文件或照片中抽取純文字,填入 reference_text。
+
+        支援:
+          - 文件 (.txt .md .pdf .docx .pptx) — 走 llm.rag.file_processor
+          - 圖片 (jpg/png/webp...)         — 走 vision 模型 OCR
+
+        回傳:
+            {"text": str, "source": "file"|"image", "length": int}
+        """
+        original = file.filename or "unnamed"
+        ext = Path(original).suffix.lower()
+        content = await file.read()
+        if not content:
+            raise ValidationError("檔案為空")
+
+        # ── 圖片走 OCR ─────────────────────────────
+        if ext in SUPPORTED_IMAGE_EXTS:
+            if len(content) > MAX_FILE_SIZE:
+                raise ValidationError(
+                    f"圖片過大 (上限 {MAX_FILE_SIZE // 1024 // 1024}MB)",
+                )
+            tmp_name = f"{uuid.uuid4().hex}{ext}"
+            tmp_path = UPLOAD_DIR / tmp_name
+            with open(tmp_path, "wb") as fh:
+                fh.write(content)
+            try:
+                # 原文是印刷體英文,用通用英文 OCR (QUESTION_AND_ANSWER) 比
+                # dictation task 更適合,因為 dictation 會把印刷字當 question
+                result = await self._vision.recognize(
+                    str(tmp_path),
+                    RecognitionSubject.ENGLISH,
+                    RecognitionTask.QUESTION_AND_ANSWER,
+                )
+                text = (result.question_text or result.answer_text
+                        or result.raw_text or "").strip()
+            finally:
+                try:
+                    tmp_path.unlink()
+                except Exception:
+                    pass
+
+            if not text:
+                raise ValidationError("未能從圖片辨識到文字")
+            return {"text": text, "source": "image", "length": len(text)}
+
+        # ── 文件走 FileProcessor ────────────────────
+        tmp_name = f"{uuid.uuid4().hex}{ext or '.bin'}"
+        tmp_path = UPLOAD_DIR / tmp_name
+        with open(tmp_path, "wb") as fh:
+            fh.write(content)
+        try:
+            from llm.rag.file_processor import FileProcessor
+            processor = FileProcessor()
+            success, text, _info = processor.process_file(
+                str(tmp_path), original,
+            )
+        finally:
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+        if not success or not text or not text.strip():
+            raise ValidationError("未能從文件抽取到文字 (格式不支援或內容為空)")
+        return {"text": text.strip(), "source": "file", "length": len(text)}
 
     # ================================================================
     # 老師端：CRUD

@@ -18,6 +18,8 @@ const DictationAPI = {
     // Teacher
     createDictation:  (body)        => APIClient.post('/api/dictation/teacher', body),
     listTeacher:      (params)      => APIClient.get('/api/dictation/teacher', params || {}),
+    getTargets:       ()            => APIClient.get('/api/dictation/teacher/targets'),
+    extractText:      (formData)    => APIClient.upload('/api/dictation/teacher/extract-text', formData),
     getTeacher:       (id)          => APIClient.get(`/api/dictation/teacher/${id}`),
     updateDictation:  (id, body)    => APIClient.put(`/api/dictation/teacher/${id}`, body),
     publish:          (id)          => APIClient.post(`/api/dictation/teacher/${id}/publish`, {}),
@@ -49,6 +51,9 @@ class DictationApp {
         this.pendingFiles    = [];
         this.editingId       = null;
         this._pollTimers     = new Set();
+        this._targets        = null;           // { classes: [], students: [] }
+        this._selectedClass  = '';
+        this._selectedStudents = new Set();
     }
 
     // ── init ──────────────────────────────────────────
@@ -250,11 +255,13 @@ class DictationApp {
     }
 
     // ── create / edit ─────────────────────────────────
-    openCreateModal() {
+    async openCreateModal() {
         this.editingId = null;
         this._clearCreateForm();
         document.getElementById('createModalTitle').textContent = i18n.t('dict.sidebar.createTitle');
         document.getElementById('createModal').style.display = 'flex';
+        await this._ensureTargets();
+        this.onTargetTypeChange();
     }
 
     async openEditModal(id) {
@@ -265,11 +272,23 @@ class DictationApp {
         document.getElementById('f_description').value  = d.description || '';
         document.getElementById('f_reference').value    = d.reference_text || '';
         document.getElementById('f_target_type').value  = d.target_type || 'all';
-        document.getElementById('f_target_value').value = d.target_value || '';
         document.getElementById('f_deadline').value     = d.deadline ? d.deadline.substring(0, 16) : '';
         document.getElementById('f_allow_late').checked = !!d.allow_late;
         document.getElementById('createModalTitle').textContent = i18n.t('dict.detail.edit');
         document.getElementById('createModal').style.display = 'flex';
+
+        await this._ensureTargets();
+
+        // Pre-populate picker state from saved target_value
+        this._selectedClass = '';
+        this._selectedStudents = new Set();
+        if (d.target_type === 'class') {
+            this._selectedClass = (d.target_value || '').trim();
+        } else if (d.target_type === 'student') {
+            (d.target_value || '').split(',').map(s => s.trim()).filter(Boolean)
+                .forEach(s => this._selectedStudents.add(s));
+        }
+        this.onTargetTypeChange();
     }
 
     closeCreateModal() {
@@ -277,22 +296,130 @@ class DictationApp {
     }
 
     _clearCreateForm() {
-        ['f_title','f_description','f_reference','f_target_value','f_deadline']
+        ['f_title','f_description','f_reference','f_deadline']
             .forEach(id => { document.getElementById(id).value = ''; });
         document.getElementById('f_target_type').value = 'all';
         document.getElementById('f_allow_late').checked = false;
+        document.getElementById('refExtractHint').textContent = '';
+        this._selectedClass = '';
+        this._selectedStudents = new Set();
+    }
+
+    // ── targets picker ───────────────────────────────
+    async _ensureTargets() {
+        if (this._targets) return;
+        try {
+            const resp = await DictationAPI.getTargets();
+            this._targets = resp.data || { classes: [], students: [] };
+        } catch (e) {
+            this._targets = { classes: [], students: [] };
+        }
+    }
+
+    onTargetTypeChange() {
+        const type = document.getElementById('f_target_type').value;
+        const box  = document.getElementById('f_target_picker');
+        if (type === 'all' || !this._targets) {
+            box.innerHTML = '';
+            box.style.display = 'none';
+            return;
+        }
+        box.style.display = 'block';
+        if (type === 'class') {
+            const classes = this._targets.classes || [];
+            if (!classes.length) {
+                box.innerHTML = `<div class="picker-empty">${i18n.t('dict.create.noClass')}</div>`;
+                return;
+            }
+            box.innerHTML = classes.map(c =>
+                `<button type="button" class="class-chip ${this._selectedClass === c ? 'active' : ''}"
+                         onclick="app.selectClass('${this._esc(c)}')">${this._esc(c)}</button>`
+            ).join('');
+        } else if (type === 'student') {
+            const students = this._targets.students || [];
+            if (!students.length) {
+                box.innerHTML = `<div class="picker-empty">${i18n.t('dict.create.noStudent')}</div>`;
+                return;
+            }
+            box.innerHTML = `
+                <div class="student-picker">
+                    ${students.map(s => {
+                        const checked = this._selectedStudents.has(s.username) ? 'checked' : '';
+                        const cls = s.class_name ? ` · ${this._esc(s.class_name)}` : '';
+                        return `<label class="student-row">
+                            <input type="checkbox" value="${this._esc(s.username)}" ${checked}
+                                   onchange="app.toggleStudent('${this._esc(s.username)}', this.checked)">
+                            <span>${this._esc(s.display_name || s.username)}${cls}</span>
+                        </label>`;
+                    }).join('')}
+                </div>
+                <div class="picker-footer">${i18n.t('dict.create.selectedCount')}: <b id="studentCount">${this._selectedStudents.size}</b></div>
+            `;
+        }
+    }
+
+    selectClass(name) {
+        this._selectedClass = name;
+        this.onTargetTypeChange();
+    }
+
+    toggleStudent(username, on) {
+        if (on) this._selectedStudents.add(username);
+        else    this._selectedStudents.delete(username);
+        const el = document.getElementById('studentCount');
+        if (el) el.textContent = this._selectedStudents.size;
+    }
+
+    // ── reference text extraction ───────────────────
+    async extractReferenceFromFile(file) {
+        if (!file) return;
+        const hint = document.getElementById('refExtractHint');
+        hint.textContent = '⏳ ' + i18n.t('dict.create.extracting');
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const resp = await DictationAPI.extractText(fd);
+            const text = resp.data && resp.data.text || '';
+            if (!text) {
+                hint.textContent = '⚠ ' + i18n.t('dict.create.extractFail');
+                return;
+            }
+            const ta = document.getElementById('f_reference');
+            // 若已有內容,追加;否則直接填入
+            ta.value = ta.value ? (ta.value + '\n' + text) : text;
+            hint.textContent = `✓ ${resp.data.length} ${i18n.t('dict.create.charsExtracted')}`;
+        } catch (e) {
+            hint.textContent = '⚠ ' + (e.message || i18n.t('dict.create.extractFail'));
+        } finally {
+            // reset inputs so same file can be re-selected later
+            document.getElementById('refFileInput').value = '';
+            document.getElementById('refPhotoInput').value = '';
+        }
     }
 
     async doCreate() {
+        const targetType = document.getElementById('f_target_type').value;
+        let targetValue = '';
+        if (targetType === 'class')   targetValue = this._selectedClass;
+        if (targetType === 'student') targetValue = Array.from(this._selectedStudents).join(',');
+
         const body = {
             title:          document.getElementById('f_title').value.trim(),
             description:    document.getElementById('f_description').value.trim(),
             reference_text: document.getElementById('f_reference').value.trim(),
-            target_type:    document.getElementById('f_target_type').value,
-            target_value:   document.getElementById('f_target_value').value.trim(),
+            target_type:    targetType,
+            target_value:   targetValue,
             deadline:       document.getElementById('f_deadline').value || null,
             allow_late:     document.getElementById('f_allow_late').checked,
         };
+        if (targetType === 'class' && !targetValue) {
+            UIModule.toast(i18n.t('dict.create.classRequired'), 'error');
+            return;
+        }
+        if (targetType === 'student' && !targetValue) {
+            UIModule.toast(i18n.t('dict.create.studentRequired'), 'error');
+            return;
+        }
         if (!body.title || !body.reference_text) {
             UIModule.toast(i18n.t('dict.common.error'), 'error');
             return;

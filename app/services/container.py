@@ -561,6 +561,7 @@ class ServiceContainer:
                 submission_repo=self._get_repo(DictationSubmissionRepository),
                 file_repo=self._get_repo(DictationSubmissionFileRepository),
                 vision_service=self.vision,
+                user_repo=self._get_repo(UserRepository),
             )
         return self._dictation
 
