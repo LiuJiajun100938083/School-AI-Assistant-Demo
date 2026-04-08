@@ -9,16 +9,16 @@ Why not a deep model:
   Python 3.13 wheels. To avoid pip-resolver hell we do line detection
   with classical CV: binarize → row sums → contiguous text bands.
 
-Quality:
-  Works very well for handwritten English on lined or blank paper with
-  clear vertical spacing between lines (the typical dictation use case).
-  For dense / overlapping handwriting it may merge two lines into one.
-  In that case the engine still works (TrOCR will just transcribe the
-  merged region as one longer string), accuracy degrades gracefully.
-
-Pure-ish: imports cv2/numpy lazily inside the function so the module
-can be imported without those deps installed (e.g. in unit tests of
-the calling code).
+Why this matters for forensic OCR:
+  TrOCR is a generative encoder-decoder. It NEVER says "I see nothing":
+  given a blank or noisy crop it will hallucinate common words from its
+  training set (e.g. "Download as PDFPrintable version"). So this module
+  must be CONSERVATIVE — better to miss a line than feed garbage to
+  TrOCR. We apply multiple gates:
+    1. ink density per row (high threshold)
+    2. minimum band aspect ratio (text lines are wider than tall)
+    3. ink fill ratio inside the band (drop sparse / noise bands)
+    4. ink connected to a real horizontal extent (drop tall thin specks)
 """
 
 from __future__ import annotations
@@ -31,17 +31,30 @@ logger = logging.getLogger(__name__)
 
 def detect_text_lines(
     image_path: str,
-    min_line_height_px: int = 12,
-    pad_y_ratio: float = 0.15,
-    pad_x_px: int = 6,
+    min_line_height_px: int = 16,
+    pad_y_ratio: float = 0.18,
+    pad_x_px: int = 8,
+    # gates — tuned to avoid hallucinated TrOCR outputs
+    ink_row_threshold_ratio: float = 0.04,   # row needs ≥4% width as ink
+    min_band_aspect_ratio: float = 1.2,      # band width/height ≥ 1.2
+    min_band_fill_ratio: float = 0.012,      # ≥1.2% of band area must be ink
+    min_horizontal_extent_ratio: float = 0.04,  # ink must span ≥4% of width
 ):
     """Find horizontal text lines in an image using row-projection.
 
     Args:
         image_path: filesystem path to a JPG/PNG
-        min_line_height_px: drop bands shorter than this (noise filter)
+        min_line_height_px: drop bands shorter than this
         pad_y_ratio: vertical padding as ratio of band height
         pad_x_px: fixed horizontal padding (pixels)
+        ink_row_threshold_ratio: row counts as "ink" if ink pixels exceed
+            this fraction of image width
+        min_band_aspect_ratio: a real text line is wider than tall — drop
+            bands violating this (filters specks, vertical artifacts)
+        min_band_fill_ratio: minimum proportion of band area that must be
+            ink (filters near-empty bands like shadows / paper texture)
+        min_horizontal_extent_ratio: ink within the band must cover this
+            fraction of width horizontally (filters tall narrow specks)
 
     Returns:
         List of PIL.Image.Image crops, one per line, top-to-bottom.
@@ -67,18 +80,21 @@ def detect_text_lines(
         bw = cv2.adaptiveThreshold(
             gray, 255,
             cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV,
-            blockSize=35, C=15,
+            blockSize=35, C=18,  # higher C → less sensitive to noise
         )
 
-        # Slight horizontal closing to bridge inter-letter gaps within a word
+        # Slight horizontal closing to bridge inter-letter gaps
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 1))
         bw = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, kernel)
+
+        # Light denoise: remove tiny isolated specks (paper texture, dust)
+        denoise_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, denoise_kernel)
 
         # Row sum: how much ink is in each row
         row_sums = np.sum(bw > 0, axis=1)
 
-        # A row is "ink" if it has more than 1% of width as ink pixels
-        ink_threshold = max(3, int(w * 0.01))
+        ink_threshold = max(5, int(w * ink_row_threshold_ratio))
         is_ink = row_sums > ink_threshold
 
         # Find contiguous bands of ink rows
@@ -99,12 +115,10 @@ def detect_text_lines(
 
         # Filter out tiny bands (noise specks)
         bands = [b for b in bands if b[1] - b[0] >= min_line_height_px]
-
         if not bands:
             return []
 
-        # Merge bands that are very close vertically (same line broken
-        # by descenders / ascenders gap). Threshold = half median height.
+        # Merge bands that are very close vertically (descenders/ascenders)
         heights = [b[1] - b[0] for b in bands]
         median_h = sorted(heights)[len(heights) // 2]
         merge_gap = max(4, median_h // 3)
@@ -116,19 +130,75 @@ def detect_text_lines(
             else:
                 merged.append(b)
 
-        # Crop each merged band as a PIL image with padding
-        crops: List = []
+        # Per-band quality gates — drop bands that don't look like text
+        good_bands: List[tuple] = []
         for y0, y1 in merged:
             band_h = y1 - y0
-            pad_y = max(2, int(band_h * pad_y_ratio))
+
+            # Check horizontal extent of ink in this band
+            band_bw = bw[y0:y1, :]
+            col_has_ink = np.any(band_bw > 0, axis=0)
+            if not col_has_ink.any():
+                continue
+            ink_left = int(np.argmax(col_has_ink))
+            ink_right = w - int(np.argmax(col_has_ink[::-1]))
+            ink_width = max(1, ink_right - ink_left)
+
+            # Gate 1: aspect ratio (real text lines are wider than tall)
+            if (ink_width / band_h) < min_band_aspect_ratio:
+                logger.debug(
+                    "line_detector: drop band y=%d-%d aspect=%.2f < %.2f",
+                    y0, y1, ink_width / band_h, min_band_aspect_ratio,
+                )
+                continue
+
+            # Gate 2: horizontal extent (ink must span enough of the page)
+            if (ink_width / w) < min_horizontal_extent_ratio:
+                logger.debug(
+                    "line_detector: drop band y=%d-%d extent=%.3f < %.3f",
+                    y0, y1, ink_width / w, min_horizontal_extent_ratio,
+                )
+                continue
+
+            # Gate 3: fill ratio (band must have enough ink, not be a shadow)
+            ink_pixels = int(np.sum(band_bw > 0))
+            band_area = band_h * w
+            fill = ink_pixels / max(1, band_area)
+            if fill < min_band_fill_ratio:
+                logger.debug(
+                    "line_detector: drop band y=%d-%d fill=%.4f < %.4f",
+                    y0, y1, fill, min_band_fill_ratio,
+                )
+                continue
+
+            good_bands.append((y0, y1, ink_left, ink_right))
+
+        if not good_bands:
+            logger.info(
+                "line_detector: no bands passed quality gates "
+                "(image=%dx%d, raw_bands=%d)",
+                w, h, len(merged),
+            )
+            return []
+
+        # Crop each surviving band as a PIL image with padding
+        # Crop horizontally too — only the region with ink, not the whole row
+        crops: List = []
+        for y0, y1, ink_left, ink_right in good_bands:
+            band_h = y1 - y0
+            pad_y = max(3, int(band_h * pad_y_ratio))
             crop = pil.crop((
-                max(0, 0 - pad_x_px),  # left padding (clamped)
+                max(0, ink_left - pad_x_px),
                 max(0, y0 - pad_y),
-                min(w, w + pad_x_px),  # right padding
+                min(w, ink_right + pad_x_px),
                 min(h, y1 + pad_y),
             ))
             crops.append(crop)
 
+        logger.info(
+            "line_detector: %d crops kept (raw=%d) for %s",
+            len(crops), len(merged), image_path,
+        )
         return crops
     except Exception as e:
         logger.warning("line_detector: detection failed for %s: %s", image_path, e)

@@ -186,15 +186,25 @@ class TrocrLineEngine(HandwritingOCREngine):
 
     def _recognize_crops(self, crops):
         import torch
-        from PIL import Image
         results: List[str] = []
         if not crops:
             return results
 
+        # Pre-filter: drop crops that look empty or noise — TrOCR is generative
+        # and will hallucinate words from blank/uniform input.
+        good_crops = [c for c in crops if self._crop_looks_like_text(c)]
+        dropped = len(crops) - len(good_crops)
+        if dropped:
+            logger.info(
+                "trocr: dropped %d crops failing pre-OCR text check", dropped,
+            )
+        if not good_crops:
+            return results
+
         # Batch in chunks of 8 to bound memory
         batch_size = 8
-        for i in range(0, len(crops), batch_size):
-            batch = crops[i : i + batch_size]
+        for i in range(0, len(good_crops), batch_size):
+            batch = good_crops[i : i + batch_size]
             pixel_values = self._processor(images=batch, return_tensors="pt").pixel_values
             pixel_values = pixel_values.to(self._device)
             with torch.no_grad():
@@ -211,6 +221,34 @@ class TrocrLineEngine(HandwritingOCREngine):
             for s in decoded:
                 results.append(s.strip())
         return results
+
+    @staticmethod
+    def _crop_looks_like_text(pil_image) -> bool:
+        """Quick check whether a crop has enough contrast/ink to be real text.
+
+        TrOCR is a generative model that hallucinates common training words
+        on near-blank input. Reject crops where:
+          - the area is tiny (< ~600 px)
+          - the grayscale standard deviation is very low (uniform / blank)
+          - dark-pixel ratio is too low (no ink) or too high (solid black)
+        """
+        try:
+            import numpy as np
+            arr = np.array(pil_image.convert("L"))
+            h, w = arr.shape[:2]
+            if h * w < 600:
+                return False
+            std = float(arr.std())
+            if std < 18:               # uniform region — almost certainly noise
+                return False
+            dark_ratio = float((arr < 128).mean())
+            if dark_ratio < 0.01:      # essentially no ink
+                return False
+            if dark_ratio > 0.85:      # solid black / inverted noise
+                return False
+            return True
+        except Exception:
+            return True  # fail-open: prefer trying than dropping
 
     @staticmethod
     def _estimate_confidence(lines: List[str]) -> float:
