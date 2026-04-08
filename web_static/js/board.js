@@ -141,7 +141,30 @@
         if (!type) return;
         if (type === 'presence') {
             store.set({ onlineCount: (payload.users || []).length || 1 });
-        } else if (type === 'post.created' || type === 'post.updated' || type === 'post.moved' || type === 'post.state_changed') {
+        } else if (type === 'post.moved') {
+            // canvas 拖拽落盤後的 post.moved: 直接更新位置,不觸發 full re-render
+            // (否則會 teardown 當前 DOM 打斷連續拖拽/transition)
+            const np = payload.post;
+            const p = store.state.posts.find(x => x.id === np.id);
+            if (p) {
+                p.canvas_x = np.canvas_x;
+                p.canvas_y = np.canvas_y;
+                p.canvas_w = np.canvas_w;
+                p.canvas_h = np.canvas_h;
+                p.section_id = np.section_id;
+                p.order_index = np.order_index;
+            }
+            if (store.state.layout === 'canvas') {
+                const el = document.querySelector(`.cb-post[data-id="${np.id}"]`);
+                if (el) {
+                    el.style.transition = 'left 0.15s linear, top 0.15s linear';
+                    if (np.canvas_x != null) el.style.left = np.canvas_x + 'px';
+                    if (np.canvas_y != null) el.style.top = np.canvas_y + 'px';
+                }
+            } else {
+                store._emit();
+            }
+        } else if (type === 'post.created' || type === 'post.updated' || type === 'post.state_changed') {
             store.upsertPost(payload.post);
         } else if (type === 'post.dragging') {
             // 拖拽過程即時滑動 — 直接動 DOM,不走 store,不重繪
