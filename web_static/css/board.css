@@ -271,14 +271,14 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
 
 /* ── Grid layout ── */
 .cb-grid {
-    column-count: 3;
-    column-gap: 20px;
-    max-width: 1600px;
+    column-count: 2;
+    column-gap: 24px;
+    max-width: 1500px;
     margin: 0 auto;
 }
-@media (min-width: 1800px) { .cb-grid { column-count: 4; } }
-@media (max-width: 1200px) { .cb-grid { column-count: 2; } }
-@media (max-width: 700px)  { .cb-grid { column-count: 1; } }
+@media (min-width: 1600px) { .cb-grid { column-count: 3; } }
+@media (min-width: 2200px) { .cb-grid { column-count: 4; } }
+@media (max-width: 800px)  { .cb-grid { column-count: 1; } }
 
 /* ── Shelf (columns) ── */
 .cb-shelf {
@@ -428,13 +428,16 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
     border: 1px solid var(--cb-border);
     border-radius: var(--cb-radius);
     padding: 18px;
-    margin-bottom: 20px;   /* for grid column-gap */
+    margin-bottom: 20px;
     box-shadow: var(--cb-shadow);
     break-inside: avoid;
     display: flex;
     flex-direction: column;
     gap: 10px;
     transition: box-shadow 0.15s ease;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;              /* 最終防線: 任何子元素都不能溢出卡片 */
 }
 .cb-post:hover { box-shadow: var(--cb-shadow-hover); }
 .cb-post--pending {
@@ -515,26 +518,29 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
 }
 .cb-post__actions {
     display: flex;
-    gap: 4px;
+    flex-wrap: wrap;               /* 窄卡自動換行,不溢出 */
+    gap: 2px;
     border-top: 1px solid var(--cb-border);
     padding-top: 8px;
     margin-top: 2px;
+    align-items: center;
 }
 .cb-post__actions button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    min-height: 40px;
-    min-width: 40px;
+    gap: 4px;
+    padding: 6px 8px;
+    min-height: 36px;
+    min-width: 36px;
     border: none;
     background: transparent;
     color: var(--cb-text-2);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     border-radius: 8px;
     transition: all 0.15s ease;
+    flex-shrink: 0;
 }
 .cb-post__actions button svg { flex-shrink: 0; }
 .cb-post__actions button:hover { background: var(--cb-bg); color: var(--cb-text); }
