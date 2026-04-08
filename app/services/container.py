@@ -647,6 +647,7 @@ class ServiceContainer:
                 vision_service=self.vision,
                 user_repo=self._get_repo(UserRepository),
                 grader_provider=lambda: self.dictation_grader,
+                usage_recorder_provider=lambda: self.llm_usage,
                 settings=self._settings,
             )
         return self._dictation

@@ -114,13 +114,44 @@ class LLMConfigManager:
         return config
 
     @staticmethod
-    def _load_dotenv():
-        """載入 .env 文件到環境變量（僅補充未設定的變量）。"""
-        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-        if not os.path.exists(env_path):
+    def _project_root() -> str:
+        """專案根目錄的絕對路徑(host dev = repo root, docker = /app)"""
+        return os.path.dirname(os.path.dirname(__file__))
+
+    @classmethod
+    def _runtime_env_path(cls) -> str:
+        """API key / 模型名 等 runtime 改動的持久化檔位置。
+
+        放在 user_data/ 是因為:
+          - 該目錄在 docker-compose.yml 已 bind-mount 為 ./user_data
+          - host 與容器雙向同步,容器重啟不會丟值
+          - 與 .env 分離,不污染 host 的 dev .env
+        """
+        return os.path.join(cls._project_root(), "user_data", "llm_runtime.env")
+
+    @classmethod
+    def _load_dotenv(cls):
+        """載入 .env (基本配置) 與 user_data/llm_runtime.env (runtime 覆蓋)。
+
+        順序:
+          1. 先讀 .env (一般配置),只補入尚未設定的環境變量
+          2. 再讀 llm_runtime.env (admin 介面動態改的 API key 等),
+             這次「強制覆蓋」既有環境變量,確保最新值生效
+        """
+        # Step 1: .env (基本配置)
+        env_path = os.path.join(cls._project_root(), ".env")
+        cls._load_env_file(env_path, override=False)
+
+        # Step 2: runtime 覆蓋檔
+        runtime_path = cls._runtime_env_path()
+        cls._load_env_file(runtime_path, override=True)
+
+    @staticmethod
+    def _load_env_file(path: str, override: bool):
+        if not os.path.exists(path):
             return
         try:
-            with open(env_path, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -130,11 +161,10 @@ class LLMConfigManager:
                         continue
                     key = line[:eq].strip()
                     val = line[eq + 1:].strip()
-                    # 不覆蓋已有的環境變量
-                    if key not in os.environ:
+                    if override or key not in os.environ:
                         os.environ[key] = val
         except Exception as e:
-            logger.warning("載入 .env 失敗: %s", e)
+            logger.warning("載入 env 檔失敗 %s: %s", path, e)
 
     @property
     def config(self) -> LLMConfig:
@@ -188,7 +218,7 @@ class LLMConfigManager:
                     store_val = self._encode_api_key(value) if key == "api_key" else value
                     env_updates[_PERSIST_MAP[key]] = store_val
         if env_updates:
-            self._update_env_file(env_updates)
+            self._update_env_file(env_updates, env_path=self._runtime_env_path())
 
     # ── Fernet 加密 / 解密 ──
 
@@ -240,7 +270,19 @@ class LLMConfigManager:
 
     @staticmethod
     def _update_env_file(updates: dict[str, str], env_path: str = ".env"):
-        """將鍵值對寫入 .env 文件（已有則更新，沒有則追加）。"""
+        """將鍵值對寫入 env 文件（已有則更新，沒有則追加）。
+
+        預設目標已改為 user_data/llm_runtime.env (見 update_runtime),
+        確保 docker 容器內的修改可持久化到 host (user_data/ 是 bind mount)。
+        """
+        # 確保父目錄存在 (user_data/ 在 host 上應該已經存在,但保險起見)
+        parent = os.path.dirname(os.path.abspath(env_path))
+        if parent and not os.path.exists(parent):
+            try:
+                os.makedirs(parent, exist_ok=True)
+            except Exception as e:
+                logger.warning("無法建立 env 檔目錄 %s: %s", parent, e)
+
         lines = []
         if os.path.exists(env_path):
             with open(env_path, "r", encoding="utf-8") as f:

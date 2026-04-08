@@ -69,6 +69,7 @@ class DictationService:
         vision_service: VisionService,
         user_repo=None,
         grader_provider=None,
+        usage_recorder_provider=None,
         settings=None,
     ):
         """
@@ -82,6 +83,9 @@ class DictationService:
                 用 callable 而非直接傳 grader 是因為 grader 依賴 ask_ai,
                 而 ask_ai 在 inject_ai_functions() 時才注入,可能晚於
                 DictationService 構造。每次呼叫時拿最新狀態。
+            usage_recorder_provider: 0-arg callable 回傳 LlmUsageService。
+                用於把 OCR / grader 的 LLM 呼叫記錄到 llm_usage 表,
+                讓管理後台可以看到。同樣 callable 注入,避免循環依賴。
             settings: app 全域設定,讀取 grader / OCR 信心閾值
         """
         self._dict_repo = dictation_repo
@@ -91,6 +95,7 @@ class DictationService:
         self._vision = vision_service
         self._user_repo = user_repo
         self._grader_provider = grader_provider or (lambda: None)
+        self._usage_recorder_provider = usage_recorder_provider or (lambda: None)
         self._settings = settings
 
         # 確保上傳資料夾存在
@@ -489,7 +494,11 @@ class DictationService:
             )
             mode = dictation.get("mode") or Mode.PARAGRAPH
 
-            ocr_text, ocr_engine, ocr_conf = await self._ocr_pages(files, language)
+            student_id = submission.get("student_id")
+
+            ocr_text, ocr_engine, ocr_conf = await self._ocr_pages(
+                files, language, student_id=student_id,
+            )
             if not ocr_text:
                 self._mark_failed(submission_id, "OCR 未辨識到任何文字")
                 return
@@ -507,6 +516,7 @@ class DictationService:
                 diff=diff,
                 language=language,
                 mode=mode,
+                student_id=student_id,
             )
 
             self._save_ocr_result(
@@ -544,9 +554,17 @@ class DictationService:
         return submission, dictation, files
 
     async def _ocr_pages(
-        self, files: List[Dict[str, Any]], language: str,
+        self,
+        files: List[Dict[str, Any]],
+        language: str,
+        student_id: Optional[int] = None,
     ) -> tuple[str, str, float]:
-        """逐張呼叫 registry,合併文字。回傳 (text, engine_name, mean_confidence)。"""
+        """逐張呼叫 registry,合併文字。回傳 (text, engine_name, mean_confidence)。
+
+        每張圖記一筆 llm_usage,purpose='dictation_ocr',讓管理後台
+        看得到 OCR 流量。
+        """
+        import time
         base_dir = Path(__file__).resolve().parent.parent.parent.parent
         pieces: List[str] = []
         engines_used: List[str] = []
@@ -554,8 +572,18 @@ class DictationService:
 
         for f in files:
             image_path = str(base_dir / f["file_path"])
+            t0 = time.monotonic()
             result = await self._ocr_registry.recognize_with_fallback(
                 image_path, language,
+            )
+            duration_ms = int((time.monotonic() - t0) * 1000)
+            await self._record_usage(
+                user_id=student_id,
+                provider="ollama" if result.engine == "vision_llm" else "local",
+                model=result.engine or "unknown",
+                purpose="dictation_ocr",
+                duration_ms=duration_ms,
+                status="ok" if result.success else "error",
             )
             if result.success and result.text:
                 pieces.append(result.text)
@@ -577,22 +605,75 @@ class DictationService:
         diff: Dict[str, Any],
         language: str,
         mode: str,
+        student_id: Optional[int] = None,
     ) -> Optional[GradingResult]:
-        """選擇性呼叫 LLM grader,失敗回 None,service 自動降級為 difflib 分數。"""
+        """選擇性呼叫 LLM grader,失敗回 None,service 自動降級為 difflib 分數。
+
+        記一筆 llm_usage purpose='dictation_grading' 讓管理後台看得到。
+        """
+        import time
         grader = self._grader_provider() if self._grader_provider else None
         if grader is None:
             return None
+        t0 = time.monotonic()
         try:
-            return await grader.grade(
+            result = await grader.grade(
                 reference=reference,
                 student_text=ocr_text,
                 diff=diff,
                 language=language,
                 mode=mode,
             )
+            duration_ms = int((time.monotonic() - t0) * 1000)
+            await self._record_usage(
+                user_id=student_id,
+                provider="ollama",
+                model="grader_llm",
+                purpose="dictation_grading",
+                duration_ms=duration_ms,
+                status="ok" if result.success else "error",
+            )
+            return result
         except Exception as e:
+            duration_ms = int((time.monotonic() - t0) * 1000)
+            await self._record_usage(
+                user_id=student_id,
+                provider="ollama",
+                model="grader_llm",
+                purpose="dictation_grading",
+                duration_ms=duration_ms,
+                status="error",
+            )
             logger.warning("dictation grader error (will fall back to diff): %s", e)
             return None
+
+    async def _record_usage(
+        self,
+        *,
+        user_id: Optional[int],
+        provider: str,
+        model: str,
+        purpose: str,
+        duration_ms: Optional[int],
+        status: str,
+    ) -> None:
+        """把一條 LLM 呼叫記到 llm_usage 表。安靜失敗 — 不能讓記錄錯誤
+        影響主流程。"""
+        recorder = self._usage_recorder_provider() if self._usage_recorder_provider else None
+        if recorder is None:
+            return
+        try:
+            await recorder.record_async(
+                user_id=user_id,
+                provider=provider,
+                model=model,
+                purpose=purpose,
+                usage_dict={},  # vision/grader 沒有 token 數,留空
+                duration_ms=duration_ms,
+                status=status,
+            )
+        except Exception as e:
+            logger.debug("llm_usage record_async failed (non-fatal): %s", e)
 
     def _save_ocr_result(
         self,
