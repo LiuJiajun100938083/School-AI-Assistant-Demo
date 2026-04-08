@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="tools.pdf.title">多圖合併 PDF</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+</head>
+<body>
+    <header class="tools-header">
+        <a href="/" class="tools-header__back">← <span data-i18n="tools.back">返回</span></a>
+        <span class="tools-header__title" data-i18n="tools.pdf.title">多圖合併 PDF</span>
+    </header>
+
+    <main class="tools-page">
+        <h1 class="tools-page__title" data-i18n="tools.pdf.title">多圖合併 PDF</h1>
+        <p class="tools-page__subtitle" data-i18n="tools.pdf.subtitle">拖拽縮圖可重新排序</p>
+
+        <div class="tools-card">
+            <label class="tools-drop" id="dropZone">
+                <input type="file" id="fileInput" accept="image/*" multiple>
+                <div style="font-size:32px">📑</div>
+                <div data-i18n="tools.dropHere">把檔案拖到這裡,或點擊選擇</div>
+            </label>
+            <div id="pdfCount" class="tools-status" style="margin-top:12px"><span data-i18n="tools.pdf.noFiles">尚未選擇圖片</span></div>
+            <div id="thumbGrid" class="tools-thumb-grid"></div>
+            <div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end">
+                <button id="clearBtn" class="tools-btn" disabled data-i18n="tools.clear">清空</button>
+                <button id="mergeBtn" class="tools-btn tools-btn--primary" disabled data-i18n="tools.pdf.merge">合併並下載</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/tools.js"></script>
+    <script src="/static/js/tools_common.js"></script>
+    <script src="/static/js/tools_pdf_merge.js"></script>
+</body>
+</html>

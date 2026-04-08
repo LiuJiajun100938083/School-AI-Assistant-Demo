@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="tools.qr.title">QR 碼生成器</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+</head>
+<body>
+    <header class="tools-header">
+        <a href="/" class="tools-header__back">← <span data-i18n="tools.back">返回</span></a>
+        <span class="tools-header__title" data-i18n="tools.qr.title">QR 碼生成器</span>
+    </header>
+
+    <main class="tools-page">
+        <h1 class="tools-page__title" data-i18n="tools.qr.title">QR 碼生成器</h1>
+        <p class="tools-page__subtitle">輸入任意文字或 URL,即時生成可下載的 QR 碼</p>
+
+        <div class="tools-grid">
+            <!-- 左:輸入 -->
+            <div class="tools-card">
+                <div class="tools-card__title">輸入</div>
+                <div class="tools-field">
+                    <label class="tools-field__label" data-i18n="tools.qr.inputLabel">文字 / URL</label>
+                    <textarea id="qrText" class="tools-textarea" data-i18n-placeholder="tools.qr.inputPh"></textarea>
+                </div>
+                <div class="tools-field">
+                    <label class="tools-field__label" data-i18n="tools.qr.size">尺寸</label>
+                    <input type="range" id="qrSize" class="tools-range" min="128" max="1024" step="64" value="512">
+                    <div class="tools-field__hint"><span id="qrSizeLabel">512</span> × <span id="qrSizeLabel2">512</span> px</div>
+                </div>
+                <div class="tools-field">
+                    <label class="tools-field__label" data-i18n="tools.qr.ec">糾錯等級</label>
+                    <div class="tools-segmented" id="qrEc">
+                        <button data-ec="L">L</button>
+                        <button data-ec="M" class="active">M</button>
+                        <button data-ec="Q">Q</button>
+                        <button data-ec="H">H</button>
+                    </div>
+                    <div class="tools-field__hint" data-i18n="tools.qr.ecDesc"></div>
+                </div>
+                <div id="qrStatus" class="tools-status"></div>
+            </div>
+
+            <!-- 右:預覽 -->
+            <div class="tools-card">
+                <div class="tools-card__title" data-i18n="tools.qr.preview">預覽</div>
+                <div class="tools-preview" id="qrPreview">
+                    <div class="tools-preview__empty" data-i18n="tools.qr.empty">輸入內容以生成 QR 碼</div>
+                </div>
+                <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px">
+                    <button id="qrDownload" class="tools-btn tools-btn--primary" disabled data-i18n="tools.download">下載</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/tools.js"></script>
+    <script src="/static/js/tools_common.js"></script>
+    <script src="/static/js/tools_qrcode.js"></script>
+</body>
+</html>

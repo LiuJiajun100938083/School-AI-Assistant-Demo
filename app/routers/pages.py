@@ -100,6 +100,25 @@ async def board_workspace_page(board_uuid: str):
     return _serve_page("board.html")
 
 
+# ============================================================
+# 實用工具 (Tools Hub)
+# ============================================================
+
+@router.get("/tools/qrcode")
+async def tool_qrcode_page():
+    return _serve_page("tools/qrcode.html")
+
+
+@router.get("/tools/image-convert")
+async def tool_image_convert_page():
+    return _serve_page("tools/image_convert.html")
+
+
+@router.get("/tools/pdf-merge")
+async def tool_pdf_merge_page():
+    return _serve_page("tools/pdf_merge.html")
+
+
 @router.get("/student-report")
 async def student_report():
     """学生分析报告页"""

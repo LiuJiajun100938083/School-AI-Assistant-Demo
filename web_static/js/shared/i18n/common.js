@@ -47,6 +47,7 @@ i18n.addMessages({
         'category.learning': '學習工具',
         'category.community': '社區',
         'category.teaching': '教學管理',
+        'category.utilities': '實用工具',
         'category.system': '系統管理',
         'category.other': '其他',
 
@@ -187,6 +188,7 @@ i18n.addMessages({
         'category.learning': 'Learning Tools',
         'category.community': 'Community',
         'category.teaching': 'Teaching Admin',
+        'category.utilities': 'Utilities',
         'category.system': 'System Admin',
         'category.other': 'Other',
 

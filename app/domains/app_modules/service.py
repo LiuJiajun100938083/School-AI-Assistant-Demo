@@ -232,10 +232,26 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "url": "/admin",
         "roles": ["admin"],
         "enabled": True,
-        "order": 16,
+        "order": 30,
         "category": "admin",
     },
 ]
+
+
+# ------------------------------------------------------------
+# 動態追加: 實用工具分類 (tools registry)
+# ------------------------------------------------------------
+# 每個工具的元資料集中在 app.domains.tools.registry.TOOLS。
+# 加新工具只需在 registry 加一個 ToolSpec,不需要改這個檔案。
+try:
+    from app.domains.tools.registry import TOOLS as _TOOLS_REGISTRY
+    _TOOL_ORDER_START = 16  # 插在 admin_dashboard (order 30) 之前
+    DEFAULT_APP_MODULES.extend(
+        t.to_module_entry(order=_TOOL_ORDER_START + i)
+        for i, t in enumerate(_TOOLS_REGISTRY)
+    )
+except Exception as _e:  # noqa: BLE001
+    logger.warning("tools registry 載入失敗,首頁不顯示實用工具: %s", _e)
 
 
 class AppModulesService:
