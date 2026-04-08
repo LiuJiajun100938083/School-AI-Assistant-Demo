@@ -81,8 +81,36 @@
     }
 
     // ------ modal ------
+    let selectedClass = '';
     window.closeModal = () => document.getElementById('createModal').classList.remove('open');
-    function openModal() { document.getElementById('createModal').classList.add('open'); }
+    async function openModal() {
+        document.getElementById('createModal').classList.add('open');
+        await loadClassButtons();
+    }
+
+    async function loadClassButtons() {
+        const wrap = document.getElementById('fClassButtons');
+        try {
+            const res = await fetch('/api/teacher/classes', {
+                headers: { 'Authorization': 'Bearer ' + token() },
+            });
+            const body = await res.json();
+            const classes = (body.classes || []).map(c => c.name);
+            selectedClass = '';
+            wrap.innerHTML =
+                `<button type="button" class="cb-class-btn active" data-cls="">${i18n.t('cb.visPublic') === 'Public' ? 'All' : '全部'}</button>` +
+                classes.map(c => `<button type="button" class="cb-class-btn" data-cls="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+            wrap.querySelectorAll('.cb-class-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    wrap.querySelectorAll('.cb-class-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedClass = btn.dataset.cls;
+                });
+            });
+        } catch (e) {
+            wrap.innerHTML = `<span style="font-size:12px;color:#b91c1c">${escapeHtml(e.message)}</span>`;
+        }
+    }
 
     async function save() {
         const payload = {
@@ -91,7 +119,7 @@
             icon: document.getElementById('fIcon').value.trim() || '📌',
             layout: document.getElementById('fLayout').value,
             visibility: document.getElementById('fVisibility').value,
-            class_name: document.getElementById('fClassName').value.trim(),
+            class_name: selectedClass,
             moderation: document.getElementById('fModeration').checked,
         };
         if (!payload.title) { alert(i18n.t('cb.formTitlePh')); return; }

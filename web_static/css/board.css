@@ -597,6 +597,33 @@ button { font-family: inherit; }
     border-radius: 6px;
     cursor: pointer;
 }
+.cb-class-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0;
+}
+.cb-class-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--cb-border);
+    border-radius: 999px;
+    background: var(--cb-card);
+    color: var(--cb-text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.cb-class-btn:hover {
+    border-color: var(--cb-brand);
+    color: var(--cb-brand);
+}
+.cb-class-btn.active {
+    background: var(--cb-brand);
+    border-color: var(--cb-brand);
+    color: white;
+    font-weight: 600;
+}
+
 .cb-layout-switch button.active {
     background: var(--cb-card);
     color: var(--cb-brand);
