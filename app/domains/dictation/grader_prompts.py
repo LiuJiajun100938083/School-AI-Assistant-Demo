@@ -52,6 +52,24 @@ def build_grading_prompt(
     lang_hint = "English" if language == "en" else "Chinese"
     mode_hint = "single passage / paragraph" if mode == "paragraph" else "word list"
 
+    # 中文專屬規則 (條件式插入,英文無影響)
+    chinese_rules = ""
+    if language == "zh":
+        chinese_rules = """
+
+CHINESE-SPECIFIC RULES (READ CAREFULLY):
+- Traditional/simplified character variants of the SAME character are
+  NEVER wrong. They must be treated as "correct" or at most "minor".
+  Examples that count as equivalent (correct, not wrong):
+    飛 ↔ 飞     後 ↔ 后     學 ↔ 学     國 ↔ 国
+    發 ↔ 发     髮 ↔ 发     乾 ↔ 干     幹 ↔ 干
+- The teacher's reference text may use either form; the student may
+  write either form. They are 100% equivalent for grading purposes.
+- A "wrong" character means the student wrote a DIFFERENT character
+  (e.g. 明 vs 名, 已 vs 己) — NOT a traditional/simplified variant of
+  the correct one.
+"""
+
     return f"""You are a strict, fair dictation judge.
 
 INPUTS YOU RECEIVE
@@ -85,7 +103,7 @@ WHAT YOU MUST NOT DO
 - Do not invent characters that aren't in `student_text`.
 - Do not assume the OCR was wrong; trust it as ground truth.
 - Do not reveal the reference text in the feedback (just describe issues).
-
+{chinese_rules}
 LANGUAGE: {lang_hint}
 MODE: {mode_hint}
 

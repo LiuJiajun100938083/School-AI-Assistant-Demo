@@ -579,6 +579,7 @@ def _run_schema_migrations() -> None:
                 reference_text  MEDIUMTEXT NOT NULL         COMMENT '默書原文',
                 language        VARCHAR(8)  DEFAULT 'en'    COMMENT 'en/zh',
                 mode            VARCHAR(16) DEFAULT 'paragraph' COMMENT 'paragraph | word_list',
+                lenient_variants TINYINT(1) DEFAULT 1        COMMENT '中文繁簡寬容 1=寬容 0=嚴格',
                 created_by      INT                         COMMENT '教師 user id',
                 created_by_name VARCHAR(100),
                 target_type     ENUM('all','class','student') DEFAULT 'all',
@@ -602,6 +603,9 @@ def _run_schema_migrations() -> None:
             ("mode",
              "ALTER TABLE dictations ADD COLUMN mode VARCHAR(16) "
              "DEFAULT 'paragraph' COMMENT 'paragraph|word_list' AFTER language"),
+            ("lenient_variants",
+             "ALTER TABLE dictations ADD COLUMN lenient_variants TINYINT(1) "
+             "DEFAULT 1 COMMENT '中文繁簡寬容 1=寬容 0=嚴格' AFTER mode"),
         ]:
             try:
                 cols = pool.execute(f"SHOW COLUMNS FROM dictations LIKE '{col}'")

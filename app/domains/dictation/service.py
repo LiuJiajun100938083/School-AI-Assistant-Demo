@@ -208,6 +208,7 @@ class DictationService:
         description: str = "",
         language: str = Language.ENGLISH,
         mode: str = Mode.PARAGRAPH,
+        lenient_variants: Optional[bool] = None,
         target_type: str = "all",
         target_value: str = "",
         deadline: Optional[datetime] = None,
@@ -227,7 +228,7 @@ class DictationService:
             mode = Mode.PARAGRAPH
 
         ref = reference_text.strip()
-        dictation_id = self._dict_repo.insert_get_id({
+        insert_data: Dict[str, Any] = {
             "title": title.strip(),
             "description": description or "",
             "reference_text": ref,
@@ -240,7 +241,12 @@ class DictationService:
             "status": DictationStatus.DRAFT.value,
             "deadline": deadline,
             "allow_late": 1 if allow_late else 0,
-        })
+        }
+        # 只在呼叫者顯式給值時寫入 lenient_variants;否則由 DB schema
+        # DEFAULT 1 接手 — 單一真相來源
+        if lenient_variants is not None:
+            insert_data["lenient_variants"] = 1 if lenient_variants else 0
+        dictation_id = self._dict_repo.insert_get_id(insert_data)
         logger.info("老師 %s 建立默書 #%d: %s", teacher_name, dictation_id, title)
         return self.get_dictation_detail(dictation_id)
 
@@ -254,6 +260,9 @@ class DictationService:
 
         if "allow_late" in update_data:
             update_data["allow_late"] = 1 if update_data["allow_late"] else 0
+
+        if "lenient_variants" in update_data:
+            update_data["lenient_variants"] = 1 if update_data["lenient_variants"] else 0
 
         # 中文不允許 word_list
         if update_data.get("language") == Language.CHINESE:
@@ -508,6 +517,7 @@ class DictationService:
                 ocr=ocr_text,
                 language=language,
                 mode=mode,
+                lenient_variants=bool(dictation.get("lenient_variants", 1)),
             )
 
             grading = await self._maybe_grade(
@@ -869,6 +879,7 @@ class DictationService:
             diff = compare_dictation(
                 dictation["reference_text"], new_ocr,
                 language=language, mode=mode,
+                lenient_variants=bool(dictation.get("lenient_variants", 1)),
             )
             update.update({
                 "ocr_text": new_ocr,

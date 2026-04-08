@@ -20,6 +20,8 @@ class CreateDictationRequest(BaseModel):
     reference_text: str = Field(..., min_length=1, description="默書原文")
     language: str = Field("en", description="en (英文) | zh (中文)")
     mode: str = Field("paragraph", description="paragraph (段落/課文) | word_list (英文單字表)")
+    # 中文繁簡寬容:None=用 DB schema 預設 (1=寬容),老師可顯式設 False 為嚴格
+    lenient_variants: Optional[bool] = None
     target_type: str = Field("all", description="all | class | student")
     target_value: Optional[str] = ""
     deadline: Optional[datetime] = None
@@ -32,6 +34,7 @@ class UpdateDictationRequest(BaseModel):
     reference_text: Optional[str] = None
     language: Optional[str] = None
     mode: Optional[str] = None
+    lenient_variants: Optional[bool] = None
     target_type: Optional[str] = None
     target_value: Optional[str] = None
     deadline: Optional[datetime] = None

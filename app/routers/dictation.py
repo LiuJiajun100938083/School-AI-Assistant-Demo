@@ -65,6 +65,7 @@ async def create_dictation(
             description=request.description or "",
             language=request.language,
             mode=request.mode,
+            lenient_variants=request.lenient_variants,
             target_type=request.target_type,
             target_value=request.target_value or "",
             deadline=request.deadline,
