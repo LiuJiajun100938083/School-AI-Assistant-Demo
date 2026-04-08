@@ -2,7 +2,7 @@
 // Keys: dict.*
 i18n.addMessages({
     zh: {
-        'dict.page.title':           '英文默書',
+        'dict.page.title':           '默書',
         'dict.page.backHome':        '返回首頁',
         'dict.page.loading':         '載入中...',
         'dict.page.loadFail':        '載入失敗',
@@ -29,6 +29,12 @@ i18n.addMessages({
 
         'dict.create.title':         '標題',
         'dict.create.titlePh':       '例如:Unit 3 Spelling',
+        'dict.create.type':          '默書類型',
+        'dict.create.typeEnPara':    '英文課文/段落',
+        'dict.create.typeEnWord':    '英文單字',
+        'dict.create.typeZhPara':    '中文課文',
+        'dict.create.wordHint':      '每個單字可用換行或逗號分隔',
+        'dict.create.paraHint':      '輸入完整段落/課文,保留原始標點',
         'dict.create.description':   '說明 (選填)',
         'dict.create.descriptionPh': '給學生看的提示,可留空',
         'dict.create.reference':     '默書原文',
@@ -116,7 +122,7 @@ i18n.addMessages({
         'dict.common.confirmDelete': '確定要刪除這份默書?',
     },
     en: {
-        'dict.page.title':           'English Dictation',
+        'dict.page.title':           'Dictation',
         'dict.page.backHome':        '← Home',
         'dict.page.loading':         'Loading...',
         'dict.page.loadFail':        'Failed to load',
@@ -143,6 +149,12 @@ i18n.addMessages({
 
         'dict.create.title':         'Title',
         'dict.create.titlePh':       'e.g. Unit 3 Spelling',
+        'dict.create.type':          'Dictation Type',
+        'dict.create.typeEnPara':    'English Passage',
+        'dict.create.typeEnWord':    'English Word List',
+        'dict.create.typeZhPara':    'Chinese Passage',
+        'dict.create.wordHint':      'Separate words by newline or comma',
+        'dict.create.paraHint':      'Full passage with original punctuation',
         'dict.create.description':   'Description (optional)',
         'dict.create.descriptionPh': 'Notes shown to students',
         'dict.create.reference':     'Reference Text',

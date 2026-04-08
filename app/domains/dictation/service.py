@@ -39,7 +39,10 @@ from app.domains.dictation.constants import (
     SUPPORTED_IMAGE_EXTS,
     UPLOAD_DIR,
     DictationStatus,
+    Language,
+    Mode,
     SubmissionStatus,
+    detect_language,
 )
 from app.domains.dictation.repository import (
     DictationRepository,
@@ -177,6 +180,8 @@ class DictationService:
         title: str,
         reference_text: str,
         description: str = "",
+        language: str = Language.ENGLISH,
+        mode: str = Mode.PARAGRAPH,
         target_type: str = "all",
         target_value: str = "",
         deadline: Optional[datetime] = None,
@@ -187,11 +192,21 @@ class DictationService:
             raise ValidationError("標題不能為空")
         if not reference_text.strip():
             raise ValidationError("默書原文不能為空")
+        if language not in (Language.ENGLISH, Language.CHINESE):
+            raise ValidationError("不支援的語言")
+        if mode not in (Mode.PARAGRAPH, Mode.WORD_LIST):
+            raise ValidationError("不支援的模式")
+        # 中文目前只支援段落模式
+        if language == Language.CHINESE and mode == Mode.WORD_LIST:
+            mode = Mode.PARAGRAPH
 
+        ref = reference_text.strip()
         dictation_id = self._dict_repo.insert_get_id({
             "title": title.strip(),
             "description": description or "",
-            "reference_text": reference_text.strip(),
+            "reference_text": ref,
+            "language": language,
+            "mode": mode,
             "created_by": teacher_id,
             "created_by_name": teacher_name,
             "target_type": target_type,
@@ -213,6 +228,10 @@ class DictationService:
 
         if "allow_late" in update_data:
             update_data["allow_late"] = 1 if update_data["allow_late"] else 0
+
+        # 中文不允許 word_list
+        if update_data.get("language") == Language.CHINESE:
+            update_data["mode"] = Mode.PARAGRAPH
 
         self._dict_repo.update(
             data=update_data, where="id = %s", params=(dictation_id,),
@@ -451,12 +470,17 @@ class DictationService:
                 self._mark_failed(submission_id, "沒有上傳圖片")
                 return
 
+            language = dictation.get("language") or detect_language(
+                dictation.get("reference_text") or ""
+            )
+            mode = dictation.get("mode") or Mode.PARAGRAPH
+
             # 逐張 OCR，合併 answer_text
             ocr_pieces: List[str] = []
             base_dir = Path(__file__).resolve().parent.parent.parent.parent
             for f in files:
                 image_path = str(base_dir / f["file_path"])
-                result = await self._run_ocr(image_path)
+                result = await self._run_ocr(image_path, language)
                 text = (result.answer_text or result.raw_text or "").strip()
                 if text:
                     ocr_pieces.append(text)
@@ -469,6 +493,8 @@ class DictationService:
             diff = compare_dictation(
                 reference=dictation["reference_text"],
                 ocr=merged_ocr,
+                language=language,
+                mode=mode,
             )
 
             self._sub_repo.update(
@@ -495,8 +521,15 @@ class DictationService:
             logger.exception("默書 OCR 處理失敗 submission=%s", submission_id)
             self._mark_failed(submission_id, f"OCR 失敗: {e}")
 
-    async def _run_ocr(self, image_path: str):
-        """所有 OCR 呼叫收口在這裡 — 未來換 provider 只改此處。"""
+    async def _run_ocr(self, image_path: str, language: str = Language.ENGLISH):
+        """所有 OCR 呼叫收口在這裡 — 未來換 provider 只改此處。
+
+        根據語言分派:
+          - zh → recognize_chinese_writing (中文手寫)
+          - en → recognize_english_dictation (英文默書)
+        """
+        if language == Language.CHINESE:
+            return await self._vision.recognize_chinese_writing(image_path)
         return await self._vision.recognize_english_dictation(image_path)
 
     def _mark_failed(self, submission_id: int, reason: str) -> None:
@@ -586,7 +619,14 @@ class DictationService:
         # 如果老師手動修正 OCR,重新比對
         if payload.get("manual_ocr_text") is not None:
             new_ocr = payload["manual_ocr_text"]
-            diff = compare_dictation(dictation["reference_text"], new_ocr)
+            language = dictation.get("language") or detect_language(
+                dictation.get("reference_text") or ""
+            )
+            mode = dictation.get("mode") or Mode.PARAGRAPH
+            diff = compare_dictation(
+                dictation["reference_text"], new_ocr,
+                language=language, mode=mode,
+            )
             update.update({
                 "ocr_text": new_ocr,
                 "diff_result": json.dumps(diff, ensure_ascii=False),

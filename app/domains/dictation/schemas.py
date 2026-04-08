@@ -18,6 +18,8 @@ class CreateDictationRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = ""
     reference_text: str = Field(..., min_length=1, description="默書原文")
+    language: str = Field("en", description="en (英文) | zh (中文)")
+    mode: str = Field("paragraph", description="paragraph (段落/課文) | word_list (英文單字表)")
     target_type: str = Field("all", description="all | class | student")
     target_value: Optional[str] = ""
     deadline: Optional[datetime] = None
@@ -28,6 +30,8 @@ class UpdateDictationRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     reference_text: Optional[str] = None
+    language: Optional[str] = None
+    mode: Optional[str] = None
     target_type: Optional[str] = None
     target_value: Optional[str] = None
     deadline: Optional[datetime] = None

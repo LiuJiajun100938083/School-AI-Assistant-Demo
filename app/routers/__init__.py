@@ -570,13 +570,15 @@ def _run_schema_migrations() -> None:
             if "doesn't exist" not in str(ps_e):
                 logger.warning("practice_sessions 遷移跳過: %s", ps_e)
 
-        # ─── 英文默書表 ─────────────────────────────
+        # ─── 默書表 (中英雙語) ─────────────────────────
         pool.execute("""
             CREATE TABLE IF NOT EXISTS dictations (
                 id              INT AUTO_INCREMENT PRIMARY KEY,
                 title           VARCHAR(255) NOT NULL,
                 description     TEXT,
                 reference_text  MEDIUMTEXT NOT NULL         COMMENT '默書原文',
+                language        VARCHAR(8)  DEFAULT 'en'    COMMENT 'en/zh',
+                mode            VARCHAR(16) DEFAULT 'paragraph' COMMENT 'paragraph | word_list',
                 created_by      INT                         COMMENT '教師 user id',
                 created_by_name VARCHAR(100),
                 target_type     ENUM('all','class','student') DEFAULT 'all',
@@ -592,6 +594,22 @@ def _run_schema_migrations() -> None:
                 INDEX idx_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
+        # 若既有表缺欄位 → 自動補上
+        for col, sql in [
+            ("language",
+             "ALTER TABLE dictations ADD COLUMN language VARCHAR(8) "
+             "DEFAULT 'en' COMMENT 'en/zh' AFTER reference_text"),
+            ("mode",
+             "ALTER TABLE dictations ADD COLUMN mode VARCHAR(16) "
+             "DEFAULT 'paragraph' COMMENT 'paragraph|word_list' AFTER language"),
+        ]:
+            try:
+                cols = pool.execute(f"SHOW COLUMNS FROM dictations LIKE '{col}'")
+                if not cols:
+                    pool.execute(sql, ())
+                    logger.info("数据库迁移: dictations 表已新增 %s 列", col)
+            except Exception:
+                pass
         pool.execute("""
             CREATE TABLE IF NOT EXISTS dictation_submissions (
                 id               INT AUTO_INCREMENT PRIMARY KEY,

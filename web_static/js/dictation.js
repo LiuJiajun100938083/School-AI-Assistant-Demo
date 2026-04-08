@@ -54,6 +54,19 @@ class DictationApp {
         this._targets        = null;           // { classes: [], students: [] }
         this._selectedClass  = '';
         this._selectedStudents = new Set();
+        this._selectedType   = 'en_paragraph'; // en_paragraph | en_word_list | zh_paragraph
+    }
+
+    // Map UI type → backend (language, mode)
+    _typeToLM(t) {
+        if (t === 'en_word_list') return { language: 'en', mode: 'word_list' };
+        if (t === 'zh_paragraph') return { language: 'zh', mode: 'paragraph' };
+        return { language: 'en', mode: 'paragraph' };
+    }
+    _lmToType(language, mode) {
+        if (language === 'zh') return 'zh_paragraph';
+        if (mode === 'word_list') return 'en_word_list';
+        return 'en_paragraph';
     }
 
     // ── init ──────────────────────────────────────────
@@ -274,6 +287,8 @@ class DictationApp {
         document.getElementById('f_target_type').value  = d.target_type || 'all';
         document.getElementById('f_deadline').value     = d.deadline ? d.deadline.substring(0, 16) : '';
         document.getElementById('f_allow_late').checked = !!d.allow_late;
+        this._selectedType = this._lmToType(d.language || 'en', d.mode || 'paragraph');
+        this._applyTypeUI();
         document.getElementById('createModalTitle').textContent = i18n.t('dict.detail.edit');
         document.getElementById('createModal').style.display = 'flex';
 
@@ -303,6 +318,33 @@ class DictationApp {
         document.getElementById('refExtractHint').textContent = '';
         this._selectedClass = '';
         this._selectedStudents = new Set();
+        this._selectedType = 'en_paragraph';
+        this._applyTypeUI();
+    }
+
+    selectType(t) {
+        this._selectedType = t;
+        this._applyTypeUI();
+    }
+
+    _applyTypeUI() {
+        const t = this._selectedType;
+        document.querySelectorAll('#f_type_picker .type-card').forEach(el => {
+            el.classList.toggle('active', el.dataset.type === t);
+        });
+        const hint = document.getElementById('f_type_hint');
+        if (hint) {
+            hint.textContent = (t === 'en_word_list')
+                ? i18n.t('dict.create.wordHint')
+                : i18n.t('dict.create.paraHint');
+        }
+        // Update reference textarea placeholder accordingly
+        const ta = document.getElementById('f_reference');
+        if (ta) {
+            ta.placeholder = (t === 'en_word_list')
+                ? 'apple\nbanana\ncherry'
+                : i18n.t('dict.create.referencePh');
+        }
     }
 
     // ── targets picker ───────────────────────────────
@@ -403,10 +445,13 @@ class DictationApp {
         if (targetType === 'class')   targetValue = this._selectedClass;
         if (targetType === 'student') targetValue = Array.from(this._selectedStudents).join(',');
 
+        const lm = this._typeToLM(this._selectedType);
         const body = {
             title:          document.getElementById('f_title').value.trim(),
             description:    document.getElementById('f_description').value.trim(),
             reference_text: document.getElementById('f_reference').value.trim(),
+            language:       lm.language,
+            mode:           lm.mode,
             target_type:    targetType,
             target_value:   targetValue,
             deadline:       document.getElementById('f_deadline').value || null,
@@ -517,13 +562,31 @@ class DictationApp {
             }
             // graded
             const diff = s.diff_result || {};
-            const diffHtml = (diff.items || []).map(it => {
-                if (it.status === 'correct')  return `<span class="w-correct">${this._esc(it.ref)}</span>`;
-                if (it.status === 'wrong')    return `<span class="w-wrong" title="${this._esc(it.ocr)}">${this._esc(it.ref)}</span>`;
-                if (it.status === 'missing')  return `<span class="w-missing">${this._esc(it.ref)}</span>`;
-                if (it.status === 'extra')    return `<span class="w-extra">${this._esc(it.ocr)}</span>`;
-                return '';
-            }).join(' ');
+            const isWordList = diff.mode === 'word_list';
+
+            // Render diff: word_list = cards, paragraph = inline
+            let diffHtml;
+            if (isWordList) {
+                diffHtml = `<div class="word-grid">${(diff.items || []).map(it => {
+                    if (it.status === 'correct')
+                        return `<div class="word-card correct"><span class="word-status">✓</span><span class="word-text">${this._esc(it.ref)}</span></div>`;
+                    if (it.status === 'wrong')
+                        return `<div class="word-card wrong"><span class="word-status">✗</span><span class="word-text">${this._esc(it.ref)}</span><span class="word-ocr">${this._esc(it.ocr)}</span></div>`;
+                    if (it.status === 'missing')
+                        return `<div class="word-card missing"><span class="word-status">—</span><span class="word-text">${this._esc(it.ref)}</span></div>`;
+                    if (it.status === 'extra')
+                        return `<div class="word-card extra"><span class="word-status">+</span><span class="word-text">${this._esc(it.ocr)}</span></div>`;
+                    return '';
+                }).join('')}</div>`;
+            } else {
+                diffHtml = `<div class="diff-view">${(diff.items || []).map(it => {
+                    if (it.status === 'correct')  return `<span class="w-correct">${this._esc(it.ref)}</span>`;
+                    if (it.status === 'wrong')    return `<span class="w-wrong" title="${this._esc(it.ocr)}">${this._esc(it.ref)}</span>`;
+                    if (it.status === 'missing')  return `<span class="w-missing">${this._esc(it.ref)}</span>`;
+                    if (it.status === 'extra')    return `<span class="w-extra">${this._esc(it.ocr)}</span>`;
+                    return '';
+                }).join(' ')}</div>`;
+            }
 
             const filesHtml = (s.files || []).map(f =>
                 `<img class="photo-thumb" src="/api/dictation/files/${f.id}/preview" alt="">`
@@ -553,7 +616,7 @@ class DictationApp {
                 </div>
 
                 <h4>${i18n.t('dict.result.diffView')}</h4>
-                <div class="diff-view">${diffHtml}</div>
+                ${diffHtml}
 
                 ${s.reference_text ? `<h4>${i18n.t('dict.result.refView')}</h4><pre class="reference-box">${this._esc(s.reference_text)}</pre>` : ''}
 

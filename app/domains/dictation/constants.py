@@ -44,5 +44,35 @@ class SubmissionStatus(str, Enum):
 
 
 # ─── 比對參數 ──────────────────────────────────────────────
-# 文字正規化後的分詞 regex（單詞包含字母、撇號、連字號）
+# 英文分詞 regex (含撇號 / 連字號)
 WORD_REGEX: str = r"[A-Za-z]+(?:['\-][A-Za-z]+)*"
+# 中日韓統一表意文字範圍 (用於語言偵測 + 中文字元過濾)
+CJK_REGEX: str = (
+    r"[\u4e00-\u9fff"      # CJK Unified Ideographs
+    r"\u3400-\u4dbf"       # CJK Extension A
+    r"\uf900-\ufaff"       # CJK Compatibility Ideographs
+    r"]"
+)
+
+
+class Language(str):
+    """默書語言"""
+    ENGLISH = "en"
+    CHINESE = "zh"
+
+
+class Mode(str):
+    """默書模式"""
+    PARAGRAPH = "paragraph"   # 段落/課文,順序敏感、詞序比對
+    WORD_LIST = "word_list"   # 單字列表,順序無關、支援拼寫模糊比對 (英文專用)
+
+
+def detect_language(text: str) -> str:
+    """根據文本中 CJK 字元比例判斷語言。
+
+    規則:只要出現任一 CJK 字元 → 中文,否則英文。
+    """
+    import re
+    if not text:
+        return Language.ENGLISH
+    return Language.CHINESE if re.search(CJK_REGEX, text) else Language.ENGLISH
