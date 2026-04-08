@@ -297,6 +297,7 @@ body.role-teacher .student-only { display: none !important; }
 .status-ocr_processing { background: #FFF5E6; color: #FF9500; }
 .status-graded         { background: var(--brand-light); color: var(--brand); }
 .status-ocr_failed     { background: #FFF1F0; color: var(--color-error); }
+.status-needs_review   { background: #FFF7E6; color: #B8651C; border: 1px solid rgba(255,149,0,0.3); }
 .status-notsub         { background: #F2F2F7; color: #6E6E73; }
 
 /* ── Empty / loading / error ─────────────────────── */
@@ -788,6 +789,65 @@ body.role-teacher .student-only { display: none !important; }
     border-radius: var(--radius-md);
     font-size: 14px;
     color: var(--text-primary);
+}
+
+/* ── needs_review banner / engine badge / AI feedback ─── */
+.review-banner {
+    background: #FFF7E6;
+    border: 1px solid rgba(255, 149, 0, 0.4);
+    border-left: 4px solid var(--color-warning);
+    color: #8C4A00;
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    margin-bottom: var(--space-3);
+    font-weight: 500;
+}
+.engine-badge {
+    display: inline-block;
+    background: var(--bg-page);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-full);
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    margin-bottom: var(--space-3);
+}
+
+.ai-feedback-box {
+    background: var(--brand-lighter);
+    border: 1px solid var(--brand-border);
+    border-left: 4px solid var(--brand);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+.ai-feedback-box .ai-overall {
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+.ai-feedback-box .ai-list-block {
+    margin-top: var(--space-3);
+}
+.ai-feedback-box .ai-list-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.ai-feedback-box ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.ai-feedback-box ul li {
+    margin: 2px 0;
 }
 .override-panel {
     margin-top: var(--space-5);

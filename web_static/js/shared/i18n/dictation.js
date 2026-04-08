@@ -17,6 +17,7 @@ i18n.addMessages({
         'dict.sub.ocrProcessing':    '辨識中',
         'dict.sub.graded':           '已批改',
         'dict.sub.ocrFailed':        '辨識失敗',
+        'dict.sub.needsReview':      '待複核',
         'dict.sub.notSubmitted':     '尚未提交',
 
         'dict.sidebar.createTitle':  '建立默書',
@@ -93,6 +94,11 @@ i18n.addMessages({
         'dict.submit.success':       '已提交,正在辨識...',
 
         'dict.result.title':         '批改結果',
+        'dict.result.aiFeedback':    'AI 評語',
+        'dict.result.notableErrors': '主要錯誤',
+        'dict.result.minorIssues':   '小問題 (大小寫/標點/英美差異)',
+        'dict.result.engineBadge':   '辨識引擎',
+        'dict.result.reviewBanner':  '⚠ OCR/AI 信心不足,建議老師人工複核',
         'dict.result.accuracy':      '正確率',
         'dict.result.correct':       '正確',
         'dict.result.wrong':         '錯字',
@@ -137,6 +143,7 @@ i18n.addMessages({
         'dict.sub.ocrProcessing':    'Recognizing',
         'dict.sub.graded':           'Graded',
         'dict.sub.ocrFailed':        'OCR failed',
+        'dict.sub.needsReview':      'Needs review',
         'dict.sub.notSubmitted':     'Not submitted',
 
         'dict.sidebar.createTitle':  'Create Dictation',
@@ -213,6 +220,11 @@ i18n.addMessages({
         'dict.submit.success':       'Submitted. Recognizing...',
 
         'dict.result.title':         'Grading Result',
+        'dict.result.aiFeedback':    'AI Feedback',
+        'dict.result.notableErrors': 'Notable Errors',
+        'dict.result.minorIssues':   'Minor Issues (case/punct/variant)',
+        'dict.result.engineBadge':   'OCR Engine',
+        'dict.result.reviewBanner':  '⚠ Low OCR/AI confidence — please review manually',
         'dict.result.accuracy':      'Accuracy',
         'dict.result.correct':       'Correct',
         'dict.result.wrong':         'Wrong',

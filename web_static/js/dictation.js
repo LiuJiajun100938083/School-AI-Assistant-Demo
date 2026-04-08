@@ -560,9 +560,11 @@ class DictationApp {
                     ${!asStudent ? `<button class="primary-btn" onclick="app.reOcr(${s.id})">${i18n.t('dict.result.reocr')}</button>` : ''}`;
                 return true;
             }
-            // graded
+            // graded or needs_review (both have results)
             const diff = s.diff_result || {};
+            const grading = s.llm_grading || null;
             const isWordList = diff.mode === 'word_list';
+            const showReviewBanner = (s.status === 'needs_review');
 
             // Render diff: word_list = cards, paragraph = inline
             let diffHtml;
@@ -606,9 +608,36 @@ class DictationApp {
                 </details>
             `;
 
+            const aiBlock = grading ? `
+                <h4>${i18n.t('dict.result.aiFeedback')}</h4>
+                <div class="ai-feedback-box">
+                    <div class="ai-overall">${this._esc(grading.overall_feedback || '')}</div>
+                    ${grading.notable_errors && grading.notable_errors.length ? `
+                        <div class="ai-list-block">
+                            <div class="ai-list-title">${i18n.t('dict.result.notableErrors')}</div>
+                            <ul>${grading.notable_errors.map(x => `<li>${this._esc(x)}</li>`).join('')}</ul>
+                        </div>` : ''}
+                    ${grading.minor_issues && grading.minor_issues.length ? `
+                        <div class="ai-list-block">
+                            <div class="ai-list-title">${i18n.t('dict.result.minorIssues')}</div>
+                            <ul>${grading.minor_issues.map(x => `<li>${this._esc(x)}</li>`).join('')}</ul>
+                        </div>` : ''}
+                </div>
+            ` : '';
+
+            const reviewBanner = showReviewBanner
+                ? `<div class="review-banner">${i18n.t('dict.result.reviewBanner')}</div>`
+                : '';
+
+            const engineBadge = s.ocr_engine
+                ? `<div class="engine-badge">${i18n.t('dict.result.engineBadge')}: ${this._esc(s.ocr_engine)}</div>`
+                : '';
+
             body.innerHTML = `
+                ${reviewBanner}
+                ${engineBadge}
                 <div class="result-summary">
-                    <div class="stat-card accuracy"><div class="stat-label">${i18n.t('dict.result.accuracy')}</div><div class="stat-val">${diff.accuracy ?? 0}%</div></div>
+                    <div class="stat-card accuracy"><div class="stat-label">${i18n.t('dict.result.accuracy')}</div><div class="stat-val">${(s.score ?? diff.accuracy ?? 0)}%</div></div>
                     <div class="stat-card correct"><div class="stat-label">${i18n.t('dict.result.correct')}</div><div class="stat-val">${diff.correct_count ?? 0}</div></div>
                     <div class="stat-card wrong"><div class="stat-label">${i18n.t('dict.result.wrong')}</div><div class="stat-val">${diff.wrong_count ?? 0}</div></div>
                     <div class="stat-card missing"><div class="stat-label">${i18n.t('dict.result.missing')}</div><div class="stat-val">${diff.missing_count ?? 0}</div></div>
@@ -617,6 +646,8 @@ class DictationApp {
 
                 <h4>${i18n.t('dict.result.diffView')}</h4>
                 ${diffHtml}
+
+                ${aiBlock}
 
                 ${s.reference_text ? `<h4>${i18n.t('dict.result.refView')}</h4><pre class="reference-box">${this._esc(s.reference_text)}</pre>` : ''}
 
@@ -702,6 +733,7 @@ class DictationApp {
             ocr_processing:  'ocrProcessing',
             graded:          'graded',
             ocr_failed:      'ocrFailed',
+            needs_review:    'needsReview',
         }[status] || 'submitted';
     }
 }
