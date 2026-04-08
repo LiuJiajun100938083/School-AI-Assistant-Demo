@@ -590,8 +590,10 @@ class DictationApp {
                 }).join(' ')}</div>`;
             }
 
+            // 用 static mount /uploads/... 直接載入,不走 API endpoint
+            // (browser <img> 不會帶 Authorization header,API 路徑會 401)
             const filesHtml = (s.files || []).map(f =>
-                `<img class="photo-thumb" src="/api/dictation/files/${f.id}/preview" alt="">`
+                `<img class="photo-thumb" src="/${this._esc(f.file_path)}" alt="" onclick="window.open('/${this._esc(f.file_path)}','_blank')">`
             ).join('');
 
             const overrideHtml = asStudent ? '' : `
