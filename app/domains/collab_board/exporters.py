@@ -25,7 +25,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any, Dict, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -113,16 +113,19 @@ class XlsxExporter:
 
 @dataclass
 class PdfExporter:
+    """
+    以「卡片化」方式呈現整塊板,接近佈告板視覺:
+      - 封面:板標題 + 描述 + meta (匯出時間 + 貼文數)
+      - 每則貼文為獨立邊框卡片 (Table with BOX style)
+      - 內嵌圖片 (從本地 web_static 路徑讀取)
+      - 釘選徽章 / 標籤 / 作者 / 讚數 / 評論清單
+    """
     content_type: str = "application/pdf"
     extension: str = "pdf"
 
     _cjk_font_registered: bool = False
 
     def _register_cjk(self) -> str:
-        """註冊 Adobe Asian CID 字型(reportlab 內建,無需外部字體檔案)
-
-        回傳註冊後的 font name;失敗則回傳 'Helvetica'。
-        """
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.cidfonts import UnicodeCIDFont
         if not self._cjk_font_registered:
@@ -135,14 +138,26 @@ class PdfExporter:
         return "STSong-Light"
 
     def _escape_xml(self, text: str) -> str:
-        """reportlab Paragraph 用 mini-HTML,需 escape & < > 否則當 tag 失敗"""
         return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def _resolve_local_image(self, url: str) -> Optional[str]:
+        """把 /static/uploaded_boards/xxx 轉成本地檔案路徑,其他來源返回 None"""
+        if not url or not url.startswith("/static/"):
+            return None
+        from pathlib import Path
+        rel = url[len("/static/"):]
+        local = Path(__file__).resolve().parent.parent.parent.parent / "web_static" / rel
+        return str(local) if local.exists() else None
 
     def export(self, detail: Dict[str, Any]) -> bytes:
         try:
+            from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4
             from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+            from reportlab.lib.units import mm
+            from reportlab.platypus import (
+                Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+            )
         except ImportError:
             logger.warning("reportlab 未安裝,pdf 匯出回退為純文字")
             return self._fallback_text(detail)
@@ -153,44 +168,167 @@ class PdfExporter:
         doc = SimpleDocTemplate(
             buf, pagesize=A4,
             title=detail.get("board", {}).get("title", "Board"),
+            leftMargin=15 * mm, rightMargin=15 * mm,
+            topMargin=15 * mm, bottomMargin=15 * mm,
         )
         base = getSampleStyleSheet()
         title_style = ParagraphStyle(
-            "CJKTitle", parent=base["Title"], fontName=font_name, fontSize=20, leading=26,
-        )
-        heading_style = ParagraphStyle(
-            "CJKHeading", parent=base["Heading3"], fontName=font_name, fontSize=14, leading=20,
-        )
-        body_style = ParagraphStyle(
-            "CJKBody", parent=base["Normal"], fontName=font_name, fontSize=11, leading=16,
+            "CJKTitle", parent=base["Title"], fontName=font_name,
+            fontSize=22, leading=28, alignment=0, textColor=colors.HexColor("#111827"),
         )
         meta_style = ParagraphStyle(
-            "CJKMeta", parent=base["Normal"], fontName=font_name, fontSize=9,
-            leading=12, textColor="#6b7280",
+            "CJKMeta", parent=base["Normal"], fontName=font_name,
+            fontSize=9, leading=12, textColor=colors.HexColor("#6b7280"),
+        )
+        card_title_style = ParagraphStyle(
+            "CJKCardTitle", parent=base["Normal"], fontName=font_name,
+            fontSize=13, leading=17, textColor=colors.HexColor("#111827"),
+        )
+        card_body_style = ParagraphStyle(
+            "CJKCardBody", parent=base["Normal"], fontName=font_name,
+            fontSize=10, leading=15, textColor=colors.HexColor("#1f2937"),
+        )
+        card_author_style = ParagraphStyle(
+            "CJKCardAuthor", parent=base["Normal"], fontName=font_name,
+            fontSize=9, leading=12, textColor=colors.HexColor("#6b7280"),
+        )
+        card_tag_style = ParagraphStyle(
+            "CJKCardTag", parent=base["Normal"], fontName=font_name,
+            fontSize=8, leading=11, textColor=colors.HexColor("#006633"),
+        )
+        comment_style = ParagraphStyle(
+            "CJKComment", parent=base["Normal"], fontName=font_name,
+            fontSize=9, leading=12, textColor=colors.HexColor("#4b5563"),
+            leftIndent=10,
         )
 
-        story = []
         board = detail.get("board", {})
-        story.append(Paragraph(self._escape_xml(board.get("title", "")), title_style))
+        posts = detail.get("posts", [])
+        sections = {s["id"]: s for s in (detail.get("sections") or [])}
+
+        story: List[Any] = []
+        # ─── 封面區 ───
+        story.append(Paragraph(self._escape_xml(board.get("title") or ""), title_style))
         if board.get("description"):
+            story.append(Spacer(1, 4))
             story.append(Paragraph(self._escape_xml(board["description"]), meta_style))
+        from datetime import datetime as _dt
+        meta_line = f"共 {len(posts)} 則貼文　·　匯出於 {_dt.now().strftime('%Y-%m-%d %H:%M')}"
+        story.append(Spacer(1, 4))
+        story.append(Paragraph(meta_line, meta_style))
         story.append(Spacer(1, 14))
 
-        for p in detail.get("posts", []):
-            title = self._escape_xml(p.get("title") or "")
+        # ─── 每則貼文 = 一個 bordered card ───
+        # 可用寬度 = A4 減左右 margin
+        page_w = A4[0] - 30 * mm
+        for p in posts:
+            card_flow: List[Any] = []
+
+            # Header: 作者 · ♥讚數 · 釘選徽章 · 分欄
+            header_parts = []
             author = self._escape_xml(p.get("author_name") or "")
-            body = self._escape_xml(p.get("body") or "").replace("\n", "<br/>")
-            like = p.get("like_count", 0)
-            header = f"<b>{title}</b> · {author} · ♥ {like}" if title else f"{author} · ♥ {like}"
-            story.append(Paragraph(header, heading_style))
-            if body:
-                story.append(Paragraph(body, body_style))
-            # 評論
-            for c in (p.get("comments") or []):
-                c_author = self._escape_xml(c.get("author_name") or "")
-                c_body = self._escape_xml(c.get("body") or "")
-                story.append(Paragraph(f"&nbsp;&nbsp;↳ <b>{c_author}</b>: {c_body}", meta_style))
+            if author:
+                header_parts.append(f"<b>{author}</b>")
+            header_parts.append(f"♥ {p.get('like_count', 0)}")
+            if p.get("pinned"):
+                header_parts.append("<font color='#006633'>● 釘選</font>")
+            if p.get("status") == "pending":
+                header_parts.append("<font color='#92400e'>● 待審</font>")
+            sec = sections.get(p.get("section_id"))
+            if sec:
+                header_parts.append(f"[{self._escape_xml(sec.get('name',''))}]")
+            card_flow.append(Paragraph("　·　".join(header_parts), card_author_style))
+
+            # Title
+            if p.get("title"):
+                card_flow.append(Spacer(1, 3))
+                card_flow.append(Paragraph(
+                    f"<b>{self._escape_xml(p['title'])}</b>", card_title_style,
+                ))
+
+            # Body
+            body_raw = (p.get("body") or "").strip()
+            if body_raw:
+                card_flow.append(Spacer(1, 3))
+                card_flow.append(Paragraph(
+                    self._escape_xml(body_raw).replace("\n", "<br/>"),
+                    card_body_style,
+                ))
+
+            # Image (media_url 或 media 陣列第一張)
+            img_paths: List[str] = []
+            for m in (p.get("media") or []):
+                if isinstance(m, dict) and (m.get("mime") or "").startswith("image/"):
+                    pth = self._resolve_local_image(m.get("url", ""))
+                    if pth:
+                        img_paths.append(pth)
+            if not img_paths and p.get("kind") == "image" and p.get("media_url"):
+                pth = self._resolve_local_image(p["media_url"])
+                if pth:
+                    img_paths.append(pth)
+
+            for pth in img_paths[:3]:  # 單則貼文最多 3 張,避免頁面爆炸
+                try:
+                    img = Image(pth)
+                    max_w = page_w - 20 * mm
+                    max_h = 80 * mm
+                    iw, ih = img.imageWidth, img.imageHeight
+                    ratio = min(max_w / iw, max_h / ih, 1.0)
+                    img.drawWidth = iw * ratio
+                    img.drawHeight = ih * ratio
+                    card_flow.append(Spacer(1, 5))
+                    card_flow.append(img)
+                except Exception as e:  # noqa: BLE001
+                    logger.debug("PDF image embed fail %s: %s", pth, e)
+
+            # Link (YouTube/Vimeo 顯示為文字連結)
+            if p.get("kind") in ("link", "youtube", "vimeo") and p.get("link_url"):
+                card_flow.append(Spacer(1, 3))
+                card_flow.append(Paragraph(
+                    f"🔗 <font color='#2563eb'>{self._escape_xml(p['link_url'])}</font>",
+                    card_body_style,
+                ))
+
+            # Tags
+            tags = p.get("tags") or []
+            if tags:
+                card_flow.append(Spacer(1, 3))
+                card_flow.append(Paragraph(
+                    "　".join(f"#{self._escape_xml(t)}" for t in tags),
+                    card_tag_style,
+                ))
+
+            # Comments
+            comments = p.get("comments") or []
+            if comments:
+                card_flow.append(Spacer(1, 5))
+                card_flow.append(Paragraph(
+                    f"<b>評論 ({len(comments)})</b>", card_author_style,
+                ))
+                for c in comments[:20]:
+                    c_author = self._escape_xml(c.get("author_name") or "")
+                    c_body = self._escape_xml(c.get("body") or "")
+                    card_flow.append(Paragraph(
+                        f"↳ <b>{c_author}</b>: {c_body}", comment_style,
+                    ))
+
+            # 把 card_flow 包進有邊框的 Table
+            card_table = Table([[card_flow]], colWidths=[page_w])
+            card_table.setStyle(TableStyle([
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#e5e7eb")),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                # 釘選貼文的左邊顯示品牌綠邊條
+                *([("LINEBEFORE", (0, 0), (0, -1), 3, colors.HexColor("#006633"))]
+                  if p.get("pinned") else []),
+            ]))
+            story.append(KeepTogether(card_table))
             story.append(Spacer(1, 10))
+
         doc.build(story)
         return buf.getvalue()
 
