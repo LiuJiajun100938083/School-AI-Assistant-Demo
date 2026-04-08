@@ -524,12 +524,12 @@ class DictationService:
     async def _run_ocr(self, image_path: str, language: str = Language.ENGLISH):
         """所有 OCR 呼叫收口在這裡 — 未來換 provider 只改此處。
 
-        根據語言分派:
-          - zh → recognize_chinese_writing (中文手寫)
-          - en → recognize_english_dictation (英文默書)
+        全部用 dictation forensic 模式,嚴禁自動糾錯/補字/改字。
+          - zh → recognize_chinese_dictation
+          - en → recognize_english_dictation
         """
         if language == Language.CHINESE:
-            return await self._vision.recognize_chinese_writing(image_path)
+            return await self._vision.recognize_chinese_dictation(image_path)
         return await self._vision.recognize_english_dictation(image_path)
 
     def _mark_failed(self, submission_id: int, reason: str) -> None:

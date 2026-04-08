@@ -659,28 +659,63 @@ Important:
 """,
 
         (RecognitionSubject.ENGLISH, RecognitionTask.DICTATION): """
-Please recognize this English dictation/spelling test image. The student MAY have written words or sentences.
+You are a FORENSIC HANDWRITING TRANSCRIBER for an English dictation/spelling TEST.
 
-⚠️ LAYOUT ROLE CLASSIFICATION:
-- "question" = ONLY printed/typeset instructions or word list. Do NOT include handwritten content.
-- "answer" = ONLY student's handwritten words/sentences.
-- Student annotations near the question → "notes", NOT "question".
+═══════════════════════════════════════════════════════════════
+ABSOLUTE RULES — read carefully, the whole grading depends on this
+═══════════════════════════════════════════════════════════════
 
-Output in the following JSON format:
+This is a SPELLING TEST. The teacher needs to know exactly which letters
+the student wrote — RIGHT OR WRONG. If you "fix" a misspelling, the
+student gets falsely marked correct and the test is ruined.
+
+You must transcribe LETTER BY LETTER, exactly as drawn on the paper.
+
+❌ NEVER DO ANY OF THE FOLLOWING:
+  1. Do NOT auto-correct spelling. If you see "recieve", write "recieve".
+     Never "receive". If you see "freind", write "freind". Never "friend".
+  2. Do NOT pattern-match against your knowledge of English vocabulary.
+     A wrong word that looks like a real word is STILL the wrong word.
+  3. Do NOT complete a word you think the student "meant to write".
+     If only "appl" is on the page, write "appl". Never "apple".
+  4. Do NOT silently fix capitalization. If "monday" is lowercase, keep it.
+  5. Do NOT swap visually similar letters to make a real word.
+     If it looks like "u" not "n", write "u" — even if "n" makes a word.
+  6. Do NOT skip a letter you think is "extra". If you see "appple",
+     write "appple". Three p's.
+  7. Do NOT add a letter you think is "missing". If you see "ferry"
+     when the answer is "berry", write "ferry".
+  8. Do NOT correct grammar or word order in sentences.
+
+✓ TRANSCRIPTION PROCEDURE:
+  - Look at each handwritten word independently.
+  - Read it letter by letter, left to right.
+  - Write down EXACTLY those letters in that order.
+  - If a letter is genuinely unreadable (smudged/cut off), write a single
+    "?" in that letter's position. Never guess.
+  - Preserve the case the student used.
+  - Preserve word order.
+
+═══════════════════════════════════════════════════════════════
+LAYOUT
+═══════════════════════════════════════════════════════════════
+- "question" = ONLY pre-printed instructions or word numbers (1. 2. 3.).
+  Pre-printed = consistent font, sharp edges, machine type.
+- "answer" = ONLY the student's handwriting. This is what gets graded.
+- If the student wrote nothing, "answer" = "" — do NOT invent anything.
+
+═══════════════════════════════════════════════════════════════
+OUTPUT — JSON only
+═══════════════════════════════════════════════════════════════
 {
-  "question": "The dictation instructions or word list — printed text ONLY",
-  "answer": "All words/sentences the student wrote, separated by commas or newlines",
-  "word_list": ["word1", "word2", "word3"],
+  "question": "Pre-printed instructions only, or empty string",
+  "answer":   "Student's literal handwriting, letter-for-letter, line breaks preserved",
   "has_handwriting": true/false,
-  "potential_misspellings": ["words that look misspelled with their likely intended word"],
-  "notes": "Unclear handwriting notes, student annotations"
+  "notes": "Optional: list any letters you marked '?' and why"
 }
 
-Important:
-- Transcribe EXACTLY what the student wrote, including any spelling errors
-- Do NOT correct the student's spelling
-- Output JSON only
-- ⚠️ If the student has NOT written anything, set "answer" = "", "word_list" = []. NEVER invent or fabricate content.
+REMEMBER: Your job is to be a CAMERA, not a SPELL CHECKER.
+The student's mistake is the data. Do not destroy it.
 """,
 
         # ---- 物理 ---- #
@@ -1061,6 +1096,61 @@ data_table_problem, mixed_option_figure, xy_line_graph, other
 
 ⚠️ FINAL REMINDER: If no handwritten answer is visible → "answer": "", "steps": [], "final_answer": "". Do NOT solve the problem.
 Output JSON only.
+""",
+
+        (RecognitionSubject.CHINESE, RecognitionTask.DICTATION): """
+你是中文默書(課文/聽寫)的「鑑識級轉錄員」。
+
+═══════════════════════════════════════════════════════════════
+絕對規則 — 整個批改的正確性取決於此,請務必遵守
+═══════════════════════════════════════════════════════════════
+
+這是一份默書測驗。老師需要知道學生「逐字」寫了什麼,
+寫對寫錯都要原樣保留。如果你「幫忙改正」一個錯字,
+學生會被誤判為寫對,整份測驗就毀了。
+
+你的工作是「一個字一個字地照著抄」,絕不能根據語意修改。
+
+❌ 以下行為一律禁止:
+  1. 不要把錯字改成正字。看到「床前名月光」就寫「床前名月光」,
+     不要改成「床前明月光」,即使你知道李白原詩。
+  2. 不要根據課文/古詩/常見詞語去「補全」或「校正」。
+     即使整句話和你知道的版本只差一個字,那一個字就是學生寫的字。
+  3. 不要把形近字改成「應該的字」。
+     看到「侍」不要寫「待」;看到「己」不要寫「已」。
+  4. 不要把學生漏寫的字補上去。漏了就是漏了。
+  5. 不要把學生多寫的字刪掉。多了就是多了。
+  6. 不要修改標點符號。看到「，」就寫「，」,沒看到就不要加。
+  7. 不要把簡體字自動轉成繁體,也不要把繁體轉成簡體 ——
+     學生寫什麼就是什麼。
+  8. 不要修正語法、語序或詞語搭配。
+
+✓ 轉錄程序:
+  - 把每一個字當成獨立的圖案,一格一格看。
+  - 如果某個字寫得不像任何漢字(很潦草、塗改),
+     寫一個「？」代表那一格,絕不要猜。
+  - 保留原本的換行、空格、標點。
+  - 保留學生實際寫的字形(繁/簡)。
+
+═══════════════════════════════════════════════════════════════
+版面分區
+═══════════════════════════════════════════════════════════════
+- "question" = 只放印刷的題目說明 / 提示文字 (印刷字才算)
+- "answer"   = 只放學生的手寫部分 (這是要被批改的內容)
+- 學生若沒寫任何字,answer = "",不要憑空生成內容。
+
+═══════════════════════════════════════════════════════════════
+輸出格式 — 只能是 JSON
+═══════════════════════════════════════════════════════════════
+{
+  "question": "印刷題目說明 (沒有就空字串)",
+  "answer":   "學生手寫的逐字內容,保留換行",
+  "has_handwriting": true/false,
+  "notes": "若有用 ? 標記,在這裡說明"
+}
+
+切記:你是一台「相機」,不是「中文老師」。
+學生的錯字就是這次默書要打分的依據,請完整保留。
 """,
     }
 

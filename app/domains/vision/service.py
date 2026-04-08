@@ -164,9 +164,15 @@ class VisionService:
         )
 
     async def recognize_english_dictation(self, image_path: str) -> OCRResult:
-        """英文默書識別"""
+        """英文默書識別 — forensic 模式,嚴禁自動糾錯"""
         return await self.recognize(
             image_path, RecognitionSubject.ENGLISH, RecognitionTask.DICTATION,
+        )
+
+    async def recognize_chinese_dictation(self, image_path: str) -> OCRResult:
+        """中文默書識別 — forensic 模式,嚴禁依語意/原文補字改字"""
+        return await self.recognize(
+            image_path, RecognitionSubject.CHINESE, RecognitionTask.DICTATION,
         )
 
     # ================================================================
