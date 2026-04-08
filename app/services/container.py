@@ -157,6 +157,8 @@ from app.domains.dictation.service import DictationService
 from app.domains.handwriting_ocr.base import HandwritingOCREngine
 from app.domains.handwriting_ocr.registry import HandwritingOCRRegistry
 from app.domains.handwriting_ocr.vision_llm_engine import VisionLLMEngine
+# TrocrLineEngine 是重量級依賴 (transformers + doctr),只在需要時 import
+# 在 handwriting_ocr_registry 屬性內延遲 import,避免單元測試啟動時拖累
 from app.domains.class_diary.service import ClassDiaryService
 from app.domains.image_gen.service import ImageGenService
 from app.domains.resource_library.service import ResourceLibraryService
@@ -570,10 +572,40 @@ class ServiceContainer:
                 "vision_llm": VisionLLMEngine(self.vision),
             }
             llm_settings = self._settings.llm
+
+            requested = {llm_settings.ocr_provider_en, llm_settings.ocr_provider_zh}
+            if "trocr_local" in requested:
+                try:
+                    from app.domains.handwriting_ocr.trocr_line_engine import (
+                        TrocrLineEngine,
+                    )
+                    engines["trocr_local"] = TrocrLineEngine(
+                        model_name=llm_settings.trocr_model,
+                        device=llm_settings.trocr_device,
+                        max_lines=llm_settings.trocr_max_lines,
+                    )
+                    logger.info(
+                        "TrocrLineEngine 已註冊 (model=%s, device=%s)",
+                        llm_settings.trocr_model, llm_settings.trocr_device,
+                    )
+                except Exception as e:
+                    logger.error(
+                        "TrocrLineEngine 註冊失敗,將 fallback 到 vision_llm: %s", e,
+                    )
+
             primary = {
                 "en": llm_settings.ocr_provider_en or "vision_llm",
                 "zh": llm_settings.ocr_provider_zh or "vision_llm",
             }
+            # 若 primary 名稱沒成功註冊,退回 vision_llm
+            for lang in ("en", "zh"):
+                if primary[lang] not in engines:
+                    logger.warning(
+                        "OCR provider '%s' (lang=%s) 未註冊,退回 vision_llm",
+                        primary[lang], lang,
+                    )
+                    primary[lang] = "vision_llm"
+
             self._handwriting_ocr_registry = HandwritingOCRRegistry(
                 engines=engines,
                 primary_by_language=primary,

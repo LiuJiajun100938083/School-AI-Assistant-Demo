@@ -28,6 +28,8 @@ transformers==4.48.3
 # PyTorch CPU-only (no CUDA, saves ~1.5GB)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.1.2
+# 默書 forensic OCR (TrOCR + doctr line detection)
+python-doctr[torch]>=0.8.0
 openai==1.61.0
 
 # HTTP requests
