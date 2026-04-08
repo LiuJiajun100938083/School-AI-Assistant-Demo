@@ -707,6 +707,18 @@ class DictationService:
             r.pop("ocr_text", None)
         return rows
 
+    def export_submissions_csv(
+        self, dictation_id: int, teacher_id: int,
+    ) -> tuple[bytes, str]:
+        """匯出某份默書全班提交成績為 CSV bytes。
+
+        Returns:
+            (csv_bytes_with_BOM, suggested_filename)
+        """
+        dictation = self._get_dictation_or_raise(dictation_id, owner_id=teacher_id)
+        rows = self._sub_repo.find_by_dictation(dictation_id)
+        return _build_submissions_csv(dictation, rows)
+
     def get_submission_detail(
         self,
         submission_id: int,
@@ -817,7 +829,7 @@ class DictationService:
         return row
 
 
-# ─── module-level helper (純函式,無依賴) ────────────────────
+# ─── module-level helpers (純函式,無依賴) ────────────────────
 def _minimal_submission(sub: Dict[str, Any]) -> Dict[str, Any]:
     """用於學生列表頁的精簡 submission 表示。"""
     return {
@@ -830,3 +842,66 @@ def _minimal_submission(sub: Dict[str, Any]) -> Dict[str, Any]:
         "extra_count": sub.get("extra_count"),
         "submitted_at": sub.get("submitted_at"),
     }
+
+
+_STATUS_LABEL_ZH = {
+    "submitted": "已提交",
+    "ocr_processing": "辨識中",
+    "graded": "已批改",
+    "needs_review": "待複核",
+    "ocr_failed": "辨識失敗",
+}
+
+
+def _build_submissions_csv(
+    dictation: Dict[str, Any], submissions: List[Dict[str, Any]],
+) -> tuple[bytes, str]:
+    """純函數:把 submissions 列表轉成 CSV bytes。
+
+    UTF-8 BOM 開頭,讓 Excel / Numbers 自動辨識為 UTF-8 並正確顯示中文。
+    """
+    import csv
+    import io
+    import re
+    from datetime import datetime as _dt
+
+    buf = io.StringIO()
+    buf.write("\ufeff")  # BOM
+    writer = csv.writer(buf)
+
+    writer.writerow([
+        "班級", "學號", "姓名",
+        "狀態", "正確率(%)",
+        "正確", "錯字", "漏字", "多字",
+        "提交時間", "批改時間",
+    ])
+
+    def _fmt_dt(v):
+        if not v:
+            return ""
+        if isinstance(v, _dt):
+            return v.strftime("%Y-%m-%d %H:%M:%S")
+        return str(v)
+
+    for s in submissions:
+        status = s.get("status") or ""
+        writer.writerow([
+            s.get("class_name") or "",
+            s.get("username") or "",
+            s.get("student_name") or "",
+            _STATUS_LABEL_ZH.get(status, status),
+            "" if s.get("score") is None else f"{float(s['score']):.2f}",
+            s.get("correct_count") if s.get("correct_count") is not None else "",
+            s.get("wrong_count") if s.get("wrong_count") is not None else "",
+            s.get("missing_count") if s.get("missing_count") is not None else "",
+            s.get("extra_count") if s.get("extra_count") is not None else "",
+            _fmt_dt(s.get("submitted_at")),
+            _fmt_dt(s.get("graded_at")),
+        ])
+
+    # 安全的檔名 (中英數字 / -_)
+    raw_title = (dictation.get("title") or "dictation").strip()
+    safe_title = re.sub(r"[^\w\u4e00-\u9fff\-]+", "_", raw_title)[:60]
+    today = _dt.now().strftime("%Y%m%d")
+    filename = f"{safe_title}_{today}.csv"
+    return buf.getvalue().encode("utf-8"), filename

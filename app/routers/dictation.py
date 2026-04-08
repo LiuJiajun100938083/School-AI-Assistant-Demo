@@ -15,12 +15,14 @@ Router 只做:
 """
 
 import asyncio
+import io
 import logging
 from pathlib import Path
 from typing import Tuple
+from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, File, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from app.core.dependencies import get_current_user, require_teacher
 from app.core.exceptions import NotFoundError
@@ -205,6 +207,31 @@ async def delete_dictation(
         lambda: services.dictation.delete_dictation(dictation_id, teacher_id),
     )
     return success_response(message="已刪除")
+
+
+@router.get("/api/dictation/teacher/{dictation_id}/export")
+async def export_submissions(
+    dictation_id: int,
+    teacher_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """匯出某份默書全班成績為 CSV (UTF-8 with BOM, Excel 友好)"""
+    username, _ = teacher_info
+    services = get_services()
+    user = services.user.get_user(username)
+    teacher_id = user["id"] if user else 0
+
+    loop = asyncio.get_event_loop()
+    csv_bytes, filename = await loop.run_in_executor(
+        None,
+        lambda: services.dictation.export_submissions_csv(dictation_id, teacher_id),
+    )
+    return StreamingResponse(
+        io.BytesIO(csv_bytes),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}",
+        },
+    )
 
 
 @router.get("/api/dictation/teacher/{dictation_id}/submissions")

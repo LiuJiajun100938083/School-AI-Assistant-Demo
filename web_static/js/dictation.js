@@ -29,6 +29,7 @@ const DictationAPI = {
     getSubmission:    (sid)         => APIClient.get(`/api/dictation/teacher/submissions/${sid}`),
     overrideSubmission:(sid, body)  => APIClient.post(`/api/dictation/teacher/submissions/${sid}/override`, body),
     reOcr:            (sid)         => APIClient.post(`/api/dictation/teacher/submissions/${sid}/re-ocr`, {}),
+    exportUrl:        (id)          => `/api/dictation/teacher/${id}/export`,
 
     // Student
     listStudent:      ()            => APIClient.get('/api/dictation'),
@@ -188,6 +189,7 @@ class DictationApp {
                         ${d.status === 'draft' ? `<button class="primary-btn" onclick="app.doPublish(${d.id})">${i18n.t('dict.detail.publish')}</button>` : ''}
                         ${d.status === 'published' ? `<button class="secondary-btn" onclick="app.doClose(${d.id})">${i18n.t('dict.detail.close')}</button>` : ''}
                         <button class="secondary-btn" onclick="app.openEditModal(${d.id})">${i18n.t('dict.detail.edit')}</button>
+                        <button class="secondary-btn" onclick="app.doExport(${d.id})">${i18n.t('dict.detail.export')}</button>
                         <button class="danger-btn" onclick="app.doDelete(${d.id})">${i18n.t('dict.detail.delete')}</button>
                     </div>
                     <div class="detail-section">
@@ -494,6 +496,42 @@ class DictationApp {
         if (!confirm(i18n.t('dict.common.confirmDelete'))) return;
         await DictationAPI.deleteDict(id);
         await this.reload();
+    }
+
+    async doExport(id) {
+        // 用 fetch + Authorization header 拿 CSV,再用 blob 觸發瀏覽器下載
+        // (不能用 <a href> 因為這個 endpoint 要 JWT)
+        try {
+            const resp = await fetch(DictationAPI.exportUrl(id), {
+                headers: { 'Authorization': `Bearer ${AuthModule.getToken()}` },
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            const filename = this._extractFilename(resp.headers.get('Content-Disposition'))
+                            || `dictation_${id}.csv`;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            UIModule.toast(i18n.t('dict.common.success'), 'success');
+        } catch (e) {
+            UIModule.toast(i18n.t('dict.detail.exportFail') + ': ' + e.message, 'error');
+        }
+    }
+
+    _extractFilename(contentDisposition) {
+        if (!contentDisposition) return null;
+        // RFC 5987 filename* (UTF-8 encoded)
+        const m = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
+        if (m) {
+            try { return decodeURIComponent(m[1]); } catch { return m[1]; }
+        }
+        const m2 = /filename="?([^";]+)"?/i.exec(contentDisposition);
+        return m2 ? m2[1] : null;
     }
 
     // ── student submit ───────────────────────────────
