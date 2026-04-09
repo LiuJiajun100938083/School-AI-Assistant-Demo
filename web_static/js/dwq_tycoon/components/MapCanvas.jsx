@@ -12,13 +12,15 @@
     'use strict';
 
     window.DwqApp = window.DwqApp || {};
-    const { useMemo } = React;
+    const { useMemo, useState } = React;
 
     function MapCanvas(props) {
         const state = props.gameState;
         const me = props.me;
         const onCityClick = props.onCityClick || function () {};
         const C = window.DwqApp.constants;
+
+        const [detailCityId, setDetailCityId] = useState(null);
 
         if (!state) return null;
 
@@ -129,7 +131,18 @@
                 key: city.id,
                 className: 'absolute flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-110 z-10 ' + (isMovable ? 'highlight-city' : 'cursor-pointer'),
                 style: { left: city.pos.x + '%', top: city.pos.y + '%' },
-                onClick: function () { onCityClick(city.id); },
+                onClick: function (e) {
+                    e.stopPropagation();
+                    if (isMovable) {
+                        onCityClick(city.id);
+                    } else {
+                        setDetailCityId(city.id);
+                    }
+                },
+                onContextMenu: function (e) {
+                    e.preventDefault();
+                    setDetailCityId(city.id);
+                },
             }, [
                 React.createElement('div', {
                     key: 'pawns',
@@ -162,6 +175,94 @@
             ]);
         }
 
+        function renderDetailCard() {
+            if (!detailCityId) return null;
+            const city = C.CITIES[detailCityId];
+            if (!city) return null;
+            const cityFactories = factoriesByCity[city.id] || [];
+            const priceMod = (state.city_price_modifiers && state.city_price_modifiers[city.id]) || 0;
+            const isBlocked = (state.blocked_cities || []).indexOf(city.id) >= 0;
+
+            const industryRows = city.allowed.map(function (indId) {
+                const ind = C.INDUSTRIES[indId];
+                const isUnlocked = (state.unlocked_industries || []).indexOf(indId) >= 0;
+                const builtCount = cityFactories.filter(function (f) { return f.industry_id === indId; }).length;
+                return React.createElement('div', {
+                    key: indId,
+                    className: 'flex items-center gap-2 p-2 border-2 border-black rounded ' + (isUnlocked ? 'bg-white' : 'bg-gray-200 opacity-60'),
+                }, [
+                    React.createElement('span', {
+                        key: 'icon',
+                        className: 'text-2xl',
+                    }, ind.icon),
+                    React.createElement('div', { key: 'info', className: 'flex-1' }, [
+                        React.createElement('div', {
+                            key: 'name',
+                            className: 'font-bold text-sm',
+                        }, ind.name),
+                        React.createElement('div', {
+                            key: 'status',
+                            className: 'text-xs ' + (isUnlocked ? 'text-green-700' : 'text-red-600'),
+                        }, isUnlocked ? '✓ 已解鎖' : '🔒 尚未解鎖'),
+                    ]),
+                    builtCount > 0 ? React.createElement('span', {
+                        key: 'count',
+                        className: 'text-xs bg-yellow-300 border border-black px-1 rounded font-bold',
+                    }, '已建 ' + builtCount) : null,
+                ]);
+            });
+
+            return React.createElement('div', {
+                key: 'detail-overlay',
+                className: 'absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4',
+                onClick: function () { setDetailCityId(null); },
+            }, React.createElement('div', {
+                className: 'pixel-box bg-white max-w-sm w-full p-4 max-h-[90%] overflow-y-auto',
+                onClick: function (e) { e.stopPropagation(); },
+            }, [
+                React.createElement('div', {
+                    key: 'title',
+                    className: 'flex items-center justify-between mb-3 pb-2 border-b-2 border-black',
+                }, [
+                    React.createElement('div', { key: 'name', className: 'flex items-center gap-2' }, [
+                        React.createElement('div', {
+                            key: 'box',
+                            className: 'w-6 h-6 border-2 border-black ' + city.colorClass,
+                        }),
+                        React.createElement('h3', {
+                            key: 't',
+                            className: 'text-lg font-bold',
+                        }, '📍 ' + city.id),
+                        isBlocked ? React.createElement('span', {
+                            key: 'b',
+                            className: 'text-xs bg-red-500 text-white px-1 border border-black',
+                        }, '封城') : null,
+                    ]),
+                    React.createElement('button', {
+                        key: 'close',
+                        className: 'pixel-btn px-2 py-1 text-sm bg-gray-300',
+                        onClick: function () { setDetailCityId(null); },
+                    }, '✕'),
+                ]),
+                React.createElement('div', {
+                    key: 'plots-info',
+                    className: 'text-xs mb-2 text-gray-700',
+                }, '🏗️ 地皮: ' + cityFactories.length + ' / ' + city.basePricesLen + (priceMod ? '  ·  💰 地價修正: ' + (priceMod > 0 ? '+' : '') + priceMod : '')),
+                React.createElement('div', {
+                    key: 'sect',
+                    className: 'text-xs font-bold mb-1 text-gray-600',
+                }, '可建產業:'),
+                React.createElement('div', {
+                    key: 'inds',
+                    className: 'flex flex-col gap-1',
+                }, industryRows),
+                React.createElement('div', {
+                    key: 'hint',
+                    className: 'text-[10px] text-gray-500 mt-3 text-center',
+                }, '💡 點擊卡片外或 ✕ 關閉  ·  地圖上閃爍的城市可移動'),
+            ]));
+        }
+
         return React.createElement('div', {
             className: 'relative w-full map-container pixel-box overflow-hidden border-4 md:border-8 border-gray-800 shadow-lg aspect-[4/3]',
         }, [
@@ -170,6 +271,7 @@
                 className: 'absolute top-0 left-0 w-full h-full pointer-events-none z-0',
             }, renderConnections()),
             ...Object.values(C.CITIES).map(renderCity),
+            renderDetailCard(),
         ]);
     }
 
