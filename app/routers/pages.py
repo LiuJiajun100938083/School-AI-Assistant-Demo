@@ -13,7 +13,7 @@
 - GET  /mistake-book/teacher - 教师错题分析面板
 - GET  /games                - 游戏中心
 - GET  /games/math_word_cards - 数学词卡
-- GET  /china_economy_game   - 经济发展游戏
+- GET  /dwq_tycoon           - 大灣區大亨多人對戰
 - GET  /game_upload          - 游戏上传
 - GET  /my_games             - 我的游戏
 - GET  /play/{token}          - 分享游戏（无需登入）
@@ -368,10 +368,10 @@ async def math_word_cards():
     return _serve_page("math_word_cards.html")
 
 
-@router.get("/china_economy_game")
-async def china_economy_game():
-    """中国经济发展游戏"""
-    return _serve_page("china_economy_game.html")
+@router.get("/dwq_tycoon")
+async def dwq_tycoon():
+    """大灣區大亨 — 多人在線對戰桌遊"""
+    return _serve_page("dwq_tycoon.html")
 
 
 @router.get("/trade-game")

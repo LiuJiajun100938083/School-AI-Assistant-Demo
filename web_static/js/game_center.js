@@ -181,15 +181,15 @@ const GameConfig = {
         biology: [],
         ces: [
             {
-                id: 'china_economy',
-                name: '中國經濟發展桌遊',
-                nameEn: 'China Economy Game',
+                id: 'dwq_tycoon',
+                name: '大灣區大亨 (多人在線)',
+                nameEn: 'Greater Bay Area Tycoon (Multiplayer)',
                 icon: 'scale',
-                description: '體驗改革開放經濟發展歷程，了解中國經濟騰飛的奧秘',
-                url: '/china_economy_game',
+                description: '3-6 人即時對戰，重溫 1977-2025 大灣區經濟騰飛',
+                url: '/dwq_tycoon',
                 difficulty: ['中一', '中二', '中三'],
-                tags: ['經濟', '改革開放', '公民', '策略'],
-                badge: null,
+                tags: ['經濟', '多人對戰', '大灣區', '公民', '策略'],
+                badge: '新',
                 roles: ['student', 'teacher', 'admin']
             },
             {

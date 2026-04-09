@@ -1,0 +1,177 @@
+/**
+ * 大灣區大亨 — 地圖組件
+ *
+ * 顯示:
+ *   - 11 個 GBA 城市 (位置、顏色、產業圖示預覽)
+ *   - 基礎連線 (虛線白色) + 已解鎖動態連線 (彩色)
+ *   - 玩家棋子 (按 seat 顏色)
+ *   - 各城市的地皮 (空地/已建工廠)
+ *   - 點擊城市發起移動 (僅限相鄰且輪到自己時)
+ */
+(function () {
+    'use strict';
+
+    window.DwqApp = window.DwqApp || {};
+    const { useMemo } = React;
+
+    function MapCanvas(props) {
+        const state = props.gameState;
+        const me = props.me;
+        const onCityClick = props.onCityClick || function () {};
+        const C = window.DwqApp.constants;
+
+        if (!state) return null;
+
+        const turnIndex = state.turn_index || 0;
+        const myUid = me ? me.user_id : null;
+        const myPlayer = state.players.find(function (p) { return p.user_id === myUid; });
+        const isMyTurn = state.current_player_user_id === myUid && state.phase === 'action';
+        const isAction = state.phase === 'action';
+
+        const adjacency = useMemo(function () {
+            return C.getConnectionsForTurn(turnIndex);
+        }, [turnIndex]);
+
+        const movableSet = useMemo(function () {
+            if (!isMyTurn || !myPlayer) return new Set();
+            const adj = adjacency[myPlayer.location];
+            return adj || new Set();
+        }, [isMyTurn, myPlayer, adjacency]);
+
+        // 按城市分組工廠
+        const factoriesByCity = useMemo(function () {
+            const m = {};
+            Object.values(state.factories).forEach(function (f) {
+                if (!m[f.city_id]) m[f.city_id] = [];
+                m[f.city_id].push(f);
+            });
+            return m;
+        }, [state.factories]);
+
+        function getPlayerColor(uid) {
+            const p = state.players.find(function (x) { return x.user_id === uid; });
+            return p ? p.color : '#999';
+        }
+
+        function renderConnections() {
+            const lines = [];
+            // 基礎連線
+            Object.entries(C.BASE_CONNECTIONS).forEach(function (entry) {
+                const from = entry[0];
+                entry[1].forEach(function (to) {
+                    if (from < to) {
+                        const p1 = C.CITIES[from].pos;
+                        const p2 = C.CITIES[to].pos;
+                        lines.push(React.createElement('line', {
+                            key: 'base-' + from + '-' + to,
+                            x1: p1.x + '%', y1: p1.y + '%',
+                            x2: p2.x + '%', y2: p2.y + '%',
+                            stroke: 'rgba(255,255,255,0.7)',
+                            strokeWidth: 3,
+                            strokeDasharray: '6 6',
+                        }));
+                    }
+                });
+            });
+            // 動態連線
+            C.DYNAMIC_LINES.forEach(function (line, idx) {
+                if (turnIndex + 1 < line.unlockTurn) return;
+                const p1 = C.CITIES[line.from].pos;
+                const p2 = C.CITIES[line.to].pos;
+                lines.push(React.createElement('line', {
+                    key: 'dyn-' + idx,
+                    x1: p1.x + '%', y1: p1.y + '%',
+                    x2: p2.x + '%', y2: p2.y + '%',
+                    stroke: line.stroke,
+                    strokeWidth: 4,
+                    strokeDasharray: '8 6',
+                    className: 'animate-pulse',
+                }));
+            });
+            return lines;
+        }
+
+        function renderCity(city) {
+            const cityFactories = factoriesByCity[city.id] || [];
+            const isBlocked = (state.blocked_cities || []).indexOf(city.id) >= 0;
+            const isMovable = movableSet.has && movableSet.has(city.id);
+            const totalBuilt = cityFactories.length;
+            const maxFactories = city.basePricesLen;
+
+            // 玩家棋子
+            const pawns = state.players
+                .filter(function (p) { return p.location === city.id; })
+                .map(function (p) {
+                    return React.createElement('span', {
+                        key: 'pawn-' + p.user_id,
+                        className: 'inline-block w-4 h-4 rounded-full border-2 border-white shadow-md',
+                        style: { backgroundColor: p.color },
+                        title: p.display_name,
+                    });
+                });
+
+            // 地皮顯示
+            const plotEls = [];
+            for (let i = 0; i < maxFactories; i++) {
+                const factory = cityFactories[i];
+                const ownerColor = factory ? getPlayerColor(factory.owner_user_id) : null;
+                const ind = factory ? C.INDUSTRIES[factory.industry_id] : null;
+                const basePrice = (state.city_price_modifiers && state.city_price_modifiers[city.id]) || 0;
+                plotEls.push(React.createElement('div', {
+                    key: 'plot-' + i,
+                    className: 'w-4 h-4 md:w-5 md:h-5 text-[8px] md:text-[10px] flex items-center justify-center font-bold border border-gray-600',
+                    style: factory ? { backgroundColor: ownerColor, color: 'white' } : { background: '#fff', color: '#000' },
+                    title: factory ? (ind.name + ' (玩家)') : '空地',
+                }, factory ? ind.icon : (i + 1)));
+            }
+
+            return React.createElement('div', {
+                key: city.id,
+                className: 'absolute flex flex-col items-center justify-center -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-110 z-10 ' + (isMovable ? 'highlight-city' : 'cursor-pointer'),
+                style: { left: city.pos.x + '%', top: city.pos.y + '%' },
+                onClick: function () { onCityClick(city.id); },
+            }, [
+                React.createElement('div', {
+                    key: 'pawns',
+                    className: 'absolute -top-5 md:-top-6 flex gap-1 z-30',
+                }, pawns),
+                React.createElement('div', {
+                    key: 'box',
+                    className: 'pixel-box p-1 md:p-1.5 min-w-[3.5rem] md:min-w-[4.5rem] flex flex-col items-center text-center text-white leading-tight ' + (isBlocked ? 'bg-gray-800' : city.colorClass) + (isMovable ? ' border-yellow-400 border-4' : ''),
+                }, [
+                    React.createElement('span', {
+                        key: 'name',
+                        className: 'font-bold text-xs md:text-sm whitespace-nowrap',
+                    }, isBlocked ? '封城' : city.id),
+                    React.createElement('div', {
+                        key: 'inds',
+                        className: 'flex flex-wrap justify-center gap-[2px] mt-1 max-w-[50px] md:max-w-[60px]',
+                    }, city.allowed.map(function (indId) {
+                        const isUnlocked = (state.unlocked_industries || []).indexOf(indId) >= 0;
+                        return React.createElement('span', {
+                            key: indId,
+                            title: indId + (isUnlocked ? '' : '(未解鎖)'),
+                            className: 'text-[8px] md:text-[10px] bg-white border border-black rounded-[2px] p-[1px] leading-none text-black ' + (isUnlocked ? '' : 'opacity-40 grayscale'),
+                        }, C.INDUSTRIES[indId].icon);
+                    })),
+                ]),
+                React.createElement('div', {
+                    key: 'plots',
+                    className: 'flex gap-[2px] mt-1 bg-gray-200 p-[2px] border-2 border-black rounded shadow-md',
+                }, plotEls),
+            ]);
+        }
+
+        return React.createElement('div', {
+            className: 'relative w-full map-container pixel-box overflow-hidden border-4 md:border-8 border-gray-800 shadow-lg aspect-[4/3]',
+        }, [
+            React.createElement('svg', {
+                key: 'svg',
+                className: 'absolute top-0 left-0 w-full h-full pointer-events-none z-0',
+            }, renderConnections()),
+            ...Object.values(C.CITIES).map(renderCity),
+        ]);
+    }
+
+    window.DwqApp.MapCanvas = MapCanvas;
+})();

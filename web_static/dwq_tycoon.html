@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大灣區大亨 — 多人在線對戰</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React 18 -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel Standalone for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Pixel font -->
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
+    <!-- 自訂樣式 -->
+    <link rel="stylesheet" href="/static/css/dwq_tycoon.css">
+</head>
+<body>
+    <!-- React mount point -->
+    <div id="dwq-root">
+        <div style="padding: 2rem; text-align: center; font-family: sans-serif;">
+            <h1 style="font-size: 1.5rem; color: #1e40af;">🏙️ 載入中...</h1>
+            <p style="margin-top: 0.5rem; color: #666;">大灣區大亨 多人對戰版</p>
+        </div>
+    </div>
+
+    <!-- ─── Pure JS 模組 (依賴順序) ─── -->
+    <script src="/static/js/dwq_tycoon/constants.js"></script>
+    <script src="/static/js/dwq_tycoon/api.js"></script>
+    <script src="/static/js/dwq_tycoon/ws.js"></script>
+    <script src="/static/js/dwq_tycoon/session.js"></script>
+
+    <!-- ─── Babel JSX 模組 (依賴順序:store → components → pages → main) ─── -->
+    <script type="text/babel" src="/static/js/dwq_tycoon/store.js"></script>
+
+    <script type="text/babel" src="/static/js/dwq_tycoon/components/MapCanvas.jsx"></script>
+    <script type="text/babel" src="/static/js/dwq_tycoon/components/PlayerPanel.jsx"></script>
+    <script type="text/babel" src="/static/js/dwq_tycoon/components/ActionBar.jsx"></script>
+    <script type="text/babel" src="/static/js/dwq_tycoon/components/MiscComponents.jsx"></script>
+
+    <script type="text/babel" src="/static/js/dwq_tycoon/pages/LobbyPage.jsx"></script>
+    <script type="text/babel" src="/static/js/dwq_tycoon/pages/WaitingRoomPage.jsx"></script>
+    <script type="text/babel" src="/static/js/dwq_tycoon/pages/GamePage.jsx"></script>
+    <script type="text/babel" src="/static/js/dwq_tycoon/pages/GameOverPage.jsx"></script>
+
+    <script type="text/babel" src="/static/js/dwq_tycoon/main.js"></script>
+</body>
+</html>
