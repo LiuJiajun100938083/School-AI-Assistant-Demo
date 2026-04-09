@@ -43,25 +43,52 @@
 
         const canBuild = isMyTurn && !!hand && isUnlocked && cityAllows && cityNotBlocked && hasPlot && (hasAp || isFreeBuild);
 
-        // 建廠提示:為什麼不能建?
-        let buildHint = null;
-        if (hand && handInd) {
+        // ── 動態主提示:告訴玩家「現在該做什麼」──────────
+        // 優先級:不是我 → 已完成動作 → 有手牌建廠路線 → 無手牌抽卡路線
+        let mainHint = null;
+        let mainColor = 'bg-white border-gray-400 text-gray-800';
+
+        if (!isMyTurn) {
+            const other = (state.players.find(function (p) { return p.user_id === state.current_player_user_id; }) || {}).display_name;
+            mainHint = '⏳ 等待 ' + (other || '其他玩家') + ' 行動...';
+        } else if (!hasAp && !isFreeBuild) {
+            mainHint = '⚡ 行動點已用完 — 請點擊下方「結束」完成回合';
+            mainColor = 'bg-orange-100 border-orange-500 text-orange-900 font-bold';
+        } else if (hand && handInd) {
+            // 有手牌 — 建廠路線
             if (!isUnlocked) {
-                buildHint = '🔒 ' + handInd.name + ' 尚未解鎖,等待歷史事件';
+                mainHint = '🔒 ' + handInd.icon + handInd.name + ' 尚未解鎖,等待歷史事件';
+                mainColor = 'bg-yellow-50 border-yellow-500 text-yellow-900';
             } else if (!cityAllows) {
-                // 建議去哪裡建
                 const targets = Object.keys(C.CITIES).filter(function (cid) {
                     return C.CITIES[cid].allowed.indexOf(hand) >= 0;
                 });
-                buildHint = '🚶 需移動到可建 ' + handInd.icon + handInd.name + ' 的城市:' + targets.join('、');
+                mainHint = '🚶 手牌 ' + handInd.icon + handInd.name + ' — 移動到:' + targets.join('、') + ' 可建廠';
+                mainColor = 'bg-blue-50 border-blue-500 text-blue-900';
             } else if (!cityNotBlocked) {
-                buildHint = '🚧 此城市已被封,無法建廠';
+                mainHint = '🚧 此城市已被封,無法建廠,請移動或結束';
+                mainColor = 'bg-yellow-50 border-yellow-500 text-yellow-900';
             } else if (!hasPlot) {
-                buildHint = '🏗️ ' + curCityId + ' 地皮已滿';
-            } else if (!hasAp && !isFreeBuild) {
-                buildHint = '⚡ 行動點不足,請結束回合';
+                mainHint = '🏗️ ' + curCityId + ' 地皮已滿,請移動到其他城市';
+                mainColor = 'bg-yellow-50 border-yellow-500 text-yellow-900';
             } else if (canBuild) {
-                buildHint = '✅ 可在 ' + curCityId + ' 建造 ' + handInd.icon + handInd.name + (isFreeBuild ? ' (免費!)' : '');
+                mainHint = '✅ 可在 ' + curCityId + ' 建造 ' + handInd.icon + handInd.name + (isFreeBuild ? ' (免費!)' : ' — 點擊「建廠」');
+                mainColor = 'bg-green-100 border-green-600 text-green-800 font-bold';
+            }
+        } else {
+            // 無手牌 — 抽卡路線
+            const deckSize = state.deck_size || 0;
+            if (curCityId === '香港') {
+                if (deckSize > 0) {
+                    mainHint = '🃏 在香港 — 點擊下方「抽卡」獲得圖紙';
+                    mainColor = 'bg-blue-100 border-blue-600 text-blue-900 font-bold';
+                } else {
+                    mainHint = '📭 卡組已空,請移動或結束回合';
+                    mainColor = 'bg-gray-100 border-gray-500 text-gray-700';
+                }
+            } else {
+                mainHint = '🃏 無圖紙 — 移動到「香港」可抽卡 (建廠需圖紙)';
+                mainColor = 'bg-blue-50 border-blue-500 text-blue-900';
             }
         }
 
@@ -70,19 +97,17 @@
         return React.createElement('div', {
             className: 'flex flex-col gap-2 w-full',
         }, [
+            // 主要動作提示 — 始終顯示,告訴玩家當前該做什麼
             React.createElement('div', {
-                key: 'hint',
-                className: 'text-xs md:text-sm bg-white p-2 border-2 border-dashed border-gray-400 text-center min-h-[32px]',
-            }, isMyTurn
-                ? '💡 您的回合 — 點擊地圖閃爍城市移動,或使用下方動作'
-                : ('⏳ 等待 ' + (state.players.find(function (p) { return p.user_id === state.current_player_user_id; }) || {}).display_name + ' 行動...')),
+                key: 'mainhint',
+                className: 'text-xs md:text-sm p-2 border-2 text-center min-h-[36px] flex items-center justify-center ' + mainColor,
+            }, mainHint || '—'),
 
-            // 建廠狀態提示 — 有手牌時顯示
-            buildHint ? React.createElement('div', {
-                key: 'bh',
-                className: 'text-[11px] md:text-xs p-2 border-2 text-center ' +
-                    (canBuild ? 'bg-green-100 border-green-600 text-green-800 font-bold' : 'bg-yellow-50 border-yellow-500 text-yellow-900'),
-            }, buildHint) : null,
+            // 副提示:操作方式說明
+            isMyTurn ? React.createElement('div', {
+                key: 'subhint',
+                className: 'text-[10px] md:text-[11px] text-center text-gray-600 italic',
+            }, '💡 點擊閃爍城市可移動 · 剩餘 AP: ' + myPlayer.action_points + '/' + (state.max_ap || 3)) : null,
 
             React.createElement('div', {
                 key: 'btns',
