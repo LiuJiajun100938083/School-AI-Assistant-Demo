@@ -54,12 +54,16 @@
     };
 
     // offset: 正值向一側彎,負值向另一側;數值為百分比,決定曲線偏離直線的程度
-    // type: 'rail' = 鐵路 (黑白條紋風格),'bridge' = 大橋/通道 (彩色虛線)
+    // type:
+    //   'rail'       — 鐵路 (黑白斑馬紋枕木)
+    //   'tunnel-mid' — 中段為海底隧道,兩端為大橋 (深中通道)
+    //   'hzmb'       — 港珠澳 Y 形:共用主幹 (含近香港端沉管隧道) + 兩條分叉
+    //                  其中一條標記 trunk:true 負責繪製主幹,兩條都繪製自己的分叉
     const DYNAMIC_LINES = [
-        { from: '廣州', to: '深圳', unlockTurn: 6, type: 'rail',   stroke: '#1a1a1a', label: '廣深高鐵',   offset: -22 },
-        { from: '香港', to: '珠海', unlockTurn: 7, type: 'bridge', stroke: '#22c55e', label: '港珠澳大橋', offset:  10 },
-        { from: '香港', to: '澳門', unlockTurn: 7, type: 'bridge', stroke: '#22c55e', label: '港珠澳大橋', offset:  14 },
-        { from: '深圳', to: '中山', unlockTurn: 10, type: 'bridge', stroke: '#eab308', label: '深中通道',  offset:  16 },
+        { from: '廣州', to: '深圳', unlockTurn: 6,  type: 'rail',       stroke: '#1a1a1a', label: '廣深高鐵',   offset: -22 },
+        { from: '香港', to: '珠海', unlockTurn: 7,  type: 'hzmb',       stroke: '#0ea5e9', label: '港珠澳大橋', trunk: true },
+        { from: '香港', to: '澳門', unlockTurn: 7,  type: 'hzmb',       stroke: '#0ea5e9', label: '港珠澳大橋', trunk: false },
+        { from: '深圳', to: '中山', unlockTurn: 10, type: 'tunnel-mid', stroke: '#f59e0b', label: '深中通道',   offset:  18 },
     ];
 
     const TURN_YEARS = [1977, 1982, 1988, 1992, 2001, 2011, 2016, 2018, 2020, 2025];
