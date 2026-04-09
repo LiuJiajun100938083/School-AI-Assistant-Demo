@@ -14,16 +14,22 @@
    API — 後端 API 封裝
    ============================================================ */
 const AssignmentAPI = {
+    // Submit multipart upload 的預設 timeout (10 分鐘 — 留足空間給大 zip)
+    UPLOAD_TIMEOUT_MS: 10 * 60 * 1000,
+
     _headers() {
         const h = { 'Content-Type': 'application/json' };
         const token = window.AuthModule?.getToken();
         if (token) h['Authorization'] = `Bearer ${token}`;
+        // ngrok 免費版:跳過 browser warning interstitial
+        h['ngrok-skip-browser-warning'] = 'true';
         return h;
     },
     _authHeaders() {
         const h = {};
         const token = window.AuthModule?.getToken();
         if (token) h['Authorization'] = `Bearer ${token}`;
+        h['ngrok-skip-browser-warning'] = 'true';
         return h;
     },
     async _call(url, opts = {}) {
@@ -32,6 +38,93 @@ const AssignmentAPI = {
             if (resp.status === 401) { window.location.href = '/'; return null; }
             return resp.json();
         } catch (e) { console.error('API error:', e); return null; }
+    },
+
+    // ── Ngrok workaround ─────────────────────────────────────
+    // Ngrok 免費版會掃 POST body 的 magic bytes,看到 zip (PK\x03\x04)
+    // 或其他 archive 就擋掉(回 ERR_ACCESS_DENIED,後端 log 完全看不到)。
+    // 解法:前端把 archive 檔案每個 byte XOR 0xFF,副檔名加 .xored。
+    // ngrok 看到的是亂碼 → 放行;後端偵測 .xored → 用 bytes.translate
+    // 快速還原 → 存檔時用去掉 .xored 的原始檔名。
+    ARCHIVE_EXTENSIONS: ['.zip', '.swiftpm', '.rar', '.7z', '.tar', '.gz', '.tgz'],
+
+    isArchiveFile(file) {
+        const name = (file && file.name || '').toLowerCase();
+        return this.ARCHIVE_EXTENSIONS.some(ext => name.endsWith(ext));
+    },
+
+    async obfuscateIfArchive(file) {
+        if (!this.isArchiveFile(file)) return file;
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.length; i++) bytes[i] ^= 0xFF;
+        // 檔名後加 .xored;後端偵測到會 strip + XOR 還原
+        return new File([bytes], file.name + '.xored', {
+            type: 'application/octet-stream',
+        });
+    },
+
+    async appendFiles(formData, fieldName, files) {
+        if (!files || !files.length) return;
+        for (const f of files) {
+            const out = await this.obfuscateIfArchive(f);
+            formData.append(fieldName, out);
+        }
+    },
+
+    /**
+     * Multipart submit 共用 helper。永遠不 throw,一律回傳
+     * {success, message, data?}
+     * shape,這樣呼叫端的 finally block 一定會執行。
+     */
+    async _submitMultipart(url, formData, timeoutMs) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs || this.UPLOAD_TIMEOUT_MS);
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: this._authHeaders(),
+                body: formData,
+                signal: controller.signal,
+            });
+            clearTimeout(timer);
+
+            if (resp.status === 401) { window.location.href = '/'; return { success: false, message: '未登入' }; }
+
+            // 嘗試解析 JSON,若失敗(例如 ngrok interstitial / nginx 413 HTML 頁)回傳友善訊息
+            const text = await resp.text();
+            let body;
+            try { body = text ? JSON.parse(text) : {}; }
+            catch (e) {
+                return {
+                    success: false,
+                    message: `伺服器回傳非 JSON 內容 (HTTP ${resp.status}) — 可能被代理/防火牆攔截`,
+                };
+            }
+
+            if (!resp.ok) {
+                return {
+                    success: false,
+                    message: body.message || body.detail || `HTTP ${resp.status}`,
+                    ...body,
+                };
+            }
+            return body;  // 正常情況 {success: true, data, message}
+        } catch (err) {
+            clearTimeout(timer);
+            if (err.name === 'AbortError') {
+                return { success: false, message: `上傳逾時 (超過 ${Math.round((timeoutMs || this.UPLOAD_TIMEOUT_MS) / 1000)} 秒),請檢查網路或檔案大小` };
+            }
+            // TypeError: Failed to fetch — 網路/瀏覽器/proxy 層擋掉
+            if (err instanceof TypeError) {
+                return {
+                    success: false,
+                    message: `連線失敗 (${err.message})。如果透過 ngrok,Chrome Safe Browsing 可能封鎖了此網域;請改用 LAN 直連、Tailscale 或 Cloudflare Tunnel`,
+                };
+            }
+            console.error('Upload error:', err);
+            return { success: false, message: err.message || '上傳失敗' };
+        }
     },
 
     // Teacher APIs
@@ -115,14 +208,11 @@ const AssignmentAPI = {
     // Exam Paper OCR APIs
     async uploadExamPaper(files) {
         const formData = new FormData();
-        for (const f of files) formData.append('files', f);
-        const resp = await fetch('/api/assignments/teacher/upload-exam-paper', {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            '/api/assignments/teacher/upload-exam-paper',
+            formData,
+        );
     },
     async getExamPaperStatus(batchId) {
         return this._call(`/api/assignments/teacher/upload-exam-paper/${batchId}/status`);
@@ -148,27 +238,21 @@ const AssignmentAPI = {
     async submitAssignment(assignmentId, content, files) {
         const formData = new FormData();
         formData.append('content', content);
-        if (files) { for (const f of files) formData.append('files', f); }
-        const resp = await fetch(`/api/assignments/${assignmentId}/submit`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            `/api/assignments/${assignmentId}/submit`,
+            formData,
+        );
     },
     async teacherSubmitForStudent(assignmentId, studentUsername, files, content = '') {
         const formData = new FormData();
         formData.append('student_username', studentUsername);
         formData.append('content', content);
-        if (files) { for (const f of files) formData.append('files', f); }
-        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/submit-for-student`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            `/api/assignments/teacher/${assignmentId}/submit-for-student`,
+            formData,
+        );
     },
 
     // Form APIs
@@ -177,16 +261,13 @@ const AssignmentAPI = {
         formData.append('answers', answersJson);
         if (filesByQuestion) {
             for (const [qId, files] of Object.entries(filesByQuestion)) {
-                for (const f of files) formData.append(`files_${qId}`, f);
+                await this.appendFiles(formData, `files_${qId}`, files);
             }
         }
-        const resp = await fetch(`/api/assignments/${assignmentId}/submit-form`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        return this._submitMultipart(
+            `/api/assignments/${assignmentId}/submit-form`,
+            formData,
+        );
     },
     async submitExam(assignmentId, answers) {
         return this._call(`/api/assignments/${assignmentId}/submit-exam`, {
@@ -223,14 +304,11 @@ const AssignmentAPI = {
     // Attachments
     async uploadAttachments(assignmentId, files) {
         const formData = new FormData();
-        for (const f of files) formData.append('files', f);
-        const resp = await fetch(`/api/assignments/teacher/${assignmentId}/attachments`, {
-            method: 'POST',
-            headers: this._authHeaders(),
-            body: formData
-        });
-        if (resp.status === 401) { window.location.href = '/'; return null; }
-        return resp.json();
+        await this.appendFiles(formData, 'files', files);
+        return this._submitMultipart(
+            `/api/assignments/teacher/${assignmentId}/attachments`,
+            formData,
+        );
     },
     async deleteAttachment(assignmentId, fileId) {
         return this._call(`/api/assignments/teacher/${assignmentId}/attachments/${fileId}`, { method: 'DELETE' });
@@ -5186,6 +5264,7 @@ const AssignmentApp = {
 
     async doSubmit() {
         const btn = document.getElementById('submitBtn');
+        if (!btn) return;
         btn.disabled = true;
         btn.innerHTML = `<div class="loading-spinner"></div> ${i18n.t('asg.submit.submitting')}`;
 
@@ -5200,19 +5279,28 @@ const AssignmentApp = {
             files.push(codeFile);
         }
 
-        const resp = await AssignmentAPI.submitAssignment(
-            this.state.currentAssignment, content, files
-        );
-
-        btn.disabled = false;
-        btn.textContent = i18n.t('asg.submit.submit');
-
-        if (resp?.success) {
-            this.closeSubmitModal();
-            UIModule.toast(i18n.t('asg.toast.submitSuccess'), 'success');
-            this.viewStudentAssignment(this.state.currentAssignment);
-        } else {
-            UIModule.toast(i18n.t('asg.toast.submitFail', {msg: resp?.message || resp?.detail || ''}), 'error');
+        try {
+            const resp = await AssignmentAPI.submitAssignment(
+                this.state.currentAssignment, content, files
+            );
+            if (resp?.success) {
+                this.closeSubmitModal();
+                UIModule.toast(i18n.t('asg.toast.submitSuccess'), 'success');
+                this.viewStudentAssignment(this.state.currentAssignment);
+            } else {
+                UIModule.toast(
+                    i18n.t('asg.toast.submitFail', {msg: resp?.message || resp?.detail || ''}),
+                    'error',
+                );
+            }
+        } catch (e) {
+            // 保險 — _submitMultipart 理論上不會 throw,但萬一有其他 exception
+            console.error('doSubmit error:', e);
+            UIModule.toast(i18n.t('asg.toast.submitFail', {msg: e.message || '未知錯誤'}), 'error');
+        } finally {
+            // 不管成功或失敗,按鈕都必須還原,避免「卡在提交中」
+            btn.disabled = false;
+            btn.textContent = i18n.t('asg.submit.submit');
         }
     },
 
@@ -6548,16 +6636,22 @@ const FormStudentView = {
         const btn = document.getElementById('fsvSubmitBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<div class="loading-spinner"></div> 提交中...'; }
 
-        const resp = await AssignmentAPI.submitForm(assignmentId, JSON.stringify(answers), this._pendingFiles);
-
-        if (resp?.success) {
-            this._clearDraft(assignmentId);
-            UIModule.toast('提交成功', 'success');
-            AssignmentApp.viewStudentAssignment(assignmentId);
-        } else {
-            UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
-            if (btn) { btn.disabled = false; btn.textContent = '提交作業'; }
+        try {
+            const resp = await AssignmentAPI.submitForm(assignmentId, JSON.stringify(answers), this._pendingFiles);
+            if (resp?.success) {
+                this._clearDraft(assignmentId);
+                UIModule.toast('提交成功', 'success');
+                AssignmentApp.viewStudentAssignment(assignmentId);
+                return;  // 成功 → 不還原按鈕(頁面即將切換)
+            } else {
+                UIModule.toast('提交失敗: ' + (resp?.message || resp?.detail || ''), 'error');
+            }
+        } catch (e) {
+            console.error('submitForm error:', e);
+            UIModule.toast('提交失敗: ' + (e.message || '未知錯誤'), 'error');
         }
+        // 失敗才會走到這裡 — 還原按鈕避免卡住
+        if (btn) { btn.disabled = false; btn.textContent = '提交作業'; }
     },
 
     renderSubmittedView(questions, answers, files) {

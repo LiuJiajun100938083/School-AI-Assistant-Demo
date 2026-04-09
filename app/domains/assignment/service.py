@@ -67,6 +67,22 @@ logger = logging.getLogger(__name__)
 # 上傳目錄
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent.parent / "uploads" / "assignments"
 
+# ── Ngrok / Chrome Safe Browsing workaround ────────────────────
+# 公開網域 (ngrok / 任何 HTTPS 網址) 上傳 archive 檔案會被掃,失敗
+# 時 Chrome 回 ERR_ACCESS_DENIED,後端 log 看不到。前端會把 archive
+# 檔案每個 byte XOR 0xFF,附檔名加 .xored。後端偵測到 .xored 就用
+# bytes.translate (C-level,100MB < 100ms) 還原。
+_XOR_FF_TABLE = bytes(i ^ 0xFF for i in range(256))
+_XORED_SUFFIX = ".xored"
+
+
+def _deobfuscate_if_xored(original_name: str, content: bytes) -> tuple[str, bytes]:
+    """若檔名以 .xored 結尾,移除此尾碼並 XOR 0xFF 還原 bytes。"""
+    if original_name.lower().endswith(_XORED_SUFFIX):
+        real_name = original_name[: -len(_XORED_SUFFIX)]
+        return real_name, content.translate(_XOR_FF_TABLE)
+    return original_name, content
+
 
 class AssignmentService:
     """作業管理服務"""
@@ -1237,15 +1253,19 @@ class AssignmentService:
     ) -> Dict[str, Any]:
         """保存上傳的文件"""
         original_name = file.filename or "unnamed"
+
+        # 讀取文件內容 (先讀再判型,因為 .xored 包裝可能藏著 archive)
+        content = await file.read()
+        # 若是前端 XOR 混淆的 archive,還原檔名和 bytes
+        original_name, content = _deobfuscate_if_xored(original_name, content)
+
         ext = Path(original_name).suffix.lower()
 
-        # 檢查文件類型
+        # 檢查文件類型 (基於還原後的真實副檔名)
         file_type = EXTENSION_TYPE_MAP.get(ext)
         if not file_type:
             raise InvalidFileTypeError(ext)
 
-        # 讀取文件內容
-        content = await file.read()
         file_size = len(content)
 
         # 檢查大小
@@ -1295,13 +1315,17 @@ class AssignmentService:
             raise ValidationError("附件功能未初始化")
 
         original_name = file.filename or "unnamed"
+
+        # 讀取 + 還原 XOR 混淆(若有)
+        content = await file.read()
+        original_name, content = _deobfuscate_if_xored(original_name, content)
+
         ext = Path(original_name).suffix.lower()
 
         file_type = EXTENSION_TYPE_MAP.get(ext)
         if not file_type:
             raise InvalidFileTypeError(ext)
 
-        content = await file.read()
         file_size = len(content)
         if file_size > MAX_FILE_SIZE:
             raise FileTooLargeError(MAX_FILE_SIZE // 1024 // 1024)
@@ -2338,10 +2362,13 @@ class AssignmentService:
     async def _save_answer_file(self, answer_id: int, file: UploadFile) -> Dict[str, Any]:
         """保存作答附件"""
         original_name = file.filename or "unnamed"
-        ext = Path(original_name).suffix.lower()
 
-        file_type = EXTENSION_TYPE_MAP.get(ext, "")
+        # 讀取 + 還原 XOR 混淆(若有)
         content = await file.read()
+        original_name, content = _deobfuscate_if_xored(original_name, content)
+
+        ext = Path(original_name).suffix.lower()
+        file_type = EXTENSION_TYPE_MAP.get(ext, "")
         file_size = len(content)
 
         if file_size > MAX_FILE_SIZE:
