@@ -66,10 +66,12 @@ class DwqGameStore:
             # 檢查 host 是否已在其他房間
             if host_user_id in self._user_room:
                 old_code = self._user_room[host_user_id]
-                if old_code in self._rooms:
+                old_room = self._rooms.get(old_code)
+                # 索引污染清理:房間不存在,或房間存在但玩家不在 players 列表中
+                if old_room is None or host_user_id not in old_room.players:
+                    del self._user_room[host_user_id]
+                else:
                     raise AlreadyInRoomError(old_code)
-                # 索引污染,清理
-                del self._user_room[host_user_id]
 
             # 校驗 max_players
             mp = max(C.MIN_PLAYERS, min(C.MAX_PLAYERS, max_players))
@@ -126,9 +128,15 @@ class DwqGameStore:
             if user_id in state.players:
                 return state
 
-            # 在其他房間 → 拒絕
+            # 在其他房間 → 拒絕 (但先檢查是否為索引污染)
             if user_id in self._user_room and self._user_room[user_id] != code:
-                raise AlreadyInRoomError(self._user_room[user_id])
+                other_code = self._user_room[user_id]
+                other_room = self._rooms.get(other_code)
+                if other_room is None or user_id not in other_room.players:
+                    # 索引污染,清理後繼續
+                    del self._user_room[user_id]
+                else:
+                    raise AlreadyInRoomError(other_code)
 
             # 房間狀態檢查
             if state.status != RoomStatus.WAITING:
