@@ -264,7 +264,7 @@
   {
     "id": "collab_board",
     "name": "協作佈告板",
-    "icon": "📌",
+    "icon": "",
     "description": "班級互動牆 / 分組作業協作板",
     "url": "/boards",
     "roles": [
@@ -288,5 +288,95 @@
     "enabled": true,
     "order": 16,
     "category": "admin"
+  },
+  {
+    "id": "dictation",
+    "name": "默書",
+    "icon": "",
+    "description": "中英雙語默書:老師上傳原文,學生拍照上交,AI 自動比對批改",
+    "url": "/dictation",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 14,
+    "category": "teaching"
+  },
+  {
+    "id": "tool_qrcode",
+    "name": "QR 碼生成器",
+    "icon": "",
+    "description": "輸入文字或 URL,一鍵生成 QR 碼並下載",
+    "url": "/tools/qrcode",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 16,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_image_convert",
+    "name": "圖片格式轉換",
+    "icon": "",
+    "description": "PNG / JPG / WebP 互相轉換(瀏覽器本地處理)",
+    "url": "/tools/image-convert",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 17,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_pdf_merge",
+    "name": "多圖合併 PDF",
+    "icon": "",
+    "description": "選擇多張圖片合併成一份 PDF",
+    "url": "/tools/pdf-merge",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 18,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_countdown",
+    "name": "倒數計時器",
+    "icon": "",
+    "description": "課堂計時大字顯示,支援全螢幕投影",
+    "url": "/tools/countdown",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 19,
+    "category": "utilities"
+  },
+  {
+    "id": "tool_roll_call",
+    "name": "課堂點名",
+    "icon": "",
+    "description": "選班級隨機抽人或分組,可放回重抽",
+    "url": "/tools/roll-call",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 20,
+    "category": "utilities"
   }
 ]

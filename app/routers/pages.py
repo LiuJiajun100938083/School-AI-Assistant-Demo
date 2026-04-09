@@ -124,6 +124,11 @@ async def tool_countdown_page():
     return _serve_page("tools/countdown.html")
 
 
+@router.get("/tools/roll-call")
+async def tool_roll_call_page():
+    return _serve_page("tools/roll_call.html")
+
+
 @router.get("/student-report")
 async def student_report():
     """学生分析报告页"""

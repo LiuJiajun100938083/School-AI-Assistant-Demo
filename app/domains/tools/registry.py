@@ -46,6 +46,15 @@ TOOLS: List[ToolSpec] = [
         page_url="/tools/countdown",
         needs_backend=False,
     ),
+    ToolSpec(
+        id="tool_roll_call",
+        name_zh="課堂點名",
+        name_en="Roll Call",
+        description_zh="選班級隨機抽人或分組,可放回重抽",
+        description_en="Random pick or group students by class",
+        page_url="/tools/roll-call",
+        needs_backend=True,
+    ),
 ]
 
 

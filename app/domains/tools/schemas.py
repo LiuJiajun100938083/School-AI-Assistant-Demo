@@ -1,6 +1,6 @@
 """實用工具 — Pydantic Schemas"""
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -25,4 +25,28 @@ class QrRequest(BaseModel):
     def _ec_valid(cls, v: str) -> str:
         if v not in QR_EC_CHOICES:
             raise ValueError(f"error_correction must be one of {sorted(QR_EC_CHOICES)}")
+        return v
+
+
+# ============================================================
+# Roll Call (點名 / 分組)
+# ============================================================
+
+class RollCallPickRequest(BaseModel):
+    class_name: str = Field(..., min_length=1, max_length=50)
+    n: int = Field(1, ge=1, le=200)
+    exclude_ids: List[int] = Field(default_factory=list)
+    allow_repeat: bool = False
+
+
+class RollCallGroupRequest(BaseModel):
+    class_name: str = Field(..., min_length=1, max_length=50)
+    mode: str = Field(...)  # "by_size" | "by_count"
+    value: int = Field(..., ge=1, le=200)
+
+    @field_validator("mode")
+    @classmethod
+    def _mode_valid(cls, v: str) -> str:
+        if v not in ("by_size", "by_count"):
+            raise ValueError("mode must be 'by_size' or 'by_count'")
         return v
