@@ -193,6 +193,11 @@ i18n.addMessages({
         // Fallbacks
         'ec.categoryOther':      '其他',
         'ec.subjectUnknown':     '未知',
+
+        // 知識點分類 badge (parse 自 description 前綴)
+        'ec.tagCore':            '核心',
+        'ec.tagExt':             '延伸',
+        'ec.tagElec':            '選修',
     },
     en: {
         // ── HTML static text ──────────────────────────────────
@@ -386,5 +391,10 @@ i18n.addMessages({
         // Fallbacks
         'ec.categoryOther':      'Other',
         'ec.subjectUnknown':     'Unknown',
+
+        // Knowledge-point badge (parsed from description prefix)
+        'ec.tagCore':            'Core',
+        'ec.tagExt':             'Ext.',
+        'ec.tagElec':            'Elective',
     }
 });

@@ -844,7 +844,7 @@ async def list_knowledge_points(
 async def seed_knowledge_points(
     admin_info: Tuple[str, str] = Depends(require_admin),
 ):
-    """從種子文件導入知識點"""
+    """從種子文件導入知識點(含 reconciliation:insert/update/deactivate)"""
     import os
     data_path = os.path.join("data", "knowledge_points_seed.json")
 
@@ -853,7 +853,15 @@ async def seed_knowledge_points(
 
     service = get_services().mistake_book
     loop = asyncio.get_event_loop()
-    count = await loop.run_in_executor(
+    result = await loop.run_in_executor(
         None, service.seed_knowledge_points, data_path,
     )
-    return {"success": True, "message": f"已導入 {count} 個知識點"}
+    # Build human-friendly summary
+    total = result.get("total", 0)
+    by_subject = result.get("by_subject", {})
+    summary_lines = [
+        f"{subj}: inserted={s['inserted']}, deactivated={s['deactivated']}, kept={s['kept']}"
+        for subj, s in by_subject.items()
+    ]
+    message = f"已同步 {total} 個知識點 | " + " | ".join(summary_lines)
+    return {"success": True, "message": message, "data": result}

@@ -218,6 +218,24 @@ const ExamCreator = (() => {
     }
 
     // ================================================================
+    // 知識點分類 tag 解析 — 從 description 前綴抓
+    // [compulsory:core] / [compulsory:extension] / [elective] / [sba]
+    // ================================================================
+    const CATEGORY_TAG_REGEX = /^\[(compulsory:core|compulsory:extension|elective|sba)\]/;
+
+    function _parseCategoryTag(description) {
+        if (!description) return null;
+        const m = description.match(CATEGORY_TAG_REGEX);
+        if (!m) return null;
+        const raw = m[1];
+        if (raw === 'compulsory:core')       return { key: 'core', label: i18n.t('ec.tagCore') };
+        if (raw === 'compulsory:extension')  return { key: 'ext',  label: i18n.t('ec.tagExt') };
+        if (raw === 'elective')              return { key: 'elec', label: i18n.t('ec.tagElec') };
+        if (raw === 'sba')                   return { key: 'sba',  label: 'SBA' };
+        return null;
+    }
+
+    // ================================================================
     // Views — 各面板渲染
     // ================================================================
     const Views = {
@@ -240,10 +258,15 @@ const ExamCreator = (() => {
             for (const [cat, pts] of Object.entries(groups)) {
                 html += `<div class="point-category">${cat}</div>`;
                 pts.forEach(p => {
+                    const tag = _parseCategoryTag(p.description);
+                    const badge = tag
+                        ? `<span class="point-badge point-badge--${tag.key}">${tag.label}</span>`
+                        : '';
                     html += `
                         <label class="point-item">
                             <input type="checkbox" value="${p.point_code}" data-name="${p.point_name}">
-                            <span>${p.point_name}</span>
+                            ${badge}
+                            <span class="point-name">${p.point_name}</span>
                         </label>`;
                 });
             }

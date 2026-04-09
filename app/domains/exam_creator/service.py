@@ -857,7 +857,11 @@ class ExamCreatorService:
     # ================================================================
 
     def get_knowledge_points(self, subject: str) -> List[Dict]:
-        """返回指定科目的知識點列表。"""
+        """返回指定科目的知識點列表。
+
+        包含 description (含 [compulsory:core] 等 tag) 供前端解析 badge,
+        以及 parent_code 供未來樹狀渲染使用。
+        """
         rows = self._knowledge.find_all(
             where="subject = %s AND is_active = 1",
             params=(subject,),
@@ -868,6 +872,9 @@ class ExamCreatorService:
                 "point_code": r["point_code"],
                 "point_name": r["point_name"],
                 "category": r.get("category", ""),
+                "description": r.get("description", "") or "",
+                "parent_code": r.get("parent_code"),
+                "difficulty_level": r.get("difficulty_level", 0),
             }
             for r in rows
         ]

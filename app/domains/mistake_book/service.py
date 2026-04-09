@@ -2431,17 +2431,45 @@ class MistakeBookService:
     # 知識點種子數據
     # ================================================================
 
-    def seed_knowledge_points(self, data_path: str) -> int:
-        """從 JSON 文件導入知識點種子數據"""
+    def seed_knowledge_points(self, data_path: str) -> Dict[str, Any]:
+        """從 JSON 文件導入知識點種子數據 (含完整 reconciliation)。
+
+        策略:對每個 subject 獨立做 diff,新的 INSERT、已存在的 UPDATE、
+        DB 裡有但 JSON 裡沒有的 mark is_active=FALSE (保留歷史引用)。
+
+        Returns:
+            {total: int, by_subject: {subject: {inserted, deactivated, kept}}}
+        """
         with open(data_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         points = data.get("points", [])
+        # grade_levels: list → JSON string (for DB storage)
         for p in points:
             if "grade_levels" in p and isinstance(p["grade_levels"], list):
                 p["grade_levels"] = json.dumps(p["grade_levels"])
 
-        return self._knowledge.bulk_insert(points)
+        # Group by subject
+        by_subject: Dict[str, List[Dict]] = {}
+        for p in points:
+            subj = p.get("subject")
+            if not subj:
+                logger.warning("知識點 seed 缺 subject: %s", p.get("point_code"))
+                continue
+            by_subject.setdefault(subj, []).append(p)
+
+        # 對每個科目做 reconciliation
+        result = {"total": 0, "by_subject": {}}
+        for subject, desired in by_subject.items():
+            stats = self._knowledge.reconcile_subject(subject, desired)
+            result["by_subject"][subject] = stats
+            result["total"] += stats["inserted"]
+            logger.info(
+                "知識點 seed [%s]: inserted=%d, deactivated=%d, kept=%d",
+                subject, stats["inserted"], stats["deactivated"], stats["kept"],
+            )
+
+        return result
 
     # ================================================================
     # 私有方法
