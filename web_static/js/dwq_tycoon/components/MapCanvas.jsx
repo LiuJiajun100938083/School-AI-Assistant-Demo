@@ -166,6 +166,50 @@
                 }));
             }
 
+            // 計算動態連線的完整 path d — 給黃色可移動路徑提示線用
+            // 讓黃線也沿著真實路徑走 (曲線/Y 形),而不是直線橫切地圖
+            function getDynamicPathD(line) {
+                const p0src = C.CITIES[line.from].pos;
+                const p2src = C.CITIES[line.to].pos;
+                if (line.type === 'hzmb') {
+                    const hk = C.CITIES['香港'].pos;
+                    const forkPt = { x: 47, y: 96 };
+                    // 非香港端即為目的地
+                    const toPos = (line.from === '香港') ? p2src : p0src;
+                    const trunkCP = {
+                        x: (hk.x + forkPt.x) / 2,
+                        y: (hk.y + forkPt.y) / 2 + 4,
+                    };
+                    const branchCP = {
+                        x: (forkPt.x + toPos.x) / 2,
+                        y: Math.max(forkPt.y, toPos.y) + 2,
+                    };
+                    return 'M ' + hk.x + ' ' + hk.y +
+                        ' Q ' + trunkCP.x + ' ' + trunkCP.y + ' ' + forkPt.x + ' ' + forkPt.y +
+                        ' Q ' + branchCP.x + ' ' + branchCP.y + ' ' + toPos.x + ' ' + toPos.y;
+                }
+                // rail / tunnel-mid:單條二次貝茲
+                const mx = (p0src.x + p2src.x) / 2;
+                const my = (p0src.y + p2src.y) / 2;
+                const dx = p2src.x - p0src.x;
+                const dy = p2src.y - p0src.y;
+                const l = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+                const off = line.offset || 0;
+                const cpx = mx + (-dy / l) * off;
+                const cpy = my + (dx / l) * off;
+                return 'M ' + p0src.x + ' ' + p0src.y +
+                    ' Q ' + cpx + ' ' + cpy + ' ' + p2src.x + ' ' + p2src.y;
+            }
+
+            // 建立 "from->to" → path d 的查找表 (已解鎖的動態連線)
+            const dynPathByPair = {};
+            C.DYNAMIC_LINES.forEach(function (line) {
+                if (turnIndex + 1 < line.unlockTurn) return;
+                const d = getDynamicPathD(line);
+                dynPathByPair[line.from + '->' + line.to] = d;
+                dynPathByPair[line.to + '->' + line.from] = d;
+            });
+
             // 動態連線 — 按類型分別渲染 (rail / bridge / tunnel-from / tunnel-mid)
             C.DYNAMIC_LINES.forEach(function (line, idx) {
                 if (turnIndex + 1 < line.unlockTurn) return;
@@ -266,21 +310,26 @@
             });
 
             // 可移動路徑高亮 — 僅自己回合時,從我的位置到所有可移動城市
+            // 若目的地是動態連線 (鐵路/大橋/隧道),沿真實路徑畫曲線;否則直線
             if (isMyTurn && myPlayer) {
-                const fromCity = C.CITIES[myPlayer.location];
+                const fromId = myPlayer.location;
+                const fromCity = C.CITIES[fromId];
                 const fromPos = fromCity && fromCity.pos;
                 if (fromPos && movableSet && movableSet.forEach) {
                     movableSet.forEach(function (toId) {
                         const toCity = C.CITIES[toId];
                         const toPos = toCity && toCity.pos;
                         if (!toPos) return;
-                        lines.push(React.createElement('line', {
+                        const dynD = dynPathByPair[fromId + '->' + toId];
+                        const d = dynD || ('M ' + fromPos.x + ' ' + fromPos.y + ' L ' + toPos.x + ' ' + toPos.y);
+                        lines.push(React.createElement('path', {
                             key: 'move-' + toId,
-                            x1: fromPos.x, y1: fromPos.y,
-                            x2: toPos.x, y2: toPos.y,
+                            d: d,
+                            fill: 'none',
                             stroke: '#facc15',
                             strokeWidth: 6,
                             strokeDasharray: '10 4',
+                            strokeLinecap: 'round',
                             vectorEffect: 'non-scaling-stroke',
                             className: 'movable-edge',
                             style: { filter: 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.9))' },
