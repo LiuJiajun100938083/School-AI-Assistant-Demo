@@ -189,7 +189,8 @@
             const p = store.state.posts.find(x => x.id === payload.post_id);
             if (p) {
                 p.like_count = payload.count;
-                if (payload.user_id === store.state.me) {
+                // state.me 現在是 object {id, role, can_moderate, can_manage_sections}
+                if (payload.user_id === (store.state.me && store.state.me.id)) {
                     p.liked_by_me = payload.added;
                 }
                 store._emit();
@@ -234,8 +235,33 @@
             btn.classList.toggle('active', btn.dataset.layout === state.layout);
         });
 
-        // show add section button only for shelf
-        $('#btnAddSection').style.display = state.layout === 'shelf' ? 'inline-flex' : 'none';
+        // Add-section button: 僅在 shelf / stream 版式下,且當前使用者有權管 section 才顯示
+        const canAddSection =
+            (state.layout === 'shelf' || state.layout === 'stream') &&
+            canManageSectionsClient(state);
+        $('#btnAddSection').style.display = canAddSection ? 'inline-flex' : 'none';
+
+        // Menu dropdown:同步 section_edit_open 開關的勾選狀態
+        const semBtn = document.querySelector('#menuDropdown [data-action="toggle-section-edit"]');
+        if (semBtn) {
+            const isOwnerOrStaff = !!(state.me && state.me.can_moderate);
+            semBtn.style.display = isOwnerOrStaff ? '' : 'none';
+            const on = !!(b.section_edit_open);
+            semBtn.textContent = (on ? '✓ ' : '　') + i18n.t('cb.sectionEditOpenLabel');
+        }
+    }
+
+    // ────────────────────────────────────────────────
+    //  前端 section 權限判斷 (僅用於 UI gating,server 才是權威)
+    // ────────────────────────────────────────────────
+    function canManageSectionsClient(state) {
+        if (!state.me) return false;
+        if (state.board && state.board.is_archived) return false;
+        // moderator 永遠可以
+        if (state.me.can_moderate) return true;
+        // section_edit_open 開啟 + 能載入這塊板(已經通過 can_view) → 允許
+        if (state.board && state.board.section_edit_open) return true;
+        return false;
     }
 
     // ── Inline SVG icons (stroke: currentColor) ──
@@ -555,6 +581,10 @@
     function renderShelf(state) {
         const body = $('#boardBody');
         body.className = 'cb-workspace__body';
+        // 注意:這裡的 `id: 0` fallback 只在「完全沒 section」時出現。
+        // stream 版式也會用 `id: 0` 作為合成「未分類」bucket,但觸發條件是
+        // 「已有 section 且有孤兒 post」,兩者不會在同一時間觸發。共用 magic
+        // number 是刻意的,改一方記得同步另一方。
         const sections = (state.sections.length ? state.sections : [{ id: 0, name: '#', kind: 'column' }]);
         body.innerHTML = `<div class="cb-shelf" id="cbShelf"></div>`;
         const shelf = $('#cbShelf');
@@ -575,6 +605,214 @@
             shelf.appendChild(col);
         });
         scrollToDeepLink();
+    }
+
+    // ── Stream (Padlet-style 垂直時間軸) ──
+    function renderStream(state) {
+        const body = $('#boardBody');
+        body.className = 'cb-workspace__body cb-workspace__body--stream';
+        const posts = viewedPosts(state);
+        const realSections = state.sections.slice()
+            .sort((a, b) => (a.order_index || 0) - (b.order_index || 0) || a.id - b.id);
+        const canManage = canManageSectionsClient(state);
+
+        // Onboarding:還沒建任何 section
+        if (!realSections.length) {
+            const addBtnHtml = canManage
+                ? `<button class="cb-btn cb-btn--primary" id="streamAddFirst">${esc(i18n.t('cb.streamAddFirst'))}</button>`
+                : '';
+            body.innerHTML = `
+                <div class="cb-empty">
+                    <div class="cb-empty__icon">🪴</div>
+                    <div class="cb-empty__title">${esc(i18n.t('cb.streamNoSections'))}</div>
+                    ${addBtnHtml}
+                </div>`;
+            // 若有貼文但沒 section,仍列在下方(合成未分類 section)
+            if (posts.length) {
+                renderStreamUnclassifiedFallback(body, posts, canManage);
+            } else {
+                const addBtn = $('#streamAddFirst');
+                if (addBtn) addBtn.addEventListener('click', () => $('#btnAddSection').click());
+                return;
+            }
+            const addBtn = $('#streamAddFirst');
+            if (addBtn) addBtn.addEventListener('click', () => $('#btnAddSection').click());
+            scrollToDeepLink();
+            return;
+        }
+
+        // 合成「未分類」section:只在有孤兒貼文時出現
+        const unassignedPosts = posts.filter(p => !p.section_id);
+        const displaySections = unassignedPosts.length
+            ? [{ id: 0, name: i18n.t('cb.streamUncategorized'), kind: 'column', _synthetic: true }, ...realSections]
+            : realSections;
+
+        body.innerHTML = `<div class="cb-stream" id="cbStream"></div>`;
+        const stream = $('#cbStream');
+
+        displaySections.forEach(sec => {
+            const editable = !sec._synthetic && canManage;
+            const secEl = document.createElement('section');
+            secEl.className = 'cb-stream__section';
+            secEl.dataset.sid = sec.id;
+
+            const titleHtml = editable
+                ? `<h3 class="cb-stream__sec-title" data-action="edit-title" tabindex="0">${esc(sec.name)}</h3>`
+                : `<h3 class="cb-stream__sec-title cb-stream__sec-title--readonly">${esc(sec.name)}</h3>`;
+            const delHtml = editable
+                ? `<button type="button" class="cb-stream__sec-del" data-action="del-section" title="${esc(i18n.t('cb.delete'))}" aria-label="${esc(i18n.t('cb.delete'))}">${ICON.trash}</button>`
+                : '';
+            const groupBadge = (sec.kind === 'group') ? '<span class="cb-tag">👥</span>' : '';
+
+            secEl.innerHTML = `
+                <header class="cb-stream__sec-head">
+                    <span class="cb-stream__dot" aria-hidden="true"></span>
+                    ${titleHtml}
+                    ${groupBadge}
+                    ${delHtml}
+                </header>
+                <div class="cb-stream__sec-body" data-sid="${sec.id}"></div>`;
+
+            const bodyEl = secEl.querySelector('.cb-stream__sec-body');
+            const inSection = posts.filter(p => (p.section_id || 0) === sec.id);
+            if (inSection.length) {
+                inSection.forEach(p => bodyEl.appendChild(makePostEl(p)));
+            } else if (!sec._synthetic) {
+                // 空段 → 淡色 CTA (合成「未分類」不給 CTA,免得引導學生發到未分類)
+                const cta = document.createElement('button');
+                cta.type = 'button';
+                cta.className = 'cb-stream__empty-cta';
+                cta.dataset.sid = sec.id;
+                cta.dataset.action = 'empty-cta';
+                cta.textContent = i18n.t('cb.streamEmptyPostCta');
+                bodyEl.appendChild(cta);
+            }
+            stream.appendChild(secEl);
+        });
+
+        attachStreamHandlers(stream);
+        scrollToDeepLink();
+    }
+
+    function renderStreamUnclassifiedFallback(body, posts, canManage) {
+        // 給「無 section 但有孤兒貼文」的極端情況:接在 onboarding empty state 下
+        const wrap = document.createElement('div');
+        wrap.className = 'cb-stream';
+        wrap.id = 'cbStream';
+        const sec = document.createElement('section');
+        sec.className = 'cb-stream__section';
+        sec.innerHTML = `
+            <header class="cb-stream__sec-head">
+                <span class="cb-stream__dot" aria-hidden="true"></span>
+                <h3 class="cb-stream__sec-title cb-stream__sec-title--readonly">${esc(i18n.t('cb.streamUncategorized'))}</h3>
+            </header>
+            <div class="cb-stream__sec-body"></div>`;
+        const bodyEl = sec.querySelector('.cb-stream__sec-body');
+        posts.forEach(p => bodyEl.appendChild(makePostEl(p)));
+        wrap.appendChild(sec);
+        body.appendChild(wrap);
+    }
+
+    // Stream 事件代理:click delegation for edit-title / del-section / empty-cta
+    function attachStreamHandlers(stream) {
+        stream.addEventListener('click', async (e) => {
+            const delBtn = e.target.closest('[data-action="del-section"]');
+            if (delBtn) {
+                e.stopPropagation();
+                const secEl = delBtn.closest('.cb-stream__section');
+                const sid = parseInt(secEl.dataset.sid, 10);
+                if (!sid) return;
+                if (!confirm(i18n.t('cb.confirmDelete'))) return;
+                try {
+                    await api(`/sections/${sid}`, { method: 'DELETE' });
+                    store.removeSection(sid);
+                } catch (err) { alert(err.message); }
+                return;
+            }
+            const titleBtn = e.target.closest('[data-action="edit-title"]');
+            if (titleBtn) {
+                e.stopPropagation();
+                startInlineTitleEdit(titleBtn);
+                return;
+            }
+            const cta = e.target.closest('[data-action="empty-cta"]');
+            if (cta) {
+                e.stopPropagation();
+                const sid = parseInt(cta.dataset.sid, 10);
+                openPostModalForSection(sid);
+                return;
+            }
+        });
+    }
+
+    function startInlineTitleEdit(h3El) {
+        const secEl = h3El.closest('.cb-stream__section');
+        const sid = parseInt(secEl.dataset.sid, 10);
+        if (!sid) return;
+        const oldName = h3El.textContent;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'cb-stream__sec-title-input';
+        input.value = oldName;
+        input.placeholder = i18n.t('cb.editSectionTitlePh');
+        input.maxLength = 100;
+        h3El.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let committed = false;
+        const revert = () => {
+            const h3 = document.createElement('h3');
+            h3.className = 'cb-stream__sec-title';
+            h3.dataset.action = 'edit-title';
+            h3.tabIndex = 0;
+            h3.textContent = oldName;
+            if (input.parentNode) input.replaceWith(h3);
+        };
+        const commit = async () => {
+            if (committed) return;
+            committed = true;
+            const newName = input.value.trim();
+            if (!newName || newName === oldName) {
+                revert();
+                return;
+            }
+            try {
+                const updated = await api(`/sections/${sid}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ name: newName }),
+                });
+                if (updated) store.upsertSection(updated);
+                // store._emit 會觸發 render,不用手動 revert
+            } catch (err) {
+                alert(err.message);
+                revert();
+            }
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                committed = true;  // 防止 blur 再次 commit
+                revert();
+            }
+        });
+    }
+
+    function openPostModalForSection(sid) {
+        // 模擬點 #btnNewPost,modal 會自動填好 sections 下拉選單
+        $('#btnNewPost').click();
+        // 然後強制預選該 sid
+        const sel = $('#pSection');
+        if (sel) {
+            $('#pSectionWrap').style.display = '';
+            Array.from(sel.options).forEach(o => {
+                o.selected = (parseInt(o.value, 10) === sid);
+            });
+        }
     }
 
     // ── Canvas ──
@@ -828,6 +1066,7 @@
         const layout = state.layout;
         if (layout === 'grid') renderGrid(state);
         else if (layout === 'shelf') renderShelf(state);
+        else if (layout === 'stream') renderStream(state);
         else if (layout === 'canvas') renderCanvas(state);
         // 套用 theme 背景到 workspace body
         applyThemeBackground(state);
@@ -1321,6 +1560,13 @@
                         if (!confirm(i18n.t('cb.clearAllConfirm'))) return;
                         await api('/clear', { method: 'POST' });
                         store.set({ posts: [] });
+                    } else if (action === 'toggle-section-edit') {
+                        const cur = !!(store.state.board && store.state.board.section_edit_open);
+                        const updated = await api('', {
+                            method: 'PUT',
+                            body: JSON.stringify({ section_edit_open: !cur }),
+                        });
+                        if (updated) store.set({ board: updated });
                     }
                 } catch (err) { alert(err.message); }
                 menu.parentElement.classList.remove('open');
@@ -1427,9 +1673,8 @@
                 sections: data.sections || [],
                 posts: data.posts || [],
                 layout: data.board.layout,
+                me: data.me || null,
             });
-            // 簡單判斷「我」的 id：用 posts 中的 liked_by_me 反推或從 token 解
-            // 暫用 posts 裡的作者資訊做近似
         } catch (e) {
             $('#boardBody').innerHTML =
                 `<div class="cb-empty"><div class="cb-empty__icon">⚠️</div><div class="cb-empty__title">${i18n.t('cb.loadFailed')}</div><div class="cb-empty__desc">${esc(e.message)}</div></div>`;

@@ -193,6 +193,12 @@ class CollabBoardService:
             "board": board,
             "sections": sections,
             "posts": posts,
+            "me": {
+                "id": user["id"],
+                "role": user.get("role", "student"),
+                "can_moderate": is_mod,
+                "can_manage_sections": policy.can_manage_sections(board, user),
+            },
         }
 
     def update_board(self, user: Dict[str, Any], board_uuid: str, data: BoardUpdate) -> Dict[str, Any]:
@@ -219,7 +225,7 @@ class CollabBoardService:
         self, user: Dict[str, Any], board_uuid: str, data: SectionCreate
     ) -> Dict[str, Any]:
         board = self._require_board(board_uuid)
-        policy.ensure_can_moderate(board, user)
+        policy.ensure_can_manage_sections(board, user)
         if data.kind == SECTION_GROUP and not data.group_members:
             raise InvalidSectionError("group section 必須指派成員")
         sid = self._repo.create_section(board["id"], {
@@ -236,7 +242,7 @@ class CollabBoardService:
         self, user: Dict[str, Any], board_uuid: str, section_id: int, data: SectionUpdate
     ) -> Dict[str, Any]:
         board = self._require_board(board_uuid)
-        policy.ensure_can_moderate(board, user)
+        policy.ensure_can_manage_sections(board, user)
         updates = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
         self._repo.update_section(section_id, updates)
         section = self._repo.get_section(section_id)
@@ -247,7 +253,7 @@ class CollabBoardService:
 
     def delete_section(self, user: Dict[str, Any], board_uuid: str, section_id: int) -> None:
         board = self._require_board(board_uuid)
-        policy.ensure_can_moderate(board, user)
+        policy.ensure_can_manage_sections(board, user)
         self._repo.delete_section(section_id)
         self._publish(board_uuid, "section.deleted", {"id": section_id})
 

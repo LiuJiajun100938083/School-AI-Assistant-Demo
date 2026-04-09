@@ -316,6 +316,173 @@ input, textarea, select { font-family: inherit; font-size: 16px; /* 防 iOS 聚�
     flex: 1;
 }
 
+/* ── Stream (Padlet-style 垂直時間軸) ── */
+.cb-workspace__body--stream {
+    padding-top: 12px;
+    padding-bottom: 80px;
+}
+.cb-stream {
+    position: relative;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 8px 16px 8px 56px;  /* 左 56px 是中軸預留 */
+}
+/* 中軸線 — 點線風格 */
+.cb-stream::before {
+    content: "";
+    position: absolute;
+    left: 28px;
+    top: 24px;
+    bottom: 24px;
+    width: 2px;
+    background-image: linear-gradient(
+        to bottom,
+        var(--cb-border) 0,
+        var(--cb-border) 6px,
+        transparent 6px,
+        transparent 12px
+    );
+    background-size: 2px 12px;
+    background-repeat: repeat-y;
+    pointer-events: none;
+}
+
+/* Section row */
+.cb-stream__section {
+    position: relative;
+    margin-bottom: 28px;
+}
+.cb-stream__section:last-child {
+    margin-bottom: 8px;
+}
+.cb-stream__sec-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    min-height: 32px;
+}
+/* 軸上圓點 */
+.cb-stream__dot {
+    position: absolute;
+    left: -34px;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--cb-primary, #6366f1);
+    border: 3px solid var(--cb-card, #fff);
+    box-shadow: 0 0 0 2px var(--cb-border);
+    transform: translateY(-50%);
+}
+.cb-stream__sec-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--cb-text);
+    margin: 0;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.12s;
+}
+.cb-stream__sec-title:not(.cb-stream__sec-title--readonly):hover,
+.cb-stream__sec-title:not(.cb-stream__sec-title--readonly):focus-visible {
+    background: var(--cb-border);
+}
+.cb-stream__sec-title--readonly {
+    cursor: default;
+}
+.cb-stream__sec-title-input {
+    font: inherit;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--cb-text);
+    background: var(--cb-card, #fff);
+    border: 1px solid var(--cb-primary, #6366f1);
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-width: 200px;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.cb-stream__sec-del {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--cb-text-2);
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.cb-stream__section:hover .cb-stream__sec-del,
+.cb-stream__section:focus-within .cb-stream__sec-del {
+    opacity: 1;
+}
+.cb-stream__sec-del:hover {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+/* 區段內貼文:單欄垂直堆疊 */
+.cb-stream__sec-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.cb-stream__sec-body .cb-post {
+    width: 100%;
+    margin: 0;
+    break-inside: auto;
+}
+
+/* 淡色 CTA 佔位卡 */
+.cb-stream__empty-cta {
+    display: block;
+    width: 100%;
+    padding: 22px 16px;
+    background: transparent;
+    border: 2px dashed var(--cb-border);
+    border-radius: var(--cb-radius);
+    color: var(--cb-text-2);
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.cb-stream__empty-cta:hover {
+    color: var(--cb-text);
+    border-color: var(--cb-primary, #6366f1);
+    background: rgba(99, 102, 241, 0.04);
+}
+
+/* Mobile — 軸線收窄、刪除鍵常顯 */
+@media (max-width: 900px) {
+    .cb-stream {
+        padding-left: 40px;
+        padding-right: 12px;
+    }
+    .cb-stream::before { left: 18px; }
+    .cb-stream__dot { left: -24px; width: 12px; height: 12px; }
+    .cb-stream__sec-title { font-size: 16px; }
+    .cb-stream__sec-del { opacity: 1; }
+}
+@media (max-width: 800px) {
+    .cb-stream {
+        padding-left: 36px;
+        padding-right: 10px;
+    }
+    .cb-stream__sec-body { gap: 10px; }
+}
+
 /* ── Canvas ── */
 .cb-canvas-viewport {
     position: relative;

@@ -29,6 +29,7 @@ def make_board(
     class_name="2A",
     moderation=False,
     is_archived=False,
+    section_edit_open=False,
 ):
     return {
         "id": 100,
@@ -38,6 +39,7 @@ def make_board(
         "class_name": class_name,
         "moderation": moderation,
         "is_archived": is_archived,
+        "section_edit_open": section_edit_open,
     }
 
 
@@ -210,6 +212,67 @@ class TestCanDeleteComment:
 
 
 # ============================================================
+# can_manage_sections — 誰能 CRUD section 標題
+# ============================================================
+
+class TestCanManageSections:
+    def test_owner_always(self):
+        # 板主(role=teacher) 永遠可以
+        board = make_board(owner_id=1)
+        assert policy.can_manage_sections(board, make_user(id=1, role="teacher")) is True
+
+    def test_teacher_not_owner_always(self):
+        # 非板主但是 teacher 也可以
+        board = make_board(owner_id=99)
+        assert policy.can_manage_sections(board, make_user(id=1, role="teacher")) is True
+
+    def test_admin_always(self):
+        board = make_board(owner_id=99)
+        assert policy.can_manage_sections(board, make_user(id=1, role="admin")) is True
+
+    def test_student_closed_denied(self):
+        # 預設 section_edit_open=False → 學生拒絕
+        board = make_board(owner_id=1, visibility="class", class_name="2A")
+        assert policy.can_manage_sections(
+            board, make_user(id=2, role="student", class_name="2A")
+        ) is False
+
+    def test_student_opened_and_can_view_allowed(self):
+        # 開啟開關 + 同班 → 允許
+        board = make_board(
+            owner_id=1, visibility="class", class_name="2A", section_edit_open=True
+        )
+        assert policy.can_manage_sections(
+            board, make_user(id=2, role="student", class_name="2A")
+        ) is True
+
+    def test_student_opened_but_cannot_view_denied(self):
+        # 開關開了但看不到板 → 拒絕
+        board = make_board(
+            owner_id=1, visibility="private", section_edit_open=True
+        )
+        assert policy.can_manage_sections(
+            board, make_user(id=9, role="student", class_name="2A")
+        ) is False
+
+    def test_student_opened_different_class_denied(self):
+        # 開關開了但不同班 → 看不到 → 拒絕
+        board = make_board(
+            owner_id=1, visibility="class", class_name="2A", section_edit_open=True
+        )
+        assert policy.can_manage_sections(
+            board, make_user(id=2, role="student", class_name="2B")
+        ) is False
+
+    def test_archived_denied_even_for_teacher(self):
+        # 歸檔板 → 連老師都拒絕(避免學期後誤改)
+        board = make_board(owner_id=1, is_archived=True, section_edit_open=True)
+        assert policy.can_manage_sections(
+            board, make_user(id=1, role="teacher")
+        ) is False
+
+
+# ============================================================
 # ensure_* helpers — raise 版
 # ============================================================
 
@@ -233,3 +296,48 @@ class TestEnsureHelpers:
         board = make_board()
         with pytest.raises(BoardAccessDeniedError):
             policy.ensure_can_moderate(board, make_user(role="student"))
+
+    def test_ensure_can_manage_sections_raises(self):
+        # 預設關閉 → 學生拋
+        board = make_board(owner_id=1, visibility="class", class_name="2A")
+        with pytest.raises(BoardAccessDeniedError):
+            policy.ensure_can_manage_sections(
+                board, make_user(id=2, role="student", class_name="2A")
+            )
+
+    def test_ensure_can_manage_sections_ok_for_teacher(self):
+        board = make_board(owner_id=1)
+        # 不 raise
+        policy.ensure_can_manage_sections(board, make_user(id=1, role="teacher"))
+
+
+# ============================================================
+# Schema validation — layout ENUM 接受 stream
+# ============================================================
+
+class TestLayoutSchema:
+    def test_stream_layout_accepted(self):
+        from app.domains.collab_board.schemas import BoardCreate
+        b = BoardCreate(title="T", layout="stream")
+        assert b.layout == "stream"
+
+    def test_known_layouts_accepted(self):
+        from app.domains.collab_board.schemas import BoardCreate
+        for lay in ("grid", "shelf", "canvas", "stream"):
+            assert BoardCreate(title="T", layout=lay).layout == lay
+
+    def test_unknown_layout_rejected(self):
+        from pydantic import ValidationError
+        from app.domains.collab_board.schemas import BoardCreate
+        with pytest.raises(ValidationError):
+            BoardCreate(title="T", layout="timeline")  # 故意錯
+
+    def test_section_edit_open_default_false(self):
+        from app.domains.collab_board.schemas import BoardCreate
+        b = BoardCreate(title="T")
+        assert b.section_edit_open is False
+
+    def test_section_edit_open_can_be_true(self):
+        from app.domains.collab_board.schemas import BoardCreate
+        b = BoardCreate(title="T", section_edit_open=True)
+        assert b.section_edit_open is True

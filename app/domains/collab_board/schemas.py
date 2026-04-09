@@ -38,6 +38,7 @@ class BoardCreate(BaseModel):
     theme: str = Field("", max_length=40)
     visibility: str = Field(VISIBILITY_CLASS)
     moderation: bool = False
+    section_edit_open: bool = False
     class_name: str = Field("", max_length=50)
     template_id: Optional[str] = None
 
@@ -65,6 +66,7 @@ class BoardUpdate(BaseModel):
     theme: Optional[str] = Field(None, max_length=40)
     visibility: Optional[str] = None
     moderation: Optional[bool] = None
+    section_edit_open: Optional[bool] = None
 
     @field_validator("layout")
     @classmethod

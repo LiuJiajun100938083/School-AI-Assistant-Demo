@@ -128,6 +128,26 @@ def can_moderate(board: Board, user: User) -> bool:
 
 
 # ============================================================
+# can_manage_sections — 誰能 CRUD section 標題
+# ============================================================
+
+def can_manage_sections(board: Board, user: User) -> bool:
+    """
+    規則:
+      - 歸檔板一律拒絕
+      - moderator（owner / teacher / admin）永遠可以
+      - 若 board.section_edit_open 為真且 user 可 view → 也可以
+    """
+    if board.get("is_archived"):
+        return False
+    if can_moderate(board, user):
+        return True
+    if board.get("section_edit_open") and can_view(board, user):
+        return True
+    return False
+
+
+# ============================================================
 # can_edit_post — 編輯貼文
 # ============================================================
 
@@ -172,6 +192,11 @@ def ensure_can_post(board: Board, section: Optional[Section], user: User) -> Non
 def ensure_can_moderate(board: Board, user: User) -> None:
     if not can_moderate(board, user):
         raise BoardAccessDeniedError("無權審核此佈告板")
+
+
+def ensure_can_manage_sections(board: Board, user: User) -> None:
+    if not can_manage_sections(board, user):
+        raise BoardAccessDeniedError("無權編輯此佈告板的分段")
 
 
 def ensure_can_edit_post(board: Board, post: Post, user: User) -> None:

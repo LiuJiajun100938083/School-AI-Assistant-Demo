@@ -395,3 +395,122 @@ class TestModeration:
         post = service.create_post(_student(), b["uuid"], PostCreate(kind="text", body="hi"))
         with pytest.raises(BoardAccessDeniedError):
             service.transition_post_state(_student(id=9), b["uuid"], post["id"], "approve")
+
+
+# ============================================================
+# TestStreamLayoutAndSectionEditOpen — 新版式 + 開放編輯開關
+# ============================================================
+
+class TestStreamLayoutAndSectionEditOpen:
+    def test_stream_board_create_roundtrip(self, service):
+        b = service.create_board(
+            _teacher(),
+            BoardCreate(title="Stream", layout="stream", visibility="class", class_name="2A"),
+        )
+        assert b["layout"] == "stream"
+        # get_board_detail 應回傳同樣 layout
+        detail = service.get_board_detail(_teacher(), b["uuid"])
+        assert detail["board"]["layout"] == "stream"
+
+    def test_get_board_detail_me_block(self, service):
+        b = _make_board(service, _teacher())
+        detail = service.get_board_detail(_teacher(), b["uuid"])
+        # Teacher/owner: 有 me block
+        assert "me" in detail
+        assert detail["me"]["id"] == 1
+        assert detail["me"]["role"] == "teacher"
+        assert detail["me"]["can_moderate"] is True
+        assert detail["me"]["can_manage_sections"] is True
+
+    def test_get_board_detail_me_block_for_student(self, service):
+        b = _make_board(service, _teacher())
+        detail = service.get_board_detail(_student(), b["uuid"])
+        # 同班學生:能看、能發,但預設不能管 section
+        assert detail["me"]["can_moderate"] is False
+        assert detail["me"]["can_manage_sections"] is False
+
+    def test_student_cannot_create_section_by_default(self, service):
+        b = _make_board(service, _teacher())
+        # 預設 section_edit_open=False,學生不能建 section
+        with pytest.raises(BoardAccessDeniedError):
+            service.create_section(
+                _student(), b["uuid"],
+                SectionCreate(name="by student", kind="column"),
+            )
+
+    def test_student_can_create_section_when_edit_open(self, service):
+        from app.domains.collab_board.schemas import BoardUpdate
+        b = _make_board(service, _teacher())
+        # 老師開啟開關
+        service.update_board(
+            _teacher(), b["uuid"], BoardUpdate(section_edit_open=True)
+        )
+        # 學生現在可建 section
+        sec = service.create_section(
+            _student(), b["uuid"],
+            SectionCreate(name="by student", kind="column"),
+        )
+        assert sec["name"] == "by student"
+        assert sec["kind"] == "column"
+
+    def test_student_can_update_section_when_edit_open(self, service):
+        from app.domains.collab_board.schemas import BoardUpdate, SectionUpdate
+        b = _make_board(service, _teacher())
+        sec = service.create_section(
+            _teacher(), b["uuid"],
+            SectionCreate(name="original", kind="column"),
+        )
+        # 開啟開關
+        service.update_board(
+            _teacher(), b["uuid"], BoardUpdate(section_edit_open=True)
+        )
+        # 學生改名
+        updated = service.update_section(
+            _student(), b["uuid"], sec["id"],
+            SectionUpdate(name="renamed by student"),
+        )
+        assert updated["name"] == "renamed by student"
+
+    def test_student_can_delete_section_when_edit_open(self, service):
+        from app.domains.collab_board.schemas import BoardUpdate
+        b = _make_board(service, _teacher())
+        sec = service.create_section(
+            _teacher(), b["uuid"],
+            SectionCreate(name="x", kind="column"),
+        )
+        service.update_board(
+            _teacher(), b["uuid"], BoardUpdate(section_edit_open=True)
+        )
+        # 學生刪得掉
+        service.delete_section(_student(), b["uuid"], sec["id"])
+        # 確認真的被刪
+        detail = service.get_board_detail(_teacher(), b["uuid"])
+        assert not any(s["id"] == sec["id"] for s in detail["sections"])
+
+    def test_student_cannot_manage_section_even_if_open_when_not_in_class(self, service):
+        from app.domains.collab_board.schemas import BoardUpdate
+        b = _make_board(service, _teacher())
+        service.update_board(
+            _teacher(), b["uuid"], BoardUpdate(section_edit_open=True)
+        )
+        # 其他班學生仍被拒(can_view 回 False)
+        with pytest.raises(BoardAccessDeniedError):
+            service.create_section(
+                _student(id=9, cls="2B"), b["uuid"],
+                SectionCreate(name="sneaky", kind="column"),
+            )
+
+    def test_toggle_edit_open_broadcasts_board_updated(self, service):
+        from app.domains.collab_board.schemas import BoardUpdate
+        b = _make_board(service, _teacher())
+        broadcaster = service._broadcaster  # noqa: SLF001
+        before = len(broadcaster.events)
+        service.update_board(
+            _teacher(), b["uuid"], BoardUpdate(section_edit_open=True)
+        )
+        # 至少有一個 board.updated 事件被廣播
+        new_events = broadcaster.events[before:]
+        assert any(
+            ev[0] == b["uuid"] and ev[1].get("type") == "board.updated"
+            for ev in new_events
+        )

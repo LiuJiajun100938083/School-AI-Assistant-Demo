@@ -50,11 +50,12 @@ class CollabBoardRepository(BaseRepository):
             title VARCHAR(200) NOT NULL,
             description TEXT,
             icon VARCHAR(16) DEFAULT '📌',
-            layout ENUM('grid','shelf','canvas') DEFAULT 'grid',
+            layout ENUM('grid','shelf','canvas','stream') DEFAULT 'grid',
             background VARCHAR(200) DEFAULT '',
             theme VARCHAR(40) DEFAULT '',
             visibility ENUM('private','class','public') DEFAULT 'class',
             moderation BOOLEAN DEFAULT FALSE,
+            section_edit_open BOOLEAN DEFAULT FALSE,
             class_name VARCHAR(50) DEFAULT '',
             owner_id INT NOT NULL,
             is_archived BOOLEAN DEFAULT FALSE,
@@ -155,6 +156,7 @@ class CollabBoardRepository(BaseRepository):
         # ALTER 腳本 — 舊 deployment 兼容
         alter_sqls = [
             ("collab_boards", "theme", "ALTER TABLE collab_boards ADD COLUMN theme VARCHAR(40) DEFAULT '' AFTER background"),
+            ("collab_boards", "section_edit_open", "ALTER TABLE collab_boards ADD COLUMN section_edit_open BOOLEAN DEFAULT FALSE AFTER moderation"),
             ("collab_board_posts", "media", "ALTER TABLE collab_board_posts ADD COLUMN media JSON AFTER media_url"),
             ("collab_board_posts", "tags", "ALTER TABLE collab_board_posts ADD COLUMN tags JSON AFTER color"),
             ("collab_board_posts", "is_anonymous", "ALTER TABLE collab_board_posts ADD COLUMN is_anonymous BOOLEAN DEFAULT FALSE AFTER tags"),
@@ -166,6 +168,11 @@ class CollabBoardRepository(BaseRepository):
         alter_kind_sql = (
             "ALTER TABLE collab_board_posts MODIFY COLUMN kind "
             "ENUM('text','image','link','file','video','youtube') DEFAULT 'text'"
+        )
+        # layout ENUM 同樣需要 MODIFY (加入 stream)
+        alter_layout_sql = (
+            "ALTER TABLE collab_boards MODIFY COLUMN layout "
+            "ENUM('grid','shelf','canvas','stream') DEFAULT 'grid'"
         )
 
         with self.transaction() as conn:
@@ -191,6 +198,11 @@ class CollabBoardRepository(BaseRepository):
                 cursor.execute(alter_kind_sql)
             except Exception as e:  # noqa: BLE001
                 logger.debug("collab_board_posts.kind enum 更新略過: %s", e)
+            # 升級 layout ENUM (冪等) — 加入 stream
+            try:
+                cursor.execute(alter_layout_sql)
+            except Exception as e:  # noqa: BLE001
+                logger.debug("collab_boards.layout enum 更新略過: %s", e)
         logger.info("collab_board 表初始化成功")
 
     # ============================================================
