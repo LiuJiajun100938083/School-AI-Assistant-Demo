@@ -50,6 +50,24 @@
             return m;
         }, [state.factories]);
 
+        // 可建廠城市集合 — 有手牌時計算,排除已滿/封城/產業未解鎖
+        const buildableSet = useMemo(function () {
+            const s = new Set();
+            if (!myPlayer || !myPlayer.hand) return s;
+            const industry = myPlayer.hand;
+            if ((state.unlocked_industries || []).indexOf(industry) < 0) return s;
+            const blocked = state.blocked_cities || [];
+            Object.keys(C.CITIES).forEach(function (cid) {
+                const city = C.CITIES[cid];
+                if (blocked.indexOf(cid) >= 0) return;
+                if (city.allowed.indexOf(industry) < 0) return;
+                const built = (factoriesByCity[cid] || []).length;
+                if (built >= city.basePricesLen) return;
+                s.add(cid);
+            });
+            return s;
+        }, [myPlayer && myPlayer.hand, state.unlocked_industries, state.blocked_cities, factoriesByCity]);
+
         function getPlayerColor(uid) {
             const p = state.players.find(function (x) { return x.user_id === uid; });
             return p ? p.color : '#999';
@@ -121,6 +139,8 @@
             const cityFactories = factoriesByCity[city.id] || [];
             const isBlocked = (state.blocked_cities || []).indexOf(city.id) >= 0;
             const isMovable = movableSet.has && movableSet.has(city.id);
+            const isBuildable = buildableSet.has && buildableSet.has(city.id);
+            const isBuildHere = isBuildable && myPlayer && myPlayer.location === city.id;
             const totalBuilt = cityFactories.length;
             const maxFactories = city.basePricesLen;
 
@@ -177,8 +197,13 @@
                 }, pawns),
                 React.createElement('div', {
                     key: 'box',
-                    className: 'pixel-box p-1 md:p-1.5 min-w-[3.5rem] md:min-w-[4.5rem] flex flex-col items-center text-center text-white leading-tight ' + (isBlocked ? 'bg-gray-800' : city.colorClass) + (isMovable ? ' border-yellow-400 border-4 movable-city' : ''),
+                    className: 'pixel-box p-1 md:p-1.5 min-w-[3.5rem] md:min-w-[4.5rem] flex flex-col items-center text-center text-white leading-tight ' + (isBlocked ? 'bg-gray-800' : city.colorClass) + (isMovable ? ' border-yellow-400 border-4 movable-city' : '') + (isBuildHere ? ' buildable-here' : (isBuildable ? ' buildable-target' : '')),
                 }, [
+                    // 可建廠徽章 — 在當前位置可立即建廠時顯示
+                    isBuildHere ? React.createElement('div', {
+                        key: 'bbadge',
+                        className: 'absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[9px] md:text-[10px] font-bold px-1 py-0.5 border-2 border-black whitespace-nowrap z-30 animate-pulse',
+                    }, '🏭 可建廠') : null,
                     React.createElement('span', {
                         key: 'name',
                         className: 'font-bold text-xs md:text-sm whitespace-nowrap',

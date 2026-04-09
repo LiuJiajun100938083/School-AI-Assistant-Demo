@@ -138,6 +138,26 @@ html, body {
     to { stroke-dashoffset: -28; }
 }
 
+/* ─── 可建廠城市 (當前位置) ─────────────────────── */
+.buildable-here {
+    position: relative;
+    box-shadow:
+        0 0 0 4px #16a34a,
+        0 0 18px 6px rgba(34, 197, 94, 0.75) !important;
+    animation: buildable-pulse 1.4s ease-in-out infinite;
+}
+@keyframes buildable-pulse {
+    0%, 100% { box-shadow: 0 0 0 4px #16a34a, 0 0 12px 4px rgba(34, 197, 94, 0.6); }
+    50%      { box-shadow: 0 0 0 4px #16a34a, 0 0 24px 10px rgba(34, 197, 94, 0.9); }
+}
+
+/* ─── 可建廠城市 (遠方,需移動過去) ──────────────── */
+.buildable-target {
+    box-shadow: 0 0 0 3px #38bdf8 !important;
+    outline: 2px dashed #38bdf8;
+    outline-offset: 3px;
+}
+
 @keyframes popup-in {
     0% { transform: scale(0.8); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
