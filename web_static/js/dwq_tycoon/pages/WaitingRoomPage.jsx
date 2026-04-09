@@ -63,6 +63,16 @@
             } else if (msg.type === 'action_error') {
                 setError(msg.message);
                 setTimeout(function () { setError(null); }, 4000);
+            } else if (
+                msg.type === 'player_joined' ||
+                msg.type === 'player_left' ||
+                msg.type === 'player_reconnected' ||
+                msg.type === 'player_disconnected' ||
+                msg.type === 'host_changed' ||
+                msg.type === 'connected'
+            ) {
+                // 增量事件 — 拉取完整 room_state 重渲染
+                if (wsRef.current) wsRef.current.requestState();
             }
         }
 

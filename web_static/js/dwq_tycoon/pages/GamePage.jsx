@@ -72,6 +72,13 @@
                 setTimeout(function () {
                     dispatch({ type: 'CLEAR_ACTION_ERROR' });
                 }, 4000);
+            } else if (
+                msg.type === 'player_disconnected' ||
+                msg.type === 'player_reconnected' ||
+                msg.type === 'player_left' ||
+                msg.type === 'host_changed'
+            ) {
+                if (wsRef.current) wsRef.current.requestState();
             }
         }
 
