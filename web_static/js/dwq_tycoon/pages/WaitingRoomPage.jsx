@@ -83,10 +83,19 @@
         }
 
         async function handleLeave() {
+            // 先關 WS 避免 disconnect handler 競態把玩家重新標為在線
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
             try {
                 await api.leaveRoom(state.roomCode);
-            } catch (e) {}
-            if (wsRef.current) wsRef.current.close();
+            } catch (e) {
+                console.error('[WaitingRoom] leaveRoom failed:', e);
+                setError('離開失敗: ' + (e.message || '未知錯誤'));
+                // 失敗就停在原地,不切換視圖,讓使用者重試
+                return;
+            }
             window.DwqApp.session.clear();
             dispatch({ type: 'SET_ROOM_CODE', roomCode: null });
             dispatch({ type: 'SET_GAME_STATE', state: null });
