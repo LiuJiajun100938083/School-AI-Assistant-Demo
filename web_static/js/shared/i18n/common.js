@@ -137,6 +137,16 @@ i18n.addMessages({
         'app.learning_task_admin.desc': '創建和管理學習任務',
         'app.admin_dashboard': '管理後台',
         'app.admin_dashboard.desc': '系統管理與配置',
+        'app.tool_qrcode': 'QR 碼生成器',
+        'app.tool_qrcode.desc': '輸入文字或 URL,一鍵生成 QR 碼並下載',
+        'app.tool_image_convert': '圖片格式轉換',
+        'app.tool_image_convert.desc': 'PNG / JPG / WebP 互相轉換(瀏覽器本地處理)',
+        'app.tool_pdf_merge': '多圖合併 PDF',
+        'app.tool_pdf_merge.desc': '選擇多張圖片合併成一份 PDF',
+        'app.tool_countdown': '倒數計時器',
+        'app.tool_countdown.desc': '課堂計時大字顯示,支援全螢幕投影',
+        'app.tool_roll_call': '課堂點名',
+        'app.tool_roll_call.desc': '選班級隨機抽人或分組,可放回重抽',
 
         // --- Token ---
         'token.verifyFailed': 'Token驗證失敗',
@@ -278,6 +288,16 @@ i18n.addMessages({
         'app.learning_task_admin.desc': 'Create and manage learning tasks',
         'app.admin_dashboard': 'Admin Panel',
         'app.admin_dashboard.desc': 'System management & configuration',
+        'app.tool_qrcode': 'QR Code Generator',
+        'app.tool_qrcode.desc': 'Generate QR code from text or URL, one-click download',
+        'app.tool_image_convert': 'Image Format Converter',
+        'app.tool_image_convert.desc': 'Convert between PNG / JPG / WebP (in-browser, nothing uploaded)',
+        'app.tool_pdf_merge': 'Images to PDF',
+        'app.tool_pdf_merge.desc': 'Merge multiple images into one PDF file',
+        'app.tool_countdown': 'Countdown Timer',
+        'app.tool_countdown.desc': 'Large classroom countdown, fullscreen projection ready',
+        'app.tool_roll_call': 'Roll Call',
+        'app.tool_roll_call.desc': 'Pick a class to draw random students or form groups, with put-back support',
 
         // --- Token ---
         'token.verifyFailed': 'Token verification failed',
