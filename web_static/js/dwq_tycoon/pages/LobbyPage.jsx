@@ -41,6 +41,28 @@
             return function () { clearInterval(timer); };
         }, []);
 
+        // 嘗試從錯誤訊息提取舊房間碼 (e.message 形如 "您已在房間 XXX 中,...")
+        function extractStaleCode(err) {
+            if (!err || !err.message) return null;
+            const m = err.message.match(/[A-Z0-9]{6}/);
+            return m ? m[0] : null;
+        }
+
+        async function withStaleRoomRetry(fn) {
+            try {
+                return await fn();
+            } catch (e) {
+                if (e && e.code === 'already_in_room') {
+                    const stale = extractStaleCode(e);
+                    if (stale) {
+                        try { await api.leaveRoom(stale); } catch (_) {}
+                        return await fn();
+                    }
+                }
+                throw e;
+            }
+        }
+
         async function handleCreate() {
             setError(null);
             if (!roomName.trim()) {
@@ -48,7 +70,9 @@
                 return;
             }
             try {
-                const data = await api.createRoom(roomName.trim(), maxPlayers, isPublic);
+                const data = await withStaleRoomRetry(function () {
+                    return api.createRoom(roomName.trim(), maxPlayers, isPublic);
+                });
                 dispatch({ type: 'SET_ROOM_CODE', roomCode: data.room_code });
                 dispatch({ type: 'SET_VIEW', view: 'waiting' });
             } catch (e) {
@@ -63,7 +87,9 @@
                 return;
             }
             try {
-                const data = await api.joinByCode(joinCode.trim().toUpperCase());
+                const data = await withStaleRoomRetry(function () {
+                    return api.joinByCode(joinCode.trim().toUpperCase());
+                });
                 dispatch({ type: 'SET_ROOM_CODE', roomCode: data.room_code });
                 dispatch({ type: 'SET_VIEW', view: 'waiting' });
             } catch (e) {
@@ -74,7 +100,9 @@
         async function handleJoinPublic(code) {
             setError(null);
             try {
-                const data = await api.joinRoom(code);
+                const data = await withStaleRoomRetry(function () {
+                    return api.joinRoom(code);
+                });
                 dispatch({ type: 'SET_ROOM_CODE', roomCode: data.room_code });
                 dispatch({ type: 'SET_VIEW', view: 'waiting' });
             } catch (e) {
