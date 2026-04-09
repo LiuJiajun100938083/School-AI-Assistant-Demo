@@ -19,6 +19,7 @@
     // ─── TurnHeader ──────────────────────────────────────
     function TurnHeader(props) {
         const state = props.gameState;
+        const me = props.me;
         if (!state) return null;
         const year = C_TURN_YEARS()[state.turn_index] || '';
         const phaseLabel = {
@@ -28,23 +29,43 @@
             finished: '🏆 遊戲結束',
         }[state.phase] || state.phase;
 
+        const myUid = me ? me.user_id : null;
+        const isMyTurn = state.current_player_user_id === myUid && state.phase === 'action';
+        const currentPlayer = (state.players || []).find(function (p) {
+            return p.user_id === state.current_player_user_id;
+        });
+
         return React.createElement('div', {
-            className: 'pixel-panel p-2 md:p-3 flex items-center justify-between flex-wrap gap-2',
+            className: 'sticky top-0 z-40 flex flex-col gap-1',
         }, [
-            React.createElement('div', { key: 'left', className: 'flex items-center gap-2' }, [
-                React.createElement('div', {
-                    key: 'turn',
-                    className: 'bg-black text-yellow-400 px-3 py-1 text-sm font-bold border-2 border-black rounded',
-                }, '回合 ' + (state.turn_index + 1) + ' / ' + C_MAX_TURNS()),
-                React.createElement('div', {
-                    key: 'year',
-                    className: 'text-lg font-bold text-blue-900',
-                }, year + ' 年'),
-            ]),
             React.createElement('div', {
-                key: 'phase',
-                className: 'bg-yellow-100 border-2 border-yellow-600 px-3 py-1 text-sm font-bold',
-            }, phaseLabel),
+                key: 'row1',
+                className: 'pixel-panel p-2 md:p-3 flex items-center justify-between flex-wrap gap-2',
+            }, [
+                React.createElement('div', { key: 'left', className: 'flex items-center gap-2' }, [
+                    React.createElement('div', {
+                        key: 'turn',
+                        className: 'bg-black text-yellow-400 px-3 py-1 text-sm font-bold border-2 border-black rounded',
+                    }, '回合 ' + (state.turn_index + 1) + ' / ' + C_MAX_TURNS()),
+                    React.createElement('div', {
+                        key: 'year',
+                        className: 'text-lg font-bold text-blue-900',
+                    }, year + ' 年'),
+                ]),
+                React.createElement('div', {
+                    key: 'phase',
+                    className: 'bg-yellow-100 border-2 border-yellow-600 px-3 py-1 text-sm font-bold',
+                }, phaseLabel),
+            ]),
+            // 輪次橫幅 — 動作階段時顯示誰的回合
+            state.phase === 'action' ? React.createElement('div', {
+                key: 'row2',
+                className: 'pixel-box p-2 text-center font-bold text-sm md:text-base ' +
+                    (isMyTurn ? 'bg-green-300 text-green-900' : 'bg-gray-200 text-gray-700'),
+            }, isMyTurn
+                ? '🎯 輪到您行動 — 點擊閃爍城市移動'
+                : '⏳ 等待 ' + (currentPlayer ? currentPlayer.display_name : '其他玩家') + ' 行動...'
+            ) : null,
         ]);
     }
     window.DwqApp.TurnHeader = TurnHeader;

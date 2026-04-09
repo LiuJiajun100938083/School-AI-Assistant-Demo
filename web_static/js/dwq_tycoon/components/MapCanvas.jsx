@@ -90,6 +90,30 @@
                     className: 'animate-pulse',
                 }));
             });
+
+            // 可移動路徑高亮 — 僅自己回合時,從我的位置到所有可移動城市
+            if (isMyTurn && myPlayer) {
+                const fromCity = C.CITIES[myPlayer.location];
+                const fromPos = fromCity && fromCity.pos;
+                if (fromPos && movableSet && movableSet.forEach) {
+                    movableSet.forEach(function (toId) {
+                        const toCity = C.CITIES[toId];
+                        const toPos = toCity && toCity.pos;
+                        if (!toPos) return;
+                        lines.push(React.createElement('line', {
+                            key: 'move-' + toId,
+                            x1: fromPos.x + '%', y1: fromPos.y + '%',
+                            x2: toPos.x + '%', y2: toPos.y + '%',
+                            stroke: '#facc15',
+                            strokeWidth: 6,
+                            strokeDasharray: '10 4',
+                            className: 'movable-edge',
+                            style: { filter: 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.9))' },
+                        }));
+                    });
+                }
+            }
+
             return lines;
         }
 
@@ -100,15 +124,18 @@
             const totalBuilt = cityFactories.length;
             const maxFactories = city.basePricesLen;
 
-            // 玩家棋子
+            // 玩家棋子 — 自己的棋子放大 + 光環 + 跳動,易於定位
             const pawns = state.players
                 .filter(function (p) { return p.location === city.id; })
                 .map(function (p) {
+                    const isMe = p.user_id === myUid;
                     return React.createElement('span', {
                         key: 'pawn-' + p.user_id,
-                        className: 'inline-block w-4 h-4 rounded-full border-2 border-white shadow-md',
+                        className: isMe
+                            ? 'inline-block w-7 h-7 md:w-8 md:h-8 rounded-full border-[3px] border-white shadow-lg pawn-me'
+                            : 'inline-block w-4 h-4 rounded-full border-2 border-white shadow-md opacity-90',
                         style: { backgroundColor: p.color },
-                        title: p.display_name,
+                        title: p.display_name + (isMe ? ' (你)' : ''),
                     });
                 });
 
@@ -150,7 +177,7 @@
                 }, pawns),
                 React.createElement('div', {
                     key: 'box',
-                    className: 'pixel-box p-1 md:p-1.5 min-w-[3.5rem] md:min-w-[4.5rem] flex flex-col items-center text-center text-white leading-tight ' + (isBlocked ? 'bg-gray-800' : city.colorClass) + (isMovable ? ' border-yellow-400 border-4' : ''),
+                    className: 'pixel-box p-1 md:p-1.5 min-w-[3.5rem] md:min-w-[4.5rem] flex flex-col items-center text-center text-white leading-tight ' + (isBlocked ? 'bg-gray-800' : city.colorClass) + (isMovable ? ' border-yellow-400 border-4 movable-city' : ''),
                 }, [
                     React.createElement('span', {
                         key: 'name',

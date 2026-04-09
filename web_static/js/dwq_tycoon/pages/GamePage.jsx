@@ -117,7 +117,7 @@
             // 頂部:回合資訊 + 連線狀態 + 離開按鈕
             React.createElement('div', { key: 'top', className: 'flex items-stretch gap-2' }, [
                 React.createElement('div', { key: 'th', className: 'flex-grow' },
-                    React.createElement(window.DwqApp.TurnHeader, { gameState: gs })),
+                    React.createElement(window.DwqApp.TurnHeader, { gameState: gs, me: me })),
                 React.createElement('div', {
                     key: 'right',
                     className: 'flex flex-col gap-1 items-end',

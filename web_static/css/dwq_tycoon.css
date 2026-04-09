@@ -100,6 +100,44 @@ html, body {
     cursor: pointer;
 }
 
+/* ─── 自己棋子強調 ─────────────────────────────── */
+.pawn-me {
+    position: relative;
+    z-index: 40;
+    animation: pawn-bob 1.4s ease-in-out infinite;
+}
+@keyframes pawn-bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-3px); }
+}
+.pawn-me::after {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 3px dashed #fde047;
+    animation: pawn-ring 2.5s linear infinite;
+    pointer-events: none;
+}
+@keyframes pawn-ring {
+    to { transform: rotate(360deg); }
+}
+
+/* ─── 可移動城市背景發光 ────────────────────────── */
+.movable-city {
+    box-shadow:
+        0 0 0 3px #fde047,
+        0 0 14px 4px rgba(253, 224, 71, 0.6) !important;
+}
+
+/* ─── 可移動連接線動畫 ──────────────────────────── */
+.movable-edge {
+    animation: edge-flow 1.2s linear infinite;
+}
+@keyframes edge-flow {
+    to { stroke-dashoffset: -28; }
+}
+
 @keyframes popup-in {
     0% { transform: scale(0.8); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
