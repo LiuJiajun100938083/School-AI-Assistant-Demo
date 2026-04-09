@@ -142,19 +142,19 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     - Strict-Transport-Security                 (强制 HTTPS，仅在 HTTPS 下生效)
     """
 
-    # 默认 CSP：允许自身 + 常用 CDN + 内联样式/脚本（现有 UI 需要）
+    # 默认 CSP：所有第三方库已自托管至 /static/vendor/，仅 Google Fonts 保留为外部依赖。
+    # 'unsafe-eval' 用于 Babel standalone 在浏览器内运行时编译 JSX。
     DEFAULT_CSP = (
         "default-src 'self'; "
-        "script-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
-        "https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
-        "style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net "
-        "https://fonts.googleapis.com 'unsafe-inline'; "
-        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
         "img-src 'self' data: blob:; "
-        "connect-src 'self' ws: wss: https://cdn.jsdelivr.net; "
+        "connect-src 'self' ws: wss:; "
         "frame-src 'none'; "
         "object-src 'none'; "
-        "base-uri 'self'"
+        "base-uri 'self'; "
+        "worker-src 'self' blob:"
     )
 
     async def dispatch(self, request: Request, call_next: Callable):

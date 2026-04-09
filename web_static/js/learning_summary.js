@@ -19,7 +19,7 @@
 const SUMMARY_CONFIG = {
     API_ENDPOINT: '/api/summary',
     MIN_MESSAGES_FOR_SUMMARY: 2,
-    MARKMAP_CDN: 'https://cdn.jsdelivr.net/npm/markmap-autoloader@0.15',
+    MARKMAP_CDN: '/static/vendor/markmap/markmap-autoloader.js',
     TABS: {
         SUMMARY: 'summary',
         MINDMAP: 'mindmap'
@@ -411,9 +411,9 @@ class MindmapRenderer {
 
         // 需要按順序載入的腳本
         const scripts = [
-            'https://cdn.jsdelivr.net/npm/d3@7',
-            'https://cdn.jsdelivr.net/npm/markmap-lib@0.15.4',
-            'https://cdn.jsdelivr.net/npm/markmap-view@0.15.4'
+            '/static/vendor/d3/d3.min.js',
+            '/static/vendor/markmap/markmap-lib.js',
+            '/static/vendor/markmap/markmap-view.js'
         ];
 
         for (const src of scripts) {
@@ -1389,7 +1389,7 @@ class LearningSummaryManager {
         if (window.html2canvas) return true;
         return new Promise(resolve => {
             const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+            s.src = '/static/vendor/html2canvas/html2canvas.min.js';
             s.onload = () => resolve(true);
             s.onerror = () => resolve(false);
             document.head.appendChild(s);
@@ -1404,7 +1404,7 @@ class LearningSummaryManager {
         if (window.jspdf) return true;
         return new Promise(resolve => {
             const s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+            s.src = '/static/vendor/jspdf/jspdf.umd.min.js';
             s.onload = () => resolve(true);
             s.onerror = () => resolve(false);
             document.head.appendChild(s);

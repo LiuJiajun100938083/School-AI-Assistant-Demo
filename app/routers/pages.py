@@ -291,19 +291,18 @@ async def school_learning_center():
 #  课堂教学页面                                                             #
 # ====================================================================== #
 
-# 课堂页面 CSP — 允许 iframe 加载同源上传游戏 + WebSocket + Fabric.js CDN
+# 课堂页面 CSP — 与默认 CSP 一致，但允许同源 iframe（嵌入上传游戏）
 _CLASSROOM_CSP = (
     "default-src 'self'; "
-    "script-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
-    "https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline'; "
-    "style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net "
-    "https://fonts.googleapis.com 'unsafe-inline'; "
-    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com data:; "
     "img-src 'self' data: blob:; "
-    "connect-src 'self' ws: wss: https://cdnjs.cloudflare.com; "
+    "connect-src 'self' ws: wss:; "
     "frame-src 'self'; "
     "object-src 'none'; "
-    "base-uri 'self'"
+    "base-uri 'self'; "
+    "worker-src 'self' blob:"
 )
 
 @router.get("/classroom")
@@ -462,24 +461,21 @@ async def play_shared_game(token: str):
     )
 
 
-# 上传游戏专用 CSP — 比全局 CSP 更严格
-# - 允许 CDN（React/Babel/Tailwind 运行时需要）
-# - 保留 unsafe-eval（Babel standalone 转译 JSX 需要）
-# - connect-src 仅允许 self（阻止向外部 API 泄露数据）
+# 上传游戏专用 CSP — 全自托管，无外部 CDN
+# - 'unsafe-eval' 用于 Babel standalone 转译 JSX
+# - connect-src 仅 self（防止数据外泄）
 # - frame-src none（禁止 iframe 嵌套）
 _UPLOADED_GAME_CSP = (
     "default-src 'self'; "
-    "script-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
-    "https://cdn.jsdelivr.net https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "
-    "style-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net "
-    "https://fonts.googleapis.com 'unsafe-inline'; "
-    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com data:; "
     "img-src 'self' data: blob:; "
-    "connect-src 'self' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com "
-    "https://cdn.jsdelivr.net https://unpkg.com; "
+    "connect-src 'self'; "
     "frame-src 'none'; "
     "object-src 'none'; "
-    "base-uri 'self'"
+    "base-uri 'self'; "
+    "worker-src 'self' blob:"
 )
 
 # 上传游戏通用安全头
@@ -626,13 +622,13 @@ def _wrap_raw_jsx(jsx_code: str) -> str:
         '    <meta charset="UTF-8">\n'
         '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n'
         '    <title>Game</title>\n'
-        '    <script src="https://unpkg.com/react@18/umd/react.production.min.js">'
+        '    <script src="/static/vendor/react/react.production.min.js">'
         f'{end_script}\n'
-        '    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js">'
+        '    <script src="/static/vendor/react/react-dom.production.min.js">'
         f'{end_script}\n'
-        '    <script src="https://unpkg.com/@babel/standalone/babel.min.js">'
+        '    <script src="/static/vendor/babel/babel.min.js">'
         f'{end_script}\n'
-        f'    <script src="https://cdn.tailwindcss.com">{end_script}\n'
+        f'    <script src="/static/vendor/tailwind/tailwind.min.js">{end_script}\n'
         f'    {css_tag}\n'
         '</head>\n'
         '<body>\n'
