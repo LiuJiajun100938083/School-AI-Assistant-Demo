@@ -29,6 +29,42 @@ class QrRequest(BaseModel):
 
 
 # ============================================================
+# PDF 多功能工具
+# ============================================================
+
+class PdfExtractRequest(BaseModel):
+    """從 PDF 提取頁面 — 檔案本身透過 multipart 上傳,此 schema 只給其他參數"""
+    ranges: str = Field(..., min_length=1, max_length=200)
+
+
+class PdfCompressRequest(BaseModel):
+    level: str = Field("medium")
+
+    @field_validator("level")
+    @classmethod
+    def _level_valid(cls, v: str) -> str:
+        from app.domains.tools.constants import PDF_COMPRESS_LEVELS
+        if v not in PDF_COMPRESS_LEVELS:
+            raise ValueError(f"level must be one of {sorted(PDF_COMPRESS_LEVELS)}")
+        return v
+
+
+class PdfWatermarkRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=80)
+    opacity: float = Field(0.3, ge=0.05, le=1.0)
+    angle: int = Field(45)
+    font_size: int = Field(48, ge=8, le=200)
+
+    @field_validator("angle")
+    @classmethod
+    def _angle_valid(cls, v: int) -> int:
+        from app.domains.tools.constants import PDF_WATERMARK_ANGLE_CHOICES
+        if v not in PDF_WATERMARK_ANGLE_CHOICES:
+            raise ValueError(f"angle must be one of {sorted(PDF_WATERMARK_ANGLE_CHOICES)}")
+        return v
+
+
+# ============================================================
 # Roll Call (點名 / 分組)
 # ============================================================
 

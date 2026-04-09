@@ -36,7 +36,7 @@ i18n.addMessages({
         'tools.img.convert': '開始轉換',
         'tools.img.noSelection': '請先選擇一張圖片',
 
-        // PDF merge
+        // PDF merge (legacy keys — 保留向後兼容)
         'tools.pdf.title': '多圖合併 PDF',
         'tools.pdf.subtitle': '拖拽縮圖可重新排序',
         'tools.pdf.addMore': '加入更多',
@@ -44,6 +44,46 @@ i18n.addMessages({
         'tools.pdf.merging': '合併中…',
         'tools.pdf.count': '{n} / 30 張',
         'tools.pdf.noFiles': '尚未選擇圖片',
+
+        // PDF 多功能工具 (new)
+        'tools.pdft.title': 'PDF 多功能工具',
+        'tools.pdft.subtitle': '合併 / 提取頁面 / 壓縮 / 加浮水印,完全在本機處理,檔案不會離開學校',
+        'tools.pdft.tabImages': '圖片 → PDF',
+        'tools.pdft.tabMerge': '合併 PDF',
+        'tools.pdft.tabExtract': '提取頁面',
+        'tools.pdft.tabCompress': '壓縮',
+        'tools.pdft.tabWatermark': '加浮水印',
+        'tools.pdft.loading': '處理中…',
+        // images → PDF
+        'tools.pdft.imgDrop': '把圖片拖到這裡,或點擊選擇(最多 30 張)',
+        'tools.pdft.imgEmpty': '尚未選擇圖片',
+        'tools.pdft.imgSubmit': '合併並下載',
+        // merge PDFs
+        'tools.pdft.mergeDrop': '把多份 PDF 拖到這裡依序合併(最多 20 份)',
+        'tools.pdft.mergeEmpty': '尚未選擇 PDF',
+        'tools.pdft.mergeSubmit': '合併並下載',
+        // extract
+        'tools.pdft.extractDrop': '選擇一份 PDF',
+        'tools.pdft.extractLabel': '要提取的頁面範圍',
+        'tools.pdft.extractHint': '格式:單頁用逗號分隔(1,3,5),範圍用連字號(1-3),可混用(1-3,5,7-10)',
+        'tools.pdft.extractSubmit': '提取並下載',
+        // compress
+        'tools.pdft.compressDrop': '選擇一份 PDF 來壓縮',
+        'tools.pdft.compressLevel': '壓縮等級',
+        'tools.pdft.compressHigh': '高品質',
+        'tools.pdft.compressHighDesc': '200 dpi · 接近原檔',
+        'tools.pdft.compressMedium': '平衡',
+        'tools.pdft.compressMediumDesc': '120 dpi · 縮小約 50%',
+        'tools.pdft.compressLow': '最小檔',
+        'tools.pdft.compressLowDesc': '72 dpi · 縮小約 70%+',
+        'tools.pdft.compressSubmit': '壓縮並下載',
+        // watermark
+        'tools.pdft.wmDrop': '選擇一份 PDF 來加浮水印',
+        'tools.pdft.wmText': '浮水印文字',
+        'tools.pdft.wmOpacity': '透明度',
+        'tools.pdft.wmAngle': '旋轉角度',
+        'tools.pdft.wmFontSize': '字級',
+        'tools.pdft.wmSubmit': '加浮水印並下載',
 
         // Countdown
         'tools.cd.title': '倒數計時器',
@@ -129,6 +169,7 @@ i18n.addMessages({
         'tools.img.convert': 'Convert',
         'tools.img.noSelection': 'Please choose an image first',
 
+        // PDF (legacy, kept for backward compat)
         'tools.pdf.title': 'Images to PDF',
         'tools.pdf.subtitle': 'Drag thumbnails to reorder',
         'tools.pdf.addMore': 'Add more',
@@ -136,6 +177,41 @@ i18n.addMessages({
         'tools.pdf.merging': 'Merging…',
         'tools.pdf.count': '{n} / 30',
         'tools.pdf.noFiles': 'No images selected',
+
+        // PDF Toolkit (new)
+        'tools.pdft.title': 'PDF Toolkit',
+        'tools.pdft.subtitle': 'Merge / extract pages / compress / watermark — all local, files never leave your school',
+        'tools.pdft.tabImages': 'Images → PDF',
+        'tools.pdft.tabMerge': 'Merge PDFs',
+        'tools.pdft.tabExtract': 'Extract pages',
+        'tools.pdft.tabCompress': 'Compress',
+        'tools.pdft.tabWatermark': 'Watermark',
+        'tools.pdft.loading': 'Processing…',
+        'tools.pdft.imgDrop': 'Drop images here or click to select (up to 30)',
+        'tools.pdft.imgEmpty': 'No images selected',
+        'tools.pdft.imgSubmit': 'Merge & download',
+        'tools.pdft.mergeDrop': 'Drop multiple PDFs here to merge in order (up to 20)',
+        'tools.pdft.mergeEmpty': 'No PDFs selected',
+        'tools.pdft.mergeSubmit': 'Merge & download',
+        'tools.pdft.extractDrop': 'Select one PDF',
+        'tools.pdft.extractLabel': 'Page ranges to extract',
+        'tools.pdft.extractHint': 'Format: single pages separated by comma (1,3,5), ranges with hyphen (1-3), mix both (1-3,5,7-10)',
+        'tools.pdft.extractSubmit': 'Extract & download',
+        'tools.pdft.compressDrop': 'Select one PDF to compress',
+        'tools.pdft.compressLevel': 'Compression level',
+        'tools.pdft.compressHigh': 'High quality',
+        'tools.pdft.compressHighDesc': '200 dpi · near-original',
+        'tools.pdft.compressMedium': 'Balanced',
+        'tools.pdft.compressMediumDesc': '120 dpi · ~50% smaller',
+        'tools.pdft.compressLow': 'Smallest',
+        'tools.pdft.compressLowDesc': '72 dpi · ~70%+ smaller',
+        'tools.pdft.compressSubmit': 'Compress & download',
+        'tools.pdft.wmDrop': 'Select one PDF to watermark',
+        'tools.pdft.wmText': 'Watermark text',
+        'tools.pdft.wmOpacity': 'Opacity',
+        'tools.pdft.wmAngle': 'Rotation',
+        'tools.pdft.wmFontSize': 'Font size',
+        'tools.pdft.wmSubmit': 'Apply watermark & download',
 
         'tools.cd.title': 'Countdown Timer',
         'tools.cd.hour': 'h',

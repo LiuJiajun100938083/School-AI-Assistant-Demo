@@ -336,9 +336,9 @@
   },
   {
     "id": "tool_pdf_merge",
-    "name": "多圖合併 PDF",
+    "name": "PDF 多功能工具",
     "icon": "",
-    "description": "選擇多張圖片合併成一份 PDF",
+    "description": "合併(圖片或 PDF)、提取頁面、壓縮、加浮水印 — 完全本地處理",
     "url": "/tools/pdf-merge",
     "roles": [
       "student",
