@@ -207,6 +207,16 @@ const ExamCreator = (() => {
         }
     }
 
+    // i18n 插值:把 {count} 替換成實際數字,並記到 state 裡
+    // 以便切換語言時可以重新 render
+    function setGeneratingCount(count) {
+        state.generatingCount = count;
+        const el = UI.$('genDesc');
+        if (!el) return;
+        const template = i18n.t('ec.generatingDesc');
+        el.textContent = template.replace('{count}', count);
+    }
+
     // ================================================================
     // Views — 各面板渲染
     // ================================================================
@@ -755,8 +765,7 @@ const ExamCreator = (() => {
                 savePendingSession(resp.data.session_id);
                 if (window.UIModule) UIModule.toast(i18n.t('ec.similarStarted'), 'success');
                 // 顯示生成進度
-                const genCountEl = UI.$('genCount');
-                if (genCountEl) genCountEl.textContent = count;
+                setGeneratingCount(count);
                 showView('generating');
                 startPolling(count);
             } else {
@@ -813,8 +822,7 @@ const ExamCreator = (() => {
                 state.sessionId = resp.data.session_id;
                 savePendingSession(resp.data.session_id);
                 if (window.UIModule) UIModule.toast(i18n.t('ec.describeStarted'), 'success');
-                const genCountEl = UI.$('genCount');
-                if (genCountEl) genCountEl.textContent = count;
+                setGeneratingCount(count);
                 showView('generating');
                 startPolling(count);
             } else {
@@ -1138,8 +1146,7 @@ const ExamCreator = (() => {
                 if (window.UIModule) UIModule.toast(i18n.t('ec.examStarted'), 'success');
                 // 顯示生成進度
                 const count = parseInt(UI.$('questionCount').value) || 5;
-                const genCountEl = UI.$('genCount');
-                if (genCountEl) genCountEl.textContent = count;
+                setGeneratingCount(count);
                 showView('generating');
                 startPolling(count);
             } else {

@@ -294,7 +294,9 @@
             <div class="generating-state" id="generatingState" style="display:none;">
                 <div class="spinner"></div>
                 <h3 data-i18n="ec.generating">AI 正在逐題出題...</h3>
-                <p><span data-i18n="ec.generatingDesc">正在生成 <span id="genCount"></span> 道題目，每題獨立生成以確保品質</span></p>
+                <!-- 這段的 i18n 需要 {count} 插值,所以不用 data-i18n,改由 JS 每次
+                     setGeneratingCount() 時動態 interpolate。 -->
+                <p id="genDesc"></p>
                 <div class="progress-container" style="margin:16px auto;max-width:320px;">
                     <div style="background:#e2e8f0;border-radius:8px;height:8px;overflow:hidden;">
                         <div id="progressBarFill" style="background:#3b82f6;height:100%;width:0%;transition:width 0.5s ease;border-radius:8px;"></div>
