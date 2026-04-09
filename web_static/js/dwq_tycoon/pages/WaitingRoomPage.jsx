@@ -25,9 +25,13 @@
         const [error, setError] = useState(null);
 
         useEffect(function () {
-            if (!state.roomCode || !state.me) return;
+            if (!state.roomCode) return;
 
             const token = api.getAuthToken();
+            if (!token) {
+                console.error('[WaitingRoom] no auth token');
+                return;
+            }
             const ws = new window.DwqApp.DwqSocket(
                 state.roomCode,
                 token,

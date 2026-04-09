@@ -148,7 +148,7 @@ class SubjectService:
             ConflictError: 学科代码已存在
         """
         if self._repo.subject_exists(subject_code):
-            raise ConflictError("学科", subject_code)
+            raise ConflictError(f"学科 '{subject_code}' 已存在")
 
         config = {
             "icon": icon,

@@ -159,7 +159,7 @@ class UserService:
             raise PasswordTooWeakError(errors)
 
         if self._repo.username_exists(username):
-            raise ConflictError("用户", username)
+            raise ConflictError(f"用户 '{username}' 已存在")
 
         password_hash = PasswordManager.hash_password(password)
         self._repo.create_user(
@@ -208,7 +208,7 @@ class UserService:
                 self._validate_role(role)
 
                 if username in existing_usernames:
-                    raise ConflictError("用户", username)
+                    raise ConflictError(f"用户 '{username}' 已存在")
 
                 password_hash = PasswordManager.hash_password(password)
                 self._repo.create_user(

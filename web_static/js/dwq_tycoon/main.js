@@ -39,7 +39,7 @@
             (async function () {
                 try {
                     // 先嘗試取得用戶資訊
-                    const meRes = await fetch('/api/users/me', {
+                    const meRes = await fetch('/api/profile', {
                         headers: { 'Authorization': 'Bearer ' + App.api.getAuthToken() },
                     });
                     if (meRes.ok) {
@@ -48,7 +48,7 @@
                         dispatch({
                             type: 'SET_ME',
                             me: {
-                                user_id: user.id,
+                                user_id: user.id || user.user_id,
                                 username: user.username,
                                 display_name: user.display_name || user.username,
                                 role: user.role,
