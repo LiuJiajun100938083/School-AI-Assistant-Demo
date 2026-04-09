@@ -75,7 +75,7 @@
 
         function renderConnections() {
             const lines = [];
-            // 基礎連線
+            // 基礎連線 — viewBox 0-100,直接用原始座標
             Object.entries(C.BASE_CONNECTIONS).forEach(function (entry) {
                 const from = entry[0];
                 entry[1].forEach(function (to) {
@@ -84,29 +84,73 @@
                         const p2 = C.CITIES[to].pos;
                         lines.push(React.createElement('line', {
                             key: 'base-' + from + '-' + to,
-                            x1: p1.x + '%', y1: p1.y + '%',
-                            x2: p2.x + '%', y2: p2.y + '%',
+                            x1: p1.x, y1: p1.y,
+                            x2: p2.x, y2: p2.y,
                             stroke: 'rgba(255,255,255,0.7)',
                             strokeWidth: 3,
                             strokeDasharray: '6 6',
+                            vectorEffect: 'non-scaling-stroke',
                         }));
                     }
                 });
             });
-            // 動態連線
+            // 動態連線 — 用曲線偏移直線路徑,並按類型分別渲染
             C.DYNAMIC_LINES.forEach(function (line, idx) {
                 if (turnIndex + 1 < line.unlockTurn) return;
                 const p1 = C.CITIES[line.from].pos;
                 const p2 = C.CITIES[line.to].pos;
-                lines.push(React.createElement('line', {
-                    key: 'dyn-' + idx,
-                    x1: p1.x + '%', y1: p1.y + '%',
-                    x2: p2.x + '%', y2: p2.y + '%',
-                    stroke: line.stroke,
-                    strokeWidth: 4,
-                    strokeDasharray: '8 6',
-                    className: 'animate-pulse',
-                }));
+                // 計算控制點:中點 + 垂直偏移
+                const mx = (p1.x + p2.x) / 2;
+                const my = (p1.y + p2.y) / 2;
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const len = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+                const perpX = -dy / len;
+                const perpY = dx / len;
+                const off = line.offset || 0;
+                const cpx = mx + perpX * off;
+                const cpy = my + perpY * off;
+                const d = 'M ' + p1.x + ' ' + p1.y + ' Q ' + cpx + ' ' + cpy + ' ' + p2.x + ' ' + p2.y;
+
+                if (line.type === 'rail') {
+                    // 傳統鐵路風格:白色粗底線 + 黑色枕木 + 中線
+                    lines.push(React.createElement('path', {
+                        key: 'dyn-rail-bg-' + idx,
+                        d: d,
+                        fill: 'none',
+                        stroke: '#ffffff',
+                        strokeWidth: 11,
+                        vectorEffect: 'non-scaling-stroke',
+                    }));
+                    lines.push(React.createElement('path', {
+                        key: 'dyn-rail-border-' + idx,
+                        d: d,
+                        fill: 'none',
+                        stroke: '#111827',
+                        strokeWidth: 13,
+                        strokeDasharray: '1.4 1.2',
+                        vectorEffect: 'non-scaling-stroke',
+                    }));
+                    lines.push(React.createElement('path', {
+                        key: 'dyn-rail-rails-' + idx,
+                        d: d,
+                        fill: 'none',
+                        stroke: '#1f2937',
+                        strokeWidth: 1.5,
+                        vectorEffect: 'non-scaling-stroke',
+                    }));
+                } else {
+                    // 大橋/通道:彩色虛線曲線
+                    lines.push(React.createElement('path', {
+                        key: 'dyn-bridge-' + idx,
+                        d: d,
+                        fill: 'none',
+                        stroke: line.stroke,
+                        strokeWidth: 4,
+                        strokeDasharray: '8 6',
+                        vectorEffect: 'non-scaling-stroke',
+                    }));
+                }
             });
 
             // 可移動路徑高亮 — 僅自己回合時,從我的位置到所有可移動城市
@@ -120,11 +164,12 @@
                         if (!toPos) return;
                         lines.push(React.createElement('line', {
                             key: 'move-' + toId,
-                            x1: fromPos.x + '%', y1: fromPos.y + '%',
-                            x2: toPos.x + '%', y2: toPos.y + '%',
+                            x1: fromPos.x, y1: fromPos.y,
+                            x2: toPos.x, y2: toPos.y,
                             stroke: '#facc15',
                             strokeWidth: 6,
                             strokeDasharray: '10 4',
+                            vectorEffect: 'non-scaling-stroke',
                             className: 'movable-edge',
                             style: { filter: 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.9))' },
                         }));
@@ -321,6 +366,8 @@
             React.createElement('svg', {
                 key: 'svg',
                 className: 'absolute top-0 left-0 w-full h-full pointer-events-none z-0',
+                viewBox: '0 0 100 100',
+                preserveAspectRatio: 'none',
             }, renderConnections()),
             ...Object.values(C.CITIES).map(renderCity),
             renderDetailCard(),
