@@ -97,8 +97,10 @@
         );
     }
 
-    // 啟動
-    document.addEventListener('DOMContentLoaded', function () {
+    // 啟動 — 注意:本檔以 <script type="text/babel"> 載入,
+    // Babel-standalone 是在 DOMContentLoaded 之後才異步編譯執行的,
+    // 所以不能用 DOMContentLoaded 事件 (永遠不會觸發)。直接執行即可。
+    function bootstrap() {
         if (!checkAuth()) return;
         const rootEl = document.getElementById('dwq-root');
         if (!rootEl) {
@@ -107,5 +109,11 @@
         }
         const root = ReactDOM.createRoot(rootEl);
         root.render(React.createElement(App_root));
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootstrap);
+    } else {
+        bootstrap();
+    }
 })();
