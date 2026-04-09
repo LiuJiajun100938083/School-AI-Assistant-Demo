@@ -53,9 +53,44 @@ const AssignmentAPI = {
         return this.ARCHIVE_EXTENSIONS.some(ext => name.endsWith(ext));
     },
 
+    /**
+     * 讀 File → ArrayBuffer,優先用 FileReader(對 iCloud Drive 佔位檔、
+     * Safari 舊 File 引用更穩定)。失敗時 fallback 到 File.arrayBuffer()。
+     * 兩者都失敗會拋出帶檔名的友善錯誤。
+     */
+    async readFileBytes(file) {
+        // 先嘗試 FileReader (較老 API 但最相容)
+        try {
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(reader.error || new Error('FileReader failed'));
+                reader.onabort = () => reject(new Error('FileReader aborted'));
+                try {
+                    reader.readAsArrayBuffer(file);
+                } catch (syncErr) {
+                    reject(syncErr);
+                }
+            });
+        } catch (e1) {
+            // Fallback: 試試 File.arrayBuffer() (新 API)
+            try {
+                return await file.arrayBuffer();
+            } catch (e2) {
+                const hint = (e1 && e1.name === 'NotFoundError') || (e2 && e2.name === 'NotFoundError')
+                    ? ' — 這個檔案可能在 iCloud Drive 但未下載到本機(白雲圖示),請先在 Finder 把它下載下來再上傳,或把檔案複製到桌面再選'
+                    : '';
+                const msg = `讀取檔案失敗「${file.name || '(未命名)'}」${hint}`;
+                const err = new Error(msg);
+                err.name = 'FileReadError';
+                throw err;
+            }
+        }
+    },
+
     async obfuscateIfArchive(file) {
         if (!this.isArchiveFile(file)) return file;
-        const buffer = await file.arrayBuffer();
+        const buffer = await this.readFileBytes(file);
         const bytes = new Uint8Array(buffer);
         for (let i = 0; i < bytes.length; i++) bytes[i] ^= 0xFF;
         // 檔名後加 .xored;後端偵測到會 strip + XOR 還原
