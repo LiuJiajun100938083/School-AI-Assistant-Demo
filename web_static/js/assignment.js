@@ -53,10 +53,19 @@ const AssignmentAPI = {
         return this.ARCHIVE_EXTENSIONS.some(ext => name.endsWith(ext));
     },
 
+    // macOS directory bundle 副檔名 — Finder 顯示成檔案,實際是資料夾
+    BUNDLE_EXTENSIONS: ['.swiftpm', '.app', '.xcodeproj', '.playground', '.pages', '.numbers', '.keynote'],
+
+    isBundleDirectory(file) {
+        const name = (file && file.name || '').toLowerCase();
+        return this.BUNDLE_EXTENSIONS.some(ext => name.endsWith(ext));
+    },
+
     /**
      * 讀 File → ArrayBuffer,優先用 FileReader(對 iCloud Drive 佔位檔、
      * Safari 舊 File 引用更穩定)。失敗時 fallback 到 File.arrayBuffer()。
-     * 兩者都失敗會拋出帶檔名的友善錯誤。
+     * 兩者都失敗會拋出帶檔名的友善錯誤,訊息會根據情境(bundle directory /
+     * iCloud placeholder / 一般找不到檔案)給出對應建議。
      */
     async readFileBytes(file) {
         // 先嘗試 FileReader (較老 API 但最相容)
@@ -77,15 +86,35 @@ const AssignmentAPI = {
             try {
                 return await file.arrayBuffer();
             } catch (e2) {
-                const hint = (e1 && e1.name === 'NotFoundError') || (e2 && e2.name === 'NotFoundError')
-                    ? ' — 這個檔案可能在 iCloud Drive 但未下載到本機(白雲圖示),請先在 Finder 把它下載下來再上傳,或把檔案複製到桌面再選'
-                    : '';
-                const msg = `讀取檔案失敗「${file.name || '(未命名)'}」${hint}`;
-                const err = new Error(msg);
-                err.name = 'FileReadError';
-                throw err;
+                throw this._makeReadError(file, e1, e2);
             }
         }
+    },
+
+    _makeReadError(file, ...errs) {
+        const name = file && file.name || '(未命名)';
+        const size = file && typeof file.size === 'number' ? file.size : -1;
+        const isBundle = this.isBundleDirectory(file);
+        const isNotFound = errs.some(e => e && e.name === 'NotFoundError');
+
+        let hint;
+        if (isBundle) {
+            // 最常見:macOS directory bundle (.swiftpm / .app / .xcodeproj …)
+            hint = `\n\n這是一個 macOS 套件資料夾(bundle),Finder 看起來像單一檔案,其實內部是一整個資料夾結構。瀏覽器無法直接上傳資料夾,請先把它壓縮成 zip:\n\n1. 在 Finder 點選「${name}」\n2. 按右鍵 → 選「壓縮」\n3. 會得到「${name}.zip」\n4. 改上傳這個 .zip 檔案`;
+        } else if (size === 0) {
+            hint = '\n\n這個檔案大小是 0 byte(空檔案)。可能原因:檔案被刪除、被另存為新位置、或根本是個資料夾。請重新選檔。';
+        } else if (isNotFound) {
+            hint = '\n\n可能原因:\n• 檔案在 iCloud Drive 但未下載到本機(Finder 有白雲 ☁️ 圖示)→ 在 Finder 右鍵「立即下載」\n• 檔案被移動/刪除/重新命名 → 重新選檔\n• 從網路磁碟或外接硬碟選的,連線斷了 → 複製到桌面後再選';
+        } else {
+            hint = `\n\n錯誤細節:${errs.filter(e => e).map(e => e.message || String(e)).join(' / ')}`;
+        }
+
+        const msg = `讀取檔案失敗「${name}」${hint}`;
+        const err = new Error(msg);
+        err.name = 'FileReadError';
+        err.fileName = name;
+        err.isBundle = isBundle;
+        return err;
     },
 
     async obfuscateIfArchive(file) {
@@ -5273,6 +5302,22 @@ const AssignmentApp = {
     _addFiles(fileList) {
         for (const f of fileList) {
             if (this.state.selectedFiles.length >= 5) { UIModule.toast('最多 5 個文件', 'warning'); break; }
+
+            // 預先偵測 macOS directory bundle (.swiftpm / .app / .xcodeproj …)。
+            // 這類「檔案」Finder 看起來像單一檔案,其實是資料夾,瀏覽器完全
+            // 讀不到。在選檔時就 reject,比提交後才報錯好太多。
+            if (AssignmentAPI.isBundleDirectory(f)) {
+                const msg = `「${f.name}」是 macOS 套件資料夾,不能直接上傳。\n請在 Finder 右鍵 → 壓縮 → 改上傳「${f.name}.zip」`;
+                UIModule.toast(msg, 'error');
+                if (typeof alert === 'function') alert(msg);
+                continue;
+            }
+            // 零 byte 也直接拒絕
+            if (f.size === 0) {
+                UIModule.toast(`「${f.name}」是空檔案 (0 byte),無法上傳`, 'error');
+                continue;
+            }
+
             this.state.selectedFiles.push(f);
         }
         this._renderSelectedFiles();
@@ -6142,11 +6187,26 @@ const AssignmentApp = {
         const files = Array.from(e.dataTransfer.files);
         if (!files.length) return;
 
+        // Pre-flight:拒絕 macOS bundle 和空檔案
+        const validFiles = [];
+        for (const f of files) {
+            if (AssignmentAPI.isBundleDirectory(f)) {
+                UIModule.toast(`「${f.name}」是 macOS 套件資料夾,請先壓縮成 zip 再上傳`, 'error');
+                continue;
+            }
+            if (f.size === 0) {
+                UIModule.toast(`「${f.name}」是空檔案,跳過`, 'error');
+                continue;
+            }
+            validFiles.push(f);
+        }
+        if (!validFiles.length) return;
+
         // Store files for this student
         if (!this._proxyPendingFiles[username]) {
             this._proxyPendingFiles[username] = [];
         }
-        this._proxyPendingFiles[username].push(...files);
+        this._proxyPendingFiles[username].push(...validFiles);
 
         // Show the files on the card
         this._renderProxyFiles(username);
@@ -6616,6 +6676,15 @@ const FormStudentView = {
         if (!this._pendingFiles[questionId]) this._pendingFiles[questionId] = [];
         for (const f of input.files) {
             if (this._pendingFiles[questionId].length >= 5) { UIModule.toast('每題最多 5 個文件', 'warning'); break; }
+            // Pre-flight:拒絕 macOS bundle 和空檔案
+            if (AssignmentAPI.isBundleDirectory(f)) {
+                UIModule.toast(`「${f.name}」是 macOS 套件資料夾,請先壓縮成 zip 再上傳`, 'error');
+                continue;
+            }
+            if (f.size === 0) {
+                UIModule.toast(`「${f.name}」是空檔案,跳過`, 'error');
+                continue;
+            }
             this._pendingFiles[questionId].push(f);
         }
         input.value = '';
