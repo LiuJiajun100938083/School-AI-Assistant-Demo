@@ -55,14 +55,21 @@
 
     // offset: 正值向一側彎,負值向另一側;數值為百分比,決定曲線偏離直線的程度
     // type:
-    //   'rail'       — 鐵路 (黑白斑馬紋枕木)
+    //   'rail'       — 鐵路 (黑白斑馬紋枕木,用於廣深高鐵、廣深港高鐵)
     //   'tunnel-mid' — 中段為海底隧道,兩端為大橋 (深中通道)
-    //   'hzmb'       — 港珠澳 Y 形:共用主幹 (含近香港端沉管隧道) + 兩條分叉
-    //                  其中一條標記 trunk:true 負責繪製主幹,兩條都繪製自己的分叉
+    //   'hzmb'       — 港珠澳 Y 形:香港主幹 (含近香港端沉管隧道) + 珠海/澳門分支
+    //   'humen'      — 虎門大橋 Y 形:東莞主幹 + 廣州/中山分支,珠江口首條跨海通道
     const DYNAMIC_LINES = [
-        { from: '廣州', to: '深圳', unlockTurn: 6,  type: 'rail',       stroke: '#1a1a1a', label: '廣深高鐵',   offset: -22 },
-        { from: '香港', to: '珠海', unlockTurn: 7,  type: 'hzmb',       stroke: '#0ea5e9', label: '港珠澳大橋', trunk: true },
-        { from: '香港', to: '澳門', unlockTurn: 7,  type: 'hzmb',       stroke: '#0ea5e9', label: '港珠澳大橋', trunk: false },
+        // 虎門大橋 Y 形 (1997 通車,turn 5 顯示)
+        { from: '東莞', to: '廣州', unlockTurn: 5,  type: 'humen',      stroke: '#8b5cf6', label: '虎門大橋',   trunk: true  },
+        { from: '東莞', to: '中山', unlockTurn: 5,  type: 'humen',      stroke: '#8b5cf6', label: '虎門大橋',   trunk: false },
+        // 廣深港高鐵 — 廣深段 (2011 通車) 與 深港段 (2018 通車) 同屬一條線,視覺上連續
+        { from: '廣州', to: '深圳', unlockTurn: 6,  type: 'rail',       stroke: '#1a1a1a', label: '廣深高鐵',         offset: -22 },
+        { from: '深圳', to: '香港', unlockTurn: 8,  type: 'rail',       stroke: '#1a1a1a', label: '廣深港高鐵 香港段', offset: -14 },
+        // 港珠澳大橋 (2018,從 turn 7 改為 8)
+        { from: '香港', to: '珠海', unlockTurn: 8,  type: 'hzmb',       stroke: '#0ea5e9', label: '港珠澳大橋', trunk: true  },
+        { from: '香港', to: '澳門', unlockTurn: 8,  type: 'hzmb',       stroke: '#0ea5e9', label: '港珠澳大橋', trunk: false },
+        // 深中通道 (2024 通車)
         { from: '深圳', to: '中山', unlockTurn: 10, type: 'tunnel-mid', stroke: '#f59e0b', label: '深中通道',   offset:  18 },
     ];
 

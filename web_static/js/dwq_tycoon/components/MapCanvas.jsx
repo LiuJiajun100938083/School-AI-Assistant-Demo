@@ -188,6 +188,27 @@
                         ' Q ' + trunkCP.x + ' ' + trunkCP.y + ' ' + forkPt.x + ' ' + forkPt.y +
                         ' Q ' + branchCP.x + ' ' + branchCP.y + ' ' + toPos.x + ' ' + toPos.y;
                 }
+                if (line.type === 'humen') {
+                    // 虎門大橋 Y 形:東莞主幹 → fork → {廣州, 中山}
+                    const dg = C.CITIES['東莞'].pos;
+                    const forkPt = { x: 53, y: 44 };
+                    const toPos = (line.from === '東莞') ? p2src : p0src;
+                    const trunkCP = {
+                        x: (dg.x + forkPt.x) / 2,
+                        y: (dg.y + forkPt.y) / 2 + 4,
+                    };
+                    const bdx = toPos.x - forkPt.x;
+                    const bdy = toPos.y - forkPt.y;
+                    const blen = Math.max(0.001, Math.sqrt(bdx * bdx + bdy * bdy));
+                    const bendSign = toPos === C.CITIES['廣州'].pos ? 1 : -1;
+                    const branchCP = {
+                        x: (forkPt.x + toPos.x) / 2 + (-bdy / blen) * 2.5 * bendSign,
+                        y: (forkPt.y + toPos.y) / 2 + ( bdx / blen) * 2.5 * bendSign,
+                    };
+                    return 'M ' + dg.x + ' ' + dg.y +
+                        ' Q ' + trunkCP.x + ' ' + trunkCP.y + ' ' + forkPt.x + ' ' + forkPt.y +
+                        ' Q ' + branchCP.x + ' ' + branchCP.y + ' ' + toPos.x + ' ' + toPos.y;
+                }
                 // rail / tunnel-mid:單條二次貝茲
                 const mx = (p0src.x + p2src.x) / 2;
                 const my = (p0src.y + p2src.y) / 2;
@@ -303,6 +324,43 @@
                         y: Math.max(branchP0.y, branchP2.y) + 2,
                     };
                     pushBridgeSeg('hzmb-branch-' + idx, [branchP0, branchCP, branchP2], line.stroke);
+                } else if (line.type === 'humen') {
+                    // 虎門大橋 Y 形:東莞 → fork → {廣州, 中山}
+                    // 1997 通車,首次打通珠江口東西兩岸
+                    const dg = C.CITIES['東莞'].pos;
+                    const forkPt = { x: 53, y: 44 };  // 東莞西側的珠江口分叉點
+
+                    if (line.trunk) {
+                        const trunkP0 = { x: dg.x, y: dg.y };
+                        const trunkP2 = forkPt;
+                        const trunkCP = {
+                            x: (trunkP0.x + trunkP2.x) / 2,
+                            y: (trunkP0.y + trunkP2.y) / 2 + 4,
+                        };
+                        pushBridgeSeg('humen-trunk-' + idx, [trunkP0, trunkCP, trunkP2], line.stroke);
+                        // 分叉節點 (白心紫環,珠江口中央島嶼)
+                        lines.push(React.createElement('circle', {
+                            key: 'humen-fork-' + idx,
+                            cx: forkPt.x, cy: forkPt.y, r: 1.4,
+                            fill: '#ffffff',
+                            stroke: line.stroke,
+                            strokeWidth: 1,
+                            vectorEffect: 'non-scaling-stroke',
+                        }));
+                    }
+
+                    // 分支:fork → 目的城市 (廣州/中山)
+                    const toPos = C.CITIES[line.to].pos;
+                    const bdx = toPos.x - forkPt.x;
+                    const bdy = toPos.y - forkPt.y;
+                    const blen = Math.max(0.001, Math.sqrt(bdx * bdx + bdy * bdy));
+                    // 廣州向東微彎,中山向西微彎,避免兩條分支重疊
+                    const bendSign = line.to === '廣州' ? 1 : -1;
+                    const branchCP = {
+                        x: (forkPt.x + toPos.x) / 2 + (-bdy / blen) * 2.5 * bendSign,
+                        y: (forkPt.y + toPos.y) / 2 + ( bdx / blen) * 2.5 * bendSign,
+                    };
+                    pushBridgeSeg('humen-branch-' + idx, [forkPt, branchCP, toPos], line.stroke);
                 } else {
                     // 純大橋 (未來可能用)
                     pushBridgeSeg('dyn-' + idx, [p0, pc, p2], line.stroke);
