@@ -91,10 +91,17 @@
             try {
                 await api.leaveRoom(state.roomCode);
             } catch (e) {
-                console.error('[WaitingRoom] leaveRoom failed:', e);
-                setError('離開失敗: ' + (e.message || '未知錯誤'));
-                // 失敗就停在原地,不切換視圖,讓使用者重試
-                return;
+                // 404 / not_in_room / room_not_found → 服務器已不認為你在房間,當作離開成功
+                const ok = e && (
+                    e.status === 404 ||
+                    e.code === 'not_in_room' ||
+                    e.code === 'room_not_found'
+                );
+                if (!ok) {
+                    console.error('[WaitingRoom] leaveRoom failed:', e);
+                    setError('離開失敗: ' + (e.message || '未知錯誤'));
+                    return;
+                }
             }
             window.DwqApp.session.clear();
             dispatch({ type: 'SET_ROOM_CODE', roomCode: null });
