@@ -986,7 +986,9 @@ async def end_activity_session(session_id: int, user_info=Depends(verify_admin_o
 #                               端点：Excel 导出
 # ==================================================================================
 
-EXPORTS_DIR = "attendance_exports"
+from app.config.settings import BASE_DIR
+
+EXPORTS_DIR = str(BASE_DIR / "attendance_exports")
 try:
     if not os.path.exists(EXPORTS_DIR):
         os.makedirs(EXPORTS_DIR)
