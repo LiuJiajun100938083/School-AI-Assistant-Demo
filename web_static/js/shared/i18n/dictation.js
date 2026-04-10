@@ -97,6 +97,8 @@ i18n.addMessages({
         'dict.submit.uploading':     '上傳中…',
         'dict.submit.retryFailed':   '上傳失敗,請稍後再試',
         'dict.submit.btn':           '提交',
+        'dict.submit.backgroundHint':'圖片正在後台上傳,你可以離開此頁面',
+        'dict.submit.uploadDone':    '上傳完成,正在辨識中…',
 
         'dict.result.title':         '批改結果',
         'dict.result.errorList.title':       '錯字一覽',
@@ -235,6 +237,8 @@ i18n.addMessages({
         'dict.submit.uploading':     'Uploading…',
         'dict.submit.retryFailed':   'Upload failed. Please try again.',
         'dict.submit.btn':           'Submit',
+        'dict.submit.backgroundHint':'Uploading in background. You can leave this page.',
+        'dict.submit.uploadDone':    'Upload complete. Recognizing…',
 
         'dict.result.title':         'Grading Result',
         'dict.result.errorList.title':       'Wrong Characters',
