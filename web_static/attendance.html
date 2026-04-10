@@ -592,45 +592,6 @@
     </div>
 </div>
 
-<!-- 結束點名確認彈窗 -->
-<div id="endSessionModal" class="end-session-modal">
-    <div class="end-session-content">
-        <div class="end-session-title" data-i18n="att.endSession">結束點名</div>
-
-        <div class="end-session-stats">
-            <div class="end-stat-item present">
-                <div id="endStatPresent" class="end-stat-value">0</div>
-                <div class="end-stat-label" data-i18n="att.statPresent">實到</div>
-            </div>
-            <div class="end-stat-item late">
-                <div id="endStatLate" class="end-stat-value">0</div>
-                <div class="end-stat-label" data-i18n="att.statLate">遲到</div>
-            </div>
-            <div class="end-stat-item absent">
-                <div id="endStatAbsent" class="end-stat-value">0</div>
-                <div class="end-stat-label" data-i18n="att.statAbsentLabel">缺席</div>
-            </div>
-        </div>
-
-        <div class="end-session-notes">
-            <label data-i18n="att.notesOptional">備註（可選）</label>
-            <textarea id="exportNotes" placeholder="輸入備註資訊..." data-i18n-placeholder="att.notesPlaceholder"></textarea>
-        </div>
-
-        <label class="end-session-checkbox">
-            <input type="checkbox" id="saveToServerCheckbox" checked>
-            <span data-i18n="att.saveToServer">儲存到伺服器</span>
-            <span class="end-session-checkbox-hint" data-i18n="att.downloadOnOtherDevices">可在其他裝置下載</span>
-        </label>
-
-        <div class="end-session-actions">
-            <button class="end-session-btn primary" onclick="confirmEndSession()" data-i18n="att.confirmEnd">確認結束</button>
-            <button class="end-session-btn secondary" onclick="downloadOnlyEndSession()" data-i18n="att.downloadOnly">僅下載到本機</button>
-            <button class="end-session-btn cancel" onclick="closeEndSessionModal()" data-i18n="att.cancel">取消</button>
-        </div>
-    </div>
-</div>
-
 <!-- 歷史紀錄面板 -->
 <div id="exportsPanel" class="exports-panel">
     <div class="exports-panel-content">
