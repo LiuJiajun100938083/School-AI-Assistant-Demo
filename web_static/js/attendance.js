@@ -1,3 +1,31 @@
+// ============ SVG 圖標常量 ============
+const ATT = {
+    check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    warning: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    alert: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    error: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    logout: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+    target: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>',
+    note: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    users: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    pin: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>',
+    folder: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    sun: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+    download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    settings: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    clipboard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>',
+    book: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+    save: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
+    timer: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    idcard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg>',
+    close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    grad: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/></svg>',
+    card: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+    checkin: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+};
+
 // ============ 即時時鐘功能 ============
 let clockInterval = null;
 
@@ -297,20 +325,20 @@ function showScanNotification(data) {
             timeEl.textContent = i18n.t('att.checkInTimeValue', {time: record.scan_time});
 
             if (record.status === 'present') {
-                iconEl.textContent = '✅';
+                iconEl.innerHTML = ATT.check;
                 card.classList.add('status-present');
                 statusEl.className = 'notification-status present';
                 statusEl.textContent = i18n.t('att.onTimeCheckIn');
                 extraEl.style.display = 'none';
             } else if (record.status === 'late') {
-                iconEl.textContent = '⚠️';
+                iconEl.innerHTML = ATT.warning;
                 card.classList.add('status-late');
                 statusEl.className = 'notification-status late';
                 statusEl.textContent = i18n.t('att.statusLate');
                 extraEl.style.display = 'block';
                 extraEl.innerHTML = i18n.t('att.lateNeedMakeup', {late: record.late_minutes, makeup: record.makeup_minutes});
             } else if (record.status === 'very_late') {
-                iconEl.textContent = '🔴';
+                iconEl.innerHTML = ATT.alert;
                 card.classList.add('status-very-late');
                 statusEl.className = 'notification-status very-late';
                 statusEl.textContent = i18n.t('att.statusVeryLate');
@@ -323,7 +351,7 @@ function showScanNotification(data) {
             statusEl.className = 'notification-status activity';
 
             if (data.action === 'checkout') {
-                iconEl.textContent = '👋';
+                iconEl.innerHTML = ATT.logout;
                 timeEl.textContent = i18n.t('att.checkOutTimeValue', {time: data.time || record.checkout_time});
 
                 if (data.is_early) {
@@ -336,7 +364,7 @@ function showScanNotification(data) {
                     extraEl.style.display = 'none';
                 }
             } else {
-                iconEl.textContent = '🎯';
+                iconEl.innerHTML = ATT.target;
                 timeEl.textContent = i18n.t('att.checkInTimeValue', {time: data.time || record.scan_time});
 
                 if (data.is_late) {
@@ -356,7 +384,7 @@ function showScanNotification(data) {
             statusEl.className = 'notification-status detention';
 
             if (data.action === 'checkout') {
-                iconEl.textContent = '👋';
+                iconEl.innerHTML = ATT.logout;
                 timeEl.textContent = i18n.t('att.checkOutTimeValue', {time: record.checkout_time});
 
 // 根據是否使用分鐘模式判斷完成狀態
@@ -386,7 +414,7 @@ function showScanNotification(data) {
                     }
                 }
             } else {
-                iconEl.textContent = '📝';
+                iconEl.innerHTML = ATT.note;
                 timeEl.textContent = i18n.t('att.checkInTimeValue', {time: record.scan_time});
                 statusEl.textContent = i18n.t('att.detentionCheckIn');
                 extraEl.style.display = 'block';
@@ -395,7 +423,7 @@ function showScanNotification(data) {
         }
     } else {
         // 錯誤狀態
-        iconEl.textContent = '❌';
+        iconEl.innerHTML = ATT.error;
         nameEl.textContent = i18n.t('att.checkInFailed');
         englishNameEl.textContent = data.message || data.detail || i18n.t('att.unknownError');
         classTextEl.textContent = data.card_id ? i18n.t('att.cardNo', {id: data.card_id}) : i18n.t('att.unknownCard');
@@ -641,10 +669,10 @@ function updateSelectStudentBtn() {
 
     if (count > 0) {
         btn.classList.add('has-selection');
-        btn.innerHTML = '👥 ' + i18n.t('att.selectedStudentsEdit', {count: count});
+        btn.innerHTML = ATT.users + ' ' + i18n.t('att.selectedStudentsEdit', {count: count});
     } else {
         btn.classList.remove('has-selection');
-        btn.innerHTML = '👥 ' + i18n.t('att.clickSelectStudentOptional');
+        btn.innerHTML = ATT.users + ' ' + i18n.t('att.clickSelectStudentOptional');
     }
 }
 
@@ -913,8 +941,8 @@ function renderFixedLists() {
                             ${list.list_name} (${list.student_count}${i18n.t('att.people')})
                         </span>
                         <div class="fixed-list-item-actions">
-                            <button class="fixed-list-btn edit" onclick="event.stopPropagation(); editFixedList(${list.id}, '${list.list_name}')" title="${i18n.t('att.editBtn')}">✏️</button>
-                            <button class="fixed-list-btn delete" onclick="event.stopPropagation(); deleteFixedList(${list.id}, '${list.list_name}')" title="${i18n.t('att.deleteBtn')}">🗑️</button>
+                            <button class="fixed-list-btn edit" onclick="event.stopPropagation(); editFixedList(${list.id}, '${list.list_name}')" title="${i18n.t('att.editBtn')}">${ATT.edit}</button>
+                            <button class="fixed-list-btn delete" onclick="event.stopPropagation(); deleteFixedList(${list.id}, '${list.list_name}')" title="${i18n.t('att.deleteBtn')}">${ATT.trash}</button>
                         </div>
                     </div>
                 </div>
@@ -1261,10 +1289,10 @@ function updateActivitySelectedCount() {
     if (btn) {
         if (selectedStudents.size > 0) {
             btn.classList.add('has-selection');
-            btn.innerHTML = '👥 ' + i18n.t('att.selectedStudentsEdit', {count: selectedStudents.size});
+            btn.innerHTML = ATT.users + ' ' + i18n.t('att.selectedStudentsEdit', {count: selectedStudents.size});
         } else {
             btn.classList.remove('has-selection');
-            btn.innerHTML = '👥 ' + i18n.t('att.clickSelectStudents');
+            btn.innerHTML = ATT.users + ' ' + i18n.t('att.clickSelectStudents');
         }
     }
 }
@@ -1661,15 +1689,15 @@ function showScanResult(data) {
 
             if (record.status === 'present') {
                 resultDiv.classList.add('success');
-                statusDiv.textContent = '✅ ' + i18n.t('att.onTimeCheckin');
+                statusDiv.innerHTML = ATT.check + ' ' + i18n.t('att.onTimeCheckin');
                 statusDiv.style.background = 'var(--accent-green)';
             } else if (record.status === 'late') {
                 resultDiv.classList.add('late');
-                statusDiv.textContent = `⚠️ ${i18n.t('att.lateBy', {minutes: record.late_minutes, makeup: record.makeup_minutes})}`;
+                statusDiv.innerHTML = ATT.warning + ' ' + i18n.t('att.lateBy', {minutes: record.late_minutes, makeup: record.makeup_minutes});
                 statusDiv.style.background = 'var(--accent-orange)';
             } else if (record.status === 'very_late') {
                 resultDiv.classList.add('very-late');
-                statusDiv.textContent = `🔴 ${i18n.t('att.veryLateNeedMakeup', {makeup: record.makeup_minutes})}`;
+                statusDiv.innerHTML = ATT.alert + ' ' + i18n.t('att.veryLateNeedMakeup', {makeup: record.makeup_minutes});
                 statusDiv.style.background = 'var(--accent-red)';
             }
         } else {
@@ -1701,13 +1729,13 @@ function showScanResult(data) {
                 // 簽到
                 timeDiv.textContent = `${student.class_name}-${student.class_number}${i18n.t('att.numberSuffix')} | ${i18n.t('att.checkin')}: ${record.scan_time}`;
                 resultDiv.classList.add('success');
-                statusDiv.textContent = `✅ ${i18n.t('att.checkinSuccessDetention', {periods: record.planned_periods, endTime: record.planned_end_time})}`;
+                statusDiv.innerHTML = ATT.check + ' ' + i18n.t('att.checkinSuccessDetention', {periods: record.planned_periods, endTime: record.planned_end_time});
                 statusDiv.style.background = 'var(--accent-purple)';
             }
         }
     } else {
         resultDiv.classList.add('error');
-        nameDiv.textContent = '❌ ' + (data.message || data.detail || i18n.t('att.unknownError'));
+        nameDiv.innerHTML = ATT.error + ' ' + (data.message || data.detail || i18n.t('att.unknownError'));
         timeDiv.textContent = data.card_id ? `${i18n.t('att.cardNumber')}: ${data.card_id}` : '';
         statusDiv.textContent = '';
         statusDiv.style.background = 'transparent';
@@ -1796,9 +1824,9 @@ async function confirmEndSession() {
             });
             const data = await response.json();
             if (data.success) {
-                showToast('✅ ' + i18n.t('att.recordSaved', {name: data.file_name}));
+                showToast(ATT.check + ' ' + i18n.t('att.recordSaved', {name: data.file_name}));
             } else {
-                showToast('⚠️ ' + i18n.t('att.saveFailed') + ': ' + data.message);
+                showToast(ATT.warning + ' ' + i18n.t('att.saveFailed') + ': ' + data.message);
             }
         } catch (error) {
             console.error('儲存失敗:', error);
@@ -1870,7 +1898,7 @@ async function loadExportsList() {
         } else {
             container.innerHTML = `
                 <div class="exports-empty">
-                    <span class="exports-empty-icon">📁</span>
+                    <span class="exports-empty-icon">${ATT.folder}</span>
                     <p>${i18n.t('att.noRecords')}</p>
                     <p class="exports-empty-hint">${i18n.t('att.noRecordsHint')}</p>
                 </div>`;
@@ -1885,7 +1913,7 @@ async function loadExportsList() {
 function renderExportsList(records) {
     const container = document.getElementById('exportsList');
     const html = records.map(r => {
-        const typeIcon = r.session_type === 'morning' ? '🌅' : '📝';
+        const typeIcon = r.session_type === 'morning' ? ATT.sun : ATT.note;
         const typeText = r.session_type === 'morning' ? i18n.t('att.typeMorning') : i18n.t('att.typeDetention');
         const fileSizeKB = Math.round(r.file_size / 1024);
         const attendanceRate = r.student_count > 0 ? Math.round(r.present_count / r.student_count * 100) : 0;
@@ -1899,15 +1927,15 @@ function renderExportsList(records) {
                         <div class="export-item-meta">${r.present_count}/${r.student_count}${i18n.t('att.people')} (${attendanceRate}%) · ${fileSizeKB}KB · ${r.created_at}</div>
                     </div>
                 </div>
-                ${r.notes ? `<div class="export-item-notes">📌 ${r.notes}</div>` : ''}
+                ${r.notes ? `<div class="export-item-notes">${ATT.pin} ${r.notes}</div>` : ''}
                 <div class="export-item-stats">
                     <span class="stat-tag present">${i18n.t('att.present')} ${r.present_count}</span>
                     <span class="stat-tag late">${i18n.t('att.late')} ${r.late_count}</span>
                     <span class="stat-tag absent">${i18n.t('att.absentExport')} ${r.absent_count}</span>
                 </div>
                 <div class="export-item-actions">
-                    <button class="export-btn download" onclick="downloadExport(${r.id})">⬇️ ${i18n.t('att.download')}</button>
-                    <button class="export-btn delete" onclick="confirmDeleteExport(${r.id}, '${r.file_name}')">🗑️ ${i18n.t('att.delete')}</button>
+                    <button class="export-btn download" onclick="downloadExport(${r.id})">${ATT.download} ${i18n.t('att.download')}</button>
+                    <button class="export-btn delete" onclick="confirmDeleteExport(${r.id}, '${r.file_name}')">${ATT.trash} ${i18n.t('att.delete')}</button>
                 </div>
             </div>`;
     }).join('');
@@ -1982,7 +2010,7 @@ async function downloadExport(exportId) {
         a.click();
         window.URL.revokeObjectURL(url);
         a.remove();
-        showToast('✅ ' + i18n.t('att.downloadSuccess'));
+        showToast(ATT.check + ' ' + i18n.t('att.downloadSuccess'));
     } catch (error) {
         console.error('下載失敗:', error);
         showToast(error.message || i18n.t('att.downloadFailedRetry'));
@@ -2001,7 +2029,7 @@ async function deleteExport(exportId) {
         });
         const data = await response.json();
         if (data.success) {
-            showToast('✅ ' + i18n.t('att.recordDeleted'));
+            showToast(ATT.check + ' ' + i18n.t('att.recordDeleted'));
             loadExportsList();
         } else showToast(i18n.t('att.deleteFailed') + ': ' + data.message);
     } catch (error) {
@@ -4169,7 +4197,7 @@ function renderActivityGroups() {
         container.innerHTML = `
             <span class="no-groups-hint">${i18n.t('att.noGroups')}</span>
             <button class="manage-groups-btn" onclick="openActivityGroupModal()">
-                ⚙️ ${i18n.t('att.manageGroups')}
+                ${ATT.settings} ${i18n.t('att.manageGroups')}
             </button>
         `;
         return;
@@ -4184,7 +4212,7 @@ function renderActivityGroups() {
         </button>
     `).join('') + `
         <button class="manage-groups-btn" onclick="openActivityGroupModal()">
-            ⚙️ ${i18n.t('att.manageGroups')}
+            ${ATT.settings} ${i18n.t('att.manageGroups')}
         </button>
     `;
 }
@@ -4233,10 +4261,10 @@ function updateActivitySelectBtn() {
     const count = selectedStudents.size;
     if (count > 0) {
         btn.classList.add('has-selection');
-        btn.innerHTML = `👥 ${i18n.t('att.selectedStudentsEdit', {count: count})}`;
+        btn.innerHTML = ATT.users + ' ' + i18n.t('att.selectedStudentsEdit', {count: count});
     } else {
         btn.classList.remove('has-selection');
-        btn.innerHTML = '👥 ' + i18n.t('att.clickSelectStudents');
+        btn.innerHTML = ATT.users + ' ' + i18n.t('att.clickSelectStudents');
     }
 
     updateActivitySelectedCount();
@@ -4702,28 +4730,28 @@ function showActivityScanResult(data) {
 
         if (data.action === 'checkout') {
             if (data.is_early) {
-                resultStatus.textContent = '⚠️ ' + i18n.t('att.earlyLeave');
+                resultStatus.innerHTML = ATT.warning + ' ' + i18n.t('att.earlyLeave');
                 resultStatus.className = 'result-status late';
                 scanResult.classList.add('late');
             } else {
-                resultStatus.textContent = '✅ ' + i18n.t('att.normalLeave');
+                resultStatus.innerHTML = ATT.check + ' ' + i18n.t('att.normalLeave');
                 resultStatus.className = 'result-status present';
                 scanResult.classList.add('success');
             }
         } else {
             if (data.is_late) {
-                resultStatus.textContent = '⚠️ ' + i18n.t('att.late');
+                resultStatus.innerHTML = ATT.warning + ' ' + i18n.t('att.late');
                 resultStatus.className = 'result-status late';
                 scanResult.classList.add('late');
             } else {
-                resultStatus.textContent = '✅ ' + i18n.t('att.onTimeCheckin');
+                resultStatus.innerHTML = ATT.check + ' ' + i18n.t('att.onTimeCheckin');
                 resultStatus.className = 'result-status present';
                 scanResult.classList.add('success');
             }
         }
     } else {
         scanResult.classList.add('error');
-        resultName.textContent = '❌ ' + (data.message || data.detail || i18n.t('att.checkinFailed'));
+        resultName.innerHTML = ATT.error + ' ' + (data.message || data.detail || i18n.t('att.checkinFailed'));
         resultTime.textContent = '';
         resultStatus.textContent = '';
     }
@@ -4856,4 +4884,4 @@ confirmStudentSelection = function () {
     }
 };
 
-console.log('✅ 課外活動功能已載入');
+console.log('[ATT] 課外活動功能已載入');

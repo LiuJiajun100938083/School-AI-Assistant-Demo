@@ -3,6 +3,20 @@
    完整的淺色主題CSS檔案
    ============================================================ */
 
+/* ========== SVG 圖標通用樣式 ========== */
+.att-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.att-icon svg, svg.att-icon {
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+}
+
 /* ========== 強制淺色模式 ========== */
 html {
     color-scheme: light only !important;
@@ -719,14 +733,18 @@ body {
 
 /* 卡片圖示 */
 .scan-input-container::before {
-    content: "💳";
+    content: "";
     position: absolute;
     left: 16px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 20px;
+    width: 20px;
+    height: 20px;
     z-index: 1;
     transition: transform 0.3s var(--ease-out);
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='1' y='4' width='22' height='16' rx='2' ry='2'/%3E%3Cline x1='1' y1='10' x2='23' y2='10'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='1' y='4' width='22' height='16' rx='2' ry='2'/%3E%3Cline x1='1' y1='10' x2='23' y2='10'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 
 /* 聚焦時卡片圖示跳動 */

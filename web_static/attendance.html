@@ -22,7 +22,7 @@
 <!-- 系統喚醒啟動畫面 -->
 <div class="splash-screen" id="splashScreen">
     <div class="splash-content">
-        <div class="splash-icon">📋</div>
+        <div class="splash-icon"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg></div>
         <div class="splash-title" data-i18n="att.splashTitle">點名系統</div>
         <div class="splash-subtitle" data-i18n="att.splashSubtitle">晨讀 · 留堂 · 課外活動</div>
         <div class="splash-loader">
@@ -37,7 +37,7 @@
 <div class="header">
     <div class="header-left">
         <button class="back-btn" onclick="window.location.href='/'"><span data-i18n="att.backHome">← 返回主頁</span></button>
-        <div class="header-title">📋 <span data-i18n="att.headerTitle">點名系統</span></div>
+        <div class="header-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg> <span data-i18n="att.headerTitle">點名系統</span></div>
     </div>
     <div class="header-right">
         <!-- 學生數據已合併至後台用戶管理，不再需要單獨上傳 -->
@@ -62,13 +62,13 @@
             <!-- 類型選擇 -->
             <div class="type-selector">
                 <button class="type-btn morning active" data-type="morning" onclick="selectType('morning')">
-                    🌅 <span data-i18n="att.typeMorning">晨讀</span>
+                    <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> <span data-i18n="att.typeMorning">晨讀</span>
                 </button>
                 <button class="type-btn detention" data-type="detention" onclick="selectType('detention')">
-                    📚 <span data-i18n="att.typeDetention">留堂</span>
+                    <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> <span data-i18n="att.typeDetention">留堂</span>
                 </button>
                 <button class="type-btn activity" data-type="activity" onclick="selectType('activity')">
-                    🎯 <span data-i18n="att.typeActivity">活動</span>
+                    <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg> <span data-i18n="att.typeActivity">活動</span>
                 </button>
             </div>
 
@@ -78,7 +78,7 @@
 
         <!-- 固定名單（暫時註釋掉，晨讀和留堂不需要此功能）
         <div class="fixed-list-selector" style="display:none;" id="fixedListSection">
-            <div class="fixed-list-title">📌 快速加載固定名單</div>
+            <div class="fixed-list-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> 快速加載固定名單</div>
             <div class="fixed-list-items" id="fixedListItems">
                     </div>
                 </div>-->
@@ -90,7 +90,7 @@
         <!-- 選擇學生按鈕區域 - 晨讀/留堂模式不需要，為課外活動點名預留 -->
         <div class="filter-section" style="border-bottom: none; display: none;" id="studentSelectSection">
             <button class="select-student-btn" id="selectStudentBtn" onclick="openStudentSelectModal()">
-                👥 <span data-i18n="att.clickSelectStudent">點擊選擇學生</span>
+                <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span data-i18n="att.clickSelectStudent">點擊選擇學生</span>
             </button>
         </div>
         <!-- 課外活動配置區域 -->
@@ -124,7 +124,7 @@
 
             <!-- 固定組別選擇 -->
             <div class="config-group">
-                <label class="config-label">📌 <span data-i18n="att.quickFixedList">快速固定名單</span></label>
+                <label class="config-label"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> <span data-i18n="att.quickFixedList">快速固定名單</span></label>
                 <div class="activity-groups" id="activityGroupsList">
                     <span class="no-groups-hint" data-i18n="att.noGroups">暫無組別</span>
                 </div>
@@ -133,7 +133,7 @@
             <!-- 選擇學生按鈕 -->
             <button class="select-student-btn activity-select-btn" id="activitySelectStudentBtn"
                     onclick="openStudentSelectModal()">
-                👥 <span data-i18n="att.selectStudentRequired">選擇學生(必選)</span>
+                <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span data-i18n="att.selectStudentRequired">選擇學生(必選)</span>
             </button>
 
             <!-- 已選人數統計 -->
@@ -187,7 +187,7 @@
     <div class="right-panel">
         <!-- 無會話提示 -->
         <div class="no-session" id="noSessionHint">
-            <div class="no-session-icon">📋</div>
+            <div class="no-session-icon"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg></div>
             <div class="no-session-text" data-i18n="att.noSessionHint">請在左側設置點名參數開始點名</div>
         </div>
 
@@ -204,11 +204,11 @@
                 <div class="scan-input-container">
                     <input type="text" class="scan-input" id="cardInput"
                            placeholder="請拍卡或輸入學號" data-i18n-placeholder="att.cardInputPlaceholder" autofocus>
-                    <button class="scan-btn" onclick="processCard()">✔ <span data-i18n="att.checkIn">簽到</span></button>
+                    <button class="scan-btn" onclick="processCard()"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> <span data-i18n="att.checkIn">簽到</span></button>
                 </div>
 
                 <button class="manual-scan-btn" onclick="showManualScanModal()">
-                    🆔 <span data-i18n="att.manualCheckIn">無卡簽到</span>
+                    <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg> <span data-i18n="att.manualCheckIn">無卡簽到</span>
                 </button>
 
                 <div class="scan-result" id="scanResult">
@@ -227,7 +227,7 @@
                         <div class="records-controls">
                             <button class="compact-toggle-btn" id="compactToggleBtn" onclick="toggleCompactMode()"
                                     title="切換緊湊/標準顯示" data-i18n-title="att.toggleCompactTitle">
-                                <span class="compact-icon">📋</span>
+                                <span class="compact-icon"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg></span>
                                 <span class="compact-text" data-i18n="att.compact">緊湊</span>
                             </button>
                         </div>
@@ -347,7 +347,7 @@
 <div class="student-select-modal" id="studentSelectModal">
     <div class="student-select-content">
         <div class="student-select-header">
-            <div class="student-select-title">👥 <span data-i18n="att.selectStudent">選擇學生</span></div>
+            <div class="student-select-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> <span data-i18n="att.selectStudent">選擇學生</span></div>
             <button class="student-select-close" onclick="closeStudentSelectModal()">×</button>
         </div>
 
@@ -390,7 +390,7 @@
 <!-- 儲存固定名單模態框 -->
 <div class="modal-overlay" id="saveListModal">
     <div class="modal">
-        <div class="modal-title">💾 <span data-i18n="att.saveAsFixedList">保存為固定名單</span></div>
+        <div class="modal-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> <span data-i18n="att.saveAsFixedList">保存為固定名單</span></div>
         <input type="text" class="modal-input" id="listNameInput" placeholder="輸入名單名稱（如：中一晨讀班）" data-i18n-placeholder="att.listNamePlaceholder">
         <div class="modal-btns">
             <button class="modal-btn cancel" onclick="closeSaveListModal()" data-i18n="att.cancel">取消</button>
@@ -404,7 +404,7 @@
 <!-- 編輯固定名單模態框 -->
 <div class="modal-overlay" id="editListModal">
     <div class="modal" style="width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
-        <div class="modal-title">✏️ <span data-i18n="att.editFixedList">編輯固定名單</span></div>
+        <div class="modal-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> <span data-i18n="att.editFixedList">編輯固定名單</span></div>
         <input type="hidden" id="editListId">
         <input type="text" class="modal-input" id="editListName" placeholder="名單名稱" data-i18n-placeholder="att.listName" style="margin-bottom: 10px;">
 
@@ -474,7 +474,7 @@
             </div>
 
             <button class="toggle-minutes-btn" onclick="toggleMinutesInput()">
-                ⏱️ <span data-i18n="att.customMinutes">自訂分鐘數</span>
+                <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> <span data-i18n="att.customMinutes">自訂分鐘數</span>
             </button>
         </div>
 
@@ -525,7 +525,7 @@
             </div>
 
             <button class="toggle-minutes-btn" onclick="toggleManualMinutesInput()">
-                ⏱️ <span data-i18n="att.customMinutes">自訂分鐘數</span>
+                <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> <span data-i18n="att.customMinutes">自訂分鐘數</span>
             </button>
         </div>
 
@@ -635,7 +635,7 @@
 <div id="exportsPanel" class="exports-panel">
     <div class="exports-panel-content">
         <div class="exports-panel-header">
-            <div class="exports-panel-title">📁 <span data-i18n="att.attendanceRecords">點名紀錄</span></div>
+            <div class="exports-panel-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span data-i18n="att.attendanceRecords">點名紀錄</span></div>
             <button class="exports-close-btn" onclick="closeExportsPanel()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -673,11 +673,11 @@
 <!-- Apple 風格簽到通知卡片 -->
 <div id="scanNotificationOverlay" class="scan-notification-overlay">
     <div id="scanNotificationCard" class="scan-notification-card">
-        <span id="notificationIcon" class="notification-icon">✅</span>
+        <span id="notificationIcon" class="notification-icon"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
         <div id="notificationName" class="notification-name">陳大文</div>
         <div id="notificationEnglishName" class="notification-english-name">CHAN Tai Man</div>
         <div id="notificationClass" class="notification-class">
-            <span class="notification-class-icon">🎓</span>
+            <span class="notification-class-icon"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/></svg></span>
             <span id="notificationClassText">1A-01號</span>
         </div>
         <div id="notificationStatus" class="notification-status present" data-i18n="att.onTimeCheckIn">準時簽到</div>
@@ -690,7 +690,7 @@
 <!-- 手動簽到模態框 -->
 <div class="manual-scan-modal" id="manualScanModal">
     <div class="manual-scan-content">
-        <div class="manual-scan-title">🆔 <span data-i18n="att.manualCheckIn">手動簽到</span></div>
+        <div class="manual-scan-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="13" y2="15"/></svg> <span data-i18n="att.manualCheckIn">手動簽到</span></div>
         <div class="manual-scan-form">
             <div class="form-group">
                 <label data-i18n="att.selectClass">選擇班級</label>
@@ -711,7 +711,7 @@
                 <div class="preview-class" id="previewClass"></div>
             </div>
             <div class="preview-not-found" id="previewNotFound" style="display: none;">
-                ❌ <span data-i18n="att.studentNotFound">未找到該學生</span>
+                <svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> <span data-i18n="att.studentNotFound">未找到該學生</span>
             </div>
 
             <div class="manual-scan-actions">
@@ -762,8 +762,8 @@
 <div id="exportsPanel" class="exports-panel">
     <div class="exports-panel-content">
         <div class="exports-panel-header">
-            <div class="exports-panel-title">📁 <span data-i18n="att.attendanceRecords">點名紀錄</span></div>
-            <button class="exports-close-btn" onclick="closeExportsPanel()">✕</button>
+            <div class="exports-panel-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> <span data-i18n="att.attendanceRecords">點名紀錄</span></div>
+            <button class="exports-close-btn" onclick="closeExportsPanel()"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
         <div class="exports-filter">
             <select id="exportsTypeFilter">
@@ -789,7 +789,7 @@
 <!-- 離開確認彈窗 -->
 <div id="leaveConfirmModal" class="periods-modal">
     <div class="periods-modal-content" style="max-width: 380px;">
-        <div class="periods-modal-title" style="color: var(--accent-orange);">⚠️ <span data-i18n="att.confirmLeave">確認離開</span></div>
+        <div class="periods-modal-title" style="color: var(--accent-orange);"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span data-i18n="att.confirmLeave">確認離開</span></div>
         <div id="leaveConfirmStudent" class="periods-modal-subtitle" data-i18n="att.studentName">學生姓名</div>
         <div class="leave-confirm-info">
             <div class="leave-info-row">
@@ -805,7 +805,7 @@
                 <span id="leaveConfirmActualTime">-- <span data-i18n="att.minutes">分鐘</span></span>
             </div>
             <div class="leave-info-row warning" id="leaveWarningRow" style="display: none;">
-                <span>⚠️ <span data-i18n="att.notCompletedWarning">未完成計劃時長</span></span>
+                <span><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span data-i18n="att.notCompletedWarning">未完成計劃時長</span></span>
             </div>
         </div>
         <div class="leave-confirm-actions">
@@ -820,8 +820,8 @@
 <div class="activity-group-modal" id="activityGroupModal">
     <div class="activity-group-modal-content">
         <div class="activity-group-modal-header">
-            <div class="activity-group-modal-title">📌 <span data-i18n="att.manageGroups">管理固定組別</span></div>
-            <button class="modal-close-btn" onclick="closeActivityGroupModal()">✕</button>
+            <div class="activity-group-modal-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> <span data-i18n="att.manageGroups">管理固定組別</span></div>
+            <button class="modal-close-btn" onclick="closeActivityGroupModal()"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
 
         <div class="activity-group-modal-body">
@@ -846,7 +846,7 @@
 <!-- 課外活動簽退確認彈窗 -->
 <div class="checkout-confirm-modal" id="checkoutConfirmModal">
     <div class="checkout-confirm-content">
-        <div class="checkout-confirm-title">🎯 <span data-i18n="att.confirmCheckOut">確認簽退</span></div>
+        <div class="checkout-confirm-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg> <span data-i18n="att.confirmCheckOut">確認簽退</span></div>
         <div class="checkout-confirm-student" id="checkoutStudentName" data-i18n="att.studentName">學生姓名</div>
         <div class="checkout-confirm-info">
             <div class="checkout-info-row">
@@ -862,7 +862,7 @@
                 <span id="checkoutCurrentTime">--:--</span>
             </div>
             <div class="checkout-info-row warning" id="earlyLeaveWarning" style="display: none;">
-                <span>⚠️ <span data-i18n="att.earlyLeaveWarning">提前離開，將記錄為早退</span></span>
+                <span><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span data-i18n="att.earlyLeaveWarning">提前離開，將記錄為早退</span></span>
             </div>
         </div>
         <div class="checkout-confirm-actions">
@@ -876,8 +876,8 @@
 <div class="activity-group-modal" id="activityGroupModal">
     <div class="activity-group-modal-content">
         <div class="activity-group-modal-header">
-            <div class="activity-group-modal-title">📌 <span data-i18n="att.manageGroups">管理固定組別</span></div>
-            <button class="modal-close-btn" onclick="closeActivityGroupModal()">✕</button>
+            <div class="activity-group-modal-title"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> <span data-i18n="att.manageGroups">管理固定組別</span></div>
+            <button class="modal-close-btn" onclick="closeActivityGroupModal()"><svg class="att-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         </div>
 
         <div class="activity-group-modal-body">
