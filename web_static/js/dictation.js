@@ -562,16 +562,33 @@ class DictationApp {
             UIModule.toast(i18n.t('dict.submit.noFile'), 'error');
             return;
         }
-        const fd = new FormData();
-        this.pendingFiles.forEach(f => fd.append('files', f));
-        try {
-            const resp = await DictationAPI.submit(this.currentSubmitId, fd);
-            this.closeSubmitModal();
-            UIModule.toast(i18n.t('dict.submit.success'), 'success');
-            // Open result modal and poll
-            const subId = resp.data && resp.data.id;
-            if (subId) this.openSubmissionDetail(subId, true, true);
-        } catch (e) { /* toasted */ }
+        // 防重复点击
+        const btn = document.getElementById('submitBtn');
+        if (btn && btn.disabled) return;
+        if (btn) { btn.disabled = true; btn.textContent = i18n.t('dict.submit.uploading'); }
+
+        const MAX_RETRIES = 2;
+        let lastErr = null;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const fd = new FormData();
+                this.pendingFiles.forEach(f => fd.append('files', f));
+                const resp = await DictationAPI.submit(this.currentSubmitId, fd);
+                this.closeSubmitModal();
+                UIModule.toast(i18n.t('dict.submit.success'), 'success');
+                const subId = resp.data && resp.data.id;
+                if (subId) this.openSubmissionDetail(subId, true, true);
+                return;
+            } catch (e) {
+                lastErr = e;
+                if (attempt < MAX_RETRIES) {
+                    // 等待后重试 (1s, 2s)
+                    await new Promise(r => setTimeout(r, (attempt + 1) * 1000));
+                }
+            }
+        }
+        UIModule.toast(i18n.t('dict.submit.retryFailed'), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = i18n.t('dict.submit.btn'); }
     }
 
     // ── submission detail modal ──────────────────────

@@ -389,40 +389,44 @@ class DictationService:
 
         student_id = student["id"]
 
-        # 若已有提交，刪舊檔記錄 & 重置欄位
-        existing = self._sub_repo.find_by_dictation_student(
-            dictation_id, student_id,
-        )
-        if existing:
-            submission_id = existing["id"]
-            self._sub_repo.update(
-                data={
-                    "status": SubmissionStatus.OCR_PROCESSING.value,
-                    "ocr_text": None,
-                    "diff_result": None,
-                    "score": None,
-                    "correct_count": None,
-                    "wrong_count": None,
-                    "missing_count": None,
-                    "extra_count": None,
-                    "teacher_feedback": None,
-                    "submitted_at": datetime.now(),
-                    "graded_at": None,
-                },
-                where="id = %s",
-                params=(submission_id,),
+        # 用事务 + SELECT FOR UPDATE 防止并发重复提交
+        with self._sub_repo.transaction() as conn:
+            existing = self._sub_repo.find_by_dictation_student_for_update(
+                dictation_id, student_id, conn,
             )
-            self._file_repo.delete_by_submission(submission_id)
-        else:
-            submission_id = self._sub_repo.insert_get_id({
-                "dictation_id": dictation_id,
-                "student_id": student_id,
-                "student_name": student.get("display_name", ""),
-                "username": student.get("username", ""),
-                "class_name": student.get("class_name", ""),
-                "status": SubmissionStatus.OCR_PROCESSING.value,
-                "submitted_at": datetime.now(),
-            })
+            cursor = conn.cursor()
+            if existing:
+                submission_id = existing["id"]
+                cursor.execute(
+                    f"UPDATE {self._sub_repo.TABLE} SET "
+                    "status=%s, ocr_text=NULL, diff_result=NULL, "
+                    "score=NULL, correct_count=NULL, wrong_count=NULL, "
+                    "missing_count=NULL, extra_count=NULL, "
+                    "teacher_feedback=NULL, submitted_at=%s, graded_at=NULL "
+                    "WHERE id=%s",
+                    (SubmissionStatus.OCR_PROCESSING.value, datetime.now(), submission_id),
+                )
+                # 删旧文件记录
+                cursor.execute(
+                    f"DELETE FROM {self._file_repo.TABLE} WHERE submission_id=%s",
+                    (submission_id,),
+                )
+            else:
+                cursor.execute(
+                    f"INSERT INTO {self._sub_repo.TABLE} "
+                    "(dictation_id, student_id, student_name, username, class_name, status, submitted_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (
+                        dictation_id, student_id,
+                        student.get("display_name", ""),
+                        student.get("username", ""),
+                        student.get("class_name", ""),
+                        SubmissionStatus.OCR_PROCESSING.value,
+                        datetime.now(),
+                    ),
+                )
+                cursor.execute("SELECT LAST_INSERT_ID() as id")
+                submission_id = cursor.fetchone()["id"]
 
         # 儲存檔案（依序 await）
         saved_files: List[Dict[str, Any]] = []
@@ -760,6 +764,23 @@ class DictationService:
         ):
             return SubmissionStatus.NEEDS_REVIEW
         return SubmissionStatus.GRADED
+
+    async def recover_stale_ocr_tasks(self, stale_minutes: int = 10) -> int:
+        """恢复卡住的 OCR 任务：重新排队处理。
+
+        在应用启动时和定时调用，防止进程崩溃导致任务永远卡在 ocr_processing。
+        """
+        stale = self._sub_repo.find_stale_processing(stale_minutes)
+        if not stale:
+            return 0
+        count = 0
+        for sub in stale:
+            sid = sub["id"]
+            logger.warning("恢复卡住的 OCR 任务 submission #%d (已等待 >%d 分钟)", sid, stale_minutes)
+            asyncio.create_task(self._process_submission_ocr(sid))
+            count += 1
+        logger.info("已恢复 %d 个卡住的 OCR 任务", count)
+        return count
 
     def _mark_failed(self, submission_id: int, reason: str) -> None:
         self._sub_repo.update(

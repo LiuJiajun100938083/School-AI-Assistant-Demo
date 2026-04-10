@@ -88,6 +88,25 @@ class DictationSubmissionRepository(BaseRepository):
             params=(dictation_id, student_id),
         )
 
+    def find_by_dictation_student_for_update(
+        self, dictation_id: int, student_id: int, conn,
+    ) -> Optional[Dict[str, Any]]:
+        """带行锁的查询，必须在事务中使用"""
+        cursor = conn.cursor()
+        cursor.execute(
+            f"SELECT * FROM {self.TABLE} "
+            f"WHERE dictation_id = %s AND student_id = %s FOR UPDATE",
+            (dictation_id, student_id),
+        )
+        return cursor.fetchone()
+
+    def find_stale_processing(self, minutes: int = 10) -> List[Dict[str, Any]]:
+        """查找卡在 ocr_processing 超过 N 分钟的提交"""
+        return self.find_all(
+            where="status = 'ocr_processing' AND submitted_at < DATE_SUB(NOW(), INTERVAL %s MINUTE)",
+            params=(minutes,),
+        )
+
     def find_by_dictation(self, dictation_id: int) -> List[Dict[str, Any]]:
         return self.find_all(
             where="dictation_id = %s",

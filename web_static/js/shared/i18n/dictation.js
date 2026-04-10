@@ -94,6 +94,9 @@ i18n.addMessages({
         'dict.submit.tooMany':       '最多只能上傳 {{n}} 張',
         'dict.submit.noFile':        '請至少選擇一張圖片',
         'dict.submit.success':       '已提交,正在辨識...',
+        'dict.submit.uploading':     '上傳中…',
+        'dict.submit.retryFailed':   '上傳失敗,請稍後再試',
+        'dict.submit.btn':           '提交',
 
         'dict.result.title':         '批改結果',
         'dict.result.errorList.title':       '錯字一覽',
@@ -229,6 +232,9 @@ i18n.addMessages({
         'dict.submit.tooMany':       'Up to {{n}} photos',
         'dict.submit.noFile':        'Please choose at least one photo',
         'dict.submit.success':       'Submitted. Recognizing...',
+        'dict.submit.uploading':     'Uploading…',
+        'dict.submit.retryFailed':   'Upload failed. Please try again.',
+        'dict.submit.btn':           'Submit',
 
         'dict.result.title':         'Grading Result',
         'dict.result.errorList.title':       'Wrong Characters',

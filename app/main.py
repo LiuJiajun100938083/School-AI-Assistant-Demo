@@ -284,6 +284,17 @@ def create_app() -> FastAPI:
         except Exception as e:
             logger.warning("啟動遷移失敗: %s", e)
 
+        # 恢复卡住的默書 OCR 任务
+        try:
+            from app.services import get_services as _gs
+            _svc = _gs()
+            if hasattr(_svc, 'dictation') and _svc.dictation:
+                recovered = await _svc.dictation.recover_stale_ocr_tasks(stale_minutes=10)
+                if recovered:
+                    logger.info("已恢复 %d 个卡住的默書 OCR 任务", recovered)
+        except Exception as e:
+            logger.warning("默書 OCR 任务恢复失败: %s", e)
+
         # 啟動每日課室日誌報告定時任務
         try:
             import asyncio as _aio
