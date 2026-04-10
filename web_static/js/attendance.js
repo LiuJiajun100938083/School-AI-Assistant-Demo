@@ -1803,12 +1803,10 @@ async function showEndSessionModal() {
             apiUrl = `/api/attendance/activity/sessions/${currentSessionId}`;
         }
 
-        console.log('[EndSession] Fetching stats:', apiUrl, 'sessionType:', currentSessionType, 'sessionId:', currentSessionId);
         const response = await fetch(apiUrl, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         const data = await response.json();
-        console.log('[EndSession] API response:', JSON.stringify(data.stats), 'success:', data.success);
 
         if (data.success && data.stats) {
             const stats = data.stats;
@@ -1827,8 +1825,8 @@ async function showEndSessionModal() {
                 lateLabel = i18n.t('att.statLate');
                 absentLabel = i18n.t('att.statAbsent');
             } else {
-                present = stats.on_time || 0;
-                late = stats.late || 0;
+                present = (stats.on_time || 0);
+                late = (stats.late || 0) + (stats.very_late || 0);
                 absent = stats.absent || 0;
                 presentLabel = i18n.t('att.statOnTime');
                 lateLabel = i18n.t('att.statLate');
@@ -1836,10 +1834,8 @@ async function showEndSessionModal() {
             }
         }
     } catch (error) {
-        console.error('[EndSession] 獲取結束統計失敗:', error);
+        console.error('獲取結束統計失敗:', error);
     }
-
-    console.log('[EndSession] Final values:', { present, late, absent });
     document.getElementById('endStatPresent').textContent = present;
     document.getElementById('endStatLate').textContent = late;
     document.getElementById('endStatAbsent').textContent = absent;
