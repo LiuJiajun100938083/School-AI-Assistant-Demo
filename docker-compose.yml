@@ -21,6 +21,7 @@ services:
       # 協作佈告板檔案上傳
       - ./web_static/uploaded_boards:/app/web_static/uploaded_boards
       # ── Persistent data directories ──
+      - ./attendance_exports:/app/attendance_exports
       - ./uploads:/app/uploads
       - ./Knowledge_base:/app/Knowledge_base
       - ./vector_db:/app/vector_db
