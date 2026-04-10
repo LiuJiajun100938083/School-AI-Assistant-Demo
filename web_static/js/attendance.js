@@ -1789,14 +1789,54 @@ function endSession() {
 
 // 顯示結束點名確認彈窗
 function showEndSessionModal() {
-    // 更新統計
-    const presentEl = document.getElementById('statPresent');
-    const lateEl = document.getElementById('statLate');
-    const absentEl = document.getElementById('statAbsent');
+    // 根據當前會話類型讀取對應的統計數據
+    let present = '0', late = '0', absent = '0';
+    let presentLabel = '', lateLabel = '', absentLabel = '';
 
-    document.getElementById('endStatPresent').textContent = presentEl ? presentEl.textContent : '0';
-    document.getElementById('endStatLate').textContent = lateEl ? lateEl.textContent : '0';
-    document.getElementById('endStatAbsent').textContent = absentEl ? absentEl.textContent : '0';
+    if (currentSessionType === 'detention') {
+        const completedEl = document.getElementById('statCompleted');
+        const activeEl = document.getElementById('statActive');
+        const notCheckedInEl = document.getElementById('statNotCheckedIn');
+        present = completedEl ? completedEl.textContent : '0';
+        late = activeEl ? activeEl.textContent : '0';
+        absent = notCheckedInEl ? notCheckedInEl.textContent : '0';
+        presentLabel = i18n.t('att.statCompleted');
+        lateLabel = i18n.t('att.statActive');
+        absentLabel = i18n.t('att.statNotCheckedIn');
+    } else if (currentSessionType === 'activity') {
+        const onTimeEl = document.getElementById('activityStatOnTime');
+        const lateEl = document.getElementById('activityStatLate');
+        const absentEl = document.getElementById('activityStatAbsent');
+        present = onTimeEl ? onTimeEl.textContent : '0';
+        late = lateEl ? lateEl.textContent : '0';
+        absent = absentEl ? absentEl.textContent : '0';
+        presentLabel = i18n.t('att.statOnTime');
+        lateLabel = i18n.t('att.statLate');
+        absentLabel = i18n.t('att.statAbsent');
+    } else {
+        // 早讀 morning
+        const presentEl = document.getElementById('statPresent');
+        const lateEl = document.getElementById('statLate');
+        const absentEl = document.getElementById('statAbsent');
+        present = presentEl ? presentEl.textContent : '0';
+        late = lateEl ? lateEl.textContent : '0';
+        absent = absentEl ? absentEl.textContent : '0';
+        presentLabel = i18n.t('att.statOnTime');
+        lateLabel = i18n.t('att.statLate');
+        absentLabel = i18n.t('att.statAbsent');
+    }
+
+    document.getElementById('endStatPresent').textContent = present;
+    document.getElementById('endStatLate').textContent = late;
+    document.getElementById('endStatAbsent').textContent = absent;
+
+    // 更新標籤文字
+    const presentLabelEl = document.getElementById('endStatPresent')?.nextElementSibling;
+    const lateLabelEl = document.getElementById('endStatLate')?.nextElementSibling;
+    const absentLabelEl = document.getElementById('endStatAbsent')?.nextElementSibling;
+    if (presentLabelEl && presentLabel) presentLabelEl.textContent = presentLabel;
+    if (lateLabelEl && lateLabel) lateLabelEl.textContent = lateLabel;
+    if (absentLabelEl && absentLabel) absentLabelEl.textContent = absentLabel;
 
     document.getElementById('exportNotes').value = '';
     document.getElementById('saveToServerCheckbox').checked = true;
