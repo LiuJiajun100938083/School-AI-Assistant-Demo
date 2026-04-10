@@ -1,9 +1,8 @@
 /**
  * 大灣區大亨 — 動作列組件
  *
- * 提供:建廠、結束回合按鈕
+ * 提供:抽卡、建廠、結束回合按鈕
  * 移動是透過點擊地圖,不在這裡。
- * 選秀 (draft) 有專門的 DraftPanel 組件。
  */
 (function () {
     'use strict';
@@ -23,6 +22,11 @@
 
         if (!myPlayer) return null;
 
+        const canDraw = isMyTurn
+            && myPlayer.action_points >= 1
+            && myPlayer.location === '香港'
+            && !myPlayer.hand;
+
         // 建廠條件逐一檢查,以便給出具體提示
         const hand = myPlayer.hand;
         const curCityId = myPlayer.location;
@@ -40,22 +44,11 @@
         const canBuild = isMyTurn && !!hand && isUnlocked && cityAllows && cityNotBlocked && hasPlot && (hasAp || isFreeBuild);
 
         // ── 動態主提示:告訴玩家「現在該做什麼」──────────
+        // 優先級:不是我 → 已完成動作 → 有手牌建廠路線 → 無手牌抽卡路線
         let mainHint = null;
         let mainColor = 'bg-white border-gray-400 text-gray-800';
 
-        if (state.phase === 'draft') {
-            // 選秀階段
-            const draftOrder = state.draft_order || [];
-            const draftIdx = state.draft_current_idx || 0;
-            const currentDrafter = draftIdx < draftOrder.length ? draftOrder[draftIdx] : null;
-            if (currentDrafter === me.user_id) {
-                mainHint = '🃏 輪到你選秀!請在下方選擇一張圖紙';
-                mainColor = 'bg-blue-100 border-blue-600 text-blue-900 font-bold';
-            } else {
-                const drafter = state.players.find(function (p) { return p.user_id === currentDrafter; });
-                mainHint = '🃏 選秀中 — 等待 ' + ((drafter || {}).display_name || '其他玩家') + ' 選擇...';
-            }
-        } else if (!isMyTurn) {
+        if (!isMyTurn) {
             const other = (state.players.find(function (p) { return p.user_id === state.current_player_user_id; }) || {}).display_name;
             mainHint = '⏳ 等待 ' + (other || '其他玩家') + ' 行動...';
         } else if (!hasAp && !isFreeBuild) {
@@ -83,9 +76,20 @@
                 mainColor = 'bg-green-100 border-green-600 text-green-800 font-bold';
             }
         } else {
-            // 無手牌 — 下回合選秀會分配
-            mainHint = '📋 無圖紙 — 下回合選秀時會分配,先移動佈局吧';
-            mainColor = 'bg-gray-100 border-gray-500 text-gray-700';
+            // 無手牌 — 抽卡路線
+            const deckSize = state.deck_size || 0;
+            if (curCityId === '香港') {
+                if (deckSize > 0) {
+                    mainHint = '🃏 在香港 — 點擊下方「抽卡」獲得圖紙';
+                    mainColor = 'bg-blue-100 border-blue-600 text-blue-900 font-bold';
+                } else {
+                    mainHint = '📭 卡組已空,請移動或結束回合';
+                    mainColor = 'bg-gray-100 border-gray-500 text-gray-700';
+                }
+            } else {
+                mainHint = '🃏 無圖紙 — 移動到「香港」可抽卡 (建廠需圖紙)';
+                mainColor = 'bg-blue-50 border-blue-500 text-blue-900';
+            }
         }
 
         const canEndTurn = isMyTurn;
@@ -93,23 +97,28 @@
         return React.createElement('div', {
             className: 'flex flex-col gap-2 w-full',
         }, [
-            // 主要動作提示
+            // 主要動作提示 — 始終顯示,告訴玩家當前該做什麼
             React.createElement('div', {
                 key: 'mainhint',
                 className: 'text-xs md:text-sm p-2 border-2 text-center min-h-[36px] flex items-center justify-center ' + mainColor,
             }, mainHint || '—'),
 
-            // 副提示
+            // 副提示:操作方式說明
             isMyTurn ? React.createElement('div', {
                 key: 'subhint',
                 className: 'text-[10px] md:text-[11px] text-center text-gray-600 italic',
             }, '💡 點擊閃爍城市可移動 · 剩餘 AP: ' + myPlayer.action_points + '/' + (state.max_ap || 3)) : null,
 
-            // 行動按鈕 (選秀階段隱藏)
-            state.phase === 'action' ? React.createElement('div', {
+            React.createElement('div', {
                 key: 'btns',
                 className: 'flex flex-row gap-2 w-full',
             }, [
+                React.createElement('button', {
+                    key: 'draw',
+                    className: 'pixel-btn py-2 flex-1 text-xs md:text-sm',
+                    disabled: !canDraw,
+                    onClick: function () { onAction('draw', {}); },
+                }, '🃏 抽卡'),
                 React.createElement('button', {
                     key: 'build',
                     className: 'pixel-btn py-2 flex-1 text-xs md:text-sm bg-green-500 hover:bg-green-400',
@@ -122,7 +131,7 @@
                     disabled: !canEndTurn,
                     onClick: function () { onAction('end_turn', {}); },
                 }, '⏭️ 結束'),
-            ]) : null,
+            ]),
         ]);
     }
 

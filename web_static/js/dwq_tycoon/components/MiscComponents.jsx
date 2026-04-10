@@ -119,33 +119,15 @@
             }, '📊 利潤結算'),
             React.createElement('div', { key: 'body', className: 'p-4 flex flex-col gap-2' }, [
                 ...items.map(function (item, idx) {
-                    var lines = [
-                        React.createElement('div', { key: 'profit', className: 'flex justify-between' }, [
-                            React.createElement('span', { key: 'l' }, '利潤'),
-                            React.createElement('span', {
-                                key: 'v',
-                                className: 'font-bold ' + (item.total_profit >= 0 ? 'text-green-600' : 'text-red-600'),
-                            }, (item.total_profit >= 0 ? '+' : '') + item.total_profit + ' 萬'),
-                        ]),
-                    ];
-                    if (item.tax > 0) {
-                        lines.push(React.createElement('div', { key: 'tax', className: 'flex justify-between text-sm text-red-500' }, [
-                            React.createElement('span', { key: 'l' }, '🏛️ 地價稅'),
-                            React.createElement('span', { key: 'v' }, '-' + item.tax + ' 萬'),
-                        ]));
-                    }
-                    if (item.subsidy > 0) {
-                        lines.push(React.createElement('div', { key: 'sub', className: 'flex justify-between text-sm text-blue-600' }, [
-                            React.createElement('span', { key: 'l' }, '🏦 政策補貼'),
-                            React.createElement('span', { key: 'v' }, '+' + item.subsidy + ' 萬'),
-                        ]));
-                    }
                     return React.createElement('div', {
                         key: idx,
-                        className: 'p-2 border-2 border-black bg-white',
+                        className: 'p-2 border-2 border-black bg-white flex justify-between',
                     }, [
-                        React.createElement('div', { key: 'name', className: 'font-bold mb-1' }, item.display_name),
-                        ...lines,
+                        React.createElement('span', { key: 'n' }, item.display_name),
+                        React.createElement('span', {
+                            key: 'p',
+                            className: 'font-bold ' + (item.total_profit >= 0 ? 'text-green-600' : 'text-red-600'),
+                        }, (item.total_profit >= 0 ? '+' : '') + item.total_profit + ' 萬'),
                     ]);
                 }),
                 React.createElement('button', {
@@ -157,54 +139,6 @@
         ]));
     }
     window.DwqApp.ProfitReport = ProfitReport;
-
-    // ─── DraftPanel ──────────────────────────────────────
-    function DraftPanel(props) {
-        const state = props.gameState;
-        const me = props.me;
-        const onAction = props.onAction;
-        const C = window.DwqApp.constants;
-
-        if (!state || state.phase !== 'draft') return null;
-        const pool = state.draft_pool || [];
-        const order = state.draft_order || [];
-        const idx = state.draft_current_idx || 0;
-        if (!pool.length || idx >= order.length) return null;
-
-        const isMyPick = order[idx] === me.user_id;
-        const currentDrafter = state.players.find(function (p) { return p.user_id === order[idx]; });
-
-        return React.createElement('div', {
-            className: 'pixel-box bg-[#fffbeb] p-3 flex flex-col gap-2',
-        }, [
-            React.createElement('div', {
-                key: 'title',
-                className: 'text-center font-bold text-sm',
-            }, '🃏 產業選秀 — ' + (isMyPick ? '輪到你!' : '等待 ' + ((currentDrafter || {}).display_name || '...'))),
-            React.createElement('div', {
-                key: 'order',
-                className: 'text-[10px] text-center text-gray-500',
-            }, '選秀順序 (資產低→高): ' + order.map(function (uid, i) {
-                var p = state.players.find(function (pp) { return pp.user_id === uid; });
-                return (i === idx ? '👉' : '') + ((p || {}).display_name || uid);
-            }).join(' → ')),
-            React.createElement('div', {
-                key: 'cards',
-                className: 'flex flex-wrap gap-2 justify-center',
-            }, pool.map(function (industry) {
-                var ind = C.INDUSTRIES[industry] || {};
-                return React.createElement('button', {
-                    key: industry,
-                    className: 'pixel-btn py-2 px-3 text-xs ' + (isMyPick ? 'bg-yellow-300 hover:bg-yellow-200' : 'bg-gray-200 cursor-not-allowed'),
-                    disabled: !isMyPick,
-                    onClick: function () {
-                        if (isMyPick) onAction('draft_pick', { industry: industry });
-                    },
-                }, (ind.icon || '') + ' ' + (ind.name || industry));
-            })),
-        ]);
-    }
-    window.DwqApp.DraftPanel = DraftPanel;
 
     // ─── ConnectionStatus ────────────────────────────────
     function ConnectionStatus(props) {

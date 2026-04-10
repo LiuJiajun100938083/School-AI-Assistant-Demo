@@ -33,19 +33,6 @@ MIN_PLAYERS: int = 3
 MAX_PLAYERS: int = 6
 """房間最多玩家數 (用戶要求)"""
 
-TAX_BRACKETS: list[tuple[int, int]] = [
-    (3, 1),   # 3-4 間工廠：每間收 1 萬
-    (5, 2),   # 5-6 間工廠：每間收 2 萬
-    (7, 3),   # 7+ 間工廠：每間收 3 萬
-]
-"""累進地價稅階梯 (工廠數門檻, 每間稅額)"""
-
-SUBSIDY_RATE: float = 0.2
-"""政策補貼比率 = (平均資產 - 玩家資產) × 此比率"""
-
-SUBSIDY_CAP: int = 50
-"""政策補貼上限 (萬)"""
-
 DISCONNECT_GRACE_SEC: int = 30
 """玩家斷線後游戲暫停的寬限時間 (秒)"""
 

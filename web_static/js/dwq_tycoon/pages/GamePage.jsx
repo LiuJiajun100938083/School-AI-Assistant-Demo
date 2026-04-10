@@ -155,13 +155,6 @@
                     key: 'side',
                     className: 'lg:w-72 flex flex-col gap-2',
                 }, [
-                    // 選秀面板 (DRAFT 階段顯示)
-                    React.createElement(window.DwqApp.DraftPanel, {
-                        key: 'draft',
-                        gameState: gs,
-                        me: me,
-                        onAction: sendAction,
-                    }),
                     // 動作列
                     React.createElement(window.DwqApp.ActionBar, {
                         key: 'ab',
@@ -175,8 +168,7 @@
                             return React.createElement(window.DwqApp.PlayerPanel, {
                                 key: p.user_id,
                                 player: p,
-                                isCurrentTurn: (p.user_id === gs.current_player_user_id && gs.phase === 'action')
-                                    || (gs.phase === 'draft' && gs.draft_order && gs.draft_order[gs.draft_current_idx || 0] === p.user_id),
+                                isCurrentTurn: p.user_id === gs.current_player_user_id && gs.phase === 'action',
                                 isMe: me && p.user_id === me.user_id,
                                 isHost: p.user_id === gs.host_user_id,
                                 maxAp: gs.max_ap,

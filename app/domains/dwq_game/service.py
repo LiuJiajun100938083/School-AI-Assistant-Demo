@@ -348,29 +348,10 @@ class DwqGameService:
             await self.leave_room(room_code, user_dict)
             return
 
-        if action not in ("move", "build", "end_turn", "draft_pick"):
+        if action not in ("move", "draw", "build", "end_turn"):
             raise InvalidActionError("unknown_action", f"未知動作 {action}")
 
-        # ── 選秀動作走專門路徑 ──
-        if action == "draft_pick":
-            result_holder: dict[str, Any] = {}
-
-            async def _do_draft(state: GameState):
-                if user_id not in state.players:
-                    raise PlayerNotFoundError(user_id)
-                industry = payload.get("industry", "")
-                engine.validate_draft_pick(state, user_id, industry)
-                res = engine.do_draft_pick(state, user_id, industry)
-                result_holder["result"] = res
-
-            await self._store.with_room_lock(room_code, _do_draft)
-            await self._ws.send_to_user(room_code, user_id, {
-                "type": "action_ack", "req_id": req_id, "ok": True,
-            })
-            await self._broadcast_state(room_code)
-            return
-
-        # ── 一般動作 ──
+        # 在 room lock 中執行動作
         result_holder: dict[str, Any] = {}
 
         async def _do(state: GameState):
