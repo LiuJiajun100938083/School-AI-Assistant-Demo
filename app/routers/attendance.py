@@ -1117,12 +1117,16 @@ async def list_attendance_exports(
     result = _get_service().list_exports(username, session_type, page, page_size)
     # paginate() 返回 {items, total, page, page_size}
     # 前端期望 {records, total, page, total_pages}
+    records = result.get("items", [])
+    for rec in records:
+        fp = rec.pop("file_path", None)
+        rec["file_available"] = bool(fp and os.path.exists(fp))
     total = result.get("total", 0)
     ps = result.get("page_size", page_size)
     total_pages = (total + ps - 1) // ps if ps > 0 else 0
     return {
         "success": True,
-        "records": result.get("items", []),
+        "records": records,
         "total": total,
         "page": result.get("page", page),
         "total_pages": total_pages,
@@ -1136,12 +1140,18 @@ async def download_attendance_export(
 ):
     """下载导出文件"""
     username, _ = _extract_username(user_info)
-    export_info = _get_service().get_export_file(export_id, username)
+    try:
+        export_info = _get_service().get_export_file(export_id, username)
+    except Exception:
+        logger.warning("Export %s: DB record not found for user=%s", export_id, username)
+        raise HTTPException(status_code=404, detail="导出记录不存在或无权访问")
+
     file_path = export_info.get("file_path")
     file_name = export_info.get("file_name") or "attendance_export.xlsx"
 
     if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="文件不存在")
+        logger.warning("Export %s: file missing on disk, path=%s", export_id, file_path)
+        raise HTTPException(status_code=404, detail="文件已过期，请重新导出")
 
     return FileResponse(
         path=file_path,

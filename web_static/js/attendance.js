@@ -1906,7 +1906,10 @@ function renderExportsList(records) {
                     <span class="stat-tag absent">${i18n.t('att.absentExport')} ${r.absent_count}</span>
                 </div>
                 <div class="export-item-actions">
-                    <button class="export-btn download" onclick="downloadExport(${r.id})">⬇️ ${i18n.t('att.download')}</button>
+                    ${r.file_available === false
+                        ? `<button class="export-btn download" disabled title="${i18n.t('att.fileExpired') || '文件已过期，请重新导出'}">⬇️ ${i18n.t('att.fileExpired') || '已过期'}</button>`
+                        : `<button class="export-btn download" onclick="downloadExport(${r.id})">⬇️ ${i18n.t('att.download')}</button>`
+                    }
                     <button class="export-btn delete" onclick="confirmDeleteExport(${r.id}, '${r.file_name}')">🗑️ ${i18n.t('att.delete')}</button>
                 </div>
             </div>`;
@@ -1960,7 +1963,11 @@ async function downloadExport(exportId) {
         const response = await fetch(`/api/attendance/exports/download/${exportId}`, {
             headers: {'Authorization': `Bearer ${authToken}`}
         });
-        if (!response.ok) throw new Error('Download failed');
+        if (!response.ok) {
+            const err = await response.json().catch(() => null);
+            const detail = err?.detail || err?.message || 'Download failed';
+            throw new Error(detail);
+        }
 
         const contentDisposition = response.headers.get('content-disposition');
         let fileName = 'attendance_export.xlsx';
@@ -1981,7 +1988,7 @@ async function downloadExport(exportId) {
         showToast('✅ ' + i18n.t('att.downloadSuccess'));
     } catch (error) {
         console.error('下載失敗:', error);
-        showToast(i18n.t('att.downloadFailedRetry'));
+        showToast(error.message || i18n.t('att.downloadFailedRetry'));
     }
 }
 

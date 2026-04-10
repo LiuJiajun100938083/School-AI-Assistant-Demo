@@ -967,8 +967,8 @@ class AttendanceExportRepository(BaseRepository):
             order_by="created_at DESC",
             columns=(
                 "id, session_id, session_type, session_date, created_by_name, "
-                "file_name, file_size, student_count, present_count, late_count, "
-                "absent_count, notes, created_at"
+                "file_path, file_name, file_size, student_count, present_count, "
+                "late_count, absent_count, notes, created_at"
             ),
         )
 
