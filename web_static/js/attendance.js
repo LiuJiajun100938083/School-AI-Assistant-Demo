@@ -1788,42 +1788,53 @@ function endSession() {
 }
 
 // 顯示結束點名確認彈窗
-function showEndSessionModal() {
-    // 根據當前會話類型讀取對應的統計數據
-    let present = '0', late = '0', absent = '0';
+async function showEndSessionModal() {
+    // 直接從 API 獲取最新統計，避免 DOM 同步問題
+    let present = 0, late = 0, absent = 0;
     let presentLabel = '', lateLabel = '', absentLabel = '';
 
-    if (currentSessionType === 'detention') {
-        const completedEl = document.getElementById('statCompleted');
-        const activeEl = document.getElementById('statActive');
-        const notCheckedInEl = document.getElementById('statNotCheckedIn');
-        present = completedEl ? completedEl.textContent : '0';
-        late = activeEl ? activeEl.textContent : '0';
-        absent = notCheckedInEl ? notCheckedInEl.textContent : '0';
-        presentLabel = i18n.t('att.statCompleted');
-        lateLabel = i18n.t('att.statActive');
-        absentLabel = i18n.t('att.statNotCheckedIn');
-    } else if (currentSessionType === 'activity') {
-        const onTimeEl = document.getElementById('activityStatOnTime');
-        const lateEl = document.getElementById('activityStatLate');
-        const absentEl = document.getElementById('activityStatAbsent');
-        present = onTimeEl ? onTimeEl.textContent : '0';
-        late = lateEl ? lateEl.textContent : '0';
-        absent = absentEl ? absentEl.textContent : '0';
-        presentLabel = i18n.t('att.statOnTime');
-        lateLabel = i18n.t('att.statLate');
-        absentLabel = i18n.t('att.statAbsent');
-    } else {
-        // 早讀 morning
-        const presentEl = document.getElementById('statPresent');
-        const lateEl = document.getElementById('statLate');
-        const absentEl = document.getElementById('statAbsent');
-        present = presentEl ? presentEl.textContent : '0';
-        late = lateEl ? lateEl.textContent : '0';
-        absent = absentEl ? absentEl.textContent : '0';
-        presentLabel = i18n.t('att.statOnTime');
-        lateLabel = i18n.t('att.statLate');
-        absentLabel = i18n.t('att.statAbsent');
+    try {
+        let apiUrl;
+        if (currentSessionType === 'morning') {
+            apiUrl = `/api/attendance/sessions/${currentSessionId}`;
+        } else if (currentSessionType === 'detention') {
+            apiUrl = `/api/attendance/detention/sessions/${currentSessionId}`;
+        } else if (currentSessionType === 'activity') {
+            apiUrl = `/api/attendance/activity/sessions/${currentSessionId}`;
+        }
+
+        const response = await fetch(apiUrl, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await response.json();
+
+        if (data.success && data.stats) {
+            const stats = data.stats;
+            if (currentSessionType === 'detention') {
+                present = stats.completed || 0;
+                late = stats.active || 0;
+                absent = stats.not_checked_in || 0;
+                presentLabel = i18n.t('att.statCompleted');
+                lateLabel = i18n.t('att.statActive');
+                absentLabel = i18n.t('att.statNotCheckedIn');
+            } else if (currentSessionType === 'activity') {
+                present = stats.on_time || 0;
+                late = stats.late || 0;
+                absent = stats.absent || 0;
+                presentLabel = i18n.t('att.statOnTime');
+                lateLabel = i18n.t('att.statLate');
+                absentLabel = i18n.t('att.statAbsent');
+            } else {
+                present = stats.on_time || 0;
+                late = stats.late || 0;
+                absent = stats.absent || 0;
+                presentLabel = i18n.t('att.statOnTime');
+                lateLabel = i18n.t('att.statLate');
+                absentLabel = i18n.t('att.statAbsent');
+            }
+        }
+    } catch (error) {
+        console.error('獲取結束統計失敗:', error);
     }
 
     document.getElementById('endStatPresent').textContent = present;
