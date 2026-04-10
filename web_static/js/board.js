@@ -661,8 +661,12 @@
                 : '';
             const groupBadge = (sec.kind === 'group') ? '<span class="cb-tag">👥</span>' : '';
 
+            const dragHandle = editable
+                ? `<span class="cb-stream__drag-handle" draggable="true" title="拖動排序">⠿</span>`
+                : '';
             secEl.innerHTML = `
                 <header class="cb-stream__sec-head">
+                    ${dragHandle}
                     <span class="cb-stream__dot" aria-hidden="true"></span>
                     ${titleHtml}
                     ${groupBadge}
@@ -710,8 +714,67 @@
         body.appendChild(wrap);
     }
 
+    // Stream 分段拖拽排序
+    function attachSectionDragSort(stream) {
+        let dragSid = null;
+        stream.querySelectorAll('.cb-stream__drag-handle').forEach(handle => {
+            handle.addEventListener('dragstart', (e) => {
+                const secEl = handle.closest('.cb-stream__section');
+                dragSid = parseInt(secEl.dataset.sid, 10);
+                secEl.classList.add('cb-stream__section--dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', String(dragSid));
+            });
+            handle.addEventListener('dragend', () => {
+                stream.querySelectorAll('.cb-stream__section--dragging').forEach(el => el.classList.remove('cb-stream__section--dragging'));
+                stream.querySelectorAll('.cb-stream__section--drag-over').forEach(el => el.classList.remove('cb-stream__section--drag-over'));
+            });
+        });
+        stream.querySelectorAll('.cb-stream__section').forEach(secEl => {
+            const sid = parseInt(secEl.dataset.sid, 10);
+            if (!sid) return; // skip synthetic sections
+            secEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                secEl.classList.add('cb-stream__section--drag-over');
+            });
+            secEl.addEventListener('dragleave', () => secEl.classList.remove('cb-stream__section--drag-over'));
+            secEl.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                secEl.classList.remove('cb-stream__section--drag-over');
+                const fromSid = dragSid || parseInt(e.dataTransfer.getData('text/plain'), 10);
+                const toSid = sid;
+                if (!fromSid || fromSid === toSid) return;
+                // reorder in store
+                const sections = store.state.sections.slice()
+                    .sort((a, b) => (a.order_index || 0) - (b.order_index || 0) || a.id - b.id);
+                const fromIdx = sections.findIndex(s => s.id === fromSid);
+                const toIdx = sections.findIndex(s => s.id === toSid);
+                if (fromIdx < 0 || toIdx < 0) return;
+                const [moved] = sections.splice(fromIdx, 1);
+                sections.splice(toIdx, 0, moved);
+                // assign new order_index and patch
+                const updates = [];
+                sections.forEach((s, i) => {
+                    if (s.order_index !== i) {
+                        s.order_index = i;
+                        updates.push(s);
+                    }
+                });
+                store.set({ sections: store.state.sections }); // trigger re-render
+                // persist to backend
+                for (const s of updates) {
+                    try {
+                        await api(`/sections/${s.id}`, { method: 'PATCH', body: JSON.stringify({ order_index: s.order_index }) });
+                    } catch (err) { console.error('Failed to update section order:', err); }
+                }
+            });
+        });
+    }
+
     // Stream 事件代理:click delegation for edit-title / del-section / empty-cta
     function attachStreamHandlers(stream) {
+        attachSectionDragSort(stream);
         stream.addEventListener('click', async (e) => {
             const delBtn = e.target.closest('[data-action="del-section"]');
             if (delBtn) {
@@ -1251,16 +1314,47 @@
         });
     }
 
+    let sectionModalStudents = []; // cache for member picker
+
+    function renderMemberPicker(selectedIds = []) {
+        const container = $('#sGroupMembers');
+        const selected = new Set(selectedIds);
+        container.innerHTML = sectionModalStudents.map(s =>
+            `<span class="cb-member-chip ${selected.has(s.id) ? 'selected' : ''}" data-id="${s.id}">
+                <span class="num">${esc(s.class_number || '')}</span>
+                ${esc(s.display_name)}
+            </span>`
+        ).join('');
+        container.querySelectorAll('.cb-member-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                chip.classList.toggle('selected');
+            });
+        });
+    }
+
+    function getSelectedMemberIds() {
+        return Array.from($('#sGroupMembers').querySelectorAll('.cb-member-chip.selected'))
+            .map(el => parseInt(el.dataset.id, 10));
+    }
+
     function initSectionModal() {
         $('#btnAddSection').addEventListener('click', () => {
             $('#sName').value = '';
             $('#sKind').value = 'column';
-            $('#sGroupMembers').value = '';
             $('#sGroupWrap').style.display = 'none';
+            $('#sGroupMembers').innerHTML = '';
             $('#sectionModal').classList.add('open');
         });
-        $('#sKind').addEventListener('change', (e) => {
-            $('#sGroupWrap').style.display = e.target.value === 'group' ? '' : 'none';
+        $('#sKind').addEventListener('change', async (e) => {
+            const isGroup = e.target.value === 'group';
+            $('#sGroupWrap').style.display = isGroup ? '' : 'none';
+            if (isGroup && !sectionModalStudents.length) {
+                $('#sGroupMembers').innerHTML = '<span style="color:var(--cb-text-3);font-size:12px">載入中…</span>';
+                try {
+                    sectionModalStudents = await api('/class-students') || [];
+                } catch { sectionModalStudents = []; }
+            }
+            if (isGroup) renderMemberPicker();
         });
         $('#sSubmit').addEventListener('click', async () => {
             const kind = $('#sKind').value;
@@ -1268,8 +1362,7 @@
             if (!name) { alert(i18n.t('cb.sectionNamePh')); return; }
             const payload = { name, kind, order_index: store.state.sections.length };
             if (kind === 'group') {
-                payload.group_members = $('#sGroupMembers').value
-                    .split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
+                payload.group_members = getSelectedMemberIds();
             }
             try {
                 const sec = await api('/sections', { method: 'POST', body: JSON.stringify(payload) });
@@ -1449,6 +1542,55 @@
             groups.columns.push({ id: tmpId, name, isNew: true });
             groups.assignments[tmpId] = [];
             $('#newGroupName').value = '';
+            groups.dirty = true;
+            renderGroupsBoard();
+        });
+
+        $('#btnRandomGroup').addEventListener('click', () => {
+            const perGroup = parseInt($('#randomPerGroup').value, 10);
+            if (!perGroup || perGroup < 2) { alert(i18n.t('cb.randomGroupMin')); return; }
+            // collect all student ids (unassigned + already in groups)
+            const allIds = [];
+            for (const [, ids] of Object.entries(groups.assignments)) {
+                allIds.push(...ids);
+            }
+            // Fisher-Yates shuffle
+            for (let i = allIds.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allIds[i], allIds[j]] = [allIds[j], allIds[i]];
+            }
+            // split into groups
+            const numGroups = Math.ceil(allIds.length / perGroup);
+            // remove old non-unassigned columns that are isNew (keep existing saved groups or clear them)
+            // reset all assignments
+            const newColumns = [{ id: 'unassigned', name: i18n.t('cb.unassigned') }];
+            const newAssignments = { unassigned: [] };
+            // keep existing saved group sections but clear their members
+            for (const col of groups.columns) {
+                if (col.id !== 'unassigned' && !col.isNew) {
+                    newColumns.push(col);
+                    newAssignments[col.id] = [];
+                }
+            }
+            // create new groups as needed
+            for (let i = newColumns.length - 1; i < numGroups; i++) {
+                const tmpId = 'new-' + Date.now() + '-' + i;
+                newColumns.push({ id: tmpId, name: `${i18n.t('cb.groupPrefix')} ${i + 1}`, isNew: true });
+                newAssignments[tmpId] = [];
+            }
+            // assign students to groups (skip 'unassigned' column)
+            const groupCols = newColumns.filter(c => c.id !== 'unassigned');
+            allIds.forEach((sid, idx) => {
+                const colIdx = Math.floor(idx / perGroup);
+                if (colIdx < groupCols.length) {
+                    newAssignments[groupCols[colIdx].id].push(sid);
+                } else {
+                    // overflow goes to last group
+                    newAssignments[groupCols[groupCols.length - 1].id].push(sid);
+                }
+            });
+            groups.columns = newColumns;
+            groups.assignments = newAssignments;
             groups.dirty = true;
             renderGroupsBoard();
         });

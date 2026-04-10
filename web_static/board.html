@@ -141,7 +141,8 @@
                     </select>
                 </div>
                 <div class="cb-field" id="sGroupWrap" style="display:none">
-                    <input type="text" id="sGroupMembers" data-i18n-placeholder="cb.sectionGroupMembersPh">
+                    <label style="font-size:12px;color:var(--cb-text-2)" data-i18n="cb.clickToSelect">點擊選擇組員</label>
+                    <div id="sGroupMembers" class="cb-member-picker"></div>
                 </div>
             </div>
             <div class="cb-modal__foot">
@@ -164,6 +165,12 @@
                 <div style="display:flex;gap:8px;margin-top:8px">
                     <input type="text" id="newGroupName" class="cb-search" data-i18n-placeholder="cb.groupName" style="flex:1">
                     <button id="btnAddGroup" class="cb-btn" data-i18n="cb.addGroup">新增組</button>
+                </div>
+                <div class="cb-random-group-bar">
+                    <span data-i18n="cb.randomGroupLabel">隨機分組：每組</span>
+                    <input type="number" id="randomPerGroup" min="2" max="20" value="4">
+                    <span data-i18n="cb.randomGroupUnit">人</span>
+                    <button id="btnRandomGroup" class="cb-btn" data-i18n="cb.randomGroup">隨機分配</button>
                 </div>
             </div>
             <div class="cb-modal__foot">
