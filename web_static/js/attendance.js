@@ -1906,10 +1906,7 @@ function renderExportsList(records) {
                     <span class="stat-tag absent">${i18n.t('att.absentExport')} ${r.absent_count}</span>
                 </div>
                 <div class="export-item-actions">
-                    ${r.file_available === false
-                        ? `<button class="export-btn download" disabled title="${i18n.t('att.fileExpired') || '文件已过期，请重新导出'}">⬇️ ${i18n.t('att.fileExpired') || '已过期'}</button>`
-                        : `<button class="export-btn download" onclick="downloadExport(${r.id})">⬇️ ${i18n.t('att.download')}</button>`
-                    }
+                    <button class="export-btn download" onclick="downloadExport(${r.id})">⬇️ ${i18n.t('att.download')}</button>
                     <button class="export-btn delete" onclick="confirmDeleteExport(${r.id}, '${r.file_name}')">🗑️ ${i18n.t('att.delete')}</button>
                 </div>
             </div>`;
