@@ -490,11 +490,8 @@
                     if (!body) return;
                     const parent_id = input.dataset.parent ? parseInt(input.dataset.parent, 10) : undefined;
                     const payload = parent_id ? { body, parent_id } : { body };
-                    const c = await api(`/posts/${p.id}/comments`, { method: 'POST', body: JSON.stringify(payload) });
-                    if (c) {
-                        p.comments = (p.comments || []).concat([c]);
-                        store._emit();
-                    }
+                    await api(`/posts/${p.id}/comments`, { method: 'POST', body: JSON.stringify(payload) });
+                    // UI update handled by WebSocket 'comment.added' broadcast
                     input.value = '';
                     delete input.dataset.parent;
                     input.placeholder = i18n.t('cb.commentPh');
