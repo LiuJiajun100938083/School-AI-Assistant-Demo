@@ -30,6 +30,7 @@ class GamePhase:
     """遊戲階段"""
     EVENT = "event"          # 歷史事件揭示中
     PROFIT = "profit"        # 利潤結算中
+    DRAFT = "draft"          # 產業選秀階段
     ACTION = "action"        # 玩家行動階段
     FINISHED = "finished"    # 遊戲結束
 
@@ -99,6 +100,11 @@ class GameState:
     factories: dict[str, Factory] = field(default_factory=dict)
     deck: list[str] = field(default_factory=list)        # 剩餘圖紙 (industry_id 列表)
     discard: list[str] = field(default_factory=list)
+
+    # ── 選秀 (DRAFT) 狀態 ──
+    draft_pool: list[str] = field(default_factory=list)        # 本回合翻出的產業卡
+    draft_order: list[int] = field(default_factory=list)       # 選秀順序 (user_id, 資產低→高)
+    draft_current_idx: int = 0                                 # 當前選秀玩家在 draft_order 的索引
 
     # ── 事件與規則修飾 ──
     current_event: Optional[dict] = None  # 當前回合的事件 (對應 EVENTS[turn_index])

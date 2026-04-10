@@ -434,6 +434,44 @@ def settle_profit(state: GameState) -> dict[int, dict]:
     return report
 
 
+def collect_tax(state: GameState) -> dict[int, int]:
+    """結算累進地價稅。返回 {user_id: tax_amount}。"""
+    tax_report: dict[int, int] = {}
+    for user_id, player in state.players.items():
+        n = len(player.factory_ids)
+        rate = 0
+        for threshold, r in C.TAX_BRACKETS:
+            if n >= threshold:
+                rate = r
+        tax = rate * n
+        if tax > 0:
+            player.money -= tax
+            state.append_log(f"🏛️ {player.display_name} 繳納地價稅 {tax} 萬 ({n} 間×{rate})", "sys")
+        tax_report[user_id] = tax
+    return tax_report
+
+
+def distribute_subsidy(state: GameState) -> dict[int, int]:
+    """資產低於平均的玩家獲得政策補貼。返回 {user_id: subsidy_amount}。"""
+    subsidy_report: dict[int, int] = {}
+    if not state.players:
+        return subsidy_report
+    avg = sum(p.money for p in state.players.values()) / len(state.players)
+    for user_id, player in state.players.items():
+        if player.money < avg:
+            raw = int((avg - player.money) * C.SUBSIDY_RATE)
+            subsidy = min(raw, C.SUBSIDY_CAP)
+            if subsidy > 0:
+                player.money += subsidy
+                state.append_log(
+                    f"🏦 {player.display_name} 獲得政策補貼 {subsidy} 萬", "success"
+                )
+            subsidy_report[user_id] = subsidy
+        else:
+            subsidy_report[user_id] = 0
+    return subsidy_report
+
+
 def reset_action_points(state: GameState) -> None:
     """新回合開始時,所有玩家行動點重置"""
     for player in state.players.values():
@@ -554,17 +592,126 @@ def begin_turn_event_phase(state: GameState) -> dict:
     return apply_event(state, event)
 
 
-def begin_profit_phase(state: GameState) -> dict[int, dict]:
-    """進入 PROFIT 階段:結算利潤"""
+def begin_profit_phase(state: GameState) -> dict:
+    """進入 PROFIT 階段:結算利潤 → 收稅 → 補貼"""
     state.phase = GamePhase.PROFIT
-    return settle_profit(state)
+    profit_report = settle_profit(state)
+    tax_report = collect_tax(state)
+    subsidy_report = distribute_subsidy(state)
+    # 把稅金和補貼注入每個玩家的報告
+    for uid, pr in profit_report.items():
+        pr["tax"] = tax_report.get(uid, 0)
+        pr["subsidy"] = subsidy_report.get(uid, 0)
+        pr["new_money"] = state.players[uid].money  # 更新為稅後+補貼後
+    return profit_report
 
 
-def begin_action_phase(state: GameState) -> None:
+def begin_draft_phase(state: GameState) -> dict:
+    """進入 DRAFT 階段:翻出 N+1 張卡,按資產低→高排序選秀。
+
+    已持有手牌的玩家自動跳過選秀。
+    """
+    state.phase = GamePhase.DRAFT
+
+    # 按資產從低到高排序 (同資產按座位排)
+    eligible = [p for p in state.players.values() if p.hand is None]
+    eligible.sort(key=lambda p: (p.money, p.seat_index))
+    state.draft_order = [p.user_id for p in eligible]
+    state.draft_current_idx = 0
+
+    # 翻出 N+1 張卡 (N = eligible 人數)
+    pool_size = len(eligible) + 1
+    available = [c for c in state.deck if c in state.unlocked_industries]
+    random.shuffle(available)
+    pool = available[:pool_size]
+    state.draft_pool = pool
+
+    if not pool:
+        state.append_log("🃏 牌庫已無可用圖紙,跳過選秀", "sys")
+        state.draft_order = []
+
+    if not state.draft_order:
+        # 無人需要選秀,直接進入 ACTION
+        _enter_action_phase(state)
+        return {"draft_pool": [], "draft_order": [], "skipped": True}
+
+    first = state.players[state.draft_order[0]]
+    state.append_log(
+        f"🃏 選秀開始!翻出 {len(pool)} 張圖紙,{first.display_name} 先選", "event"
+    )
+    return {
+        "draft_pool": list(pool),
+        "draft_order": list(state.draft_order),
+        "skipped": False,
+    }
+
+
+def validate_draft_pick(state: GameState, user_id: int, industry: str) -> None:
+    """校驗選秀選擇"""
+    if state.phase != GamePhase.DRAFT:
+        raise WrongPhaseError(state.phase, GamePhase.DRAFT)
+    if not state.draft_order:
+        raise InvalidActionError("no_draft", "選秀已結束")
+    expected = state.draft_order[state.draft_current_idx]
+    if user_id != expected:
+        raise NotYourTurnError()
+    if industry not in state.draft_pool:
+        raise InvalidActionError("not_in_pool", f"圖紙 {industry} 不在選秀池中")
+
+
+def do_draft_pick(state: GameState, user_id: int, industry: str) -> dict:
+    """執行選秀選擇"""
+    player = _get_player_or_raise(state, user_id)
+    player.hand = industry
+    state.draft_pool.remove(industry)
+    state.deck.remove(industry)
+    state.append_log(f"🃏 {player.display_name} 選擇了 [{industry}] 圖紙", "success")
+
+    # 推進到下一位選秀玩家
+    state.draft_current_idx += 1
+    draft_done = state.draft_current_idx >= len(state.draft_order)
+
+    if draft_done:
+        _enter_action_phase(state)
+
+    state.version += 1
+    import time as _t
+    state.updated_at = _t.time()
+    return {
+        "action": "draft_pick",
+        "user_id": user_id,
+        "industry": industry,
+        "draft_done": draft_done,
+    }
+
+
+def auto_skip_draft(state: GameState) -> Optional[dict]:
+    """自動跳過 AFK 玩家的選秀 (隨機選一張)"""
+    if state.phase != GamePhase.DRAFT or not state.draft_order:
+        return None
+    if state.draft_current_idx >= len(state.draft_order):
+        return None
+    uid = state.draft_order[state.draft_current_idx]
+    player = state.players.get(uid)
+    if player is None or not player.is_afk:
+        return None
+    if not state.draft_pool:
+        return None
+    pick = random.choice(state.draft_pool)
+    state.append_log(f"⏭️ {player.display_name} 因 AFK 自動選擇了 [{pick}]", "sys")
+    return do_draft_pick(state, uid, pick)
+
+
+def _enter_action_phase(state: GameState) -> None:
     """進入 ACTION 階段:重置 AP,從 seat 0 開始"""
     state.phase = GamePhase.ACTION
     state.current_player_seat = 0
     reset_action_points(state)
+
+
+def begin_action_phase(state: GameState) -> None:
+    """進入 ACTION 階段:重置 AP,從 seat 0 開始 (向後兼容)"""
+    _enter_action_phase(state)
 
 
 def end_action_phase_and_advance(state: GameState) -> dict:
@@ -596,32 +743,35 @@ def end_action_phase_and_advance(state: GameState) -> dict:
     # 2. PROFIT phase
     profit_report = begin_profit_phase(state)
 
-    # 3. ACTION phase
-    begin_action_phase(state)
+    # 3. DRAFT phase
+    draft_result = begin_draft_phase(state)
 
+    # 如果選秀被跳過 (無人需要/牌庫空), phase 已經是 ACTION
     return {
-        "phase": GamePhase.ACTION,
+        "phase": state.phase,
         "is_game_over": False,
         "turn_index": state.turn_index,
         "event_result": event_result,
         "profit_report": profit_report,
+        "draft_result": draft_result,
     }
 
 
 def initial_turn_setup(state: GameState) -> dict:
-    """遊戲剛 start 後的第一次階段推進:event → profit → action
+    """遊戲剛 start 後的第一次階段推進:event → profit → draft → action
 
     第一回合沒有上回合的工廠,profit 必為 0,但仍走流程保持一致。
     """
     event_result = begin_turn_event_phase(state)
     profit_report = begin_profit_phase(state)
-    begin_action_phase(state)
+    draft_result = begin_draft_phase(state)
     return {
-        "phase": GamePhase.ACTION,
+        "phase": state.phase,
         "is_game_over": False,
         "turn_index": state.turn_index,
         "event_result": event_result,
         "profit_report": profit_report,
+        "draft_result": draft_result,
     }
 
 
@@ -631,7 +781,6 @@ def initial_turn_setup(state: GameState) -> dict:
 
 ACTION_HANDLERS = {
     "move": (validate_move, do_move),
-    "draw": (validate_draw, do_draw),
     "build": (validate_build, do_build),
     "end_turn": (validate_end_turn, do_end_turn),
 }
@@ -782,6 +931,9 @@ def serialize_state_for_viewer(state: GameState, viewer_user_id: Optional[int] =
         "free_build_city": state.free_build_city,
         "double_synergy": state.double_synergy,
         "blocked_cities": list(state.blocked_cities),
+        "draft_pool": list(state.draft_pool),
+        "draft_order": list(state.draft_order),
+        "draft_current_idx": state.draft_current_idx,
         "event_log": list(state.event_log[:30]),
         "version": state.version,
         "winner_user_id": state.winner_user_id,
