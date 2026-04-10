@@ -241,6 +241,13 @@
             canManageSectionsClient(state);
         $('#btnAddSection').style.display = canAddSection ? 'inline-flex' : 'none';
 
+        // 協作者按鈕: 僅 owner 可見
+        const collabBtn = $('#btnManageCollabs');
+        if (collabBtn) {
+            const isOwner = state.me && state.board && state.board.owner_id === state.me.id;
+            collabBtn.style.display = isOwner ? 'inline-flex' : 'none';
+        }
+
         // Menu dropdown:同步 section_edit_open 開關的勾選狀態
         const semBtn = document.querySelector('#menuDropdown [data-action="toggle-section-edit"]');
         if (semBtn) {
@@ -1646,6 +1653,50 @@
     // ────────────────────────────────────────────────
     //  Toolbar: search / sort / tag filter / menu / activity
     // ────────────────────────────────────────────────
+    // ────────────────────────────────────────────────
+    //  管理協作者
+    // ────────────────────────────────────────────────
+    window.closeCollabModal = () => $('#collabModal').classList.remove('open');
+
+    function initCollabModal() {
+        const btn = $('#btnManageCollabs');
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+            const modal = $('#collabModal');
+            modal.classList.add('open');
+            const list = $('#collabList');
+            list.innerHTML = '<span style="color:var(--cb-text-3);font-size:12px">載入中…</span>';
+            try {
+                const resp = await api('/available-teachers');
+                const teachers = resp || [];
+                list.innerHTML = teachers.map(t =>
+                    `<span class="cb-member-chip ${t.is_collaborator ? 'selected' : ''}" data-id="${t.id}">
+                        <span class="num">${esc(t.class_name || '')}</span>
+                        ${esc(t.display_name)}
+                    </span>`
+                ).join('') || `<span style="color:var(--cb-text-3);font-size:12px">${i18n.t('cb.noTeachers')}</span>`;
+                list.querySelectorAll('.cb-member-chip').forEach(chip => {
+                    chip.addEventListener('click', () => chip.classList.toggle('selected'));
+                });
+            } catch (e) {
+                list.innerHTML = `<span style="color:red">${esc(e.message)}</span>`;
+            }
+        });
+
+        $('#btnSaveCollabs').addEventListener('click', async () => {
+            const ids = Array.from($('#collabList').querySelectorAll('.cb-member-chip.selected'))
+                .map(el => parseInt(el.dataset.id, 10));
+            try {
+                await api('', { method: 'PUT', body: JSON.stringify({ collaborators: ids }) });
+                // 更新 store 中的 board
+                if (store.state.board) store.state.board.collaborators = ids;
+                store._emit();
+                closeCollabModal();
+                UIModule && UIModule.toast ? UIModule.toast(i18n.t('cb.collaboratorsSaved'), 'success') : alert(i18n.t('cb.collaboratorsSaved'));
+            } catch (e) { alert(e.message); }
+        });
+    }
+
     function initToolbar() {
         // search
         const searchInput = $('#searchInput');
@@ -1802,6 +1853,7 @@
         initLayoutSwitch();
         initToolbar();
         initGroupsModal();
+        initCollabModal();
         initKeyboard();
         store.subscribe(render);
 

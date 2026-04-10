@@ -50,6 +50,11 @@ def _same_class(board: Board, user: User) -> bool:
     return bool(board_class) and board_class == user_class
 
 
+def _is_collaborator(board: Board, user: User) -> bool:
+    collaborators = board.get("collaborators") or []
+    return user.get("id") in collaborators
+
+
 # ============================================================
 # can_view — 誰能看板
 # ============================================================
@@ -58,24 +63,24 @@ def can_view(board: Board, user: User) -> bool:
     """
     規則:
       - admin 永遠可看
-      - 歸檔板：僅 owner 與 staff 可看
-      - visibility=private: 僅 owner
-      - visibility=class:   同班學生 + 任何 teacher/admin + owner
+      - 歸檔板：僅 owner / 協作者 / admin 可看
+      - visibility=private: owner + 協作者
+      - visibility=class:   owner + 協作者 + 同班學生
       - visibility=public:  任何登入者
     """
     if _is_admin(user):
         return True
 
     if board.get("is_archived"):
-        return _is_owner(board, user) or _is_staff(user)
+        return _is_owner(board, user) or _is_collaborator(board, user)
 
     visibility = board.get("visibility")
 
     if visibility == "private":
-        return _is_owner(board, user)
+        return _is_owner(board, user) or _is_collaborator(board, user)
 
     if visibility == "class":
-        return _is_owner(board, user) or _is_staff(user) or _same_class(board, user)
+        return _is_owner(board, user) or _is_collaborator(board, user) or _same_class(board, user)
 
     if visibility == "public":
         return True
@@ -103,7 +108,7 @@ def can_post(board: Board, section: Optional[Section], user: User) -> bool:
     if not can_view(board, user):
         return False
 
-    if _is_staff(user):
+    if can_moderate(board, user):
         return True
 
     if section is None:
@@ -122,9 +127,9 @@ def can_post(board: Board, section: Optional[Section], user: User) -> bool:
 
 def can_moderate(board: Board, user: User) -> bool:
     """
-    規則: owner 或 teacher/admin
+    規則: owner / 協作者 / admin
     """
-    return _is_owner(board, user) or _is_staff(user)
+    return _is_owner(board, user) or _is_collaborator(board, user) or _is_admin(user)
 
 
 # ============================================================

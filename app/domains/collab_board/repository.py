@@ -163,6 +163,7 @@ class CollabBoardRepository(BaseRepository):
             ("collab_board_posts", "pinned", "ALTER TABLE collab_board_posts ADD COLUMN pinned BOOLEAN DEFAULT FALSE AFTER is_anonymous"),
             ("collab_board_comments", "parent_id", "ALTER TABLE collab_board_comments ADD COLUMN parent_id INT NULL AFTER author_id"),
             ("collab_board_comments", "mentions", "ALTER TABLE collab_board_comments ADD COLUMN mentions JSON AFTER body"),
+            ("collab_boards", "collaborators", "ALTER TABLE collab_boards ADD COLUMN collaborators JSON DEFAULT '[]' AFTER owner_id"),
         ]
         # kind ENUM 需要 MODIFY 而非 ADD
         alter_kind_sql = (
@@ -222,17 +223,22 @@ class CollabBoardRepository(BaseRepository):
             row = cursor.fetchone()
             return row["id"] if row else 0
 
+    def _parse_board(self, row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if row:
+            row["collaborators"] = _loads(row.get("collaborators")) or []
+        return row
+
     def get_board_by_uuid(self, uuid: str) -> Optional[Dict[str, Any]]:
         rows = self.pool.execute(
             "SELECT * FROM collab_boards WHERE uuid=%s LIMIT 1", (uuid,)
         )
-        return rows[0] if rows else None
+        return self._parse_board(rows[0]) if rows else None
 
     def get_board_by_id(self, board_id: int) -> Optional[Dict[str, Any]]:
         rows = self.pool.execute(
             "SELECT * FROM collab_boards WHERE id=%s LIMIT 1", (board_id,)
         )
-        return rows[0] if rows else None
+        return self._parse_board(rows[0]) if rows else None
 
     def list_boards_for_user(
         self,
@@ -243,15 +249,26 @@ class CollabBoardRepository(BaseRepository):
     ) -> List[Dict[str, Any]]:
         """根據使用者可見性列表板
 
-        規則與 policy.can_view 對齊（staff 看全部；學生看 public + 同班 class + 自建 private）
+        規則:
+          - admin 看全部
+          - teacher 看: 自建 + 被邀協作 + public
+          - student 看: public + 同班 class + 自建 private
         """
         clauses = []
         params: List[Any] = []
 
-        if user_role in ("teacher", "admin"):
-            # 全部
-            pass
+        if user_role == "admin":
+            pass  # admin 看全部
+        elif user_role == "teacher":
+            # 自建 OR 被邀协作 OR public
+            clauses.append(
+                "(owner_id=%s "
+                "OR JSON_CONTAINS(collaborators, CAST(%s AS JSON)) "
+                "OR visibility='public')"
+            )
+            params.extend([user_id, user_id])
         else:
+            # student
             clauses.append(
                 "(visibility='public' "
                 "OR (visibility='class' AND class_name=%s) "
@@ -264,11 +281,17 @@ class CollabBoardRepository(BaseRepository):
 
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         sql = f"SELECT * FROM collab_boards{where} ORDER BY updated_at DESC LIMIT 200"
-        return self.pool.execute(sql, tuple(params)) or []
+        rows = self.pool.execute(sql, tuple(params)) or []
+        for r in rows:
+            r["collaborators"] = _loads(r.get("collaborators")) or []
+        return rows
 
     def update_board(self, board_id: int, updates: Dict[str, Any]) -> int:
         if not updates:
             return 0
+        # JSON 字段序列化
+        if "collaborators" in updates:
+            updates["collaborators"] = _dumps(updates["collaborators"] or [])
         set_clause = ", ".join(f"{k}=%s" for k in updates.keys())
         values = list(updates.values()) + [board_id]
         return self.pool.execute_write(

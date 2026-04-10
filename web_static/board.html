@@ -66,6 +66,7 @@
             </div>
             <button id="btnAddSection" class="cb-btn" style="display:none" data-i18n="cb.addSection">新增分段</button>
             <button id="btnManageGroups" class="cb-btn" data-i18n="cb.manageGroups">管理分組</button>
+            <button id="btnManageCollabs" class="cb-btn" style="display:none" data-i18n="cb.manageCollaborators">管理協作者</button>
         </div>
         <div id="boardBody" class="cb-workspace__body">
             <div class="cb-empty"><div class="cb-empty__icon">⏳</div></div>
@@ -176,6 +177,24 @@
             <div class="cb-modal__foot">
                 <button class="cb-btn" onclick="closeGroupsModal()" data-i18n="cb.cancel">取消</button>
                 <button class="cb-btn cb-btn--primary" id="btnSaveGroups" data-i18n="cb.saveGroups">儲存分組</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collaborators modal -->
+    <div id="collabModal" class="cb-modal">
+        <div class="cb-modal__card">
+            <div class="cb-modal__head">
+                <span data-i18n="cb.manageCollaborators">管理協作者</span>
+                <button class="cb-modal__close" onclick="closeCollabModal()">×</button>
+            </div>
+            <div class="cb-modal__body">
+                <div style="font-size:12px;color:var(--cb-text-2)" data-i18n="cb.collabHint">點擊添加或移除協作教師</div>
+                <div id="collabList" class="cb-member-picker" style="margin-top:8px"></div>
+            </div>
+            <div class="cb-modal__foot">
+                <button class="cb-btn" onclick="closeCollabModal()" data-i18n="cb.cancel">取消</button>
+                <button class="cb-btn cb-btn--primary" id="btnSaveCollabs" data-i18n="cb.saveCollaborators">儲存</button>
             </div>
         </div>
     </div>

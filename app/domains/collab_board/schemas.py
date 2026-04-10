@@ -67,6 +67,7 @@ class BoardUpdate(BaseModel):
     visibility: Optional[str] = None
     moderation: Optional[bool] = None
     section_edit_open: Optional[bool] = None
+    collaborators: Optional[List[int]] = None
 
     @field_validator("layout")
     @classmethod

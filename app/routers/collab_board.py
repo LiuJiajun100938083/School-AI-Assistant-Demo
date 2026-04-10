@@ -340,6 +340,44 @@ async def list_class_students(
     ])
 
 
+@router.get("/{board_uuid}/available-teachers")
+async def list_available_teachers(
+    board_uuid: str,
+    user: Dict = Depends(get_current_user),
+):
+    """取得可邀請的教師列表（排除自己）"""
+    loop = asyncio.get_event_loop()
+    svc = _svc()
+
+    def _load():
+        board = svc._repo.get_board_by_uuid(board_uuid)  # noqa: SLF001
+        if not board:
+            return [], []
+        from app.domains.collab_board import policy as _policy
+        _policy.ensure_can_moderate(board, user)
+        teachers = get_database_pool().execute(
+            "SELECT id, username, display_name, class_name "
+            "FROM users "
+            "WHERE role='teacher' AND is_active=TRUE AND id != %s "
+            "ORDER BY display_name ASC",
+            (user["id"],),
+        ) or []
+        return teachers, board.get("collaborators") or []
+
+    teachers, current_collabs = await loop.run_in_executor(None, _load)
+    collab_set = set(current_collabs)
+    return _ok([
+        {
+            "id": t.get("id"),
+            "username": t.get("username"),
+            "display_name": t.get("display_name") or t.get("username"),
+            "class_name": t.get("class_name") or "",
+            "is_collaborator": t.get("id") in collab_set,
+        }
+        for t in teachers
+    ])
+
+
 @router.post("/{board_uuid}/group-assignments")
 async def save_group_assignments(
     board_uuid: str,
