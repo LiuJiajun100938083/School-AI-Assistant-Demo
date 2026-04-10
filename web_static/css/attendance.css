@@ -115,6 +115,17 @@ html {
     /* 佈局 */
     --header-height: 60px;
     --left-panel-width: 320px;
+
+    /* ── iOS 毛玻璃 (Glassmorphism) ── */
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-bg-heavy: rgba(255, 255, 255, 0.85);
+    --glass-bg-light: rgba(255, 255, 255, 0.55);
+    --glass-blur: 20px;
+    --glass-saturate: 180%;
+    --glass-border: rgba(255, 255, 255, 0.45);
+    --glass-border-subtle: rgba(0, 0, 0, 0.06);
+    --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --glass-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 /* ========== 基礎重置 ========== */
@@ -135,7 +146,8 @@ body {
     font-size: 14px;
     line-height: 1.5;
     color: var(--text-primary);
-    background: var(--bg-page);
+    background: linear-gradient(135deg, #e8f5ee 0%, #f5f5f7 40%, #e6f0fb 70%, #f0eef8 100%);
+    background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow: hidden; /* 阻止 iOS Safari/Chrome body 彈性滾動導致底部空白 */
@@ -219,15 +231,16 @@ body {
     left: 0;
     right: 0;
     height: var(--header-height);
-    background: var(--bg-page);
-    border-bottom: none;
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-bottom: 0.5px solid var(--glass-border-subtle);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04), 0 -2px 8px rgba(255, 255, 255, 0.6);
+    box-shadow: var(--glass-shadow);
     padding: 0 20px;
     z-index: 100;
-    box-shadow: var(--shadow-sm);
 }
 
 .header-left {
@@ -299,13 +312,15 @@ body {
 .left-panel {
     width: var(--left-panel-width);
     min-width: var(--left-panel-width);
-    background: var(--bg-page);
-    border-right: none;
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-right: 0.5px solid var(--glass-border-subtle);
     display: flex;
     flex-direction: column;
     transition: all 0.3s var(--ease-out);
     overflow: hidden;
-    box-shadow: 6px 0 16px rgba(0, 0, 0, 0.04), -2px 0 8px rgba(255, 255, 255, 0.6);
+    box-shadow: var(--glass-shadow);
 }
 
 .left-panel.collapsed {
@@ -475,8 +490,10 @@ body {
 .panel-footer {
     margin-top: auto;
     padding: 16px 20px;
-    background: var(--bg-page);
-    border-top: none;
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-top: 0.5px solid var(--glass-border-subtle);
 }
 
 .panel-footer .selected-count {
@@ -624,7 +641,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--bg-page);
+    background: transparent;
     min-height: 0;
 }
 
@@ -1130,10 +1147,10 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-top: 0.5px solid var(--glass-border-subtle);
     flex-shrink: 0;
 }
 
@@ -1211,8 +1228,8 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .modal-overlay.active {
@@ -1220,14 +1237,17 @@ body {
 }
 
 .modal {
-    background: var(--bg-card);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-xl);
     padding: 28px;
     max-width: 500px;
     width: 90%;
     max-height: 80vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--glass-shadow-lg);
     animation: modalSlideIn 0.3s var(--ease-spring);
 }
 
@@ -1315,8 +1335,8 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .manual-scan-modal.active {
@@ -1324,12 +1344,15 @@ body {
 }
 
 .manual-scan-content {
-    background: var(--bg-card);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-xl);
     padding: 28px;
     width: 400px;
     max-width: 90%;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--glass-shadow-lg);
     animation: modalSlideIn 0.3s var(--ease-spring);
 }
 
@@ -1463,8 +1486,8 @@ body {
     z-index: 1000;
     justify-content: center;
     align-items: center;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .end-session-modal.active {
@@ -1472,12 +1495,15 @@ body {
 }
 
 .end-session-content {
-    background: var(--bg-card);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-xl);
     padding: 28px;
     width: 400px;
     max-width: 90%;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--glass-shadow-lg);
     animation: modalSlideIn 0.3s var(--ease-spring);
 }
 
@@ -1640,8 +1666,8 @@ body {
     z-index: 1000;
     justify-content: center;
     align-items: center;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .exports-panel.active {
@@ -1649,14 +1675,17 @@ body {
 }
 
 .exports-panel-content {
-    background: var(--bg-card);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-xl);
     width: 650px;
     max-width: 95%;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--glass-shadow-lg);
     animation: modalSlideIn 0.3s var(--ease-spring);
 }
 
@@ -1929,8 +1958,8 @@ body {
     z-index: 1000;
     justify-content: center;
     align-items: center;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .periods-modal.active {
@@ -1938,12 +1967,15 @@ body {
 }
 
 .periods-modal-content {
-    background: var(--bg-card);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-xl);
     padding: 28px;
     min-width: 340px;
     max-width: 90%;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--glass-shadow-lg);
     animation: modalSlideIn 0.3s var(--ease-spring);
 }
 
@@ -2289,13 +2321,13 @@ body {
     pointer-events: auto;
     position: relative;
 
-    /* 淺色玻璃效果 */
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    /* iOS 毛玻璃效果 */
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 
     /* 邊框和陰影 */
-    border: 1px solid var(--border-default);
+    border: 0.5px solid var(--glass-border);
     box-shadow: var(--shadow-modal);
 
     /* 初始狀態 */
@@ -2469,16 +2501,18 @@ body {
     left: 50%;
     transform: translateX(-50%) translateY(100px);
     padding: 14px 28px;
-    background: var(--bg-card);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     color: var(--text-primary);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-elevated);
+    box-shadow: var(--glass-shadow);
     font-size: 14px;
     font-weight: 500;
     z-index: 10001;
     opacity: 0;
     transition: all 0.3s var(--ease-spring);
-    border: 1px solid var(--border-default);
+    border: 0.5px solid var(--glass-border);
 }
 
 .toast.show {
@@ -2510,8 +2544,8 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 .student-select-modal.active {
@@ -2519,14 +2553,17 @@ body {
 }
 
 .student-select-content {
-    background: var(--bg-card);
+    background: var(--glass-bg-heavy);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-xl);
     width: 600px;
     max-width: 95%;
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--glass-shadow-lg);
     animation: modalSlideIn 0.3s var(--ease-spring);
 }
 
