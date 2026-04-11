@@ -621,47 +621,37 @@ const HomeApp = {
             const data = await res.json();
 
             const widget = document.getElementById('homePetWidget');
-            const mascot = document.getElementById('homeMascot');
             if (!widget) return;
-
-            // 隐藏 mascot，显示宠物组件
-            if (mascot) mascot.style.display = 'none';
-            widget.style.display = 'flex';
+            widget.style.display = 'block';
 
             if (!data.has_pet) {
                 // 未创建宠物：显示领养引导
-                widget.innerHTML = '<div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="window.location=\'/pet\'">'
-                    + '<span style="font-size:48px;">&#x1F95A;</span>'
-                    + '<div><div style="font-weight:700;font-size:16px;">&#x1F43E; ' + i18n.t('pet.adopt') + '</div>'
-                    + '<div style="font-size:13px;color:#666;">点击领养你的宠物</div></div></div>';
+                widget.innerHTML =
+                    '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
+                        '<div class="sidebar-pet-adopt__egg">\uD83E\uDD5A</div>' +
+                        '<div class="sidebar-pet-adopt__text">\uD83D\uDC3E ' + i18n.t('pet.adopt') + '</div>' +
+                    '</div>';
                 return;
             }
 
             const pet = data.pet;
+            widget.innerHTML =
+                '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
+                    '<canvas id="homePetCanvas" width="120" height="120"></canvas>' +
+                    '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
+                    '<div class="sidebar-pet-stats">' +
+                        '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
+                        '<span>\uD83E\uDDFC ' + pet.hygiene + '</span>' +
+                        '<span>\uD83D\uDE0A ' + pet.mood + '</span>' +
+                    '</div>' +
+                    '<div class="sidebar-pet-coins">\uD83D\uDCB0 ' + pet.coins + '</div>' +
+                    (data.message ? '<div class="sidebar-pet-bubble">' + data.message + '</div>' : '') +
+                '</div>';
 
             // 渲染迷你宠物
-            const canvas = document.getElementById('homePetCanvas');
+            var canvas = document.getElementById('homePetCanvas');
             if (canvas && window.PetRenderer) {
                 PetRenderer.create(canvas, pet, { mini: true });
-            }
-
-            // 状态显示
-            const status = document.getElementById('homePetStatus');
-            if (status) {
-                status.innerHTML =
-                    '\uD83C\uDF56 ' + pet.hunger +
-                    '  \uD83E\uDDFC ' + pet.hygiene +
-                    '  \uD83D\uDE0A ' + pet.mood;
-            }
-
-            // 金币
-            const coins = document.getElementById('homePetCoins');
-            if (coins) coins.textContent = '\uD83D\uDCB0 ' + pet.coins;
-
-            // 消息气泡
-            if (data.message) {
-                const bubble = document.getElementById('homePetBubble');
-                if (bubble) bubble.textContent = data.message;
             }
         } catch (e) {
             console.warn('Pet widget load failed:', e);

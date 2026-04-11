@@ -1,9 +1,6 @@
-/**
- * 虚拟宠物系统 — 中英翻译包
- */
-(function () {
-    if (!window.i18n) return;
-    i18n.addMessages({
+// i18n/pet.js — Virtual Pet system translations
+// Keys: pet.*
+i18n.addMessages({
         zh: {
             'pet.pageTitle': '我的宠物',
             'pet.noPet': '你还没有宠物',
@@ -206,5 +203,5 @@
             'pet.admin.reason': 'Reason',
             'pet.admin.confirm': 'Confirm',
         }
-    });
-})();
+    }
+});

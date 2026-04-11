@@ -92,6 +92,10 @@
             <nav class="home-sidebar__nav" id="homeSidebarNav">
                 <!-- JS 動態生成分類導航 -->
             </nav>
+
+            <!-- 宠物组件（sidebar 下半部分，admin 可见） -->
+            <div id="homePetWidget" class="home-sidebar__pet" style="display:none;"></div>
+
             <div class="home-sidebar__footer">
                 <button class="home-sidebar__lang-toggle" onclick="i18n.toggle()" title="Switch Language">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -111,16 +115,7 @@
             <!-- 歡迎橫幅 -->
             <section class="home-welcome" id="homeWelcome">
                 <div class="home-welcome__text">
-                    <!-- 宠物组件（admin 可见时替代 mascot） -->
-                    <div id="homePetWidget" class="home-pet-widget" style="display:none;" onclick="window.location='/pet'">
-                        <canvas id="homePetCanvas" width="80" height="80"></canvas>
-                        <div>
-                            <div class="home-pet-mini-status" id="homePetStatus"></div>
-                            <div class="home-pet-coins" id="homePetCoins"></div>
-                            <div class="home-pet-bubble" id="homePetBubble"></div>
-                        </div>
-                    </div>
-                    <img src="/static/images/ai_hourse.png" alt="" class="home-welcome__mascot" id="homeMascot">
+                    <img src="/static/images/ai_hourse.png" alt="" class="home-welcome__mascot">
                     <div>
                         <h1 class="home-welcome__title" id="homeWelcomeTitle" data-i18n="home.welcomeBack">歡迎回來</h1>
                         <p class="home-welcome__subtitle" data-i18n="home.subtitle">選擇下方應用開始使用</p>

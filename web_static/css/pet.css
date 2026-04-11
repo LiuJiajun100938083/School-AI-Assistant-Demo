@@ -619,43 +619,87 @@
     .pet-canvas-area { grid-column: 1; }
 }
 
-/* ── Homepage Mini Pet Widget ── */
+/* ── Sidebar Pet Widget ── */
 
-.home-pet-widget {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    transition: transform 0.2s;
+.home-sidebar__pet {
+    padding: 12px;
+    margin-top: auto;
 }
 
-.home-pet-widget:active {
+.sidebar-pet-adopt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 8px;
+    background: #fffbe6;
+    border: 2px solid #e0d5a0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.sidebar-pet-adopt:active {
     transform: scale(0.95);
 }
 
-.home-pet-widget canvas {
-    width: 80px;
-    height: 80px;
-    image-rendering: pixelated;
-    border: 2px solid var(--pet-border, #2c2c2c);
-    border-radius: 8px;
+.sidebar-pet-adopt__egg {
+    font-size: 40px;
+    animation: petEggBounce 2s ease-in-out infinite;
 }
 
-.home-pet-mini-status {
+.sidebar-pet-adopt__text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #8b6914;
+}
+
+.sidebar-pet-card {
     display: flex;
-    gap: 8px;
-    font-size: 12px;
-    font-weight: 600;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    background: #f9f9f4;
+    border: 2px solid #d5d0c0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s;
 }
 
-.home-pet-coins {
+.sidebar-pet-card:active {
+    transform: scale(0.95);
+}
+
+.sidebar-pet-card canvas {
+    width: 100px;
+    height: 100px;
+    image-rendering: pixelated;
+}
+
+.sidebar-pet-name {
     font-size: 14px;
+    font-weight: 700;
+    color: #333;
+}
+
+.sidebar-pet-stats {
+    display: flex;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+}
+
+.sidebar-pet-coins {
+    font-size: 13px;
     font-weight: 700;
     color: #b8860b;
 }
 
-.home-pet-bubble {
-    font-size: 13px;
-    color: #666;
-    max-width: 160px;
+.sidebar-pet-bubble {
+    font-size: 11px;
+    color: #888;
+    text-align: center;
+    max-width: 140px;
 }
