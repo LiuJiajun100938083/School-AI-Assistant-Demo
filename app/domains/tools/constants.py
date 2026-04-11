@@ -86,3 +86,19 @@ ALLOWED_IMAGE_CONVERT_INPUT_EXTS = frozenset({
 
 # 伺服器可輸出的格式
 ALLOWED_IMAGE_CONVERT_OUTPUT = frozenset({"png", "jpeg", "webp"})
+
+
+# ============================================================
+# 手寫公式辨識
+# ============================================================
+
+HW_MATH_MAX_IMAGE_SIZE = 4 * 1024 * 1024  # 4 MB
+
+HW_MATH_ALLOWED_MIMES = frozenset({
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+})

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="tools.md.title">Markdown 閱讀器</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+    <link rel="stylesheet" href="/static/css/tools_md_reader.css">
+    <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
+</head>
+<body>
+    <header class="tools-header">
+        <a href="/" class="tools-header__back">&larr; <span data-i18n="tools.back">返回</span></a>
+        <span class="tools-header__title" data-i18n="tools.md.title">Markdown 閱讀器</span>
+    </header>
+
+    <main class="tools-page">
+        <h1 class="tools-page__title" data-i18n="tools.md.title">Markdown 閱讀器</h1>
+        <p class="tools-page__subtitle" data-i18n="tools.md.subtitle">上傳或貼上 Markdown 檔案,即時預覽含數學公式的排版效果</p>
+
+        <div class="tools-grid">
+            <!-- 左: 輸入 -->
+            <div class="tools-card">
+                <div class="tools-card__title">輸入</div>
+
+                <div class="tools-segmented" id="mdModeToggle">
+                    <button data-mode="upload" class="active" data-i18n="tools.md.tabUpload">上傳檔案</button>
+                    <button data-mode="paste" data-i18n="tools.md.tabPaste">貼上文字</button>
+                </div>
+
+                <div class="md-input-wrap" data-mode="upload" id="mdInputWrap" style="margin-top:16px">
+                    <!-- 上傳區 -->
+                    <div class="md-upload-area">
+                        <label class="tools-drop" id="mdDropZone">
+                            <input type="file" id="mdFileInput" accept=".md,.markdown,.txt,.mdown,.mkd" hidden>
+                            <span data-i18n="tools.md.drop">拖入 .md 檔案,或點擊選擇</span>
+                        </label>
+                    </div>
+                    <!-- 貼上區 -->
+                    <textarea class="tools-textarea md-paste-area" id="mdPasteArea"
+                              data-i18n-placeholder="tools.md.pastePh"
+                              placeholder="在此貼上 Markdown 內容…"></textarea>
+                </div>
+
+                <div id="mdStatus" class="tools-status" style="margin-top:8px"></div>
+            </div>
+
+            <!-- 右: 預覽 -->
+            <div class="tools-card">
+                <div class="tools-card__title" data-i18n="tools.md.preview">預覽</div>
+                <div id="mdOutput">
+                    <div class="md-reader-empty" data-i18n="tools.md.empty">上傳 .md 檔案或貼上 Markdown 內容以預覽</div>
+                </div>
+                <div class="md-actions" id="mdActions" style="display:none">
+                    <button class="tools-btn" id="mdCopyHtml" data-i18n="tools.md.copyHtml">複製 HTML</button>
+                    <button class="tools-btn" id="mdPrint" data-i18n="tools.md.print">列印</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/tools.js"></script>
+    <script src="/static/js/tools_common.js"></script>
+
+    <!-- vendor: Markdown + KaTeX + DOMPurify -->
+    <script src="/static/vendor/marked/marked.min.js"></script>
+    <script src="/static/vendor/katex/katex.min.js"></script>
+    <script src="/static/vendor/dompurify/purify.min.js"></script>
+
+    <!-- shared renderer + page controller -->
+    <script src="/static/js/shared/render_math.js"></script>
+    <script src="/static/js/tools_md_reader.js"></script>
+</body>
+</html>

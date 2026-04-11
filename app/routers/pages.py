@@ -215,6 +215,16 @@ async def tool_roll_call_page():
     return _serve_page("tools/roll_call.html")
 
 
+@router.get("/tools/md-reader")
+async def tool_md_reader_page():
+    return _serve_page("tools/md_reader.html")
+
+
+@router.get("/tools/handwriting-math")
+async def tool_handwriting_math_page():
+    return _serve_page("tools/handwriting_math.html")
+
+
 @router.get("/student-report")
 async def student_report():
     """学生分析报告页"""

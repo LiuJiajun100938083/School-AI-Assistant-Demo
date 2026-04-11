@@ -101,6 +101,14 @@ class RollCallPickRequest(BaseModel):
     allow_repeat: bool = False
 
 
+class HandwritingMathResult(BaseModel):
+    """手寫公式 OCR 辨識結果"""
+    text: str = ""
+    has_math: bool = False
+    low_confidence: bool = False
+    warnings: List[str] = Field(default_factory=list)
+
+
 class RollCallGroupRequest(BaseModel):
     class_name: str = Field(..., min_length=1, max_length=50)
     mode: str = Field(...)  # "by_size" | "by_count"

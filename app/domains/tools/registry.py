@@ -55,6 +55,24 @@ TOOLS: List[ToolSpec] = [
         page_url="/tools/roll-call",
         needs_backend=True,
     ),
+    ToolSpec(
+        id="tool_md_reader",
+        name_zh="Markdown 閱讀器",
+        name_en="Markdown Reader",
+        description_zh="上傳或貼上 Markdown,即時預覽含數學公式的排版效果",
+        description_en="Upload or paste Markdown with live math-rendered preview",
+        page_url="/tools/md-reader",
+        needs_backend=False,
+    ),
+    ToolSpec(
+        id="tool_handwriting_math",
+        name_zh="手寫公式轉換",
+        name_en="Handwriting Math Converter",
+        description_zh="拍照或手寫數學公式,自動轉換為 LaTeX 並預覽",
+        description_en="Convert handwritten math formulas to LaTeX with live preview",
+        page_url="/tools/handwriting-math",
+        needs_backend=True,
+    ),
 ]
 
 

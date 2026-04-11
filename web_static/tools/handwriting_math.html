@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title data-i18n="tools.hw.title">手寫公式轉換</title>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/tools.css">
+    <link rel="stylesheet" href="/static/css/tools_handwriting_math.css">
+    <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
+</head>
+<body>
+    <header class="tools-header">
+        <a href="/" class="tools-header__back">&larr; <span data-i18n="tools.back">返回</span></a>
+        <span class="tools-header__title" data-i18n="tools.hw.title">手寫公式轉換</span>
+    </header>
+
+    <main class="tools-page">
+        <h1 class="tools-page__title" data-i18n="tools.hw.title">手寫公式轉換</h1>
+        <p class="tools-page__subtitle" data-i18n="tools.hw.subtitle">拍照或手寫數學公式,自動轉換為 LaTeX 並即時預覽</p>
+
+        <!-- 輸入區 -->
+        <div class="tools-card">
+            <div class="tools-segmented" id="hwModeToggle">
+                <button data-mode="photo" class="active" data-i18n="tools.hw.tabPhoto">上傳照片</button>
+                <button data-mode="canvas" data-i18n="tools.hw.tabCanvas">手寫畫板</button>
+            </div>
+
+            <div class="hw-panels" data-mode="photo" id="hwPanels">
+                <!-- 照片上傳 -->
+                <div class="hw-photo-panel">
+                    <label class="tools-drop" id="hwDropZone">
+                        <input type="file" id="hwFileInput" accept="image/*" hidden>
+                        <span data-i18n="tools.hw.photoDrop">拖入手寫公式照片,或點擊選擇</span>
+                    </label>
+                    <div class="hw-photo-preview" id="hwPhotoPreview" style="display:none">
+                        <img id="hwPhotoImg" alt="uploaded photo">
+                    </div>
+                </div>
+
+                <!-- 手寫畫板 -->
+                <div class="hw-canvas-panel">
+                    <div class="hw-toolbar">
+                        <div class="hw-toolbar__group">
+                            <span data-i18n="tools.hw.penWidth">筆寬</span>
+                            <input type="range" id="hwPenWidth" class="hw-toolbar__range" min="1" max="8" value="3" step="1">
+                            <span id="hwPenWidthLabel">3</span>
+                        </div>
+                        <button class="hw-toolbar__toggle" id="hwEraserBtn" data-i18n="tools.hw.eraser">橡皮擦</button>
+                        <button class="tools-btn hw-toolbar__clear" id="hwClearBtn" data-i18n="tools.hw.clearCanvas">清除畫板</button>
+                    </div>
+                    <div class="hw-canvas-wrap">
+                        <canvas id="hwCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="hwStatus" class="tools-status" style="margin-top:8px"></div>
+
+            <!-- 識別按鈕 -->
+            <div class="hw-recognize-wrap">
+                <button class="tools-btn tools-btn--primary" id="hwRecognizeBtn" data-i18n="tools.hw.recognize">識別公式</button>
+            </div>
+        </div>
+
+        <!-- 結果區 -->
+        <div class="hw-result-grid">
+            <!-- LaTeX 代碼 -->
+            <div class="tools-card">
+                <div class="tools-card__title" data-i18n="tools.hw.latexCode">LaTeX 代碼</div>
+                <pre class="hw-latex-code" id="hwLatexOutput"
+                     data-placeholder="識別結果將在此顯示"></pre>
+                <div class="hw-card-actions">
+                    <button class="tools-btn" id="hwCopyBtn" disabled data-i18n="tools.hw.copyLatex">複製 LaTeX</button>
+                </div>
+            </div>
+
+            <!-- 公式預覽 -->
+            <div class="tools-card">
+                <div class="tools-card__title" data-i18n="tools.hw.formulaPreview">公式預覽</div>
+                <div class="hw-formula-preview" id="hwFormulaPreview">
+                    <span class="hw-formula-empty" data-i18n="tools.hw.empty">上傳照片或在畫板書寫,再點擊「識別公式」</span>
+                </div>
+                <div id="hwWarning" class="hw-warning" style="display:none"></div>
+                <div class="hw-card-actions">
+                    <button class="tools-btn tools-btn--primary" id="hwExportBtn" disabled data-i18n="tools.hw.exportPng">導出 PNG</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/shared/auth.js"></script>
+    <script src="/static/js/shared/i18n.js"></script>
+    <script src="/static/js/shared/i18n/common.js"></script>
+    <script src="/static/js/shared/i18n/tools.js"></script>
+    <script src="/static/js/tools_common.js"></script>
+
+    <!-- vendor: KaTeX + DOMPurify + html2canvas -->
+    <script src="/static/vendor/katex/katex.min.js"></script>
+    <script src="/static/vendor/dompurify/purify.min.js"></script>
+    <script src="/static/vendor/html2canvas/html2canvas.min.js"></script>
+
+    <!-- shared renderer + page controller -->
+    <script src="/static/js/shared/render_math.js"></script>
+    <script src="/static/js/tools_handwriting_math.js"></script>
+</body>
+</html>

@@ -32,6 +32,7 @@ from app.domains.tools.constants import (
 from app.domains.tools.exceptions import (
     FileTooLargeError,
     ToolInputError,
+    ToolProcessingError,
     UnsupportedFormatError,
 )
 from app.domains.tools.image_convert_service import convert_image
@@ -384,3 +385,58 @@ async def roll_call_group(
     else:
         groups = group_by_count(students, count=req.value)
     return {"success": True, "data": {"groups": groups}}
+
+
+# ============================================================
+# 手寫公式辨識 — 拍照/畫布 → LaTeX
+# ============================================================
+
+@router.post("/handwriting/math-ocr")
+async def handwriting_math_ocr(
+    image: UploadFile = File(...),
+    user: Dict = Depends(get_current_user),
+):
+    """辨識手寫數學公式,回傳 LaTeX 文字。"""
+    from app.domains.tools.constants import HW_MATH_ALLOWED_MIMES, HW_MATH_MAX_IMAGE_SIZE
+
+    data = await image.read()
+    if not data:
+        raise ToolInputError("EMPTY_FILE", "圖片為空")
+    if len(data) > HW_MATH_MAX_IMAGE_SIZE:
+        raise FileTooLargeError(
+            "FILE_TOO_LARGE",
+            f"圖片不得超過 {HW_MATH_MAX_IMAGE_SIZE // (1024 * 1024)} MB",
+        )
+    mime = (image.content_type or "").lower()
+    if mime and mime not in HW_MATH_ALLOWED_MIMES:
+        raise UnsupportedFormatError("UNSUPPORTED_MIME", f"不支援的圖片格式: {mime}")
+
+    import os
+    import shutil
+    import tempfile
+    import uuid
+
+    from app.services.container import get_services
+
+    tmp_dir = tempfile.mkdtemp()
+    ext = os.path.splitext(image.filename or "img.png")[1] or ".png"
+    tmp_path = os.path.join(tmp_dir, f"{uuid.uuid4().hex}{ext}")
+    try:
+        with open(tmp_path, "wb") as f:
+            f.write(data)
+        vision = get_services().vision
+        result = await vision.recognize_handwriting_answer(tmp_path, "math")
+        return {
+            "success": True,
+            "data": {
+                "text": result.get("text", "") if isinstance(result, dict) else str(result),
+                "has_math": result.get("has_math", False) if isinstance(result, dict) else True,
+                "low_confidence": result.get("low_confidence", False) if isinstance(result, dict) else False,
+                "warnings": result.get("warnings", []) if isinstance(result, dict) else [],
+            },
+        }
+    except Exception as e:
+        logger.error("handwriting math OCR failed: %s", e, exc_info=True)
+        raise ToolProcessingError("OCR_FAILED", f"公式辨識失敗: {e}") from e
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
