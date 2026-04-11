@@ -221,6 +221,10 @@
 
     // Nav
     document.addEventListener('DOMContentLoaded', function () {
+        // 捏脸关闭按钮
+        var closeBtn = $('#customizeClose');
+        if (closeBtn) closeBtn.onclick = function () { $('#customizeOverlay').style.display = 'none'; if (customizeRenderer) customizeRenderer.destroy(); };
+
         $('#customizePrev').onclick = function () { customizeStep--; renderStep(); };
         $('#customizeRandom').onclick = function () {
             if (customizeStep < STEPS.length) {
@@ -255,6 +259,35 @@
     }
 
     // ============================================================
+    // iOS Bottom Sheet Helper
+    // ============================================================
+    function showSheet(title, contentHTML) {
+        // 移除旧的 sheet
+        var old = document.querySelector('.pet-sheet-overlay');
+        if (old) old.remove();
+
+        var overlay = document.createElement('div');
+        overlay.className = 'pet-sheet-overlay';
+        overlay.innerHTML =
+            '<div class="pet-sheet">' +
+                '<div class="pet-sheet__handle"></div>' +
+                '<div class="pet-sheet__header">' +
+                    '<span class="pet-sheet__title">' + title + '</span>' +
+                    '<button class="pet-sheet__close">&times;</button>' +
+                '</div>' +
+                '<div class="pet-sheet__body" id="sheetBody">' + contentHTML + '</div>' +
+            '</div>';
+
+        document.body.appendChild(overlay);
+
+        // 关闭
+        overlay.querySelector('.pet-sheet__close').onclick = function () { overlay.remove(); };
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+
+        return overlay.querySelector('#sheetBody');
+    }
+
+    // ============================================================
     // 商店
     // ============================================================
     var ITEM_ICONS = {
@@ -266,14 +299,13 @@
     async function openShop() {
         var data = await api('GET', '/api/pet/shop');
         if (!data) return;
-        var container = $('#petSectionContainer');
-        container.innerHTML = '';
 
-        var section = document.createElement('div');
-        section.className = 'pet-section pet-section--active';
+        var body = showSheet(i18n.t('pet.shop'), '<div id="shopTabs"></div><div id="shopGrid"></div>');
+        var tabsEl = body.querySelector('#shopTabs');
+        var gridEl = body.querySelector('#shopGrid');
+        tabsEl.className = 'pet-shop-tabs';
+        gridEl.className = 'pet-shop-grid';
 
-        var tabs = document.createElement('div');
-        tabs.className = 'pet-shop-tabs';
         var categories = [
             { key: 'food', label: i18n.t('pet.shop.food'), icon: '\uD83C\uDF5E' },
             { key: 'hygiene', label: i18n.t('pet.shop.hygiene'), icon: '\uD83E\uDDFC' },
@@ -282,9 +314,7 @@
         var activeCategory = 'food';
 
         function renderGrid() {
-            var grid = section.querySelector('.pet-shop-grid');
-            if (!grid) { grid = document.createElement('div'); grid.className = 'pet-shop-grid'; section.appendChild(grid); }
-            grid.innerHTML = '';
+            gridEl.innerHTML = '';
             data.items.filter(function (i) { return i.category === activeCategory; }).forEach(function (item) {
                 var card = document.createElement('div');
                 card.className = 'pet-shop-item';
@@ -294,7 +324,7 @@
                     '<div class="pet-shop-item__effect">' + item.effect_type + ' +' + item.effect_value + '</div>' +
                     '<button class="pet-shop-item__buy">\uD83D\uDCB0 ' + item.price + '</button>';
                 card.querySelector('.pet-shop-item__buy').onclick = function () { purchaseItem(item.id); };
-                grid.appendChild(card);
+                gridEl.appendChild(card);
             });
         }
 
@@ -304,16 +334,13 @@
             tab.textContent = cat.icon + ' ' + cat.label;
             tab.onclick = function () {
                 activeCategory = cat.key;
-                tabs.querySelectorAll('.pet-shop-tab').forEach(function (t) { t.classList.remove('pet-shop-tab--active'); });
+                tabsEl.querySelectorAll('.pet-shop-tab').forEach(function (t) { t.classList.remove('pet-shop-tab--active'); });
                 tab.classList.add('pet-shop-tab--active');
                 renderGrid();
             };
-            tabs.appendChild(tab);
+            tabsEl.appendChild(tab);
         });
-
-        section.appendChild(tabs);
         renderGrid();
-        container.appendChild(section);
     }
 
     async function purchaseItem(itemId) {
@@ -340,28 +367,19 @@
     async function openLeaderboard() {
         var data = await api('GET', '/api/pet/leaderboard?type=growth&limit=20');
         if (!data) return;
-        var container = $('#petSectionContainer');
-        container.innerHTML = '';
-        var section = document.createElement('div');
-        section.className = 'pet-section pet-section--active';
-        var title = document.createElement('div');
-        title.className = 'pet-section-title';
-        title.textContent = i18n.t('pet.leaderboard.growth');
-        section.appendChild(title);
 
-        var list = document.createElement('div');
-        list.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+        var html = '';
         var medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'];
         (data.leaderboard || []).forEach(function (entry, idx) {
-            var row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 12px;background:white;border:2px solid #2c2c2c;border-radius:8px;';
-            row.innerHTML = '<span style="font-size:20px;min-width:30px;text-align:center;">' + (idx < 3 ? medals[idx] : (idx + 1)) + '</span>' +
-                '<span style="flex:1;font-weight:600;">' + (entry.display_name || entry.pet_name || 'Unknown') + '</span>' +
-                '<span style="font-weight:700;color:#4a90d9;">' + entry.growth + '</span>';
-            list.appendChild(row);
+            html += '<div class="pet-grouped__row">' +
+                '<span style="font-size:20px;min-width:30px;text-align:center;">' + (idx < 3 ? medals[idx] : (idx + 1)) + '</span>' +
+                '<span style="flex:1;font-size:17px;font-weight:500;">' + (entry.display_name || entry.pet_name || 'Unknown') + '</span>' +
+                '<span style="font-size:17px;font-weight:600;color:#007AFF;">' + entry.growth + '</span>' +
+            '</div>';
         });
-        section.appendChild(list);
-        container.appendChild(section);
+        if (!html) html = '<div style="padding:40px;text-align:center;color:#8E8E93;">暂无数据</div>';
+
+        showSheet(i18n.t('pet.leaderboard'), '<div class="pet-grouped" style="margin:0;">' + html + '</div>');
     }
 
     // ============================================================
@@ -370,28 +388,21 @@
     async function openAchievements() {
         var data = await api('GET', '/api/pet/achievements');
         if (!data) return;
-        var container = $('#petSectionContainer');
-        container.innerHTML = '';
-        var section = document.createElement('div');
-        section.className = 'pet-section pet-section--active';
-        var title = document.createElement('div');
-        title.className = 'pet-section-title';
-        title.textContent = i18n.t('pet.achievements');
-        section.appendChild(title);
-        var grid = document.createElement('div');
-        grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;';
+
+        var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
         (data.achievements || []).forEach(function (a) {
             var unlocked = !!a.unlocked_at;
-            var card = document.createElement('div');
-            card.style.cssText = 'padding:12px;background:' + (unlocked ? '#e8f5e9' : '#f5f5f5') + ';border:2px solid ' + (unlocked ? '#27ae60' : '#ccc') + ';border-radius:8px;text-align:center;opacity:' + (unlocked ? 1 : 0.6) + ';';
-            card.innerHTML = '<div style="font-size:28px;margin-bottom:4px;">' + (unlocked ? '\uD83C\uDFC5' : '\uD83D\uDD12') + '</div>' +
-                '<div style="font-weight:700;font-size:13px;">' + a.name + '</div>' +
-                '<div style="font-size:11px;color:#666;margin-top:2px;">' + a.description + '</div>' +
-                (a.reward_coins > 0 ? '<div style="font-size:12px;color:#b8860b;margin-top:4px;">\uD83D\uDCB0 +' + a.reward_coins + '</div>' : '');
-            grid.appendChild(card);
+            html += '<div style="padding:16px 12px;background:' + (unlocked ? 'rgba(52,199,89,0.08)' : 'rgba(0,0,0,0.02)') +
+                ';border-radius:14px;text-align:center;opacity:' + (unlocked ? 1 : 0.5) + ';">' +
+                '<div style="font-size:32px;margin-bottom:6px;">' + (unlocked ? '\uD83C\uDFC5' : '\uD83D\uDD12') + '</div>' +
+                '<div style="font-weight:600;font-size:15px;">' + a.name + '</div>' +
+                '<div style="font-size:13px;color:#8E8E93;margin-top:3px;">' + a.description + '</div>' +
+                (a.reward_coins > 0 ? '<div style="font-size:13px;color:#FF9F0A;margin-top:4px;font-weight:600;">\uD83D\uDCB0 +' + a.reward_coins + '</div>' : '') +
+            '</div>';
         });
-        section.appendChild(grid);
-        container.appendChild(section);
+        html += '</div>';
+
+        showSheet(i18n.t('pet.achievements'), html);
     }
 
     // ── Bootstrap ──
