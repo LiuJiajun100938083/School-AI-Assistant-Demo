@@ -8,6 +8,7 @@ Service 不直接操作数据库，通过 Repository 层完成。
 """
 
 import logging
+import re
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -93,6 +94,47 @@ class PetService:
         if ACCESS_LEVEL == "all":
             return True
         return user_role == "admin"
+
+    # ============================================================
+    # 宠物名字审核（复用 image_gen 关键词黑名单 + LLM 语义审核）
+    # ============================================================
+
+    @staticmethod
+    def validate_pet_name_keywords(name: str) -> str:
+        """
+        关键词黑名单快速检查（同步）。
+        通过返回 ""，不通过返回错误原因。
+        """
+        from app.domains.image_gen.service import _BLOCKED_RE
+        match = _BLOCKED_RE.search(name)
+        if match:
+            return f"名字包含不适当内容"
+        return ""
+
+    @staticmethod
+    async def validate_pet_name_ai(name: str, username: str) -> str:
+        """
+        LLM 语义审核（异步）。
+        通过返回 ""，不通过返回错误原因。
+        """
+        try:
+            from forum_system.service.content_moderator import check_content_safety
+            result = await check_content_safety(
+                name,
+                content_type="general",
+                route="pet_name",
+                username=username,
+            )
+            if result.status == "blocked":
+                return "名字未通过安全审核"
+            if result.status == "error":
+                # 审核服务不可用时放行（fail-open for pet names）
+                logger.warning("宠物名字审核服务不可用，放行: %s", username)
+                return ""
+            return ""
+        except Exception as e:
+            logger.warning("宠物名字 AI 审核异常，放行: %s", e)
+            return ""
 
     # ============================================================
     # 宠物 CRUD

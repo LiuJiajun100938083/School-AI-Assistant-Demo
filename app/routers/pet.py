@@ -95,11 +95,20 @@ async def create_pet(data: CreatePetRequest, current_user: Dict = Depends(get_cu
     user = _extract_user(current_user)
     _require_access(user)
     loop = asyncio.get_event_loop()
+    svc = _get_service()
+
+    # ── 宠物名字审核（关键词 + AI 语义双重检查）──
+    keyword_err = svc.validate_pet_name_keywords(data.pet_name)
+    if keyword_err:
+        raise HTTPException(400, keyword_err)
+    ai_err = await svc.validate_pet_name_ai(data.pet_name, user["username"])
+    if ai_err:
+        raise HTTPException(400, ai_err)
 
     try:
         pet = await loop.run_in_executor(
             None,
-            lambda: _get_service().create_pet(
+            lambda: svc.create_pet(
                 user_id=user["id"],
                 user_role=user["role"],
                 pet_name=data.pet_name,
@@ -122,11 +131,21 @@ async def customize_pet(data: CustomizePetRequest, current_user: Dict = Depends(
     user = _extract_user(current_user)
     _require_access(user)
     loop = asyncio.get_event_loop()
+    svc = _get_service()
+
+    # ── 如果改了名字，需要审核 ──
+    if data.pet_name:
+        keyword_err = svc.validate_pet_name_keywords(data.pet_name)
+        if keyword_err:
+            raise HTTPException(400, keyword_err)
+        ai_err = await svc.validate_pet_name_ai(data.pet_name, user["username"])
+        if ai_err:
+            raise HTTPException(400, ai_err)
 
     fields = data.model_dump(exclude_none=True)
     try:
         pet = await loop.run_in_executor(
-            None, lambda: _get_service().customize_pet(user["id"], **fields)
+            None, lambda: svc.customize_pet(user["id"], **fields)
         )
         return {"success": True, "pet": pet}
     except ValueError as e:
