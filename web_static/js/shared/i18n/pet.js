@@ -204,4 +204,4 @@ i18n.addMessages({
             'pet.admin.confirm': 'Confirm',
         }
     }
-});
+);
