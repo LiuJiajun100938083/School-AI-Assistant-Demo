@@ -30,7 +30,7 @@ SUPPORTED_FORMATS = {".pdf", ".docx", ".txt", ".md"}
 # 文档大小上限（字节）
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 # 知识库根目录名
-KNOWLEDGE_BASE_DIR = "knowledge_base"
+KNOWLEDGE_BASE_DIR = "Knowledge_base"
 # 回收站目录名
 TRASH_DIR = ".trash"
 
