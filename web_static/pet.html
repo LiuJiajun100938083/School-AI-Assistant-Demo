@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>我的宠物</title>
+    <link rel="stylesheet" href="/static/css/pet.css">
+</head>
+<body>
+<script>
+    if (!localStorage.getItem('auth_token') && !localStorage.getItem('token')) {
+        window.location.replace('/login');
+    }
+</script>
+
+<div class="pet-page" id="petApp">
+    <!-- Header -->
+    <header class="pet-header">
+        <button class="pet-header__back" onclick="window.location='/'">&#8592;</button>
+        <span class="pet-header__title" data-i18n="pet.pageTitle">我的宠物</span>
+        <div class="pet-header__coins">
+            <span>&#x1F4B0;</span>
+            <span id="petCoinsDisplay">0</span>
+        </div>
+    </header>
+
+    <!-- Loading -->
+    <div id="petLoading" style="text-align:center;padding:40px;font-size:16px;">
+        载入中...
+    </div>
+
+    <!-- No Pet State -->
+    <div id="petNoPet" class="pet-no-pet" style="display:none;">
+        <div class="pet-no-pet__icon">&#x1F95A;</div>
+        <div class="pet-no-pet__text" data-i18n="pet.noPet">你还没有宠物</div>
+        <button class="pet-no-pet__btn" id="btnAdoptPet" data-i18n="pet.adopt">领养宠物</button>
+    </div>
+
+    <!-- Pet View (main content) -->
+    <div id="petView" style="display:none;">
+
+        <!-- Pet Canvas -->
+        <div class="pet-canvas-area">
+            <div class="pet-canvas-wrapper">
+                <canvas id="petCanvas" width="400" height="400"></canvas>
+            </div>
+            <div class="pet-name-tag" id="petNameTag"></div>
+            <span class="pet-stage-badge" id="petStageBadge"></span>
+            <div class="pet-bubble" id="petBubble" style="display:none;"></div>
+        </div>
+
+        <!-- Streak Bar -->
+        <div class="pet-streak-bar">
+            <span class="pet-streak-fire">&#x1F525;</span>
+            <div>
+                <span class="pet-streak-count" id="petStreakCount">0</span>
+                <span data-i18n="pet.streak.days">天</span>
+            </div>
+            <span class="pet-streak-mult" id="petStreakMult"></span>
+            <span class="pet-league-badge" id="petLeagueBadge"></span>
+        </div>
+
+        <!-- Status Bars -->
+        <div class="pet-status-bars">
+            <div class="pet-status-item">
+                <span class="pet-status-item__icon">&#x1F356;</span>
+                <span class="pet-status-item__label" data-i18n="pet.hunger">饱食度</span>
+                <div class="pet-status-bar">
+                    <div class="pet-status-bar__fill pet-status-bar__fill--hunger" id="barHunger"></div>
+                </div>
+                <span class="pet-status-item__value" id="valHunger">100</span>
+            </div>
+            <div class="pet-status-item">
+                <span class="pet-status-item__icon">&#x1F9FC;</span>
+                <span class="pet-status-item__label" data-i18n="pet.hygiene">清洁度</span>
+                <div class="pet-status-bar">
+                    <div class="pet-status-bar__fill pet-status-bar__fill--hygiene" id="barHygiene"></div>
+                </div>
+                <span class="pet-status-item__value" id="valHygiene">100</span>
+            </div>
+            <div class="pet-status-item">
+                <span class="pet-status-item__icon">&#x1F60A;</span>
+                <span class="pet-status-item__label" data-i18n="pet.mood">心情</span>
+                <div class="pet-status-bar">
+                    <div class="pet-status-bar__fill pet-status-bar__fill--mood" id="barMood"></div>
+                </div>
+                <span class="pet-status-item__value" id="valMood">100</span>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pet-actions">
+            <button class="pet-action-btn" id="btnShop">
+                <span class="pet-action-btn__icon">&#x1F6D2;</span>
+                <span data-i18n="pet.shop">商店</span>
+            </button>
+            <button class="pet-action-btn" id="btnLeaderboard">
+                <span class="pet-action-btn__icon">&#x1F3C6;</span>
+                <span data-i18n="pet.leaderboard">排行榜</span>
+            </button>
+            <button class="pet-action-btn" id="btnAchievements">
+                <span class="pet-action-btn__icon">&#x1F3C5;</span>
+                <span data-i18n="pet.achievements">成就</span>
+            </button>
+            <button class="pet-action-btn" id="btnCustomize">
+                <span class="pet-action-btn__icon">&#x1F3A8;</span>
+                <span data-i18n="pet.changeLook">换装</span>
+            </button>
+        </div>
+
+        <!-- Personality & Subject -->
+        <div class="pet-subject-bars" id="petSubjectArea">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:700;" data-i18n="pet.personality">性格</span>
+                <span id="petPersonalityLabel"></span>
+            </div>
+            <div class="pet-subject-row">
+                <span class="pet-subject-label" data-i18n="pet.subject.science">理科</span>
+                <div class="pet-subject-bar">
+                    <div class="pet-subject-bar__fill pet-subject-bar__fill--science" id="barScience"></div>
+                </div>
+            </div>
+            <div class="pet-subject-row">
+                <span class="pet-subject-label" data-i18n="pet.subject.humanities">文科</span>
+                <div class="pet-subject-bar">
+                    <div class="pet-subject-bar__fill pet-subject-bar__fill--humanities" id="barHumanities"></div>
+                </div>
+            </div>
+            <div class="pet-subject-row">
+                <span class="pet-subject-label" data-i18n="pet.subject.business">商科</span>
+                <div class="pet-subject-bar">
+                    <div class="pet-subject-bar__fill pet-subject-bar__fill--business" id="barBusiness"></div>
+                </div>
+            </div>
+            <div class="pet-subject-row">
+                <span class="pet-subject-label" data-i18n="pet.subject.tech">科技</span>
+                <div class="pet-subject-bar">
+                    <div class="pet-subject-bar__fill pet-subject-bar__fill--tech" id="barTech"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sections (shop / leaderboard / achievements / history) -->
+        <div id="petSectionContainer"></div>
+    </div>
+</div>
+
+<!-- Customize Overlay (捏脸) -->
+<div class="pet-customize-overlay" id="customizeOverlay" style="display:none;">
+    <div class="pet-customize-panel">
+        <div class="pet-customize-preview">
+            <canvas id="customizeCanvas" width="200" height="200"></canvas>
+        </div>
+        <div class="pet-customize-guide" id="customizeGuide"></div>
+        <div class="pet-customize-options" id="customizeOptions"></div>
+        <div class="pet-customize-progress" id="customizeProgress"></div>
+        <div class="pet-customize-nav">
+            <button class="pet-customize-btn pet-customize-btn--secondary" id="customizePrev" data-i18n="pet.step.prev">上一步</button>
+            <button class="pet-customize-btn pet-customize-btn--secondary" id="customizeRandom" data-i18n="pet.randomize">随机</button>
+            <button class="pet-customize-btn pet-customize-btn--primary" id="customizeNext" data-i18n="pet.step.next">下一步</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n/pet.js"></script>
+<script>
+    document.title = i18n.t('pet.pageTitle');
+    i18n.applyDOM();
+</script>
+<script src="/static/js/shared/utils.js"></script>
+<script src="/static/js/shared/auth.js"></script>
+<script src="/static/js/shared/ui.js"></script>
+<script src="/static/js/shared/api.js"></script>
+<script src="/static/js/pet_renderer.js"></script>
+<script src="/static/js/pet.js"></script>
+</body>
+</html>

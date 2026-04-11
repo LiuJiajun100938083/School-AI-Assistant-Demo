@@ -542,6 +542,11 @@ const HomeApp = {
                 this.state.userInfo = userProfile;
                 this._loadHomeApps();
                 HomeUI.updateHomeUserInfo(userProfile);
+
+                // 加载宠物组件（admin 可见）
+                if (this.state.isAdmin) {
+                    this._loadHomePetWidget();
+                }
             } else {
                 throw new Error(i18n.t('token.verifyFailed'));
             }
@@ -601,6 +606,56 @@ const HomeApp = {
         } catch (error) {
             console.error(i18n.t('password.error') + ':', error);
             el.passwordError.textContent = i18n.t('common.networkError');
+        }
+    },
+
+    /* ---------- 宠物组件（主页迷你版） ---------- */
+
+    async _loadHomePetWidget() {
+        try {
+            const token = this.state.authToken;
+            const res = await fetch('/api/pet/me', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data.has_pet) return;
+
+            const pet = data.pet;
+            const widget = document.getElementById('homePetWidget');
+            const mascot = document.getElementById('homeMascot');
+            if (!widget) return;
+
+            // 隐藏 mascot，显示宠物
+            if (mascot) mascot.style.display = 'none';
+            widget.style.display = 'flex';
+
+            // 渲染迷你宠物
+            const canvas = document.getElementById('homePetCanvas');
+            if (canvas && window.PetRenderer) {
+                PetRenderer.create(canvas, pet, { mini: true });
+            }
+
+            // 状态显示
+            const status = document.getElementById('homePetStatus');
+            if (status) {
+                status.innerHTML =
+                    '\uD83C\uDF56 ' + pet.hunger +
+                    '  \uD83E\uDDFC ' + pet.hygiene +
+                    '  \uD83D\uDE0A ' + pet.mood;
+            }
+
+            // 金币
+            const coins = document.getElementById('homePetCoins');
+            if (coins) coins.textContent = '\uD83D\uDCB0 ' + pet.coins;
+
+            // 消息气泡
+            if (data.message) {
+                const bubble = document.getElementById('homePetBubble');
+                if (bubble) bubble.textContent = data.message;
+            }
+        } catch (e) {
+            console.warn('Pet widget load failed:', e);
         }
     },
 

@@ -49,6 +49,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.trade_game import trade_game_router
     from app.routers.farm_game import farm_game_router
     from app.routers.game_score import game_score_router
+    from app.routers.pet import pet_router
     from app.routers.chem2048 import chem2048_router
     from app.routers.assignment import router as assignment_router
     from app.routers.class_diary import router as class_diary_router
@@ -82,6 +83,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(trade_game_router)
     app.include_router(farm_game_router)
     app.include_router(game_score_router)
+    app.include_router(pet_router)
     app.include_router(chem2048_router)
     app.include_router(assignment_router)
     app.include_router(class_diary_router)
@@ -773,6 +775,13 @@ def _register_optional_routers(app: FastAPI) -> None:
         init_resource_library_system()
     except Exception as e:
         logger.warning("共享资源库系统初始化失败: %s", e)
+
+    # 初始化虚拟宠物系统
+    try:
+        from app.routers.pet import init_pet_system
+        init_pet_system()
+    except Exception as e:
+        logger.warning("虚拟宠物系统初始化失败: %s", e)
 
     # 论坛系统
     try:

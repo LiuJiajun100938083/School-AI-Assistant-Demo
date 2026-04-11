@@ -100,6 +100,14 @@ from app.domains.game_upload.repository import GameUploadRepository
 from app.domains.trade_game.repository import TradeGameRepository
 from app.domains.farm_game.repository import FarmGameRepository
 from app.domains.game_score.repository import GameScoreRepository
+from app.domains.pet.repository import (
+    PetRepository,
+    CoinTransactionRepository,
+    ShopItemRepository,
+    StreakRepository,
+    AchievementRepository,
+    LikeRepository,
+)
 from app.domains.llm_usage.repository import LlmUsageRepository
 from app.domains.chem2048.repository import Chem2048Repository
 from app.domains.class_diary.repository import (
@@ -144,6 +152,7 @@ from app.domains.game_upload.service import GameUploadService
 from app.domains.trade_game.service import TradeGameService
 from app.domains.farm_game.service import FarmGameService
 from app.domains.game_score.service import GameScoreService
+from app.domains.pet.service import PetService
 from app.domains.llm_usage.service import LlmUsageService
 from app.domains.chem2048.service import Chem2048Service
 from app.domains.assignment.service import AssignmentService
@@ -220,6 +229,7 @@ class ServiceContainer:
         self._trade_game: Optional[TradeGameService] = None
         self._farm_game: Optional[FarmGameService] = None
         self._game_score: Optional[GameScoreService] = None
+        self._pet: Optional[PetService] = None
         self._llm_usage: Optional[LlmUsageService] = None
         self._chem2048: Optional[Chem2048Service] = None
         self._assignment: Optional[AssignmentService] = None
@@ -498,6 +508,20 @@ class ServiceContainer:
                 game_repo=self._get_repo(GameUploadRepository),
             )
         return self._game_score
+
+    @property
+    def pet(self) -> PetService:
+        """虚拟宠物服务"""
+        if self._pet is None:
+            self._pet = PetService(
+                pet_repo=self._get_repo(PetRepository),
+                coin_repo=self._get_repo(CoinTransactionRepository),
+                shop_repo=self._get_repo(ShopItemRepository),
+                streak_repo=self._get_repo(StreakRepository),
+                achievement_repo=self._get_repo(AchievementRepository),
+                like_repo=self._get_repo(LikeRepository),
+            )
+        return self._pet
 
     @property
     def llm_usage(self) -> LlmUsageService:

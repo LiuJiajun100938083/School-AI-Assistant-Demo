@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>培僑中學 學習夥伴</title>
     <link rel="stylesheet" href="/static/css/index.css">
+    <link rel="stylesheet" href="/static/css/pet.css">
     <link rel="stylesheet" href="/static/css/spinner.css">
     <!-- GSAP 動畫引擎（啟動畫面） -->
     <script src="/static/vendor/gsap/gsap.min.js"></script>
@@ -110,7 +111,16 @@
             <!-- 歡迎橫幅 -->
             <section class="home-welcome" id="homeWelcome">
                 <div class="home-welcome__text">
-                    <img src="/static/images/ai_hourse.png" alt="" class="home-welcome__mascot">
+                    <!-- 宠物组件（admin 可见时替代 mascot） -->
+                    <div id="homePetWidget" class="home-pet-widget" style="display:none;" onclick="window.location='/pet'">
+                        <canvas id="homePetCanvas" width="80" height="80"></canvas>
+                        <div>
+                            <div class="home-pet-mini-status" id="homePetStatus"></div>
+                            <div class="home-pet-coins" id="homePetCoins"></div>
+                            <div class="home-pet-bubble" id="homePetBubble"></div>
+                        </div>
+                    </div>
+                    <img src="/static/images/ai_hourse.png" alt="" class="home-welcome__mascot" id="homeMascot">
                     <div>
                         <h1 class="home-welcome__title" id="homeWelcomeTitle" data-i18n="home.welcomeBack">歡迎回來</h1>
                         <p class="home-welcome__subtitle" data-i18n="home.subtitle">選擇下方應用開始使用</p>
@@ -147,6 +157,8 @@
 <script src="/static/js/shared/ui.js"></script>
 <script src="/static/js/shared/api.js"></script>
 <script src="/static/js/shared/decrypt_text.js"></script>
+<script src="/static/js/pet_renderer.js"></script>
+<script src="/static/js/shared/i18n/pet.js"></script>
 <script src="/static/js/index.js"></script>
 </body>
 </html>
