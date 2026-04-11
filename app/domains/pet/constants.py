@@ -10,12 +10,12 @@
 # 宠物外观部件范围
 # ============================================================
 
-BODY_TYPE_COUNT = 8       # 体型 0-7
-COLOR_COUNT = 15          # 颜色 0-14
-PATTERN_COUNT = 8         # 花纹 0-7
-EYES_COUNT = 6            # 眼睛 0-5
-EARS_COUNT = 6            # 耳朵 0-5
-TAIL_COUNT = 6            # 尾巴 0-5
+BODY_TYPE_COUNT = 8       # blob/bun/cube/mecha/ghost/crystal/cloud/ufo
+COLOR_COUNT = 15          # 15 色调色板
+PATTERN_COUNT = 1         # 花纹暂不用（染色系统替代）
+EYES_COUNT = 9            # kawaii/cool/fierce/star/visor/cyclops/sleepy/happy/x_eyes
+EARS_COUNT = 9            # floppy/cat/antenna/horns/headphones/halo/crown/flower/none
+TAIL_COUNT = 8            # stubby/dino/lightning/rocket/wings/tentacles/plug/none
 
 # ============================================================
 # 成长阶段

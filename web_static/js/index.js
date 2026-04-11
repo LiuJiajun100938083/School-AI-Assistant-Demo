@@ -637,7 +637,7 @@ const HomeApp = {
             const pet = data.pet;
             widget.innerHTML =
                 '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
-                    '<canvas id="homePetCanvas" width="120" height="120"></canvas>' +
+                    '<canvas id="homePetCanvas" width="256" height="256"></canvas>' +
                     '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
                     '<div class="sidebar-pet-stats">' +
                         '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
