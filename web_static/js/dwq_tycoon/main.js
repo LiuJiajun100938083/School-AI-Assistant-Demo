@@ -22,7 +22,7 @@
         const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
         if (!token) {
             // 未登入,導向登入頁
-            window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+            window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
             return null;
         }
         // 解析 token 拿 user 資訊 (簡化版,生產環境應該呼叫 /api/users/me)
