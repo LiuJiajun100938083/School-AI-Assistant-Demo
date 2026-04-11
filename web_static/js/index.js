@@ -619,7 +619,6 @@ const HomeApp = {
             });
             if (!res.ok) return;
             const data = await res.json();
-            if (!data.has_pet) return;
 
             const widget = document.getElementById('homePetWidget');
             const mascot = document.getElementById('homeMascot');
