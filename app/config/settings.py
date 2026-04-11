@@ -255,6 +255,7 @@ class ServerSettings(BaseSettings):
         {"pattern": "^/api/(login|register|secure-login)", "max_requests": 10, "window": 60},
         {"pattern": "^/api/games/ai/", "max_requests": 5, "window": 60},
         {"pattern": "^/api/games/upload", "max_requests": 10, "window": 60},
+        {"pattern": "^/api/mistakes/practice/[^/]+/status", "max_requests": 30, "window": 60},
         {"pattern": "^/api/mistakes/practice", "max_requests": 10, "window": 60},
         {"pattern": "^/api/admin/", "max_requests": 60, "window": 60},
         {"pattern": "^/api/", "max_requests": 60, "window": 60},

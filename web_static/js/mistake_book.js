@@ -2101,12 +2101,31 @@ const Views = {
     async _startPendingCardPolling(sessionId, subject, container) {
         this._stopPendingCardPolling();
 
+        let pollInterval = 4000;   // 初始 4 秒
+        let retryCount = 0;
+        const MAX_RETRIES = 40;    // 最多 ~3 分鐘
+
         const poll = async () => {
-            const res = await API.getPracticeStatus(sessionId);
-            if (!res || !res.data) {
-                this._pendingCardPollingTimer = setTimeout(poll, 5000);
+            if (retryCount >= MAX_RETRIES) {
+                this._stopPendingCardPolling();
+                const card = document.getElementById('pendingPracticeCard');
+                if (card) {
+                    card.innerHTML = `<div style="font-size:14px;color:var(--mb-error)">${i18n.t('mb.requestTimeout')}</div>`;
+                    card.style.border = '1px dashed var(--mb-error)';
+                }
                 return;
             }
+            retryCount++;
+
+            const res = await API.getPracticeStatus(sessionId);
+            if (!res || !res.data) {
+                // 429 或網路錯誤 → 指數退避 (4s → 8s → 16s, 上限 30s)
+                pollInterval = Math.min(pollInterval * 2, 30000);
+                this._pendingCardPollingTimer = setTimeout(poll, pollInterval);
+                return;
+            }
+            // 成功響應 → 恢復正常間隔
+            pollInterval = 4000;
 
             const { status } = res.data;
 
@@ -2155,8 +2174,8 @@ const Views = {
                 return;
             }
 
-            // 繼續輪詢
-            this._pendingCardPollingTimer = setTimeout(poll, 5000);
+            // 繼續輪詢（使用當前 pollInterval，成功後會恢復 4s）
+            this._pendingCardPollingTimer = setTimeout(poll, pollInterval);
         };
 
         this._pendingCardPollingTimer = setTimeout(poll, 3000);
