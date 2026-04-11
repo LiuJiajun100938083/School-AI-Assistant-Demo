@@ -396,7 +396,18 @@ const API = {
         });  // 異步模式：快速返回 session_id
     },
     async getPracticeStatus(sessionId) {
-        return this._fetch(`/api/mistakes/practice/${sessionId}/status`);
+        // 特殊處理：404 返回 not_found 信號，讓輪詢立即停止而非反覆重試
+        try {
+            const res = await fetch(`/api/mistakes/practice/${sessionId}/status`, {
+                headers: this._headers(),
+            });
+            if (res.status === 404) return { data: { status: 'not_found' } };
+            const data = await res.json();
+            if (!res.ok) return null;
+            return data;
+        } catch {
+            return null;
+        }
     },
     async submitPractice(sessionId, answers) {
         return this._fetch(`/api/mistakes/practice/${sessionId}/submit`, {
@@ -2157,16 +2168,18 @@ const Views = {
                 return;
             }
 
-            if (status === 'generation_failed') {
+            if (status === 'not_found' || status === 'generation_failed') {
                 this._stopPendingCardPolling();
                 this._clearPendingSession();
                 const card = document.getElementById('pendingPracticeCard');
                 if (card) {
+                    const msg = status === 'not_found'
+                        ? i18n.t('mb.generationFailed')
+                        : (res.data.retryable ? i18n.t('mb.generationFailedRetry') : i18n.t('mb.generationFailed'));
+                    const detail = status === 'not_found' ? '' : (res.data.error_message || '');
                     card.innerHTML = `
-                        <div style="font-size:14px;color:var(--mb-error);margin-bottom:4px">
-                            ${res.data.retryable ? i18n.t('mb.generationFailedRetry') : i18n.t('mb.generationFailed')}
-                        </div>
-                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${res.data.error_message || ''}</div>
+                        <div style="font-size:14px;color:var(--mb-error);margin-bottom:4px">${msg}</div>
+                        <div style="font-size:12px;color:var(--mb-text-tertiary)">${detail}</div>
                     `;
                     card.style.border = '1px dashed var(--mb-error)';
                     setTimeout(() => { card.style.display = 'none'; }, 5000);
