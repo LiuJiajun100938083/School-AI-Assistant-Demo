@@ -1112,7 +1112,7 @@ i18n.addMessages({
         // Docs
         'adm.docs.deleteBtn':            '刪除',
         'adm.docs.empty':                '暫無文檔',
-        'adm.docs.uploadedAt':           '上傳於 {{time}}',
+        'adm.docs.uploadedAt':           '上傳於 {{date}}',
         // Export labels
         'adm.export.classLabel':         '班級',
         'adm.export.dateLabel':          '日期',
@@ -2360,7 +2360,7 @@ i18n.addMessages({
         // Docs
         'adm.docs.deleteBtn':            'Delete',
         'adm.docs.empty':                'No documents',
-        'adm.docs.uploadedAt':           'Uploaded {{time}}',
+        'adm.docs.uploadedAt':           'Uploaded {{date}}',
         // Export labels
         'adm.export.classLabel':         'Class',
         'adm.export.dateLabel':          'Date',

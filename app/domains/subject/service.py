@@ -369,10 +369,12 @@ class SubjectService:
                 continue
             filepath = os.path.join(kb_dir, filename)
             stat = os.stat(filepath)
+            ext = os.path.splitext(filename)[1].lstrip(".").lower()
             documents.append({
-                "filename": filename,
-                "file_size": stat.st_size,
-                "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "name": filename,
+                "size": stat.st_size,
+                "type": ext,
+                "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
             })
         return documents
 
