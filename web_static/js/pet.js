@@ -134,8 +134,8 @@
         { key: 'color_id',  guide: 'pet.step.color', type: 'color' },
         { key: 'eyes_id',   guide: 'pet.step.eyes',  labels: EYES_LABELS },
         { key: 'ears_id',   guide: 'pet.step.ears',   labels: EARS_LABELS },
-        { key: 'tail_id',   guide: 'pet.step.name',   labels: TAIL_LABELS },
-        // step 5: name input
+        { key: 'tail_id',   guide: 'pet.step.tail',   labels: TAIL_LABELS },
+        // step 5: name input (isNameStep = customizeStep >= STEPS.length)
     ];
 
     function openCustomize(creating) {
