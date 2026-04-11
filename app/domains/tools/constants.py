@@ -55,3 +55,34 @@ PDF_COMPRESS_PRESETS = {
 # 浮水印參數
 PDF_WATERMARK_MAX_TEXT_LEN = 80
 PDF_WATERMARK_ANGLE_CHOICES = frozenset({-45, 0, 45, 90})
+
+# ============================================================
+# 圖片格式轉換 (server-side fallback for HEIC etc.)
+# ============================================================
+
+IMG_CONVERT_MAX_FILE_SIZE = 30 * 1024 * 1024  # 30 MB
+
+# 伺服器接受的輸入 MIME (瀏覽器無法解碼時走 server)
+ALLOWED_IMAGE_CONVERT_INPUT_MIMES = frozenset({
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/gif",
+    "image/bmp",
+    "image/tiff",
+    "image/heic",
+    "image/heif",
+    "image/heic-sequence",
+    "image/heif-sequence",
+})
+
+# 瀏覽器上傳 HEIC 時 MIME 常為空, 需依副檔名判斷
+ALLOWED_IMAGE_CONVERT_INPUT_EXTS = frozenset({
+    ".png", ".jpg", ".jpeg", ".webp", ".gif",
+    ".bmp", ".tiff", ".tif",
+    ".heic", ".heif",
+})
+
+# 伺服器可輸出的格式
+ALLOWED_IMAGE_CONVERT_OUTPUT = frozenset({"png", "jpeg", "webp"})

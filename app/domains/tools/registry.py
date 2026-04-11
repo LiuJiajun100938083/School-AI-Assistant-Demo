@@ -23,10 +23,10 @@ TOOLS: List[ToolSpec] = [
         id="tool_image_convert",
         name_zh="圖片格式轉換",
         name_en="Image Format Converter",
-        description_zh="PNG / JPG / WebP 互相轉換(瀏覽器本地處理)",
-        description_en="Convert between PNG / JPG / WebP locally",
+        description_zh="PNG / JPG / WebP / HEIC 等格式互轉",
+        description_en="Convert between PNG / JPG / WebP / HEIC and more",
         page_url="/tools/image-convert",
-        needs_backend=False,
+        needs_backend=True,
     ),
     ToolSpec(
         id="tool_pdf_merge",

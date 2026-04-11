@@ -68,6 +68,32 @@ class PdfWatermarkRequest(BaseModel):
 # Roll Call (點名 / 分組)
 # ============================================================
 
+# ============================================================
+# 圖片格式轉換
+# ============================================================
+
+class ImageConvertRequest(BaseModel):
+    target_format: str = Field("png")
+    quality: int = Field(92, ge=10, le=100)
+
+    @field_validator("target_format")
+    @classmethod
+    def _fmt_valid(cls, v: str) -> str:
+        from app.domains.tools.constants import ALLOWED_IMAGE_CONVERT_OUTPUT
+        v = v.lower().strip()
+        if v == "jpg":
+            v = "jpeg"
+        if v not in ALLOWED_IMAGE_CONVERT_OUTPUT:
+            raise ValueError(
+                f"target_format must be one of {sorted(ALLOWED_IMAGE_CONVERT_OUTPUT)}"
+            )
+        return v
+
+
+# ============================================================
+# Roll Call (點名 / 分組)
+# ============================================================
+
 class RollCallPickRequest(BaseModel):
     class_name: str = Field(..., min_length=1, max_length=50)
     n: int = Field(1, ge=1, le=200)

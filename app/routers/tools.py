@@ -16,8 +16,11 @@ from pydantic import ValidationError as _PydanticValidationError
 from app.core.dependencies import get_current_user
 from app.core.exceptions import AuthorizationError
 from app.domains.tools.constants import (
+    ALLOWED_IMAGE_CONVERT_INPUT_EXTS,
+    ALLOWED_IMAGE_CONVERT_INPUT_MIMES,
     ALLOWED_IMAGE_MIMES,
     ALLOWED_PDF_MIMES,
+    IMG_CONVERT_MAX_FILE_SIZE,
     PDF_COMPRESS_DEFAULT,
     PDF_COMPRESS_LEVELS,
     PDF_MAX_FILE_SIZE,
@@ -31,6 +34,7 @@ from app.domains.tools.exceptions import (
     ToolInputError,
     UnsupportedFormatError,
 )
+from app.domains.tools.image_convert_service import convert_image
 from app.domains.tools.pdf_tools_service import (
     compress_pdf,
     extract_pdf_pages,
@@ -45,6 +49,7 @@ from app.domains.tools.roll_call_service import (
     pick_random_students,
 )
 from app.domains.tools.schemas import (
+    ImageConvertRequest,
     PdfCompressRequest,
     PdfExtractRequest,
     PdfWatermarkRequest,
@@ -75,6 +80,54 @@ async def qrcode_endpoint(req: QrRequest, user: Dict = Depends(get_current_user)
         io.BytesIO(png),
         media_type="image/png",
         headers={"Content-Disposition": 'attachment; filename="qrcode.png"'},
+    )
+
+
+# ============================================================
+# 圖片格式轉換 (HEIC 等瀏覽器無法解碼的格式走 server, 純記憶體不存檔)
+# ============================================================
+
+@router.post("/image/convert")
+async def image_convert_endpoint(
+    file: UploadFile = File(...),
+    target_format: str = Form("png"),
+    quality: int = Form(92),
+    user: Dict = Depends(get_current_user),
+):
+    """Convert image to target format (HEIC/HEIF/BMP/TIFF → PNG/JPG/WebP)."""
+    req = _validate_or_400(
+        ImageConvertRequest, target_format=target_format, quality=quality,
+    )
+
+    # MIME + 副檔名雙重檢查 (HEIC 在 Chrome/Firefox 的 MIME 常為空)
+    mime = (file.content_type or "").lower()
+    ext = ""
+    if file.filename and "." in file.filename:
+        ext = ("." + file.filename.rsplit(".", 1)[-1]).lower()
+    if mime not in ALLOWED_IMAGE_CONVERT_INPUT_MIMES and ext not in ALLOWED_IMAGE_CONVERT_INPUT_EXTS:
+        raise UnsupportedFormatError(
+            "UNSUPPORTED_MIME",
+            f"不支援的圖片格式 (type: {mime or 'unknown'}, ext: {ext or 'unknown'})",
+        )
+
+    data = await file.read()
+    if len(data) > IMG_CONVERT_MAX_FILE_SIZE:
+        raise FileTooLargeError(
+            "FILE_TOO_LARGE",
+            f"圖片不得超過 {IMG_CONVERT_MAX_FILE_SIZE // (1024 * 1024)} MB",
+        )
+
+    out_bytes, out_mime = convert_image(
+        data, target_format=req.target_format, quality=req.quality,
+    )
+    ext_map = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
+    out_ext = ext_map.get(out_mime, "png")
+    base = (file.filename or "converted").rsplit(".", 1)[0]
+
+    return StreamingResponse(
+        io.BytesIO(out_bytes),
+        media_type=out_mime,
+        headers={"Content-Disposition": f'attachment; filename="{base}.{out_ext}"'},
     )
 
 

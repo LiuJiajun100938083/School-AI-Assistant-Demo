@@ -15,11 +15,12 @@
 
     <main class="tools-page">
         <h1 class="tools-page__title" data-i18n="tools.img.title">圖片格式轉換</h1>
-        <p class="tools-page__subtitle" data-i18n="tools.img.subtitle">在瀏覽器本地轉換,圖片不會上傳到伺服器</p>
+        <p class="tools-page__subtitle" data-i18n="tools.img.subtitle">支援 PNG / JPG / WebP / HEIC 等格式互轉</p>
+        <p class="tools-page__subtitle" id="serverHint" style="display:none;color:var(--tools-text-3);font-size:12px;margin:-20px 0 28px"></p>
 
         <div class="tools-card" style="margin-bottom:20px">
             <label class="tools-drop" id="dropZone">
-                <input type="file" id="fileInput" accept="image/*">
+                <input type="file" id="fileInput" accept="image/*,.heic,.heif">
                 <div style="font-size:32px">🖼</div>
                 <div data-i18n="tools.dropHere">把檔案拖到這裡,或點擊選擇</div>
             </label>
@@ -51,6 +52,10 @@
                 </div>
                 <div class="tools-preview" id="outPreview">
                     <div class="tools-preview__empty">—</div>
+                    <div id="convertLoading" style="display:none;text-align:center">
+                        <div style="font-size:24px;margin-bottom:8px">⏳</div>
+                        <div data-i18n="tools.img.uploading" style="color:var(--tools-text-2);font-size:13px">上傳轉換中…</div>
+                    </div>
                 </div>
                 <div class="tools-meta-row" id="outMeta"></div>
                 <div style="margin-top:16px;display:flex;justify-content:flex-end">

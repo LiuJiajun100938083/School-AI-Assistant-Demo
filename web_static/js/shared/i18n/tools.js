@@ -26,7 +26,7 @@ i18n.addMessages({
 
         // Image convert
         'tools.img.title': '圖片格式轉換',
-        'tools.img.subtitle': '在瀏覽器本地轉換,圖片不會上傳到伺服器',
+        'tools.img.subtitle': '支援 PNG / JPG / WebP / HEIC 等格式互轉',
         'tools.img.target': '目標格式',
         'tools.img.quality': '品質',
         'tools.img.original': '原始',
@@ -35,6 +35,10 @@ i18n.addMessages({
         'tools.img.dims': '尺寸',
         'tools.img.convert': '開始轉換',
         'tools.img.noSelection': '請先選擇一張圖片',
+        'tools.img.serverHint': 'HEIC 等格式需透過伺服器轉換,轉換完畢即丟棄,不會保存',
+        'tools.img.uploading': '上傳轉換中…',
+        'tools.img.serverError': '伺服器轉換失敗',
+        'tools.img.cannotPreview': '此格式無法在瀏覽器預覽',
 
         // PDF merge (legacy keys — 保留向後兼容)
         'tools.pdf.title': '多圖合併 PDF',
@@ -159,7 +163,7 @@ i18n.addMessages({
         'tools.qr.tooLong': 'Too long (max 2000 chars)',
 
         'tools.img.title': 'Image Format Converter',
-        'tools.img.subtitle': 'Converted locally in your browser. Nothing is uploaded.',
+        'tools.img.subtitle': 'Convert between PNG / JPG / WebP / HEIC and more',
         'tools.img.target': 'Target format',
         'tools.img.quality': 'Quality',
         'tools.img.original': 'Original',
@@ -168,6 +172,10 @@ i18n.addMessages({
         'tools.img.dims': 'Dimensions',
         'tools.img.convert': 'Convert',
         'tools.img.noSelection': 'Please choose an image first',
+        'tools.img.serverHint': 'HEIC and similar formats are converted on the server, then immediately discarded.',
+        'tools.img.uploading': 'Uploading & converting\u2026',
+        'tools.img.serverError': 'Server conversion failed',
+        'tools.img.cannotPreview': 'Cannot preview this format in browser',
 
         // PDF (legacy, kept for backward compat)
         'tools.pdf.title': 'Images to PDF',
