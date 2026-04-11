@@ -621,14 +621,24 @@ const HomeApp = {
             const data = await res.json();
             if (!data.has_pet) return;
 
-            const pet = data.pet;
             const widget = document.getElementById('homePetWidget');
             const mascot = document.getElementById('homeMascot');
             if (!widget) return;
 
-            // 隐藏 mascot，显示宠物
+            // 隐藏 mascot，显示宠物组件
             if (mascot) mascot.style.display = 'none';
             widget.style.display = 'flex';
+
+            if (!data.has_pet) {
+                // 未创建宠物：显示领养引导
+                widget.innerHTML = '<div style="display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="window.location=\'/pet\'">'
+                    + '<span style="font-size:48px;">&#x1F95A;</span>'
+                    + '<div><div style="font-weight:700;font-size:16px;">&#x1F43E; ' + i18n.t('pet.adopt') + '</div>'
+                    + '<div style="font-size:13px;color:#666;">点击领养你的宠物</div></div></div>';
+                return;
+            }
+
+            const pet = data.pet;
 
             // 渲染迷你宠物
             const canvas = document.getElementById('homePetCanvas');
