@@ -31,7 +31,7 @@ window.PetRenderer = (function () {
 
     // ── 成长阶段缩放 ──
     var STAGE_SCALE = {
-        egg:   0.45,
+        egg:   0.65,
         young: 0.75,
         adult: 1.0
     };
@@ -724,30 +724,111 @@ window.PetRenderer = (function () {
         }
     };
 
-    // ── 蛋 sprite（通用）──
-    var EGG_SPRITE = [
-        "                                ","                                ","                                ","                                ",
-        "                                ","                                ","                                ",
-        "            ########            ",
-        "          ##hhhhhhhh##          ",
-        "         #hh........ss#         ",
-        "        #hh..........ss#        ",
-        "       #hh............ss#       ",
-        "       #h..............s#       ",
-        "      #hh..............ss#      ",
-        "      #h................s#      ",
-        "      #h................s#      ",
-        "      #h................s#      ",
-        "      #h................s#      ",
-        "      #h................s#      ",
-        "       #ss............ss#       ",
-        "       #sss..........sss#       ",
-        "        #ssss......ssss#        ",
-        "         ##ssssssssss##         ",
-        "           ##########           ",
-        "                                ","                                ","                                ","                                ",
-        "                                ","                                ","                                ","                                "
-    ];
+    // ── 蛋 sprites（3 阶段：完整 → 裂纹1 → 裂纹2）──
+    var EGG_SPRITES = {
+        egg: [
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "              ####              ",
+            "            ##hhhh##            ",
+            "           #hh....ss#           ",
+            "          #hh......ss#          ",
+            "         #hh........ss#         ",
+            "         #h..........s#         ",
+            "        #hh..........ss#        ",
+            "        #h............s#        ",
+            "       #hh............ss#       ",
+            "       #h..............s#       ",
+            "       #h..............s#       ",
+            "      #hh..............ss#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #ss..............ss#      ",
+            "       #ss............ss#       ",
+            "       #sss..........sss#       ",
+            "        #ssss......ssss#        ",
+            "         ##ssssssssss##         ",
+            "           ##########           ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                "
+        ],
+        egg_crack1: [
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "              ####              ",
+            "            ##h#hh##            ",
+            "           #hh.#..ss#           ",
+            "          #hh..#...ss#          ",
+            "         #hh...##...ss#         ",
+            "         #h.....#....s#         ",
+            "        #hh..........ss#        ",
+            "        #h............s#        ",
+            "       #hh............ss#       ",
+            "       #h..............s#       ",
+            "       #h..............s#       ",
+            "      #hh..............ss#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #ss..............ss#      ",
+            "       #ss............ss#       ",
+            "       #sss..........sss#       ",
+            "        #ssss......ssss#        ",
+            "         ##ssssssssss##         ",
+            "           ##########           ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                "
+        ],
+        egg_crack2: [
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "              ####              ",
+            "            ##h#hh##            ",
+            "           #hh.#..ss#           ",
+            "          #hh..#...ss#          ",
+            "         #hh...##...ss#         ",
+            "         #h.....#....s#         ",
+            "        #hh...###....ss#        ",
+            "        #h....#.......s#        ",
+            "       #hh...##.......ss#       ",
+            "       #h....#.........s#       ",
+            "       #h...##.........s#       ",
+            "      #hh...#..........ss#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #h................s#      ",
+            "      #ss..............ss#      ",
+            "       #ss............ss#       ",
+            "       #sss..........sss#       ",
+            "        #ssss......ssss#        ",
+            "         ##ssssssssss##         ",
+            "           ##########           ",
+            "                                ",
+            "                                ",
+            "                                ",
+            "                                "
+        ]
+    };
 
     // ── 颜色映射 ──
     function adjustColor(hex, amount) {
@@ -833,6 +914,7 @@ window.PetRenderer = (function () {
         var floatingTextY = 0;
         var rafId = null;
         var destroyed = false;
+        var eggCrackLevel = 0; // 0=完整 1=裂纹1 2=裂纹2 3=孵化
 
         // 自动状态
         if (petData.hunger < 20 || petData.hygiene < 20) animState = 'sad';
@@ -858,17 +940,58 @@ window.PetRenderer = (function () {
 
             // 蛋阶段特殊处理
             if (stage === 'egg') {
-                drawToBuffer(layerCtx.body, EGG_SPRITE, tint);
+                var eggKey = eggCrackLevel === 0 ? 'egg' : eggCrackLevel === 1 ? 'egg_crack1' : 'egg_crack2';
+                drawToBuffer(layerCtx.body, EGG_SPRITES[eggKey], tint);
+
                 var et = now / 400;
-                var esx = 1 + Math.sin(et) * 0.02;
-                var esy = 1 - Math.sin(et) * 0.03;
+                var esx = 1, esy = 1, ejy = 0, erot = 0;
+
+                if (animState === 'idle') {
+                    esx = 1 + Math.sin(et) * 0.02;
+                    esy = 1 - Math.sin(et) * 0.03;
+                } else if (animState === 'poke') {
+                    // 被点击时抖动
+                    var eprog = (now - animStart) / 80;
+                    var eshock = Math.exp(-(now - animStart) / 200) * Math.sin(eprog * 3);
+                    esx = 1 - eshock * 0.1;
+                    esy = 1 + eshock * 0.15;
+                    erot = eshock * 0.1;
+                    ejy = -Math.abs(eshock) * 15;
+                } else if (animState === 'evolve') {
+                    // 孵化闪烁效果
+                    var evT = (now - animStart) / 1500;
+                    var evFrame = Math.floor(evT * 16);
+                    var evBig = evFrame % 2 === 0;
+                    var evInt = 1 - Math.pow(evT, 2);
+                    esx = evBig ? 1 + 0.3 * evInt : 1 - 0.2 * evInt;
+                    esy = evBig ? 1 + 0.3 * evInt : 1 - 0.2 * evInt;
+                    ejy = -10 * evInt;
+                }
+
                 ctx.save();
-                ctx.translate(W / 2, H * 0.85);
+                ctx.translate(W / 2, H * 0.85 + ejy);
+                if (erot) ctx.rotate(erot);
                 ctx.scale(esx, esy);
-                var es = STAGE_SCALE.egg;
+                var es = STAGE_SCALE.egg || 0.65;
                 var ew = W * es, eh = H * es;
                 ctx.drawImage(layers.body, 0, 0, 32, 32, -ew / 2, -eh, ew, eh);
                 ctx.restore();
+
+                // 浮动文字（蛋阶段也支持）
+                if (floatingText && animDuration > 0) {
+                    var fprog = (now - animStart) / animDuration;
+                    if (fprog < 1) {
+                        floatingTextY -= 0.5;
+                        ctx.font = 'bold ' + (mini ? 10 : 18) + 'px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.lineWidth = 3;
+                        ctx.strokeStyle = 'rgba(15,23,42,' + (1 - fprog) + ')';
+                        ctx.strokeText(floatingText, W / 2, floatingTextY);
+                        ctx.fillStyle = 'rgba(255,255,255,' + (1 - fprog) + ')';
+                        ctx.fillText(floatingText, W / 2, floatingTextY);
+                    }
+                }
+
                 rafId = requestAnimationFrame(renderFrame);
                 return;
             }
@@ -992,6 +1115,27 @@ window.PetRenderer = (function () {
         return {
             setState: function(anim, dur, text) { setStateInternal(anim, dur || 2000, text); },
             setTint: function(colorHex) { tint = colorHex; },
+            crackEgg: function() {
+                // 点击蛋 → 裂纹递增
+                if (stage !== 'egg') return false;
+                eggCrackLevel++;
+                if (eggCrackLevel === 1) {
+                    setStateInternal('poke', 600, '\u26A1 \u5580\u556B...');
+                } else if (eggCrackLevel === 2) {
+                    setStateInternal('poke', 600, '\u26A1 \u5580\u556B\u5580\u556B\uFF01');
+                } else if (eggCrackLevel >= 3) {
+                    // 触发孵化
+                    setStateInternal('evolve', 2000, '\u2728 \u8BDE\u751F\u5566\uFF01');
+                    return true; // 信号：孵化完成
+                }
+                return false;
+            },
+            hatch: function() {
+                // 孵化后切换为正常宠物
+                stage = 'adult';
+                eggCrackLevel = 0;
+            },
+            getEggCrackLevel: function() { return eggCrackLevel; },
             updateParts: function(data) {
                 if (data.body_type !== undefined) bodyKey = BODY_KEYS[data.body_type % BODY_KEYS.length];
                 if (data.eyes_id !== undefined) eyesKey = EYES_KEYS[data.eyes_id % EYES_KEYS.length];

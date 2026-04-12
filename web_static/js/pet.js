@@ -47,9 +47,41 @@
         }
     }
 
+    var eggRenderer = null;
+
     function showNoPet() {
         $('#petNoPet').style.display = 'flex';
-        $('#btnAdoptPet').onclick = function () { openCustomize(true); };
+
+        // 渲染像素蛋
+        var eggCanvas = $('#eggCanvas');
+        if (eggCanvas && window.PetRenderer) {
+            var eggData = { color_id: 12, body_type: 0, eyes_id: 0, ears_id: 8, tail_id: 7, stage: 'egg', hunger: 100, hygiene: 100 };
+            eggRenderer = PetRenderer.create(eggCanvas, eggData);
+
+            // 点击蛋 → 裂纹 → 孵化 → 进入捏脸
+            var eggArea = eggCanvas.parentElement;
+            eggArea.onclick = function () {
+                if (!eggRenderer) return;
+                var hatched = eggRenderer.crackEgg();
+                var hint = $('#eggHintText');
+                var level = eggRenderer.getEggCrackLevel();
+
+                if (level === 1) {
+                    if (hint) hint.textContent = '\u26A1 \u518D\u70B9\u4E00\u6B21\uFF01';
+                } else if (level === 2) {
+                    if (hint) hint.textContent = '\u26A1 \u5FEB\u8981\u7834\u58F3\u4E86\uFF01\u518D\u6765\uFF01';
+                }
+
+                if (hatched) {
+                    if (hint) hint.textContent = '\u2728 \u5B9D\u5B9D\u8BDE\u751F\u4E86\uFF01';
+                    // 2 秒后进入捏脸
+                    setTimeout(function () {
+                        if (eggRenderer) { eggRenderer.destroy(); eggRenderer = null; }
+                        openCustomize(true);
+                    }, 2000);
+                }
+            };
+        }
     }
 
     // ── 渲染宠物主视图 ──

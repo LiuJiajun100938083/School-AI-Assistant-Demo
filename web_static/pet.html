@@ -32,11 +32,12 @@
             载入中...
         </div>
 
-        <!-- No Pet -->
+        <!-- No Pet: 蛋孵化 -->
         <div id="petNoPet" class="pet-no-pet" style="display:none;">
-            <div class="pet-no-pet__icon">&#x1F95A;</div>
-            <div class="pet-no-pet__text" data-i18n="pet.noPet">你还没有宠物</div>
-            <button class="pet-no-pet__btn" id="btnAdoptPet" data-i18n="pet.adopt">领养宠物</button>
+            <div class="pet-no-pet__egg-canvas">
+                <canvas id="eggCanvas" width="256" height="256"></canvas>
+            </div>
+            <div class="pet-no-pet__text" id="eggHintText">点击蛋来唤醒你的宠物！</div>
         </div>
 
         <!-- Pet View -->
