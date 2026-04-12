@@ -473,6 +473,22 @@ async def pet_chat(request: Request, current_user: Dict = Depends(get_current_us
 
 
 # ============================================================
+# 管理员：历史数据补发金币
+# ============================================================
+
+@pet_router.post("/admin/backfill-coins")
+async def admin_backfill_coins(current_user: Dict = Depends(get_current_user)):
+    """一次性补发历史数据金币（幂等，可重复执行不会重复发放）"""
+    user = _extract_user(current_user)
+    if user["role"] != "admin":
+        raise HTTPException(403, "仅管理员可执行")
+
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, lambda: _get_service().backfill_teacher_coins())
+    return result
+
+
+# ============================================================
 # 初始化
 # ============================================================
 

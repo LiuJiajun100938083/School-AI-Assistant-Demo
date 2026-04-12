@@ -595,6 +595,195 @@ class PetService:
         return self._coin.get_history(user_id, limit)
 
     # ============================================================
+    # 历史数据补发金币（管理员一次性操作）
+    # ============================================================
+
+    def backfill_teacher_coins(self) -> Dict:
+        """
+        扫描历史数据，给已有宠物的教师补发金币。
+        按实际上传/操作数量 × 对应金币额度计算。
+        幂等：同一 source_id 不会重复发放。
+        """
+        from app.domains.pet.constants import TEACHER_COIN_SOURCES
+        results = {"teachers_processed": 0, "total_awarded": 0, "details": []}
+
+        # 获取所有有宠物的教师
+        teachers = self._pet.find_all(
+            where="user_role IN ('teacher', 'admin')"
+        )
+
+        for teacher in teachers:
+            uid = teacher["user_id"]
+            awarded = 0
+            detail = {"user_id": uid, "items": []}
+
+            # 1. 上传游戏数量
+            try:
+                from app.domains.game_upload.repository import GameUploadRepository
+                games = GameUploadRepository().find_all(
+                    where="uploaded_by = %s", params=(uid,)
+                )
+                for g in games:
+                    r = self.award_coins(uid, "teacher", "upload_game",
+                                         source_id=f"game_{g.get('game_uuid', g.get('id'))}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                if games:
+                    detail["items"].append(f"游戏×{len(games)}")
+            except Exception as e:
+                logger.debug("补发游戏金币失败: %s", e)
+
+            # 2. 创建的作业数量
+            try:
+                from app.infrastructure.database.pool import get_database_pool
+                pool = get_database_pool()
+                assignments = pool.execute(
+                    "SELECT id FROM assignments WHERE created_by = %s AND is_deleted = 0",
+                    (uid,)
+                )
+                for a in assignments:
+                    self.award_coins(uid, "teacher", "create_assignment",
+                                     source_id=f"asgn_create_{a['id']}")
+                # 已发布的
+                published = pool.execute(
+                    "SELECT id FROM assignments WHERE created_by = %s AND status = 'published' AND is_deleted = 0",
+                    (uid,)
+                )
+                for p in published:
+                    r = self.award_coins(uid, "teacher", "publish_assignment",
+                                         source_id=f"pub_asgn_{p['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                if assignments:
+                    detail["items"].append(f"作业×{len(assignments)}")
+            except Exception as e:
+                logger.debug("补发作业金币失败: %s", e)
+
+            # 3. 创建的默写数量
+            try:
+                pool = get_database_pool()
+                dictations = pool.execute(
+                    "SELECT id, status FROM dictations WHERE created_by = %s",
+                    (uid,)
+                )
+                for d in dictations:
+                    self.award_coins(uid, "teacher", "create_dictation",
+                                     source_id=f"dict_create_{d['id']}")
+                    if d.get("status") == "published":
+                        r = self.award_coins(uid, "teacher", "publish_dictation",
+                                             source_id=f"pub_dict_{d['id']}")
+                        if r.get("awarded"):
+                            awarded += r["amount"]
+                if dictations:
+                    detail["items"].append(f"默写×{len(dictations)}")
+            except Exception as e:
+                logger.debug("补发默写金币失败: %s", e)
+
+            # 4. 课室日志数量
+            try:
+                pool = get_database_pool()
+                diaries = pool.execute(
+                    "SELECT id FROM class_diary_entries WHERE submitted_by = (SELECT username FROM users WHERE id = %s)",
+                    (uid,)
+                )
+                for d in diaries:
+                    r = self.award_coins(uid, "teacher", "submit_class_diary",
+                                         source_id=f"diary_{d['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                if diaries:
+                    detail["items"].append(f"课室日志×{len(diaries)}")
+            except Exception as e:
+                logger.debug("补发课室日志金币失败: %s", e)
+
+            # 5. PPT 上传数量
+            try:
+                pool = get_database_pool()
+                ppts = pool.execute(
+                    "SELECT file_id FROM ppt_files WHERE teacher_username = (SELECT username FROM users WHERE id = %s)",
+                    (uid,)
+                )
+                for p in ppts:
+                    r = self.award_coins(uid, "teacher", "upload_lesson",
+                                         source_id=f"ppt_{p['file_id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                if ppts:
+                    detail["items"].append(f"PPT×{len(ppts)}")
+            except Exception as e:
+                logger.debug("补发PPT金币失败: %s", e)
+
+            if awarded > 0:
+                results["teachers_processed"] += 1
+                results["total_awarded"] += awarded
+                detail["awarded"] = awarded
+                results["details"].append(detail)
+
+        # ── 学生历史数据补发 ──
+        students = self._pet.find_all(where="user_role = 'student'")
+
+        for stu in students:
+            uid = stu["user_id"]
+            awarded = 0
+            detail = {"user_id": uid, "items": [], "role": "student"}
+
+            try:
+                pool = get_database_pool()
+
+                # 1. 默写提交（已批改的）
+                subs = pool.execute(
+                    "SELECT id, score FROM dictation_submissions WHERE student_id = %s AND status = 'graded'",
+                    (uid,)
+                )
+                for s in subs:
+                    r = self.award_coins(uid, "student", "dictation_submit", f"dict_sub_{s['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                    if s.get("score") and float(s["score"]) >= 95:
+                        r2 = self.award_coins(uid, "student", "dictation_perfect", f"dict_perf_{s['id']}")
+                        if r2.get("awarded"):
+                            awarded += r2["amount"]
+                if subs:
+                    detail["items"].append(f"默写×{len(subs)}")
+
+                # 2. 游戏新纪录
+                scores = pool.execute(
+                    "SELECT id, game_uuid FROM game_scores WHERE student_id = %s",
+                    (uid,)
+                )
+                for sc in scores:
+                    r = self.award_coins(uid, "student", "game_new_record", f"game_{sc.get('game_uuid','')}_{sc['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                if scores:
+                    detail["items"].append(f"游戏分数×{len(scores)}")
+
+                # 3. 学习任务完成
+                tasks = pool.execute(
+                    "SELECT task_id, item_id FROM learning_task_completions WHERE student_id = %s AND is_completed = 1",
+                    (uid,)
+                )
+                for t in tasks:
+                    r = self.award_coins(uid, "student", "task_complete", f"task_{t['task_id']}_{t['item_id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                if tasks:
+                    detail["items"].append(f"任务×{len(tasks)}")
+
+            except Exception as e:
+                logger.debug("补发学生金币失败 uid=%d: %s", uid, e)
+
+            if awarded > 0:
+                results["teachers_processed"] += 1
+                results["total_awarded"] += awarded
+                detail["awarded"] = awarded
+                results["details"].append(detail)
+
+        logger.info("历史金币补发完成: 共 %d 人, %d 金币",
+                     results["teachers_processed"], results["total_awarded"])
+        return results
+
+    # ============================================================
     # 教师面板
     # ============================================================
 

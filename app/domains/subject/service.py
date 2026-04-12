@@ -350,6 +350,14 @@ class SubjectService:
             filename, subject_code, uploaded_by,
         )
 
+        # ── 宠物金币：教师上传知识库文档 +8 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            if uploaded_by and uploaded_by != "system":
+                try_award_coins_by_username(uploaded_by, "upload_knowledge_doc", f"doc_{subject_code}_{filename}", "teacher")
+        except Exception:
+            pass
+
         return {
             "filename": filename,
             "subject": subject_code,
