@@ -595,6 +595,34 @@ class PetService:
         return self._coin.get_history(user_id, limit)
 
     # ============================================================
+    # 教师面板
+    # ============================================================
+
+    def get_teacher_classes_summary(self, class_names: List[str]) -> List[Dict]:
+        """获取多个班级的宠物汇总统计"""
+        return self._pet.get_classes_summary(class_names)
+
+    def get_class_pets(self, class_name: str) -> List[Dict]:
+        """获取某班所有学生的宠物详细（含衰减计算 + 成长阶段）"""
+        rows = self._pet.get_class_pets(class_name)
+        result = []
+        for row in rows:
+            if row.get("pet_name") is None:
+                # 没有宠物
+                result.append({
+                    "user_id": row["user_id"],
+                    "display_name": row["display_name"],
+                    "has_pet": False,
+                })
+            else:
+                # 有宠物：加成长阶段
+                row["has_pet"] = True
+                row["stage"] = get_growth_stage(row.get("growth", 0))
+                row["streak"] = row.get("current_streak", 0)
+                result.append(row)
+        return result
+
+    # ============================================================
     # 宠物聊天（SSE 流式）
     # ============================================================
 

@@ -363,6 +363,64 @@ async def admin_award_coins(data: AwardCoinsRequest, current_user: Dict = Depend
 
 
 # ============================================================
+# 教师面板
+# ============================================================
+
+@pet_router.get("/teacher/classes-summary")
+async def teacher_classes_summary(current_user: Dict = Depends(get_current_user)):
+    """教师查看所属班级宠物汇总"""
+    user = _extract_user(current_user)
+    _require_teacher(user)
+    loop = asyncio.get_event_loop()
+    svc = _get_service()
+
+    # 获取教师所教班级列表
+    from app.services.container import get_services
+    if user["role"] == "admin":
+        # admin 看所有班级
+        from app.domains.user.repository import UserRepository
+        rows = UserRepository().raw_query(
+            "SELECT DISTINCT class_name FROM users WHERE role='student' AND is_active=1 AND class_name IS NOT NULL AND class_name != '' ORDER BY class_name"
+        )
+        class_names = [r["class_name"] for r in rows]
+    else:
+        tc_svc = get_services().teacher_class
+        assignments = await loop.run_in_executor(None, lambda: tc_svc.get_teacher_classes(user["username"]))
+        class_names = list(set(a.get("class_name", "") for a in assignments if a.get("class_name")))
+        class_names.sort()
+
+    if not class_names:
+        return {"classes": []}
+
+    data = await loop.run_in_executor(None, lambda: svc.get_teacher_classes_summary(class_names))
+    return {"classes": data}
+
+
+@pet_router.get("/teacher/class-pets")
+async def teacher_class_pets(
+    class_name: str = Query(..., alias="class"),
+    current_user: Dict = Depends(get_current_user),
+):
+    """教师查看某班所有学生宠物详细"""
+    user = _extract_user(current_user)
+    _require_teacher(user)
+    loop = asyncio.get_event_loop()
+    svc = _get_service()
+
+    # 权限校验（admin 跳过）
+    if user["role"] == "teacher":
+        from app.services.container import get_services
+        tc_svc = get_services().teacher_class
+        assignments = await loop.run_in_executor(None, lambda: tc_svc.get_teacher_classes(user["username"]))
+        allowed = set(a.get("class_name", "") for a in assignments)
+        if class_name not in allowed:
+            raise HTTPException(403, "无权查看此班级")
+
+    students = await loop.run_in_executor(None, lambda: svc.get_class_pets(class_name))
+    return {"class_name": class_name, "students": students}
+
+
+# ============================================================
 # 宠物聊天（SSE 流式）
 # ============================================================
 

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>班级宠物管理</title>
+    <link rel="stylesheet" href="/static/css/pet.css">
+</head>
+<body>
+<script>
+    if (!localStorage.getItem('auth_token') && !localStorage.getItem('token')) {
+        window.location.replace('/login');
+    }
+</script>
+
+<div class="pet-page" id="petTeacherApp">
+
+    <!-- iOS 毛玻璃导航栏 -->
+    <header class="pet-header">
+        <button class="pet-header__back" onclick="window.location='/'">&#x276E; 返回</button>
+        <span class="pet-header__title">班级宠物管理</span>
+        <div></div>
+    </header>
+
+    <div class="pet-content">
+
+        <!-- Loading -->
+        <div id="ptLoading" style="text-align:center;padding:60px 0;font-size:15px;color:#8E8E93;">载入中...</div>
+
+        <!-- 班级切换 -->
+        <div id="ptClassTabs" class="pt-class-tabs" style="display:none;"></div>
+
+        <!-- 汇总卡片 -->
+        <div id="ptSummary" class="pt-summary" style="display:none;">
+            <div class="pt-summary__card">
+                <div class="pt-summary__label">已养宠物</div>
+                <div class="pt-summary__value"><span id="ptPetCount">0</span> / <span id="ptStudentCount">0</span></div>
+            </div>
+            <div class="pt-summary__card">
+                <div class="pt-summary__label">平均成长</div>
+                <div class="pt-summary__value" id="ptAvgGrowth">0</div>
+            </div>
+            <div class="pt-summary__card">
+                <div class="pt-summary__label">平均金币</div>
+                <div class="pt-summary__value" id="ptAvgCoins">0</div>
+            </div>
+        </div>
+
+        <!-- 学生列表 -->
+        <div id="ptStudentList" style="display:none;"></div>
+
+    </div>
+</div>
+
+<script src="/static/js/shared/i18n.js"></script>
+<script src="/static/js/shared/i18n/common.js"></script>
+<script src="/static/js/shared/i18n/pet.js"></script>
+<script>i18n.applyDOM();</script>
+<script src="/static/js/shared/utils.js"></script>
+<script src="/static/js/shared/auth.js"></script>
+<script src="/static/js/shared/ui.js"></script>
+<script src="/static/js/shared/api.js"></script>
+<script src="/static/js/pet_renderer.js"></script>
+<script src="/static/js/pet_teacher.js"></script>
+</body>
+</html>

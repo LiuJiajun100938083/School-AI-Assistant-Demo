@@ -196,6 +196,12 @@ async def pet_page():
     return _serve_page("pet.html")
 
 
+@router.get("/pet/teacher")
+async def pet_teacher_page():
+    """教师宠物管理面板"""
+    return _serve_page("pet_teacher.html")
+
+
 # ============================================================
 # 實用工具 (Tools Hub)
 # ============================================================

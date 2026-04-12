@@ -195,6 +195,45 @@ class PetRepository(BaseRepository):
         return self.pool.execute(sql, params)
 
 
+    def get_class_pets(self, class_name: str) -> List[Dict]:
+        """获取某班所有学生的宠物详细数据（含未创建宠物的学生）"""
+        sql = """
+            SELECT u.id AS user_id, u.display_name, u.class_name,
+                   p.pet_name, p.body_type, p.color_id, p.pattern_id,
+                   p.eyes_id, p.ears_id, p.tail_id,
+                   p.hunger, p.hygiene, p.mood, p.growth, p.coins,
+                   p.personality, p.science_xp, p.humanities_xp,
+                   p.business_xp, p.tech_xp, p.last_decay_at,
+                   s.current_streak
+            FROM users u
+            LEFT JOIN user_pets p ON u.id = p.user_id
+            LEFT JOIN user_streaks s ON u.id = s.user_id
+            WHERE u.class_name = %s AND u.role = 'student' AND u.is_active = 1
+            ORDER BY COALESCE(p.growth, 0) DESC
+        """
+        return self.pool.execute(sql, (class_name,))
+
+    def get_classes_summary(self, class_names: List[str]) -> List[Dict]:
+        """获取多个班级的宠物汇总统计"""
+        if not class_names:
+            return []
+        placeholders = ",".join(["%s"] * len(class_names))
+        sql = f"""
+            SELECT u.class_name,
+                   COUNT(DISTINCT u.id) AS total_students,
+                   COUNT(DISTINCT p.user_id) AS pet_count,
+                   CAST(COALESCE(AVG(p.growth), 0) AS SIGNED) AS avg_growth,
+                   CAST(COALESCE(AVG(p.coins), 0) AS SIGNED) AS avg_coins,
+                   CAST(COALESCE(AVG((COALESCE(p.hunger,0)+COALESCE(p.hygiene,0)+COALESCE(p.mood,0))/3), 0) AS SIGNED) AS avg_care
+            FROM users u
+            LEFT JOIN user_pets p ON u.id = p.user_id
+            WHERE u.class_name IN ({placeholders}) AND u.role = 'student' AND u.is_active = 1
+            GROUP BY u.class_name
+            ORDER BY u.class_name
+        """
+        return self.pool.execute(sql, class_names)
+
+
 # ============================================================
 # 金币流水 Repository
 # ============================================================
