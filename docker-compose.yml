@@ -16,6 +16,7 @@ services:
       - ./llm:/app/llm:ro
       - ./forum_system:/app/forum_system:ro
       - ./web_static:/app/web_static:ro
+      - ./data:/app/data:ro
       # uploaded_games 需要運行時寫入（教師上傳遊戲），覆蓋父層 ro
       - ./web_static/uploaded_games:/app/web_static/uploaded_games
       # 協作佈告板檔案上傳
