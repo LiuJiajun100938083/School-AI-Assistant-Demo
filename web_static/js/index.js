@@ -809,11 +809,15 @@ const HomeApp = {
             roamTimer = setTimeout(doRoam, randomInt(6000, 12000));
         }
 
-        // 点击浮动宠物 → 动画 + 跳转
-        floater.onclick = function() {
+        // 点击浮动宠物 → 动画 + 跳转（canvas + 容器都绑定）
+        function onPetClick(e) {
+            e.stopPropagation();
             floatRenderer.setState('happy', 800);
             setTimeout(function() { window.location = '/pet'; }, 800);
-        };
+        }
+        floater.addEventListener('click', onPetClick);
+        floatCanvas.addEventListener('click', onPetClick);
+        floatCanvas.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
 
         // 点击 sidebar 卡片也跳转
         if (sidebarCard) {
