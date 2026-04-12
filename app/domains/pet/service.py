@@ -658,6 +658,7 @@ class PetService:
             "model": PET_CHAT_MODEL,
             "messages": messages,
             "stream": True,
+            "think": False,  # 关闭 qwen3.5 思考模式，直接输出
             "options": {
                 "temperature": PET_CHAT_TEMPERATURE,
                 "num_predict": PET_CHAT_MAX_TOKENS,

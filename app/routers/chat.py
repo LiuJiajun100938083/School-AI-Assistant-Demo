@@ -173,12 +173,23 @@ async def chat_stream(request: Request):
                 content={"success": False, "error": {"message": "消息不能为空"}},
             )
 
+        # 宠物学科 XP 追踪（不阻塞聊天，异常不影响）
+        subject = body.get("subject", "")
+        if subject:
+            try:
+                from app.domains.user.repository import UserRepository
+                user_row = UserRepository().find_by_username(username)
+                if user_row:
+                    get_services().pet.add_subject_xp(user_row["id"], f"ai_chat_{subject}")
+            except Exception:
+                pass
+
         async def event_generator():
             async for event in get_services().chat.chat_stream(
                 username=username,
                 question=question,
                 conversation_id=body.get("conversation_id"),
-                subject=body.get("subject", ""),
+                subject=subject,
                 model=body.get("model"),
                 use_api=body.get("use_api", False),
                 enable_thinking=body.get("enable_thinking", True),
