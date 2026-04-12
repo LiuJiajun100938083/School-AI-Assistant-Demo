@@ -3643,23 +3643,24 @@ ${report.teacher_attention_points || i18n.t('adm.export.none')}
     async _forceReleaseTask(taskId, taskName) {
         if (!confirm(i18n.t('adm.aiMon.releaseConfirm', {name: taskName}))) return;
         try {
+            const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
             const resp = await fetch('/api/admin/ai-task/force-release', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
+                    'Authorization': 'Bearer ' + (token || ''),
                 },
                 body: JSON.stringify({ task_id: taskId }),
             });
             const data = await resp.json();
             if (data.success) {
-                this.showToast(i18n.t('adm.aiMon.releaseSuccess', {name: taskName}), 'success');
-                this.refreshAiMonitor();
+                if (typeof showToast === 'function') showToast(i18n.t('adm.aiMon.releaseSuccess', {name: taskName}), 'success');
+                AdminApp.refreshAiMonitor();
             } else {
-                this.showToast(i18n.t('adm.aiMon.releaseFailed', {msg: data.message || i18n.t('adm.aiMon.unknownError')}), 'error');
+                if (typeof showToast === 'function') showToast(i18n.t('adm.aiMon.releaseFailed', {msg: data.message || i18n.t('adm.aiMon.unknownError')}), 'error');
             }
         } catch (e) {
-            this.showToast(i18n.t('adm.aiMon.requestFailed', {msg: e.message}), 'error');
+            if (typeof showToast === 'function') showToast(i18n.t('adm.aiMon.requestFailed', {msg: e.message}), 'error');
         }
     },
 
