@@ -396,6 +396,23 @@ async def teacher_classes_summary(current_user: Dict = Depends(get_current_user)
     return {"classes": data}
 
 
+@pet_router.get("/teacher/ranking")
+async def teacher_pet_ranking(
+    limit: int = Query(50, ge=1, le=200),
+    current_user: Dict = Depends(get_current_user),
+):
+    """教师宠物排行榜"""
+    user = _extract_user(current_user)
+    _require_teacher(user)
+    loop = asyncio.get_event_loop()
+    svc = _get_service()
+
+    data = await loop.run_in_executor(
+        None, lambda: svc.get_leaderboard("growth", "teacher", None, limit)
+    )
+    return {"leaderboard": data}
+
+
 @pet_router.get("/teacher/class-pets")
 async def teacher_class_pets(
     class_name: str = Query(..., alias="class"),

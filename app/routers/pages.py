@@ -202,6 +202,12 @@ async def pet_teacher_page():
     return _serve_page("pet_teacher.html")
 
 
+@router.get("/pet/teacher/ranking")
+async def pet_teacher_ranking_page():
+    """教师宠物排行榜"""
+    return _serve_page("pet_teacher_ranking.html")
+
+
 # ============================================================
 # 實用工具 (Tools Hub)
 # ============================================================
