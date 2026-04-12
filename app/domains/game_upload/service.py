@@ -122,6 +122,14 @@ class GameUploadService:
 
             game = self._get_formatted_game(game_uuid)
             logger.info("游戏创建成功: %s by user %d", game_uuid, user_id)
+
+            # ── 宠物金币：教师上传游戏 +15 ──
+            try:
+                from app.domains.pet.hooks import try_award_coins
+                try_award_coins(user_id, "upload_game", f"game_{game_uuid}", "teacher")
+            except Exception:
+                pass
+
             return game
 
         except Exception as e:

@@ -505,6 +505,14 @@ class LearningTaskService:
         completed_users = self._completion_repo.count_completed_users(task_id, total_items)
         self._task_repo.update_completion_count(task_id, completed_users)
 
+        # ── 宠物金币挂钩（完成任务项 +5）──
+        if result.get("is_completed"):
+            try:
+                from app.domains.pet.hooks import try_award_coins_by_username
+                try_award_coins_by_username(username, "task_complete", f"task_{task_id}_{item_id}")
+            except Exception:
+                pass
+
         return {
             "item_id": item_id,
             **result,

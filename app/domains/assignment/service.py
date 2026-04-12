@@ -339,6 +339,14 @@ class AssignmentService:
         )
 
         logger.info("作業 #%d 已發布", assignment_id)
+
+        # ── 宠物金币：教师发布作业 +8 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "publish_assignment", f"pub_asgn_{assignment_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_assignment_detail(assignment_id)
 
     def close_assignment(self, assignment_id: int, teacher_id: int) -> Dict[str, Any]:
@@ -601,6 +609,15 @@ class AssignmentService:
         )
 
         logger.info("提交 #%d 已批改，總分: %s (類型=%s)", submission_id, total_score, rubric_type)
+
+        # ── 宠物金币：教师批改 +2（有反馈 +5）──
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            source = "grade_with_feedback" if feedback else "grade_submission"
+            try_award_coins(teacher_id, source, f"grade_{submission_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_submission_detail(submission_id)
 
     def get_available_targets(self) -> Dict[str, Any]:

@@ -104,6 +104,30 @@ class ClassDiaryService:
             raise
 
         record["id"] = entry_id
+
+        # ── 宠物金币挂钩（表扬 +8, 违规 -10）──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_display_names
+            commended = data.get("commended_students", "")
+            violations = data.get("rule_violations", "")
+            class_code = data.get("class_code", "")
+            if commended:
+                names = extract_student_names(commended)
+                try_award_coins_by_display_names(names, class_code, "class_diary_commend", f"diary_{entry_id}_c")
+            if violations:
+                names = extract_student_names(violations)
+                try_award_coins_by_display_names(names, class_code, "class_diary_violation", f"diary_{entry_id}_v")
+        except Exception:
+            pass
+
+        # 教师提交日志也给金币
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            if submitted_by:
+                try_award_coins_by_username(submitted_by, "submit_class_diary", f"diary_{entry_id}", "teacher")
+        except Exception:
+            pass
+
         return record
 
     def update_entry(self, entry_id: int, data: Dict[str, Any]) -> Dict[str, Any]:

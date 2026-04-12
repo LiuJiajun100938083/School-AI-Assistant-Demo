@@ -531,6 +531,13 @@ class ClassroomService:
             file_id, room_id, teacher_username, len(file_bytes),
         )
 
+        # ── 宠物金币：教师上传教案 +10 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            try_award_coins_by_username(teacher_username, "upload_lesson", f"ppt_{file_id}", "teacher")
+        except Exception:
+            pass
+
         return {
             "file_id": file_id,
             "room_id": room_id,

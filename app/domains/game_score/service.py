@@ -122,6 +122,14 @@ class GameScoreService:
             "遊戲分數已記錄: game=%s, student=%d, score=%d, is_new_best=%s",
             game_uuid, student_id, score, is_new_best,
         )
+        # ── 宠物金币挂钩（新纪录 +5）──
+        if is_new_best:
+            try:
+                from app.domains.pet.hooks import try_award_coins
+                try_award_coins(student_id, "game_new_record", f"game_{game_uuid}_{new_id}")
+            except Exception:
+                pass
+
         return {
             "id": new_id,
             "message": "新紀錄！" if is_new_best else "分數已記錄",

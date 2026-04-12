@@ -487,6 +487,15 @@ class LessonService:
         })
         logger.info("课案 session %s 已结束 (room=%s)", session_id, room_id)
 
+        # ── 宠物金币：教师完成课堂 +10 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            room = self._room_repo.get_by_room_id(room_id)
+            if room and room.get("teacher_username"):
+                try_award_coins_by_username(room["teacher_username"], "complete_lesson", f"lesson_{session_id}", "teacher")
+        except Exception:
+            pass
+
     # ================================================================
     # Session — Navigate
     # ================================================================

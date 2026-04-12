@@ -372,6 +372,15 @@ class ExamCreatorService:
                 session_id, len(generated_questions), failed_count,
             )
 
+            # ── 宠物金币：教师生成考卷 +10 ──
+            try:
+                from app.domains.pet.hooks import try_award_coins_by_username
+                sess = self._sessions.find_by_session_id(session_id)
+                if sess and sess.get("teacher_username"):
+                    try_award_coins_by_username(sess["teacher_username"], "generate_exam", f"exam_{session_id}", "teacher")
+            except Exception:
+                pass
+
         except Exception as e:
             error_code = "UNKNOWN_ERROR"
             error_message = str(e)[:500]

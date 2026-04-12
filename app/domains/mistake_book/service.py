@@ -2286,6 +2286,15 @@ class MistakeBookService:
                 review_codes, "review", mistake_id
             )
 
+        # ── 宠物金币挂钩 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            try_award_coins_by_username(username, "mistake_review", f"review_{mistake_id}_{review_count}")
+            if new_status == "mastered":
+                try_award_coins_by_username(username, "mistake_mastered", f"mastered_{mistake_id}")
+        except Exception:
+            pass
+
         return {
             "mistake_id": mistake_id,
             "new_mastery": new_mastery,

@@ -283,6 +283,14 @@ class DictationService:
             where="id = %s",
             params=(dictation_id,),
         )
+
+        # ── 宠物金币：教师发布默写 +8 ──
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "publish_dictation", f"pub_dict_{dictation_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_dictation_detail(dictation_id)
 
     def close_dictation(self, dictation_id: int, teacher_id: int) -> Dict[str, Any]:
@@ -546,6 +554,13 @@ class DictationService:
                 submission_id, ocr_engine, diff["accuracy"],
                 "ok" if (grading and grading.success) else "skipped",
             )
+
+            # ── 宠物金币挂钩 ──
+            if student_id:
+                from app.domains.pet.hooks import try_award_coins
+                try_award_coins(student_id, "dictation_submit", f"dict_sub_{submission_id}")
+                if diff["accuracy"] >= 95:
+                    try_award_coins(student_id, "dictation_perfect", f"dict_perf_{submission_id}")
 
         except Exception as e:  # 兜底:任何錯誤都要把狀態落地,避免卡在 processing
             logger.exception("默書 OCR 處理失敗 submission=%s", submission_id)
