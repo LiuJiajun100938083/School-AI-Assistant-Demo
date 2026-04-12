@@ -656,102 +656,190 @@ const HomeApp = {
 
     _initRoamingPet(data) {
         var pet = data.pet;
-        var container = document.getElementById('roamingPet');
-        var canvas = document.getElementById('roamingPetCanvas');
+        var floater = document.getElementById('roamingPet');
+        var floatCanvas = document.getElementById('roamingPetCanvas');
         var infoEl = document.getElementById('roamingPetInfo');
         var bubbleEl = document.getElementById('roamingPetBubble');
-        if (!container || !canvas || !window.PetRenderer) return;
+        if (!floater || !floatCanvas || !window.PetRenderer) return;
 
-        // 显示
-        container.style.display = 'block';
-        if (infoEl) infoEl.textContent = pet.pet_name || '';
+        // sidebar 里的宠物 canvas（待在框里的状态）
+        var sidebarWidget = document.getElementById('homePetWidget');
+        var sidebarCard = sidebarWidget ? sidebarWidget.querySelector('.sidebar-pet-card') : null;
 
-        // 渲染宠物
-        var renderer = PetRenderer.create(canvas, pet, { mini: true });
-
-        // 显示初始气泡
-        if (data.message && bubbleEl) {
-            bubbleEl.textContent = data.message;
-            bubbleEl.style.display = '';
-            setTimeout(function() { bubbleEl.style.display = 'none'; }, 5000);
+        // 在 sidebar 框里渲染宠物（初始状态）
+        if (sidebarCard) {
+            var sidebarCanvasHtml = '<canvas id="sidebarPetCanvas" width="256" height="256" style="width:100px;height:100px;image-rendering:pixelated;"></canvas>';
+            sidebarCard.insertAdjacentHTML('afterbegin', sidebarCanvasHtml);
+            var sidebarCanvas = document.getElementById('sidebarPetCanvas');
+            if (sidebarCanvas) {
+                this._sidebarRenderer = PetRenderer.create(sidebarCanvas, pet, { mini: true });
+            }
         }
 
-        // 点击 → 动画 + 跳转
-        container.onclick = function() {
-            renderer.setState('happy', 800);
-            setTimeout(function() { window.location = '/pet'; }, 800);
-        };
+        // 浮动宠物初始隐藏（只有跑出来时显示）
+        floater.style.display = 'none';
+        if (infoEl) infoEl.textContent = pet.pet_name || '';
+        var floatRenderer = PetRenderer.create(floatCanvas, pet, { mini: true });
 
-        // ── 漫游 AI ──
+        var isOut = false;  // 是否在外面漫游
         var currentX = 80;
         var roamTimer = null;
-        var actions = ['walk', 'walk', 'walk', 'happy', 'idle', 'idle', 'sleep'];
+        var self = this;
+
         var bubbleMessages = [
-            '\uD83D\uDCDA \u4E3B\u4EBA\u52A0\u6CB9!',   // 主人加油!
-            '\u2728 \u4ECA\u5929\u4E5F\u8981\u52AA\u529B!', // 今天也要努力!
-            '\uD83D\uDE0A \u597D\u65E0\u804A~',           // 好无聊~
-            '\uD83C\uDF1F \u6211\u597D\u5F00\u5FC3!',     // 我好开心!
-            '\uD83D\uDCA4 \u6709\u70B9\u56F0...',         // 有点困...
+            '\uD83D\uDCDA \u4E3B\u4EBA\u52A0\u6CB9!',
+            '\u2728 \u4ECA\u5929\u4E5F\u8981\u52AA\u529B!',
+            '\uD83D\uDE0A \u597D\u65E0\u804A~',
+            '\uD83C\uDF1F \u6211\u597D\u5F00\u5FC3!',
+            '\uD83D\uDCA4 \u6709\u70B9\u56F0...',
         ];
 
         function randomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
+        // 从框里跑出来
+        function comeOut() {
+            if (isOut) return;
+            isOut = true;
+
+            // 隐藏 sidebar canvas
+            var sc = document.getElementById('sidebarPetCanvas');
+            if (sc) sc.style.display = 'none';
+
+            // 计算 sidebar 框的位置作为起点
+            var startX = 40;
+            var startBottom = 60;
+            if (sidebarCard) {
+                var rect = sidebarCard.getBoundingClientRect();
+                startX = rect.left;
+                startBottom = window.innerHeight - rect.bottom + 10;
+            }
+
+            // 在起点显示浮动宠物（无 transition 先定位）
+            floater.style.transition = 'none';
+            floater.style.left = startX + 'px';
+            floater.style.bottom = startBottom + 'px';
+            floater.style.display = 'block';
+
+            // 下一帧开启 transition 并走到目标位置
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    floater.style.transition = 'left 3s cubic-bezier(0.4,0,0.2,1), bottom 1s ease-out';
+                    var targetX = randomInt(200, Math.max(400, window.innerWidth - 200));
+                    floater.style.left = targetX + 'px';
+                    floater.style.bottom = '10px';
+                    currentX = targetX;
+                    floatRenderer.setState('dance', 3000);
+                });
+            });
+
+            // 开始漫游循环
+            roamTimer = setTimeout(doRoam, randomInt(8000, 15000));
+        }
+
+        // 回到框里
+        function goHome() {
+            if (!isOut) return;
+
+            // 走回 sidebar 位置
+            var homeX = 40;
+            if (sidebarCard) {
+                homeX = sidebarCard.getBoundingClientRect().left;
+            }
+
+            var goingLeft = homeX < currentX;
+            if (goingLeft) {
+                floater.classList.add('home-roaming-pet--flip');
+            } else {
+                floater.classList.remove('home-roaming-pet--flip');
+            }
+
+            floater.style.transition = 'left 3s cubic-bezier(0.4,0,0.2,1), bottom 1s ease-out';
+            floater.style.left = homeX + 'px';
+            floatRenderer.setState('dance', 3000);
+
+            // 3 秒后隐藏浮动宠物，显示 sidebar canvas
+            setTimeout(function() {
+                floater.style.display = 'none';
+                floater.classList.remove('home-roaming-pet--flip');
+                isOut = false;
+                var sc = document.getElementById('sidebarPetCanvas');
+                if (sc) sc.style.display = '';
+
+                // 下次再出来
+                roamTimer = setTimeout(comeOut, randomInt(15000, 30000));
+            }, 3200);
+        }
+
+        // 漫游行为
         function doRoam() {
+            if (!isOut) return;
+            var actions = ['walk', 'walk', 'happy', 'goHome', 'idle'];
             var action = actions[randomInt(0, actions.length - 1)];
 
             if (action === 'walk') {
-                // 随机目标位置
-                var targetX = randomInt(100, Math.max(300, window.innerWidth - 150));
+                var targetX = randomInt(150, Math.max(400, window.innerWidth - 150));
                 var goingLeft = targetX < currentX;
 
-                // 翻转方向
-                if (goingLeft) {
-                    container.classList.add('home-roaming-pet--flip');
-                } else {
-                    container.classList.remove('home-roaming-pet--flip');
-                }
+                if (goingLeft) { floater.classList.add('home-roaming-pet--flip'); }
+                else { floater.classList.remove('home-roaming-pet--flip'); }
 
-                // CSS transition 移动
-                container.style.left = targetX + 'px';
+                floater.style.left = targetX + 'px';
                 currentX = targetX;
-
-                // 走路期间用 dance 动画（有弹跳+晃动）
-                renderer.setState('dance', 3500);
+                floatRenderer.setState('dance', 3500);
 
             } else if (action === 'happy') {
-                renderer.setState('happy', 2000);
-                // 随机冒气泡
-                if (Math.random() > 0.5 && bubbleEl) {
+                floatRenderer.setState('happy', 2000);
+                if (Math.random() > 0.4 && bubbleEl) {
                     var msg = bubbleMessages[randomInt(0, bubbleMessages.length - 1)];
                     bubbleEl.textContent = msg;
                     bubbleEl.style.display = '';
                     setTimeout(function() { bubbleEl.style.display = 'none'; }, 3000);
                 }
 
-            } else if (action === 'sleep') {
-                renderer.setState('sleep', 8000);
+            } else if (action === 'goHome') {
+                goHome();
+                return; // goHome 会自己安排下次 comeOut
 
             } else {
-                // idle — 什么都不做，renderer 默认就是 idle
+                // idle
             }
 
-            // 下一次漫游
-            roamTimer = setTimeout(doRoam, randomInt(6000, 15000));
+            roamTimer = setTimeout(doRoam, randomInt(6000, 12000));
         }
 
-        // 3 秒后开始第一次漫游
-        roamTimer = setTimeout(doRoam, 3000);
+        // 点击浮动宠物 → 动画 + 跳转
+        floater.onclick = function() {
+            floatRenderer.setState('happy', 800);
+            setTimeout(function() { window.location = '/pet'; }, 800);
+        };
+
+        // 点击 sidebar 卡片也跳转
+        if (sidebarCard) {
+            sidebarCard.onclick = function() { window.location = '/pet'; };
+        }
 
         // 页面不可见时暂停
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 if (roamTimer) { clearTimeout(roamTimer); roamTimer = null; }
             } else {
-                if (!roamTimer) roamTimer = setTimeout(doRoam, randomInt(3000, 8000));
+                if (!roamTimer) {
+                    if (isOut) roamTimer = setTimeout(doRoam, randomInt(3000, 8000));
+                    else roamTimer = setTimeout(comeOut, randomInt(5000, 15000));
+                }
             }
         });
+
+        // 初始：在框里待 10-20 秒后第一次出来
+        roamTimer = setTimeout(comeOut, randomInt(10000, 20000));
+
+        // 如果有消息，提前出来打招呼
+        if (data.message) {
+            clearTimeout(roamTimer);
+            roamTimer = setTimeout(comeOut, 3000);
+        }
     },
 
     /* ---------- 學科管理 ---------- */
