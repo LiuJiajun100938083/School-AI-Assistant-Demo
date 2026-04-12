@@ -369,6 +369,8 @@ const HomeUI = {
    APP — 主控制器
    ============================================================ */
 
+function _esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
 const HomeApp = {
 
     state: {
@@ -654,7 +656,7 @@ const HomeApp = {
                         '<div class="sidebar-pet-adopt__egg">' +
                             '<canvas id="sidebarEggCanvas" width="256" height="256"></canvas>' +
                         '</div>' +
-                        '<div class="sidebar-pet-adopt__text">' + (pet.pet_name || '') + '</div>' +
+                        '<div class="sidebar-pet-adopt__text">' + _esc(pet.pet_name || '') + '</div>' +
                     '</div>';
                 var eggCanvas = document.getElementById('sidebarEggCanvas');
                 if (eggCanvas && window.PetRenderer) {
@@ -718,7 +720,7 @@ const HomeApp = {
             // ── 状态 D：正常宠物卡片 ──
             widget.innerHTML =
                 '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
-                    '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
+                    '<div class="sidebar-pet-name">' + _esc(pet.pet_name || '') + '</div>' +
                     '<div class="sidebar-pet-stats">' +
                         '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
                         '<span>\uD83E\uDDFC ' + pet.hygiene + '</span>' +

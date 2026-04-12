@@ -238,19 +238,19 @@ class PetService:
         if source_id and self._coin.has_transaction(user_id, source_type, source_id):
             return {"awarded": False, "reason": "已发放过"}
 
-        # 每日上限检查（正数且非手动）
-        if amount > 0 and source_type not in MANUAL_COIN_SOURCES:
-            cap = DAILY_EARN_CAP_STUDENT if user_role == "student" else DAILY_EARN_CAP_TEACHER
-            daily = self._coin.get_daily_earned(user_id)
-            if daily >= cap:
-                return {"awarded": False, "reason": "今日已达获取上限"}
-
-        # Streak 倍率（正数收入）
+        # Streak 倍率（正数收入，先算再检查上限）
         if amount > 0 and source_type not in MANUAL_COIN_SOURCES:
             streak = self._streak.get_by_user(user_id)
             if streak:
                 multiplier = get_streak_multiplier(streak["current_streak"])
                 amount = int(amount * multiplier)
+
+        # 每日上限检查（倍率后）
+        if amount > 0 and source_type not in MANUAL_COIN_SOURCES:
+            cap = DAILY_EARN_CAP_STUDENT if user_role == "student" else DAILY_EARN_CAP_TEACHER
+            daily = self._coin.get_daily_earned(user_id)
+            if daily >= cap:
+                return {"awarded": False, "reason": "今日已达获取上限"}
 
         # 更新余额
         pet = self._pet.get_by_user(user_id)
@@ -307,12 +307,17 @@ class PetService:
 
         # admin 不扣币
         if user_role == "admin" and ADMIN_UNLIMITED_COINS:
-            pass
+            pet = self._pet.get_by_user(user_id)
+            admin_balance = pet["coins"] if pet else 0
+            self._coin.record_transaction(
+                user_id=user_id, user_role=user_role,
+                amount=-price, source_type="purchase",
+                source_id=str(item_id), balance_after=admin_balance,
+            )
         else:
             new_balance = self._pet.update_coins(user_id, -price)
             if new_balance is None:
                 raise ValueError("金币不足")
-            # 记消费流水
             self._coin.record_transaction(
                 user_id=user_id, user_role=user_role,
                 amount=-price, source_type="purchase",
@@ -524,13 +529,13 @@ class PetService:
             # 发放成就奖励
             for a in ACHIEVEMENTS:
                 if a["code"] == code and a["reward_coins"] > 0:
-                    self._pet.update_coins(user_id, a["reward_coins"])
+                    new_balance = self._pet.update_coins(user_id, a["reward_coins"])
                     self._coin.record_transaction(
                         user_id=user_id, user_role="",
                         amount=a["reward_coins"],
                         source_type="achievement",
                         source_id=code,
-                        balance_after=0,  # 近似值
+                        balance_after=new_balance or 0,
                     )
             logger.info("用户 %d 解锁成就: %s", user_id, code)
         return unlocked

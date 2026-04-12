@@ -114,6 +114,8 @@ i18n.addMessages({
             'pet.chat.placeholder': '说点什么...',
             'pet.chat.send': '发送',
             'pet.chat.welcomeMsg': '想和你聊天！试试问学习问题吧~',
+            'pet.chat.replyFailed': '回复失败',
+            'pet.chat.networkError': '网络错误，请稍后再试',
         },
         en: {
             'pet.pageTitle': 'My Pet',
@@ -215,6 +217,8 @@ i18n.addMessages({
             'pet.chat.placeholder': 'Say something...',
             'pet.chat.send': 'Send',
             'pet.chat.welcomeMsg': 'wants to chat! Try asking a study question~',
+            'pet.chat.replyFailed': 'Reply failed',
+            'pet.chat.networkError': 'Network error, please try again',
         }
     }
 );

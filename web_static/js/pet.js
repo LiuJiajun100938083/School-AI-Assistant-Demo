@@ -11,6 +11,7 @@
     var streakData = null;
 
     var $ = function (sel) { return document.querySelector(sel); };
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     // ── API ──
     async function api(method, path, body) {
@@ -46,8 +47,6 @@
             $('#petLoading').textContent = i18n.t('common.error') + ': ' + e.message;
         }
     }
-
-    var eggRenderer = null;
 
     function showNoPet() {
         // 跳过蛋孵化，直接进入捏脸（孵化流程已移至主页 sidebar）
@@ -178,7 +177,7 @@
 
         if (isNameStep) {
             $('#customizeGuide').textContent = i18n.t('pet.step.name');
-            container.innerHTML = '<input type="text" id="petNameInput" placeholder="' + i18n.t('pet.namePlaceholder') + '" value="' + (petData ? petData.pet_name : '') + '" maxlength="20" style="width:100%;padding:12px;font-size:16px;border:2px solid #2c2c2c;border-radius:8px;font-family:inherit;background:#1e293b;color:#e2e8f0;">';
+            container.innerHTML = '<input type="text" id="petNameInput" placeholder="' + i18n.t('pet.namePlaceholder') + '" value="' + esc(petData ? petData.pet_name : '') + '" maxlength="20" style="width:100%;padding:12px;font-size:16px;border:2px solid #2c2c2c;border-radius:8px;font-family:inherit;background:#1e293b;color:#e2e8f0;">';
             $('#customizeNext').textContent = i18n.t('pet.step.confirm');
             $('#customizeRandom').style.display = 'none';
         } else {
@@ -392,11 +391,11 @@
         (data.leaderboard || []).forEach(function (entry, idx) {
             html += '<div class="pet-grouped__row">' +
                 '<span style="font-size:20px;min-width:30px;text-align:center;">' + (idx < 3 ? medals[idx] : (idx + 1)) + '</span>' +
-                '<span style="flex:1;font-size:17px;font-weight:500;">' + (entry.display_name || entry.pet_name || 'Unknown') + '</span>' +
+                '<span style="flex:1;font-size:17px;font-weight:500;">' + esc(entry.display_name || entry.pet_name || 'Unknown') + '</span>' +
                 '<span style="font-size:17px;font-weight:600;color:#007AFF;">' + entry.growth + '</span>' +
             '</div>';
         });
-        if (!html) html = '<div style="padding:40px;text-align:center;color:#8E8E93;">暂无数据</div>';
+        if (!html) html = '<div style="padding:40px;text-align:center;color:#8E8E93;">' + i18n.t('common.noData') + '</div>';
 
         showSheet(i18n.t('pet.leaderboard'), '<div class="pet-grouped" style="margin:0;">' + html + '</div>');
     }
@@ -529,7 +528,7 @@
                             // 宠物开心动画
                             if (renderer) renderer.setState('happy', 1500);
                         } else if (eventType === 'error') {
-                            petBubble.textContent = data.message || '\u56DE\u590D\u5931\u8D25';
+                            petBubble.textContent = data.message || i18n.t('pet.chat.replyFailed');
                             petBubble.className = 'pet-chat__msg pet-chat__msg--error';
                         }
                     } catch (e) {
@@ -538,7 +537,7 @@
                 }
             }
         } catch (e) {
-            petBubble.textContent = '\u7F51\u7EDC\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5';
+            petBubble.textContent = i18n.t('pet.chat.networkError');
             petBubble.className = 'pet-chat__msg pet-chat__msg--error';
         }
 
