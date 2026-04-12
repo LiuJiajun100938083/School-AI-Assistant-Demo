@@ -5,6 +5,190 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>班级宠物管理</title>
     <link rel="stylesheet" href="/static/css/pet.css">
+    <style>
+        /* ── 教师面板增强样式（内联，量少不值得独立文件）── */
+        .pt-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 28px 24px;
+            color: white;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .pt-hero::before {
+            content: '';
+            position: absolute;
+            top: -40px; right: -40px;
+            width: 160px; height: 160px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        .pt-hero::after {
+            content: '';
+            position: absolute;
+            bottom: -30px; left: -30px;
+            width: 120px; height: 120px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 50%;
+        }
+        .pt-hero__title {
+            font-size: 26px; font-weight: 800;
+            letter-spacing: -0.5px; margin-bottom: 4px;
+            position: relative; z-index: 1;
+        }
+        .pt-hero__subtitle {
+            font-size: 14px; opacity: 0.8;
+            position: relative; z-index: 1;
+        }
+
+        .pt-summary {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+            margin-bottom: 20px;
+        }
+        .pt-summary__card {
+            background: var(--pet-grouped-bg, rgba(255,255,255,0.8));
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px; padding: 16px 12px; text-align: center;
+            transition: transform 0.15s;
+        }
+        .pt-summary__card:hover { transform: translateY(-2px); }
+        .pt-summary__icon { font-size: 24px; margin-bottom: 6px; }
+        .pt-summary__value {
+            font-size: 26px; font-weight: 800;
+            letter-spacing: -0.5px;
+            font-variant-numeric: tabular-nums;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .pt-summary__label {
+            font-size: 12px; color: var(--pet-text-secondary, #8E8E93);
+            font-weight: 500; margin-top: 4px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        .pt-student-card {
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px;
+            background: var(--pet-grouped-bg, rgba(255,255,255,0.8));
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border-radius: 16px; margin-bottom: 10px;
+            transition: transform 0.15s, box-shadow 0.15s;
+            cursor: default;
+        }
+        .pt-student-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+
+        .pt-student-card__canvas {
+            width: 56px; height: 56px;
+            image-rendering: pixelated; flex-shrink: 0;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #EEF2FF, #F0E6FF);
+        }
+
+        .pt-student-card__right { flex: 1; min-width: 0; }
+
+        .pt-student-card__row1 {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 8px;
+        }
+        .pt-student-card__name {
+            font-size: 16px; font-weight: 700; color: var(--pet-text, #1C1C1E);
+        }
+        .pt-student-card__pet-name {
+            font-size: 13px; color: #667eea; font-weight: 600;
+            background: rgba(102,126,234,0.08);
+            padding: 2px 8px; border-radius: 8px;
+        }
+        .pt-student-card__stage {
+            font-size: 12px; color: var(--pet-text-secondary, #8E8E93);
+            margin-left: auto;
+        }
+
+        .pt-student-card__bars {
+            display: flex; gap: 12px; align-items: center;
+            flex-wrap: wrap;
+        }
+        .pt-mini-bar {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 12px; font-weight: 600;
+        }
+        .pt-mini-bar__track {
+            width: 48px; height: 5px;
+            background: rgba(0,0,0,0.06); border-radius: 3px;
+            overflow: hidden;
+        }
+        .pt-mini-bar__fill {
+            height: 100%; border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .pt-mini-bar__fill--hunger { background: #34C759; }
+        .pt-mini-bar__fill--hygiene { background: #5AC8FA; }
+        .pt-mini-bar__fill--mood { background: #FF9500; }
+
+        .pt-student-card__meta {
+            display: flex; gap: 12px; margin-top: 6px;
+            font-size: 12px; color: var(--pet-text-secondary, #8E8E93);
+            font-weight: 500;
+        }
+        .pt-student-card__meta span { display: flex; align-items: center; gap: 3px; }
+
+        .pt-student-card__no-pet {
+            font-size: 14px; color: var(--pet-text-tertiary, #AEAEB2);
+            padding: 8px 0;
+        }
+        .pt-student-card__warning {
+            display: inline-block;
+            font-size: 11px; color: white; font-weight: 700;
+            background: #FF3B30; padding: 2px 8px;
+            border-radius: 6px; margin-left: 8px;
+        }
+
+        .pt-empty {
+            text-align: center; padding: 60px 20px;
+            color: var(--pet-text-secondary, #8E8E93);
+        }
+        .pt-empty__icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+        .pt-empty__text { font-size: 16px; }
+
+        /* iOS segmented control style */
+        .pt-class-tabs {
+            display: flex; gap: 0;
+            background: rgba(0,0,0,0.05);
+            border-radius: 10px; padding: 2px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .pt-class-tab {
+            flex: 1; min-width: 60px;
+            padding: 8px 16px; border: none; border-radius: 8px;
+            background: none; font-weight: 600; font-size: 14px;
+            cursor: pointer; font-family: inherit;
+            color: var(--pet-text-secondary, #8E8E93);
+            transition: all 0.2s; white-space: nowrap;
+            text-align: center;
+        }
+        .pt-class-tab--active {
+            background: white; color: var(--pet-text, #1C1C1E);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .pt-section-title {
+            font-size: 13px; font-weight: 500;
+            color: var(--pet-text-secondary, #8E8E93);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 0 4px; margin-bottom: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .pt-summary { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
 </head>
 <body>
 <script>
@@ -15,40 +199,53 @@
 
 <div class="pet-page" id="petTeacherApp">
 
-    <!-- iOS 毛玻璃导航栏 -->
     <header class="pet-header">
         <button class="pet-header__back" onclick="window.location='/'">&#x276E; 返回</button>
-        <span class="pet-header__title">班级宠物管理</span>
+        <span class="pet-header__title">宠物管理</span>
         <div></div>
     </header>
 
     <div class="pet-content">
-
-        <!-- Loading -->
         <div id="ptLoading" style="text-align:center;padding:60px 0;font-size:15px;color:#8E8E93;">载入中...</div>
 
-        <!-- 班级切换 -->
-        <div id="ptClassTabs" class="pt-class-tabs" style="display:none;"></div>
+        <div id="ptMain" style="display:none;">
+            <!-- Hero -->
+            <div class="pt-hero">
+                <div class="pt-hero__title" id="ptHeroTitle">班级宠物管理</div>
+                <div class="pt-hero__subtitle" id="ptHeroSub">查看学生宠物养成情况</div>
+            </div>
 
-        <!-- 汇总卡片 -->
-        <div id="ptSummary" class="pt-summary" style="display:none;">
-            <div class="pt-summary__card">
-                <div class="pt-summary__label">已养宠物</div>
-                <div class="pt-summary__value"><span id="ptPetCount">0</span> / <span id="ptStudentCount">0</span></div>
+            <!-- 班级切换 -->
+            <div id="ptClassTabs" class="pt-class-tabs"></div>
+
+            <!-- 汇总卡片 -->
+            <div id="ptSummary" class="pt-summary">
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">🐾</div>
+                    <div class="pt-summary__value"><span id="ptPetCount">0</span><span style="font-size:14px;-webkit-text-fill-color:#8E8E93;"> / <span id="ptStudentCount">0</span></span></div>
+                    <div class="pt-summary__label">已养宠物</div>
+                </div>
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">📈</div>
+                    <div class="pt-summary__value" id="ptAvgGrowth">0</div>
+                    <div class="pt-summary__label">平均成长</div>
+                </div>
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">💰</div>
+                    <div class="pt-summary__value" id="ptAvgCoins">0</div>
+                    <div class="pt-summary__label">平均金币</div>
+                </div>
+                <div class="pt-summary__card">
+                    <div class="pt-summary__icon">❤️</div>
+                    <div class="pt-summary__value" id="ptAvgCare">0</div>
+                    <div class="pt-summary__label">平均照顾</div>
+                </div>
             </div>
-            <div class="pt-summary__card">
-                <div class="pt-summary__label">平均成长</div>
-                <div class="pt-summary__value" id="ptAvgGrowth">0</div>
-            </div>
-            <div class="pt-summary__card">
-                <div class="pt-summary__label">平均金币</div>
-                <div class="pt-summary__value" id="ptAvgCoins">0</div>
-            </div>
+
+            <!-- 学生列表 -->
+            <div class="pt-section-title" id="ptListTitle">学生列表</div>
+            <div id="ptStudentList"></div>
         </div>
-
-        <!-- 学生列表 -->
-        <div id="ptStudentList" style="display:none;"></div>
-
     </div>
 </div>
 
