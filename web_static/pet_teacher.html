@@ -185,6 +185,22 @@
             padding: 0 4px; margin-bottom: 10px;
         }
 
+        .pt-sort-bar {
+            display: flex; gap: 6px; margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .pt-sort-btn {
+            padding: 6px 14px; border: none; border-radius: 16px;
+            background: rgba(0,0,0,0.04); font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            color: var(--pet-text-secondary, #8E8E93);
+            transition: all 0.15s;
+        }
+        .pt-sort-btn--active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
         @media (max-width: 600px) {
             .pt-summary { grid-template-columns: repeat(2, 1fr); }
         }
@@ -201,12 +217,12 @@
 
     <header class="pet-header">
         <button class="pet-header__back" onclick="window.location='/'">&#x276E; 返回</button>
-        <span class="pet-header__title">宠物管理</span>
+        <span class="pet-header__title">寵物管理</span>
         <div></div>
     </header>
 
     <div class="pet-content">
-        <div id="ptLoading" style="text-align:center;padding:60px 0;font-size:15px;color:#8E8E93;">载入中...</div>
+        <div id="ptLoading" style="text-align:center;padding:60px 0;font-size:15px;color:#8E8E93;">載入中...</div>
 
         <div id="ptMain" style="display:none;">
             <!-- Hero -->
@@ -223,27 +239,30 @@
                 <div class="pt-summary__card">
                     <div class="pt-summary__icon">🐾</div>
                     <div class="pt-summary__value"><span id="ptPetCount">0</span><span style="font-size:14px;-webkit-text-fill-color:#8E8E93;"> / <span id="ptStudentCount">0</span></span></div>
-                    <div class="pt-summary__label">已养宠物</div>
+                    <div class="pt-summary__label">已養寵物</div>
                 </div>
                 <div class="pt-summary__card">
                     <div class="pt-summary__icon">📈</div>
                     <div class="pt-summary__value" id="ptAvgGrowth">0</div>
-                    <div class="pt-summary__label">平均成长</div>
+                    <div class="pt-summary__label">平均成長</div>
                 </div>
                 <div class="pt-summary__card">
                     <div class="pt-summary__icon">💰</div>
                     <div class="pt-summary__value" id="ptAvgCoins">0</div>
-                    <div class="pt-summary__label">平均金币</div>
+                    <div class="pt-summary__label">平均金幣</div>
                 </div>
                 <div class="pt-summary__card">
                     <div class="pt-summary__icon">❤️</div>
                     <div class="pt-summary__value" id="ptAvgCare">0</div>
-                    <div class="pt-summary__label">平均照顾</div>
+                    <div class="pt-summary__label">平均照顧</div>
                 </div>
             </div>
 
+            <!-- 排序控制 -->
+            <div id="ptSortBar" class="pt-sort-bar"></div>
+
             <!-- 学生列表 -->
-            <div class="pt-section-title" id="ptListTitle">学生列表</div>
+            <div class="pt-section-title" id="ptListTitle">學生列表</div>
             <div id="ptStudentList"></div>
         </div>
     </div>

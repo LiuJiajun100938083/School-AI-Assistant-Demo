@@ -411,9 +411,9 @@
   },
   {
     "id": "pet_teacher",
-    "name": "宠物管理",
+    "name": "寵物管理",
     "icon": "",
-    "description": "按班級查看學生寵物養成情況、屬性數值、金幣與連續學習天數",
+    "description": "按班級查看學生寵物養成情況、全校班級排行、屬性數值與連續學習天數",
     "url": "/pet/teacher",
     "roles": [
       "teacher",
