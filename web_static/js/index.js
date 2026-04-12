@@ -623,41 +623,94 @@ const HomeApp = {
             if (!res.ok) return;
             var data = await res.json();
 
-            // sidebar 简要状态
             var widget = document.getElementById('homePetWidget');
-            if (widget) {
-                widget.style.display = 'block';
-                if (!data.has_pet) {
-                    widget.innerHTML =
-                        '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
-                            '<div class="sidebar-pet-adopt__egg">\uD83E\uDD5A</div>' +
-                            '<div class="sidebar-pet-adopt__text">\uD83D\uDC3E ' + i18n.t('pet.adopt') + '</div>' +
-                        '</div>';
-                    // 显示引导气泡（在 innerHTML 设置之后）
-                    this._showPetIntroBubble('egg');
-                    return;
-                }
-                var pet = data.pet;
+            if (!widget) return;
+            widget.style.display = 'block';
+
+            // ── 状态 A：无宠物 → 像素蛋 + 领养按钮 ──
+            if (!data.has_pet) {
                 widget.innerHTML =
-                    '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
-                        '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
-                        '<div class="sidebar-pet-stats">' +
-                            '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
-                            '<span>\uD83E\uDDFC ' + pet.hygiene + '</span>' +
-                            '<span>\uD83D\uDE0A ' + pet.mood + '</span>' +
+                    '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
+                        '<div class="sidebar-pet-adopt__egg">' +
+                            '<canvas id="sidebarEggCanvas" width="256" height="256"></canvas>' +
                         '</div>' +
-                        '<div class="sidebar-pet-coins">\uD83D\uDCB0 ' + pet.coins + '</div>' +
+                        '<div class="sidebar-pet-adopt__text">\uD83D\uDC3E ' + i18n.t('pet.adopt') + '</div>' +
                     '</div>';
+                var eggCanvas = document.getElementById('sidebarEggCanvas');
+                if (eggCanvas && window.PetRenderer) {
+                    var eggData = { color_id: 12, body_type: 0, eyes_id: 0, ears_id: 8, tail_id: 7, stage: 'egg', hunger: 100, hygiene: 100 };
+                    PetRenderer.create(eggCanvas, eggData, { mini: true });
+                }
+                this._showPetIntroBubble('egg');
+                return;
             }
 
-            if (!data.has_pet) return;
+            // ── 状态 B：宠物已创建但待孵化 → 像素蛋 + 破壳交互 ──
+            if (data.has_pet && localStorage.getItem('pet_needs_hatch')) {
+                var pet = data.pet;
+                widget.innerHTML =
+                    '<div class="sidebar-pet-adopt" id="sidebarHatchCard">' +
+                        '<div class="sidebar-pet-adopt__egg">' +
+                            '<canvas id="sidebarHatchCanvas" width="256" height="256"></canvas>' +
+                        '</div>' +
+                        '<div class="sidebar-pet-adopt__text" id="sidebarHatchHint">\uD83E\uDD5A \u70B9\u51FB\u7834\u58F3\uFF01</div>' +
+                    '</div>';
 
-            // 已有宠物但首次见：显示介绍气泡
+                this._showHatchPopup();
+
+                var hatchCanvas = document.getElementById('sidebarHatchCanvas');
+                if (hatchCanvas && window.PetRenderer) {
+                    var hatchEggData = {
+                        color_id: pet.color_id || 0, body_type: pet.body_type || 0,
+                        eyes_id: pet.eyes_id || 0, ears_id: pet.ears_id || 0,
+                        tail_id: pet.tail_id || 0, stage: 'egg',
+                        hunger: 100, hygiene: 100
+                    };
+                    var hatchRenderer = PetRenderer.create(hatchCanvas, hatchEggData, { mini: true });
+                    var self = this;
+
+                    document.getElementById('sidebarHatchCard').onclick = function () {
+                        if (!hatchRenderer) return;
+                        var hatched = hatchRenderer.crackEgg();
+                        var hint = document.getElementById('sidebarHatchHint');
+                        var level = hatchRenderer.getEggCrackLevel();
+
+                        if (level === 1 && hint) hint.textContent = '\u26A1 \u518D\u70B9\u4E00\u6B21\uFF01';
+                        else if (level === 2 && hint) hint.textContent = '\u26A1 \u5FEB\u8981\u7834\u58F3\u4E86\uFF01';
+
+                        if (hatched) {
+                            if (hint) hint.textContent = '\u2728 \u5B9D\u5B9D\u8BDE\u751F\u4E86\uFF01';
+                            setTimeout(function () {
+                                localStorage.removeItem('pet_needs_hatch');
+                                hatchRenderer.destroy();
+                                hatchRenderer = null;
+                                var popup = document.getElementById('petHatchPopup');
+                                if (popup) popup.remove();
+                                self._loadHomePetWidget();
+                            }, 2500);
+                        }
+                    };
+                }
+                return;
+            }
+
+            // ── 状态 C：正常宠物卡片 ──
+            var pet = data.pet;
+            widget.innerHTML =
+                '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
+                    '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
+                    '<div class="sidebar-pet-stats">' +
+                        '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
+                        '<span>\uD83E\uDDFC ' + pet.hygiene + '</span>' +
+                        '<span>\uD83D\uDE0A ' + pet.mood + '</span>' +
+                    '</div>' +
+                    '<div class="sidebar-pet-coins">\uD83D\uDCB0 ' + pet.coins + '</div>' +
+                '</div>';
+
             if (!localStorage.getItem('pet_intro_seen')) {
                 this._showPetIntroBubble('intro');
             }
 
-            // 漫游桌面宠物
             this._initRoamingPet(data);
         } catch (e) {
             console.warn('Pet widget load failed:', e);
@@ -753,6 +806,43 @@ const HomeApp = {
                 localStorage.setItem('pet_intro_seen', '1');
             }
         }, 15000);
+    },
+
+    _showHatchPopup() {
+        if (document.getElementById('petHatchPopup')) return;
+
+        var isZh = !window.i18n || i18n.isZh !== false;
+        var text = isZh
+            ? '\u4F60\u7684\u5BA0\u7269\u5728\u86CB\u91CC\uFF01\u70B9\u51FB\u51E0\u4E0B\u5C31\u80FD\u7834\u58F3\u89C1\u4E3B\u4EBA\u5566\uFF01'
+            : 'Your pet is in the egg! Click a few times to hatch!';
+
+        var popup = document.createElement('div');
+        popup.id = 'petHatchPopup';
+        popup.className = 'pet-hatch-popup';
+        popup.innerHTML = '<div class="pet-hatch-popup__text">\uD83E\uDD5A ' + text + '</div>';
+
+        var widget = document.getElementById('homePetWidget');
+        popup.style.position = 'fixed';
+        popup.style.left = '8px';
+        popup.style.width = '180px';
+
+        if (widget) {
+            var rect = widget.getBoundingClientRect();
+            popup.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+            popup.style.left = rect.left + 'px';
+            popup.style.width = Math.max(180, rect.width) + 'px';
+        } else {
+            popup.style.bottom = '120px';
+        }
+
+        document.body.appendChild(popup);
+
+        setTimeout(function () {
+            if (popup.parentElement) {
+                popup.style.animation = 'petIntroOut 0.3s ease-in forwards';
+                setTimeout(function () { popup.remove(); }, 350);
+            }
+        }, 8000);
     },
 
     _initRoamingPet(data) {
