@@ -648,13 +648,104 @@ const HomeApp = {
                     '</div>';
             }
 
-            if (!data.has_pet) return;
+            if (!data.has_pet) {
+                // 未创建宠物：显示引导气泡
+                this._showPetIntroBubble('egg');
+                return;
+            }
+
+            // 已有宠物但首次见：显示介绍气泡
+            if (!localStorage.getItem('pet_intro_seen')) {
+                this._showPetIntroBubble('intro');
+            }
 
             // 漫游桌面宠物
             this._initRoamingPet(data);
         } catch (e) {
             console.warn('Pet widget load failed:', e);
         }
+    },
+
+    _showPetIntroBubble(type) {
+        // 避免重复显示
+        if (document.getElementById('petIntroBubble')) return;
+
+        var isZh = !window.i18n || i18n.isZh !== false;
+
+        var messages = {
+            egg: {
+                title: isZh ? '🥚 嘿！我在这裡！' : '🥚 Hey! I\'m here!',
+                lines: isZh ? [
+                    '🐾 我是你的專屬寵物精靈',
+                    '📚 完成學習任務可以賺金幣',
+                    '🛒 金幣可以買食物養我長大',
+                    '🏆 和同學比比誰養得最好！',
+                    '',
+                    '👈 點擊左邊領養我吧！'
+                ] : [
+                    '🐾 I\'m your virtual pet!',
+                    '📚 Earn coins by learning',
+                    '🛒 Buy food to grow me',
+                    '🏆 Compete with classmates!',
+                    '',
+                    '👈 Click left to adopt me!'
+                ]
+            },
+            intro: {
+                title: isZh ? '💡 你知道嗎？' : '💡 Did you know?',
+                lines: isZh ? [
+                    '🍖 記得餵我吃東西哦~',
+                    '📚 默寫、做題、玩遊戲都能賺金幣',
+                    '🧼 用金幣買清潔用品幫我洗澡',
+                    '🔥 連續學習天數越多，金幣加倍！',
+                    '💬 點我還可以跟我聊天～'
+                ] : [
+                    '🍖 Remember to feed me!',
+                    '📚 Earn coins from quizzes & games',
+                    '🧼 Buy soap to keep me clean',
+                    '🔥 Streak = coin multiplier!',
+                    '💬 Click me to chat!'
+                ]
+            }
+        };
+
+        var msg = messages[type] || messages.intro;
+
+        var bubble = document.createElement('div');
+        bubble.id = 'petIntroBubble';
+        bubble.className = 'pet-intro-bubble';
+        bubble.innerHTML =
+            '<div class="pet-intro-bubble__close" id="petIntroBubbleClose">&times;</div>' +
+            '<div class="pet-intro-bubble__title">' + msg.title + '</div>' +
+            '<div class="pet-intro-bubble__body">' +
+                msg.lines.map(function(l) { return l ? '<div>' + l + '</div>' : '<div style="height:4px;"></div>'; }).join('') +
+            '</div>';
+
+        // 找到 sidebar pet widget 的位置
+        var widget = document.getElementById('homePetWidget');
+        if (widget) {
+            widget.style.position = 'relative';
+            widget.appendChild(bubble);
+        } else {
+            document.body.appendChild(bubble);
+        }
+
+        // 关闭按钮
+        document.getElementById('petIntroBubbleClose').onclick = function(e) {
+            e.stopPropagation();
+            bubble.style.animation = 'petIntroOut 0.2s ease-in forwards';
+            setTimeout(function() { bubble.remove(); }, 250);
+            localStorage.setItem('pet_intro_seen', '1');
+        };
+
+        // 15 秒后自动消失
+        setTimeout(function() {
+            if (bubble.parentElement) {
+                bubble.style.animation = 'petIntroOut 0.3s ease-in forwards';
+                setTimeout(function() { bubble.remove(); }, 350);
+                localStorage.setItem('pet_intro_seen', '1');
+            }
+        }, 15000);
     },
 
     _initRoamingPet(data) {
