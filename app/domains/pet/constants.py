@@ -259,8 +259,9 @@ ACCESS_LEVEL = "admin"
 # ============================================================
 
 PET_CHAT_MODEL = "qwen3.5:4b"       # 轻量本地模型
-PET_CHAT_MAX_TOKENS = 300            # 宠物回复简短
+PET_CHAT_MAX_TOKENS = 200            # 宠物回复简短
 PET_CHAT_TEMPERATURE = 0.8           # 稍活泼
+PET_CHAT_TIMEOUT = 30                # 30 秒超时（不像主力聊天那样等 120 秒）
 PET_CHAT_HISTORY_LIMIT = 10          # 保留最近 10 轮对话
 
 # 性格 → 语气描述（用于 system prompt）

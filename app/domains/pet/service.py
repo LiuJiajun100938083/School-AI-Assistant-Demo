@@ -623,6 +623,7 @@ class PetService:
             PET_CHAT_MODEL,
             PET_CHAT_MAX_TOKENS,
             PET_CHAT_TEMPERATURE,
+            PET_CHAT_TIMEOUT,
             PET_CHAT_HISTORY_LIMIT,
             build_pet_chat_prompt,
             get_growth_stage,
@@ -666,9 +667,9 @@ class PetService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
+            async with httpx.AsyncClient(timeout=PET_CHAT_TIMEOUT) as client:
                 async with client.stream(
-                    "POST", ollama_url, json=payload, timeout=60
+                    "POST", ollama_url, json=payload, timeout=PET_CHAT_TIMEOUT
                 ) as resp:
                     if resp.status_code != 200:
                         yield f'event: error\ndata: {{"message": "模型服务不可用 ({resp.status_code})"}}\n\n'
