@@ -676,6 +676,9 @@ class PetService:
                         return
 
                     full_answer = ""
+                    prompt_tokens = 0
+                    completion_tokens = 0
+                    duration_ms = 0
                     async for line in resp.aiter_lines():
                         if not line.strip():
                             continue
@@ -686,11 +689,34 @@ class PetService:
                                 full_answer += content
                                 yield f'event: token\ndata: {json.dumps({"content": content}, ensure_ascii=False)}\n\n'
                             if chunk.get("done"):
+                                # Ollama done chunk 包含准确 token 计数
+                                prompt_tokens = chunk.get("prompt_eval_count", 0)
+                                completion_tokens = chunk.get("eval_count", 0)
+                                duration_ms = int(chunk.get("total_duration", 0) / 1_000_000)
                                 break
                         except json.JSONDecodeError:
                             continue
 
                     yield f'event: done\ndata: {json.dumps({"full_answer": full_answer}, ensure_ascii=False)}\n\n'
+
+                    # 记录本地模型使用量
+                    try:
+                        from app.services.container import get_services
+                        await get_services().llm_usage.record_async(
+                            user_id=user_id,
+                            provider="ollama",
+                            model=PET_CHAT_MODEL,
+                            purpose="pet_chat",
+                            usage_dict={
+                                "prompt_tokens": prompt_tokens,
+                                "completion_tokens": completion_tokens,
+                                "total_tokens": prompt_tokens + completion_tokens,
+                            },
+                            duration_ms=duration_ms,
+                            status="ok",
+                        )
+                    except Exception as rec_err:
+                        logger.warning("记录宠物聊天使用量失败: %s", rec_err)
 
         except httpx.TimeoutException:
             yield 'event: error\ndata: {"message": "回复超时了，请稍后再试"}\n\n'

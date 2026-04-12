@@ -833,6 +833,37 @@
                                 點擊「刷新」載入數據
                             </div>
                         </div>
+
+                        <!-- ── 本地模型使用量 ── -->
+                        <div style="margin-top:24px;">
+                            <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:1.05em;">
+                                <svg class="icon icon-sm" style="stroke:var(--brand)"><use href="#i-chart"/></svg>
+                                <span>🖥️ 本地模型使用量 (Ollama)</span>
+                                <button onclick="loadLocalUsageStats()" style="margin-left:auto;padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);cursor:pointer;font-size:0.8em;">刷新</button>
+                            </h4>
+
+                            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+                                <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                    <div style="font-size:0.8em;color:var(--text-secondary);margin-bottom:4px;">今日调用次数</div>
+                                    <div id="localUsageCallCount" style="font-size:1.6em;font-weight:700;">0</div>
+                                </div>
+                                <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                    <div style="font-size:0.8em;color:var(--text-secondary);margin-bottom:4px;">今日 Tokens</div>
+                                    <div id="localUsageTotalTokens" style="font-size:1.6em;font-weight:700;">0</div>
+                                </div>
+                                <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                    <div style="font-size:0.8em;color:var(--text-secondary);margin-bottom:4px;">平均响应时长</div>
+                                    <div id="localUsageAvgDuration" style="font-size:1.6em;font-weight:700;">--</div>
+                                </div>
+                            </div>
+
+                            <div style="border:1px solid var(--border);border-radius:10px;padding:16px;">
+                                <h4 style="margin:0 0 12px;font-size:0.95em;">最近本地模型调用</h4>
+                                <div id="localUsageRecent" style="max-height:300px;overflow-y:auto;font-size:0.85em;color:var(--text-secondary);">
+                                    点击「刷新」载入数据
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

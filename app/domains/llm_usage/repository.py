@@ -129,6 +129,51 @@ class LlmUsageRepository(BaseRepository):
             (limit,),
         )
 
+    # ── 本地模型（Ollama）专用查询 ──
+
+    def get_local_today_summary(self) -> Dict[str, Any]:
+        """本地模型今日汇总"""
+        row = self.raw_query_one(
+            "SELECT "
+            "  CAST(COALESCE(SUM(prompt_tokens), 0) AS SIGNED) AS prompt_tokens, "
+            "  CAST(COALESCE(SUM(completion_tokens), 0) AS SIGNED) AS completion_tokens, "
+            "  CAST(COALESCE(SUM(total_tokens), 0) AS SIGNED) AS total_tokens, "
+            "  COUNT(*) AS call_count, "
+            "  CAST(COALESCE(AVG(duration_ms), 0) AS SIGNED) AS avg_duration_ms "
+            "FROM llm_api_usage "
+            "WHERE DATE(created_at) = CURDATE() AND provider = 'ollama'"
+        )
+        return row if row else {
+            "prompt_tokens": 0, "completion_tokens": 0,
+            "total_tokens": 0, "call_count": 0, "avg_duration_ms": 0,
+        }
+
+    def get_local_daily_stats(self, days: int = 30) -> List[Dict[str, Any]]:
+        """本地模型每日聚合"""
+        return self.raw_query(
+            "SELECT "
+            "  DATE(created_at) AS date, "
+            "  SUM(total_tokens) AS total_tokens, "
+            "  COUNT(*) AS call_count, "
+            "  AVG(duration_ms) AS avg_duration_ms "
+            "FROM llm_api_usage "
+            "WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL %s DAY) "
+            "  AND provider = 'ollama' "
+            "GROUP BY DATE(created_at) ORDER BY date ASC",
+            (days,),
+        )
+
+    def get_local_recent(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """本地模型最近调用记录"""
+        return self.raw_query(
+            "SELECT a.*, u.display_name, u.username "
+            "FROM llm_api_usage a "
+            "LEFT JOIN users u ON a.user_id = u.id "
+            "WHERE a.provider = 'ollama' "
+            "ORDER BY a.created_at DESC LIMIT %s",
+            (limit,),
+        )
+
     def get_usage_by_user(self, days: int = 30) -> List[Dict[str, Any]]:
         """按用戶聚合統計（最近 N 天）"""
         return self.raw_query(

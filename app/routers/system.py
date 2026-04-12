@@ -435,3 +435,62 @@ async def get_ai_usage_recent(request: Request, limit: int = 50):
     except Exception as e:
         logger.error("查詢 AI usage recent 失敗: %s", e)
         return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+# ====================================================================== #
+#  本地模型（Ollama）使用量
+# ====================================================================== #
+
+@router.get("/api/admin/ai-usage/local/summary")
+async def get_local_usage_summary(request: Request):
+    """本地模型今日汇总"""
+    try:
+        _verify_admin(request)
+        import asyncio
+        data = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: get_services().llm_usage.get_local_summary()
+        )
+        return success_response(data, "查詢成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("查詢本地模型 usage summary 失敗: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/admin/ai-usage/local/daily")
+async def get_local_usage_daily(request: Request, days: int = 30):
+    """本地模型每日聚合"""
+    try:
+        _verify_admin(request)
+        if days < 1 or days > 365:
+            days = 30
+        import asyncio
+        data = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: get_services().llm_usage.get_local_daily_chart(days)
+        )
+        return success_response(data, "查詢成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("查詢本地模型 usage daily 失敗: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)
+
+
+@router.get("/api/admin/ai-usage/local/recent")
+async def get_local_usage_recent(request: Request, limit: int = 50):
+    """本地模型最近调用记录"""
+    try:
+        _verify_admin(request)
+        if limit < 1 or limit > 200:
+            limit = 50
+        import asyncio
+        data = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: get_services().llm_usage.get_local_recent(limit)
+        )
+        return success_response(data, "查詢成功")
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("查詢本地模型 usage recent 失敗: %s", e)
+        return error_response("SERVER_ERROR", str(e), status_code=500)

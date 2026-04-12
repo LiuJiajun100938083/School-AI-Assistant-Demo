@@ -3702,8 +3702,9 @@ async function loadAiUsageStats() {
             fetch('/api/admin/ai-usage/daily?days=30', { headers }).then(r => r.json()),
             fetch('/api/admin/ai-usage/recent?limit=30', { headers }).then(r => r.json()),
         ]);
-        // 同時觸發用戶排行（不阻塞主流程）
+        // 同時觸發用戶排行 + 本地模型使用量（不阻塞主流程）
         loadAiUsageByUser();
+        loadLocalUsageStats();
 
         // 渲染 summary 卡片
         if (summaryRes.success) {
@@ -3909,6 +3910,92 @@ function renderAiUsageRecent(records) {
         html += `<td style="padding:6px 4px;text-align:right;font-weight:600;">${tokens}</td>`;
         html += `<td style="padding:6px 4px;text-align:right;">${duration}</td>`;
         html += `</tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+
+/* ============================================================
+   本地模型（Ollama）使用量
+   ============================================================ */
+
+async function loadLocalUsageStats() {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    try {
+        const [summaryRes, recentRes] = await Promise.all([
+            fetch('/api/admin/ai-usage/local/summary', { headers }).then(r => r.json()),
+            fetch('/api/admin/ai-usage/local/recent?limit=30', { headers }).then(r => r.json()),
+        ]);
+
+        // 渲染汇总卡片
+        if (summaryRes.success) {
+            const d = summaryRes.data;
+            const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+            el('localUsageCallCount', (d.call_count || 0).toLocaleString());
+            el('localUsageTotalTokens', (d.total_tokens || 0).toLocaleString());
+            const avgMs = d.avg_duration_ms || 0;
+            el('localUsageAvgDuration', avgMs > 1000 ? (avgMs / 1000).toFixed(1) + 's' : avgMs + 'ms');
+        }
+
+        // 渲染最近调用表
+        if (recentRes.success && recentRes.data) {
+            renderLocalUsageRecent(recentRes.data);
+        }
+    } catch (err) {
+        console.error('载入本地模型使用量失败:', err);
+    }
+}
+
+function renderLocalUsageRecent(records) {
+    const container = document.getElementById('localUsageRecent');
+    if (!container) return;
+    if (!records.length) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-tertiary);">暂无本地模型调用记录</div>';
+        return;
+    }
+
+    const PURPOSE_LABELS = {
+        chat: 'AI 问答',
+        pet_chat: '宠物聊天',
+        moderation: '内容审核',
+        practice_gen: '练习生成',
+        exam_gen: '试卷生成',
+    };
+
+    let html = '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);font-size:0.85em;color:var(--text-secondary);">';
+    html += '<th style="text-align:left;padding:6px 4px;width:18%;">时间</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">用户</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">用途</th>';
+    html += '<th style="text-align:left;padding:6px 4px;width:16%;">模型</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:14%;">Tokens</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:10%;">输入</th>';
+    html += '<th style="text-align:right;padding:6px 4px;width:10%;">输出</th>';
+    html += '</tr></thead><tbody>';
+
+    records.forEach(function(r) {
+        var time = r.created_at || '--';
+        var user = r.display_name || r.username || '--';
+        var purpose = PURPOSE_LABELS[r.purpose] || r.purpose || '--';
+        var model = (r.model || '--');
+        var tokens = (r.total_tokens || 0).toLocaleString();
+        var input = (r.prompt_tokens || 0).toLocaleString();
+        var output = (r.completion_tokens || 0).toLocaleString();
+
+        html += '<tr style="border-bottom:1px solid var(--border-light);">';
+        html += '<td style="padding:6px 4px;">' + time + '</td>';
+        html += '<td style="padding:6px 4px;">' + user + '</td>';
+        html += '<td style="padding:6px 4px;">' + purpose + '</td>';
+        html += '<td style="padding:6px 4px;">' + model + '</td>';
+        html += '<td style="padding:6px 4px;text-align:right;font-weight:600;">' + tokens + '</td>';
+        html += '<td style="padding:6px 4px;text-align:right;color:var(--text-secondary);">' + input + '</td>';
+        html += '<td style="padding:6px 4px;text-align:right;color:var(--text-secondary);">' + output + '</td>';
+        html += '</tr>';
     });
 
     html += '</tbody></table>';

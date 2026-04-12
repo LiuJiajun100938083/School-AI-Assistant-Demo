@@ -165,6 +165,42 @@ class LlmUsageService:
                 row["created_at"] = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
         return rows
 
+    # ============================================================
+    # 本地模型（Ollama）使用量
+    # ============================================================
+
+    def get_local_summary(self) -> Dict[str, Any]:
+        """本地模型今日汇总"""
+        stats = self._repo.get_local_today_summary()
+        for key in ("prompt_tokens", "completion_tokens", "total_tokens", "call_count", "avg_duration_ms"):
+            if key in stats and stats[key] is not None:
+                stats[key] = int(stats[key])
+        return stats
+
+    def get_local_daily_chart(self, days: int = 30) -> List[Dict[str, Any]]:
+        """本地模型每日聚合"""
+        rows = self._repo.get_local_daily_stats(days)
+        for row in rows:
+            if hasattr(row.get("date"), "strftime"):
+                row["date"] = row["date"].strftime("%Y-%m-%d")
+            for key in ("total_tokens", "call_count"):
+                if key in row and row[key] is not None:
+                    row[key] = int(row[key])
+            if row.get("avg_duration_ms") is not None:
+                row["avg_duration_ms"] = int(row["avg_duration_ms"])
+        return rows
+
+    def get_local_recent(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """本地模型最近调用记录"""
+        rows = self._repo.get_local_recent(limit)
+        for row in rows:
+            if hasattr(row.get("created_at"), "strftime"):
+                row["created_at"] = row["created_at"].strftime("%m-%d %H:%M")
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens", "duration_ms"):
+                if key in row and row[key] is not None:
+                    row[key] = int(row[key])
+        return rows
+
     def get_usage_by_user(self, days: int = 30) -> List[Dict[str, Any]]:
         """按用戶聚合統計"""
         rows = self._repo.get_usage_by_user(days)
