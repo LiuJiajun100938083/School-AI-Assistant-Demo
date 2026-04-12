@@ -633,6 +633,8 @@ const HomeApp = {
                             '<div class="sidebar-pet-adopt__egg">\uD83E\uDD5A</div>' +
                             '<div class="sidebar-pet-adopt__text">\uD83D\uDC3E ' + i18n.t('pet.adopt') + '</div>' +
                         '</div>';
+                    // 显示引导气泡（在 innerHTML 设置之后）
+                    this._showPetIntroBubble('egg');
                     return;
                 }
                 var pet = data.pet;
@@ -648,11 +650,7 @@ const HomeApp = {
                     '</div>';
             }
 
-            if (!data.has_pet) {
-                // 未创建宠物：显示引导气泡
-                this._showPetIntroBubble('egg');
-                return;
-            }
+            if (!data.has_pet) return;
 
             // 已有宠物但首次见：显示介绍气泡
             if (!localStorage.getItem('pet_intro_seen')) {
@@ -721,14 +719,23 @@ const HomeApp = {
                 msg.lines.map(function(l) { return l ? '<div>' + l + '</div>' : '<div style="height:4px;"></div>'; }).join('') +
             '</div>';
 
-        // 找到 sidebar pet widget 的位置
+        // 用 fixed 定位到 sidebar pet widget 附近（避免被 overflow 裁掉）
         var widget = document.getElementById('homePetWidget');
+        bubble.style.position = 'fixed';
+        bubble.style.left = '8px';
+        bubble.style.width = '180px';
+        bubble.style.zIndex = '60';
+
         if (widget) {
-            widget.style.position = 'relative';
-            widget.appendChild(bubble);
+            var rect = widget.getBoundingClientRect();
+            bubble.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+            bubble.style.left = rect.left + 'px';
+            bubble.style.width = Math.max(180, rect.width) + 'px';
         } else {
-            document.body.appendChild(bubble);
+            bubble.style.bottom = '120px';
         }
+
+        document.body.appendChild(bubble);
 
         // 关闭按钮
         document.getElementById('petIntroBubbleClose').onclick = function(e) {

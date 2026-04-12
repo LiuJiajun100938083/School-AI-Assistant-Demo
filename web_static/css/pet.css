@@ -801,15 +801,10 @@
    ============================================================ */
 
 .pet-intro-bubble {
-    position: absolute;
-    bottom: calc(100% + 12px);
-    left: 8px;
-    right: 8px;
     background: white;
     border-radius: 16px;
     padding: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-    z-index: 60;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
     animation: petIntroIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Noto Sans TC', system-ui, sans-serif;
 }
