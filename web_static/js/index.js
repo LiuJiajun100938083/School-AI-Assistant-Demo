@@ -645,9 +645,30 @@ const HomeApp = {
                 return;
             }
 
-            // ── 状态 B：宠物已创建但待孵化 → 像素蛋 + 破壳交互 ──
-            if (data.has_pet && localStorage.getItem('pet_needs_hatch')) {
-                var pet = data.pet;
+            var pet = data.pet;
+
+            // ── 状态 B：宠物还在蛋阶段 → 像素蛋 + 宠物名 ──
+            if (pet.stage === 'egg') {
+                widget.innerHTML =
+                    '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
+                        '<div class="sidebar-pet-adopt__egg">' +
+                            '<canvas id="sidebarEggCanvas" width="256" height="256"></canvas>' +
+                        '</div>' +
+                        '<div class="sidebar-pet-adopt__text">' + (pet.pet_name || '') + '</div>' +
+                    '</div>';
+                var eggCanvas = document.getElementById('sidebarEggCanvas');
+                if (eggCanvas && window.PetRenderer) {
+                    var eggData = {
+                        color_id: pet.color_id || 0, body_type: 0, eyes_id: 0,
+                        ears_id: 8, tail_id: 7, stage: 'egg', hunger: 100, hygiene: 100
+                    };
+                    PetRenderer.create(eggCanvas, eggData, { mini: true });
+                }
+                return;
+            }
+
+            // ── 状态 C：宠物升到幼年但还没破壳 → 破壳仪式 ──
+            if (localStorage.getItem('pet_needs_hatch')) {
                 widget.innerHTML =
                     '<div class="sidebar-pet-adopt" id="sidebarHatchCard">' +
                         '<div class="sidebar-pet-adopt__egg">' +
@@ -694,8 +715,7 @@ const HomeApp = {
                 return;
             }
 
-            // ── 状态 C：正常宠物卡片 ──
-            var pet = data.pet;
+            // ── 状态 D：正常宠物卡片 ──
             widget.innerHTML =
                 '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
                     '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
@@ -813,8 +833,8 @@ const HomeApp = {
 
         var isZh = !window.i18n || i18n.isZh !== false;
         var text = isZh
-            ? '\u4F60\u7684\u5BA0\u7269\u5728\u86CB\u91CC\uFF01\u70B9\u51FB\u51E0\u4E0B\u5C31\u80FD\u7834\u58F3\u89C1\u4E3B\u4EBA\u5566\uFF01'
-            : 'Your pet is in the egg! Click a few times to hatch!';
+            ? '\u4F60\u7684\u5BA0\u7269\u51C6\u5907\u597D\u7834\u58F3\u4E86\uFF01\u70B9\u51FB\u51E0\u4E0B\u5C31\u80FD\u89C1\u5230\u5B83\u5566\uFF01'
+            : 'Your pet is ready to hatch! Click a few times to meet it!';
 
         var popup = document.createElement('div');
         popup.id = 'petHatchPopup';
