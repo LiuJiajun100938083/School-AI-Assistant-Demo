@@ -103,6 +103,9 @@
         $('#btnLeaderboard').onclick = openLeaderboard;
         $('#btnAchievements').onclick = openAchievements;
         $('#btnCustomize').onclick = function () { openCustomize(false); };
+
+        // 初始化聊天
+        initChat();
     }
 
     function updateBar(name, value) {
@@ -411,6 +414,149 @@
         html += '</div>';
 
         showSheet(i18n.t('pet.achievements'), html);
+    }
+
+    // ============================================================
+    // 宠物聊天
+    // ============================================================
+    var chatHistory = [];
+    var isChatting = false;
+
+    function initChat() {
+        var sendBtn = $('#petChatSend');
+        var input = $('#petChatInput');
+        if (!sendBtn || !input) return;
+
+        // 欢迎消息
+        var welcome = $('#petChatWelcome');
+        if (welcome && petData) {
+            welcome.textContent = '\uD83D\uDC3E ' + (petData.pet_name || '') + ' ' + i18n.t('pet.chat.welcomeMsg');
+        }
+
+        sendBtn.onclick = sendChatMessage;
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+    }
+
+    async function sendChatMessage() {
+        var input = $('#petChatInput');
+        var msg = input ? input.value.trim() : '';
+        if (!msg || isChatting) return;
+
+        isChatting = true;
+        input.value = '';
+        var sendBtn = $('#petChatSend');
+        if (sendBtn) sendBtn.disabled = true;
+
+        // 添加用户消息气泡
+        addChatBubble(msg, 'user');
+
+        // 添加宠物回复气泡（流式）
+        var petBubble = addChatBubble('', 'pet');
+        petBubble.classList.add('pet-chat__msg--streaming');
+
+        // 加入 history
+        chatHistory.push({ role: 'user', content: msg });
+
+        try {
+            var token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+            var response = await fetch('/api/pet/chat', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: msg,
+                    history: chatHistory.slice(-20)
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('API error ' + response.status);
+            }
+
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var fullAnswer = '';
+
+            while (true) {
+                var result = await reader.read();
+                if (result.done) break;
+
+                var text = decoder.decode(result.value, { stream: true });
+                var events = text.split('\n\n');
+
+                for (var i = 0; i < events.length; i++) {
+                    var evt = events[i].trim();
+                    if (!evt) continue;
+
+                    var lines = evt.split('\n');
+                    var eventType = '';
+                    var eventData = '';
+
+                    for (var j = 0; j < lines.length; j++) {
+                        if (lines[j].startsWith('event: ')) eventType = lines[j].substring(7);
+                        if (lines[j].startsWith('data: ')) eventData = lines[j].substring(6);
+                    }
+
+                    if (!eventType || !eventData) continue;
+
+                    try {
+                        var data = JSON.parse(eventData);
+
+                        if (eventType === 'token') {
+                            fullAnswer += data.content || '';
+                            petBubble.textContent = fullAnswer;
+                            scrollChatToBottom();
+                        } else if (eventType === 'done') {
+                            fullAnswer = data.full_answer || fullAnswer;
+                            petBubble.textContent = fullAnswer;
+                            petBubble.classList.remove('pet-chat__msg--streaming');
+                            chatHistory.push({ role: 'assistant', content: fullAnswer });
+                            // 宠物开心动画
+                            if (renderer) renderer.setState('happy', 1500);
+                        } else if (eventType === 'error') {
+                            petBubble.textContent = data.message || '\u56DE\u590D\u5931\u8D25';
+                            petBubble.className = 'pet-chat__msg pet-chat__msg--error';
+                        }
+                    } catch (e) {
+                        // 解析失败跳过
+                    }
+                }
+            }
+        } catch (e) {
+            petBubble.textContent = '\u7F51\u7EDC\u9519\u8BEF\uFF0C\u8BF7\u7A0D\u540E\u518D\u8BD5';
+            petBubble.className = 'pet-chat__msg pet-chat__msg--error';
+        }
+
+        petBubble.classList.remove('pet-chat__msg--streaming');
+        isChatting = false;
+        if (sendBtn) sendBtn.disabled = false;
+        if (input) input.focus();
+    }
+
+    function addChatBubble(text, type) {
+        var messages = $('#petChatMessages');
+        // 隐藏欢迎消息
+        var welcome = $('#petChatWelcome');
+        if (welcome) welcome.style.display = 'none';
+
+        var bubble = document.createElement('div');
+        bubble.className = 'pet-chat__msg pet-chat__msg--' + type;
+        bubble.textContent = text;
+        messages.appendChild(bubble);
+        scrollChatToBottom();
+        return bubble;
+    }
+
+    function scrollChatToBottom() {
+        var messages = $('#petChatMessages');
+        if (messages) messages.scrollTop = messages.scrollHeight;
     }
 
     // ── Bootstrap ──

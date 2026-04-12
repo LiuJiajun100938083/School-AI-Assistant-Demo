@@ -593,3 +593,105 @@ class PetService:
 
     def get_coin_history(self, user_id: int, limit: int = 50) -> List[Dict]:
         return self._coin.get_history(user_id, limit)
+
+    # ============================================================
+    # 宠物聊天（SSE 流式）
+    # ============================================================
+
+    def _get_dominant_subject(self, pet: Dict) -> str:
+        """获取宠物最擅长的学科组"""
+        xps = {
+            "science":    pet.get("science_xp", 0),
+            "humanities": pet.get("humanities_xp", 0),
+            "business":   pet.get("business_xp", 0),
+            "tech":       pet.get("tech_xp", 0),
+        }
+        if max(xps.values()) == 0:
+            return "science"
+        return max(xps, key=xps.get)
+
+    async def chat_stream(self, user_id: int, message: str,
+                          history: list) -> Any:
+        """
+        宠物聊天流式响应。
+        直接调 Ollama /api/chat（stream=True），yield SSE 事件。
+        """
+        import json
+        import httpx
+        from app.config.settings import get_settings
+        from app.domains.pet.constants import (
+            PET_CHAT_MODEL,
+            PET_CHAT_MAX_TOKENS,
+            PET_CHAT_TEMPERATURE,
+            PET_CHAT_HISTORY_LIMIT,
+            build_pet_chat_prompt,
+            get_growth_stage,
+        )
+
+        pet = self._pet.get_by_user(user_id)
+        if not pet:
+            yield 'event: error\ndata: {"message": "尚未创建宠物"}\n\n'
+            return
+
+        settings = get_settings()
+        ollama_url = f"{settings.llm_local_base_url}/api/chat"
+
+        # 构建 system prompt
+        stage = get_growth_stage(pet["growth"])
+        dominant = self._get_dominant_subject(pet)
+        system_prompt = build_pet_chat_prompt(
+            pet["pet_name"], pet["personality"], dominant, stage
+        )
+
+        # 构建消息列表（system + history + 当前消息）
+        messages = [{"role": "system", "content": system_prompt}]
+        # 只保留最近 N 轮
+        recent = history[-PET_CHAT_HISTORY_LIMIT * 2:] if history else []
+        for h in recent:
+            messages.append({
+                "role": h.get("role", "user"),
+                "content": h.get("content", ""),
+            })
+        messages.append({"role": "user", "content": message})
+
+        payload = {
+            "model": PET_CHAT_MODEL,
+            "messages": messages,
+            "stream": True,
+            "options": {
+                "temperature": PET_CHAT_TEMPERATURE,
+                "num_predict": PET_CHAT_MAX_TOKENS,
+            },
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                async with client.stream(
+                    "POST", ollama_url, json=payload, timeout=60
+                ) as resp:
+                    if resp.status_code != 200:
+                        yield f'event: error\ndata: {{"message": "模型服务不可用 ({resp.status_code})"}}\n\n'
+                        return
+
+                    full_answer = ""
+                    async for line in resp.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            chunk = json.loads(line)
+                            content = chunk.get("message", {}).get("content", "")
+                            if content:
+                                full_answer += content
+                                yield f'event: token\ndata: {json.dumps({"content": content}, ensure_ascii=False)}\n\n'
+                            if chunk.get("done"):
+                                break
+                        except json.JSONDecodeError:
+                            continue
+
+                    yield f'event: done\ndata: {json.dumps({"full_answer": full_answer}, ensure_ascii=False)}\n\n'
+
+        except httpx.TimeoutException:
+            yield 'event: error\ndata: {"message": "回复超时了，请稍后再试"}\n\n'
+        except Exception as e:
+            logger.error("宠物聊天失败: %s", e)
+            yield f'event: error\ndata: {{"message": "聊天出错了"}}\n\n'

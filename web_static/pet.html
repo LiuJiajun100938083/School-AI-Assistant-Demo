@@ -139,6 +139,21 @@
 
             <!-- Dynamic sections (shop/leaderboard/achievements rendered here) -->
             <div id="petSectionContainer"></div>
+
+            <!-- 宠物聊天 -->
+            <div class="pet-chat" id="petChat">
+                <div class="pet-chat__header">
+                    <span class="pet-chat__header-icon">&#x1F4AC;</span>
+                    <span data-i18n="pet.chat.title">和宠物聊天</span>
+                </div>
+                <div class="pet-chat__messages" id="petChatMessages">
+                    <div class="pet-chat__welcome" id="petChatWelcome"></div>
+                </div>
+                <div class="pet-chat__input-area">
+                    <input type="text" id="petChatInput" data-i18n-placeholder="pet.chat.placeholder" placeholder="说点什么..." maxlength="500" autocomplete="off">
+                    <button class="pet-chat__send" id="petChatSend" data-i18n="pet.chat.send">发送</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>

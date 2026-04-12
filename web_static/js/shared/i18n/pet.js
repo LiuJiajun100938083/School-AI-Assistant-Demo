@@ -108,6 +108,12 @@ i18n.addMessages({
             'pet.admin.amount': '金额',
             'pet.admin.reason': '原因',
             'pet.admin.confirm': '确认操作',
+
+            // 聊天
+            'pet.chat.title': '和宠物聊天',
+            'pet.chat.placeholder': '说点什么...',
+            'pet.chat.send': '发送',
+            'pet.chat.welcomeMsg': '想和你聊天！试试问学习问题吧~',
         },
         en: {
             'pet.pageTitle': 'My Pet',
@@ -204,6 +210,11 @@ i18n.addMessages({
             'pet.admin.amount': 'Amount',
             'pet.admin.reason': 'Reason',
             'pet.admin.confirm': 'Confirm',
+
+            'pet.chat.title': 'Chat with Pet',
+            'pet.chat.placeholder': 'Say something...',
+            'pet.chat.send': 'Send',
+            'pet.chat.welcomeMsg': 'wants to chat! Try asking a study question~',
         }
     }
 );

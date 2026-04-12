@@ -20,13 +20,15 @@ MVP 阶段：仅管理员可用，管理员金币无限。
 - GET    /api/pet/leaderboard         - 排行榜
 - POST   /api/pet/admin/award-coins   - 手动加减金币
 - GET    /api/pet/preset-messages     - 获取预设短语
+- POST   /api/pet/chat                - 宠物聊天（SSE 流式）
 """
 
 import asyncio
 import logging
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 
 from app.core.dependencies import get_current_user
 from app.domains.pet.schemas import (
@@ -358,6 +360,41 @@ async def admin_award_coins(data: AwardCoinsRequest, current_user: Dict = Depend
         ),
     )
     return result
+
+
+# ============================================================
+# 宠物聊天（SSE 流式）
+# ============================================================
+
+@pet_router.post("/chat")
+async def pet_chat(request: Request, current_user: Dict = Depends(get_current_user)):
+    """宠物聊天 — SSE 流式响应"""
+    user = _extract_user(current_user)
+    _require_access(user)
+    svc = _get_service()
+
+    body = await request.json()
+    message = (body.get("message") or "").strip()
+    if not message:
+        raise HTTPException(400, "消息不能为空")
+    if len(message) > 500:
+        raise HTTPException(400, "消息过长")
+
+    history = body.get("history", [])
+
+    async def event_generator():
+        async for event in svc.chat_stream(user["id"], message, history):
+            yield event
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ============================================================

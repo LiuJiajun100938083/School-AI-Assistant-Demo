@@ -253,3 +253,49 @@ ACHIEVEMENTS = [
 ADMIN_UNLIMITED_COINS = True
 # 功能开放范围：'admin' = 仅管理员，'all' = 全部用户
 ACCESS_LEVEL = "admin"
+
+# ============================================================
+# 宠物聊天
+# ============================================================
+
+PET_CHAT_MODEL = "qwen3.5:4b"       # 轻量本地模型
+PET_CHAT_MAX_TOKENS = 300            # 宠物回复简短
+PET_CHAT_TEMPERATURE = 0.8           # 稍活泼
+PET_CHAT_HISTORY_LIMIT = 10          # 保留最近 10 轮对话
+
+# 性格 → 语气描述（用于 system prompt）
+PET_PERSONALITY_TONES = {
+    "scholar":     "沉稳、好学、喜欢引用知识和名言",
+    "active":      "活泼好动、充满活力、喜欢用感叹号",
+    "linguist":    "文雅、喜欢用成语和修辞、偶尔夹杂英文",
+    "disciplined": "认真严谨、喜欢鼓励坚持和计划",
+    "leader":      "自信大方、喜欢激励他人、有号召力",
+    "creative":    "天马行空、想象力丰富、喜欢用比喻和类比",
+}
+
+# 学科组 → 擅长话题描述
+PET_SUBJECT_TOPICS = {
+    "science":    "数学、物理、化学、生物等理科话题",
+    "humanities": "语文、英语、历史等文科话题",
+    "business":   "经济、商业、理财等商科话题",
+    "tech":       "编程、科技、计算机等技术话题",
+}
+
+def build_pet_chat_prompt(pet_name: str, personality: str,
+                          dominant_subject: str, stage: str) -> str:
+    """根据宠物属性构建 system prompt"""
+    tone = PET_PERSONALITY_TONES.get(personality, PET_PERSONALITY_TONES["creative"])
+    topic = PET_SUBJECT_TOPICS.get(dominant_subject, "各种学习话题")
+    stage_desc = {"egg": "刚出生的蛋", "young": "幼年期", "adult": "成年期"}.get(stage, "成长中")
+
+    return (
+        f"你是一只叫「{pet_name}」的虚拟宠物精灵，目前处于{stage_desc}。\n"
+        f"你的性格特点是：{tone}。\n"
+        f"你擅长聊{topic}，但也可以聊日常话题。\n"
+        f"你的主人是一名中学生，请用简短、可爱的语气回复。\n"
+        f"每次回复控制在 2-3 句话以内（不超过 80 字）。\n"
+        f"你可以鼓励主人学习，回答学习问题，或者撒娇卖萌。\n"
+        f"绝对不要回答涉及暴力、色情、政治等不当内容的问题，"
+        f"遇到这类问题请可爱地拒绝。\n"
+        f"请用繁体中文或简体中文回复（跟随主人的语言）。"
+    )
