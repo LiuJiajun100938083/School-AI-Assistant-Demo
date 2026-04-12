@@ -718,6 +718,20 @@ class PetService:
                     except Exception as rec_err:
                         logger.warning("记录宠物聊天使用量失败: %s", rec_err)
 
+                    # 每次成功聊天给金币 + 更新 streak
+                    try:
+                        pet_row = self._pet.get_by_user(user_id)
+                        if pet_row:
+                            self.award_coins(
+                                user_id=user_id,
+                                user_role=pet_row["user_role"],
+                                source_type="pet_chat_reward",
+                                source_id=None,  # 不防重复，每次聊天都给
+                            )
+                            self.record_activity(user_id, pet_row["user_role"])
+                    except Exception as reward_err:
+                        logger.warning("宠物聊天奖励失败: %s", reward_err)
+
         except httpx.TimeoutException:
             yield 'event: error\ndata: {"message": "回复超时了，请稍后再试"}\n\n'
         except Exception as e:

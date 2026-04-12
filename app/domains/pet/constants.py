@@ -64,6 +64,7 @@ STUDENT_COIN_SOURCES = {
     "task_complete":         {"amount": 5,  "label": "任务完成"},
     "social_like_given":     {"amount": 1,  "label": "给别人点赞"},
     "social_like_received":  {"amount": 2,  "label": "收到点赞"},
+    "pet_chat_reward":       {"amount": 2,  "label": "宠物聊天"},
 }
 
 # ============================================================
@@ -85,6 +86,7 @@ TEACHER_COIN_SOURCES = {
     "upload_game":           {"amount": 15, "label": "上传游戏"},
     "social_like_given":     {"amount": 1,  "label": "给别人点赞"},
     "social_like_received":  {"amount": 2,  "label": "收到点赞"},
+    "pet_chat_reward":       {"amount": 2,  "label": "宠物聊天"},
 }
 
 # 手动加减币（教师/管理员操作，amount 由操作者指定）
