@@ -352,7 +352,15 @@
                 updateBar('Hunger', petData.hunger);
                 updateBar('Hygiene', petData.hygiene);
                 updateBar('Mood', petData.mood);
-                if (renderer) renderer.setState('eat', 2000, '\uD83C\uDF56 \u5403\u5403\u5403...');
+                // 根据商品类别播放不同动画
+                var item = data.item;
+                var animMap = {
+                    food:    { anim: 'eat',   text: '\uD83C\uDF56 \u5403\u5403\u5403...' },
+                    hygiene: { anim: 'bath',  text: '\uD83D\uDEC1 \u6413\u6413\u6413~' },
+                    toy:     { anim: 'dance', text: '\uD83C\uDF89 \u597D\u5F00\u5FC3\uFF01' },
+                };
+                var a = (item && animMap[item.category]) || animMap.food;
+                if (renderer) renderer.setState(a.anim, 2500, a.text);
                 if (window.UIModule) UIModule.toast(i18n.t('pet.shop.bought') + '!', 'success');
             }
         } catch (e) {
