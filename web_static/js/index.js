@@ -809,11 +809,26 @@ const HomeApp = {
             roamTimer = setTimeout(doRoam, randomInt(6000, 12000));
         }
 
-        // 点击浮动宠物 → 动画 + 跳转（canvas + 容器都绑定）
+        // 点击浮动宠物 → 只播放动画 + 冒气泡（不跳转）
         function onPetClick(e) {
             e.stopPropagation();
-            floatRenderer.setState('happy', 800);
-            setTimeout(function() { window.location = '/pet'; }, 800);
+            e.preventDefault();
+            var reactions = ['happy', 'pat', 'poke', 'tickle'];
+            var anim = reactions[randomInt(0, reactions.length - 1)];
+            floatRenderer.setState(anim, 1500);
+            // 随机冒气泡
+            if (bubbleEl) {
+                var clickMsgs = [
+                    '\uD83D\uDE0A \u563F\u563F~',           // 嘿嘿~
+                    '\u2728 \u522B\u6233\u6211\u5566!',       // 别戳我啦!
+                    '\uD83D\uDC96 \u559C\u6B22\u4E3B\u4EBA!', // 喜欢主人!
+                    '\uD83C\uDF1F \u597D\u75D2\u597D\u75D2!', // 好痒好痒!
+                    '\uD83D\uDE06 \u54C8\u54C8\u54C8!',       // 哈哈哈!
+                ];
+                bubbleEl.textContent = clickMsgs[randomInt(0, clickMsgs.length - 1)];
+                bubbleEl.style.display = '';
+                setTimeout(function() { bubbleEl.style.display = 'none'; }, 2500);
+            }
         }
         floater.addEventListener('click', onPetClick);
         floatCanvas.addEventListener('click', onPetClick);
