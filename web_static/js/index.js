@@ -613,49 +613,145 @@ const HomeApp = {
 
     async _loadHomePetWidget() {
         try {
-            const token = this.state.authToken;
-            const res = await fetch('/api/pet/me', {
+            var token = this.state.authToken;
+            var res = await fetch('/api/pet/me', {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
             if (!res.ok) return;
-            const data = await res.json();
+            var data = await res.json();
 
-            const widget = document.getElementById('homePetWidget');
-            if (!widget) return;
-            widget.style.display = 'block';
-
-            if (!data.has_pet) {
-                // 未创建宠物：显示领养引导
+            // sidebar 简要状态
+            var widget = document.getElementById('homePetWidget');
+            if (widget) {
+                widget.style.display = 'block';
+                if (!data.has_pet) {
+                    widget.innerHTML =
+                        '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
+                            '<div class="sidebar-pet-adopt__egg">\uD83E\uDD5A</div>' +
+                            '<div class="sidebar-pet-adopt__text">\uD83D\uDC3E ' + i18n.t('pet.adopt') + '</div>' +
+                        '</div>';
+                    return;
+                }
+                var pet = data.pet;
                 widget.innerHTML =
-                    '<div class="sidebar-pet-adopt" onclick="window.location=\'/pet\'">' +
-                        '<div class="sidebar-pet-adopt__egg">\uD83E\uDD5A</div>' +
-                        '<div class="sidebar-pet-adopt__text">\uD83D\uDC3E ' + i18n.t('pet.adopt') + '</div>' +
+                    '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
+                        '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
+                        '<div class="sidebar-pet-stats">' +
+                            '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
+                            '<span>\uD83E\uDDFC ' + pet.hygiene + '</span>' +
+                            '<span>\uD83D\uDE0A ' + pet.mood + '</span>' +
+                        '</div>' +
+                        '<div class="sidebar-pet-coins">\uD83D\uDCB0 ' + pet.coins + '</div>' +
                     '</div>';
-                return;
             }
 
-            const pet = data.pet;
-            widget.innerHTML =
-                '<div class="sidebar-pet-card" onclick="window.location=\'/pet\'">' +
-                    '<canvas id="homePetCanvas" width="256" height="256"></canvas>' +
-                    '<div class="sidebar-pet-name">' + (pet.pet_name || '') + '</div>' +
-                    '<div class="sidebar-pet-stats">' +
-                        '<span>\uD83C\uDF56 ' + pet.hunger + '</span>' +
-                        '<span>\uD83E\uDDFC ' + pet.hygiene + '</span>' +
-                        '<span>\uD83D\uDE0A ' + pet.mood + '</span>' +
-                    '</div>' +
-                    '<div class="sidebar-pet-coins">\uD83D\uDCB0 ' + pet.coins + '</div>' +
-                    (data.message ? '<div class="sidebar-pet-bubble">' + data.message + '</div>' : '') +
-                '</div>';
+            if (!data.has_pet) return;
 
-            // 渲染迷你宠物
-            var canvas = document.getElementById('homePetCanvas');
-            if (canvas && window.PetRenderer) {
-                PetRenderer.create(canvas, pet, { mini: true });
-            }
+            // 漫游桌面宠物
+            this._initRoamingPet(data);
         } catch (e) {
             console.warn('Pet widget load failed:', e);
         }
+    },
+
+    _initRoamingPet(data) {
+        var pet = data.pet;
+        var container = document.getElementById('roamingPet');
+        var canvas = document.getElementById('roamingPetCanvas');
+        var infoEl = document.getElementById('roamingPetInfo');
+        var bubbleEl = document.getElementById('roamingPetBubble');
+        if (!container || !canvas || !window.PetRenderer) return;
+
+        // 显示
+        container.style.display = 'block';
+        if (infoEl) infoEl.textContent = pet.pet_name || '';
+
+        // 渲染宠物
+        var renderer = PetRenderer.create(canvas, pet, { mini: true });
+
+        // 显示初始气泡
+        if (data.message && bubbleEl) {
+            bubbleEl.textContent = data.message;
+            bubbleEl.style.display = '';
+            setTimeout(function() { bubbleEl.style.display = 'none'; }, 5000);
+        }
+
+        // 点击 → 动画 + 跳转
+        container.onclick = function() {
+            renderer.setState('happy', 800);
+            setTimeout(function() { window.location = '/pet'; }, 800);
+        };
+
+        // ── 漫游 AI ──
+        var currentX = 80;
+        var roamTimer = null;
+        var actions = ['walk', 'walk', 'walk', 'happy', 'idle', 'idle', 'sleep'];
+        var bubbleMessages = [
+            '\uD83D\uDCDA \u4E3B\u4EBA\u52A0\u6CB9!',   // 主人加油!
+            '\u2728 \u4ECA\u5929\u4E5F\u8981\u52AA\u529B!', // 今天也要努力!
+            '\uD83D\uDE0A \u597D\u65E0\u804A~',           // 好无聊~
+            '\uD83C\uDF1F \u6211\u597D\u5F00\u5FC3!',     // 我好开心!
+            '\uD83D\uDCA4 \u6709\u70B9\u56F0...',         // 有点困...
+        ];
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function doRoam() {
+            var action = actions[randomInt(0, actions.length - 1)];
+
+            if (action === 'walk') {
+                // 随机目标位置
+                var targetX = randomInt(100, Math.max(300, window.innerWidth - 150));
+                var goingLeft = targetX < currentX;
+
+                // 翻转方向
+                if (goingLeft) {
+                    container.classList.add('home-roaming-pet--flip');
+                } else {
+                    container.classList.remove('home-roaming-pet--flip');
+                }
+
+                // CSS transition 移动
+                container.style.left = targetX + 'px';
+                currentX = targetX;
+
+                // 走路期间用 dance 动画（有弹跳+晃动）
+                renderer.setState('dance', 3500);
+
+            } else if (action === 'happy') {
+                renderer.setState('happy', 2000);
+                // 随机冒气泡
+                if (Math.random() > 0.5 && bubbleEl) {
+                    var msg = bubbleMessages[randomInt(0, bubbleMessages.length - 1)];
+                    bubbleEl.textContent = msg;
+                    bubbleEl.style.display = '';
+                    setTimeout(function() { bubbleEl.style.display = 'none'; }, 3000);
+                }
+
+            } else if (action === 'sleep') {
+                renderer.setState('sleep', 8000);
+
+            } else {
+                // idle — 什么都不做，renderer 默认就是 idle
+            }
+
+            // 下一次漫游
+            roamTimer = setTimeout(doRoam, randomInt(6000, 15000));
+        }
+
+        // 3 秒后开始第一次漫游
+        roamTimer = setTimeout(doRoam, 3000);
+
+        // 页面不可见时暂停
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (roamTimer) { clearTimeout(roamTimer); roamTimer = null; }
+            } else {
+                if (!roamTimer) roamTimer = setTimeout(doRoam, randomInt(3000, 8000));
+            }
+        });
     },
 
     /* ---------- 學科管理 ---------- */
