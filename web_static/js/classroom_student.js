@@ -1614,15 +1614,29 @@ const ClassroomStudentApp = {
             }
         });
 
-        // Handle visibility changes
+        // Handle visibility changes — notify teacher when student switches tabs
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 this._stopHeartbeat();
                 this._stopPing();
+                // 通知後端：學生切屏了
+                if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+                    this.state.ws.send(JSON.stringify({
+                        type: 'tab_visibility',
+                        hidden: true,
+                    }));
+                }
             } else {
                 if (this.state.isConnected) {
                     this._startHeartbeat();
                     this._startPing();
+                }
+                // 通知後端：學生回來了
+                if (this.state.ws && this.state.ws.readyState === WebSocket.OPEN) {
+                    this.state.ws.send(JSON.stringify({
+                        type: 'tab_visibility',
+                        hidden: false,
+                    }));
                 }
             }
         });

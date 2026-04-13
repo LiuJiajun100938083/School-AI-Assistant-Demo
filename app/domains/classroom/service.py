@@ -456,6 +456,22 @@ class ClassroomService:
         """更新学生心跳 (由 WebSocket 调用)"""
         self._enrollment_repo.update_heartbeat(room_id, student_username)
 
+    def get_student_display_name(
+        self,
+        room_id: str,
+        student_username: str,
+    ) -> str | None:
+        """查询学生的 display_name（WebSocket 广播用）"""
+        rows = self._enrollment_repo.raw_query(
+            "SELECT u.display_name "
+            "FROM classroom_enrollments e "
+            "JOIN users u ON e.student_id = u.id "
+            "WHERE e.room_id = %s AND e.student_username = %s "
+            "LIMIT 1",
+            (room_id, student_username),
+        )
+        return rows[0]["display_name"] if rows else None
+
     # ================================================================
     # PPT 管理
     # ================================================================

@@ -916,6 +916,9 @@ function handleWebSocketMessage(message) {
             }
             UIModule.toast(i18n.t('ct.studentLeft', {name: message.student_username}), 'info');
             break;
+        case 'student_tab_status':
+            updateStudentTabStatus(message.student_username, message.hidden);
+            break;
         case 'room_status_changed':
             state.roomStatus = message.status || 'draft';
             updateRoomStatusUI();
@@ -1681,10 +1684,12 @@ function startHeartbeat() {
 // ==================== STUDENT MANAGEMENT ====================
 function addStudent(studentData) {
     const key = studentData.student_username;
+    const existing = state.students.get(key);
     state.students.set(key, {
         student_username: key,
-        name: studentData.display_name || key,
+        name: studentData.display_name || (existing && existing.name) || key,
         online: true,
+        tabAway: false,
     });
     renderStudents();
 }
@@ -1694,10 +1699,19 @@ function removeStudent(studentUsername) {
         const existing = state.students.get(studentUsername);
         if (existing) {
             existing.online = false;
+            existing.tabAway = false;
             existing.leftAt = new Date();
         }
     }
     renderStudents();
+}
+
+function updateStudentTabStatus(studentUsername, isHidden) {
+    const existing = state.students.get(studentUsername);
+    if (existing && existing.online) {
+        existing.tabAway = isHidden;
+        renderStudents();
+    }
 }
 
 function renderStudents() {
@@ -1709,9 +1723,11 @@ function renderStudents() {
         return;
     }
 
-    // Sort: online first, then offline by leave time (recent first)
+    // Sort: online → tab-away → offline (each group by join order)
+    const sortKey = s => s.online ? (s.tabAway ? 1 : 0) : 2;
     const sorted = [...state.students.values()].sort((a, b) => {
-        if (a.online !== b.online) return a.online ? -1 : 1;
+        const ka = sortKey(a), kb = sortKey(b);
+        if (ka !== kb) return ka - kb;
         if (!a.online && !b.online) return (b.leftAt || 0) - (a.leftAt || 0);
         return 0;
     });
@@ -1732,14 +1748,26 @@ function renderStudents() {
             container.appendChild(divider);
         }
         const studentEl = document.createElement('div');
-        studentEl.className = `student-item${student.online ? '' : ' offline'}`;
+        const cssClass = !student.online ? ' offline' : student.tabAway ? ' tab-away' : '';
+        studentEl.className = `student-item${cssClass}`;
         const initials = (student.name || i18n.t('ct.studentChar')).substring(0, 1).toUpperCase();
+
+        let statusClass = 'away';
+        let statusText = i18n.t('ct.left');
+        if (student.online && !student.tabAway) {
+            statusClass = '';
+            statusText = i18n.t('ct.online');
+        } else if (student.online && student.tabAway) {
+            statusClass = 'tab-away';
+            statusText = '切屏中';
+        }
+
         studentEl.innerHTML = `
-            <div class="status-indicator ${student.online ? '' : 'away'}"></div>
+            <div class="status-indicator ${statusClass}"></div>
             <div class="student-avatar">${initials}</div>
             <div class="student-info">
                 <div class="student-name">${student.name || i18n.t('ct.unnamed')}</div>
-                <div class="student-status">${student.online ? i18n.t('ct.online') : i18n.t('ct.left')}</div>
+                <div class="student-status">${statusText}</div>
             </div>
         `;
         container.appendChild(studentEl);
@@ -1747,7 +1775,11 @@ function renderStudents() {
 }
 
 // ==================== ROOM INFO ====================
+let _loadRoomInfoLock = false;
 async function loadRoomInfo() {
+    if (_loadRoomInfoLock) return;       // 防止重复请求导致 429
+    _loadRoomInfoLock = true;
+    setTimeout(() => { _loadRoomInfoLock = false; }, 3000);
     try {
         const response = await fetch(`${API_BASE}/classroom/rooms/${roomId}`, {
             headers: AuthModule.getAuthHeaders(),

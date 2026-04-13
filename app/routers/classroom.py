@@ -1896,13 +1896,26 @@ async def websocket_classroom(
             "online_count": online_count,
         })
 
-        # 广播通知 (学生加入时)
+        # 广播通知 (学生加入时) — 查 display_name 供教师端显示
         if role == "student":
+            display_name = username
+            try:
+                dn = await loop.run_in_executor(
+                    None,
+                    lambda: get_services().classroom.get_student_display_name(
+                        room_id, username,
+                    ),
+                )
+                if dn:
+                    display_name = dn
+            except Exception:
+                pass
             await ws_manager.broadcast_to_room(
                 room_id,
                 {
                     "type": "student_joined",
                     "student_username": username,
+                    "display_name": display_name,
                     "online_count": online_count,
                 },
                 exclude=username,
@@ -1928,6 +1941,18 @@ async def websocket_classroom(
                         get_services().classroom.update_heartbeat,
                         room_id, username,
                     )
+
+            elif msg_type == "tab_visibility" and role == "student":
+                # 学生切屏状态 → 转发给教师（和其他人）
+                await ws_manager.broadcast_to_room(
+                    room_id,
+                    {
+                        "type": "student_tab_status",
+                        "student_username": username,
+                        "hidden": bool(data.get("hidden", False)),
+                    },
+                    exclude=username,
+                )
 
             elif msg_type == "push_page" and role == "teacher":
                 # 教师通过 WS 推送页面 (替代 HTTP POST)

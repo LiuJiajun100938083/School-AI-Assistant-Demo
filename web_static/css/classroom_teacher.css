@@ -931,6 +931,30 @@ body {
     background: var(--text-placeholder, #C7C7CC);
 }
 
+/* Tab-away (student switched to another tab/app) */
+.status-indicator.tab-away {
+    background: #FF9F0A;
+    animation: tab-away-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tab-away-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.student-item.tab-away {
+    opacity: 0.72;
+}
+
+.student-item.tab-away .student-avatar {
+    background: #FF9F0A;
+}
+
+.student-item.tab-away .student-status {
+    color: #FF9F0A;
+    font-weight: 600;
+}
+
 /* Offline student row */
 .student-item.offline {
     opacity: 0.55;
