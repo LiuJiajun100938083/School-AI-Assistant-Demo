@@ -256,10 +256,10 @@ ACHIEVEMENTS = [
     {"code": "growth_adult",    "name": "茁壮成长",   "description": "宠物成长为成年",            "reward_coins": 50,  "icon": "grow"},
 ]
 
-# 管理员内测：admin 角色金币无限
+# 管理员金币无限（不扣余额）
 ADMIN_UNLIMITED_COINS = True
 # 功能开放范围：'admin' = 仅管理员，'all' = 全部用户
-ACCESS_LEVEL = "admin"
+ACCESS_LEVEL = "all"
 
 # ============================================================
 # 宠物聊天
