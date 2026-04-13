@@ -176,10 +176,9 @@
                     (low ? '<div class="pt-pet-card__warning">⚠ 需要照顧</div>' : '');
             }
 
-            if (s.has_pet) {
-                card.style.cursor = 'pointer';
-                card.onclick = (function (student) { return function () { openCoinModal(student); }; })(s);
-            }
+            // 所有学生都可以点击加分
+            card.style.cursor = 'pointer';
+            card.onclick = (function (student) { return function () { openCoinModal(student); }; })(s);
 
             listEl.appendChild(card);
 
@@ -243,10 +242,9 @@
                     '</div>';
             }
 
-            if (s.has_pet) {
-                card.style.cursor = 'pointer';
-                card.onclick = (function (student) { return function () { openCoinModal(student); }; })(s);
-            }
+            // 所有学生都可以点击加分
+            card.style.cursor = 'pointer';
+            card.onclick = (function (student) { return function () { openCoinModal(student); }; })(s);
 
             listEl.appendChild(card);
 
@@ -271,9 +269,11 @@
         coinModalTarget = student;
         var modal = document.getElementById('ptCoinModal');
         var target = document.getElementById('ptCoinTarget');
+        var noPetNote = !student.has_pet ? '<br><span style="font-size:12px;color:#FF9F0A;">⚠ 该学生尚未创建宠物，金币将在创建后到账</span>' : '';
         target.innerHTML = '<strong>' + (student.display_name || '--') + '</strong>' +
             (student.pet_name ? ' (' + student.pet_name + ')' : '') +
-            '<br><span style="font-size:13px;">当前金币: 💰 ' + (student.coins || 0) + '</span>';
+            '<br><span style="font-size:13px;">当前金币: 💰 ' + (student.coins || 0) + '</span>' +
+            noPetNote;
 
         // 重置状态
         document.getElementById('ptCoinAmount').value = '';
