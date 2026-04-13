@@ -422,5 +422,20 @@
     "enabled": true,
     "order": 15,
     "category": "admin"
+  },
+  {
+    "id": "tool_laser_engrave",
+    "name": "雷射雕刻轉換",
+    "icon": "",
+    "description": "彩色圖片轉純黑白抖動/網點圖，用於雷射切割雕刻",
+    "url": "/tools/laser-engrave",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 23,
+    "category": "utilities"
   }
 ]

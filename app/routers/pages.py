@@ -447,6 +447,12 @@ async def exam_creator_page():
     return _serve_page("exam_creator.html")
 
 
+@router.get("/tools/laser-engrave")
+async def laser_engrave():
+    """雷射雕刻圖片轉換工具"""
+    return _serve_page("laser_engrave.html")
+
+
 @router.get("/game_upload")
 async def game_upload():
     """游戏上传页"""

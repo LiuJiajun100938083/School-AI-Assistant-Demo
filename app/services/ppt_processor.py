@@ -272,37 +272,9 @@ class PPTProcessor:
         pptx_path: str,
         output_dir: Path,
     ) -> List[str]:
-        """用 LibreOffice 将 PPT 每页转为 PNG"""
+        """用 LibreOffice 将 PPT 每页转为 PNG（走 PDF 中间格式）"""
         try:
-            # LibreOffice 命令行转换
-            cmd = [
-                self.libreoffice_path,
-                "--headless",
-                "--convert-to", "png",
-                "--outdir", str(output_dir),
-                pptx_path,
-            ]
-
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), timeout=120,
-            )
-
-            if process.returncode != 0:
-                logger.error(
-                    "LibreOffice 转换失败: %s",
-                    stderr.decode("utf-8", errors="replace"),
-                )
-                return self._convert_with_pillow_fallback(pptx_path, output_dir)
-
-            # LibreOffice 输出的是单个 PNG，需要用 PDF 中间步骤实现多页
-            # 改用 PDF 中间格式
             return await self._convert_via_pdf(pptx_path, output_dir)
-
         except asyncio.TimeoutError:
             logger.error("LibreOffice 转换超时 (120s)")
             return self._convert_with_pillow_fallback(pptx_path, output_dir)
@@ -321,9 +293,14 @@ class PPTProcessor:
         这是更可靠的多页转换方式。
         """
         # Step 1: PPTX → PDF
+        # 每次转换用独立用户配置目录，避免并发锁冲突
+        user_install = output_dir / ".lo_profile"
         cmd_pdf = [
             self.libreoffice_path,
             "--headless",
+            "--norestore",
+            "--nolockcheck",
+            f"-env:UserInstallation=file://{user_install}",
             "--convert-to", "pdf",
             "--outdir", str(output_dir),
             pptx_path,
@@ -334,7 +311,19 @@ class PPTProcessor:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        await asyncio.wait_for(process.communicate(), timeout=120)
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(), timeout=120,
+        )
+
+        # 清理临时配置目录
+        shutil.rmtree(user_install, ignore_errors=True)
+
+        if process.returncode != 0:
+            logger.error(
+                "LibreOffice PPTX→PDF 失败 (rc=%d): %s",
+                process.returncode,
+                stderr.decode("utf-8", errors="replace")[:500],
+            )
 
         # 找到生成的 PDF 文件
         pdf_name = Path(pptx_path).stem + ".pdf"

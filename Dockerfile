@@ -19,9 +19,10 @@ RUN pip install --no-cache-dir --prefix=/install \
 # ============================================================
 FROM python:3.13-slim
 
-# Minimal runtime libs (Pillow, PyMuPDF, etc.) + CJK fonts for PPT rendering
+# Runtime libs + LibreOffice (PPT→PDF→PNG) + CJK fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libglib2.0-0 libsm6 libxext6 libxrender-dev libgl1 tzdata \
+        libreoffice-impress libreoffice-core \
         fonts-noto-cjk \
     && ln -snf /usr/share/zoneinfo/Asia/Hong_Kong /etc/localtime \
     && echo "Asia/Hong_Kong" > /etc/timezone \
