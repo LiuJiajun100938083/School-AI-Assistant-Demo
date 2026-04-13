@@ -627,11 +627,11 @@ class PetService:
             try:
                 from app.domains.game_upload.repository import GameUploadRepository
                 games = GameUploadRepository().find_all(
-                    where="uploaded_by = %s", params=(user_id,)
+                    where="uploader_id = %s", params=(user_id,)
                 )
                 for g in games:
                     r = self.award_coins(user_id, "teacher", "upload_game",
-                                         source_id=f"game_{g.get('game_uuid', g.get('id'))}")
+                                         source_id=f"game_{g.get('uuid', g.get('game_uuid', g.get('id')))}")
                     if r.get("awarded"):
                         awarded += r["amount"]
             except Exception as e:
@@ -772,11 +772,11 @@ class PetService:
             try:
                 from app.domains.game_upload.repository import GameUploadRepository
                 games = GameUploadRepository().find_all(
-                    where="uploaded_by = %s", params=(uid,)
+                    where="uploader_id = %s", params=(uid,)
                 )
                 for g in games:
                     r = self.award_coins(uid, "teacher", "upload_game",
-                                         source_id=f"game_{g.get('game_uuid', g.get('id'))}")
+                                         source_id=f"game_{g.get('uuid', g.get('game_uuid', g.get('id')))}")
                     if r.get("awarded"):
                         awarded += r["amount"]
                 if games:
