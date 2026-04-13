@@ -40,6 +40,9 @@ PDF_MERGE_MAX_FILES = 20               # 最多合併 20 個 PDF
 ALLOWED_PDF_MIMES = frozenset({
     "application/pdf",
     "application/x-pdf",
+    "application/octet-stream",
+    "binary/octet-stream",
+    "",
 })
 
 # 壓縮等級
