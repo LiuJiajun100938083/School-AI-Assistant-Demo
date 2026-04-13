@@ -324,6 +324,8 @@ class PetService:
             raise ValueError("商品不存在或已下架")
 
         price = item["price"]
+        # source_id 加时间戳，允许重复购买同一商品
+        purchase_sid = f"buy_{item_id}_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
         # admin 不扣币
         if user_role == "admin" and ADMIN_UNLIMITED_COINS:
@@ -332,7 +334,7 @@ class PetService:
             self._coin.record_transaction(
                 user_id=user_id, user_role=user_role,
                 amount=-price, source_type="purchase",
-                source_id=str(item_id), balance_after=admin_balance,
+                source_id=purchase_sid, balance_after=admin_balance,
             )
         else:
             new_balance = self._pet.update_coins(user_id, -price)
@@ -341,7 +343,7 @@ class PetService:
             self._coin.record_transaction(
                 user_id=user_id, user_role=user_role,
                 amount=-price, source_type="purchase",
-                source_id=str(item_id), balance_after=new_balance,
+                source_id=purchase_sid, balance_after=new_balance,
             )
 
         # 应用效果
