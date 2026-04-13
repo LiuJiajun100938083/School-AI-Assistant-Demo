@@ -60,7 +60,7 @@ i18n.addMessages({
             'pet.leaderboard': '排行榜',
             'pet.leaderboard.growth': '成长之星',
             'pet.leaderboard.coins': '金币大亨',
-            'pet.leaderboard.care': '爱心主人',
+            'pet.leaderboard.care': '爱心达人',
             'pet.leaderboard.student': '学生榜',
             'pet.leaderboard.teacher': '教师榜',
 

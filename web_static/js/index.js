@@ -1032,7 +1032,7 @@ const HomeApp = {
                 var clickMsgs = [
                     '\uD83D\uDE0A \u563F\u563F~',           // 嘿嘿~
                     '\u2728 \u522B\u6233\u6211\u5566!',       // 别戳我啦!
-                    '\uD83D\uDC96 \u559C\u6B22\u4E3B\u4EBA!', // 喜欢主人!
+                    '\uD83D\uDC96 \u559C\u6B22\u4F60!', // 喜欢主人!
                     '\uD83C\uDF1F \u597D\u75D2\u597D\u75D2!', // 好痒好痒!
                     '\uD83D\uDE06 \u54C8\u54C8\u54C8!',       // 哈哈哈!
                 ];

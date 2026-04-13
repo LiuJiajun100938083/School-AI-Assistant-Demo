@@ -603,13 +603,13 @@ class PetService:
     def get_pet_message(self, pet: Dict) -> Optional[str]:
         """根据宠物状态返回情感消息"""
         if pet["hunger"] < 20:
-            return "主人，我好饿... 🥺"
+            return "小伙伴，我好饿... 🥺"
         if pet["hygiene"] < 20:
             return "我需要洗个澡啦 🫧"
         if pet["mood"] < 20:
             return "今天没人陪我玩... 😢"
         if pet["hunger"] >= 80 and pet["hygiene"] >= 80 and pet["mood"] >= 80:
-            return "我今天超开心！谢谢主人！❤️"
+            return "我今天超开心！谢谢小伙伴！❤️"
         return None
 
     # ============================================================
