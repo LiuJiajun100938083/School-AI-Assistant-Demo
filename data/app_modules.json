@@ -410,6 +410,21 @@
     "category": "utilities"
   },
   {
+    "id": "pet",
+    "name": "我的寵物",
+    "icon": "",
+    "description": "養成學習寵物，完成任務獲得經驗，解鎖進化和裝飾",
+    "url": "/pet",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 3,
+    "category": "learning"
+  },
+  {
     "id": "pet_teacher",
     "name": "寵物管理",
     "icon": "",
