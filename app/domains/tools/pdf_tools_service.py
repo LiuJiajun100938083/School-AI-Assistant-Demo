@@ -396,9 +396,17 @@ def compress_pdf(pdf_bytes: bytes, level: str = PDF_COMPRESS_DEFAULT) -> bytes:
                     buf = io.BytesIO()
                     img.save(buf, format="JPEG", quality=jpeg_quality, optimize=True)
                     new_bytes = buf.getvalue()
+                    new_w, new_h = img.size
 
                     try:
                         src.update_stream(xref, new_bytes)
+                        # 更新图片字典，使 PDF 阅读器用正确的参数解读 JPEG
+                        src.xref_set_key(xref, "Filter", "/DCTDecode")
+                        src.xref_set_key(xref, "Width", str(new_w))
+                        src.xref_set_key(xref, "Height", str(new_h))
+                        src.xref_set_key(xref, "ColorSpace", "/DeviceRGB")
+                        src.xref_set_key(xref, "BitsPerComponent", "8")
+                        src.xref_set_key(xref, "DecodeParms", "null")
                     except Exception:
                         continue  # 某些 xref (mask) 無法 update
 
