@@ -401,13 +401,21 @@ class ClassDiaryService:
 
         draw = ImageDraw.Draw(canvas)
         label = class_code
-        try:
-            font = ImageFont.truetype("/System/Library/Fonts/STHeiti Medium.ttc", 28)
-        except (OSError, IOError):
+        font = None
+        for font_path in [
+            "/System/Library/Fonts/STHeiti Medium.ttc",       # macOS
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",  # Linux Noto CJK
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",   # WenQuanYi
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        ]:
             try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+                font = ImageFont.truetype(font_path, 28)
+                break
             except (OSError, IOError):
-                font = ImageFont.load_default()
+                continue
+        if font is None:
+            font = ImageFont.load_default()
 
         bbox = draw.textbbox((0, 0), label, font=font)
         text_w = bbox[2] - bbox[0]

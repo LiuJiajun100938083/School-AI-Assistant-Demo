@@ -435,18 +435,26 @@ class PPTProcessor:
                     draw = ImageDraw.Draw(img)
                     text = self._extract_slide_text(slide)
 
-                    # 尝试加载系统字体
-                    try:
-                        font = ImageFont.truetype(
-                            "/System/Library/Fonts/PingFang.ttc", 32
-                        )
-                    except Exception:
+                    # 尝试加载系统字体 (优先 CJK 字体以支持中文)
+                    font = None
+                    for font_path, font_size in [
+                        # macOS
+                        ("/System/Library/Fonts/PingFang.ttc", 32),
+                        # Linux: Noto CJK (Docker apt: fonts-noto-cjk)
+                        ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 30),
+                        ("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc", 30),
+                        # Linux: WenQuanYi
+                        ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 28),
+                        # Fallback Latin
+                        ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28),
+                    ]:
                         try:
-                            font = ImageFont.truetype(
-                                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28
-                            )
+                            font = ImageFont.truetype(font_path, font_size)
+                            break
                         except Exception:
-                            font = ImageFont.load_default()
+                            continue
+                    if font is None:
+                        font = ImageFont.load_default()
 
                     # 绘制标题
                     title_text = f"Slide {idx + 1}"
