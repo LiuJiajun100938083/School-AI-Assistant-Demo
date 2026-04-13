@@ -63,6 +63,8 @@ class PetRepository(BaseRepository):
                     -- 衰减追踪
                     last_decay_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+                    backfilled  TINYINT NOT NULL DEFAULT 0 COMMENT '历史金币是否已补发',
+
                     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -72,6 +74,17 @@ class PetRepository(BaseRepository):
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 COMMENT='虚拟宠物'
             """)
+
+            # 迁移：已有表加 backfilled 列
+            try:
+                self.pool.execute(
+                    "ALTER TABLE user_pets ADD COLUMN backfilled TINYINT NOT NULL DEFAULT 0 COMMENT '历史金币是否已补发'"
+                )
+            except Exception:
+                pass  # 列已存在
+
+    def mark_backfilled(self, user_id: int) -> None:
+        self.update(data={"backfilled": 1}, where="user_id = %s", params=(user_id,))
 
     def get_by_user(self, user_id: int) -> Optional[Dict[str, Any]]:
         return self.find_one("user_id = %s", (user_id,))

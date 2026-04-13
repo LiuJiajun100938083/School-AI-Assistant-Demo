@@ -141,10 +141,20 @@ class PetService:
     # ============================================================
 
     def get_pet(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """获取宠物信息（含衰减计算 + 成长阶段）"""
+        """获取宠物信息（含衰减计算 + 成长阶段 + 自动补发历史金币）"""
         pet = self._pet.get_by_user(user_id)
         if not pet:
             return None
+
+        # 自动补发历史金币（仅一次）
+        if not pet.get("backfilled"):
+            try:
+                self._backfill_single_user(user_id, pet["user_role"])
+                self._pet.mark_backfilled(user_id)
+                pet = self._pet.get_by_user(user_id)  # 重新读取更新后的余额
+            except Exception:
+                logger.debug("自动补发金币失败 user=%d", user_id)
+
         pet = self._apply_decay(pet)
         pet["stage"] = get_growth_stage(pet["growth"])
         pet["league"] = get_league_tier(self._coin.get_weekly_earned(user_id))
@@ -171,12 +181,12 @@ class PetService:
         pet = self._pet.get_by_user(user_id)
         pet["stage"] = get_growth_stage(pet["growth"])
 
-        # 自动补发历史金币
+        # 自动补发历史金币并标记
         try:
-            backfilled = self._backfill_single_user(user_id, user_role)
-            if backfilled > 0:
-                pet = self._pet.get_by_user(user_id)
-                pet["stage"] = get_growth_stage(pet["growth"])
+            self._backfill_single_user(user_id, user_role)
+            self._pet.mark_backfilled(user_id)
+            pet = self._pet.get_by_user(user_id)
+            pet["stage"] = get_growth_stage(pet["growth"])
         except Exception:
             logger.debug("自动补发金币失败 user=%d", user_id)
 
