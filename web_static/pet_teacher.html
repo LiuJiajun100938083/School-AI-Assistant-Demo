@@ -197,6 +197,72 @@
         @media (prefers-reduced-motion: reduce) {
             .pt-pet-card, .pt-rank-card { animation: none; opacity: 1; transform: none; }
         }
+
+        /* ── Coin Award Modal ── */
+        .pt-modal-overlay {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+            display: flex; align-items: flex-end; justify-content: center;
+            animation: ptFadeIn 0.2s;
+        }
+        @keyframes ptFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .pt-modal {
+            background: #fff; border-radius: 22px 22px 0 0;
+            width: 100%; max-width: 500px; padding: 24px 20px 32px;
+            animation: ptSlideUp 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+        @keyframes ptSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .pt-modal__handle {
+            width: 36px; height: 4px; background: #D1D1D6; border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+        .pt-modal__title {
+            font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 20px;
+        }
+        .pt-modal__student {
+            text-align: center; font-size: 15px; color: #8E8E93; margin-bottom: 16px;
+        }
+        .pt-modal__student strong { color: #1C1C1E; font-size: 17px; }
+        .pt-modal__presets {
+            display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px;
+        }
+        .pt-modal__preset {
+            padding: 8px 16px; border: 2px solid #E5E5EA; border-radius: 12px;
+            background: none; font-size: 15px; font-weight: 700; cursor: pointer;
+            font-family: inherit; transition: all 0.15s;
+        }
+        .pt-modal__preset:active { transform: scale(0.94); }
+        .pt-modal__preset--pos { color: #34C759; border-color: rgba(52,199,89,0.3); }
+        .pt-modal__preset--pos.active { background: #34C759; color: #fff; border-color: #34C759; }
+        .pt-modal__preset--neg { color: #FF3B30; border-color: rgba(255,59,48,0.3); }
+        .pt-modal__preset--neg.active { background: #FF3B30; color: #fff; border-color: #FF3B30; }
+        .pt-modal__custom {
+            display: flex; gap: 8px; align-items: center; margin-bottom: 16px;
+        }
+        .pt-modal__input {
+            flex: 1; padding: 10px 14px; border: 2px solid #E5E5EA; border-radius: 12px;
+            font-size: 15px; font-family: inherit; text-align: center;
+            outline: none; transition: border-color 0.15s;
+        }
+        .pt-modal__input:focus { border-color: #667eea; }
+        .pt-modal__reason {
+            width: 100%; padding: 10px 14px; border: 2px solid #E5E5EA; border-radius: 12px;
+            font-size: 15px; font-family: inherit; resize: none; outline: none;
+            margin-bottom: 16px; transition: border-color 0.15s; box-sizing: border-box;
+        }
+        .pt-modal__reason:focus { border-color: #667eea; }
+        .pt-modal__actions {
+            display: flex; gap: 10px;
+        }
+        .pt-modal__btn {
+            flex: 1; padding: 14px; border: none; border-radius: 14px;
+            font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .pt-modal__btn:active { transform: scale(0.96); }
+        .pt-modal__btn--cancel { background: #F2F2F7; color: #8E8E93; }
+        .pt-modal__btn--confirm { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+        .pt-modal__btn:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -254,6 +320,31 @@
             </div>
 
             <div id="ptStudentList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Coin Award Modal (JS 控制显示) -->
+<div id="ptCoinModal" class="pt-modal-overlay" style="display:none;">
+    <div class="pt-modal">
+        <div class="pt-modal__handle"></div>
+        <div class="pt-modal__title">💰 加减金币</div>
+        <div class="pt-modal__student" id="ptCoinTarget"></div>
+        <div class="pt-modal__presets" id="ptCoinPresets">
+            <button class="pt-modal__preset pt-modal__preset--pos" data-val="5">+5</button>
+            <button class="pt-modal__preset pt-modal__preset--pos" data-val="10">+10</button>
+            <button class="pt-modal__preset pt-modal__preset--pos" data-val="15">+15</button>
+            <button class="pt-modal__preset pt-modal__preset--neg" data-val="-5">-5</button>
+            <button class="pt-modal__preset pt-modal__preset--neg" data-val="-10">-10</button>
+        </div>
+        <div class="pt-modal__custom">
+            <span style="font-size:14px;color:#8E8E93;">自定义:</span>
+            <input type="number" class="pt-modal__input" id="ptCoinAmount" placeholder="输入金额 (正数加/负数减)">
+        </div>
+        <textarea class="pt-modal__reason" id="ptCoinReason" rows="2" placeholder="原因（必填，如：课堂表现优秀）" maxlength="200"></textarea>
+        <div class="pt-modal__actions">
+            <button class="pt-modal__btn pt-modal__btn--cancel" id="ptCoinCancel">取消</button>
+            <button class="pt-modal__btn pt-modal__btn--confirm" id="ptCoinConfirm">确认</button>
         </div>
     </div>
 </div>

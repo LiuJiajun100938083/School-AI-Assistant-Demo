@@ -417,8 +417,10 @@ const GameCenterUI = {
             : '';
 
         const isTeacherOrAdmin = ['teacher', 'admin'].includes(GameCenterApp.state.userRole);
+        const isOwner = game.uploaderId && game.uploaderId === GameCenterApp.state.userInfo?.id;
+        const canManage = isAdmin || (isTeacherOrAdmin && isOwner);
         const safeGameName = Utils.escapeHtml(game.name).replace(/"/g, '&quot;');
-        const adminActionsHTML = isAdmin && game.isFromDatabase
+        const adminActionsHTML = canManage && game.isFromDatabase
             ? `<div class="game-admin-actions">
                 <button class="admin-btn edit-btn" data-action="edit" data-uuid="${game.id}" title="編輯">${GCIcons.edit}</button>
                 <button class="admin-btn share-btn" data-action="share" data-uuid="${game.id}" data-name="${safeGameName}" title="分享">${GCIcons.share}</button>
@@ -569,6 +571,7 @@ const GameCenterApp = {
                 badge: null,
                 roles: ['student', 'teacher', 'admin'],
                 isFromDatabase: true,
+                uploaderId: game.uploader_id || null,
                 uploaderName: game.uploader_name || null,
                 isPublic: game.is_public,
                 teacherOnly: game.teacher_only || false,

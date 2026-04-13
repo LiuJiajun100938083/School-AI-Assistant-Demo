@@ -91,6 +91,29 @@ async def get_my_pet(current_user: Dict = Depends(get_current_user)):
     return {"has_pet": True, "pet": pet, "message": message, "streak": streak}
 
 
+@pet_router.get("/coin-sources")
+async def get_coin_sources(current_user: Dict = Depends(get_current_user)):
+    """获取当前角色的金币来源列表"""
+    from app.domains.pet.constants import (
+        STUDENT_COIN_SOURCES, TEACHER_COIN_SOURCES,
+        DAILY_EARN_CAP_STUDENT, DAILY_EARN_CAP_TEACHER,
+    )
+    user = _extract_user(current_user)
+    if user["role"] in ("teacher", "admin"):
+        sources = [
+            {"source_type": k, "amount": v["amount"], "label": v["label"]}
+            for k, v in TEACHER_COIN_SOURCES.items()
+        ]
+        daily_cap = DAILY_EARN_CAP_TEACHER
+    else:
+        sources = [
+            {"source_type": k, "amount": v["amount"], "label": v["label"]}
+            for k, v in STUDENT_COIN_SOURCES.items()
+        ]
+        daily_cap = DAILY_EARN_CAP_STUDENT
+    return {"sources": sources, "daily_cap": daily_cap, "role": user["role"]}
+
+
 @pet_router.post("/create")
 async def create_pet(data: CreatePetRequest, current_user: Dict = Depends(get_current_user)):
     """创建宠物"""
@@ -408,7 +431,7 @@ async def teacher_pet_ranking(
     svc = _get_service()
 
     data = await loop.run_in_executor(
-        None, lambda: svc.get_leaderboard("growth", "teacher", None, limit)
+        None, lambda: svc.get_leaderboard("growth", "teacher,admin", None, limit)
     )
     return {"leaderboard": data}
 

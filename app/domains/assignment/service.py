@@ -232,6 +232,14 @@ class AssignmentService:
             self._question_repo.batch_insert(assignment_id, questions)
 
         logger.info("教師 %s 創建了作業 #%d: %s (類型=%s)", teacher_name, assignment_id, title, rubric_type)
+
+        # 宠物金币：教师创建作业 +5
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "create_assignment", f"asgn_create_{assignment_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_assignment_detail(assignment_id)
 
     def update_assignment(
@@ -1364,6 +1372,14 @@ class AssignmentService:
         })
 
         logger.info("作業 #%d 上傳附件: %s (%d bytes)", assignment_id, original_name, file_size)
+
+        # 宠物金币：教师上传作业附件 +3
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "upload_attachment", f"attach_{file_id}", "teacher")
+        except Exception:
+            pass
+
         return {
             "id": file_id,
             "original_name": original_name,

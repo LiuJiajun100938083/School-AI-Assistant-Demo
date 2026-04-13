@@ -225,6 +225,13 @@ class LearningTaskService:
             admin, task_id, target_type, recipient_count,
         )
 
+        # 宠物金币：发布学习任务 +5
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            try_award_coins_by_username(admin, "publish_task", f"task_pub_{task_id}", "teacher")
+        except Exception:
+            pass
+
         return {
             "task": self.get_task_detail_admin(task_id),
             "recipient_count": recipient_count,

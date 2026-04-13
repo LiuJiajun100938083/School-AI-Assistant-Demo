@@ -358,7 +358,7 @@ function renderEntries(entries, classCode) {
     count.textContent = i18n.t('cdv.nEntries', { count: entries.length });
 
     const periodLabels = getPeriodLabels();
-    const isAdmin = reviewState.userRole === 'admin';
+    const isAdminOrTeacher = ['admin', 'teacher'].includes(reviewState.userRole);
 
     body.innerHTML = entries.map(e => {
         const periodText = e.period_start === e.period_end
@@ -368,7 +368,7 @@ function renderEntries(entries, classCode) {
         const discStars = renderMiniStars(e.discipline_rating);
         const cleanStars = renderMiniStars(e.cleanliness_rating);
 
-        const deleteBtn = isAdmin
+        const deleteBtn = isAdminOrTeacher
             ? `<td><button class="btn-delete-entry" onclick="deleteEntryFromReview(${e.id})">${i18n.t('cdv.delete')}</button></td>`
             : '';
 
@@ -390,12 +390,12 @@ function renderEntries(entries, classCode) {
 
     const thead = document.querySelector('.entries-table thead tr');
     const existingActionTh = thead.querySelector('.th-action');
-    if (isAdmin && !existingActionTh) {
+    if (isAdminOrTeacher && !existingActionTh) {
         const th = document.createElement('th');
         th.className = 'th-action';
         th.textContent = i18n.t('cdv.action');
         thead.appendChild(th);
-    } else if (!isAdmin && existingActionTh) {
+    } else if (!isAdminOrTeacher && existingActionTh) {
         existingActionTh.remove();
     }
 }

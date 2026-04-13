@@ -384,7 +384,7 @@ async def get_teacher_top_at_risk(
         limit: 1-50，預設 10
     """
     try:
-        _, role = _verify_request(request)
+        _risk_username, role = _verify_request(request)
         if role not in ("admin", "teacher"):
             from app.core.exceptions import AuthorizationError
             raise AuthorizationError("需要教师或管理员权限")
@@ -409,6 +409,14 @@ async def get_teacher_top_at_risk(
                 "last_active": r.get("last_active"),
                 "last_updated": r.get("updated_at"),
             })
+        # 宠物金币：教师查看风险学生 +3（每天一次）
+        try:
+            from app.domains.pet.hooks import try_award_coins_by_username
+            from datetime import date as _d
+            try_award_coins_by_username(_risk_username, "review_at_risk", f"risk_{_d.today()}", "teacher")
+        except Exception:
+            pass
+
         return {
             "students": students,
             "count": result.get("count", 0),

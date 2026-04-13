@@ -548,10 +548,8 @@ const HomeApp = {
                 this._loadHomeApps();
                 HomeUI.updateHomeUserInfo(userProfile);
 
-                // 加载宠物组件（admin 可见）
-                if (this.state.isAdmin) {
-                    this._loadHomePetWidget();
-                }
+                // 加载宠物组件
+                this._loadHomePetWidget();
             } else {
                 throw new Error(i18n.t('token.verifyFailed'));
             }

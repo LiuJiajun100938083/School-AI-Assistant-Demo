@@ -40,8 +40,8 @@
             background: rgba(255,255,255,0.6);
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255,255,255,0.4);
-            border-radius: 20px; padding: 16px 12px;
-            width: 140px; text-align: center;
+            border-radius: 20px; padding: 20px 16px;
+            width: 200px; text-align: center;
             opacity: 0; transform: scale(0.8) translateY(20px);
             animation: ptrPodiumIn 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards;
         }
@@ -59,18 +59,19 @@
 
         .ptr-podium__medal { font-size: 32px; margin-bottom: 6px; }
         .ptr-podium__canvas {
-            width: 80px; height: 80px; image-rendering: pixelated;
-            border-radius: 20px; margin-bottom: 8px;
+            width: 120px; height: 120px; image-rendering: pixelated;
+            border-radius: 24px; margin-bottom: 10px;
             background: linear-gradient(145deg, #FFF0E5, #F0E6FF);
         }
-        .ptr-podium__name { font-size: 14px; font-weight: 700; color: #1C1C1E; margin-bottom: 2px; }
-        .ptr-podium__pet { font-size: 12px; color: #667eea; font-weight: 600; margin-bottom: 6px; }
+        .ptr-podium__name { font-size: 17px; font-weight: 700; color: #1C1C1E; margin-bottom: 2px; }
+        .ptr-podium__pet { font-size: 13px; color: #667eea; font-weight: 600; margin-bottom: 8px; }
         .ptr-podium__growth {
-            font-size: 20px; font-weight: 800;
+            font-size: 26px; font-weight: 800;
             background: linear-gradient(135deg, #f093fb, #f5576c);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
         }
-        .ptr-podium__growth-label { font-size: 10px; color: #8E8E93; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ptr-podium__growth-label { font-size: 11px; color: #8E8E93; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .ptr-podium__stats { display: flex; gap: 8px; font-size: 12px; color: #64748B; flex-wrap: wrap; justify-content: center; }
 
         /* Rest list */
         .ptr-list { margin-top: 8px; }
@@ -105,8 +106,8 @@
         .ptr-empty__icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
 
         @media (max-width: 500px) {
-            .ptr-podium__item { width: 110px; padding: 12px 8px; }
-            .ptr-podium__canvas { width: 60px; height: 60px; }
+            .ptr-podium__item { width: 140px; padding: 14px 10px; }
+            .ptr-podium__canvas { width: 80px; height: 80px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -198,7 +199,13 @@
                 '<div class="ptr-podium__name">' + (t.display_name || t.pet_name || '--') + '</div>' +
                 '<div class="ptr-podium__pet">' + (t.pet_name || '') + '</div>' +
                 '<div class="ptr-podium__growth">' + (t.growth || 0) + '</div>' +
-                '<div class="ptr-podium__growth-label">成長值</div>';
+                '<div class="ptr-podium__growth-label">成長值</div>' +
+                '<div class="ptr-podium__stats">' +
+                    '<span>💰' + (t.coins || 0) + '</span>' +
+                    '<span>🍖' + (t.hunger || 0) + '</span>' +
+                    '<span>🧼' + (t.hygiene || 0) + '</span>' +
+                    '<span>😊' + (t.mood || 0) + '</span>' +
+                '</div>';
 
             podium.appendChild(item);
 

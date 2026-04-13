@@ -248,6 +248,14 @@ class DictationService:
             insert_data["lenient_variants"] = 1 if lenient_variants else 0
         dictation_id = self._dict_repo.insert_get_id(insert_data)
         logger.info("老師 %s 建立默書 #%d: %s", teacher_name, dictation_id, title)
+
+        # 宠物金币：教师创建默写 +5
+        try:
+            from app.domains.pet.hooks import try_award_coins
+            try_award_coins(teacher_id, "create_dictation", f"dict_create_{dictation_id}", "teacher")
+        except Exception:
+            pass
+
         return self.get_dictation_detail(dictation_id)
 
     def update_dictation(

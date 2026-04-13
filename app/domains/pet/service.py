@@ -170,6 +170,16 @@ class PetService:
 
         pet = self._pet.get_by_user(user_id)
         pet["stage"] = get_growth_stage(pet["growth"])
+
+        # 自动补发历史金币
+        try:
+            backfilled = self._backfill_single_user(user_id, user_role)
+            if backfilled > 0:
+                pet = self._pet.get_by_user(user_id)
+                pet["stage"] = get_growth_stage(pet["growth"])
+        except Exception:
+            logger.debug("自动补发金币失败 user=%d", user_id)
+
         return pet
 
     def customize_pet(self, user_id: int, **fields) -> Dict:
@@ -600,8 +610,144 @@ class PetService:
         return self._coin.get_history(user_id, limit)
 
     # ============================================================
-    # 历史数据补发金币（管理员一次性操作）
+    # 历史数据补发金币
     # ============================================================
+
+    def _backfill_single_user(self, user_id: int, user_role: str) -> int:
+        """
+        给单个用户补发历史金币。领养宠物后自动调用。
+        幂等：同一 source_id 不会重复发放。
+        返回本次补发总金币数。
+        """
+        from app.infrastructure.database.pool import get_database_pool
+        awarded = 0
+
+        if user_role in ("teacher", "admin"):
+            # 1. 上传游戏
+            try:
+                from app.domains.game_upload.repository import GameUploadRepository
+                games = GameUploadRepository().find_all(
+                    where="uploaded_by = %s", params=(user_id,)
+                )
+                for g in games:
+                    r = self.award_coins(user_id, "teacher", "upload_game",
+                                         source_id=f"game_{g.get('game_uuid', g.get('id'))}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+            except Exception as e:
+                logger.debug("补发游戏金币失败: %s", e)
+
+            # 2. 作业
+            try:
+                pool = get_database_pool()
+                assignments = pool.execute(
+                    "SELECT id FROM assignments WHERE created_by = %s AND is_deleted = 0",
+                    (user_id,)
+                )
+                for a in assignments:
+                    self.award_coins(user_id, "teacher", "create_assignment",
+                                     source_id=f"asgn_create_{a['id']}")
+                published = pool.execute(
+                    "SELECT id FROM assignments WHERE created_by = %s AND status = 'published' AND is_deleted = 0",
+                    (user_id,)
+                )
+                for p in published:
+                    r = self.award_coins(user_id, "teacher", "publish_assignment",
+                                         source_id=f"pub_asgn_{p['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+            except Exception as e:
+                logger.debug("补发作业金币失败: %s", e)
+
+            # 3. 默写
+            try:
+                pool = get_database_pool()
+                dictations = pool.execute(
+                    "SELECT id, status FROM dictations WHERE created_by = %s",
+                    (user_id,)
+                )
+                for d in dictations:
+                    self.award_coins(user_id, "teacher", "create_dictation",
+                                     source_id=f"dict_create_{d['id']}")
+                    if d.get("status") == "published":
+                        r = self.award_coins(user_id, "teacher", "publish_dictation",
+                                             source_id=f"pub_dict_{d['id']}")
+                        if r.get("awarded"):
+                            awarded += r["amount"]
+            except Exception as e:
+                logger.debug("补发默写金币失败: %s", e)
+
+            # 4. 课室日志
+            try:
+                pool = get_database_pool()
+                diaries = pool.execute(
+                    "SELECT id FROM class_diary_entries WHERE submitted_by = (SELECT username FROM users WHERE id = %s)",
+                    (user_id,)
+                )
+                for d in diaries:
+                    r = self.award_coins(user_id, "teacher", "submit_class_diary",
+                                         source_id=f"diary_{d['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+            except Exception as e:
+                logger.debug("补发课室日志金币失败: %s", e)
+
+            # 5. PPT 上传
+            try:
+                pool = get_database_pool()
+                ppts = pool.execute(
+                    "SELECT file_id FROM ppt_files WHERE teacher_username = (SELECT username FROM users WHERE id = %s)",
+                    (user_id,)
+                )
+                for p in ppts:
+                    r = self.award_coins(user_id, "teacher", "upload_lesson",
+                                         source_id=f"ppt_{p['file_id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+            except Exception as e:
+                logger.debug("补发PPT金币失败: %s", e)
+
+        if user_role == "student":
+            try:
+                pool = get_database_pool()
+                # 1. 默写提交
+                subs = pool.execute(
+                    "SELECT id, score FROM dictation_submissions WHERE student_id = %s AND status = 'graded'",
+                    (user_id,)
+                )
+                for s in subs:
+                    r = self.award_coins(user_id, "student", "dictation_submit", f"dict_sub_{s['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+                    if s.get("score") and float(s["score"]) >= 95:
+                        r2 = self.award_coins(user_id, "student", "dictation_perfect", f"dict_perf_{s['id']}")
+                        if r2.get("awarded"):
+                            awarded += r2["amount"]
+
+                # 2. 游戏新纪录
+                scores = pool.execute(
+                    "SELECT id, game_uuid FROM game_scores WHERE student_id = %s",
+                    (user_id,)
+                )
+                for sc in scores:
+                    r = self.award_coins(user_id, "student", "game_new_record", f"game_{sc.get('game_uuid','')}_{sc['id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+
+                # 3. 学习任务完成
+                tasks = pool.execute(
+                    "SELECT task_id, item_id FROM learning_task_completions WHERE student_id = %s AND is_completed = 1",
+                    (user_id,)
+                )
+                for t in tasks:
+                    r = self.award_coins(user_id, "student", "task_complete", f"task_{t['task_id']}_{t['item_id']}")
+                    if r.get("awarded"):
+                        awarded += r["amount"]
+            except Exception as e:
+                logger.debug("补发学生金币失败 uid=%d: %s", user_id, e)
+
+        logger.info("单用户补发金币完成: user=%d role=%s awarded=%d", user_id, user_role, awarded)
+        return awarded
 
     def backfill_teacher_coins(self) -> Dict:
         """

@@ -183,8 +183,14 @@ class PetRepository(BaseRepository):
         conditions = []
         params = []
         if role:
-            conditions.append("p.user_role = %s")
-            params.append(role)
+            roles = [r.strip() for r in role.split(",")]
+            if len(roles) == 1:
+                conditions.append("p.user_role = %s")
+                params.append(roles[0])
+            else:
+                placeholders = ", ".join(["%s"] * len(roles))
+                conditions.append(f"p.user_role IN ({placeholders})")
+                params.extend(roles)
         if class_name:
             conditions.append("u.class_name = %s")
             params.append(class_name)

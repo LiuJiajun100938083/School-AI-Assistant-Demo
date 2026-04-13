@@ -176,6 +176,11 @@
                     (low ? '<div class="pt-pet-card__warning">⚠ 需要照顧</div>' : '');
             }
 
+            if (s.has_pet) {
+                card.style.cursor = 'pointer';
+                card.onclick = (function (student) { return function () { openCoinModal(student); }; })(s);
+            }
+
             listEl.appendChild(card);
 
             if (s.has_pet) {
@@ -238,6 +243,11 @@
                     '</div>';
             }
 
+            if (s.has_pet) {
+                card.style.cursor = 'pointer';
+                card.onclick = (function (student) { return function () { openCoinModal(student); }; })(s);
+            }
+
             listEl.appendChild(card);
 
             if (s.has_pet) {
@@ -254,9 +264,102 @@
         miniRenderers = [];
     }
 
+    // ── 金币加减模态框 ──
+    var coinModalTarget = null;
+
+    function openCoinModal(student) {
+        coinModalTarget = student;
+        var modal = document.getElementById('ptCoinModal');
+        var target = document.getElementById('ptCoinTarget');
+        target.innerHTML = '<strong>' + (student.display_name || '--') + '</strong>' +
+            (student.pet_name ? ' (' + student.pet_name + ')' : '') +
+            '<br><span style="font-size:13px;">当前金币: 💰 ' + (student.coins || 0) + '</span>';
+
+        // 重置状态
+        document.getElementById('ptCoinAmount').value = '';
+        document.getElementById('ptCoinReason').value = '';
+        document.querySelectorAll('.pt-modal__preset').forEach(function (b) { b.classList.remove('active'); });
+        document.getElementById('ptCoinConfirm').disabled = false;
+
+        modal.style.display = '';
+    }
+
+    function closeCoinModal() {
+        document.getElementById('ptCoinModal').style.display = 'none';
+        coinModalTarget = null;
+    }
+
+    function initCoinModal() {
+        var modal = document.getElementById('ptCoinModal');
+        if (!modal) return;
+
+        // 关闭
+        document.getElementById('ptCoinCancel').onclick = closeCoinModal;
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeCoinModal(); });
+
+        // 预设按钮
+        document.getElementById('ptCoinPresets').addEventListener('click', function (e) {
+            var btn = e.target.closest('.pt-modal__preset');
+            if (!btn) return;
+            document.querySelectorAll('.pt-modal__preset').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            document.getElementById('ptCoinAmount').value = btn.getAttribute('data-val');
+        });
+
+        // 自定义输入清除预设高亮
+        document.getElementById('ptCoinAmount').addEventListener('input', function () {
+            document.querySelectorAll('.pt-modal__preset').forEach(function (b) { b.classList.remove('active'); });
+        });
+
+        // 确认
+        document.getElementById('ptCoinConfirm').onclick = async function () {
+            var amount = parseInt(document.getElementById('ptCoinAmount').value, 10);
+            var reason = document.getElementById('ptCoinReason').value.trim();
+
+            if (!amount || amount === 0) { alert('请输入金额'); return; }
+            if (!reason) { alert('请输入原因'); return; }
+            if (!coinModalTarget) return;
+
+            var confirmBtn = document.getElementById('ptCoinConfirm');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '处理中...';
+
+            try {
+                var token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+                var res = await fetch('/api/pet/admin/award-coins', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        target_type: 'students',
+                        student_ids: [coinModalTarget.user_id],
+                        amount: amount,
+                        reason: reason
+                    })
+                });
+                var data = await res.json();
+                if (res.ok && data.success > 0) {
+                    closeCoinModal();
+                    // 刷新当前班级数据
+                    if (currentClass) loadClassPets(currentClass);
+                } else {
+                    alert('操作失败: ' + (data.detail || data.message || JSON.stringify(data.details || [])));
+                    confirmBtn.disabled = false;
+                }
+            } catch (err) {
+                alert('请求失败: ' + err.message);
+                confirmBtn.disabled = false;
+            }
+            confirmBtn.textContent = '确认';
+        };
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', function () { init(); initCoinModal(); });
     } else {
         init();
+        initCoinModal();
     }
 })();

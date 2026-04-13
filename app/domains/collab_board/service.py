@@ -438,7 +438,17 @@ class CollabBoardService:
     ) -> Dict[str, Any]:
         board = self._require_board(board_uuid)
         policy.ensure_can_post(board, None, user)
-        return await self._uploader.save(board_uuid, file)
+        result = await self._uploader.save(board_uuid, file)
+
+        # 宠物金币：教师上传佈告板文件 +3
+        if user.get("role") in ("teacher", "admin"):
+            try:
+                from app.domains.pet.hooks import try_award_coins
+                try_award_coins(user["id"], "upload_board_file", f"board_{board_uuid}_{file.filename}", "teacher")
+            except Exception:
+                pass
+
+        return result
 
     # ============================================================
     # WS helper

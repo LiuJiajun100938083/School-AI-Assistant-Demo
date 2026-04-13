@@ -104,6 +104,7 @@
         $('#btnLeaderboard').onclick = openLeaderboard;
         $('#btnAchievements').onclick = openAchievements;
         $('#btnCustomize').onclick = function () { openCustomize(false); };
+        $('#btnCoinGuide').onclick = openCoinGuide;
 
         // 初始化聊天
         initChat();
@@ -421,6 +422,51 @@
         html += '</div>';
 
         showSheet(i18n.t('pet.achievements'), html);
+    }
+
+    // ============================================================
+    // 金币攻略
+    // ============================================================
+    async function openCoinGuide() {
+        var data = await api('GET', '/api/pet/coin-sources');
+        if (!data) return;
+
+        var sources = data.sources || [];
+        var dailyCap = data.daily_cap || 0;
+
+        // 分为正收益和扣分
+        var earn = sources.filter(function (s) { return s.amount > 0; });
+        var lose = sources.filter(function (s) { return s.amount < 0; });
+
+        // 按金额降序排列
+        earn.sort(function (a, b) { return b.amount - a.amount; });
+
+        var html = '<div style="margin-bottom:16px;padding:14px 16px;background:linear-gradient(135deg,rgba(255,159,10,0.1),rgba(255,204,0,0.08));border-radius:14px;">' +
+            '<div style="font-size:15px;font-weight:700;color:#FF9F0A;">\uD83D\uDCB0 \u6BCF\u65E5\u4E0A\u9650: ' + dailyCap + ' \u5E01</div>' +
+            '<div style="font-size:13px;color:#8E8E93;margin-top:4px;">\u8FDE\u7EED\u767B\u5F55\u53EF\u83B7\u5F97\u500D\u7387\u52A0\u6210</div>' +
+        '</div>';
+
+        // 赚取金币
+        html += '<div style="font-size:15px;font-weight:700;margin-bottom:10px;">\u2728 \u8D5A\u53D6\u91D1\u5E01</div>';
+        earn.forEach(function (s) {
+            html += '<div class="pet-grouped__row" style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,0.04);">' +
+                '<span style="flex:1;font-size:15px;">' + esc(s.label) + '</span>' +
+                '<span style="font-size:15px;font-weight:700;color:#34C759;">+' + s.amount + '</span>' +
+            '</div>';
+        });
+
+        // 扣分
+        if (lose.length) {
+            html += '<div style="font-size:15px;font-weight:700;margin:16px 0 10px;">\u26A0\uFE0F \u6263\u5206\u9879</div>';
+            lose.forEach(function (s) {
+                html += '<div class="pet-grouped__row" style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,0.04);">' +
+                    '<span style="flex:1;font-size:15px;">' + esc(s.label) + '</span>' +
+                    '<span style="font-size:15px;font-weight:700;color:#FF3B30;">' + s.amount + '</span>' +
+                '</div>';
+            });
+        }
+
+        showSheet('\uD83D\uDCD6 \u91D1\u5E01\u653B\u7565', '<div class="pet-grouped" style="margin:0;">' + html + '</div>');
     }
 
     // ============================================================
