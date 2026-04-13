@@ -988,6 +988,52 @@ body {
     font-weight: 500;
 }
 
+/* ========== COIN AWARD ========== */
+.student-coin-btn {
+    width: 28px; height: 28px; border-radius: 8px; border: none;
+    background: linear-gradient(135deg, #FFD60A, #FF9F0A);
+    color: #fff; font-size: 14px; font-weight: 700;
+    cursor: pointer; flex-shrink: 0; display: none;
+    align-items: center; justify-content: center;
+    transition: transform 0.12s, opacity 0.12s;
+    line-height: 1;
+}
+.student-coin-btn:active { transform: scale(0.88); }
+.award-mode .student-coin-btn { display: flex; }
+.award-mode .student-item { cursor: pointer; }
+.award-mode .student-item:hover { background: rgba(255, 214, 10, 0.08); }
+
+.coin-award-toggle {
+    padding: 4px 10px; border-radius: 8px; border: 1.5px solid var(--border-light);
+    background: none; font-size: 11px; font-weight: 600; cursor: pointer;
+    color: var(--text-secondary); transition: all 0.15s; font-family: inherit;
+}
+.coin-award-toggle.active {
+    background: linear-gradient(135deg, #FFD60A, #FF9F0A);
+    color: #fff; border-color: transparent;
+}
+
+.coin-popup {
+    position: fixed; z-index: 9999;
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    padding: 12px; min-width: 180px;
+    animation: coinPopIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes coinPopIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+.coin-popup__name { font-size: 14px; font-weight: 700; margin-bottom: 8px; text-align: center; }
+.coin-popup__presets { display: flex; gap: 6px; justify-content: center; margin-bottom: 8px; }
+.coin-popup__preset {
+    width: 44px; height: 36px; border-radius: 10px; border: 2px solid #E5E5EA;
+    background: none; font-size: 14px; font-weight: 700; cursor: pointer;
+    font-family: inherit; transition: all 0.12s; color: #34C759;
+}
+.coin-popup__preset:active { transform: scale(0.9); }
+.coin-popup__preset--neg { color: #FF3B30; }
+.coin-popup-overlay {
+    position: fixed; inset: 0; z-index: 9998; background: transparent;
+}
+
 /* ========== TOOLTIP ========== */
 [title] {
     position: relative;

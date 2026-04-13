@@ -405,6 +405,63 @@ async def get_room_students(
 
 
 # ====================================================================== #
+#  课堂快捷加分                                                             #
+# ====================================================================== #
+
+@router.post("/api/classroom/rooms/{room_id}/award-coin")
+async def classroom_award_coin(
+    room_id: str,
+    request: Request,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """课堂内快捷给学生加/减金币"""
+    teacher_username, teacher_role = user_info
+    try:
+        body = await request.json()
+        student_username = body.get("student_username", "").strip()
+        amount = int(body.get("amount", 0))
+        reason = body.get("reason", "课堂加分").strip() or "课堂加分"
+
+        if not student_username:
+            return error_response("BAD_REQUEST", "缺少 student_username", status_code=400)
+        if amount == 0:
+            return error_response("BAD_REQUEST", "金额不能为 0", status_code=400)
+
+        # 查找学生 user_id
+        from app.domains.user.repository import UserRepository
+        user_repo = UserRepository()
+        student = user_repo.find_one("username = %s", (student_username,))
+        if not student:
+            return error_response("NOT_FOUND", "学生不存在", status_code=404)
+
+        # 查找老师 user_id
+        teacher = user_repo.find_one("username = %s", (teacher_username,))
+        teacher_id = teacher["id"] if teacher else 0
+
+        # 调用宠物金币服务
+        loop = asyncio.get_event_loop()
+        from app.services import get_services
+        pet_svc = get_services().pet
+        result = await loop.run_in_executor(
+            None,
+            lambda: pet_svc.manual_award_coins(
+                operator_id=teacher_id,
+                operator_role=teacher_role,
+                target_user_ids=[student["id"]],
+                amount=amount,
+                reason=reason,
+            ),
+        )
+        return success_response(result)
+
+    except AppException as e:
+        return error_response(e.code, e.message, status_code=e.status_code)
+    except Exception as e:
+        logger.error("课堂加分失败: %s", e, exc_info=True)
+        return error_response("SERVER_ERROR", "加分失败", status_code=500)
+
+
+# ====================================================================== #
 #  PPT 管理                                                                #
 # ====================================================================== #
 

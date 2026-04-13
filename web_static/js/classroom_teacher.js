@@ -1769,9 +1769,86 @@ function renderStudents() {
                 <div class="student-name">${student.name || i18n.t('ct.unnamed')}</div>
                 <div class="student-status">${statusText}</div>
             </div>
+            <button class="student-coin-btn" data-username="${student.student_username}" data-name="${student.name || ''}" onclick="openCoinPopup(event, this)">+</button>
         `;
         container.appendChild(studentEl);
     });
+}
+
+// ==================== COIN AWARD ====================
+let _awardMode = false;
+
+function toggleAwardMode() {
+    _awardMode = !_awardMode;
+    const btn = document.getElementById('coinAwardToggle');
+    const panel = document.querySelector('.panel-students');
+    if (btn) btn.classList.toggle('active', _awardMode);
+    if (panel) panel.classList.toggle('award-mode', _awardMode);
+}
+
+function openCoinPopup(event, btn) {
+    event.stopPropagation();
+    closeCoinPopup();
+
+    const username = btn.getAttribute('data-username');
+    const name = btn.getAttribute('data-name') || username;
+    const rect = btn.getBoundingClientRect();
+
+    // Overlay to close on outside click
+    const overlay = document.createElement('div');
+    overlay.className = 'coin-popup-overlay';
+    overlay.onclick = closeCoinPopup;
+    document.body.appendChild(overlay);
+
+    // Popup
+    const popup = document.createElement('div');
+    popup.className = 'coin-popup';
+    popup.id = 'coinPopup';
+    popup.innerHTML =
+        '<div class="coin-popup__name">🪙 ' + name + '</div>' +
+        '<div class="coin-popup__presets">' +
+            '<button class="coin-popup__preset" onclick="doAwardCoin(\'' + username + '\', 5)">+5</button>' +
+            '<button class="coin-popup__preset" onclick="doAwardCoin(\'' + username + '\', 10)">+10</button>' +
+            '<button class="coin-popup__preset" onclick="doAwardCoin(\'' + username + '\', 15)">+15</button>' +
+            '<button class="coin-popup__preset coin-popup__preset--neg" onclick="doAwardCoin(\'' + username + '\', -5)">-5</button>' +
+        '</div>';
+
+    // Position near button
+    popup.style.top = Math.min(rect.bottom + 4, window.innerHeight - 120) + 'px';
+    popup.style.right = (window.innerWidth - rect.right) + 'px';
+    document.body.appendChild(popup);
+}
+
+function closeCoinPopup() {
+    const popup = document.getElementById('coinPopup');
+    const overlay = document.querySelector('.coin-popup-overlay');
+    if (popup) popup.remove();
+    if (overlay) overlay.remove();
+}
+
+async function doAwardCoin(studentUsername, amount) {
+    closeCoinPopup();
+    if (!roomId) {
+        UIModule.toast('课室未就绪', 'error');
+        return;
+    }
+    try {
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
+        const res = await fetch('/api/classroom/rooms/' + roomId + '/award-coin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ student_username: studentUsername, amount: amount, reason: '课堂加分' })
+        });
+        const data = await res.json();
+        if (res.ok && data.success !== false) {
+            const name = state.students.get(studentUsername)?.name || studentUsername;
+            UIModule.toast(name + (amount > 0 ? ' +' + amount : ' ' + amount) + ' 🪙', 'success');
+        } else {
+            UIModule.toast('加分失败: ' + (data.error?.message || data.detail || ''), 'error');
+        }
+    } catch (err) {
+        UIModule.toast('请求失败', 'error');
+    }
 }
 
 // ==================== ROOM INFO ====================

@@ -300,7 +300,10 @@
 
             <!-- D. Online Students -->
             <div class="panel-section panel-students">
-                <div class="panel-section-title" data-i18n="ct.students">學生</div>
+                <div class="panel-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span data-i18n="ct.students">學生</span>
+                    <button class="coin-award-toggle" id="coinAwardToggle" onclick="toggleAwardMode()">🪙 加分</button>
+                </div>
                 <div class="students-container" id="studentsList">
                     <div class="empty-state" data-i18n="ct.noStudents">尚無學生連線</div>
                 </div>
