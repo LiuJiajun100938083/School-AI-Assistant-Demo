@@ -897,43 +897,99 @@ const HomeApp = {
         var roamTimer = null;
         var self = this;
 
-        var bubbleMessages = [
-            '\uD83D\uDCDA \u4E3B\u4EBA\u52A0\u6CB9!',
-            '\u2728 \u4ECA\u5929\u4E5F\u8981\u52AA\u529B!',
-            '\uD83D\uDE0A \u597D\u65E0\u804A~',
-            '\uD83C\uDF1F \u6211\u597D\u5F00\u5FC3!',
-            '\uD83D\uDCA4 \u6709\u70B9\u56F0...',
-        ];
+        // ── 分类消息系统（60+ 条）──
+        var PET_MESSAGES = {
+            morning:   ['☀️ 早安！新的一天加油！','🌅 早上好～今天也要努力哦！','📖 早读时间到！一起学习吧！','🥛 吃过早餐了吗？','🌤️ 美好的一天开始啦～'],
+            afternoon: ['☀️ 下午好～别打瞌睡哦！','📚 下午也要认真学习！','🍵 喝点水休息一下吧～','💪 下午的课也要加油！','🌻 午后时光真好～'],
+            evening:   ['🌙 晚上好～作业写完了吗？','✨ 晚安前记得复习哦！','🌟 今天辛苦啦！','📝 睡前回顾一下今天学的吧～','💤 别太晚睡哦！'],
+            night:     ['🌙 这么晚了还没睡呀？','💤 早点休息，明天才有精神！','🛏️ 该睡觉啦，晚安～'],
+            hungry:    ['🍕 好饿...想吃东西...','🍔 肚子咕咕叫了～','🍖 喂我吃东西嘛！','😢 饿得没力气了...'],
+            dirty:     ['🫧 我需要洗澡澡～','🧼 感觉身上脏脏的...','🚿 帮我洗个澡吧！','😣 好想泡个热水澡...'],
+            sadMood:   ['😢 好无聊，陪我玩嘛...','😔 今天心情不太好...','🥺 摸摸我嘛...','😿 好想要人陪...'],
+            happyMood: ['🎉 我好开心！','❤️ 有你真好！','😆 嘻嘻，今天超棒的！','🌈 心情好好～想跳舞！','✨ 幸福满满！'],
+            study:     ['📚 写完作业了吗？','✏️ 今天的功课要加油哦！','📖 一起来复习吧！','🧠 多动脑筋，越来越聪明！','📝 不懂的题目要问老师哦！','💡 学习就像闯关！','🏆 坚持就是胜利！','📊 错题记得整理哦！','🎯 今天的学习目标完成了吗？','🌟 每天进步一点点！'],
+            streak:    ['🔥 连续打卡好厉害！','📅 坚持学习，继续加油！','💪 连续签到中，别断了哦！'],
+            general:   ['😊 嘿嘿～','🌟 今天天气真好！','🎵 哼哼哼～','🐾 在做什么呀？','💭 在发呆中...','🎈 无聊无聊～'],
+        };
+        var _lastPick = {};
 
         function randomInt(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // 从框里跑出来
+        function pickRoamMessage() {
+            var hour = new Date().getHours();
+            var pool = [];
+            // 状态紧急
+            if (pet.hunger < 40)  pool.push({cat:'hungry',  anim:'sad',   w:5});
+            if (pet.hygiene < 40) pool.push({cat:'dirty',   anim:'sad',   w:5});
+            if (pet.mood < 40)    pool.push({cat:'sadMood', anim:'sad',   w:5});
+            // 快乐
+            if (pet.mood >= 80)   pool.push({cat:'happyMood',anim:'happy',w:3});
+            // 连续打卡
+            var sk = (data.streak && data.streak.current_streak) || 0;
+            if (sk >= 3)          pool.push({cat:'streak',  anim:'happy', w:2});
+            // 时段
+            var tc = hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening';
+            pool.push({cat:tc,    anim:'idle', w:3});
+            pool.push({cat:'study',  anim:'idle', w:3});
+            pool.push({cat:'general',anim:'idle', w:1});
+
+            // 加权随机
+            var total = pool.reduce(function(s,p){return s+p.w;},0);
+            var r = Math.random() * total, acc = 0, chosen = pool[pool.length-1];
+            for (var i=0;i<pool.length;i++){acc+=pool[i].w;if(r<acc){chosen=pool[i];break;}}
+
+            // 避免连续重复
+            var msgs = PET_MESSAGES[chosen.cat];
+            var idx = randomInt(0, msgs.length - 1);
+            if (_lastPick[chosen.cat] === idx && msgs.length > 1) idx = (idx + 1) % msgs.length;
+            _lastPick[chosen.cat] = idx;
+
+            return {text: msgs[idx], anim: chosen.anim, dur: 3000};
+        }
+
+        // ── 侧边栏卡片内随机动画 ──
+        var sidebarAnimTimer = null;
+        var sidebarRenderer = self._sidebarRenderer;
+        var sidebarAnims = [
+            {anim:'happy',  dur:2000},
+            {anim:'dance',  dur:2500},
+            {anim:'tickle', dur:1200},
+            {anim:'pat',    dur:1200},
+            {anim:'poke',   dur:800},
+            {anim:'eat',    dur:2000},
+            {anim:'sleep',  dur:2500},
+        ];
+        function sidebarIdleLoop() {
+            if (isOut || !sidebarRenderer) return;
+            var a = sidebarAnims[randomInt(0, sidebarAnims.length - 1)];
+            sidebarRenderer.setState(a.anim, a.dur);
+            sidebarAnimTimer = setTimeout(sidebarIdleLoop, a.dur + randomInt(4000, 10000));
+        }
+        sidebarAnimTimer = setTimeout(sidebarIdleLoop, randomInt(3000, 8000));
+
+        // ── 从框里跑出来 ──
         function comeOut() {
             if (isOut) return;
             isOut = true;
+            if (sidebarAnimTimer) { clearTimeout(sidebarAnimTimer); sidebarAnimTimer = null; }
 
-            // 隐藏 sidebar canvas
             var sc = document.getElementById('sidebarPetCanvas');
             if (sc) sc.style.display = 'none';
 
-            // 计算 sidebar 框的位置作为起点
-            var startX = 40;
-            var startBottom = 60;
+            var startX = 40, startBottom = 60;
             if (sidebarCard) {
                 var rect = sidebarCard.getBoundingClientRect();
                 startX = rect.left;
                 startBottom = window.innerHeight - rect.bottom + 10;
             }
 
-            // 在起点显示浮动宠物（无 transition 先定位）
             floater.style.transition = 'none';
             floater.style.left = startX + 'px';
             floater.style.bottom = startBottom + 'px';
             floater.style.display = 'block';
 
-            // 下一帧开启 transition 并走到目标位置
             requestAnimationFrame(function() {
                 requestAnimationFrame(function() {
                     floater.style.transition = 'left 3s cubic-bezier(0.4,0,0.2,1), bottom 1s ease-out';
@@ -945,98 +1001,115 @@ const HomeApp = {
                 });
             });
 
-            // 开始漫游循环
+            // 到达后显示时段问候
+            setTimeout(function() {
+                if (bubbleEl) {
+                    var picked = pickRoamMessage();
+                    bubbleEl.textContent = picked.text;
+                    bubbleEl.style.display = '';
+                    setTimeout(function() { bubbleEl.style.display = 'none'; }, 3000);
+                }
+            }, 3200);
+
             roamTimer = setTimeout(doRoam, randomInt(8000, 15000));
         }
 
-        // 回到框里
+        // ── 回到框里 ──
         function goHome() {
             if (!isOut) return;
 
-            // 走回 sidebar 位置
             var homeX = 40;
-            if (sidebarCard) {
-                homeX = sidebarCard.getBoundingClientRect().left;
-            }
+            if (sidebarCard) homeX = sidebarCard.getBoundingClientRect().left;
 
-            var goingLeft = homeX < currentX;
-            if (goingLeft) {
-                floater.classList.add('home-roaming-pet--flip');
-            } else {
-                floater.classList.remove('home-roaming-pet--flip');
-            }
+            if (homeX < currentX) floater.classList.add('home-roaming-pet--flip');
+            else floater.classList.remove('home-roaming-pet--flip');
 
             floater.style.transition = 'left 3s cubic-bezier(0.4,0,0.2,1), bottom 1s ease-out';
             floater.style.left = homeX + 'px';
             floatRenderer.setState('dance', 3000);
 
-            // 3 秒后隐藏浮动宠物，显示 sidebar canvas
             setTimeout(function() {
                 floater.style.display = 'none';
                 floater.classList.remove('home-roaming-pet--flip');
                 isOut = false;
                 var sc = document.getElementById('sidebarPetCanvas');
                 if (sc) sc.style.display = '';
-
-                // 下次再出来
+                // 恢复侧边栏动画
+                sidebarAnimTimer = setTimeout(sidebarIdleLoop, randomInt(3000, 8000));
                 roamTimer = setTimeout(comeOut, randomInt(15000, 30000));
             }, 3200);
         }
 
-        // 漫游行为
+        // ── 漫游行为（新增 micro 动作）──
+        var microAnims = [
+            {anim:'sleep',  dur:2500, text:'💤 哈欠～'},
+            {anim:'tickle', dur:1500, text:'🙆 伸个懒腰～'},
+            {anim:'dance',  dur:2000, text:'👀 看看四周...'},
+            {anim:'eat',    dur:2000, text:'🍬 想吃零食...'},
+            {anim:'bath',   dur:1800, text:'💦 甩甩毛～'},
+        ];
+
         function doRoam() {
             if (!isOut) return;
-            var actions = ['walk', 'walk', 'happy', 'goHome', 'idle'];
+            var actions = ['walk', 'walk', 'happy', 'micro', 'goHome', 'idle'];
             var action = actions[randomInt(0, actions.length - 1)];
 
             if (action === 'walk') {
                 var targetX = randomInt(150, Math.max(400, window.innerWidth - 150));
-                var goingLeft = targetX < currentX;
-
-                if (goingLeft) { floater.classList.add('home-roaming-pet--flip'); }
-                else { floater.classList.remove('home-roaming-pet--flip'); }
-
+                if (targetX < currentX) floater.classList.add('home-roaming-pet--flip');
+                else floater.classList.remove('home-roaming-pet--flip');
                 floater.style.left = targetX + 'px';
                 currentX = targetX;
                 floatRenderer.setState('dance', 3500);
 
             } else if (action === 'happy') {
-                floatRenderer.setState('happy', 2000);
-                if (Math.random() > 0.4 && bubbleEl) {
-                    var msg = bubbleMessages[randomInt(0, bubbleMessages.length - 1)];
-                    bubbleEl.textContent = msg;
+                var picked = pickRoamMessage();
+                floatRenderer.setState(picked.anim, picked.dur);
+                if (bubbleEl) {
+                    bubbleEl.textContent = picked.text;
                     bubbleEl.style.display = '';
-                    setTimeout(function() { bubbleEl.style.display = 'none'; }, 3000);
+                    setTimeout(function() { bubbleEl.style.display = 'none'; }, picked.dur);
+                }
+
+            } else if (action === 'micro') {
+                var m = microAnims[randomInt(0, microAnims.length - 1)];
+                floatRenderer.setState(m.anim, m.dur);
+                if (bubbleEl && Math.random() > 0.3) {
+                    bubbleEl.textContent = m.text;
+                    bubbleEl.style.display = '';
+                    setTimeout(function() { bubbleEl.style.display = 'none'; }, m.dur);
                 }
 
             } else if (action === 'goHome') {
                 goHome();
-                return; // goHome 会自己安排下次 comeOut
+                return;
 
-            } else {
-                // idle
-            }
+            } else { /* idle */ }
 
             roamTimer = setTimeout(doRoam, randomInt(6000, 12000));
         }
 
-        // 点击浮动宠物 → 只播放动画 + 冒气泡（不跳转）
+        // ── 点击反应（6 种 + 状态感知）──
+        var clickReactions = [
+            {anim:'happy',  msgs:['😊 嘿嘿~','😆 哈哈哈！','🎉 好开心！']},
+            {anim:'pat',    msgs:['✨ 好舒服~','😌 再摸摸~','❤️ 最喜欢被摸了！']},
+            {anim:'poke',   msgs:['💢 别戳我啦!','😤 哼！','👉 戳什么戳！']},
+            {anim:'tickle', msgs:['🌟 好痒好痒!','😂 哈哈停下！','🤣 不要挠了！']},
+            {anim:'dance',  msgs:['💃 一起跳舞！','🎵 摇摆摇摆～','🕺 看我跳！']},
+            {anim:'eat',    msgs:['🍰 有吃的吗？','🍪 想吃饼干！']},
+        ];
+
         function onPetClick(e) {
             e.stopPropagation();
             e.preventDefault();
-            var reactions = ['happy', 'pat', 'poke', 'tickle'];
-            var anim = reactions[randomInt(0, reactions.length - 1)];
-            floatRenderer.setState(anim, 1500);
-            // 随机冒气泡
+            var pool = clickReactions.slice();
+            if (pet.hunger < 40) pool.push({anim:'sad', msgs:['😢 好饿...先喂我嘛','🍕 给我吃的！']});
+            if (pet.mood >= 80) pool.push({anim:'happy', msgs:['🥰 超爱你！','💖 幸福！']});
+
+            var reaction = pool[randomInt(0, pool.length - 1)];
+            floatRenderer.setState(reaction.anim, 1500);
             if (bubbleEl) {
-                var clickMsgs = [
-                    '\uD83D\uDE0A \u563F\u563F~',           // 嘿嘿~
-                    '\u2728 \u522B\u6233\u6211\u5566!',       // 别戳我啦!
-                    '\uD83D\uDC96 \u559C\u6B22\u4F60!', // 喜欢主人!
-                    '\uD83C\uDF1F \u597D\u75D2\u597D\u75D2!', // 好痒好痒!
-                    '\uD83D\uDE06 \u54C8\u54C8\u54C8!',       // 哈哈哈!
-                ];
-                bubbleEl.textContent = clickMsgs[randomInt(0, clickMsgs.length - 1)];
+                bubbleEl.textContent = reaction.msgs[randomInt(0, reaction.msgs.length - 1)];
                 bubbleEl.style.display = '';
                 setTimeout(function() { bubbleEl.style.display = 'none'; }, 2500);
             }
@@ -1054,10 +1127,14 @@ const HomeApp = {
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 if (roamTimer) { clearTimeout(roamTimer); roamTimer = null; }
+                if (sidebarAnimTimer) { clearTimeout(sidebarAnimTimer); sidebarAnimTimer = null; }
             } else {
                 if (!roamTimer) {
                     if (isOut) roamTimer = setTimeout(doRoam, randomInt(3000, 8000));
                     else roamTimer = setTimeout(comeOut, randomInt(5000, 15000));
+                }
+                if (!sidebarAnimTimer && !isOut) {
+                    sidebarAnimTimer = setTimeout(sidebarIdleLoop, randomInt(2000, 5000));
                 }
             }
         });
