@@ -86,6 +86,10 @@ class LLMConfigManager:
                     env_model = os.getenv('LLM_API_MODEL')
                     if env_model:
                         config.api_model = env_model
+                    # Docker 環境下 JSON 內的 localhost 不通，需從環境變量覆蓋
+                    env_base_url = os.getenv('LLM_LOCAL_BASE_URL') or os.getenv('OLLAMA_BASE_URL')
+                    if env_base_url:
+                        config.local_base_url = env_base_url
                     if config.api_key:
                         logger.info("已從 .env 補充 API Key 配置")
                     return config
