@@ -768,11 +768,17 @@ class ExamGraderService:
     # ================================================================
 
     def get_student_papers(self, exam_id: int) -> List[Dict[str, Any]]:
-        return self._student_paper_repo.find_by_exam(exam_id)
+        papers = self._student_paper_repo.find_by_exam(exam_id)
+        # 计算考试总分供前端显示
+        questions = self._question_repo.find_by_exam(exam_id)
+        total_max = sum(float(q.get("max_marks", 0)) for q in questions)
+        for p in papers:
+            p["max_score"] = total_max
+        return papers
 
     def get_student_answers(self, paper_id: int) -> List[Dict[str, Any]]:
         answers = self._student_answer_repo.find_by_paper(paper_id)
-        # 关联题目信息
+        # 关联题目信息，字段名与前端对齐
         if answers:
             paper = self._student_paper_repo.find_by_id(paper_id)
             if paper:
@@ -786,6 +792,10 @@ class ExamGraderService:
                         ans["question_type"] = q["question_type"]
                         ans["question_text"] = q["question_text"]
                         ans["reference_answer"] = q.get("reference_answer")
+                        # 前端所需的别名
+                        ans["question_content"] = q["question_text"]
+                        ans["correct_answer"] = q.get("reference_answer", "")
+                        ans["max_score"] = float(q.get("max_marks", 0))
         return answers
 
     def adjust_score(self, answer_id: int, score: float, feedback: Optional[str] = None) -> Dict[str, Any]:
