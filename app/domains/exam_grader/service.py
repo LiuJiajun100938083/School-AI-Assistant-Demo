@@ -196,10 +196,11 @@ class ExamGraderService:
         return self._parse_vision_json(raw)
 
     async def _pdf_to_images(self, pdf_path: str) -> list:
-        """PDF 转图片列表"""
+        """PDF 转图片列表（pdf_to_images 是同步 staticmethod）"""
+        from app.domains.vision.service import VisionService
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None, self._vision_service.pdf_to_images, pdf_path, PDF_DPI,
+            None, lambda: VisionService.pdf_to_images(pdf_path, dpi=PDF_DPI),
         )
 
     # ================================================================
