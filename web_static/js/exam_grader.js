@@ -1036,10 +1036,11 @@ const ExamGraderApp = {
     // ── Exam List ────────────────────────────────────────────
     async loadExams() {
         const res = await ExamGraderAPI.listExams(ExamGraderState.filterStatus);
-        if (res && res.success) {
-            ExamGraderState.exams = res.data || [];
-        } else if (res && Array.isArray(res.data)) {
-            ExamGraderState.exams = res.data;
+        if (res && res.success && res.data) {
+            // paginate() returns {items: [...], total, page, page_size}
+            ExamGraderState.exams = Array.isArray(res.data) ? res.data : (res.data.items || []);
+        } else {
+            ExamGraderState.exams = [];
         }
         ExamGraderUI.renderSidebar();
         if (ExamGraderState.currentStep === 0) {
