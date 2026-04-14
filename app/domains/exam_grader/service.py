@@ -188,11 +188,12 @@ class ExamGraderService:
 
     async def _call_vision(self, image_path: str, prompt: str, priority: int = 2, weight: int = 3) -> dict:
         """
-        调用视觉模型（JSON 模式），通过 ai_gate 调度。
-        使用 VisionService 内部的 OllamaVisionClient。
+        调用视觉模型，通过 ai_gate 调度。
+        使用 call_vision_model（普通模式），因为 call_vision_model_json 会用
+        内置 vision schema 验证导致自定义 JSON 结构被丢弃。
         """
         client = self._vision_service._client
-        raw = await client.call_vision_model_json(image_path, prompt, priority=priority, weight=weight)
+        raw = await client.call_vision_model(image_path, prompt, priority=priority, weight=weight, expect_json=True)
         return self._parse_vision_json(raw)
 
     async def _pdf_to_images(self, pdf_path: str) -> list:

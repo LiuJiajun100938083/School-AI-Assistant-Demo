@@ -43,6 +43,24 @@ const ExamGraderAPI = {
             return { success: false, message: e.message || 'Network error' };
         }
     },
+    async _fetchLong(path, opts = {}) {
+        // Long-running requests (vision OCR) — 5 min timeout
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000);
+            const resp = await fetch(path, { headers: this._headers(), signal: controller.signal, ...opts });
+            clearTimeout(timeoutId);
+            if (resp.status === 401) { window.location.href = '/'; return null; }
+            const data = await resp.json();
+            return data;
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                return { success: false, message: '请求超时（5分钟），请重试' };
+            }
+            console.error('ExamGraderAPI error:', e);
+            return { success: false, message: e.message || 'Network error' };
+        }
+    },
     async _multipart(path, formData) {
         try {
             const resp = await fetch(path, {
@@ -98,7 +116,8 @@ const ExamGraderAPI = {
         return this._multipart(`/api/exam-grader/exams/${examId}/clean-paper`, fd);
     },
     extractQuestions(examId) {
-        return this._fetch(`/api/exam-grader/exams/${examId}/extract-questions`, {
+        // Vision OCR takes ~30s per page, may need 2+ minutes
+        return this._fetchLong(`/api/exam-grader/exams/${examId}/extract-questions`, {
             method: 'POST',
         });
     },
@@ -118,7 +137,7 @@ const ExamGraderAPI = {
         return this._multipart(`/api/exam-grader/exams/${examId}/answer-sheet`, fd);
     },
     generateAnswers(examId) {
-        return this._fetch(`/api/exam-grader/exams/${examId}/generate-answers`, {
+        return this._fetchLong(`/api/exam-grader/exams/${examId}/generate-answers`, {
             method: 'POST',
         });
     },
