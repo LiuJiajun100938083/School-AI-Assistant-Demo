@@ -57,6 +57,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.resource_library import router as resource_library_router
     from app.routers.exam_creator import router as exam_creator_router
     from app.routers.dictation import router as dictation_router
+    from app.routers.exam_grader import router as exam_grader_router
     from app.routers.collab_board import router as collab_board_router
     from app.routers.tools import router as tools_router
 
@@ -91,6 +92,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(resource_library_router)
     app.include_router(exam_creator_router)
     app.include_router(dictation_router)
+    app.include_router(exam_grader_router)
     app.include_router(collab_board_router)
     app.include_router(tools_router)
 
@@ -700,7 +702,94 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
-        logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表 + 英文默書表)")
+        # --- 试卷批阅表 ---
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_papers (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                title             VARCHAR(255) NOT NULL,
+                subject           VARCHAR(50) NOT NULL DEFAULT 'ict',
+                class_name        VARCHAR(100) DEFAULT NULL,
+                total_marks       DECIMAL(5,1) NOT NULL DEFAULT 40,
+                pages_per_exam    INT NOT NULL DEFAULT 1,
+                grading_mode      ENUM('strict','moderate','lenient') DEFAULT 'moderate',
+                status            ENUM('draft','questions_extracted','answers_ready','grading','completed') DEFAULT 'draft',
+                clean_paper_path  VARCHAR(500) DEFAULT NULL,
+                answer_paper_path VARCHAR(500) DEFAULT NULL,
+                batch_pdf_path    VARCHAR(500) DEFAULT NULL,
+                total_students    INT DEFAULT 0,
+                graded_count      INT DEFAULT 0,
+                created_by        INT NOT NULL,
+                is_deleted        TINYINT(1) DEFAULT 0,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_teacher (created_by),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_questions (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                exam_id           INT NOT NULL,
+                section           ENUM('A','B') NOT NULL,
+                question_number   VARCHAR(20) NOT NULL,
+                question_order    INT DEFAULT 0,
+                question_type     ENUM('mc','short_answer') NOT NULL,
+                question_text     TEXT NOT NULL,
+                max_marks         DECIMAL(5,1) NOT NULL,
+                reference_answer  TEXT DEFAULT NULL,
+                answer_source     ENUM('answer_sheet','rag','manual') DEFAULT NULL,
+                mc_options        JSON DEFAULT NULL,
+                metadata          JSON DEFAULT NULL,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_exam (exam_id),
+                FOREIGN KEY (exam_id) REFERENCES exam_papers(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_student_papers (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                exam_id           INT NOT NULL,
+                student_index     INT NOT NULL,
+                user_id           INT DEFAULT NULL,
+                student_name      VARCHAR(100) DEFAULT NULL,
+                student_number    VARCHAR(50) DEFAULT NULL,
+                class_name        VARCHAR(50) DEFAULT NULL,
+                page_start        INT NOT NULL,
+                page_end          INT NOT NULL,
+                image_paths       JSON DEFAULT NULL,
+                total_score       DECIMAL(5,1) DEFAULT NULL,
+                status            ENUM('pending','ocr_processing','grading','graded','error') DEFAULT 'pending',
+                ocr_raw           JSON DEFAULT NULL,
+                error_message     TEXT DEFAULT NULL,
+                graded_at         DATETIME DEFAULT NULL,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_exam (exam_id),
+                FOREIGN KEY (exam_id) REFERENCES exam_papers(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        pool.execute("""
+            CREATE TABLE IF NOT EXISTS exam_student_answers (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                student_paper_id  INT NOT NULL,
+                question_id       INT NOT NULL,
+                student_answer    TEXT DEFAULT NULL,
+                score             DECIMAL(5,1) DEFAULT NULL,
+                max_marks         DECIMAL(5,1) NOT NULL,
+                feedback          TEXT DEFAULT NULL,
+                graded_by         ENUM('ai','teacher') DEFAULT 'ai',
+                confidence        FLOAT DEFAULT NULL,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_paper (student_paper_id),
+                UNIQUE KEY uk_paper_question (student_paper_id, question_id),
+                FOREIGN KEY (student_paper_id) REFERENCES exam_student_papers(id) ON DELETE CASCADE,
+                FOREIGN KEY (question_id) REFERENCES exam_questions(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表 + 英文默書表 + 试卷批阅表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
 

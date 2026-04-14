@@ -245,6 +245,7 @@ class ServiceContainer:
         self._dictation_grader: Optional[DictationGrader] = None
         self._ask_ai_func: Optional[Any] = None
         self._collab_board: Optional[CollabBoardService] = None
+        self._exam_grader: Optional["ExamGraderService"] = None
         self._collab_board_broadcaster: Optional[BoardBroadcaster] = None
 
     # ================================================================== #
@@ -471,6 +472,30 @@ class ServiceContainer:
                 uploader=BoardFileUploader(upload_dir=COLLAB_BOARD_UPLOAD_DIR),
             )
         return self._collab_board
+
+    @property
+    def exam_grader(self):
+        """试卷批阅服务"""
+        if self._exam_grader is None:
+            from app.domains.exam_grader.repository import (
+                ExamPaperRepository,
+                ExamQuestionRepository,
+                ExamStudentAnswerRepository,
+                ExamStudentPaperRepository,
+            )
+            from app.domains.exam_grader.service import ExamGraderService
+            from app.domains.user.repository import UserRepository
+
+            self._exam_grader = ExamGraderService(
+                paper_repo=self._get_repo(ExamPaperRepository),
+                question_repo=self._get_repo(ExamQuestionRepository),
+                student_paper_repo=self._get_repo(ExamStudentPaperRepository),
+                student_answer_repo=self._get_repo(ExamStudentAnswerRepository),
+                vision_service=self.vision,
+                user_repo=self._get_repo(UserRepository),
+                settings=self._settings,
+            )
+        return self._exam_grader
 
     @property
     def game_upload(self) -> GameUploadService:
@@ -779,6 +804,10 @@ class ServiceContainer:
         # PlagiarismService
         if ask_ai:
             self.plagiarism.set_ai_function(ask_ai)
+
+        # ExamGraderService
+        if ask_ai:
+            self.exam_grader.set_ai_function(ask_ai)
 
         logger.info("外部依赖注入完成")
 

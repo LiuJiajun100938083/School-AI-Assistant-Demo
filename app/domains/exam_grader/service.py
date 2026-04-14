@@ -1,0 +1,836 @@
+"""
+试卷批阅系统 — Service 层
+===========================
+业务编排：状态流转、调 repository 存取、调策略评分。
+不直接写 SQL，不处理 HTTP，不直接调 AI。
+AI/Vision 通过注入的函数调用，经过 ai_gate 调度。
+"""
+
+import asyncio
+import json
+import logging
+import os
+import threading
+import time
+from typing import Any, Callable, Dict, List, Optional
+
+from app.domains.exam_grader.constants import (
+    ALLOWED_BATCH_EXTENSIONS,
+    ALLOWED_PAPER_EXTENSIONS,
+    ExamStatus,
+    GradedBy,
+    MAX_BATCH_PDF_SIZE_MB,
+    MAX_CLEAN_PAPER_SIZE_MB,
+    PDF_DPI,
+    StudentPaperStatus,
+    SUPPORTED_SUBJECTS,
+    UPLOAD_DIR,
+    VALID_STATUS_TRANSITIONS,
+)
+from app.domains.exam_grader.grading import (
+    calculate_total_score,
+    compute_statistics,
+    grade_mc,
+    match_student_to_roster,
+    verify_questions_match,
+)
+from app.domains.exam_grader.repository import (
+    ExamPaperRepository,
+    ExamQuestionRepository,
+    ExamStudentAnswerRepository,
+    ExamStudentPaperRepository,
+)
+from app.domains.exam_grader.strategies import get_strategy
+
+logger = logging.getLogger(__name__)
+
+
+class ExamGraderService:
+    """试卷批阅核心服务"""
+
+    def __init__(
+        self,
+        paper_repo: ExamPaperRepository,
+        question_repo: ExamQuestionRepository,
+        student_paper_repo: ExamStudentPaperRepository,
+        student_answer_repo: ExamStudentAnswerRepository,
+        vision_service=None,
+        user_repo=None,
+        settings=None,
+    ):
+        self._paper_repo = paper_repo
+        self._question_repo = question_repo
+        self._student_paper_repo = student_paper_repo
+        self._student_answer_repo = student_answer_repo
+        self._vision_service = vision_service
+        self._user_repo = user_repo
+        self._settings = settings
+
+        # AI 函数注入（通过 container 设置）
+        self._ask_ai_func: Optional[Callable] = None
+        self._rag_func: Optional[Callable] = None
+
+        # 批改任务状态（内存）
+        self._grading_jobs: Dict[int, Dict[str, Any]] = {}
+
+    def set_ai_function(self, ask_ai_func: Callable) -> None:
+        self._ask_ai_func = ask_ai_func
+
+    def set_rag_function(self, rag_func: Callable) -> None:
+        self._rag_func = rag_func
+
+    # ================================================================
+    # CRUD
+    # ================================================================
+
+    def create_exam(self, teacher_id: int, data: dict) -> Dict[str, Any]:
+        subject = data.get("subject", "ict")
+        if subject not in SUPPORTED_SUBJECTS:
+            raise ValueError(f"不支持的科目: {subject}")
+
+        exam_id = self._paper_repo.insert_get_id({
+            "title": data["title"],
+            "subject": subject,
+            "class_name": data["class_name"],
+            "total_marks": data.get("total_marks", 40),
+            "pages_per_exam": data.get("pages_per_exam", 1),
+            "grading_mode": data.get("grading_mode", "moderate"),
+            "status": ExamStatus.DRAFT.value,
+            "created_by": teacher_id,
+        })
+        return self._paper_repo.find_by_id(exam_id)
+
+    def get_exam(self, exam_id: int) -> Optional[Dict[str, Any]]:
+        exam = self._paper_repo.find_by_id(exam_id)
+        if exam and exam.get("is_deleted"):
+            return None
+        return exam
+
+    def list_exams(self, teacher_id: int, status: str = "", page: int = 1, page_size: int = 20):
+        return self._paper_repo.find_by_teacher(teacher_id, status, page, page_size)
+
+    def update_exam(self, exam_id: int, data: dict) -> Dict[str, Any]:
+        fields = {}
+        for key in ("title", "class_name", "pages_per_exam", "grading_mode", "total_marks"):
+            if key in data and data[key] is not None:
+                fields[key] = data[key]
+        if fields:
+            self._paper_repo.update(fields, "id = %s", (exam_id,))
+        return self._paper_repo.find_by_id(exam_id)
+
+    def delete_exam(self, exam_id: int) -> bool:
+        return self._paper_repo.update({"is_deleted": 1}, "id = %s", (exam_id,)) > 0
+
+    def get_questions(self, exam_id: int) -> List[Dict[str, Any]]:
+        return self._question_repo.find_by_exam(exam_id)
+
+    def update_questions(self, exam_id: int, updates: List[dict]) -> int:
+        for u in updates:
+            if "reference_answer" in u and u.get("answer_source") is None:
+                u["answer_source"] = "manual"
+        return self._question_repo.batch_update_answers(updates)
+
+    # ================================================================
+    # 文件上传
+    # ================================================================
+
+    def _ensure_upload_dir(self, exam_id: int) -> str:
+        path = os.path.join(UPLOAD_DIR, str(exam_id))
+        os.makedirs(path, exist_ok=True)
+        return path
+
+    def save_clean_paper(self, exam_id: int, file_bytes: bytes, filename: str) -> str:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ALLOWED_PAPER_EXTENSIONS:
+            raise ValueError(f"不支持的文件格式: {ext}")
+        if len(file_bytes) > MAX_CLEAN_PAPER_SIZE_MB * 1024 * 1024:
+            raise ValueError(f"文件过大，上限 {MAX_CLEAN_PAPER_SIZE_MB}MB")
+
+        upload_dir = self._ensure_upload_dir(exam_id)
+        save_path = os.path.join(upload_dir, f"clean_paper{ext}")
+        with open(save_path, "wb") as f:
+            f.write(file_bytes)
+
+        self._paper_repo.update({"clean_paper_path": save_path}, "id = %s", (exam_id,))
+        return save_path
+
+    def save_answer_sheet(self, exam_id: int, file_bytes: bytes, filename: str) -> str:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ALLOWED_PAPER_EXTENSIONS:
+            raise ValueError(f"不支持的文件格式: {ext}")
+
+        upload_dir = self._ensure_upload_dir(exam_id)
+        save_path = os.path.join(upload_dir, f"answer_sheet{ext}")
+        with open(save_path, "wb") as f:
+            f.write(file_bytes)
+
+        self._paper_repo.update({"answer_paper_path": save_path}, "id = %s", (exam_id,))
+        return save_path
+
+    def save_batch_pdf(self, exam_id: int, file_bytes: bytes, filename: str) -> str:
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in ALLOWED_BATCH_EXTENSIONS:
+            raise ValueError(f"批量文件必须是 PDF 格式")
+        if len(file_bytes) > MAX_BATCH_PDF_SIZE_MB * 1024 * 1024:
+            raise ValueError(f"文件过大，上限 {MAX_BATCH_PDF_SIZE_MB}MB")
+
+        upload_dir = self._ensure_upload_dir(exam_id)
+        save_path = os.path.join(upload_dir, "batch.pdf")
+        with open(save_path, "wb") as f:
+            f.write(file_bytes)
+
+        self._paper_repo.update({"batch_pdf_path": save_path}, "id = %s", (exam_id,))
+        return save_path
+
+    # ================================================================
+    # 题目提取（Vision）
+    # ================================================================
+
+    async def extract_questions(self, exam_id: int) -> List[Dict[str, Any]]:
+        """视觉模型提取题目 + 分值"""
+        exam = self._paper_repo.find_by_id(exam_id)
+        if not exam or not exam.get("clean_paper_path"):
+            raise ValueError("请先上传干净试卷")
+
+        strategy = get_strategy(exam["subject"])
+        paper_path = exam["clean_paper_path"]
+
+        # PDF → 图片
+        if paper_path.lower().endswith(".pdf"):
+            images = await self._vision_service.pdf_to_images(paper_path, dpi=PDF_DPI)
+        else:
+            images = [paper_path]
+
+        # 视觉模型提取
+        prompt = strategy.build_question_extraction_prompt(len(images))
+        all_questions = []
+
+        for img_path in images:
+            try:
+                result = await self._vision_service.recognize(
+                    img_path, prompt,
+                    response_format="json",
+                )
+                parsed = self._parse_vision_json(result)
+                questions = parsed.get("questions", [])
+                all_questions.extend(questions)
+            except Exception as e:
+                logger.error("题目提取失败 (exam=%d, img=%s): %s", exam_id, img_path, e)
+
+        if not all_questions:
+            raise ValueError("未能从试卷中提取到任何题目")
+
+        # 清除旧题目，写入新题目
+        self._question_repo.delete_by_exam(exam_id)
+        self._question_repo.batch_insert(exam_id, all_questions)
+
+        # 更新状态
+        self._paper_repo.update_status(exam_id, ExamStatus.QUESTIONS_EXTRACTED.value)
+
+        return self._question_repo.find_by_exam(exam_id)
+
+    # ================================================================
+    # 答案获取
+    # ================================================================
+
+    async def extract_answer_sheet(self, exam_id: int) -> Dict[str, Any]:
+        """从答案卷提取红注答案"""
+        exam = self._paper_repo.find_by_id(exam_id)
+        if not exam or not exam.get("answer_paper_path"):
+            raise ValueError("请先上传答案卷")
+
+        strategy = get_strategy(exam["subject"])
+        answer_path = exam["answer_paper_path"]
+
+        # PDF → 图片
+        if answer_path.lower().endswith(".pdf"):
+            images = await self._vision_service.pdf_to_images(answer_path, dpi=PDF_DPI)
+        else:
+            images = [answer_path]
+
+        prompt = strategy.build_answer_sheet_extraction_prompt()
+        all_answers = []
+
+        for img_path in images:
+            try:
+                result = await self._vision_service.recognize(
+                    img_path, prompt,
+                    response_format="json",
+                )
+                parsed = self._parse_vision_json(result)
+                answers = parsed.get("answers", [])
+                all_answers.extend(answers)
+            except Exception as e:
+                logger.error("答案卷提取失败 (exam=%d): %s", exam_id, e)
+
+        # 匹配验证
+        exam_questions = self._question_repo.find_by_exam(exam_id)
+        matched, total, warnings = verify_questions_match(exam_questions, all_answers)
+
+        # 更新答案
+        answer_map = {}
+        for a in all_answers:
+            key = str(a.get("question_number", "")).strip()
+            answer_map[key] = a
+
+        updates = []
+        for q in exam_questions:
+            q_num = str(q["question_number"]).strip()
+            if q_num in answer_map:
+                updates.append({
+                    "id": q["id"],
+                    "reference_answer": answer_map[q_num].get("answer"),
+                    "answer_source": "answer_sheet",
+                })
+
+        if updates:
+            self._question_repo.batch_update_answers(updates)
+
+        # 所有题目都有答案 → 状态就绪
+        questions_after = self._question_repo.find_by_exam(exam_id)
+        all_have_answers = all(q.get("reference_answer") for q in questions_after)
+        if all_have_answers:
+            self._paper_repo.update_status(exam_id, ExamStatus.ANSWERS_READY.value)
+
+        return {
+            "matched": matched,
+            "total": total,
+            "warnings": warnings,
+            "answers_count": len(updates),
+        }
+
+    async def generate_answers_with_rag(self, exam_id: int) -> Dict[str, Any]:
+        """RAG + LLM 生成参考答案"""
+        exam = self._paper_repo.find_by_id(exam_id)
+        if not exam:
+            raise ValueError("考试不存在")
+
+        strategy = get_strategy(exam["subject"])
+        questions = self._question_repo.find_by_exam(exam_id)
+        if not questions:
+            raise ValueError("请先提取题目")
+
+        generated = 0
+        for q in questions:
+            if q.get("reference_answer"):
+                continue  # 已有答案的跳过
+
+            # RAG 检索
+            rag_context = ""
+            if self._rag_func:
+                try:
+                    rag_context = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        self._rag_func,
+                        q["question_text"],
+                        exam["subject"],
+                    )
+                except Exception as e:
+                    logger.warning("RAG 检索失败: %s", e)
+
+            # LLM 生成答案
+            prompt = strategy.build_answer_generation_prompt(
+                question_text=q["question_text"],
+                question_type=q["question_type"],
+                max_marks=float(q["max_marks"]),
+                rag_context=rag_context or "无相关知识库内容",
+            )
+
+            try:
+                if self._ask_ai_func:
+                    result = await self._ask_ai_func(prompt)
+                    parsed = self._parse_vision_json(result)
+                    answer = parsed.get("answer", result if isinstance(result, str) else "")
+                    self._question_repo.batch_update_answers([{
+                        "id": q["id"],
+                        "reference_answer": answer,
+                        "answer_source": "rag",
+                    }])
+                    generated += 1
+            except Exception as e:
+                logger.error("答案生成失败 (q=%d): %s", q["id"], e)
+
+        # 检查是否全部就绪
+        questions_after = self._question_repo.find_by_exam(exam_id)
+        all_have_answers = all(q.get("reference_answer") for q in questions_after)
+        if all_have_answers:
+            self._paper_repo.update_status(exam_id, ExamStatus.ANSWERS_READY.value)
+
+        return {"generated": generated, "total": len(questions)}
+
+    def confirm_answers(self, exam_id: int) -> bool:
+        """教师确认答案就绪"""
+        self._paper_repo.update_status(exam_id, ExamStatus.ANSWERS_READY.value)
+        return True
+
+    # ================================================================
+    # PDF 切分 + 自动批改
+    # ================================================================
+
+    async def split_and_start_grading(self, exam_id: int) -> Dict[str, Any]:
+        """上传批量 PDF 后：切分 → 自动开始批改"""
+        exam = self._paper_repo.find_by_id(exam_id)
+        if not exam:
+            raise ValueError("考试不存在")
+        if exam["status"] != ExamStatus.ANSWERS_READY.value:
+            raise ValueError("请先确认答案就绪")
+        if not exam.get("batch_pdf_path"):
+            raise ValueError("请先上传全班 PDF")
+
+        # 切分 PDF → 图片
+        pdf_path = exam["batch_pdf_path"]
+        all_images = await self._vision_service.pdf_to_images(pdf_path, dpi=PDF_DPI)
+        pages_per = exam["pages_per_exam"]
+
+        if len(all_images) % pages_per != 0:
+            logger.warning(
+                "PDF 总页数 %d 不能被每份页数 %d 整除，最后一份可能不完整",
+                len(all_images), pages_per,
+            )
+
+        total_students = len(all_images) // pages_per
+        if total_students == 0:
+            raise ValueError("PDF 页数不足，无法切分")
+
+        # 清除旧数据
+        old_papers = self._student_paper_repo.find_by_exam(exam_id)
+        for old in old_papers:
+            self._student_answer_repo.delete_by_paper(old["id"])
+        self._student_paper_repo.delete_by_exam(exam_id)
+
+        # 创建学生试卷记录
+        papers = []
+        for i in range(total_students):
+            start = i * pages_per
+            end = start + pages_per - 1
+            papers.append({
+                "student_index": i + 1,
+                "page_start": start + 1,
+                "page_end": end + 1,
+                "image_paths": all_images[start:end + 1],
+            })
+
+        self._student_paper_repo.batch_insert(exam_id, papers)
+        self._paper_repo.update(
+            {"total_students": total_students, "graded_count": 0},
+            "id = %s", (exam_id,),
+        )
+        self._paper_repo.update_status(exam_id, ExamStatus.GRADING.value)
+
+        # 启动后台批改线程
+        job = {
+            "status": "running",
+            "total": total_students,
+            "done": 0,
+            "success": 0,
+            "fail": 0,
+            "current_student": None,
+            "cancel_flag": False,
+        }
+        self._grading_jobs[exam_id] = job
+
+        thread = threading.Thread(
+            target=self._grading_worker,
+            args=(exam_id,),
+            daemon=True,
+        )
+        thread.start()
+
+        return {
+            "total_students": total_students,
+            "status": "running",
+        }
+
+    def get_grading_progress(self, exam_id: int) -> Dict[str, Any]:
+        job = self._grading_jobs.get(exam_id)
+        if job:
+            return {
+                "status": job["status"],
+                "total": job["total"],
+                "done": job["done"],
+                "success": job["success"],
+                "fail": job["fail"],
+                "current_student": job.get("current_student"),
+            }
+        # 无任务，从数据库读
+        exam = self._paper_repo.find_by_id(exam_id)
+        if not exam:
+            return {"status": "unknown"}
+        return {
+            "status": "completed" if exam["status"] == "completed" else exam["status"],
+            "total": exam.get("total_students", 0),
+            "done": exam.get("graded_count", 0),
+            "success": exam.get("graded_count", 0),
+            "fail": 0,
+        }
+
+    def cancel_grading(self, exam_id: int) -> bool:
+        job = self._grading_jobs.get(exam_id)
+        if job and job["status"] == "running":
+            job["cancel_flag"] = True
+            return True
+        return False
+
+    # ================================================================
+    # 批改后台线程
+    # ================================================================
+
+    def _grading_worker(self, exam_id: int):
+        """后台线程：逐份批改学生试卷"""
+        job = self._grading_jobs[exam_id]
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            exam = self._paper_repo.find_by_id(exam_id)
+            questions = self._question_repo.find_by_exam(exam_id)
+            strategy = get_strategy(exam["subject"])
+            student_papers = self._student_paper_repo.find_by_exam(exam_id)
+
+            # 获取班级学生名册（用于自动匹配）
+            roster = self._get_class_roster(exam.get("class_name", ""))
+
+            for paper in student_papers:
+                if job["cancel_flag"]:
+                    job["status"] = "cancelled"
+                    self._paper_repo.update_status(exam_id, ExamStatus.ANSWERS_READY.value)
+                    return
+
+                paper_id = paper["id"]
+                job["current_student"] = f"#{paper['student_index']}"
+
+                try:
+                    # 1. 识别学生信息
+                    self._student_paper_repo.update_status(paper_id, StudentPaperStatus.OCR_PROCESSING.value)
+                    loop.run_until_complete(
+                        self._recognize_student_info(paper, strategy, roster)
+                    )
+
+                    # 2. OCR 提取学生答案
+                    student_answers = loop.run_until_complete(
+                        self._ocr_student_answers(paper, strategy)
+                    )
+
+                    # 3. 评分
+                    self._student_paper_repo.update_status(paper_id, StudentPaperStatus.GRADING.value)
+                    graded_answers = loop.run_until_complete(
+                        self._grade_student(paper_id, questions, student_answers, strategy, exam)
+                    )
+
+                    # 4. 保存结果
+                    self._student_answer_repo.batch_upsert(paper_id, graded_answers)
+                    total = calculate_total_score([
+                        {"score": a.get("score")} for a in graded_answers
+                    ])
+                    self._student_paper_repo.update_score(paper_id, total)
+
+                    job["success"] += 1
+
+                except Exception as e:
+                    logger.error("批改学生 #%d 失败: %s", paper["student_index"], e, exc_info=True)
+                    self._student_paper_repo.update_status(
+                        paper_id,
+                        StudentPaperStatus.ERROR.value,
+                        error_message=str(e)[:500],
+                    )
+                    job["fail"] += 1
+
+                job["done"] += 1
+                self._paper_repo.update(
+                    {"graded_count": job["done"]},
+                    "id = %s", (exam_id,),
+                )
+
+            job["status"] = "completed"
+            self._paper_repo.update_status(exam_id, ExamStatus.COMPLETED.value)
+
+        except Exception as e:
+            logger.error("批改任务异常 (exam=%d): %s", exam_id, e, exc_info=True)
+            job["status"] = "error"
+
+        finally:
+            loop.close()
+
+    async def _recognize_student_info(self, paper: dict, strategy, roster: list):
+        """识别卷头学生信息"""
+        image_paths = paper.get("image_paths", [])
+        if not image_paths:
+            return
+
+        first_page = image_paths[0]
+        prompt = strategy.build_student_header_ocr_prompt()
+
+        try:
+            result = await self._vision_service.recognize(
+                first_page, prompt, response_format="json",
+            )
+            parsed = self._parse_vision_json(result)
+
+            student_name = parsed.get("student_name")
+            student_number = parsed.get("student_number")
+            class_name = parsed.get("class_name")
+
+            # 匹配学生
+            matched = match_student_to_roster(
+                student_name, student_number, class_name, roster,
+            )
+            user_id = matched["id"] if matched else None
+
+            self._student_paper_repo.update_student_info(
+                paper["id"],
+                student_name=student_name,
+                student_number=student_number,
+                class_name=class_name,
+                user_id=user_id,
+            )
+        except Exception as e:
+            logger.warning("学生信息识别失败 (paper=%d): %s", paper["id"], e)
+
+    async def _ocr_student_answers(self, paper: dict, strategy) -> Dict[str, Any]:
+        """OCR 提取学生答案"""
+        image_paths = paper.get("image_paths", [])
+        prompt = strategy.build_student_ocr_prompt()
+
+        mc_answers: Dict[str, str] = {}
+        short_answers: Dict[str, str] = {}
+
+        for img_path in image_paths:
+            try:
+                result = await self._vision_service.recognize(
+                    img_path, prompt, response_format="json",
+                )
+                parsed = self._parse_vision_json(result)
+                mc_answers.update(parsed.get("mc_answers", {}))
+                short_answers.update(parsed.get("short_answers", {}))
+            except Exception as e:
+                logger.warning("学生答案 OCR 失败 (img=%s): %s", img_path, e)
+
+        # 保存原始 OCR 结果
+        self._student_paper_repo.update(
+            {"ocr_raw": json.dumps({"mc": mc_answers, "sa": short_answers}, ensure_ascii=False)},
+            "id = %s", (paper["id"],),
+        )
+
+        return {"mc_answers": mc_answers, "short_answers": short_answers}
+
+    async def _grade_student(
+        self,
+        paper_id: int,
+        questions: List[dict],
+        student_answers: Dict[str, Any],
+        strategy,
+        exam: dict,
+    ) -> List[Dict[str, Any]]:
+        """评分：MC 直接比对 + 简答 LLM 评分"""
+        mc_answers = student_answers.get("mc_answers", {})
+        short_answers = student_answers.get("short_answers", {})
+        grading_mode = exam.get("grading_mode", "moderate")
+
+        results = []
+
+        for q in questions:
+            q_num = str(q["question_number"]).strip()
+            q_type = q["question_type"]
+
+            if q_type == "mc":
+                student_ans = mc_answers.get(q_num, "")
+                ref_ans = (q.get("reference_answer") or "").strip()
+                is_correct = grade_mc(student_ans, ref_ans)
+                score = float(q["max_marks"]) if is_correct else 0.0
+
+                results.append({
+                    "question_id": q["id"],
+                    "student_answer": student_ans,
+                    "score": score,
+                    "max_marks": float(q["max_marks"]),
+                    "feedback": "正确" if is_correct else f"正确答案: {ref_ans}",
+                    "graded_by": GradedBy.AI.value,
+                })
+
+            elif q_type == "short_answer":
+                student_ans = short_answers.get(q_num, "")
+                ref_ans = q.get("reference_answer") or ""
+
+                if not student_ans.strip():
+                    results.append({
+                        "question_id": q["id"],
+                        "student_answer": "",
+                        "score": 0.0,
+                        "max_marks": float(q["max_marks"]),
+                        "feedback": "未作答",
+                        "graded_by": GradedBy.AI.value,
+                    })
+                    continue
+
+                # LLM 评分
+                prompt = strategy.build_grading_prompt(
+                    question_text=q["question_text"],
+                    reference_answer=ref_ans,
+                    student_answer=student_ans,
+                    max_marks=float(q["max_marks"]),
+                    grading_mode=grading_mode,
+                )
+
+                try:
+                    if self._ask_ai_func:
+                        ai_result = await self._ask_ai_func(prompt)
+                        parsed = self._parse_vision_json(ai_result)
+                        score = min(float(parsed.get("score", 0)), float(q["max_marks"]))
+                        feedback = parsed.get("feedback", "")
+                    else:
+                        score = 0.0
+                        feedback = "AI 评分功能未配置"
+                except Exception as e:
+                    logger.warning("简答题评分失败 (q=%d): %s", q["id"], e)
+                    score = 0.0
+                    feedback = f"评分出错: {str(e)[:100]}"
+
+                results.append({
+                    "question_id": q["id"],
+                    "student_answer": student_ans,
+                    "score": score,
+                    "max_marks": float(q["max_marks"]),
+                    "feedback": feedback,
+                    "graded_by": GradedBy.AI.value,
+                })
+
+        return results
+
+    # ================================================================
+    # 结果查询 + 调分
+    # ================================================================
+
+    def get_student_papers(self, exam_id: int) -> List[Dict[str, Any]]:
+        return self._student_paper_repo.find_by_exam(exam_id)
+
+    def get_student_answers(self, paper_id: int) -> List[Dict[str, Any]]:
+        answers = self._student_answer_repo.find_by_paper(paper_id)
+        # 关联题目信息
+        if answers:
+            paper = self._student_paper_repo.find_by_id(paper_id)
+            if paper:
+                questions = self._question_repo.find_by_exam(paper["exam_id"])
+                q_map = {q["id"]: q for q in questions}
+                for ans in answers:
+                    q = q_map.get(ans.get("question_id"))
+                    if q:
+                        ans["question_number"] = q["question_number"]
+                        ans["section"] = q["section"]
+                        ans["question_type"] = q["question_type"]
+                        ans["question_text"] = q["question_text"]
+                        ans["reference_answer"] = q.get("reference_answer")
+        return answers
+
+    def adjust_score(self, answer_id: int, score: float, feedback: Optional[str] = None) -> Dict[str, Any]:
+        """教师调分"""
+        answer = self._student_answer_repo.find_by_id(answer_id)
+        if not answer:
+            raise ValueError("答案记录不存在")
+
+        max_marks = float(answer.get("max_marks", 0))
+        if score > max_marks:
+            raise ValueError(f"分数不能超过满分 {max_marks}")
+
+        self._student_answer_repo.update_score(answer_id, score, feedback, "teacher")
+
+        # 重算总分
+        paper_id = answer["student_paper_id"]
+        all_answers = self._student_answer_repo.find_by_paper(paper_id)
+        total = calculate_total_score([{"score": a.get("score")} for a in all_answers])
+        self._student_paper_repo.update_score(paper_id, total)
+
+        return self._student_answer_repo.find_by_id(answer_id)
+
+    def get_statistics(self, exam_id: int) -> Dict[str, Any]:
+        papers = self._student_paper_repo.find_by_exam(exam_id)
+        scores = [float(p["total_score"]) for p in papers if p.get("total_score") is not None]
+        exam = self._paper_repo.find_by_id(exam_id)
+
+        stats = compute_statistics(scores, total_students=exam.get("total_students", 0) if exam else 0)
+
+        # 每题统计
+        all_answers = self._student_answer_repo.find_by_exam_with_questions(exam_id)
+        per_question: Dict[int, Dict[str, Any]] = {}
+        for ans in all_answers:
+            qid = ans["question_id"]
+            if qid not in per_question:
+                per_question[qid] = {
+                    "question_number": ans.get("question_number"),
+                    "section": ans.get("section"),
+                    "question_type": ans.get("question_type"),
+                    "max_marks": float(ans.get("q_max_marks", 0)),
+                    "scores": [],
+                }
+            if ans.get("score") is not None:
+                per_question[qid]["scores"].append(float(ans["score"]))
+
+        per_question_stats = []
+        for qid, info in per_question.items():
+            s_list = info["scores"]
+            avg = round(sum(s_list) / len(s_list), 1) if s_list else 0
+            correct_rate = None
+            if info["question_type"] == "mc" and s_list:
+                correct_rate = round(
+                    sum(1 for s in s_list if s > 0) / len(s_list) * 100, 1
+                )
+            per_question_stats.append({
+                "question_number": info["question_number"],
+                "section": info["section"],
+                "max_marks": info["max_marks"],
+                "average_score": avg,
+                "correct_rate": correct_rate,
+            })
+
+        return {
+            **stats.__dict__,
+            "per_question_stats": per_question_stats,
+        }
+
+    # ================================================================
+    # 辅助
+    # ================================================================
+
+    def _get_class_roster(self, class_name: str) -> List[Dict[str, Any]]:
+        """获取班级学生名册"""
+        if not self._user_repo or not class_name:
+            return []
+        try:
+            return self._user_repo.find_all(
+                where="class_name = %s AND role = 'student' AND is_active = 1",
+                params=(class_name,),
+            )
+        except Exception:
+            return []
+
+    @staticmethod
+    def _parse_vision_json(result) -> dict:
+        """安全解析 Vision/LLM 返回的 JSON"""
+        if isinstance(result, dict):
+            return result
+        if not isinstance(result, str):
+            result = str(result)
+
+        # 尝试直接解析
+        try:
+            return json.loads(result)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # 提取 ```json ... ``` 代码块
+        import re
+        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", result, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # 提取 { ... } 块
+        match = re.search(r"\{.*\}", result, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        return {}

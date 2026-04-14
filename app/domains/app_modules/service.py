@@ -214,6 +214,17 @@ DEFAULT_APP_MODULES: List[Dict[str, Any]] = [
         "category": "teaching",
     },
     {
+        "id": "exam_grader",
+        "name": "試卷批閱",
+        "icon": "",
+        "description": "掃描全班試卷、AI 自動批改、教師審閱調分",
+        "url": "/exam-grader",
+        "roles": ["teacher", "admin"],
+        "enabled": True,
+        "order": 16,
+        "category": "teaching",
+    },
+    {
         "id": "collab_board",
         "name": "協作佈告板",
         "icon": "",
