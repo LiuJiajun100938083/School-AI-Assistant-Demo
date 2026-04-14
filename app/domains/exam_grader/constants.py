@@ -13,6 +13,7 @@ from enum import Enum
 class ExamStatus(str, Enum):
     """考试生命周期状态"""
     DRAFT = "draft"
+    EXTRACTING = "extracting"
     QUESTIONS_EXTRACTED = "questions_extracted"
     ANSWERS_READY = "answers_ready"
     GRADING = "grading"

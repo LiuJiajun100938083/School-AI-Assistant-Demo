@@ -116,8 +116,8 @@ const ExamGraderAPI = {
         return this._multipart(`/api/exam-grader/exams/${examId}/clean-paper`, fd);
     },
     extractQuestions(examId) {
-        // Vision OCR takes ~30s per page, may need 2+ minutes
-        return this._fetchLong(`/api/exam-grader/exams/${examId}/extract-questions`, {
+        // Triggers background extraction, returns immediately
+        return this._fetch(`/api/exam-grader/exams/${examId}/extract-questions`, {
             method: 'POST',
         });
     },
@@ -1277,21 +1277,43 @@ const ExamGraderApp = {
         if (res && res.success) {
             if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-success);font-weight:500;">${ExamGraderUI.t('eg.upload.uploadSuccess')}</p>`;
 
-            // Auto extract
+            // Trigger background extraction (returns immediately)
             if (statusEl) statusEl.innerHTML += `<p style="color:var(--text-secondary);margin-top:8px;"><span class="loading-spinner" style="display:inline-block;width:16px;height:16px;vertical-align:middle;margin-right:8px;"></span>${ExamGraderUI.t('eg.upload.extracting')}</p>`;
 
-            const extRes = await ExamGraderAPI.extractQuestions(examId);
-            if (extRes && extRes.success) {
-                ExamGraderState.questions = extRes.data?.questions || extRes.data || [];
-                if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-success);font-weight:500;">${ExamGraderUI.t('eg.upload.extractSuccess')}</p>`;
-                // Re-render to show questions
-                ExamGraderUI.renderUploadStep();
-            } else {
-                if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-error);">${ExamGraderUI.t('eg.upload.extractFail')}: ${extRes?.message || ''}</p>`;
-            }
+            await ExamGraderAPI.extractQuestions(examId);
+
+            // Poll until extraction completes
+            this._pollExtraction(examId, statusEl);
         } else {
             if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-error);">${ExamGraderUI.t('eg.error.uploadFail')}: ${res?.message || ''}</p>`;
         }
+    },
+
+    _pollExtraction(examId, statusEl) {
+        if (this._extractTimer) clearInterval(this._extractTimer);
+        this._extractTimer = setInterval(async () => {
+            const res = await ExamGraderAPI.getExam(examId);
+            if (!res || !res.success) return;
+
+            const exam = res.data;
+            const status = exam.status;
+
+            if (status === 'questions_extracted') {
+                clearInterval(this._extractTimer);
+                this._extractTimer = null;
+                ExamGraderState.currentExam = exam;
+                ExamGraderState.questions = exam.questions || [];
+                if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-success);font-weight:500;">${ExamGraderUI.t('eg.upload.extractSuccess')}</p>`;
+                ExamGraderUI.renderUploadStep();
+                await this.loadExams();
+            } else if (status === 'draft') {
+                // Extraction failed, reverted to draft
+                clearInterval(this._extractTimer);
+                this._extractTimer = null;
+                if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-error);">${ExamGraderUI.t('eg.upload.extractFail')}</p>`;
+            }
+            // else still extracting, keep polling
+        }, 3000);
     },
 
     async _uploadAnswerSheet(examId, file) {

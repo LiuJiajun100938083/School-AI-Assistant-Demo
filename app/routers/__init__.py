@@ -712,7 +712,7 @@ def _run_schema_migrations() -> None:
                 total_marks       DECIMAL(5,1) NOT NULL DEFAULT 40,
                 pages_per_exam    INT NOT NULL DEFAULT 1,
                 grading_mode      ENUM('strict','moderate','lenient') DEFAULT 'moderate',
-                status            ENUM('draft','questions_extracted','answers_ready','grading','completed') DEFAULT 'draft',
+                status            ENUM('draft','extracting','questions_extracted','answers_ready','grading','completed') DEFAULT 'draft',
                 clean_paper_path  VARCHAR(500) DEFAULT NULL,
                 answer_paper_path VARCHAR(500) DEFAULT NULL,
                 batch_pdf_path    VARCHAR(500) DEFAULT NULL,

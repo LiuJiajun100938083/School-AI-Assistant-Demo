@@ -205,47 +205,88 @@ class ExamGraderService:
         )
 
     # ================================================================
-    # 题目提取（Vision）
+    # 题目提取（Vision，后台线程）
     # ================================================================
 
-    async def extract_questions(self, exam_id: int) -> List[Dict[str, Any]]:
-        """视觉模型提取题目 + 分值"""
+    _extract_jobs: Dict[int, Dict[str, Any]] = {}
+
+    def start_extract_questions(self, exam_id: int) -> None:
+        """启动后台题目提取（非阻塞，立即返回）"""
         exam = self._paper_repo.find_by_id(exam_id)
         if not exam or not exam.get("clean_paper_path"):
             raise ValueError("请先上传干净试卷")
 
-        strategy = get_strategy(exam["subject"])
-        paper_path = exam["clean_paper_path"]
+        # 防止重复
+        job = self._extract_jobs.get(exam_id)
+        if job and job.get("status") == "running":
+            return
 
-        # PDF → 图片
-        if paper_path.lower().endswith(".pdf"):
-            images = await self._pdf_to_images(paper_path)
-        else:
-            images = [paper_path]
+        self._extract_jobs[exam_id] = {"status": "running", "error": None}
+        self._paper_repo.update_status(exam_id, "extracting")
 
-        # 视觉模型提取（INTERACTIVE 优先级）
-        prompt = strategy.build_question_extraction_prompt(len(images))
-        all_questions = []
+        thread = threading.Thread(
+            target=self._extract_worker,
+            args=(exam_id,),
+            daemon=True,
+        )
+        thread.start()
 
-        for img_path in images:
-            try:
-                parsed = await self._call_vision(img_path, prompt, priority=2, weight=3)
-                questions = parsed.get("questions", [])
-                all_questions.extend(questions)
-            except Exception as e:
-                logger.error("题目提取失败 (exam=%d, img=%s): %s", exam_id, img_path, e)
+    def get_extract_status(self, exam_id: int) -> Optional[Dict[str, Any]]:
+        return self._extract_jobs.get(exam_id)
 
-        if not all_questions:
-            raise ValueError("未能从试卷中提取到任何题目")
+    def _extract_worker(self, exam_id: int):
+        """后台线程：逐页 OCR 提取题目"""
+        job = self._extract_jobs[exam_id]
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-        # 清除旧题目，写入新题目
-        self._question_repo.delete_by_exam(exam_id)
-        self._question_repo.batch_insert(exam_id, all_questions)
+        try:
+            exam = self._paper_repo.find_by_id(exam_id)
+            strategy = get_strategy(exam["subject"])
+            paper_path = exam["clean_paper_path"]
 
-        # 更新状态
-        self._paper_repo.update_status(exam_id, ExamStatus.QUESTIONS_EXTRACTED.value)
+            # PDF → 图片
+            from app.domains.vision.service import VisionService
+            if paper_path.lower().endswith(".pdf"):
+                images = VisionService.pdf_to_images(paper_path, dpi=PDF_DPI)
+            else:
+                images = [paper_path]
 
-        return self._question_repo.find_by_exam(exam_id)
+            # 视觉模型提取
+            prompt = strategy.build_question_extraction_prompt(len(images))
+            all_questions = []
+
+            for img_path in images:
+                try:
+                    parsed = loop.run_until_complete(
+                        self._call_vision(img_path, prompt, priority=2, weight=3)
+                    )
+                    questions = parsed.get("questions", [])
+                    all_questions.extend(questions)
+                except Exception as e:
+                    logger.error("题目提取失败 (exam=%d, img=%s): %s", exam_id, img_path, e)
+
+            if not all_questions:
+                job["status"] = "error"
+                job["error"] = "未能从试卷中提取到任何题目"
+                self._paper_repo.update_status(exam_id, ExamStatus.DRAFT.value)
+                return
+
+            # 写入数据库
+            self._question_repo.delete_by_exam(exam_id)
+            self._question_repo.batch_insert(exam_id, all_questions)
+            self._paper_repo.update_status(exam_id, ExamStatus.QUESTIONS_EXTRACTED.value)
+
+            job["status"] = "done"
+            logger.info("题目提取完成 exam=%d, questions=%d", exam_id, len(all_questions))
+
+        except Exception as e:
+            logger.error("题目提取异常 exam=%d: %s", exam_id, e, exc_info=True)
+            job["status"] = "error"
+            job["error"] = str(e)[:200]
+            self._paper_repo.update_status(exam_id, ExamStatus.DRAFT.value)
+        finally:
+            loop.close()
 
     # ================================================================
     # 答案获取

@@ -128,16 +128,17 @@ async def extract_questions(
     exam_id: int,
     current_user: dict = Depends(get_current_user),
 ):
+    """触发题目提取（后台执行，立即返回）"""
     _require_teacher(current_user)
     svc = _get_service()
     try:
-        questions = await svc.extract_questions(exam_id)
-        return _success(questions)
+        svc.start_extract_questions(exam_id)
+        return _success({"status": "extracting"}, message="题目提取已开始，请稍候")
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
-        logger.error("题目提取失败: %s", e, exc_info=True)
-        raise HTTPException(500, f"题目提取失败: {str(e)[:200]}")
+        logger.error("题目提取启动失败: %s", e, exc_info=True)
+        raise HTTPException(500, f"题目提取启动失败: {str(e)[:200]}")
 
 
 # ── 答案获取 ──
