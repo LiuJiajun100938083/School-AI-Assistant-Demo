@@ -21,7 +21,7 @@ from app.domains.exam_grader.constants import (
 class CreateExamRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="考试标题")
     subject: str = Field(DEFAULT_SUBJECT, description="科目")
-    class_name: str = Field(..., min_length=1, max_length=100, description="班级")
+    class_name: str = Field("", max_length=100, description="班级")
     pages_per_exam: int = Field(1, ge=1, le=20, description="每份试卷页数")
     grading_mode: GradingMode = Field(GradingMode.MODERATE, description="批改松紧度")
     total_marks: float = Field(40, ge=1, description="满分")
