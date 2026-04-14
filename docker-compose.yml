@@ -34,6 +34,8 @@ services:
       - hf_cache:/app/.cache/huggingface
     environment:
       - HF_HOME=/app/.cache/huggingface
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
       - TZ=Asia/Hong_Kong
     deploy:
       resources:

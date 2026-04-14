@@ -149,6 +149,8 @@ i18n.addMessages({
         'eg.btn.delete': '刪除',
         'eg.btn.edit': '編輯',
         'eg.btn.refresh': '刷新',
+        'eg.btn.exportClass': '匯出全班成績',
+        'eg.btn.exportStudent': '匯出學生報告',
         'eg.btn.viewResults': '查看結果',
         'eg.btn.continue': '繼續',
 
@@ -321,6 +323,8 @@ i18n.addMessages({
         'eg.btn.delete': 'Delete',
         'eg.btn.edit': 'Edit',
         'eg.btn.refresh': 'Refresh',
+        'eg.btn.exportClass': 'Export Class Report',
+        'eg.btn.exportStudent': 'Export Student Report',
         'eg.btn.viewResults': 'View Results',
         'eg.btn.continue': 'Continue',
 

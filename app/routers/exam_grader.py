@@ -318,3 +318,82 @@ async def get_statistics(
     svc = _get_service()
     stats = svc.get_statistics(exam_id)
     return _success(stats)
+
+
+# ── 匯出 ──
+
+
+@router.get("/exams/{exam_id}/export-class")
+async def export_class(
+    exam_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """匯出全班成績表 xlsx"""
+    from fastapi.responses import Response
+    from app.domains.exam_grader.exporters import export_class_report
+
+    _require_teacher(current_user)
+    svc = _get_service()
+
+    exam = svc._paper_repo.find_by_id(exam_id)
+    if not exam:
+        raise HTTPException(404, "考試不存在")
+
+    papers = svc.get_student_papers(exam_id)
+    questions = svc._question_repo.find_by_exam(exam_id)
+    stats_data = svc.get_statistics(exam_id)
+
+    # 為每個學生附加每題得分
+    all_answers = svc._student_answer_repo.find_by_exam_with_questions(exam_id)
+    paper_answers: Dict = {}
+    for ans in all_answers:
+        sp_id = ans.get("student_paper_id") or ans.get("student_index")
+        if sp_id not in paper_answers:
+            paper_answers[sp_id] = {}
+        paper_answers[sp_id][ans["question_id"]] = ans
+
+    for p in papers:
+        p["_answers_map"] = paper_answers.get(p["id"], {})
+
+    xlsx = export_class_report(
+        exam, papers, questions,
+        stats_data.get("per_question_stats", []),
+        stats_data,
+    )
+    title = exam.get("title", "exam")
+    return Response(
+        content=xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{title}_class.xlsx"'},
+    )
+
+
+@router.get("/students/{paper_id}/export")
+async def export_student(
+    paper_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """匯出單個學生報告 xlsx"""
+    from fastapi.responses import Response
+    from app.domains.exam_grader.exporters import export_student_report
+
+    _require_teacher(current_user)
+    svc = _get_service()
+
+    paper = svc._student_paper_repo.find_by_id(paper_id)
+    if not paper:
+        raise HTTPException(404, "學生試卷不存在")
+
+    exam = svc._paper_repo.find_by_id(paper["exam_id"])
+    if not exam:
+        raise HTTPException(404, "考試不存在")
+
+    answers = svc.get_student_answers(paper_id)
+
+    xlsx = export_student_report(exam, paper, answers)
+    name = paper.get("student_name") or f"student_{paper_id}"
+    return Response(
+        content=xlsx,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{name}_report.xlsx"'},
+    )

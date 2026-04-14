@@ -695,14 +695,35 @@ class ExamGraderService:
         short_answers = student_answers.get("short_answers", {})
         grading_mode = exam.get("grading_mode", "moderate")
 
+        logger.info(
+            "评分开始: mc_keys=%s, sa_keys=%s",
+            list(mc_answers.keys()), list(short_answers.keys()),
+        )
+
         results = []
+
+        def _find_answer(answers: dict, q_num: str) -> str:
+            """模糊匹配：先精确，再数字部分，再去前缀"""
+            if q_num in answers:
+                return answers[q_num]
+            # 提取纯数字部分 (e.g. "B1" → "1")
+            import re
+            digits = re.sub(r"[^0-9]", "", q_num)
+            if digits and digits in answers:
+                return answers[digits]
+            # 反向：answers key 含前缀 (e.g. answers["B1"] vs q_num="1")
+            for k, v in answers.items():
+                k_digits = re.sub(r"[^0-9]", "", k)
+                if k_digits == q_num or k_digits == digits:
+                    return v
+            return ""
 
         for q in questions:
             q_num = str(q["question_number"]).strip()
             q_type = q["question_type"]
 
             if q_type == "mc":
-                student_ans = mc_answers.get(q_num, "")
+                student_ans = _find_answer(mc_answers, q_num)
                 ref_ans = (q.get("reference_answer") or "").strip()
                 is_correct = grade_mc(student_ans, ref_ans)
                 score = float(q["max_marks"]) if is_correct else 0.0
@@ -717,7 +738,7 @@ class ExamGraderService:
                 })
 
             elif q_type == "short_answer":
-                student_ans = short_answers.get(q_num, "")
+                student_ans = _find_answer(short_answers, q_num)
                 ref_ans = q.get("reference_answer") or ""
 
                 if not student_ans.strip():

@@ -177,6 +177,12 @@ const ExamGraderAPI = {
     getStatistics(examId) {
         return this._fetch(`/api/exam-grader/exams/${examId}/statistics`);
     },
+    exportClassUrl(examId) {
+        return `/api/exam-grader/exams/${examId}/export-class`;
+    },
+    exportStudentUrl(paperId) {
+        return `/api/exam-grader/students/${paperId}/export`;
+    },
 
     // ── Class targets (shared with assignments) ──────────────
     getTargets() {
@@ -857,11 +863,14 @@ const ExamGraderUI = {
                     <td class="student-name">${this._esc(p.student_name || p.student_id || `#${idx + 1}`)}</td>
                     <td><span class="score-cell ${scoreClass}">${score}</span> / ${maxScore}</td>
                     <td>${pct}%</td>
-                    <td>
+                    <td style="display:flex;gap:4px;">
                         <button class="detail-toggle-btn ${isExpanded ? 'expanded' : ''}"
                                 onclick="ExamGraderApp.toggleStudentDetail('${p.id}')">
                             ${isExpanded ? this.t('eg.results.collapse') : this.t('eg.results.expand')}
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <button class="detail-toggle-btn" onclick="ExamGraderApp.exportStudent('${p.id}')" title="${this.t('eg.btn.exportStudent')}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         </button>
                     </td>
                 </tr>
@@ -888,10 +897,16 @@ const ExamGraderUI = {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
                     ${this.t('eg.btn.prev')}
                 </button>
-                <button class="btn btn-outline" onclick="ExamGraderApp.loadResults()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                    ${this.t('eg.btn.refresh')}
-                </button>
+                <div style="display:flex;gap:var(--space-2);">
+                    <button class="btn btn-outline" onclick="ExamGraderApp.exportClass()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        ${this.t('eg.btn.exportClass')}
+                    </button>
+                    <button class="btn btn-outline" onclick="ExamGraderApp.loadResults()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        ${this.t('eg.btn.refresh')}
+                    </button>
+                </div>
             </div>
         `;
 
@@ -1603,6 +1618,17 @@ const ExamGraderApp = {
         if (res && res.success) {
             ExamGraderUI.toast(ExamGraderUI.t('eg.adjust.saved'), 'success');
         }
+    },
+
+    // ── Export ───────────────────────────────────────────────
+    exportClass() {
+        const exam = ExamGraderState.currentExam;
+        if (!exam) return;
+        window.open(ExamGraderAPI.exportClassUrl(exam.id), '_blank');
+    },
+
+    exportStudent(paperId) {
+        window.open(ExamGraderAPI.exportStudentUrl(paperId), '_blank');
     },
 
     // ── Delete ───────────────────────────────────────────────
