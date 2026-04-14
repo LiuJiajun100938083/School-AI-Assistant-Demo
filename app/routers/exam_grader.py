@@ -360,11 +360,13 @@ async def export_class(
         stats_data.get("per_question_stats", []),
         stats_data,
     )
+    from urllib.parse import quote
     title = exam.get("title", "exam")
+    fname = f"{title}_class.xlsx"
     return Response(
         content=xlsx,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{title}_class.xlsx"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"},
     )
 
 
@@ -390,10 +392,12 @@ async def export_student(
 
     answers = svc.get_student_answers(paper_id)
 
+    from urllib.parse import quote
     xlsx = export_student_report(exam, paper, answers)
     name = paper.get("student_name") or f"student_{paper_id}"
+    fname = f"{name}_report.xlsx"
     return Response(
         content=xlsx,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{name}_report.xlsx"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"},
     )
