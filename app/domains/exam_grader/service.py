@@ -393,11 +393,8 @@ class ExamGraderService:
 
             try:
                 if self._ask_ai_func:
-                    result = await asyncio.get_event_loop().run_in_executor(
-                        None, self._ask_ai_func, prompt, "ict",
-                    )
-                    if isinstance(result, tuple):
-                        result = result[0]  # ask_ai_subject returns (answer, source)
+                    raw = self._ask_ai_func(prompt, "ict")
+                    result = raw[0] if isinstance(raw, tuple) else raw
                     parsed = self._parse_vision_json(result)
                     answer = parsed.get("answer", result if isinstance(result, str) else "")
                     self._question_repo.batch_update_answers([{
@@ -727,11 +724,8 @@ class ExamGraderService:
 
                 try:
                     if self._ask_ai_func:
-                        ai_result = await asyncio.get_event_loop().run_in_executor(
-                            None, self._ask_ai_func, prompt, "ict",
-                        )
-                        if isinstance(ai_result, tuple):
-                            ai_result = ai_result[0]
+                        raw = self._ask_ai_func(prompt, "ict")
+                        ai_result = raw[0] if isinstance(raw, tuple) else raw
                         parsed = self._parse_vision_json(ai_result)
                         score = min(float(parsed.get("score", 0)), float(q["max_marks"]))
                         feedback = parsed.get("feedback", "")
