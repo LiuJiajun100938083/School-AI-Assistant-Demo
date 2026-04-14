@@ -789,6 +789,16 @@ def _run_schema_migrations() -> None:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # --- 试卷批阅表补丁: 确保 status 枚举包含 extracting ---
+        try:
+            pool.execute(
+                "ALTER TABLE exam_papers MODIFY COLUMN status "
+                "ENUM('draft','extracting','questions_extracted','answers_ready','grading','completed') "
+                "DEFAULT 'draft'"
+            )
+        except Exception:
+            pass  # 已经是最新枚举则忽略
+
         logger.info("数据库 schema 迁移完成 (含作業管理表 + AI 出題表 + 英文默書表 + 试卷批阅表)")
     except Exception as e:
         logger.warning("数据库 schema 迁移失败（非致命）: %s", e)
