@@ -43,6 +43,7 @@ class SubjectGradingStrategy(ABC):
         question_type: str,
         max_marks: float,
         rag_context: str,
+        mc_options: dict | None = None,
     ) -> str:
         """
         构建 RAG+LLM 答案生成 prompt。

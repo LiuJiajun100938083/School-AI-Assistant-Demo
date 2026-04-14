@@ -391,6 +391,7 @@ class ExamGraderService:
                 question_type=q["question_type"],
                 max_marks=float(q["max_marks"]),
                 rag_context=rag_context or "无相关知识库内容",
+                mc_options=q.get("mc_options"),
             )
 
             try:

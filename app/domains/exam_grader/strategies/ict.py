@@ -110,20 +110,27 @@ class ICTGradingStrategy(SubjectGradingStrategy):
         question_type: str,
         max_marks: float,
         rag_context: str,
+        mc_options: dict | None = None,
     ) -> str:
         if question_type == "mc":
-            return f"""你是一位 ICT 教师。根据以下知识库内容，判断这道选择题的正确答案。
+            options_text = ""
+            if mc_options:
+                options_text = "\n选项：\n" + "\n".join(
+                    f"  {k}. {v}" for k, v in sorted(mc_options.items())
+                )
+            return f"""你是一位 ICT 教师。请仔细分析这道选择题，选出正确答案。
 
 题目：
 {question_text}
+{options_text}
 
 相关知识库内容：
 {rag_context}
 
-请只输出正确选项的字母（A、B、C 或 D），不要解释。
+请先在 reasoning 字段简述判断理由（1-2句），再给出正确选项字母。
 输出格式：
 ```json
-{{"answer": "B"}}
+{{"reasoning": "简短理由", "answer": "正确选项字母"}}
 ```"""
         else:
             return f"""你是一位 ICT 教师。根据以下知识库内容，为这道简答题生成参考答案。
