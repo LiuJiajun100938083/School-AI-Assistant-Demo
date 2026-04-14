@@ -642,11 +642,29 @@ class ExamGraderService:
             student_number = parsed.get("student_number")
             class_name = parsed.get("class_name")
 
+            # 确保都是字符串（JSON 可能返回 int）
+            if student_number is not None:
+                student_number = str(student_number).strip()
+            if class_name is not None:
+                class_name = str(class_name).strip()
+
+            logger.info(
+                "学生卷头 OCR (paper=%d): name=%s, number=%s, class=%s",
+                paper["id"], student_name, student_number, class_name,
+            )
+
             # 匹配学生
             matched = match_student_to_roster(
                 student_name, student_number, class_name, roster,
             )
             user_id = matched["id"] if matched else None
+
+            logger.info(
+                "学生匹配结果 (paper=%d): matched=%s (id=%s)",
+                paper["id"],
+                matched.get("display_name") if matched else "None",
+                user_id,
+            )
 
             self._student_paper_repo.update_student_info(
                 paper["id"],
