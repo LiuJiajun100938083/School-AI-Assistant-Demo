@@ -503,7 +503,7 @@ const ExamGraderUI = {
             `;
         }
 
-        const totalPoints = qs.reduce((s, q) => s + (q.points || 0), 0);
+        const totalPoints = qs.reduce((s, q) => s + (parseFloat(q.max_marks) || 0), 0);
 
         let html = `
             <div class="form-section" style="margin-top:var(--space-5);">
@@ -515,20 +515,20 @@ const ExamGraderUI = {
         `;
 
         qs.forEach((q, idx) => {
-            const qTypeLabel = this._questionTypeLabel(q.question_type || q.type);
-            const hasAnswer = q.answer || q.correct_answer;
-            const answerText = q.answer || q.correct_answer || '';
+            const qTypeLabel = this._questionTypeLabel(q.question_type);
+            const hasAnswer = q.reference_answer;
+            const answerText = q.reference_answer || '';
             const source = q.answer_source || '';
             html += `
                 <div class="question-card" data-index="${idx}">
                     <div class="question-card-header">
                         <div class="question-number">
-                            <div class="question-number-badge">${idx + 1}</div>
+                            <div class="question-number-badge">${q.question_number || (idx + 1)}</div>
                             <span class="question-type-badge">${qTypeLabel}</span>
                         </div>
-                        <span class="question-points">${q.points || 0} pts</span>
+                        <span class="question-points">${q.max_marks || 0} pts</span>
                     </div>
-                    <div class="question-content">${this._esc(q.content || q.question || '')}</div>
+                    <div class="question-content">${this._esc(q.question_text || '')}</div>
                     ${hasAnswer ? `
                         <div class="question-answer-row">
                             <span class="question-answer-label">${this.t('eg.questions.answer')}:</span>
@@ -553,7 +553,7 @@ const ExamGraderUI = {
         if (!exam) return;
 
         const qs = ExamGraderState.questions;
-        const allHaveAnswers = qs.length > 0 && qs.every(q => q.answer || q.correct_answer);
+        const allHaveAnswers = qs.length > 0 && qs.every(q => q.reference_answer);
 
         ws.innerHTML = `
             ${this._renderStepIndicator(3)}
@@ -620,19 +620,19 @@ const ExamGraderUI = {
             <div class="question-list">`;
 
         qs.forEach((q, idx) => {
-            const qTypeLabel = this._questionTypeLabel(q.question_type || q.type);
-            const answerText = q.answer || q.correct_answer || '';
+            const qTypeLabel = this._questionTypeLabel(q.question_type);
+            const answerText = q.reference_answer || '';
             const source = q.answer_source || '';
             html += `
                 <div class="question-card" data-index="${idx}">
                     <div class="question-card-header">
                         <div class="question-number">
-                            <div class="question-number-badge">${idx + 1}</div>
+                            <div class="question-number-badge">${q.question_number || (idx + 1)}</div>
                             <span class="question-type-badge">${qTypeLabel}</span>
                         </div>
-                        <span class="question-points">${q.points || 0} pts</span>
+                        <span class="question-points">${q.max_marks || 0} pts</span>
                     </div>
-                    <div class="question-content">${this._esc(q.content || q.question || '')}</div>
+                    <div class="question-content">${this._esc(q.question_text || '')}</div>
                     <div class="answer-edit-area">
                         <label style="font-size:var(--type-meta);font-weight:600;color:var(--brand);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
                             ${this.t('eg.questions.answer')}
