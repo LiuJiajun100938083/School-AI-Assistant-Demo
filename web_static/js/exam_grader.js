@@ -519,6 +519,18 @@ const ExamGraderUI = {
             const hasAnswer = q.reference_answer;
             const answerText = q.reference_answer || '';
             const source = q.answer_source || '';
+
+            // MC options
+            let optionsHtml = '';
+            if (q.question_type === 'mc' && q.mc_options) {
+                const opts = typeof q.mc_options === 'string' ? JSON.parse(q.mc_options) : q.mc_options;
+                optionsHtml = '<div style="margin:6px 0;padding:6px 12px;background:var(--bg-page);border-radius:8px;font-size:13px;line-height:1.7;">';
+                for (const [key, val] of Object.entries(opts)) {
+                    optionsHtml += `<div><strong>${this._esc(key)}.</strong> ${this._esc(val)}</div>`;
+                }
+                optionsHtml += '</div>';
+            }
+
             html += `
                 <div class="question-card" data-index="${idx}">
                     <div class="question-card-header">
@@ -529,6 +541,7 @@ const ExamGraderUI = {
                         <span class="question-points">${q.max_marks || 0} pts</span>
                     </div>
                     <div class="question-content">${this._esc(q.question_text || '')}</div>
+                    ${optionsHtml}
                     ${hasAnswer ? `
                         <div class="question-answer-row">
                             <span class="question-answer-label">${this.t('eg.questions.answer')}:</span>
@@ -623,6 +636,18 @@ const ExamGraderUI = {
             const qTypeLabel = this._questionTypeLabel(q.question_type);
             const answerText = q.reference_answer || '';
             const source = q.answer_source || '';
+
+            // MC options display
+            let optionsHtml = '';
+            if (q.question_type === 'mc' && q.mc_options) {
+                const opts = typeof q.mc_options === 'string' ? JSON.parse(q.mc_options) : q.mc_options;
+                optionsHtml = '<div style="margin:8px 0;padding:8px 12px;background:var(--bg-page);border-radius:8px;font-size:14px;line-height:1.8;">';
+                for (const [key, val] of Object.entries(opts)) {
+                    optionsHtml += `<div><strong>${this._esc(key)}.</strong> ${this._esc(val)}</div>`;
+                }
+                optionsHtml += '</div>';
+            }
+
             html += `
                 <div class="question-card" data-index="${idx}">
                     <div class="question-card-header">
@@ -633,13 +658,14 @@ const ExamGraderUI = {
                         <span class="question-points">${q.max_marks || 0} pts</span>
                     </div>
                     <div class="question-content">${this._esc(q.question_text || '')}</div>
+                    ${optionsHtml}
                     <div class="answer-edit-area">
                         <label style="font-size:var(--type-meta);font-weight:600;color:var(--brand);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
                             ${this.t('eg.questions.answer')}
                             ${source ? `<span class="question-answer-source source-${source}">${this._sourceLabel(source)}</span>` : ''}
                         </label>
-                        <textarea rows="2" data-q-index="${idx}" class="answer-textarea"
-                                  placeholder="${this.t('eg.answers.editAnswer')}">${this._esc(answerText)}</textarea>
+                        <textarea rows="${q.question_type === 'mc' ? 1 : 3}" data-q-index="${idx}" class="answer-textarea"
+                                  placeholder="${q.question_type === 'mc' ? 'A / B / C / D' : this.t('eg.answers.editAnswer')}">${this._esc(answerText)}</textarea>
                     </div>
                 </div>
             `;
@@ -1327,8 +1353,15 @@ const ExamGraderApp = {
 
         const res = await ExamGraderAPI.uploadAnswerSheet(examId, file);
         if (res && res.success) {
-            ExamGraderState.questions = res.data?.questions || ExamGraderState.questions;
-            if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-success);font-weight:500;">${ExamGraderUI.t('eg.upload.uploadSuccess')}</p>`;
+            const matchInfo = res.data || {};
+            if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-success);font-weight:500;">${ExamGraderUI.t('eg.upload.uploadSuccess')} (${matchInfo.matched || 0}/${matchInfo.total || 0} 題匹配)</p>`;
+
+            // Reload questions to get updated answers
+            const examRes = await ExamGraderAPI.getExam(examId);
+            if (examRes?.success) {
+                ExamGraderState.currentExam = examRes.data;
+                ExamGraderState.questions = examRes.data?.questions || [];
+            }
             ExamGraderUI.renderAnswersStep();
         } else {
             if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-error);">${ExamGraderUI.t('eg.error.uploadFail')}: ${res?.message || ''}</p>`;
