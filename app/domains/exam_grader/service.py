@@ -659,11 +659,18 @@ class ExamGraderService:
             )
             user_id = matched["id"] if matched else None
 
+            # 匹配成功 → 用花名册数据覆盖 OCR（花名册比手写识别可靠）
+            if matched:
+                student_name = matched.get("display_name") or student_name
+                student_number = str(matched.get("student_number", "")).strip() or student_number
+                class_name = str(matched.get("class_name", "")).strip() or class_name
+
             logger.info(
-                "学生匹配结果 (paper=%d): matched=%s (id=%s)",
+                "学生匹配结果 (paper=%d): matched=%s (id=%s), final_name=%s",
                 paper["id"],
                 matched.get("display_name") if matched else "None",
                 user_id,
+                student_name,
             )
 
             self._student_paper_repo.update_student_info(
