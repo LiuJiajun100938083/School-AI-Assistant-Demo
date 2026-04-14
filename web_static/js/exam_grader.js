@@ -287,11 +287,18 @@ const ExamGraderUI = {
             filtered.forEach(exam => {
                 const isActive = ExamGraderState.currentExam && ExamGraderState.currentExam.id === exam.id;
                 html += `
-                    <button class="sidebar-exam-item ${isActive ? 'active' : ''}"
-                            onclick="ExamGraderApp.selectExam('${exam.id}')">
-                        <span class="sidebar-exam-item-title">${this._esc(exam.title || 'Untitled')}</span>
-                        <span class="sidebar-exam-item-meta">${this._badgeLabel(exam.status)}</span>
-                    </button>
+                    <div class="sidebar-exam-item-wrapper" style="display:flex;align-items:center;gap:2px;">
+                        <button class="sidebar-exam-item ${isActive ? 'active' : ''}"
+                                onclick="ExamGraderApp.selectExam('${exam.id}')" style="flex:1;min-width:0;">
+                            <span class="sidebar-exam-item-title">${this._esc(exam.title || 'Untitled')}</span>
+                            <span class="sidebar-exam-item-meta">${this._badgeLabel(exam.status)}</span>
+                        </button>
+                        <button class="sidebar-del-btn" onclick="event.stopPropagation();ExamGraderApp.deleteExam('${exam.id}')"
+                                title="${this.t('eg.btn.delete')}" style="flex-shrink:0;background:none;border:none;cursor:pointer;padding:4px;color:var(--text-tertiary);opacity:0.5;transition:opacity .15s;"
+                                onmouseenter="this.style.opacity='1';this.style.color='var(--danger)'" onmouseleave="this.style.opacity='0.5';this.style.color='var(--text-tertiary)'">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
                 `;
             });
             html += `</div>`;
@@ -349,10 +356,17 @@ const ExamGraderUI = {
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--border-light);">
                         <span style="font-size:12px;color:var(--text-tertiary);">${this._formatDate(exam.created_at)}</span>
-                        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();ExamGraderApp.continueExam('${exam.id}')">
-                            ${this.t('eg.btn.continue')}
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-                        </button>
+                        <div style="display:flex;gap:4px;align-items:center;">
+                            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();ExamGraderApp.deleteExam('${exam.id}')"
+                                    title="${this.t('eg.btn.delete')}" style="color:var(--text-tertiary);padding:4px 6px;"
+                                    onmouseenter="this.style.color='var(--danger)'" onmouseleave="this.style.color='var(--text-tertiary)'">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();ExamGraderApp.continueExam('${exam.id}')">
+                                ${this.t('eg.btn.continue')}
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
