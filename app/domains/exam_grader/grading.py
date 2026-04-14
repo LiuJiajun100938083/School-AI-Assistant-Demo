@@ -209,22 +209,31 @@ def verify_questions_match(
     matched = 0
     total = len(exam_questions)
 
+    # 用 (section, question_number) 复合键匹配
     answer_map = {}
+    answer_nums = set()
     for aq in answer_sheet_questions:
-        key = str(aq.get("question_number", "")).strip()
-        answer_map[key] = aq
+        sec = str(aq.get("section", "")).strip().upper()
+        num = str(aq.get("question_number", "")).strip()
+        answer_map[(sec, num)] = aq
+        answer_nums.add((sec, num))
 
+    exam_keys = set()
     for eq in exam_questions:
-        q_num = str(eq.get("question_number", "")).strip()
-        if q_num in answer_map:
+        sec = str(eq.get("section", "")).strip().upper()
+        num = str(eq.get("question_number", "")).strip()
+        key = (sec, num)
+        exam_keys.add(key)
+        if key in answer_map:
             matched += 1
         else:
-            warnings.append(f"题目 {q_num} 在答案卷中未找到对应答案")
+            label = f"{sec}-{num}" if sec else num
+            warnings.append(f"题目 {label} 在答案卷中未找到对应答案")
 
     # 答案卷中多余的题目
-    exam_nums = {str(q.get("question_number", "")).strip() for q in exam_questions}
-    for aq_num in answer_map:
-        if aq_num not in exam_nums:
-            warnings.append(f"答案卷中有多余题目: {aq_num}")
+    for a_key in answer_nums:
+        if a_key not in exam_keys:
+            label = f"{a_key[0]}-{a_key[1]}" if a_key[0] else a_key[1]
+            warnings.append(f"答案卷中有多余题目: {label}")
 
     return matched, total, warnings

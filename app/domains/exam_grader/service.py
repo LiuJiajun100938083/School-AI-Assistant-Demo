@@ -322,19 +322,26 @@ class ExamGraderService:
         exam_questions = self._question_repo.find_by_exam(exam_id)
         matched, total, warnings = verify_questions_match(exam_questions, all_answers)
 
-        # 更新答案
+        # 更新答案 — 用 (section, question_number) 复合键匹配
         answer_map = {}
         for a in all_answers:
-            key = str(a.get("question_number", "")).strip()
-            answer_map[key] = a
+            sec = str(a.get("section", "")).strip().upper()
+            num = str(a.get("question_number", "")).strip()
+            answer_map[(sec, num)] = a
+            # 也建立纯题号映射作为 fallback
+            if num not in answer_map:
+                answer_map[num] = a
 
         updates = []
         for q in exam_questions:
+            q_sec = str(q.get("section", "")).strip().upper()
             q_num = str(q["question_number"]).strip()
-            if q_num in answer_map:
+            # 优先精确匹配 (section, number)，其次纯题号
+            matched_a = answer_map.get((q_sec, q_num)) or answer_map.get(q_num)
+            if matched_a:
                 updates.append({
                     "id": q["id"],
-                    "reference_answer": answer_map[q_num].get("answer"),
+                    "reference_answer": matched_a.get("answer"),
                     "answer_source": "answer_sheet",
                 })
 
