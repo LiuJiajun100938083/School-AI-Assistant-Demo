@@ -1413,8 +1413,14 @@ const ExamGraderApp = {
 
         const res = await ExamGraderAPI.generateAnswers(exam.id);
         if (res && res.success) {
-            ExamGraderState.questions = res.data?.questions || res.data || ExamGraderState.questions;
-            ExamGraderUI.toast(ExamGraderUI.t('eg.upload.extractSuccess'), 'success');
+            // Reload questions to get updated answers
+            const examRes = await ExamGraderAPI.getExam(exam.id);
+            if (examRes?.success) {
+                ExamGraderState.currentExam = examRes.data;
+                ExamGraderState.questions = examRes.data?.questions || [];
+            }
+            const info = res.data || {};
+            ExamGraderUI.toast(`答案已生成 (${info.generated || 0}/${info.total || 0})`, 'success');
             ExamGraderUI.renderAnswersStep();
         } else {
             if (statusEl) statusEl.innerHTML = `<p style="color:var(--color-error);">${res?.message || ExamGraderUI.t('eg.error.saveFail')}</p>`;

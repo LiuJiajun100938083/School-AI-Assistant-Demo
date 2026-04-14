@@ -383,7 +383,7 @@ class ExamGraderService:
                 except Exception as e:
                     logger.warning("RAG 检索失败: %s", e)
 
-            # LLM 生成答案
+            # LLM 生成答案（通过 ai_gate，避免 Docker localhost 问题）
             prompt = strategy.build_answer_generation_prompt(
                 question_text=q["question_text"],
                 question_type=q["question_type"],
@@ -392,17 +392,21 @@ class ExamGraderService:
             )
 
             try:
-                if self._ask_ai_func:
-                    raw = self._ask_ai_func(prompt, "ict")
-                    result = raw[0] if isinstance(raw, tuple) else raw
-                    parsed = self._parse_vision_json(result)
-                    answer = parsed.get("answer", result if isinstance(result, str) else "")
-                    self._question_repo.batch_update_answers([{
-                        "id": q["id"],
-                        "reference_answer": answer,
-                        "answer_source": "rag",
-                    }])
-                    generated += 1
+                from app.infrastructure.ai_pipeline.llm_caller import call_llm_json
+                result_text, _ = await call_llm_json(
+                    prompt=prompt,
+                    gate_task="exam_generate_answers",
+                    gate_priority=2,
+                    gate_weight=2,
+                )
+                parsed = self._parse_vision_json(result_text)
+                answer = parsed.get("answer", result_text if isinstance(result_text, str) else "")
+                self._question_repo.batch_update_answers([{
+                    "id": q["id"],
+                    "reference_answer": answer,
+                    "answer_source": "rag",
+                }])
+                generated += 1
             except Exception as e:
                 logger.error("答案生成失败 (q=%d): %s", q["id"], e)
 
@@ -723,15 +727,16 @@ class ExamGraderService:
                 )
 
                 try:
-                    if self._ask_ai_func:
-                        raw = self._ask_ai_func(prompt, "ict")
-                        ai_result = raw[0] if isinstance(raw, tuple) else raw
-                        parsed = self._parse_vision_json(ai_result)
-                        score = min(float(parsed.get("score", 0)), float(q["max_marks"]))
-                        feedback = parsed.get("feedback", "")
-                    else:
-                        score = 0.0
-                        feedback = "AI 评分功能未配置"
+                    from app.infrastructure.ai_pipeline.llm_caller import call_llm_json
+                    ai_text, _ = await call_llm_json(
+                        prompt=prompt,
+                        gate_task="exam_grade_sa",
+                        gate_priority=3,
+                        gate_weight=2,
+                    )
+                    parsed = self._parse_vision_json(ai_text)
+                    score = min(float(parsed.get("score", 0)), float(q["max_marks"]))
+                    feedback = parsed.get("feedback", "")
                 except Exception as e:
                     logger.warning("简答题评分失败 (q=%d): %s", q["id"], e)
                     score = 0.0
