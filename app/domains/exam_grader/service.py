@@ -518,7 +518,7 @@ class ExamGraderService:
             return {
                 "status": job["status"],
                 "total": job["total"],
-                "done": job["done"],
+                "processed": job["done"],
                 "success": job["success"],
                 "fail": job["fail"],
                 "current_student": job.get("current_student"),
@@ -530,7 +530,7 @@ class ExamGraderService:
         return {
             "status": "completed" if exam["status"] == "completed" else exam["status"],
             "total": exam.get("total_students", 0),
-            "done": exam.get("graded_count", 0),
+            "processed": exam.get("graded_count", 0),
             "success": exam.get("graded_count", 0),
             "fail": 0,
         }
