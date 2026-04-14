@@ -841,6 +841,7 @@ const ExamGraderUI = {
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>${this.t('eg.results.classNo')}</th>
                             <th>${this.t('eg.results.studentName')}</th>
                             <th>${this.t('eg.results.totalScore')}</th>
                             <th>${this.t('eg.results.percentage')}</th>
@@ -857,10 +858,13 @@ const ExamGraderUI = {
             const scoreClass = pct >= 80 ? 'high' : pct >= 50 ? 'mid' : 'low';
             const isExpanded = ExamGraderState.expandedStudents.has(p.id);
 
+            const classNo = [p.class_name, p.student_number].filter(Boolean).join(' ');
+
             html += `
                 <tr>
                     <td>${idx + 1}</td>
-                    <td class="student-name">${this._esc(p.student_name || p.student_id || `#${idx + 1}`)}</td>
+                    <td>${this._esc(classNo || '-')}</td>
+                    <td class="student-name">${this._esc(p.student_name || `#${idx + 1}`)}</td>
                     <td><span class="score-cell ${scoreClass}">${score}</span> / ${maxScore}</td>
                     <td>${pct}%</td>
                     <td style="display:flex;gap:4px;">
@@ -875,7 +879,7 @@ const ExamGraderUI = {
                     </td>
                 </tr>
                 <tr class="student-detail-row" id="detail-${p.id}" style="${isExpanded ? '' : 'display:none;'}">
-                    <td colspan="5">
+                    <td colspan="6">
                         <div class="student-detail-content" id="detailContent-${p.id}">
                             ${isExpanded ? '<div class="loading-spinner" style="margin:16px auto;"></div>' : ''}
                         </div>
