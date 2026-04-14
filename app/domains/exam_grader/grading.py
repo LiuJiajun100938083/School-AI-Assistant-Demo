@@ -164,30 +164,35 @@ def match_student_to_roster(
     """
     根据 OCR 识别的学生信息匹配名册。
 
-    优先级：学号 > 姓名
+    roster 已按班级过滤（创建考试时已选班级），因此：
+    优先级：学号 > 姓名（兜底）
+    学号是结构化数据，手写姓名识别率低，仅作兜底。
+
     roster 每项: {"id": int, "username": str, "display_name": str,
                   "class_name": str, "student_number": str}
     """
     if not roster:
         return None
 
-    # 1. 用学号精确匹配（同班级）
+    # 1. 学号匹配（最可靠，roster 已是同班学生）
     if ocr_number:
         num_clean = ocr_number.strip().lstrip("0")
-        for student in roster:
-            s_num = str(student.get("student_number", "")).strip().lstrip("0")
-            s_class = str(student.get("class_name", "")).strip()
-            if s_num and s_num == num_clean:
-                if not ocr_class or s_class.upper() == ocr_class.strip().upper():
-                    return student
+        if num_clean:
+            for s in roster:
+                s_num = str(s.get("student_number", "")).strip().lstrip("0")
+                if s_num and s_num == num_clean:
+                    return s
 
-    # 2. 用姓名模糊匹配
+    # 2. 姓名兜底（学号识别失败时）
     if ocr_name:
         name_clean = ocr_name.strip()
-        for student in roster:
-            s_name = str(student.get("display_name", "")).strip()
-            if s_name and (s_name == name_clean or s_name in name_clean or name_clean in s_name):
-                return student
+        if name_clean:
+            for s in roster:
+                s_name = str(s.get("display_name", "")).strip()
+                if s_name and (s_name == name_clean
+                               or s_name in name_clean
+                               or name_clean in s_name):
+                    return s
 
     return None
 
