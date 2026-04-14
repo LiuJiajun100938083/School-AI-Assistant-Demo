@@ -391,7 +391,9 @@ const ExamGraderUI = {
                 <div class="form-row">
                     <div class="form-group">
                         <label>${this.t('eg.create.subject')}</label>
-                        <input type="text" id="examSubjectInput" placeholder="${this.t('eg.create.subjectPh')}" value="${this._esc(v.subject || '')}">
+                        <select id="examSubjectInput">
+                            <option value="ict" ${(v.subject || 'ict') === 'ict' ? 'selected' : ''}>ICT (電腦科)</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>${this.t('eg.create.class')}</label>
