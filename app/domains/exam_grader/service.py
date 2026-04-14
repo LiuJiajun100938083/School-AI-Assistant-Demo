@@ -366,11 +366,11 @@ class ExamGraderService:
             raise ValueError("请先提取题目")
 
         generated = 0
-        _error_markers = ("本地模型處理失敗", "Connection refused", "处理失败")
         for q in questions:
-            ans = q.get("reference_answer") or ""
-            if ans and not any(m in ans for m in _error_markers):
-                continue  # 已有有效答案的跳过
+            # 保留手動輸入和答案卷識別的答案，AI 生成的允許覆蓋
+            source = q.get("answer_source") or ""
+            if q.get("reference_answer") and source in ("manual", "answer_sheet"):
+                continue
 
             # RAG 检索
             rag_context = ""
