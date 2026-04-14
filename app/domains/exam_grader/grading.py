@@ -179,7 +179,8 @@ def match_student_to_roster(
         num_clean = ocr_number.strip().lstrip("0")
         if num_clean:
             for s in roster:
-                s_num = str(s.get("student_number", "")).strip().lstrip("0")
+                # 用户表字段是 class_number，student_paper 表是 student_number
+                s_num = str(s.get("class_number") or s.get("student_number") or "").strip().lstrip("0")
                 if s_num and s_num == num_clean:
                     return s
 

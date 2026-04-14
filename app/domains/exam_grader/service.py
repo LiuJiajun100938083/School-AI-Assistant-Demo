@@ -662,7 +662,7 @@ class ExamGraderService:
             # 匹配成功 → 用花名册数据覆盖 OCR（花名册比手写识别可靠）
             if matched:
                 student_name = matched.get("display_name") or student_name
-                student_number = str(matched.get("student_number", "")).strip() or student_number
+                student_number = str(matched.get("class_number") or matched.get("student_number") or "").strip() or student_number
                 class_name = str(matched.get("class_name", "")).strip() or class_name
 
             logger.info(
