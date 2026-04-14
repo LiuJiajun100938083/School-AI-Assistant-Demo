@@ -10,6 +10,7 @@ import logging
 from typing import Dict
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.encoders import jsonable_encoder
 
 from app.core.dependencies import get_current_user
 from app.domains.exam_grader.schemas import (
@@ -34,7 +35,7 @@ def _require_teacher(user: dict):
 
 
 def _success(data=None, message: str = "ok"):
-    return {"success": True, "message": message, "data": data}
+    return {"success": True, "message": message, "data": jsonable_encoder(data)}
 
 
 # ── 考试 CRUD ──
