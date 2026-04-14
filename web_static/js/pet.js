@@ -90,10 +90,7 @@
             lb.className = 'pet-league-badge pet-league-badge--' + petData.league.name;
         }
 
-        updateSubjectBars(petData);
-        if (petData.personality) {
-            $('#petPersonalityLabel').textContent = i18n.t('pet.personality.' + petData.personality);
-        }
+        // personality data rendered on demand via openPersonality()
 
         // 渲染宠物 canvas
         if (renderer) renderer.destroy();
@@ -105,8 +102,11 @@
         $('#btnAchievements').onclick = openAchievements;
         $('#btnCustomize').onclick = function () { openCustomize(false); };
         $('#btnCoinGuide').onclick = openCoinGuide;
+        $('#btnPersonality').onclick = openPersonality;
 
-        // 初始化聊天
+        // 聊天 FAB + Panel
+        $('#chatFab').onclick = toggleChatPanel;
+        $('#chatPanelClose').onclick = function () { $('#chatPanel').style.display = 'none'; };
         initChat();
     }
 
@@ -117,13 +117,32 @@
         if (val) val.textContent = value;
     }
 
-    function updateSubjectBars(pet) {
-        var total = Math.max(1, (pet.science_xp || 0) + (pet.humanities_xp || 0) + (pet.business_xp || 0) + (pet.tech_xp || 0));
+    // ── 性格 Sheet ──
+    function openPersonality() {
+        if (!petData) return;
+        var total = Math.max(1, (petData.science_xp || 0) + (petData.humanities_xp || 0) + (petData.business_xp || 0) + (petData.tech_xp || 0));
         var pct = function (v) { return Math.round((v || 0) / total * 100); };
-        $('#barScience').style.width = pct(pet.science_xp) + '%';
-        $('#barHumanities').style.width = pct(pet.humanities_xp) + '%';
-        $('#barBusiness').style.width = pct(pet.business_xp) + '%';
-        $('#barTech').style.width = pct(pet.tech_xp) + '%';
+        var personality = petData.personality ? i18n.t('pet.personality.' + petData.personality) : '';
+        var html = '';
+        if (personality) {
+            html += '<div style="text-align:center;margin-bottom:20px;"><span style="display:inline-block;padding:6px 16px;background:rgba(175,82,222,0.1);border-radius:20px;font-weight:600;color:#AF52DE;">' + esc(personality) + '</span></div>';
+        }
+        var subjects = [
+            { label: i18n.t('pet.subject.science'), value: pct(petData.science_xp), color: 'var(--pet-red)' },
+            { label: i18n.t('pet.subject.humanities'), value: pct(petData.humanities_xp), color: 'var(--pet-primary)' },
+            { label: i18n.t('pet.subject.business'), value: pct(petData.business_xp), color: 'var(--pet-orange)' },
+            { label: i18n.t('pet.subject.tech'), value: pct(petData.tech_xp), color: 'var(--pet-green)' },
+        ];
+        subjects.forEach(function (s) {
+            html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+                '<span style="width:36px;font-size:13px;font-weight:600;text-align:right;color:#8E8E93;">' + s.label + '</span>' +
+                '<div style="flex:1;height:8px;background:rgba(0,0,0,0.06);border-radius:4px;overflow:hidden;">' +
+                    '<div style="height:100%;width:' + s.value + '%;background:' + s.color + ';border-radius:4px;transition:width 0.5s;"></div>' +
+                '</div>' +
+                '<span style="width:30px;font-size:13px;font-weight:600;text-align:right;">' + s.value + '%</span>' +
+            '</div>';
+        });
+        showSheet(i18n.t('pet.personality'), html);
     }
 
     // ============================================================
@@ -301,10 +320,10 @@
     // ============================================================
     // 商店
     // ============================================================
-    var ITEM_ICONS = {
-        bread: '\uD83C\uDF5E', steak: '\uD83E\uDD69', feast: '\uD83C\uDF7D\uFE0F',
-        soap: '\uD83E\uDDFC', shampoo: '\uD83E\uDDF4', bathtub: '\uD83D\uDEC1',
-        ball: '\u26BD', plush: '\uD83E\uDDF8', playground: '\uD83C\uDFA0'
+    var SHOP_CAT_ICONS = {
+        food: '<svg style="width:32px;height:32px;color:var(--pet-green);" viewBox="0 0 20 20"><path d="M6 3v14m0-8c-1.5 0-3-1-3-3V3m6 0v3c0 2-1.5 3-3 3m8-6v14m0-14c-1.7 0-3 1.3-3 3v2h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        hygiene: '<svg style="width:32px;height:32px;color:var(--pet-teal);" viewBox="0 0 20 20"><path d="M10 2l4.5 5.5a6 6 0 11-9 0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+        toy: '<svg style="width:32px;height:32px;color:var(--pet-orange);" viewBox="0 0 20 20"><path d="M10 2l2.2 4.6L17 7.3l-3.5 3.4.8 4.9L10 13.3 5.7 15.6l.8-4.9L3 7.3l4.8-.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
     };
 
     async function openShop() {
@@ -318,9 +337,9 @@
         gridEl.className = 'pet-shop-grid';
 
         var categories = [
-            { key: 'food', label: i18n.t('pet.shop.food'), icon: '\uD83C\uDF5E' },
-            { key: 'hygiene', label: i18n.t('pet.shop.hygiene'), icon: '\uD83E\uDDFC' },
-            { key: 'toy', label: i18n.t('pet.shop.toy'), icon: '\uD83C\uDFBE' }
+            { key: 'food', label: i18n.t('pet.shop.food') },
+            { key: 'hygiene', label: i18n.t('pet.shop.hygiene') },
+            { key: 'toy', label: i18n.t('pet.shop.toy') }
         ];
         var activeCategory = 'food';
 
@@ -330,10 +349,10 @@
                 var card = document.createElement('div');
                 card.className = 'pet-shop-item';
                 card.innerHTML =
-                    '<div class="pet-shop-item__icon">' + (ITEM_ICONS[item.icon] || '\uD83C\uDF81') + '</div>' +
+                    '<div class="pet-shop-item__icon">' + (SHOP_CAT_ICONS[item.category] || SHOP_CAT_ICONS.food) + '</div>' +
                     '<div class="pet-shop-item__name">' + item.name + '</div>' +
                     '<div class="pet-shop-item__effect">' + item.effect_type + ' +' + item.effect_value + '</div>' +
-                    '<button class="pet-shop-item__buy">\uD83D\uDCB0 ' + item.price + '</button>';
+                    '<button class="pet-shop-item__buy"><svg style="width:14px;height:14px;vertical-align:-2px;" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1"/></svg> ' + item.price + '</button>';
                 card.querySelector('.pet-shop-item__buy').onclick = function () { purchaseItem(item.id); };
                 gridEl.appendChild(card);
             });
@@ -342,7 +361,7 @@
         categories.forEach(function (cat) {
             var tab = document.createElement('button');
             tab.className = 'pet-shop-tab' + (cat.key === activeCategory ? ' pet-shop-tab--active' : '');
-            tab.textContent = cat.icon + ' ' + cat.label;
+            tab.textContent = cat.label;
             tab.onclick = function () {
                 activeCategory = cat.key;
                 tabsEl.querySelectorAll('.pet-shop-tab').forEach(function (t) { t.classList.remove('pet-shop-tab--active'); });
@@ -366,9 +385,9 @@
                 // 根据商品类别播放不同动画
                 var item = data.item;
                 var animMap = {
-                    food:    { anim: 'eat',   text: '\uD83C\uDF56 \u5403\u5403\u5403...' },
-                    hygiene: { anim: 'bath',  text: '\uD83D\uDEC1 \u6413\u6413\u6413~' },
-                    toy:     { anim: 'dance', text: '\uD83C\uDF89 \u597D\u5F00\u5FC3\uFF01' },
+                    food:    { anim: 'eat',   text: '\u5403\u5403\u5403...' },
+                    hygiene: { anim: 'bath',  text: '\u6413\u6413\u6413~' },
+                    toy:     { anim: 'dance', text: '\u597D\u5F00\u5FC3\uFF01' },
                 };
                 var a = (item && animMap[item.category]) || animMap.food;
                 if (renderer) renderer.setState(a.anim, 2500, a.text);
@@ -388,10 +407,14 @@
         if (!data) return;
 
         var html = '';
-        var medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'];
+        var medalColors = ['#C98A07', '#6B7280', '#A16B34'];
+        var medalBgs = ['rgba(255,193,7,0.12)', 'rgba(156,163,175,0.12)', 'rgba(180,120,60,0.12)'];
         (data.leaderboard || []).forEach(function (entry, idx) {
+            var rank = idx < 3
+                ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:' + medalBgs[idx] + ';color:' + medalColors[idx] + ';font-weight:700;font-size:13px;">' + (idx + 1) + '</span>'
+                : '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;font-size:15px;color:#8E8E93;">' + (idx + 1) + '</span>';
             html += '<div class="pet-grouped__row">' +
-                '<span style="font-size:20px;min-width:30px;text-align:center;">' + (idx < 3 ? medals[idx] : (idx + 1)) + '</span>' +
+                rank +
                 '<span style="flex:1;font-size:17px;font-weight:500;">' + esc(entry.display_name || entry.pet_name || 'Unknown') + '</span>' +
                 '<span style="font-size:17px;font-weight:600;color:#007AFF;">' + entry.growth + '</span>' +
             '</div>';
@@ -413,10 +436,13 @@
             var unlocked = !!a.unlocked_at;
             html += '<div style="padding:16px 12px;background:' + (unlocked ? 'rgba(52,199,89,0.08)' : 'rgba(0,0,0,0.02)') +
                 ';border-radius:14px;text-align:center;opacity:' + (unlocked ? 1 : 0.5) + ';">' +
-                '<div style="font-size:32px;margin-bottom:6px;">' + (unlocked ? '\uD83C\uDFC5' : '\uD83D\uDD12') + '</div>' +
+                '<div style="margin-bottom:6px;">' + (unlocked
+                    ? '<svg style="width:32px;height:32px;color:#34C759;" viewBox="0 0 20 20"><path d="M10 2l2.2 4.6L17 7.3l-3.5 3.4.8 4.9L10 13.3 5.7 15.6l.8-4.9L3 7.3l4.8-.7z" fill="currentColor"/></svg>'
+                    : '<svg style="width:32px;height:32px;color:#AEAEB2;" viewBox="0 0 20 20"><rect x="4.5" y="9" width="11" height="7.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 9V6.5a3 3 0 016 0V9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+                ) + '</div>' +
                 '<div style="font-weight:600;font-size:15px;">' + a.name + '</div>' +
                 '<div style="font-size:13px;color:#8E8E93;margin-top:3px;">' + a.description + '</div>' +
-                (a.reward_coins > 0 ? '<div style="font-size:13px;color:#FF9F0A;margin-top:4px;font-weight:600;">\uD83D\uDCB0 +' + a.reward_coins + '</div>' : '') +
+                (a.reward_coins > 0 ? '<div style="font-size:13px;color:#FF9F0A;margin-top:4px;font-weight:600;"><svg style="width:13px;height:13px;vertical-align:-1px;" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1"/></svg> +' + a.reward_coins + '</div>' : '') +
             '</div>';
         });
         html += '</div>';
@@ -442,12 +468,12 @@
         earn.sort(function (a, b) { return b.amount - a.amount; });
 
         var html = '<div style="margin-bottom:16px;padding:14px 16px;background:linear-gradient(135deg,rgba(255,159,10,0.1),rgba(255,204,0,0.08));border-radius:14px;">' +
-            '<div style="font-size:15px;font-weight:700;color:#FF9F0A;">\uD83D\uDCB0 \u6BCF\u65E5\u4E0A\u9650: ' + dailyCap + ' \u5E01</div>' +
+            '<div style="font-size:15px;font-weight:700;color:#FF9F0A;">\u6BCF\u65E5\u4E0A\u9650: ' + dailyCap + ' \u5E01</div>' +
             '<div style="font-size:13px;color:#8E8E93;margin-top:4px;">\u8FDE\u7EED\u767B\u5F55\u53EF\u83B7\u5F97\u500D\u7387\u52A0\u6210</div>' +
         '</div>';
 
         // 赚取金币
-        html += '<div style="font-size:15px;font-weight:700;margin-bottom:10px;">\u2728 \u8D5A\u53D6\u91D1\u5E01</div>';
+        html += '<div style="font-size:15px;font-weight:700;margin-bottom:10px;">\u8D5A\u53D6\u91D1\u5E01</div>';
         earn.forEach(function (s) {
             html += '<div class="pet-grouped__row" style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,0.04);">' +
                 '<span style="flex:1;font-size:15px;">' + esc(s.label) + '</span>' +
@@ -457,7 +483,7 @@
 
         // 扣分
         if (lose.length) {
-            html += '<div style="font-size:15px;font-weight:700;margin:16px 0 10px;">\u26A0\uFE0F \u6263\u5206\u9879</div>';
+            html += '<div style="font-size:15px;font-weight:700;margin:16px 0 10px;">\u6263\u5206\u9879</div>';
             lose.forEach(function (s) {
                 html += '<div class="pet-grouped__row" style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,0.04);">' +
                     '<span style="flex:1;font-size:15px;">' + esc(s.label) + '</span>' +
@@ -466,7 +492,21 @@
             });
         }
 
-        showSheet('\uD83D\uDCD6 \u91D1\u5E01\u653B\u7565', '<div class="pet-grouped" style="margin:0;">' + html + '</div>');
+        showSheet('\u91D1\u5E01\u653B\u7565', '<div class="pet-grouped" style="margin:0;">' + html + '</div>');
+    }
+
+    // ============================================================
+    // Chat Panel Toggle
+    // ============================================================
+    function toggleChatPanel() {
+        var panel = $('#chatPanel');
+        if (panel.style.display === 'none') {
+            panel.style.display = 'flex';
+            var input = $('#petChatInput');
+            if (input) setTimeout(function () { input.focus(); }, 100);
+        } else {
+            panel.style.display = 'none';
+        }
     }
 
     // ============================================================
@@ -483,7 +523,7 @@
         // 欢迎消息
         var welcome = $('#petChatWelcome');
         if (welcome && petData) {
-            welcome.textContent = '\uD83D\uDC3E ' + (petData.pet_name || '') + ' ' + i18n.t('pet.chat.welcomeMsg');
+            welcome.textContent = (petData.pet_name || '') + ' ' + i18n.t('pet.chat.welcomeMsg');
         }
 
         sendBtn.onclick = sendChatMessage;

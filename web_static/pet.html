@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>我的宠物</title>
-    <link rel="stylesheet" href="/static/css/pet.css">
+    <link rel="stylesheet" href="/static/css/pet.css?v=20260414">
 </head>
 <body>
 <script>
@@ -20,7 +20,7 @@
         <button class="pet-header__back" onclick="window.location='/'">&#x276E; <span data-i18n="common.back">返回</span></button>
         <span class="pet-header__title" data-i18n="pet.pageTitle">我的宠物</span>
         <div class="pet-header__coins">
-            <span>&#x1F4B0;</span>
+            <svg class="pet-icon" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1"/></svg>
             <span id="petCoinsDisplay">0</span>
         </div>
     </header>
@@ -56,7 +56,7 @@
             <!-- Streak + League (grouped) -->
             <div class="pet-grouped">
                 <div class="pet-streak-bar">
-                    <span class="pet-streak-fire">&#x1F525;</span>
+                    <span class="pet-streak-fire"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M10 2C9 5.5 7 7.5 7 10.5a3 3 0 006 0c0-3-2-5-3-8.5z" fill="currentColor"/></svg></span>
                     <span class="pet-streak-count" id="petStreakCount">0</span>
                     <span style="font-size:15px;color:#8E8E93;" data-i18n="pet.streak.days">天</span>
                     <span class="pet-streak-mult" id="petStreakMult"></span>
@@ -68,7 +68,7 @@
             <div class="pet-grouped">
                 <div class="pet-status-bars">
                     <div class="pet-status-item">
-                        <span class="pet-status-item__icon">&#x1F356;</span>
+                        <span class="pet-status-item__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M6 3v14m0-8c-1.5 0-3-1-3-3V3m6 0v3c0 2-1.5 3-3 3m8-6v14m0-14c-1.7 0-3 1.3-3 3v2h3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                         <span class="pet-status-item__label" data-i18n="pet.hunger">饱食度</span>
                         <div class="pet-status-bar">
                             <div class="pet-status-bar__fill pet-status-bar__fill--hunger" id="barHunger"></div>
@@ -76,7 +76,7 @@
                         <span class="pet-status-item__value" id="valHunger">100</span>
                     </div>
                     <div class="pet-status-item">
-                        <span class="pet-status-item__icon">&#x1F9FC;</span>
+                        <span class="pet-status-item__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M10 2l4.5 5.5a6 6 0 11-9 0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
                         <span class="pet-status-item__label" data-i18n="pet.hygiene">清洁度</span>
                         <div class="pet-status-bar">
                             <div class="pet-status-bar__fill pet-status-bar__fill--hygiene" id="barHygiene"></div>
@@ -84,7 +84,7 @@
                         <span class="pet-status-item__value" id="valHygiene">100</span>
                     </div>
                     <div class="pet-status-item">
-                        <span class="pet-status-item__icon">&#x1F60A;</span>
+                        <span class="pet-status-item__icon"><svg class="pet-icon" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 12s1 2 3 2 3-2 3-2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="7.5" cy="8" r="1" fill="currentColor"/><circle cx="12.5" cy="8" r="1" fill="currentColor"/></svg></span>
                         <span class="pet-status-item__label" data-i18n="pet.mood">心情</span>
                         <div class="pet-status-bar">
                             <div class="pet-status-bar__fill pet-status-bar__fill--mood" id="barMood"></div>
@@ -94,62 +94,45 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
+            <!-- Quick Actions (3×2 grid) -->
             <div class="pet-actions">
                 <button class="pet-action-btn" id="btnShop">
-                    <span class="pet-action-btn__icon">&#x1F6D2;</span>
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M5 7h10l-.8 9H5.8zm2 0V5.5a3 3 0 016 0V7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                     <span data-i18n="pet.shop">商店</span>
                 </button>
                 <button class="pet-action-btn" id="btnLeaderboard">
-                    <span class="pet-action-btn__icon">&#x1F3C6;</span>
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M6 3h8v5a4 4 0 01-8 0zM6 3H4.5c-.5 0-1 .5-1 1 0 1.5 1 2.5 2.5 2.5M14 3h1.5c.5 0 1 .5 1 1 0 1.5-1 2.5-2.5 2.5M10 12v3M7 17h6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                     <span data-i18n="pet.leaderboard">排行榜</span>
                 </button>
                 <button class="pet-action-btn" id="btnAchievements">
-                    <span class="pet-action-btn__icon">&#x1F3C5;</span>
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M10 2l2.2 4.6L17 7.3l-3.5 3.4.8 4.9L10 13.3 5.7 15.6l.8-4.9L3 7.3l4.8-.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></span>
                     <span data-i18n="pet.achievements">成就</span>
                 </button>
                 <button class="pet-action-btn" id="btnCustomize">
-                    <span class="pet-action-btn__icon">&#x1F3A8;</span>
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><circle cx="7" cy="9" r="1.2" fill="currentColor"/><circle cx="9.5" cy="5.5" r="1.2" fill="currentColor"/><circle cx="13" cy="6.5" r="1.2" fill="currentColor"/><circle cx="14" cy="10" r="1.2" fill="currentColor"/><path d="M10 2a8 8 0 000 16c.7 0 1.2-.5 1.2-1.2 0-.3-.1-.5-.3-.7s-.3-.5-.3-.8c0-.6.5-1.1 1.1-1.1H13c2.2 0 4-1.8 4-4C17 5.4 13.9 2 10 2z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
                     <span data-i18n="pet.changeLook">换装</span>
                 </button>
                 <button class="pet-action-btn" id="btnCoinGuide">
-                    <span class="pet-action-btn__icon">&#x1F4D6;</span>
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M2 4h5a3 3 0 013 3v10a2 2 0 00-2-2H2zm16 0h-5a3 3 0 00-3 3v10a2 2 0 012-2h6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                     <span>金币攻略</span>
                 </button>
-            </div>
-
-            <!-- Personality & Subject -->
-            <div class="pet-subject-bars" id="petSubjectArea">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span style="font-weight:600;font-size:15px;" data-i18n="pet.personality">性格</span>
-                    <span id="petPersonalityLabel" style="font-size:15px;color:#8E8E93;"></span>
-                </div>
-                <div class="pet-subject-row">
-                    <span class="pet-subject-label" data-i18n="pet.subject.science">理科</span>
-                    <div class="pet-subject-bar"><div class="pet-subject-bar__fill pet-subject-bar__fill--science" id="barScience"></div></div>
-                </div>
-                <div class="pet-subject-row">
-                    <span class="pet-subject-label" data-i18n="pet.subject.humanities">文科</span>
-                    <div class="pet-subject-bar"><div class="pet-subject-bar__fill pet-subject-bar__fill--humanities" id="barHumanities"></div></div>
-                </div>
-                <div class="pet-subject-row">
-                    <span class="pet-subject-label" data-i18n="pet.subject.business">商科</span>
-                    <div class="pet-subject-bar"><div class="pet-subject-bar__fill pet-subject-bar__fill--business" id="barBusiness"></div></div>
-                </div>
-                <div class="pet-subject-row">
-                    <span class="pet-subject-label" data-i18n="pet.subject.tech">科技</span>
-                    <div class="pet-subject-bar"><div class="pet-subject-bar__fill pet-subject-bar__fill--tech" id="barTech"></div></div>
-                </div>
+                <button class="pet-action-btn" id="btnPersonality">
+                    <span class="pet-action-btn__icon"><svg class="pet-icon" viewBox="0 0 20 20"><path d="M15 16V8m-5 8V4M5 16v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+                    <span data-i18n="pet.personality">性格</span>
+                </button>
             </div>
 
             <!-- Dynamic sections (shop/leaderboard/achievements rendered here) -->
             <div id="petSectionContainer"></div>
 
-            <!-- 宠物聊天 -->
-            <div class="pet-chat" id="petChat">
-                <div class="pet-chat__header">
-                    <span class="pet-chat__header-icon">&#x1F4AC;</span>
+            <!-- Chat FAB + Panel -->
+            <button class="pet-chat-fab" id="chatFab">
+                <svg class="pet-icon" viewBox="0 0 20 20"><path d="M16 12a1 1 0 01-1 1H6l-3 3V4a1 1 0 011-1h11a1 1 0 011 1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="pet-chat-panel" id="chatPanel" style="display:none;">
+                <div class="pet-chat-panel__header">
                     <span data-i18n="pet.chat.title">和宠物聊天</span>
+                    <button class="pet-chat-panel__close" id="chatPanelClose">&times;</button>
                 </div>
                 <div class="pet-chat__messages" id="petChatMessages">
                     <div class="pet-chat__welcome" id="petChatWelcome"></div>
@@ -181,18 +164,18 @@
     </div>
 </div>
 
-<script src="/static/js/shared/i18n.js"></script>
-<script src="/static/js/shared/i18n/common.js"></script>
-<script src="/static/js/shared/i18n/pet.js"></script>
+<script src="/static/js/shared/i18n.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/common.js?v=20260414"></script>
+<script src="/static/js/shared/i18n/pet.js?v=20260414"></script>
 <script>
     document.title = i18n.t('pet.pageTitle');
     i18n.applyDOM();
 </script>
-<script src="/static/js/shared/utils.js"></script>
-<script src="/static/js/shared/auth.js"></script>
-<script src="/static/js/shared/ui.js"></script>
-<script src="/static/js/shared/api.js"></script>
-<script src="/static/js/pet_renderer.js"></script>
-<script src="/static/js/pet.js"></script>
+<script src="/static/js/shared/utils.js?v=20260414"></script>
+<script src="/static/js/shared/auth.js?v=20260414"></script>
+<script src="/static/js/shared/ui.js?v=20260414"></script>
+<script src="/static/js/shared/api.js?v=20260414"></script>
+<script src="/static/js/pet_renderer.js?v=20260414"></script>
+<script src="/static/js/pet.js?v=20260414"></script>
 </body>
 </html>
