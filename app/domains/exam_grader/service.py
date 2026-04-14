@@ -183,6 +183,23 @@ class ExamGraderService:
         return save_path
 
     # ================================================================
+    # Vision 调用辅助（通过 ai_gate）
+    # ================================================================
+
+    async def _call_vision(self, image_path: str, prompt: str, priority: int = 2, weight: int = 3) -> dict:
+        """
+        调用视觉模型（JSON 模式），通过 ai_gate 调度。
+        使用 VisionService 内部的 OllamaVisionClient。
+        """
+        client = self._vision_service._client
+        raw = await client.call_vision_model_json(image_path, prompt, priority=priority, weight=weight)
+        return self._parse_vision_json(raw)
+
+    async def _pdf_to_images(self, pdf_path: str) -> list:
+        """PDF 转图片列表"""
+        return await self._vision_service.pdf_to_images(pdf_path, dpi=PDF_DPI)
+
+    # ================================================================
     # 题目提取（Vision）
     # ================================================================
 
@@ -197,21 +214,17 @@ class ExamGraderService:
 
         # PDF → 图片
         if paper_path.lower().endswith(".pdf"):
-            images = await self._vision_service.pdf_to_images(paper_path, dpi=PDF_DPI)
+            images = await self._pdf_to_images(paper_path)
         else:
             images = [paper_path]
 
-        # 视觉模型提取
+        # 视觉模型提取（INTERACTIVE 优先级）
         prompt = strategy.build_question_extraction_prompt(len(images))
         all_questions = []
 
         for img_path in images:
             try:
-                result = await self._vision_service.recognize(
-                    img_path, prompt,
-                    response_format="json",
-                )
-                parsed = self._parse_vision_json(result)
+                parsed = await self._call_vision(img_path, prompt, priority=2, weight=3)
                 questions = parsed.get("questions", [])
                 all_questions.extend(questions)
             except Exception as e:
@@ -244,7 +257,7 @@ class ExamGraderService:
 
         # PDF → 图片
         if answer_path.lower().endswith(".pdf"):
-            images = await self._vision_service.pdf_to_images(answer_path, dpi=PDF_DPI)
+            images = await self._pdf_to_images(answer_path)
         else:
             images = [answer_path]
 
@@ -253,11 +266,7 @@ class ExamGraderService:
 
         for img_path in images:
             try:
-                result = await self._vision_service.recognize(
-                    img_path, prompt,
-                    response_format="json",
-                )
-                parsed = self._parse_vision_json(result)
+                parsed = await self._call_vision(img_path, prompt, priority=2, weight=3)
                 answers = parsed.get("answers", [])
                 all_answers.extend(answers)
             except Exception as e:
@@ -379,7 +388,7 @@ class ExamGraderService:
 
         # 切分 PDF → 图片
         pdf_path = exam["batch_pdf_path"]
-        all_images = await self._vision_service.pdf_to_images(pdf_path, dpi=PDF_DPI)
+        all_images = await self._pdf_to_images(pdf_path)
         pages_per = exam["pages_per_exam"]
 
         if len(all_images) % pages_per != 0:
@@ -561,10 +570,7 @@ class ExamGraderService:
         prompt = strategy.build_student_header_ocr_prompt()
 
         try:
-            result = await self._vision_service.recognize(
-                first_page, prompt, response_format="json",
-            )
-            parsed = self._parse_vision_json(result)
+            parsed = await self._call_vision(first_page, prompt, priority=3, weight=2)
 
             student_name = parsed.get("student_name")
             student_number = parsed.get("student_number")
@@ -596,10 +602,7 @@ class ExamGraderService:
 
         for img_path in image_paths:
             try:
-                result = await self._vision_service.recognize(
-                    img_path, prompt, response_format="json",
-                )
-                parsed = self._parse_vision_json(result)
+                parsed = await self._call_vision(img_path, prompt, priority=3, weight=2)
                 mc_answers.update(parsed.get("mc_answers", {}))
                 short_answers.update(parsed.get("short_answers", {}))
             except Exception as e:
