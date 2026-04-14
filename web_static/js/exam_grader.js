@@ -1181,11 +1181,16 @@ const ExamGraderApp = {
             ExamGraderUI.toast(ExamGraderUI.t('eg.error.required'), 'error');
             return;
         }
+        const className = document.getElementById('examClassSelect')?.value || '';
+        if (!className) {
+            ExamGraderUI.toast('請選擇班級', 'error');
+            return;
+        }
 
         const data = {
             title,
             subject: document.getElementById('examSubjectInput')?.value?.trim() || 'ict',
-            class_name: document.getElementById('examClassSelect')?.value || '',
+            class_name: className,
             pages_per_exam: parseInt(document.getElementById('examPagesInput')?.value) || 2,
             grading_mode: document.querySelector('.mode-option.selected')?.dataset?.mode || 'moderate',
         };
