@@ -112,9 +112,15 @@ async def upload_clean_paper(
 ):
     _require_teacher(current_user)
     svc = _get_service()
-    file_bytes = await file.read()
-    path = svc.save_clean_paper(exam_id, file_bytes, file.filename or "paper.pdf")
-    return _success({"path": path})
+    try:
+        file_bytes = await file.read()
+        path = svc.save_clean_paper(exam_id, file_bytes, file.filename or "paper.pdf")
+        return _success({"path": path})
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error("上传试卷失败: %s", e, exc_info=True)
+        raise HTTPException(500, f"上传失败: {str(e)[:200]}")
 
 
 @router.post("/exams/{exam_id}/extract-questions")
@@ -124,8 +130,14 @@ async def extract_questions(
 ):
     _require_teacher(current_user)
     svc = _get_service()
-    questions = await svc.extract_questions(exam_id)
-    return _success(questions)
+    try:
+        questions = await svc.extract_questions(exam_id)
+        return _success(questions)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error("题目提取失败: %s", e, exc_info=True)
+        raise HTTPException(500, f"题目提取失败: {str(e)[:200]}")
 
 
 # ── 答案获取 ──
@@ -139,10 +151,16 @@ async def upload_answer_sheet(
 ):
     _require_teacher(current_user)
     svc = _get_service()
-    file_bytes = await file.read()
-    svc.save_answer_sheet(exam_id, file_bytes, file.filename or "answers.pdf")
-    result = await svc.extract_answer_sheet(exam_id)
-    return _success(result)
+    try:
+        file_bytes = await file.read()
+        svc.save_answer_sheet(exam_id, file_bytes, file.filename or "answers.pdf")
+        result = await svc.extract_answer_sheet(exam_id)
+        return _success(result)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error("答案卷处理失败: %s", e, exc_info=True)
+        raise HTTPException(500, f"答案卷处理失败: {str(e)[:200]}")
 
 
 @router.post("/exams/{exam_id}/generate-answers")
@@ -152,8 +170,14 @@ async def generate_answers(
 ):
     _require_teacher(current_user)
     svc = _get_service()
-    result = await svc.generate_answers_with_rag(exam_id)
-    return _success(result)
+    try:
+        result = await svc.generate_answers_with_rag(exam_id)
+        return _success(result)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error("答案生成失败: %s", e, exc_info=True)
+        raise HTTPException(500, f"答案生成失败: {str(e)[:200]}")
 
 
 @router.get("/exams/{exam_id}/questions")
@@ -202,10 +226,16 @@ async def upload_batch_pdf(
     """上传全班 PDF → 自动切分 + 开始批改"""
     _require_teacher(current_user)
     svc = _get_service()
-    file_bytes = await file.read()
-    svc.save_batch_pdf(exam_id, file_bytes, file.filename or "batch.pdf")
-    result = await svc.split_and_start_grading(exam_id)
-    return _success(result)
+    try:
+        file_bytes = await file.read()
+        svc.save_batch_pdf(exam_id, file_bytes, file.filename or "batch.pdf")
+        result = await svc.split_and_start_grading(exam_id)
+        return _success(result)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error("批量批改启动失败: %s", e, exc_info=True)
+        raise HTTPException(500, f"批量批改启动失败: {str(e)[:200]}")
 
 
 @router.get("/exams/{exam_id}/students")
