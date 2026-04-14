@@ -369,11 +369,13 @@ const ExamGraderUI = {
         const isEdit = !!editData;
         const title = isEdit ? this.t('eg.create.editTitle') : this.t('eg.create.title');
 
-        // Build class options
+        // Build class options — targets API returns plain string array: ["1A", "1B", ...]
         let classOptions = `<option value="">${this.t('eg.create.classPh')}</option>`;
         (ExamGraderState.classTargets || []).forEach(cls => {
-            const selected = editData && editData.class_id === cls.id ? 'selected' : '';
-            classOptions += `<option value="${cls.id}" ${selected}>${this._esc(cls.name)}</option>`;
+            const className = typeof cls === 'string' ? cls : (cls.name || cls.class_name || '');
+            if (!className) return;
+            const selected = editData && editData.class_name === className ? 'selected' : '';
+            classOptions += `<option value="${this._esc(className)}" ${selected}>${this._esc(className)}</option>`;
         });
 
         const v = editData || {};
@@ -403,14 +405,18 @@ const ExamGraderUI = {
                 </div>
                 <div class="form-group">
                     <label>${this.t('eg.create.gradingMode')}</label>
-                    <div class="mode-selector">
-                        <div class="mode-option ${(!v.grading_mode || v.grading_mode === 'strict') ? 'selected' : ''}" data-mode="strict" onclick="ExamGraderApp.selectMode('strict')">
+                    <div class="mode-selector" style="grid-template-columns:repeat(3,1fr);">
+                        <div class="mode-option ${v.grading_mode === 'strict' ? 'selected' : ''}" data-mode="strict" onclick="ExamGraderApp.selectMode('strict')">
                             <div class="mode-option-title">${this.t('eg.create.modeStrict')}</div>
                             <div class="mode-option-desc">${this.t('eg.create.modeStrictDesc')}</div>
                         </div>
-                        <div class="mode-option ${v.grading_mode === 'semantic' ? 'selected' : ''}" data-mode="semantic" onclick="ExamGraderApp.selectMode('semantic')">
-                            <div class="mode-option-title">${this.t('eg.create.modeSemantic')}</div>
-                            <div class="mode-option-desc">${this.t('eg.create.modeSemanticDesc')}</div>
+                        <div class="mode-option ${(!v.grading_mode || v.grading_mode === 'moderate') ? 'selected' : ''}" data-mode="moderate" onclick="ExamGraderApp.selectMode('moderate')">
+                            <div class="mode-option-title">${this.t('eg.create.modeModerate')}</div>
+                            <div class="mode-option-desc">${this.t('eg.create.modeModerateDesc')}</div>
+                        </div>
+                        <div class="mode-option ${v.grading_mode === 'lenient' ? 'selected' : ''}" data-mode="lenient" onclick="ExamGraderApp.selectMode('lenient')">
+                            <div class="mode-option-title">${this.t('eg.create.modeLenient')}</div>
+                            <div class="mode-option-desc">${this.t('eg.create.modeLenientDesc')}</div>
                         </div>
                     </div>
                 </div>
@@ -1157,10 +1163,10 @@ const ExamGraderApp = {
 
         const data = {
             title,
-            subject: document.getElementById('examSubjectInput')?.value?.trim() || '',
-            class_id: document.getElementById('examClassSelect')?.value || '',
+            subject: document.getElementById('examSubjectInput')?.value?.trim() || 'ict',
+            class_name: document.getElementById('examClassSelect')?.value || '',
             pages_per_exam: parseInt(document.getElementById('examPagesInput')?.value) || 2,
-            grading_mode: document.querySelector('.mode-option.selected')?.dataset?.mode || 'strict',
+            grading_mode: document.querySelector('.mode-option.selected')?.dataset?.mode || 'moderate',
         };
 
         let res;
