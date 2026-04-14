@@ -1625,14 +1625,33 @@ const ExamGraderApp = {
     },
 
     // ── Export ───────────────────────────────────────────────
-    exportClass() {
+    async exportClass() {
         const exam = ExamGraderState.currentExam;
         if (!exam) return;
-        window.open(ExamGraderAPI.exportClassUrl(exam.id), '_blank');
+        await this._downloadFile(ExamGraderAPI.exportClassUrl(exam.id), `${exam.title || 'exam'}_class.xlsx`);
     },
 
-    exportStudent(paperId) {
-        window.open(ExamGraderAPI.exportStudentUrl(paperId), '_blank');
+    async exportStudent(paperId) {
+        await this._downloadFile(ExamGraderAPI.exportStudentUrl(paperId), `student_${paperId}_report.xlsx`);
+    },
+
+    async _downloadFile(url, fallbackName) {
+        try {
+            const resp = await fetch(url, { headers: ExamGraderAPI._headers() });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            const disposition = resp.headers.get('Content-Disposition') || '';
+            const match = disposition.match(/filename="?([^";\n]+)"?/);
+            const filename = match ? match[1] : fallbackName;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        } catch (e) {
+            console.error('下载失败:', e);
+            alert('下载失败: ' + e.message);
+        }
     },
 
     // ── Delete ───────────────────────────────────────────────
