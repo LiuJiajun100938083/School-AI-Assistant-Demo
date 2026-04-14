@@ -397,20 +397,12 @@ async def teacher_classes_summary(current_user: Dict = Depends(get_current_user)
     loop = asyncio.get_event_loop()
     svc = _get_service()
 
-    # 获取教师所教班级列表
-    from app.services.container import get_services
-    if user["role"] == "admin":
-        # admin 看所有班级
-        from app.domains.user.repository import UserRepository
-        rows = UserRepository().raw_query(
-            "SELECT DISTINCT class_name FROM users WHERE role='student' AND is_active=1 AND class_name IS NOT NULL AND class_name != '' ORDER BY class_name"
-        )
-        class_names = [r["class_name"] for r in rows]
-    else:
-        tc_svc = get_services().teacher_class
-        assignments = await loop.run_in_executor(None, lambda: tc_svc.get_teacher_classes(user["username"]))
-        class_names = list(set(a.get("class_name", "") for a in assignments if a.get("class_name")))
-        class_names.sort()
+    # 教师和管理员均可查看所有班级
+    from app.domains.user.repository import UserRepository
+    rows = UserRepository().raw_query(
+        "SELECT DISTINCT class_name FROM users WHERE role='student' AND is_active=1 AND class_name IS NOT NULL AND class_name != '' ORDER BY class_name"
+    )
+    class_names = [r["class_name"] for r in rows]
 
     if not class_names:
         return {"classes": []}
@@ -447,15 +439,7 @@ async def teacher_class_pets(
     loop = asyncio.get_event_loop()
     svc = _get_service()
 
-    # 权限校验（admin 跳过）
-    if user["role"] == "teacher":
-        from app.services.container import get_services
-        tc_svc = get_services().teacher_class
-        assignments = await loop.run_in_executor(None, lambda: tc_svc.get_teacher_classes(user["username"]))
-        allowed = set(a.get("class_name", "") for a in assignments)
-        if class_name not in allowed:
-            raise HTTPException(403, "无权查看此班级")
-
+    # 教师和管理员均可查看任意班级
     students = await loop.run_in_executor(None, lambda: svc.get_class_pets(class_name))
     return {"class_name": class_name, "students": students}
 
