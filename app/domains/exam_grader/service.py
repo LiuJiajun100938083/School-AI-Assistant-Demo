@@ -442,7 +442,11 @@ class ExamGraderService:
         exam = self._paper_repo.find_by_id(exam_id)
         if not exam:
             raise ValueError("考试不存在")
-        allowed = {ExamStatus.ANSWERS_READY.value, ExamStatus.QUESTIONS_EXTRACTED.value}
+        allowed = {
+            ExamStatus.ANSWERS_READY.value,
+            ExamStatus.QUESTIONS_EXTRACTED.value,
+            ExamStatus.COMPLETED.value,  # 允许重新批改
+        }
         if exam["status"] not in allowed:
             raise ValueError(f"当前状态 {exam['status']} 不允许开始批改，请先提取题目并设置答案")
         if not exam.get("batch_pdf_path"):
