@@ -74,7 +74,7 @@ def export_class_report(
         cell.alignment = Alignment(horizontal="center")
 
     for idx, p in enumerate(papers, 1):
-        score = p.get("total_score") or 0
+        score = float(p.get("total_score") or 0)
         pct = round(score / total_max * 100, 1) if total_max > 0 else 0
         row = [
             idx,
@@ -90,7 +90,7 @@ def export_class_report(
         for q in questions:
             qid = q["id"]
             ans = answers_map.get(qid)
-            row.append(ans.get("score", 0) if ans else 0)
+            row.append(float(ans.get("score", 0)) if ans else 0)
         ws2.append(row)
 
     # 列寬
@@ -159,7 +159,7 @@ def export_student_report(
     ws.append(["姓名", paper.get("student_name", "")])
     ws.append(["學號", paper.get("student_number", "")])
     ws.append(["班別", paper.get("class_name", "")])
-    ws.append(["總分", paper.get("total_score", 0)])
+    ws.append(["總分", float(paper.get("total_score") or 0)])
     ws.append([])
 
     # 答題詳情
@@ -179,8 +179,8 @@ def export_student_report(
             (a.get("question_text") or a.get("question_content") or "")[:200],
             a.get("student_answer", ""),
             a.get("reference_answer") or a.get("correct_answer") or "",
-            a.get("score", 0),
-            a.get("max_marks") or a.get("max_score") or 0,
+            float(a.get("score") or 0),
+            float(a.get("max_marks") or a.get("max_score") or 0),
             a.get("feedback", ""),
         ])
 

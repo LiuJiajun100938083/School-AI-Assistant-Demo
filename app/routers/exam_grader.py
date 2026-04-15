@@ -339,35 +339,39 @@ async def export_class(
     if not exam:
         raise HTTPException(404, "考試不存在")
 
-    papers = svc.get_student_papers(exam_id)
-    questions = svc._question_repo.find_by_exam(exam_id)
-    stats_data = svc.get_statistics(exam_id)
+    try:
+        papers = svc.get_student_papers(exam_id)
+        questions = svc._question_repo.find_by_exam(exam_id)
+        stats_data = svc.get_statistics(exam_id)
 
-    # 為每個學生附加每題得分
-    all_answers = svc._student_answer_repo.find_by_exam_with_questions(exam_id)
-    paper_answers: Dict = {}
-    for ans in all_answers:
-        sp_id = ans.get("student_paper_id") or ans.get("student_index")
-        if sp_id not in paper_answers:
-            paper_answers[sp_id] = {}
-        paper_answers[sp_id][ans["question_id"]] = ans
+        # 為每個學生附加每題得分
+        all_answers = svc._student_answer_repo.find_by_exam_with_questions(exam_id)
+        paper_answers: Dict = {}
+        for ans in all_answers:
+            sp_id = ans.get("student_paper_id") or ans.get("student_index")
+            if sp_id not in paper_answers:
+                paper_answers[sp_id] = {}
+            paper_answers[sp_id][ans["question_id"]] = ans
 
-    for p in papers:
-        p["_answers_map"] = paper_answers.get(p["id"], {})
+        for p in papers:
+            p["_answers_map"] = paper_answers.get(p["id"], {})
 
-    xlsx = export_class_report(
-        exam, papers, questions,
-        stats_data.get("per_question_stats", []),
-        stats_data,
-    )
-    from urllib.parse import quote
-    title = exam.get("title", "exam")
-    fname = f"{title}_class.xlsx"
-    return Response(
-        content=xlsx,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"},
-    )
+        xlsx = export_class_report(
+            exam, papers, questions,
+            stats_data.get("per_question_stats", []),
+            stats_data,
+        )
+        from urllib.parse import quote
+        title = exam.get("title", "exam")
+        fname = f"{title}_class.xlsx"
+        return Response(
+            content=xlsx,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"},
+        )
+    except Exception as e:
+        logger.error("匯出全班成績失敗 (exam=%d): %s", exam_id, e, exc_info=True)
+        raise HTTPException(500, f"匯出失敗: {str(e)[:200]}")
 
 
 @router.get("/students/{paper_id}/export")

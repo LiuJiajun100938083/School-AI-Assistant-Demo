@@ -934,6 +934,7 @@ class ExamGraderService:
             per_question_stats.append({
                 "question_number": info["question_number"],
                 "section": info["section"],
+                "question_type": info["question_type"],
                 "max_marks": info["max_marks"],
                 "average_score": avg,
                 "correct_rate": correct_rate,
