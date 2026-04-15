@@ -1799,6 +1799,32 @@ async def get_slide_results(
         return error_response(e.message, e.code, e.status_code)
 
 
+@router.get("/api/classroom/rooms/{room_id}/lesson/slide/{slide_id}/submissions")
+async def get_slide_submissions(
+    room_id: str,
+    slide_id: str,
+    user_info: Tuple[str, str] = Depends(require_teacher),
+):
+    """获取 slide 的所有学生提交 (教师查看个别作品)"""
+    try:
+        loop = asyncio.get_event_loop()
+        state = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_session_state(room_id),
+        )
+        if not state or not state.get("session"):
+            return error_response("当前房间没有活跃的课案", "SESSION_NOT_FOUND", 404)
+
+        session_id = state["session"]["session_id"]
+        results = await loop.run_in_executor(
+            None,
+            lambda: get_services().lesson.get_slide_submissions(session_id, slide_id),
+        )
+        return success_response(results)
+    except AppException as e:
+        return error_response(e.message, e.code, e.status_code)
+
+
 @router.get("/api/classroom/rooms/{room_id}/lesson/slide/{slide_id}/my-response")
 async def get_my_response(
     room_id: str,

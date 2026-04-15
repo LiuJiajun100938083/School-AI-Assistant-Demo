@@ -960,6 +960,13 @@ function handleWebSocketMessage(message) {
                     state.lessonSlide.results = message.data.poll_results;
                     updateLessonUI();
                 }
+                // Live-update free_canvas teacher thumbnails
+                if (message.data.response_type === 'interactive_response') {
+                    const interactiveRenderer = LessonSlideRenderers.get('interactive');
+                    if (interactiveRenderer && interactiveRenderer._state?._teacherTemplate === 'free_canvas') {
+                        interactiveRenderer._fetchCanvasSubmissions();
+                    }
+                }
             }
             break;
 
@@ -1410,6 +1417,7 @@ function updateLessonUI() {
                 placeholder.style.justifyContent = 'center';
                 placeholder.style.flexDirection = 'column';
                 const runtimeMeta = sess.runtime_meta || {};
+                runtimeMeta._roomId = roomId;
                 renderer.renderTeacher(placeholder, slide, cfg, runtimeMeta);
             } else {
                 renderLessonGenericSlide(slide, cfg, lifecycle);

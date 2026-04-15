@@ -773,6 +773,30 @@ class LessonService:
             "results": aggregated,
         }
 
+    def get_slide_submissions(
+        self,
+        session_id: str,
+        slide_id: str,
+    ) -> Dict[str, Any]:
+        """获取 slide 的所有学生提交 (教师查看个别作品, 如自由画布)。"""
+        responses = self._response_repo.list_by_slide(session_id, slide_id)
+        submissions = []
+        for r in responses:
+            rd = r.get("response_data") or {}
+            preview = rd.get("preview_base64")
+            if not preview:
+                continue
+            submissions.append({
+                "student_username": r.get("student_username"),
+                "preview_base64": preview,
+                "responded_at": str(r.get("responded_at", "")),
+            })
+        return {
+            "slide_id": slide_id,
+            "total_submissions": len(submissions),
+            "submissions": submissions,
+        }
+
     def get_my_response(
         self,
         session_id: str,

@@ -91,6 +91,11 @@
         };
         if (body !== undefined) opts.body = JSON.stringify(body);
         const res = await fetch(path, opts);
+        if (res.status === 401) {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/?expired=1';
+            throw new Error('登入已過期，請重新登入');
+        }
         const json = await res.json();
         if (!json.success) throw new Error(json.message || json.error_code || 'API Error');
         return json.data;
