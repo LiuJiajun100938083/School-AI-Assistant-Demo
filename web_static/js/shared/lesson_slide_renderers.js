@@ -9,6 +9,19 @@
  */
 'use strict';
 
+// 選項兼容：string 或 {text, image_url} → {text, image_url}
+function _normalizeOpt(opt) {
+    if (typeof opt === 'string') return { text: opt, image_url: null };
+    return { text: opt?.text || '', image_url: opt?.image_url || null };
+}
+function _optText(opt) { return _normalizeOpt(opt).text; }
+function _optHtml(opt, esc) {
+    const o = _normalizeOpt(opt);
+    let html = esc(o.text);
+    if (o.image_url) html = `<img src="${esc(o.image_url)}" style="max-height:48px;border-radius:4px;vertical-align:middle;margin-right:4px;">` + html;
+    return html;
+}
+
 window.LessonSlideRenderers = {
     _registry: {},
 
@@ -116,8 +129,9 @@ LessonSlideRenderers.register('quiz', {
                 const val = optLabels[i] || String.fromCharCode(65 + i);
                 const color = optColors[i % optColors.length];
                 // Compare by option text (normalized format)
-                const isCorrect = opt.trim().toLowerCase() === String(currentQ.correct_answer).trim().toLowerCase();
-                const count = optionCounts[opt] || 0;
+                const optT = _optText(opt);
+                const isCorrect = optT.trim().toLowerCase() === String(currentQ.correct_answer).trim().toLowerCase();
+                const count = optionCounts[optT] || 0;
                 const pct = isRevealed ? Math.round((count / totalAns) * 100) : 0;
 
                 let cls = 'quiz-tv-opt';
@@ -125,7 +139,7 @@ LessonSlideRenderers.register('quiz', {
 
                 html += `<div class="${cls}">
                     <span class="quiz-tv-opt-label" style="background:${color}">${val}</span>
-                    <span class="quiz-tv-opt-text">${Utils.escapeHtml(opt)}</span>
+                    <span class="quiz-tv-opt-text">${_optHtml(opt, Utils.escapeHtml)}</span>
                     ${isRevealed ? `
                         <div class="quiz-tv-bar-wrap">
                             <div class="quiz-tv-bar" style="width:${pct}%;background:${isCorrect ? '#34C759' : '#D1D1D6'}"></div>
@@ -210,7 +224,7 @@ LessonSlideRenderers.register('quiz', {
                     const val = String.fromCharCode(65 + i);
                     html += `<div class="quiz-opt" data-val="${val}" data-qid="${question.id}">
                         <span class="quiz-opt-label">${val}.</span>
-                        <span>${Utils.escapeHtml(opt)}</span>
+                        <span>${_optHtml(opt, Utils.escapeHtml)}</span>
                     </div>`;
                 });
             } else if (question.type === 'tf') {
@@ -373,9 +387,10 @@ LessonSlideRenderers.register('quiz', {
             question.options.forEach((opt, i) => {
                 const val = String.fromCharCode(65 + i);
                 // Compare by option text (normalized format)
-                const isCorrect = opt.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
-                const isMyAnswer = myAnswer && opt.trim().toLowerCase() === myAnswer.trim().toLowerCase();
-                const count = optionCounts[opt] || 0;
+                const optT = _optText(opt);
+                const isCorrect = optT.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+                const isMyAnswer = myAnswer && optT.trim().toLowerCase() === myAnswer.trim().toLowerCase();
+                const count = optionCounts[optT] || 0;
 
                 let cls = 'quiz-opt reveal';
                 if (isCorrect) cls += ' correct';
@@ -383,7 +398,7 @@ LessonSlideRenderers.register('quiz', {
 
                 html += `<div class="${cls}">
                     <span class="quiz-opt-label">${val}.</span>
-                    <span>${Utils.escapeHtml(opt)}</span>
+                    <span>${_optHtml(opt, Utils.escapeHtml)}</span>
                     ${isCorrect ? '<span class="quiz-correct-mark">&#10003;</span>' : ''}
                     ${isMyAnswer && !isCorrect ? '<span class="quiz-wrong-mark">&#10007;</span>' : ''}
                     <span class="quiz-opt-count">${count} 人</span>
@@ -463,7 +478,7 @@ LessonSlideRenderers.register('poll', {
             options.forEach((opt, i) => {
                 html += `<div class="quiz-opt" data-idx="${i}">
                     <span class="quiz-opt-label">${i + 1}.</span>
-                    <span>${Utils.escapeHtml(opt)}</span>
+                    <span>${_optHtml(opt, Utils.escapeHtml)}</span>
                 </div>`;
             });
             html += '</div>';
@@ -553,7 +568,7 @@ LessonSlideRenderers.register('poll', {
 
             html += `<div class="quiz-opt reveal">
                 <span class="quiz-opt-label">${i + 1}.</span>
-                <span>${Utils.escapeHtml(opt)}</span>
+                <span>${_optHtml(opt, Utils.escapeHtml)}</span>
                 <span class="quiz-opt-count">${count} 票 (${pct}%)</span>
             </div>`;
         });
@@ -598,7 +613,7 @@ LessonSlideRenderers.register('poll', {
 
             html += `<div class="quiz-tv-opt">
                 <span class="quiz-tv-opt-label" style="background:${color}">${i + 1}</span>
-                <span class="quiz-tv-opt-text">${Utils.escapeHtml(opt)}</span>
+                <span class="quiz-tv-opt-text">${_optHtml(opt, Utils.escapeHtml)}</span>
                 <div class="quiz-tv-bar-wrap">
                     <div class="quiz-tv-bar" style="width:${pct}%;background:${color}"></div>
                 </div>
