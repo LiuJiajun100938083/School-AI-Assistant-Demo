@@ -904,10 +904,42 @@ class ExamGraderService:
         scores = [float(p["total_score"]) for p in papers if p.get("total_score") is not None]
         exam = self._paper_repo.find_by_id(exam_id)
 
+        questions = self._question_repo.find_by_exam(exam_id)
+        total_max = sum(float(q.get("max_marks", 0)) for q in questions)
+
         stats = compute_statistics(scores, total_students=exam.get("total_students", 0) if exam else 0)
 
-        # 每题统计
+        # ── 及格率 & 中位数 & 等级分布 ──
+        pass_rate = None
+        median_score = None
+        grade_distribution = {"A+": 0, "A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
+        if scores and total_max > 0:
+            pass_count = sum(1 for s in scores if s / total_max >= 0.5)
+            pass_rate = round(pass_count / len(scores) * 100, 1)
+            sorted_scores = sorted(scores)
+            n = len(sorted_scores)
+            median_score = round(
+                sorted_scores[n // 2] if n % 2 else (sorted_scores[n // 2 - 1] + sorted_scores[n // 2]) / 2, 1
+            )
+            for s in scores:
+                pct = s / total_max * 100
+                if pct >= 90:
+                    grade_distribution["A+"] += 1
+                elif pct >= 80:
+                    grade_distribution["A"] += 1
+                elif pct >= 70:
+                    grade_distribution["B"] += 1
+                elif pct >= 50:
+                    grade_distribution["C"] += 1
+                elif pct >= 40:
+                    grade_distribution["D"] += 1
+                else:
+                    grade_distribution["F"] += 1
+
+        # ── 每题统计 ──
         all_answers = self._student_answer_repo.find_by_exam_with_questions(exam_id)
+        # 建立题目参考答案映射
+        q_ref_map = {q["id"]: q for q in questions}
         per_question: Dict[int, Dict[str, Any]] = {}
         for ans in all_answers:
             qid = ans["question_id"]
@@ -916,32 +948,82 @@ class ExamGraderService:
                     "question_number": ans.get("question_number"),
                     "section": ans.get("section"),
                     "question_type": ans.get("question_type"),
+                    "question_text": (ans.get("question_text") or "")[:80],
                     "max_marks": float(ans.get("q_max_marks", 0)),
                     "scores": [],
+                    "mc_choices": [],  # 收集 MC 选项分布
                 }
             if ans.get("score") is not None:
                 per_question[qid]["scores"].append(float(ans["score"]))
+            # MC 选项分布
+            if ans.get("question_type") == "mc" and ans.get("student_answer"):
+                per_question[qid]["mc_choices"].append(
+                    ans["student_answer"].strip().upper()[:1]
+                )
 
         per_question_stats = []
+        # 分部统计
+        section_totals: Dict[str, Dict[str, float]] = {}
         for qid, info in per_question.items():
             s_list = info["scores"]
             avg = round(sum(s_list) / len(s_list), 1) if s_list else 0
+            max_m = info["max_marks"]
+            score_rate = round(avg / max_m * 100, 1) if max_m > 0 else 0
+
             correct_rate = None
             if info["question_type"] == "mc" and s_list:
                 correct_rate = round(
                     sum(1 for s in s_list if s > 0) / len(s_list) * 100, 1
                 )
-            per_question_stats.append({
+
+            # MC 选项分布
+            mc_dist = None
+            if info["question_type"] == "mc" and info["mc_choices"]:
+                mc_dist = {"A": 0, "B": 0, "C": 0, "D": 0}
+                for ch in info["mc_choices"]:
+                    if ch in mc_dist:
+                        mc_dist[ch] += 1
+                ref_q = q_ref_map.get(qid)
+                mc_dist["_correct"] = (ref_q.get("reference_answer") or "").strip().upper()[:1] if ref_q else ""
+
+            pqs = {
                 "question_number": info["question_number"],
                 "section": info["section"],
                 "question_type": info["question_type"],
-                "max_marks": info["max_marks"],
+                "question_text": info["question_text"],
+                "max_marks": max_m,
                 "average_score": avg,
+                "score_rate": score_rate,
                 "correct_rate": correct_rate,
-            })
+            }
+            if mc_dist:
+                pqs["mc_distribution"] = mc_dist
+            per_question_stats.append(pqs)
+
+            # 累计分部统计
+            sec = info["section"]
+            if sec not in section_totals:
+                section_totals[sec] = {"sum_score": 0, "sum_max": 0, "count": 0}
+            if s_list:
+                section_totals[sec]["sum_score"] += sum(s_list)
+                section_totals[sec]["sum_max"] += max_m * len(s_list)
+                section_totals[sec]["count"] += 1
+
+        section_stats = {}
+        for sec, st in section_totals.items():
+            avg_rate = round(st["sum_score"] / st["sum_max"] * 100, 1) if st["sum_max"] > 0 else 0
+            section_stats[sec] = {
+                "avg_rate": avg_rate,
+                "question_count": st["count"],
+            }
 
         return {
             **stats.__dict__,
+            "total_max": total_max,
+            "pass_rate": pass_rate,
+            "median_score": median_score,
+            "grade_distribution": grade_distribution,
+            "section_stats": section_stats,
             "per_question_stats": per_question_stats,
         }
 

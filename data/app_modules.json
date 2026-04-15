@@ -452,5 +452,19 @@
     "enabled": true,
     "order": 23,
     "category": "utilities"
+  },
+  {
+    "id": "exam_grader",
+    "name": "試卷批閱",
+    "icon": "",
+    "description": "掃描全班試卷、AI 自動批改、教師審閱調分",
+    "url": "/exam-grader",
+    "roles": [
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 16,
+    "category": "teaching"
   }
 ]

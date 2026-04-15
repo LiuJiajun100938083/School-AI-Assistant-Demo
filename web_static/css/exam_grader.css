@@ -1236,6 +1236,225 @@ body {
     flex-shrink: 0;
 }
 
+/* Color-coded bars */
+.bar-chart-fill.bar-high { background: #16a34a; }
+.bar-chart-fill.bar-mid  { background: #f59e0b; }
+.bar-chart-fill.bar-low  { background: #ef4444; }
+
+/* Wide card spanning full width */
+.stats-card-wide { grid-column: 1 / -1; }
+
+/* ── Donut Chart ── */
+.donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+}
+.donut-chart {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+}
+.donut-hole {
+    position: absolute;
+    inset: 28%;
+    background: var(--bg-card);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.donut-total {
+    font-size: var(--type-page-title);
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+.donut-label {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+.donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--type-meta);
+}
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.legend-grade {
+    font-weight: 600;
+    width: 22px;
+    color: var(--text-primary);
+}
+.legend-count {
+    color: var(--text-secondary);
+    width: 24px;
+    text-align: right;
+}
+.legend-pct {
+    color: var(--text-tertiary);
+    width: 32px;
+    text-align: right;
+}
+
+/* ── Section Comparison ── */
+.section-compare {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+.section-bar-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+.section-bar-label {
+    font-size: var(--type-meta);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.section-bar-track {
+    height: 28px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.section-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s var(--ease-out);
+}
+.section-bar-value {
+    font-size: var(--type-body);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 2px;
+}
+
+/* ── Stats Table (hardest questions) ── */
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--type-meta);
+}
+.stats-table th {
+    text-align: left;
+    padding: 6px 8px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    border-bottom: 1px solid var(--border-default);
+}
+.stats-table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+    color: var(--text-primary);
+}
+.stats-td-text {
+    color: var(--text-secondary);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rate-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.rate-badge.rate-high { background: #dcfce7; color: #15803d; }
+.rate-badge.rate-mid  { background: #fef3c7; color: #b45309; }
+.rate-badge.rate-low  { background: #fee2e2; color: #dc2626; }
+
+/* ── MC Answer Distribution ── */
+.mc-dist-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+.mc-dist-item {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+}
+.mc-dist-label {
+    font-size: var(--type-meta);
+    font-weight: 600;
+    color: var(--text-secondary);
+    width: 36px;
+    flex-shrink: 0;
+    padding-top: 2px;
+    text-align: right;
+}
+.mc-dist-bars {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.mc-dist-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mc-dist-choice {
+    font-size: 11px;
+    font-weight: 600;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    color: var(--text-tertiary);
+    background: rgba(0,0,0,0.04);
+    flex-shrink: 0;
+}
+.mc-dist-choice.mc-correct {
+    background: #16a34a;
+    color: #fff;
+}
+.mc-dist-track {
+    flex: 1;
+    height: 14px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.mc-dist-fill {
+    height: 100%;
+    background: #94a3b8;
+    border-radius: 2px;
+    transition: width 0.4s var(--ease-out);
+}
+.mc-dist-fill.mc-fill-correct {
+    background: #16a34a;
+}
+.mc-dist-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    width: 24px;
+    flex-shrink: 0;
+    text-align: right;
+}
+
 /* ============================================================
    Empty State
    ============================================================ */

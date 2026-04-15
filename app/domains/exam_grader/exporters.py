@@ -58,7 +58,7 @@ def export_class_report(
 
     # ── Sheet 2: 學生成績 ──
     ws2 = wb.create_sheet("學生成績")
-    headers = ["#", "姓名", "學號", "班別", "總分", "滿分", "百分比"]
+    headers = ["學號", "姓名", "班別", "總分", "滿分", "百分比"]
 
     # 每題一列 header
     for q in questions:
@@ -73,13 +73,22 @@ def export_class_report(
         cell.border = border
         cell.alignment = Alignment(horizontal="center")
 
-    for idx, p in enumerate(papers, 1):
+    # 按學號排序（數字優先，空值排末尾）
+    def _sort_key(p):
+        sn = p.get("student_number") or ""
+        try:
+            return (0, int(sn))
+        except (ValueError, TypeError):
+            return (1, sn) if sn else (2, "")
+
+    sorted_papers = sorted(papers, key=_sort_key)
+
+    for p in sorted_papers:
         score = float(p.get("total_score") or 0)
         pct = round(score / total_max * 100, 1) if total_max > 0 else 0
         row = [
-            idx,
-            p.get("student_name", ""),
             p.get("student_number", ""),
+            p.get("student_name", ""),
             p.get("class_name", ""),
             score,
             total_max,
@@ -94,13 +103,12 @@ def export_class_report(
         ws2.append(row)
 
     # 列寬
-    ws2.column_dimensions["A"].width = 5
-    ws2.column_dimensions["B"].width = 14
-    ws2.column_dimensions["C"].width = 10
-    ws2.column_dimensions["D"].width = 8
-    ws2.column_dimensions["E"].width = 8
-    ws2.column_dimensions["F"].width = 8
-    ws2.column_dimensions["G"].width = 10
+    ws2.column_dimensions["A"].width = 8   # 學號
+    ws2.column_dimensions["B"].width = 14  # 姓名
+    ws2.column_dimensions["C"].width = 8   # 班別
+    ws2.column_dimensions["D"].width = 8   # 總分
+    ws2.column_dimensions["E"].width = 8   # 滿分
+    ws2.column_dimensions["F"].width = 10  # 百分比
 
     # ── Sheet 3: 題目分析 ──
     ws3 = wb.create_sheet("題目分析")

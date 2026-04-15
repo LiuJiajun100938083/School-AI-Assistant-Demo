@@ -842,6 +842,10 @@ const ExamGraderUI = {
                         <div class="summary-card-label">${this.t('eg.results.lowScore')}</div>
                     </div>
                     <div class="summary-card">
+                        <div class="summary-card-value">${stats.median_score != null ? stats.median_score : '-'}</div>
+                        <div class="summary-card-label">${this.t('eg.stats.median')}</div>
+                    </div>
+                    <div class="summary-card">
                         <div class="summary-card-value">${stats.pass_rate != null ? stats.pass_rate + '%' : '-'}</div>
                         <div class="summary-card-label">${this.t('eg.results.passRate')}</div>
                     </div>
@@ -979,53 +983,153 @@ const ExamGraderUI = {
         container.innerHTML = html;
     },
 
-    /** Render statistics */
+    /** Render statistics — 6 analysis panels */
     _renderStatistics(stats) {
         let html = `<div class="stats-grid" style="margin-top:var(--space-5);">`;
 
-        // Score distribution
+        // ── Panel 1: Score Distribution ──
         if (stats.score_distribution) {
-            html += `
-                <div class="stats-card">
-                    <div class="stats-card-title">${this.t('eg.stats.distribution')}</div>
-                    <div class="bar-chart">
-            `;
+            html += `<div class="stats-card">
+                <div class="stats-card-title">${this.t('eg.stats.distribution')}</div>
+                <div class="bar-chart">`;
             const dist = stats.score_distribution;
             const maxCount = Math.max(...Object.values(dist), 1);
             Object.entries(dist).forEach(([range, count]) => {
                 const pct = Math.round((count / maxCount) * 100);
-                html += `
-                    <div class="bar-chart-row">
-                        <span class="bar-chart-label">${range}</span>
-                        <div class="bar-chart-track">
-                            <div class="bar-chart-fill" style="width:${pct}%"></div>
-                        </div>
-                        <span class="bar-chart-value">${count}</span>
-                    </div>
-                `;
+                html += `<div class="bar-chart-row">
+                    <span class="bar-chart-label">${range}</span>
+                    <div class="bar-chart-track"><div class="bar-chart-fill" style="width:${pct}%"></div></div>
+                    <span class="bar-chart-value">${count}</span>
+                </div>`;
             });
             html += `</div></div>`;
         }
 
-        // Question analysis
-        if (stats.question_analysis) {
-            html += `
-                <div class="stats-card">
-                    <div class="stats-card-title">${this.t('eg.stats.questionAnalysis')}</div>
-                    <div class="bar-chart">
-            `;
-            const qa = stats.question_analysis;
-            qa.forEach(q => {
-                const rate = q.correct_rate != null ? Math.round(q.correct_rate * 100) : 0;
-                html += `
-                    <div class="bar-chart-row">
-                        <span class="bar-chart-label">Q${q.number || '?'}</span>
-                        <div class="bar-chart-track">
-                            <div class="bar-chart-fill" style="width:${rate}%"></div>
-                        </div>
-                        <span class="bar-chart-value">${rate}%</span>
+        // ── Panel 2: Grade Distribution (donut) ──
+        if (stats.grade_distribution) {
+            const gd = stats.grade_distribution;
+            const total = Object.values(gd).reduce((a, b) => a + b, 0) || 1;
+            const gradeColors = { 'A+': '#16a34a', 'A': '#22c55e', 'B': '#3b82f6', 'C': '#f59e0b', 'D': '#f97316', 'F': '#ef4444' };
+            // Build conic-gradient
+            let gradientParts = [], cumPct = 0;
+            const gradeEntries = Object.entries(gd).filter(([, v]) => v > 0);
+            if (gradeEntries.length === 0) {
+                gradientParts.push('var(--border-default) 0% 100%');
+            } else {
+                gradeEntries.forEach(([grade, count]) => {
+                    const pct = (count / total) * 100;
+                    const color = gradeColors[grade] || '#94a3b8';
+                    gradientParts.push(`${color} ${cumPct.toFixed(1)}% ${(cumPct + pct).toFixed(1)}%`);
+                    cumPct += pct;
+                });
+            }
+            html += `<div class="stats-card">
+                <div class="stats-card-title">${this.t('eg.stats.gradeDistribution')}</div>
+                <div class="donut-wrap">
+                    <div class="donut-chart" style="background:conic-gradient(${gradientParts.join(',')});">
+                        <div class="donut-hole"><span class="donut-total">${total}</span><span class="donut-label">${this.t('eg.results.totalStudents')}</span></div>
                     </div>
-                `;
+                    <div class="donut-legend">`;
+            Object.entries(gd).forEach(([grade, count]) => {
+                const pct = Math.round((count / total) * 100);
+                html += `<div class="legend-item">
+                    <span class="legend-dot" style="background:${gradeColors[grade] || '#94a3b8'}"></span>
+                    <span class="legend-grade">${grade}</span>
+                    <span class="legend-count">${count}</span>
+                    <span class="legend-pct">${pct}%</span>
+                </div>`;
+            });
+            html += `</div></div></div>`;
+        }
+
+        // ── Panel 3: Per-Question Score Rate ──
+        const pqs = stats.per_question_stats || [];
+        if (pqs.length > 0) {
+            html += `<div class="stats-card stats-card-wide">
+                <div class="stats-card-title">${this.t('eg.stats.questionScoreRate')}</div>
+                <div class="bar-chart">`;
+            pqs.forEach(q => {
+                const rate = q.score_rate != null ? q.score_rate : 0;
+                const colorCls = rate >= 70 ? 'high' : rate >= 40 ? 'mid' : 'low';
+                const label = `${q.section || ''}${q.question_number || ''}`;
+                html += `<div class="bar-chart-row">
+                    <span class="bar-chart-label">${label}</span>
+                    <div class="bar-chart-track"><div class="bar-chart-fill bar-${colorCls}" style="width:${rate}%"></div></div>
+                    <span class="bar-chart-value">${rate}%</span>
+                </div>`;
+            });
+            html += `</div></div>`;
+        }
+
+        // ── Panel 4: Section Comparison ──
+        if (stats.section_stats && Object.keys(stats.section_stats).length > 0) {
+            html += `<div class="stats-card">
+                <div class="stats-card-title">${this.t('eg.stats.sectionComparison')}</div>
+                <div class="section-compare">`;
+            const secLabels = { 'A': this.t('eg.stats.partA'), 'B': this.t('eg.stats.partB') };
+            const secColors = { 'A': '#3b82f6', 'B': '#8b5cf6' };
+            Object.entries(stats.section_stats).forEach(([sec, info]) => {
+                const rate = info.avg_rate || 0;
+                html += `<div class="section-bar-group">
+                    <div class="section-bar-label">${secLabels[sec] || sec}</div>
+                    <div class="section-bar-track">
+                        <div class="section-bar-fill" style="width:${rate}%;background:${secColors[sec] || 'var(--brand)'}"></div>
+                    </div>
+                    <div class="section-bar-value">${rate}%</div>
+                </div>`;
+            });
+            html += `</div></div>`;
+        }
+
+        // ── Panel 5: Hardest Questions ──
+        if (pqs.length > 0) {
+            const hardest = [...pqs].sort((a, b) => (a.score_rate || 0) - (b.score_rate || 0)).slice(0, 5);
+            html += `<div class="stats-card">
+                <div class="stats-card-title">${this.t('eg.stats.hardestQuestions')}</div>
+                <table class="stats-table">
+                    <thead><tr>
+                        <th>#</th><th>${this.t('eg.stats.question')}</th>
+                        <th>${this.t('eg.stats.scoreRate')}</th><th>${this.t('eg.stats.avgScore')}</th>
+                    </tr></thead><tbody>`;
+            hardest.forEach(q => {
+                const label = `${q.section || ''}${q.question_number || ''}`;
+                const rateCls = (q.score_rate || 0) >= 70 ? 'high' : (q.score_rate || 0) >= 40 ? 'mid' : 'low';
+                html += `<tr>
+                    <td>${label}</td>
+                    <td class="stats-td-text">${this._esc((q.question_text || '').substring(0, 40))}${(q.question_text || '').length > 40 ? '...' : ''}</td>
+                    <td><span class="rate-badge rate-${rateCls}">${q.score_rate || 0}%</span></td>
+                    <td>${q.average_score || 0} / ${q.max_marks || 0}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+
+        // ── Panel 6: MC Answer Distribution ──
+        const mcQuestions = pqs.filter(q => q.mc_distribution);
+        if (mcQuestions.length > 0) {
+            html += `<div class="stats-card stats-card-wide">
+                <div class="stats-card-title">${this.t('eg.stats.mcDistribution')}</div>
+                <div class="mc-dist-list">`;
+            mcQuestions.forEach(q => {
+                const dist = q.mc_distribution;
+                const correct = dist._correct || '';
+                const choices = ['A', 'B', 'C', 'D'];
+                const maxC = Math.max(...choices.map(c => dist[c] || 0), 1);
+                const label = `${q.section || ''}${q.question_number || ''}`;
+                html += `<div class="mc-dist-item">
+                    <div class="mc-dist-label">${label}</div>
+                    <div class="mc-dist-bars">`;
+                choices.forEach(ch => {
+                    const cnt = dist[ch] || 0;
+                    const pct = Math.round((cnt / maxC) * 100);
+                    const isCorrect = ch === correct;
+                    html += `<div class="mc-dist-row">
+                        <span class="mc-dist-choice ${isCorrect ? 'mc-correct' : ''}">${ch}</span>
+                        <div class="mc-dist-track"><div class="mc-dist-fill ${isCorrect ? 'mc-fill-correct' : ''}" style="width:${pct}%"></div></div>
+                        <span class="mc-dist-count">${cnt}</span>
+                    </div>`;
+                });
+                html += `</div></div>`;
             });
             html += `</div></div>`;
         }
