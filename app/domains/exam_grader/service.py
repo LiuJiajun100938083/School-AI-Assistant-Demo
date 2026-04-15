@@ -446,11 +446,17 @@ class ExamGraderService:
             ExamStatus.ANSWERS_READY.value,
             ExamStatus.QUESTIONS_EXTRACTED.value,
             ExamStatus.COMPLETED.value,  # 允许重新批改
+            ExamStatus.GRADING.value,    # 允许重新上传并重新批改
         }
         if exam["status"] not in allowed:
             raise ValueError(f"当前状态 {exam['status']} 不允许开始批改，请先提取题目并设置答案")
         if not exam.get("batch_pdf_path"):
             raise ValueError("请先上传全班 PDF")
+
+        # 取消正在进行的批改任务
+        if exam["status"] == ExamStatus.GRADING.value:
+            self.cancel_grading(exam_id)
+            logger.info("重新上传：已取消旧批改任务 (exam=%d)", exam_id)
 
         # 切分 PDF → 图片
         pdf_path = exam["batch_pdf_path"]
@@ -683,6 +689,15 @@ class ExamGraderService:
         except Exception as e:
             logger.warning("学生信息识别失败 (paper=%d): %s", paper["id"], e)
 
+    @staticmethod
+    def _is_valid_mc_value(val: str) -> bool:
+        """检查是否为合法的选择题答案（单个或多个 A-D 字母）"""
+        import re
+        cleaned = re.sub(r"[\s,，、/]+", "", val.strip().upper())
+        # 全角转半角
+        cleaned = cleaned.replace("Ａ", "A").replace("Ｂ", "B").replace("Ｃ", "C").replace("Ｄ", "D")
+        return bool(cleaned) and all(c in "ABCD" for c in cleaned)
+
     async def _ocr_student_answers(self, paper: dict, strategy) -> Dict[str, Any]:
         """OCR 提取学生答案"""
         image_paths = paper.get("image_paths", [])
@@ -694,8 +709,24 @@ class ExamGraderService:
         for img_path in image_paths:
             try:
                 parsed = await self._call_vision(img_path, prompt, priority=3, weight=2)
-                mc_answers.update(parsed.get("mc_answers", {}))
-                short_answers.update(parsed.get("short_answers", {}))
+                page_mc = parsed.get("mc_answers", {})
+                page_sa = parsed.get("short_answers", {})
+
+                # MC 合并：只保留合法选项值（A-D），且不覆盖已有正确答案
+                for k, v in page_mc.items():
+                    if self._is_valid_mc_value(v):
+                        if k not in mc_answers:
+                            mc_answers[k] = v
+                    else:
+                        # 非选项值（如长答文字）→ 放入 short_answers
+                        logger.info("MC key '%s' 值非选项 → 移至 short_answers: %s", k, v[:60])
+                        if k not in short_answers:
+                            short_answers[k] = v
+
+                # SA 合并：不覆盖已有答案
+                for k, v in page_sa.items():
+                    if k not in short_answers:
+                        short_answers[k] = v
             except Exception as e:
                 logger.warning("学生答案 OCR 失败 (img=%s): %s", img_path, e)
 
