@@ -38,6 +38,27 @@ def _success(data=None, message: str = "ok"):
     return {"success": True, "message": message, "data": jsonable_encoder(data)}
 
 
+# ── 教师列表（协作用） ──
+
+
+@router.get("/teachers")
+async def list_teachers(current_user: dict = Depends(get_current_user)):
+    """获取教师列表（用于选择协作者）"""
+    _require_teacher(current_user)
+    from app.services.container import get_services
+    users = get_services().user._repo.find_all(
+        where="role IN ('teacher','admin') AND is_active = 1",
+        order_by="display_name ASC",
+        columns="id, username, display_name",
+    )
+    # 排除当前用户
+    teachers = [
+        {"id": u["id"], "name": u.get("display_name") or u.get("username", "")}
+        for u in users if u["id"] != current_user["id"]
+    ]
+    return _success(teachers)
+
+
 # ── 考试 CRUD ──
 
 

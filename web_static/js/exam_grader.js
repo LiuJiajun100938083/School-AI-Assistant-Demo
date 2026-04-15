@@ -202,6 +202,9 @@ const ExamGraderAPI = {
     getTargets() {
         return this._fetch('/api/assignments/teacher/targets');
     },
+    getTeachers() {
+        return this._fetch('/api/exam-grader/teachers');
+    },
 };
 
 
@@ -218,6 +221,7 @@ const ExamGraderState = {
     pollingTimer: null,
     filterStatus: '',
     classTargets: [],
+    teacherList: [],        // [{id, name}] 可选协作教师
     editingExamId: null,
     expandedStudents: new Set(),
 };
@@ -475,6 +479,16 @@ const ExamGraderUI = {
                         </div>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>${this.t('eg.create.collaborators')}</label>
+                    <select id="collabSelect" onchange="ExamGraderApp.addCollaborator(this)">
+                        <option value="">${this.t('eg.create.collaboratorsPh')}</option>
+                        ${(ExamGraderState.teacherList || []).map(t =>
+                            `<option value="${t.id}">${this._esc(t.name)}</option>`
+                        ).join('')}
+                    </select>
+                    <div class="collab-chips" id="collabChips"></div>
+                </div>
                 <div style="display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5);">
                     <button class="btn btn-outline" onclick="ExamGraderApp.cancelCreate()">${this.t('eg.create.cancel')}</button>
                     <button class="btn btn-primary" onclick="ExamGraderApp.submitCreate()">
@@ -483,6 +497,35 @@ const ExamGraderUI = {
                 </div>
             </div>
         `;
+
+        // Init collaborator chips from edit data
+        ExamGraderState._selectedCollabs = [];
+        if (isEdit && v.collaborators) {
+            let collabs = v.collaborators;
+            if (typeof collabs === 'string') { try { collabs = JSON.parse(collabs); } catch(e) { collabs = []; } }
+            if (Array.isArray(collabs)) {
+                collabs.forEach(id => {
+                    const teacher = (ExamGraderState.teacherList || []).find(t => t.id === id);
+                    if (teacher) ExamGraderState._selectedCollabs.push({ id: teacher.id, name: teacher.name });
+                });
+                this._renderCollabChips();
+            }
+        }
+    },
+
+    _renderCollabChips() {
+        const container = document.getElementById('collabChips');
+        if (!container) return;
+        const collabs = ExamGraderState._selectedCollabs || [];
+        if (collabs.length === 0) { container.innerHTML = ''; return; }
+        container.innerHTML = collabs.map(c =>
+            `<span class="collab-chip">
+                <span class="collab-chip__name">${this._esc(c.name)}</span>
+                <button class="collab-chip__remove" onclick="ExamGraderApp.removeCollaborator(${c.id})">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </span>`
+        ).join('');
     },
 
     /** Render upload clean paper (step 2) */
@@ -1251,10 +1294,15 @@ const ExamGraderApp = {
     },
 
     async _loadTargets() {
-        const res = await ExamGraderAPI.getTargets();
-        if (res && res.success && res.data) {
-            // targets can be {classes: [...], students: [...]}
-            ExamGraderState.classTargets = res.data.classes || res.data || [];
+        const [targetsRes, teachersRes] = await Promise.all([
+            ExamGraderAPI.getTargets(),
+            ExamGraderAPI.getTeachers(),
+        ]);
+        if (targetsRes && targetsRes.success && targetsRes.data) {
+            ExamGraderState.classTargets = targetsRes.data.classes || targetsRes.data || [];
+        }
+        if (teachersRes && teachersRes.success && teachersRes.data) {
+            ExamGraderState.teacherList = teachersRes.data;
         }
     },
 
@@ -1368,6 +1416,25 @@ const ExamGraderApp = {
         });
     },
 
+    addCollaborator(select) {
+        const id = parseInt(select.value);
+        if (!id) return;
+        select.value = '';
+        if (!ExamGraderState._selectedCollabs) ExamGraderState._selectedCollabs = [];
+        if (ExamGraderState._selectedCollabs.some(c => c.id === id)) return;
+        const teacher = (ExamGraderState.teacherList || []).find(t => t.id === id);
+        if (teacher) {
+            ExamGraderState._selectedCollabs.push({ id: teacher.id, name: teacher.name });
+            ExamGraderUI._renderCollabChips();
+        }
+    },
+
+    removeCollaborator(id) {
+        if (!ExamGraderState._selectedCollabs) return;
+        ExamGraderState._selectedCollabs = ExamGraderState._selectedCollabs.filter(c => c.id !== id);
+        ExamGraderUI._renderCollabChips();
+    },
+
     cancelCreate() {
         ExamGraderState.currentStep = 0;
         ExamGraderUI.renderExamList();
@@ -1385,12 +1452,14 @@ const ExamGraderApp = {
             return;
         }
 
+        const collabs = (ExamGraderState._selectedCollabs || []).map(c => c.id);
         const data = {
             title,
             subject: document.getElementById('examSubjectInput')?.value?.trim() || 'ict',
             class_name: className,
             pages_per_exam: parseInt(document.getElementById('examPagesInput')?.value) || 2,
             grading_mode: document.querySelector('.mode-option.selected')?.dataset?.mode || 'moderate',
+            collaborators: collabs.length > 0 ? collabs : null,
         };
 
         let res;

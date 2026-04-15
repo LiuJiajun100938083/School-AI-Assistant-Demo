@@ -25,6 +25,7 @@ class CreateExamRequest(BaseModel):
     pages_per_exam: int = Field(1, ge=1, le=20, description="每份试卷页数")
     grading_mode: GradingMode = Field(GradingMode.MODERATE, description="批改松紧度")
     total_marks: float = Field(40, ge=1, description="满分")
+    collaborators: Optional[List[int]] = Field(None, description="协作教师 user_id 列表")
 
 
 class UpdateExamRequest(BaseModel):
@@ -33,6 +34,7 @@ class UpdateExamRequest(BaseModel):
     pages_per_exam: Optional[int] = None
     grading_mode: Optional[GradingMode] = None
     total_marks: Optional[float] = None
+    collaborators: Optional[List[int]] = None
 
 
 class QuestionEdit(BaseModel):

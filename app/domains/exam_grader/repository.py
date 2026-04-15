@@ -19,7 +19,7 @@ class ExamPaperRepository(BaseRepository):
     TABLE = "exam_papers"
 
     def ensure_schema(self):
-        """安全添加 is_published / published_at 列（幂等）"""
+        """安全添加新列（幂等）"""
         migrations = {
             "is_published": (
                 "ALTER TABLE exam_papers ADD COLUMN is_published "
@@ -28,6 +28,10 @@ class ExamPaperRepository(BaseRepository):
             "published_at": (
                 "ALTER TABLE exam_papers ADD COLUMN published_at "
                 "DATETIME DEFAULT NULL COMMENT '發放時間' AFTER is_published"
+            ),
+            "collaborators": (
+                "ALTER TABLE exam_papers ADD COLUMN collaborators "
+                "JSON DEFAULT NULL COMMENT '協作教師 user_id 列表' AFTER created_by"
             ),
         }
         try:
@@ -47,8 +51,12 @@ class ExamPaperRepository(BaseRepository):
         page: int = 1,
         page_size: int = 20,
     ) -> Dict[str, Any]:
-        conditions = ["is_deleted = 0", "created_by = %s"]
-        params: List[Any] = [teacher_id]
+        # 创建者 OR 协作者都能看到
+        conditions = [
+            "is_deleted = 0",
+            "(created_by = %s OR JSON_CONTAINS(collaborators, CAST(%s AS JSON)))",
+        ]
+        params: List[Any] = [teacher_id, teacher_id]
         if status:
             conditions.append("status = %s")
             params.append(status)

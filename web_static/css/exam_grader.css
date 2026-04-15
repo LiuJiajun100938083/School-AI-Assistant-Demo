@@ -743,6 +743,35 @@ body {
     color: var(--text-tertiary);
 }
 
+/* Collaborator chips */
+.collab-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+.collab-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    background: var(--brand-light, #e8f5e9);
+    font-size: var(--type-meta);
+    color: var(--brand);
+}
+.collab-chip__name { font-weight: 500; }
+.collab-chip__remove {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+    opacity: 0.6;
+    display: flex;
+}
+.collab-chip__remove:hover { opacity: 1; }
+
 /* ============================================================
    Question Cards
    ============================================================ */

@@ -86,10 +86,41 @@ class ExamGraderService:
     # CRUD
     # ================================================================
 
+    # ── 权限判断 ──
+
+    @staticmethod
+    def can_access(exam: dict, user_id: int) -> bool:
+        """创建者或协作者可访问"""
+        if exam.get("created_by") == user_id:
+            return True
+        collabs = exam.get("collaborators")
+        if isinstance(collabs, str):
+            try:
+                collabs = json.loads(collabs)
+            except (json.JSONDecodeError, TypeError):
+                collabs = []
+        return isinstance(collabs, list) and user_id in collabs
+
+    def require_access(self, exam_id: int, user_id: int) -> dict:
+        """获取考试并验证访问权限，无权则抛异常"""
+        exam = self._paper_repo.find_by_id(exam_id)
+        if not exam or exam.get("is_deleted"):
+            raise ValueError("考试不存在")
+        if not self.can_access(exam, user_id):
+            raise PermissionError("你沒有此考試的訪問權限")
+        return exam
+
+    # ── CRUD ──
+
     def create_exam(self, teacher_id: int, data: dict) -> Dict[str, Any]:
         subject = data.get("subject", "ict")
         if subject not in SUPPORTED_SUBJECTS:
             raise ValueError(f"不支持的科目: {subject}")
+
+        collaborators = data.get("collaborators")
+        if collaborators and isinstance(collaborators, list):
+            # 排除自己
+            collaborators = [c for c in collaborators if c != teacher_id]
 
         exam_id = self._paper_repo.insert_get_id({
             "title": data["title"],
@@ -100,6 +131,7 @@ class ExamGraderService:
             "grading_mode": data.get("grading_mode", "moderate"),
             "status": ExamStatus.DRAFT.value,
             "created_by": teacher_id,
+            "collaborators": json.dumps(collaborators) if collaborators else None,
         })
         return self._paper_repo.find_by_id(exam_id)
 
@@ -117,6 +149,9 @@ class ExamGraderService:
         for key in ("title", "class_name", "pages_per_exam", "grading_mode", "total_marks"):
             if key in data and data[key] is not None:
                 fields[key] = data[key]
+        if "collaborators" in data:
+            collabs = data["collaborators"]
+            fields["collaborators"] = json.dumps(collabs) if collabs else None
         if fields:
             self._paper_repo.update(fields, "id = %s", (exam_id,))
         return self._paper_repo.find_by_id(exam_id)
