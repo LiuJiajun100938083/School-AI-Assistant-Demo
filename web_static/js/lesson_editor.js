@@ -12,6 +12,29 @@
 (function () {
     'use strict';
 
+    // ===== 圖片壓縮工具（上傳前壓縮，加快傳輸） =====
+    function compressImage(file, maxWidth = 1200, quality = 0.8) {
+        return new Promise((resolve) => {
+            // 小於 500KB 不壓縮
+            if (file.size < 500 * 1024) { resolve(file); return; }
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let w = img.width, h = img.height;
+                if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                canvas.toBlob(blob => {
+                    resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file);
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+            img.src = url;
+        });
+    }
+
     // ===== Auth =====
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -1101,8 +1124,9 @@
                     const file = input.files[0];
                     if (!file) return;
                     try {
+                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('file', file);
+                        formData.append('file', compressed);
                         const token = AuthModule.getToken();
                         const res = await fetch('/api/classroom/quiz-images', {
                             method: 'POST',
@@ -1145,8 +1169,9 @@
                     const file = input.files[0];
                     if (!file) return;
                     try {
+                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('file', file);
+                        formData.append('file', compressed);
                         const token = AuthModule.getToken();
                         const res = await fetch('/api/classroom/quiz-images', {
                             method: 'POST',
@@ -1305,6 +1330,12 @@
                 <div class="config-section">
                     <label class="config-label">投票問題</label>
                     <textarea class="config-input" id="cfgPollQuestion" placeholder="輸入投票問題...">${escapeHtml(cfg.question_text || '')}</textarea>
+                    <div class="quiz-img-area" id="pollQuestionImgArea">
+                        ${cfg.question_image_url
+                            ? `<div class="quiz-img-preview"><img src="${escapeHtml(cfg.question_image_url)}" alt="問題圖片"><button class="poll-q-img-remove" title="移除圖片">&times;</button></div>`
+                            : `<label class="quiz-img-upload-btn"><input type="file" accept="image/*" class="poll-q-img-input" style="display:none;"> + 上傳圖片</label>`
+                        }
+                    </div>
                 </div>
                 <div class="config-section">
                     <label class="config-label">選項</label>
@@ -1339,6 +1370,46 @@
                 });
             });
 
+            // Event: poll question image upload
+            $el.querySelectorAll('.poll-q-img-input').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const file = input.files[0];
+                    if (!file) return;
+                    try {
+                        const compressed = await compressImage(file);
+                        const formData = new FormData();
+                        formData.append('file', compressed);
+                        const token = AuthModule.getToken();
+                        const res = await fetch('/api/classroom/quiz-images', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: formData,
+                        });
+                        const json = await res.json();
+                        if (json.success && json.data?.url) {
+                            const collected = this.collectConfig(slide);
+                            if (collected) slide.config = collected;
+                            slide.config.question_image_url = json.data.url;
+                            this.renderConfig(slide, $el);
+                            editorState.dirty = true;
+                        } else {
+                            UIModule.toast(json.message || '圖片上傳失敗', 'error');
+                        }
+                    } catch (e) { UIModule.toast('圖片上傳失敗', 'error'); }
+                });
+            });
+
+            // Event: remove poll question image
+            $el.querySelectorAll('.poll-q-img-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const collected = this.collectConfig(slide);
+                    if (collected) slide.config = collected;
+                    slide.config.question_image_url = null;
+                    this.renderConfig(slide, $el);
+                    editorState.dirty = true;
+                });
+            });
+
             // Event: poll option image upload
             $el.querySelectorAll('.opt-img-input-poll').forEach(input => {
                 input.addEventListener('change', async () => {
@@ -1346,8 +1417,9 @@
                     const file = input.files[0];
                     if (!file) return;
                     try {
+                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('file', file);
+                        formData.append('file', compressed);
                         const token = AuthModule.getToken();
                         const res = await fetch('/api/classroom/quiz-images', {
                             method: 'POST',
@@ -1400,6 +1472,7 @@
 
             return {
                 question_text: questionEl.value || '',
+                question_image_url: slide?.config?.question_image_url || null,
                 options: options,
                 allow_multiple: document.getElementById('cfgPollMultiple')?.checked ?? false,
                 anonymous: document.getElementById('cfgPollAnonymous')?.checked ?? false,

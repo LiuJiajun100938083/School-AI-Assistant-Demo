@@ -76,6 +76,7 @@ class RaiseHandSlideConfig(BaseModel):
 class PollSlideConfig(BaseModel):
     """投票幻灯片配置"""
     question_text: str = Field(..., min_length=1, description="问题文本")
+    question_image_url: Optional[str] = Field(default=None, description="问题图片 URL")
     options: list = Field(..., min_length=2, description="选项列表 (str 或 {text, image_url})")
     allow_multiple: bool = Field(default=False, description="是否允许多选")
     anonymous: bool = Field(default=False, description="是否匿名")
