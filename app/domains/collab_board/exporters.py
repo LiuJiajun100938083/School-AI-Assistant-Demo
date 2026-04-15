@@ -141,13 +141,22 @@ class PdfExporter:
         return (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     def _resolve_local_image(self, url: str) -> Optional[str]:
-        """把 /static/uploaded_boards/xxx 轉成本地檔案路徑,其他來源返回 None"""
-        if not url or not url.startswith("/static/"):
+        """把上傳圖片 URL 轉成本地檔案路徑, 其他來源返回 None"""
+        if not url:
             return None
         from pathlib import Path
-        rel = url[len("/static/"):]
-        local = Path(__file__).resolve().parent.parent.parent.parent / "web_static" / rel
-        return str(local) if local.exists() else None
+        base = Path(__file__).resolve().parent.parent.parent.parent
+        # 新路徑: /uploads/boards/...
+        if url.startswith("/uploads/"):
+            rel = url[len("/uploads/"):]
+            local = base / "uploads" / rel
+            return str(local) if local.exists() else None
+        # 舊路徑相容: /static/uploaded_boards/...
+        if url.startswith("/static/"):
+            rel = url[len("/static/"):]
+            local = base / "web_static" / rel
+            return str(local) if local.exists() else None
+        return None
 
     def export(self, detail: Dict[str, Any]) -> bytes:
         try:

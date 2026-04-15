@@ -68,7 +68,7 @@ ALLOWED_MIMES = frozenset({
 
 # 檔案路徑
 DEFAULT_UPLOAD_DIR = (
-    Path(__file__).resolve().parent.parent.parent.parent / "web_static" / "uploaded_boards"
+    Path(__file__).resolve().parent.parent.parent.parent / "uploads" / "boards"
 )
 
 # WebSocket

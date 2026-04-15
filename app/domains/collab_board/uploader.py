@@ -66,7 +66,7 @@ class BoardFileUploader:
         file_path = board_dir / filename
         file_path.write_bytes(content)
 
-        rel = f"/static/uploaded_boards/{board_uuid}/{filename}"
+        rel = f"/uploads/boards/{board_uuid}/{filename}"
         return {
             "url": rel,
             "filename": filename,
