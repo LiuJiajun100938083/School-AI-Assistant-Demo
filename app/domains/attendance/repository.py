@@ -973,11 +973,11 @@ class AttendanceExportRepository(BaseRepository):
         )
 
     def get_export_file(self, export_id: int, created_by: str) -> Optional[Dict[str, Any]]:
-        """获取导出文件信息"""
+        """获取导出文件信息（含 session_id/type 以便文件丢失时重新生成）"""
         return self.find_one(
             "id = %s AND created_by = %s AND is_deleted = FALSE",
             (export_id, created_by),
-            columns="file_path, file_name",
+            columns="id, session_id, session_type, file_path, file_name",
         )
 
     def soft_delete_export(self, export_id: int, created_by: str) -> int:
