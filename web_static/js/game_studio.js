@@ -28,6 +28,7 @@ const GameStudio = (() => {
         generating: false,      // AI 是否正在生成
         editUUID: null,         // 編輯模式 game UUID
         dirty: false,           // 代碼是否被修改
+        attachments: [],        // 附件 [{filename, content, size, processing}]
     };
 
     let _abortController = null;
@@ -189,7 +190,19 @@ const GameStudio = (() => {
     }
 
     async function sendToAI(prompt) {
-        if (!prompt.trim()) return;
+        if (!prompt.trim() && state.attachments.length === 0) return;
+
+        // 注入附件內容到 prompt
+        const attachCtx = _buildAttachmentContext();
+        const fullPrompt = attachCtx
+            ? attachCtx + '用戶的要求：' + prompt
+            : prompt;
+
+        // 清空附件
+        if (state.attachments.length > 0) {
+            state.attachments = [];
+            _renderAttachments();
+        }
 
         // 並發保護：取消舊請求
         if (state.generating && _abortController) {
@@ -236,7 +249,7 @@ const GameStudio = (() => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ prompt, history }),
+                body: JSON.stringify({ prompt: fullPrompt, history }),
                 signal: _abortController.signal,
             });
 
@@ -638,6 +651,111 @@ const GameStudio = (() => {
     }
 
     // ════════════════════════════════════════════════════
+    // 附件處理
+    // ════════════════════════════════════════════════════
+
+    const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.png', '.jpg', '.jpeg', '.heic'];
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+    async function handleFileSelect(files) {
+        const token = typeof AuthModule !== 'undefined' ? AuthModule.getToken() : localStorage.getItem('auth_token');
+        for (const file of files) {
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                addMessage('system', `不支持的文件格式：${file.name}`);
+                continue;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                addMessage('system', `文件太大（上限 50MB）：${file.name}`);
+                continue;
+            }
+            // Add placeholder chip (processing)
+            const idx = state.attachments.length;
+            state.attachments.push({ filename: file.name, content: '', size: file.size, processing: true });
+            _renderAttachments();
+
+            // Upload & extract text
+            try {
+                const fd = new FormData();
+                fd.append('file', file);
+                const resp = await fetch('/api/process-temp-file', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: fd,
+                });
+                const result = await resp.json();
+                if (result.success && result.data?.content) {
+                    state.attachments[idx].content = result.data.content;
+                    state.attachments[idx].processing = false;
+                } else {
+                    state.attachments[idx].processing = false;
+                    state.attachments[idx].error = true;
+                    addMessage('system', `文件處理失敗：${file.name} — ${result.detail || result.message || '未知錯誤'}`);
+                }
+            } catch (e) {
+                state.attachments[idx].processing = false;
+                state.attachments[idx].error = true;
+                addMessage('system', `文件上傳失敗：${file.name}`);
+            }
+            _renderAttachments();
+        }
+    }
+
+    function removeAttachment(idx) {
+        state.attachments.splice(idx, 1);
+        _renderAttachments();
+    }
+
+    function _renderAttachments() {
+        const container = document.getElementById('chatAttachments');
+        if (!container) return;
+        if (state.attachments.length === 0) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = 'flex';
+        container.innerHTML = state.attachments.map((a, i) => {
+            const ext = a.filename.split('.').pop().toLowerCase();
+            const typeIcon = ['pdf'].includes(ext) ? 'PDF'
+                : ['doc', 'docx'].includes(ext) ? 'DOC'
+                : ['txt', 'md'].includes(ext) ? 'TXT'
+                : 'IMG';
+            const cls = a.processing ? 'gs-attach-chip--loading'
+                : a.error ? 'gs-attach-chip--error' : '';
+            return `<div class="gs-attach-chip ${cls}">
+                <span class="gs-attach-chip__type">${typeIcon}</span>
+                <span class="gs-attach-chip__name">${_esc(a.filename)}</span>
+                ${a.processing ? '<span class="gs-attach-chip__spinner"></span>' : ''}
+                <button class="gs-attach-chip__remove" onclick="GameStudio.removeAttachment(${i})" title="移除">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>`;
+        }).join('');
+    }
+
+    function _esc(s) {
+        if (!s) return '';
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+
+    function _buildAttachmentContext() {
+        const ready = state.attachments.filter(a => a.content && !a.processing && !a.error);
+        if (ready.length === 0) return '';
+        const MAX_CHARS = 8000;
+        let ctx = '[用戶上傳了以下文件作為參考資料]\n\n';
+        for (const a of ready) {
+            const truncated = a.content.length > MAX_CHARS
+                ? a.content.substring(0, MAX_CHARS) + '\n... (內容過長，已截取前 8000 字)'
+                : a.content;
+            ctx += `=== 文件: ${a.filename} ===\n${truncated}\n===\n\n`;
+        }
+        return ctx;
+    }
+
+    // ════════════════════════════════════════════════════
     // 初始化
     // ════════════════════════════════════════════════════
 
@@ -664,6 +782,39 @@ const GameStudio = (() => {
                 chatInput.value = '';
             }
         });
+
+        // 附件：按鈕點擊
+        const attachBtn = document.getElementById('chatAttachBtn');
+        const fileInput = document.getElementById('chatFileInput');
+        if (attachBtn && fileInput) {
+            attachBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(Array.from(e.target.files));
+                    fileInput.value = '';
+                }
+            });
+        }
+
+        // 附件：拖拽到輸入區域
+        const inputWrap = document.querySelector('.gs-chat__input-wrap');
+        if (inputWrap) {
+            inputWrap.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                inputWrap.classList.add('gs-chat__input-wrap--dragover');
+            });
+            inputWrap.addEventListener('dragleave', (e) => {
+                if (!inputWrap.contains(e.relatedTarget)) {
+                    inputWrap.classList.remove('gs-chat__input-wrap--dragover');
+                }
+            });
+            inputWrap.addEventListener('drop', (e) => {
+                e.preventDefault();
+                inputWrap.classList.remove('gs-chat__input-wrap--dragover');
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) handleFileSelect(files);
+            });
+        }
 
         // 代碼編輯器 → debounce 預覽
         const codeEditor = document.getElementById('codeEditor');
@@ -793,6 +944,7 @@ const GameStudio = (() => {
         openUploadModal,
         closeUploadModal,
         submitGame,
+        removeAttachment,
         get state() { return state; },
     };
 })();
