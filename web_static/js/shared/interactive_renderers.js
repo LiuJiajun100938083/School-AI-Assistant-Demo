@@ -1411,6 +1411,16 @@ LessonSlideRenderers.register('interactive', {
 
         return {
             getResponse() {
+                // 導出前填充白色背景，避免 JPEG 透明變黑
+                const bgRect = new fabric.Rect({
+                    left: 0, top: 0,
+                    width: canvas.width, height: canvas.height,
+                    fill: '#ffffff',
+                    selectable: false, evented: false,
+                });
+                canvas.insertAt(bgRect, 0);
+                canvas.renderAll();
+
                 const maxW = 1200;
                 let dataUrl;
                 if (canvas.width > maxW) {
@@ -1419,6 +1429,11 @@ LessonSlideRenderers.register('interactive', {
                 } else {
                     dataUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.5 });
                 }
+
+                // 移除臨時白色背景
+                canvas.remove(bgRect);
+                canvas.renderAll();
+
                 return { canvas_json: JSON.stringify(canvas.toJSON()), preview_base64: dataUrl };
             },
             setLocked(v) {
