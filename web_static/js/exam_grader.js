@@ -528,6 +528,23 @@ const ExamGraderUI = {
         ).join('');
     },
 
+    _renderCollabChipsInline(exam) {
+        let collabs = exam?.collaborators;
+        if (typeof collabs === 'string') { try { collabs = JSON.parse(collabs); } catch(e) { collabs = []; } }
+        if (!Array.isArray(collabs) || collabs.length === 0) return '';
+        const teachers = ExamGraderState.teacherList || [];
+        return collabs.map(id => {
+            const t = teachers.find(t => t.id === id);
+            const name = t ? t.name : `#${id}`;
+            return `<span class="collab-chip collab-chip--sm">
+                <span class="collab-chip__name">${this._esc(name)}</span>
+                <button class="collab-chip__remove" onclick="ExamGraderApp.removeCollabFromResults(${id})">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </span>`;
+        }).join('');
+    },
+
     /** Render upload clean paper (step 2) */
     renderUploadStep() {
         const ws = this.$workspace();
@@ -993,7 +1010,18 @@ const ExamGraderUI = {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
                     ${this.t('eg.btn.prev')}
                 </button>
-                <div style="display:flex;gap:var(--space-2);">
+                <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center;">
+                    <div class="collab-inline" id="resultsCollabArea">
+                        <div class="collab-inline__chips" id="resultsCollabChips">
+                            ${this._renderCollabChipsInline(exam)}
+                        </div>
+                        <select class="collab-inline__select" id="resultsCollabSelect" onchange="ExamGraderApp.addCollabFromResults(this)">
+                            <option value="">+ ${this.t('eg.create.collaborators')}</option>
+                            ${(ExamGraderState.teacherList || []).map(t =>
+                                `<option value="${t.id}">${this._esc(t.name)}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
                     <button class="btn ${exam.is_published ? 'btn-outline' : 'btn-primary'}" id="publishToggleBtn"
                             onclick="ExamGraderApp.togglePublish()">
                         ${exam.is_published ? this.t('eg.btn.unpublish') : this.t('eg.btn.publish')}
@@ -1855,6 +1883,40 @@ const ExamGraderApp = {
     },
 
     // ── Publish / Unpublish ─────────────────────────────────────
+    async addCollabFromResults(select) {
+        const id = parseInt(select.value);
+        if (!id) return;
+        select.value = '';
+        const exam = ExamGraderState.currentExam;
+        if (!exam) return;
+        let collabs = exam.collaborators;
+        if (typeof collabs === 'string') { try { collabs = JSON.parse(collabs); } catch(e) { collabs = []; } }
+        if (!Array.isArray(collabs)) collabs = [];
+        if (collabs.includes(id)) return;
+        collabs.push(id);
+        const res = await ExamGraderAPI.updateExam(exam.id, { collaborators: collabs });
+        if (res && res.success) {
+            ExamGraderState.currentExam.collaborators = collabs;
+            const chips = document.getElementById('resultsCollabChips');
+            if (chips) chips.innerHTML = ExamGraderUI._renderCollabChipsInline(ExamGraderState.currentExam);
+        }
+    },
+
+    async removeCollabFromResults(id) {
+        const exam = ExamGraderState.currentExam;
+        if (!exam) return;
+        let collabs = exam.collaborators;
+        if (typeof collabs === 'string') { try { collabs = JSON.parse(collabs); } catch(e) { collabs = []; } }
+        if (!Array.isArray(collabs)) return;
+        collabs = collabs.filter(c => c !== id);
+        const res = await ExamGraderAPI.updateExam(exam.id, { collaborators: collabs.length > 0 ? collabs : null });
+        if (res && res.success) {
+            ExamGraderState.currentExam.collaborators = collabs;
+            const chips = document.getElementById('resultsCollabChips');
+            if (chips) chips.innerHTML = ExamGraderUI._renderCollabChipsInline(ExamGraderState.currentExam);
+        }
+    },
+
     async togglePublish() {
         const exam = ExamGraderState.currentExam;
         if (!exam) return;

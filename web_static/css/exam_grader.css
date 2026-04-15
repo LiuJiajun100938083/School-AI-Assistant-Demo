@@ -771,6 +771,27 @@ body {
     display: flex;
 }
 .collab-chip__remove:hover { opacity: 1; }
+.collab-chip--sm { padding: 2px 8px; font-size: 11px; }
+
+/* Inline collaborator area (results toolbar) */
+.collab-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.collab-inline__chips { display: contents; }
+.collab-inline__select {
+    padding: 4px 8px;
+    border: 1px dashed var(--border-default);
+    border-radius: 16px;
+    background: transparent;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    outline: none;
+}
+.collab-inline__select:hover { border-color: var(--brand); color: var(--brand); }
 
 /* ============================================================
    Question Cards
