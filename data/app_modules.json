@@ -466,5 +466,20 @@
     "enabled": true,
     "order": 16,
     "category": "teaching"
+  },
+  {
+    "id": "my_exams",
+    "name": "我的考試成績",
+    "icon": "",
+    "description": "查看已發放的考試批改結果和 AI 個人分析",
+    "url": "/my-exams",
+    "roles": [
+      "student",
+      "teacher",
+      "admin"
+    ],
+    "enabled": true,
+    "order": 8,
+    "category": "learning"
   }
 ]

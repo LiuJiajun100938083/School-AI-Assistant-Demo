@@ -18,6 +18,28 @@ class ExamPaperRepository(BaseRepository):
 
     TABLE = "exam_papers"
 
+    def ensure_schema(self):
+        """安全添加 is_published / published_at 列（幂等）"""
+        migrations = {
+            "is_published": (
+                "ALTER TABLE exam_papers ADD COLUMN is_published "
+                "TINYINT(1) DEFAULT 0 COMMENT '是否已發放給學生' AFTER is_deleted"
+            ),
+            "published_at": (
+                "ALTER TABLE exam_papers ADD COLUMN published_at "
+                "DATETIME DEFAULT NULL COMMENT '發放時間' AFTER is_published"
+            ),
+        }
+        try:
+            rows = self.raw_query("SHOW COLUMNS FROM exam_papers", ())
+            existing = {r["Field"] for r in rows}
+            for col, sql in migrations.items():
+                if col not in existing:
+                    self.raw_execute(sql, ())
+                    logger.info("exam_papers: 已添加列 %s", col)
+        except Exception as e:
+            logger.warning("exam_papers schema migration failed: %s", e)
+
     def find_by_teacher(
         self,
         teacher_id: int,

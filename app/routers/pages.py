@@ -453,6 +453,12 @@ async def exam_grader_page():
     return _serve_page("exam_grader.html")
 
 
+@router.get("/my-exams")
+async def my_exams_page():
+    """我的考試成績（學生端）"""
+    return _serve_page("my_exams.html")
+
+
 @router.get("/tools/laser-engrave")
 async def laser_engrave():
     """雷射雕刻圖片轉換工具"""

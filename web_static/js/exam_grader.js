@@ -182,6 +182,15 @@ const ExamGraderAPI = {
     getStatistics(examId) {
         return this._fetch(`/api/exam-grader/exams/${examId}/statistics`);
     },
+    generateAiSummary(examId) {
+        return this._fetchLong(`/api/exam-grader/exams/${examId}/ai-summary`, { method: 'POST' });
+    },
+    publishExam(examId) {
+        return this._fetch(`/api/exam-grader/exams/${examId}/publish`, { method: 'POST' });
+    },
+    unpublishExam(examId) {
+        return this._fetch(`/api/exam-grader/exams/${examId}/unpublish`, { method: 'POST' });
+    },
     exportClassUrl(examId) {
         return `/api/exam-grader/exams/${examId}/export-class`;
     },
@@ -918,6 +927,25 @@ const ExamGraderUI = {
             html += this._renderStatistics(stats);
         }
 
+        // AI Summary panel
+        html += `
+            <div class="stats-card ai-summary-card" style="margin-top:var(--space-5);">
+                <div class="stats-card-title" style="display:flex;align-items:center;justify-content:space-between;">
+                    <span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><path d="M12 2a5 5 0 0 1 5 5c0 2-1.5 3.5-3 4.5V13a2 2 0 0 1-4 0v-1.5C8.5 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                        ${this.t('eg.stats.aiSummary')}
+                    </span>
+                    <button class="btn btn-primary btn-sm" id="aiSummaryBtn" onclick="ExamGraderApp.generateAiSummary()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5c0 2-1.5 3.5-3 4.5V13a2 2 0 0 1-4 0v-1.5C8.5 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+                        ${this.t('eg.stats.generateSummary')}
+                    </button>
+                </div>
+                <div id="aiSummaryContent" class="ai-summary-content">
+                    <p class="ai-summary-placeholder">${this.t('eg.stats.summaryHint')}</p>
+                </div>
+            </div>
+        `;
+
         html += `
             <div style="display:flex;justify-content:space-between;margin-top:var(--space-5);">
                 <button class="btn btn-outline" onclick="ExamGraderApp.goToStep(4)">
@@ -925,6 +953,10 @@ const ExamGraderUI = {
                     ${this.t('eg.btn.prev')}
                 </button>
                 <div style="display:flex;gap:var(--space-2);">
+                    <button class="btn ${exam.is_published ? 'btn-outline' : 'btn-primary'}" id="publishToggleBtn"
+                            onclick="ExamGraderApp.togglePublish()">
+                        ${exam.is_published ? this.t('eg.btn.unpublish') : this.t('eg.btn.publish')}
+                    </button>
                     <button class="btn btn-outline" onclick="ExamGraderApp.exportClass()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         ${this.t('eg.btn.exportClass')}
@@ -1752,6 +1784,59 @@ const ExamGraderApp = {
         const res = await ExamGraderAPI.adjustScore(answerId, score, feedback);
         if (res && res.success) {
             ExamGraderUI.toast(ExamGraderUI.t('eg.adjust.saved'), 'success');
+        }
+    },
+
+    // ── Publish / Unpublish ─────────────────────────────────────
+    async togglePublish() {
+        const exam = ExamGraderState.currentExam;
+        if (!exam) return;
+        const isPublished = exam.is_published;
+        const res = isPublished
+            ? await ExamGraderAPI.unpublishExam(exam.id)
+            : await ExamGraderAPI.publishExam(exam.id);
+        if (res && res.success) {
+            ExamGraderState.currentExam.is_published = !isPublished;
+            ExamGraderUI.toast(
+                isPublished ? ExamGraderUI.t('eg.toast.unpublished') : ExamGraderUI.t('eg.toast.published'),
+                'success'
+            );
+            // Update button
+            const btn = document.getElementById('publishToggleBtn');
+            if (btn) {
+                btn.className = `btn ${!isPublished ? 'btn-outline' : 'btn-primary'}`;
+                btn.textContent = !isPublished
+                    ? ExamGraderUI.t('eg.btn.unpublish')
+                    : ExamGraderUI.t('eg.btn.publish');
+            }
+        } else {
+            ExamGraderUI.toast(res?.message || ExamGraderUI.t('eg.error.saveFail'), 'error');
+        }
+    },
+
+    // ── AI Summary ────────────────────────────────────────────
+    async generateAiSummary() {
+        const exam = ExamGraderState.currentExam;
+        if (!exam) return;
+
+        const btn = document.getElementById('aiSummaryBtn');
+        const content = document.getElementById('aiSummaryContent');
+        if (btn) btn.disabled = true;
+        if (content) content.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);"><span class="loading-spinner" style="width:16px;height:16px;"></span>${ExamGraderUI.t('eg.stats.summaryGenerating')}</div>`;
+
+        const res = await ExamGraderAPI.generateAiSummary(exam.id);
+        if (res && res.success && res.data?.summary) {
+            const summary = res.data.summary;
+            // Split by newlines into paragraphs
+            const paragraphs = summary.split(/\n+/).filter(Boolean);
+            content.innerHTML = paragraphs.map(p => `<p>${ExamGraderUI._esc(p)}</p>`).join('');
+            content.classList.add('has-content');
+        } else {
+            content.innerHTML = `<p style="color:var(--color-error);">${res?.message || ExamGraderUI.t('eg.error.loadFail')}</p>`;
+        }
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> ${ExamGraderUI.t('eg.stats.regenerate')}`;
         }
     },
 

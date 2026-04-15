@@ -156,6 +156,11 @@ i18n.addMessages({
         'eg.stats.partB': '乙部（簡答題）',
         'eg.stats.noData': '暫無數據',
         'eg.stats.median': '中位數',
+        'eg.stats.aiSummary': 'AI 全班表現總結',
+        'eg.stats.generateSummary': '生成總結',
+        'eg.stats.regenerate': '重新生成',
+        'eg.stats.summaryHint': '點擊「生成總結」按鈕，AI 會根據統計數據自動分析全班表現',
+        'eg.stats.summaryGenerating': 'AI 正在分析全班數據，請稍候...',
 
         // Common buttons
         'eg.btn.back': '返回',
@@ -185,6 +190,10 @@ i18n.addMessages({
         'eg.toast.gradingStarted': '批改已開始',
         'eg.toast.gradingCancelled': '批改已取消',
         'eg.toast.scoreAdjusted': '分數已調整',
+        'eg.toast.published': '已發放給學生',
+        'eg.toast.unpublished': '已撤回發放',
+        'eg.btn.publish': '發放試卷',
+        'eg.btn.unpublish': '撤回發放',
 
         // Delete confirm
         'eg.confirm.delete': '確定要刪除此考試嗎？此操作無法復原。',
@@ -345,6 +354,11 @@ i18n.addMessages({
         'eg.stats.partB': 'Part B (Short Answer)',
         'eg.stats.noData': 'No data available',
         'eg.stats.median': 'Median',
+        'eg.stats.aiSummary': 'AI Class Performance Summary',
+        'eg.stats.generateSummary': 'Generate Summary',
+        'eg.stats.regenerate': 'Regenerate',
+        'eg.stats.summaryHint': 'Click "Generate Summary" for an AI-powered analysis of class performance',
+        'eg.stats.summaryGenerating': 'AI is analyzing class data, please wait...',
 
         // Common buttons
         'eg.btn.back': 'Back',
@@ -374,6 +388,10 @@ i18n.addMessages({
         'eg.toast.gradingStarted': 'Grading started',
         'eg.toast.gradingCancelled': 'Grading cancelled',
         'eg.toast.scoreAdjusted': 'Score adjusted',
+        'eg.toast.published': 'Results published to students',
+        'eg.toast.unpublished': 'Results unpublished',
+        'eg.btn.publish': 'Publish Results',
+        'eg.btn.unpublish': 'Unpublish',
 
         // Delete confirm
         'eg.confirm.delete': 'Are you sure you want to delete this exam? This action cannot be undone.',

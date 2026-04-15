@@ -246,6 +246,7 @@ class ServiceContainer:
         self._ask_ai_func: Optional[Any] = None
         self._collab_board: Optional[CollabBoardService] = None
         self._exam_grader: Optional["ExamGraderService"] = None
+        self._my_exams: Optional[Any] = None
         self._collab_board_broadcaster: Optional[BoardBroadcaster] = None
 
     # ================================================================== #
@@ -496,6 +497,17 @@ class ServiceContainer:
                 settings=self._settings,
             )
         return self._exam_grader
+
+    @property
+    def my_exams(self):
+        """學生考試成績服務"""
+        if self._my_exams is None:
+            from app.domains.my_exams.repository import MyExamsRepository
+            from app.domains.my_exams.service import MyExamsService
+            self._my_exams = MyExamsService(
+                repo=self._get_repo(MyExamsRepository),
+            )
+        return self._my_exams
 
     @property
     def game_upload(self) -> GameUploadService:

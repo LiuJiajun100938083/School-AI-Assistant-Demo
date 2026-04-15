@@ -66,6 +66,9 @@ class ExamGraderService:
         self._user_repo = user_repo
         self._settings = settings
 
+        # Schema 迁移（幂等）
+        paper_repo.ensure_schema()
+
         # AI 函数注入（通过 container 设置）
         self._ask_ai_func: Optional[Callable] = None
         self._rag_func: Optional[Callable] = None
@@ -1026,6 +1029,114 @@ class ExamGraderService:
             "section_stats": section_stats,
             "per_question_stats": per_question_stats,
         }
+
+    # ================================================================
+    # 发放 / 撤回
+    # ================================================================
+
+    def publish_exam(self, exam_id: int) -> Dict[str, Any]:
+        """发放考试结果给学生"""
+        from datetime import datetime
+        exam = self._paper_repo.find_by_id(exam_id)
+        if not exam:
+            raise ValueError("考试不存在")
+        if exam["status"] != ExamStatus.COMPLETED.value:
+            raise ValueError("只能发放已完成批改的考试")
+        self._paper_repo.update(
+            {"is_published": 1, "published_at": datetime.now()},
+            "id = %s", (exam_id,),
+        )
+        return {"is_published": True}
+
+    def unpublish_exam(self, exam_id: int) -> Dict[str, Any]:
+        """撤回发放"""
+        self._paper_repo.update(
+            {"is_published": 0, "published_at": None},
+            "id = %s", (exam_id,),
+        )
+        return {"is_published": False}
+
+    # ================================================================
+    # AI 全班总结
+    # ================================================================
+
+    async def generate_class_summary(self, exam_id: int) -> str:
+        """AI 生成全班表现总结"""
+        from app.infrastructure.ai_pipeline.llm_caller import call_llm_json
+
+        stats = self.get_statistics(exam_id)
+        exam = self._paper_repo.find_by_id(exam_id)
+        title = exam.get("title", "考试") if exam else "考试"
+        subject = exam.get("subject", "") if exam else ""
+        class_name = exam.get("class_name", "") if exam else ""
+
+        # 构建数据摘要给 LLM
+        pqs_lines = []
+        for q in stats.get("per_question_stats", []):
+            line = f"  {q.get('section','')}{q.get('question_number','')}"
+            line += f"（{'選擇題' if q.get('question_type') == 'mc' else '簡答題'}，"
+            line += f"滿分{q.get('max_marks', 0)}）"
+            line += f"得分率 {q.get('score_rate', 0)}%"
+            if q.get('correct_rate') is not None:
+                line += f"，正確率 {q['correct_rate']}%"
+            pqs_lines.append(line)
+
+        sec_lines = []
+        sec_labels = {"A": "甲部（選擇題）", "B": "乙部（簡答題）"}
+        for sec, info in stats.get("section_stats", {}).items():
+            sec_lines.append(f"  {sec_labels.get(sec, sec)}：平均得分率 {info.get('avg_rate', 0)}%")
+
+        grade_lines = []
+        for grade, count in stats.get("grade_distribution", {}).items():
+            if count > 0:
+                grade_lines.append(f"  {grade}: {count} 人")
+
+        data_text = f"""考試：{title}
+科目：{subject}
+班級：{class_name}
+總分：{stats.get('total_max', 0)}
+考生人數：{stats.get('total_students', 0)}
+平均分：{stats.get('average_score')}
+最高分：{stats.get('highest_score')}
+最低分：{stats.get('lowest_score')}
+中位數：{stats.get('median_score')}
+及格率：{stats.get('pass_rate')}%
+標準差：{stats.get('std_deviation')}
+
+等級分佈：
+{chr(10).join(grade_lines) if grade_lines else '  無數據'}
+
+分部表現：
+{chr(10).join(sec_lines) if sec_lines else '  無數據'}
+
+各題表現：
+{chr(10).join(pqs_lines) if pqs_lines else '  無數據'}"""
+
+        prompt = f"""你是一位資深教師，請根據以下全班考試數據，撰寫一份專業的全班表現總結報告。
+
+{data_text}
+
+要求：
+1. 用繁體中文撰寫
+2. 以 JSON 格式輸出：{{"summary": "報告內容"}}
+3. 報告需包含以下部分（用段落分隔，不用 markdown）：
+   - 整體表現概述（一句話總結全班水平）
+   - 成績分布分析（等級分布是否合理、是否有兩極化現象）
+   - 強弱項分析（哪些題目表現好、哪些題目需要加強）
+   - 甲部 vs 乙部比較（選擇題和簡答題的表現差異）
+   - 教學建議（針對薄弱環節的具體改進建議，2-3 條）
+4. 語氣專業客觀，約 200-300 字
+5. 不要用 * 號、# 號等 markdown 符號"""
+
+        content, _ = await call_llm_json(
+            prompt=prompt,
+            gate_task="exam_summary",
+            gate_priority=2,
+            gate_weight=3,
+        )
+        # 解析 JSON
+        parsed = self._parse_vision_json(content)
+        return parsed.get("summary", content)
 
     # ================================================================
     # 辅助

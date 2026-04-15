@@ -58,6 +58,7 @@ def register_all_routers(app: FastAPI) -> None:
     from app.routers.exam_creator import router as exam_creator_router
     from app.routers.dictation import router as dictation_router
     from app.routers.exam_grader import router as exam_grader_router
+    from app.routers.my_exams import router as my_exams_router
     from app.routers.collab_board import router as collab_board_router
     from app.routers.tools import router as tools_router
 
@@ -93,6 +94,7 @@ def register_all_routers(app: FastAPI) -> None:
     app.include_router(exam_creator_router)
     app.include_router(dictation_router)
     app.include_router(exam_grader_router)
+    app.include_router(my_exams_router)
     app.include_router(collab_board_router)
     app.include_router(tools_router)
 

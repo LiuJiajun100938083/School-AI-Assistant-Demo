@@ -320,6 +320,49 @@ async def get_statistics(
     return _success(stats)
 
 
+@router.post("/exams/{exam_id}/publish")
+async def publish_exam(
+    exam_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """发放考试结果给学生"""
+    _require_teacher(current_user)
+    svc = _get_service()
+    try:
+        result = svc.publish_exam(exam_id)
+        return _success(result, "已發放")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/exams/{exam_id}/unpublish")
+async def unpublish_exam(
+    exam_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """撤回发放"""
+    _require_teacher(current_user)
+    svc = _get_service()
+    svc.unpublish_exam(exam_id)
+    return _success(None, "已撤回")
+
+
+@router.post("/exams/{exam_id}/ai-summary")
+async def generate_ai_summary(
+    exam_id: int,
+    current_user: dict = Depends(get_current_user),
+):
+    """AI 总结全班表现"""
+    _require_teacher(current_user)
+    svc = _get_service()
+    try:
+        summary = await svc.generate_class_summary(exam_id)
+        return _success({"summary": summary})
+    except Exception as e:
+        logger.error("AI 总结失败 (exam=%d): %s", exam_id, e, exc_info=True)
+        raise HTTPException(500, f"AI 总结失败: {str(e)[:200]}")
+
+
 # ── 匯出 ──
 
 
