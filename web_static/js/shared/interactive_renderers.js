@@ -641,6 +641,12 @@ LessonSlideRenderers.register('interactive', {
         });
     },
 
+    addLocalCanvasSubmission(submission) {
+        const grid = document.getElementById('canvasSubmissionsGrid');
+        if (!grid) return;
+        this._renderCanvasThumbnails(grid, [submission]);
+    },
+
     _showCanvasLightbox(submission) {
         // 移除已有的 lightbox
         const old = document.querySelector('.canvas-lightbox-overlay');

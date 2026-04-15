@@ -340,7 +340,15 @@
 
         // 學生端
         renderer.renderStudent(_studentPane, studentSlideData, {
-            onSubmit: function () { },
+            onSubmit: function (response) {
+                // 預覽模式: 直接把提交推入教師端縮略圖
+                if (template === 'free_canvas' && response && response.preview_base64) {
+                    renderer.addLocalCanvasSubmission({
+                        student_username: '預覽學生',
+                        preview_base64: response.preview_base64,
+                    });
+                }
+            },
             onProgress: function () { },
             locked: false,
         });
