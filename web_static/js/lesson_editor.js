@@ -12,29 +12,6 @@
 (function () {
     'use strict';
 
-    // ===== 圖片壓縮工具（上傳前壓縮，加快傳輸） =====
-    function compressImage(file, maxWidth = 1200, quality = 0.8) {
-        return new Promise((resolve) => {
-            // 小於 500KB 不壓縮
-            if (file.size < 500 * 1024) { resolve(file); return; }
-            const img = new Image();
-            const url = URL.createObjectURL(file);
-            img.onload = () => {
-                URL.revokeObjectURL(url);
-                let w = img.width, h = img.height;
-                if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
-                const canvas = document.createElement('canvas');
-                canvas.width = w; canvas.height = h;
-                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                canvas.toBlob(blob => {
-                    resolve(blob ? new File([blob], file.name, { type: 'image/jpeg' }) : file);
-                }, 'image/jpeg', quality);
-            };
-            img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-            img.src = url;
-        });
-    }
-
     // ===== Auth =====
     const token = localStorage.getItem('auth_token');
     if (!token) {
@@ -1124,9 +1101,8 @@
                     const file = input.files[0];
                     if (!file) return;
                     try {
-                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('file', compressed);
+                        formData.append('file', file);
                         const token = AuthModule.getToken();
                         const res = await fetch('/api/classroom/quiz-images', {
                             method: 'POST',
@@ -1169,9 +1145,8 @@
                     const file = input.files[0];
                     if (!file) return;
                     try {
-                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('file', compressed);
+                        formData.append('file', file);
                         const token = AuthModule.getToken();
                         const res = await fetch('/api/classroom/quiz-images', {
                             method: 'POST',
@@ -1376,9 +1351,8 @@
                     const file = input.files[0];
                     if (!file) return;
                     try {
-                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('file', compressed);
+                        formData.append('file', file);
                         const token = AuthModule.getToken();
                         const res = await fetch('/api/classroom/quiz-images', {
                             method: 'POST',
@@ -1417,9 +1391,8 @@
                     const file = input.files[0];
                     if (!file) return;
                     try {
-                        const compressed = await compressImage(file);
                         const formData = new FormData();
-                        formData.append('file', compressed);
+                        formData.append('file', file);
                         const token = AuthModule.getToken();
                         const res = await fetch('/api/classroom/quiz-images', {
                             method: 'POST',
