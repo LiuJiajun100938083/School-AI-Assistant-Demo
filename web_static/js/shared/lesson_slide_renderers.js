@@ -17,9 +17,14 @@ function _normalizeOpt(opt) {
 function _optText(opt) { return _normalizeOpt(opt).text; }
 function _optHtml(opt, esc) {
     const o = _normalizeOpt(opt);
-    let html = esc(o.text);
-    if (o.image_url) html = `<img src="${esc(o.image_url)}" style="max-height:48px;border-radius:4px;vertical-align:middle;margin-right:4px;">` + html;
-    return html;
+    if (o.image_url) {
+        // 有圖片：圖片為主，文字為輔（Kahoot 風格）
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;">
+            <img src="${esc(o.image_url)}" style="max-height:120px;max-width:100%;border-radius:8px;object-fit:contain;">
+            ${o.text ? `<span style="font-size:13px;color:inherit;">${esc(o.text)}</span>` : ''}
+        </div>`;
+    }
+    return esc(o.text);
 }
 
 window.LessonSlideRenderers = {
@@ -218,7 +223,8 @@ LessonSlideRenderers.register('quiz', {
         // Options — only shown when accepting responses
         const accepting = state.accepting !== false;
         if (accepting) {
-            html += '<div class="quiz-options">';
+            const hasImgs = question.options?.some(o => _normalizeOpt(o).image_url);
+            html += `<div class="quiz-options${hasImgs ? ' has-images' : ''}">`;
             if (question.type === 'mc' && question.options) {
                 question.options.forEach((opt, i) => {
                     const val = String.fromCharCode(65 + i);
@@ -382,7 +388,8 @@ LessonSlideRenderers.register('quiz', {
         html += `<div class="quiz-q-text">${Utils.escapeHtml(question.text)}</div>`;
         html += '</div>';
 
-        html += '<div class="quiz-options">';
+        const hasImgs2 = question.options?.some(o => _normalizeOpt(o).image_url);
+        html += `<div class="quiz-options${hasImgs2 ? ' has-images' : ''}">`;
         if (question.type === 'mc' && question.options) {
             question.options.forEach((opt, i) => {
                 const val = String.fromCharCode(65 + i);
