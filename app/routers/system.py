@@ -308,7 +308,14 @@ async def process_temp_file(request: Request, file: UploadFile = File(...)):
             from llm.rag.file_processor import FileProcessor
             processor = FileProcessor()
             result = processor.process_file(temp_path, file.filename, "temp")
-            extracted_text = result.get("content", "") if result else ""
+            # process_file returns Tuple[bool, str, Dict]
+            if isinstance(result, tuple):
+                ok, text, _info = result
+                extracted_text = text if ok else ""
+            elif isinstance(result, dict):
+                extracted_text = result.get("content", "")
+            else:
+                extracted_text = str(result) if result else ""
         except ImportError:
             # 回退：纯文本读取
             try:
