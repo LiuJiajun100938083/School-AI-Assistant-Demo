@@ -158,20 +158,18 @@ const MyExamsUI = {
             html += `</tbody></table></div>`;
         }
 
-        // AI Analysis panel
+        // AI Analysis panel (iOS style)
         html += `
-            <div class="detail-card ai-card">
-                <div class="detail-card-title" style="display:flex;align-items:center;justify-content:space-between;">
-                    <span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><path d="M12 2a5 5 0 0 1 5 5c0 2-1.5 3.5-3 4.5V13a2 2 0 0 1-4 0v-1.5C8.5 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-                        ${this.t('me.detail.aiAnalysis')}
-                    </span>
-                    <button class="btn btn-primary btn-sm" id="aiBtn" onclick="MyExamsApp.generateAnalysis()">
+            <div class="ai-panel">
+                <div class="ai-panel-header">
+                    <div class="ai-panel-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a5 5 0 0 1 5 5c0 2-1.5 3.5-3 4.5V13a2 2 0 0 1-4 0v-1.5C8.5 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></div>
+                    <div class="ai-panel-title">${this.t('me.detail.aiAnalysis')}</div>
+                    <button class="ai-panel-btn" id="aiBtn" onclick="MyExamsApp.generateAnalysis()">
                         ${this.t('me.detail.generate')}
                     </button>
                 </div>
-                <div id="aiContent" class="ai-content">
-                    <p class="ai-hint">${this.t('me.detail.hint')}</p>
+                <div id="aiContent" class="ai-panel-body">
+                    <p class="ai-panel-hint">${this.t('me.detail.hint')}</p>
                 </div>
             </div>`;
 
@@ -188,7 +186,7 @@ const MyExamsUI = {
 
     renderAnalysisError(msg) {
         const el = document.getElementById('aiContent');
-        if (el) el.innerHTML = `<p style="color:var(--color-error);">${this._esc(msg)}</p>`;
+        if (el) el.innerHTML = `<p class="ai-panel-error">${this._esc(msg)}</p>`;
     },
 };
 
@@ -236,9 +234,7 @@ const MyExamsApp = {
         const btn = document.getElementById('aiBtn');
         const content = document.getElementById('aiContent');
         if (btn) btn.disabled = true;
-        if (content) content.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);">
-            <span class="loading-spinner" style="width:16px;height:16px;"></span>${MyExamsUI.t('me.detail.generating')}
-        </div>`;
+        if (content) content.innerHTML = `<div class="ai-panel-loading"><span class="loading-spinner" style="width:16px;height:16px;"></span>${MyExamsUI.t('me.detail.generating')}</div>`;
 
         const res = await MyExamsAPI.getAiAnalysis(this._currentExamId);
         if (res && res.success && res.data?.analysis) {

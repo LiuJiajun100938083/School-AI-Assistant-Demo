@@ -927,21 +927,19 @@ const ExamGraderUI = {
             html += this._renderStatistics(stats);
         }
 
-        // AI Summary panel
+        // AI Summary panel (iOS style)
         html += `
-            <div class="stats-card ai-summary-card" style="margin-top:var(--space-5);">
-                <div class="stats-card-title" style="display:flex;align-items:center;justify-content:space-between;">
-                    <span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" style="vertical-align:-2px;margin-right:6px;"><path d="M12 2a5 5 0 0 1 5 5c0 2-1.5 3.5-3 4.5V13a2 2 0 0 1-4 0v-1.5C8.5 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
-                        ${this.t('eg.stats.aiSummary')}
-                    </span>
-                    <button class="btn btn-primary btn-sm" id="aiSummaryBtn" onclick="ExamGraderApp.generateAiSummary()">
+            <div class="ai-panel" style="margin-top:var(--space-5);">
+                <div class="ai-panel-header">
+                    <div class="ai-panel-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a5 5 0 0 1 5 5c0 2-1.5 3.5-3 4.5V13a2 2 0 0 1-4 0v-1.5C8.5 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M9 18h6"/><path d="M10 22h4"/></svg></div>
+                    <div class="ai-panel-title">${this.t('eg.stats.aiSummary')}</div>
+                    <button class="ai-panel-btn" id="aiSummaryBtn" onclick="ExamGraderApp.generateAiSummary()">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5c0 2-1.5 3.5-3 4.5V13a2 2 0 0 1-4 0v-1.5C8.5 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
                         ${this.t('eg.stats.generateSummary')}
                     </button>
                 </div>
-                <div id="aiSummaryContent" class="ai-summary-content">
-                    <p class="ai-summary-placeholder">${this.t('eg.stats.summaryHint')}</p>
+                <div id="aiSummaryContent" class="ai-panel-body">
+                    <p class="ai-panel-hint">${this.t('eg.stats.summaryHint')}</p>
                 </div>
             </div>
         `;
@@ -1822,17 +1820,16 @@ const ExamGraderApp = {
         const btn = document.getElementById('aiSummaryBtn');
         const content = document.getElementById('aiSummaryContent');
         if (btn) btn.disabled = true;
-        if (content) content.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--text-secondary);"><span class="loading-spinner" style="width:16px;height:16px;"></span>${ExamGraderUI.t('eg.stats.summaryGenerating')}</div>`;
+        if (content) content.innerHTML = `<div class="ai-panel-loading"><span class="loading-spinner" style="width:16px;height:16px;"></span>${ExamGraderUI.t('eg.stats.summaryGenerating')}</div>`;
 
         const res = await ExamGraderAPI.generateAiSummary(exam.id);
         if (res && res.success && res.data?.summary) {
             const summary = res.data.summary;
-            // Split by newlines into paragraphs
             const paragraphs = summary.split(/\n+/).filter(Boolean);
             content.innerHTML = paragraphs.map(p => `<p>${ExamGraderUI._esc(p)}</p>`).join('');
             content.classList.add('has-content');
         } else {
-            content.innerHTML = `<p style="color:var(--color-error);">${res?.message || ExamGraderUI.t('eg.error.loadFail')}</p>`;
+            content.innerHTML = `<p class="ai-panel-error">${res?.message || ExamGraderUI.t('eg.error.loadFail')}</p>`;
         }
         if (btn) {
             btn.disabled = false;
