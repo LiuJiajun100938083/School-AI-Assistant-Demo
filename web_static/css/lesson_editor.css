@@ -938,6 +938,52 @@ body {
     justify-content: center;
 }
 
+/* ===== Option Image (Quiz & Poll) ===== */
+.opt-img-area {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.opt-img-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px dashed var(--border, #ccc);
+    border-radius: 6px;
+    cursor: pointer;
+    color: #999;
+    transition: border-color 0.2s, color 0.2s;
+}
+.opt-img-btn:hover { border-color: var(--brand); color: var(--brand); }
+.opt-img-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid #e0e0e0;
+}
+.opt-img-remove,
+.opt-img-remove-poll {
+    border: none;
+    background: #ff4444;
+    color: #fff;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: -8px;
+    margin-top: -8px;
+    align-self: flex-start;
+}
+
 /* ===== Poll Config Editor ===== */
 .poll-option-row {
     display: flex;

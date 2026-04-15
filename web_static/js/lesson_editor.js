@@ -949,14 +949,24 @@
                 let answerHtml = '';
 
                 if (q.type === 'mc') {
-                    const opts = q.options || ['', '', '', ''];
-                    answerHtml = opts.map((opt, oi) => `
-                        <div class="quiz-option-row">
-                            <input type="radio" name="quizCorrect_${qi}" value="${oi}" ${q.correct_answer === opt ? 'checked' : ''}>
-                            <input type="text" class="config-input quiz-opt-input" data-qi="${qi}" data-oi="${oi}" value="${escapeHtml(opt)}" placeholder="選項 ${oi + 1}">
-                            ${opts.length > 2 ? `<button class="remove-item-btn quiz-remove-opt" data-qi="${qi}" data-oi="${oi}" title="刪除">&times;</button>` : ''}
-                        </div>
-                    `).join('') + `<button class="add-item-btn quiz-add-opt" data-qi="${qi}">+ 新增選項</button>`;
+                    const rawOpts = q.options || ['', '', '', ''];
+                    // 兼容：string → {text, image_url}
+                    const opts = rawOpts.map(o => typeof o === 'string' ? { text: o, image_url: null } : o);
+                    answerHtml = opts.map((opt, oi) => {
+                        const optText = opt.text || '';
+                        const optImg = opt.image_url || '';
+                        return `<div class="quiz-option-row">
+                            <input type="radio" name="quizCorrect_${qi}" value="${oi}" ${q.correct_answer === optText ? 'checked' : ''}>
+                            <input type="text" class="config-input quiz-opt-input" data-qi="${qi}" data-oi="${oi}" value="${escapeHtml(optText)}" placeholder="選項 ${oi + 1}">
+                            <div class="opt-img-area" data-qi="${qi}" data-oi="${oi}">
+                                ${optImg
+                                    ? `<img class="opt-img-thumb" src="${escapeHtml(optImg)}"><button class="opt-img-remove" data-qi="${qi}" data-oi="${oi}" title="移除">&times;</button>`
+                                    : `<label class="opt-img-btn" title="選項圖片"><input type="file" accept="image/*" class="opt-img-input" data-qi="${qi}" data-oi="${oi}" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></label>`
+                                }
+                            </div>
+                            ${rawOpts.length > 2 ? `<button class="remove-item-btn quiz-remove-opt" data-qi="${qi}" data-oi="${oi}" title="刪除">&times;</button>` : ''}
+                        </div>`;
+                    }).join('') + `<button class="add-item-btn quiz-add-opt" data-qi="${qi}">+ 新增選項</button>`;
                 } else if (q.type === 'tf') {
                     answerHtml = `
                         <div class="quiz-option-row">
@@ -1126,6 +1136,54 @@
                     editorState.dirty = true;
                 });
             });
+
+            // Event: option image upload
+            $el.querySelectorAll('.opt-img-input').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const qi = parseInt(input.dataset.qi);
+                    const oi = parseInt(input.dataset.oi);
+                    const file = input.files[0];
+                    if (!file) return;
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const token = AuthModule.getToken();
+                        const res = await fetch('/api/classroom/quiz-images', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: formData,
+                        });
+                        const json = await res.json();
+                        if (json.success && json.data?.url) {
+                            const collected = this.collectConfig(slide);
+                            if (collected) slide.config = collected;
+                            const opts = slide.config.questions[qi].options || [];
+                            if (opts[oi] !== undefined) {
+                                if (typeof opts[oi] === 'string') opts[oi] = { text: opts[oi], image_url: json.data.url };
+                                else opts[oi].image_url = json.data.url;
+                            }
+                            this.renderConfig(slide, $el);
+                            editorState.dirty = true;
+                        } else {
+                            UIModule.toast(json.message || '圖片上傳失敗', 'error');
+                        }
+                    } catch (e) { UIModule.toast('圖片上傳失敗', 'error'); }
+                });
+            });
+
+            // Event: remove option image
+            $el.querySelectorAll('.opt-img-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const qi = parseInt(btn.dataset.qi);
+                    const oi = parseInt(btn.dataset.oi);
+                    const collected = this.collectConfig(slide);
+                    if (collected) slide.config = collected;
+                    const opts = slide.config.questions[qi].options || [];
+                    if (opts[oi] && typeof opts[oi] === 'object') opts[oi].image_url = null;
+                    this.renderConfig(slide, $el);
+                    editorState.dirty = true;
+                });
+            });
         },
 
         collectConfig(slide) {
@@ -1145,7 +1203,10 @@
                 if (type === 'mc') {
                     options = [];
                     block.querySelectorAll('.quiz-opt-input').forEach(inp => {
-                        options.push(inp.value);
+                        const oi = parseInt(inp.dataset.oi);
+                        const origOpt = (origQ.options || [])[oi];
+                        const imgUrl = (origOpt && typeof origOpt === 'object') ? origOpt.image_url : null;
+                        options.push(imgUrl ? { text: inp.value, image_url: imgUrl } : inp.value);
                     });
                     const checkedRadio = block.querySelector(`input[name="quizCorrect_${qi}"]:checked`);
                     if (checkedRadio && options[parseInt(checkedRadio.value)] !== undefined) {
@@ -1220,15 +1281,25 @@
 
         renderConfig(slide, $el) {
             const cfg = slide.config || {};
-            const options = cfg.options || ['', ''];
+            const rawOptions = cfg.options || ['', ''];
+            // 兼容：string → {text, image_url}
+            const options = rawOptions.map(o => typeof o === 'string' ? { text: o, image_url: null } : o);
 
-            const optionsHtml = options.map((opt, i) => `
-                <div class="poll-option-row">
+            const optionsHtml = options.map((opt, i) => {
+                const optText = opt.text || '';
+                const optImg = opt.image_url || '';
+                return `<div class="poll-option-row">
                     <span class="poll-option-num">${i + 1}.</span>
-                    <input type="text" class="config-input poll-opt-input" data-oi="${i}" value="${escapeHtml(opt)}" placeholder="選項 ${i + 1}">
-                    ${options.length > 2 ? `<button class="remove-item-btn poll-remove-opt" data-oi="${i}" title="刪除">&times;</button>` : ''}
-                </div>
-            `).join('');
+                    <input type="text" class="config-input poll-opt-input" data-oi="${i}" value="${escapeHtml(optText)}" placeholder="選項 ${i + 1}">
+                    <div class="opt-img-area" data-poll-oi="${i}">
+                        ${optImg
+                            ? `<img class="opt-img-thumb" src="${escapeHtml(optImg)}"><button class="opt-img-remove-poll" data-oi="${i}" title="移除">&times;</button>`
+                            : `<label class="opt-img-btn" title="選項圖片"><input type="file" accept="image/*" class="opt-img-input-poll" data-oi="${i}" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></label>`
+                        }
+                    </div>
+                    ${rawOptions.length > 2 ? `<button class="remove-item-btn poll-remove-opt" data-oi="${i}" title="刪除">&times;</button>` : ''}
+                </div>`;
+            }).join('');
 
             $el.innerHTML = `
                 <div class="config-section">
@@ -1267,15 +1338,64 @@
                     editorState.dirty = true;
                 });
             });
+
+            // Event: poll option image upload
+            $el.querySelectorAll('.opt-img-input-poll').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const oi = parseInt(input.dataset.oi);
+                    const file = input.files[0];
+                    if (!file) return;
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const token = AuthModule.getToken();
+                        const res = await fetch('/api/classroom/quiz-images', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` },
+                            body: formData,
+                        });
+                        const json = await res.json();
+                        if (json.success && json.data?.url) {
+                            const collected = this.collectConfig(slide);
+                            if (collected) slide.config = collected;
+                            const opts = slide.config.options || [];
+                            if (opts[oi] !== undefined) {
+                                if (typeof opts[oi] === 'string') opts[oi] = { text: opts[oi], image_url: json.data.url };
+                                else opts[oi].image_url = json.data.url;
+                            }
+                            this.renderConfig(slide, $el);
+                            editorState.dirty = true;
+                        } else {
+                            UIModule.toast(json.message || '圖片上傳失敗', 'error');
+                        }
+                    } catch (e) { UIModule.toast('圖片上傳失敗', 'error'); }
+                });
+            });
+
+            // Event: remove poll option image
+            $el.querySelectorAll('.opt-img-remove-poll').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const oi = parseInt(btn.dataset.oi);
+                    const collected = this.collectConfig(slide);
+                    if (collected) slide.config = collected;
+                    const opts = slide.config.options || [];
+                    if (opts[oi] && typeof opts[oi] === 'object') opts[oi].image_url = null;
+                    this.renderConfig(slide, $el);
+                    editorState.dirty = true;
+                });
+            });
         },
 
-        collectConfig() {
+        collectConfig(slide) {
             const questionEl = document.getElementById('cfgPollQuestion');
             if (!questionEl) return null;
 
+            const origOpts = (slide?.config?.options) || [];
             const options = [];
-            document.querySelectorAll('.poll-opt-input').forEach(inp => {
-                options.push(inp.value);
+            document.querySelectorAll('.poll-opt-input').forEach((inp, i) => {
+                const orig = origOpts[i];
+                const imgUrl = (orig && typeof orig === 'object') ? orig.image_url : null;
+                options.push(imgUrl ? { text: inp.value, image_url: imgUrl } : inp.value);
             });
 
             return {

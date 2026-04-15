@@ -32,12 +32,18 @@ class GameSlideConfig(BaseModel):
     collect_scores: bool = Field(default=True, description="是否收集分数")
 
 
+class OptionItem(BaseModel):
+    """选项（带可选图片）— 兼容纯字符串，前端可传 string 或 object"""
+    text: str = ""
+    image_url: Optional[str] = None
+
+
 class QuizQuestion(BaseModel):
     """单道 Quiz 题目"""
     id: str = Field(..., description="题目 ID (slide 内唯一)")
     type: Literal["mc", "fill", "tf"] = Field(..., description="题型: 选择/填空/判断")
     text: str = Field(..., min_length=1, description="题目文本")
-    options: Optional[list[str]] = Field(default=None, description="选项列表 (mc/tf 用)")
+    options: Optional[list] = Field(default=None, description="选项列表 (str 或 {text, image_url})")
     image_url: Optional[str] = Field(default=None, description="题目图片 URL")
     correct_answer: str = Field(..., description="正确答案")
     points: int = Field(default=10, ge=0, description="分值")
@@ -70,7 +76,7 @@ class RaiseHandSlideConfig(BaseModel):
 class PollSlideConfig(BaseModel):
     """投票幻灯片配置"""
     question_text: str = Field(..., min_length=1, description="问题文本")
-    options: list[str] = Field(..., min_length=2, description="选项列表")
+    options: list = Field(..., min_length=2, description="选项列表 (str 或 {text, image_url})")
     allow_multiple: bool = Field(default=False, description="是否允许多选")
     anonymous: bool = Field(default=False, description="是否匿名")
     show_results_live: bool = Field(default=True, description="是否实时显示结果")
