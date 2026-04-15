@@ -2129,7 +2129,7 @@ async function uploadStudents() {
 // Toast提示
 function showToast(message) {
     const toast = document.getElementById('toast');
-    toast.textContent = message;
+    toast.innerHTML = message;
     toast.classList.add('show');
 
     setTimeout(() => {
