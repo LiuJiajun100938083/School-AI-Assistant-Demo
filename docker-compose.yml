@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pkms-ai-buddy
+    container_name: demo-ai-buddy
     restart: unless-stopped
     init: true                          # proper signal forwarding & zombie reaping
     ports:

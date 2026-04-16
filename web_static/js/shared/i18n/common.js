@@ -3,9 +3,20 @@
 i18n.addMessages({
     zh: {
         // --- 通用 ---
-        'app.name': 'AI 學習夥伴',
-        'app.school': '培僑中學',
-        'app.schoolFull': '培僑中學AI學習系統',
+        'app.name': '策問',
+        'app.fullName': '策問 · QUAERO',
+        'app.school': '示範學校',
+        'app.schoolFull': '策問 · QUAERO',
+
+        // --- 關於品名 ---
+        'about.title': '策問 · QUAERO',
+        'about.subtitle': '古典策問 × AI 檢索',
+        'about.ceWenHeading': '策問  Cè Wèn',
+        'about.ceWenBody': '古代科舉考試的一種答卷體裁 — 由朝廷提出時政之問，士子作答論述。天然是古代的「人機問答」。',
+        'about.quaeroHeading': 'Quaero',
+        'about.quaeroBody': '拉丁文「我尋求」（第一人稱單數現在式）。亦為 2006 年歐洲發起的知識檢索計畫之名。',
+        'about.divider': '學而後問 · 問而後識',
+        'about.close': '關閉',
         'common.back': '返回',
         'common.cancel': '取消',
         'common.confirm': '確定',
@@ -17,8 +28,12 @@ i18n.addMessages({
         'common.networkFailed': '網絡連接失敗，請檢查網絡',
 
         // --- 登入頁 ---
-        'login.pageTitle': '登入 — 校園AI助手',
+        'login.pageTitle': '登入 · 策問 QUAERO',
         'login.welcome': '歡迎回來',
+        'login.tagline': '陪伴你的智能學習夥伴',
+        'login.feature1': '錯題分析',
+        'login.feature2': 'AI 出題',
+        'login.feature3': '學習路徑',
         'login.title': '登入帳戶',
         'login.subtitle': '請輸入您的用戶名和密碼',
         'login.username': '用戶名',
@@ -33,11 +48,12 @@ i18n.addMessages({
         'login.qrLabel': '掃碼登入',
 
         // --- 首頁 ---
-        'home.pageTitle': '校園AI助手',
-        'home.splashTitle': 'AI 學習夥伴',
-        'home.splashSubtitle': '校園AI助手',
+        'home.pageTitle': '策問 · QUAERO',
+        'home.splashTitle': '策問',
+        'home.splashSubtitle': 'QUAERO',
         'home.welcomeBack': '歡迎回來',
         'home.welcomeUser': '歡迎回來，{{name}}',
+        'home.chapter': 'QUAERO',
         'home.subtitle': '選擇下方應用開始使用',
         'home.defaultUser': '學生',
         'home.defaultClass': '未分班',
@@ -161,9 +177,20 @@ i18n.addMessages({
     },
     en: {
         // --- Common ---
-        'app.name': 'AI Learning Buddy',
-        'app.school': 'Pui Kiu Middle School',
-        'app.schoolFull': 'Pui Kiu Middle School AI Learning System',
+        'app.name': 'QUAERO',
+        'app.fullName': 'Cè Wèn · QUAERO',
+        'app.school': 'Demo School',
+        'app.schoolFull': 'Cè Wèn · QUAERO',
+
+        // --- About ---
+        'about.title': 'Cè Wèn · QUAERO',
+        'about.subtitle': 'Imperial Inquiry × Machine Retrieval',
+        'about.ceWenHeading': 'Cè Wèn  策問',
+        'about.ceWenBody': 'An answer-format used in the Imperial Examinations — the throne posed a question of state; scholars composed a reasoned reply. The original human-machine dialogue, a thousand years early.',
+        'about.quaeroHeading': 'Quaero',
+        'about.quaeroBody': 'Latin, first person singular present — "I seek". Also the name of the 2006 European knowledge-retrieval project.',
+        'about.divider': 'One studies · then asks · then knows',
+        'about.close': 'Close',
         'common.back': 'Back',
         'common.cancel': 'Cancel',
         'common.confirm': 'OK',
@@ -175,8 +202,12 @@ i18n.addMessages({
         'common.networkFailed': 'Network connection failed, please check your connection',
 
         // --- Login ---
-        'login.pageTitle': 'Login — School AI Assistant',
+        'login.pageTitle': 'Sign In · QUAERO',
         'login.welcome': 'Welcome Back',
+        'login.tagline': 'Your intelligent learning companion',
+        'login.feature1': 'Mistake Analysis',
+        'login.feature2': 'AI Question Gen',
+        'login.feature3': 'Learning Path',
         'login.title': 'Sign In',
         'login.subtitle': 'Enter your username and password',
         'login.username': 'Username',
@@ -191,11 +222,12 @@ i18n.addMessages({
         'login.qrLabel': 'Scan to Login',
 
         // --- Home ---
-        'home.pageTitle': 'School AI Assistant',
-        'home.splashTitle': 'AI Learning Buddy',
-        'home.splashSubtitle': 'School AI Assistant',
+        'home.pageTitle': 'QUAERO',
+        'home.splashTitle': 'QUAERO',
+        'home.splashSubtitle': 'Cè Wèn',
         'home.welcomeBack': 'Welcome Back',
         'home.welcomeUser': 'Welcome back, {{name}}',
+        'home.chapter': 'QUAERO',
         'home.subtitle': 'Choose an app below to get started',
         'home.defaultUser': 'Student',
         'home.defaultClass': 'Unassigned',

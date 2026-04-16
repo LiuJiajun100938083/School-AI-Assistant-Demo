@@ -3,7 +3,7 @@
 i18n.addMessages({
     zh: {
         // --- 遊戲中心 ---
-        'gc.pageTitle': '遊戲中心 - AI學習夥伴',
+        'gc.pageTitle': '遊戲中心 · 策問 QUAERO',
         'gc.splashTitle': '遊戲中心',
         'gc.splashSubtitle': '寓教於樂，輕鬆學習',
         'gc.back': '返回',
@@ -42,7 +42,7 @@ i18n.addMessages({
     },
     en: {
         // --- Game Center ---
-        'gc.pageTitle': 'Game Center - AI Learning Buddy',
+        'gc.pageTitle': 'Game Center · QUAERO',
         'gc.splashTitle': 'Game Center',
         'gc.splashSubtitle': 'Learn Through Play',
         'gc.back': 'Back',

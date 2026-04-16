@@ -71,7 +71,7 @@ async def favicon():
 
 
 # iOS Safari 在用戶把頁面加到主畫面時會依序試這 4 個 URL。用同一個
-# 180x180 PNG 服務所有變種,首次請求時從 pkms_logo.png 縮圖後快取到記憶體。
+# 180x180 PNG 服務所有變種,首次請求時從 school_logo.png 縮圖後快取到記憶體。
 _APPLE_TOUCH_ICON_CACHE: bytes = b""
 
 _FALLBACK_1X1_PNG = (
@@ -82,7 +82,7 @@ _FALLBACK_1X1_PNG = (
 
 
 def _build_apple_touch_icon() -> bytes:
-    """從 pkms_logo.png 生成 180x180 的 apple touch icon (白底 RGB),快取在模組層。"""
+    """從 school_logo.png 生成 180x180 的 apple touch icon (白底 RGB),快取在模組層。"""
     global _APPLE_TOUCH_ICON_CACHE
     if _APPLE_TOUCH_ICON_CACHE:
         return _APPLE_TOUCH_ICON_CACHE
@@ -91,12 +91,12 @@ def _build_apple_touch_icon() -> bytes:
         from pathlib import Path
         from PIL import Image
 
-        logo_path = Path(__file__).resolve().parent.parent.parent / "web_static" / "images" / "pkms_logo.png"
+        logo_path = Path(__file__).resolve().parent.parent.parent / "web_static" / "images" / "school_logo.png"
         if not logo_path.exists():
             _APPLE_TOUCH_ICON_CACHE = _FALLBACK_1X1_PNG
             return _APPLE_TOUCH_ICON_CACHE
 
-        # pkms_logo.png 是 27160x10100 (~274M 像素),超過 Pillow 預設
+        # school_logo.png 是 27160x10100 (~274M 像素),超過 Pillow 預設
         # decompression bomb 安全上限 (~178M)。這是受信任的本地檔,放行。
         prev_max = Image.MAX_IMAGE_PIXELS
         Image.MAX_IMAGE_PIXELS = None

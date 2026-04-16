@@ -289,7 +289,7 @@ window.slc = (() => {
             list.innerHTML = subjects.map(s => `
                 <div class="slc-subject-item ${state.currentSubject?.subject_code === s.subject_code ? '--active' : ''}"
                      data-code="${s.subject_code}" onclick="slc.selectSubject('${s.subject_code}')">
-                    <span class="slc-subject-item__icon">${_safeIcon(s.icon, 'books')}</span>
+                    <span class="slc-subject-item__icon">${typeof SubjectIcon !== 'undefined' ? SubjectIcon.render(s.icon, 18) : _safeIcon(s.icon, 'books')}</span>
                     <span class="slc-subject-item__name">${s.subject_name}</span>
                     <span class="slc-subject-item__count">${s.content_count || 0}</span>
                 </div>
@@ -927,7 +927,7 @@ window.slc = (() => {
             const label = document.getElementById('adminSubjectLabel');
             if (label) {
                 label.innerHTML = state.currentSubject
-                    ? `${_safeIcon(state.currentSubject.icon, 'books')} ${_escHtml(state.currentSubject.subject_name)}`
+                    ? `${typeof SubjectIcon !== 'undefined' ? SubjectIcon.render(state.currentSubject.icon, 18) : _safeIcon(state.currentSubject.icon, 'books')} ${_escHtml(state.currentSubject.subject_name)}`
                     : i18n.t('slc.noSubject');
             }
         },

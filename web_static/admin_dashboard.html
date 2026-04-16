@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="adm.page.title">AI學習夥伴 - 教師管理後台</title>
-    <link rel="stylesheet" href="/static/css/admin_dashboard.css?v=20260414">
+    <title data-i18n="adm.page.title">策問 · 教師管理後台</title>
+    <link rel="stylesheet" href="/static/css/admin_dashboard.css?v=20260419">
+    <script src="/static/js/shared/subject_icons.js?v=20260419"></script>
     <script src="/static/js/shared/i18n.js?v=20260414"></script>
     <script src="/static/js/shared/i18n/common.js?v=20260414"></script>
     <script src="/static/js/shared/i18n/admin_dashboard.js?v=20260414"></script>
@@ -62,7 +63,7 @@
     <nav class="navbar">
         <div class="navbar-brand">
             <svg class="icon icon-brand"><use href="#i-graduation"/></svg>
-            <span data-i18n="adm.navbar.brand">AI學習夥伴 - 教師管理後台</span>
+            <span data-i18n="adm.navbar.brand">策問 · 教師管理後台</span>
         </div>
         <div class="navbar-user">
             <button class="lang-toggle-btn" onclick="i18n.toggle()" style="padding:4px 10px;border:1px solid rgba(0,0,0,.15);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;margin-right:8px;">中/EN</button>
@@ -214,7 +215,7 @@
                         <div style="margin-top: 40px; padding-top: 30px; border-top: 3px solid var(--primary);">
                             <div style="margin-bottom: 2rem;">
                                 <h3 style="display: inline-block; margin-right: 1rem; color: var(--primary);">
-                                    <svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-pencil"/></svg> <span data-i18n="adm.templates.title">培僑中學通告範本庫</span>
+                                    <svg class="icon icon-lg" style="stroke:var(--primary)"><use href="#i-pencil"/></svg> <span data-i18n="adm.templates.title">示範學校通告範本庫</span>
                                 </h3>
                                 <span style="color: var(--text-secondary);" data-i18n="adm.templates.subtitle">上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告</span>
                             </div>
@@ -835,7 +836,7 @@
                         <div style="margin-top:24px;">
                             <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:1.05em;">
                                 <svg class="icon icon-sm" style="stroke:var(--brand)"><use href="#i-chart"/></svg>
-                                <span>🖥️ 本地模型使用量 (Ollama)</span>
+                                <span>本地模型使用量 (Ollama)</span>
                                 <button onclick="loadLocalUsageStats()" style="margin-left:auto;padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg-card);cursor:pointer;font-size:0.8em;">刷新</button>
                             </h4>
 
@@ -924,8 +925,9 @@
                     <input type="text" id="subjectName" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px;" data-i18n="adm.subjects.iconLabel">學科圖標：</label>
-                    <input type="text" id="subjectIcon" placeholder="例如：📚" data-i18n-placeholder="adm.subjects.iconPlaceholder" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;">
+                    <label style="display: block; margin-bottom: 8px;" data-i18n="adm.subjects.iconLabel">學科圖標：</label>
+                    <input type="hidden" id="subjectIcon" value="books">
+                    <div id="subjectIconPicker" class="svg-icon-picker"></div>
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label style="display: block; margin-bottom: 5px;" data-i18n="adm.subjects.descLabel">學科描述：</label>
@@ -954,8 +956,9 @@
                     <input type="text" id="editSubjectName" class="modal-input" required style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom: 5px;" data-i18n="adm.subjects.iconLabel">圖標</label>
-                    <input type="text" id="editSubjectIcon" class="modal-input" placeholder="例如: 📚" data-i18n-placeholder="adm.subjects.iconPlaceholder" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:5px;">
+                    <label style="display:block; margin-bottom: 8px;" data-i18n="adm.subjects.iconLabel">圖標</label>
+                    <input type="hidden" id="editSubjectIcon" value="books">
+                    <div id="editSubjectIconPicker" class="svg-icon-picker"></div>
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label style="display:block; margin-bottom: 5px;" data-i18n="adm.subjects.descLabel">描述</label>
@@ -1046,7 +1049,9 @@
                 <div id="selectedFileInfo" style="display: none; background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span><svg class="icon icon-sm"><use href="#i-document"/></svg> <strong id="selectedFileName">-</strong></span>
-                        <button data-action="clearSelectedFile" style="background: none; border: none; color: #999; cursor: pointer; font-size: 18px;">✕</button>
+                        <button data-action="clearSelectedFile" aria-label="Remove" style="background: none; border: none; color: #999; cursor: pointer; padding: 4px; display: inline-flex; align-items: center; justify-content: center;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
                     </div>
                 </div>
                 <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
@@ -1113,7 +1118,7 @@
     <script src="/static/js/shared/ui.js?v=20260414"></script>
     <script src="/static/js/shared/api.js?v=20260414"></script>
     <script src="/static/vendor/chartjs/chart.umd.min.js"></script>
-    <script src="/static/js/admin_dashboard.js?v=20260414"></script>
+    <script src="/static/js/admin_dashboard.js?v=20260420"></script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof i18n !== 'undefined' && i18n.applyDOM) {

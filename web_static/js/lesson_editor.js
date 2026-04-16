@@ -703,7 +703,8 @@
         for (const [key, sub] of Object.entries(merged)) {
             const btn = document.createElement('button');
             btn.className = 'gp-subject-btn' + (key === gpActiveSubject ? ' active' : '');
-            btn.innerHTML = `<span class="gp-subject-icon">${sub.icon}</span>${sub.name}`;
+            const iconHtml = (typeof SubjectIcon !== 'undefined') ? SubjectIcon.render(sub.icon, 18) : (sub.icon || '');
+            btn.innerHTML = `<span class="gp-subject-icon">${iconHtml}</span>${sub.name}`;
             btn.addEventListener('click', () => {
                 gpActiveSubject = key;
                 renderSubjectTabs();

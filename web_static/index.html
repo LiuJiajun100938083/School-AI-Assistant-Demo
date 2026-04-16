@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>培僑中學 學習夥伴</title>
-    <link rel="stylesheet" href="/static/css/index.css?v=20260414">
+    <title>策問 · QUAERO</title>
+    <!-- Old Money 字體：Cormorant Garamond (serif) + Inter (sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Noto+Serif+TC:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/index.css?v=20260419">
     <link rel="stylesheet" href="/static/css/pet.css?v=20260414">
-    <link rel="stylesheet" href="/static/css/spinner.css?v=20260414">
+    <link rel="stylesheet" href="/static/css/spinner.css?v=20260419">
     <!-- GSAP 動畫引擎（啟動畫面） -->
     <script src="/static/vendor/gsap/gsap.min.js"></script>
 </head>
@@ -18,6 +22,14 @@
     }
 </script>
 
+<!-- ====== 動態虛化背景（與 login 同款 — Old Money 沉穩 blob） ====== -->
+<div class="liquid-bg" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="blob blob-4"></div>
+</div>
+
 <!-- 第一幕：系統喚醒 -->
 <div class="splash-screen" id="splashScreen">
     <div class="splash-content">
@@ -25,14 +37,63 @@
         </div>
         <div class="splash-title" data-i18n="home.splashTitle">校園AI助手</div>
         <div class="splash-subtitle" data-i18n="home.splashSubtitle"></div>
+        <!-- Editorial ink-stroke loader — draws + erases a brass hairline -->
         <div class="splash-loader">
-            <div class="domino-spinner domino-spinner--light"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="quaero-loader" aria-label="Loading">
+                <span class="quaero-loader__track">
+                    <span class="quaero-loader__ink"></span>
+                </span>
+                <span class="quaero-loader__text">IN · QVAERENDO</span>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- 過渡遮罩層 -->
 <div class="glass-panel" id="glassPanel"></div>
+
+<!-- ╔═══════════════════════════════════════════════════╗
+     ║  About · 關於「策問 QUAERO」的名字               ║
+     ╚═══════════════════════════════════════════════════╝ -->
+<div id="aboutModal" class="modal-overlay about-overlay" aria-hidden="true">
+    <div class="modal about-modal" role="dialog" aria-labelledby="aboutTitle">
+        <button type="button" class="about-close" id="aboutClose" aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+        </button>
+
+        <div class="about-kicker">
+            <span class="lobby-hairline lobby-hairline--left"></span>
+            <span class="about-kicker-text" data-i18n="about.divider">學而後問 · 問而後識</span>
+            <span class="lobby-hairline lobby-hairline--right"></span>
+        </div>
+
+        <h2 class="about-title" id="aboutTitle" data-i18n="about.title">策問 · QUAERO</h2>
+        <p class="about-subtitle" data-i18n="about.subtitle">古典策問 × AI 檢索</p>
+
+        <div class="about-divider" aria-hidden="true"></div>
+
+        <section class="about-entry">
+            <h3 class="about-entry__heading" data-i18n="about.ceWenHeading">策問  Cè Wèn</h3>
+            <p class="about-entry__body" data-i18n="about.ceWenBody">
+                古代科舉考試的一種答卷體裁 — 由朝廷提出時政之問，士子作答論述。天然是古代的「人機問答」。
+            </p>
+        </section>
+
+        <section class="about-entry">
+            <h3 class="about-entry__heading" data-i18n="about.quaeroHeading">Quaero</h3>
+            <p class="about-entry__body" data-i18n="about.quaeroBody">
+                拉丁文「我尋求」（第一人稱單數現在式）。亦為 2006 年歐洲發起的知識檢索計畫之名。
+            </p>
+        </section>
+
+        <div class="about-footer">
+            <span class="about-monogram-seal">Q</span>
+        </div>
+    </div>
+</div>
 
 <!-- 密碼修改模態框 -->
 <div id="changePasswordModal" class="modal-overlay">
@@ -52,21 +113,33 @@
     </div>
 </div>
 
-<!-- 主界面 -->
-<div id="homeContainer" class="home-container">
-    <!-- HEADER -->
-    <header class="home-header">
-        <div class="home-header__left">
-            <span class="home-header__brand" data-i18n="app.name">校園AI助手</span>
-        </div>
-        <div class="home-header__right">
-            <div class="home-user-info" id="homeUserInfo">
-                <div class="user-avatar" id="homeUserAvatar">A</div>
-                <div class="user-details">
-                    <div class="user-name" id="homeUserName" data-i18n="home.defaultUser">學生</div>
-                    <div class="user-class" id="homeUserClass" data-i18n="home.defaultClass">未分班</div>
+<!-- ========================================================
+     Club Foyer Layout — Apple × Old Money 主頁 v5
+     - 浮動薄 header（玻璃藥丸形）
+     - 編輯式 Hero 大標
+     - 分類 chips 橫向一列
+     - Bento Grid（首卡 2×2 hero，其餘 1×1）
+     ======================================================== -->
+<div id="homeContainer" class="lobby">
+
+    <!-- ▸ Floating Header Pill ───────────────────────────── -->
+    <header class="lobby-topbar">
+        <button type="button" class="lobby-topbar__brand" id="openAbout"
+                aria-label="About the name" title="關於此名">
+            <span class="lobby-topbar__monogram" aria-hidden="true">Q</span>
+            <span class="lobby-topbar__wordmark" data-i18n="app.fullName">策問 · QUAERO</span>
+        </button>
+        <div class="lobby-topbar__right">
+            <button class="lobby-topbar__lang" onclick="i18n.toggle()" title="Switch Language" aria-label="Switch Language">
+                <span id="homeLangLabel"></span>
+            </button>
+            <div class="lobby-topbar__user home-user-info" id="homeUserInfo">
+                <div class="user-avatar lobby-user-avatar" id="homeUserAvatar">A</div>
+                <div class="user-details lobby-user-details">
+                    <div class="user-name lobby-user-name" id="homeUserName" data-i18n="home.defaultUser">學生</div>
+                    <div class="user-class lobby-user-class" id="homeUserClass" data-i18n="home.defaultClass">未分班</div>
                 </div>
-                <div class="user-menu" id="homeUserMenu">
+                <div class="user-menu lobby-user-menu" id="homeUserMenu">
                     <div class="user-menu-item" id="homeChangePassword">
                         <span data-i18n="menu.changePassword">修改密碼</span>
                     </div>
@@ -83,57 +156,40 @@
         </div>
     </header>
 
-    <!-- BODY: SIDEBAR + MAIN -->
-    <div class="home-body">
-        <!-- SIDEBAR -->
-        <aside class="home-sidebar" id="homeSidebar">
-            <nav class="home-sidebar__nav" id="homeSidebarNav">
-                <!-- JS 動態生成分類導航 -->
-            </nav>
+    <!-- ▸ Main Stack ────────────────────────────────────── -->
+    <main class="lobby-main">
 
-            <!-- 宠物组件（sidebar 下半部分） -->
-            <div id="homePetWidget" class="home-sidebar__pet" style="display:none;"></div>
-
-            <div class="home-sidebar__footer">
-                <button class="home-sidebar__lang-toggle" onclick="i18n.toggle()" title="Switch Language">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="2" y1="12" x2="22" y2="12"/>
-                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                    </svg>
-                    <span id="homeLangLabel"></span>
-                </button>
-                <div class="home-sidebar__version">v3.0</div>
+        <!-- Hero / Editorial Masthead -->
+        <section class="lobby-hero home-welcome" id="homeWelcome">
+            <div class="lobby-hero__kicker">
+                <span class="lobby-hairline lobby-hairline--left"></span>
+                <span class="lobby-hero__chapter" id="homeHeroChapter" data-i18n="home.chapter">QUAERO</span>
+                <span class="lobby-hairline lobby-hairline--right"></span>
             </div>
-        </aside>
+            <h1 class="lobby-hero__title" id="homeWelcomeTitle" data-i18n="home.welcomeBack">歡迎回來</h1>
+            <p class="lobby-hero__subtitle" data-i18n="home.subtitle">選擇下方應用開始使用</p>
 
-        <!-- MAIN CONTENT -->
-        <main class="home-main">
-            <!-- 歡迎橫幅 -->
-            <section class="home-welcome" id="homeWelcome">
-                <div class="home-welcome__text">
-                    <div>
-                        <h1 class="home-welcome__title" id="homeWelcomeTitle" data-i18n="home.welcomeBack">歡迎回來</h1>
-                        <p class="home-welcome__subtitle" data-i18n="home.subtitle">選擇下方應用開始使用</p>
-                    </div>
-                </div>
-                <div class="home-welcome__stats" id="homeWelcomeStats">
-                    <!-- JS 動態生成統計 -->
-                </div>
-            </section>
+            <!-- Stats row（保留 homeWelcomeStats id 讓 JS 填） -->
+            <div class="lobby-hero__stats" id="homeWelcomeStats"></div>
+        </section>
 
-            <!-- 分類過濾 (手機用) -->
-            <div class="home-filter-bar" id="homeFilterBar">
-                <!-- JS 動態生成 -->
-            </div>
+        <!-- Category Chips（用 JS 已有 homeFilterBar 的 DOM 目標；取代 sidebar） -->
+        <nav class="lobby-chips home-filter-bar" id="homeFilterBar" aria-label="Categories">
+            <!-- JS 動態生成 chip -->
+        </nav>
 
-            <!-- 應用卡片網格 -->
-            <div class="home-apps-grid" id="homeAppsGrid">
-                <!-- JS 動態生成 -->
-            </div>
-        </main>
-    </div>
+        <!-- Bento App Grid（保留 homeAppsGrid id） -->
+        <section class="lobby-bento home-apps-grid" id="homeAppsGrid">
+            <!-- JS 動態生成 groups + cards -->
+        </section>
+
+    </main>
+
+    <!-- Hidden sidebar (保留給 JS 填寫，但視覺上隱藏) -->
+    <aside class="home-sidebar lobby-hidden-sidebar" id="homeSidebar" aria-hidden="true">
+        <nav class="home-sidebar__nav" id="homeSidebarNav"></nav>
+        <div id="homePetWidget" class="home-sidebar__pet" style="display:none;"></div>
+    </aside>
 </div>
 
 <!-- 漫游桌面宠物（fixed 浮动，JS 控制位置） -->
@@ -158,6 +214,32 @@
 <script src="/static/js/shared/decrypt_text.js?v=20260414"></script>
 <script src="/static/js/pet_renderer.js?v=20260414"></script>
 <script src="/static/js/shared/i18n/pet.js?v=20260414"></script>
-<script src="/static/js/index.js?v=20260414b"></script>
+<script src="/static/js/index.js?v=20260419"></script>
+<script>
+    /* About modal — 點 monogram 顯示「為什麼叫策問 QUAERO」 */
+    (function () {
+        const trigger = document.getElementById('openAbout');
+        const modal   = document.getElementById('aboutModal');
+        const closer  = document.getElementById('aboutClose');
+        if (!trigger || !modal) return;
+        function open(e) {
+            if (e) e.stopPropagation();
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+        function close() {
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+        trigger.addEventListener('click', open);
+        if (closer) closer.addEventListener('click', close);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) close();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('active')) close();
+        });
+    })();
+</script>
 </body>
 </html>

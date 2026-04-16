@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 — 培僑中學 學習夥伴</title>
-    <link rel="stylesheet" href="/static/css/login.css?v=20260414">
-    <link rel="stylesheet" href="/static/css/spinner.css?v=20260414">
+    <title>登入 · 策問 QUAERO</title>
+    <link rel="stylesheet" href="/static/css/login.css?v=20260417">
+    <link rel="stylesheet" href="/static/css/spinner.css?v=20260419">
     <!-- Brand Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
-    <!-- QR Code Generator (lightweight, ~4KB) -->
-    <script src="/static/vendor/qrcode-generator/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Noto+Serif+TC:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 <!-- 已登入用戶直接跳轉主頁（最早執行，零閃爍） -->
@@ -21,56 +19,58 @@
     }
 </script>
 
-<!-- 登入界面：左右分屏 -->
+<!-- ====== 動態虛化背景層（iOS Liquid Glass 風格） ====== -->
+<div class="liquid-bg" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="blob blob-4"></div>
+    <div class="grain"></div>
+</div>
+
+<!-- 登入界面：左右分屏（毛玻璃卡片浮於動態背景之上） -->
 <div id="loginContainer" class="login-container">
 
-    <!-- ====== 左側品牌面板 ====== -->
-    <div class="login-brand-panel">
-        <div class="brand-panel-content">
-            <div class="brand-welcome" data-i18n="login.welcome">歡迎回來</div>
-            <div class="brand-app-name" data-i18n="app.name">校園AI助手</div>
-            <div class="brand-school" data-i18n="app.schoolFull">校園AI助手系統</div>
-
-            <!-- QR Code 區域 -->
-            <div class="brand-qr-section">
-                <div class="qr-container" id="qrContainer"></div>
-                <div class="qr-text-group">
-                    <div class="qr-label-zh" data-i18n="login.qrLabel">掃碼登入</div>
-                </div>
-                <div class="qr-url" id="qrUrl"></div>
-            </div>
-
-            <div class="brand-quote" id="quotesContainer">
-                <div class="quote-wrapper" id="quoteWrapper"></div>
-                <div class="quote-indicators" id="quoteIndicators"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ====== 右側登入表單 ====== -->
+    <!-- ====== 登入卡片（單一置中卡片 - Apple 風） ====== -->
     <div class="login-form-panel">
         <div class="login-card">
-            <!-- 語言切換（右上角） -->
+
+            <!-- 語言切換（卡片右上角） -->
             <button class="login-lang-toggle" onclick="i18n.toggle()" title="Switch Language">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                <!-- Engraved globe with meridians -->
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <ellipse cx="12" cy="12" rx="4.5" ry="9"/>
+                    <path d="M3 12h18"/>
                 </svg>
                 <span id="langLabel"></span>
             </button>
-            <div class="login-header">
-                <div class="login-icon">
+
+            <!-- Hero：App Icon + 品名 + tagline（取代舊 login-header） -->
+            <div class="login-header brand-hero">
+                <div class="brand-app-icon" aria-hidden="true">
+                    <!-- Monogrammed open-book crest -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 5c3-1 6-1 9 0v15c-3-1-6-1-9 0z"/>
+                        <path d="M21 5c-3-1-6-1-9 0v15c3-1 6-1 9 0z"/>
+                        <path d="M12 5v15"/>
+                        <path d="M6 9.5h3M6 12.5h3M15 9.5h3M15 12.5h3"/>
+                        <path d="M17.5 2.5l0.6 1.4 1.4 0.6-1.4 0.6-0.6 1.4-0.6-1.4-1.4-0.6 1.4-0.6z" fill="currentColor" stroke="none"/>
+                    </svg>
                 </div>
-                <div class="login-title" data-i18n="login.title">登入帳戶</div>
-                <div class="login-subtitle" data-i18n="login.subtitle">請輸入您的用戶名和密碼</div>
+                <h1 class="brand-app-name" data-i18n="app.name">校園AI助手</h1>
+                <p class="brand-tagline" data-i18n="login.tagline">陪伴你的智能學習夥伴</p>
             </div>
 
             <form id="loginForm" class="login-form">
                 <div class="input-group">
                     <label class="input-label" for="usernameInput" data-i18n="login.username">用戶名</label>
                     <div class="input-wrapper">
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                            <circle cx="12" cy="7" r="4"/>
+                        <!-- Engraved portrait silhouette (member ID) -->
+                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="8" r="3.5"/>
+                            <path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/>
                         </svg>
                         <input type="text" id="usernameInput" class="login-input" data-i18n-placeholder="login.usernamePlaceholder"
                                placeholder="請輸入用戶名" maxlength="20" required autocomplete="username">
@@ -79,9 +79,12 @@
                 <div class="input-group">
                     <label class="input-label" for="passwordInput" data-i18n="login.password">密碼</label>
                     <div class="input-wrapper">
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        <!-- Vintage padlock with keyhole -->
+                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="4" y="11" width="16" height="10" rx="1.5"/>
+                            <path d="M7 11V7.5a5 5 0 0 1 10 0V11"/>
+                            <circle cx="12" cy="15" r="1.4"/>
+                            <path d="M12 16.4V18"/>
                         </svg>
                         <input type="password" id="passwordInput" class="login-input" data-i18n-placeholder="login.passwordPlaceholder"
                                placeholder="請輸入密碼" required autocomplete="current-password">
@@ -98,62 +101,47 @@
                 <div class="loading-spinner"><span></span></div>
             </div>
 
-            <!-- 主题色切换 -->
-            <div class="theme-picker">
-                <button class="theme-dot" data-theme="indigo" style="--dot-color:#6366F1" onclick="theme.apply('indigo')" title="Indigo"></button>
-                <button class="theme-dot" data-theme="blue" style="--dot-color:#2563EB" onclick="theme.apply('blue')" title="Blue"></button>
-                <button class="theme-dot" data-theme="teal" style="--dot-color:#0D9488" onclick="theme.apply('teal')" title="Teal"></button>
-                <button class="theme-dot" data-theme="rose" style="--dot-color:#F43F5E" onclick="theme.apply('rose')" title="Rose"></button>
-                <button class="theme-dot" data-theme="amber" style="--dot-color:#F59E0B" onclick="theme.apply('amber')" title="Amber"></button>
-            </div>
-            <script>
-                document.querySelectorAll('.theme-dot').forEach(dot => {
-                    dot.classList.toggle('active', dot.dataset.theme === theme.current);
-                });
-            </script>
+            <!-- Feature pills：三個功能亮點（Apple 式 scannable） -->
+            <ul class="brand-features" aria-label="Core capabilities">
+                <li class="feature-pill">
+                    <!-- Opened book with annotation mark -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 5c3-1 6-1 9 0v14c-3-1-6-1-9 0z"/>
+                        <path d="M21 5c-3-1-6-1-9 0v14c3-1 6-1 9 0z"/>
+                        <path d="M7 10l1.5 1.5 2.5-2.5"/>
+                    </svg>
+                    <span data-i18n="login.feature1">錯題分析</span>
+                </li>
+                <li class="feature-pill">
+                    <!-- Compass rose (navigation to knowledge) -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M12 4l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>
+                    </svg>
+                    <span data-i18n="login.feature2">AI 出題</span>
+                </li>
+                <li class="feature-pill">
+                    <!-- Hourglass (eternal study) -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 3h12M6 21h12"/>
+                        <path d="M7 3c0 4 3 6 5 9-2 3-5 5-5 9"/>
+                        <path d="M17 3c0 4-3 6-5 9 2 3 5 5 5 9"/>
+                    </svg>
+                    <span data-i18n="login.feature3">學習路徑</span>
+                </li>
+            </ul>
+
         </div>
+    </div>
+
+    <!-- 底部淡雅靜語（Apple 式 footer inspiration） -->
+    <div class="brand-quote page-quote" id="quotesContainer">
+        <div class="quote-wrapper" id="quoteWrapper"></div>
+        <div class="quote-indicators" id="quoteIndicators"></div>
     </div>
 
 </div>
 
-<!-- 動態生成 QR Code -->
-<script>
-(function() {
-    var container = document.getElementById('qrContainer');
-    var urlLabel = document.getElementById('qrUrl');
-    if (!container || typeof qrcode === 'undefined') return;
-
-    var siteUrl = window.location.origin;
-
-    // 生成 QR Code (Type 4, Error Correction Level M)
-    var qr = qrcode(0, 'M');
-    qr.addData(siteUrl);
-    qr.make();
-
-    // 渲染成 SVG 風格的 table（白色前景，透明背景）
-    var cellSize = 3;
-    var moduleCount = qr.getModuleCount();
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
-              (moduleCount * cellSize) + ' ' + (moduleCount * cellSize) +
-              '" shape-rendering="crispEdges">';
-    for (var r = 0; r < moduleCount; r++) {
-        for (var c = 0; c < moduleCount; c++) {
-            if (qr.isDark(r, c)) {
-                svg += '<rect x="' + (c * cellSize) + '" y="' + (r * cellSize) +
-                       '" width="' + cellSize + '" height="' + cellSize + '" fill="#ffffff"/>';
-            }
-        }
-    }
-    svg += '</svg>';
-    container.innerHTML = svg;
-
-    // 顯示簡化的 URL
-    if (urlLabel) {
-        var display = siteUrl.replace(/^https?:\/\//, '');
-        urlLabel.textContent = display;
-    }
-})();
-</script>
 <script src="/static/js/shared/i18n.js?v=20260414"></script>
 <script src="/static/js/shared/i18n/common.js?v=20260414"></script>
 <script>

@@ -3,7 +3,7 @@
 i18n.addMessages({
     zh: {
         // ── Page level ──────────────────────────────────────
-        'adm.page.title':              'AI學習夥伴 - 教師管理後台',
+        'adm.page.title':              '策問 · 教師管理後台',
         'adm.page.backToMain':         '返回主系統',
         'adm.page.adminName':          '管理員',
         'adm.page.roleAdmin':          '管理員',
@@ -11,7 +11,7 @@ i18n.addMessages({
         'adm.page.version':            'v3.0',
 
         // ── Navbar (HTML data-i18n keys) ────────────────────
-        'adm.navbar.brand':            'AI學習夥伴 - 教師管理後台',
+        'adm.navbar.brand':            '策問 · 教師管理後台',
         'adm.navbar.backToMain':       '返回主系統',
         'adm.navbar.admin':            '管理員',
         'adm.navbar.roleBadge':        '管理員',
@@ -116,7 +116,7 @@ i18n.addMessages({
         'adm.modal.subjectCode':       '學科代码：',
         'adm.modal.subjectName':       '學科名称：',
         'adm.modal.subjectIcon':       '學科圖標：',
-        'adm.modal.subjectIconPh':     '例如：📚',
+        'adm.modal.subjectIconPh':     '從圖庫選擇',
         'adm.modal.subjectDesc':       '學科描述：',
         'adm.modal.btnCancel':         '取消',
         'adm.modal.btnAdd':            '添加',
@@ -126,7 +126,7 @@ i18n.addMessages({
         'adm.modal.editSubjectCode':   '學科代码',
         'adm.modal.editSubjectName':   '學科名称',
         'adm.modal.editSubjectIcon':   '圖標',
-        'adm.modal.editSubjectIconPh': '例如: 📚',
+        'adm.modal.editSubjectIconPh': '從圖庫選擇',
         'adm.modal.editSubjectDesc':   '描述',
         'adm.modal.btnSaveChanges':    '保存更改',
 
@@ -153,7 +153,7 @@ i18n.addMessages({
         'adm.kb.loadFail':             '載入失敗，請重试',
 
         // ── Notice templates ────────────────────────────────
-        'adm.tpl.title':               '培僑中學通告範本庫',
+        'adm.tpl.title':               '示範學校通告範本庫',
         'adm.tpl.subtitle':            '上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告',
         'adm.tpl.totalCount':          '總範本數',
         'adm.tpl.activityCount':       '活動通告',
@@ -870,7 +870,7 @@ i18n.addMessages({
         'adm.notice.exportWord':         '匯出Word文檔',
 
         // ── Templates ───────────────────────────────────────
-        'adm.templates.title':           '培僑中學通告範本庫',
+        'adm.templates.title':           '示範學校通告範本庫',
         'adm.templates.subtitle':        '上傳歷史通告作為範本，AI將學習並生成符合學校風格的新通告',
         'adm.templates.totalTemplates':  '總範本數',
         'adm.templates.uploadNew':       '上傳新範本',
@@ -1256,7 +1256,7 @@ i18n.addMessages({
     },
     en: {
         // ── Page level ──────────────────────────────────────
-        'adm.page.title':              'AI Learning Buddy - Teacher Admin',
+        'adm.page.title':              'QUAERO · Teacher Admin',
         'adm.page.backToMain':         'Back to Main',
         'adm.page.adminName':          'Admin',
         'adm.page.roleAdmin':          'Admin',
@@ -1264,7 +1264,7 @@ i18n.addMessages({
         'adm.page.version':            'v3.0',
 
         // ── Navbar (HTML data-i18n keys) ────────────────────
-        'adm.navbar.brand':            'AI Learning Buddy - Teacher Admin',
+        'adm.navbar.brand':            'QUAERO · Teacher Admin',
         'adm.navbar.backToMain':       'Back to Main',
         'adm.navbar.admin':            'Admin',
         'adm.navbar.roleBadge':        'Admin',
@@ -1369,7 +1369,7 @@ i18n.addMessages({
         'adm.modal.subjectCode':       'Subject Code:',
         'adm.modal.subjectName':       'Subject Name:',
         'adm.modal.subjectIcon':       'Subject Icon:',
-        'adm.modal.subjectIconPh':     'e.g. 📚',
+        'adm.modal.subjectIconPh':     'Choose from library',
         'adm.modal.subjectDesc':       'Subject Description:',
         'adm.modal.btnCancel':         'Cancel',
         'adm.modal.btnAdd':            'Add',
@@ -1379,7 +1379,7 @@ i18n.addMessages({
         'adm.modal.editSubjectCode':   'Subject Code',
         'adm.modal.editSubjectName':   'Subject Name',
         'adm.modal.editSubjectIcon':   'Icon',
-        'adm.modal.editSubjectIconPh': 'e.g. 📚',
+        'adm.modal.editSubjectIconPh': 'Choose from library',
         'adm.modal.editSubjectDesc':   'Description',
         'adm.modal.btnSaveChanges':    'Save Changes',
 

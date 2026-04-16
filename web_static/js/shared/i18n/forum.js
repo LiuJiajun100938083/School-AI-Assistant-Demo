@@ -2,7 +2,7 @@
 // Keys: forum.*
 i18n.addMessages({
     zh: {
-        'forum.pageTitle': '討論區 - AI 學習夥伴',
+        'forum.pageTitle': '討論區 · 策問 QUAERO',
         'forum.back': '返回',
         'forum.title': '討論區',
         'forum.searchPlaceholder': '搜尋討論...',
@@ -105,7 +105,7 @@ i18n.addMessages({
         'forum.daysAgo': '{{n}} 天前',
     },
     en: {
-        'forum.pageTitle': 'Forum - AI Learning Buddy',
+        'forum.pageTitle': 'Forum · QUAERO',
         'forum.back': 'Back',
         'forum.title': 'Forum',
         'forum.searchPlaceholder': 'Search discussions...',

@@ -153,7 +153,7 @@ const ChatUI = {
             mainContainer:       document.getElementById('mainContainer'),
             headerTitle:         document.getElementById('headerTitle'),
             subjectSelector:     document.getElementById('subjectSelector'),
-            modeSelector:        document.getElementById('modeSelector'),
+            // modeSelector: 已移除（僅雲端 API，無本地/雲端切換）
             statusIndicator:     document.getElementById('statusIndicator'),
             sidebar:             document.getElementById('sidebar'),
             sidebarToggle:       document.getElementById('sidebarToggle'),
@@ -166,8 +166,7 @@ const ChatUI = {
             messageInput:        document.getElementById('messageInput'),
             sendButton:          document.getElementById('sendButton'),
             featureList:         document.getElementById('featureList'),
-            thinkingToggle:      document.getElementById('thinkingToggle'),
-            thinkingToggleText:  document.getElementById('thinkingToggleText'),
+            // thinkingToggle: 已移除（雲端 API 不區分深度思考）
             backToHomeBtn:       document.getElementById('backToHomeBtn'),
 
             // 新建对话科目弹窗
@@ -260,26 +259,16 @@ const ChatUI = {
     /* ---------- 侧边栏 ---------- */
 
     toggleSidebar() {
+        // 新佈局（Scholar's Correspondence）：對話歷史改為右側抽屜，所有尺寸都用 open/close
         const el = this.elements;
-        if (window.innerWidth >= 834) {
-            // 桌面/iPad：切換 collapsed 狀態，絲滑寬度動畫
-            el.sidebar.classList.toggle('collapsed');
-            try { localStorage.setItem('sidebar-collapsed', el.sidebar.classList.contains('collapsed')); } catch {}
-        } else {
-            // 移動：原有抽屜行為
-            const isOpen = el.sidebar.classList.toggle('open');
-            el.sidebarOverlay.classList.toggle('active', isOpen);
-            document.body.style.overflow = isOpen ? 'hidden' : '';
-        }
+        const isOpen = el.sidebar.classList.toggle('open');
+        el.sidebarOverlay.classList.toggle('active', isOpen);
+        document.body.style.overflow = isOpen ? 'hidden' : '';
     },
 
-    /** 初始化時恢復側邊欄收起狀態 */
+    /** 初始化時恢復側邊欄收起狀態（新版不再保留展開狀態，首次進入總是關著） */
     restoreSidebarState() {
-        try {
-            if (localStorage.getItem('sidebar-collapsed') === 'true' && window.innerWidth >= 834) {
-                this.elements.sidebar.classList.add('collapsed');
-            }
-        } catch {}
+        // no-op：抽屜永遠預設關閉
     },
 
     closeSidebar() {
@@ -313,7 +302,7 @@ const ChatUI = {
                 const card = document.createElement('div');
                 card.className = 'subject-card';
                 card.innerHTML = `
-                    <div class="subject-card-icon">${info.icon}</div>
+                    <div class="subject-card-icon">${SubjectIcon.render(info.icon, 28)}</div>
                     <div class="subject-card-name">${info.name}</div>
                 `;
                 card.addEventListener('click', (e) => onSubjectCardClick(code, info, e));
@@ -362,9 +351,11 @@ const ChatUI = {
             }
             const subjectInfo = ChatApp._getSubjectInfo(conv.subject);
             item.innerHTML = `
-                <div class="conversation-title">${subjectInfo.icon} ${conv.title}</div>
+                <div class="conversation-title"><span class="conversation-title-icon">${SubjectIcon.render(subjectInfo.icon, 14)}</span>${conv.title}</div>
                 <div class="conversation-meta">${conv.message_count || 0} ${i18n.t('chat.msgCount')} · ${ChatApp._formatDate(conv.updated_at)}</div>
-                <button class="delete-conversation-btn" title="${i18n.t('chat.deleteChat')}">×</button>
+                <button class="delete-conversation-btn" title="${i18n.t('chat.deleteChat')}" aria-label="Delete">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
             `;
 
             item.addEventListener('click', (e) => {
@@ -398,12 +389,10 @@ const ChatUI = {
         ];
 
         const addOption = (code, subject) => {
-            let icon = subject.icon;
-            if (!icon && subject.config) icon = subject.config.icon;
-            icon = icon || '📚';
+            // <option> 裡不能塞 SVG，subject 下拉純文字名稱即可
             const option = document.createElement('option');
             option.value = code;
-            option.textContent = `${icon} ${subject.name}`;
+            option.textContent = subject.name;
             sel.appendChild(option);
         };
 
@@ -422,7 +411,9 @@ const ChatUI = {
     },
 
     updateSubjectTitle(subjectInfo) {
-        this.elements.headerTitle.textContent = `${subjectInfo.icon} ${subjectInfo.name} ${i18n.t('chat.headerTitle')}`;
+        // 新結構：headerTitle 是 subject label（小 uppercase 副標）
+        // 不再顯示 emoji icon 或 AI 品名 — 那些已在 wordmark + monogram 展示
+        this.elements.headerTitle.textContent = subjectInfo.name;
     },
 
     /* ---------- 功能列表 ---------- */
@@ -594,7 +585,7 @@ const ChatUI = {
         const bubbleDiv = document.createElement('div');
         bubbleDiv.className = 'message-bubble';
         bubbleDiv.innerHTML = `
-            <div class="subject-badge">${subjectInfo.icon} ${subjectInfo.name}</div>
+            <div class="subject-badge"><span class="subject-badge-icon">${SubjectIcon.render(subjectInfo.icon, 13)}</span>${subjectInfo.name}</div>
             <div class="typing-indicator">
                 ${i18n.t('chat.submitting')}
                 <div class="typing-dots">
@@ -633,7 +624,10 @@ const ChatUI = {
         // 学科标签
         const badgeDiv = document.createElement('div');
         badgeDiv.className = 'subject-badge';
-        badgeDiv.textContent = `${subjectInfo.icon} ${subjectInfo.name}`;
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = subjectInfo.name;
+        badgeDiv.innerHTML = `<span class="subject-badge-icon">${SubjectIcon.render(subjectInfo.icon, 13)}</span>`;
+        badgeDiv.appendChild(nameSpan);
         bubbleDiv.appendChild(badgeDiv);
 
         // Thinking 区域（初始隐藏）
@@ -703,13 +697,10 @@ const ChatApp = {
 
         currentConversationId: null,
         currentSubject: 'ict',
-        currentMode: 'local',
         websocket: null,
         conversations: [],
         isStreaming: false,
         allSubjects: {},
-
-        enableThinking: true,
 
         // 文件上传
         conversationFiles: [],
@@ -797,9 +788,8 @@ const ChatApp = {
             this._pendingDeleteAction = null;
         });
 
-        // 学科/模式选择
+        // 学科选择（mode 選擇器已移除）
         el.subjectSelector.addEventListener('change', (e) => this._changeSubject(e.target.value));
-        el.modeSelector.addEventListener('change', () => this._changeMode());
 
         // 侧边栏
         el.sidebarToggle.addEventListener('click', () => ChatUI.toggleSidebar());
@@ -819,12 +809,7 @@ const ChatApp = {
             }
         });
 
-        // 思考模式
-        if (el.thinkingToggle) {
-            el.thinkingToggle.addEventListener('change', (e) => {
-                this.state.enableThinking = e.target.checked;
-            });
-        }
+        // 思考模式 toggle 已移除（雲端 API 統一處理）
 
         // 新建对话弹窗
         if (el.newChatModalClose) {
@@ -1100,11 +1085,6 @@ const ChatApp = {
         this._updateSubjectTitle();
     },
 
-    _changeMode() {
-        this.state.currentMode = 'local';
-        this._updateSubjectTitle();
-    },
-
     _updateSubjectTitle() {
         const info = this._getSubjectInfo(this.state.currentSubject);
         ChatUI.updateSubjectTitle(info);
@@ -1219,7 +1199,8 @@ const ChatApp = {
         if (!subjectCode) return;
 
         const el = ChatUI.elements;
-        const title = el.newChatNameInput.value.trim() || `${subjectInfo.icon} ${subjectInfo.name} ${i18n.t('chat.conversation')}`;
+        // 對話標題不再加 emoji；圖示會在列表項 icon span 中獨立渲染
+        const title = el.newChatNameInput.value.trim() || `${subjectInfo.name} ${i18n.t('chat.conversation')}`;
 
         this._hideNewChatModal();
 
@@ -1474,8 +1455,7 @@ const ChatApp = {
                 subject: this.state.currentSubject,
                 use_api: false,
                 model: 'qwen-plus',
-                conversation_id: this.state.currentConversationId,
-                enable_thinking: this.state.enableThinking
+                conversation_id: this.state.currentConversationId
             };
 
             const response = await ChatAPI.sendStreamMessage(requestBody);
@@ -1720,7 +1700,7 @@ const ChatApp = {
 
         if (role === 'assistant') {
             const subjectInfo = this._getSubjectInfo(this.state.currentSubject);
-            let html = `<div class="subject-badge">${subjectInfo.icon} ${subjectInfo.name}</div>`;
+            let html = `<div class="subject-badge"><span class="subject-badge-icon">${SubjectIcon.render(subjectInfo.icon, 13)}</span>${this._escapeHtml(subjectInfo.name)}</div>`;
 
             if (thinking) {
                 const sections = this._parseThinkingContent(thinking);

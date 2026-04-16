@@ -1479,11 +1479,11 @@
                 const placeholder = select.options[0];
                 select.innerHTML = '';
                 select.appendChild(placeholder);
+                // <option> 只能純文字；subject 圖示在其他地方統一呈現
                 subjects.forEach(subj => {
                     const opt = document.createElement('option');
                     opt.value = subj.code;
-                    const icon = subj.icon ? subj.icon + ' ' : '';
-                    opt.textContent = icon + subj.name;
+                    opt.textContent = subj.name;
                     select.appendChild(opt);
                 });
             });

@@ -1274,3 +1274,75 @@ body {
         box-shadow: none;
     }
 }
+
+/* ============================================================
+   SVG Icon Picker — 科目 / 類別圖示選擇器
+   （共用：所有新增/編輯學科的彈窗用） ============================================================ */
+.svg-icon-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-page, #F5F5F7);
+    border: 1px solid var(--border, #E5E5E5);
+    border-radius: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.svg-icon-picker__item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1;
+    background: #FFFFFF;
+    border: 1px solid var(--border, #E5E5E5);
+    border-radius: 6px;
+    color: var(--text-secondary, #555);
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 10px;
+}
+
+.svg-icon-picker__item:hover {
+    border-color: #B08D57;
+    color: #1B2845;
+    background: rgba(176, 141, 87, 0.06);
+    transform: translateY(-1px);
+}
+
+.svg-icon-picker__item.is-active {
+    border-color: #1B2845;
+    background: rgba(176, 141, 87, 0.12);
+    color: #1B2845;
+    box-shadow: 0 0 0 2px rgba(176, 141, 87, 0.25);
+}
+
+.svg-icon-picker__item svg {
+    display: block;
+    pointer-events: none;
+}
+
+/* 科目卡片內的 inline icon（Prompt 列表 / notice 等） */
+.subject-inline-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--brand, #1B2845);
+    flex-shrink: 0;
+}
+
+/* renderSubjects 的大圖示：居中顯示 */
+.subject-card .subject-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--brand, #1B2845);
+}
+.subject-card .subject-icon svg {
+    width: 32px;
+    height: 32px;
+}
+

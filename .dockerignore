@@ -40,7 +40,7 @@ security_config.json
 *.xlsx
 nul
 DATABASE_SCHEMA.sql
-PKMS_Speaker_Notes.docx
+Demo_Speaker_Notes.docx
 
 # Skip for now
 china_economy_game/

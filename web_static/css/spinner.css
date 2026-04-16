@@ -1,83 +1,106 @@
-/* ========================================
-   全站共享 Domino Spinner 載入動畫
-   ========================================
-   用法：
+/* ================================================================
+   Quaero Ink-Stroke Loader —— 全站共享（v5 · Old Money 編輯筆觸）
+   ================================================================
+   用法（HTML 結構零改動）：
      <div class="domino-spinner">
        <span></span><span></span><span></span><span></span>
        <span></span><span></span><span></span><span></span>
      </div>
 
    尺寸變體：
-     .domino-spinner--sm   (小，適合行內 / 按鈕)
-     .domino-spinner       (標準，適合卡片 / 面板)
-     .domino-spinner--lg   (大，適合全頁)
-   ======================================== */
+     .domino-spinner--sm     小（按鈕 / 行內）
+     .domino-spinner         標準
+     .domino-spinner--lg     大（全頁 splash）
 
-/* ── 基礎容器 ── */
+   色系變體：
+     (預設)                   仿舊黃銅（奶白底上）
+     .domino-spinner--light  加亮黃銅（深色 splash 底上）
+
+   視覺：一筆墨跡自左寫到全長 → 稍停 → 自左擦去 → 循環
+   循環時間：2.4 秒，cubic-bezier(0.65, 0, 0.35, 1)
+   支援：prefers-reduced-motion → 停止動畫，保持靜態筆跡
+   ================================================================ */
+
+/* ── 基礎容器 = 軌道底層（淡黃銅 hairline） ── */
 .domino-spinner {
-    --_bar-w: 22px;
-    --_bar-h: 4.5px;
-    --_gap: 7px;
-    --_color: var(--brand, #6366F1);
+    --_track-w: 140px;              /* 預設寬 */
+    --_track-h: 1px;                /* 預設高（hairline） */
+    --_ink:      rgba(176, 141, 87, 0.95);   /* 墨跡顏色：仿舊黃銅 */
+    --_track:    rgba(176, 141, 87, 0.22);   /* 軌道淡底色 */
+    --_glow:     rgba(201, 169, 126, 0.35);  /* 筆尖光暈 */
 
     position: relative;
-    width: calc(var(--_bar-w) + var(--_gap) * 7 + 6px);
-    height: 40px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    width: var(--_track-w);
+    height: var(--_track-h);
+    background: var(--_track);
+    border-radius: 1px;
+    overflow: hidden;
     margin: 0 auto;
+    display: block;
 }
 
-/* ── 骨牌條 ── */
+/* ── 第 1 個 span = 墨跡層（唯一顯示） ── */
 .domino-spinner span {
+    display: none;
+}
+
+.domino-spinner span:first-child {
+    display: block;
     position: absolute;
-    top: 50%;
-    width: var(--_bar-w);
-    height: var(--_bar-h);
-    background: var(--_color);
-    border-radius: 2px;
-    animation: dominos 1s ease infinite;
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.12);
-    opacity: 0.85;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        rgba(176, 141, 87, 0) 0%,
+        var(--_ink) 25%,
+        var(--_ink) 75%,
+        rgba(176, 141, 87, 0) 100%);
+    box-shadow: 0 0 8px var(--_glow);
+    clip-path: inset(0 100% 0 0);
+    animation: dominoInkStroke 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    border-radius: 0;
+    opacity: 1;
+    /* 覆蓋舊域的 transform / left，防止外部殘留規則干擾 */
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    animation-delay: 0s !important;
 }
 
-.domino-spinner span:nth-child(1) { left: calc(var(--_gap) * 7 + 3px); animation-delay: 0.125s; }
-.domino-spinner span:nth-child(2) { left: calc(var(--_gap) * 6 + 3px); animation-delay: 0.25s; }
-.domino-spinner span:nth-child(3) { left: calc(var(--_gap) * 5 + 3px); animation-delay: 0.375s; }
-.domino-spinner span:nth-child(4) { left: calc(var(--_gap) * 4 + 3px); animation-delay: 0.5s; }
-.domino-spinner span:nth-child(5) { left: calc(var(--_gap) * 3 + 3px); animation-delay: 0.625s; }
-.domino-spinner span:nth-child(6) { left: calc(var(--_gap) * 2 + 3px); animation-delay: 0.75s; }
-.domino-spinner span:nth-child(7) { left: calc(var(--_gap) * 1 + 3px); animation-delay: 0.875s; }
-.domino-spinner span:nth-child(8) { left: 3px; animation-delay: 0s; }
-
-/* ── 骨牌倒下動畫 ── */
-@keyframes dominos {
-    50%  { opacity: 0.5; }
-    75%  { transform: rotate(90deg); }
-    80%  { opacity: 1; }
+/* ── 關鍵幀：繪 → 停 → 擦 ── */
+@keyframes dominoInkStroke {
+    0%, 100% { clip-path: inset(0 100% 0 0); }      /* 起點：空 */
+    45%      { clip-path: inset(0 0 0 0); }         /* 45%：寫滿 */
+    55%      { clip-path: inset(0 0 0 0); }         /* 駐筆 */
+    100%     { clip-path: inset(0 0 0 100%); }      /* 自左擦盡 */
 }
 
-/* ── 小尺寸（行內 / 按鈕） ── */
+/* ═══ 尺寸變體 ═══ */
+
 .domino-spinner--sm {
-    --_bar-w: 14px;
-    --_bar-h: 3px;
-    --_gap: 5px;
-    height: 24px;
+    --_track-w: 72px;
+    --_track-h: 1px;
 }
 
-/* ── 大尺寸（全頁載入） ── */
 .domino-spinner--lg {
-    --_bar-w: 30px;
-    --_bar-h: 6px;
-    --_gap: 9px;
-    height: 56px;
+    --_track-w: 180px;
+    --_track-h: 1.5px;
 }
 
-/* ── 白色變體（深色背景用） ── */
+/* ═══ 色系變體 ═══ */
+
+/* 深色背景（splash 深海軍藍、modal scrim 等）：墨跡更亮、軌道更明 */
 .domino-spinner--light {
-    --_color: rgba(255, 255, 255, 0.85);
+    --_ink:    rgba(224, 198, 155, 0.95);    /* 亮香檳金 */
+    --_track:  rgba(201, 169, 126, 0.28);
+    --_glow:   rgba(224, 198, 155, 0.45);
 }
-.domino-spinner--light span {
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.25);
+
+/* ═══ Reduced Motion ═══ */
+@media (prefers-reduced-motion: reduce) {
+    .domino-spinner span:first-child {
+        animation: none !important;
+        clip-path: inset(0 0 0 0);
+        opacity: 0.8;
+    }
 }

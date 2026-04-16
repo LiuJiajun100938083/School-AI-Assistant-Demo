@@ -1,10 +1,10 @@
-# Docker 运维指南 - AI 学习伙伴
+# Docker 运维指南 - 策问 QUAERO
 
 ## 架构概览
 
 ```
 Mac Studio (macOS, 512GB RAM)
-├── Docker 容器: pkms-ai-buddy (port 8002)
+├── Docker 容器: demo-ai-buddy (port 8002)
 │   └── FastAPI + Uvicorn + ChromaDB + Embeddings
 ├── 原生运行: MySQL (port 3306)
 ├── 原生运行: Ollama (port 11434, Metal GPU)
@@ -110,7 +110,7 @@ docker compose up -d --build
 docker ps
 
 # 实时资源监控（CPU / 内存）
-docker stats pkms-ai-buddy
+docker stats demo-ai-buddy
 
 # 健康检查
 curl http://localhost:8002/health
@@ -164,7 +164,7 @@ ollama serve
 
 ```bash
 # 查看容器是否被 OOM 杀掉
-docker inspect pkms-ai-buddy | grep OOMKilled
+docker inspect demo-ai-buddy | grep OOMKilled
 
 # 如果是，可以增大内存限制（编辑 docker-compose.yml）
 ```

@@ -242,12 +242,12 @@ class GameUploadPage {
                     select.remove(1);
                 }
 
+                // <option> 無法塞 SVG，只用純文字名稱（圖示在其他地方統一呈現）
                 for (const [code, info] of Object.entries(result.data)) {
                     const option = document.createElement('option');
                     option.value = code;
-                    const icon = (typeof info === 'object') ? (info.icon || '📚') : '📚';
                     const name = (typeof info === 'object') ? (info.name || code) : info;
-                    option.textContent = `${icon} ${name}`;
+                    option.textContent = name;
                     select.appendChild(option);
                 }
 

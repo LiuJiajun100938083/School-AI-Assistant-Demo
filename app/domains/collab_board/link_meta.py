@@ -121,7 +121,7 @@ def _default_fetcher(url: str, timeout: float) -> str:
     """最小化 fetcher — 用 stdlib urllib 避免引入依賴"""
     from urllib.request import Request, urlopen
 
-    req = Request(url, headers={"User-Agent": "PKMS-LinkMeta/1.0"})
+    req = Request(url, headers={"User-Agent": "AILearningBuddy-LinkMeta/1.0"})
     with urlopen(req, timeout=timeout) as resp:  # noqa: S310 (trusted teacher input)
         raw = resp.read(512 * 1024)  # 只取前 512KB，避免大檔
         charset = resp.headers.get_content_charset() or "utf-8"

@@ -1,63 +1,95 @@
-/* ========================================
-   校園AI助手 — 登入頁面樣式
-   ========================================
-   從 index.css 中獨立出的登入頁專屬樣式。
-   包含：Splash 開屏、過渡遮罩、登入表單、品牌面板、名言輪播。
-   ======================================== */
+/* ============================================================
+   登入頁 — Old Money / Quiet Luxury × 動態虛化背景
+   ============================================================
+   設計語言：
+   - 調色：深海軍藍 + 仿舊黃銅 + 奧戴爾乾紅 + 森綠 + 奶白
+   - 字體：Cormorant Garamond (serif) + Inter (sans)
+   - 質感：毛玻璃 + 暗色沉穩 blob + 溫潤奶白底
+   - 避免：亮藍、紫、漸層彩虹、tech-bro 招搖
+   ============================================================ */
 
-html {
-    color-scheme: light only !important;
-}
+html { color-scheme: light only !important; }
 
-/* ========== 基礎重置 ========== */
 *, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* ========== 設計系統變量（與 index.css 共享） ========== */
+/* ========== Design Tokens（Old Money Palette） ========== */
 :root {
     color-scheme: light only;
-    /* 品牌綠 */
-    --brand: #6366F1;
-    --brand-hover: #4F46E5;
-    --brand-active: #4338CA;
-    --brand-light: #EEF2FF;
-    --brand-lighter: #F5F7FF;
-    --brand-border: #C7D2FE;
 
-    /* 背景 */
-    --bg-page: #F5F5F7;
-    --bg-card: #FFFFFF;
-    --bg-overlay: rgba(0, 0, 0, 0.25);
+    /* Core palette */
+    --ink:          #1B2845;       /* Midnight navy — 主色/按鈕 */
+    --ink-soft:     #2C3E5F;
+    --ink-deep:     #0F1D38;       /* 最深 */
+    --brass:        #B08D57;       /* 仿舊黃銅 — 主 accent */
+    --brass-soft:   #C9A97E;       /* 香檳金 — 次級 accent */
+    --brass-dark:   #8B6F3F;
+    --burgundy:     #722F37;       /* 奧戴爾乾紅 */
+    --forest:       #2F4A36;       /* 森綠 */
+    --cream:        #F5EFE6;       /* 暖奶白 — 主背景 */
+    --cream-soft:   #FAF6EE;       /* 淺奶白 — 輸入框 */
+    --bone:         #EDE5D1;       /* 骨白 — 分隔 */
+    --taupe:        #8B7E66;       /* 淺褐 — 次文字 */
+    --stone:        #C7BFB0;       /* 石灰 — 邊框 */
 
-    /* 文字 */
-    --text-primary: #1D1D1F;
-    --text-secondary: #6E6E73;
-    --text-tertiary: #A1A1A6;
-    --text-placeholder: #C7C7CC;
-    --text-on-brand: #FFFFFF;
+    /* 相容舊 brand 變數（其他元件仍引用） */
+    --brand:        var(--ink);
+    --brand-hover:  var(--ink-deep);
+    --brand-active: #000818;
+    --brand-light:  #E7DEC8;
+    --brand-border: rgba(176, 141, 87, 0.30);
 
-    /* 邊框 */
-    --border-light: rgba(0, 0, 0, 0.04);
-    --border-default: rgba(0, 0, 0, 0.08);
-    --border-strong: rgba(0, 0, 0, 0.12);
-    --border-focus: #6366F1;
+    /* 動態背景 blob 色（暗色沉穩調，opacity 由 CSS 控制） */
+    --blob-1: #1B2845;  /* 深海軍藍 */
+    --blob-2: #722F37;  /* 奧戴爾乾紅 */
+    --blob-3: #2F4A36;  /* 森綠 */
+    --blob-4: #B08D57;  /* 仿舊黃銅 */
 
-    /* 功能色 */
-    --color-error: #FF3B30;
+    /* 文字（warm-toned) */
+    --text-primary:     #1F1D17;   /* 暖炭黑 */
+    --text-secondary:   #5B5447;
+    --text-tertiary:    #8B7E66;
+    --text-placeholder: #B5AD9C;
+    --text-on-brand:    var(--cream);
 
-    /* 陰影 */
-    --shadow-modal: 0 8px 16px rgba(0, 0, 0, 0.04), 0 16px 32px rgba(0, 0, 0, 0.06), 0 32px 64px rgba(0, 0, 0, 0.08);
+    /* 玻璃表面（奶白色調） */
+    --glass-bg:          rgba(245, 239, 230, 0.55);
+    --glass-bg-strong:   rgba(250, 246, 238, 0.72);
+    --glass-bg-inset:    rgba(245, 239, 230, 0.35);
+    --glass-border:      rgba(176, 141, 87, 0.22);
+    --glass-border-strong: rgba(176, 141, 87, 0.30);
+    --glass-highlight:   rgba(255, 253, 247, 0.85);
+
+    /* 陰影（冷色→暖色調整） */
+    --shadow-glass:
+        0 8px 32px rgba(31, 29, 23, 0.12),
+        0 2px 8px rgba(31, 29, 23, 0.04),
+        inset 0 1px 0 var(--glass-highlight);
+    --shadow-glass-lg:
+        0 24px 70px rgba(27, 40, 69, 0.22),
+        0 8px 24px rgba(31, 29, 23, 0.10),
+        inset 0 1px 0 var(--glass-highlight);
+    --shadow-focus: 0 0 0 4px rgba(176, 141, 87, 0.28);
+
+    /* 功能色（沉穩紅） */
+    --color-error: #8B2E2A;
+    --color-error-bg: rgba(139, 46, 42, 0.08);
+    --color-error-border: rgba(139, 46, 42, 0.22);
+
+    /* 邊框（warm stone） */
+    --border-light:   rgba(139, 126, 102, 0.14);
+    --border-default: rgba(139, 126, 102, 0.22);
+    --border-strong:  rgba(139, 126, 102, 0.36);
 
     /* 圓角 */
-    --radius-xs: 4px;
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-xl: 20px;
-    --radius-2xl: 24px;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --radius-2xl: 36px;
     --radius-full: 9999px;
 
     /* 間距 */
@@ -72,28 +104,31 @@ html {
     --space-12: 48px;
     --space-16: 64px;
 
-    /* 字體層級 */
-    --type-display: 40px;
-    --type-h1: 28px;
-    --type-h2: 18px;
+    /* 字級（Apple SF 型大小） */
+    --type-display: 44px;
+    --type-h1: 30px;
+    --type-h2: 19px;
     --type-body: 15px;
     --type-caption: 13px;
     --type-micro: 11px;
 
-    /* 白色文字透明度（綠底用） */
-    --white-primary: rgba(255, 255, 255, 0.95);
-    --white-secondary: rgba(255, 255, 255, 0.70);
-    --white-tertiary: rgba(255, 255, 255, 0.45);
-    --white-muted: rgba(255, 255, 255, 0.25);
+    /* 白色文字透明度（玻璃上用） */
+    --white-primary: rgba(255, 255, 255, 0.96);
+    --white-secondary: rgba(255, 255, 255, 0.80);
+    --white-tertiary: rgba(255, 255, 255, 0.62);
+    --white-muted: rgba(255, 255, 255, 0.40);
 
     /* 動畫 */
-    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-    --duration-fast: 0.15s;
-    --duration-base: 0.2s;
-    --duration-slow: 0.3s;
+    --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --duration-fast: 0.18s;
+    --duration-base: 0.28s;
+    --duration-slow: 0.42s;
 
-    /* 字體 */
-    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', sans-serif;
+    /* 字體：Old Money 雙軌 serif + sans */
+    --font-serif: 'Cormorant Garamond', 'Noto Serif TC', 'Times New Roman', Georgia, serif;
+    --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue',
+                  'Noto Serif TC', 'PingFang SC', 'Segoe UI', sans-serif;
 }
 
 html {
@@ -104,13 +139,16 @@ html {
 
 body {
     font-family: var(--font-sans);
-    background: var(--bg-page);
+    background: var(--cream);   /* 暖奶白底 */
     color: var(--text-primary);
     line-height: 1.5;
+    min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
+    overflow-y: auto;
 }
 
-/* ========== 清除舊效果殘留 ========== */
+/* 清除舊效果殘留（保留兼容） */
 .particles-container,
 .spotlight-container,
 .spotlight,
@@ -121,167 +159,324 @@ body {
     display: none !important;
 }
 
-/* (Splash screen 和過渡遮罩已移除 — 登入頁直接顯示) */
-
-/* ================================================
-   登入頁面 — 左右分屏佈局
-   ================================================ */
-.login-container {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: row;
-    background: var(--bg-page);
-    position: relative;
-}
-
-/* ── 左側品牌面板 ── */
-.login-brand-panel {
-    flex: 0 0 45%;
-    background: var(--login-gradient, linear-gradient(170deg, #4338CA 0%, #6366F1 50%, #3730A3 100%));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
+/* ============================================================
+   動態虛化背景層（Liquid Glass Background）
+   ============================================================
+   4 個大型彩色圓圈 + blur(120px) → 形成柔和 aurora 般的底色
+   緩慢位移 + 呼吸式縮放（20~32s loop）
+   ============================================================ */
+.liquid-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
     overflow: hidden;
-}
-
-.login-brand-panel::before {
-    content: '';
-    position: absolute;
-    top: -20%;
-    left: -10%;
-    width: 120%;
-    height: 50%;
-    background: radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, transparent 70%);
+    /* 溫潤米白底（暖色調漸層） */
+    background: linear-gradient(135deg,
+                #F5EFE6 0%,
+                #EDE5D1 45%,
+                #E8DECC 100%);
     pointer-events: none;
 }
 
-.login-brand-panel::after {
-    content: '';
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(110px);
+    opacity: 0.48;
+    will-change: transform;
+    mix-blend-mode: multiply;   /* 暗色調用 multiply 才顯深度；screen 會洗淡 */
+}
+
+/* 每顆 blob：沉穩色調、低飽和、緩慢漂浮 */
+.blob-1 {
+    width: 58vw;
+    height: 58vw;
+    top: -18vw;
+    left: -12vw;
+    background: radial-gradient(circle at 30% 30%, var(--blob-1), transparent 68%);
+    animation: drift-1 30s ease-in-out infinite;
+    opacity: 0.42;
+}
+.blob-2 {
+    width: 52vw;
+    height: 52vw;
+    bottom: -14vw;
+    right: -12vw;
+    background: radial-gradient(circle at 70% 70%, var(--blob-2), transparent 68%);
+    animation: drift-2 34s ease-in-out infinite;
+    opacity: 0.32;
+}
+.blob-3 {
+    width: 44vw;
+    height: 44vw;
+    top: 28vh;
+    right: 18vw;
+    background: radial-gradient(circle at 50% 50%, var(--blob-3), transparent 68%);
+    animation: drift-3 26s ease-in-out infinite;
+    opacity: 0.28;
+}
+.blob-4 {
+    width: 40vw;
+    height: 40vw;
+    bottom: 8vh;
+    left: 22vw;
+    background: radial-gradient(circle at 50% 50%, var(--blob-4), transparent 70%);
+    animation: drift-4 28s ease-in-out infinite;
+    opacity: 0.38;
+}
+
+@keyframes drift-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25%      { transform: translate(6vw, 8vh) scale(1.08); }
+    50%      { transform: translate(10vw, -4vh) scale(0.95); }
+    75%      { transform: translate(3vw, 6vh) scale(1.05); }
+}
+@keyframes drift-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25%      { transform: translate(-8vw, -6vh) scale(1.12); }
+    50%      { transform: translate(-4vw, 4vh) scale(0.92); }
+    75%      { transform: translate(-10vw, -2vh) scale(1.06); }
+}
+@keyframes drift-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(-6vw, 10vh) scale(1.1); }
+    66%      { transform: translate(8vw, -6vh) scale(0.9); }
+}
+@keyframes drift-4 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    40%      { transform: translate(10vw, -8vh) scale(1.15); }
+    80%      { transform: translate(-4vw, 4vh) scale(0.96); }
+}
+
+/* 超細噪點層：讓玻璃看起來更真實（模擬螢幕顆粒） */
+.grain {
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.12) 100%);
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+    background-image:
+        repeating-radial-gradient(circle at 10% 20%, transparent 0, #000 1px, transparent 2px),
+        repeating-radial-gradient(circle at 80% 70%, transparent 0, #000 1px, transparent 2px);
     pointer-events: none;
 }
 
+/* ============================================================
+   登入容器 — 單一置中卡片（Apple 風極簡）
+   ============================================================ */
+.login-container {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    gap: var(--space-6);
+}
+
+/* 舊左側面板：已移除，樣式保留以防舊快取 */
+.login-brand-panel { display: none !important; }
+
+/* ─── Apple Hero 式佈局：三段結構 ──────────────────
+   ┌─────────────────────┐
+   │      (spacer)       │  ← 頂部呼吸空間
+   │                     │
+   │     [App Icon]      │  ← 圓角漸層徽章
+   │    校園 AI 助手       │  ← 大字品名（gradient）
+   │  陪伴你的智能學習夥伴    │  ← tagline
+   │                     │
+   │  [錯題][AI][路徑]     │  ← feature pills
+   │                     │
+   │   "靜語 quote"        │  ← 底部引言（淡）
+   │      · · ·           │
+   └─────────────────────┘
+   ─────────────────────────────────────────────── */
 .brand-panel-content {
     position: relative;
     z-index: 2;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     width: 100%;
+    max-width: 440px;
     height: 100%;
-    padding: 0 var(--space-8);
-}
-
-.brand-panel-content::before {
-    content: '';
-    flex: 0 0 var(--space-16);
-}
-
-.brand-mascot {
-    width: 280px;
-    height: auto;
-    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.12));
-    flex-shrink: 0;
-    will-change: transform, filter;
-    transform-style: preserve-3d;
-}
-
-.brand-welcome {
-    font-size: var(--type-caption);
-    color: var(--white-secondary);
-    letter-spacing: 0.08em;
-    font-weight: 400;
-    margin-top: var(--space-8);
-    text-transform: uppercase;
-}
-
-.brand-app-name {
-    font-family: 'Noto Sans TC', sans-serif;
-    font-size: var(--type-display);
-    font-weight: 700;
-    color: #FFFFFF;
-    letter-spacing: 1px;
-    line-height: 1.2;
-    margin-top: var(--space-2);
-}
-
-.brand-school {
-    font-family: 'Noto Sans TC', sans-serif;
-    font-size: var(--type-h2);
-    color: var(--white-secondary);
-    line-height: 1.5;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    margin-top: var(--space-2);
-}
-
-/* ── QR Code 區域 ── */
-.brand-qr-section {
-    margin-top: var(--space-10);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-2);
+    justify-content: center;       /* 垂直置中 */
+    gap: var(--space-10);
+    text-align: center;
+    padding: var(--space-8) var(--space-4);
 }
 
-.qr-container {
-    width: 140px;
-    height: 140px;
+.brand-spacer {
+    display: none;   /* placeholder，不佔空間；上面 justify-content: center 已處理 */
+}
+
+.brand-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5);
+    animation: heroRise 0.8s var(--ease-apple) both;
+}
+
+/* ── App Icon Badge：深海軍藍底 + 仿舊黃銅圖標（老錢經典配色） ── */
+.brand-app-icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 16px;
+    background:
+        linear-gradient(145deg, var(--ink-soft) 0%, var(--ink) 55%, var(--ink-deep) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--brass-soft);          /* 香檳金圖標 */
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 12px 32px rgba(15, 29, 56, 0.28),
+        0 2px 4px rgba(15, 29, 56, 0.20),
+        inset 0 1px 0 rgba(201, 169, 126, 0.25),       /* 頂部黃銅高光 */
+        inset 0 -1px 0 rgba(0, 0, 0, 0.30);            /* 底部暗影 */
+
+    /* 細邊框：仿舊黃銅包邊 */
+    border: 1px solid rgba(176, 141, 87, 0.35);
 }
 
-.qr-container svg {
-    width: 100%;
-    height: 100%;
+/* icon 頂部高光：模擬黃銅鏡面反光 */
+.brand-app-icon::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 45%;
+    background: linear-gradient(180deg,
+                rgba(201, 169, 126, 0.18) 0%,
+                rgba(201, 169, 126, 0) 100%);
+    border-radius: 16px 16px 40% 40% / 16px 16px 100% 100%;
+    pointer-events: none;
 }
 
-.qr-text-group {
-    text-align: center;
+/* 對角紋理：非常非常淡的斜向暗紋 → 老式皮革/金屬的質感 */
+.brand-app-icon::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(135deg,
+            rgba(0, 0, 0, 0.06) 0 1px,
+            transparent 1px 4px);
+    opacity: 0.5;
+    pointer-events: none;
 }
 
-.qr-label-zh {
-    font-family: 'Noto Sans TC', sans-serif;
-    font-size: var(--type-caption);
-    font-weight: 500;
-    color: var(--white-secondary);
-    letter-spacing: 0.03em;
-    line-height: 1.4;
+.brand-app-icon svg {
+    width: 36px;
+    height: 36px;
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.25));
 }
 
-.qr-label-en {
-    font-size: var(--type-micro);
+/* ── 品名：襯線體（Cormorant Garamond），沉穩深海軍藍 ── */
+.brand-app-name {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.1;
+    margin: 0;
+    color: var(--ink);
+    /* 不用漸層 → 老錢風拒絕炫技 */
+}
+
+/* ── Tagline：小寫 + 寬字距，editorial 氣息 ── */
+.brand-tagline {
+    font-family: var(--font-sans);
+    font-size: 12px;
     font-weight: 400;
-    color: var(--white-tertiary);
-    letter-spacing: 0.05em;
+    color: var(--taupe);
+    line-height: 1.5;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 0;
+    max-width: 320px;
 }
 
-.qr-url {
-    font-size: var(--type-micro);
-    color: var(--white-muted);
-    font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
-    word-break: break-all;
-    max-width: 180px;
-    text-align: center;
-    line-height: 1.3;
+/* Tagline 前後加小短線（Editorial 分隔裝飾） */
+.brand-tagline::before,
+.brand-tagline::after {
+    content: "·";
+    margin: 0 8px;
+    color: var(--brass);
+    opacity: 0.7;
 }
 
-/* ── 名言區域 ── */
+/* ── Feature Pills：骨白底 + 仿舊黃銅細邊（非膠囊而是微圓矩形） ── */
+.brand-features {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    padding: var(--space-5) 0 0;
+    margin: 0;
+    border-top: 1px solid var(--border-light);
+    margin-top: var(--space-5);
+    animation: heroRise 0.8s var(--ease-apple) 0.35s both;
+}
+
+.feature-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(250, 246, 238, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(176, 141, 87, 0.28);          /* 仿舊黃銅細邊 */
+    border-radius: 3px;                                   /* 微方正 */
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    box-shadow: 0 1px 2px rgba(31, 29, 23, 0.04);
+    transition: transform var(--duration-fast) var(--ease-apple),
+                color var(--duration-fast) var(--ease-out),
+                background var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out);
+}
+
+.feature-pill:hover {
+    transform: translateY(-1px);
+    color: var(--ink);
+    background: rgba(250, 246, 238, 0.9);
+    border-color: var(--brass);
+}
+
+.feature-pill svg {
+    width: 11px;
+    height: 11px;
+    color: var(--brass);
+    flex-shrink: 0;
+}
+
+/* ── 名言輪播：Apple 風底部低調靜語（浮於卡片下方） ── */
 .brand-quote {
-    margin-top: auto;
-    padding-bottom: var(--space-12);
-    width: 70%;
+    width: 80%;
+    max-width: 440px;
     text-align: center;
+    opacity: 0.75;
+}
+.page-quote {
+    margin-top: var(--space-2);
+    animation: heroRise 0.8s var(--ease-apple) 0.5s both;
 }
 
 .brand-quote .quote-wrapper {
     position: relative;
-    min-height: 90px;
+    min-height: 56px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -292,35 +487,48 @@ body {
     position: absolute;
     width: 100%;
     opacity: 0;
-    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.8s var(--ease-apple);
     pointer-events: none;
 }
-
 .brand-quote .quote-item.active {
     opacity: 1;
     pointer-events: auto;
 }
 
 .brand-quote .quote-chinese {
-    font-family: 'Noto Sans TC', sans-serif;
-    font-size: var(--type-caption);
-    font-weight: 400;
-    color: var(--white-secondary);
-    margin-bottom: var(--space-2);
-    line-height: 1.9;
-}
-
-.brand-quote .quote-english {
-    font-size: var(--type-micro);
-    color: var(--white-tertiary);
-    font-style: italic;
-    margin-bottom: var(--space-2);
+    font-family: var(--font-serif);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--taupe);
+    margin-bottom: 2px;
     line-height: 1.7;
+    letter-spacing: 0.04em;
+    font-style: italic;
+}
+.brand-quote .quote-english {
+    font-family: var(--font-serif);
+    font-size: 11px;
+    color: rgba(139, 126, 102, 0.75);
+    font-style: italic;
+    margin-bottom: 2px;
+    line-height: 1.5;
+}
+.brand-quote .quote-author {
+    font-family: var(--font-sans);
+    font-size: 10px;
+    color: var(--taupe);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.7;
 }
 
-.brand-quote .quote-author {
-    font-size: var(--type-micro);
-    color: var(--white-tertiary);
+/* 小點指示器改為黃銅色 */
+.brand-quote .quote-indicator {
+    background: rgba(139, 126, 102, 0.25);
+}
+.brand-quote .quote-indicator.active {
+    background: var(--brass);
+    transform: scale(1.4);
 }
 
 .brand-quote .quote-indicators {
@@ -331,89 +539,102 @@ body {
 }
 
 .brand-quote .quote-indicator {
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: var(--white-muted);
+    background: var(--border-strong);
     cursor: pointer;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--duration-base) var(--ease-apple);
 }
-
 .brand-quote .quote-indicator.active {
-    background: var(--white-secondary);
-    transform: scale(1.4);
+    background: var(--brand);
+    transform: scale(1.5);
 }
 
-/* ── 右側表單面板 ── */
+/* ─── 登入表單面板（單一置中） ─── */
 .login-form-panel {
-    flex: 1;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-10);
-    background: #F5F5F7;
+    padding: 0;
 }
 
 .login-card {
     position: relative;
     width: 100%;
-    max-width: 400px;
+    max-width: 460px;
+    padding: var(--space-10) var(--space-8) var(--space-8);
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid var(--glass-border-strong);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-glass-lg);
     text-align: center;
-    background: #F5F5F7;
-    border-radius: 28px;
-    padding: var(--space-12) var(--space-10);
-    box-shadow:
-        10px 10px 25px rgba(0, 0, 0, 0.07),
-        -10px -10px 25px rgba(255, 255, 255, 0.85);
-    transition: box-shadow 0.4s ease;
+    overflow: hidden;
+    animation: cardRise 0.7s var(--ease-apple) 0.12s both;
 }
 
-.login-header {
-    margin-bottom: var(--space-10);
+/* ── 入場動畫（Apple 式淡入 + 微上浮） ── */
+@keyframes heroRise {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cardRise {
+    from { opacity: 0; transform: translateY(16px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.login-icon {
-    margin-bottom: var(--space-6);
+/* 卡片上緣反光高光 */
+.login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.4), transparent);
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    pointer-events: none;
 }
 
-.login-logo-img {
-    width: 96px;
-    height: auto;
+.login-card > * {
+    position: relative;
+    z-index: 1;
 }
 
-.login-title {
-    font-size: var(--type-h1);
-    font-weight: 600;
-    color: var(--text-primary);
-    letter-spacing: -0.3px;
-    margin-bottom: var(--space-2);
+/* 舊 login-header 元素殘留（保留兼容） */
+.login-icon { display: none; }
+.login-title,
+.login-subtitle { display: none; }
+
+/* 新 Hero（在卡片內） */
+.login-header.brand-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-8);
+    animation: heroRise 0.7s var(--ease-apple) 0.2s both;
 }
 
-.login-subtitle {
-    font-size: var(--type-body);
-    color: var(--text-secondary);
-    line-height: 1.5;
-}
-
-/* ── 輸入表單（Neumorphism） ── */
-.input-group {
-    text-align: left;
-}
-
-.input-label {
-    display: block;
-    font-size: var(--type-caption);
-    font-weight: 500;
-    color: var(--text-tertiary);
-    margin-bottom: var(--space-2);
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-}
-
+/* ─── 表單 ─── */
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--space-5);
+}
+
+.input-group { text-align: left; }
+
+.input-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--taupe);
+    margin-bottom: var(--space-2);
+    letter-spacing: 0.18em;       /* 寬字距 small caps 老錢感 */
+    text-transform: uppercase;
+    font-family: var(--font-sans);
 }
 
 .input-wrapper {
@@ -427,123 +648,138 @@ body {
     transform: translateY(-50%);
     width: 18px;
     height: 18px;
-    color: var(--text-placeholder);
-    transition: color 0.35s ease;
+    color: var(--text-tertiary);
+    transition: color var(--duration-base) var(--ease-out);
     pointer-events: none;
     z-index: 1;
 }
 
 .input-wrapper:focus-within .input-icon {
-    color: var(--brand);
+    color: var(--brass);
 }
 
 .login-input {
     width: 100%;
-    padding: var(--space-4) var(--space-4) var(--space-4) 48px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: #F5F5F7;
+    padding: var(--space-4) var(--space-4) var(--space-4) 46px;
+    border: 1px solid var(--border-default);
+    border-radius: 4px;                          /* 老錢幾乎不用大圓角 — 極輕微方正 */
+    background: rgba(250, 246, 238, 0.70);       /* 奶白底 */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: var(--text-primary);
     font-size: 15px;
     font-family: var(--font-sans);
-    box-shadow:
-        inset 3px 3px 7px rgba(0, 0, 0, 0.06),
-        inset -3px -3px 7px rgba(255, 255, 255, 0.8);
-    transition: box-shadow 0.35s ease;
+    font-weight: 400;
+    transition: border-color var(--duration-base) var(--ease-out),
+                background var(--duration-base) var(--ease-out),
+                box-shadow var(--duration-base) var(--ease-out);
     -webkit-appearance: none;
 }
 
 .login-input:hover {
-    box-shadow:
-        inset 3px 3px 7px rgba(0, 0, 0, 0.08),
-        inset -3px -3px 7px rgba(255, 255, 255, 0.85);
+    background: rgba(250, 246, 238, 0.85);
+    border-color: var(--border-strong);
 }
 
 .login-input:focus {
     outline: none;
-    box-shadow:
-        inset 3px 3px 7px rgba(0, 0, 0, 0.08),
-        inset -3px -3px 7px rgba(255, 255, 255, 0.9),
-        0 0 0 2.5px rgba(99, 102, 241, 0.18);
+    background: rgba(255, 253, 247, 0.95);
+    border-color: var(--brass);
+    box-shadow: var(--shadow-focus);
 }
 
 .login-input::placeholder {
     color: var(--text-placeholder);
+    font-style: italic;                          /* 斜體 placeholder = editorial */
 }
 
 .login-input:-webkit-autofill {
-    -webkit-box-shadow: inset 3px 3px 7px rgba(0, 0, 0, 0.06), inset -3px -3px 7px rgba(255, 255, 255, 0.8), 0 0 0 1000px #F5F5F7 inset !important;
+    -webkit-box-shadow: 0 0 0 1000px rgba(250, 246, 238, 0.95) inset !important;
     -webkit-text-fill-color: var(--text-primary) !important;
 }
 
-/* ── 登入按鈕（Neumorphism） ── */
+/* ─── 登入按鈕：深海軍藍 + 奶白字（老錢經典） ─── */
 .login-button {
     width: 100%;
     padding: var(--space-4) var(--space-6);
-    background: var(--brand);
-    color: var(--text-on-brand);
-    border: none;
-    border-radius: var(--radius-full);
-    font-size: var(--type-body);
+    background: var(--ink);
+    color: var(--cream);
+    border: 1px solid var(--ink-deep);
+    border-radius: 4px;                                 /* 微方正，非膠囊 */
+    font-size: 13px;
     font-weight: 500;
     font-family: var(--font-sans);
+    letter-spacing: 0.24em;                              /* 寬字距：old money sign-in 常態 */
+    text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-top: var(--space-8);
+    transition: transform var(--duration-fast) var(--ease-apple),
+                box-shadow var(--duration-base) var(--ease-out),
+                background var(--duration-base) var(--ease-out);
+    margin-top: var(--space-6);
     box-shadow:
-        5px 5px 14px rgba(0, 0, 0, 0.10),
-        -5px -5px 14px rgba(255, 255, 255, 0.7);
+        0 10px 24px rgba(15, 29, 56, 0.28),
+        inset 0 1px 0 rgba(201, 169, 126, 0.15);         /* 頂部一絲黃銅微光 */
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-2);
-    letter-spacing: 0.02em;
+    gap: var(--space-3);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-button::after {
+    /* 極輕微頂部高光（非亮面塑膠感） */
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(201, 169, 126, 0.10), transparent);
+    pointer-events: none;
+}
+
+.login-button .btn-text {
+    font-weight: 500;
 }
 
 .login-button .btn-icon {
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 16px;
-    opacity: 0.8;
+    transition: transform var(--duration-base) var(--ease-apple);
+    font-size: 14px;
+    opacity: 0.75;
+    letter-spacing: 0;                                   /* icon 不吃字距 */
+    color: var(--brass-soft);                            /* 箭頭用香檳金 → 老錢簽章 */
 }
 
 .login-button:hover {
-    background: var(--brand-hover);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
+    background: var(--ink-deep);
     box-shadow:
-        7px 7px 18px rgba(0, 0, 0, 0.12),
-        -7px -7px 18px rgba(255, 255, 255, 0.8);
+        0 14px 30px rgba(15, 29, 56, 0.38),
+        inset 0 1px 0 rgba(201, 169, 126, 0.25);
 }
 
 .login-button:hover .btn-icon {
     transform: translateX(3px);
+    opacity: 1;
 }
 
 .login-button:active {
-    transform: translateY(0);
-    box-shadow:
-        inset 3px 3px 8px rgba(0, 60, 30, 0.25),
-        inset -2px -2px 5px rgba(255, 255, 255, 0.08);
+    transform: translateY(0) scale(0.985);
+    transition-duration: 0.08s;
 }
 
 .login-button:disabled {
-    background: var(--text-placeholder);
+    background: var(--stone);
+    color: var(--cream);
     cursor: not-allowed;
     transform: none;
-    box-shadow:
-        3px 3px 8px rgba(0, 0, 0, 0.06),
-        -3px -3px 8px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 2px 8px rgba(31, 29, 23, 0.08);
 }
 
-/* ── 按鈕加載態 ── */
+/* 按鈕 loading */
 .login-button.is-loading {
-    background: var(--brand);
     color: transparent;
     pointer-events: none;
     position: relative;
-    box-shadow:
-        inset 2px 2px 6px rgba(0, 60, 30, 0.2),
-        inset -2px -2px 4px rgba(255, 255, 255, 0.06);
-    overflow: hidden;
     transform: none;
 }
 
@@ -559,11 +795,12 @@ body {
     background: linear-gradient(
         90deg,
         transparent 0%,
-        rgba(255, 255, 255, 0.12) 40%,
-        rgba(255, 255, 255, 0.12) 60%,
+        rgba(255, 255, 255, 0.3) 40%,
+        rgba(255, 255, 255, 0.3) 60%,
         transparent 100%
     );
-    animation: btnShimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation: btnShimmer 1.4s var(--ease-out) infinite;
+    z-index: 1;
 }
 
 .login-button.is-loading::after {
@@ -575,32 +812,37 @@ body {
     justify-content: center;
     color: var(--text-on-brand);
     font-size: 14px;
-    font-weight: 400;
+    font-weight: 500;
     letter-spacing: 0.05em;
     animation: btnTextPulse 2s ease-in-out infinite;
+    background: none;
+    z-index: 2;
+    height: auto;
+    border-radius: 0;
 }
 
 @keyframes btnShimmer {
     0%   { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
 }
-
 @keyframes btnTextPulse {
-    0%, 100% { opacity: 0.5; }
+    0%, 100% { opacity: 0.6; }
     50%      { opacity: 1; }
 }
 
-/* ── 錯誤與載入 ── */
+/* ─── 錯誤 / 載入 ─── */
 .login-error {
     display: none;
     margin-top: var(--space-4);
     padding: var(--space-3) var(--space-4);
-    background: rgba(255, 59, 48, 0.08);
-    border: 1px solid rgba(255, 59, 48, 0.15);
+    background: var(--color-error-bg);
+    border: 1px solid var(--color-error-border);
     border-radius: var(--radius-md);
     color: var(--color-error);
     font-size: 13px;
     text-align: left;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .login-loading {
@@ -613,168 +855,9 @@ body {
     pointer-events: none;
 }
 
-.loading-spinner {
-    display: none;
-}
+.loading-spinner { display: none; }
 
-/* ================================================
-   響應式
-   ================================================ */
-
-/* --- 平板 (max-width: 768px) --- */
-@media (max-width: 768px) {
-    .login-container {
-        flex-direction: column;
-    }
-    .login-brand-panel {
-        display: none;
-    }
-    .login-form-panel {
-        flex: 1;
-        padding: var(--space-8) var(--space-6);
-    }
-    .login-card {
-        max-width: 400px;
-    }
-    .login-title { font-size: 24px; }
-}
-
-/* --- iPad 橫向 (834px - 1023px) --- */
-@media (min-width: 834px) and (max-width: 1023px) {
-    .login-brand-panel {
-        flex: 0 0 40%;
-    }
-    .brand-mascot {
-        width: 160px;
-    }
-}
-
-/* --- iPad 直向 (600px - 833px) --- */
-@media (min-width: 600px) and (max-width: 833px) {
-    .login-brand-panel { display: none; }
-    .login-form-panel { padding: var(--space-6); }
-    .login-title { font-size: 24px; }
-}
-
-/* --- 小平板 / 大手機 (480px - 599px) --- */
-@media (min-width: 480px) and (max-width: 599px) {
-    .login-brand-panel { display: none; }
-    .login-form-panel { padding: var(--space-5) var(--space-4); }
-    .login-title { font-size: 22px; }
-}
-
-/* --- 手機 (< 480px) --- */
-@media (max-width: 479px) {
-    .login-brand-panel { display: none; }
-    .login-form-panel { padding: var(--space-4) var(--space-3); }
-    .login-card {
-        max-width: 100%;
-        padding: var(--space-6) var(--space-4);
-    }
-    .login-title { font-size: 20px; }
-    .login-subtitle { font-size: 13px; }
-    .login-input {
-        padding: var(--space-3) 0;
-        font-size: 16px;
-    }
-    .splash-title { font-size: 22px; }
-    .splash-mascot { width: 80px; }
-    .splash-subtitle { font-size: 12px; }
-}
-
-@media (max-width: 480px) {
-    .splash-title { font-size: 22px; }
-    .splash-mascot { width: 90px; }
-}
-
-/* --- 橫向模式 --- */
-@media (orientation: landscape) and (max-height: 500px) {
-    .login-brand-panel {
-        flex: 0 0 35%;
-    }
-    .brand-mascot { width: 100px; }
-    .brand-app-name { font-size: 22px; }
-    .brand-quote { display: none; }
-    .login-form-panel { padding: var(--space-4); }
-    .login-header { margin-bottom: var(--space-4); }
-    .splash-mascot { width: 80px; }
-}
-
-/* ========== 減少動畫模式 ========== */
-@media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
-}
-
-/* ========== 語言切換按鈕 ========== */
-.lang-toggle {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 20px;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.lang-toggle:hover {
-    background: rgba(255, 255, 255, 0.25);
-    color: #fff;
-}
-
-.lang-toggle svg {
-    opacity: 0.7;
-}
-
-/* ========== 主題色選擇器 ========== */
-.theme-picker {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border-light);
-}
-
-.theme-dot {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    background: var(--dot-color);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    padding: 0;
-    outline: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-}
-
-.theme-dot:hover {
-    transform: scale(1.15);
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-}
-
-.theme-dot.active {
-    border-color: var(--dot-color);
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06), 0 0 0 5px var(--dot-color);
-    transform: scale(1.1);
-}
-
-/* ========== 登入卡片內語言切換 ========== */
+/* ─── 語言切換（卡片內右上）── */
 .login-lang-toggle {
     position: absolute;
     top: 16px;
@@ -782,32 +865,104 @@ body {
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    background: rgba(99, 102, 241, 0.08);
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    border-radius: 20px;
-    color: #6366F1;
-    font-size: 13px;
+    gap: 5px;
+    padding: 5px 10px;
+    background: rgba(250, 246, 238, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(176, 141, 87, 0.28);
+    border-radius: 3px;
+    color: var(--taupe);
+    font-size: 10.5px;
     font-weight: 500;
+    font-family: var(--font-sans);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--duration-fast) var(--ease-out);
 }
 
 .login-lang-toggle:hover {
-    background: rgba(99, 102, 241, 0.15);
-    color: #3730A3;
+    background: rgba(250, 246, 238, 0.95);
+    color: var(--ink);
+    border-color: var(--brass);
 }
 
 .login-lang-toggle svg {
-    opacity: 0.7;
+    opacity: 0.65;
+    width: 13px;
+    height: 13px;
 }
 
-/* ========== 列印：隱藏登入 ========== */
-@media print {
-    .splash-screen,
-    .glass-panel,
-    .login-container {
-        display: none !important;
+/* 已移除 theme-picker —— 保留樣式占位以防舊快取 */
+.theme-picker { display: none !important; }
+
+/* ============================================================
+   響應式設計
+   ============================================================ */
+
+/* 手機 */
+@media (max-width: 479px) {
+    .login-container { padding: var(--space-3) var(--space-3) var(--space-4); }
+    .login-card {
+        padding: var(--space-8) var(--space-5) var(--space-6);
+        border-radius: var(--radius-xl);
+        max-width: 100%;
     }
+    .brand-app-icon { width: 68px; height: 68px; border-radius: 18px; }
+    .brand-app-icon svg { width: 32px; height: 32px; }
+    .brand-app-name { font-size: 24px; }
+    .brand-tagline { font-size: 13px; }
+    .login-input {
+        font-size: 16px;   /* 避免 iOS 自動縮放 */
+        padding: 14px 14px 14px 44px;
+    }
+    .login-button { font-size: 15px; padding: 14px 20px; }
+    .feature-pill { font-size: 11px; padding: 5px 10px; }
+    .page-quote { max-width: 92%; }
+
+    /* 手機上 blob 小一點免得過於刺眼 */
+    .blob { filter: blur(80px); }
+    .blob-1 { width: 90vw; height: 90vw; }
+    .blob-2 { width: 80vw; height: 80vw; }
+    .blob-3 { width: 70vw; height: 70vw; }
+    .blob-4 { width: 65vw; height: 65vw; }
+}
+
+/* 橫向小螢幕 */
+@media (orientation: landscape) and (max-height: 560px) {
+    .login-container { padding: var(--space-3); }
+    .page-quote { display: none; }   /* 橫向空間不夠直接藏掉 quote */
+    .login-header.brand-hero { gap: var(--space-2); margin-bottom: var(--space-5); }
+    .brand-app-icon { width: 60px; height: 60px; border-radius: 16px; }
+    .brand-app-icon svg { width: 28px; height: 28px; }
+    .brand-app-name { font-size: 22px; }
+    .brand-tagline { font-size: 12px; }
+    .login-card { padding: var(--space-5) var(--space-6); }
+    .brand-features { padding-top: var(--space-3); }
+}
+
+/* ============================================================
+   Reduced Motion — 禁用所有 blob 動畫，改為靜態色塊
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    .blob {
+        /* 保留色彩但固定位置 */
+        animation: none !important;
+        filter: blur(110px);
+        opacity: 0.42;
+    }
+}
+
+/* ============================================================
+   列印
+   ============================================================ */
+@media print {
+    .liquid-bg,
+    .login-container { display: none !important; }
 }

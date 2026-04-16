@@ -2,7 +2,7 @@
 // Keys: cb.*
 i18n.addMessages({
     zh: {
-        'cb.pageTitle': '協作佈告板 - AI學習夥伴',
+        'cb.pageTitle': '協作佈告板 · 策問 QUAERO',
         'cb.back': '返回',
         'cb.listHeader': '協作佈告板',
         'cb.listDesc': '老師建板，全班一起發帖互動',
@@ -128,7 +128,7 @@ i18n.addMessages({
         'cb.groupPrefix': '組',
     },
     en: {
-        'cb.pageTitle': 'Collaborative Boards - AI Learning Buddy',
+        'cb.pageTitle': 'Collaborative Boards · QUAERO',
         'cb.back': 'Back',
         'cb.listHeader': 'Collaborative Boards',
         'cb.listDesc': 'Teachers create boards, the whole class posts and interacts',

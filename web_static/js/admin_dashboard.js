@@ -511,7 +511,11 @@ const AdminUI = {
         }
 
         for (const [code, subject] of entries) {
-            const icon = (subject && (subject.icon || subject?.config?.icon)) || this.icon('books', 'icon-2xl', 'stroke:var(--brand)');
+            // 學科圖標：若為 SubjectIcon key 或舊 emoji，統一渲染為 SVG
+            const rawIcon = (subject && (subject.icon || subject?.config?.icon)) || 'books';
+            const icon = (typeof SubjectIcon !== 'undefined')
+                ? SubjectIcon.render(rawIcon, 32)
+                : this.icon('books', 'icon-2xl', 'stroke:var(--brand)');
             const name = (subject && (subject.name || code)) || code;
             const desc = subject?.config?.description || '';
             const docCount = subject?.config?.doc_count || 0;
@@ -1766,15 +1770,58 @@ const AdminApp = {
         }
     },
 
+    /* ---------- SVG 圖標選擇器 ---------- */
+    /**
+     * 在指定容器渲染 SVG 圖標網格，點擊選中並寫入 hidden input
+     * @param {string} pickerId  - 容器 ID（如 'subjectIconPicker'）
+     * @param {string} inputId   - 隱藏欄位 ID（如 'subjectIcon'）
+     * @param {string} [selected] - 初始選中的 key
+     */
+    renderIconPicker(pickerId, inputId, selected) {
+        const picker = document.getElementById(pickerId);
+        const hidden = document.getElementById(inputId);
+        if (!picker || !hidden || typeof SubjectIcon === 'undefined') return;
+
+        // 舊資料可能是 emoji，先解析成 key
+        const resolved = SubjectIcon.resolveKey(selected || hidden.value || 'books');
+        hidden.value = resolved;
+
+        const items = SubjectIcon.catalog();
+        picker.innerHTML = items.map(function (item) {
+            const active = item.key === resolved ? ' is-active' : '';
+            return (
+                '<button type="button" class="svg-icon-picker__item' + active + '"' +
+                ' data-key="' + item.key + '"' +
+                ' title="' + (item.label || item.key).replace(/"/g, '&quot;') + '"' +
+                ' aria-label="' + (item.label || item.key).replace(/"/g, '&quot;') + '">' +
+                    item.svg +
+                '</button>'
+            );
+        }).join('');
+
+        picker.querySelectorAll('.svg-icon-picker__item').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                picker.querySelectorAll('.svg-icon-picker__item').forEach(function (b) {
+                    b.classList.remove('is-active');
+                });
+                btn.classList.add('is-active');
+                hidden.value = btn.dataset.key;
+            });
+        });
+    },
+
     /* ---------- 學科增刪改 ---------- */
     showAddSubjectModal() {
         document.getElementById('addSubjectModal').style.display = 'flex';
         document.getElementById('subjectCode').focus();
+        // 預設選中 "books"
+        this.renderIconPicker('subjectIconPicker', 'subjectIcon', 'books');
     },
 
     closeAddSubjectModal() {
         document.getElementById('addSubjectModal').style.display = 'none';
         document.getElementById('addSubjectForm').reset();
+        document.getElementById('subjectIcon').value = 'books';
     },
 
     async _handleAddSubjectSubmit(e) {
@@ -1798,15 +1845,16 @@ const AdminApp = {
     showEditSubjectModal(code) {
         const subj = this.state.subjects[code] || {};
         const name = subj.name || code;
-        const icon = subj.icon || subj?.config?.icon || '';
+        const icon = subj.icon || subj?.config?.icon || 'books';
         const description = subj?.config?.description || '';
 
         document.getElementById('editSubjectCode').value = code;
         document.getElementById('editSubjectCodeDisplay').value = code;
         document.getElementById('editSubjectName').value = name;
-        document.getElementById('editSubjectIcon').value = icon;
         document.getElementById('editSubjectDescription').value = description;
         document.getElementById('editSubjectModal').style.display = 'flex';
+        // 渲染 picker（舊資料若為 emoji 會自動映射到 key）
+        this.renderIconPicker('editSubjectIconPicker', 'editSubjectIcon', icon);
     },
 
     closeEditSubjectModal() {
@@ -1963,7 +2011,10 @@ const AdminApp = {
         for (const [code, subject] of Object.entries(this.state.subjects)) {
             const item = document.createElement('div');
             item.style.cssText = 'padding:12px;background:var(--bg);border-radius:8px;cursor:pointer;transition:all .3s;display:flex;align-items:center;gap:8px;';
-            item.innerHTML = `<span>${subject.icon || AdminUI.icon('books', 'icon-lg')}</span><span>${subject.name || code}</span>`;
+            const iconHtml = (typeof SubjectIcon !== 'undefined')
+                ? SubjectIcon.render(subject.icon || 'books', 20)
+                : (subject.icon || AdminUI.icon('books', 'icon-lg'));
+            item.innerHTML = `<span class="subject-inline-icon">${iconHtml}</span><span>${subject.name || code}</span>`;
             item.addEventListener('click', (event) => this.selectPromptSubject(code, subject, event));
             container.appendChild(item);
         }

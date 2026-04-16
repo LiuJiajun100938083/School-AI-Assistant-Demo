@@ -2896,8 +2896,9 @@ const AssignmentApp = {
         try {
             const data = await AssignmentAPI._call('/api/subjects');
             if (data?.subjects) {
+                // <option> 只能純文字；subject 圖示在其他地方統一呈現
                 for (const [code, info] of Object.entries(data.subjects)) {
-                    subjectsHtml += `<option value="${code}">${info.icon || '📚'} ${info.name}</option>`;
+                    subjectsHtml += `<option value="${code}">${info.name}</option>`;
                 }
             }
         } catch (e) { /* ignore */ }

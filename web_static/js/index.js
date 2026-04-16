@@ -155,50 +155,94 @@ const HomeUI = {
 
     /* ---------- SVG 圖標映射 ---------- */
 
+    // ═══════════════════════════════════════════════════════════
+    //   Editorial Engraved Icon Set  (Old Money × Apple)
+    //   stroke-width: 1.5 on 24×24  ·  stroke-linecap: round
+    //   Motifs: open book · compass rose · quill · seal · hourglass · laurel · scroll
+    // ═══════════════════════════════════════════════════════════
     _appIcons: {
-        ai_chat:          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
-        ai_learning_center:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
-        school_learning_center:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-        game_center:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
-        forum:            '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h8"/><path d="M8 14h4"/></svg>',
-        student_report:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
-        learning_tasks:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
-        mistake_book:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
-        image_gen:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
-        classroom:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
-        attendance:       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>',
-        notice:           '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
-        mistake_book_teacher:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>',
-        learning_task_admin:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
-        game_upload:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>',
-        assignment:       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>',
-        dictation:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
-        class_diary_review:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="9" y1="7" x2="16" y2="7"/><line x1="9" y1="11" x2="16" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></svg>',
-        exam_creator:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
-        admin_dashboard:  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
-        collab_board:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',
-        tool_qrcode:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="17"/><line x1="17" y1="14" x2="17" y2="14.01"/><line x1="20" y1="14" x2="20" y2="17"/><line x1="14" y1="20" x2="17" y2="20"/><line x1="20" y1="20" x2="20" y2="20.01"/><line x1="17" y1="17" x2="17" y2="20"/></svg>',
-        tool_image_convert:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/><path d="M12 5l3 3-3 3"/></svg>',
-        tool_pdf_merge:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="12" y1="11" x2="12" y2="19"/></svg>',
-        tool_countdown:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 14.5"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="12" y1="2" x2="12" y2="4"/></svg>',
-        tool_roll_call:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
-        tool_md_reader:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>',
-        tool_handwriting_math:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l5-5"/><circle cx="9" cy="15" r="4"/><path d="M17 4l3 3-7 7"/><path d="M15 6l3 3"/></svg>',
-        pet_teacher:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
-        pet:              '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="17" rx="5" ry="4"/><circle cx="7" cy="10" r="2"/><circle cx="11" cy="6.5" r="2"/><circle cx="17" cy="10" r="2"/><circle cx="15" cy="5" r="1.5"/></svg>',
-        tool_laser_engrave:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8l4-2"/><circle cx="12" cy="16" r="5"/><path d="M12 13v6"/><path d="M9 16h6"/></svg>',
-        exam_grader:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+        // 對話 + 羽毛筆尖：AI chat as correspondence
+        ai_chat:          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h13a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2H10l-4 3.2V16H4a2 2 0 0 1-2-2V7.5a2 2 0 0 1 2-2z"/><path d="M8.5 10.2c.8-.3 1.4 .1 1.6 .7c.3 .8-.2 1.4-1 1.4"/><path d="M13.5 12.3c-.1-.9 .5-1.6 1.3-1.6"/></svg>',
+        // 羅盤玫瑰：navigating knowledge
+        ai_learning_center:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="M12 7l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"/></svg>',
+        // 拱廊圖書館：library facade with 3 arches
+        school_learning_center:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V10l9-6 9 6v10"/><path d="M7 20V14a2 2 0 0 1 2-2h1V20"/><path d="M14 20V12h1a2 2 0 0 1 2 2v6"/><path d="M2.5 20h19"/></svg>',
+        // 遊戲：菱形 + 中央星
+        game_center:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5L21.5 12 12 21.5 2.5 12z"/><path d="M12 8l1.2 2.7 3 .3-2.3 2 0.7 3L12 14.5 9.4 16l0.7-3-2.3-2 3-0.3z"/></svg>',
+        // 雙重對話泡泡：forum as salon
+        forum:            '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h11a2 2 0 0 1 2 2V12a2 2 0 0 1-2 2H8l-3 2.5V14H3a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/><path d="M8 11.5h9a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-3.5l-2.5 2V20H8"/></svg>',
+        // 折線圖 + 刻度：analytics报
+        student_report:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3.5-4 3 2.5 4.5-6"/><circle cx="7" cy="14" r="0.8" fill="currentColor"/><circle cx="10.5" cy="10" r="0.8" fill="currentColor"/><circle cx="13.5" cy="12.5" r="0.8" fill="currentColor"/><circle cx="18" cy="6.5" r="0.8" fill="currentColor"/></svg>',
+        // 清單 + 勾（優雅版）
+        learning_tasks:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h5"/><path d="M14.5 14.5l1.8 1.8 3.7-4"/></svg>',
+        // 開書：mistake journal（舊時代摘記本）
+        mistake_book:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5c3-1 6-1 9 0v15c-3-1-6-1-9 0z"/><path d="M21 4.5c-3-1-6-1-9 0v15c3-1 6-1 9 0z"/><path d="M6 8.5h3M6 11.5h3M15 8.5h3M15 11.5h3"/></svg>',
+        // 畫框 + 筆刷：image generation as fine art
+        image_gen:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="13" rx="1"/><path d="M3.5 13l4-4 3.5 3 3-3 6.5 6.5"/><circle cx="9" cy="8" r="1.2"/><path d="M8 20.5h8"/><path d="M12 16.5v4"/></svg>',
+        // 古典黑板 + 粉筆印記
+        classroom:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="1"/><path d="M6 8.5c2 0 2-1 4-1s2 1 4 1 2-1 4-1"/><path d="M6 12.5h7"/><path d="M8.5 21l3.5-4 3.5 4"/></svg>',
+        // 日曆 + 書票: attendance register
+        attendance:       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="17" height="15" rx="1"/><path d="M3.5 10h17"/><path d="M8 3.5v4M16 3.5v4"/><path d="M8 14.5l2 2 4-4"/></svg>',
+        // 信封 + 封蠟印：official notice
+        notice:           '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3.5 6l8.5 7 8.5-7"/><circle cx="18" cy="18" r="3"/><path d="M16.8 18l0.9 0.9L19.2 17"/></svg>',
+        // 開書 + 圓鏡：teacher reviews mistakes
+        mistake_book_teacher:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5c3-1 5-1 8 0v13c-3-1-5-1-8 0z"/><path d="M11 5c3-1 5-1 8 0v10"/><circle cx="17" cy="18" r="3"/><path d="M19.5 20.5l2 2"/></svg>',
+        // 羅馬數字 I + 齒輪: admin for learning tasks
+        learning_task_admin:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="18" rx="1.5"/><path d="M7 7h6M7 11h6M7 15h3"/><circle cx="18" cy="17" r="3.5"/><path d="M18 13.5v2M18 18.5v2M21 17h-2M17 17h-2"/></svg>',
+        // 盒子 + 上箭頭：elegant upload
+        game_upload:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5l8-4 8 4v10l-8 4-8-4z"/><path d="M4 8.5l8 4 8-4M12 12.5v8"/><path d="M12 2v6M9 5l3-3 3 3"/></svg>',
+        // 卷軸：assignment as scroll
+        assignment:       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5a2 2 0 1 1 4 0v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-13a2 2 0 1 0-4 0v1h-12"/><path d="M11 10h7M11 13h7M11 16h4"/></svg>',
+        // 墨水瓶 + 羽毛筆：dictation
+        dictation:        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 3.5c-1 2-3 4-5 5l-8 8v3.5h3.5l8-8c1-2 3-4 5-5z"/><path d="M13 8l3 3"/><path d="M4 20h5"/></svg>',
+        // 編年書：diary with date marker
+        class_diary_review:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5a2 2 0 0 1 2-2h14v18H6a2 2 0 0 1-2-2z"/><path d="M4 18a2 2 0 0 1 2-2h14"/><path d="M8 7.5h5M8 10.5h5"/><path d="M16.5 7.5v2h2v-2z"/></svg>',
+        // 文件 + 量尺：exam creator as typesetting
+        exam_creator:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h10l5 5v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"/><path d="M14 3.5v5h5"/><path d="M8 13h8M8 16h8M8 19h4"/><path d="M20 13v3M18.5 14.5h3"/></svg>',
+        // 儀表盤刻度：admin dashboard
+        admin_dashboard:  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14a9 9 0 0 1 18 0"/><path d="M3 14h18"/><path d="M12 14v-3M12 7.5v1M7 9l0.7 1M17 9l-0.7 1"/><path d="M12 14l4-5"/><circle cx="12" cy="14" r="1" fill="currentColor"/></svg>',
+        // 軟木板 + 圖釘：collab board
+        collab_board:     '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="18" height="17" rx="1"/><rect x="6" y="7" width="4.5" height="4.5"/><rect x="13.5" y="7" width="4.5" height="6.5"/><rect x="6" y="14" width="5.5" height="3"/><circle cx="12" cy="7" r="0.7" fill="currentColor"/></svg>',
+        // QR 矩陣（簡約老錢）
+        tool_qrcode:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5"/><rect x="13.5" y="3" width="7.5" height="7.5"/><rect x="3" y="13.5" width="7.5" height="7.5"/><rect x="15.5" y="15.5" width="1.5" height="1.5" fill="currentColor"/><rect x="18.5" y="13.5" width="1.5" height="1.5" fill="currentColor"/><rect x="18.5" y="18.5" width="1.5" height="1.5" fill="currentColor"/><rect x="13.5" y="18.5" width="1.5" height="1.5" fill="currentColor"/></svg>',
+        // 兩畫框交換：image format convert
+        tool_image_convert:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="9" height="9" rx="1"/><rect x="12.5" y="11.5" width="9" height="9" rx="1"/><circle cx="5.5" cy="6.5" r="0.9"/><path d="M2.5 10l3-3 3 3"/><path d="M14 10l3-1.5 3 1.5"/><path d="M12 4.5l3 3-3 3M15 7.5h-3"/></svg>',
+        // 兩疊文件合併：pdf merge
+        tool_pdf_merge:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h5l2 2.5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"/><path d="M14 4.5h5l2 2.5v11a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1z"/><path d="M9 11h3"/><path d="M10.5 9.5v3"/></svg>',
+        // 沙漏：最經典老錢計時器
+        tool_countdown:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12"/><path d="M7 3c0 4 3 6 5 9-2 3-5 5-5 9"/><path d="M17 3c0 4-3 6-5 9 2 3 5 5 5 9"/><path d="M9 8c1 1 2 2 3 3 1-1 2-2 3-3"/></svg>',
+        // 點名冊 + 勾
+        tool_roll_call:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="17" rx="1"/><path d="M8 8.5h4M8 12.5h4M8 16.5h4"/><path d="M15 7.5l1.5 1.5 2.5-2.5"/><path d="M15 11.5l1.5 1.5 2.5-2.5"/><path d="M15 15.5l1.5 1.5 2.5-2.5"/></svg>',
+        // M 字母書頁：markdown reader (monogram M)
+        tool_md_reader:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5a2 2 0 0 1 2-2h14v19H6a2 2 0 0 1-2-2z"/><path d="M4 18a2 2 0 0 1 2-2h14"/><path d="M8 14V8.5l2.5 3 2.5-3V14M15.5 14V8.5"/></svg>',
+        // 筆 + ∑：handwriting math
+        tool_handwriting_math:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l5-5 2 2-5 5H4z"/><path d="M11 9l7-7 3 3-7 7"/><path d="M15 5l3 3"/><path d="M4 20l2-1 2 1"/><path d="M14 15l3 3 3-3M14 15h6"/></svg>',
+        // 桂冠：pet teacher (laurel crown)
+        pet_teacher:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11c0-5 2.5-8 8-8s8 3 8 8c0 4-3 6.5-8 6.5s-8-2.5-8-6.5z"/><path d="M6 8c1.5 0 2.5 1 3 2.5M18 8c-1.5 0-2.5 1-3 2.5"/><path d="M12 17v4M10 19l2 2 2-2"/></svg>',
+        // 星盾：pet hero crest
+        pet:              '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5l8-2 8 2V13c0 5-4 7.5-8 8.5-4-1-8-3.5-8-8.5z"/><path d="M12 8l1.5 3 3.3.4-2.4 2.3.6 3.3-3-1.7-3 1.7.6-3.3-2.4-2.3 3.3-.4z"/></svg>',
+        // 圓規：laser engrave / drafting
+        tool_laser_engrave:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.5" r="1.5"/><path d="M12 6l-5 13"/><path d="M12 6l5 13"/><circle cx="7" cy="19" r="1.2"/><circle cx="17" cy="19" r="1.2"/><path d="M7.5 18l8.5 0"/></svg>',
+        // 鋼筆勾號：exam grader (red pen check)
+        exam_grader:      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="14" height="17" rx="1"/><path d="M7 8h7M7 11h5"/><path d="M8 15l2 2 5-5"/><path d="M18 3.5l3 3-6 6h-3v-3z"/></svg>',
     },
 
     /* ---------- 分組配置 ---------- */
 
+    // Category icons — 16×16 engraved line art (mirrors app icon language)
     _categoryConfig: {
-        learning:  { i18nKey: 'category.learning',  order: 1, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>' },
-        community: { i18nKey: 'category.community',  order: 2, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
-        teaching:  { i18nKey: 'category.teaching',   order: 3, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>' },
-        utilities: { i18nKey: 'category.utilities',  order: 4, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>' },
-        admin:     { i18nKey: 'category.system',     order: 5, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>' },
-        other:     { i18nKey: 'category.other',      order: 6, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>' },
+        // 雙書頁
+        learning:  { i18nKey: 'category.learning',  order: 1, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5c3-1 6-1 9 0v14c-3-1-6-1-9 0z"/><path d="M21 5c-3-1-6-1-9 0v14c3-1 6-1 9 0z"/><path d="M6 9h3M6 12h3M15 9h3M15 12h3"/></svg>' },
+        // 三位議事剪影
+        community: { i18nKey: 'category.community',  order: 2, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3.2"/><circle cx="5" cy="9.5" r="2.3"/><circle cx="19" cy="9.5" r="2.3"/><path d="M3 18c0-3 1.5-4.5 4-4.5M21 18c0-3-1.5-4.5-4-4.5"/><path d="M6.5 20c0-3.5 2-5.5 5.5-5.5s5.5 2 5.5 5.5"/></svg>' },
+        // 黑板 + 基座
+        teaching:  { i18nKey: 'category.teaching',   order: 3, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="19" height="13" rx="1"/><path d="M6 8c2 0 2-1 4-1s2 1 4 1 2-1 4-1"/><path d="M6 12h7"/><path d="M9 21l3-3.5 3 3.5"/></svg>' },
+        // 羅馬鑰匙：utilities
+        utilities: { i18nKey: 'category.utilities',  order: 4, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4"/><circle cx="7" cy="7" r="1.2"/><path d="M10 10l11 11"/><path d="M14 14l2-2 2 2M18 18l2-2 2 2"/></svg>' },
+        // 盾徽：admin/system
+        admin:     { i18nKey: 'category.system',     order: 5, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5l8-2 8 2V13c0 5-4 7.5-8 8.5-4-1-8-3.5-8-8.5z"/><path d="M12 8l1.5 3 3.3.4-2.4 2.3.6 3.3-3-1.7-3 1.7.6-3.3-2.4-2.3 3.3-.4z"/></svg>' },
+        // 裝飾方格：other (tessellation)
+        other:     { i18nKey: 'category.other',      order: 6, collapsed: false, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1"/><circle cx="6.75" cy="6.75" r="0.6" fill="currentColor"/><circle cx="17.25" cy="6.75" r="0.6" fill="currentColor"/><circle cx="6.75" cy="17.25" r="0.6" fill="currentColor"/><circle cx="17.25" cy="17.25" r="0.6" fill="currentColor"/></svg>' },
     },
 
     /* ---------- Sidebar 導航 ---------- */
@@ -219,7 +263,8 @@ const HomeUI = {
             return oa - ob;
         });
 
-        const allIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>';
+        // "All" category — ornamented 4-petal rosette with centre dot (old money monogram)
+        const allIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/><path d="M6 6l3 3M18 6l-3 3M6 18l3-3M18 18l-3-3"/></svg>';
 
         let html = `
             <div class="home-sidebar__item home-sidebar__item--active" data-sidebar-cat="all">
@@ -330,8 +375,8 @@ const HomeUI = {
                          data-toggle-group="${cat}">
                         <span class="home-group__label">${i18n.t(cfg.i18nKey)}</span>
                         <span class="home-group__count">${items.length}</span>
-                        <svg class="home-group__chevron" width="14" height="14" viewBox="0 0 24 24"
-                             fill="none" stroke="currentColor" stroke-width="2"
+                        <svg class="home-group__chevron" width="12" height="12" viewBox="0 0 24 24"
+                             fill="none" stroke="currentColor" stroke-width="1.5"
                              stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"/>
                         </svg>
@@ -1313,25 +1358,43 @@ const HomeApp = {
         // 隱藏主界面元素
         gsap.set([header, sidebar, welcome, appsGrid].filter(Boolean), { opacity: 0 });
 
-        /* ── 第一幕：系統喚醒（立即播放，不等網路） ── */
+        /* ── 第一幕：系統喚醒（立即播放，不等網路） ──
+           編輯式節奏：Icon → Title → Subtitle → Loader 依次浮現，每段延遲約 180ms */
         gsap.timeline()
-            .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
+            .to(splashIcon, {
                 opacity: 1, scale: 1,
-                duration: 0.4, ease: 'power2.out'
-            }, 0.05)
-            .to(splashLoader, { opacity: 1, duration: 0.2, ease: 'power2.out' }, 0.2);
+                duration: 0.55, ease: 'power2.out'
+            }, 0.1)
+            .to(splashTitle, {
+                opacity: 1, scale: 1,
+                duration: 0.6, ease: 'power2.out'
+            }, 0.35)
+            .to(splashSub, {
+                opacity: 1, scale: 1,
+                duration: 0.55, ease: 'power2.out'
+            }, 0.6)
+            .to(splashLoader, { opacity: 1, duration: 0.4, ease: 'power2.out' }, 0.85);
 
-        /* ── 等待數據就緒 + 最短展示時間 ── */
-        const minDisplay = new Promise(r => setTimeout(r, 600));
+        /* ── 等待數據就緒 + 最短展示時間 ──
+           最短 2200ms：確保用戶看到
+             · 1.2s 入場（icon + title + subtitle + loader 依序浮現）
+             · 至少一個完整 2.4s 墨跡筆觸循環的大部分
+             · 不會「一閃而過」 */
+        const minDisplay = new Promise(r => setTimeout(r, 2200));
         await Promise.all([minDisplay, dataReadyPromise].filter(Boolean)).catch(() => {});
 
         /* ── 第二幕：絲滑過渡到主界面 ── */
         return new Promise(resolve => {
             gsap.timeline({ onComplete: resolve })
-                // 淡出加載動畫
-                .to(splashLoader, { opacity: 0, duration: 0.12, ease: 'power2.in' })
+                // 淡出加載動畫（慢一點，有告別感）
+                .to(splashLoader, { opacity: 0, duration: 0.3, ease: 'power2.in' })
+                // Icon/Title/Sub 微微上浮淡出
+                .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
+                    opacity: 0, y: -6,
+                    duration: 0.35, ease: 'power2.in'
+                }, '-=0.2')
                 // 遮罩升起（蓋住 splash → 主界面切換）
-                .to(glassPanel, { opacity: 1, duration: 0.18, ease: 'power2.inOut' }, '-=0.04')
+                .to(glassPanel, { opacity: 1, duration: 0.28, ease: 'power2.inOut' }, '-=0.15')
                 // 在遮罩完全不透明時切換底層內容
                 .add(() => {
                     splashScreen.style.display = 'none';

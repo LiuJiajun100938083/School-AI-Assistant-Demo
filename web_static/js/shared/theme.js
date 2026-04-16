@@ -11,9 +11,16 @@
 
 const theme = (() => {
     const STORAGE_KEY = 'app-theme';
-    const DEFAULT = 'indigo';
+    const DEFAULT = 'oldmoney';
 
     const presets = {
+        oldmoney: {
+            label: '老錢', labelEn: 'Old Money',
+            brand: '#1B2845', brandHover: '#0F1D38', brandActive: '#000818',
+            brandLight: '#E7DEC8', brandLighter: '#FAF6EE', brandBorder: 'rgba(176, 141, 87, 0.30)',
+            loginGradient: 'linear-gradient(170deg, #0F1D38 0%, #1B2845 50%, #0B1530 100%)',
+            splashGradient: 'linear-gradient(160deg, #0F1D38 0%, #1B2845 50%, #0B1530 100%)',
+        },
         indigo: {
             label: '靛紫', labelEn: 'Indigo',
             brand: '#6366F1', brandHover: '#4F46E5', brandActive: '#4338CA',
@@ -53,6 +60,11 @@ const theme = (() => {
 
     let _current = localStorage.getItem(STORAGE_KEY) || DEFAULT;
     if (!presets[_current]) _current = DEFAULT;
+    // v5 遷移：舊預設 'indigo' 是 auto-default，非用戶主動選擇 → 升級到 oldmoney
+    if (_current === 'indigo' && !localStorage.getItem(STORAGE_KEY + '-manual')) {
+        _current = 'oldmoney';
+        localStorage.setItem(STORAGE_KEY, 'oldmoney');
+    }
 
     function apply(name) {
         const p = presets[name];
