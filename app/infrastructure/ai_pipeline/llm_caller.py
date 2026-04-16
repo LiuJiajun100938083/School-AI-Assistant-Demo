@@ -1,15 +1,17 @@
 """
-LLM 調用與 JSON 解析 — 基礎設施
-=================================
-統一 LLM 調用能力，支持本地 Ollama 和雲端 Qwen (DashScope)。
+LLM 調用與 JSON 解析 — 基礎設施（Demo 雲端版）
+=================================================
+統一 LLM 調用能力：全部走雲端 Qwen (DashScope / OpenAI-compatible)。
 純函數，無狀態，無域依賴。
 
-Provider 架構：
-- call_llm_json()：統一入口，根據 provider 分發
-- _call_ollama()：本地 Ollama，走 ai_gate GPU 調度
-- _call_qwen()：雲端 Qwen (DashScope)，走輕量並發控制
+Provider 架構（Demo 雲端版）：
+- call_llm_json()：統一入口；Demo 環境下無論 provider 參數為何，
+  都透過 _call_qwen() 走雲端 API。
+- _call_ollama()：為保留 API 兼容，在 use_api=True 時轉發到 _call_qwen()；
+  僅當 LLM_USE_API=false 才真正走 Ollama。
+- _call_qwen()：雲端 Qwen (DashScope)，OpenAI-compatible 格式。
 
-依賴：ai_gate（core 層）、llm.config（配置層）
+依賴：llm.config（配置層）
 """
 
 import asyncio
@@ -40,6 +42,15 @@ _SYSTEM_PROMPT = (
 )
 
 
+def _is_using_api() -> bool:
+    """檢查當前是否為雲端 API 模式。"""
+    try:
+        from llm.config import get_llm_config
+        return bool(get_llm_config().use_api)
+    except Exception:
+        return True  # Demo 環境默認走雲端
+
+
 # ================================================================
 # 統一入口
 # ================================================================
@@ -58,27 +69,17 @@ async def call_llm_json(
     """
     統一 LLM 調用入口，根據 provider 分發到不同後端。
 
+    Demo 雲端版：任何 provider（"local" / "qwen" / "deepseek"）在
+    use_api=True 時都走雲端 Qwen；use_api=False 時才走本地 Ollama。
+
     Returns:
         tuple[str, dict]: (content, usage)
-        - content: LLM 回應內容
-        - usage: token 用量字典（DeepSeek 提供；Ollama 為空字典）
-          {"prompt_tokens": int, "completion_tokens": int, "total_tokens": int}
-
-    Args:
-        prompt: 用戶 prompt
-        provider: "local"（Ollama）或 "qwen"（雲端 API），兼容 "deepseek"
-        model: 指定模型，None 則用各 provider 的默認配置
-        temperature: 生成溫度
-        timeout: 超時秒數
-        gate_task: ai_gate 任務名稱（僅 local 使用）
-        gate_priority: ai_gate 優先級（僅 local 使用）
-        gate_weight: ai_gate 權重（僅 local 使用）
-        num_predict: 最大生成 token 數
     """
     usage = {}
 
-    if provider == "deepseek":
-        content, usage = await _call_deepseek(
+    # Demo 雲端優先：只要 use_api=True，全部路由到雲端
+    if _is_using_api() or provider in ("qwen", "deepseek"):
+        content, usage = await _call_qwen(
             prompt, model=model, temperature=temperature,
             timeout=timeout, num_predict=num_predict,
         )
@@ -105,7 +106,10 @@ async def call_ollama_json(
     gate_weight=None,
     num_predict: int = 8192,
 ) -> str:
-    """向後兼容入口，轉發到 call_llm_json(provider='local')，只返回 content。"""
+    """向後兼容入口，轉發到 call_llm_json()，只返回 content。
+
+    Demo 環境：雖然名稱是 ollama_json，實際會根據 use_api 決定走雲端或本地。
+    """
     content, _usage = await call_llm_json(
         prompt, provider="local", model=model,
         temperature=temperature, timeout=timeout,
@@ -116,7 +120,7 @@ async def call_ollama_json(
 
 
 # ================================================================
-# Provider: 本地 Ollama
+# Provider: 本地 Ollama（僅 use_api=False 時使用）
 # ================================================================
 
 async def _call_ollama(
@@ -129,7 +133,10 @@ async def _call_ollama(
     gate_priority=None,
     gate_weight=None,
 ) -> str:
-    """調用 Ollama API（JSON 模式），透過 ai_gate 進行 GPU 調度。"""
+    """調用 Ollama API（JSON 模式），透過 ai_gate 進行 GPU 調度。
+
+    Demo 雲端版：此函數僅在 LLM_USE_API=false 時被調用。
+    """
     import httpx
     from app.core.ai_gate import ai_gate, Priority, Weight
 
@@ -199,15 +206,10 @@ async def _call_qwen(
     num_predict: int = 8192,
 ) -> tuple:
     """
-    調用 DeepSeek API（OpenAI-compatible），返回 (content, usage)。
+    調用雲端 Qwen API（OpenAI-compatible），返回 (content, usage)。
 
-    Returns:
-        tuple[str, dict]: (content 字串, usage 字典)
-
-    使用 deepseek-reasoner 模型啟用 thinking/reasoning 模式：
-    - 回應包含 reasoning_content（思考鏈）和 content（最終答案）
-    - 只取 content 作為結果，reasoning_content 被丟棄
-    - thinking 模式下 temperature/top_p 無效（API 會忽略）
+    Demo 雲端版：走阿里雲 DashScope，兼容 OpenAI Chat Completions 格式。
+    非流式請求（JSON 模式下 response_format=json_object）。
 
     不走 ai_gate（雲端不佔本地 GPU），使用獨立 Semaphore 限流。
     """
@@ -232,7 +234,6 @@ async def _call_qwen(
         "max_tokens": num_predict,
         "temperature": temperature,
         "response_format": {"type": "json_object"},
-        "stream": True,
     }
 
     headers = {
@@ -241,12 +242,10 @@ async def _call_qwen(
     }
 
     http_timeout = httpx.Timeout(timeout, connect=10.0)
-    content = ""
 
     async with _cloud_semaphore:
         async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
+            response = await client.post(
                 f"{base_url}/chat/completions",
                 json=payload,
                 headers=headers,
@@ -261,22 +260,25 @@ async def _call_qwen(
     usage = data.get("usage", {})
 
     logger.info(
-        "LLM 調用成功: provider=deepseek, model=%s, "
+        "LLM 調用成功: provider=qwen, model=%s, "
         "reasoning_len=%d, content_len=%d, tokens=%s",
         resolved_model, len(reasoning) if reasoning else 0, len(content),
         usage.get("total_tokens", "N/A"),
     )
 
     # 只返回 content（最終答案），丟棄 reasoning_content（思考鏈）
-    # 如果 content 為空但 reasoning 有內容，嘗試從 reasoning 提取 JSON
     if not content and reasoning:
         logger.warning(
-            "DeepSeek content 為空，嘗試從 reasoning_content 提取 (len=%d)",
+            "Qwen content 為空，嘗試從 reasoning_content 提取 (len=%d)",
             len(reasoning),
         )
         content = reasoning
 
     return content, usage
+
+
+# 向後兼容：舊代碼可能 import _call_deepseek
+_call_deepseek = _call_qwen
 
 
 # ================================================================

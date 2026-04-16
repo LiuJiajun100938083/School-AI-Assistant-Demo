@@ -2995,6 +2995,8 @@ class MistakeBookService:
     async def _ask_ai_text(self, prompt: str, subject: str) -> str:
         """
         調用 AI 返回純文本回答（非 JSON 格式），用於知識點問答等場景。
+
+        Demo 雲端版：use_api=True 時走雲端 Qwen；否則走本地 Ollama。
         """
         import httpx
         import re
@@ -3002,9 +3004,54 @@ class MistakeBookService:
         try:
             from llm.config import get_llm_config
             config = get_llm_config()
+        except Exception:
+            config = None
+
+        system_prompt = (
+            "你是一位經驗豐富、耐心親切的香港中學老師。"
+            "請直接回答學生的問題，用繁體中文，語氣溫暖鼓勵。不要輸出任何思考過程。"
+        )
+
+        # ==== Demo 雲端模式（LLM_USE_API=true）====
+        if config and config.use_api and config.api_key:
+            model = config.api_model
+            base_url = config.api_base_url
+            api_key = config.api_key
+
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.5,
+                "max_tokens": 8192,
+            }
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            timeout = httpx.Timeout(300.0, connect=20.0)
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{base_url}/chat/completions",
+                    json=payload, headers=headers, timeout=timeout,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+            content = data["choices"][0]["message"].get("content", "") or ""
+            content = re.sub(r"<think>[\s\S]*?</think>", "", content, flags=re.DOTALL).strip()
+            content = re.sub(r"</?think>", "", content).strip()
+            logger.info("_ask_ai_text (雲端) 回應長度=%d", len(content))
+            return content
+
+        # ==== 本地 Ollama 模式（兼容保留）====
+        if config:
             model = config.local_model
             base_url = config.local_base_url
-        except Exception:
+        else:
             model = "qwen3.5:35b"
             base_url = "http://localhost:11434"
 
@@ -3014,10 +3061,7 @@ class MistakeBookService:
         payload = {
             "model": model,
             "messages": [
-                {
-                    "role": "system",
-                    "content": "你是一位經驗豐富、耐心親切的香港中學老師。請直接回答學生的問題，用繁體中文，語氣溫暖鼓勵。不要輸出任何思考過程。",
-                },
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt_with_directive},
             ],
             "stream": False,

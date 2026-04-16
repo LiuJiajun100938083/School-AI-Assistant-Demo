@@ -994,11 +994,11 @@ class PetService:
                           history: list) -> Any:
         """
         宠物聊天流式响应。
-        直接调 Ollama /api/chat（stream=True），yield SSE 事件。
+        Demo 雲端版：走 Qwen 雲端 API（OpenAI-compatible /chat/completions 流式），yield SSE 事件。
         """
         import json
+        import time
         import httpx
-        from app.config.settings import get_settings
         from app.domains.pet.constants import (
             PET_CHAT_MODEL,
             PET_CHAT_MAX_TOKENS,
@@ -1014,8 +1014,17 @@ class PetService:
             yield 'event: error\ndata: {"message": "尚未创建宠物"}\n\n'
             return
 
-        settings = get_settings()
-        ollama_url = f"{settings.llm_local_base_url}/api/chat"
+        # Demo 雲端：從 LLM 配置讀取 Qwen API key/base_url/model
+        from llm.config import get_llm_config
+        cfg = get_llm_config()
+        if not cfg.use_api or not cfg.api_key:
+            yield 'event: error\ndata: {"message": "云端 API 未配置，无法聊天"}\n\n'
+            return
+
+        model = cfg.api_model or PET_CHAT_MODEL
+        base_url = cfg.api_base_url
+        api_key = cfg.api_key
+        url = f"{base_url}/chat/completions"
 
         # 构建 system prompt
         stage = get_growth_stage(pet["growth"])
@@ -1036,20 +1045,23 @@ class PetService:
         messages.append({"role": "user", "content": message})
 
         payload = {
-            "model": PET_CHAT_MODEL,
+            "model": model,
             "messages": messages,
             "stream": True,
-            "think": False,  # 关闭 qwen3.5 思考模式，直接输出
-            "options": {
-                "temperature": PET_CHAT_TEMPERATURE,
-                "num_predict": PET_CHAT_MAX_TOKENS,
-            },
+            "stream_options": {"include_usage": True},
+            "temperature": PET_CHAT_TEMPERATURE,
+            "max_tokens": PET_CHAT_MAX_TOKENS,
+        }
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
         }
 
         try:
+            t_start = time.monotonic()
             async with httpx.AsyncClient(timeout=PET_CHAT_TIMEOUT) as client:
                 async with client.stream(
-                    "POST", ollama_url, json=payload, timeout=PET_CHAT_TIMEOUT
+                    "POST", url, json=payload, headers=headers, timeout=PET_CHAT_TIMEOUT
                 ) as resp:
                     if resp.status_code != 200:
                         yield f'event: error\ndata: {{"message": "模型服务不可用 ({resp.status_code})"}}\n\n'
@@ -1062,30 +1074,38 @@ class PetService:
                     async for line in resp.aiter_lines():
                         if not line.strip():
                             continue
-                        try:
-                            chunk = json.loads(line)
-                            content = chunk.get("message", {}).get("content", "")
-                            if content:
-                                full_answer += content
-                                yield f'event: token\ndata: {json.dumps({"content": content}, ensure_ascii=False)}\n\n'
-                            if chunk.get("done"):
-                                # Ollama done chunk 包含准确 token 计数
-                                prompt_tokens = chunk.get("prompt_eval_count", 0)
-                                completion_tokens = chunk.get("eval_count", 0)
-                                duration_ms = int(chunk.get("total_duration", 0) / 1_000_000)
+                        # OpenAI SSE 格式: "data: {json}" 或 "data: [DONE]"
+                        if line.startswith("data:"):
+                            data_str = line[5:].strip()
+                            if data_str == "[DONE]":
                                 break
-                        except json.JSONDecodeError:
-                            continue
+                            try:
+                                chunk = json.loads(data_str)
+                                choices = chunk.get("choices") or []
+                                if choices:
+                                    delta = choices[0].get("delta", {}) or {}
+                                    content = delta.get("content") or ""
+                                    if content:
+                                        full_answer += content
+                                        yield f'event: token\ndata: {json.dumps({"content": content}, ensure_ascii=False)}\n\n'
+                                # usage 通常在最後一個 chunk 中
+                                usage = chunk.get("usage") or {}
+                                if usage:
+                                    prompt_tokens = usage.get("prompt_tokens", prompt_tokens)
+                                    completion_tokens = usage.get("completion_tokens", completion_tokens)
+                            except json.JSONDecodeError:
+                                continue
 
+                    duration_ms = int((time.monotonic() - t_start) * 1000)
                     yield f'event: done\ndata: {json.dumps({"full_answer": full_answer}, ensure_ascii=False)}\n\n'
 
-                    # 记录本地模型使用量
+                    # 记录雲端模型使用量
                     try:
                         from app.services.container import get_services
                         await get_services().llm_usage.record_async(
                             user_id=user_id,
-                            provider="ollama",
-                            model=PET_CHAT_MODEL,
+                            provider="qwen",
+                            model=model,
                             purpose="pet_chat",
                             usage_dict={
                                 "prompt_tokens": prompt_tokens,
