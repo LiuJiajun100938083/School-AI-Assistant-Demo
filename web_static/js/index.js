@@ -400,8 +400,9 @@ const HomeApp = {
         }
 
         if (this.state.authToken) {
-            await this._verifyToken();
-            this._playSplashAnimation();
+            // 動畫與數據加載並行，不阻塞
+            const dataReady = this._verifyToken();
+            await this._playSplashAnimation(dataReady);
         } else {
             window.location.href = '/login';
         }
@@ -1268,8 +1269,9 @@ const HomeApp = {
 
     /* ---------- 啟動動畫 ---------- */
 
-    _playSplashAnimation() {
+    async _playSplashAnimation(dataReadyPromise) {
         if (typeof gsap === 'undefined') {
+            if (dataReadyPromise) await dataReadyPromise.catch(() => {});
             const splash = document.getElementById('splashScreen');
             if (splash) splash.style.display = 'none';
             return;
@@ -1289,41 +1291,46 @@ const HomeApp = {
         const welcome      = document.querySelector('.home-welcome');
         const appsGrid     = document.querySelector('.home-apps-grid');
 
-        const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
-
         // 隱藏主界面元素
         gsap.set([header, sidebar, welcome, appsGrid].filter(Boolean), { opacity: 0 });
 
-        const tl = gsap.timeline();
-
-        tl
-            // 第一幕：系統喚醒（全部同時出現）
+        /* ── 第一幕：系統喚醒（立即播放，不等網路） ── */
+        gsap.timeline()
             .to([splashIcon, splashTitle, splashSub].filter(Boolean), {
-                opacity: 1, filter: 'blur(0px)',
-                duration: 0.35, ease: EASE
+                opacity: 1, scale: 1,
+                duration: 0.4, ease: 'power2.out'
             }, 0.05)
-            .to(splashLoader, { opacity: 1, duration: 0.15, ease: 'power2.out' }, 0.15)
-            .to(splashLoader, { opacity: 0, duration: 0.15, ease: 'power2.in' }, 0.45)
+            .to(splashLoader, { opacity: 1, duration: 0.2, ease: 'power2.out' }, 0.2);
 
-            // 第二幕：過渡
-            .to(glassPanel, { opacity: 1, duration: 0.15, ease: EASE }, 0.6)
-            .add(() => { splashScreen.style.display = 'none'; }, 0.75)
-            .add(() => {
-                if (header)  gsap.set(header,  { opacity: 0, y: -10 });
-                if (sidebar) gsap.set(sidebar, { opacity: 0, x: -10 });
-                if (welcome) gsap.set(welcome, { opacity: 0, y: 10 });
-                if (appsGrid) gsap.set(appsGrid, { opacity: 0, y: 10 });
-            }, 0.75)
-            .to(glassPanel, {
-                opacity: 0, duration: 0.2, ease: EASE,
-                onComplete() { glassPanel.style.display = 'none'; }
-            }, 0.78)
+        /* ── 等待數據就緒 + 最短展示時間 ── */
+        const minDisplay = new Promise(r => setTimeout(r, 600));
+        await Promise.all([minDisplay, dataReadyPromise].filter(Boolean)).catch(() => {});
 
-            // 第三幕：界面元素同時進入
-            .to([header, sidebar, welcome, appsGrid].filter(Boolean), {
-                opacity: 1, y: 0, x: 0,
-                duration: 0.25, ease: 'power2.out'
-            }, 0.8);
+        /* ── 第二幕：絲滑過渡到主界面 ── */
+        return new Promise(resolve => {
+            gsap.timeline({ onComplete: resolve })
+                // 淡出加載動畫
+                .to(splashLoader, { opacity: 0, duration: 0.12, ease: 'power2.in' })
+                // 遮罩升起（蓋住 splash → 主界面切換）
+                .to(glassPanel, { opacity: 1, duration: 0.18, ease: 'power2.inOut' }, '-=0.04')
+                // 在遮罩完全不透明時切換底層內容
+                .add(() => {
+                    splashScreen.style.display = 'none';
+                    if (header)   gsap.set(header,   { opacity: 0, y: -10 });
+                    if (sidebar)  gsap.set(sidebar,  { opacity: 0, x: -10 });
+                    if (welcome)  gsap.set(welcome,  { opacity: 0, y:  10 });
+                    if (appsGrid) gsap.set(appsGrid, { opacity: 0, y:  10 });
+                })
+                // 遮罩淡出，同時主界面滑入（重疊動畫消除空隙）
+                .to(glassPanel, {
+                    opacity: 0, duration: 0.25, ease: 'power2.out',
+                    onComplete() { glassPanel.style.display = 'none'; }
+                })
+                .to([header, sidebar, welcome, appsGrid].filter(Boolean), {
+                    opacity: 1, y: 0, x: 0,
+                    duration: 0.3, ease: 'power2.out'
+                }, '-=0.18');
+        });
     }
 };
 

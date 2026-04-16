@@ -323,6 +323,28 @@ async def school_learning_center():
 #  课堂教学页面                                                             #
 # ====================================================================== #
 
+# AI / 学生生成的 HTML 常引用的 CDN 白名单（课案预览 + 上传游戏共用）
+_GAME_CDN_WHITELIST = " ".join([
+    "https://cdn.tailwindcss.com",       # Tailwind CSS
+    "https://cdn.jsdelivr.net",          # jsDelivr（Three.js/Phaser/各种库）
+    "https://unpkg.com",                 # unpkg（Babel/React/各种库）
+    "https://cdnjs.cloudflare.com",      # Cloudflare CDN
+    "https://esm.sh",                    # ESM imports
+    "https://cdn.skypack.dev",           # Skypack CDN
+    "https://ga.jspm.io",               # jspm
+    "https://p5js.org",                  # p5.js 官网
+    "https://cdn.p5js.org",             # p5.js CDN（编辑器/库）
+    "https://cdnjs.com",                # cdnjs
+    "https://threejs.org",              # Three.js 官网
+    "https://pixijs.download",          # Pixi.js
+    "https://tonejs.github.io",         # Tone.js（音效）
+    "https://d3js.org",                 # D3.js（数据可视化）
+    "https://fonts.googleapis.com",      # Google Fonts
+    "https://fonts.gstatic.com",         # Google Fonts 字体文件
+    "https://generativelanguage.googleapis.com",  # Gemini API
+    "https://esm.run",                  # ESM.run
+])
+
 # 课堂页面 CSP — 与默认 CSP 一致，但允许同源 iframe（嵌入上传游戏）
 _CLASSROOM_CSP = (
     "default-src 'self'; "
@@ -331,6 +353,22 @@ _CLASSROOM_CSP = (
     "font-src 'self' https://fonts.gstatic.com data:; "
     "img-src 'self' data: blob:; "
     "connect-src 'self' ws: wss:; "
+    "frame-src 'self'; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "worker-src 'self' blob:"
+)
+
+# 课案编辑器 CSP — 基于 _CLASSROOM_CSP，额外放行 CDN
+# html_sandbox 预览 iframe (srcdoc) 继承父页 CSP，
+# 学生/AI 生成的 HTML 常引用 Tailwind、Three.js 等外部 CDN
+_LESSON_EDITOR_CSP = (
+    "default-src 'self'; "
+    f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {_GAME_CDN_WHITELIST}; "
+    f"style-src 'self' 'unsafe-inline' {_GAME_CDN_WHITELIST}; "
+    f"font-src 'self' {_GAME_CDN_WHITELIST} data:; "
+    "img-src 'self' data: blob: https:; "
+    f"connect-src 'self' ws: wss: {_GAME_CDN_WHITELIST}; "
     "frame-src 'self'; "
     "object-src 'none'; "
     "base-uri 'self'; "
@@ -363,8 +401,8 @@ async def classroom_student(room_id: str):
 
 @router.get("/classroom/lesson-editor/{plan_id}")
 async def lesson_editor(plan_id: str):
-    """课案编辑器 — 需要 frame-src 'self' 以支持 html_sandbox iframe 预览"""
-    return _serve_page("lesson_editor.html", csp=_CLASSROOM_CSP)
+    """课案编辑器 — 需要 frame-src 'self' + CDN 白名单以支持 html_sandbox iframe 预览"""
+    return _serve_page("lesson_editor.html", csp=_LESSON_EDITOR_CSP)
 
 
 # ====================================================================== #
@@ -511,33 +549,7 @@ async def play_shared_game(token: str):
     )
 
 
-# 上传游戏专用 CSP — 全自托管，无外部 CDN
-# - 'unsafe-eval' 用于 Babel standalone 转译 JSX
-# - connect-src 仅 self（防止数据外泄）
-# - frame-src none（禁止 iframe 嵌套）
-# Gemini 生成的游戏常用 CDN 白名单
-# 参考: https://medium.com/@palladiusbonton/wip-code-3d-kid-games-with-gemini-2-5-d580d6b9802b
-_GAME_CDN_WHITELIST = " ".join([
-    "https://cdn.tailwindcss.com",       # Tailwind CSS
-    "https://cdn.jsdelivr.net",          # jsDelivr（Three.js/Phaser/各种库）
-    "https://unpkg.com",                 # unpkg（Babel/React/各种库）
-    "https://cdnjs.cloudflare.com",      # Cloudflare CDN
-    "https://esm.sh",                    # ESM imports
-    "https://cdn.skypack.dev",           # Skypack CDN
-    "https://ga.jspm.io",               # jspm
-    "https://p5js.org",                  # p5.js 官网
-    "https://cdn.p5js.org",             # p5.js CDN（编辑器/库）
-    "https://cdnjs.com",                # cdnjs
-    "https://threejs.org",              # Three.js 官网
-    "https://pixijs.download",          # Pixi.js
-    "https://tonejs.github.io",         # Tone.js（音效）
-    "https://d3js.org",                 # D3.js（数据可视化）
-    "https://fonts.googleapis.com",      # Google Fonts
-    "https://fonts.gstatic.com",         # Google Fonts 字体文件
-    "https://generativelanguage.googleapis.com",  # Gemini API
-    "https://esm.run",                  # ESM.run
-])
-
+# 上传游戏专用 CSP
 _UPLOADED_GAME_CSP = (
     "default-src 'self'; "
     f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {_GAME_CDN_WHITELIST}; "
