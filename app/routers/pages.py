@@ -345,24 +345,11 @@ _GAME_CDN_WHITELIST = " ".join([
     "https://esm.run",                  # ESM.run
 ])
 
-# 课堂页面 CSP — 与默认 CSP 一致，但允许同源 iframe（嵌入上传游戏）
+# 课堂 + 课案编辑器 共用 CSP
+# - frame-src 'self': 嵌入上传游戏 / html_sandbox iframe
+# - CDN 白名单: html_sandbox srcdoc 继承父页 CSP，
+#   AI/学生生成的 HTML 常引用 Tailwind、Three.js 等外部 CDN
 _CLASSROOM_CSP = (
-    "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-    "font-src 'self' https://fonts.gstatic.com data:; "
-    "img-src 'self' data: blob:; "
-    "connect-src 'self' ws: wss:; "
-    "frame-src 'self'; "
-    "object-src 'none'; "
-    "base-uri 'self'; "
-    "worker-src 'self' blob:"
-)
-
-# 课案编辑器 CSP — 基于 _CLASSROOM_CSP，额外放行 CDN
-# html_sandbox 预览 iframe (srcdoc) 继承父页 CSP，
-# 学生/AI 生成的 HTML 常引用 Tailwind、Three.js 等外部 CDN
-_LESSON_EDITOR_CSP = (
     "default-src 'self'; "
     f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {_GAME_CDN_WHITELIST}; "
     f"style-src 'self' 'unsafe-inline' {_GAME_CDN_WHITELIST}; "
@@ -402,7 +389,7 @@ async def classroom_student(room_id: str):
 @router.get("/classroom/lesson-editor/{plan_id}")
 async def lesson_editor(plan_id: str):
     """课案编辑器 — 需要 frame-src 'self' + CDN 白名单以支持 html_sandbox iframe 预览"""
-    return _serve_page("lesson_editor.html", csp=_LESSON_EDITOR_CSP)
+    return _serve_page("lesson_editor.html", csp=_CLASSROOM_CSP)
 
 
 # ====================================================================== #
