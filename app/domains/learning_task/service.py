@@ -355,9 +355,9 @@ class LearningTaskService:
         )
         classes = [r["class_name"] for r in classes_result]
 
-        # 獲取所有教師
+        # 獲取所有教師（包含管理員）
         teachers = self._user_repo.find_all(
-            where="role = 'teacher' AND is_active = 1",
+            where="role IN ('teacher', 'admin') AND is_active = 1",
             columns="username, display_name",
             order_by="username ASC",
         )
@@ -595,13 +595,15 @@ class LearningTaskService:
             用戶列表 [{"username": str, "role": str}, ...]
         """
         if target_type == "all":
+            # 「所有人」= 全體在職用戶（含管理員）
             return self._user_repo.find_all(
-                where="is_active = 1 AND role != 'admin'",
+                where="is_active = 1",
                 columns="username, role",
             )
         elif target_type == "all_teachers":
+            # 「所有教師」包含管理員（admin 同屬教學人員）
             return self._user_repo.find_all(
-                where="role = 'teacher' AND is_active = 1",
+                where="role IN ('teacher', 'admin') AND is_active = 1",
                 columns="username, role",
             )
         elif target_type == "all_students":
@@ -610,8 +612,9 @@ class LearningTaskService:
                 columns="username, role",
             )
         elif target_type == "teacher":
+            # 「指定教師」允許選擇 teacher 或 admin 帳號
             users = self._user_repo.find_all(
-                where="username = %s AND role = 'teacher' AND is_active = 1",
+                where="username = %s AND role IN ('teacher', 'admin') AND is_active = 1",
                 params=(target_value,),
                 columns="username, role",
             )
