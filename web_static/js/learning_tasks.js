@@ -84,6 +84,24 @@ const TasksUI = {
         };
     },
 
+    /**
+     * 補齊缺失的 URL 協議。
+     * 對舊資料（如 "www.ulearning.asia"）防守性處理，避免被當作相對路徑。
+     */
+    _normalizeUrl(raw) {
+        if (!raw) return raw;
+        const s = String(raw).trim();
+        if (!s) return s;
+        const low = s.toLowerCase();
+        if (low.startsWith('http://') || low.startsWith('https://') ||
+            low.startsWith('mailto:') || low.startsWith('tel:') || low.startsWith('ftp://')) {
+            return s;
+        }
+        if (s.startsWith('//')) return 'https:' + s;
+        if (s.startsWith('/')) return s;  // 站內路徑（例如 /uploads/...）
+        return 'https://' + s;
+    },
+
     /** 依 tag 回傳對應的 SVG 圖示路徑（feather-icons 風格） */
     _tagIconPath(tag) {
         const paths = {
@@ -175,6 +193,7 @@ const TasksUI = {
         container.innerHTML = detail.items.map(item => {
             const actionText = this._actionLabel(item.tag, item.link_label);
             const tagClass = item.tag || 'default';
+            const safeUrl = this._normalizeUrl(item.link_url);
             return `
             <div class="task-item ${item.is_completed ? 'completed' : ''}" data-item-id="${item.id}">
                 <div class="task-item-checkbox" data-task-id="${taskId}" data-item-id="${item.id}">
@@ -186,8 +205,8 @@ const TasksUI = {
                 <div class="task-item-content">
                     <div class="task-item-title">${Utils.escapeHtml(item.title)}</div>
                     ${item.description ? `<div class="task-item-description">${Utils.escapeHtml(item.description)}</div>` : ''}
-                    ${item.link_url ? `
-                        <a href="${Utils.escapeHtml(item.link_url)}" target="_blank" rel="noopener noreferrer"
+                    ${safeUrl ? `
+                        <a href="${Utils.escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"
                            class="task-item-action ${tagClass}">
                             <svg class="task-item-action__icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 ${this._tagIconPath(item.tag)}

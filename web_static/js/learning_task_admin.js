@@ -350,6 +350,17 @@ const TaskAdminApp = {
             }
         });
 
+        // URL 輸入框離開焦點時自動補 https:// — 避免存成相對路徑
+        el.subItemsContainer.addEventListener('blur', (e) => {
+            if (e.target.dataset.field === 'link_url' && e.target.dataset.subId) {
+                const normalized = this._normalizeUrl(e.target.value);
+                if (normalized !== e.target.value) {
+                    e.target.value = normalized;
+                    this._updateSubItem(parseInt(e.target.dataset.subId), 'link_url', normalized);
+                }
+            }
+        }, true);  // capture：blur 不 bubble
+
         // List tab
         el.statusFilter.addEventListener('change', () => this._loadTaskList());
 
@@ -436,6 +447,21 @@ const TaskAdminApp = {
     _updateSubItem(id, field, value) {
         const item = this.state.subItems.find(i => i.id === id);
         if (item) item[field] = value;
+    },
+
+    /** 補齊 URL 協議：'www.xx.com' → 'https://www.xx.com'；站內路徑與 mailto 等不動 */
+    _normalizeUrl(raw) {
+        if (!raw) return raw;
+        const s = String(raw).trim();
+        if (!s) return s;
+        const low = s.toLowerCase();
+        if (low.startsWith('http://') || low.startsWith('https://') ||
+            low.startsWith('mailto:') || low.startsWith('tel:') || low.startsWith('ftp://')) {
+            return s;
+        }
+        if (s.startsWith('//')) return 'https:' + s;
+        if (s.startsWith('/')) return s;
+        return 'https://' + s;
     },
 
     async _handleFileUpload(id, file) {

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.core.dependencies import get_current_user, require_teacher_or_admin
 from app.core.responses import error_response, paginated_response, success_response
@@ -59,6 +59,32 @@ _ALLOWED_MIMES = frozenset({
 # 請求模型
 # ================================================================
 
+def _normalize_url(raw: Optional[str]) -> Optional[str]:
+    """
+    自動補齊缺失的協議前綴。
+
+    規則：
+      - 空/None → 原樣返回
+      - 已有 http://、https://、mailto:、tel: → 原樣
+      - 以 // 開頭（協議相對）→ 補 https:
+      - 以 / 開頭（站內路徑，例如 /uploads/...）→ 原樣
+      - 其他（www.xxx.com / xxx.com）→ 補 https://
+    """
+    if not raw:
+        return raw
+    s = raw.strip()
+    if not s:
+        return s
+    low = s.lower()
+    if low.startswith(("http://", "https://", "mailto:", "tel:", "ftp://")):
+        return s
+    if s.startswith("//"):
+        return "https:" + s
+    if s.startswith("/"):
+        return s
+    return "https://" + s
+
+
 class TaskItemInput(BaseModel):
     """任務子項輸入"""
     title: str = Field(..., min_length=1, max_length=255)
@@ -66,6 +92,11 @@ class TaskItemInput(BaseModel):
     link_url: Optional[str] = None
     link_label: Optional[str] = None
     tag: Optional[str] = None  # video, doc, cert, practice, website
+
+    @field_validator("link_url", mode="before")
+    @classmethod
+    def _fix_link_url(cls, v):
+        return _normalize_url(v) if isinstance(v, str) else v
 
 
 class CreateTaskRequest(BaseModel):
