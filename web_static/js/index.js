@@ -47,6 +47,7 @@ const HomeAPI = {
             window.location.href = '/login';
             throw new Error('Session expired');
         }
+        // 429 不視為認證失敗，直接返回讓調用方處理
         return resp;
     },
 
@@ -537,23 +538,27 @@ const HomeApp = {
     async _verifyToken() {
         try {
             const response = await HomeAPI.verify();
+
+            // 429 = 限流，不代表 token 失效，不應清除登入狀態
+            if (response.status === 429) {
+                console.warn('[HomeApp] 驗證請求被限流，保留登入狀態');
+                // 嘗試等待後重試一次
+                const retryAfter = parseInt(response.headers.get('Retry-After') || '3', 10);
+                await new Promise(r => setTimeout(r, retryAfter * 1000));
+                const retry = await HomeAPI.verify();
+                if (retry.ok) {
+                    const result = await retry.json();
+                    if (result.success) return this._applyUserProfile(result.data);
+                }
+                // 重試仍失敗，但 token 可能有效，先載入基礎頁面
+                this._loadHomeApps();
+                return;
+            }
+
             if (response.ok) {
                 const result = await response.json();
                 if (!result.success) throw new Error(i18n.t('token.verifyFailed'));
-                const userProfile = result.data;
-                this.state.currentUser = userProfile.username;
-                this.state.userRole = userProfile.role || 'student';
-                this.state.isAdmin = (this.state.userRole === 'admin');
-                this.state.isTeacher = (this.state.userRole === 'teacher');
-
-                await this._loadSubjectOptions();
-
-                this.state.userInfo = userProfile;
-                this._loadHomeApps();
-                HomeUI.updateHomeUserInfo(userProfile);
-
-                // 加载宠物组件
-                this._loadHomePetWidget();
+                this._applyUserProfile(result.data);
             } else {
                 throw new Error(i18n.t('token.verifyFailed'));
             }
@@ -562,6 +567,20 @@ const HomeApp = {
             this._clearAuth();
             window.location.href = '/login';
         }
+    },
+
+    /** 驗證成功後套用用戶資料 */
+    _applyUserProfile(userProfile) {
+        this.state.currentUser = userProfile.username;
+        this.state.userRole = userProfile.role || 'student';
+        this.state.isAdmin = (this.state.userRole === 'admin');
+        this.state.isTeacher = (this.state.userRole === 'teacher');
+        this.state.userInfo = userProfile;
+
+        this._loadSubjectOptions();
+        this._loadHomeApps();
+        HomeUI.updateHomeUserInfo(userProfile);
+        this._loadHomePetWidget();
     },
 
     logout() {

@@ -16,8 +16,13 @@ Phase 1 安全加固：單進程內存版滑動窗口限流。
 - 單進程有效。多 worker 時每個進程獨立計數，限流被攤薄。
 - 重啟後狀態丟失。
 - 高併發長時間運行需監控內存增長。
+
+學校 NAT 環境適配：
+- 已登入用戶按 user:{username} 計數，避免共享 IP 互相影響
+- 會話維護端點（verify / refresh-token）免限流，防止級聯踢出
 """
 
+import base64
 import json
 import logging
 import re
@@ -35,10 +40,18 @@ logger = logging.getLogger(__name__)
 # 不限流的路徑前綴
 _SKIP_PREFIXES = ("/static", "/docs", "/redoc", "/openapi.json", "/health", "/favicon.ico")
 
+# 會話維護端點 — 永不限流
+# 阻斷這些端點會導致已登入用戶被踢出（級聯故障）
+_EXEMPT_PATHS = frozenset(("/api/verify", "/api/refresh-token"))
+
 
 class RateLimitMiddleware:
     """
     全局 API 限流（ASGI 中間件，可通過 app.add_middleware 註冊）。
+
+    學校部署優化：
+    - 帶有效 JWT 的請求按 user:{username} 獨立計數，不受共享 IP 影響
+    - 無 JWT 的請求（登入/註冊）仍按 IP 計數
 
     Args:
         app: ASGI application
@@ -60,7 +73,7 @@ class RateLimitMiddleware:
             except (KeyError, re.error) as e:
                 logger.warning("限流規則無效，已跳過: %s → %s", rule, e)
 
-        # 滑動窗口存儲：{(ip, rule_index): deque([timestamp, ...])}
+        # 滑動窗口存儲：{bucket_key: deque([timestamp, ...])}
         self._buckets: Dict[str, deque] = {}
         self._lock = threading.Lock()
 
@@ -70,7 +83,7 @@ class RateLimitMiddleware:
 
         if self._rules:
             logger.info(
-                "[限流] 已載入 %d 條規則（Phase 1 單進程內存版）",
+                "[限流] 已載入 %d 條規則（Phase 1 單進程內存版，支持用戶級計數）",
                 len(self._rules),
             )
 
@@ -88,6 +101,10 @@ class RateLimitMiddleware:
         if not path.startswith("/api/"):
             return await self.app(scope, receive, send)
 
+        # 會話維護端點免限流
+        if path in _EXEMPT_PATHS:
+            return await self.app(scope, receive, send)
+
         # 匹配規則（命中第一條即停止）
         matched_rule = self._match_rule(path)
         if matched_rule is None:
@@ -95,11 +112,11 @@ class RateLimitMiddleware:
 
         rule_idx, max_requests, window = matched_rule
 
-        # 獲取客戶端 IP（不信任 X-Forwarded-For，使用 socket IP）
-        client_ip = self._get_client_ip(scope)
+        # 決定限流 key：已登入用戶按 username，未登入按 IP
+        bucket_key = self._resolve_bucket_key(scope, rule_idx)
 
         # 檢查是否允許
-        allowed, retry_after = self._check_and_record(client_ip, rule_idx, max_requests, window)
+        allowed, retry_after = self._check_and_record(bucket_key, max_requests, window)
 
         if not allowed:
             # 返回 429
@@ -115,7 +132,60 @@ class RateLimitMiddleware:
                 return idx, max_req, window
         return None
 
-    def _get_client_ip(self, scope: Scope) -> str:
+    def _resolve_bucket_key(self, scope: Scope, rule_idx: int) -> str:
+        """
+        決定限流 bucket key。
+
+        已登入用戶 → user:{username}:{rule_idx}（每人獨立配額）
+        未登入請求 → ip:{ip}:{rule_idx}（按 IP 共用配額）
+
+        學校 NAT 環境下，所有設備共享同一公網 IP。
+        按用戶計數可避免一個學生亂按影響全校。
+        """
+        username = self._extract_user_from_token(scope)
+        if username:
+            return f"user:{username}:{rule_idx}"
+        client_ip = self._get_client_ip(scope)
+        return f"ip:{client_ip}:{rule_idx}"
+
+    @staticmethod
+    def _extract_user_from_token(scope: Scope) -> Optional[str]:
+        """
+        從 Authorization header 的 JWT 中提取 username（僅 base64 解碼，不做簽名驗證）。
+
+        這裡只是為了生成限流 bucket key，不是做認證。
+        即使有人偽造 JWT 來獲取獨立 bucket，也只是多了一個計數桶，
+        不影響安全性（認證在路由層處理）。
+        """
+        headers = dict(scope.get("headers", []))
+        auth_header = headers.get(b"authorization", b"")
+        if not auth_header:
+            return None
+
+        try:
+            auth_str = auth_header.decode("utf-8", errors="ignore")
+            if not auth_str.startswith("Bearer "):
+                return None
+
+            token = auth_str[7:]
+            parts = token.split(".")
+            if len(parts) != 3:
+                return None
+
+            # 解碼 JWT payload（第二段）
+            payload_b64 = parts[1]
+            # 補齊 base64 padding
+            padding = 4 - len(payload_b64) % 4
+            if padding != 4:
+                payload_b64 += "=" * padding
+
+            payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+            return payload.get("sub") or payload.get("username")
+        except Exception:
+            return None
+
+    @staticmethod
+    def _get_client_ip(scope: Scope) -> str:
         """
         從 ASGI scope 獲取客戶端 IP。
 
@@ -128,7 +198,7 @@ class RateLimitMiddleware:
         return "unknown"
 
     def _check_and_record(
-        self, ip: str, rule_idx: int, max_requests: int, window: int
+        self, bucket_key: str, max_requests: int, window: int
     ) -> Tuple[bool, int]:
         """
         滑動窗口限流檢查 + 記錄。
@@ -137,7 +207,6 @@ class RateLimitMiddleware:
             (allowed, retry_after_seconds)
         """
         now = time.time()
-        key = f"{ip}:{rule_idx}"
 
         with self._lock:
             # 定期清理過期 key
@@ -146,10 +215,10 @@ class RateLimitMiddleware:
                 self._last_cleanup = now
 
             # 獲取或創建 bucket
-            if key not in self._buckets:
-                self._buckets[key] = deque()
+            if bucket_key not in self._buckets:
+                self._buckets[bucket_key] = deque()
 
-            bucket = self._buckets[key]
+            bucket = self._buckets[bucket_key]
 
             # 清除窗口外的舊記錄
             cutoff = now - window

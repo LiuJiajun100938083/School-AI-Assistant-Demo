@@ -251,15 +251,18 @@ class ServerSettings(BaseSettings):
     # 全局 API 限流（Phase 1：單進程內存版，workers=1 有效）
     # 規則按順序匹配，命中第一條即停止。pattern 為正則表達式。
     rate_limit_enabled: bool = Field(default=True, description="是否啟用全局 API 限流")
+    # 限流規則（先具體後通用，命中即停）
+    # 注意：已登入用戶按 username 獨立計數，下面的上限是「每人」的；
+    #       未登入請求（login/register）才按 IP 計數，學校 NAT 共享 IP 需留足額度。
     rate_limit_rules: list = Field(default=[
-        {"pattern": "^/api/(login|register|secure-login)", "max_requests": 10, "window": 60},
+        {"pattern": "^/api/(login|register|secure-login)", "max_requests": 30, "window": 60},
         {"pattern": "^/api/games/ai/", "max_requests": 5, "window": 60},
         {"pattern": "^/api/games/upload", "max_requests": 10, "window": 60},
         {"pattern": "^/api/mistakes/practice/[^/]+/status", "max_requests": 30, "window": 60},
         {"pattern": "^/api/mistakes/practice/start", "max_requests": 5, "window": 60},
         {"pattern": "^/api/mistakes/practice", "max_requests": 30, "window": 60},
-        {"pattern": "^/api/admin/", "max_requests": 60, "window": 60},
-        {"pattern": "^/api/", "max_requests": 60, "window": 60},
+        {"pattern": "^/api/admin/", "max_requests": 120, "window": 60},
+        {"pattern": "^/api/", "max_requests": 120, "window": 60},
     ], description="限流規則列表（先具體後通用，命中即停）")
 
     # Ngrok (可选)
