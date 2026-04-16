@@ -207,12 +207,8 @@ const ChatUI = {
 
     showAdminFeatures(isTeacher) {
         const el = this.elements;
-        if (el.adminButton) {
-            el.adminButton.style.display = 'flex';
-            el.adminButton.innerHTML = isTeacher
-                ? '<span>⚙️</span>' + i18n.t('menu.admin')
-                : '<span>⚙️</span>' + i18n.t('menu.admin');
-        }
+        // 舊版 #adminButton 於 corr-seal 內為隱藏殼，僅保留引用避免 JS 報錯；
+        // 管理後台入口統一走 user-menu 的 #adminPanel。
         if (el.adminPanel) el.adminPanel.style.display = 'flex';
         if (el.adminSeparator) el.adminSeparator.style.display = 'block';
     },
@@ -221,13 +217,11 @@ const ChatUI = {
 
     updateStatusIndicator(online) {
         const el = this.elements.statusIndicator;
-        if (online) {
-            el.className = 'status-indicator status-online';
-            el.textContent = i18n.t('chat.statusOnline');
-        } else {
-            el.className = 'status-indicator status-offline';
-            el.textContent = i18n.t('chat.statusOffline');
-        }
+        // 保留 corr-seal__status（pill 內 6×6 純圓點樣式），
+        // 僅切換 online/offline 狀態並更新 title（tooltip）。
+        el.classList.remove('status-online', 'status-offline');
+        el.classList.add(online ? 'status-online' : 'status-offline');
+        el.title = i18n.t(online ? 'chat.statusOnline' : 'chat.statusOffline');
     },
 
     /* ---------- 密码修改模态框 ---------- */
@@ -259,16 +253,18 @@ const ChatUI = {
     /* ---------- 侧边栏 ---------- */
 
     toggleSidebar() {
-        // 新佈局（Scholar's Correspondence）：對話歷史改為右側抽屜，所有尺寸都用 open/close
+        // 新佈局（Scholar's Correspondence）：對話歷史改為左側抽屜，用 open class 控制
         const el = this.elements;
         const isOpen = el.sidebar.classList.toggle('open');
         el.sidebarOverlay.classList.toggle('active', isOpen);
         document.body.style.overflow = isOpen ? 'hidden' : '';
+        this._syncArchiveToggleState(isOpen);
     },
 
     /** 初始化時恢復側邊欄收起狀態（新版不再保留展開狀態，首次進入總是關著） */
     restoreSidebarState() {
         // no-op：抽屜永遠預設關閉
+        this._syncArchiveToggleState(false);
     },
 
     closeSidebar() {
@@ -276,6 +272,15 @@ const ChatUI = {
         el.sidebar.classList.remove('open');
         el.sidebarOverlay.classList.remove('active');
         document.body.style.overflow = '';
+        this._syncArchiveToggleState(false);
+    },
+
+    /** 同步 archive 按鈕的 aria-expanded / aria-label，供讀屏器與 CSS 狀態使用 */
+    _syncArchiveToggleState(isOpen) {
+        const btn = this.elements.sidebarMobileToggle;
+        if (!btn) return;
+        btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        btn.setAttribute('aria-label', i18n.t(isOpen ? 'chat.archiveClose' : 'chat.archiveOpen'));
     },
 
     handleResize() {
@@ -848,6 +853,38 @@ const ChatApp = {
 
         // 窗口大小改变
         window.addEventListener('resize', () => ChatUI.handleResize());
+
+        // 全域鍵盤快捷鍵：⌘K / Ctrl+K 切換對話歷史；Escape 關閉
+        this._bindArchiveShortcut();
+
+        // 依平台（Mac / 非 Mac）寫入 tooltip 快捷鍵提示
+        this._applyArchiveTooltip();
+    },
+
+    _bindArchiveShortcut() {
+        window.addEventListener('keydown', (e) => {
+            // 避免在輸入欄輸入文字時誤觸（僅當按下 meta/ctrl 時才搶 K）
+            const isCmdK = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey
+                           && (e.key === 'k' || e.key === 'K');
+            if (isCmdK) {
+                e.preventDefault();
+                ChatUI.toggleSidebar();
+                return;
+            }
+            if (e.key === 'Escape' && ChatUI.elements.sidebar.classList.contains('open')) {
+                ChatUI.closeSidebar();
+            }
+        });
+    },
+
+    _applyArchiveTooltip() {
+        const btn = ChatUI.elements.sidebarMobileToggle;
+        if (!btn) return;
+        const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || '');
+        const key = isMac ? 'chat.archiveTooltipMac' : 'chat.archiveTooltipWin';
+        btn.title = i18n.t(key);
+        // 移除 data-i18n-title 避免 i18n.applyDOM() 把平台後綴覆寫掉
+        btn.removeAttribute('data-i18n-title');
     },
 
     _bindFileUploadEvents() {
