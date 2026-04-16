@@ -58,7 +58,8 @@ const TasksAPI = {
                 }
             });
             if (resp.status === 401) {
-                window.location.href = '/';
+                const returnTo = window.location.pathname + window.location.search + window.location.hash;
+                window.location.href = '/login?redirect=' + encodeURIComponent(returnTo);
                 return null;
             }
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -267,6 +268,46 @@ const TasksApp = {
         this._bindEvents();
         await this._loadTasks();
         await this._loadProgress();
+
+        // 深連結：/learning-tasks/{id} 或 ?task_id={id} → 自動展開
+        const deepLinkId = this._readDeepLinkTaskId();
+        if (deepLinkId) {
+            await this._expandTaskById(deepLinkId);
+        }
+    },
+
+    _readDeepLinkTaskId() {
+        // 從 URL 路徑讀：/learning-tasks/123
+        const m = window.location.pathname.match(/\/learning-tasks\/(\d+)/);
+        if (m) return parseInt(m[1], 10);
+        // 退路：?task_id=123
+        const q = new URLSearchParams(window.location.search).get('task_id');
+        return q ? parseInt(q, 10) : null;
+    },
+
+    async _expandTaskById(taskId) {
+        const card = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+        if (card) {
+            this._handleTaskCardClick(card);
+            // 滾動到可視區
+            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+            return;
+        }
+        // 不在當前過濾結果裡 → 切到「全部」再試一次
+        if (this.state.currentStatus !== '') {
+            const allTab = document.querySelector('.tab[data-status=""]');
+            if (allTab) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                allTab.classList.add('active');
+                this.state.currentStatus = '';
+                await this._loadTasks('');
+                const retry = document.querySelector(`.task-card[data-task-id="${taskId}"]`);
+                if (retry) {
+                    this._handleTaskCardClick(retry);
+                    setTimeout(() => retry.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                }
+            }
+        }
     },
 
     _bindEvents() {

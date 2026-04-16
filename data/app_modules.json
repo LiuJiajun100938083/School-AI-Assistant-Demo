@@ -94,7 +94,7 @@
     "name": "學習任務",
     "icon": "✅",
     "description": "查看及完成學習任務",
-    "url": "/static/learning_tasks.html",
+    "url": "/learning-tasks",
     "roles": [
       "student",
       "teacher",
@@ -196,8 +196,9 @@
     "name": "任務管理",
     "icon": "📋",
     "description": "創建和管理學習任務",
-    "url": "/static/learning_task_admin.html",
+    "url": "/learning-task-admin",
     "roles": [
+      "teacher",
       "admin"
     ],
     "enabled": true,

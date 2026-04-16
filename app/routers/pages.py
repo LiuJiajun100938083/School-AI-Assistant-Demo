@@ -265,6 +265,24 @@ async def admin_dashboard():
     return _serve_page("admin_dashboard.html")
 
 
+@router.get("/learning-tasks")
+async def learning_tasks_page():
+    """學習任務列表（深連結友好）"""
+    return _serve_page("learning_tasks.html")
+
+
+@router.get("/learning-tasks/{task_id}")
+async def learning_tasks_detail(task_id: int):
+    """學習任務詳情 — 前端從 URL 讀 task_id 自動展開"""
+    return _serve_page("learning_tasks.html")
+
+
+@router.get("/learning-task-admin")
+async def learning_task_admin_page():
+    """學習任務管理後台（教師 / 管理員）"""
+    return _serve_page("learning_task_admin.html")
+
+
 @router.get("/analytics")
 async def analytics_dashboard():
     """分析仪表板"""

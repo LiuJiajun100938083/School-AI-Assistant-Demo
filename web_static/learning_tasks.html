@@ -7,6 +7,16 @@
     <link rel="stylesheet" href="/static/css/learning_tasks.css?v=20260414">
 </head>
 <body>
+<!-- 未登入 → 跳登入頁，登入後自動返回本連結 -->
+<script>
+    (function () {
+        var hasAuth = localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('refresh_token');
+        if (!hasAuth) {
+            var returnTo = window.location.pathname + window.location.search + window.location.hash;
+            window.location.replace('/login?redirect=' + encodeURIComponent(returnTo));
+        }
+    })();
+</script>
     <!-- Header -->
     <div class="header">
         <div class="header-left">

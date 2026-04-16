@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from pydantic import BaseModel, Field
 
-from app.core.dependencies import get_current_user, require_admin
+from app.core.dependencies import get_current_user, require_teacher_or_admin
 from app.core.responses import error_response, paginated_response, success_response
 from app.services.container import get_services
 
@@ -106,7 +106,7 @@ class PublishTaskRequest(BaseModel):
 @router.post("/api/admin/learning-tasks")
 async def create_task(
     request: CreateTaskRequest,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """創建學習任務 (草稿)"""
     admin_username, _ = admin_info
@@ -133,7 +133,7 @@ async def create_task(
 async def update_task(
     task_id: int,
     request: UpdateTaskRequest,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """更新草稿任務"""
     admin_username, _ = admin_info
@@ -154,7 +154,7 @@ async def update_task(
 @router.delete("/api/admin/learning-tasks/{task_id}")
 async def archive_task(
     task_id: int,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """歸檔任務 (軟刪除)"""
     admin_username, _ = admin_info
@@ -171,7 +171,7 @@ async def archive_task(
 async def publish_task(
     task_id: int,
     request: PublishTaskRequest,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """發布任務到目標受眾"""
     admin_username, _ = admin_info
@@ -198,7 +198,7 @@ async def list_admin_tasks(
     status: str = Query("", description="按狀態過濾: draft, published, archived"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """列出管理員的任務"""
     service = get_services().learning_task
@@ -218,7 +218,7 @@ async def list_admin_tasks(
 @router.post("/api/admin/learning-tasks/upload")
 async def upload_task_file(
     file: UploadFile = File(...),
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """上傳學習任務附件（文檔/影片/圖片等），返回可直接填入 link_url 的 URL"""
     mime = file.content_type or ""
@@ -273,7 +273,7 @@ async def upload_task_file(
 
 @router.get("/api/admin/learning-tasks/targets")
 async def get_targets(
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """獲取可選的發布目標 (班級、教師、學生列表)"""
     service = get_services().learning_task
@@ -285,7 +285,7 @@ async def get_targets(
 @router.get("/api/admin/learning-tasks/{task_id}")
 async def get_admin_task_detail(
     task_id: int,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """獲取任務詳情 (管理員視角)"""
     service = get_services().learning_task
@@ -299,7 +299,7 @@ async def get_admin_task_detail(
 @router.get("/api/admin/learning-tasks/{task_id}/stats")
 async def get_task_stats(
     task_id: int,
-    admin_info: Tuple[str, str] = Depends(require_admin),
+    admin_info: Tuple[str, str] = Depends(require_teacher_or_admin),
 ):
     """獲取任務完成統計"""
     service = get_services().learning_task

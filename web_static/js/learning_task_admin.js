@@ -202,6 +202,7 @@ const TaskAdminUI = {
                         ${task.status === 'draft' ? `<button class="btn-secondary btn-small" data-action="edit" data-task-id="${task.id}">${i18n.t('lta.btnEdit')}</button>` : ''}
                         <button class="btn-secondary btn-small" data-action="publish" data-task-id="${task.id}">${i18n.t('lta.btnPublish')}</button>
                         <button class="btn-secondary btn-small" data-action="stats" data-task-id="${task.id}">${i18n.t('lta.btnStats')}</button>
+                        ${task.status === 'published' ? `<button class="btn-secondary btn-small" data-action="copy-link" data-task-id="${task.id}">${i18n.t('lta.btnCopyLink')}</button>` : ''}
                         <button class="btn-danger btn-small" data-action="archive" data-task-id="${task.id}">${i18n.t('lta.btnArchive')}</button>
                     </div>
                 </div>
@@ -362,6 +363,7 @@ const TaskAdminApp = {
                 case 'publish': this._switchToPublish(taskId); break;
                 case 'stats': this._switchToStats(taskId); break;
                 case 'archive': this._archiveTask(taskId); break;
+                case 'copy-link': this._copyShareLink(taskId); break;
             }
         });
 
@@ -604,6 +606,30 @@ const TaskAdminApp = {
             }
         };
         this._openConfirmModal(i18n.t('lta.toastArchiveConfirm'));
+    },
+
+    async _copyShareLink(taskId) {
+        const url = `${window.location.origin}/learning-tasks/${taskId}`;
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                // 退路：不支援 Clipboard API 時用臨時 textarea
+                const ta = document.createElement('textarea');
+                ta.value = url;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+            UIModule.toast(i18n.t('lta.toastLinkCopied') + ' ' + url, 'success');
+        } catch (err) {
+            console.error('[copy link]', err);
+            // 最終退路：prompt 讓用戶手動複製
+            window.prompt(i18n.t('lta.toastLinkFallback'), url);
+        }
     },
 
     /* ---------- Publish Tab ---------- */
