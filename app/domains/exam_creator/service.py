@@ -121,6 +121,40 @@ class ExamCreatorService:
         self._sessions = session_repo
         self._knowledge = knowledge_repo
         self._vision = vision_service
+        # RAG 檢索函數（由 container.inject_ai_functions 注入）
+        # 簽名：(question: str, subject: str) -> str
+        self._rag_func: Optional[Any] = None
+
+    def set_rag_function(self, rag_func) -> None:
+        """注入知識庫檢索函數，供出題/重生題/相似題使用。"""
+        self._rag_func = rag_func
+
+    async def _fetch_rag_context(
+        self, query: str, subject: str, max_chars: int = 2000,
+    ) -> str:
+        """
+        安全地調用 RAG 檢索（同步函數放線程池），失敗返回空串。
+        """
+        if not self._rag_func or not subject:
+            return ""
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            ctx = await loop.run_in_executor(
+                None, self._rag_func, query, subject,
+            )
+            if not ctx:
+                return ""
+            # 過濾 retrieval 層返回的"知識庫暫無"占位符
+            if "暫無" in ctx and "科目的相關資料" in ctx:
+                return ""
+            # 防止 prompt 膨脹，截斷超長上下文
+            if len(ctx) > max_chars:
+                ctx = ctx[:max_chars] + "...[已截斷]"
+            return ctx
+        except Exception as e:
+            logger.warning("RAG 檢索失敗 subject=%s: %s", subject, e)
+            return ""
 
     # ================================================================
     # Step A: 啟動出題（同步，< 1s 返回）
@@ -457,6 +491,19 @@ class ExamCreatorService:
             total_marks=None,  # 單題不用總分
         )
 
+        # 附加知識庫上下文（RAG）— 基於知識點名稱檢索
+        rag_query = (
+            point.get("point_name") or point.get("point_code") or exam_context or subject
+        )
+        kb_ctx = await self._fetch_rag_context(rag_query, subject)
+        if kb_ctx:
+            prompt += (
+                "\n\n## 參考資料（知識庫檢索）\n"
+                "以下為從本校知識庫檢索的相關內容，請優先使用其中的概念、定義、"
+                "公式和案例來設計題目，確保題目貼合教學實際：\n\n"
+                f"{kb_ctx}"
+            )
+
         # 語言要求
         if language == "en":
             prompt += (
@@ -773,6 +820,18 @@ class ExamCreatorService:
             question_types=[old_q.get("question_type", "short_answer")],
         )
 
+        # 附加知識庫上下文（RAG）— 用原題文本 + 知識點做檢索 query
+        rag_query = (
+            old_q.get("question", "") or old_q.get("point_code", "") or subject
+        )
+        kb_ctx = await self._fetch_rag_context(rag_query, subject)
+        if kb_ctx:
+            prompt += (
+                "\n\n## 參考資料（知識庫檢索）\n"
+                "以下為從本校知識庫檢索的相關內容，重新生成時請參考其中的概念和案例：\n\n"
+                f"{kb_ctx}"
+            )
+
         if instruction:
             prompt += f"\n\n額外要求：{instruction}"
 
@@ -1025,6 +1084,16 @@ class ExamCreatorService:
                 subject, question_text, count, difficulty_variation,
                 figure_description=figure_description,
             )
+
+            # 1.5 附加知識庫上下文（RAG）— 用原題文本做檢索 query
+            kb_ctx = await self._fetch_rag_context(question_text, subject)
+            if kb_ctx:
+                prompt += (
+                    "\n\n## 參考資料（知識庫檢索）\n"
+                    "以下為從本校知識庫檢索的相關內容，生成相似題時請參考"
+                    "其中的概念、公式和情境設計：\n\n"
+                    f"{kb_ctx}"
+                )
 
             # 2. LLM 調用（最多重試 1 次）
             raw = None

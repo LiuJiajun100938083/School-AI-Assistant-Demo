@@ -767,6 +767,7 @@ class ServiceContainer:
         get_vector_docs=None,
         search_templates=None,
         build_document=None,
+        rag_func=None,
     ):
         """
         注入外部 AI / 文件处理依赖
@@ -776,8 +777,13 @@ class ServiceContainer:
             services.inject_ai_functions(
                 ask_ai=rag_chain.ask_ai_subject,
                 ask_ai_stream=rag_chain.ask_ai_subject_stream,
+                rag_func=get_context_from_knowledge_base,
                 ...
             )
+
+        rag_func: 知識庫檢索函數 (question: str, subject: str) -> str
+                  用於 exam_creator / exam_grader / mistake_book 結構化生成
+                  場景下主動附加知識庫上下文。
         """
         # 保存 ask_ai callable,供 dictation_grader 等延遲構造的服務使用
         if ask_ai is not None:
@@ -816,6 +822,10 @@ class ServiceContainer:
         if ask_ai:
             self.mistake_book.set_ai_function(ask_ai)
             self.mistake_book.set_vision_service(self.vision)
+        if rag_func:
+            # 錯題分析/知識點問答注入 RAG
+            if hasattr(self.mistake_book, "set_rag_function"):
+                self.mistake_book.set_rag_function(rag_func)
 
         # LearningCenterService
         if ask_ai:
@@ -832,8 +842,16 @@ class ServiceContainer:
         # ExamGraderService
         if ask_ai:
             self.exam_grader.set_ai_function(ask_ai)
+        if rag_func:
+            # 改卷短答評分 / 答案生成注入 RAG
+            self.exam_grader.set_rag_function(rag_func)
 
-        logger.info("外部依赖注入完成")
+        # ExamCreatorService
+        if rag_func and hasattr(self.exam_creator, "set_rag_function"):
+            # 出卷 / 重生題 / 相似題注入 RAG
+            self.exam_creator.set_rag_function(rag_func)
+
+        logger.info("外部依赖注入完成 (rag_func=%s)", bool(rag_func))
 
     # ================================================================== #
     #  内部方法                                                            #

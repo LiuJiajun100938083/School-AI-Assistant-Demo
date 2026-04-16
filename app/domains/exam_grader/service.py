@@ -82,6 +82,33 @@ class ExamGraderService:
     def set_rag_function(self, rag_func: Callable) -> None:
         self._rag_func = rag_func
 
+    async def _fetch_rag_context(
+        self, query: str, subject: str, max_chars: int = 2000,
+    ) -> str:
+        """
+        安全地調用 RAG 檢索（同步函數放線程池），失敗返回空串。
+
+        Demo 雲端版：RAG 走 Qwen text-embedding-v4 API，無本地模型開銷。
+        """
+        if not self._rag_func or not subject:
+            return ""
+        try:
+            ctx = await asyncio.get_event_loop().run_in_executor(
+                None, self._rag_func, query, subject,
+            )
+            if not ctx:
+                return ""
+            # 過濾 retrieval 層返回的"知識庫暫無"占位符
+            if "暫無" in ctx and "科目的相關資料" in ctx:
+                return ""
+            # 截斷超長上下文，避免 prompt 膨脹
+            if len(ctx) > max_chars:
+                ctx = ctx[:max_chars] + "...[已截斷]"
+            return ctx
+        except Exception as e:
+            logger.warning("RAG 檢索失敗 subject=%s: %s", subject, e)
+            return ""
+
     # ================================================================
     # CRUD
     # ================================================================
@@ -435,18 +462,10 @@ class ExamGraderService:
             if q.get("reference_answer") and source in ("manual", "answer_sheet"):
                 continue
 
-            # RAG 检索
-            rag_context = ""
-            if self._rag_func:
-                try:
-                    rag_context = await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        self._rag_func,
-                        q["question_text"],
-                        exam["subject"],
-                    )
-                except Exception as e:
-                    logger.warning("RAG 检索失败: %s", e)
+            # RAG 检索（使用統一輔助方法，含截斷保護）
+            rag_context = await self._fetch_rag_context(
+                q["question_text"], exam.get("subject", ""),
+            )
 
             # LLM 生成答案（通过 ai_gate，避免 Docker localhost 问题）
             prompt = strategy.build_answer_generation_prompt(
@@ -872,6 +891,17 @@ class ExamGraderService:
                     max_marks=float(q["max_marks"]),
                     grading_mode=grading_mode,
                 )
+
+                # 附加知識庫上下文（RAG）— 基於題目檢索，幫助 LLM 判斷學生答案是否符合課程標準
+                subject_code = exam.get("subject", "") if exam else ""
+                rag_ctx = await self._fetch_rag_context(q["question_text"], subject_code)
+                if rag_ctx:
+                    prompt += (
+                        "\n\n## 參考資料（知識庫檢索）\n"
+                        "以下為本校知識庫中與此題相關的內容，評分時請優先依據這些"
+                        "官方/課本概念判斷學生答案的正確性：\n\n"
+                        f"{rag_ctx}"
+                    )
 
                 try:
                     from app.infrastructure.ai_pipeline.llm_caller import call_llm_json

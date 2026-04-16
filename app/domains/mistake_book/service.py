@@ -397,6 +397,7 @@ class MistakeBookService:
         self._snapshots = MasterySnapshotRepository()
         self._vision: Optional[VisionService] = None
         self._ask_ai_raw: Optional[Callable] = None
+        self._rag_func: Optional[Callable] = None
         self._engine = AdaptiveLearningEngine()
 
     # ================================================================
@@ -415,6 +416,35 @@ class MistakeBookService:
         - 本 Service 需要異步調用並只取 answer 字符串
         """
         self._ask_ai_raw = ask_ai
+
+    def set_rag_function(self, rag_func: Callable):
+        """注入知識庫檢索函數，簽名：(query: str, subject: str) -> str"""
+        self._rag_func = rag_func
+
+    async def _fetch_rag_context(
+        self, query: str, subject: str, max_chars: int = 2000,
+    ) -> str:
+        """
+        安全地調用 RAG 檢索（同步函數放線程池），失敗返回空串。
+        Demo 雲端版：RAG 走 Qwen text-embedding-v4 API。
+        """
+        if not self._rag_func or not subject:
+            return ""
+        try:
+            ctx = await asyncio.get_event_loop().run_in_executor(
+                None, self._rag_func, query, subject,
+            )
+            if not ctx:
+                return ""
+            # 過濾 retrieval 層返回的"知識庫暫無"占位符（避免污染 prompt）
+            if "暫無" in ctx and "科目的相關資料" in ctx:
+                return ""
+            if len(ctx) > max_chars:
+                ctx = ctx[:max_chars] + "...[已截斷]"
+            return ctx
+        except Exception as e:
+            logger.warning("RAG 檢索失敗 subject=%s: %s", subject, e)
+            return ""
 
     async def _ask_ai(self, prompt: str, subject: str, task_type: str = "summary") -> str:
         """
@@ -1571,6 +1601,20 @@ class MistakeBookService:
                 student_history_context=generation_context.get("history_context", ""),
             )
             prompt += f"\n\n[seed={seed}] 請確保每次出題的數值、情境、設問方式都不同。"
+
+            # 附加知識庫上下文（RAG）— 用知識點名稱作 query
+            rag_query = " ".join(
+                p.get("point_name", "") or p.get("point_code", "")
+                for p in (points_data or [])[:3]
+            ).strip() or subject
+            kb_ctx = await self._fetch_rag_context(rag_query, subject)
+            if kb_ctx:
+                prompt += (
+                    "\n\n## 參考資料（知識庫檢索）\n"
+                    "以下為本校知識庫中與目標知識點相關的內容，請基於這些資料設計練習題：\n\n"
+                    f"{kb_ctx}"
+                )
+
             from app.infrastructure.ai_pipeline.llm_caller import call_llm_json
             raw, usage = await call_llm_json(
                 prompt, provider=provider, temperature=0.8,
@@ -2543,7 +2587,7 @@ class MistakeBookService:
         figure_description: str = "",
         student_username: str = "",
     ) -> Dict:
-        """調用 LLM 分析錯題"""
+        """調用 LLM 分析錯題（含 RAG 知識庫檢索）"""
         if not self._ask_ai_raw:
             return {"error_analysis": "AI 服務未配置", "confidence": 0}
 
@@ -2559,6 +2603,18 @@ class MistakeBookService:
             figure_description=figure_description,
             student_history_context=history_context,
         )
+
+        # 附加知識庫上下文（RAG）— 用題目文本做 query，
+        # 幫助 LLM 基於課本/教材給出更準確的分析與解答
+        kb_ctx = await self._fetch_rag_context(question, subject)
+        if kb_ctx:
+            prompt += (
+                "\n\n## 參考資料（知識庫檢索）\n"
+                "以下為本校知識庫中與此題相關的課本/教材內容，請在 "
+                "error_analysis / correct_answer / improvement_tips 等字段中"
+                "優先引用這些官方概念，使分析更貼合課程標準：\n\n"
+                f"{kb_ctx}"
+            )
 
         try:
             raw = await self._ask_ai(prompt, subject)
@@ -2997,6 +3053,7 @@ class MistakeBookService:
         調用 AI 返回純文本回答（非 JSON 格式），用於知識點問答等場景。
 
         Demo 雲端版：use_api=True 時走雲端 Qwen；否則走本地 Ollama。
+        自動附加 RAG 檢索結果（按 subject 從知識庫檢索）。
         """
         import httpx
         import re
@@ -3010,7 +3067,18 @@ class MistakeBookService:
         system_prompt = (
             "你是一位經驗豐富、耐心親切的香港中學老師。"
             "請直接回答學生的問題，用繁體中文，語氣溫暖鼓勵。不要輸出任何思考過程。"
+            "若提供知識庫參考資料，請優先依據參考資料作答；無相關資料時再根據自己的學科知識回答。"
         )
+
+        # 附加知識庫上下文（RAG）— 以學生提問為 query
+        kb_ctx = await self._fetch_rag_context(prompt, subject)
+        if kb_ctx:
+            prompt = (
+                "## 知識庫參考資料\n"
+                f"{kb_ctx}\n\n"
+                "## 學生提問\n"
+                f"{prompt}"
+            )
 
         # ==== Demo 雲端模式（LLM_USE_API=true）====
         if config and config.use_api and config.api_key:
@@ -3329,6 +3397,15 @@ class MistakeBookService:
         prompt = handler.build_practice_grading_prompt(
             question_text, student_answer, correct_answer, question_type,
         )
+
+        # 附加知識庫上下文（RAG）— 用題目做 query，幫助判斷學生答案是否符合課程標準
+        kb_ctx = await self._fetch_rag_context(question_text, subject)
+        if kb_ctx:
+            prompt += (
+                "\n\n## 參考資料（知識庫檢索）\n"
+                "以下為本校知識庫中與此題相關的內容，批改時請優先依據這些概念：\n\n"
+                f"{kb_ctx}"
+            )
 
         try:
             from llm.config import get_llm_config

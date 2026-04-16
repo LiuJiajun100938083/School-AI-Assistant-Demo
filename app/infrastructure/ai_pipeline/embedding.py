@@ -48,9 +48,9 @@ class QwenEmbeddingProvider(EmbeddingProvider):
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """批量調用，一次請求處理多個文本"""
-        from app.config.settings import get_settings
+        from llm.config import get_llm_config
 
-        cfg = get_settings().llm
+        cfg = get_llm_config()
         if not cfg.api_key:
             raise RuntimeError("LLM_API_KEY 未配置，無法調用 Embedding API")
 
@@ -97,9 +97,9 @@ class QwenLangChainEmbeddings:
 
     def _call_api(self, texts: list) -> list:
         import httpx
-        from app.config.settings import get_settings
+        from llm.config import get_llm_config
 
-        cfg = get_settings().llm
+        cfg = get_llm_config()
         if not cfg.api_key:
             raise RuntimeError("LLM_API_KEY 未配置，無法調用 Embedding API")
 
