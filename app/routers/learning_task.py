@@ -14,9 +14,11 @@
 
 import asyncio
 import logging
+import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from pydantic import BaseModel, Field
 
 from app.core.dependencies import get_current_user, require_admin
@@ -25,6 +27,32 @@ from app.services.container import get_services
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+# ================================================================
+# 檔案上傳設定
+# ================================================================
+
+_UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads" / "learning_tasks"
+_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+_MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+
+# 允許的檔案類型：文檔、影片、圖片、PDF 等
+_ALLOWED_MIME_PREFIXES = ("image/", "video/", "audio/")
+_ALLOWED_MIMES = frozenset({
+    "application/pdf",
+    "text/plain",
+    "text/csv",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/zip",
+    "application/x-zip-compressed",
+})
 
 
 # ================================================================
@@ -184,6 +212,62 @@ async def list_admin_tasks(
         total=result["total"],
         page=result["page"],
         page_size=result["page_size"],
+    )
+
+
+@router.post("/api/admin/learning-tasks/upload")
+async def upload_task_file(
+    file: UploadFile = File(...),
+    admin_info: Tuple[str, str] = Depends(require_admin),
+):
+    """上傳學習任務附件（文檔/影片/圖片等），返回可直接填入 link_url 的 URL"""
+    mime = file.content_type or ""
+
+    # 校驗類型
+    mime_allowed = mime in _ALLOWED_MIMES or any(
+        mime.startswith(prefix) for prefix in _ALLOWED_MIME_PREFIXES
+    )
+    if not mime_allowed:
+        return error_response(
+            "INVALID_FILE_TYPE",
+            f"不支援的檔案類型：{mime or '未知'}",
+            status_code=400,
+        )
+
+    # 讀取並校驗大小
+    content = await file.read()
+    size = len(content)
+    if size > _MAX_FILE_SIZE:
+        return error_response(
+            "FILE_TOO_LARGE",
+            f"檔案大小超過限制（{_MAX_FILE_SIZE // (1024*1024)} MB）",
+            status_code=400,
+        )
+    if size == 0:
+        return error_response("EMPTY_FILE", "檔案為空", status_code=400)
+
+    # 儲存
+    ext = Path(file.filename or "").suffix.lower()
+    if len(ext) > 10:  # 防超長副檔名
+        ext = ""
+    filename = f"{uuid.uuid4().hex}{ext}"
+    file_path = _UPLOAD_DIR / filename
+
+    try:
+        file_path.write_bytes(content)
+    except OSError as e:
+        logger.error("學習任務檔案寫入失敗: %s", e)
+        return error_response("UPLOAD_FAILED", "檔案寫入失敗", status_code=500)
+
+    return success_response(
+        data={
+            "url": f"/uploads/learning_tasks/{filename}",
+            "filename": filename,
+            "original_name": file.filename or filename,
+            "size": size,
+            "mime": mime,
+        },
+        message="上傳成功",
     )
 
 
