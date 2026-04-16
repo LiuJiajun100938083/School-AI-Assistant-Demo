@@ -360,28 +360,46 @@ class ExamGraderService:
         exam_questions = self._question_repo.find_by_exam(exam_id)
         matched, total, warnings = verify_questions_match(exam_questions, all_answers)
 
-        # 更新答案 — 用 (section, question_number) 复合键匹配
-        answer_map = {}
+        # 更新答案 — 按 section 隔离建立索引，防止跨部分串号
+        # 关键修复：以前的 fallback `answer_map[num] = a` 会让乙部 Q1(1)B 串到甲部 Q1，
+        # 现在改成 per-section map，只有当 answer 没有 section 标记时才允许兜底。
+        answer_map_by_section: Dict[str, Dict[str, Any]] = {}
+        unsectioned_map: Dict[str, Any] = {}
+
         for a in all_answers:
             sec = str(a.get("section", "")).strip().upper()
             num = str(a.get("question_number", "")).strip()
-            answer_map[(sec, num)] = a
-            # 也建立纯题号映射作为 fallback
-            if num not in answer_map:
-                answer_map[num] = a
+            if not num:
+                continue
+            if sec:
+                answer_map_by_section.setdefault(sec, {})[num] = a
+            else:
+                # 极少情况：LLM 没有标 section — 只用作最末兜底
+                unsectioned_map.setdefault(num, a)
 
         updates = []
         for q in exam_questions:
             q_sec = str(q.get("section", "")).strip().upper()
             q_num = str(q["question_number"]).strip()
-            # 优先精确匹配 (section, number)，其次纯题号
-            matched_a = answer_map.get((q_sec, q_num)) or answer_map.get(q_num)
+
+            # 1. 严格同 section 匹配（唯一可靠来源）
+            matched_a = answer_map_by_section.get(q_sec, {}).get(q_num)
+
+            # 2. 兜底：仅当 LLM 完全没有标 section 时才使用
+            if not matched_a:
+                matched_a = unsectioned_map.get(q_num)
+
             if matched_a:
                 updates.append({
                     "id": q["id"],
                     "reference_answer": matched_a.get("answer"),
                     "answer_source": "answer_sheet",
                 })
+            else:
+                logger.warning(
+                    "答案卷未匹配到题目: section=%s q_num=%s (exam=%d)",
+                    q_sec, q_num, exam_id,
+                )
 
         if updates:
             self._question_repo.batch_update_answers(updates)

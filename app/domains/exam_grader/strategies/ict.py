@@ -74,35 +74,48 @@ class ICTGradingStrategy(SubjectGradingStrategy):
     def build_answer_sheet_extraction_prompt(self) -> str:
         return """你是一位专业的试卷分析助手。这是一份带有红色批注/标记的 ICT 答案卷。
 
-请提取每道题的正确答案。红色标注通常包括：
-- 选择题: 红色圈出或标记的正确选项 (A/B/C/D)
-- 简答题: 红色书写的参考答案或得分要点
+## 核心任务
+提取**每一道印刷题目**的正确答案，严格按试卷分部（甲部 / 乙部）分类。
 
-请以 JSON 格式输出：
+## 试卷结构
+
+### 甲部（Section A，通常是选择题）
+- 每题有 A/B/C/D 四个选项
+- **正确答案经常出现在甲部末尾的「答案汇总表格」**，例如：
+    題號 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+    答案 | C | D | A | C | B | B | C | B | C | B
+- 如果存在这个答案汇总表格，**必须优先使用它**，并把每一列对应的字母作为该题的答案。
+- 表格中所有行的 section 都必须是 "A"。
+- 也有可能答案用红色圈在原题的选项旁 — 以表格为准。
+
+### 乙部（Section B，简答题 / 填充题）
+- 每道大题可能有子问题，如 (1)(2)(3)(4) 或 (a)(b)
+- 子问题答案通常是**单个字母**（如 A/B/C/D）或**红色手写文字**
+- 乙部子问题里的字母答案 **绝对不可以** 当成甲部的答案
+- 整道大题如果只有文字答案，把所有子问题或要点合并成一段完整文字
+
+## 输出 JSON 格式
+
 ```json
 {
   "answers": [
-    {
-      "section": "A",
-      "question_number": "1",
-      "answer": "B",
-      "question_type": "mc"
-    },
-    {
-      "section": "B",
-      "question_number": "1",
-      "answer": "参考答案的完整文本...",
-      "question_type": "short_answer"
-    }
+    {"section": "A", "question_number": "1", "answer": "C", "question_type": "mc"},
+    {"section": "A", "question_number": "2", "answer": "D", "question_type": "mc"},
+    {"section": "B", "question_number": "1", "answer": "(1)B (2)A (3)D (4)C", "question_type": "short_answer"},
+    {"section": "B", "question_number": "2", "answer": "智能空調：... 智能燈光：...", "question_type": "short_answer"}
   ]
 }
 ```
 
-注意：
-1. 选择题答案只需填写选项字母 (A/B/C/D)
-2. 简答题答案提取红色标注的完整内容
-3. 如果某题没有红色标注，answer 填 null
-4. 保持原始题号"""
+## 严格规则（违反就是错误）
+1. **section 必填**：每条 answer 都必须明确标注 "A" 或 "B"。
+2. **section 不可混淆**：甲部答案只能来自甲部（正文选项或甲部末尾汇总表），乙部答案只能来自乙部。即使题号相同（如甲部Q1、乙部Q1）也是两条独立记录。
+3. **题号连续性**：甲部 Q1-Q10 共 10 条记录，一条都不能少；乙部按试卷实际题号填（通常 1、2、3...）。
+4. **优先用答案汇总表**：如果甲部末尾有 "題號/答案" 表格，严格按列匹配，不要去看题目正文旁边的可能误标。
+5. **乙部子问题**：如果一道大题里有 (1)(2)(3)(4) 且答案是字母，把它们合并成一个 answer 字符串（如 "(1)B (2)A (3)D (4)C"），不要拆成多条独立 answer。
+6. **选择题 answer 只能是单个字母** A/B/C/D，不能是题目文本或选项文本。
+7. 如果某题没有红色标注或汇总表里没有，answer 填 null。
+8. **Section 不能跨用**：如果你看到乙部 Q1 的 (1)B，绝对不能把 "B" 当成甲部 Q1 的答案。"""
 
     def build_answer_generation_prompt(
         self,
